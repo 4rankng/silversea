@@ -2,55 +2,55 @@
   "note": "Ratchet: counts may fall, never rise. Regenerate with `pnpm design:drift --update` after a deliberate cleanup.",
   "measured": {
     "scannedFiles": 179,
-    "hexDirect": 266,
-    "hexFallback": 712,
-    "radiusOffLadder": 91,
+    "hexDirect": 196,
+    "hexFallback": 21,
+    "radiusOffLadder": 0,
     "rawShadow": 61,
     "rawZIndex": 81,
-    "untokenizedTransition": 196,
+    "untokenizedTransition": 133,
     "mediaWidthValues": 45,
     "containerWidthValues": 20
   },
   "worstFiles": [
     {
       "file": "src/pages/config/debit-note-template-editor.css",
-      "score": 169
+      "score": 101
     },
     {
       "file": "src/pages/salary-attendance/calendar.css",
-      "score": 71
-    },
-    {
-      "file": "src/pages/payables-fuel-invoices.css",
-      "score": 51
-    },
-    {
-      "file": "src/pages/portal/CustomerPortalLayout.css",
-      "score": 50
+      "score": 67
     },
     {
       "file": "src/components/billing/BillingDocumentBuilder.css",
-      "score": 48
-    },
-    {
-      "file": "src/pages/DashboardPage.css",
       "score": 46
     },
     {
-      "file": "src/pages/TruckTiresPage.css",
-      "score": 38
+      "file": "src/pages/payables-fuel-invoices.css",
+      "score": 42
     },
     {
       "file": "src/pages/salary-attendance/responsive.css",
-      "score": 35
+      "score": 33
     },
     {
-      "file": "src/pages/LoginPage.css",
-      "score": 30
+      "file": "src/pages/DashboardPage.css",
+      "score": 31
+    },
+    {
+      "file": "src/pages/TruckTiresPage.css",
+      "score": 31
     },
     {
       "file": "src/pages/ShipmentDetailPage.css",
       "score": 30
+    },
+    {
+      "file": "src/pages/SettlementPrintPage.css",
+      "score": 29
+    },
+    {
+      "file": "src/pages/FleetPage.css",
+      "score": 25
     }
   ]
 }

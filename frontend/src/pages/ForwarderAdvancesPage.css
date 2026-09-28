@@ -39,8 +39,8 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: var(--accent-soft, #E6F7EE);
-  color: var(--brand, #005a2d);
+  background: var(--accent-soft);
+  color: var(--brand);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -49,7 +49,7 @@
 }
 
 .fadv-card-trip:hover .fadv-card-trip__icon {
-  background: var(--brand, #005a2d);
+  background: var(--brand);
   color: var(--fg-on-brand);
 }
 
@@ -107,7 +107,7 @@
 }
 
 .fadv-card-trip__meta-sep {
-  color: var(--ink-3, #5F6872);
+  color: var(--ink-3);
   user-select: none;
   margin: 0 2px;
 }
@@ -119,7 +119,7 @@
   border-radius: 16px;
   padding: 20px 24px;
   margin-bottom: 16px;
-  animation: fadvFadeUp 0.2s ease-out both;
+  animation: fadvFadeUp var(--t-normal) both;
 }
 
 .fadv-form-panel__head {
@@ -170,7 +170,7 @@
   border-radius: 8px;
   border: 1px solid var(--line-2);
   background: var(--surface-2);
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .fadv-form-panel__fields input:focus-visible {
@@ -379,7 +379,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--ink-3, #8B919B);
+  color: var(--ink-3);
 }
 
 .fadv-settlement-summary__value {
@@ -388,12 +388,12 @@
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.35;
-  color: var(--ink, #0A0A0A);
+  color: var(--ink);
 }
 
 .fadv-settlement-summary__meta {
   font-size: var(--fs-xs, 12px);
-  color: var(--ink-3, #8B919B);
+  color: var(--ink-3);
 }
 
 .fadv-settlement-summary__watermark {

@@ -148,8 +148,7 @@
 .as-page .as-grid-head,
 .as-page .as-grid-row {
   display: grid;
-  grid-template-columns:
-    minmax(110px, 135px)
+  grid-template-columns: minmax(110px, 135px)
     minmax(120px, 150px)
     minmax(44px, 50px)
     minmax(100px, 130px)
@@ -197,7 +196,7 @@
    its own bottom corners to the panel radius. */
 .as-page .as-grid-row:last-child {
   border-bottom: none;
-  border-radius: 0 0 13px 13px;
+  border-radius: 0 0 14px 14px;
 }
 .as-page .as-grid-row > div {
   line-height: var(--lh-normal);
@@ -398,7 +397,7 @@
   align-items: center;
   justify-content: center;
   min-height: 36px;
-  border-radius: 7px;
+  border-radius: 8px;
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   line-height: 1.2;

@@ -137,10 +137,10 @@
   margin-top: 12px;
   height: 6px;
   background: var(--surface-3);
-  border-radius: 99px;
+  border-radius: 24px;
   display: flex; overflow: hidden;
 }
-.trip-list-page .bb-seg { height: 100%; transition: width 200ms ease; }
+.trip-list-page .bb-seg { height: 100%; transition: width var(--t-normal); }
 .trip-list-page .bb-moi  { background: var(--line-3); }
 .trip-list-page .bb-dang { background: var(--brand); }
 .trip-list-page .bb-htth { background: var(--success); }

@@ -78,7 +78,7 @@
   font-weight: 500;
 }
 a.tdp-instructions-value {
-  color: var(--brand, #005a2d);
+  color: var(--brand);
   text-decoration: none;
 }
 a.tdp-instructions-value:hover {
@@ -144,8 +144,8 @@ a.tdp-instructions-value:hover {
   font-family: var(--font-data);
   white-space: nowrap;
 }
-.tdp-adjustment-amount--pos { color: var(--success-text, #0f6d4b); }
-.tdp-adjustment-amount--neg { color: var(--danger, #E32434); }
+.tdp-adjustment-amount--pos { color: var(--success-text); }
+.tdp-adjustment-amount--neg { color: var(--danger); }
 
 /* ── Bridge the action buttons to the edit page's brass/amber palette ── */
 /* Detail page header buttons (TripHeader) — same shape as edit page buttons,
@@ -157,15 +157,15 @@ a.tdp-instructions-value:hover {
   box-shadow: none;
 }
 .tdp-header-btn:hover:not(:disabled) {
-  background: var(--bg-2, #FAFBFC);
-  border-color: var(--line-strong, #D4DAD7);
+  background: var(--bg-2);
+  border-color: var(--line-strong);
   color: var(--ink);
   box-shadow: none;
 }
 
 .tdp-header-btn--primary {
   background: var(--brass-3);
-  color: var(--ink, #0A0A0A);
+  color: var(--ink);
   border: none;
   box-shadow: none;
 }
@@ -182,12 +182,12 @@ a.tdp-instructions-value:hover {
 
 .tdp-header-btn--danger {
   background: var(--surface);
-  color: var(--danger, #E32434);
+  color: var(--danger);
   border: 1px solid var(--line);
   box-shadow: none;
 }
 .tdp-header-btn--danger:hover:not(:disabled) {
-  background: var(--danger-soft, #FFEAEC);
+  background: var(--danger-soft);
   border-color: #F3C6C6;
   box-shadow: none;
 }

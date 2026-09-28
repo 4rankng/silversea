@@ -20,7 +20,7 @@
   padding: var(--space-md, 12px);
   border-radius: var(--r, 12px);
   box-shadow: var(--sh-lg);
-  background: var(--surface, #fff);
+  background: var(--surface);
   min-width: 280px;
   max-width: 420px;
   pointer-events: auto;

@@ -70,7 +70,7 @@
   vertical-align: middle;
   color: var(--ink);
   white-space: nowrap;
-  transition: background 0.12s ease;
+  transition: background var(--t-fast);
 }
 
 .expense-table tbody td.num {
@@ -258,7 +258,7 @@
   .expense-list-page .page-actions .btn {
     /* Height belongs to the shared .btn phone floor (44px, design-guidelines
        §5); this page rule shrank primary actions to 40px — removed 2026-09-26. */
-    border-radius: 13px;
+    border-radius: 14px;
     padding-inline: 18px;
     flex: 0 0 auto;
     justify-content: center;

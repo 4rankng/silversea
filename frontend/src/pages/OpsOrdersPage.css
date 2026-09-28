@@ -32,7 +32,7 @@
 .ops-orders__meta {
   margin: 0;
   font-size: var(--text-caption-size);
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
 }
 
 .ops-orders__scroll {
@@ -40,9 +40,9 @@
   min-width: 0;
   max-width: 100%;
   container-type: inline-size;
-  border: 1px solid var(--line, #e3ded5);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--bg-1, #fff);
+  background: var(--bg-1);
 }
 
 .ops-orders__table {
@@ -95,7 +95,7 @@
   border: none;
   background: transparent;
   border-radius: 8px;
-  color: var(--fg-3, #9aa1ad);
+  color: var(--fg-3);
   cursor: pointer;
 }
 
@@ -116,7 +116,7 @@
 
 .ops-orders__empty {
   text-align: center;
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
   padding: 28px 0 !important;
 }
 
@@ -124,13 +124,13 @@
   display: flex;
   justify-content: center;
   padding: 16px;
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
 }
 
 
 /* Genuinely-missing route — an explicit data label (CUS vocabulary), never a
    bare dash that reads identical to "nothing here". */
-.ops-orders__route-missing { color: var(--text-secondary, #64748b); }
+.ops-orders__route-missing { color: var(--fg-2); }
 
 @media (max-width: 640px) {
   /* Same ruling as PageHeader (components/PageHeader.css): hide the in-page

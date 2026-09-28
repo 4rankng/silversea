@@ -5,9 +5,9 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid var(--border-subtle, #eaecf0);
+  border: 1px solid var(--line);
   border-radius: var(--app-radius-md, 10px);
-  background: var(--surface-white, #fff);
+  background: var(--surface);
 }
 
 .zone-presence-panel__head {
@@ -19,12 +19,12 @@
 .zone-presence-panel__title {
   font-size: var(--text-section-size);
   font-weight: 600;
-  color: var(--text-primary, #101828);
+  color: var(--fg-1);
 }
 
 .zone-presence-panel__date {
   font-size: var(--fs-xs, 12px);
-  color: var(--text-tertiary, #667085);
+  color: var(--fg-3);
 }
 
 .zone-presence-panel__chips {
@@ -39,16 +39,16 @@
   gap: 6px;
   padding: 4px 10px;
   font-size: var(--text-data-size);
-  color: var(--text-primary, #101828);
-  background: var(--surface-white, #fff);
-  border: 1px solid var(--border-medium, #d0d5dd);
+  color: var(--fg-1);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
   border-radius: 6px;
   cursor: pointer;
-  transition: border-color 120ms ease;
+  transition: border-color var(--t-fast);
 }
 
 .zone-presence-panel__chip:hover {
-  border-color: var(--border-strong, #98a2b3);
+  border-color: var(--line-strong);
 }
 
 .zone-presence-panel__plate {
@@ -58,8 +58,8 @@
 .zone-presence-panel__tag {
   font-size: var(--fs-xs, 12px);
   font-weight: 500;
-  color: var(--text-secondary, #475467);
-  border: 1px solid var(--border-subtle, #eaecf0);
+  color: var(--fg-2);
+  border: 1px solid var(--line);
   border-radius: 6px;
   padding: 1px 8px;
   white-space: nowrap;
@@ -68,7 +68,7 @@
 .zone-presence-panel__count {
   font-size: var(--fs-xs, 12px);
   font-weight: 600;
-  color: var(--text-tertiary, #667085);
+  color: var(--fg-3);
 }
 
 /* Mobile: chips scroll horizontally instead of wrapping tall. */

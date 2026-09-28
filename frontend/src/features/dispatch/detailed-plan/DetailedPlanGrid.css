@@ -16,7 +16,7 @@
 
 .detailed-plan-header__title {
   margin: 0;
-  color: var(--color-fg-primary, var(--text-primary, #101828));
+  color: var(--color-fg-primary, var(--fg-1));
   font-size: var(--text-section-size, 16px);
   font-weight: 700;
   line-height: 1;
@@ -62,7 +62,7 @@
 }
 
 .detailed-plan-filters__label {
-  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+  color: var(--color-fg-secondary, var(--fg-2));
   font-size: var(--text-label-size);
   font-weight: 600;
 }
@@ -79,7 +79,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+  color: var(--color-fg-secondary, var(--fg-2));
   font-size: var(--text-control-compact-size);
 }
 
@@ -106,14 +106,14 @@
   display: grid;
   gap: 6px;
   padding: 0 0 8px;
-  border-bottom: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  border-bottom: 1px solid var(--border-color-secondary, var(--line));
 }
 
 .detailed-plan-filter-panel__group:last-child { padding-bottom: 0; border-bottom: 0; }
 
 .detailed-plan-filter-panel__title {
   margin: 0;
-  color: var(--color-fg-primary, var(--text-primary, #101828));
+  color: var(--color-fg-primary, var(--fg-1));
   font-size: var(--text-label-size);
   font-weight: var(--fw-semibold);
   letter-spacing: 0.02em;
@@ -164,7 +164,7 @@
   /* No card chrome to clip: keep the wrapper transparent to overflow so the
      grid's sticky thead can pin against the app-body scrollport. */
   overflow: visible;
-  border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  border-top: 1px solid var(--border-color-secondary, var(--line));
 }
 
 .detailed-plan-grid {
@@ -233,7 +233,7 @@
 }
 
 .detailed-plan-grid__sort.is-sorted {
-  color: var(--color-fg-brand-primary, var(--accent, #005a2d));
+  color: var(--color-fg-brand-primary, var(--accent));
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -243,12 +243,12 @@
 }
 
 .detailed-plan-grid__row--plated {
-  background: var(--surface, #fff);
+  background: var(--surface);
 }
 
 .detailed-plan-grid td {
   padding: 12px;
-  border-bottom: 1px solid var(--border-color, #eef2f7);
+  border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
 
@@ -281,7 +281,7 @@
      hover tint): the previous #94a3b8 fallback resolved whenever
      --text-secondary was unset and rendered times/weights/customer notes at
      2.56:1 — operational data must not read as disabled UI. */
-  color: var(--text-secondary, #64748b);
+  color: var(--fg-2);
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
 }
@@ -294,7 +294,7 @@
    voice — never bold black; 'Chưa có…'/'Chưa cập nhật' stop shouting. */
 .detailed-plan-grid__line--missing {
   font-size: var(--text-caption-size);
-  color: var(--ink-3, #98a2b3);
+  color: var(--ink-3);
   font-style: italic;
   font-weight: 400;
 }
@@ -304,7 +304,7 @@
    YAGNI ruling 26/09) — the rule applies wherever a footer exists. */
 .detailed-plan-grid__footer {
   padding-top: 8px;
-  border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  border-top: 1px solid var(--border-color-secondary, var(--line));
 }
 
 /* CHIEF 'disabled-look with no active filters': visual-only idle state —
@@ -315,8 +315,7 @@
 
 .detailed-plan-grid__documents {
   display: grid;
-  grid-template-areas:
-    "bill bill"
+  grid-template-areas: "bill bill"
     "combined direction";
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -331,7 +330,7 @@
   grid-area: combined;
   align-self: end;
   justify-self: start;
-  color: var(--text-secondary, #64748b);
+  color: var(--fg-2);
   font-size: var(--ops-table-meta-size);
   font-weight: 400;
   line-height: var(--ops-table-meta-line-height);
@@ -339,7 +338,7 @@
 }
 
 .detailed-plan-grid__line--notes {
-  color: var(--text-secondary, #64748b);
+  color: var(--fg-2);
   font-size: var(--ops-table-note-size);
   font-weight: var(--ops-table-note-weight);
   line-height: var(--ops-table-note-line-height);
@@ -376,7 +375,7 @@
 .detailed-plan-grid__note-full {
   font-size: var(--text-body-size);
   line-height: 1.55;
-  color: var(--text-primary, #101828);
+  color: var(--fg-1);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -392,8 +391,8 @@
   min-height: 24px;
   margin-top: 6px;
   padding: 0 10px;
-  color: #fff;
-  background: #4A9E7D;
+  color: var(--fg-inverse);
+  background: var(--accent);
   border: 1px solid transparent;
   border-radius: 8px;
   font-size: var(--text-caption-size);
@@ -401,7 +400,7 @@
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--t-fast);
 }
 
 .detailed-plan-grid__note-action:hover {
@@ -409,7 +408,7 @@
 }
 
 .detailed-plan-grid__note-action:active {
-  background: #2D6B54;
+  background: var(--accent-2);
 }
 
 .detailed-plan-grid__note-action:focus-visible {
@@ -475,7 +474,7 @@
 .detailed-plan-grid__empty {
   text-align: center;
   padding: 40px !important;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--fg-2);
 }
 
 /* The ≤960px and ≤767px header/ribbon bands are DELETED with the page-local
@@ -521,14 +520,14 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     overflow: hidden;
-    border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+    border: 1px solid var(--border-color-secondary, var(--line));
     border-radius: 10px;
-    background: var(--surface, #fff);
+    background: var(--surface);
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   }
 
   .detailed-plan-grid__row--plated {
-    background: var(--surface, #fff);
+    background: var(--surface);
   }
 
   /* td specificity: must out-rank the base `.detailed-plan-grid td`
@@ -546,7 +545,7 @@
   .detailed-plan-grid__cell::before {
     display: inline;
     margin: 0 6px 0 0;
-    color: var(--text-secondary, #64748b);
+    color: var(--fg-2);
     content: attr(data-label-short);
     font-size: var(--text-label-size);
     font-weight: 600;
@@ -565,7 +564,7 @@
      line scannable without giving each field its own row. */
   .detailed-plan-grid__cell .detailed-plan-grid__line + .detailed-plan-grid__line::before {
     margin-right: 10px;
-    color: var(--text-tertiary, #98a2b3);
+    color: var(--fg-3);
     content: '·';
   }
 
@@ -624,12 +623,12 @@
   .detailed-plan-grid__row td:nth-child(4) { grid-row: 3; grid-column: 2; padding-left: 10px; }
   /* (row/column of the two interactive cells: see the paired rule below) */
 
-  .detailed-plan-grid__cell--schedule { grid-column: 1; border-right: 1px solid var(--border-color, #eef2f7); border-bottom: 1px solid var(--border-color, #eef2f7); }
-  .detailed-plan-grid__cell--documents { grid-column: 2; padding-right: 92px; border-bottom: 1px solid var(--border-color, #eef2f7); }
-  .detailed-plan-grid__cell--route { grid-column: 1; border-right: 1px solid var(--border-color, #eef2f7); border-bottom: 1px solid var(--border-color, #eef2f7); }
+  .detailed-plan-grid__cell--schedule { grid-column: 1; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .detailed-plan-grid__cell--documents { grid-column: 2; padding-right: 92px; border-bottom: 1px solid var(--line); }
+  .detailed-plan-grid__cell--route { grid-column: 1; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .detailed-plan-grid__cell--ports { grid-column: 1 / -1; display: inline-block; padding: 2px 10px; border: 0; }
   .detailed-plan-grid__cell--ports + .detailed-plan-grid__cell--ports { padding-left: 0; }
-  .detailed-plan-grid__cell--container { grid-column: 2; border-bottom: 1px solid var(--border-color, #eef2f7); }
+  .detailed-plan-grid__cell--container { grid-column: 2; border-bottom: 1px solid var(--line); }
 
   /* The two interactive blocks PAIR at tablet instead of each owning a
      full-width row: at 768px a 742px row holding 30%-wide content (the
@@ -641,7 +640,7 @@
     grid-row: 4;
     grid-column: 1;
     border-top: 0;
-    border-right: 1px solid var(--border-color, #eef2f7);
+    border-right: 1px solid var(--line);
   }
 
   .detailed-plan-grid__cell--notes {
@@ -702,7 +701,7 @@
   .detailed-plan-grid__cell::before {
     display: inline;
     margin: 0 6px 0 0;
-    color: var(--text-secondary, #64748b);
+    color: var(--fg-2);
     content: attr(data-label-short);
     font-size: var(--text-label-size);
     font-weight: 600;
@@ -721,7 +720,7 @@
 
   .detailed-plan-grid__cell .detailed-plan-grid__line + .detailed-plan-grid__line::before {
     margin-right: 8px;
-    color: var(--text-tertiary, #98a2b3);
+    color: var(--fg-3);
     content: '·';
   }
 
@@ -743,18 +742,18 @@
 
   .detailed-plan-grid__row td.detailed-plan-grid__cell--schedule {
     padding-right: 76px;
-    border-bottom: 1px solid var(--border-color, #eef2f7);
+    border-bottom: 1px solid var(--line);
   }
 
   .detailed-plan-grid__cell--route {
-    border-bottom: 1px solid var(--border-color, #eef2f7);
+    border-bottom: 1px solid var(--line);
   }
 
   /* The corner pill overlaps the schedule row here — the tablet band's 92px
      reservation on this cell is dead width at phone size. */
   .detailed-plan-grid__cell--documents {
     padding-right: 10px;
-    border-right: 1px solid var(--border-color, #eef2f7);
+    border-right: 1px solid var(--line);
   }
 
   .detailed-plan-grid__documents {
@@ -763,7 +762,7 @@
 
   .detailed-plan-grid__cell--notes,
   .detailed-plan-grid__cell--editable {
-    border-top: 1px solid var(--border-color, #eef2f7);
+    border-top: 1px solid var(--line);
   }
 
   .detailed-plan-grid__row td.detailed-plan-grid__cell--classification {
@@ -788,12 +787,12 @@
   font-family: inherit;
   font-size: var(--ops-table-supporting-size);
   font-weight: 400;
-  color: var(--text-secondary, #475567);
+  color: var(--fg-2);
   line-height: var(--ops-table-supporting-line-height);
 }
 
 .detailed-plan-grid__classification--unclassified {
-  color: var(--text-tertiary, #667085);
+  color: var(--fg-3);
 }
 
 /* Pair tag (LoHangKepKetHop §3.2): derived from the ACTIVE trip pair — plain
@@ -801,7 +800,7 @@
 .detailed-plan-grid__pair-tag {
   margin-left: 6px;
   font-weight: 700;
-  color: var(--brand, #17594a);
+  color: var(--brand);
   white-space: nowrap;
 }
 

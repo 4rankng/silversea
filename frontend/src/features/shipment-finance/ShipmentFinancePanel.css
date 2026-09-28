@@ -1,5 +1,5 @@
 .shipment-finance, .shipment-finance__form { --control-mobile-h: var(--control-touch-h); }
-.shipment-finance { min-width: 0; padding: 12px; background: var(--surface, #fff); }
+.shipment-finance { min-width: 0; padding: 12px; background: var(--surface); }
 .shipment-finance__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .shipment-finance__header h3 { margin: 0; font-size: var(--text-body-size, 14px); }
 .shipment-finance__tabs { margin: 8px 0; }
@@ -20,7 +20,7 @@
 .shipment-finance__pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 12px; }
 .shipment-finance__form { display: grid; gap: 12px; }
 .shipment-finance__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.shipment-finance__error { color: var(--danger, #b42318); }
+.shipment-finance__error { color: var(--danger); }
 @media (max-width: 600px) {
   .shipment-finance { padding: 8px; }
   .shipment-finance__row { grid-template-columns: minmax(0, 1fr); gap: 10px; }

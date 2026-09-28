@@ -327,7 +327,7 @@
   padding: 12px 14px 12px 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   overflow: hidden;
 }
 
@@ -358,7 +358,7 @@
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #fff;
+  background: var(--surface);
 }
 
 .debit-template-card__main {
@@ -402,7 +402,7 @@
   height: 4px;
   margin: 0 8px 2px 0;
   border-radius: 999px;
-  background: var(--line-strong, #cfd8d3);
+  background: var(--line-strong);
 }
 
 .debit-template-card__actions {
@@ -664,7 +664,7 @@
     display: table-row;
     border: 0;
     border-radius: 0;
-    /* Outranks the shared tr:hover wash and tr.is-selected edge for the
+    /* Outranks the shared tr: hover wash and tr.is-selected edge for the
        window — both re-armed below (hover) or must be re-armed here first
        if selection ever lands on these tables. */
     background: transparent;
@@ -755,7 +755,7 @@
   background: #cbd5e1;
   cursor: inherit;
   padding: 0;
-  transition: background 0.2s ease;
+  transition: background var(--t-normal);
   flex-shrink: 0;
 }
 .cfg-toggle.is-on {
@@ -768,9 +768,9 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid rgba(16, 24, 20, 0.18);
-  transition: transform 0.2s ease;
+  transition: transform var(--t-normal);
 }
 .cfg-toggle.is-on .cfg-toggle-knob {
   transform: translateX(20px);

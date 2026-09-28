@@ -71,9 +71,9 @@
   display: grid;
   place-items: center;
 }
-.confirm-icon--danger { background: var(--danger-soft, #FFEAEC); }
-.confirm-icon--warning { background: var(--warning-soft, #FFF4E0); }
-.confirm-icon--primary { background: var(--accent-soft, #E6F7EE); }
+.confirm-icon--danger { background: var(--danger-soft); }
+.confirm-icon--warning { background: var(--warning-soft); }
+.confirm-icon--primary { background: var(--accent-soft); }
 .confirm-message {
   margin: 0;
   font-size: var(--text-body-size);

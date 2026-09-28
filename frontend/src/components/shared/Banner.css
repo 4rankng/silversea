@@ -125,8 +125,7 @@
 @media (max-width: 640px) {
   .nepo-banner__inner {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "content close"
+    grid-template-areas: "content close"
       "action action";
     align-items: start;
     padding: 10px 12px;

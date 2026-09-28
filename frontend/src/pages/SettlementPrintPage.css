@@ -238,7 +238,7 @@
 }
 
 .settlement-detail__summary-value--negative {
-  color: var(--danger, #dc2626);
+  color: var(--danger);
 }
 
 /* ─── Note ─── */

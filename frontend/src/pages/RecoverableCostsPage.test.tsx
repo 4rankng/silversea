@@ -213,10 +213,15 @@ describe('RecoverableCostsPage', () => {
     // The global tbody td rule (components/Table.css) sets white-space: nowrap;
     // the ledger must reset it so narrow columns wrap instead of clipping content.
     const ledgerStyles = readFileSync(resolve(process.cwd(), 'src/features/recoverable-costs/RecoverableCostsWorkspace.css'), 'utf8');
-    expect(ledgerStyles).toMatch(/__ledger th,\.recoverable-costs__ledger td\{[^}]*white-space:normal/);
-    expect(ledgerStyles).toMatch(/__evidence span\{overflow-wrap:anywhere;min-width:0\}/);
+    // Whitespace-tolerant on purpose: these assert the CONTRACT (ledger cells
+    // wrap, evidence spans wrap, money cells do not), not the byte layout of
+    // the stylesheet. Pinning `overflow-wrap:anywhere` with no space broke on a
+    // harmless reformat to `overflow-wrap: anywhere` while the rule itself was
+    // still present and correct (card 20260928_153).
+    expect(ledgerStyles).toMatch(/__ledger th,\.recoverable-costs__ledger td\s*\{[^}]*white-space:\s*normal/);
+    expect(ledgerStyles).toMatch(/__evidence span\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*min-width:\s*0[^}]*\}/);
     // Money cells stay nowrap — VND figures must not wrap.
-    expect(ledgerStyles).toMatch(/__ledger td\.num,\.recoverable-costs__ledger td \.recoverable-costs__money\{white-space:nowrap\}/);
+    expect(ledgerStyles).toMatch(/__ledger td\.num,\.recoverable-costs__ledger td \.recoverable-costs__money\s*\{[^}]*white-space:\s*nowrap[^}]*\}/);
   });
 
   // 15s budget (default 5s): five sequential async waits + double 25-row

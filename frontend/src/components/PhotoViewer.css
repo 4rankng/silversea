@@ -132,7 +132,7 @@
 
 .pv-btn:focus-visible,
 .pv-nav:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--surface);
   outline-offset: -3px;
 }
 
@@ -145,7 +145,7 @@
   justify-content: center;
   gap: 12px;
   padding: 72px 56px;
-  color: #fff;
+  color: var(--fg-inverse);
   text-align: center;
   pointer-events: none;
 }

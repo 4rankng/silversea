@@ -113,10 +113,10 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--t-fast);
 }
 .tc-card.is-collapsible .tc-card-head-btn:hover {
-  background: var(--bg-2, #F7F5F1);
+  background: var(--bg-2);
 }
 .tc-card.is-collapsible .tc-card-head-btn:focus-visible {
   outline: 2px solid var(--accent);
@@ -125,7 +125,7 @@
 .tc-card.is-collapsed .tc-card-head { border-bottom: none; }
 .tc-card-chev {
   color: var(--fg-3);
-  transition: transform 200ms ease, color 120ms ease;
+  transition: transform var(--t-normal), color var(--t-fast);
   flex-shrink: 0;
 }
 .tc-card-chev.is-open { transform: rotate(180deg); color: var(--fg-2); }

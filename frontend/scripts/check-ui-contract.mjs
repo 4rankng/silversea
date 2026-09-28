@@ -12,7 +12,6 @@ const sharedColorFiles = [
   'components/Table.css',
   'components/Toolbar.css',
   'components/FilterBar.css',
-  'components/FwdFilterChips.css',
   'components/Pill.css',
   'components/PageHeader.css',
 ];

@@ -19,7 +19,7 @@
 .tc-fuel-mode label {
   cursor: pointer;
   padding: 10px 12px;
-  border-radius: 7px;
+  border-radius: 8px;
   text-align: center;
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);

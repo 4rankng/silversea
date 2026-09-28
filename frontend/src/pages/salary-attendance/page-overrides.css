@@ -164,7 +164,7 @@
 }
 
 .salary-attendance__salary-loading-spinner {
-  color: var(--fg-inverse, #fff);
+  color: var(--fg-inverse);
 }
 
 /* ── Confirm section wrapper ──────────────────────────────────────────── */
@@ -204,7 +204,7 @@
   text-align: center;
   padding: 24px;
   font-size: var(--text-data-size);
-  color: color-mix(in srgb, var(--fg-inverse, #fff) 60%, transparent);
+  color: color-mix(in srgb, var(--fg-inverse) 60%, transparent);
 }
 
 /* ── Lock notice bar ──────────────────────────────────────────────────── */

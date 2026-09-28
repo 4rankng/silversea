@@ -202,7 +202,7 @@
   /* ── TripListPage: breakdown bar fix ── */
   .trip-list-page .breakdown-bar {
     height: 6px;
-    border-radius: 99px;
+    border-radius: 24px;
   }
   .trip-list-page .breakdown-legend {
     gap: 4px 8px;

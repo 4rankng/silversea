@@ -148,7 +148,7 @@
   background-position: center;
   background-repeat: no-repeat;
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition: background-color var(--t-fast), border-color var(--t-fast);
 }
 
 .supplier-form__service-option:hover input {
@@ -174,7 +174,7 @@
   min-width: 0;
   overflow: visible;
   border: 0;
-  border-top: 1px solid var(--border-color-secondary, var(--line, #e2e8f0));
+  border-top: 1px solid var(--border-color-secondary, var(--line));
   border-radius: 0;
   background: transparent;
 }
@@ -224,7 +224,7 @@
   position: static;
   margin: 0;
   padding: 12px 0 0;
-  border-top: 1px solid var(--border-color-secondary, var(--line, #e2e8f0));
+  border-top: 1px solid var(--border-color-secondary, var(--line));
 }
 
 @media (max-width: 767px) {

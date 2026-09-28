@@ -305,11 +305,11 @@
   justify-content: center;
   gap: 10px;
   padding: 56px 24px;
-  color: var(--ink-3, #5e6b76);
+  color: var(--ink-3);
   font-size: var(--fs-sm);
 }
 .debt-loading__spin {
-  color: var(--accent, #00b14f);
+  color: var(--accent);
   animation: debt-loading-spin 0.9s linear infinite;
 }
 @keyframes debt-loading-spin {

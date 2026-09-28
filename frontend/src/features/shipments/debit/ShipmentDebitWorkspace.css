@@ -286,9 +286,9 @@
 /* The lock is the terminal action — solid dark, not a pill. */
 .csc-debit-actions > button.csc-debit-actions__lock {
   padding: 8px 16px;
-  border-color: var(--ink-1, #111827);
-  background: var(--ink-1, #111827);
-  color: var(--surface-1, #ffffff);
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
   font-weight: 600;
 }
 

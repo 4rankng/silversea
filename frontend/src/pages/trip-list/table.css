@@ -71,7 +71,7 @@
   overscroll-behavior-x: contain;
 }
 .trip-list-page .table-scroll-body::-webkit-scrollbar { width: 0; height: 6px; }
-.trip-list-page .table-scroll-body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+.trip-list-page .table-scroll-body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
 .trip-list-page .table-scroll-body::-webkit-scrollbar-thumb:hover { background: var(--line-3); }
 .trip-list-page .table-scroll-body::-webkit-scrollbar-track { background: transparent; }
 /* Grid: trip | truck | route+km | container | tiêu hao | tiền đường | doanh thu | tổng CP | LN gộp | status */
@@ -176,11 +176,11 @@
 .trip-list-page .cb {
   width: 18px; height: 18px;
   border: 1.6px solid var(--tbl-line-strong);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--surface);
   cursor: pointer;
   display: grid; place-items: center;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition: border-color var(--t-fast), background var(--t-fast);
 }
 .trip-list-page .cb:hover { border-color: var(--tbl-green-600); }
 .trip-list-page .cb.checked { background: var(--ink); border-color: var(--ink); }
@@ -216,7 +216,7 @@
   max-width: 100%;
   padding: 6px 10px;
   border: 1px solid color-mix(in srgb, var(--tbl-green-600) 22%, var(--line));
-  border-radius: 7px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--tbl-green-050) 70%, var(--surface));
   color: var(--tbl-green-700);
   font-size: var(--fs-xs);
@@ -225,7 +225,7 @@
   letter-spacing: 0;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), opacity var(--t-fast), transform var(--t-fast);
 }
 /* Overlay on hover instead of reserving its own row — the button sits on
    top of the trip code/date line (left edge of the cell) rather than
@@ -512,9 +512,9 @@
   font-size: var(--fs-xs);
   font-weight: 700;
   font-style: normal;
-  color: var(--warning-text, #92400e);
-  background: var(--warning-soft, #fef3c7);
-  border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 22%, transparent);
+  color: var(--warning-text);
+  background: var(--warning-soft);
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
   border-radius: 4px;
   padding: 1px 6px;
   white-space: nowrap;
@@ -689,7 +689,7 @@
   border: 1px solid var(--line);
   color: var(--ink-3);
   cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
 }
 .trip-list-page .action-btn:hover {
   border-color: var(--tbl-green-600);

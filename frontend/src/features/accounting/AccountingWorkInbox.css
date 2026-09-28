@@ -10,7 +10,7 @@
 .accounting-work-inbox__shortcuts a,
 .accounting-work-inbox__action,
 .accounting-work-inbox__state button,
-.accounting-work-inbox__pagination button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-compact-h, 34px); padding: 0 11px; border: 1px solid var(--border-2); border-radius: 7px; background: var(--bg-1); color: var(--fg-1); font-size: var(--text-caption-size); font-weight: 700; text-decoration: none; }
+.accounting-work-inbox__pagination button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-compact-h, 34px); padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-1); color: var(--fg-1); font-size: var(--text-caption-size); font-weight: 700; text-decoration: none; }
 .accounting-work-inbox__shortcuts a:first-child,
 .accounting-work-inbox__action { border-color: var(--brand); color: var(--brand); }
 .accounting-work-inbox__batch-note { margin: -3px 0 2px; color: var(--fg-3); font-size: var(--text-caption-size); }
@@ -19,8 +19,8 @@
 .accounting-work-inbox__lane > header h2 { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); }
 .accounting-work-inbox__lane > header h2 span { display: inline-flex; min-width: 20px; justify-content: center; margin-left: 4px; border-radius: 6px; background: var(--bg-3); padding: 2px 6px; font-size: var(--text-caption-size); }
 .accounting-work-inbox__lane > header p { margin: 3px 0 0; color: var(--fg-3); font-size: var(--text-caption-size); }
-.accounting-work-inbox__lane > header button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--border-2); border-radius: 7px; background: var(--bg-1); color: var(--fg-2); }
-.accounting-work-inbox__notice { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-bottom: 1px solid var(--border-1); color: var(--warning-text, #785000); font-size: var(--text-caption-size); }
+.accounting-work-inbox__lane > header button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-1); color: var(--fg-2); }
+.accounting-work-inbox__notice { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-bottom: 1px solid var(--border-1); color: var(--warning-text); font-size: var(--text-caption-size); }
 
 /* Cell content — the record-table base owns the grid, this styles payloads. */
 .accounting-work-inbox td > strong { display: block; color: var(--fg-1); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); }

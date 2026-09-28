@@ -662,7 +662,7 @@ describe('MasterPlanFilters', () => {
     // surface and no layout for it (card 20260927_152).
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).not.toContain('.master-plan-filters__date-action');
-    expect(css).not.toMatch(/^\.master-plan-filters__date-range\s*[\{>]/m);
+    expect(css).not.toMatch(/^\.master-plan-filters__date-range\s*[{>]/m);
   });
 
   it('leaves the strip to the shared bar instead of nesting it in a page-local surface', () => {
@@ -682,7 +682,7 @@ describe('MasterPlanFilters', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).not.toMatch(/^\.master-plan-filters\s*\{/m);
     expect(css).not.toMatch(
-      /^\.master-plan-filters__(search|actions|count|field|select|direction|allocation|advanced-fields|advanced-trigger|drawer|facet-trigger|facet-picker)\s*[\{>]/m,
+      /^\.master-plan-filters__(search|actions|count|field|select|direction|allocation|advanced-fields|advanced-trigger|drawer|facet-trigger|facet-picker)\s*[{>]/m,
     );
   });
 

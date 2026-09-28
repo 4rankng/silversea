@@ -96,7 +96,7 @@
 /* Missing price (ruling 2): plain italic text names the missing data —
    never a fallback value, never a pill. */
 .quotation-grid td.is-missing {
-  color: var(--warning-text, #92400e);
+  color: var(--warning-text);
   font-style: italic;
 }
 

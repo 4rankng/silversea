@@ -10,7 +10,7 @@
  * full (measured 2026-09-27 at 1187/1402 on /shipments, /shipments-detail and
  * /accounting/invoice-tracking), which is the ragged tail the operator rejected.
  * Flex packs every line to its own content, so no line has a hole; the actions
- * pin right through the spacer's `margin-left:auto`.
+ * pin right through the spacer's `margin-left: auto`.
  *
  * Contract (card 20260927_152, self-verified at 390/768/1024/1187/1402):
  *   - one wrapping row at every width; a control keeps its intrinsic width, and
@@ -24,7 +24,7 @@
  *   - one control height per context via --filter-control-h (card 20260920_19)
  *     with the coarse-pointer touch floor.
  *
- * NEPOCORP reference consulted before coding (file:line):
+ * NEPOCORP reference consulted before coding (file: line):
  *   - nepocorp frontend/src/components/shared/ListFilterBar.css:55 — the
  *     content-sized `flex: 0 1 280px` discipline, kept here as width floors.
  *

@@ -24,7 +24,7 @@
 .shipment-debit-header__title {
   margin: 0;
   margin-right: auto;
-  color: var(--color-fg-primary, var(--text-primary, #101828));
+  color: var(--color-fg-primary, var(--fg-1));
   font-size: var(--text-section-size, 16px);
   font-weight: 700;
   line-height: 1;
@@ -111,7 +111,7 @@
 .shipment-debit-shadow-line {
   margin: 0;
   padding: 6px 2px;
-  color: var(--danger, #b91c1c);
+  color: var(--danger);
   font-weight: 600;
   white-space: normal;
   overflow-wrap: break-word;
@@ -188,7 +188,7 @@
 }
 
 .shipment-debit-row[data-locked] {
-  background: color-mix(in srgb, var(--brand-primary, #2563eb) 6%, transparent);
+  background: color-mix(in srgb, var(--brand) 6%, transparent);
 }
 
 .shipment-debit-row__expand-button {

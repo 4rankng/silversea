@@ -88,7 +88,7 @@
 
 /* ── Default rule card ── */
 .sp-default-card {
-  background: var(--surface, #fff);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
   overflow: hidden;
@@ -233,7 +233,7 @@
   font-size: var(--text-data-size);
   font-weight: var(--fw-semibold);
   color: var(--accent);
-  animation: spFadeIn 200ms ease both;
+  animation: spFadeIn var(--t-normal) both;
 }
 
 @keyframes spFadeIn {

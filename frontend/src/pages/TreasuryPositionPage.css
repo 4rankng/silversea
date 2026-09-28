@@ -156,5 +156,5 @@
 /* Card 20260926_42: the coverage status and the as-of timestamp are two
    distinct facts — the middot makes the boundary unmissable at any gap. */
 .treasury-notice__sep {
-  color: var(--ink-3, #8a948e);
+  color: var(--ink-3);
 }

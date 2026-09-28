@@ -190,7 +190,7 @@
   font-size: var(--text-caption-size);
   cursor: pointer;
   text-align: center;
-  transition: border-color 120ms ease, color 120ms ease;
+  transition: border-color var(--t-fast), color var(--t-fast);
 }
 .ancillary-fees__add-row:hover td {
   border-color: var(--accent);
@@ -393,7 +393,7 @@
   font-size: var(--text-data-size);
   font-weight: 500;
   cursor: pointer;
-  transition: border-color 0.12s ease, color 0.12s ease;
+  transition: border-color var(--t-fast), color var(--t-fast);
 }
 .ancillary-fees__mobile-add:hover,
 .ancillary-fees__mobile-add:active {
@@ -515,7 +515,7 @@ tbody tr:last-child td { border-bottom: none; }
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.tt-table tbody tr { cursor: pointer; transition: background 0.2s ease; }
+.tt-table tbody tr { cursor: pointer; transition: background var(--t-normal); }
 .tt-table tbody tr:hover { background: color-mix(in srgb, var(--fg-1) 2.5%, var(--surface)); }
 .tt-table tbody tr:last-child td { border-bottom: none; }
 .tt-table td.num {

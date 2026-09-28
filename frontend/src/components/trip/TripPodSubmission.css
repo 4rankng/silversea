@@ -58,7 +58,7 @@
 
 .trip-pod__status--accepted {
   background: rgba(22, 163, 74, 0.12);
-  color: var(--ok, #166534);
+  color: var(--ok);
 }
 
 .trip-pod__status--rejected {
@@ -174,7 +174,7 @@
 
 .trip-pod__state-ok {
   background: rgba(22, 163, 74, 0.1);
-  color: var(--ok, #166534);
+  color: var(--ok);
 }
 
 .trip-pod__state-missing {
@@ -217,7 +217,7 @@
 
 .trip-pod__action {
   background: var(--accent);
-  color: #fff;
+  color: var(--fg-inverse);
 }
 
 .trip-pod__action--secondary {
@@ -314,7 +314,7 @@
  * button unlocks — both required photos uploaded. */
 .trip-pod__progress {
   height: 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--surface-3, rgba(0, 0, 0, 0.08));
   overflow: hidden;
   margin-top: 2px;
@@ -322,19 +322,19 @@
 
 .trip-pod__progress-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--ink-3);
-  transition: width 0.25s ease;
+  transition: width var(--t-slow);
 }
 
 .trip-pod__progress-fill.is-complete {
-  background: var(--brand, #005a2d);
+  background: var(--brand);
 }
 
 .trip-pod__submit {
   width: 100%;
   background: var(--accent);
-  color: #fff;
+  color: var(--fg-inverse);
 }
 
 .trip-pod__history {

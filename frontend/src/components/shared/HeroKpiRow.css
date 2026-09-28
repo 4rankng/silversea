@@ -118,7 +118,7 @@
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: var(--r-lg, 14px);
   padding: 14px 16px;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background var(--t-normal), border-color var(--t-normal);
 }
 .hero-kpi-mini--accent { --stat-rail: var(--accent); }
 .hero-kpi-mini--danger { --stat-rail: var(--danger); }
@@ -166,7 +166,7 @@
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.35;
-  color: var(--ink, #0A0A0A);
+  color: var(--ink);
 }
 
 .hero-kpi-mini__value > span {
@@ -176,7 +176,7 @@
 .hero-kpi-mini__label {
   font-size: var(--text-label-size);
   font-weight: 500;
-  color: var(--ink-3, #8B919B);
+  color: var(--ink-3);
   margin-top: 2px;
 }
 

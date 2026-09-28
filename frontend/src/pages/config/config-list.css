@@ -31,7 +31,7 @@
   font-weight: var(--fw-bold);
   font-size: var(--text-caption-size);
   letter-spacing: 0.06em;
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 3px 0;
 }
 .cfg-row__code--empty { background: transparent; }
@@ -83,7 +83,7 @@
 
 /* ── Panel wrapper for cfg-row lists (container-types, ports) ── */
 .cfg-list-panel {
-  background: var(--surface, #fff);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
   overflow: hidden;

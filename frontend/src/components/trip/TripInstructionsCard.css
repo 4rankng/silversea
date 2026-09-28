@@ -24,7 +24,7 @@
 .ti-label {
   font-size: var(--text-label-size);
   font-weight: 600;
-  color: var(--fg-2, #444);
+  color: var(--fg-2);
 }
 
 .ti-textarea {
@@ -34,7 +34,7 @@
 
 .ti-hint {
   font-size: var(--text-caption-size);
-  color: var(--fg-3, #888);
+  color: var(--fg-3);
 }
 
 @media (max-width: 560px) {
@@ -54,14 +54,14 @@
 .ti-reminders__label {
   font-size: var(--text-caption-size);
   font-weight: 600;
-  color: var(--fg-3, #888);
+  color: var(--fg-3);
   margin-right: 2px;
 }
 
 .ti-chip {
   font-size: var(--text-control-size);
   font-weight: 500;
-  color: var(--accent-ink, #065f46);
+  color: var(--accent-ink);
   background: var(--accent-soft, rgba(0, 177, 79, 0.08));
   border: 1px solid var(--accent, rgba(0, 177, 79, 0.25));
   border-radius: 6px;

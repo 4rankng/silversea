@@ -58,8 +58,8 @@
 }
 
 .invoice-tracking-kpi .ivt-money--flat { color: var(--ink-3); font-weight: 600; }
-.invoice-tracking-kpi .ivt-money--over { color: var(--warning, #A45D1C); font-weight: 700; }
-.invoice-tracking-kpi .ivt-money--under { color: var(--danger, #A0444E); font-weight: 700; }
+.invoice-tracking-kpi .ivt-money--over { color: var(--warning); font-weight: 700; }
+.invoice-tracking-kpi .ivt-money--under { color: var(--danger); font-weight: 700; }
 
 .invoice-tracking-header__actions { display: flex; align-items: center; gap: 8px; }
 
@@ -76,9 +76,9 @@
 .invoice-tracking-alert {
   margin: 0;
   padding: 8px 10px;
-  border: 1px solid var(--danger, #dc2626);
+  border: 1px solid var(--danger);
   border-radius: 8px;
-  color: var(--danger, #dc2626);
+  color: var(--danger);
 }
 
 .invoice-tracking-table .ivt-stack {
@@ -156,7 +156,7 @@
 }
 
 .ivt-hint--error {
-  color: var(--danger, #dc2626);
+  color: var(--danger);
 }
 
 .invoice-tracking-form__footer {

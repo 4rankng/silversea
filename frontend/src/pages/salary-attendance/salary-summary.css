@@ -204,12 +204,12 @@
   padding: 10px 14px;
   margin-top: 14px;
   align-items: flex-start;
-  background: var(--warning-soft, #FFFBEB);
-  border: 1px solid color-mix(in srgb, var(--warning, #A45D1C) 25%, transparent);
+  background: var(--warning-soft);
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
 }
 
 .payslip-callout-icon {
-  color: var(--warning, #A45D1C);
+  color: var(--warning);
   flex-shrink: 0;
   margin-top: 1px;
   opacity: 0.9;
@@ -218,7 +218,7 @@
 .payslip-callout-text {
   font-size: var(--fs-2xs);
   line-height: 1.5;
-  color: var(--warning-text, #92400E);
+  color: var(--warning-text);
 }
 
 /* ─── Mobile back button ─── */

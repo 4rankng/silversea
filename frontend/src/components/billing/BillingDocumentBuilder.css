@@ -79,7 +79,7 @@
   height: 5px;
   margin: 0 8px 2px 0;
   border-radius: 999px;
-  background: var(--line-strong, #cfd8d3);
+  background: var(--line-strong);
 }
 
 .billing-builder__close {
@@ -588,7 +588,7 @@
   .billing-builder__icon {
     width: 36px;
     height: 36px;
-    border-radius: 9px;
+    border-radius: 10px;
     flex: 0 0 auto;
   }
 
@@ -638,7 +638,7 @@
     width: 34px;
     height: 34px;
     flex: 0 0 auto;
-    border-radius: 9px;
+    border-radius: 10px;
   }
 
   .billing-builder__close svg {
@@ -940,8 +940,8 @@
   padding: 10px 12px;
   border: 1px solid var(--danger);
   border-radius: 8px;
-  background: var(--danger-soft, #fff4f3);
-  color: var(--danger-text, #8f2f2f);
+  background: var(--danger-soft);
+  color: var(--danger-text);
   font-size: var(--text-caption-size);
 }
 

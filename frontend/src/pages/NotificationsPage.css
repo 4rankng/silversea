@@ -48,7 +48,7 @@
   padding: 0 6px;
   border-radius: 6px;
   background: var(--brand);
-  color: #fff;
+  color: var(--fg-inverse);
   font-size: var(--text-caption-size);
   font-weight: 700;
 }
@@ -175,7 +175,7 @@
 }
 
 .notif-page__state--error {
-  color: var(--danger, #dc2626);
+  color: var(--danger);
 }
 
 .notif-page__feedback {
@@ -187,7 +187,7 @@
   margin: 0;
   padding: 12px 8px;
   border-bottom: 1px solid var(--line);
-  color: var(--danger, #dc2626);
+  color: var(--danger);
   font-size: var(--text-body-size);
   line-height: 1.5;
   overflow-wrap: anywhere;

@@ -303,10 +303,10 @@
 .shipment-container-ledger__editor-grid .searchable-select__trigger:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 1px; }
 .shipment-container-ledger__editor-grid > small { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
 .shipment-container-ledger__field--request > input,
-.shipment-container-ledger__field--request > .searchable-select__trigger { border-color: var(--warning, #f59e0b); }
+.shipment-container-ledger__field--request > .searchable-select__trigger { border-color: var(--warning); }
 .shipment-container-ledger__field--request > input:focus-visible,
-.shipment-container-ledger__field--request > .searchable-select__trigger:focus-visible { border-color: var(--warning, #f59e0b); outline-color: color-mix(in srgb, var(--warning, #f59e0b) 22%, transparent); }
-.shipment-container-ledger__request-notice { color: var(--warning-text, #92400e); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.4; }
+.shipment-container-ledger__field--request > .searchable-select__trigger:focus-visible { border-color: var(--warning); outline-color: color-mix(in srgb, var(--warning) 22%, transparent); }
+.shipment-container-ledger__request-notice { color: var(--warning-text); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.4; }
 .shipment-container-ledger__request-reason { grid-column: 1 / -1; }
 .shipment-container-ledger__request-reason textarea { min-height: 60px; }
 .shipment-container-ledger__editor-footer { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--line-2); }
@@ -322,7 +322,7 @@
 .shipment-container-ledger__edit-action:disabled [data-icon] { color: inherit; }
 .shipment-container-ledger__keyboard-hint { min-width: 0; color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.35; white-space: nowrap; }
 .shipment-container-ledger__edit-error { display: block; max-width: 100%; margin-top: 5px; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
-.shipment-container-ledger__request-success { display: block; max-width: 100%; margin-top: 5px; color: var(--success-text, #166534); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.shipment-container-ledger__request-success { display: block; max-width: 100%; margin-top: 5px; color: var(--success-text); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger__recovery { display: block; max-width: 100%; margin-top: 5px; color: var(--warning-text); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 
 /* Schedule editor adopts the customer appointment popover's design language
@@ -339,9 +339,9 @@
 .shipment-container-ledger__schedule-section { display: flex; align-items: center; gap: 4px; color: var(--ink-3); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: 0.03em; }
 .shipment-container-ledger__schedule-pills,
 .shipment-container-ledger__schedule-times { display: flex; gap: 4px; }
-.shipment-container-ledger__schedule-pill { flex: 1; padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-2); color: var(--ink-2); font-family: inherit; font-size: var(--text-control-compact-size); font-weight: 500; text-align: center; cursor: pointer; transition: all 100ms; }
+.shipment-container-ledger__schedule-pill { flex: 1; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--ink-2); font-family: inherit; font-size: var(--text-control-compact-size); font-weight: 500; text-align: center; cursor: pointer; transition: all 100ms; }
 .shipment-container-ledger__schedule-pill:hover { background: var(--surface); border-color: var(--brand); color: var(--brand); }
-.shipment-container-ledger__schedule-pill.is-active { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+.shipment-container-ledger__schedule-pill.is-active { background: var(--brand); border-color: var(--brand); color: var(--fg-inverse); font-weight: 600; }
 .shipment-container-ledger__schedule-pill:focus-visible,
 .shipment-container-ledger__schedule-time-pill:focus-visible,
 .shipment-container-ledger__schedule-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

@@ -7,7 +7,7 @@
   padding: 14px;
   margin-bottom: 10px;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background var(--t-fast), border-color var(--t-fast);
   position: relative;
 }
 .trip-list-page .trip-mcard::before {

@@ -216,7 +216,7 @@
 }
 
 .dcc-capture-btn--primary:hover {
-  background: color-mix(in srgb, var(--brand, #005a2d) 12%, var(--surface-2, #f8faf9));
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface-2));
 }
 
 /* Scanner triggers demote to ghost actions UNDER the slot row (32px, 44px
@@ -225,7 +225,7 @@
   min-height: 32px;
   font-size: var(--text-control-compact-size);
   font-weight: 500;
-  color: var(--brand, #005a2d);
+  color: var(--brand);
   border: none;
   background: transparent;
   padding: 4px 8px;
@@ -238,7 +238,7 @@
 }
 
 .dcc-capture-btn--secondary:hover {
-  color: var(--brand, #005a2d);
+  color: var(--brand);
   text-decoration: underline;
 }
 
@@ -431,7 +431,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: color-mix(in srgb, var(--ink, #0f172a) 40%, transparent);
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
 }
 
 .dcc-sheet__panel {

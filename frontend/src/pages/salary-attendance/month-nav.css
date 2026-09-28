@@ -23,7 +23,7 @@
   background: var(--bg);
   color: var(--fg-1);
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: all var(--t-fast);
 }
 
 .month-strip__btn:hover {

@@ -13,7 +13,7 @@
    bar IS the shared card. */
 
 .master-plan-filters__zones-error {
-  color: var(--warning-text, #b45309);
+  color: var(--warning-text);
   font-size: var(--text-data-size);
 }
 
@@ -22,7 +22,7 @@
    the multi-select facets. Typography only — the dialog body owns the packing
    (FilterDropdown.css). */
 .master-plan-filters__label {
-  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+  color: var(--color-fg-secondary, var(--fg-2));
   font-size: var(--text-label-size);
   font-weight: 600;
 }
@@ -214,8 +214,7 @@
 
 .master-plan-grid__route-shipping {
   display: grid;
-  grid-template-areas:
-    "route route"
+  grid-template-areas: "route route"
     "carrier direction";
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto minmax(0, 1fr);
@@ -239,7 +238,7 @@
 .master-plan-grid__line--warning {
   /* §2 color law: "Cảnh báo" (containers missing appointment lock) is a
      needs-attention warning — amber, not danger red (red = error/blocked). */
-  color: var(--warning-text, #b45309);
+  color: var(--warning-text);
   font-weight: var(--fw-semibold);
 }
 
@@ -516,8 +515,7 @@
   .master-plan-grid__row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas:
-      "schedule customer"
+    grid-template-areas: "schedule customer"
       "route route"
       "lift drop"
       "cargo allocation"

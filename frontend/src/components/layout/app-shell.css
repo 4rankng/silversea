@@ -58,7 +58,7 @@
   .app.sidebar-closed .sidebar-brand-logo {
     margin: 0;
     opacity: 1;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--t-normal);
   }
 
   /* Collapsed nav: show icons only */

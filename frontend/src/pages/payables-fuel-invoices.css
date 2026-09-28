@@ -13,10 +13,10 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  border: 1px solid var(--line, #eaecef);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 14px 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, #f8fafc 100%);
 }
 
 .fuel-invoice-metric--warn {
@@ -48,7 +48,7 @@
 
 .fuel-invoice-metric__label {
   font-size: var(--text-label-size);
-  color: var(--ink-3, #8b919b);
+  color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-family: var(--font-data);
@@ -93,11 +93,11 @@
 .fuel-invoice-cell-subtitle {
   margin-top: 4px;
   font-size: var(--text-caption-size);
-  color: var(--ink-3, #8b919b);
+  color: var(--ink-3);
 }
 
 .fuel-invoice-cell-subtitle--danger {
-  color: var(--danger, #e32434);
+  color: var(--danger);
 }
 
 .fuel-invoice-status {
@@ -128,7 +128,7 @@
 .fuel-invoice-empty {
   padding: 20px 16px;
   text-align: center;
-  color: var(--ink-3, #8b919b);
+  color: var(--ink-3);
 }
 
 .fuel-invoice-warning {
@@ -167,7 +167,7 @@
 
 .fuel-invoice-detail__eyebrow {
   font-size: var(--text-label-size);
-  color: var(--ink-3, #8b919b);
+  color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-family: var(--font-data);
@@ -184,7 +184,7 @@
   margin-bottom: 16px;
   padding: 14px 16px;
   border-radius: 14px;
-  background: var(--bg-1, #f7f8fa);
+  background: var(--bg-1);
 }
 
 .fuel-invoice-allocation-list {
@@ -193,10 +193,10 @@
 }
 
 .fuel-invoice-allocation-card {
-  border: 1px solid var(--line, #eaecef);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 16px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .fuel-invoice-allocation-card__head {
@@ -209,7 +209,7 @@
 .fuel-invoice-allocation-card__head span {
   display: block;
   margin-top: 4px;
-  color: var(--ink-3, #8b919b);
+  color: var(--ink-3);
   font-size: var(--text-data-size);
 }
 
@@ -228,7 +228,7 @@
 
 .fuel-invoice-allocation-card p {
   margin: 12px 0 0;
-  color: var(--ink-3, #8b919b);
+  color: var(--ink-3);
 }
 
 .fuel-invoice-editor__grid {
@@ -268,7 +268,7 @@
   align-items: center;
   padding: 10px 12px;
   border-radius: 12px;
-  background: var(--bg-1, #f7f8fa);
+  background: var(--bg-1);
   color: var(--fg-2);
   font-size: var(--text-caption-size);
   line-height: 1.4;
@@ -294,14 +294,14 @@
 
 .fuel-invoice-editor__allocations-head p {
   margin-top: 4px;
-  color: var(--ink-3, #8b919b);
+  color: var(--ink-3);
 }
 
 .fuel-invoice-editor__row {
-  border: 1px solid var(--line, #eaecef);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 16px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .fuel-invoice-editor__row + .fuel-invoice-editor__row {
@@ -329,7 +329,7 @@
   align-items: center;
   padding: 10px 12px;
   border-radius: 12px;
-  background: var(--bg-1, #f7f8fa);
+  background: var(--bg-1);
   color: var(--fg-2);
   font-size: var(--text-data-size);
 }
@@ -352,10 +352,10 @@
 
 .fuel-invoice-mobile-card {
   width: 100%;
-  border: 1px solid var(--line, #eaecef);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 16px;
-  background: #fff;
+  background: var(--surface);
   text-align: left;
 }
 
@@ -370,7 +370,7 @@
 .fuel-invoice-mobile-card__head span {
   display: block;
   margin-top: 4px;
-  color: var(--ink-3, #8b919b);
+  color: var(--ink-3);
   font-size: var(--text-data-size);
 }
 
@@ -383,7 +383,7 @@
 
 .fuel-invoice-mobile-card__warning {
   margin-top: 12px;
-  color: var(--danger, #e32434);
+  color: var(--danger);
   font-size: var(--text-caption-size);
   font-weight: 600;
 }

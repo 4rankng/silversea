@@ -97,7 +97,7 @@
   padding: 14px;
   margin-bottom: 10px;
   cursor: pointer;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
   position: relative;
   -webkit-tap-highlight-color: transparent;
 }

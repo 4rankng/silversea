@@ -12,13 +12,6 @@ function collectTsxFiles(dir: string): string[] {
   });
 }
 
-// CUS / điều vận surfaces are frozen (customer-approved 2026-08-23). Their
-// selects keep the legacy wrapper until the freeze lifts; fix them and drop
-// the entry here at the same time.
-const FROZEN_WRAPPER_ALLOWLIST = [
-  'features/dispatch/components/ReassignDialog.tsx',
-];
-
 describe('dialog density contract', () => {
   it('keeps phone text fields aligned with the shared phone select without collapsing notes', () => {
     const modal = readFileSync(resolve(process.cwd(), 'src/components/Modal.css'), 'utf8');
@@ -27,10 +20,10 @@ describe('dialog density contract', () => {
     expect(ui).toMatch(/\.field > \[data-label\]\s*\{[^}]*margin-bottom:\s*0/);
   });
 
-  it('renders every select as one labelled control — no .input double boundary outside frozen dispatch surfaces', () => {
+  it('renders every select as one labelled control — no .input double boundary anywhere', () => {
     const offenders = collectTsxFiles(srcRoot)
       .map((file) => ({ rel: file.slice(srcRoot.length + 1), text: readFileSync(file, 'utf8') }))
-      .filter(({ rel, text }) => /wrapperClassName=\{?["']input["']\}?/.test(text) && !FROZEN_WRAPPER_ALLOWLIST.includes(rel))
+      .filter(({ text }) => /wrapperClassName=\{?["']input["']\}?/.test(text))
       .map(({ rel }) => rel);
 
     expect(offenders).toEqual([]);

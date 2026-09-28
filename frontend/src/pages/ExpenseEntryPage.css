@@ -6,7 +6,7 @@
   75% { transform: translateX(5px); }
 }
 .animate-shake {
-  animation: shake 0.3s ease-in-out;
+  animation: shake var(--t-slow);
 }
 
 /* Page wrapper */
@@ -170,7 +170,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--t-normal);
   backdrop-filter: blur(4px);
 }
 
@@ -376,8 +376,8 @@
   height: 100%;
   min-height: 64px;
   font-size: var(--text-caption-size);
-  color: var(--danger, #dc2626);
-  background: var(--surface-2, #f8fafc);
+  color: var(--danger);
+  background: var(--surface-2);
 }
 .expense-photo-thumb__error button {
   border: 1px solid currentColor;

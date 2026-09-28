@@ -14,7 +14,7 @@
   background: var(--surface);
   cursor: pointer;
   flex-shrink: 0;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  transition: border-color var(--t-fast), background var(--t-fast);
   display: flex;
   align-items: center;
   justify-content: center;

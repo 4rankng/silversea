@@ -40,7 +40,7 @@
   justify-content: center;
   gap: 6px;
   border: 1px solid var(--border-2);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--bg-1);
   color: var(--fg-1);
   padding: 6px 11px;
@@ -90,7 +90,7 @@
 .role-work-inbox__notice.is-warning,
 .role-work-inbox__notice.is-conflict {
   border-color: color-mix(in srgb, var(--warning) 40%, var(--border-1));
-  color: var(--warning-text, #8a4b00);
+  color: var(--warning-text);
 }
 
 .role-work-inbox__notice.is-error {
@@ -116,7 +116,7 @@
 .role-work-inbox__table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border-1);
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--bg-1);
 }
 
@@ -209,7 +209,7 @@
 }
 
 .role-work-inbox__badge.is-action { color: var(--danger); }
-.role-work-inbox__badge.is-waiting { color: var(--warning-text, #8a4b00); }
+.role-work-inbox__badge.is-waiting { color: var(--warning-text); }
 .role-work-inbox__badge.is-done { color: var(--success); }
 
 /* Cross-branch workflow gate (P0-W5): the parallel O2C branches that gate
@@ -243,8 +243,8 @@
   font-size: var(--text-caption-size);
   font-weight: 700;
 }
-.role-work-inbox__gate li.is-ok .role-work-inbox__gate-mark { background: var(--success-bg, #e6f4ea); color: var(--success); }
-.role-work-inbox__gate li.is-pending .role-work-inbox__gate-mark { background: var(--warning-bg, #fff4e0); color: var(--warning-text, #8a4b00); }
+.role-work-inbox__gate li.is-ok .role-work-inbox__gate-mark { background: var(--success-soft); color: var(--success); }
+.role-work-inbox__gate li.is-pending .role-work-inbox__gate-mark { background: var(--warning-soft); color: var(--warning-text); }
 .role-work-inbox__gate-pending { color: var(--fg-3); font-size: var(--text-caption-size); flex-basis: 100%; }
 
 .role-work-inbox__blocker,
@@ -261,7 +261,7 @@
 
 .role-work-inbox__blocker { color: var(--danger); }
 .role-work-inbox__blocker small { display: block; margin-top: 2px; color: var(--fg-3); }
-.role-work-inbox__advisory { color: var(--warning-text, #8a4b00); }
+.role-work-inbox__advisory { color: var(--warning-text); }
 .role-work-inbox__muted, .role-work-inbox__table time { color: var(--fg-3); }
 
 .role-work-inbox__action { text-align: right; }
@@ -309,7 +309,7 @@
 .role-work-inbox__pagination button {
   min-height: 34px;
   border: 1px solid var(--border-2);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--bg-1);
   color: var(--fg-1);
   padding: 0 12px;

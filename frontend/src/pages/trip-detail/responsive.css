@@ -43,7 +43,7 @@
 
   .map-wrap {
     border-right: none;
-    border-bottom: 1px solid var(--line-2, #EFF2F0);
+    border-bottom: 1px solid var(--line-2);
     min-height: 280px;
   }
 }

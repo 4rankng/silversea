@@ -20,7 +20,7 @@
   right: 0;
   width: 100%;
   max-width: 580px;
-  background: var(--surface, #fff);
+  background: var(--surface);
   /* anime.js handles translateX animation */
   transform: none;
   z-index: var(--z-modal);

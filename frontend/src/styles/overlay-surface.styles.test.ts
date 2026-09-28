@@ -64,7 +64,6 @@ const TSX_SCOPE = [
   'src/components/untitled-ui/base/select/multi-select.tsx', // uui multi popover
   'src/components/untitled-ui/application/modals/modal.tsx', // uui modal surface
   'src/features/users/components/UserTable.tsx', // row-action menu
-  'src/features/dispatch/components/ReassignDialog.tsx', // reassign dialog
   'src/pages/SupplierListPage.tsx', // row-action menu (fill landed in a8c84bea mixed-hunk carry)
   'src/pages/CustomersPage.tsx', // row-action menu (fill carried by lead, landed d142ae3d)
   'src/pages/config/CustomersConfigPage.tsx', // row-action menu

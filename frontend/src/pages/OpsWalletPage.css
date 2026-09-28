@@ -71,7 +71,7 @@
   font-size: var(--text-label-size);
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
 }
 
 .ops-wallet-card--balance .ops-wallet-card__label { color: var(--ink-2); }
@@ -118,9 +118,9 @@
   container-type: inline-size;
   min-width: 0;
   overflow-x: auto;
-  border: 1px solid var(--line, #e3ded5);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--bg-1, #fff);
+  background: var(--bg-1);
 }
 
 .ops-wallet__table {
@@ -148,7 +148,7 @@
   gap: 5px;
   border: none;
   background: transparent;
-  color: var(--ok, #16a34a);
+  color: var(--ok);
   font-size: var(--text-caption-size);
   font-weight: 600;
   cursor: pointer;
@@ -156,11 +156,11 @@
 }
 
 .ops-doc-state.is-debt {
-  color: var(--err, #dc2626);
+  color: var(--err);
 }
 
 .ops-reject-reason {
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
   font-size: var(--text-caption-size);
 }
 
@@ -177,11 +177,11 @@
 }
 
 .ops-danger {
-  color: var(--err, #dc2626);
+  color: var(--err);
 }
 
 .ops-ok {
-  color: var(--ok, #16a34a);
+  color: var(--ok);
 }
 
 .ops-modal__head-actions {
@@ -192,7 +192,7 @@
 
 .ops-wallet__empty {
   text-align: center;
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
   padding: 24px 0 !important;
   /* Card 20260925_3 (CHIEF): the empty-state box reads as solid white across
      its full width — no half-transparent straddle against the page canvas.
@@ -206,7 +206,7 @@
   display: flex;
   justify-content: center;
   padding: 16px;
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
 }
 
 /* ── Photo grid (viewer modal) ──────────────────────────────────────────── */
@@ -225,7 +225,7 @@
 .ops-photo-grid__item > button {
   width: 100%;
   aspect-ratio: 4 / 3;
-  border: 1px solid var(--line, #e3ded5);
+  border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
   padding: 0;
@@ -248,7 +248,7 @@
   border-radius: 50%;
   border: none;
   background: rgba(20, 20, 20, 0.65);
-  color: #fff;
+  color: var(--fg-inverse);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -257,7 +257,7 @@
 
 .ops-photo-grid__loading,
 .ops-photo-grid__empty {
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
   font-size: var(--text-data-size);
 }
 
@@ -271,7 +271,7 @@
 .ops-settlement-sheet > p {
   margin: 0 0 10px;
   font-size: var(--text-data-size);
-  color: var(--fg-2, #555);
+  color: var(--fg-2);
 }
 
 .ops-settlement-sheet h4 {
@@ -286,7 +286,7 @@
 
 .ops-settlement-sheet__table th,
 .ops-settlement-sheet__table td {
-  border-bottom: 1px solid var(--line, #eee);
+  border-bottom: 1px solid var(--line);
   padding: 6px 8px;
   font-size: var(--text-caption-size);
   text-align: left;
@@ -324,7 +324,7 @@
 
 .ops-settlement-sheet__signatures small {
   font-weight: 400;
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
 }
 
 /* A4 print: only the sheet survives. */

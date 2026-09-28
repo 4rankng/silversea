@@ -97,13 +97,13 @@
   margin-top: 12px;
   height: 5px;
   background: var(--surface-3);
-  border-radius: 99px;
+  border-radius: 24px;
   position: relative; overflow: hidden;
 }
 .salary-page .utilization-fill {
   position: absolute; left: 0; top: 0; bottom: 0;
   background: linear-gradient(90deg, #16A34A, #5EE99B);
-  border-radius: 99px;
+  border-radius: 24px;
 }
 
 /* ── Driver selector grid ───────────────────────────────────────────── */

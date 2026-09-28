@@ -50,7 +50,7 @@
 .credit-override-queue__button.is-primary {
   border-color: var(--brand);
   background: var(--brand);
-  color: var(--fg-on-brand, #fff);
+  color: var(--fg-on-brand);
 }
 
 .credit-override-queue__button.is-primary:hover {
@@ -265,14 +265,14 @@
 
 .credit-override-queue__status.is-approved,
 .credit-override-queue__decision-summary.is-approved {
-  background: color-mix(in srgb, var(--success, #21855d) 11%, transparent);
-  color: var(--success-text, #0f6d4b);
+  background: color-mix(in srgb, var(--success) 11%, transparent);
+  color: var(--success-text);
 }
 
 .credit-override-queue__status.is-rejected,
 .credit-override-queue__decision-summary.is-rejected {
-  background: color-mix(in srgb, var(--danger, #b91c1c) 10%, transparent);
-  color: var(--danger-text, #b91c1c);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger-text);
 }
 
 .credit-override-queue__status.is-canceled,
@@ -286,8 +286,8 @@
 .credit-override-queue__read-only,
 .credit-override-queue__action-error,
 .credit-override-queue__state.is-error {
-  background: color-mix(in srgb, var(--warning, #d97706) 10%, transparent);
-  color: var(--warning-text, #9a4b08);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning-text);
 }
 
 .credit-override-queue__actions,

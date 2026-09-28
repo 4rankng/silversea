@@ -69,8 +69,7 @@
 }
 
 .fwd-expense-grid--primary {
-  grid-template-columns:
-    minmax(280px, 2fr)
+  grid-template-columns: minmax(280px, 2fr)
     minmax(145px, 0.85fr)
     minmax(145px, 0.85fr)
     minmax(220px, 1.55fr);
@@ -82,8 +81,7 @@
 }
 
 .fwd-expense-grid--invoice {
-  grid-template-columns:
-    minmax(150px, 0.9fr)
+  grid-template-columns: minmax(150px, 0.9fr)
     minmax(170px, 0.95fr)
     minmax(180px, 1.05fr)
     minmax(210px, 1.25fr);
@@ -462,7 +460,7 @@
 }
 
 .fwd-instructions__link {
-  color: var(--brand, #005a2d);
+  color: var(--brand);
   text-decoration: none;
   font-weight: 500;
 }

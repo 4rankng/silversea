@@ -33,6 +33,6 @@ describe('MasterPlanGrid from/to date filter (card 20260927_150)', () => {
     expect(css).not.toMatch(/\.master-plan-filters__date-input\s*\{/);
     expect(css).not.toMatch(/\.master-plan-filters__date-sep\s*\{/);
     // No page rule at all for the slot — no width, no display, no surface.
-    expect(css).not.toMatch(/^\.master-plan-filters__date-range\s*[\{>]/m);
+    expect(css).not.toMatch(/^\.master-plan-filters__date-range\s*[{>]/m);
   });
 });

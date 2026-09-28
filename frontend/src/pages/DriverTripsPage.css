@@ -430,7 +430,7 @@
   border: 1px solid var(--brand);
   border-radius: var(--r-sm);
   background: var(--brand);
-  color: #fff;
+  color: var(--fg-inverse);
   font-size: var(--text-body-size);
   font-weight: 600;
   cursor: pointer;
@@ -466,7 +466,7 @@
   margin: 0;
   font-size: var(--text-data-size);
   font-weight: 600;
-  color: var(--warning, #b45309);
+  color: var(--warning);
 }
 
 /* Bill/booking chip (CHIEF 26/09): the driver-facing identity — prominent,
@@ -475,9 +475,9 @@
   font-family: var(--font-data, ui-monospace, monospace);
   font-size: var(--text-data-size);
   font-weight: 700;
-  color: var(--fg-1, var(--ink, #101828));
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--border-subtle, #eaecf0);
+  color: var(--fg-1, var(--ink));
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: 6px;
   padding: 1px 6px;
   max-width: 100%;
@@ -497,6 +497,6 @@
 .driver-journey__tab-count {
   margin-left: 6px;
   font-size: var(--text-body-size);
-  color: var(--fg-3, #5F6872);
+  color: var(--fg-3);
   font-weight: 500;
 }

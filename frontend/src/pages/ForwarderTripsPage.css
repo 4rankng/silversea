@@ -40,10 +40,10 @@
   min-height: var(--ops-control-height);
   padding: 0 13px;
   border: 1px solid var(--border-2);
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--ops-surface-muted);
   color: var(--fg-3);
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .ops-bill-search:focus-within {
@@ -201,7 +201,7 @@
 .ops-bill-row {
   cursor: pointer;
   box-shadow: inset 3px 0 0 transparent;
-  transition: background-color 120ms ease, box-shadow 120ms ease;
+  transition: background-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .ops-bill-row:hover { background: var(--ops-surface-muted); }
