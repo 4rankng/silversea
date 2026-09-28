@@ -4,7 +4,7 @@ import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
 import { qk } from '../../api/keys';
 import { businessDateISO } from '../../lib/format';
-import { driverExpenseOption, driverExpenseOptions } from './driver-expense-options';
+import { driverExpenseOption, driverExpenseOptionInvoiceClass, driverExpenseOptions } from './driver-expense-options';
 
 export interface DriverExpenseDraft {
   option: string; payerKind: 'USER' | 'COMPANY'; amount: number | ''; occurredAt: string; note: string;
@@ -71,10 +71,16 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
     }
     const option = options.find(item => item.code === draft.option);
     if (!option) { setError('Định mức đã thay đổi. Chọn lại loại chi phí trước khi lưu.'); return; }
-    const body = { ...(option.feeNormCode ? { feeNormCode: option.feeNormCode } : {}), payerKind: draft.payerKind, costType: option.type, costGroup: option.group, feeName: draft.feeName.trim() || option.label,
+    // Card 20260928_163/164 — the CATALOG class decides, never "did the driver
+    // type a number": a no-invoice row never sends one (that is what pushed it
+    // into phải thu khách hàng). The invoiced side stays server-enforced —
+    // recordIncidentalCost refuses an invoiced type with no invoice number.
+    const invoiceClass = driverExpenseOptionInvoiceClass(option);
+    const body = { ...(option.expenseTypeCode ? { expenseTypeCode: option.expenseTypeCode } : {}),
+      ...(option.feeNormCode ? { feeNormCode: option.feeNormCode } : {}), payerKind: draft.payerKind, costType: option.type, costGroup: option.group, feeName: draft.feeName.trim() || option.label,
       amount: draft.amount, occurredAt: draft.occurredAt, note: draft.note.trim() || undefined,
-      invoiceNumber: option.group === 'DRIVER_SHIPMENT' ? draft.invoiceNumber.trim() || undefined : undefined,
-      invoiceDate: option.group === 'DRIVER_SHIPMENT' ? draft.invoiceDate || undefined : undefined,
+      invoiceNumber: invoiceClass === 'NO_INVOICE' ? undefined : option.group === 'DRIVER_SHIPMENT' ? draft.invoiceNumber.trim() || undefined : undefined,
+      invoiceDate: invoiceClass === 'NO_INVOICE' ? undefined : option.group === 'DRIVER_SHIPMENT' ? draft.invoiceDate || undefined : undefined,
       receiptStorageKey: draft.receiptStorageKey ?? undefined };
     const fingerprint = JSON.stringify([tripId, body]);
     if (request.current?.fingerprint !== fingerprint) request.current = { fingerprint, key: crypto.randomUUID() };

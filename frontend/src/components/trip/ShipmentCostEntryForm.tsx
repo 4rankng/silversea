@@ -5,7 +5,7 @@ import { driverClient } from '../../api/driverClient';
 import { NumberField, DateField, TextField, UuiSelectField, Tabs, EmptyState } from '../../design-system';
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { photoSrc } from '../../lib/api/photo';
-import { driverExpenseOption } from '../../features/driver/driver-expense-options';
+import { driverExpenseOption, driverExpenseOptionInvoiceClass } from '../../features/driver/driver-expense-options';
 import { useDriverExpenseEntry } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
 import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
@@ -31,6 +31,12 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
 
   const disabled = readOnly || state.busy || state.uploading;
   const selected = driverExpenseOption(state.draft.option, state.options);
+  // Card 20260928_163/164 — the picked fee's CATALOG class decides whether Số
+  // hóa đơn is asked for and whether a free-text name exists at all (a
+  // catalog-classified fee takes its name from the catalog row).
+  const invoiceClass = driverExpenseOptionInvoiceClass(selected);
+  const catalogClassified = selected.expenseTypeCode != null;
+  const showInvoiceFields = selected.group === 'DRIVER_SHIPMENT' && invoiceClass !== 'NO_INVOICE';
   const [sectionNote, setSectionNote] = useState(costSubmissionNote ?? '');
   const [savedNote, setSavedNote] = useState(costSubmissionNote ?? '');
   const [noteSaving, setNoteSaving] = useState(false);
@@ -86,13 +92,15 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
       <div className="shipment-cost-entry__fields">
         <UuiSelectField label="Loại chi phí" value={state.draft.option} disabled={disabled} onChange={(event) => state.chooseOption(event.target.value)}
           options={state.options.filter(option => option.group === selected.group).map(option => ({ value: option.code, label: option.label }))} />
-        <TextField controlSize="sm" label="Tên khoản chi" value={state.draft.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => state.patch({ feeName: event.target.value })} />
+        {catalogClassified
+          ? <p className="shipment-cost-entry__empty" data-testid="shipment-cost-catalog-fee">{`Tên khoản chi: ${selected.label} (theo danh mục phí).`}</p>
+          : <TextField controlSize="sm" label="Tên khoản chi" value={state.draft.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => state.patch({ feeName: event.target.value })} />}
         <NumberField controlSize="sm" label="Thực chi (VND)" grouped value={state.draft.amount} onChange={(amount) => state.patch({ amount })} min={1} step={1} max={999_999_999_999_999} required disabled={disabled}
           helpText={selected.amount ? `Gợi ý ${formatCurrency(selected.amount)}; sửa theo khoản thực tế. Chưa lưu thì chưa phát sinh tiền.` : undefined} />
         <UuiSelectField label="Người chi" value={state.draft.payerKind} disabled={disabled} onChange={event => state.patch({ payerKind: event.target.value as 'USER' | 'COMPANY' })} options={[{ value: 'USER', label: 'Tôi chi' }, { value: 'COMPANY', label: 'Công ty đã trả' }]} />
         <DateField controlSize="sm" label="Ngày chi" value={state.draft.occurredAt} onChange={(occurredAt) => state.patch({ occurredAt })} required disabled={disabled} />
-        {selected.group === 'DRIVER_SHIPMENT' && <>
-          <TextField controlSize="sm" label="Số hóa đơn" value={state.draft.invoiceNumber} onChange={(event) => state.patch({ invoiceNumber: event.target.value })} maxLength={100} disabled={disabled} placeholder="Để trống nếu không có hóa đơn" />
+        {showInvoiceFields && <>
+          <TextField controlSize="sm" label="Số hóa đơn" value={state.draft.invoiceNumber} onChange={(event) => state.patch({ invoiceNumber: event.target.value })} maxLength={100} disabled={disabled} placeholder={invoiceClass === 'INVOICED' ? 'Bắt buộc với khoản có hóa đơn' : 'Để trống nếu không có hóa đơn'} />
           <DateField controlSize="sm" label="Ngày hóa đơn" value={state.draft.invoiceDate} onChange={(invoiceDate) => state.patch({ invoiceDate })} disabled={disabled} />
         </>}
       </div>

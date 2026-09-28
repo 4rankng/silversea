@@ -586,7 +586,7 @@ export const driverClient = {
 
   createIncidentalCost: async (
     tripId: number,
-    body: { feeNormCode?: string; payerKind?: 'USER' | 'COMPANY'; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },
+    body: { feeNormCode?: string; expenseTypeCode?: string; payerKind?: 'USER' | 'COMPANY'; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },
     idempotencyKey: string,
   ) => {
     return api.post<{

@@ -204,6 +204,37 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm ghi chú cho kế toán' }));
     expect(screen.getByLabelText('Ghi chú cho kế toán')).toBeDisabled();
   });
+  it('card 20260928_163: an invoiced lot-cost fee offers Số hóa đơn and carries its catalog code', async () => {
+    setup(); await open();
+    // 'Phí nâng' is catalog-classified as LIFTING (requires_invoice) — the field
+    // is offered because the CATALOG says so, not because the driver typed.
+    expect(screen.getByLabelText('Số hóa đơn')).toBeTruthy();
+    await choose('Phí vệ sinh');
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
+    fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'HD-163' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({
+      expenseTypeCode: 'FEE_CLEANING', invoiceNumber: 'HD-163', invoiceDate: undefined, costGroup: 'DRIVER_SHIPMENT', feeName: 'Phí vệ sinh',
+    });
+  });
+
+  it('card 20260928_164: a no-invoice lot-cost fee offers no Số hóa đơn and never sends one', async () => {
+    setup(); await open();
+    await choose('Đảo vỏ');
+    // CONTAINER_SWAP is catalog-classified no-invoice: the field is gone, and even
+    // a number left over from an earlier pick must not reach the payload — that is
+    // what pushed these rows into phải thu khách hàng.
+    expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '90000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
+    const body = api.createIncidentalCost.mock.calls[0][1];
+    expect(body).toMatchObject({ expenseTypeCode: 'CONTAINER_SWAP', costGroup: 'DRIVER_SHIPMENT', feeName: 'Đảo vỏ' });
+    expect(body.invoiceNumber).toBeUndefined();
+    expect(body.invoiceDate).toBeUndefined();
+  });
+
   it('does not claim there are no costs when the list read fails and recovers explicitly', async () => {
     api.listIncidentalCosts.mockRejectedValueOnce(new Error('Không tải được chi phí QA'));
     setup();
