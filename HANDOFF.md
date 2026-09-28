@@ -1,84 +1,48 @@
-# HANDOFF.md — driver task screen polish (+ preserved journal incident)
+# HANDOFF.md — agent-contract rewrite + tree sweep (+ preserved journal warning)
 
-**Updated:** 2026-09-27 ~09:40 (+08)
-**Controller:** omp session — user order 2026-09-27 (phone screenshot of
-`/my-trips/:id`): polish the page → commit → push.
-**Status:** DONE and verified in-browser; case QA-2026-09-27-01 landed.
-Commit stages **only this card's files** — two other sessions are editing this
-same worktree uncommitted (see *Concurrent work*).
+**Updated:** 2026-09-29 00:20 (+08)
+**Controller:** Claude Code session (user-directed: contract rewrite → OpenWiki/.ua/ClaudeKit retirement → "commit all code in logical chunks")
+**Status:** LANDED — 8 commits on `prod` (b63b39ae..a4413cbf + handoff). One follow-up open: isolated re-adjudication of 16 backend suites that ran red under DB contention.
 
 ## Goal
 
-Card `20260927_1`, three user-reported defects on the driver task screen:
+`AGENTS.md` is the single canonical agent contract every runtime follows; `CLAUDE.md` is a thin `@AGENTS.md` import; OpenWiki, the `.ua` knowledge base, and project ClaudeKit are retired; the whole working tree is swept into logical commits.
 
-1. the header titled the trip with the internal shipment code
-   (`SHP-YYMM-NNNNN`) — it must title with the carrier's document number
-   (Số Bill on IMPORT / Số Booking on EXPORT);
-2. the `Chứng từ giao hàng` completion card was too tall for a driver's small
-   phone (2-line instruction + 2-row bullet list);
-3. the page did not fill the screen: a strip could show below the fixed tab
-   bar, and both sticky bars re-added `env(safe-area-inset-bottom)` that the
-   tab bar beneath them already reserves.
+## Commit ledger (this wave)
 
-## Files owned by this task
-
-`frontend/src/pages/driver/DriverTripHeader.tsx` (+ `.test.tsx`) ·
-`frontend/src/pages/DriverTripDetailPage.{tsx,css}` (+ `.test.tsx`) ·
-`frontend/src/api/driverClient.ts` (`documentNumber`) ·
-`backend/src/services/driver.service.ts` (`blNumber` on the detail wire) ·
-`frontend/src/components/layout/bottom-nav.css` (canvas tone + `::after` band) ·
-`frontend/drv-repro.mjs` (re-runnable instrument) ·
-`testplan/qa/cases/case-QA-2026-09-27-01-driver-task-mobile-polish.md` ·
-`qa/2026-09-27_driver-task-polish/` · one `docs/design-guidelines.md` §12 row.
-
-## Local fixture (required; the local DB has no live driver task)
-
-trip `4394` → driver `laixe` (`drivers.id = 1`, IN_TRANSIT, `ORDER_RECEIVED`
-recorded) → fulfillment `4674` → shipment `9389` (`SHP-2609-00208`,
-`bl_number = MSCUVN260900208`, IMPORT, customer LONG MINH, site
-`Kho seam B 1789702634486`). Re-seed SQL lives in the case file.
-Re-capture: `cd frontend && node drv-repro.mjs`.
+- `b63b39ae` docs(agents): contract rewrite + OpenWiki/.ua retirement (machine blocks md5-verified)
+- `02f137d5` docs(adr): PM rulings for the parked chi-phi cards
+- `4cd7b694` chore(gate): pre-commit typechecks backend test files too (card 201)
+- `13bcf5c6` chore(frontend): tokenizer closure loop-variable binding (B023)
+- `9e5d0933` chore(kanban): measured AC verdicts on the 09-28 shipments cards
+- `e1060f0a` fix(frontend): phone filter rows share one line; status tabs justify
+- `a4413cbf` feat(accounting): signed expense amounts; totals drop negative rows (cards 197/181/147) + carrierType fixture fix
+- handoff commit (this file)
 
 ## QA
 
-`qa/2026-09-27_driver-task-polish/2026-09-27_driver-task_summary.md` — driver
-suites 248/248, both typechecks 0, build 0, four phone widths captured and
-measured (card 128px → 56px; title = bill number; tab-bar surface band at
-`top: 100%`). Full-suite reds are foreign (other commits/sessions) or the
-journal-contiguity incident below. Real-device iOS/WebView slack strip:
-NOT TESTED (Chromium clamps `captureBeyondViewport` to the layout viewport).
+- Root lint 0 errors (38 pre-existing warnings) · frontend typecheck 0 · ShipmentsTabs styles test 4/4 · backend test-inclusive typecheck 0 (after fixing `carrierType` in the new card197 fixture — column removed in the schema lean-down) · design drift FELL (rawZIndex 81→80).
+- Artifacts: `qa/2026-09-28_agents-contract-rewrite_lint.log`, `qa/2026-09-28_full-sweep_backend-typecheck-test.log`.
+- **Open item:** the full backend suite finished `exit 1` on 16 files while a second session's suite ran concurrently on the shared dev DB (connection-pool death mid-run: ECONNREFUSED, "Connection is closed"; 20s timeout patterns). The flagged files need one isolated re-run once the DB is quiet; a real regression there gets a follow-up fix commit. Typecheck (both bars) is green; the commit carries the caveat in its body.
 
-## Concurrent work (do not sweep into commits)
+## Decisions (user-directed)
 
-- Card `20260927_02` (uncommitted): `MasterPlanGrid.css`, `MasterPlanPage.tsx`,
-  `untitled-ui/base/input|select/*`, `ListFilterBar.tsx`, master-plan tests.
-- Pre-existing red at HEAD: `o2c-rev1.migration-safety` (journal contiguity),
-  `overlay-surface` / `workboard-standard` / `font-family-contract` style
-  contracts pointing at `CustomersPage.tsx`, `RoutesConfigPage.tsx`,
-  `AccountingInvoiceTrackingPage.css`, `App.tsx`.
+- Numbered contract sections §1–§11; standing directives promoted into §2 Non-negotiables (append-only history, prod untouchable, tickets-before-fixes, sweep-the-class, internal-IDs-never-user-facing).
+- CONTEXT.md authority order → pointer to AGENTS.md §1; handoff field list lives in CONTEXT.md (ROADMAP.md / HANDOFF.example.md references removed everywhere — both files were deleted at eef1e9b5).
+- `.claude/` moved to `~/.claude-removals/silversea-prod-20260928/`; only `skills/kanban-work` stays in the repo.
 
-## ⚠️ Journal-restamp incident (preserved, alert channel = THIS FILE)
+## Concurrent work
 
-**Socket alert to `silversea-prod-7a` (pid 4697) FAILED delivery** — sends
-succeed but no reply, transcript count 0 = the skill's listener-dead
-signature; target needs a session restart.
+Another session is actively running backend suites on this checkout (card 164 verification, full node --test sweep from 00:11). Its runs are untouched; the 16-file adjudication waits for its window.
 
-- The idx 128→127 renumbering attempts on `backend/drizzle/meta/_journal.json`
-  were a previous session's (python, idx-field only; no drizzle tool running).
-  After the orchestrator's revert it re-applied once, then **fully reverted**
-  (worktree + index match HEAD; idx@127 = 128 gap intact). A signed-repair
-  commit attempt was **refused by the append-only guard**; **no `--no-verify`
-  was or will be used.** This session touched no journal file
-  (`git diff --stat -- backend/drizzle/meta/_journal.json` empty).
-- **Do not commit a restamped/renumbered journal — especially not via
-  `--no-verify`.** Risk: 42710 duplicate-object class on the next staging +
-  prod migrate and every future deploy failing until hand-repaired. A real
-  migration only APPENDS (next idx 133); if the guard refuses →
-  `git checkout -- backend/drizzle/meta/_journal.json` and regenerate properly.
+## ⚠️ Preserved from 09-27 handoff: journal-restamp warning
 
-## Deploy state
+Do not commit a restamped/renumbered `backend/drizzle/meta/_journal.json` — especially not via `--no-verify`. Risk: 42710 duplicate-object class on the next staging + prod migrate. A real migration only APPENDS; if the append-only guard refuses → `git checkout -- backend/drizzle/meta/_journal.json` and regenerate properly.
 
-- **No cut made.** Staging was healthy at `ce9a5c1e`, prod at `65de3492` per the
-  orchestrator's earlier report; the prod cut waits for tree-clear and is owned
-  by the orchestrator. This session's push is the only remote action taken and
-  was explicitly requested by the user for this card.
+## Next
+
+- Isolated re-run of the 16 flagged backend files (see qa log for the list); follow-up fix commit if any fail solo.
+- `.codex/context-manifest.json` still references deleted `ROADMAP.md` + `HANDOFF.example.md` → `pnpm context:check` exits 1 (pre-existing; manifest untouched — shared machine config).
+- The Understand-Anything Stop hook in `.zcode/config.json` references the removed `.ua/`; remove `.zcode/` when retiring that runtime.
+- `.claude/` removal takes effect next session (project hooks/skills gone except kanban-work; MCP servers unaffected via root `.mcp.json`).
+- The moved ClaudeKit copy sits at `~/.claude-removals/silversea-prod-20260928/` — delete whenever; nothing references it.
