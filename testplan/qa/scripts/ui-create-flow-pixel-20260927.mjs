@@ -113,6 +113,12 @@ async function openOptions(triggerSelector) {
   if (!handle) return null;
   const ready = await waitForEnabled(triggerSelector);
   if (ready !== 'ready') return null;
+  // NOT scrollIntoView({block:'center'}) before the click: at 390px these
+  // container fields sit at top 1225–1450 in an 844px viewport, so a
+  // scroll-then-click under the sticky header looked like the obvious suspect.
+  // Tried 2026-09-28 — it changed nothing (still `no-listbox` for `Nhà máy` and
+  // `Loại container`), and it is not what this driver is here to guess at.
+  // Left out on purpose; the 390 gap is recorded on the card instead.
   await handle.click();
   await new Promise((r) => setTimeout(r, 450));
   // Only a listbox that is VISIBLE counts. The previous selector matched any
