@@ -9,7 +9,7 @@ import * as s from '../db/schema';
 import { and, desc, eq, exists, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
-import type { ExpenseCostGroup } from '@tingting/shared';
+import { opsInvoicedCostGroupOf, type ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable } from './expense-accounting-source.service';
 import { assertOpsExpenseAssignment } from './expense-owner-scope.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -59,9 +59,12 @@ export function assertValidPaidAt(value: string): void {
   }
 }
 
-async function assertActiveExpenseType(code: string): Promise<{ requiresInvoice: boolean | null }> {
+/** The active catalog row of a fee code, with the two fields the Ops side
+ *  derives from: invoice-bearing (charge = amount) and the card 20260928_161
+ *  settlement `category` (the Nâng / Hạ / Phí khác group). */
+async function assertActiveExpenseType(code: string): Promise<{ requiresInvoice: boolean | null; category: string | null }> {
   const [type] = await db
-    .select({ requiresInvoice: s.forwarderExpenseTypes.requiresInvoice })
+    .select({ requiresInvoice: s.forwarderExpenseTypes.requiresInvoice, category: s.forwarderExpenseTypes.category })
     .from(s.forwarderExpenseTypes)
     .where(and(
       eq(s.forwarderExpenseTypes.code, code),
@@ -174,8 +177,16 @@ export async function createOpsExpense(
   if (input.photoStorageKeys?.length) {
     await attachPhotoRows(executor, entry.id, userId, input.photoStorageKeys);
   }
+  // Card 20260928_161 — the derived group reads the catalog row's settlement
+  // `category` (LIFT → Nâng, DROP → Hạ, rest → Phí khác) through the shared
+  // rule, never the code: `LIFT_EMPTY` / `LIFT_CARGO` / `YARD_STORAGE_LIFT`
+  // and the DROP equivalents used to fall into the INVOICED_OTHER catch-all
+  // because only the legacy `LIFTING` / `LOWERING` codes were matched, which
+  // diverged from the catalog's own category (and from the report columns /
+  // `expenseFeeGroupOf` the admin surface shows). The SET of groups is
+  // unchanged, so EXPENSE_COST_GROUPS and the voucher fund rule stand.
   const costGroup = input.costGroup ?? (expenseType.requiresInvoice
-    ? input.expenseTypeCode === 'LIFTING' ? 'INVOICED_LIFT' : input.expenseTypeCode === 'LOWERING' ? 'INVOICED_DROP' : 'INVOICED_OTHER'
+    ? opsInvoicedCostGroupOf(expenseType.category)
     : 'OPS_REGULAR');
   if (!['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL'].includes(costGroup)) throw new ApiError(400, 'Nhóm chi phí Ops không hợp lệ.');
   // Card 20260921_5 — the no-invoice pair's Thực-thu side. Invoice rows keep
