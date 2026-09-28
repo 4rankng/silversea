@@ -79,10 +79,40 @@ async function waitForWorkspace() {
   }
 }
 
+/**
+ * Wait for a field to become interactive.
+ *
+ * CARD 20260928_156. `Nhà máy` is gated on
+ * `(!customerId && !isAdHoc) || sitesLoading || saving`
+ * (ShipmentCreateContainerRow.tsx), and choosing a customer fires
+ * `/shipments/operational-sites` — so for a moment after the customer lands the
+ * field is still disabled while that request is in flight. Clicking it in that
+ * window does nothing and the driver then reports `no-option`, which looks
+ * like "the dropdown is empty" and is actually "the dropdown was not open yet".
+ *
+ * Measured: a real click on the customer option returns 200 from
+ * operational-sites and the field enables a beat later.
+ */
+async function waitForEnabled(selector, timeoutMs = 6000) {
+  const started = Date.now();
+  for (;;) {
+    const state = await page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      return el ? { disabled: !!el.disabled, present: true } : { present: false };
+    }, selector);
+    if (!state.present) return 'missing';
+    if (!state.disabled) return 'ready';
+    if (Date.now() - started > timeoutMs) return 'timeout';
+    await new Promise((r) => setTimeout(r, 150));
+  }
+}
+
 /** The listbox that is currently open, scoped so we never pick a stranger's option. */
 async function openOptions(triggerSelector) {
   const handle = await page.$(triggerSelector);
   if (!handle) return null;
+  const ready = await waitForEnabled(triggerSelector);
+  if (ready !== 'ready') return null;
   await handle.click();
   await new Promise((r) => setTimeout(r, 450));
   // Only a listbox that is VISIBLE counts. The previous selector matched any
@@ -125,25 +155,59 @@ async function readFieldValue(selector) {
   }, selector);
 }
 
-/** Pick the first enabled option of the listbox opened from `triggerSelector`. */
-async function pickFirstOption(triggerSelector, label) {
+/**
+ * Pick the first enabled option of the listbox opened from `triggerSelector`.
+ *
+ * `prefer` skips generated rows. The customer list on the create form leads with
+ * test fixtures (`CF khách <13-digit-timestamp>-<token>`, card _191), and a
+ * fixture customer owns NO operational sites — so picking the first row leaves
+ * `Nhà máy` an empty, correctly-enabled listbox and the run reports `no-option`
+ * for a reason that has nothing to do with the UI. Choosing a seeded customer
+ * gives the rest of the form real master data to capture.
+ */
+async function pickFirstOption(triggerSelector, label, { prefer = null, skip = 0 } = {}) {
   const options = await openOptions(triggerSelector);
   if (options === null) return `no-listbox:${label}`;
-  const first = options.find((o) => !o.disabled);
+  const enabled = options.filter((o) => !o.disabled);
+  const preferred = prefer ? enabled.filter((o) => prefer.test(o.text)) : enabled;
+  const pool = preferred.length > skip ? preferred : enabled;
+  const first = pool[skip] ?? null;
   if (!first) return `no-option:${label}`;
-  const clicked = await page.evaluate((wanted) => {
+  // Commit with a REAL Playwright click, scoped to the open listbox.
+  //
+  // CARD 20260928_156. These are React-Aria comboboxes, and the difference
+  // matters more than it looks:
+  //   - `element.click()` from `page.evaluate` is synthetic. The component does
+  //     not act on it, so the pick "succeeded" while the field stayed empty.
+  //   - Keyboard (focus + Enter) does not commit either — the option is not
+  //     focusable, so the keystroke goes nowhere. Tried; made it worse.
+  //   - A real `locator.click()` sends trusted mouse events, and THAT commits.
+  //     Measured 2026-09-28: a real click on the customer option makes
+  //     `/shipments/operational-sites` fire (200) and the `Nhà máy` field enable.
+  //
+  // The earlier "Nhà máy is permanently disabled" reading was an artefact of
+  // this, not a product bug: the customer never landed, so the field was
+  // correctly gated. Only the OPEN listbox is searched, so a stranger's option
+  // can never be picked — the bug the scoping comment above already records.
+  const index = await page.evaluate((wanted) => {
     const open = Array.from(document.querySelectorAll('[role="listbox"]')).find((el) => {
       const r = el.getBoundingClientRect();
       return r.width > 0 && r.height > 0;
     });
-    if (!open) return false;
-    const target = Array.from(open.querySelectorAll('[role="option"]'))
-      .find((o) => (o.textContent || '').trim().startsWith(wanted));
-    if (!target) return false;
-    target.click();
-    return true;
+    if (!open) return -1;
+    return Array.from(open.querySelectorAll('[role="option"]'))
+      .findIndex((o) => (o.textContent || '').trim().startsWith(wanted));
   }, first.text);
-  if (!clicked) return `pick-failed:${label}`;
+  if (index < 0) return `pick-failed:${label}`;
+  // A real click through the DevTools protocol (trusted mouse events), on the
+  // nth option of the OPEN listbox only.
+  const listbox = await page.evaluateHandle(() => Array.from(document.querySelectorAll('[role="listbox"]'))
+    .find((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }));
+  const openListbox = listbox.asElement();
+  if (!openListbox) return `pick-failed:${label}`;
+  const optionHandles = await openListbox.$$('[role="option"]');
+  if (!optionHandles[index]) return `pick-failed:${label}`;
+  await optionHandles[index].click().catch(() => {});
   await new Promise((r) => setTimeout(r, 500));
 
   // The click is not the result. A synthetic `.click()` on a React-Aria option
@@ -189,9 +253,28 @@ for (const width of WIDTHS) {
   if (!mounted) continue; // waitForWorkspace already recorded why
 
   // With-data state — deterministic picks, first option each time, no submit.
-  const customer = await pickFirstOption(HOOKS.customer, 'customer');
+  // A seeded customer, not a generated fixture: the list leads with
+  // `CF khách <timestamp>` rows from card _191, and a fixture owns nothing.
+  const customer = await pickFirstOption(HOOKS.customer, 'customer', {
+    prefer: /công ty|cty|tnhh|liên doanh|tập đoàn|xí nghiệp|nhà máy/i,
+  });
   notes.push(`customer=${customer}`);
   if (customer.startsWith('no-') || customer.startsWith('pick-')) note(`${at} customer`, customer);
+
+  // `Nhà máy` lists exactly the customer's own operational sites, and most
+  // customers own none — measured 2026-09-28: only 3 of the seeded customers
+  // have any. So an OPEN, EMPTY list here is the truth about the data, not a
+  // broken dropdown, and it must not fail the run. Verified there is no product
+  // bug underneath: committing a customer with a real click makes
+  // `/shipments/operational-sites` return 200 and the field enable
+  // (ShipmentCreateContainerRow.tsx gates it on customerId/sitesLoading/saving).
+  const factoryValue = await pickFirstOption('input[aria-label="Nhà máy"]', 'factory');
+  notes.push(`factory=${factoryValue}`);
+  if (factoryValue === 'no-option:factory') {
+    notes.push('factory=EMPTY (this customer owns no operational site — correct UI, not a failure)');
+  } else if (factoryValue.startsWith('no-')) {
+    note(`${at} factory`, factoryValue);
+  }
 
   // Skip the "— Chọn hình thức —" placeholder option; pick a real direction.
   await page.click(HOOKS.directionButton);
@@ -219,7 +302,6 @@ for (const width of WIDTHS) {
 
   for (const [label, selector] of [
     ['containerType', 'input[aria-label="Loại container"]'],
-    ['factory', 'input[aria-label="Nhà máy"]'],
     ['route', 'input[aria-label="Tuyến đường"]'],
     ['pickup', 'input[aria-label="Cảng nâng"]'],
     ['dropoff', 'input[aria-label="Cảng hạ"]'],
