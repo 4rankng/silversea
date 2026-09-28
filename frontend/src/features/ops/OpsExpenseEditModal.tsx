@@ -32,8 +32,14 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const locked = Boolean(entry.confirmedAt || entry.opsSettlementId || ['VOIDED', 'REJECTED'].includes(entry.approvalStatus));
   const [reason, setReason] = useState('');
   const [note, setNote] = useState(entry.note ?? '');
+  // The stored source group wins (it is what accounting/reporting read); the
+  // fallback derives from the catalog row's `category` — never the code. A row
+  // whose fee is no longer ACTIVE (absent from the fetched catalog) keeps the
+  // Phí khác catch-all, and the operator can pick the group in the select.
   const [financial, setFinancial] = useOpsExpenseFinancialDraft({
-    costGroup: (entry.costGroup as OpsCostGroup | null) ?? opsGroupForType(entry.expenseTypeCode, entry.requiresInvoice === true),
+    costGroup: (entry.costGroup as OpsCostGroup | null)
+      ?? opsGroupForType(typesData?.items.find((item) => item.code === entry.expenseTypeCode)
+        ?? { requiresInvoice: entry.requiresInvoice, category: null }),
     feeName: entry.feeName ?? '', invoiceNumber: entry.invoiceNumber ?? '',
     invoiceDate: entry.invoiceDate ?? '', recoveryNote: entry.recoveryNote ?? '',
   });
@@ -149,7 +155,13 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
               required
               disabled={!typesReady}
               value={typeCode}
-              onChange={(event) => setTypeCode(event.target.value)}
+              onChange={(event) => {
+                // Card 20260928_161 — the group follows the catalog row, so a
+                // fee-type change re-derives it (same rule as the create form).
+                const type = typesData?.items.find((item) => item.code === event.target.value);
+                setTypeCode(event.target.value);
+                setFinancial((current) => ({ ...current, costGroup: opsGroupForType(type) }));
+              }}
               options={expenseTypeOptions}
             />
             <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} onChange={setAmount}

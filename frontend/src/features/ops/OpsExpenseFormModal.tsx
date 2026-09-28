@@ -181,7 +181,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               onChange={(event) => {
                 const type = typesData?.items.find((item) => item.code === event.target.value);
                 setTypeCode(event.target.value);
-                setFinancial((current) => ({ ...current, costGroup: opsGroupForType(event.target.value, type?.requiresInvoice === true) }));
+                setFinancial((current) => ({ ...current, costGroup: opsGroupForType(type) }));
               }}
               options={expenseTypeOptions}
             />

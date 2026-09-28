@@ -154,6 +154,11 @@ export interface OpsExpenseTypeOption {
   code: string;
   name: string;
   requiresInvoice: boolean | null;
+  /** Card 20260928_161 — the catalog's settlement category (LIFT / DROP /
+   *  HQGS / CSHT / KHAC / PHAT_SINH, null = chưa phân loại). Always sent by
+   *  `/ops/expense-types`; the Ops form derives its Nâng / Hạ / Phí khác group
+   *  from it. Optional only so hand-written fixtures stay valid. */
+  category?: string | null;
 }
 
 function qs(params: Record<string, string | number | undefined>): string {

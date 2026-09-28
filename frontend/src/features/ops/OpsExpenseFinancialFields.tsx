@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { opsInvoicedCostGroupOf } from '@tingting/shared';
 import { DateField, TextField, UuiSelectField } from '../../design-system';
 import { formatCurrency } from '../../lib/format';
 import { ExpenseNameSuggestions } from '../expense-accounting/ExpenseNameSuggestions';
@@ -24,11 +25,18 @@ export const OPS_COST_GROUP_OPTIONS = [
   { value: 'OPS_INCIDENTAL', label: 'Không hóa đơn · Phát sinh' },
 ];
 
-export function opsGroupForType(code: string, invoiced: boolean): OpsCostGroup {
-  if (!invoiced) return 'OPS_REGULAR';
-  if (code === 'LIFTING') return 'INVOICED_LIFT';
-  if (code === 'LOWERING') return 'INVOICED_DROP';
-  return 'INVOICED_OTHER';
+/** Card 20260928_161 — the initial "Nhóm chi phí" of a CATALOG row. Derived
+ *  from the row's settlement `category` through the shared rule the server
+ *  uses too (`opsInvoicedCostGroupOf`): LIFT → Nâng, DROP → Hạ, the rest →
+ *  Phí khác, so `LIFT_EMPTY` / `LIFT_CARGO` / `YARD_STORAGE_LIFT` and the
+ *  DROP equivalents no longer land in the Phí khác catch-all. Codes are never
+ *  matched — an admin can rename or re-categorise them. Non-invoice rows keep
+ *  the OPS_REGULAR default; "Không hóa đơn · Phát sinh" stays a manual pick. */
+export function opsGroupForType(
+  type: { requiresInvoice?: boolean | null; category?: string | null } | null | undefined,
+): OpsCostGroup {
+  if (type?.requiresInvoice !== true) return 'OPS_REGULAR';
+  return opsInvoicedCostGroupOf(type.category);
 }
 
 export function useOpsExpenseFinancialDraft(initial?: Partial<OpsExpenseFinancialDraft>) {
