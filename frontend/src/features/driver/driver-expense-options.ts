@@ -1,4 +1,9 @@
-import { DRIVER_LOT_COST_EXPENSE_TYPES, DriverIncidentalCostType as Type } from '@tingting/shared';
+import {
+  DRIVER_LOT_COST_EXPENSE_TYPES,
+  RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES,
+  DriverIncidentalCostType as Type,
+  type NoInvoiceEvidenceType,
+} from '@tingting/shared';
 
 export type DriverExpenseGroup = 'DRIVER_SHIPMENT' | 'DRIVER_ROAD';
 export interface DriverExpenseOption {
@@ -47,7 +52,11 @@ export const DRIVER_EXPENSE_OPTIONS: DriverExpenseOption[] = [
   { code: 'route', label: 'Tiền tuyến đã thỏa thuận', type: Type.ROAD_ALLOWANCE, group: 'DRIVER_ROAD' },
   { code: 'toll', label: 'Vé cầu đường', type: Type.TOLL, group: 'DRIVER_ROAD' },
   { code: 'scan', label: 'Soi / kiểm hóa', type: Type.OTHER, group: 'DRIVER_ROAD' },
-  { code: 'repair', label: 'Sửa chữa dọc đường', type: Type.OTHER, group: 'DRIVER_ROAD' },
+  // Card 20260928_165 — the road-repair fee carries a CATALOG identity so the
+  // server can tie the row to its paper receipt (a free-text feeName cannot):
+  // ROAD_REPAIR is a no-invoice catalog row whose document is the hand-written
+  // receipt.
+  { code: 'repair', label: 'Sửa chữa dọc đường', type: Type.OTHER, group: 'DRIVER_ROAD', expenseTypeCode: 'ROAD_REPAIR' },
   { code: 'other-road', label: 'Tiền đường khác', type: Type.OTHER, group: 'DRIVER_ROAD' },
 ];
 
@@ -57,4 +66,15 @@ export function driverExpenseOptions(norms: Array<{ code: string; label: string;
 
 export function driverExpenseOption(code: string, options = DRIVER_EXPENSE_OPTIONS) {
   return options.find(option => option.code === code) ?? DRIVER_EXPENSE_OPTIONS[0];
+}
+
+/** The evidence kind `code`'s supporting document must be (the hand-written
+ *  receipt for the road-repair fee), or null when the code mandates no paper
+ *  kind. Card 20260928_165 — the answer comes from the shared map both the form
+ *  and the server read. */
+export function requiredEvidenceTypeForExpenseCode(
+  code: string | null | undefined,
+): NoInvoiceEvidenceType | null {
+  if (code == null) return null;
+  return RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES[code] ?? null;
 }

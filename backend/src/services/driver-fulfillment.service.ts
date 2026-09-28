@@ -12,6 +12,8 @@ import * as s from '../db/schema';
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import {
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
+  NO_INVOICE_EVIDENCE_TYPE_LABELS,
+  RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES,
   DriverProgressEventType,
   Role,
   TripStatus,
@@ -347,6 +349,18 @@ async function insertDriverIncidentalCostTx(
   const invoicedClass = catalogType?.requiresInvoice === true;
   if (invoicedClass && !input.invoiceNumber?.trim()) {
     throw new ApiError(400, 'Phí có hóa đơn phải kèm số hóa đơn.');
+  }
+  // Card 20260928_165 — a fee whose supporting document is a hand-written
+  // receipt cannot exist without that paper: the accountant files and settles
+  // the phơi-phiếu row against it. Enforced HERE and not only in the driver
+  // form, so the offline queue and any other caller obey one rule; the kind and
+  // the code set come from the one shared map. Codes outside the map mandate no
+  // paper kind.
+  const requiredEvidenceType = input.expenseTypeCode
+    ? RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES[input.expenseTypeCode]
+    : undefined;
+  if (requiredEvidenceType && !input.receiptStorageKey) {
+    throw new ApiError(400, `${catalogType?.name ?? input.expenseTypeCode} phải kèm ${NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidenceType]}.`);
   }
   // Card 20260921_7: a fee norm (định mức) pins the entry to the road bucket —
   // the norm's costType/costGroup apply, the entry never charges the customer

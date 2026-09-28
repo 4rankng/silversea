@@ -45,6 +45,14 @@ export const NO_INVOICE_EXPENSE_TYPE_CODES = new Set([
   // ops override, or a driver incidental cost. There is no supplier document
   // to attach, so demanding one would block a legitimate entry.
   'ZONE_SURCHARGE',
+  // Card 20260928_165: the road-repair fee ("phí sửa chữa dọc đường") is the
+  // hand-written-receipt class — no VAT invoice exists, the driver's receipt is
+  // the document the accountant files and settles against (see
+  // ROAD_REPAIR_EVIDENCE_TYPE). Leaving it out of BOTH sets would recreate the
+  // CUSTOMS/ZONE_SURCHARGE contradiction: requiresInvoice:false AND
+  // substituteEvidenceAllowed:false, i.e. the approval gate and the evidence
+  // gate disagreeing silently.
+  'ROAD_REPAIR',
 ]);
 
 export function expenseTypeSeedPolicy(code: string): { requiresInvoice: boolean; substituteEvidenceAllowed: boolean } {

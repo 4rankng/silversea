@@ -260,6 +260,9 @@ export const DRIVER_LOT_COST_EXPENSE_TYPES: ReadonlyArray<{ code: string; invoic
   { code: 'TWO_POINT_DROP', invoiced: false },
   { code: 'CARGO_RESTACK', invoiced: false },
   { code: 'FORKLIFT_DANGKHOA', invoiced: false },
+  // Card 20260928_165 — the road-repair fee ("phí sửa chữa dọc đường") is a
+  // no-invoice fee: its support is a hand-written receipt, never a VAT invoice.
+  { code: 'ROAD_REPAIR', invoiced: false },
 ];
 
 /** True when the catalog class of `code` carries an invoice. An unknown or absent
@@ -567,6 +570,13 @@ export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMa
   // Card _2: dispatcher-entered zone surcharge — the structural kind the 2.3
   // ladder reads (payee ruling (i): carrier-paid costs via ops intake).
   ZONE_SURCHARGE: { name: 'Phí nâng/hạ theo vùng',        defaultMarkup: false, billingLabel: 'Phí nâng/hạ theo vùng', category: ExpenseTypeCategory.PHAT_SINH },
+  // Card 20260928_165 — the driver's road-repair fee ("phí sửa chữa dọc
+  // đường"). It is a ROAD-bucket fee (never billed to the customer) whose
+  // support is the hand-written receipt (ROAD_REPAIR_EVIDENCE_TYPE), so it must
+  // also join a seed POLICY class — a catalog code with no class lands in the
+  // contradictory requiresInvoice:false + substituteEvidenceAllowed:false state
+  // card 20260928_181 fixed for CUSTOMS/ZONE_SURCHARGE.
+  ROAD_REPAIR:    { name: 'Phí sửa chữa dọc đường',      defaultMarkup: false, billingLabel: 'Phí sửa chữa dọc đường', category: ExpenseTypeCategory.REPAIR_ADVANCE },
 };
 
 export const NO_INVOICE_EVIDENCE_TYPES = [
@@ -623,6 +633,22 @@ export const DEFAULT_NO_INVOICE_EVIDENCE_TYPES: readonly NoInvoiceEvidenceType[]
   'ONSITE_PHOTO',
   'SIGNED_CONFIRMATION',
 ] as const;
+
+/** Card 20260928_165 — the road-repair fee's supporting document is the
+ *  hand-written receipt the PM calls "phiếu thu viết tay": the driver must
+ *  attach it, and the accountant files and settles the phơi-phiếu row against
+ *  it. One named slug (not a literal at each call site) so the driver form, the
+ *  server guard and the accountant's screen cannot drift apart. */
+export const ROAD_REPAIR_EVIDENCE_TYPE: NoInvoiceEvidenceType = 'RECEIPT';
+
+/** The expense codes whose supporting document IS the hand-written receipt
+ *  (never a VAT invoice), keyed to the evidence kind that names it. One fact,
+ *  three consumers: the driver form requires the receipt for these codes, the
+ *  server refuses an entry without it, and the phơi-phiếu row labels the
+ *  attachment with the same kind — so the requirement cannot drift per side. */
+export const RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES: Readonly<Record<string, NoInvoiceEvidenceType>> = {
+  ROAD_REPAIR: ROAD_REPAIR_EVIDENCE_TYPE,
+};
 
 export const NO_INVOICE_REQUIRED_SCOPE = 'TRIP_OR_SHIPMENT' as const;
 

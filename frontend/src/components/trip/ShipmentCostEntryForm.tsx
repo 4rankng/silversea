@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Plus, ReceiptText, StickyNote } from 'lucide-react';
-import { DRIVER_INCIDENTAL_COST_LABELS, DriverIncidentalCostType } from '@tingting/shared';
+import {
+  DRIVER_INCIDENTAL_COST_LABELS,
+  NO_INVOICE_EVIDENCE_TYPE_LABELS,
+  DriverIncidentalCostType,
+} from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
 import { NumberField, DateField, TextField, UuiSelectField, Tabs, EmptyState } from '../../design-system';
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { photoSrc } from '../../lib/api/photo';
-import { driverExpenseOption, driverExpenseOptionInvoiceClass } from '../../features/driver/driver-expense-options';
+import { driverExpenseOption, driverExpenseOptionInvoiceClass, requiredEvidenceTypeForExpenseCode } from '../../features/driver/driver-expense-options';
 import { useDriverExpenseEntry } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
 import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
@@ -36,6 +40,11 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
   // catalog-classified fee takes its name from the catalog row).
   const invoiceClass = driverExpenseOptionInvoiceClass(selected);
   const catalogClassified = selected.expenseTypeCode != null;
+  // Card 20260928_165 — one rule for the whole row: an expense code in the
+  // shared receipt map carries a hand-written receipt as its document.
+  const requiredEvidence = requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode);
+  const requiresReceipt = requiredEvidence != null;
+  const evidenceLabel = requiredEvidence == null ? '' : NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidence];
   const showInvoiceFields = selected.group === 'DRIVER_SHIPMENT' && invoiceClass !== 'NO_INVOICE';
   const [sectionNote, setSectionNote] = useState(costSubmissionNote ?? '');
   const [savedNote, setSavedNote] = useState(costSubmissionNote ?? '');
@@ -105,14 +114,19 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         </>}
       </div>
       <TextField controlSize="sm" label="Ghi chú khoản chi" value={state.draft.note} onChange={(event) => state.patch({ note: event.target.value })} maxLength={2000} disabled={disabled} />
+      {requiresReceipt && <p className="shipment-cost-entry__empty">Chứng từ: {evidenceLabel}.</p>}
       {selected.type === DriverIncidentalCostType.ROAD_ALLOWANCE && <p className="shipment-cost-entry__empty">Khoản đã thỏa thuận được giữ trong định mức chuyến; chứng từ này không cộng thêm phụ cấp lần nữa.</p>}
       <p className="shipment-cost-entry__empty">{selected.group === 'DRIVER_ROAD' ? 'Tiền đường không thu thêm khách hàng.' : 'Kế toán đối chiếu hóa đơn và số thu khách. Khoản không hóa đơn được theo dõi là chi phí xe.'}</p>
-      <label className="btn btn--secondary shipment-cost-entry__camera-btn"><Camera size={16} /> {state.uploading ? 'Đang tải…' : state.draft.receiptStorageKey ? 'Thay ảnh biên lai' : 'Chụp / chọn biên lai'}
+      <label className="btn btn--secondary shipment-cost-entry__camera-btn"><Camera size={16} /> {state.uploading ? 'Đang tải…' : state.draft.receiptStorageKey ? 'Thay ảnh chứng từ' : requiresReceipt ? `Chụp / chọn ${evidenceLabel} (bắt buộc)` : 'Chụp / chọn biên lai'}
         <input type="file" accept="image/*" className="sr-only" aria-label="Chọn ảnh biên lai" disabled={disabled} onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ''; if (file) void state.upload(file); }} />
       </label>
       {state.pendingFile && !state.uploading && <div className="shipment-cost-entry__upload-retry" role="status"><span>{state.pendingFile.name} · Chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" disabled={disabled} onClick={() => { if (state.pendingFile) void state.upload(state.pendingFile); }}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={state.discardPendingFile}>Bỏ ảnh chưa tải</button></div>}
       {state.draft.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><img src={photoSrc(state.draft.receiptStorageKey)} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
-      <div className="shipment-cost-entry__form-actions"><button type="button" className="btn btn--secondary" disabled={state.busy || state.uploading} onClick={state.cancel}>Hủy</button><button type="submit" className="btn btn--primary" disabled={disabled}>{state.busy ? 'Đang lưu…' : 'Lưu chi phí'}</button></div>
+      {/* Card 20260928_165 — the road-repair fee's document is the hand-written
+          receipt; the form blocks the submit (never silently) until it is
+          attached, and the server refuses the entry without it. */}
+      {requiresReceipt && !state.draft.receiptStorageKey && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{`${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.`}</p>}
+      <div className="shipment-cost-entry__form-actions"><button type="button" className="btn btn--secondary" disabled={state.busy || state.uploading} onClick={state.cancel}>Hủy</button><button type="submit" className="btn btn--primary" disabled={disabled || (requiresReceipt && !state.draft.receiptStorageKey)}>{state.busy ? 'Đang lưu…' : 'Lưu chi phí'}</button></div>
     </form>}
     <div className="shipment-cost-entry__section-note" data-testid="cost-note-row">
       {/* Card 20260926_29 item 14: the accountant note is ONE collapsed row —
