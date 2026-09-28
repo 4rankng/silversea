@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadEnv } from '../lib/env.mjs';
 import { createSession, writeRunSummary } from '../lib/harness.mjs';
 import { runExitCode } from '../lib/run-result.mjs';
+import { tagNonPassErrors } from '../lib/env-tag.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -64,6 +65,8 @@ async function main() {
       } catch (e) {
         result = { verdict: 'ERROR', errors: [e.stack || e.message] };
       }
+      // Card 20260928_189 — same boundary rule as run-case.mjs.
+      tagNonPassErrors(result, env);
       const durationMs = Date.now() - t0;
       const row = {
         caseId: c.id,

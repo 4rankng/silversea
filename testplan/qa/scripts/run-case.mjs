@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadEnv } from '../lib/env.mjs';
 import { createSession, writeRunSummary } from '../lib/harness.mjs';
+import { tagNonPassErrors } from '../lib/env-tag.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TESTPLAN_QA = path.resolve(__dirname, '..');
@@ -49,6 +50,9 @@ async function main() {
   } catch (e) {
     result = { verdict: 'ERROR', errors: [e.stack || e.message] };
   }
+  // Card 20260928_189: a BLOCKED verdict must name the env, enforced here so
+  // no case can forget. See lib/env-tag.mjs for why this is the boundary.
+  tagNonPassErrors(result, env);
   const durationMs = Date.now() - t0;
 
   await writeRunSummary({
