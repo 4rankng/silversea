@@ -8,7 +8,7 @@ import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
-import { assertTreasuryFundAssigned, resolveTreasuryPaymentContract, insertTreasuryMovement, appendTreasuryReversal } from './treasury.service';
+import { assertTreasuryFundAssigned, assertVoucherFundMatches, resolveTreasuryPaymentContract, insertTreasuryMovement, appendTreasuryReversal } from './treasury.service';
 import { getExpenseForCommand, requireExpenseFinance, type ExpenseActor } from './expense-accounting-write.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { recordPaymentReceiptTx } from './payment-allocation.service';
@@ -68,6 +68,12 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
   const amount = items.reduce((total, item) => total + item.amount, 0);
   if (!Number.isSafeInteger(amount) || amount > 999_999_999_999_999) throw new ApiError(400, 'Tổng phiếu vượt giới hạn.');
   await assertTreasuryFundAssigned(tx, input.treasuryAccountId);
+  // Card 20260928_167 criterion 2 — a voucher must not mix funds, and the fund
+  // must be the one the cost lines actually require. Callers normally send one
+  // cost group per voucher, so this is usually a no-op; it earns its keep when
+  // a UI "select all" mixes an invoiced chi-hộ row with a driver road fee.
+  await assertVoucherFundMatches(tx, input.treasuryAccountId,
+    items.map((i) => ({ costGroup: i.source.costGroup, feeName: i.source.feeName })));
   const treasury = await resolveTreasuryPaymentContract(tx, input, new Date());
   if (!treasury.treasuryAccountId || !treasury.valueDate || !treasury.physicalReference) throw new ApiError(400, 'Chọn quỹ, ngày và mã giao dịch thực tế.');
   await lockApplicationOwnedUniqueness(tx, 'expense-voucher-physical', [treasury.treasuryAccountId, input.direction, treasury.physicalReference]);

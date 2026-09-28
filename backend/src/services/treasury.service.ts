@@ -523,6 +523,80 @@ export async function assertTreasuryFundAssigned(tx: Tx, accountId: number) {
   if (!treasuryFundCodeSchema.safeParse(account.fundCode).success) throw new ApiError(409, 'Tài khoản chưa phân nguồn quỹ. Cấu hình Quỹ công ty hoặc Quỹ TM tại Sổ quỹ / ngân hàng trước khi ghi phiếu.');
 }
 
+/**
+ * Which fund a cost line must be paid from. Card 20260928_167 criterion 2, in
+ * the PM's own terms:
+ *
+ *   "Dòng chi phí có hóa đơn (nâng/hạ/lưu bãi… của chi hộ) chỉ được gán TK TM;
+ *    dòng cược cont / tạm ứng Ops / tiền đường lái xe chỉ được gán TK công ty
+ *    — gán sai thì hệ thống chặn."
+ *
+ * The three invoiced groups are the chi-hộ line the customer is billed for, so
+ * the money is the customer's. Everything else is money the company fronts and
+ * recovers from someone else, so it is the company's.
+ */
+export const VOUCHER_REQUIRED_FUND: Readonly<Record<string, 'COMPANY' | 'TM'>> = {
+  INVOICED_LIFT: 'TM',
+  INVOICED_DROP: 'TM',
+  INVOICED_OTHER: 'TM',
+  INVOICE_SERVICE: 'TM',
+  OPS_REGULAR: 'COMPANY',
+  OPS_INCIDENTAL: 'COMPANY',
+  DRIVER_SHIPMENT: 'COMPANY',
+  DRIVER_ROAD: 'COMPANY',
+};
+
+/**
+ * Refuse a voucher whose chosen account belongs to the wrong fund.
+ *
+ * Before this, the only fund check was `assertTreasuryFundAssigned`, which
+ * throws when an account has NO fund at all — it never compared the account's
+ * fund with the line's required one. So an accountant could pay a customer-reimbursed
+ * chi-hộ cost out of the company account, or a driver's road fee out of TM, and
+ * both postings looked valid. The fund book would then be wrong on both sides
+ * and nothing would reconcile.
+ *
+ * `labels` names the offending lines for the message, because a bare
+ * "wrong fund" would send the operator hunting; a fee name points at the row.
+ */
+export async function assertVoucherFundMatches(
+  tx: Tx,
+  accountId: number,
+  lines: ReadonlyArray<{ costGroup: string | null; feeName: string }>,
+): Promise<void> {
+  const fundFor = (group: string | null) => (group ? VOUCHER_REQUIRED_FUND[group] : undefined);
+  const required = [...new Set(lines.map((l) => fundFor(l.costGroup)).filter(Boolean))] as Array<'COMPANY' | 'TM'>;
+  if (required.length === 0) return; // nothing to judge
+
+  const name = (f: 'COMPANY' | 'TM') => (f === 'TM' ? 'Quỹ TM' : 'Quỹ công ty');
+  const [account] = await tx.select({ fundCode: s.treasuryAccounts.fundCode }).from(s.treasuryAccounts)
+    .where(eq(s.treasuryAccounts.id, accountId)).limit(1);
+  const fund = treasuryFundCodeSchema.safeParse(account?.fundCode);
+  const actual = fund.success ? fund.data : null;
+
+  // A voucher whose own lines disagree has no correct account: refuse it and
+  // name the lines on the wrong side, rather than blaming the chosen account.
+  if (required.length > 1) {
+    const forCompany = lines.filter((l) => fundFor(l.costGroup) === 'COMPANY').map((l) => l.feeName);
+    const forTm = lines.filter((l) => fundFor(l.costGroup) === 'TM').map((l) => l.feeName);
+    throw new ApiError(
+      400,
+      `Phiếu này trộn hai nguồn quỹ nên không thể ghi vào một tài khoản. `
+      + `Cần Quỹ công ty: ${forCompany.join(', ') || '—'}; cần Quỹ TM: ${forTm.join(', ') || '—'}. Hãy tách phiếu.`,
+    );
+  }
+
+  const wanted = required[0];
+  if (!actual) return; // assertTreasuryFundAssigned already refused an unclassified account
+  if (actual === wanted) return;
+  const offending = lines.filter((l) => fundFor(l.costGroup) === wanted).map((l) => l.feeName);
+  throw new ApiError(
+    400,
+    `Các dòng này phải chi từ ${name(wanted)}, nhưng tài khoản đã chọn thuộc ${name(actual)}. `
+    + `Dòng sai quỹ: ${offending.join(', ') || 'xem lại các dòng đã chọn'}.`,
+  );
+}
+
 export async function requestTreasuryCutover(input: {
   accountId: number;
   expectedVersion: number;
