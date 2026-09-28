@@ -158,6 +158,7 @@ export default async function (ctx) {
   await page.waitForSelector(PORTAL_INBOX, { timeout: 15000 });
   const tabCount = await page.$$eval('[role="tab"]', (els) => els.length);
   const domRowKeys = new Set();
+  const rowsByTab = [];
   for (let i = 0; i < Math.max(tabCount, 1); i += 1) {
     await page.evaluate((idx) => {
       const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
@@ -168,7 +169,18 @@ export default async function (ctx) {
       '.role-work-inbox__table tr[data-row-key]',
       (rows) => rows.map((row) => row.getAttribute('data-row-key')),
     );
+    rowsByTab.push(keys.length);
     for (const key of keys) domRowKeys.add(key);
+  }
+  // Re-select the queue that actually listed lots, so the screenshot shows the
+  // customer's own rows instead of whatever queue the loop happened to end on.
+  const bestTab = rowsByTab.indexOf(Math.max(...rowsByTab, 0));
+  if (bestTab > 0) {
+    await page.evaluate((idx) => {
+      const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+      if (tabs[idx]) tabs[idx].click();
+    }, bestTab);
+    await new Promise((r) => setTimeout(r, 900));
   }
   await ctx.screenshot('03_inbox_queues_walked');
 
