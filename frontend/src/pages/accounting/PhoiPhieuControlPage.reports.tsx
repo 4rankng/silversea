@@ -4,6 +4,17 @@ import { qk } from '../../api/keys';
 import { overpayAnnotationOf } from '../../features/accounting/overpayAnnotation';
 import { formatCurrency } from '../../lib/format';
 
+/** Card 20260928_173 AC3 — "Với khách hàng có phát sinh cả thu / trả 1 tháng …
+ *  Ưu tiên hiển thị tổng hợp trên cùng 1 dòng: cả cước phải thu / phải trả, số
+ *  lượng". A subject moving on BOTH ledger sides in the period shows one row
+ *  carrying both figures and the count; a one-sided subject returns null and
+ *  keeps the plain report look. Shared by both tables — that is the point of
+ *  criterion 5. */
+export function aggregateOf(row: { phaiThu: number; phaiTra: number; soLuong: number }): string | null {
+  if (row.phaiThu <= 0 || row.phaiTra <= 0) return null;
+  return `Phải thu ${formatCurrency(row.phaiThu)} · Phải trả ${formatCurrency(row.phaiTra)} · ${row.soLuong} lượt`;
+}
+
 export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
   kind: 'THU' | 'TRA'; dateFrom: string; dateTo: string;
   /** Card 20260921_8: omitted = server default (accountant → self). */
@@ -29,6 +40,10 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
               group spans three tier-2 sub-columns; the old "thu|trả" cells
               crammed both directions into a single header. */}
           <th scope="col" colSpan={3}>{kind === 'THU' ? 'Phải thu' : 'Phải trả'}</th>
+          {/* Card 20260928_173 AC3 — the aggregated row for a subject that moved
+              on both ledger sides. The header names no direction so the
+              card-20260924_1 contract (no cell mixing thu|trả) still holds. */}
+          <th scope="col" rowSpan={2}>Tổng hợp</th>
           <th scope="col" rowSpan={2}>Ghi chú</th>
         </tr>
         <tr>
@@ -44,6 +59,7 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
             <td>{formatCurrency(row.tienNang)}</td><td>{formatCurrency(row.tienHa)}</td>
             <td>{formatCurrency(row.psKhac)}</td><td><strong>{formatCurrency(row.tongPhaiThuTra)}</strong></td>
             <td>{formatCurrency(row.daThuTra)}</td><td>{formatCurrency(row.conLai)}</td>
+            <td>{aggregateOf(row) ?? '—'}</td>
             <td>{[overpayAnnotationOf({ tongPhaiThuTra: row.tongPhaiThuTra, daThuTra: row.daThuTra }), row.ghiChu].filter(Boolean).join(' · ') || '—'}</td>
           </tr>
         ))}
@@ -53,6 +69,7 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
             <td><strong>{formatCurrency(grand.tienNang)}</strong></td><td><strong>{formatCurrency(grand.tienHa)}</strong></td>
             <td><strong>{formatCurrency(grand.psKhac)}</strong></td><td><strong>{formatCurrency(grand.tongPhaiThuTra)}</strong></td>
             <td><strong>{formatCurrency(grand.daThuTra)}</strong></td><td><strong>{formatCurrency(grand.conLai)}</strong></td>
+            <td>{aggregateOf(grand) ?? '—'}</td>
             <td />
           </tr>
         )}

@@ -151,6 +151,12 @@ export interface PhoiPhieuReportRow {
   daThuTra: number;
   conLai: number;
   ghiChu: string | null;
+  /** Card 20260928_173 AC2/AC3 — movements in the period, and both ledger
+   *  legs of the subject: the receivable (cash IN) and the payable (cash OUT).
+   *  A subject that moved on both is one row, so it needs both figures. */
+  soLuong: number;
+  phaiThu: number;
+  phaiTra: number;
 }
 
 export async function getPhoiPhieuReport(kind: 'THU' | 'TRA', params: {

@@ -671,6 +671,19 @@ export interface PhoiPhieuReportRow {
   daThuTra: number;
   conLai: number;
   ghiChu: string | null;
+  /** Card 20260928_173 AC2/AC3 "số lượng" — how many times this subject
+   *  transacted inside the filtered period: the distinct trips carrying one of
+   *  its recorded movements, plus each trip-less movement of its own (a
+   *  correct-route linked replacement carries money with no trip to hang on).
+   *  Also the AC2 sort key, so the repeat customers land next to each other. */
+  soLuong: number;
+  /** AC3 — the subject's RECEIVABLE leg in the period (cash IN on its own
+   *  movements). Paired with cash OUT by the voucher eligibility set at
+   *  `:270-271` and with the board's `chiHoThu`; one side is what the table
+   *  already prints, and the other was dropped until AC3 asked for both. */
+  phaiThu: number;
+  /** AC3 — the subject's PAYABLE leg in the period (cash OUT). */
+  phaiTra: number;
 }
 
 const INTERNAL_CARRIER_CODE = 'XE NHÀ — SILVER SEA';
@@ -720,7 +733,7 @@ export async function getPhoiPhieuReport(query: {
   const tripIds = (await db.select({ id: s.trips.id })
     .from(s.trips).where(and(...tripConditions))).map((row) => row.id);
   if (tripIds.length === 0) {
-    return { rows: [], grand: { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null } };
+    return { rows: [], grand: { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0 } };
   }
 
   const sources = await db.select({
@@ -780,14 +793,17 @@ export async function getPhoiPhieuReport(query: {
     }
   }
 
-  const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null }>();
+  const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null; soLuong: number; phaiThu: number; phaiTra: number; movements: Set<string> }>();
   for (const source of sources) {
     // A NULL trip (the correct-route linked-replacement nulls the source's
     // trip_id) must not silently drop the money from the report — it keeps
     // reporting, bucketed under the unknown party.
     const partyInfo = source.tripId != null ? tripParty.get(source.tripId) : undefined;
     const party = partyInfo?.name ?? 'Chưa xác định';
-    const bucket = groups.get(party) ?? { tienNang: 0, tienHa: 0, psKhac: 0, da: 0, ghiChu: partyInfo?.ghiChu ?? null };
+    const bucket = groups.get(party) ?? {
+      tienNang: 0, tienHa: 0, psKhac: 0, da: 0, ghiChu: partyInfo?.ghiChu ?? null,
+      soLuong: 0, phaiThu: 0, phaiTra: 0, movements: new Set<string>(),
+    };
     const bucketKey = bucketByCategory(source.category);
     // Card 20260928_197 — the signed cost side drops negative rows; `da` (the
     // recorded cash allocation) is a separate money flow and keeps its add.
@@ -802,6 +818,19 @@ export async function getPhoiPhieuReport(query: {
     // types — it does not change which connection the query runs on.
     const cash = await getExpenseCashTotals(db as unknown as Tx, source.id);
     bucket.da += query.kind === 'THU' ? cash.IN : cash.OUT;
+    // Card 20260928_173 AC3 — a subject that moves on BOTH sides of the ledger
+    // in one period must be one row carrying both figures, not a receivable row
+    // plus a payable row. `getExpenseCashTotals` always returned both sides; the
+    // old loop kept only the side its own table prints and dropped the other.
+    // Recording both here is additive: `da` above — and therefore `tongPhaiThuTra`,
+    // `conLai` and the TỔNG CỘNG — keep their exact meaning and value.
+    bucket.phaiThu += cash.IN;
+    bucket.phaiTra += cash.OUT;
+    // AC2/AC3 `số lượng`: one per trip the subject transacted on, with a
+    // trip-less movement counted as its own transaction. The Set is what makes
+    // a lot with several fees on one trip read as ONE transaction, matching
+    // "xhd nhiều lần 1 tháng" rather than "fee line nhiều lần".
+    bucket.movements.add(source.tripId != null ? `trip:${source.tripId}` : `source:${source.id}`);
     groups.set(party, bucket);
   }
 
@@ -811,13 +840,23 @@ export async function getPhoiPhieuReport(query: {
     // Honest-and-additive: daThuTra reports the over-paid actual (may exceed
     // tong, conLai goes negative) so the FE over-pay annotation can fire.
     return { party, tienNang: bucket.tienNang, tienHa: bucket.tienHa, psKhac: bucket.psKhac,
-      tongPhaiThuTra: tong, daThuTra: bucket.da, conLai, ghiChu: bucket.ghiChu };
-  }).sort((a, b) => b.tongPhaiThuTra - a.tongPhaiThuTra);
+      tongPhaiThuTra: tong, daThuTra: bucket.da, conLai, ghiChu: bucket.ghiChu,
+      soLuong: bucket.movements.size, phaiThu: bucket.phaiThu, phaiTra: bucket.phaiTra };
+  })
+    // Card 20260928_173 AC2 — the PM's order: "Ưu tiên thứ tự, với những khách
+    // xhd nhiều lần 1 tháng, được ưu tiên xếp nối tiếp" — the subjects that
+    // transacted most come first, so the repeat customers sit side by side. The
+    // name is the tiebreaker the PM's own ruling asks for: without it two
+    // subjects with the same count could swap places between two renders of one
+    // period. `localeCompare(…, 'vi')` is total and stable, so equal names
+    // cannot reorder either — and the grouping above already merged them.
+    .sort((a, b) => b.soLuong - a.soLuong || a.party.localeCompare(b.party, 'vi'));
   const grand = rows.reduce((acc, row) => ({
     party: 'TỔNG CỘNG', tienNang: acc.tienNang + row.tienNang, tienHa: acc.tienHa + row.tienHa,
     psKhac: acc.psKhac + row.psKhac, tongPhaiThuTra: acc.tongPhaiThuTra + row.tongPhaiThuTra,
     daThuTra: acc.daThuTra + row.daThuTra, conLai: acc.conLai + row.conLai, ghiChu: null,
-  }), { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null });
+    soLuong: acc.soLuong + row.soLuong, phaiThu: acc.phaiThu + row.phaiThu, phaiTra: acc.phaiTra + row.phaiTra,
+  }), { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0 });
   return { rows, grand };
 }
 
