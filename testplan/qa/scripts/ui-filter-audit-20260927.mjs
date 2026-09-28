@@ -73,7 +73,7 @@ const SURFACES = [
   // surface; `widths` overrides the global WIDTHS for the entry.
   // tripDetailOnly = ADMIN | MANAGER | ACCOUNTANT — the dispatcher is deliberately
   // excluded from Sổ chuyến đi, so this surface audits as `ketoan`.
-  { label: 'trips', path: '/trips', role: 'ketoan', widths: [1440, 1024, 768] },
+  { label: 'trips', path: '/trips', role: 'ketoan' },
   // Card 20260928_158: this entry no longer restricts its widths. The phone
   // band was a blind spot, and it happened to be the only band where the real
   // defect lived — the sheet covered its own trigger at 390 and cleared it by
@@ -82,32 +82,32 @@ const SURFACES = [
   // restriction below is a sweep-runtime budget, not a correctness claim, and
   // this surface now passes the full set (7 widths, 0 flagged).
   { label: 'dispatch-detail', path: '/dispatch-detail', role: 'dieuvan' },
-  { label: 'fleet-vehicles', path: '/fleet/vehicles', role: 'dieuvan', widths: [1440, 1024, 768] },
-  { label: 'fleet-drivers', path: '/fleet/drivers', role: 'dieuvan', widths: [1440, 1024, 768] },
-  { label: 'fleet-external', path: '/fleet/external', role: 'dieuvan', widths: [1440, 1024, 768] },
-  { label: 'suppliers', path: '/suppliers', role: 'ketoan', widths: [1440, 1024, 768] },
-  { label: 'payables', path: '/payables', role: 'ketoan', widths: [1440, 1024, 768] },
-  { label: 'fuel-evidence', path: '/accounting/fuel-evidence', role: 'ketoan', widths: [1440, 1024, 768] },
-  { label: 'salary', path: '/salary', role: 'ketoan', widths: [1440, 1024, 768] },
-  { label: 'users', path: '/users', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'audit-logs', path: '/audit-logs', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'ops-orders', path: '/ops/orders', role: 'ops', widths: [1440, 1024, 768] },
-  { label: 'customers', path: '/customers', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'config-routes', path: '/config/routes', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'config-ports', path: '/config/ports', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'config-factories', path: '/config/factories', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'config-penalty-reasons', path: '/config/penalty-reasons', role: 'admin', widths: [1440, 1024, 768] },
+  { label: 'fleet-vehicles', path: '/fleet/vehicles', role: 'dieuvan' },
+  { label: 'fleet-drivers', path: '/fleet/drivers', role: 'dieuvan' },
+  { label: 'fleet-external', path: '/fleet/external', role: 'dieuvan' },
+  { label: 'suppliers', path: '/suppliers', role: 'ketoan' },
+  { label: 'payables', path: '/payables', role: 'ketoan' },
+  { label: 'fuel-evidence', path: '/accounting/fuel-evidence', role: 'ketoan' },
+  { label: 'salary', path: '/salary', role: 'ketoan' },
+  { label: 'users', path: '/users', role: 'admin' },
+  { label: 'audit-logs', path: '/audit-logs', role: 'admin' },
+  { label: 'ops-orders', path: '/ops/orders', role: 'ops' },
+  { label: 'customers', path: '/customers', role: 'admin' },
+  { label: 'config-routes', path: '/config/routes', role: 'admin' },
+  { label: 'config-ports', path: '/config/ports', role: 'admin' },
+  { label: 'config-factories', path: '/config/factories', role: 'admin' },
+  { label: 'config-penalty-reasons', path: '/config/penalty-reasons', role: 'admin' },
   // `/admin/advance-settlements` is a legacy redirect to /advances, which embeds
   // BOTH admin advance pages (`AdminAdvancesPage` / `AdminAdvanceSettlementsPage`),
   // so the settlements plane is audited through /advances.
   // The transport register is a view of the accounting workspace (`?view=transport`),
   // not the workspace default.
-  { label: 'accounting-register', path: '/accounting?view=transport', role: 'ketoan', widths: [1440, 1024, 768] },
+  { label: 'accounting-register', path: '/accounting?view=transport', role: 'ketoan' },
   // `/advances` mounts AdminAdvancesPage embedded; `/config` is the config home.
-  { label: 'advances', path: '/advances', role: 'ketoan', widths: [1440, 1024, 768] },
-  { label: 'config-home', path: '/config', role: 'admin', widths: [1440, 1024, 768] },
-  { label: 'my-advances', path: '/my-advances', role: 'ops', widths: [1440, 1024, 768] },
-  { label: 'my-settlements', path: '/my-settlements', role: 'ops', widths: [1440, 1024, 768] },
+  { label: 'advances', path: '/advances', role: 'ketoan' },
+  { label: 'config-home', path: '/config', role: 'admin' },
+  { label: 'my-advances', path: '/my-advances', role: 'ops' },
+  { label: 'my-settlements', path: '/my-settlements', role: 'ops' },
 ];
 const ROUTE_FILTER = process.env.ROUTES ? process.env.ROUTES.split(',').map((s) => s.trim()) : null;
 
@@ -215,7 +215,16 @@ function measureBars(config) {
 /** Runs in the page: opens a `Bộ lọc` trigger and reports the panel's relation to it. */
 function probeDropdown() {
   const trigger = [...document.querySelectorAll('.filter-dropdown__trigger')].find((el) => el.offsetParent !== null);
-  if (!trigger) return { ok: true, skipped: 'no Bộ lọc trigger on this surface' };
+  // Card 20260928_190: this used to answer `ok: true` with a `skipped` reason, and
+  // because the row is only flagged on `!ok`, a surface whose bar has no `Bộ lọc`
+  // trigger landed in `findings` as a clean pass for a check that never ran.
+  // No trigger is NOT a hole though — it is the bar's healthy state at a width
+  // wide enough to render every criterion inline, where there is nothing to fold
+  // and therefore nothing to anchor. So it reports `applicable: false` and the
+  // caller counts it separately. A genuine coverage hole is a different thing
+  // entirely (a redirect, or a bar gated behind an empty dataset) and is listed
+  // under `unverified`, which does fail the run.
+  if (!trigger) return { ok: true, applicable: false, skipped: 'no Bộ lọc trigger — bar renders inline, nothing to anchor' };
   const before = trigger.getBoundingClientRect();
   trigger.click();
   return new Promise((resolve) => {
@@ -289,7 +298,25 @@ for (const surface of surfaces) {
     }
     const measured = await page.evaluate(measureBars, { twoRowFloor: TWO_ROW_FLOOR });
     if (!measured.bars.length) {
-      report.skipped.push({ ...surface, width, reason: 'no shared .filter-bar rendered' });
+      // Card 20260928_190: "no shared .filter-bar rendered" was one bucket for
+      // two very different facts. A surface that has no bar in its code is out of
+      // scope and can be closed; a surface that HAS one and hides it behind
+      // `count > 0` is UNVERIFIED, because the local dataset happened to be
+      // empty. Reporting the second as the first is how a surface silently
+      // escapes coverage, so the two now carry different kinds and the summary
+      // counts them separately. Evidence for the split:
+      // ForwarderSettlementsPage.tsx renders `ListFilterBar` inside
+      // `{totalCount > 0 && ...}`, and the demo account holds zero settlements.
+      const dataGated = await page.evaluate(() => {
+        const rows = document.querySelectorAll('tbody tr').length;
+        const empty = document.querySelector('[data-empty], .empty-state, [class*="empty"]');
+        return rows === 0 || Boolean(empty);
+      });
+      report.skipped.push({
+        ...surface, width,
+        kind: dataGated ? 'unverified: bar gated on data, dataset empty' : 'out of scope: no shared .filter-bar in this surface',
+        reason: dataGated ? 'no rows to filter' : 'no shared .filter-bar rendered',
+      });
       continue;
     }
     for (const [index, bar] of measured.bars.entries()) {
@@ -298,6 +325,11 @@ for (const surface of surfaces) {
         surface: surface.label, path: surface.path, role: surface.role, width, barIndex: index,
         ...bar, dropdown,
       };
+      // `applicable === false` means the bar renders every criterion inline, so
+      // there is no panel to anchor. That is the healthy state, not a gap, and it
+      // is counted and printed rather than silently passing.
+      const anchorApplicable = dropdown.applicable !== false;
+      row.anchorApplicable = anchorApplicable;
       row.flagged = Boolean(bar.twoRowViolation || bar.overflowCaps.length || bar.outsideBar.length || bar.pageOverflow > 1 || !dropdown.ok);
       report.findings.push(row);
       const flags = [
@@ -306,6 +338,7 @@ for (const surface of surfaces) {
         bar.outsideBar.length ? `outside=${bar.outsideBar.length}` : '',
         bar.pageOverflow > 1 ? `pgOvf=${bar.pageOverflow}` : '',
         !dropdown.ok ? `anchor=${dropdown.reason || `gap ${dropdown.gapBelow}/${dropdown.gapAbove} overlap ${dropdown.overlaps}`}` : '',
+        !anchorApplicable ? 'anchor n/a (inline)' : '',
       ].filter(Boolean).join(' ');
       process.stdout.write(`${row.flagged ? 'FAIL' : 'ok  '} ${surface.label.padEnd(18)} ${String(width).padEnd(5)} bar${index} rows=${bar.rows} ${flags}\n`);
       if (SHOTS && bar.box.w > 40) {
@@ -322,7 +355,28 @@ await browser.close();
 await fs.writeFile(path.join(OUT, 'report.json'), JSON.stringify(report, null, 2));
 
 const flagged = report.findings.filter((f) => f.flagged);
-process.stdout.write(`\nfilter-audit: ${report.findings.length} bars measured · ${flagged.length} flagged · ${report.skipped.length} skipped\n`);
-for (const s of report.skipped) process.stdout.write(`  skipped ${s.label}@${s.width}: ${s.reason}\n`);
+const anchorNA = report.findings.filter((f) => f.anchorApplicable === false);
+const unverified = report.skipped.filter((s) => String(s.kind || '').startsWith('unverified'));
+const outOfScope = report.skipped.filter((s) => String(s.kind || '').startsWith('out of scope'));
+// Card 20260928_190: "N bars measured, 0 flagged" must never be read as "the app
+// is covered". The summary splits the two kinds of not-measured, and a real
+// coverage hole (a redirect, or a bar gated behind an empty dataset) exits
+// non-zero — an unmeasured surface is an open hole, not a pass. A bar that
+// renders inline has nothing to anchor; that is counted, not failed.
+process.stdout.write(`\nfilter-audit: ${report.findings.length} bars measured · ${flagged.length} flagged\n`);
+process.stdout.write(`  anchor check: ${report.findings.length - anchorNA.length} verified · ${anchorNA.length} n/a (bar renders inline, nothing to anchor)\n`);
+process.stdout.write(`  not measured: ${unverified.length} UNVERIFIED (open holes) · ${outOfScope.length} out of scope · ${report.skipped.length - unverified.length - outOfScope.length} other\n`);
+if (unverified.length) {
+  process.stdout.write('\n  UNVERIFIED — these are NOT passes:\n');
+  for (const s of unverified) process.stdout.write(`    ${s.label}@${s.width}: ${s.reason}\n`);
+}
+if (outOfScope.length) {
+  process.stdout.write('\n  out of scope (no shared bar in this surface):\n');
+  for (const s of outOfScope) process.stdout.write(`    ${s.label}@${s.width}\n`);
+}
+for (const s of report.skipped) {
+  if (String(s.kind || '')) continue;
+  process.stdout.write(`  skipped ${s.label}@${s.width}: ${s.reason}\n`);
+}
 process.stdout.write(`evidence: ${OUT}\n`);
-process.exitCode = flagged.length ? 1 : 0;
+process.exitCode = flagged.length || unverified.length ? 1 : 0;
