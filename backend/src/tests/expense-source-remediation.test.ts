@@ -165,3 +165,33 @@ test('FIX17-S07 active legacy settlement blocks correction until its explicit re
   const corrected = await correctAccountingExpense(tx, ctx.actor, 'OPS', source.sourceId, { expectedVersion: confirmed.version, amount: 450000, reason: 'Sửa sau hoàn tác' });
   assert.equal(corrected.amount, '450000');
 }));
+
+// Card 20260928_171 (AC5) — "mọi lần sửa số tiền đều để lại dấu vết ai sửa, sửa
+// từ bao nhiêu lên bao nhiêu, lúc nào". The write path always emitted the pair
+// (expense-accounting-write.service.ts:48-51 auditExpenseChange, plus the same
+// shape in ops-expenses.service.ts:312) but nothing asserted it: the nearest
+// coverage pinned only `replacementSourceId` on the CORRECTED row, and a grep
+// for the from→to pair returned zero. This is that assertion.
+test('FIX17-S08 (card 20260928_171) an amount edit records who / from / to / when', async () => fixture(async (tx, ctx) => {
+  const source = await ops(tx, ctx);
+  const updated = await updateAccountingExpense(tx, ctx.actor, 'OPS', source.sourceId, {
+    expectedVersion: source.version, reason: 'Kế toán sửa số tiền trong xem chi tiết chi hộ', amount: 600_000,
+  });
+  assert.equal(updated.amount, '600000', 'the edit landed');
+
+  const [audit] = await tx.select().from(s.auditLogs).where(and(
+    eq(s.auditLogs.entityId, source.id), eq(s.auditLogs.message, 'EXPENSE_ACCOUNTING_UPDATED')));
+  assert.ok(audit, 'the edit leaves an EXPENSE_ACCOUNTING_UPDATED row');
+  assert.equal(audit.userId, ctx.accountant.id, 'WHO — the accountant who made the edit');
+  assert.equal(audit.entityType, 'expense_accounting_source', 'correlates to the source row, not the native entry');
+  const payload = audit.payload as { reason: string; before: { amount: string }; after: { amount: string } };
+  assert.equal(payload.reason, 'Kế toán sửa số tiền trong xem chi tiết chi hộ', 'WHY — the reason travels with the pair');
+  assert.equal(Number(payload.before.amount), 500_000, 'FROM — the amount as it was');
+  assert.equal(Number(payload.after.amount), 600_000, 'TO — the amount as it now is');
+  // `timestamp` defaults to the DB's now(), i.e. the transaction's instant, so
+  // the window is asserted as "a real stamp written during this run" rather than
+  // against a Date.now() captured after the transaction opened.
+  assert.ok(audit.timestamp instanceof Date, 'WHEN — a timestamp is stored');
+  const age = Date.now() - audit.timestamp.getTime();
+  assert.ok(age >= 0 && age < 60 * 60 * 1000, 'WHEN — stamped by the write, inside this run');
+}));
