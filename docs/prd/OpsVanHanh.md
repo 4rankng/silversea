@@ -59,7 +59,7 @@ Khi mở **Khai báo chi phí**, sản phẩm giữ ngữ cảnh lô và không 
 | Số tiền | Số nguyên dương bằng đồng Việt Nam. Số âm hoặc sai định dạng được giải thích, không tự biến thành giá trị khác. |
 | Ngày và người chi | Phản ánh thực tế. Khi được nhập thay, vẫn phân biệt người chi với người ghi thông tin. |
 | Biên lai | Cho chụp hoặc chọn ảnh; có thể ghi khoản đã thực chi rồi bổ sung ảnh sau. |
-| Ghi chú | Có thể thêm khi cần; sửa/hủy khoản ảnh hưởng tiền phải có lý do. |
+| Ghi chú | Có thể thêm khi cần, **trừ khoản không thu khách hàng**: dòng chi mà khách không phải trả (thu khách 0đ) bắt buộc có ghi chú nêu lý do, hệ thống chặn lưu khi thiếu — lý do này để kế toán/CUS đọc được chứ không phải thủ tục hình thức. Sửa/hủy khoản ảnh hưởng tiền phải có lý do. |
 
 Lưu hợp lệ thì khoản chi được ghi nhận trực tiếp và phản ánh vào quỹ liên quan. Không chuyển sang chờ duyệt. Nội dung còn đang nhập chưa được tính là khoản đã ghi.
 
@@ -215,9 +215,9 @@ Khoản chi lưu ngay, không qua gửi duyệt. Ops ghi thực tế chi và ch�
 
 Mỗi **loại chi phí** trong danh mục có một **Nhóm quyết toán** do người có quyền đặt (Hải quan giám sát, Phát sinh, Khác, Nâng, Hạ, CSHT — sửa chữa hạ tầng, ...). Bảng quyết toán của lô nhóm tiền theo Nhóm quyết toán này; loại nào chưa được phân nhóm hiển thị trong nhóm **Chưa phân loại** trên bảng và **tổng các nhóm luôn khớp tổng chi phí của lô** — không để mất một đồng nào khỏi bảng. Đổi Nhóm quyết toán của một loại chỉ ảnh hưởng quyết toán sau đó; chứng từ đã phát hành giữ nguyên cấu trúc tại thời điểm phát hành. Phí cân hàng mặc định thuộc nhóm **Phát sinh**.
 
-Về chứng từ: **nâng, hạ, cân hàng, cơ sở hạ tầng và kiểm hóa là nhóm "yêu cầu hóa đơn"** — đường phê duyệt/quyết toán đòi số hóa đơn thật, không chấp nhận bằng chứng thay thế cho nhóm này; chỉ Phí khác và dịch vụ kiểm hóa (kiểm dịch vụ) mới được cân nhắc bằng chứng thay thế khi phê duyệt. Dòng chi phí đã gắn số hóa đơn bị khóa trên màn quyết toán (xem quy trình lô §7.9). Cờ này là cờ **đường phê duyệt** — không phải khóa sửa theo loại trên màn hình nhập chi phí.
+Về chứng từ: **nâng, hạ, cân hàng, cơ sở hạ tầng, kiểm hóa, hải quan (phí làm tờ khai) và toàn bộ nhóm chi hộ có hóa đơn** (nâng vỏ / nâng hàng / lưu bãi, hạ vỏ / hạ hàng / lưu vỏ / lưu bãi và các phí chi hộ khác như gia hạn, vệ sinh, soi chiếu, bốc xếp, công nhân, lưu kho) **là nhóm "yêu cầu hóa đơn"** — đường phê duyệt/quyết toán đòi số hóa đơn thật, không chấp nhận bằng chứng thay thế cho nhóm này; chỉ Phí khác (không hóa đơn), dịch vụ kiểm hóa (kiểm dịch vụ), phụ phí vùng và phí sửa chữa dọc đường mới được cân nhắc bằng chứng thay thế khi phê duyệt. Hai nhóm **"Giao nhận Ops"** và **"Phát sinh Ops"** ở bảng trên là nhóm **không hóa đơn** — tên phí gõ trong hai nhóm này không làm khoản chi trở thành có hóa đơn, dù tên đó trùng với một loại phí có hóa đơn. Dòng chi phí đã gắn số hóa đơn bị khóa trên màn quyết toán (xem quy trình lô §7.9). Cờ này là cờ **đường phê duyệt** — không phải khóa sửa theo loại trên màn hình nhập chi phí.
 
-Mỗi dòng có lô, container/phí chung, ngày chi, nhóm/tên phí, người thực trả tiền, người nhập, thực chi, số thu khách, số hóa đơn khi có, biên lai và ghi chú. “Người thanh toán” là người thực hiện khoản chi; nhập thay không đổi người này thành người đang đăng nhập. Ghi chú cần trao đổi thu thêm với khách phải đọc được tại kế hoạch điều vận và nơi CUS/kế toán xử lý khoản thu.
+Mỗi dòng có lô, container/phí chung, ngày chi, nhóm/tên phí, người thực trả tiền, người nhập, thực chi, số thu khách, số hóa đơn khi có, biên lai và ghi chú. “Người thanh toán” là người thực hiện khoản chi; nhập thay không đổi người này thành người đang đăng nhập. Ghi chú cần trao đổi thu thêm với khách, **và lý do của khoản không thu khách**, phải đọc được tại kế hoạch điều vận (kế toán) và nơi CUS/kế toán xử lý khoản thu (danh sách phơi phiếu) — chỉ nội dung lý do, không kèm số tiền hay thông tin quỹ.
 
 ### 9.2 Xác nhận chi phí và bảng hoàn ứng
 

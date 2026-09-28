@@ -4,6 +4,47 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-09-28 — Chi phí: số âm có kiểm soát, lý do bắt buộc khi không thu khách, nhóm chi hộ theo danh mục, nguồn quỹ khớp dòng chi
+
+- **Số tiền của một dòng chi phí được phép là số âm, và số âm không được cộng vào tổng nào**
+  (QuyTrinhO2C.md §7.8 — tiêu chí AC-CP-KT-19): một dòng chi phí có thể mang số âm; khi đó mọi
+  tổng (chi hộ của lô, phải thu khách, bảng kê, bảng quyết toán) xử sự như thể dòng đó không tồn
+  tại — không lấy số dương trừ đi số âm — trong khi dòng vẫn hiện để đối soát, chỉ số tiền là
+  không được tính. Màn hình nhập của Ops, lái xe và kế toán vẫn yêu cầu số dương; việc mở nhập
+  số âm trên giao diện là mặt việc riêng. (card 20260928_181)
+- **Khoản chi không thu khách bắt buộc có lý do, và lý do đó đọc được ở nơi xử lý**
+  (OpsVanHanh.md §3.3 và §9.1): hệ thống chặn lưu một khoản chi Ops mà khách không phải trả
+  (thu khách 0đ) nếu thiếu ghi chú nêu lý do; lý do này hiện trên bảng kế hoạch điều động cho kế
+  toán và trên danh sách phơi phiếu cho CUS/kế toán — chỉ nội dung lý do, không kèm số tiền hay
+  thông tin quỹ. Trước đó trường lý do được lưu nhưng không nơi nào đọc. (card 20260928_162)
+- **Nguồn quỹ của phiếu phải khớp với dòng chi phí trên phiếu** (QuyTrinhO2C.md §7.5): dòng chi
+  hộ có hóa đơn (kể cả chi phí hóa đơn) phải chi từ Quỹ TM; ứng Ops, chi phí lô hàng không hóa
+  đơn, phát sinh Ops, tiền đường và cược container phải chi từ Quỹ công ty. Chọn sai nguồn thì
+  phiếu bị từ chối kèm tên dòng sai quỹ; phiếu trộn dòng của hai nguồn bị từ chối và yêu cầu tách
+  phiếu. Trước đó chỉ kiểm tài khoản đã được phân nguồn hay chưa, chưa so nguồn với dòng chi.
+  (card 20260928_167)
+- **Phí làm tờ khai hải quan thuộc nhóm "yêu cầu hóa đơn"** (OpsVanHanh.md §9.1): loại phí này
+  trước đây không nằm trong nhóm nào — không bắt buộc hóa đơn nhưng cũng không được dùng bằng
+  chứng thay thế, nên nó không có đường chứng từ nào hợp lệ. Nay thuộc nhóm yêu cầu hóa đơn như
+  nâng, hạ, cân hàng, cơ sở hạ tầng và kiểm hóa. Danh sách loại phí được cân nhắc bằng chứng thay
+  thế vì vậy chỉ còn Phí khác (không hóa đơn), dịch vụ kiểm hóa, phụ phí vùng và phí sửa chữa dọc
+  đường. (card 20260928_181)
+- **Nhóm chi hộ Nâng / Hạ / Phí khác suy từ nhóm quyết toán của danh mục, không từ mã phí**
+  (OpsVanHanh.md §9.1): đổi nhóm quyết toán của một loại phí trong danh mục thì màn hình nhập
+  chi phí và máy chủ đổi theo, không cần sửa phần mềm. Trước đây chỉ hai mã cố định (phí nâng
+  container, phí hạ container) được nhận đúng nhóm; các loại còn lại — nâng vỏ, nâng hàng, lưu
+  bãi lúc nâng, hạ vỏ, hạ hàng, lưu vỏ, lưu bãi lúc hạ — bị dồn vào Phí khác dù danh mục đã ghi
+  đúng nhóm. (card 20260928_161)
+- **Màn hình công nợ khách hàng có tick "Bỏ xe công ty"**: bỏ các lô chạy bằng xe công ty khỏi số
+  liệu công nợ đang xem; phép tính chạy ở máy chủ theo chủ sở hữu chuyến thực tế, không phải phép
+  trừ ở trình duyệt, và giữ đúng nguyên tắc phân biệt xe nội bộ với nhà xe ngoài đã ghi tại
+  QuyTrinhO2C.md §7.6. Chưa có trang PRD nào mô tả màn hình công nợ khách hàng — đây là nơi ghi
+  nhận duy nhất của mặt việc này. (card 20260928_177)
+- **Gán nhiều xe cho một kế toán trong một thao tác** (QuyTrinhO2C.md §7.4; tiêu chí
+  AC-CP-KT-01 tại §7.8): chọn nhiều xe rồi gán cùng lúc thay vì gán từng xe; cả lượt gán là một giao dịch —
+  một xe sai thì không xe nào bị gán nửa vời. Lịch sử người đã đối chiếu/chi tiền vẫn giữ như khi
+  gán từng xe. (card 20260928_166)
+
 ## 2026-09-24 — Đợt 24/09: chốt debit theo đợt, sổ quỹ Ops chỉ-đọc, báo giá nhập/xuất, guard phôi phiếu
 
 - **Chọn Debit — chốt công nợ theo đợt, VAT gắn từng đợt** (QuyTrinhO2C.md §7): popup "Chọn Debit"
