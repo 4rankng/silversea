@@ -1,9 +1,0 @@
-{
-  "lastAnalyzedAt": "2026-09-22T09:08:34.516Z",
-  "gitCommitHash": "8b26f5a9b014e5310f3bc8b7854cfb00bc17ebdf",
-  "version": "1.0.0",
-  "analyzedFiles": 495,
-  "analysisState": "uncommitted-working-tree",
-  "scope": "Existing .ua ignore configuration: backend, shared, infrastructure and configured top-level documentation; frontend/tests/product documents excluded.",
-  "workingTreeFingerprint": "9fb80575a66df819b3102e6ed82363f53d1d859dcab4777e0110b354dcb3c817"
-}
