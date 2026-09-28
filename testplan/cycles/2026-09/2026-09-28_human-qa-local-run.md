@@ -291,6 +291,17 @@ Mọi phát hiện trong báo cáo này đã được tách thành card trên bo
 | `20260928_157-customer-role-untestable-by-harness` | F-6 | testplan gap |
 | `20260928_158-dispatch-detail-filter-panel-covers-its-trigger` | F-2 | UI, cần lệnh sản phẩm |
 | `20260928_159-qa-cases-stale-selectors-and-assertions` | 11 case hỏng | test asset |
+| `20260928_182-root-lint-parse-noise-frontend-scratch` | 29 Parsing-error rác chặn gate lint | config |
+| `20260928_183-backend-no-console-policy-decision` | 225 cảnh báo no-console ở backend | policy |
+| `20260928_184-frontend-css-contract-tests-9-retired-tokens` | 9 test CSS ghim token cũ | test asset (ĐÃ SỬA xong) |
+| `20260928_185-frontend-suite-load-flake-waitfor-timeouts` | suite flaky theo tải máy | test infra |
+| `20260928_186-boot-redis-timeout-handle-never-cleared` | handle setTimeout không clear | code chất lượng |
+| `20260928_187-legacy-gate-sweep-syntax-error-unparseable` | script _legacy không parse | testplan |
+| `20260928_188-commit-cites-validation-script-never-existed` | commit cite script chưa từng tồn tại | quy trình |
+| `20260928_189-two-blocked-cases-missing-env-tag` | 2 case BLOCKED thiếu env | test asset |
+| `20260928_190-filter-audit-23-skips-unverified-not-pass` | 23 surface skip, chưa phủ | coverage |
+| `20260928_191-local-db-throwaway-shipments-pollute-row-finders` | lô hàng rác đầu /shipments | vệ sinh dữ liệu |
+| `20260928_192-frontend-dev-port-7174-vs-7175-footgun` | port lệch 7174/7175, proxy sai | quy trình dev |
 
 ## Trạng thái sửa (vòng 1 — 2026-09-28)
 
@@ -307,12 +318,26 @@ Mọi phát hiện trong báo cáo này đã được tách thành card trên bo
 | 153 | Sửa 2 assertion CSS **brittle** (nhạy khoảng trắng): `RecoverableCostsPage` (`overflow-wrap:anywhere` không khoảng trắng → có khoảng trắng) và `csc-customer-popover` (`var(--surface, #fff)` → `var(--surface)`). Cả hai rule **vẫn đúng**, chỉ là test ghim quá chặt vào byte. | Cả 2 file xanh. |
 | 153 | `ShipmentsPage.test.tsx`: **5 assertion CSS cũ** — CSS đã đổi **có chủ đích** (mỗi thay đổi đều kèm comment giải thích) còn test thì chưa cập nhật. Đã ghim lại **ý định** thay vì literal đã chết. VD `border-radius: 7px` → `8px` (commit `cd862de4` đưa app về 8px chuẩn; 7px giờ chỉ còn trong `styles/utilities.css`). | `npx vitest run --no-file-parallelism src/pages/ShipmentsPage.test.tsx` → **118/118 xanh**; `tsc -b` 0; `eslint` 0. **CSS không bị sửa.** |
 
-### Chưa xong
+### Đã xong thêm (vòng 2 — 2026-09-28)
 
-- **Card 154:** còn **55** lỗi `no-unused-vars` ở `backend/src` (đang xử lý).
-- **Card 159:** 6 case harness (đang xử lý).
-- **Card 153:** cần chạy lại **toàn bộ** suite 2 lần để chứng minh hết flaky.
-- **Card 158:** `/dispatch-detail` — **cần CHIEF ra lệnh** trước: neo panel dưới nút, hay cho audit miễn trừ panel dạng sheet. Không sửa theo phỏng đoán.
-- **Ngoài phạm vi lần này:** 225 `no-console` warning ở `backend/src` (không fail gate; backend có `pino`) — cần một quyết định policy riêng, không gộp vào đợt này.
+| Card | Kết quả |
+|---|---|
+| 154 dead code | 55 → **0** `no-unused-vars` ở `backend/src`. Giữ nguyên side-effect, 2 rest-destruct được restructure đúng cách, **không test nào mất assertion**. `npx tsc --noEmit` exit 0. |
+| 153 (9 test CSS) | 9 test/6 file đỏ cuối cùng đã sửa xong. **Toàn suite: 484 file / 3218 test / 0 fail**; `tsc -b` 0; `eslint src` 0 lỗi. Token mới được **kiểm chứng thật** (tính tỉ lệ WCAG) chứ không chỉ thay literal. **Không sửa file `.css`/`.tsx` nào.** |
+| 159 (6 case) | Cả 6 case PASS/BLOCKED-đúng. Topic: chungtu 5P/3B, dispatch 6P/3B (chạy 9 case), shipments 4P/1B — **0 FAIL** (trước 5 FAIL). |
+
+### Còn mở trên board (không sửa ở đợt này)
+
+- **Card 182:** root lint còn 29 "Parsing error" rác ở script one-off `frontend/` → **gate lint vẫn đỏ**. Cần quyết định scope.
+- **Card 185:** phần flaky theo tải máy (596s→98s, timeout 15s) — chưa có quyết định ngưỡng/concurrency.
+- **Card 186:** `boot-redis` giữ handle `setTimeout` không clear (giữ event loop thêm mỗi boot).
+- **Card 187:** script `_legacy/2026-09-10_gate-sweep.mjs` không parse (thiếu ngoặc) — hiện lint-ignore, cần sửa hoặc xoá có chủ đích.
+- **Card 188:** commit `5bd7d0b8` cite `check-migration-trio.mjs` chưa từng tồn tại — vấn đề quy trình, không sửa được bằng code.
+- **Card 189:** 2 case BLOCKED (REASSIGN, ROAD-ALLOWANCE) chưa gắn env.
+- **Card 190:** 23 surface filter-audit bị skip (chưa phủ, không phải đã đạt).
+- **Card 191:** DB local còn lô hàng rác đầu `/shipments` (id 11192–11197).
+- **Card 192:** footgun port 7174 vs 7175.
+- **Card 158:** đã được commit đồng thời `f31a47d6` sửa; **cần chạy verify filter-audit** để đóng.
+- **Card 183:** 225 cảnh báo `no-console` — chờ quyết định policy.
 
 ## Linked artifacts
