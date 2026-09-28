@@ -270,11 +270,19 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     fireEvent.click(await screen.findByRole('combobox', { name: /Loại phí/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
     const amount = screen.getByLabelText(/Thực chi \(VND\)/);
+    const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    // Card 20260928_197 — a NEGATIVE amount is the PM's "(-) chi phí tương
+    // đương xóa dòng". It must be accepted here; the backend drops the row from
+    // every total via sumExcludingNegative rather than netting it out.
     fireEvent.change(amount, { target: { value: '-123000' } });
     expect(amount).toHaveValue(-123000);
+    expect(amount).toHaveAttribute('aria-invalid', 'false');
+    expect(submit).toBeEnabled();
+    expect(screen.queryByText(/Số tiền phải là số nguyên khác 0/)).not.toBeInTheDocument();
+    // 0 is an empty row, not a signed one.
+    fireEvent.change(amount, { target: { value: '0' } });
     expect(amount).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByText('Số tiền phải là số dương')).toBeInTheDocument();
-    const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(screen.getByText(/Số tiền không được bằng 0/)).toBeInTheDocument();
     expect(submit).toBeDisabled();
     expect(apiPost).not.toHaveBeenCalled();
     fireEvent.change(amount, { target: { value: '123.45' } });
@@ -284,7 +292,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(apiPost).not.toHaveBeenCalled();
     fireEvent.change(amount, { target: { value: '123000' } });
     expect(submit).toBeEnabled();
-    expect(screen.queryByText('Số tiền phải là số dương')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Số tiền/)).not.toBeInTheDocument();
   });
 
   it('waits for the receipt upload before creating the expense with its storage key', async () => {

@@ -82,9 +82,14 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     return options;
   }, [groupedTypes]);
 
-  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
+  // Card 20260928_197 — mirrors the backend `signedExpenseVndSchema` exactly:
+  // a signed integer inside the money ceiling, with 0 rejected (0 is an empty
+  // row, not a signed row). A negative entry is the PM's "tương đương xóa
+  // dòng" — every total drops it via `sumExcludingNegative`.
+  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount !== 0 && Math.abs(amount) <= 999_999_999_999_999;
   const amountError = amount === '' || amountValid ? undefined
-    : amount <= 0 ? 'Số tiền phải là số dương' : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
+    : amount === 0 ? 'Số tiền không được bằng 0 — nhập (+) chi phí hoặc (−) chi phí để bỏ dòng'
+    : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
   const typesReady = typesQuery.isSuccess && Boolean(typesData?.items.length);
   const canSubmit = typesReady && Boolean(typeCode) && amountValid && !createExpense.isPending && !uploading && pendingFiles.length === 0;
 
@@ -186,7 +191,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               options={expenseTypeOptions}
             />
             <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} onChange={setAmount}
-              min={1} max={999_999_999_999_999} step={1} required error={amountError} />
+              min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required error={amountError} />
             <label>
               Ngày chi *
               <DateInput value={paidAt} onChange={setPaidAt} required />

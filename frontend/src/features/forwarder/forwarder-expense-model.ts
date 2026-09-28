@@ -101,7 +101,13 @@ export function validateExpenseForm(
   if (ctx.isLiftExpense && !ctx.matrixPriceValid) {
     errors.buyAmount = 'Chưa có biểu giá nâng/hạ hợp lệ cho Cảng + Loại cont + Hàng/Rỗng đã chọn';
   }
-  if ((!buyAmount || buyAmount <= 0) && !errors.buyAmount) errors.buyAmount = 'Giá mua vào phải lớn hơn 0';
+  // Card 20260928_181/197 — mirrors the backend `signedExpenseVndSchema`: a
+  // signed integer inside the money ceiling, with 0 rejected. A negative buy
+  // amount is the PM's "(−) chi phí tương đương xóa dòng" — the row leaves
+  // every total via `sumExcludingNegative` rather than netting it out.
+  const buyAmountInvalid = Number.isNaN(buyAmount) || buyAmount === 0
+    || Math.abs(buyAmount) > 999_999_999_999_999;
+  if (buyAmountInvalid && !errors.buyAmount) errors.buyAmount = 'Giá mua vào phải là số nguyên khác 0, tối đa 999.999.999.999.999đ';
   if (form.expenseType === 'CUSTOMS' && !form.declarationNumber.trim()) {
     errors.declarationNumber = 'Số tờ khai hải quan là bắt buộc cho phí hải quan';
   }

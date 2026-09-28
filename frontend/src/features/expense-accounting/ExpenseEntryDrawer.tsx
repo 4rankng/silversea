@@ -69,7 +69,7 @@ export function ExpenseEntryDrawer({ entry, staff, chargeOnly = false, onClose }
         {entry.canViewPayments && <><div><dt>Đã thu</dt><dd>{expenseMoney(entry.receivedAmount)}</dd></div><div><dt>Đã trả</dt><dd>{expenseMoney(entry.paidAmount)}</dd></div></>}
       </dl>
       <div className="expense-accounting-fields">
-        <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} disabled={disabled || chargeOnly} min={1} max={999_999_999_999_999} step={1} required onChange={(next) => { setAmount(next); if (equal) setCharge(next); }} />
+        <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} disabled={disabled || chargeOnly} min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required onChange={(next) => { setAmount(next); if (equal) setCharge(next); }} />
         <NumberField controlSize="sm" label="Thực thu — thu khách (VND)" value={charge} disabled={disabled || equal} min={0} max={999_999_999_999_999} step={1} required={chargeOnly} onChange={setCharge} helpText="Khoản tính cho khách; không phải tiền đã thu." />
       </div>
       {!chargeOnly && <label className="expense-accounting-check"><input type="checkbox" checked={equal} disabled={disabled} onChange={(event) => { setEqual(event.target.checked); if (event.target.checked) setCharge(amount); }} /> Nhập Thu và Trả bằng nhau</label>}

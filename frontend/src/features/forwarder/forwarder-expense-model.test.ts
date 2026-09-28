@@ -29,15 +29,23 @@ describe('validateExpenseForm', () => {
     form.buyAmount = '';
     const errors = validateExpenseForm(form, { ...validCtx, isLiftExpense: true, matrixPriceValid: false });
     expect(errors.buyAmount).toBe('Chưa có biểu giá nâng/hạ hợp lệ cho Cảng + Loại cont + Hàng/Rỗng đã chọn');
-    // Matrix error wins — the generic >0 message is not stacked on top.
-    expect(Object.values(errors).filter(v => v === 'Giá mua vào phải lớn hơn 0')).toHaveLength(0);
+    // Matrix error wins — the generic signed-amount message is not stacked on top.
+    expect(Object.values(errors).filter(v => v === 'Giá mua vào phải là số nguyên khác 0, tối đa 999.999.999.999.999đ')).toHaveLength(0);
   });
 
-  it('requires a positive buy amount on non-lift rows', () => {
+  it('requires a non-zero buy amount on non-lift rows — 0 is an empty row, not a signed one', () => {
     const form = invoicedForm();
     form.buyAmount = '0';
     const errors = validateExpenseForm(form, validCtx);
-    expect(errors.buyAmount).toBe('Giá mua vào phải lớn hơn 0');
+    expect(errors.buyAmount).toBe('Giá mua vào phải là số nguyên khác 0, tối đa 999.999.999.999.999đ');
+  });
+
+  it('accepts a NEGATIVE buy amount — the PM sign convention for removing a row', () => {
+    // Card 20260928_181/197: "(-) chi phí tương đương xóa dòng". The row is
+    // dropped from totals, not netted, so the form must not reject it.
+    const form = invoicedForm();
+    form.buyAmount = '-50000';
+    expect(validateExpenseForm(form, validCtx).buyAmount).toBeUndefined();
   });
 
   it('requires the customs declaration number for CUSTOMS rows', () => {

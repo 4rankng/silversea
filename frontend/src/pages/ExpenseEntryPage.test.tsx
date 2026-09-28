@@ -73,7 +73,7 @@ describe('ExpenseEntryPage load and recovery', () => {
     const selectErrors = [...document.querySelectorAll('.ds-uui-select__error')].map(e => e.textContent);
     expect(selectErrors).toContain('Vui lòng chọn nhà cung cấp');
     expect(selectErrors).toContain('Vui lòng chọn hạng mục chi phí');
-    expect(screen.getByText('Số tiền phải là số dương')).toBeInTheDocument();
+    expect(screen.getByText('Số tiền phải là số nguyên khác 0, tối đa 999.999.999.999.999đ')).toBeInTheDocument();
     // The app validates and displays itself; no offscreen native [required]
     // control participates (AC 2).
     expect(document.querySelectorAll('[required]')).toHaveLength(0);

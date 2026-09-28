@@ -56,7 +56,7 @@ export function DriverExpenseCorrectionForm({ entry, onSaved, onClose, onReload 
       {error && <div role="alert" className="shipment-cost-entry__banner--error">{error}<button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => void onReload()}>Tải lại khoản chi</button></div>}
       <div className="shipment-cost-entry__fields">
         <TextField controlSize="sm" label="Tên khoản chi" value={name} required maxLength={200} disabled={busy} onChange={event => setName(event.target.value)} />
-        <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} min={1} max={999_999_999_999_999} step={1} required disabled={busy} onChange={setAmount} />
+        <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required disabled={busy} onChange={setAmount} />
         <DateField controlSize="sm" label="Ngày chi" value={date} required disabled={busy} onChange={setDate} />
         {entry.costGroup !== 'DRIVER_ROAD' && driverLotCostInvoiceClass(entry.expenseTypeCode) !== 'NO_INVOICE' && <><TextField controlSize="sm" label="Số hóa đơn" value={invoice} maxLength={100} disabled={busy} onChange={event => setInvoice(event.target.value)} /><DateField controlSize="sm" label="Ngày hóa đơn" value={invoiceDate} disabled={busy} onChange={setInvoiceDate} /></>}
       </div>

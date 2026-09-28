@@ -266,7 +266,7 @@ export default function ExpenseEntryPage() {
       const FRIENDLY: Record<string, string> = {
         supplierId: 'Vui lòng chọn nhà cung cấp',
         categoryId: 'Vui lòng chọn hạng mục chi phí',
-        amount: 'Số tiền phải là số dương',
+        amount: 'Số tiền phải là số nguyên khác 0, tối đa 999.999.999.999.999đ',
         expenseDate: 'Vui lòng chọn ngày phát sinh chi phí',
         paymentStatus: 'Vui lòng chọn trạng thái thanh toán',
       };
