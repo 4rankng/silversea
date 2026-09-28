@@ -8,7 +8,13 @@ vi.mock('../../components/UI', () => ({ Drawer: ({ children, footer }: { childre
 import { ExpenseCashDrawer } from './ExpenseCashDrawer';
 const catalog = { staff: [], accounts: [{ id: 3, name: 'Quỹ test', fundCode: 'COMPANY' as const }], accountants: [], opsUsers: [{ id: 7, name: 'OPS Test' }], advances: [], suppliers: [], expenseTypes: [], pendingAdvances: [{ id: 12, opsUserId: 7, amount: 1000000, reason: 'Ứng phí cảng', date: '2026-09-17', name: 'OPS Test' }] };
 beforeEach(() => { fundAdvance.mockReset().mockResolvedValue({ id: 12 }); });
-it('funds the selected existing request and retries with the same command key after a lost response', async () => {
+// Measured, not guessed: this case drives six combobox opens plus a
+// reject→retry cycle, and it exceeds the 5000ms default on its own (5.1s when
+// this file runs alone, at HEAD, with no other suite in flight). It is volume of
+// interaction, not a hang — the sibling case in this file, which drives half as
+// many controls, still finishes inside the default. Same treatment the repo
+// already gave its other measured-slow dialog tests (20260928_196 / a7adc2dd).
+it('funds the selected existing request and retries with the same command key after a lost response', { timeout: 15000 }, async () => {
   fundAdvance.mockRejectedValueOnce(new Error('Mất phản hồi')).mockResolvedValueOnce({ id: 12 });
   const onClose = vi.fn();
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}><ExpenseCashDrawer catalog={catalog} onClose={onClose} /></QueryClientProvider>);
