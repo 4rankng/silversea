@@ -47,6 +47,29 @@ describe('ExpenseRegisterRows', () => {
   });
 });
 
+describe('ExpenseRegisterRows — Ngày duyệt column + approved rows (card 20260928_168)', () => {
+  it('AC1: the date column is named Ngày duyệt and shows who approved', () => {
+    const approved = {
+      ...row(9),
+      confirmedAt: '2026-09-21T02:00:00.000Z',
+      confirmedById: 42,
+      confirmedByName: 'Kế toán B',
+    } as ExpenseAccountingEntry;
+    render(<ExpenseRegisterRows rows={[approved]} selected={new Set()} selectable canViewPayments onSelect={vi.fn()} onOpen={vi.fn()} />);
+    const header = [...document.querySelectorAll('th')].find(cell => cell.textContent.trim() === 'Ngày duyệt');
+    expect(header).toBeTruthy();
+    expect(screen.getByText('Người duyệt: Kế toán B')).toBeInTheDocument();
+  });
+
+  it('AC2: an approved row cannot be ticked again', () => {
+    const approved = { ...row(9), confirmedAt: '2026-09-21T02:00:00.000Z', confirmedById: 42 } as ExpenseAccountingEntry;
+    const { header } = renderRows([approved, row(10)], new Set());
+    expect(screen.getByRole('checkbox', { name: /Chọn Phí 9/ })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: /Chọn Phí 10/ })).toBeEnabled();
+    expect(header.checked).toBe(false);
+  });
+});
+
 describe('ExpenseRegisterRows — header Chọn tất cả (20260922_7)', () => {
   it('renders the Chọn tất cả control in the selection column header', () => {
     const { header } = renderRows([row(1), row(2)], new Set());

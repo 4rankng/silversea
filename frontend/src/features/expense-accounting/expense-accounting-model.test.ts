@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ExpenseAccountingEntry } from '@tingting/shared';
-import { expenseMoney, validAllocation, voucherSelectionIssue, groupVoucherEntries } from './expense-accounting-model';
+import { expenseMoney, isConfirmableEntry, validAllocation, voucherSelectionIssue, groupVoucherEntries } from './expense-accounting-model';
 
 const row = (changes: Partial<ExpenseAccountingEntry> = {}) => ({
   sourceKind: 'OPS', sourceId: 1, version: 1, customerId: 12, status: 'RECORDED', locked: false,
@@ -30,5 +30,17 @@ describe('expense selection and money — AC-CP-KT-05/10/11', () => {
   it('rejects unresolved historical allocation and voided rows', () => {
     expect(voucherSelectionIssue([row({ outstandingReceivable: null })], 'IN')).toContain('chưa xác định');
     expect(voucherSelectionIssue([row({ status: 'VOIDED' })], 'OUT')).toContain('hủy');
+  });
+});
+
+describe('isConfirmableEntry — card 20260928_168 AC2', () => {
+  it('a pending row may join a confirm batch', () => {
+    expect(isConfirmableEntry(row())).toBe(true);
+  });
+  it('an approved row keeps status RECORDED and must still be refused', () => {
+    expect(isConfirmableEntry(row({ confirmedAt: '2026-09-21T02:00:00.000Z', confirmedById: 9 }))).toBe(false);
+  });
+  it('a voided row is refused', () => {
+    expect(isConfirmableEntry(row({ status: 'VOIDED' }))).toBe(false);
   });
 });
