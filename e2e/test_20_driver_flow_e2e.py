@@ -47,11 +47,21 @@ def create_driver_flow_fixture(ctx: SilverseaTestContext, results: TestResults):
     admin_api = ApiClient()
     admin_api.login(DEMO_ACCOUNTS['admin']["identifier"], DEMO_ACCOUNTS['admin']["password"])
 
-    # Get CUS user's customer scope
-    users_resp = admin_api.get("/api/auth/users")
-    cus_user = next((u for u in rows(users_resp) if u.get("username") == "cus"), None)
+    # Get CUS user's customer scope.
+    #
+    # Do NOT scan /api/auth/users for a username: that endpoint is paginated and
+    # caps at 500 rows, and its ordering is not by id (page 1 came back as ids
+    # 1, 2, 3, 6217, 5, 6). With ~900 users on a dev DB, the account this suite
+    # needs is routinely absent from page 1 — that is what made TC-2000 fail
+    # while the same credentials logged in fine. Ask the login instead: it
+    # returns the user record directly and needs no list scan.
+    cus_account = DEMO_ACCOUNTS['clerk']
+    cus_api = ApiClient()
+    cus_login = cus_api.login(cus_account["identifier"], cus_account["password"])
+    cus_user = cus_login.get("user") if isinstance(cus_login, dict) else None
     if not cus_user:
-        results.fail("TC-2000", "CUS user exists", str(users_resp))
+        results.fail("TC-2000", f"CUS login as {cus_account['identifier']!r} failed",
+                      str(cus_login)[:400])
         return
     customer_ids = list(cus_user.get("customerIds") or [])
     if not customer_ids:
@@ -181,8 +191,37 @@ def create_driver_flow_fixture(ctx: SilverseaTestContext, results: TestResults):
         results.fail("TC-2021", "Trucks and drivers available", f"trucks={len(trucks_list)} drivers={len(drivers_list_api)}")
         return
 
-    driver_user = next((u for u in rows(users_resp)
-                        if u.get("username") == DEMO_ACCOUNTS["driver"]["identifier"]), None)
+    # Same reasoning as the CUS lookup above: the users list is paginated and
+    # capped, so resolve the driver's own id from its login response instead of
+    # scanning /api/auth/users for a username.
+    #
+    # A user row can authenticate while its `drivers` row is not ACTIVE — a
+    # DB rebuild preserves user rows but clears discarded links. So walk the
+    # roster's DRIVER candidates and take the first that both authenticates AND
+    # owns an active driver record; otherwise this suite would fail on a data
+    # precondition and say nothing about the flow.
+    driver_candidates = [DEMO_ACCOUNTS["driver"]["identifier"]] + [
+        n for n in role_candidates().get("DRIVER", [])
+        if n != DEMO_ACCOUNTS["driver"]["identifier"]
+    ]
+    driver_user = None
+    driver_login_error = None
+    active_drivers = [d for d in drivers_list_api if d.get("status") == "ACTIVE"]
+    for candidate in driver_candidates:
+        probe = ApiClient()
+        login = probe.login(candidate, DEMO_ACCOUNTS["driver"]["password"])
+        user = login.get("user") if isinstance(login, dict) else None
+        if not user:
+            driver_login_error = f"{candidate}: {str(login)[:120]}"
+            continue
+        if any(d.get("userId") == user["id"] for d in active_drivers):
+            driver_user = user
+            DEMO_ACCOUNTS["driver"]["identifier"] = candidate
+            break
+    if not driver_user:
+        results.fail("TC-2021", "No DRIVER account owns an active driver record",
+                     f"tried {len(driver_candidates)} candidate(s); last error: {driver_login_error}")
+        return
     own_driver = next((d for d in drivers_list_api
                        if driver_user and d.get("userId") == driver_user["id"]
                        and d.get("status") == "ACTIVE"), None)

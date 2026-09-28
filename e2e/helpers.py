@@ -4,6 +4,7 @@ Provides login, API client, screenshot capture, and result tracking.
 """
 import json
 import os
+import re
 import sys
 import time
 import traceback
@@ -16,6 +17,102 @@ BASE_URL = os.environ.get('SILVERSEA_URL', 'http://localhost:7174')
 API_URL = os.environ.get('SILVERSEA_API', 'http://localhost:3001')
 SCREENSHOT_DIR = Path(os.environ.get('SILVERSEA_SCREENSHOTS', '/tmp/silversea-e2e'))
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Where the canonical role→usernames roster lives. This file is the single
+# source of truth for which account names exist in each environment.
+TESTACCOUNTS = Path(__file__).resolve().parent.parent / 'testplan' / 'testaccounts.txt'
+
+_ROLE_LINE = re.compile(r'^    ([A-Z_]+):\s*(.*)$')
+_USERNAME = re.compile(r'^[a-z][a-z0-9-]*$')
+
+
+def _current_env_block() -> str:
+    """'local' or 'staging', decided by the API host we were pointed at.
+
+    The E2E defaults to 7174/3001, which is the SIBLING silversea-main
+    checkout; this checkout is 7175/3002. Either way the roster block that
+    matters is the one whose demo accounts actually exist on that host.
+    """
+    host = (urlparse(API_URL).hostname or '').lower()
+    return 'staging' if host not in {'localhost', '127.0.0.1', '::1'} else 'local'
+
+
+def role_candidates(env=None) -> dict:
+    """Ordered username candidates per role, parsed from testaccounts.txt.
+
+    The roster documents that a database has TWO modes — dev-seed (demo
+    stand-ins like `cus`, `giaonhan`) or `make stgdb` prod-mirror (the named
+    staff, `thanhdc`, `hoangnh`). A checkout can also sit in a MIXED state
+    after a partial reseed, where some demo accounts are gone but the named
+    staff remain. Hardcoding one name per role therefore breaks on a real
+    checkout; the JS QA harness already walks this list
+    (`testplan/qa/lib/harness.mjs` createSession) and this mirrors it.
+    """
+    env = env or _current_env_block()
+    try:
+        text = TESTACCOUNTS.read_text(encoding='utf-8')
+    except OSError:
+        return {}
+
+    out: dict = {}
+    in_env = False
+    in_users = False
+    for raw in text.splitlines():
+        if re.match(r'^[a-z]+:\s*$', raw):
+            in_env = raw.strip() == f'{env}:'
+            in_users = False
+            continue
+        if not in_env:
+            continue
+        if re.match(r'^  \w+:\s*$', raw):
+            in_users = raw.strip() == 'users:'
+            continue
+        if not in_users:
+            continue
+        m = _ROLE_LINE.match(raw)
+        if m:
+            out.setdefault(m.group(1), []).extend(_split_names(m.group(2)))
+        elif raw.startswith('     ') and out:
+            # continuation of the previous role's value
+            out[next(reversed(out))].extend(_split_names(raw))
+        elif raw.strip() and not raw.startswith(' '):
+            in_users = False
+    return {role: names for role, names in out.items() if names}
+
+
+def _split_names(blob: str) -> list:
+    """`admin, phuongnt (NV001)` -> ['admin', 'phuongnt'].
+
+    Drops the `(NVxxx)` provenance notes and anything that is not a plain
+    username, so fixture-looking names cannot be picked by accident.
+    """
+    names = []
+    for part in blob.split(','):
+        name = re.sub(r'\([^)]*\)', '', part).strip()
+        if name and _USERNAME.match(name):
+            names.append(name)
+    return names
+
+
+def _resolvable_identifier(role: str, preferred: str) -> tuple:
+    """First candidate that actually authenticates, plus the list tried.
+
+    Probing is the only honest resolver: the roster lists what SHOULD exist,
+    the database decides what DOES.
+    """
+    candidates = [preferred] + [n for n in role_candidates().get(role, []) if n != preferred]
+    for name in candidates:
+        probe = ApiClient()
+        try:
+            resp = probe.login(name, DEMO_ACCOUNTS_PASSWORD)
+        except Exception:
+            continue
+        if resp and (resp.get('user') or resp.get('data', {}).get('user')):
+            return name, candidates
+    return preferred, candidates
+
+
+DEMO_ACCOUNTS_PASSWORD = os.environ.get('SILVERSEA_PASSWORD', 'Abc123')
 
 DEMO_ACCOUNTS = {
     'dispatcher': {'identifier': 'dieuvan', 'password': 'Abc123', 'role': 'DISPATCHER', 'home': '/dispatch'},
@@ -205,6 +302,31 @@ class ApiClient:
 
     def delete(self, path, headers=None, body=None):
         return self._request('DELETE', path, body, headers)
+
+
+def _resolve_demo_accounts() -> None:
+    """Point each role at an account that ACTUALLY logs in on this target.
+
+    Runs once at import. Every call site keeps using
+    `DEMO_ACCOUNTS[key]['identifier']`, so this is transparent to the suites —
+    they just stop failing on a checkout whose demo users have been replaced by
+    the named staff. Resolution is skipped when the target is unreachable, so an
+    offline run still imports and reports its own error.
+    """
+    if os.environ.get('SILVERSEA_SKIP_ACCOUNT_RESOLUTION') == '1':
+        return
+    for key, account in DEMO_ACCOUNTS.items():
+        if key == 'customer':
+            continue  # run-scoped fixture, resolved by ensure_customer_test_account
+        resolved, tried = _resolvable_identifier(account['role'], account['identifier'])
+        if resolved != account['identifier']:
+            print(f"[accounts] {key} ({account['role']}): "
+                  f"{account['identifier']} absent, using {resolved} "
+                  f"(tried {', '.join(tried)})")
+        account['identifier'] = resolved
+
+
+_resolve_demo_accounts()
 
 
 class SilverseaTestContext:
