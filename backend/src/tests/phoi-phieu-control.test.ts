@@ -1,12 +1,13 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
 import { Role, TxnType } from '@tingting/shared';
 import { disconnectRedis } from '../lib/redis';
-import { listPhoiPhieuRows, createPhoiPhieuVoucher } from '../services/phoi-phieu-control.service';
+import { listPhoiPhieuRows, createPhoiPhieuVoucher, getPhoiPhieuReport, getPhoiPhieuChiHo, getPhoiPhieuTienDuong, listPhoiPhieuStk } from '../services/phoi-phieu-control.service';
+import { listFundBook } from '../services/treasury-fund-book.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const cleanup: Array<{ table: any; id: number }> = [];
@@ -15,7 +16,12 @@ function track(table: any, id: number) {
 }
 let accountantId = 0;
 
-async function mkBoardFixture(opts: { charge?: number } = {}) {
+async function mkBoardFixture(opts: { charge?: number; amount?: number; day?: string; extra?: Array<{ amount: number; charge: number }>; reconciled?: boolean } = {}) {
+  // Card 20260928_173: `day`/`amount` let one fixture move into a window no
+  // other suite uses (the monthly report has no `search` filter, so the date
+  // window is what makes the board and the report comparable). Defaults keep
+  // every existing test byte-identical.
+  const day = opts.day ?? '2026-09-22';
   const [user] = await db.insert(s.users).values({
     username: `c12-${suffix}-${cleanup.length}`, passwordHash: 't', role: Role.ACCOUNTANT, status: 'ACTIVE',
   }).returning({ id: s.users.id });
@@ -40,14 +46,14 @@ async function mkBoardFixture(opts: { charge?: number } = {}) {
   track(s.shipmentFulfillments, fulfillment.id);
   const [trip] = await db.insert(s.trips).values({
     fulfillmentId: fulfillment.id, shipmentId: shipment.id, customerId: customer.id, routeId: route.id,
-    tripCode: `TRP-C12-${cleanup.length}-${suffix}`, departureDate: '2026-09-22', status: 'IN_TRANSIT',
+    tripCode: `TRP-C12-${cleanup.length}-${suffix}`, departureDate: day, status: 'IN_TRANSIT',
   }).returning({ id: s.trips.id, tripCode: s.trips.tripCode });
   track(s.trips, trip.id);
   const [entry] = await db.insert(s.opsExpenseEntries).values({
     shipmentId: shipment.id, shipmentContainerId: container.id, expenseTypeCode: 'OTHER',
-    amount: '250000', customerChargeAmount: String(opts.charge ?? 100000),
+    amount: String(opts.amount ?? 250000), customerChargeAmount: String(opts.charge ?? 100000),
     costGroup: 'OPS_INCIDENTAL', payerKind: 'USER',
-    paidById: user.id, paidAt: '2026-09-22',
+    paidById: user.id, paidAt: day,
   }).returning({ id: s.opsExpenseEntries.id });
   track(s.opsExpenseEntries, entry.id);
   const [source] = await db.insert(s.expenseAccountingSources).values({
@@ -55,7 +61,37 @@ async function mkBoardFixture(opts: { charge?: number } = {}) {
     confirmedAt: new Date(), version: 1,
   }).returning({ id: s.expenseAccountingSources.id });
   track(s.expenseAccountingSources, source.id);
-  return { trip, shipment, entry, source, container };
+  // Card 20260928_170 AC4 — the cell must equal the sum of the rows UNDER it,
+  // which needs more than one cost row in the shipment; AC3 needs an OUT the
+  // engine can post, and a FORWARDER payout is refused unless the row carries
+  // a reconciliation (`expense-accounting-voucher.service.ts`), so the fixture
+  // can express both without inventing a fake reference.
+  let reconciliationId: number | null = null;
+  if (opts.reconciled) {
+    const [reconciliation] = await db.insert(s.expenseReconciliations).values({
+      code: `C12-REC-${suffix}-${cleanup.length}`, opsUserId: user.id, from: day, to: day,
+      amount: '0', advanceAmount: '0', createdById: user.id,
+    }).returning({ id: s.expenseReconciliations.id });
+    track(s.expenseReconciliations, reconciliation.id);
+    reconciliationId = reconciliation.id;
+    await db.update(s.expenseAccountingSources).set({ reconciliationId }).where(eq(s.expenseAccountingSources.id, source.id));
+  }
+  const extras: Array<{ entryId: number; sourceId: number }> = [];
+  for (const item of opts.extra ?? []) {
+    const [extraEntry] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: shipment.id, shipmentContainerId: container.id, expenseTypeCode: 'OTHER',
+      amount: String(item.amount), customerChargeAmount: String(item.charge),
+      costGroup: 'OPS_INCIDENTAL', payerKind: 'USER', paidById: user.id, paidAt: day,
+    }).returning({ id: s.opsExpenseEntries.id });
+    track(s.opsExpenseEntries, extraEntry.id);
+    const [extraSource] = await db.insert(s.expenseAccountingSources).values({
+      sourceKind: 'OPS', sourceId: extraEntry.id, shipmentId: shipment.id, tripId: trip.id,
+      confirmedAt: new Date(), version: 1,
+    }).returning({ id: s.expenseAccountingSources.id });
+    track(s.expenseAccountingSources, extraSource.id);
+    extras.push({ entryId: extraEntry.id, sourceId: extraSource.id });
+  }
+  return { trip, shipment, entry, source, container, extras, reconciliationId };
 }
 
 describe('card 20260921_12 — phoi phieu control board', () => {
@@ -148,7 +184,6 @@ describe('card 20260921_13 — chi-ho detail dialog', () => {
 
 describe('card 20260921_14 — tien duong detail dialog', () => {
   test('driver rows, totals, confirm inclusion, and original-amount retention', async () => {
-    const { getPhoiPhieuTienDuong } = await import('../services/phoi-phieu-control.service');
     const { confirmAccountingExpenses } = await import('../services/expense-accounting-write.service');
     const fixture = await mkBoardFixture();
     const [driver] = await db.insert(s.drivers).values({
@@ -246,6 +281,68 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
     const datePlates = byDate.map((row) => row.plateNumber);
     assert.equal(datePlates[0], truckA, 'the explicit date sort wins over the truck grouping');
   });
+
+  // Card 20260928_172 criterion 3 — the toggle must change ORDER only, never the
+  // SET. Deliberately ABOVE the board's 300-row window: below it both modes
+  // return every row, so a small fixture passes even with the defect present and
+  // would prove nothing. At 301 rows exactly one is dropped, and the two
+  // orderings drop DIFFERENT rows (date-desc drops the oldest trip; plate-asc
+  // drops the last trip of the alphabetically-last truck), so the set comparison
+  // below fails on the pre-fix code — where the grouping sat inside the same
+  // query as the LIMIT — and must keep failing if anyone moves it back there.
+  test('grouping never changes the row SET — proven above the 300-row window', async () => {
+    const [customer] = await db.insert(s.customers)
+      .values({ name: `C172 bulk ${suffix}` }).returning({ id: s.customers.id });
+    track(s.customers, customer.id);
+    // trips.route_id is NOT NULL (db/schema/trips.ts:20) — one route serves all 301.
+    const [route] = await db.insert(s.routes)
+      .values({ name: `C172 route ${suffix}` }).returning({ id: s.routes.id });
+    track(s.routes, route.id);
+    const truckIds: number[] = [];
+    for (const plate of [`QA172A-${suffix.slice(-6)}`, `QA172B-${suffix.slice(-6)}`]) {
+      const [truck] = await db.insert(s.trucks)
+        .values({ licensePlate: plate, status: 'ACTIVE' }).returning({ id: s.trucks.id });
+      track(s.trucks, truck.id);
+      truckIds.push(truck.id);
+    }
+    // 301 distinct, strictly increasing dates: date-desc drops the OLDEST trip,
+    // plate-asc drops the LAST trip of the B truck — different rows.
+    const epoch = Date.UTC(2026, 0, 1);
+    for (let i = 1; i <= 301; i += 1) {
+      const day = new Date(epoch + (i - 1) * 86_400_000).toISOString().slice(0, 10);
+      const [trip] = await db.insert(s.trips).values({
+        shipmentId: shipment.id, customerId: customer.id, routeId: route.id,
+        truckId: i <= 150 ? truckIds[0] : truckIds[1],
+        departureDate: day, tripCode: `TRP-C172-${i}-${suffix}`, status: 'IN_TRANSIT',
+      }).returning({ id: s.trips.id });
+      track(s.trips, trip.id);
+    }
+
+    const scoped = { search: `C172 bulk ${suffix}` };
+    const grouped = await listPhoiPhieuRows(scoped);
+    const byDate = await listPhoiPhieuRows({ ...scoped, sortBy: 'date' as const });
+    assert.equal(grouped.length, 300, 'the window caps at 300');
+    assert.equal(byDate.length, 300);
+
+    assert.deepEqual(
+      grouped.map((row) => row.tripId).sort((a, b) => a - b),
+      byDate.map((row) => row.tripId).sort((a, b) => a - b),
+      'grouping is a display rule: the row SET must not depend on the sort toggle',
+    );
+    // Without this, the equality above would also hold for an implementation that
+    // ignored `sortBy` entirely.
+    assert.notDeepEqual(
+      grouped.map((row) => row.tripId), byDate.map((row) => row.tripId),
+      'grouped order must differ from date order, or this test proves nothing',
+    );
+    // …and the grouping really groups: each truck occupies one contiguous run.
+    const plates = grouped.map((row) => row.plateNumber);
+    const firstPlateIdx = plates.flatMap((plate, index) => (plate === plates[0] ? [index] : []));
+    assert.equal(
+      firstPlateIdx[firstPlateIdx.length - 1]! - firstPlateIdx[0]!, firstPlateIdx.length - 1,
+      'trips of one truck must be contiguous in grouped mode',
+    );
+  });
 });
 
 describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
@@ -289,6 +386,108 @@ describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
     const internal = tra.rows.find((row) => row.party.startsWith('XE NHÀ'));
     assert.ok(internal, 'internal trucks group under the Silver Sea carrier code');
     assert.equal(internal!.tongPhaiThuTra - previousInternal, 270000, 'linking this trip adds its chi-ho total to the company carrier exactly once');
+  });
+});
+
+// Card 20260928_173 (AC4) — the board and the monthly report must total the
+// SAME money for the same period and the same filter. The board's money cell
+// `chiHoTra` is Σ OPS RECORDED source amount per shipment; the report's
+// `tongPhaiThuTra` walks the same sources per trip. Every file that touched
+// either side only pinned one of them against literals, so a definition drift
+// on one side could never show. This is the cross-surface equality.
+describe('card 20260928_173 — báo cáo tháng matches the board total (same period, same filter)', () => {
+  // 2031-04-08 is reserved for this fixture: the report endpoint takes no
+  // `search` parameter, only a date range, so an unused window is the only way
+  // to make "same filter" mean the same row set on both sides.
+  const day = '2031-04-08';
+
+  test('grand total of both report tables equals the board column total', async () => {
+    const first = await mkBoardFixture({ day, amount: 250000, charge: 100000 });
+    const second = await mkBoardFixture({ day, amount: 125000, charge: 125000 });
+
+    const rows = await listPhoiPhieuRows({ dateFrom: day, dateTo: day });
+    // The shared dev DB means another lane may be running THIS file at the same
+    // time, so the window is not asserted to be exclusively ours (it was, and a
+    // concurrent run put its own fixture trips in it — both sides then describe
+    // 4 trips, which is still a like-for-like comparison). What IS asserted:
+    // both fixture trips are inside the window, and the fixture's own money is
+    // inside the total being compared.
+    const mine = rows.filter((row) => row.tripId === first.trip.id || row.tripId === second.trip.id);
+    assert.equal(mine.length, 2, `both fixture trips must be inside ${day}`);
+    const mineTotal = mine.reduce((sum, row) => sum + (row.chiHoTra ?? 0), 0);
+    assert.ok(mineTotal > 0, 'the fixture must carry money or the equality below proves nothing');
+    const boardTotal = rows.reduce((sum, row) => sum + (row.chiHoTra ?? 0), 0);
+    assert.ok(boardTotal >= mineTotal, 'the fixture money is inside the total being compared');
+    // Grain note: the board sums per shipment and repeats that sum on EVERY
+    // trip row of that shipment, while the report sums per source. This fixture
+    // keeps one trip per shipment — the shape "same filter" has to mean for the
+    // two totals to be comparable at all. A lot carrying several trips inside
+    // one window is a definition question (see card 20260928_173, PM question 4),
+    // not something this equality may silently decide.
+
+    for (const kind of ['THU', 'TRA'] as const) {
+      const report = await getPhoiPhieuReport({ kind, dateFrom: day, dateTo: day });
+      assert.equal(
+        report.grand.tongPhaiThuTra, boardTotal,
+        `${kind}: the report grand total must equal the board's own total for the same window`,
+      );
+      assert.equal(
+        report.rows.reduce((sum, row) => sum + row.tongPhaiThuTra, 0), boardTotal,
+        `${kind}: the party rows must add up to that same total`,
+      );
+    }
+  });
+});
+
+// Card 20260928_171 (AC1) — the board's Tiền đường cell and the detail dialog's
+// total must be ONE number. The board sums APPROVED driver rows only
+// (phoi-phieu-control.service.ts:230-247), because that is the money the
+// driver's chi phiếu actually posts; the dialog's `totals.confirmed` has to
+// equal it exactly and unapproved money must never leak into the board cell.
+// This is the cross-surface pin the card asked for, with the definition decided
+// in the dialog's favour of "what the voucher posts".
+describe('card 20260928_171 — cột Tiền đường ngoài bảng và tổng trong màn hình chi tiết', () => {
+  test('the board cell equals the detail approved total; unapproved money stays out of it', async () => {
+    const { getPhoiPhieuTienDuong } = await import('../services/phoi-phieu-control.service');
+    const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
+    const fixture = await mkBoardFixture({ day: '2031-05-06' });
+    const [driverUser] = await db.insert(s.users).values({
+      username: `c171-${suffix}-${cleanup.length}`, passwordHash: 't', role: Role.DRIVER, status: 'ACTIVE',
+    }).returning({ id: s.users.id });
+    track(s.users, driverUser.id);
+    const [driver] = await db.insert(s.drivers).values({
+      name: `Tài xế C171 ${suffix}`, userId: driverUser.id, status: 'ACTIVE',
+    }).returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+    const [custRow] = await db.select({ customerId: s.shipments.customerId }).from(s.shipments).where(eq(s.shipments.id, fixture.shipment.id));
+    const mkDriverCost = async (amount: number, approved: boolean) => {
+      const [cost] = await db.insert(s.driverIncidentalCosts).values({
+        tripId: fixture.trip.id, driverId: driver.id, costType: 'OTHER',
+        amount: String(amount), driverEnteredAmount: String(amount), occurredAt: '2031-05-06',
+      }).returning({ id: s.driverIncidentalCosts.id });
+      track(s.driverIncidentalCosts, cost.id);
+      const source = await upsertExpenseAccountingSource(db as never, { sourceKind: 'DRIVER', sourceId: cost.id,
+        shipmentId: fixture.shipment.id, tripId: fixture.trip.id, customerId: custRow.customerId!, expenseTypeCode: 'OTHER',
+        costGroup: 'DRIVER_ROAD', feeName: 'Tiền đường C171', amount, customerChargeAmount: 0, expenseDate: '2031-05-06',
+        payerKind: 'USER', payableEntityType: 'DRIVER', payableEntityId: driver.id, recordedById: accountantId });
+      track(s.expenseAccountingSources, source.id);
+      if (approved) {
+        await db.update(s.expenseAccountingSources).set({ confirmedAt: new Date() })
+          .where(eq(s.expenseAccountingSources.id, source.id));
+      }
+      return source;
+    };
+    await mkDriverCost(400_000, true);
+    await mkDriverCost(90_000, false);
+
+    const detail = await getPhoiPhieuTienDuong(fixture.trip.id);
+    const boardRows = (await listPhoiPhieuRows({ search: suffix })).filter((row) => row.tripId === fixture.trip.id);
+    assert.equal(boardRows.length, 1, 'the trip is on the board exactly once');
+    assert.equal(boardRows[0]!.tienDuong, 400_000, 'guard: the board sees the approved row');
+    assert.equal(detail.totals.confirmed, 400_000, 'guard: the dialog sees the same approved money');
+    assert.equal(detail.totals.total, 490_000, 'guard: the dialog also knows the unapproved row');
+    assert.equal(boardRows[0]!.tienDuong, detail.totals.confirmed, 'the two surfaces report ONE number');
+    assert.notEqual(boardRows[0]!.tienDuong, detail.totals.total, 'unapproved money never reaches the board cell');
   });
 });
 
@@ -349,11 +548,29 @@ describe('card 20260921_12/13 rework — authorization + id-space', () => {
       amount: '1000', occurredAt: '2026-09-22',
     }).returning({ id: s.driverIncidentalCosts.id });
     track(s.driverIncidentalCosts, cost.id);
+    // Card 20260928_173 (flake fix): probe with the trip's REAL DRIVER-kind
+    // source id. `expenseAccountingSources` has ONE primary key, so a DRIVER
+    // row's id can never also be an OPS row's id — the refusal is structural,
+    // not lucky. The old probe passed the raw `driverIncidentalCosts.id`, which
+    // only missed the OPS-filtered lookup when the shared DB's id arithmetic
+    // happened to line up: with identical code it went red on one run and green
+    // on the next, because every other suite moves those sequences.
+    const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
+    const [custRow] = await db.select({ customerId: s.shipments.customerId }).from(s.shipments).where(eq(s.shipments.id, fixture.shipment.id));
+    const driverSource = await upsertExpenseAccountingSource(db as never, { sourceKind: 'DRIVER', sourceId: cost.id,
+      shipmentId: fixture.shipment.id, tripId: fixture.trip.id, customerId: custRow.customerId!, expenseTypeCode: 'OTHER',
+      costGroup: 'OPS_INCIDENTAL', feeName: 'C13F4 cross-kind probe', amount: 1000, customerChargeAmount: 0,
+      expenseDate: '2026-09-22', payerKind: 'USER', payableEntityType: 'DRIVER', payableEntityId: driver.id,
+      recordedById: accountantId });
+    track(s.expenseAccountingSources, driverSource.id);
     await assert.rejects(
-      () => voidPhoiPhieuRow(fixture.trip.id, cost.id, { userId: accountantId } as never, 'cross-kind probe'),
+      () => voidPhoiPhieuRow(fixture.trip.id, driverSource.id, { userId: accountantId } as never, 'cross-kind probe'),
       /Không tìm thấy khoản phí chi hộ OPS/,
       'a DRIVER-kind source id must never void through the chi-ho dialog',
     );
+    const [intact] = await db.select({ status: s.expenseAccountingSources.status })
+      .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, driverSource.id));
+    assert.equal(intact!.status, 'RECORDED', 'the refused void never touched the driver source');
   });
 });
 
@@ -558,6 +775,108 @@ describe('soft-deleted shipments never surface on the phoi-phieu board (QA-fixtu
     assert.ok(!visible.some((row) => row.shipmentId === fixture.shipment.id), 'orphaned trip of a deleted shipment must not render');
     const markerRows = await listPhoiPhieuRows({ search: marker });
     assert.equal(markerRows.length, 0);
+  });
+});
+
+describe('card 20260928_170 — ô STK nguồn quỹ, dấu tiền vào sổ quỹ, ô tổng bằng tổng dòng', () => {
+  async function mkTreasuryAccount(code: string, fundCode: 'COMPANY' | 'TM' | null) {
+    const [account] = await db.insert(s.treasuryAccounts).values({
+      code, name: `STK ${code}`, type: 'CASH', fundCode, status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id, code: s.treasuryAccounts.code });
+    track(s.treasuryAccounts, account.id);
+    return account;
+  }
+
+  test('AC2: ô STK chỉ mời chọn tài khoản đã gán nguồn quỹ (2 nguồn của thẻ 167)', async () => {
+    const company = await mkTreasuryAccount(`C12-STK-COMPANY-${suffix}`, 'COMPANY');
+    const cash = await mkTreasuryAccount(`C12-STK-TM-${suffix}`, 'TM');
+    const unfunded = await mkTreasuryAccount(`C12-STK-NOFUND-${suffix}`, null);
+
+    const items = await listPhoiPhieuStk();
+    const codes = items.map((item) => item.code);
+    assert.ok(codes.includes(company.code), 'quỹ công ty được mời chọn');
+    assert.ok(codes.includes(cash.code), 'quỹ TM được mời chọn');
+    assert.ok(!codes.includes(unfunded.code), 'tài khoản chưa gán nguồn quỹ không bao giờ được mời chọn — engine sẽ từ chối khi ghi phiếu');
+    // The option COUNT, scoped to this case: three accounts carry these exact
+    // codes (COMPANY, TM, no-fund) and exactly two of them may be offered. A
+    // global count cannot be asserted here — the dev DB holds every other
+    // suite's accounts, and other cases in this file share the run suffix.
+    const mine = [company.code, cash.code, unfunded.code];
+    assert.equal(items.filter((item) => mine.includes(item.code)).length, 2, 'đúng 2 nguồn quỹ của fixture được mời chọn');
+    // Every offered id is fund-assigned; this stays true however many foreign
+    // accounts exist, so it is the race-free form of the same rule.
+    const offered = await db.select({ fundCode: s.treasuryAccounts.fundCode }).from(s.treasuryAccounts)
+      .where(inArray(s.treasuryAccounts.id, items.map((item) => item.id)));
+    assert.ok(offered.every((account) => account.fundCode === 'COMPANY' || account.fundCode === 'TM'),
+      'không tài khoản nào chưa gán nguồn quỹ lọt vào ô STK');
+  });
+
+  test('AC3: phiếu thu cộng, phiếu chi trừ vào sổ quỹ của đúng STK', async () => {
+    const inbound = await mkBoardFixture({ charge: 100000 });
+    const outbound = await mkBoardFixture({ reconciled: true });
+    const account = await mkTreasuryAccount(`C12-STK-SIGN-${suffix}`, 'COMPANY');
+    const actor = { userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' } as never;
+    const book = async () => (await listFundBook('COMPANY')).accounts.find((entry) => entry.accountId === account.id)!;
+    assert.equal((await book()).bookBalance, 0, 'sổ quỹ của STK bắt đầu từ 0');
+
+    const receipt = await createPhoiPhieuVoucher({ tripIds: [inbound.trip.id], direction: 'IN', treasuryAccountId: account.id, actor });
+    assert.equal(receipt.total, 100000);
+    assert.equal((await book()).bookBalance, 100000, 'thu → cộng vào sổ quỹ');
+
+    const payment = await createPhoiPhieuVoucher({ tripIds: [outbound.trip.id], direction: 'OUT', treasuryAccountId: account.id, actor });
+    assert.equal(payment.total, 250000);
+    assert.equal((await book()).bookBalance, 100000 - 250000, 'chi → trừ vào sổ quỹ');
+
+    const movements = await db.select().from(s.treasuryMovements).where(eq(s.treasuryMovements.treasuryAccountId, account.id));
+    assert.deepEqual(movements.map((movement) => movement.direction).sort(), ['IN', 'OUT'], 'mỗi chiều một bút toán, đúng dấu');
+    assert.ok(movements.every((movement) => movement.status === 'POSTED'), 'cả hai bút toán đã ghi sổ');
+  });
+
+  test('AC4: ô chi hộ bằng tổng các dòng chi phí bên dưới dialog', async () => {
+    const fixture = await mkBoardFixture({ charge: 100000, extra: [{ amount: 40000, charge: 15000 }] });
+    const [row] = (await listPhoiPhieuRows({ search: suffix })).filter((candidate) => candidate.tripId === fixture.trip.id);
+    const detail = await getPhoiPhieuChiHo(fixture.trip.id);
+    assert.equal(detail.rows.length, 2, 'hai dòng chi phí dưới ô');
+    assert.equal(row!.chiHoTra, detail.totals.tra, 'Phải trả trên bảng = tổng các dòng bên dưới');
+    assert.equal(row!.chiHoThu, detail.totals.thu, 'Phải thu trên bảng = tổng các dòng bên dưới');
+    assert.equal(row!.chiHoTra, 290000);
+    assert.equal(row!.chiHoThu, 115000);
+  });
+
+  test('AC4: ô tiền đường bằng tổng các dòng tiền đường ĐÃ DUYỆT bên dưới', async () => {
+    const fixture = await mkBoardFixture();
+    const [driverUser] = await db.insert(s.users).values({
+      username: `c170-${suffix}-${cleanup.length}`, passwordHash: 't', role: Role.DRIVER, status: 'ACTIVE',
+    }).returning({ id: s.users.id });
+    track(s.users, driverUser.id);
+    const [driver] = await db.insert(s.drivers).values({ name: 'Tài xế C170', userId: driverUser.id, status: 'ACTIVE' }).returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+    const mkCost = async (amount: string, confirmed: boolean) => {
+      const [cost] = await db.insert(s.driverIncidentalCosts).values({
+        tripId: fixture.trip.id, driverId: driver.id, costType: 'OTHER',
+        amount, driverEnteredAmount: amount, occurredAt: '2026-09-22',
+      }).returning({ id: s.driverIncidentalCosts.id });
+      track(s.driverIncidentalCosts, cost.id);
+      const [link] = await db.insert(s.expenseAccountingSources).values({
+        sourceKind: 'DRIVER', sourceId: cost.id, shipmentId: fixture.shipment.id, tripId: fixture.trip.id,
+        confirmedAt: confirmed ? new Date() : null, version: 1,
+      }).returning({ id: s.expenseAccountingSources.id });
+      track(s.expenseAccountingSources, link.id);
+    };
+    await mkCost('120000', true);
+    await mkCost('80000', true);
+    await mkCost('30000', false);
+
+    const [row] = (await listPhoiPhieuRows({ search: suffix })).filter((candidate) => candidate.tripId === fixture.trip.id);
+    const detail = await getPhoiPhieuTienDuong(fixture.trip.id);
+    assert.equal(detail.rows.length, 3, 'ba dòng tiền đường dưới ô');
+    assert.equal(detail.totals.confirmed, 200000);
+    assert.equal(detail.totals.total, 230000);
+    // The board's cell counts the APPROVED rows only (card 20260921_14 rework).
+    // The dialog's own TỔNG CỘNG spans every row, unapproved included — that
+    // divergence is card 20260928_171's, deliberately not changed here.
+    assert.equal(row!.tienDuong, detail.totals.confirmed, 'ô trên bảng = tổng các dòng đã duyệt bên dưới');
+    assert.notEqual(row!.tienDuong, detail.totals.total, 'dòng chưa duyệt không được cộng vào ô');
   });
 });
 
