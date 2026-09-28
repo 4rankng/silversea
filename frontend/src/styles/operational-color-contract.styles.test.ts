@@ -42,7 +42,26 @@ describe('operational color contract', () => {
     expect(masterPlan).not.toMatch(/color="(?:blue|orange|indigo)"/);
     expect(masterPlan.match(/color="gray"/g)).toHaveLength(3);
     expect(detailedPlan).not.toMatch(/(?:utility-blue|#eff6ff|#1d4ed8|warning-primary)/);
-    expect(shipmentList).toMatch(/\.cus-direction-badge--import,[\s\S]*?\.cus-direction-badge--export\s*\{\s*background: var\(--surface-3\); color: var\(--ink-2\)/);
+    // Card 20260927_67 (5): the direction badge became an OUTLINED identifier
+    // (Xuất/Nhập names a class of record, it is not a state), so this pin moved
+    // off `background: var(--surface-3)` onto the behaviour the contract
+    // actually protects — the same correction the note above already made for
+    // the legacy maps. The contract is "keeps categories NEUTRAL and reserves
+    // colour for real status", so what must be asserted is that the badge spends
+    // no semantic colour at all, not which neutral surface it sits on. Asserting
+    // the token would forbid the outline the card asks for while proving nothing
+    // about colour discipline.
+    const directionBadge = shipmentList.match(/\.cus-direction-badge--import,[\s\S]*?\.cus-direction-badge--export\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(directionBadge).toContain('color: var(--ink-2)');
+    expect(directionBadge).not.toMatch(/--(?:warning|danger|info|success|warn|err|ok)\b/);
+    // It reads as an identifier: a neutral outline, not a filled shape.
+    expect(directionBadge).toMatch(/border:\s*1px solid var\(--control-border\)/);
+    // The combined tag shared that peach fill once, spending the warning colour
+    // on a category. Same discipline, same guarantee.
+    const combinedTag = shipmentList.match(/\.cus-combined-tag\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(combinedTag).not.toMatch(/--(?:warning|danger|info|success|warn|err|ok)\b/);
+    // Colour still has a home: the real status signal keeps it.
+    expect(shipmentList).toMatch(/\.cus-signal--warning\s*\{[^}]*background:\s*var\(--warning-soft\)/);
     expect(tripTable).not.toMatch(/#(?:1E40AF|3B82F6|10B981|EF4444|991B1B)/);
     expect(dispatchFilters).not.toMatch(/#(?:3B82F6|F59E0B)/);
     expect(externalCarrierBadge).toMatch(/color: 'var\(--info-text\)'/);

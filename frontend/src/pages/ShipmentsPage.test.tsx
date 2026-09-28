@@ -2313,6 +2313,43 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-direction-badge,[\s\S]*?\.cus-combined-tag\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*min-height:\s*22px;/);
   });
 
+  // Card 20260927_67 (5). The three-way reading of the CUS surface:
+  // solid grey = neutral/empty, outlined = identifier, peach = warning.
+  it('reads badge colour as role: outline for identifiers, peach only for warning', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+    // Xuất/Nhập and Đóng kết hợp are classifications, so both take the outline.
+    // The two direction modifiers share one rule, so match the whole block.
+    const outlineBlock = css.match(/\.cus-direction-badge--import,[\s\S]*?\.cus-direction-badge--export\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(outlineBlock).toMatch(/border:\s*1px solid var\(--control-border\)/);
+    expect(css).toMatch(/\.cus-combined-tag\s*\{[^}]*border:\s*1px solid var\(--control-border\)/);
+    // The combined tag used to be a solid peach fill, which spent the warning
+    // colour on a harmless category. Peach now means warning and nothing else.
+    const combined = css.match(/\.cus-combined-tag\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(combined).not.toMatch(/background:\s*var\(--warning-soft\)/);
+    expect(combined).not.toMatch(/background:\s*var\(--danger-soft\)/);
+    // The real warning badge keeps it, so the rule still has a home.
+    expect(css).toMatch(/\.cus-signal--warning\s*\{[^}]*background:\s*var\(--warning-soft\)/);
+  });
+
+  it('renders every --warn consumer off the real token, not a raw hex fallback', () => {
+    // --warn was undeclared until card 20260927_67, so each of its 7 call sites
+    // fell back to a different hex and #d97706 landed at 3.19:1 on white. The
+    // alias in tokens.css is the heal; this is what stops the fallbacks coming
+    // back and quietly re-fragmenting the colour.
+    for (const f of [
+      'src/styles/tokens.css',
+      'src/pages/ShipmentsPage.css',
+      'src/pages/DriverTripDetailPage.css',
+      'src/pages/OpsOrdersPage.css',
+      'src/pages/clerk/ClerkShipmentCreatePage.css',
+    ]) {
+      const text = readFileSync(resolve(process.cwd(), f), 'utf8');
+      expect(text, f).not.toMatch(/var\(--warn,\s*#/);
+    }
+    const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+    expect(tokens).toMatch(/--warn:\s*var\(--warning-text\);/);
+  });
+
   it('renders the classification quick-edit select in the modal field system', () => {
     const quickEdit = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusQuickEdit.tsx'), 'utf8');
     const classificationSelect = quickEdit.match(/<UuiSelectField[\s\S]*?label="Xuất \/ Nhập"[\s\S]*?\/>/)?.[0] ?? '';
