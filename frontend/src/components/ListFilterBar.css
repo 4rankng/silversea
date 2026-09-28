@@ -209,10 +209,6 @@
      (CHIEF 2026-09-27: from/to are separate fields), so every pair — dates or
      short selects — keeps the 2-up rhythm at every width. */
 
-  .list-filter-bar__quick {
-    width: 100%;
-  }
-
   /* Multi-element actions stay one right-aligned cluster on their own line
      (card 20260927_152): they wrap among themselves if the line is too narrow,
      but never stack into a column of full-height buttons. */
@@ -253,5 +249,20 @@
    * outline (a11y). */
   .list-filter-bar [data-uui-control] {
     box-shadow: none;
+  }
+}
+
+/* Card 20260928_190: the quick-filters group took `width: 100%` inside the
+   `max-width: 767px` phone block, so at 640px it still owned a row of its own —
+   while the bar (624px) is already past the 560px two-row floor, so the audit
+   held it to two rows and found three. The two rules were written at different
+   times and never met in the middle: the phone rule assumed bars too narrow to
+   pack, the two-row law only applies once they are wide enough to pack.
+   The breakpoint below is the same 560px floor expressed as a viewport (the bar
+   is viewport − 16), so "owns its own row" and "must fit two rows" can no
+   longer both be true. 576 − 1 = 575. */
+@media (max-width: 575px) {
+  .list-filter-bar__quick {
+    width: 100%;
   }
 }

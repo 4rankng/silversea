@@ -103,6 +103,33 @@ listed in `./README.md`. All numbers below are counted from the tree
 - **Enforced by** — `frontend/src/styles/global-sizing-contract.styles.test.ts`, `frontend/src/styles/mobile-touch-floor.styles.test.ts`, `frontend/src/styles/filter-density.test.ts`, `frontend/src/styles/control-surface.styles.test.ts`, `frontend/src/styles/dialog-density-contract.styles.test.ts`.
 - **Gap** — `--control-h` (44px) and `--control-mobile-h` both resolve to `--control-touch-h`, giving three names for the touch floor.
 
+### Breakpoint ladder (media-query widths)
+- **Use** — the sanctioned widths and what each one *means*, so a new breakpoint is a
+  decision rather than a guess:
+
+  | Width | Meaning |
+  |---|---|
+  | 575px and below | A filter bar is too narrow to pack side by side, so a full-width block (`.list-filter-bar__quick`) may own its row. |
+  | 576–767px | The bar is past the 560px two-row floor, so it must fit two rows and its groups pack. |
+  | 768px+ | Desktop density; `ListFilterBar` renders every criterion inline and `Bộ lọc` may not exist at all. |
+
+- **The one rule that matters** — the 560px two-row floor and the 575px full-width
+  breakpoint are *complementary halves of one decision*, not two independent numbers. The
+  filter audit holds a bar to two rows once the bar itself is ≥560px (`TWO_ROW_FLOOR` in
+  `testplan/qa/scripts/ui-filter-audit-20260927.mjs`); the bar is `viewport − 16`, so that is
+  `viewport ≥ 576`. A full-width block therefore may only own a row at `viewport ≤ 575`.
+  They drifted apart because the phone rule was written into a `max-width: 767px` block
+  (card 20260928_190), and the overlap — 576–767px — is exactly where both rules were
+  simultaneously true and `/customers` plus `/config/penalty-reasons` packed three rows.
+
+- **Never** — a raw width that means "roughly phone" or "roughly desktop". If a new rule
+  needs to split the ladder, split it at a sanctioned row above and say which row it means.
+
+- **Enforced by** — `frontend/scripts/check-design-drift.mjs` counts distinct media-query
+  widths (`mediaWidthValues`) and fails on growth, so a new breakpoint must be deliberate
+  and recorded here; `testplan/qa/scripts/ui-filter-audit-20260927.mjs` is what actually
+  measures whether the split was correct, at all 7 widths.
+
 ### Sidebar, accent ramp, and the daisyUI bridge (legacy)
 - **Use** — `--sb-bg`, `--sb-text`, `--sb-text-muted`, `--sb-line` for shell chrome; `--color-*` only through `d-*` primitives.
 - **Never** — the duplicated `--sidebar*` set (`tokens.css:189-196`) which mirrors `--sb-*` (`:179-187`) value-for-value; the page-local accent ramp `--brass-1/2/3`, `--copper`, `--sage-*`, `--slate-1..6` (`tokens.css:411-428`) reachable from only 5 files (`TripEditPage.css`, `trip-detail/details.css`, `trip-detail/header.css`, `penalty/violation-log.css`, `ShipmentsPage.css`); the legacy `--fs-*` aliases; `--ff-sans`; `--bg-glass`/`--glass-border` (0 refs).
