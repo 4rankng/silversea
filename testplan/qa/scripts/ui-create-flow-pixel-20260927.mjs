@@ -113,12 +113,7 @@ async function openOptions(triggerSelector) {
   if (!handle) return null;
   const ready = await waitForEnabled(triggerSelector);
   if (ready !== 'ready') return null;
-  // NOT scrollIntoView({block:'center'}) before the click: at 390px these
-  // container fields sit at top 1225–1450 in an 844px viewport, so a
-  // scroll-then-click under the sticky header looked like the obvious suspect.
-  // Tried 2026-09-28 — it changed nothing (still `no-listbox` for `Nhà máy` and
-  // `Loại container`), and it is not what this driver is here to guess at.
-  // Left out on purpose; the 390 gap is recorded on the card instead.
+  await revealForClick(triggerSelector);
   await handle.click();
   await new Promise((r) => setTimeout(r, 450));
   // Only a listbox that is VISIBLE counts. The previous selector matched any
@@ -137,6 +132,58 @@ async function openOptions(triggerSelector) {
       // is how a previous run reported a factory of "Không tìm thấy kết quả".
       .filter((o) => o.text && !/^(\s*—|chọn\b|không tìm thấy|không có|trống)/i.test(o.text));
   });
+}
+
+/**
+ * Scroll a control into a position a real pointer can actually reach, then PROVE
+ * it with a hit-test before the caller clicks.
+ *
+ * CARD 20260928_156. A bare `handle.click()` auto-scrolls, which is what made
+ * this driver lie: at 390px the container fields land at top 1225–1450 inside an
+ * 844px viewport, Playwright scrolls them up, the STICKY HEADER keeps the
+ * viewport, and the synthetic click lands on the header instead of the
+ * combobox. The listbox then never opens and the step reports a bare
+ * `no-listbox` with no hint that the control was never really pressed.
+ *
+ * The earlier attempt logged (2026-09-28) tried `scrollIntoView({block:'center'})`
+ * and changed nothing — because it scrolled but never checked whether the
+ * resulting position was reachable. The app shell is a fixed layout whose inner
+ * scroller is `main.app-body`, so a window-level scroll is a no-op here.
+ *
+ * Returns true when the control is hittable at its centre; false means the
+ * caller must not treat a following `no-listbox` as a UI defect.
+ */
+async function revealForClick(selector) {
+  return page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return false;
+    const scroller = document.querySelector('main.app-body') || document.scrollingElement;
+    if (scroller) {
+      // Scroll the INNER scroller the app actually uses, then settle: this app
+      // re-renders and can reset scrollTop, so measure on a later frame.
+      el.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }
+    return true;
+  }, selector)
+    .then(async () => {
+      await new Promise((r) => setTimeout(r, 250));
+      return page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        const x = Math.round(r.left + r.width / 2);
+        const y = Math.round(r.top + r.height / 2);
+        // Off-screen or zero-sized: not clickable.
+        if (r.width === 0 || r.height === 0) return false;
+        if (y < 0 || y > window.innerHeight || x < 0 || x > window.innerWidth) return false;
+        // The decisive check: whatever is painted at the click point must be
+        // the control itself or something inside it. If the sticky header owns
+        // this point the click would go to the header, which is the lie.
+        const hit = document.elementFromPoint(x, y);
+        return Boolean(hit && (hit === el || el.contains(hit) || hit.contains(el)));
+      }, selector);
+    })
+    .catch(() => false);
 }
 
 /**
