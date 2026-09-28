@@ -26,7 +26,6 @@
 
 const PORTAL_SHELL = '.customer-shell';
 const PORTAL_INBOX = '.role-work-inbox--customer';
-const OFFICE_SHELL = '.app-main';
 const DETAIL_EYEBROW = '.portal-page__eyebrow';
 
 export const caseId = 'TC-PORTAL-SHIP-001';
