@@ -198,6 +198,19 @@
 .customer-shell__account-popover { display: none; }
 
 @media (max-width: 1023px) {
+  /* Card 20260927_149 (criterion 3 — the same defect CLASS as the driver band):
+     the tab bar was a FIXED layer (`position: fixed; inset: auto 0 0`) and the
+     main column paid for it with a reserved 92px padding. That pairing is what
+     leaves an untiled strip under the bar on a real iPhone, where the visual
+     viewport is shorter than the layout viewport — the driver shell lost it in
+     f902c3e0 by making the bar an IN-FLOW flex item of a `100dvh` column whose
+     content area owns the scroll. The same structure is applied here. */
+  .customer-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+  }
   .customer-shell__sidebar {
     width: min(86vw, 320px);
     transform: translateX(-101%);
@@ -213,7 +226,12 @@
     border: 0;
     background: rgba(8, 22, 14, .42);
   }
-  .customer-shell__content { margin-left: 0; }
+  .customer-shell__content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin-left: 0;
+  }
   .customer-shell__desktop-topbar { display: none; }
   .customer-shell__mobile-header {
     position: sticky;
@@ -252,11 +270,15 @@
     min-height: 44px;
   }
   .customer-shell__scope-error { padding: 10px 16px; }
-  .customer-shell__main { padding: 12px 8px calc(92px + env(safe-area-inset-bottom, 0px)); }
+  .customer-shell__main { padding: 12px 8px 12px; }
+  /* In flow: the bar is the last flex item of the shell column, so it sits at
+     the end of the VISUAL viewport at every toolbar state and its own surface
+     paints to the physical bottom (safe-area padding kept below). Nothing has to
+     reserve space for it — an overlay is the only thing that needs a padding
+     compensation, and a wrong compensation is what hides the last row. */
   .customer-shell__bottom-nav {
-    position: fixed;
-    inset: auto 0 0;
-    z-index: 30;
+    position: static;
+    flex: 0 0 auto;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
