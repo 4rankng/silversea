@@ -35,6 +35,9 @@ const track = (fn: () => Promise<void>) => cleanup.unshift(fn);
 async function mkActor() {
   const [acc] = await db.insert(s.users).values({
     username: `card10-${suffix}-acct-${cleanup.length}`, passwordHash: 'x', role: 'ACCOUNTANT',
+    // Card 20260928_168 AC1: the board must name the approver, so the fixture
+    // carries a display name the assertion can tell apart from the username.
+    fullName: `Kế toán ${suffix}`,
   }).returning();
   track(async () => { await db.delete(s.users).where(eq(s.users.id, acc.id)); });
   return acc;
@@ -68,7 +71,9 @@ async function mkEntry(opsStaff: { id: number }, shipmentId: number, opts: { cos
   }
   const { ...result } = await createOpsExpense(opsStaff.id, {
     shipmentId,
-    expenseTypeCode: 'SANITATION',
+    // Card 20260928_164 retired SANITATION (a duplicate display name of the
+    // canonical chi-hộ FEE_CLEANING) — the fixture takes the live code.
+    expenseTypeCode: 'FEE_CLEANING',
     amount: 250000,
     paidAt: TODAY,
     costGroup: opts.costGroup,
@@ -76,6 +81,11 @@ async function mkEntry(opsStaff: { id: number }, shipmentId: number, opts: { cos
     invoiceNumber: opts.invoiceNumber,
     invoiceDate: opts.invoiceNumber ? TODAY : undefined,
     customerChargeAmount: opts.customerChargeAmount,
+    // Card 20260928_162 made a note mandatory on a row that charges the
+    // customer nothing (`createOpsExpense`, ops-expenses.service.ts). Its
+    // fixture here — the uncharged Ops cost — is exactly that row, so it now
+    // carries the reason; the invoiced rows keep charging and stay note-free.
+    note: opts.customerChargeAmount ? undefined : 'card10 fixture: khoản không thu khách — lý do bắt buộc',
   });
   track(async () => {
     await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, (result as { id: number }).id));
@@ -131,6 +141,11 @@ describe('card 20260921_10 - ops cost review', () => {
     for (const row of afterRows) {
       assert.ok(row.confirmedAt, 'confirmedAt stamped');
       assert.equal(row.confirmedById, acc.id, 'the person who ticked recorded');
+      // Card 20260928_168 AC1: the board shows WHO approved, so the read
+      // payload must carry the approver's display name — not the numeric id,
+      // and not the payer's name (the fixture's payer is a different user).
+      assert.equal(row.confirmedByName, acc.fullName, 'the approver name, resolved for display');
+      assert.notEqual(row.confirmedByName, staff.username, 'never the payer');
       assert.equal(row.progress, 'DA_XAC_NHAN');
     }
   });

@@ -135,7 +135,7 @@ describe('card 20260921_7 - guards', () => {
     const { user, driver, trip } = await mkDriverTrip();
     await recordIncidentalCost(trip.id, driver.id, {
       costType: DriverIncidentalCostType.OTHER, feeNormCode: 'LIFT_DROP_ALLOWANCE',
-      expenseTypeCode: 'SANITATION', amount: 50000, occurredAt: TODAY,
+      expenseTypeCode: 'FEE_CLEANING', amount: 50000, occurredAt: TODAY,
     }, user.id, `card7-key-${suffix}-both`).then(
       () => { throw new Error('expected 400 rejection'); },
       (err: unknown) => {
