@@ -53,7 +53,14 @@ async function mkDriverTrip() {
   track(async () => { await db.delete(s.users).where(eq(s.users.id, u.id)); });
   const [d] = await db.insert(s.drivers).values({ name: 'card164 driver', userId: u.id }).returning();
   track(async () => { await db.delete(s.drivers).where(eq(s.drivers.id, d.id)); });
-  const [customer] = await db.insert(s.customers).values({ name: `card164 cust ${cleanup.length}` }).returning();
+  // The per-run `suffix` is load-bearing, not decoration: `customers` has a
+  // partial unique index on the ACTIVE (name, tax_code). This name was built
+  // from `cleanup.length` alone, which restarts at 0 every run, so any run that
+  // died before its cleanup left `card164 cust 2` behind and every later run
+  // then failed on the FIRST insert with a duplicate-key error that reads like
+  // a product failure. The route and cargoType lines below already carried the
+  // suffix; this one had been missed.
+  const [customer] = await db.insert(s.customers).values({ name: `card164 cust ${suffix}-${cleanup.length}` }).returning();
   track(async () => { await db.delete(s.customers).where(eq(s.customers.id, customer.id)); });
   const [route] = await db.insert(s.routes).values({ name: `card164 route ${suffix}-${cleanup.length}` }).returning();
   track(async () => { await db.delete(s.routes).where(eq(s.routes.id, route.id)); });

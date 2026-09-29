@@ -48,6 +48,7 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import {
+  createOpsExpense,
   groupOpsExpensesForSettlement,
   parseOpsMoney,
   recomputeOpsSettlementTotal,
@@ -63,7 +64,16 @@ import {
 } from '../services/phoi-phieu-control.service';
 
 const suffix = `${Date.now()}-c197-${Math.random().toString(36).slice(2, 8)}`;
-/** `ops_settlements.code` is varchar(20) and globally unique. */
+/** `ops_settlements.code` is varchar(20) and globally unique.
+ *
+ *  The code used to be `C197D1`, `C197N2`, … from a module counter — a
+ *  deterministic value, so a run that died before `after()` (or whose cleanup
+ *  hit a RESTRICT FK and gave up) left `C197D1` behind and every later run
+ *  failed on a unique violation that looked like a product failure. Nothing
+ *  in the assertion had changed. The per-run tag below makes residue from a
+ *  crashed run harmless: at worst it accumulates as a row nobody reads. */
+const runTag = `${Date.now().toString(36).slice(-5)}${Math.random().toString(36).slice(2, 5)}`;
+const settlementCode = (n: number) => `C197${runTag}${n}`.slice(0, 20);
 let settlementSeq = 1;
 
 // ── Committed-fixture bookkeeping ───────────────────────────────────────────
@@ -300,7 +310,7 @@ describe('card 20260928_197 — a negative cost row leaves every total as if abs
     // path (site :209) rather than a hand-written total. `ops_settlements.code`
     // is varchar(20), so the fixture code is short.
     const [draft] = await db.insert(s.opsSettlements).values({
-      code: `C197D${settlementSeq++}`, opsUserId: fixture.payer.id, status: 'DRAFT', totalAmount: '0',
+      code: settlementCode(settlementSeq++), opsUserId: fixture.payer.id, status: 'DRAFT', totalAmount: '0',
     }).returning();
     await track(s.opsSettlements, s.opsSettlements.id, draft);
 
@@ -337,7 +347,7 @@ describe('card 20260928_197 — a negative cost row leaves every total as if abs
 
     // A settlement holding ONLY a negative entry totals exactly 0, never -90000.
     const [negativeOnly] = await db.insert(s.opsSettlements).values({
-      code: `C197N${settlementSeq++}`, opsUserId: fixture.payer.id, status: 'DRAFT', totalAmount: '0',
+      code: settlementCode(settlementSeq++), opsUserId: fixture.payer.id, status: 'DRAFT', totalAmount: '0',
     }).returning();
     await track(s.opsSettlements, s.opsSettlements.id, negativeOnly);
     await db.update(s.opsExpenseEntries).set({ opsSettlementId: negativeOnly.id })
@@ -483,5 +493,106 @@ describe('card 20260928_197 — a negative cost row leaves every total as if abs
     assert.equal(afterGrand.tienNang, beforeGrand.tienNang, 'TỔNG CỘNG tienNang (:731) inherits the exclusion');
     assert.equal(afterGrand.psKhac, beforeGrand.psKhac, 'TỔNG CỘNG psKhac (:731) inherits the exclusion');
     assert.equal(afterGrand.tongPhaiThuTra, beforeGrand.tongPhaiThuTra, 'TỔNG CỘNG total (:731) inherits the exclusion');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// The save path. Everything above proves a negative row that EXISTS leaves the
+// totals alone; this block proves a negative row can be SAVED at all.
+//
+// It could not, and the failure was invisible. `createOpsExpense` derives the
+// receivable for an invoice-group row as `charge = amount` — an identity that
+// only holds while the amount is non-negative. Card 20260928_181 made the amount
+// signed and did not revisit the derivation, so a negative cost dragged the
+// receivable negative, and the unsigned `expenseVndSchema` at
+// expense-accounting-source.service.ts:105 rejected it with
+//   {"code":"too_small","minimum":0,"path":[]}
+// — a 400 whose `path` is empty, because the failing value is a bare number
+// parsed inside the service rather than a named request field. The UI renders
+// that as the generic "Giá trị không hợp lệ", which is what staging showed.
+//
+// The invariant this pins: the COST side is signed, the RECEIVABLE side is not.
+// A negative line is a correction, not money the customer owes, so it charges
+// 0 — never a negative receivable, which would net against the customer's
+// balance instead of leaving it as if the row did not exist.
+describe('card 20260928_197 — a negative cost row can be saved, and charges nothing', () => {
+  /** An ACTIVE catalog type of this fixture's own, so `assertActiveExpenseType`
+   *  passes without borrowing a shared code another suite may be mutating. */
+  async function mkActiveType(tag: string) {
+    const code = `C197T${tag}${suffix}`.replace(/[^A-Za-z0-9_]/g, '').slice(0, 50);
+    const [type] = await db.insert(s.forwarderExpenseTypes).values({
+      code, name: `C197 type ${tag}`, status: 'ACTIVE', requiresInvoice: true, category: 'LIFT',
+    }).returning();
+    await track(s.forwarderExpenseTypes, s.forwarderExpenseTypes.id, type);
+    return code;
+  }
+
+  /** Grant the OPS payer the lot via branch 3 of `assertOpsExpenseAssignment`
+   *  (their own saved, non-voided expense) — the branch a real returning
+   *  forwarder already has, so the test is about the charge, not the scope. */
+  async function mkGranted(fixture: Fixture, expenseTypeCode: string) {
+    const [seed] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: fixture.lot.id, expenseTypeCode, amount: '1000',
+      paidById: fixture.payer.id, paidAt: fixture.day, approvalStatus: 'RECORDED',
+    }).returning();
+    await track(s.opsExpenseEntries, s.opsExpenseEntries.id, seed);
+  }
+
+  test('an INVOICED_ ops row with a negative amount saves, with a 0 receivable', async () => {
+    const fixture = await mkFixture('chg');
+    const code = await mkActiveType('chg');
+    await mkGranted(fixture, code);
+
+    const created = await createOpsExpense(fixture.payer.id, {
+      shipmentId: fixture.lot.id,
+      expenseTypeCode: code,
+      amount: '-50000',
+      paidAt: fixture.day,
+      costGroup: 'INVOICED_LIFT',
+      note: 'C197: negative correction against a prior over-declaration',
+    });
+
+    assert.equal(created.amount, '-50000', 'the signed cost is stored as sent');
+    assert.equal(created.customerChargeAmount, '0',
+      'a negative cost must charge the customer 0 — never a negative receivable');
+  });
+
+  test('a POSITIVE INVOICED_ row still charges the full amount (the invariant is untouched)', async () => {
+    const fixture = await mkFixture('pos');
+    const code = await mkActiveType('pos');
+    await mkGranted(fixture, code);
+
+    const created = await createOpsExpense(fixture.payer.id, {
+      shipmentId: fixture.lot.id,
+      expenseTypeCode: code,
+      amount: '50000',
+      paidAt: fixture.day,
+      costGroup: 'INVOICED_LIFT',
+      note: 'C197: positive baseline',
+    });
+
+    assert.equal(created.customerChargeAmount, '50000', 'charge = amount still holds for a real charge');
+  });
+
+  test('an explicit negative customerChargeAmount override is refused, naming the field', async () => {
+    const fixture = await mkFixture('ovr');
+    const code = await mkActiveType('ovr');
+    await mkGranted(fixture, code);
+
+    // A caller may not push a negative receivable in through the override
+    // either. It used to surface as the same field-less "must be >= 0".
+    await assert.rejects(
+      createOpsExpense(fixture.payer.id, {
+        shipmentId: fixture.lot.id,
+        expenseTypeCode: code,
+        amount: '50000',
+        paidAt: fixture.day,
+        costGroup: 'OPS_REGULAR',
+        customerChargeAmount: '-1',
+        note: 'C197: negative override',
+      }),
+      /nhập âm|không được âm/i,
+      'a negative receivable override must be refused with a message that names it',
+    );
   });
 });

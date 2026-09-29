@@ -21,7 +21,7 @@ import {
   type DriverIncidentalCostInput,
   type ExpenseCostGroup,
 } from '@tingting/shared';
-import { upsertExpenseAccountingSource } from './expense-accounting-source.service';
+import { upsertExpenseAccountingSource, receivableForDerivedCharge } from './expense-accounting-source.service';
 import { ApiError } from '../errors';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -322,7 +322,11 @@ async function insertDriverIncidentalCostTx(
 ): Promise<DriverIncidentalCost> {
   const group = input.costGroup ?? (['TOLL', 'PARKING', 'PER_DIEM'].includes(input.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT');
   if (!['DRIVER_SHIPMENT', 'DRIVER_ROAD'].includes(group)) throw new ApiError(400, 'Nhóm chi phí lái xe không hợp lệ.');
-  const customerChargeAmount = group === 'DRIVER_SHIPMENT' && input.invoiceNumber?.trim() ? input.amount : 0;
+  // Card 20260928_197 — the amount is signed (a correction), so the receivable
+  // derived from it is clamped at 0 rather than following it negative. See
+  // `receivableForDerivedCharge` for why the two sides differ.
+  const customerChargeAmount = group === 'DRIVER_SHIPMENT' && input.invoiceNumber?.trim()
+    ? receivableForDerivedCharge(input.amount) : 0;
   // Classification source is exclusive: a fee norm (road bucket) and a lot-cost
   // catalog ref can never both drive one entry.
   if (input.feeNormCode && input.expenseTypeCode) {
@@ -399,7 +403,11 @@ async function insertDriverIncidentalCostTx(
     payerKind: input.payerKind ?? 'USER',
     costGroup: normClass ? (feeNorm!.costGroup as ExpenseCostGroup) : group,
     feeName: normClass ? feeNorm!.label : (catalogType ? catalogType.name : (input.feeName ?? input.costType)),
-    customerChargeAmount: String(normClass ? 0 : (invoicedClass ? input.amount : (catalogType ? 0 : customerChargeAmount))),
+    // Card 20260928_197 — `invoicedClass` charges the amount, so it needs the
+    // same clamp as `customerChargeAmount` above; this second derivation is
+    // the one that actually reaches the row when a catalog type decides the
+    // group. Both go through `receivableForDerivedCharge` so neither can drift.
+    customerChargeAmount: String(normClass ? 0 : (invoicedClass ? receivableForDerivedCharge(input.amount) : (catalogType ? 0 : customerChargeAmount))),
     invoiceNumber: normClass ? null : (invoicedClass ? input.invoiceNumber!.trim() : catalogType ? null : (input.invoiceNumber?.trim() || null)),
     invoiceDate: normClass ? null : (catalogType && !invoicedClass ? null : (input.invoiceDate || null)),
     photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [],

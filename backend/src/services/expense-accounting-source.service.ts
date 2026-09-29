@@ -7,6 +7,43 @@ import { ApiError } from '../errors';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
+/**
+ * Card 20260928_197 — the RECEIVABLE side of a cost line.
+ *
+ * The COST is signed: a negative line is a correction. The RECEIVABLE is not —
+ * money owed by a customer is never negative, which the shared layer encodes as
+ * the unsigned `expenseVndSchema` that guards `customerChargeAmount` below.
+ *
+ * The invoice-group invariant "charge = amount" therefore only holds for a
+ * non-negative line. Card 20260928_181 made the amount signed without revisiting
+ * that derivation, so a negative cost dragged the receivable negative and the
+ * save died with `{"code":"too_small","minimum":0,"path":[]}` — a 400 naming no
+ * field, because the failing value is a bare number parsed here rather than a
+ * request field. The UI renders it as the generic "Giá trị không hợp lệ", which
+ * is what staging showed for a card whose whole point is that a negative entry
+ * must be savable.
+ *
+ * A negative line charges 0: it is a correction, not a debt, so it must leave
+ * the customer's balance as if the row did not exist — the same rule the card
+ * sets for the cost side, applied to the receivable.
+ *
+ * This lives beside the unsigned guard on purpose: every derivation that can
+ * feed it — the Ops create, the Ops patch and both driver incidental paths —
+ * routes through here, so the rule exists once.
+ */
+export function receivableForDerivedCharge(amount: string | number): number {
+  return Math.max(0, Number(amount));
+}
+
+/** An explicitly supplied receivable. A negative one is a deliberate request
+ *  for money owed in reverse, not a derived artefact, so it is refused by name
+ *  instead of surfacing as the field-less "must be >= 0". */
+export function assertReceivableNotNegative(value: number, field = 'Thực thu'): number {
+  if (!Number.isFinite(value)) throw new ApiError(400, `${field} phải là số.`);
+  if (value < 0) throw new ApiError(400, `${field} không được nhập âm.`);
+  return value;
+}
+
 export type ExpenseAccountingLink = typeof s.expenseAccountingSources.$inferSelect;
 export type ExpenseAccountingSource = ExpenseAccountingLink & {
   paymentHistoryUnattributed: boolean;

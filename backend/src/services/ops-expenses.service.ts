@@ -10,7 +10,7 @@ import { and, desc, eq, exists, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
 import { opsInvoicedCostGroupOf, type ExpenseCostGroup } from '@tingting/shared';
-import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable } from './expense-accounting-source.service';
+import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
 import { assertOpsExpenseAssignment } from './expense-owner-scope.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
@@ -62,6 +62,30 @@ export function parseOpsMoney(value: string | number, field = 'Số tiền'): bi
   if (amount === 0n) throw new ApiError(400, `${field} không được bằng 0.`);
   if (amount > 999_999_999_999_999n || amount < -999_999_999_999_999n) throw new ApiError(400, `${field} vượt quá giới hạn.`);
   return amount;
+}
+
+/**
+ * Card 20260928_197 — the receivable for an Ops cost line. Delegates the rule to
+ * `receivableForDerivedCharge` / `assertReceivableNotNegative`, which sit
+ * beside the unsigned `expenseVndSchema` guard they exist to satisfy; see the
+ * reasoning there. This wrapper only decides WHICH side applies:
+ *
+ *  - an invoice group charges the amount (card 20260921_5's invariant), and
+ *    that derived value is clamped at 0 once the amount is signed;
+ *  - a no-invoice group takes the caller's override, defaulting to 0, and a
+ *    negative override is refused by name.
+ */
+export function receivableForCost(
+  amount: bigint | string | number,
+  costGroup: string | null | undefined,
+  override: string | number | null | undefined,
+  field = 'Thực thu',
+): number {
+  if (typeof costGroup === 'string' && costGroup.startsWith('INVOICED_')) {
+    return receivableForDerivedCharge(Number(amount));
+  }
+  if (override == null || override === '') return 0;
+  return assertReceivableNotNegative(Number(override), field);
 }
 
 export function assertValidPaidAt(value: string): void {
@@ -202,10 +226,11 @@ export async function createOpsExpense(
   if (!['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL'].includes(costGroup)) throw new ApiError(400, 'Nhóm chi phí Ops không hợp lệ.');
   // Card 20260921_5 — the no-invoice pair's Thực-thu side. Invoice rows keep
   // charge = amount; no-invoice rows take the caller's override (0 default).
-  const isInvoiceGroup = costGroup.startsWith('INVOICED_');
-  const customerCharge = isInvoiceGroup
-    ? Number(entry.amount)
-    : (input.customerChargeAmount == null || input.customerChargeAmount === '' ? 0 : Number(input.customerChargeAmount));
+  //
+  // Card 20260928_197 — through `receivableForCost`, because "charge = amount"
+  // stopped being an identity once the amount became signed: a negative line
+  // charges 0 rather than a negative receivable.
+  const customerCharge = receivableForCost(entry.amount, costGroup, input.customerChargeAmount);
 
   // Card 20260928_162: a row that does NOT charge the customer must carry a
   // note saying why, and the SERVER enforces it.
@@ -307,12 +332,14 @@ export async function updateOpsExpense(
   if (source) {
     // Card 20260921_5 — the patch may set the Thực-thu side on no-invoice
     // rows; invoice rows keep charge = the (updated) amount.
+    //
+    // Card 20260928_197 — a patched amount that turns negative re-derives the
+    // same way `createOpsExpense` does: 0, not a negative receivable.
     const effectiveGroup = patch.costGroup ?? source.costGroup;
     const chargeIsInvariant = typeof effectiveGroup === 'string' && effectiveGroup.startsWith('INVOICED_');
-    const nextCharge = chargeIsInvariant
-      ? Number(updated.amount)
-      : (patch.customerChargeAmount === undefined ? source.customerChargeAmount
-        : patch.customerChargeAmount == null || patch.customerChargeAmount === '' ? 0 : Number(patch.customerChargeAmount));
+    const nextCharge = patch.customerChargeAmount === undefined && !chargeIsInvariant
+      ? source.customerChargeAmount
+      : receivableForCost(updated.amount, effectiveGroup, chargeIsInvariant ? undefined : patch.customerChargeAmount);
     const after = await upsertExpenseAccountingSource(transaction, { ...source, sourceKind: 'OPS', sourceId: expenseId,
       amount: Number(updated.amount), customerChargeAmount: nextCharge == null ? null : Number(nextCharge),
       expenseDate: updated.paidAt, expenseTypeCode: updated.expenseTypeCode, shipmentContainerId: updated.shipmentContainerId,
