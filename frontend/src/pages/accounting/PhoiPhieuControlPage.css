@@ -168,6 +168,24 @@
   border-radius: 8px;
   background: var(--surface-1);
 }
+
+/* Card 20260930_214 — the "xe đã phân công" table is the one thing here that
+   grows without bound: one <tr> per assigned truck, sitting directly ABOVE the
+   batch controls. So the "Chọn tất cả" / "Phân công" bar got pushed further and
+   further down the page as assignments accumulated, until it fell past the
+   bottom of the frame the user could scroll to. The unassigned checkbox list
+   beside it was already bounded (max-height 220px) — bounding the table that
+   sits above the controls is the same remedy for the same reason.
+   A capacity bound can only limit growth; it can never push a control out of
+   reach, which is the direction this defect needs. */
+.ppc-assign-existing {
+  /* No `display` here on purpose: this is a WRAPPER around the table, so the
+     table keeps its own display and its row layout. Setting display:block on
+     the <table> itself would flatten the rows and break the grid. */
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .ppc-assign-batch__bar {
   display: flex;
   gap: 8px;

@@ -15,6 +15,39 @@ describe('phôi phiếu board header contract (card 20260922_54)', () => {
   });
 });
 
+// Card 20260930_214 — the assigned-truck table grows with the number of
+// assignments and sits ABOVE the batch controls, so unbounded it pushed
+// "Chọn tất cả" / "Phân công" past the reachable frame. These two pin the
+// remedy so a later tidy-up cannot quietly drop it: the class is bound AND
+// the component still wraps the table in it.
+describe('phân công xe — the controls stay reachable (card 20260930_214)', () => {
+  it('the assigned-truck table is height-bounded and scrolls on its own', () => {
+    const block = (css.match(/\.ppc-assign-existing\s*\{([^}]*)\}/)?.[1] ?? '')
+      // Strip comments first: the block explains WHY it declares no `display`,
+      // so the explanation must not be mistaken for the declaration.
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(block.trim()).not.toBe('');
+    expect(block).toMatch(/max-height:\s*\d/);
+    expect(block).toContain('overflow-y: auto');
+    // A bound ON the <table> would need display:block, which flattens the
+    // rows; this is a wrapper, so `display` is deliberately not declared.
+    expect(block).not.toMatch(/display:/);
+  });
+
+  it('the component wraps that table, and the wrapper closes before the batch bar', () => {
+    const component = readFileSync(
+      resolve(process.cwd(), 'src/features/accounting/PhoiPhieuTruckAssignments.tsx'), 'utf8');
+    const open = component.indexOf('<div className="ppc-assign-existing">');
+    const table = component.indexOf('<table');
+    const close = component.indexOf('</div>', component.indexOf('</table>'));
+    const batch = component.indexOf('ppc-assign-batch');
+    expect(open).toBeGreaterThan(-1);
+    expect(table).toBeGreaterThan(open);
+    expect(close).toBeGreaterThan(table);
+    expect(batch).toBeGreaterThan(close);
+  });
+});
+
 describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => {
   it('atomic cells never fracture — date column and chi hộ/tiền đường value tokens pin nowrap (design law §4)', () => {
     expect(css).toMatch(/\.ppc-board td\.ppc-col--date\s*\{[^}]*white-space:\s*nowrap/);

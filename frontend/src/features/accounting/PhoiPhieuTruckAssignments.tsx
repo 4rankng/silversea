@@ -61,6 +61,11 @@ export function PhoiPhieuTruckAssignments() {
     <details style={{ margin: '16px 0' }}>
       <summary style={{ cursor: 'pointer', fontSize: 'var(--text-body-size)' }}>Phân công xe cho kế toán phơi phiếu</summary>
       {message && <p role="alert">{message}</p>}
+      {/* Card 20260930_214: this table is the one element here that grows with
+          the number of assignments, and it sits directly ABOVE the batch
+          controls — so the controls were pushed out of the reachable frame.
+          The wrapper bounds it and scrolls on its own. */}
+      <div className="ppc-assign-existing">
       <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)', margin: '8px 0' }}>
         <caption>Xe đã phân công</caption>
         <thead><tr><th>Biển số</th><th>Kế toán phụ trách</th><th aria-label="Lưu" /></tr></thead>
@@ -71,6 +76,7 @@ export function PhoiPhieuTruckAssignments() {
           {assignments.length === 0 && <tr><td colSpan={3}>Chưa có xe nào được phân công.</td></tr>}
         </tbody>
       </table>
+      </div>
       {/* Card 20260928_166 AC1: the 39-truck split. Pick the trucks, pick the
           accountant, assign in ONE all-or-nothing call. The scope is stated on
           the control itself, because the header select-all it replaced used to
