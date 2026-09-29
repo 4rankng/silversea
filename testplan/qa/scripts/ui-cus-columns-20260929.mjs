@@ -100,12 +100,29 @@ if (!probe.hasColumnControl) {
   if (before == null) {
     problems.push(`AC3 NOT PROVEN: ${STORAGE_KEY} holds no value, so "survives reload" cannot be scored — toggle a column first, then re-run`);
   } else {
+    // Half 1: a reload must not lose the choice.
     await page.reload({ waitUntil: 'networkidle2' });
     await sleep(2500);
-    const after = await page.evaluate((k) => window.localStorage.getItem(k), STORAGE_KEY);
+    const afterReload = await page.evaluate((k) => window.localStorage.getItem(k), STORAGE_KEY);
+    const beforeReload = before;
     await page.screenshot({ path: path.join(OUT, 'shipments-1440-reloaded.png'), fullPage: true });
-    notes.push(`reload: ${STORAGE_KEY} ${before} -> ${after}`);
-    if (before !== after) problems.push(`AC3: ${STORAGE_KEY} changed across reload (${before} -> ${after})`);
+    notes.push(`reload: ${STORAGE_KEY} ${before} -> ${afterReload}`);
+    if (before !== afterReload) problems.push(`AC3 (reload): ${STORAGE_KEY} changed across reload (${before} -> ${afterReload})`);
+
+    // Half 2: the card also requires the choice to survive NAVIGATION away and
+    // back — "không mất khi điều hướng". Leaving the page and returning is a
+    // different code path from a reload (the component remounts fresh).
+    await page.goto(`${env.baseUrl}/dashboard`, { waitUntil: 'networkidle2' });
+    await sleep(1500);
+    await page.goto(`${env.baseUrl}${PAGE}`, { waitUntil: 'networkidle2' });
+    await sleep(2500);
+    const afterNav = await page.evaluate((k) => window.localStorage.getItem(k), STORAGE_KEY);
+    const headerHasNotes = await page.evaluate(() =>
+      [...document.querySelectorAll('thead th')].some((th) => /ghi ch[úu]/i.test(th.innerText || '')));
+    await page.screenshot({ path: path.join(OUT, 'shipments-1440-after-nav.png'), fullPage: true });
+    notes.push(`navigate away + back: ${STORAGE_KEY} = ${afterNav}; Ghi chú column back in header: ${headerHasNotes}`);
+    if (afterNav !== beforeReload) problems.push(`AC3 (navigate): ${STORAGE_KEY} changed after navigating away and back (${beforeReload} -> ${afterNav})`);
+    if (!headerHasNotes) problems.push('AC3 (navigate): the column did NOT come back after navigating away and returning');
   }
 }
 
