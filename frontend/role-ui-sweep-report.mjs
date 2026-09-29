@@ -16,7 +16,7 @@ for (const [role, data] of Object.entries(report)) {
     if (onlyWidth && p.width !== onlyWidth) continue;
     const issues = [];
     if (p.horizontalOverflow > 0) issues.push(`H-SCROLL ${p.horizontalOverflow}px`);
-    if (p.width < 600 && p.smallCount) issues.push(`TAP<44 x${p.smallCount}`);
+    if (p.width < 600 && p.smallCount) issues.push(`TAP<40 x${p.smallCount}`);
     if (p.clippedCount) issues.push(`CLIP x${p.clippedCount}`);
     if (p.tinyCount) issues.push(`FONT<11 x${p.tinyCount}`);
     if (p.netErrors?.length) issues.push(`NET x${p.netErrors.length}`);
@@ -48,7 +48,7 @@ for (const r of rows) for (const c of r.page.clipped ?? []) {
   }
 }
 
-console.log('\n=== tap targets <44 on phones ===');
+console.log('\n=== tap targets <40 on phones ===');
 for (const r of rows) {
   if (r.width >= 600) continue;
   for (const s of r.page.small ?? []) console.log(`${r.role}/${r.width}${r.path} :: ${s.el} ${s.w}x${s.h}`);

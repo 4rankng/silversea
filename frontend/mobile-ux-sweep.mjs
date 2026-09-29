@@ -3,7 +3,8 @@
 //   hscroll      — document scrolls horizontally (§5 horizontal-scroll ban)
 //   offscreen    — visible element overflows the viewport with no scrollable ancestor
 //   clipped      — text content clipped by overflow:hidden with no wrap/ellipsis (§4 no-truncation)
-//   small-target — interactive element under the 44px touch floor (§5 / control-density contract)
+//   small-target — interactive element under the 40px touch floor (§5 / control-density contract,
+//                  ruling 2026-09-27: the ceiling IS the floor — `--control-max-h`)
 //   tiny-text    — rendered text under the 11px label floor (§5)
 //   pageerror    — uncaught exception on the page
 //
@@ -132,13 +133,17 @@ const auditPage = () => {
       }
     }
 
-    // touch floor: interactive elements under 44px. Mobile/tablet widths only
+    // touch floor: interactive elements under 40px — the operator ruling of
+    // 2026-09-27 ("text 11px 12px component size max 40px") makes
+    // `--control-touch-h` IS `--control-max-h`, so 40 is the floor AND the
+    // ceiling; `< 44` reported every sanctioned 40x40 control as a defect
+    // (card 20260930_217). Mobile/tablet widths only
     // (the 1440 desktop control run is filtered by the caller). Checkbox/radio
     // and the sr-only pattern are exempt (native controls with label hit
-    // areas / not rendered). 43.5 = sub-pixel rounding tolerance (43.9px
+    // areas / not rendered). 39.5 = sub-pixel rounding tolerance (39.9px
     // boxes are at the floor). Inputs/selects measure against their nearest
-    // BORDERED field shell: a 42px input inside a 44px shell is compliant
-    // (border compensation), while a 16px strip inside a 44px combobox
+    // BORDERED field shell: a 39px input inside a 40px shell is compliant
+    // (border compensation), while a 16px strip inside a 40px combobox
     // still fails on its own box.
     if (
       el.matches('a[href], button, [role="button"], input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea, [tabindex]:not([tabindex="-1"])') &&
@@ -162,7 +167,7 @@ const auditPage = () => {
           ancestor = ancestor.parentElement;
         }
       }
-      if (w < 43.5 || h < 43.5) add('small', path(el), `${w.toFixed(1)}x${h.toFixed(1)}`);
+      if (w < 39.5 || h < 39.5) add('small', path(el), `${w.toFixed(1)}x${h.toFixed(1)}`);
     }
 
     // text floor: leaf text nodes under 11px

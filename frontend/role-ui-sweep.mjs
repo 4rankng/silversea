@@ -23,7 +23,7 @@ const ROLES = (process.env.ROLES || 'cus,dieuvan,laixe,ops').split(',').map((r) 
 // Role label -> local-dev login (testplan/testaccounts.txt).
 const ROLE_USER = { chungtu: 'cus', cus: 'cus', dieuvan: 'dieuvan', laixe: 'laixe', ops: 'giaonhan' };
 const WIDTHS = (process.env.WIDTHS || '390,1440').split(',').map(Number);
-// Touch-capable devices: `pointer: coarse` media queries (the 44px floors, the
+// Touch-capable devices: `pointer: coarse` media queries (the 40px floors, the
 // tablet bands) key off this, and a 768/1024 tablet is a touch device.
 const TOUCH_MAX = Number(process.env.TOUCH_MAX || 1024);
 
@@ -72,10 +72,16 @@ function probePage() {
     // em-measured to its own glyphs at 12px so `DD` never shaves into an
     // E-like sliver (design-system/forms/DateTimeSegments.css + its styles
     // test pin 1.706em/1.956em/2.91em). Counting them made every sweep report
-    // a false sub-44 hit on /shipments-detail.
+    // a false sub-floor hit on /shipments-detail.
     if (el.classList.contains('date-seg')) continue;
     const r = el.getBoundingClientRect();
-    if (r.width < 44 || r.height < 44) small.push({ el: describe(el), w: Math.round(r.width), h: Math.round(r.height) });
+    // Touch floor = the operator ruling of 2026-09-27 ("text 11px 12px
+    // component size max 40px"): `--control-touch-h` IS `--control-max-h`, so
+    // 40px is the sanctioned floor and the ceiling. Counting `< 44` here
+    // reported every 40x40 control in the app as a defect — 24 phantom rows in
+    // the 2026-09-30 sweep, 0 real ones (card 20260930_217). design-lock's
+    // `tapFloor` reads the same 40 from `scripts/design-lock.mjs`.
+    if (r.width < 40 || r.height < 40) small.push({ el: describe(el), w: Math.round(r.width), h: Math.round(r.height) });
   }
 
   const tiny = [];
