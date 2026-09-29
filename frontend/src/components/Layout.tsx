@@ -116,6 +116,7 @@ export function getNavItems(
         { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
+        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'financials' as SectionName },
         // Theo dõi hóa đơn kết hợp (card 20260921_18) — kế toán + quản trị write,
         // CUS read-only on the same page.
         { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
@@ -174,6 +175,7 @@ export function getNavItems(
         { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
+        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'financials' as SectionName },
 
         // Nhân sự (HR)
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
@@ -225,6 +227,7 @@ export function getNavItems(
         { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
+        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'financials' as SectionName },
 
         // Pricing config entry points (docx §5-1): accountant fuel-price entry + per-customer×route rate terms.
         { key: 'config-fuel-price-periods', label: 'Giá dầu theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'financials' as SectionName },

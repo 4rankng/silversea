@@ -93,6 +93,11 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'expense-accounting.update', pattern: /^\/api\/expense-accounting\/entries\/[^/]+\/[^/]+\/update$/ },
   { method: 'POST', endpoint: 'expense-accounting.confirm', pattern: /^\/api\/expense-accounting\/confirm$/ },
   { method: 'POST', endpoint: 'expense-accounting.assign', pattern: /^\/api\/expense-accounting\/assignments$/ },
+  // Card 20260928_166 AC1 — the 39-truck split. The batch route shipped without
+  // this declaration: runShipmentWrite's audit persist found no declared
+  // material-write endpoint and every real request 500'd while the
+  // service-level suite (which skips the router) stayed green.
+  { method: 'POST', endpoint: 'expense-accounting.assign-batch', pattern: /^\/api\/expense-accounting\/assignments\/batch$/ },
   // Card 20260921_21/19/8+13 governance rider: the ten financial-write
   // routes wrapped in runIdempotent (see the accounting routes).
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments$/ },

@@ -26,6 +26,7 @@ describe('getNavItems', () => {
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
+      ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
       ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
       ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
@@ -57,6 +58,7 @@ describe('getNavItems', () => {
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
+      ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Lương & Chấm công', '/salary'],
       ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'],
@@ -80,6 +82,7 @@ describe('getNavItems', () => {
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
+      ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Giá dầu theo kỳ', '/config/fuel-price-periods'],
       ['Điều khoản cước theo tuyến', '/config/freight-rate-terms'],
       ['Báo cáo Lãi lỗ', '/finance'],
@@ -182,7 +185,7 @@ describe('getNavItems', () => {
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances',
+      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/shipments', '/audit-logs',
     ]);
