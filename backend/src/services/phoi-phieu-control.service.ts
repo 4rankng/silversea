@@ -13,7 +13,7 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
-import { createExpenseVoucher, getExpenseCashTotals, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
+import { createExpenseVoucher, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
 import { FUND_SOURCES } from './treasury-fund-book.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -799,6 +799,14 @@ export async function getPhoiPhieuReport(query: {
     }
   }
 
+  // Card 20260927_147 sweep — the same one-read-per-source pattern the voucher
+  // path already dropped: this loop only needs each source's recorded cash
+  // totals, so read the whole selection once instead of once per source.
+  // SAFETY: the batch read takes a transaction handle so its caller can read
+  // inside the same tx; `db` is the module-level handle, which satisfies that
+  // parameter at runtime. The cast only bridges drizzle's `Tx` vs `typeof db`
+  // types — it does not change which connection the query runs on.
+  const cashBySourceId = await getExpenseCashTotalsBatch(db as unknown as Tx, sources.map((source) => source.id));
   const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null; soLuong: number; phaiThu: number; phaiTra: number; movements: Set<string> }>();
   for (const source of sources) {
     // A NULL trip (the correct-route linked-replacement nulls the source's
@@ -818,11 +826,7 @@ export async function getPhoiPhieuReport(query: {
     if (bucketKey === 'nang') bucket.tienNang += amount;
     else if (bucketKey === 'ha') bucket.tienHa += amount;
     else bucket.psKhac += amount;
-    // SAFETY: `getExpenseCashTotals` takes a transaction handle so its caller can
-    // read inside the same tx; `db` is the module-level handle, which satisfies that
-    // parameter at runtime. The cast only bridges drizzle's `Tx` vs `typeof db`
-    // types — it does not change which connection the query runs on.
-    const cash = await getExpenseCashTotals(db as unknown as Tx, source.id);
+    const cash = cashBySourceId.get(source.id) ?? { IN: 0, OUT: 0 };
     bucket.da += query.kind === 'THU' ? cash.IN : cash.OUT;
     // Card 20260928_173 AC3 — a subject that moves on BOTH sides of the ledger
     // in one period must be one row carrying both figures, not a receivable row
