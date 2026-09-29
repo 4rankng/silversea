@@ -87,8 +87,11 @@ if (!target) {
 
   // Type the negative amount. The field is labelled "Thực chi (VND)".
   const typed = await page.evaluate((val) => {
-    const field = [...document.querySelectorAll('input')]
-      .find((i) => /thực chi|số tiền/i.test(`${i.getAttribute('aria-label') || ''} ${(i.closest('label')?.innerText) || ''}`));
+    // The field has NO aria-label — its text lives in the wrapping <label> as
+    // "Thực chi (VND) *". A query keyed on aria-label finds nothing.
+    const field = [...document.querySelectorAll('input, textarea')]
+      .find((i) => /thực chi|số tiền/i.test(
+        `${i.getAttribute('aria-label') || ''} ${i.closest('label')?.innerText || ''} ${i.parentElement?.innerText || ''}`));
     if (!field) return null;
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
     setter.call(field, val);
@@ -99,10 +102,20 @@ if (!target) {
 
   if (!typed) {
     problems.push('could not find the "Thực chi" amount field on the cost form');
-  } else if (typed.min != null && Number(NEGATIVE) < Number(typed.min)) {
-    // A native min above zero would make the browser itself refuse the input —
-    // this is the exact defect the card was filed for.
-    problems.push(`the amount input still carries min=${typed.min}, so the browser blocks ${NEGATIVE}`);
+  } else {
+    // The PM's ask is that the field ACCEPTS a negative. A native min above zero
+    // makes the browser refuse the input outright — the exact defect the card
+    // was filed for. Assert the bound itself, so a regression to min=1 fails
+    // here rather than silently at submit time.
+    const min = typed.min == null ? null : Number(typed.min);
+    notes.push(`amount field min attribute = ${typed.min}`);
+    if (min == null) {
+      problems.push('the amount input carries no min attribute — the signed bound is missing');
+    } else if (min >= 0) {
+      problems.push(`the amount input still pins min=${typed.min}, so the browser blocks ${NEGATIVE}`);
+    } else if (Number(NEGATIVE) < min) {
+      problems.push(`the amount input's min=${typed.min} still rejects ${NEGATIVE}`);
+    }
   }
 
   await sleep(800);

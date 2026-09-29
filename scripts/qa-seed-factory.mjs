@@ -150,20 +150,18 @@ if (NO_CREATE) {
   // so every run against a current API failed at step 3. Create the shipment,
   // then declare the container on its own endpoint.
   // Field names must match `createShipmentBaseSchema` (shared/src/schemas/
-  // index.ts:1625). This factory had drifted from it on FIVE fields, and zod
-  // strips unknown keys SILENTLY — so the shipment was created every time with
-  // those columns null and nothing ever reported an error:
+  // index.ts:1625). This factory had drifted from it, and zod strips unknown
+  // keys SILENTLY — the shipment was created every time with those columns null
+  // and nothing ever reported an error:
   //   direction         -> tradeDirection
-  //   billBookingNumber -> blNumber (and bookingRef)
+  //   billBookingNumber -> blNumber
   //   expectedPickupAt  -> not a create field at all
-  // plus the two the OPS work queue actually needs, so a scenario is visible
-  // there: `expectedDeliveryDate` (listOpsOrders filters on exactly that) and
-  // cargoMode, which several surfaces read.
+  // cargoMode was never sent, though several surfaces read it.
   const body = {
     customerId: scenario.customer.id,
     tradeDirection: "IMPORT",
     cargoMode: "FCL",
-    // IMPORT carries a Bill number only; EXPORT carries a Booking number only.
+    // IMPORT carries a Bill number only; EXPORT a Booking number only.
     // Sending both is refused: "Một lô hàng chỉ có Số Bill (hàng Nhập) hoặc
     // Số Booking (hàng Xuất)".
     blNumber: code,
@@ -209,6 +207,29 @@ if (NO_CREATE) {
     } else {
       scenario.container = { number: containerNo };
       log.push(`container: ${containerNo}`);
+
+      // Card 20260929_203: PUT /shipments/:id/containers RE-DERIVES
+      // expectedDeliveryDate and overwrites the value create had stored, leaving
+      // it NULL when no container carries a customerAppointmentAt. So the date
+      // has to be re-asserted AFTER the container, not before it — otherwise the
+      // scenario is invisible in the OPS work queue, which filters on exactly
+      // this column.
+      const after = await apiAt(token, "GET", `/shipments/${scenario.shipment.id}`);
+      const v = after?.data?.version ?? after?.data?.shipment?.version ?? currentVersion;
+      // Use the ADMIN token: the forwarder/ops role that owns the scenario cannot
+      // PATCH a shipment (403 "Không có quyền truy cập"), and the date is
+      // account-independent reference data the fixture legitimately needs set.
+      const fix = await apiAt(adminToken, "PUT", `/shipments/${scenario.shipment.id}`, {
+        expectedVersion: v,
+        expectedDeliveryDate: today,
+      }, { headers: { "Idempotency-Key": `${idem}-delivery-date` } });
+      if (!fix.ok) {
+        log.push(`expectedDeliveryDate re-assert FAILED: ${fix.status} ${JSON.stringify(fix.data).slice(0, 200)}`);
+        scenario.dateError = { status: fix.status, body: fix.data };
+      } else {
+        scenario.expectedDeliveryDate = today;
+        log.push(`expectedDeliveryDate re-asserted to ${today} (container write had cleared it)`);
+      }
     }
   }
 }
