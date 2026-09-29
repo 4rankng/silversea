@@ -74,16 +74,23 @@
 
 /* The shared table owns its row treatment; no second card around it. */
 .accounting-register__wrap { background: transparent; }
-.accounting-register__table tbody tr { cursor: pointer; }
-.accounting-register__table tbody tr[aria-disabled='true'] { cursor: default; }
+/* Card 20260929_207: the row IS the selection control, so cursor, focus ring
+   and the locked affordance are declared per row state. */
+.accounting-register__table tbody tr.accounting-register__row--pickable { cursor: pointer; }
+.accounting-register__table tbody tr.accounting-register__row--pickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.accounting-register__table tbody tr.accounting-register__row--locked { cursor: default; }
+.accounting-register__table tbody tr[data-selected] { background: var(--accent-soft); }
+/* The picked row is marked by a BORDER on its first cell, never a shadow —
+   the flat-sheet law forbids one on this surface. */
+.accounting-register__table tbody tr[data-selected] > td:first-child { border-left: 3px solid var(--accent); }
+
+/* The board states its selection model once, above the table. */
+.accounting-register__hint { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); }
 
 /* Cell payloads. */
-.accounting-row-check { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
-.accounting-row-check input { flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--brand); }
-.accounting-row-check input:disabled { opacity: .45; }
-.accounting-row-check span { display: grid; gap: 2px; min-width: 0; }
-.accounting-row-check strong { color: var(--fg-1); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); overflow-wrap: anywhere; }
-.accounting-row-check small { color: var(--fg-3); font-size: var(--ops-table-meta-size); overflow-wrap: anywhere; }
+.accounting-register__lead { display: grid; gap: 2px; min-width: 0; }
+.accounting-register__lead strong { color: var(--fg-1); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); overflow-wrap: anywhere; }
+.accounting-register__lead small { color: var(--fg-3); font-size: var(--ops-table-meta-size); overflow-wrap: anywhere; }
 .accounting-register__table td .accounting-register__payable { display: block; margin-top: 2px; color: var(--fg-3); font-size: var(--ops-table-meta-size); }
 .accounting-register__table .record-table__action { text-align: right; }
 .accounting-register__table .record-table__action a { display: inline-flex; align-items: center; min-height: var(--control-compact-h); color: var(--brand); font-weight: 700; }

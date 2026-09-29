@@ -213,7 +213,9 @@ describe('AccountingWorkspacePage', () => {
     expect(screen.getAllByRole('link', { name: /Công nợ|Mở công nợ/ })[0].getAttribute('href')).toBe('/debt/5');
     expect(getMock).toHaveBeenCalledWith(expect.stringContaining('/finance/billing-documents/transport-register?'));
 
-    fireEvent.click(screen.getAllByRole('checkbox', { name: 'Chọn chuyến C-009' })[0]);
+    // Card 20260929_207: the checkbox column is gone — the row is the control,
+    // so a press on the trip itself picks it (same case, new affordance).
+    fireEvent.click(screen.getAllByText('C-009')[0].closest('tr')!);
     expect(screen.getByText(/Đã chọn 1 chuyến của Silver Sea/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Tạo bản nháp giấy báo nợ' }).getAttribute('href'))
       .toBe('/debt/5/billing/new?selectedTripIds=9&from=2026-08-01&to=2026-08-01');

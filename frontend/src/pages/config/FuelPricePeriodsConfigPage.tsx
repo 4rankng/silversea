@@ -9,6 +9,7 @@ import { Drawer } from '../../components/UI';
 import { CONFIG, Role } from '@tingting/shared';
 import { useAuth } from '../../hooks/useAuth';
 import type { FuelPricePeriodRow } from '../../api/pricingClient';
+import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { quotationClient, type QuotationFuelApprovalRow } from '../../api/quotationClient';
 import { qk } from '../../api/keys';
 import { DateInput } from '../../design-system/forms/DateInput';
@@ -20,7 +21,10 @@ import { formatDate } from '../../lib/format';
 function QuotationFuelApprovalAlert() {
   const queryClient = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Card 20260929_207: the batch list is picked by clicking a row; the
+  // select-all affordance is a button, not a header checkbox, and it says so.
+  const selection = useTableRowSelection<number>();
+  const selected = selection.selected;
   const pendingQuery = useQuery({
     queryKey: qk.quotationFuelApprovals.pending,
     queryFn: () => quotationClient.listFuelApprovals('PENDING'),
@@ -29,20 +33,16 @@ function QuotationFuelApprovalAlert() {
     mutationFn: (input: { ids: number[]; decision: 'AGREED' | 'DECLINED' }) =>
       quotationClient.decideFuelApprovals(input.ids, input.decision),
     onSuccess: async () => {
-      setSelected(new Set());
+      selection.clear();
       await queryClient.invalidateQueries({ queryKey: qk.quotationFuelApprovals.all });
     },
   });
 
   const rows = pendingQuery.data?.items ?? [];
   const pendingTotal = rows.length;
-  const toggle = (id: number) => {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggleAll = () => {
+    if (selection.allOfSelected(rows.map((row) => row.id))) selection.clear();
+    else selection.selectAll(rows.map((row) => row.id));
   };
   const decideSelected = (decision: 'AGREED' | 'DECLINED') => {
     const ids = [...selected];
@@ -97,19 +97,21 @@ function QuotationFuelApprovalAlert() {
           <p role="status">Không còn dòng chờ xác nhận.</p>
         ) : (
           <>
-            <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
-              <input
-                type="checkbox"
-                aria-label="Chọn tất cả"
-                checked={selected.size === rows.length && rows.length > 0}
-                onChange={(event) => setSelected(event.target.checked ? new Set(rows.map((row) => row.id)) : new Set())}
-              />
-              Chọn tất cả
-            </label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={toggleAll}
+                disabled={rows.length === 0}
+                title={selected.size === rows.length && rows.length > 0 ? 'Bỏ chọn' : `Chọn cả ${rows.length} dòng đang hiện`}
+              >
+                {selected.size === rows.length && rows.length > 0 ? 'Bỏ chọn tất cả' : `Chọn tất cả (${rows.length})`}
+              </button>
+              <span style={{ color: 'var(--ink-3)' }}>Bấm vào một dòng để chọn · {selected.size}/{rows.length} đã chọn</span>
+            </div>
             <table className="tt-table" style={{ width: '100%' }}>
               <thead>
                 <tr>
-                  <th style={{ width: 36 }}><span className="sr-only">Chọn</span></th>
                   <th>Khách hàng</th>
                   <th>Báo giá</th>
                   <th>Kỳ giá mới</th>
@@ -118,15 +120,14 @@ function QuotationFuelApprovalAlert() {
               </thead>
               <tbody>
                 {rows.map((row: QuotationFuelApprovalRow) => (
-                  <tr key={row.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={`Chọn ${row.customerName}`}
-                        checked={selected.has(row.id)}
-                        onChange={() => toggle(row.id)}
-                      />
-                    </td>
+                  <tr
+                    key={row.id}
+                    data-selected={selection.isSelected(row.id) || undefined}
+                    aria-selected={selection.isSelected(row.id)}
+                    tabIndex={0}
+                    style={{ cursor: 'pointer' }}
+                    {...selection.rowProps(row.id)}
+                  >
                     <td>{row.customerName}</td>
                     <td>
                       {row.quotationName}

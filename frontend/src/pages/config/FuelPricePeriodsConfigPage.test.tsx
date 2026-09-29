@@ -132,7 +132,9 @@ describe('FuelPricePeriodsConfigPage — TC-CUOC-002 fuel price entry', () => {
     fireEvent.click(within(banner).getByRole('button', { name: 'Xem danh sách chờ' }));
 
     const drawer = await screen.findByRole('dialog', { name: 'Đồng ý cập nhật báo giá' });
-    fireEvent.click(within(drawer).getByLabelText('Chọn tất cả'));
+    // Card 20260929_207: the select-all is a button with a scope-stating label
+    // now, not a header checkbox — same intent, same ids reaching the call.
+    fireEvent.click(within(drawer).getByRole('button', { name: /Chọn tất cả \(2\)/ }));
     await waitFor(() => expect(within(drawer).getByRole('button', { name: 'Đồng ý (2)' })).toBeEnabled());
     fireEvent.click(within(drawer).getByRole('button', { name: 'Đồng ý (2)' }));
     await waitFor(() => expect(decideFuelApprovalsMock).toHaveBeenCalledWith([11, 12], 'AGREED'));

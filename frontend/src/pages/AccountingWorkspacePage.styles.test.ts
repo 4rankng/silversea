@@ -72,15 +72,14 @@ describe('accounting workspace list-screen contract', () => {
     }
   });
 
-  it('marks selected rows structurally (is-selected), never with an accent fill', () => {
-    expect(registerTsx).toContain("className={selected ? 'is-selected' : undefined}");
-    expect(pageCss).not.toMatch(/is-selected[\s\S]{0,160}background/);
-  });
-
-  it('keeps nested controls independent of the whole-row toggle', () => {
-    // The checkbox label and the debt link stop propagation so one click is
-    // one action, not a row toggle plus a control toggle.
-    expect(registerTsx).toContain('event.stopPropagation()');
-    expect(registerTsx.match(/onClick=\{stop\}/g)?.length).toBeGreaterThanOrEqual(2);
+  // Card 20260929_207: the checkbox column is gone; the row carries the state
+  // on `data-selected` / `aria-selected`, and the rule that draws it is a
+  // BORDER on the row's first cell — the flat-sheet law (§3) forbids a shadow
+  // on this surface.
+  it('marks the picked row structurally (data-selected), and draws it with a border, never a shadow', () => {
+    expect(registerTsx).toContain('data-selected={selected || undefined}');
+    expect(registerTsx).toContain('aria-selected={pickable ? selected : undefined}');
+    expect(pageCss).toMatch(/tr\[data-selected\][^{]*> td:first-child\s*\{[^}]*border-left:\s*3px solid var\(--accent\)/);
+    expect(pageCss).not.toMatch(/tr\[data-selected\][^{]*\{[^}]*box-shadow/);
   });
 });

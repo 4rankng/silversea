@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import type { AccountingTransportRegisterRow } from '@tingting/shared';
@@ -15,6 +15,7 @@ import { EmptyState, Pagination } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { ListFilterBar } from '../../components/ListFilterBar';
+import { useTableRowSelection, type RowSelection } from '../../hooks/useTableRowSelection';
 
 type AccountingTransportRegisterProps = {
   rows: AccountingTransportRegisterRow[];
@@ -73,42 +74,63 @@ export function AccountingTransportRegister({
   onReset,
   onResetSecondary,
 }: AccountingTransportRegisterProps) {
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  // Card 20260929_207: the checkbox column is gone app-wide — the row IS the
+  // control. A click picks it, a second click unpicks it, Space/Enter on a
+  // focused row does the same, and the state rides `data-selected` +
+  // `aria-selected` so it is both visible and readable. `rowProps` also keeps
+  // a press that lands on the row's own link from also selecting the row.
+  const selection = useTableRowSelection<number>();
+  // `clear`/`selectAll` are stable and `selected` changes only with the picks,
+  // so the two effects below can name them exactly in their dependency lists.
+  const { clear, selectAll, selected } = selection;
 
+  // A new filter/page scope must never inherit the previous picks.
   useEffect(() => {
-    setSelectedIds(new Set());
-  }, [selectionScopeKey]);
+    clear();
+  }, [selectionScopeKey, clear]);
 
-  const selectedRows = useMemo(
-    () => rows.filter((row) => selectedIds.has(row.tripId)),
-    [rows, selectedIds],
+  const pickableRows = useMemo(
+    () => rows.filter((row) => row.readiness.status === 'READY'),
+    [rows],
   );
-  const draftUrl = buildTransportDraftUrl(selectedRows);
+  const pickedRows = useMemo(
+    () => pickableRows.filter((row) => selected.has(row.tripId)),
+    [pickableRows, selected],
+  );
+  const draftUrl = buildTransportDraftUrl(pickedRows);
 
-  const toggleRow = (row: AccountingTransportRegisterRow) => {
-    if (row.readiness.status !== 'READY') {
+  // A draft belongs to ONE customer — `buildTransportDraftUrl` reads the debt
+  // route off the first pick — so a selection never spans two customers:
+  // picking a row of another customer replaces the set instead of filing its
+  // trip under a customer that never asked for it. `selected` keeps insertion
+  // order, so the newest pick is the row that crossed over.
+  useEffect(() => {
+    if (new Set(pickedRows.map((row) => row.customerId)).size < 2) return;
+    const order = new Map([...selected].map((tripId, index) => [tripId, index]));
+    const newest = pickedRows.reduce((a, b) => (order.get(b.tripId) ?? 0) > (order.get(a.tripId) ?? 0) ? b : a);
+    selectAll([newest.tripId]);
+  }, [pickedRows, selectAll, selected]);
+
+  // The page-wide affordance works inside the customer in play — with nothing
+  // picked yet that is the customer of the page's first pickable row, because a
+  // draft can only ever belong to one customer.
+  const pageScopeRows = useMemo(
+    () => pickableRows.filter(
+      (row) => row.customerId === (pickedRows[0]?.customerId ?? pickableRows[0]?.customerId),
+    ),
+    [pickableRows, pickedRows],
+  );
+  const pageScopeIds = useMemo(() => pageScopeRows.map((row) => row.tripId), [pageScopeRows]);
+  const pageScopeCustomer = pageScopeRows[0]?.customerName;
+  const allPicked = selection.allOfSelected(pageScopeIds);
+
+  function togglePageScope() {
+    if (allPicked) {
+      clear();
       return;
     }
-
-    setSelectedIds((current) => {
-      const next = new Set(current);
-
-      if (next.has(row.tripId)) {
-        next.delete(row.tripId);
-        return next;
-      }
-
-      const currentCustomerId = rows.find((currentRow) => next.has(currentRow.tripId))
-        ?.customerId;
-
-      if (currentCustomerId != null && currentCustomerId !== row.customerId) {
-        next.clear();
-      }
-
-      next.add(row.tripId);
-      return next;
-    });
-  };
+    selectAll(pageScopeIds);
+  }
 
   const hasActiveFilters = Boolean(
     search || customerId || carrierId || ownership || readiness,
@@ -156,6 +178,20 @@ export function AccountingTransportRegister({
                   <X size={12} aria-hidden="true" /> Xóa bộ lọc
                 </button>
               )}
+              {/* Card 20260929_207: the header checkbox is gone, so the "every
+                  row" affordance moved out of the table into the strip, where
+                  its label states the scope it actually covers. */}
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={togglePageScope}
+                disabled={pageScopeRows.length === 0}
+                title={`${allPicked ? 'Bỏ chọn' : `Chọn ${pageScopeRows.length}`} chuyến của ${pageScopeCustomer} đang hiện trên trang này`}
+              >
+                {allPicked
+                  ? 'Bỏ chọn dòng trang này'
+                  : `Chọn cả trang này${pageScopeRows.length ? ` (${pageScopeRows.length} chuyến của ${pageScopeCustomer})` : ''}`}
+              </button>
             </>
           )}
         >
@@ -236,45 +272,54 @@ export function AccountingTransportRegister({
           }
         />
       ) : (
-        <div className="record-table-wrap accounting-register__wrap">
-          <table className="record-table ops-table accounting-register__table">
-            <thead>
-              <tr>
-                <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
-                <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
-                <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />
-                <SortHeader label="Doanh thu" sortKey="revenue" sort={sort} onSortChange={onSortChange} className="num" />
-                <SortHeader label="Chi phí" sortKey="directCost" sort={sort} onSortChange={onSortChange} className="num" />
-                <SortHeader label="Lợi nhuận" sortKey="profit" sort={sort} onSortChange={onSortChange} className="num" />
-                <SortHeader label="Trạng thái" sortKey="readiness" sort={sort} onSortChange={onSortChange} />
-                <th scope="col">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <TransportTableRow
-                  key={row.financialPostingId}
-                  row={row}
-                  selected={selectedIds.has(row.tripId)}
-                  onToggle={() => toggleRow(row)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* The selection model is no longer a checkbox column, so the board
+              says it once, above the table. */}
+          <p className="accounting-register__hint" role="status">
+            Bấm vào một dòng để chọn · {pickableRows.length} chuyến lập được bản nháp trên trang này
+          </p>
+          <div className="record-table-wrap accounting-register__wrap">
+            <table className="record-table ops-table accounting-register__table">
+              <thead>
+                <tr>
+                  <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
+                  <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
+                  <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />
+                  <SortHeader label="Doanh thu" sortKey="revenue" sort={sort} onSortChange={onSortChange} className="num" />
+                  <SortHeader label="Chi phí" sortKey="directCost" sort={sort} onSortChange={onSortChange} className="num" />
+                  <SortHeader label="Lợi nhuận" sortKey="profit" sort={sort} onSortChange={onSortChange} className="num" />
+                  <SortHeader label="Trạng thái" sortKey="readiness" sort={sort} onSortChange={onSortChange} />
+                  <th scope="col">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const pickable = row.readiness.status === 'READY';
+                  return (
+                    <TransportTableRow
+                      key={row.financialPostingId}
+                      row={row}
+                      pickable={pickable}
+                      selected={pickable && selection.isSelected(row.tripId)}
+                      selection={selection}
+                    />
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
-      {selectedRows.length > 0 && (
+      {pickedRows.length > 0 && (
         <div className="accounting-selection" aria-live="polite">
           <div>
-            <strong>
-              Đã chọn {selectedRows.length} chuyến của {selectedRows[0].customerName}
-            </strong>
+            <strong>Đã chọn {pickedRows.length} chuyến của {pickedRows[0].customerName}</strong>
             <span>
               Chỉ tạo bản nháp từ nguồn hạch toán mà máy chủ kiểm tra lại.
             </span>
           </div>
-          <button type="button" onClick={() => setSelectedIds(new Set())}>
+          <button type="button" onClick={selection.clear}>
             Bỏ chọn
           </button>
           {draftUrl && <Link to={draftUrl}>Tạo bản nháp giấy báo nợ</Link>}
@@ -295,48 +340,31 @@ export function AccountingTransportRegister({
 
 function TransportTableRow({
   row,
+  pickable,
   selected,
-  onToggle,
+  selection,
 }: {
   row: AccountingTransportRegisterRow;
+  /** A trip is pickable exactly when it is financially READY: a locked row
+   *  never joins the selection, so a draft is never seeded from a source the
+   *  server would reject. */
+  pickable: boolean;
   selected: boolean;
-  onToggle: () => void;
+  selection: RowSelection<number>;
 }) {
-  const tripLabel = row.tripCode ?? 'Chuyến chưa có mã';
-  const ready = row.readiness.status === 'READY';
-
-  // The whole row toggles selection (dense-ledger guideline), but the in-cell
-  // checkbox label and the debt link keep their own behavior — clicks on them
-  // must not double-fire the row toggle.
-  const stop = (event: MouseEvent) => event.stopPropagation();
-
   return (
     <tr
-      className={selected ? 'is-selected' : undefined}
-      role="button"
-      tabIndex={ready ? 0 : -1}
-      aria-disabled={ready ? undefined : true}
-      onClick={ready ? onToggle : undefined}
-      onKeyDown={(event) => {
-        if (!ready || (event.key !== 'Enter' && event.key !== ' ')) return;
-        event.preventDefault();
-        onToggle();
-      }}
+      data-selected={selected || undefined}
+      aria-selected={pickable ? selected : undefined}
+      className={pickable ? 'accounting-register__row--pickable' : 'accounting-register__row--locked'}
+      tabIndex={pickable ? 0 : undefined}
+      {...selection.rowProps(row.tripId, { selectable: pickable })}
     >
       <td data-label="Chuyến">
-        <label className="accounting-row-check" onClick={stop}>
-          <input
-            type="checkbox"
-            checked={selected}
-            disabled={!ready}
-            onChange={onToggle}
-            aria-label={`Chọn chuyến ${tripLabel}`}
-          />
-          <span>
-            <strong>{row.tripCode ?? 'Chuyến chưa có mã'}</strong>
-            <small>{row.containerNumbers.join(', ') || 'Chưa có container'}</small>
-          </span>
-        </label>
+        <span className="accounting-register__lead">
+          <strong>{row.tripCode ?? 'Chuyến chưa có mã'}</strong>
+          <small>{row.containerNumbers.join(', ') || 'Chưa có container'}</small>
+        </span>
       </td>
       <td data-label="Khách hàng">{row.customerName}</td>
       <td data-label="Nhà xe">
@@ -353,14 +381,14 @@ function TransportTableRow({
       <td data-label="Trạng thái">
         <span
           className={`accounting-status accounting-status--${
-            ready ? 'ready' : 'missing'
+            pickable ? 'ready' : 'missing'
           }`}
         >
           {transportReadinessLabel(row)}
         </span>
       </td>
       <td data-label="" className="record-table__action">
-        <Link to={routes.debtDetail(row.customerId)} onClick={stop}>
+        <Link to={routes.debtDetail(row.customerId)}>
           Công nợ
         </Link>
       </td>
