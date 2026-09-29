@@ -12,10 +12,15 @@ The table/record surface is where per-page invention is worst: one shared
 
 ### Table base: `record-table` / `ops-table`
 - **Use** — `frontend/src/styles/record-table.css` (`.record-table-wrap`, `.record-table`, `.record-table__action`) + `frontend/src/styles/operational-table-typography.css` (`.ops-table`); recipe at `record-table.css:10-30`. **28 of the 76 `.tsx` files that render `<table>`** carry a shared class; `data-label` 423× across 70 files; `record-table__action` 19×.
-- **Never** — **48 of 76 `<table>` files use no shared base**, each inventing a private skin (23 CSS files declare own `border-collapse`, 44 style `td`, 40 `th`; 63 bespoke `*table*` names). Worst: `.routes-table` (90, `pages/config/config-page.css:591`), `.invoice-tracking-table` (58, `pages/AccountingInvoiceTrackingPage.css:114`), `.tt-table` (47, `config-page.css:130`), `.cus-dashboard-table` (44, `pages/ShipmentsPage.css:363`), `.ops-bill-table`/`.factories-table` (32 each, `pages/ForwarderTripsPage.css:133`, `config-page.css:558`), `.cfg-customer-table` (26, `pages/config/customer-config-density.css:107`), `.expense-register-table` (23, `features/expense-accounting/ExpenseAccounting.css:28`), `.shipment-debit-table` (12, `pages/ShipmentDebitPage.css:153`).
+- **Never** — **48 of 76 `<table>` files use no shared base**, each inventing a private skin (23 CSS files declare own `border-collapse`, 44 style `td`, 40 `th`; 63 bespoke `*table*` names). Worst: `.routes-table` (90, `pages/config/config-page.css:591`), `.tt-table` (47, `config-page.css:130`), `.cus-dashboard-table` (44, `pages/ShipmentsPage.css:363`), `.ops-bill-table`/`.factories-table` (32 each, `pages/ForwarderTripsPage.css:133`, `config-page.css:558`), `.cfg-customer-table` (26, `pages/config/customer-config-density.css:107`), `.expense-register-table` (23, `features/expense-accounting/ExpenseAccounting.css:28`), `.shipment-debit-table` (12, `pages/ShipmentDebitPage.css:153…`. (Three Kế toán skins left this list on 2026-09-29: `.invoice-tracking-table` (58) — the invoice board also carried a `min-width: 1350px` floor and a private `@container (max-width: 900px)` collapse, and its 1953px table was CLIPPED by the shell's `overflow-x: hidden` so a third of its columns were unreachable; `.deposit-tracker-table` (1220px floor + a page override of `.table-wrap`'s overflow); and `.tt-table` on `/accounting/chot-debit` — all three now ride `record-table ops-table` + `record-table-wrap`.)
 - **Divergence** — 28 files on the shared base vs 48 raw tables, 63 class names.
 - **Enforced by** — `src/styles/workboard-standard.styles.test.ts` (thead skin, single global `thead th` case/tracking authority + allowlist of 9 fork surfaces); `src/styles/operational-table-typography.test.ts`; `src/styles/table-sort.styles.test.ts`.
 - **Gap** — nothing requires `record-table`/`ops-table`; the 48 raw tables are unchecked (e.g. `features/shipments/cus/CusContainerLedger.tsx`, `features/ops/OpsFundBookSection.tsx`).
+
+### A table's caption and heading (2026-09-29)
+- **Use** — an `<h2>` above the board for the DOCUMENT it renders (sentence case, section scale) and a `<caption className="sr-only">` for the accessible name: `/accounting/chot-debit` prints "Kế hoạch điều động tổng hợp" once, above the board, with the period beside it. A caption that carries something the table ADDS (a count, a period, a measure) may stay visible — `.ppc-report`'s "Báo cáo Phải thu (theo khách hàng)" does.
+- **Never** — a visible caption that only restates the page name (the retired `"BẢNG KIỂM SOÁT PHƠI PHIẾU - TIỀN ĐƯỜNG"`), or an ALL-CAPS heading/caption anywhere. A page's H1 is the SCREEN's name, one name, sentence case; the document a board renders is the BOARD's identity and never rides the H1 behind a separator (the retired `"Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP"`).
+- **Enforced by** — `src/components/page-heading-law.test.ts` (app-wide source scan over `PageHeader title=` literals and every literal `<h1|h2|h3>`/visible `<caption>`).
 
 ### `DataTable` React primitive — dead
 - **Use** — `frontend/src/design-system/DataTable.tsx` (`design-system/index.ts:20`): column defs, controlled sort, `mobileRender`, built-in skeleton + `EmptyState` + `Pagination`.
@@ -26,10 +31,27 @@ The table/record surface is where per-page invention is worst: one shared
 
 ### Table vs card — the band, not a page decision
 - **Use** — `record-table.css`: `@container (max-width: 1100px)` (`:122`) turns each `<tr>` into a labelled record card (`display: grid`, 2-up facts, eyebrow from `content: attr(data-label)`, `:203`); `@container (max-width: 360px)` (`:222`) collapses to 1 column.
-- **Never** — a second band vocabulary + private collapses: `DataTable.css:176` uses `@media (max-width: 1023px)` for the same job; `.invoice-tracking-table tbody` (`AccountingInvoiceTrackingPage.css:383`), `.cfg-customer-table tbody tr` (`customer-config-density.css:107`), `.cfg-page .routes-table tbody tr` (`config-page.css:663`) re-implement the collapse.
-- **Divergence** — 1 shared container band vs 1 media band + 3 bespoke collapses.
+- **Never** — a second band vocabulary + private collapses: `DataTable.css:176` uses `@media (max-width: 1023px)` for the same job; `.cfg-customer-table tbody tr` (`customer-config-density.css:107`), `.cfg-page .routes-table tbody tr` (`config-page.css:663`) re-implement the collapse. (`.invoice-tracking-table tbody`'s private collapse was retired 2026-09-29 — the page now rides this band.)
+- **Divergence** — 1 shared container band vs 1 media band + 2 bespoke collapses.
 - **Enforced by** — `src/styles/workboard-standard.styles.test.ts` (pins 1100px band + `attr(data-label)`); `src/styles/responsive-polish.styles.test.ts` (≤1500px hand-off).
-- **Gap** — two band vocabularies (`@container 1100` / `@media 1023`); the 3 bespoke collapses are unpinned.
+- **Gap** — two band vocabularies (`@container 1100` / `@media 1023`); the 2 bespoke collapses are unpinned.
+
+### A board wider than the canvas — `debit-board` (2026-09-29)
+- **Use** — `frontend/src/pages/accounting/AccountingDebitClosePage.css`: a money matrix (17 columns: 10 money + identity + notes) that cannot fit the ~1150px operational canvas takes an explicit scroll box (`.debit-board__wrap`, `overflow-x: auto`, `--border-1` hairline, 8px radius), a per-column `min-width` so the header wraps inside its cell and the TABLE grows, a STICKY identity pair (`.debit-col--date` at `left: 0` with a fixed 96px width, `.debit-col--lot` at `left: 96px`) at `z-index: var(--z-base)` — above the static columns that scroll under it, below the sticky header band (`components/Table.css` pins that at 2) — and a touch-only cue (`.debit-board__hint`, the card `20260924_9` `/shipments-debit` pattern quotes in `responsive` terms). Precedent: `.shipment-debit-table-wrap` (`pages/ShipmentDebitPage.css:116`).
+- **Never** — a `table-layout: fixed` wall with explicit colgroup shares (the retired 2640px `AccountingDebitClosePage` board: the shares were the only thing holding the grouped header together and half the board lived off screen); a `nowrap` money HEADER (it sizes the track from its own label and starves the data columns — the amount never wraps, the header always does); a second horizontal-scroll wrapper on `.record-table-wrap`, whose `overflow: visible` is what lets the sticky header pin against `.app-body`.
+- **Enforced by** — `src/pages/accounting/AccountingDebitClosePage.test.tsx` (the board's rendered contract); the design-drift ratchet (`pnpm design:drift`: the new sheet adds no raw hex/shadow/z-index/radius/breakpoint).
+- **Gap** — the pattern is pinned on this one board; a future wide board re-types it. Promote it to a primitive the day a second surface needs it.
+
+### Column visibility — the default counts VALUES, not cells (2026-09-29)
+- **Use** — `frontend/src/lib/column-visibility.ts` + `hooks/useHiddenColumns.ts`: a column declaring `autoHideWhenEmpty` hides itself while no rendered row carries a value — "Thiếu cước thu" is a missing-data warning, not data (law §1), so a breakdown that is still missing on every row does not hold a track on the board. It returns by itself the moment one row carries a number, and an explicit picker choice always wins.
+- **Never** — hand-rolling a hide/show rule, or hiding an identity/action column (mark them `pinned`; `hideableColumns` enforces it).
+- **Enforced by** — `src/pages/accounting/AccountingDebitClosePage.test.tsx` ("a breakdown column with no value anywhere stays out of the board, and returns with data"); `components/ColumnPicker.test.tsx`.
+
+### Row selection — a row is the control (2026-09-29, card `20260929_207`)
+- **Use** — `frontend/src/hooks/useTableRowSelection.ts`: `data-selected` on the `<tr>`, click toggles, Space/Enter toggles the focused row, a click that lands on an interactive child belongs to that child, and the select-all affordance lives in the toolbar where its scope can be stated. The selection edge is NEUTRAL INK (`box-shadow: inset 3px 0 0 var(--ink)`), never a brand tint (`src/styles/selection-state-contract.styles.test.ts`).
+- **Never** — a checkbox column for row selection; a second `Set` dance per page; an accent-filled selected row.
+- **Enforced by** — `src/styles/selection-state-contract.styles.test.ts`; the page tests of each migrated board.
+- **Gap** — the migration is in flight (9 tables carried a selection checkbox at 2026-09-29); `AccountingTransportRegister` still carries its own copy.
 
 ## Cell patterns
 

@@ -29,14 +29,32 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => 
     expect(css).not.toMatch(/ppc-col--select/);
     // Card 20260925_47: shares rebalanced so unbreakable header tokens hold
     // their longest word at ≤2 even lines (fixed layout honours width only).
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--customer-route\s*\{[^}]*width:\s*12%/);
+    // 2026-09-29: rebalanced AGAIN, because the two IDENTITY tracks were the
+    // starved ones — measured at 1144px, 'Lịch trình' held 57px against the
+    // 149px its trip code + bill need and 'Thông tin xe' 57px against 206px,
+    // so a code the operator reads character by character broke after every
+    // hyphen. The wrapping text columns pay for the two identity tracks now.
+    // Shares are RELATIVE weights (fixed layout scales them to the table's
+    // 100%), so the pin is the shape, not an absolute total.
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--lich-trinh\s*\{[^}]*width:\s*12%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--xe\s*\{[^}]*width:\s*10%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--customer-route\s*\{[^}]*width:\s*9%/);
     expect(css).toMatch(/\.ppc-board th\.ppc-col--thongso\s*\{[^}]*width:\s*8%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--diadiem\s*\{[^}]*width:\s*11%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--chiho\s*\{[^}]*width:\s*12%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--money\s*\{[^}]*width: 10%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--diadiem\s*\{[^}]*width:\s*9%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--chiho\s*\{[^}]*width:\s*11%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--money\s*\{[^}]*width:\s*10%/);
     expect(css).toMatch(/\.ppc-board th\.ppc-col--status\s*\{[^}]*width:\s*8%/);
     expect(css).toMatch(/\.ppc-board th\.ppc-col--date\s*\{[^}]*width:\s*9%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--ghichu\s*\{[^}]*width:\s*10%/);
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--ghichu\s*\{[^}]*width:\s*7%/);
+    const shares = new Map(
+      [...css.matchAll(/\.ppc-board th\s*\.ppc-col--([\w-]+)\s*\{[^}]*width:\s*([\d.]+)%/g)]
+        .map((match) => [match[1], Number(match[2])]),
+    );
+    expect([...shares.keys()], 'every track is declared').toHaveLength(10);
+    // The identity tracks carry the widest weight and the note tracks the
+    // narrowest — inverting either is what starved the board.
+    expect(shares.get('lich-trinh')!).toBeGreaterThan(shares.get('customer-route')!);
+    expect(shares.get('xe')!).toBeGreaterThanOrEqual(shares.get('ghichu')! * 1.4);
   });
 
   // Card 20260929_207: the picked row is drawn WITHOUT a shadow — the flat

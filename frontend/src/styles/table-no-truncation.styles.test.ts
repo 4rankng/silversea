@@ -34,6 +34,23 @@ const expectNoClip = (found: string[]) => {
 };
 
 describe('table data cells never truncate (card 20260922_37)', () => {
+  it('a header label wraps at spaces, never inside a word (card 20260922_54)', () => {
+    // The other half of the doctrine: a cell EXPANDS, and a header's min-content
+    // must not be one character. `overflow-wrap: anywhere` on a header let a
+    // narrow column shatter "CONTAINER" into CONTAINE + R; both the shared base
+    // and the global head rule now refuse the emergency break.
+    const base = read('src/styles/record-table.css').match(/\.record-table thead th\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(base, 'record-table thead th exists').not.toBe('');
+    expect(base).toContain('overflow-wrap: normal');
+    expect(base).toContain('word-break: keep-all');
+    expect(base).not.toContain('overflow-wrap: anywhere');
+
+    const globalHead = read('src/styles/operational-table-typography.css').match(/:where\(table thead th\)\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(globalHead, 'global thead rule exists').not.toBe('');
+    expect(globalHead).toContain('overflow-wrap: normal');
+    expect(globalHead).toContain('word-break: keep-all');
+  });
+
   it('ancillary-fees invoice cell wraps instead of ellipsizing at maxWidth 110', () => {
     const src = read('src/components/trip/AncillaryFeesCard.tsx');
     expect(src).not.toMatch(CLIP_INLINE);

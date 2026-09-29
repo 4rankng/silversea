@@ -8,33 +8,37 @@ import {
   listSettlementRounds,
   createSettlementRound,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
-  type AccountingDebitBoardRow,
 } from '../../api/accountingDebitClient';
 import { formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
-import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
+import { ListFilterBar } from '../../components/ListFilterBar';
+import { FilterDropdown } from '../../components/FilterDropdown';
+import { DateRangeFields, EmptyState, SearchableMultiSelect, SummaryRail } from '../../design-system';
+import { useHiddenColumns } from '../../hooks/useHiddenColumns';
+import { useTableRowSelection } from '../../hooks/useTableRowSelection';
+import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
-import { DebitFilterDropdown } from './DebitFilterDropdown';
+import { BOARD_CAPTION, BOARD_COLUMNS, GROUP_LABELS, type CellContext } from './AccountingDebitClosePage.columns';
+import { DebitRoundBoard } from './AccountingDebitClosePage.rounds';
+import './AccountingDebitClosePage.css';
 
-const money = (value: string | null, missingLabel: string) => {
-  // Card 20260924_21 (BATCH A, item 7): the PHẢI THU / PHẢI TRẢ columns name
-  // the missing field on the wire (e.g. "Thiếu cước thu", "Thiếu lạch
-  // huyền") instead of repeating the generic "Chưa xác định" three times per
-  // row (surface 08/11 §1). The summary / settle-dialog paths keep the
-  // generic "Chưa xác định" because they have no specific field name to
-  // attribute the gap to.
-  if (value == null) return <span style={{ color: 'var(--text-muted, #64748b)' }}>{missingLabel}</span>;
-  return formatCurrency(Number(value));
-};
+/**
+ * Kế toán chốt debit — the screen, over the board card 20260921_21 defines.
+ * Redesigned 2026-09-29 (rationale + measurements: `docs/design-guidelines.md`,
+ * "One page heading…" → "Filter plane and primitives"). The column model is
+ * `AccountingDebitClosePage.columns.tsx`; the settlement rounds are
+ * `AccountingDebitClosePage.rounds.tsx` — the two real seams, split for the
+ * structure guard's 400-line ceiling.
+ */
 
-interface BoardFilters { dateFrom: string; dateTo: string; }
+interface BoardFilters { dateFrom: string; dateTo: string }
 
 export default function AccountingDebitClosePage() {
   const [filters, setFilters] = useState<BoardFilters>({ dateFrom: '', dateTo: '' });
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [customerFilter, setCustomerFilter] = useState<Set<string>>(new Set());
-  const [truckFilter, setTruckFilter] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState('');
+  const [customerFilter, setCustomerFilter] = useState<string[]>([]);
+  const [truckFilter, setTruckFilter] = useState<string[]>([]);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [settlementOpen, setSettlementOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -49,6 +53,23 @@ export default function AccountingDebitClosePage() {
   });
   const rows = useMemo(() => boardQuery.data?.items ?? [], [boardQuery.data]);
 
+  // The picker offers every column except the ones a row cannot lose: its
+  // identity (Ngày, lô) and the only column carrying its action (Đối soát). A
+  // column that is still "Thiếu …" on every rendered row carries NO value, so
+  // it hides itself until it does (column-visibility law) — that is what keeps
+  // the board readable while the rates are still being entered, and the moment
+  // a rate lands the column is there.
+  const columns = useHiddenColumns({
+    storageKey: 'accounting-debit-hidden-cols',
+    columns: BOARD_COLUMNS,
+    hasData: (column) => {
+      const definition = BOARD_COLUMNS.find((candidate) => candidate.key === column.key);
+      if (definition?.raw == null) return true;
+      return rows.some((row) => definition.raw!(row) != null);
+    },
+  });
+  const shown = BOARD_COLUMNS.filter((column) => !columns.isHidden(column.key));
+
   const customerValues = useMemo(
     () => [...new Set(rows.map((row) => row.customerName).filter((v): v is string => v != null))].sort(),
     [rows],
@@ -57,20 +78,49 @@ export default function AccountingDebitClosePage() {
     () => [...new Set(rows.flatMap((row) => row.phanXe))].sort(),
     [rows],
   );
-  const visibleRows = useMemo(() => rows.filter((row) =>
-    (customerFilter.size === 0 || (row.customerName != null && customerFilter.has(row.customerName)))
-    && (truckFilter.size === 0 || row.phanXe.some((t) => truckFilter.has(t)))), [rows, customerFilter, truckFilter]);
 
-  const pendingRows = visibleRows.filter((row) => row.adjustment.status === 'PENDING');
-  const pendingIds = pendingRows.map((row) => row.adjustment.requestId).filter((id): id is number => id != null);
-  // Tickable = no live adjustment (NONE) or a CONFIRMED one (re-request a
-  // new adjustment cycle until the lot's cost lock freezes it). A live
-  // PENDING shows its Xác nhận/Rút controls instead of a tick.
-  const selectable = (row: AccountingDebitBoardRow) =>
-    row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED';
+  const visibleRows = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (customerFilter.length > 0 && (row.customerName == null || !customerFilter.includes(row.customerName))) return false;
+      if (truckFilter.length > 0 && !row.phanXe.some((truck) => truckFilter.includes(truck))) return false;
+      if (needle === '') return true;
+      return [row.code, row.billOrBooking, row.customerName, ...row.containers, ...row.phanXe]
+        .some((value) => value != null && value.toLowerCase().includes(needle));
+    });
+  }, [rows, customerFilter, truckFilter, search]);
+
+  // Pickable = no live adjustment (NONE) or a CONFIRMED one (a new adjustment
+  // cycle may be requested until the lot's cost lock freezes it). A live PENDING
+  // row shows its Xác nhận/Rút controls instead of being pickable.
+  const selectableRows = useMemo(
+    () => visibleRows.filter((row) => row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED'),
+    [visibleRows],
+  );
+  const selectableIds = useMemo(() => selectableRows.map((row) => row.shipmentId), [selectableRows]);
+  const selection = useTableRowSelection<number>();
+  const { isSelected, countAmong, allOfSelected } = selection;
+  const pendingRows = useMemo(() => visibleRows.filter((row) => row.adjustment.status === 'PENDING'), [visibleRows]);
+  const pendingIds = useMemo(
+    () => pendingRows.map((row) => row.adjustment.requestId).filter((id): id is number => id != null),
+    [pendingRows],
+  );
+  const selectedCount = countAmong(selectableIds);
+  const selectedRows = useMemo(
+    () => selectableRows.filter((row) => isSelected(row.shipmentId)),
+    [selectableRows, isSelected],
+  );
+  const allSelected = allOfSelected(selectableIds);
+
+  const summary = useMemo(() => [
+    { label: 'Lô trong kỳ', value: visibleRows.length },
+    { label: 'Chưa đối soát', value: visibleRows.filter((row) => row.adjustment.status === 'NONE').length },
+    { label: 'Chờ xác nhận', value: pendingRows.length, tone: 'warning' as const },
+    { label: 'Đã đối soát', value: visibleRows.filter((row) => row.adjustment.status === 'CONFIRMED').length },
+  ], [visibleRows, pendingRows]);
 
   const refresh = () => {
-    setSelected(new Set());
+    selection.clear();
     void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
     void queryClient.invalidateQueries({ queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY });
   };
@@ -109,201 +159,226 @@ export default function AccountingDebitClosePage() {
     onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
   });
 
-  const selectedRows = useMemo(
-    () => rows.filter((row) => selected.has(row.shipmentId)),
-    [rows, selected],
-  );
-
-  const visiblePendingCount = pendingIds.length;
-  const allSelected = visibleRows.some(selectable) && visibleRows.filter(selectable).every((row) => selected.has(row.shipmentId));
-
-  function toggleRow(row: AccountingDebitBoardRow) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(row.shipmentId)) next.delete(row.shipmentId);
-      else next.add(row.shipmentId);
-      return next;
-    });
-  }
+  const cellContext: CellContext = {
+    confirm: (requestIds) => confirmMutation.mutate(requestIds),
+    withdraw: (requestIds) => withdrawMutation.mutate(requestIds),
+    isBusy: confirmMutation.isPending || withdrawMutation.isPending,
+  };
 
   function toggleAll() {
-    setSelected((current) => {
-      const selectableRows = visibleRows.filter(selectable);
-      if (selectableRows.length > 0 && selectableRows.every((row) => current.has(row.shipmentId))) {
-        return new Set();
-      }
-      return new Set(selectableRows.map((row) => row.shipmentId));
-    });
+    if (allSelected) selection.clear();
+    else selection.selectAll(selectableIds);
   }
 
-  async function sendRequest() {
-    if (selected.size === 0) {
+  function sendRequest() {
+    if (selectedCount === 0) {
       setMessage({ kind: 'err', text: 'Chọn ít nhất một dòng lô hàng.' });
       return;
     }
-    sendMutation.mutate({ shipmentIds: [...selected] });
+    sendMutation.mutate({ shipmentIds: selectedRows.map((row) => row.shipmentId) });
   }
 
-  const moneyCell = (value: string | null, missingLabel: string) => (
-    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{money(value, missingLabel)}</td>
-  );
+  function resetFacets() {
+    setCustomerFilter([]);
+    setTruckFilter([]);
+    selection.clear();
+  }
+
+  const facetCount = customerFilter.length + truckFilter.length;
+  const groupedHead = shown.filter((column) => column.group != null);
+  const period = [filters.dateFrom, filters.dateTo].filter(Boolean).join(' – ');
+  const roundItems = roundsQuery.data?.items ?? [];
 
   return (
     <div className="page-shell">
-      <PageHeader title="Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP" />
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', margin: '12px 0 8px' }}>
-        {/* DD/MM/YYYY fields size to content, never the full row (value-length width ruling). */}
-        <div style={{ width: 170 }}>
-          <BufferedUuiDateInput label="Từ ngày" size="sm" value={filters.dateFrom} onChange={(dateFrom) => setFilters({ ...filters, dateFrom })} />
-        </div>
-        <div style={{ width: 170 }}>
-          <BufferedUuiDateInput label="Đến ngày" size="sm" value={filters.dateTo} onChange={(dateTo) => setFilters({ ...filters, dateTo })} />
-        </div>
-        <DebitFilterDropdown
-          label="Lọc khách hàng (Thông tin lô hàng)"
-          values={customerValues}
-          selected={customerFilter}
-          onChange={(next) => { setCustomerFilter(next); setSelected(new Set()); }}
+      <PageHeader title="Kế toán chốt debit" />
+
+      <ListFilterBar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Mã lô, bill/booking, khách hàng, container',
+          ariaLabel: 'Tìm lô hàng',
+        }}
+        columns={{
+          items: BOARD_COLUMNS,
+          hidden: columns.hidden,
+          customized: columns.customized,
+          onToggle: columns.toggle,
+          onReset: columns.reset,
+        }}
+        actions={(
+          <>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              disabled={pendingIds.length === 0 || confirmMutation.isPending}
+              title={pendingIds.length === 0 ? 'Không có dòng nào đang chờ xác nhận đối soát trong bộ lọc hiện tại' : undefined}
+              onClick={() => confirmMutation.mutate(pendingIds)}
+            >
+              {confirmMutation.isPending ? 'Đang xác nhận…' : `Xác nhận đối soát (${pendingIds.length})`}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={selectedCount === 0 || settlementMutation.isPending}
+              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để mở popup chốt đợt' : undefined}
+              onClick={() => setSettlementOpen(true)}
+            >
+              Chọn Debit ({selectedCount} dòng)
+            </button>
+          </>
+        )}
+      >
+        <DateRangeFields
+          id="debit-board-date-range"
+          ariaLabel="Khoảng ngày lô hàng"
+          from={filters.dateFrom}
+          to={filters.dateTo}
+          onChange={({ from, to }) => setFilters({ dateFrom: from, dateTo: to })}
         />
-        <DebitFilterDropdown
-          label="Lọc nhà xe (Phân xe)"
-          values={truckValues}
-          selected={truckFilter}
-          onChange={(next) => { setTruckFilter(next); setSelected(new Set()); }}
-        />
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', margin: '0 0 12px' }}>
+        <FilterDropdown
+          count={facetCount}
+          ariaLabel="Bộ lọc"
+          dialogLabel="Bộ lọc chốt debit"
+          onReset={resetFacets}
+        >
+          <SearchableMultiSelect
+            id="debit-customer-filter"
+            size="sm"
+            values={customerFilter}
+            onChange={(next) => { setCustomerFilter(next); selection.clear(); }}
+            options={customerValues.map((value) => ({ value, label: value }))}
+            placeholder="Khách hàng"
+            selectionLabel="khách hàng"
+            countSuffix="đã chọn"
+            clearAllLabel="Bỏ chọn"
+          />
+          <SearchableMultiSelect
+            id="debit-truck-filter"
+            size="sm"
+            values={truckFilter}
+            onChange={(next) => { setTruckFilter(next); selection.clear(); }}
+            options={truckValues.map((value) => ({ value, label: value }))}
+            placeholder="Nhà xe (phân xe)"
+            selectionLabel="nhà xe"
+            countSuffix="đã chọn"
+            clearAllLabel="Bỏ chọn"
+          />
+        </FilterDropdown>
+      </ListFilterBar>
+
+      <span aria-live="polite">
+        {message && <p role={message.kind === 'ok' ? 'status' : 'alert'} className="debit-note">{message.text}</p>}
+      </span>
+
+      <div className="debit-selection">
         <button
           type="button"
-          className="btn btn--primary"
-          disabled={selected.size === 0 || settlementMutation.isPending}
-          title={selected.size === 0 ? 'Chọn ít nhất một dòng lô để mở popup chốt đợt' : undefined}
-          onClick={() => setSettlementOpen(true)}
+          className="btn btn--ghost btn--sm"
+          disabled={selectableIds.length === 0}
+          title="Chọn mọi lô đang hiển thị trong bộ lọc, không phải toàn bộ kết quả"
+          onClick={toggleAll}
         >
-          Chọn Debit ({selected.size} dòng)
+          {allSelected ? 'Bỏ chọn tất cả' : `Chọn tất cả ${selectableIds.length} lô đủ điều kiện`}
         </button>
-        <button type="button" className="btn btn--primary" disabled={selected.size === 0 || sendMutation.isPending} title={selected.size === 0 ? 'Chọn ít nhất một dòng lô để gửi yêu cầu điều chỉnh cước' : undefined} onClick={() => void sendRequest()}>
-          {sendMutation.isPending ? 'Đang gửi…' : `Gửi yêu cầu điều chỉnh cước (${selected.size} dòng)`}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary"
-          disabled={visiblePendingCount === 0 || confirmMutation.isPending}
-          title={visiblePendingCount === 0 ? 'Không có dòng nào đang chờ xác nhận đối soát trong bộ lọc hiện tại' : undefined}
-          onClick={() => confirmMutation.mutate(pendingIds)}
-        >
-          {confirmMutation.isPending ? 'Đang xác nhận…' : `Xác nhận đối soát (${visiblePendingCount})`}
-        </button>
-        <span aria-live="polite">
-          {message && <p role="status" style={{ color: message.kind === 'ok' ? 'var(--ok, #16a34a)' : 'var(--err, #dc2626)', margin: 0 }}>{message.text}</p>}
-        </span>
+        {selectedCount > 0 && (
+          <>
+            <span className="debit-note">Đã chọn {selectedCount} lô</span>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              disabled={sendMutation.isPending}
+              onClick={sendRequest}
+            >
+              {sendMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu điều chỉnh cước'}
+            </button>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => selection.clear()}>Bỏ chọn</button>
+          </>
+        )}
       </div>
+
+      <SummaryRail ariaLabel="Tổng hợp chốt debit" items={summary} />
+
       {boardQuery.isError && <p role="alert">Không tải được bảng tổng hợp. Vui lòng thử lại.</p>}
-      <div className="shipment-container-ledger" role="region" aria-label="Bảng Kế hoạch điều động tổng hợp" tabIndex={0} style={{ overflowX: 'auto' }}>
-        {/* 18 columns cannot squeeze below readable width — fixed layout with
-            EXPLICIT column shares (colgroup), so every header wraps inside
-            its own cell instead of overflowing into its neighbor (the auto
-            layout starved the money columns to their nowrap data width,
-            colliding the PHẢI THU/PHẢI TRẢ sub-headers at every desktop
-            width — QA FAILED 2026-09-22). Shares sum to 2640; the wrapper
-            scrolls horizontally below that. */}
-        <table className="tt-table" style={{ tableLayout: 'fixed', width: 2640 }}>
-          <colgroup>
-            <col style={{ width: 44 }} />
-            <col style={{ width: 96 }} />
-            <col style={{ width: 230 }} />
-            <col style={{ width: 200 }} />
-            <col style={{ width: 150 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 152 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 110 }} />
-            <col style={{ width: 150 }} />
-          </colgroup>
-          <caption>KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP — thu/trả theo lô (cước vận chuyển)</caption>
-          <thead>
-            <tr>
-              <th rowSpan={2} scope="col"><input type="checkbox" aria-label="Chọn tất cả" checked={allSelected} onChange={toggleAll} /></th>
-              <th rowSpan={2} scope="col">Ngày</th>
-              <th rowSpan={2} scope="col">Thông tin lô hàng</th>
-              <th rowSpan={2} scope="col">Thông số container</th>
-              <th rowSpan={2} scope="col">Phân xe</th>
-              <th colSpan={5} scope="colgroup">PHẢI THU</th>
-              <th colSpan={5} scope="colgroup">PHẢI TRẢ</th>
-              <th rowSpan={2} scope="col">Lợi nhuận</th>
-              <th rowSpan={2} scope="col">Ghi chú</th>
-              <th rowSpan={2} scope="col">Đối soát</th>
-            </tr>
-            <tr>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Cước thu (tự động)</th>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Lạch Huyện (tự động)</th>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Phụ ps (tự động)</th>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Phát sinh (cus)</th>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Tổng thu</th>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Cước trả ĐV</th>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Lạch Huyện ĐV</th>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Phát sinh ĐV</th>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Tổng 1</th>
-              <th scope="col" style={{ whiteSpace: 'normal' }}>Phí RU (tự động)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRows.length === 0 && (
-              <tr><td colSpan={18}>Không có lô hàng trong khoảng thời gian này.</td></tr>
-            )}
-            {visibleRows.map((row) => (
-              <tr key={row.shipmentId}>
-                <td>
-                  {selectable(row) && (
-                    <input type="checkbox" aria-label={`Chọn lô ${row.code ?? row.shipmentId}`} checked={selected.has(row.shipmentId)} onChange={() => toggleRow(row)} />
-                  )}
-                  {row.adjustment.status === 'PENDING' && <small style={{ color: 'var(--warn, #d97706)', fontWeight: 600 }}>Chờ</small>}
-                  {row.adjustment.status === 'CONFIRMED' && <small style={{ color: 'var(--ok, #16a34a)', fontWeight: 600 }}>Khớp</small>}
-                </td>
-                <td>{row.ngay ?? '—'}</td>
-                <td>
-                  {row.code ?? '—'}<br />
-                  <small>{row.billOrBooking ?? ''}</small><br />
-                  <small>{row.customerName ?? ''}</small>
-                </td>
-                <td>{(row.containers.length > 0 ? row.containers : ['—']).map((label, i) => (
-                  <span key={i}>{label}<br /></span>
-                ))}</td>
-                <td>{row.phanXe.length > 0 ? row.phanXe.join(', ') : '—'}</td>
-                {moneyCell(row.thu.cuocThu, 'Thiếu cước thu')}
-                {moneyCell(row.thu.lachHuyen, 'Thiếu lạch huyền')}
-                {moneyCell(row.thu.phuPs, 'Thiếu phụ PS')}
-                {moneyCell(row.thu.phatSinhCus, 'Thiếu phát sinh (cus)')}
-                {moneyCell(row.thu.tongThu, 'Thiếu tổng thu')}
-                {moneyCell(row.tra.cuocTraDv, 'Thiếu cước trả ĐV')}
-                {moneyCell(row.tra.lachHuyenDv, 'Thiếu lạch huyền ĐV')}
-                {moneyCell(row.tra.phatSinhDv, 'Thiếu phát sinh ĐV')}
-                {moneyCell(row.tra.tong1, 'Thiếu tổng 1')}
-                {moneyCell(row.tra.phiRu, 'Thiếu phí RU')}
-                <td style={{ textAlign: 'right' }}>{money(row.loiNhuan, 'Thiếu lợi nhuận')}</td>
-                <td>{row.ghiChu ?? '—'}</td>
-                <td>
-                  {row.adjustment.status === 'PENDING' && (
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      <button type="button" className="btn btn--secondary btn--sm" onClick={() => confirmMutation.mutate([row.adjustment.requestId!])}>Xác nhận</button>
-                      <button type="button" className="btn btn--secondary btn--sm" onClick={() => withdrawMutation.mutate([row.adjustment.requestId!])}>Rút</button>
-                    </div>
-                  )}
-                  {row.adjustment.status === 'CONFIRMED' && <small>Đã đối soát</small>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {/* While the board loads the operator gets the shared skeleton, never an
+          empty table wearing the real headers (which reads as "no lots"). */}
+      {boardQuery.isLoading && <SkeletonTable rows={8} cols={7} />}
+
+      {!boardQuery.isLoading && (visibleRows.length === 0 ? (
+        <EmptyState
+          variant="compact"
+          context={rows.length === 0 ? 'finance' : 'search'}
+          title={rows.length === 0 ? 'Không có lô hàng trong khoảng thời gian này' : 'Không có lô nào khớp bộ lọc'}
+          description={rows.length === 0
+            ? 'Chọn khoảng ngày khác, hoặc kiểm tra lô đã được chốt ở đợt trước.'
+            : 'Xóa bộ lọc để xem lại toàn bộ lô trong kỳ.'}
+        />
+      ) : (
+        <>
+          {/* The board's own identity. The H1 names the SCREEN; this names the
+              DOCUMENT the board renders, where the period can sit beside it
+              instead of being welded onto the page title. */}
+          <h2 className="debit-board__title">
+            {BOARD_CAPTION}
+            {period !== '' && <span className="debit-note"> · kỳ {period}</span>}
+          </h2>
+          <div className="debit-board__wrap" role="region" aria-label="Bảng kế hoạch điều động tổng hợp" tabIndex={0}>
+            <table className="debit-board">
+              <caption className="sr-only">{BOARD_CAPTION} — thu/trả theo lô</caption>
+              <thead>
+                <tr>
+                  {shown.map((column, index) => {
+                    if (column.group == null) {
+                      return <th key={column.key} scope="col" rowSpan={2} className={column.className}>{column.label}</th>;
+                    }
+                    // One spanning header over the contiguous run of the group's
+                    // VISIBLE members: the run is measured, so a column hidden
+                    // through the picker can never leave the group header
+                    // covering the wrong cells.
+                    if (shown[index - 1]?.group === column.group) return null;
+                    const run = shown.filter((candidate) => candidate.group === column.group).length;
+                    return <th key={column.group} scope="colgroup" colSpan={run}>{GROUP_LABELS[column.group]}</th>;
+                  })}
+                </tr>
+                <tr>
+                  {groupedHead.map((column) => (
+                    <th key={column.key} scope="col" className={column.className}>{column.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map((row) => {
+                  const pickable = row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED';
+                  const isRowSelected = isSelected(row.shipmentId);
+                  return (
+                    <tr
+                      key={row.shipmentId}
+                      className={pickable ? 'debit-row--pickable' : 'debit-row--locked'}
+                      data-selected={isRowSelected || undefined}
+                      aria-selected={pickable ? isRowSelected : undefined}
+                      tabIndex={pickable ? 0 : undefined}
+                      {...selection.rowProps(row.shipmentId, { selectable: pickable })}
+                    >
+                      {shown.map((column) => (
+                        <td
+                          key={column.key}
+                          className={`${column.className}${column.className === 'debit-col--money' ? ' num' : ''}`}
+                        >
+                          {column.cell(row, cellContext)}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="debit-board__hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+        </>
+      ))}
+
       <DebitSettlementRoundDialog
         isOpen={settlementOpen}
         rows={selectedRows}
@@ -314,49 +389,8 @@ export default function AccountingDebitClosePage() {
         onClose={() => setSettlementOpen(false)}
         isPending={settlementMutation.isPending}
       />
-      <section aria-label="Tổng hợp công nợ khách hàng" style={{ marginTop: 16 }}>
-        <h2 style={{ fontSize: 'var(--text-body-size, 1rem)', margin: '0 0 8px' }}>TỔNG HỢP CÔNG NỢ KHÁCH HÀNG</h2>
-        <div className="shipment-container-ledger" role="region" aria-label="Bảng tổng hợp công nợ khách hàng" tabIndex={0} style={{ overflowX: 'auto' }}>
-          <table className="tt-table">
-            <caption>TỔNG HỢP CÔNG NỢ KHÁCH HÀNG — các đợt chốt (kỳ theo dõi = lần + tháng)</caption>
-            <thead>
-              <tr>
-                <th scope="col">Kỳ theo dõi</th>
-                <th scope="col">Khách hàng</th>
-                <th scope="col">Đối tượng</th>
-                <th scope="col">Chiều</th>
-                <th scope="col">Từ ngày</th>
-                <th scope="col">Đến ngày</th>
-                <th scope="col">Số tiền (chưa VAT)</th>
-                <th scope="col">VAT</th>
-                <th scope="col">Tiền VAT</th>
-                <th scope="col">Tổng tiền (gồm VAT)</th>
-                <th scope="col">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody>
-              {roundsQuery.data?.items.length === 0 && (
-                <tr><td colSpan={10}>Chưa có đợt chốt nào.</td></tr>
-              )}
-              {(roundsQuery.data?.items ?? []).map((round) => (
-                <tr key={round.id}>
-                  <td>{`Lần ${round.roundNo} · ${round.periodKey.replaceAll('-', '/')}`}</td>
-                  <td>{round.customerName ?? '—'}</td>
-                  <td>{round.carrierLabel ?? '—'}</td>
-                  <td>{round.direction === 'THU' ? 'Phải thu' : 'Phải trả'}</td>
-                  <td>{round.dateFrom}</td>
-                  <td>{round.dateTo}</td>
-                  <td style={{ textAlign: 'right' }}>{formatCurrency(Number(round.amount))}</td>
-                  <td>{`${round.vatRate}%`}</td>
-                  <td style={{ textAlign: 'right' }}>{formatCurrency(round.vatAmount)}</td>
-                  <td style={{ textAlign: 'right' }}>{formatCurrency(round.totalAmount)}</td>
-                  <td>{round.ghiChu ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+
+      <DebitRoundBoard rounds={roundItems} />
     </div>
   );
 }

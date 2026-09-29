@@ -68,7 +68,6 @@ const TSX_SCOPE = [
   'src/pages/CustomersPage.tsx', // row-action menu (fill carried by lead, landed d142ae3d)
   'src/pages/config/CustomersConfigPage.tsx', // row-action menu
   'src/pages/config/RoutesConfigPage.tsx', // row-action menu
-  'src/pages/accounting/DebitFilterDropdown.tsx', // floating popover (extracted from AccountingDebitClosePage in caae1031)
   'src/pages/PayableDetailPage.tsx', // export menu (§3 flat-contract sweep)
 ];
 
@@ -129,7 +128,6 @@ const TSX_SURFACES: Array<[string, RegExp]> = [
   // inline fill there asserted a surface neither file paints.
   ['src/pages/config/CustomersConfigPage.tsx', /background: 'var\(--surface\)'/],
   ['src/pages/SupplierListPage.tsx', /background: 'var\(--surface\)'/],
-  ['src/pages/accounting/DebitFilterDropdown.tsx', /background: 'var\(--surface/],
 ];
 
 describe('floating overlays ride the --surface token (card 20260922_36, F4)', () => {

@@ -22,18 +22,27 @@ describe('treasury position page density contract', () => {
 
   it('maps every text size onto the global operational tokens', () => {
     expect(pageCss).toMatch(/font-size:\s*var\(--ops-table-/);
-    // KPI rail numbers stay on the 20px decision-rail size.
-    expect(pageCss).toMatch(/font-size:\s*var\(--fs-xl\)/);
+    // The 20px KPI rail that used --fs-xl is retired: the summary strip is the
+    // shared SummaryRail, so this sheet carries no per-route display size.
+    expect(pageCss).not.toMatch(/font-size:\s*var\(--fs-xl\)/);
     expect(pageCss).not.toMatch(/font-size:\s*\d+px/);
   });
 
-  it('keeps numerics in the data font aligned by right edge', () => {
-    expect(pageCss).toMatch(/font-family:\s*var\(--font-data\)/);
+  it('leaves the numeric type treatment to the shared table base', () => {
+    // .record-table .num owns --font-data and the right edge; the page only
+    // stops the money cells from wrapping.
+    expect(pageCss).toMatch(/\.treasury-table td\.num\s*\{\s*white-space:\s*nowrap;/);
+    expect(pageCss).not.toMatch(/font-family:\s*var\(--font-data\)/);
     expect(pageCss).not.toMatch(/tabular-nums/);
   });
 
-  it('keeps in-card actions on the compact control scale', () => {
-    expect(pageCss).toMatch(/min-height:\s*var\(--control-compact-h\)/);
+  it('delegates the summary strip, the loading state and the notices to the shared primitives', () => {
+    expect(pageTsx).toMatch(/<SummaryRail\s/);
+    expect(pageTsx).toMatch(/<SkeletonTable\s/);
+    expect(pageTsx).toMatch(/<Alert\b/);
+    // Retired, not renamed — a future edit may not reintroduce either.
+    expect(pageTsx).not.toMatch(/treasury-(rail|notice)/);
+    expect(pageCss).not.toMatch(/treasury-(rail|notice)/);
   });
 
   it('retires the card-row scaffold from the shared finance sheet', () => {

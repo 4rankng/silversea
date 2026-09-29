@@ -12,7 +12,7 @@ import {
   type InvoiceTrackingProgress,
   type InvoiceTrackingRow,
 } from '@tingting/shared';
-import { Btn, useConfirm } from '../components/UI';
+import { Btn, PageHeader, useConfirm } from '../components/UI';
 import { useReasonPrompt } from '../components/reason-prompt';
 import { ListFilterBar } from '../components/ListFilterBar';
 import { FilterDropdown } from '../components/FilterDropdown';
@@ -29,7 +29,10 @@ import { useAuth } from '../hooks/useAuth';
 import { getModernRole } from '../lib/role-helpers';
 import { businessDateISO, formatBusinessRef, formatISODate, formatMoney } from '../lib/format';
 import InvoiceTrackingFormModal from '../features/accounting/InvoiceTrackingFormModal';
-import { EmptyState } from '../design-system';
+import { EmptyState, SummaryRail } from '../design-system';
+import { SkeletonTable } from '../components/shared/Skeleton';
+import '../styles/record-table.css';
+import '../styles/operational-table-typography.css';
 import './AccountingInvoiceTrackingPage.css';
 
 const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
@@ -98,7 +101,7 @@ export default function AccountingInvoiceTrackingPage() {
     queryKey: qk.invoiceTracking.list(from, to),
     queryFn: () => listInvoiceTracking(from, to),
   });
-  const rows = query.data?.rows ?? [];
+  const rows = useMemo(() => query.data?.rows ?? [], [query.data]);
   const supplierOptions = useMemo(
     () => [...new Set(rows.map((r) => r.supplierName?.trim()).filter((v): v is string => Boolean(v)))].sort((a, b) => a.localeCompare(b, 'vi')),
     [rows],
@@ -114,7 +117,6 @@ export default function AccountingInvoiceTrackingPage() {
     return true;
   }), [rows, supplier, diffOnly, search]);
   const totals = computeTotals(filtered);
-  const colCount = canWrite ? 14 : 13;
 
   const clearFilters = () => { setSearch(''); setSupplier(''); setDiffOnly(false); };
   const hasActiveFilters = Boolean(search.trim() || supplier || diffOnly);
@@ -189,175 +191,196 @@ export default function AccountingInvoiceTrackingPage() {
       {dialog}
       {reasonDialog}
 
-      <header className="invoice-tracking-header" aria-label="Theo dõi hóa đơn kết hợp">
-        <div className="invoice-tracking-header__row">
-          <h1>Theo dõi hóa đơn kết hợp</h1>
-          <div className="invoice-tracking-kpi" role="status" aria-label="Tổng cộng theo kỳ">
-            <span className="invoice-tracking-kpi__item">Hóa đơn: <strong className="ivt-money">{formatMoney(totals.invoice)} ₫</strong></span>
-            <span className="invoice-tracking-kpi__item">Trả NCC: <strong className="ivt-money">{formatMoney(totals.paid)} ₫</strong></span>
-            <span className="invoice-tracking-kpi__item">Chênh lệch: <strong className={`ivt-money ${totals.difference === 0 ? 'ivt-money--flat' : totals.difference > 0 ? 'ivt-money--over' : 'ivt-money--under'}`}>{formatMoney(totals.difference)} ₫</strong></span>
-          </div>
-          <div className="invoice-tracking-header__actions">
+      {/* The screen's name is the sidebar label (page-heading law); the page
+          header is the shared primitive, not a page-local `<header>` band. */}
+      <PageHeader
+        title="Theo dõi hóa đơn"
+        action={(
+          <>
             <Btn variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportExcel}>Xuất Excel</Btn>
             {canWrite && (
               <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setModal({ mode: 'create' })}>
                 Thêm chi phí lô hàng
-                </Btn>
+              </Btn>
             )}
-          </div>
-        </div>
+          </>
+        )}
+      />
 
-        {/* Card 20260927_152: the shared bar owns the strip layout. Period
-            fields, quick ranges and reset are the primary controls;
-            `Nhà cung cấp` / `Chênh lệch` render INLINE while the strip still
-            fits two rows and only collapse into `Bộ lọc (N)` when the width
-            leaves no other choice. */}
-        <ListFilterBar
-          search={{
-            value: search,
-            onChange: setSearch,
-            placeholder: 'Số HĐ, MST, Lô, Cont...',
-            ariaLabel: 'Tìm theo số HĐ, MST, lô, cont',
-          }}
-          presets={presetNode}
-          actions={(
-            <Btn variant="ghost" size="sm" icon={<RotateCcw size={13} />} disabled={!hasActiveFilters} onClick={clearFilters}>Xóa lọc</Btn>
-          )}
-        >
-          <DateRangeFields
-            id="ivt-period"
-            ariaLabel="Kỳ theo dõi"
-            size="sm"
-            from={period.from}
-            to={period.to}
-            onChange={setPeriod}
+      {/* Σ hóa đơn / Σ trả NCC / chênh lệch over the filtered rows — the shared
+          workboard rail recomputes on every period filter change (card worked
+          example: 12.000.000/8.000.000 + 5.500.000/6.000.000 →
+          17.500.000 / 14.000.000 / 3.500.000). A non-zero difference is the
+          signal, so it takes the rail's warning tone. */}
+      <SummaryRail
+        ariaLabel="Tổng cộng theo kỳ"
+        items={[
+          { label: 'Hóa đơn', value: `${formatMoney(totals.invoice)} ₫` },
+          { label: 'Trả NCC', value: `${formatMoney(totals.paid)} ₫` },
+          {
+            label: 'Chênh lệch',
+            value: `${formatMoney(totals.difference)} ₫`,
+            tone: totals.difference === 0 ? undefined : 'warning',
+          },
+        ]}
+      />
+
+      {/* Card 20260927_152: the shared bar owns the strip layout. Period
+          fields, quick ranges and reset are the primary controls;
+          `Nhà cung cấp` / `Chênh lệch` render INLINE while the strip still
+          fits two rows and only collapse into `Bộ lọc (N)` when the width
+          leaves no other choice. */}
+      <ListFilterBar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Số HĐ, MST, Lô, Cont...',
+          ariaLabel: 'Tìm theo số HĐ, MST, lô, cont',
+        }}
+        presets={presetNode}
+        actions={(
+          <Btn variant="ghost" size="sm" icon={<RotateCcw size={13} />} disabled={!hasActiveFilters} onClick={clearFilters}>Xóa lọc</Btn>
+        )}
+      >
+        <DateRangeFields
+          id="ivt-period"
+          ariaLabel="Kỳ theo dõi"
+          size="sm"
+          from={period.from}
+          to={period.to}
+          onChange={setPeriod}
+        />
+        <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc hóa đơn" presets={presetDialogNode} onReset={resetSecondary}>
+          <UuiSelectField
+            label="Nhà cung cấp"
+            hideLabel
+            value={supplier}
+            onChange={(event) => setSupplier(event.target.value)}
+            options={[{ value: '', label: 'Nhà cung cấp: tất cả' }, ...supplierOptions.map((name) => ({ value: name, label: name }))]}
           />
-          <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc hóa đơn" presets={presetDialogNode} onReset={resetSecondary}>
-            <UuiSelectField
-              label="Nhà cung cấp"
-              hideLabel
-              value={supplier}
-              onChange={(event) => setSupplier(event.target.value)}
-              options={[{ value: '', label: 'Nhà cung cấp: tất cả' }, ...supplierOptions.map((name) => ({ value: name, label: name }))]}
-            />
-            <UuiSelectField
-              label="Chênh lệch"
-              hideLabel
-              value={diffOnly ? 'diff' : 'all'}
-              onChange={(event) => setDiffOnly(event.target.value === 'diff')}
-              options={[{ value: 'all', label: 'Tất cả' }, { value: 'diff', label: 'Chỉ xem dòng có lệch' }]}
-            />
-          </FilterDropdown>
-        </ListFilterBar>
-      </header>
+          <UuiSelectField
+            label="Chênh lệch"
+            hideLabel
+            value={diffOnly ? 'diff' : 'all'}
+            onChange={(event) => setDiffOnly(event.target.value === 'diff')}
+            options={[{ value: 'all', label: 'Tất cả' }, { value: 'diff', label: 'Chỉ xem dòng có lệch' }]}
+          />
+        </FilterDropdown>
+      </ListFilterBar>
 
       {actionError && <p className="invoice-tracking-alert" role="alert">{actionError}</p>}
 
-      <div className="table-scroll">
-        <table className="tt-table invoice-tracking-table">
-          <thead>
-            <tr>
-              <th>STT</th>
-              <th>Ngày</th>
-              <th>Thông tin lô hàng</th>
-              <th>Cont</th>
-              <th>MST</th>
-              <th>Nhà cung cấp hđ</th>
-              <th>Thông tin hđ</th>
-              <th>Số tiền trả</th>
-              <th>COM</th>
-              <th title="Số tiền hóa đơn − Số tiền trả">Chênh lệch</th>
-              <th>Ngày gửi hđ</th>
-              <th>Ghi chú</th>
-              <th>Tiến độ</th>
-              {canWrite && <th>Thao tác</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {query.isPending && (
-              <tr><td colSpan={colCount}>Đang tải…</td></tr>
-            )}
-            {!query.isPending && query.isError && (
-              <tr><td colSpan={colCount}>Không tải được dữ liệu. Vui lòng thử lại.</td></tr>
-            )}
-            {!query.isPending && !query.isError && rows.length === 0 && (
-              <tr><td colSpan={colCount} className="invoice-tracking-empty">
-                <EmptyState
-                  variant="compact"
-                  context="finance"
-                  title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
-                  description={hasActiveFilters ? undefined : 'Thêm chi phí lô hàng để bắt đầu theo dõi.'}
-                  action={hasActiveFilters ? <button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button> : undefined}
-                />
-              </td></tr>
-            )}
-            {!query.isPending && !query.isError && rows.length > 0 && filtered.length === 0 && (
-              <tr><td colSpan={colCount} className="invoice-tracking-empty">
-                <EmptyState
-                  variant="compact"
-                  context="finance"
-                  title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
-                  description="Không dòng nào khớp bộ lọc hiện tại."
-                  action={<button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button>}
-                />
-              </td></tr>
-            )}
-            {filtered.map((row, index) => (
-              <tr key={row.id}>
-                <td data-label="STT">{index + 1}</td>
-                <td data-label="Ngày">{formatISODate(row.expenseDate)}</td>
-                <td data-label="Thông tin lô hàng">
-                  <span className="ivt-stack">
-                    <span className="ivt-stack__primary">{formatBusinessRef(row.shipmentCode)}</span>
-                    <span className="ivt-stack__sub">{formatBusinessRef(row.customerName)}</span>
-                  </span>
-                </td>
-                <td data-label="Cont">{formatBusinessRef(row.containerNumber)}</td>
-                <td data-label="MST">{formatBusinessRef(row.taxCode)}</td>
-                <td data-label="Nhà cung cấp hđ">{formatBusinessRef(row.supplierName)}</td>
-                <td data-label="Thông tin hđ">
-                  <span className="ivt-stack">
-                    <span>Số hóa đơn: {formatBusinessRef(row.invoiceNumber)}</span>
-                    <span>Số tiền: {formatMoney(Number(row.invoiceAmount))} ₫</span>
-                  </span>
-                </td>
-                <td data-label="Số tiền trả">{formatMoney(Number(row.supplierPayment))} ₫</td>
-                <td data-label="COM">{formatBusinessRef(row.comNote)}</td>
-                <td data-label="Chênh lệch" title="Số tiền hóa đơn − Số tiền trả">
-                  {formatMoney(Number(row.invoiceAmount) - Number(row.supplierPayment))} ₫
-                </td>
-                <td data-label="Ngày gửi hđ">{formatISODate(row.invoiceSentAt)}</td>
-                <td data-label="Ghi chú">{formatBusinessRef(row.note)}</td>
-                <td data-label="Tiến độ">
-                  {canWrite ? (
-                    <UuiSelectField
-                      wrapperClassName="invoice-tracking-progress"
-                      label="Tiến độ"
-                      hideLabel
-                      value={row.progress}
-                      disabled={progressMutation.isPending}
-                      onChange={(event) => progressMutation.mutate({ id: row.id, progress: event.target.value as InvoiceTrackingProgress })}
-                      options={INVOICE_TRACKING_PROGRESS.map((value) => ({ value, label: INVOICE_TRACKING_PROGRESS_LABELS[value] }))}
-                    />
-                  ) : (
-                    <span>{INVOICE_TRACKING_PROGRESS_LABELS[row.progress]}</span>
-                  )}
-                </td>
-                {canWrite && (
-                  <td data-label="Thao tác" className="invoice-tracking-actions">
-                    <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label="Sửa" onClick={() => setModal({ mode: 'edit', row })}>
-                      <Pencil size={14} />
-                    </button>
-                    <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label="Xóa" onClick={() => void handleDelete(row)}>
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                )}
+      {/* Shared record-table base (styles/record-table.css): sticky thead,
+          neutral gated hover, and the container-query record cards below
+          1100px of container width. The page declares no table skin, no column
+          floor, no breakpoint and no scroll wrapper — the base's own
+          `overflow-wrap: anywhere` on every cell is what keeps 14 columns
+          inside the desktop canvas instead of forcing a horizontal scroll. */}
+      {query.isPending && <SkeletonTable rows={8} cols={7} />}
+
+      {!query.isPending && query.isError && (
+        <p className="invoice-tracking-alert" role="alert">Không tải được dữ liệu. Vui lòng thử lại.</p>
+      )}
+
+      {!query.isPending && !query.isError && rows.length === 0 && (
+        <EmptyState
+          variant="compact"
+          context="finance"
+          title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
+          description={hasActiveFilters ? undefined : 'Thêm chi phí lô hàng để bắt đầu theo dõi.'}
+          action={hasActiveFilters ? <button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button> : undefined}
+        />
+      )}
+
+      {!query.isPending && !query.isError && rows.length > 0 && filtered.length === 0 && (
+        <EmptyState
+          variant="compact"
+          context="finance"
+          title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
+          description="Không dòng nào khớp bộ lọc hiện tại."
+          action={<button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button>}
+        />
+      )}
+
+      {!query.isPending && !query.isError && filtered.length > 0 && (
+        <div className="record-table-wrap">
+          <table className="record-table ops-table">
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>Ngày</th>
+                <th>Lô hàng</th>
+                <th>Cont</th>
+                <th>MST</th>
+                <th>Nhà cung cấp</th>
+                <th>Hóa đơn</th>
+                <th>Số tiền trả</th>
+                <th>COM</th>
+                <th title="Số tiền hóa đơn − Số tiền trả">Chênh lệch</th>
+                <th>Ngày gửi</th>
+                <th>Ghi chú</th>
+                <th>Tiến độ</th>
+                {canWrite && <th>Thao tác</th>}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filtered.map((row, index) => (
+                <tr key={row.id}>
+                  <td data-label="STT">{index + 1}</td>
+                  <td data-label="Ngày" className="num">{formatISODate(row.expenseDate)}</td>
+                  <td data-label="Lô hàng">
+                    <span className="ivt-stack">
+                      <span className="ivt-stack__primary">{formatBusinessRef(row.shipmentCode)}</span>
+                      <span className="ivt-stack__sub">{formatBusinessRef(row.customerName)}</span>
+                    </span>
+                  </td>
+                  <td data-label="Cont">{formatBusinessRef(row.containerNumber)}</td>
+                  <td data-label="MST">{formatBusinessRef(row.taxCode)}</td>
+                  <td data-label="Nhà cung cấp">{formatBusinessRef(row.supplierName)}</td>
+                  <td data-label="Hóa đơn">
+                    <span className="ivt-stack">
+                      <span>Số hóa đơn: {formatBusinessRef(row.invoiceNumber)}</span>
+                      <span>Số tiền: {formatMoney(Number(row.invoiceAmount))} ₫</span>
+                    </span>
+                  </td>
+                  <td data-label="Số tiền trả" className="num">{formatMoney(Number(row.supplierPayment))} ₫</td>
+                  <td data-label="COM">{formatBusinessRef(row.comNote)}</td>
+                  <td data-label="Chênh lệch" className="num" title="Số tiền hóa đơn − Số tiền trả">
+                    {formatMoney(Number(row.invoiceAmount) - Number(row.supplierPayment))} ₫
+                  </td>
+                  <td data-label="Ngày gửi" className="num">{formatISODate(row.invoiceSentAt)}</td>
+                  <td data-label="Ghi chú">{formatBusinessRef(row.note)}</td>
+                  <td data-label="Tiến độ">
+                    {canWrite ? (
+                      <UuiSelectField
+                        wrapperClassName="invoice-tracking-progress"
+                        label="Tiến độ"
+                        hideLabel
+                        value={row.progress}
+                        disabled={progressMutation.isPending}
+                        onChange={(event) => progressMutation.mutate({ id: row.id, progress: event.target.value as InvoiceTrackingProgress })}
+                        options={INVOICE_TRACKING_PROGRESS.map((value) => ({ value, label: INVOICE_TRACKING_PROGRESS_LABELS[value] }))}
+                      />
+                    ) : (
+                      <span>{INVOICE_TRACKING_PROGRESS_LABELS[row.progress]}</span>
+                    )}
+                  </td>
+                  {canWrite && (
+                    <td data-label="Thao tác" className="invoice-tracking-actions record-table__action">
+                      <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label="Sửa" onClick={() => setModal({ mode: 'edit', row })}>
+                        <Pencil size={14} />
+                      </button>
+                      <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label="Xóa" onClick={() => void handleDelete(row)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {modal && (
         <InvoiceTrackingFormModal

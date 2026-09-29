@@ -1,87 +1,137 @@
-// Card 20260922_52 (rework v2) — anti-spill contract for the 14-column board.
+// Card 20260929_ivt (redesign) — the board rides the shared record-table base.
 //
-// jsdom has no layout engine, so this file pins the CSS contract that makes a
-// spill structurally impossible; the measured layout proof (per-cell
-// scrollWidth ≤ clientWidth at 1280/1440/1920/2560) runs against this exact
-// stylesheet in the headless harness recorded under qa/.
+// This file used to pin the page's own anti-spill skin (table-layout: auto,
+// min-width: 1350px, 14 nth-child column floors, a token/token-nowrap split and
+// a private @container collapse). That skin was the page-local invention the
+// redesign retires: a 14-column board at the 1112px desktop canvas measured
+// 1953px wide, i.e. 841px of horizontal scroll, which the shell's
+// `overflow-x: hidden` app-body cannot even reach. The board now declares no
+// table shape at all — the base owns containment, wrapping and the card band.
 //
-// Why the board left `table-layout: fixed`: under fixed layout a `width` track
-// is a hard box, so a token wider than its track (the leaked 32-char lot code
-// Q10-<epoch>-q10-<rand>-3, the 40-char invoice no. INV-EMPTY-<epoch>-…)
-// painted straight over the next column, and design law §4 bans the only
-// fixed-layout escape (clipping / ellipsis on data cells). Content-sizing
-// layout (card 20260922_22 pattern: .routes-table, .cfg-customer-table) lets
-// token columns grow to their content while text columns wrap — neither can
-// leave its cell.
+// jsdom has no layout engine, so this file pins the CONTRACT; the measured
+// layout proof lives in qa/2026-09-23_c52-invoice-tracking/layout-harness.mjs
+// (per-cell scrollWidth ≤ clientWidth, no horizontal overflow) and was re-run
+// for the redesign at 1104/1112/1144/1624px of canvas.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const css = readFileSync(resolve(process.cwd(), 'src/pages/AccountingInvoiceTrackingPage.css'), 'utf8');
+const cwd = process.cwd();
+const read = (relativePath: string) => readFileSync(resolve(cwd, relativePath), 'utf8');
 
-describe('invoice-tracking 14-column board anti-spill contract (card 20260922_52)', () => {
-  it('sizes columns to their content — fixed layout is what painted tokens over the next column', () => {
-    const table = css.match(/\.invoice-tracking-table\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(table).toContain('table-layout: auto');
-    expect(table).toContain('min-width: 1350px');
+const css = read('src/pages/AccountingInvoiceTrackingPage.css');
+const tsx = read('src/pages/AccountingInvoiceTrackingPage.tsx');
+/** Comments name the retired rules on purpose; only rule bodies are asserted. */
+const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+describe('invoice-tracking board adopts the shared record-table base', () => {
+  it('renders the shared recipe — record-table-wrap + `record-table ops-table`, no page skin class', () => {
+    expect(tsx).toContain('record-table-wrap');
+    expect(tsx).toContain('className="record-table ops-table"');
+    expect(tsx).toContain("import '../styles/record-table.css'");
+    expect(tsx).toContain("import '../styles/operational-table-typography.css'");
+    expect(rules).not.toMatch(/\.invoice-tracking-table/);
   });
 
-  it('gives the card floors to the long-text columns', () => {
-    const floor = (nth: number): number | null => {
-      const match = css.match(
-        new RegExp(`thead th:nth-child\\(${nth}\\)\\s*\\{[^}]*?min-width:\\s*(\\d+)px`, 'm'),
-      );
-      return match ? Number(match[1]) : null;
-    };
-    // Card floors: lô hàng ≥160, Cont ≥120, thông tin hđ ≥130.
-    expect(floor(3)).toBeGreaterThanOrEqual(160);
-    expect(floor(4)).toBeGreaterThanOrEqual(120);
-    expect(floor(7)).toBeGreaterThanOrEqual(130);
+  it('keeps no scroll wrapper — the base is overflow: visible so the sticky thead pins to the app scrollport', () => {
+    expect(tsx).not.toContain('table-scroll');
+    // The container that drives the base's card band is the wrap the base owns.
+    expect(rules).not.toMatch(/container-type/);
   });
 
-  it('keeps token columns on one line so the column — not the value — grows', () => {
-    const nowrapGroup = css.match(/tbody td:nth-child\(1\),[\s\S]*?white-space: nowrap;/)?.[0] ?? '';
-    for (const nth of [1, 2, 4, 5, 8, 10, 11]) {
-      expect(nowrapGroup).toContain(`nth-child(${nth})`);
-    }
-    // Both stack cells (mã lô in col 3, số hóa đơn in col 7) are tokens.
-    expect(css).toMatch(/\.ivt-stack > span\s*\{[^}]*white-space: nowrap/);
-  });
-
-  it('wraps text columns so a long value can never leave its cell', () => {
-    const wrapGroup = css.match(/tbody td:nth-child\(3\),[\s\S]*?overflow-wrap: anywhere;/)?.[0] ?? '';
-    for (const nth of [3, 6, 7, 9, 12]) {
-      expect(wrapGroup).toContain(`nth-child(${nth})`);
-    }
-    // The customer name wraps rather than spilling (measured: 83px into Cont).
-    expect(css).toMatch(/\.ivt-stack > span\.ivt-stack__sub\s*\{[^}]*white-space: normal/);
+  it('declares no column floor, no private breakpoint and no private card collapse', () => {
+    expect(rules).not.toMatch(/nth-child\(/);
+    expect(rules).not.toMatch(/min-width:\s*1350px|min-width:\s*1180px/);
+    expect(rules).not.toMatch(/@container/);
+    expect(rules).not.toMatch(/@media/);
+    expect(rules).not.toMatch(/table-layout/);
   });
 
   it('never clips or ellipsises a data cell — design law §4 no-truncation doctrine', () => {
-    const dataCellRules = css
-      .split('}')
-      .filter((chunk) => /tbody td/.test(chunk))
-      .join('}');
-    expect(dataCellRules).not.toContain('overflow: hidden');
-    expect(dataCellRules).not.toContain('text-overflow: ellipsis');
+    // Only the page's table-cell rules are in scope: the modal's lot-picker list
+    // keeps `overflow: hidden` for its own rounded corners, off the board.
+    const cellRules = [...rules.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter(([, selector]) => /\b(td|th)\b/.test(selector))
+      .map(([, selector, body]) => `${selector.trim()} {${body.trim()}}`);
+    expect(cellRules.join('\n')).not.toContain('overflow: hidden');
+    expect(cellRules.join('\n')).not.toContain('text-overflow: ellipsis');
   });
 
-  it('right-aligns the money columns and keeps the thousand separator formatter', () => {
-    expect(css).toMatch(/tbody td:nth-child\(8\),[\s\S]*?nth-child\(10\)\s*\{\s*text-align:\s*right/);
+  it('carries data-label on every data cell so the container-query cards stay labelled', () => {
+    const body = tsx.slice(tsx.indexOf('<tbody>'));
+    const cells = body.match(/<td[^>]*>/g) ?? [];
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) {
+      expect(cell, `${cell} must carry data-label`).toContain('data-label');
+    }
+    // The card band prints `attr(data-label)`; a header rename must follow.
+    for (const label of ['Lô hàng', 'Nhà cung cấp', 'Hóa đơn', 'Ngày gửi', 'Chênh lệch']) {
+      expect(tsx, `${label} cell label`).toContain(`data-label="${label}"`);
+    }
+  });
+
+  it('marks the money and date cells with the shared numeric class', () => {
+    for (const label of ['Ngày', 'Số tiền trả', 'Chênh lệch', 'Ngày gửi']) {
+      expect(tsx, `${label} is numeric`).toMatch(new RegExp(`data-label="${label}"[^>]*className="num"`));
+    }
+  });
+
+  it('keeps the two amount cells off the base break-anywhere so a figure never splits mid-number', () => {
+    const amountRule = rules.match(/\.invoice-tracking-page \.record-table td\[data-label="Số tiền trả"\],[\s\S]*?\}/)?.[0] ?? '';
+    expect(amountRule).toContain('data-label="Chênh lệch"');
+    expect(amountRule).toContain('overflow-wrap: normal');
+    expect(amountRule).toContain('word-break: keep-all');
+    // Never `nowrap`: the amount may still wrap at its own boundary (digits / ₫).
+    expect(amountRule).not.toContain('nowrap');
+  });
+
+  it('keeps the action cell on one line — a control pair cannot wrap', () => {
+    expect(tsx).toContain('className="invoice-tracking-actions record-table__action"');
+    expect(rules).toMatch(/\.invoice-tracking-actions\s*\{[^}]*white-space:\s*nowrap/);
   });
 });
 
-describe('invoice-tracking command strip (card 20260926_52 — chief spec)', () => {
-  const tsx = readFileSync(resolve(process.cwd(), 'src/pages/AccountingInvoiceTrackingPage.tsx'), 'utf8');
-  const tableCss = readFileSync(resolve(process.cwd(), 'src/components/Table.css'), 'utf8');
+describe('invoice-tracking command strip (card 20260929_ivt — shared primitives)', () => {
+  const layout = read('src/components/Layout.tsx');
 
-  it('header is a two-row command strip: inline KPI ribbon + export, tiles and Lọc deleted', () => {
-    expect(tsx).not.toContain('invoice-tracking-totals__tile');
-    expect(tsx).toMatch(/invoice-tracking-header/);
-    expect(tsx).toMatch(/invoice-tracking-kpi/);
+  it('names the screen once, with the sidebar label, through the shared PageHeader', () => {
+    const navLabel = layout.match(/path: '\/accounting\/invoice-tracking'[\s\S]{0,40}?/)?.[0] ?? '';
+    expect(navLabel).toBeTruthy();
+    // The three role navs (admin/accountant/CUS) must agree on the one name.
+    const labels = [...layout.matchAll(/label: '([^']+)', path: '\/accounting\/invoice-tracking'/g)].map((m) => m[1]);
+    expect(new Set(labels).size, `nav labels disagree: ${labels.join(' | ')}`).toBe(1);
+
+    expect(tsx).toContain('<PageHeader');
+    expect(tsx).toContain(`title="${labels[0]}"`);
+    // The hand-rolled <header> band and its KPI ribbon are retired.
+    expect(tsx).not.toMatch(/invoice-tracking-header/);
+    expect(tsx).not.toMatch(/invoice-tracking-kpi/);
+    expect(tsx).not.toMatch(/<h1>/);
+  });
+
+  it('renders the Σ strip on the shared SummaryRail, not a page-local KPI block', () => {
+    expect(tsx).toContain('<SummaryRail');
+    expect(tsx).toContain('ariaLabel="Tổng cộng theo kỳ"');
+    expect(tsx).toContain("label: 'Hóa đơn'");
+    expect(tsx).toContain("label: 'Trả NCC'");
+    expect(tsx).toContain("label: 'Chênh lệch'");
+    expect(rules).not.toMatch(/\.ivt-money|\.invoice-tracking-kpi/);
+  });
+
+  it('header actions are the two shared buttons, not a page-local action row', () => {
     expect(tsx).toContain('Xuất Excel');
     expect(tsx).toContain('downloadCSV');
+    expect(tsx).toContain('Thêm chi phí lô hàng');
+    expect(rules).not.toMatch(/\.invoice-tracking-header__actions/);
     expect(tsx).not.toMatch(/>Loc<|>Lọc</);
+  });
+
+  it('loading and empty render the shared primitives, never a page-local row', () => {
+    expect(tsx).toContain('<SkeletonTable');
+    expect(tsx).toContain('<EmptyState');
+    expect(tsx).toMatch(/context="finance"/);
+    expect(tsx).not.toMatch(/invoice-tracking-empty/);
+    expect(rules).not.toMatch(/invoice-tracking-empty/);
   });
 
   it('row 2: the shared bar owns the strip — period fields, quick ranges, search slot, Bộ lọc dialog', () => {
@@ -103,16 +153,16 @@ describe('invoice-tracking command strip (card 20260926_52 — chief spec)', () 
 
   it('the page declares no rule of its own for a filter control — the bar owns every width', () => {
     // Comments name the deleted rules on purpose; only the rule bodies count.
-    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
     expect(rules).not.toMatch(/\.invoice-tracking-(filters|range|search|supplier|diff)\b/);
   });
 
-  it('empty state centers the muted search icon with period copy and a clear-filters sub-link', () => {
+  it('empty state keeps the period copy and the clear-filters sub-link', () => {
     expect(tsx).toContain('Không tìm thấy hóa đơn nào trong kỳ đã chọn');
     expect(tsx).toContain('Xóa bộ lọc ngày');
   });
 
   it('scrollbar thumb is neutral ink — the green table-scroll thumb is gone', () => {
+    const tableCss = read('src/components/Table.css');
     expect(tableCss).not.toMatch(/scrollbar-thumb[^}]*rgba\(0,\s*90,\s*45/);
   });
 });

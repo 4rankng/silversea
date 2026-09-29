@@ -1,0 +1,157 @@
+/* ==========================================================================
+ * Kế toán chốt debit — the board's own geometry (2026-09-29 redesign).
+ *
+ * The board IS a money matrix: ten money columns beside the lot's identity,
+ * under `Phải thu` / `Phải trả` tier-1 groups. It cannot fit a ~1150px
+ * operational canvas, so — like the sibling /shipments-debit board (card
+ * 20260924_9) — it gets an explicit scroll box, an honest minimum for every
+ * column, a sideways-scroll cue on touch widths, and a STICKY identity pair so
+ * a scrolled row never loses which lot it belongs to.
+ *
+ * This replaces card 20260922's 2640px `table-layout: fixed` wall: its
+ * explicit colgroup shares were the only thing holding that layout together,
+ * the grouped headers collided at every desktop width, and half the board
+ * lived off screen. With `min-width` per column the header wraps inside its
+ * own cell, the table grows to what the data needs, and the board says out
+ * loud that it scrolls.
+ *
+ * Geometry only. `thead th` case/tracking belong to the global authority
+ * (components/Table.css); numeric cells ride the global `.num`; the selection
+ * treatment is the neutral-ink edge of styles/selection-state-contract.
+ * ========================================================================== */
+
+/* The board's identity — the DOCUMENT's name, under the page that names the
+   screen. Sentence case, section scale, never a second H1. */
+.debit-board__title {
+  margin: 0 0 8px;
+  font-size: var(--text-section-size);
+  font-weight: var(--fw-semibold, 600);
+  color: var(--ink);
+}
+
+/* Supporting line: counts, period, "đã chọn N lô". One treatment, so the bar's
+   status slot, the selection strip and the notice all read as one voice. */
+.debit-note {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+}
+p.debit-note { margin: 0 0 8px; }
+
+.debit-board__wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+}
+
+/* The global `tbody td` emergency break fractures codes and container numbers
+   mid-token (law §4) — this board holds whole tokens, so it withdraws it. */
+.debit-board th,
+.debit-board td {
+  padding: 6px 10px;
+  vertical-align: top;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  white-space: normal;
+}
+
+/* ── Column budget ─────────────────────────────────────────────────────────
+/* `min-width` (not `width`) is what sizes a track under auto layout: the table
+ * stretches to fill the canvas when the data is short, and grows past it — into
+ * the scroll box — when it is not. The AMOUNT never wraps (a broken number is
+ * unreadable), while its header does — a nowrap header would set the track's
+ * width from the longest label and starve the data columns. */
+.debit-board th.debit-col--money,
+.debit-board td.debit-col--money {
+  min-width: 104px;
+  text-align: right;
+}
+.debit-board td.debit-col--money { white-space: nowrap; }
+.debit-board th.debit-col--lot,
+.debit-board td.debit-col--lot { min-width: 188px; }
+.debit-board th.debit-col--container,
+.debit-board td.debit-col--container { min-width: 148px; }
+.debit-board th.debit-col--truck,
+.debit-board td.debit-col--truck { min-width: 118px; }
+.debit-board th.debit-col--status,
+.debit-board td.debit-col--status { min-width: 132px; }
+.debit-board th.debit-col--note,
+.debit-board td.debit-col--note { min-width: 132px; }
+.debit-board td.debit-col--note { overflow-wrap: anywhere; }
+
+/* ── Sticky identity pair ──────────────────────────────────────────────────
+ * The date is the board's axis and its first column, so one fixed width lets
+ * the lot column offset against it deterministically. `z-index: var(--z-base)`
+ * keeps both BELOW the sticky header band (components/Table.css pins it at 2)
+ * while still painting above the columns that scroll under them. */
+.debit-board th.debit-col--date,
+.debit-board td.debit-col--date,
+.debit-board th.debit-col--lot,
+.debit-board td.debit-col--lot { position: sticky; }
+.debit-board th.debit-col--date,
+.debit-board td.debit-col--date {
+  left: 0;
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
+  white-space: nowrap;
+}
+.debit-board th.debit-col--lot,
+.debit-board td.debit-col--lot { left: 96px; }
+.debit-board td.debit-col--date,
+.debit-board td.debit-col--lot {
+  z-index: var(--z-base);
+  background: var(--surface);
+}
+
+/* ── Selection ─────────────────────────────────────────────────────────────
+ * One neutral ink edge, never a brand tint (styles/selection-state-contract).
+ * The sticky cells carry it too: their opaque background would otherwise paint
+ * over the row's own edge. */
+.debit-board tbody tr[data-selected] td { background: var(--surface); }
+.debit-board tbody tr[data-selected] td.debit-col--date { box-shadow: inset 3px 0 0 var(--ink); }
+.debit-board tbody tr.debit-row--pickable { cursor: pointer; }
+.debit-board tbody tr.debit-row--pickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.debit-board tbody tr.debit-row--locked { color: var(--ink-3); }
+
+/* A missing value is a fact about the row, not a number: it keeps the cell's
+   right edge but drops the numeric face — mono is for data, never for prose
+   (§10), and the cell still names the field that is missing (§1). */
+.debit-board .debit-missing {
+  font-family: var(--font-body);
+  color: var(--ink-3);
+}
+
+/* The live-adjustment cell is the row's action slot: state line, then the two
+   controls the operator may exercise on it. */
+.debit-pending { display: block; }
+.debit-pending .btn { margin: 4px 4px 0 0; }
+
+/* Scroll cue — silent on a fine pointer, where a wheel/trackpad scrolls the box
+   without being told (the /shipments-debit pattern, card 20260924_9). */
+.debit-board__hint {
+  display: none;
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+}
+
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .debit-board__hint { display: block; }
+}
+
+/* Selection strip: "chọn tất cả" and the bulk actions belong to the selection,
+   so the strip states it once instead of two rows of dead "(0 dòng)" buttons. */
+.debit-selection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+
+/* ── Second board: the settlement rounds ───────────────────────────────────
+ * An 11-column ledger that fits; same scroll box, no column floor at all. */
+.debit-rounds { margin-top: 20px; }

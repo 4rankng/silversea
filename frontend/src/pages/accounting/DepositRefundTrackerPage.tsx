@@ -9,11 +9,11 @@ import { expenseVndSchema } from '@tingting/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { CalendarClock, Plus, X } from 'lucide-react';
-import { useToast } from '../../components/shared';
+import { SkeletonTable, StatusText, useToast } from '../../components/shared';
 import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { ListFilterBar } from '../../components/ListFilterBar';
-import { DateRangeFields, UuiSelectField } from '../../design-system';
+import { DateRangeFields, EmptyState, SummaryRail, UuiSelectField } from '../../design-system';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import {
   createDepositTracker,
@@ -26,6 +26,10 @@ import {
 import { formatMoney } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { ApiError } from '../../lib/api';
+// The record-table base + ops-table typography: the shared table pattern
+// (recipe at styles/record-table.css:10-30). Page CSS declares no table skin.
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import './DepositRefundTrackerPage.css';
 
 /** ISO date → dd/mm/yy display (the card's typing pattern). */
@@ -138,9 +142,15 @@ export default function DepositRefundTrackerPage() {
     if (ok) refundMutation.mutate(row);
   };
 
+  // A failed load is neither an empty result nor a populated table: it renders
+  // only the error line + retry above (never the empty face — that would claim
+  // a successful empty read).
+  const isEmptyResult = !query.isPending && !query.isError && rows.length === 0;
+  const hasRows = !query.isPending && !query.isError && rows.length > 0;
+
   return (
     <div className="deposit-tracker-page">
-      <PageHeader title="Theo dõi hoàn cược container" description="Theo dõi số tiền cược và ngày nộp công văn theo từng lô. Tiền hoàn cược được ghi nhận vào quỹ công ty đã cấu hình." />
+      <PageHeader title="Theo dõi hoàn cược" description="Theo dõi số tiền cược và ngày nộp công văn theo từng lô. Tiền hoàn cược được ghi nhận vào quỹ công ty đã cấu hình." />
       {dialog}
       {/* Card 20260927_152: the ONE shared strip. The from/to pair is the group
           every list shares and `Trạng thái` is the only secondary criterion, so
@@ -206,68 +216,78 @@ export default function DepositRefundTrackerPage() {
         </section>
       )}
 
-      <section className="deposit-tracker-totals" aria-label="Tổng tiền cược">
-        <div className="deposit-tracker-totals__tile">
-          <span>Tổng tiền cược (theo bộ lọc)</span>
-          <strong>{formatMoney(query.data?.total ?? 0)} ₫</strong>
-        </div>
-      </section>
+      {/* Recipe #4: the summary strip is the ONE shared rail — a hand-rolled
+          KPI/tile block is exactly the page-local variant the rails ban. */}
+      <SummaryRail
+        ariaLabel="Tổng tiền cược"
+        items={[{ label: 'Tổng tiền cược (theo bộ lọc)', value: `${formatMoney(query.data?.total ?? 0)} ₫` }]}
+      />
 
       {actionError && <p role="alert" style={{ color: 'var(--err, #dc2626)' }}>{actionError}</p>}
       {query.isError && <p role="alert">{query.error.message} <Btn variant="secondary" size="sm" onClick={() => void query.refetch()}>Thử lại</Btn></p>}
 
-      <div className="table-wrap">
-        <table className="deposit-tracker-table">
-          <thead>
-            <tr>
-              <th>STT</th><th>Ngày</th><th>Khách hàng</th><th>Hãng tàu</th><th>Bill</th>
-              <th className="num">Số tiền cược</th><th>Ngày nộp CV</th><th>Ngày dự kiến hoàn cược</th>
-              <th>Trạng thái</th><th>Ghi chú</th><th aria-label="Thao tác" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={row.id} className={row.status === 'DA_HOAN_CUOC' ? 'is-refunded' : undefined}>
-                <td>{index + 1}</td>
-                <td className="date-cell">{formatDepositDate(row.createdAt)}</td>
-                <td>{row.customerName}</td>
-                <td>{row.carrierName}</td>
-                <td className="bill">{row.billNumber}</td>
-                <td className="num">{formatMoney(Number(row.depositAmount))} ₫</td>
-                <td className="date-cell">{row.cvSubmittedDate ? formatDepositDate(row.cvSubmittedDate) : '—'}</td>
-                <td className="date-cell">{row.expectedRefundDate ? formatDepositDate(row.expectedRefundDate) : '—'}</td>
-                <td>
-                  <span className={`deposit-status deposit-status--${row.status === 'DA_HOAN_CUOC' ? 'done' : 'pending'}`}>
-                    {STATUS_LABELS[row.status]}
-                  </span>
-                </td>
-                <td className="note">{row.note ?? '—'}</td>
-                <td className="actions">
-                  {row.status === 'CHUA_HOAN_CUOC' && (
-                    <>
-                      <Btn variant="secondary" size="sm" onClick={() => setDateModal(row)}>
-                        <CalendarClock size={14} /> Ngày CV / số tiền
-                      </Btn>
-                      <Btn
-                        variant="primary"
-                        size="sm"
-                        disabled={Number(row.depositAmount) <= 0 || refundMutation.isPending}
-                        onClick={() => void handleRefundTick(row)}
-                      >
-                        Đã hoàn cược
-                      </Btn>
-                    </>
-                  )}
-                </td>
+      {/* Recipe #1: the shared record-table base. The container band in
+          record-table.css collapses each row into a labelled record card at
+          ≤1100px, so every cell carries its own `data-label`. */}
+      {query.isPending && <SkeletonTable rows={5} cols={6} />}
+      {isEmptyResult && (
+        <EmptyState
+          variant="compact"
+          context="wallet"
+          title="Không có dòng theo dõi nào trong bộ lọc."
+          description="Điều chỉnh khoảng ngày hoặc trạng thái, hoặc thêm một dòng theo dõi mới."
+        />
+      )}
+      {hasRows && (
+        <div className="record-table-wrap">
+          <table className="record-table ops-table">
+            <thead>
+              <tr>
+                <th>STT</th><th>Ngày</th><th>Khách hàng</th><th>Hãng tàu</th><th>Bill</th>
+                <th className="num">Số tiền cược</th><th>Ngày nộp CV</th><th>Ngày dự kiến hoàn cược</th>
+                <th>Trạng thái</th><th>Ghi chú</th><th aria-label="Thao tác" />
               </tr>
-            ))}
-            {query.isPending && <tr><td colSpan={11}>Đang tải theo dõi hoàn cược…</td></tr>}
-            {!query.isPending && !query.isError && rows.length === 0 && (
-              <tr><td colSpan={11}>Không có dòng theo dõi nào trong bộ lọc.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={row.id}>
+                  <td data-label="STT" className="deposit-col--token">{index + 1}</td>
+                  <td data-label="Ngày" className="deposit-col--token">{formatDepositDate(row.createdAt)}</td>
+                  <td data-label="Khách hàng">{row.customerName}</td>
+                  <td data-label="Hãng tàu">{row.carrierName}</td>
+                  <td data-label="Bill" className="deposit-col--token">{row.billNumber}</td>
+                  <td data-label="Số tiền cược" className="num deposit-col--token">{formatMoney(Number(row.depositAmount))} ₫</td>
+                  <td data-label="Ngày nộp CV" className="deposit-col--token">{row.cvSubmittedDate ? formatDepositDate(row.cvSubmittedDate) : '—'}</td>
+                  <td data-label="Ngày dự kiến hoàn cược" className="deposit-col--token">{row.expectedRefundDate ? formatDepositDate(row.expectedRefundDate) : '—'}</td>
+                  <td data-label="Trạng thái">
+                    <StatusText variant={row.status === 'DA_HOAN_CUOC' ? 'success' : 'warning'}>
+                      {STATUS_LABELS[row.status]}
+                    </StatusText>
+                  </td>
+                  <td data-label="Ghi chú">{row.note ?? '—'}</td>
+                  <td data-label="" className="record-table__action">
+                    {row.status === 'CHUA_HOAN_CUOC' && (
+                      <>
+                        <Btn variant="secondary" size="sm" onClick={() => setDateModal(row)}>
+                          <CalendarClock size={14} /> Ngày CV / số tiền
+                        </Btn>
+                        <Btn
+                          variant="primary"
+                          size="sm"
+                          disabled={Number(row.depositAmount) <= 0 || refundMutation.isPending}
+                          onClick={() => void handleRefundTick(row)}
+                        >
+                          Đã hoàn cược
+                        </Btn>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <Modal isOpen={dateModal !== null} title={`Cập nhật hoàn cược - Bill ${dateModal?.billNumber ?? ''}`} onClose={() => setDateModal(null)}>
         {dateModal && (

@@ -29,7 +29,9 @@ màn hình đích. Ghi chú ngoài phạm vi: tab "Phơi phiếu / tiền đư�
 - **Các bước:** đăng nhập → nhìn sidebar trái (mục "Công nợ & Dòng tiền") → click mục
   "Kiểm soát phơi phiếu".
 - **Kết quả mong đợi (Pass):** mục hiển thị rõ nhãn "Kiểm soát phơi phiếu"; click điều hướng đến
-  `/accounting/phoi-phieu`, trang mở với tiêu đề "Kiểm soát phơi phiếu - Tiền đường".
+  `/accounting/phoi-phieu`, trang mở với tiêu đề "Kiểm soát phơi phiếu" (ruling 2026-09-29: tiêu đề
+  trang là TÊN MÀN HÌNH đúng như nhãn sidebar, một tên duy nhất — phần "Tiền đường" là danh tính của
+  bảng bên trong, không nối vào H1; `frontend/src/components/page-heading-law.test.ts`).
 - **Kỳ vọng sai (Fail nếu):** mục không có trong sidebar, hoặc click không đổi URL / ra trang khác.
 
 ### TC-NAVPHOI-02 — Nút tắt "Phơi phiếu / tiền đường" trỏ đúng trang chuyên dụng

@@ -9,6 +9,7 @@ import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ClickableCard } from '../components/shared/ClickableCard';
+import { SkeletonTable } from '../components/shared/Skeleton';
 import { usePostCommission } from '../hooks/useQueries';
 import { financialClient } from '../api/financialClient';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
@@ -505,8 +506,9 @@ export default function PayableListPage() {
         )}
 
         {loading ? (
-          <div style={{ padding: 48, textAlign: 'center', color: 'var(--ink-3)' }}>
-            Đang tải dữ liệu công nợ phải trả...
+          <div role="status">
+            <SkeletonTable rows={6} cols={7} />
+            <span className="sr-only">Đang tải dữ liệu công nợ phải trả…</span>
           </div>
         ) : (
           <>
@@ -514,9 +516,7 @@ export default function PayableListPage() {
             <div className="mobile-only mobile-table-wrap">
               <div className="m-card-list">
                 {payables.length === 0 ? (
-                  <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--ink-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu." />
-                  </div>
+                  <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu." />
                 ) : (
                   payables.map(d => {
                     const totalAging = d.aging.current + d.aging.d30 + d.aging.d60 + d.aging.over90;
@@ -573,7 +573,7 @@ export default function PayableListPage() {
                       <SortHeader label="31-60 ngày" sortKey="d30" sort={sortState} onSortChange={handleSortChange} />
                       <SortHeader label="61-90 ngày" sortKey="d60" sort={sortState} onSortChange={handleSortChange} />
                       <SortHeader label=">90 ngày" sortKey="over90" sort={sortState} onSortChange={handleSortChange} />
-                      <th style={{ width: 48 }}></th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -582,7 +582,6 @@ export default function PayableListPage() {
                         as="tr"
                         key={`${d.kind ?? 'vendor'}-${d.supplier.id}`}
                         to={rowHref(d)}
-                        style={{ cursor: 'pointer' }}
                       >
                         <td data-label="Nhà cung cấp">
                           <div style={{ display: 'flex', alignItems: 'center', fontWeight: 600, color: 'var(--fg-1)' }}>
@@ -604,7 +603,7 @@ export default function PayableListPage() {
                         <td data-label="31-60 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
                           {d.aging.d30 > 0 ? formatCurrency(d.aging.d30) : '—'}
                         </td>
-                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning, #A45D1C)' : 'var(--fg-3)' }}>
+                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
                           {d.aging.d60 > 0 ? formatCurrency(d.aging.d60) : '—'}
                         </td>
                         <td data-label=">90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
@@ -618,10 +617,8 @@ export default function PayableListPage() {
 
                     {payables.length === 0 && (
                       <tr>
-                        <td colSpan={7} data-label="" style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                            <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu công nợ phải trả." />
-                          </div>
+                        <td colSpan={7} data-label="">
+                          <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu công nợ phải trả." />
                         </td>
                       </tr>
                     )}

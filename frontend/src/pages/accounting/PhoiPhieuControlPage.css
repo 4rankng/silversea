@@ -24,14 +24,32 @@
    once a min-width rescue was tried — min-width is inert under
    table-layout: fixed, only width sizes tracks). Explicit shares hold every
    header at its longest word, ≤2 even lines. */
-.ppc-board th.ppc-col--customer-route { width: 12%; }
+/* 2026-09-29: the budget was still starved at the two IDENTITY columns, and
+   only there — measured at 1144px: 'Lịch trình' held 57px against the 149px its
+   trip code + bill need, 'Thông tin xe' 57px against 206px for plate + driver,
+   so an identifier the operator reads character by character broke after every
+   hyphen ("TRP- / 2026- / 09- / 0013"). The two identity tracks now hold a
+   token and the WRAPPING text columns pay for it: a company name or a place
+   pair costs one more line, a broken identifier costs a misread.
+   Sum: 12 + 10 + 9 + 8 + 9 + 11 + 10 + 8 + 9 + 7 = 93 — relative weights,
+   which `table-layout: fixed` scales to the table's own 100%. */
+.ppc-board th.ppc-col--lich-trinh { width: 12%; }
+.ppc-board th.ppc-col--xe { width: 10%; }
+.ppc-board th.ppc-col--customer-route { width: 9%; }
 .ppc-board th.ppc-col--thongso { width: 8%; }
-.ppc-board th.ppc-col--diadiem { width: 11%; }
-.ppc-board th.ppc-col--chiho { width: 12%; }
+.ppc-board th.ppc-col--diadiem { width: 9%; }
+.ppc-board th.ppc-col--chiho { width: 11%; }
 .ppc-board th.ppc-col--money { width: 10%; }
 .ppc-board th.ppc-col--status { width: 8%; }
 .ppc-board th.ppc-col--date { width: 9%; }
-.ppc-board th.ppc-col--ghichu { width: 10%; }
+.ppc-board th.ppc-col--ghichu { width: 7%; }
+
+/* The two identity tracks are wide enough for their COMMON token (a 15-char
+   trip code + bill, a plate + driver), so the operator reads them on one line.
+   They deliberately still WRAP: a code is free text on the wire and the seed
+   holds 32-character ones ("G21-BILL-1790678705710-mlz5bd-4") — `nowrap` made
+   those paint over the next column, which is worse than a hyphen break inside
+   the cell (measured 2026-09-29). Law §4's no-EXPAND fallback applies. */
 
 /* Selection: a row IS the control now. The picked row carries the accent at
    the row's own surface, a left rule so the state reads at a glance in a wide
@@ -89,6 +107,23 @@
   cursor: pointer;
 }
 .ppc-board .ppc-icon-btn:hover { border-color: var(--accent); }
+
+/* The board's sideways scroll lives with the board. The wrapper used to borrow
+   `shipment-container-ledger` from /shipments-detail's sheet, which this page
+   never imports — so the div carried NO styles, the table overflowed it, and the
+   shell's `overflow-x: hidden` put every column past the fold out of reach. */
+.ppc-board-wrap { overflow-x: auto; }
+
+/* Phone: the fixed budget cannot hold eleven tracks in ~374px — measured 425
+   cell spills at 390px and a shredded action button. Below the phone band the
+   board sizes to its CONTENT and the wrapper scrolls sideways, the
+   /shipments-debit pattern (card 20260924_9); the desktop budget above is
+   untouched. */
+@media (max-width: 640px) {
+  .ppc-board { min-width: 900px; table-layout: auto; }
+  .ppc-board th,
+  .ppc-board td { width: auto; }
+}
 
 /* Báo cáo tháng report tables (card 20260924_1, image11). tt-table ships
    white-space: nowrap under table-layout: fixed — the long mixed headers

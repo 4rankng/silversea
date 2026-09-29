@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { listBoard, sendRequests, confirmReq, withdrawReq, listRounds, createRound } = vi.hoisted(() => ({
   listBoard: vi.fn(),
@@ -23,6 +23,12 @@ vi.mock('../../api/accountingDebitClient', () => ({
 }));
 
 import AccountingDebitClosePage from './AccountingDebitClosePage';
+import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
+
+const RATES = {
+  cuocThu: '1000000', lachHuyen: '90000', phuPs: '200000', phatSinhCus: '500000', tongThu: '1790000',
+};
+const CARRIER_RATES = { cuocTraDv: '400000', lachHuyenDv: '50000', phatSinhDv: '30000', tong1: '480000', phiRu: '150000' };
 
 function renderPage() {
   return render(
@@ -34,7 +40,7 @@ function renderPage() {
   );
 }
 
-const row = (over: any = {}): any => ({
+const row = (over: Partial<AccountingDebitBoardRow> = {}): AccountingDebitBoardRow => ({
   shipmentId: 1,
   code: 'SHP-26-0001',
   customerName: 'KH A',
@@ -44,105 +50,201 @@ const row = (over: any = {}): any => ({
   billOrBooking: 'BL-1',
   containers: ['ABCZ1234567 · 40HC'],
   phanXe: ['Nhà xe A'],
-  thu: { cuocThu: '1000000', lachHuyen: '90000', phuPs: '200000', phatSinhCus: '500000', tongThu: '1790000' },
-  tra: { cuocTraDv: '400000', lachHuyenDv: '50000', phatSinhDv: '30' + '000', tong1: '480000', phiRu: '150000' },
+  thu: { ...RATES },
+  tra: { ...CARRIER_RATES },
   loiNhuan: '1160000',
   ghiChu: null,
   adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
   ...over,
 });
 
-function boardWith(rows: any[]) {
+function boardWith(rows: AccountingDebitBoardRow[]) {
   listBoard.mockResolvedValue({ items: rows, total: rows.length });
-  listRounds.mockResolvedValue({ items: [] });
 }
 
-describe('AccountingDebitClosePage', () => {
-  it('renders the full column ladder with grouped headers and worked numbers', async () => {
+const dataRows = (container: HTMLElement) => [...container.querySelectorAll('.debit-board tbody tr')] as HTMLElement[];
+
+beforeEach(() => {
+  // The column choice is per-workstation state (card 20260928_193): a choice
+  // written by one test would silently re-shape the next one's board.
+  localStorage.clear();
+  vi.clearAllMocks();
+  listRounds.mockResolvedValue({ items: [] });
+});
+
+describe('AccountingDebitClosePage — heading and board identity', () => {
+  it('names the screen, not the document (page-heading law)', async () => {
     boardWith([row()]);
     renderPage();
-    expect(await screen.findByText('PHẢI THU')).toBeInTheDocument();
-    expect(screen.getByText('PHẢI TRẢ')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Kế toán chốt debit' })).toBeInTheDocument();
+    await screen.findByText('SHP-26-0001');
+    // The document's name is the BOARD's, and the page never shouts: no heading
+    // or visible caption carries an ALL-CAPS run.
+    expect(screen.getByRole('heading', { level: 2, name: /Kế hoạch điều động tổng hợp/ })).toBeInTheDocument();
+    for (const heading of screen.getAllByRole('heading')) {
+      expect(heading.textContent ?? '').not.toMatch(/[A-ZĐÂÊÔƠƯ]{2,}\s+[A-ZĐÂÊÔƠƯ]{2,}/);
+    }
+    const caption = document.querySelector('.debit-board caption');
+    expect(caption?.className).toContain('sr-only');
+  });
+
+  it('renders the grouped head with worked money and a dd/mm/yyyy date', async () => {
+    boardWith([row()]);
+    renderPage();
+    expect(await screen.findByText('Phải thu')).toBeInTheDocument();
+    expect(screen.getByText('Phải trả')).toBeInTheDocument();
     expect(await screen.findByText('1.790.000 ₫')).toBeInTheDocument();
     expect(screen.getByText('480.000 ₫')).toBeInTheDocument();
     expect(screen.getByText('1.160.000 ₫')).toBeInTheDocument();
+    // The board's axis is a business date, never the wire's ISO string.
+    expect(screen.getByText('25/09/2026')).toBeInTheDocument();
   });
 
-  it('names the missing field on PHẢI THU/PHẢI TRẢ cells (card 20260924_21, item 7)', async () => {
-    boardWith([row({ thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null }, loiNhuan: null })]);
+  it('names the missing field on a cell with no value (§1)', async () => {
+    boardWith([row({
+      thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null },
+      loiNhuan: null,
+    })]);
     renderPage();
-    // Each PHẢI THU column carries its own field-specific copy (never the
-    // generic "Chưa xác định" — that one repeats 3× per row in surface 08/11).
-    expect(await screen.findByText('Thiếu cước thu')).toBeInTheDocument();
-    expect(screen.getByText('Thiếu lạch huyền')).toBeInTheDocument();
-    expect(screen.getByText('Thiếu phụ PS')).toBeInTheDocument();
-    expect(screen.getByText('Thiếu phát sinh (cus)')).toBeInTheDocument();
-    expect(screen.getByText('Thiếu tổng thu')).toBeInTheDocument();
+    expect(await screen.findByText('Thiếu tổng thu')).toBeInTheDocument();
     expect(screen.getByText('Thiếu lợi nhuận')).toBeInTheDocument();
-    // The PHẢI TRẢ cells stay populated from the default row above, so they
-    // do NOT render the placeholder for this fixture.
-    expect(screen.queryByText('Thiếu cước trả ĐV')).not.toBeInTheDocument();
-    // …but the generic placeholder is gone from the visible row.
+    // …and never the generic placeholder.
     expect(screen.queryByText('Chưa xác định')).not.toBeInTheDocument();
   });
 
-  it('excel-style filter narrows rows by customer and clears via Xóa lọc', async () => {
-    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH B', phanXe: ['Nhà xe B'] })]);
+  it('a breakdown column with no value anywhere stays out of the board, and returns with data', async () => {
+    // Column-visibility law: absence is not data. With every cước-thu cell
+    // missing, the column is not offered a track; the totals keep theirs.
+    boardWith([row({ thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null } })]);
+    const { unmount } = renderPage();
+    await screen.findByText('SHP-26-0001');
+    expect(screen.queryByText('Cước thu (tự động)')).not.toBeInTheDocument();
+    expect(screen.getByText('Tổng thu')).toBeInTheDocument();
+    unmount();
+    // One row carrying a rate is enough for the column to exist again.
+    boardWith([row({ thu: { ...RATES, cuocThu: null } }), row({ shipmentId: 2, code: 'SHP-26-0002' })]);
+    renderPage();
+    expect(await screen.findByText('Cước thu (tự động)')).toBeInTheDocument();
+  });
+
+  it('offers the column picker on the shared strip', async () => {
+    boardWith([row()]);
     renderPage();
     await screen.findByText('SHP-26-0001');
-    fireEvent.click(screen.getByText(/Lọc khách hàng/));
-    fireEvent.click(screen.getByLabelText('KH A'));
-    await waitFor(() => expect(screen.queryByText('SHP-26-0002')).not.toBeInTheDocument());
-    expect(screen.getByText('SHP-26-0001')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cột hiển thị/ })).toBeInTheDocument();
   });
+});
 
-  it('truck filter narrows by Phân xe values', async () => {
-    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH B', phanXe: ['Nhà xe B'] })]);
-    renderPage();
+describe('AccountingDebitClosePage — selection and bulk actions (card 20260929_207)', () => {
+  it('has no checkbox column; a row is picked by clicking it', async () => {
+    boardWith([row()]);
+    const { container } = renderPage();
     await screen.findByText('SHP-26-0001');
-    fireEvent.click(screen.getByText(/Lọc nhà xe/));
-    fireEvent.click(screen.getByLabelText('Nhà xe B'));
-    await waitFor(() => expect(screen.queryByText('SHP-26-0001')).not.toBeInTheDocument());
-    expect(screen.getByText('SHP-26-0002')).toBeInTheDocument();
+    expect(screen.queryAllByRole('checkbox')).toEqual([]);
+    const first = dataRows(container)[0];
+    fireEvent.click(first);
+    expect(first.getAttribute('data-selected')).toBe('true');
+    fireEvent.click(first);
+    expect(first.getAttribute('data-selected')).toBeNull();
   });
 
-  it('a CONFIRMED lot stays tickable for a new adjustment cycle (re-request)', async () => {
-    boardWith([
-      row({ shipmentId: 3, code: 'SHP-26-0003', adjustment: { status: 'CONFIRMED', requestId: 77, requestedAt: null, confirmedAt: '2026-09-22T03:00:00.000Z' } }),
-    ]);
+  it('picks the focused row with the keyboard', async () => {
+    boardWith([row()]);
+    const { container } = renderPage();
+    await screen.findByText('SHP-26-0001');
+    const first = dataRows(container)[0];
+    expect(first.getAttribute('tabindex')).toBe('0');
+    fireEvent.keyDown(first, { key: ' ' });
+    expect(first.getAttribute('data-selected')).toBe('true');
+  });
+
+  it('a row waiting on reconciliation is inert — its controls decide instead', async () => {
+    boardWith([row({ adjustment: { status: 'PENDING', requestId: 55, requestedAt: null, confirmedAt: null } })]);
+    const { container } = renderPage();
+    await screen.findByText('SHP-26-0001');
+    const first = dataRows(container)[0];
+    expect(first.getAttribute('tabindex')).toBeNull();
+    fireEvent.click(first);
+    expect(first.getAttribute('data-selected')).toBeNull();
+    expect(within(first).getByRole('button', { name: 'Xác nhận' })).toBeInTheDocument();
+  });
+
+  it('select-all covers the rows the filter is showing', async () => {
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002' })]);
     renderPage();
-    expect(await screen.findByLabelText('Chọn lô SHP-26-0003')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Chọn tất cả 2 lô đủ điều kiện/ }));
+    expect(await screen.findByText('Đã chọn 2 lô')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Chọn Debit (2 dòng)' })).toBeInTheDocument();
   });
 
-  it('tick rows + send adjustment request, then confirm clears pending state', async () => {
+  it('sends the adjustment request for the picked rows and clears the selection', async () => {
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002' })]);
+    sendRequests.mockResolvedValue({ requested: [1], alreadyPending: [], locked: [] });
+    const { container } = renderPage();
+    await screen.findByText('SHP-26-0001');
+    fireEvent.click(dataRows(container)[0]);
+    fireEvent.click(await screen.findByRole('button', { name: /Gửi yêu cầu điều chỉnh cước/ }));
+    await waitFor(() => expect(sendRequests.mock.calls[0][0]).toEqual({ shipmentIds: [1] }));
+    expect(await screen.findByText(/Yêu cầu điều chỉnh cước: đã gửi 1 lô/)).toBeInTheDocument();
+  });
+
+  it('confirms every pending row the filter is showing, in one pass', async () => {
     boardWith([
       row(),
       row({ shipmentId: 2, code: 'SHP-26-0002', adjustment: { status: 'PENDING', requestId: 55, requestedAt: null, confirmedAt: null } }),
     ]);
+    confirmReq.mockResolvedValue({});
     renderPage();
-    fireEvent.click(await screen.findByLabelText('Chọn lô SHP-26-0001'));
-    fireEvent.click(screen.getByRole('button', { name: /Gửi yêu cầu điều chỉnh cước/ }));
-    await waitFor(() => expect(sendRequests.mock.calls[0][0]).toEqual({ shipmentIds: [1] }));
-    sendRequests.mockResolvedValue({ requested: [1], alreadyPending: [], locked: [] });
-    listBoard.mockResolvedValue({
-      items: [
-        row(),
-        row({ shipmentId: 2, code: 'SHP-26-0002', adjustment: { status: 'CONFIRMED', requestId: 55, requestedAt: null, confirmedAt: '2026-09-22T03:00:00.000Z' } }),
-      ],
-      total: 2,
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Xác nhận đối soát \(1\)/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận đối soát (1)' }));
     await waitFor(() => expect(confirmReq.mock.calls[0][0]).toEqual([55]));
-    await waitFor(() => expect(screen.getByText('Đã đối soát')).toBeInTheDocument());
   });
 });
 
-describe('AccountingDebitClosePage — Chọn Debit popup + TỔNG HỢP (card 20260923_12)', () => {
-  it('Chọn Debit opens the popup with the selection, direction tick reveals counterparty + amount', async () => {
-    boardWith([row()]);
+describe('AccountingDebitClosePage — filters', () => {
+  it('the search cell narrows the board by code, bill or customer', async () => {
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH B' })]);
     renderPage();
-    const checkbox = await screen.findByRole('checkbox', { name: 'Chọn lô SHP-26-0001' });
-    fireEvent.click(checkbox);
+    await screen.findByText('SHP-26-0001');
+    fireEvent.change(screen.getByLabelText('Tìm lô hàng'), { target: { value: 'KH B' } });
+    await waitFor(() => expect(screen.queryByText('SHP-26-0001')).not.toBeInTheDocument());
+    expect(screen.getByText('SHP-26-0002')).toBeInTheDocument();
+  });
+
+  it('the customer facet narrows the board and drops the previous selection', async () => {
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH B', phanXe: ['Nhà xe B'] })]);
+    const { container } = renderPage();
+    await screen.findByText('SHP-26-0001');
+    fireEvent.click(dataRows(container)[0]);
+    fireEvent.click(screen.getByRole('button', { name: /Chọn khách hàng/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
+    await waitFor(() => expect(screen.queryByText('SHP-26-0002')).not.toBeInTheDocument());
+    expect(screen.queryByText(/Đã chọn/)).not.toBeInTheDocument();
+  });
+
+  it('the truck facet narrows by phân xe', async () => {
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH B', phanXe: ['Nhà xe B'] })]);
+    renderPage();
+    await screen.findByText('SHP-26-0001');
+    fireEvent.click(screen.getByRole('button', { name: /Chọn nhà xe/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Nhà xe B' }));
+    await waitFor(() => expect(screen.queryByText('SHP-26-0001')).not.toBeInTheDocument());
+    expect(screen.getByText('SHP-26-0002')).toBeInTheDocument();
+  });
+
+  it('an empty page speaks with the shared empty state, not a bare table row', async () => {
+    boardWith([]);
+    const { container } = renderPage();
+    expect(await screen.findByText('Không có lô hàng trong khoảng thời gian này')).toBeInTheDocument();
+    expect(container.querySelector('.ds-empty-state')).toBeTruthy();
+  });
+});
+
+describe('AccountingDebitClosePage — Chọn Debit popup + settlement rounds (card 20260923_12)', () => {
+  it('opens the popup with the picked lots, and the direction tick reveals counterparty + amount', async () => {
+    boardWith([row()]);
+    const { container } = renderPage();
+    await screen.findByText('SHP-26-0001');
+    fireEvent.click(dataRows(container)[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Chọn Debit (1 dòng)' }));
     const dialog = await screen.findByRole('dialog', { name: 'Chọn Debit — chốt đợt đối soát' });
     expect(dialog).toBeInTheDocument();
@@ -158,8 +260,9 @@ describe('AccountingDebitClosePage — Chọn Debit popup + TỔNG HỢP (card 2
       id: 5, roundNo: 1, periodKey: '2026-09', direction: 'THU', vatRate: 8,
       totalAmount: 1933200, amount: '1790000',
     });
-    renderPage();
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    const { container } = renderPage();
+    await screen.findByText('SHP-26-0001');
+    fireEvent.click(dataRows(container)[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Chọn Debit (1 dòng)' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Phải thu (từ khách hàng)' }));
@@ -178,8 +281,9 @@ describe('AccountingDebitClosePage — Chọn Debit popup + TỔNG HỢP (card 2
   it('a failed chốt keeps the dialog open and surfaces the server error', async () => {
     boardWith([row()]);
     createRound.mockRejectedValue(new Error('Lô SHP-26-0001 đã thuộc một đợt chốt (Lần 1 · 2026/09).'));
-    renderPage();
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn lô SHP-26-0001' }));
+    const { container } = renderPage();
+    await screen.findByText('SHP-26-0001');
+    fireEvent.click(dataRows(container)[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Chọn Debit (1 dòng)' }));
     await screen.findByRole('dialog');
     fireEvent.click(screen.getByRole('radio', { name: 'Phải thu (từ khách hàng)' }));
@@ -190,7 +294,7 @@ describe('AccountingDebitClosePage — Chọn Debit popup + TỔNG HỢP (card 2
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('TỔNG HỢP CÔNG NỢ KHÁCH HÀNG table renders the persisted rounds', async () => {
+  it('renders the persisted rounds in the settlement board, sentence case', async () => {
     boardWith([]);
     listRounds.mockResolvedValue({ items: [{
       id: 3, customerId: 11, customerName: 'KH A', direction: 'THU',
@@ -200,9 +304,10 @@ describe('AccountingDebitClosePage — Chọn Debit popup + TỔNG HỢP (card 2
       ghiChu: 'đợt tháng 9', lotCount: 1, createdAt: '2026-09-24T03:00:00.000Z',
     }] });
     renderPage();
-    expect(await screen.findByText('TỔNG HỢP CÔNG NỢ KHÁCH HÀNG')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Tổng hợp công nợ khách hàng' })).toBeInTheDocument();
     expect(await screen.findByText('Lần 1 · 2026/09')).toBeInTheDocument();
     expect(await screen.findByText('1.933.200 ₫')).toBeInTheDocument();
     expect(screen.getByText('đợt tháng 9')).toBeInTheDocument();
+    expect(screen.getByText('01/09/2026')).toBeInTheDocument();
   });
 });

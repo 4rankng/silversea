@@ -66,7 +66,15 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-strong);
   white-space: normal;
-  overflow-wrap: anywhere;
+  /* A header label is a single token ("STT", "CONTAINER", "LỊCH TRÌNH") and
+     must never be chopped mid-word — the defect QA filed as the shattered
+     "CONTAINER" header (card 20260922_54), which three pages have been
+     patching locally ever since (.ppc-board, .shipment-debit-table,
+     .invoice-tracking-table). The inherited `anywhere` emergency break made
+     the header's min-content one CHARACTER, so a narrow column shredded it.
+     Law §4: single-token values EXPAND — the column sizes to the label. */
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .record-table tbody td {

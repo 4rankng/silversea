@@ -1,41 +1,26 @@
 /* ============================================================================
- * PayableListPage — Bento Grid Layout (Vantai Design System)
+ * PayableListPage — one aging comparison rail over a flat record surface.
  *
- * Zone 1: Hero KPI Row (4-column grid: hero span-3 + mini-KPI stack span-1)
- * Zone 2: Aging Distribution (4 equal cards with progress bars)
- * Zone 3: Data Card (full-width card wrapping toolbar + table/mobile cards)
+ * Zone 1: SummaryRail (the shared workboard strip).
+ * Zone 2: Aging distribution rail — four cells divided by rules, not cards.
+ * Zone 3: Data surface — the shared `ListFilterBar`, the record table and the
+ *         phone card list, with no page-local card chrome around them.
+ *
+ * The Bento generation this sheet opened with — the hero KPI row, the
+ * translucent `backdrop-filter` aging cards and their hover lift — is deleted.
+ * It was already invisible (the flat generation at the foot of the sheet
+ * re-declared every one of its properties at equal or higher specificity) and
+ * it is exactly what docs/design-guidelines.md §3 bans: no box-shadow, no 3D
+ * surfaces.
  * ========================================================================== */
 
-/* ── Page wrapper ──────────────────────────────────────────────────────────── */
-.payables-page {
-  /* Ensures animation selectors are scoped */
-}
-
 /* ============================================================================
- * Zone 2 — Aging Distribution (4 equal cards)
+ * Zone 2 — Aging distribution rail (four equal cells)
  * ========================================================================== */
 .payables-aging-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
   margin-bottom: 16px;
-}
-
-.aging-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: var(--r-lg, 18px);
-  padding: 16px 18px 14px;
-  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
-  transition: transform 0.2s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
-              box-shadow 0.2s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
-}
-
-.aging-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(9, 9, 11, 0.07);
 }
 
 .aging-card__header {
@@ -85,7 +70,6 @@
   align-items: baseline;
   gap: 3px;
   font-family: var(--font-display);
-  font-size: var(--fs-xl);
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1.35;
@@ -132,15 +116,14 @@
 .aging-card__bar--danger { background: var(--danger); }
 
 /* ============================================================================
- * Zone 3 — Data Card
+ * Zone 3 — Data surface
+ * ----------------------------------------------------------------------------
+ * The card chrome the page used to paint here (surface fill, 1px line, --r-lg
+ * radius, 20/24 padding, box-shadow) is deleted: the flat rule at the foot of
+ * this sheet re-declares all of it for the same selector, later in the sheet
+ * and at equal specificity, so the flat rule always won and none of the
+ * declarations above ever reached a pixel.
  * ========================================================================== */
-.payables-data-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg, 18px);
-  padding: 20px 24px;
-  box-shadow: none;
-}
 
 /* ── Filter strip ───────────────────────────────────────────────────────────
  * Card 20260927_152 — the strip is the shared `ListFilterBar` and the category
@@ -169,22 +152,6 @@
   .payables-page .m-card-list { gap: 8px; }
 }
 
-
-/* ============================================================================
- * Responsive — Tablet (<=1023px)
- * ========================================================================== */
-@media (max-width: 1023px) {
-
-  .payables-aging-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-
-  .payables-data-card {
-    padding: 16px;
-  }
-}
-
 /* ============================================================================
  * Responsive — Phone (<=640px)
  * ========================================================================== */
@@ -193,10 +160,9 @@
     margin-bottom: 14px;
   }
 
+  /* Sizing only — the phone band at the foot of this sheet owns the grid
+     columns and the gap for `.page-actions`. */
   .payables-page .page-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
     width: 100%;
   }
 
@@ -207,31 +173,15 @@
   }
 
   .payables-aging-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
     margin-bottom: 14px;
-  }
-
-  .aging-card {
-    padding: 13px 16px 12px;
-    border-radius: var(--r, 12px);
   }
 
   .aging-card__header {
     margin-bottom: 8px;
   }
 
-  .aging-card__value {
-    font-size: var(--fs-lg);
-  }
-
   .aging-card__count {
     margin-bottom: 8px;
-  }
-
-  .payables-data-card {
-    padding: 12px;
-    border-radius: var(--r, 12px);
   }
 
   /* Mobile amount text in card list */
@@ -241,16 +191,6 @@
     font-weight: 700;
     letter-spacing: 0;
   }
-}
-
-/* ============================================================================
- * Responsive — Narrow phone (<=420px)
- * ========================================================================== */
-@media (max-width: 420px) {
-  .payables-page .page-actions {
-    grid-template-columns: 1fr;
-  }
-
 }
 
 /* ============================================================================
@@ -342,7 +282,6 @@
   backdrop-filter: none;
   box-shadow: none;
   transform: none;
-  gap: 4px;
 }
 .payables-aging-grid > .aging-card:last-child { border-inline-end: 0; }
 .payables-aging-grid > .aging-card:hover { background: var(--surface-2); box-shadow: none; transform: none; }
