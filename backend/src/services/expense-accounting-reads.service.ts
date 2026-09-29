@@ -12,6 +12,7 @@ import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
+import logger from '../lib/logger';
 import { hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 
 type Actor = Pick<AuthUser, 'userId' | 'role'>;
@@ -113,7 +114,28 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
     includeVoided ? undefined : eq(s.expenseAccountingSources.status, 'RECORDED'),
     shipmentScope(s.expenseAccountingSources.shipmentId),
     query.shipmentId ? eq(s.expenseAccountingSources.shipmentId, query.shipmentId) : undefined));
-  const canonical = await Promise.all(links.map(({ link }) => hydrateExpenseAccountingSource(executor, link)));
+  // A link whose source can no longer be READ is debris. `expense_accounting_
+  // sources` is polymorphic, so no FK can cascade it: the source row can be
+  // deleted, or — for a DRIVER cost — its own `trips`/`drivers` joins can
+  // break (28 such links measured 2026-09-30). Hydration answers "this source
+  // no longer exists" with a 404, and one such link used to kill every list
+  // that touched it (the whole `/ops/wallet` page printed "Không tải được
+  // lịch sử chi phí"). A LIST read now behaves as if the link had been
+  // cascade-deleted — the broken row is absent, the rest of the page renders —
+  // while asking for that one source still 404s from the caller's own not-
+  // found path (`getExpenseAccountingEntry`). Card 20260930_213.
+  const canonical = (await Promise.all(links.map(async ({ link }) => {
+    try {
+      return await hydrateExpenseAccountingSource(executor, link);
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 404) {
+        logger.warn({ sourceKind: link.sourceKind, sourceId: link.sourceId, linkId: link.id },
+          'expense accounting register: dangling source link skipped');
+        return null;
+      }
+      throw error;
+    }
+  }))).filter((source): source is ExpenseAccountingSource => source !== null);
   // Legacy rows remain read-only projections. Reading must not materialize sources, cash or confirmation facts.
   const [ops, driver, trip] = await Promise.all([
     actor.role === Role.DRIVER || (ref && ref.sourceKind !== 'OPS') ? [] : executor.select({ expense: s.opsExpenseEntries, customerId: s.shipments.customerId }).from(s.opsExpenseEntries)
