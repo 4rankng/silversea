@@ -17,17 +17,19 @@ phantom finding, no pill in a data cell, no teaching copy, one "chưa" per recor
 - `fa0e6efc` fix(ui): drop long instructional copy on the four roles' surfaces (card 216)
 - `1cafa684` fix(ops): wallet balances ride the shared rail; fund book stops crashing (card 218)
 - `617bffb7` fix(cus): debit workspace stops asking for a catalog its role cannot read (card 214 → 220)
+- `b772edb5` fix(shell): the month chip stops overflowing every topbar below 768px (card 221)
+- `5224852c` chore(handoff): wave state (this file + the board scripts)
 
 ## Board
 
-- **DEV_COMPLETED:** 213, 215, 216, 217, 218 (dated evidence blocks + verify steps inside).
+- **DEV_COMPLETED:** 213, 215, 216, 217, 218, 221 (dated evidence blocks + verify steps inside).
 - **IN_PROGRESS:** 220 (was 214; renumbered after a number collision with another
   lane's 214) — `CẦN THÔNG TIN`: may CUS read the active quotation fee catalog?
   The FE no longer calls it; the chi-hộ dedicated columns stay absent for CUS
   until the PM rules.
-- Filed this wave: 213–218 (213 = ops wallet 404, 214 = CUS debit 403, 215 =
-  dispatch pill/duplicate, 216 = filler copy, 217 = sweep floor, 218 = wallet
-  density).
+- **TODO (filed, out of this wave's role scope):** 222 (`/config/routes` cell
+  offscreen at 360/390), 223 (`/accounting` links 30px at 768/820/1024).
+- Filed this wave: 213–218, 221–223.
 
 ## QA
 
