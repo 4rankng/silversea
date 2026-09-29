@@ -1,8 +1,6 @@
 .expense-accounting { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .expense-accounting, .expense-accounting-drawer { --control-mobile-h: var(--control-touch-h); }
 .expense-accounting > * { min-width: 0; }
-.expense-accounting-page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.expense-accounting-page-heading h1 { margin: 0; font-size: var(--text-title-size); }
 .expense-accounting-tabs.ds-tabs { min-width: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 0; }
 .expense-accounting-tabs::-webkit-scrollbar { display: none; }
 .expense-accounting-tabs .ds-tabs__btn { flex: 0 0 auto; white-space: nowrap; }
@@ -20,7 +18,7 @@
 .expense-accounting-fields { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .expense-accounting-drawer .drawer__body { min-width: 0; padding: 12px max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
 .expense-accounting-check { display: flex; align-items: center; gap: 8px; min-height: var(--control-compact-h); }
-.expense-accounting-check input, .expense-register-select input { accent-color: var(--brand); width: 16px; height: 16px; }
+.expense-accounting-check input { accent-color: var(--brand); width: 16px; height: 16px; }
 .expense-accounting-error { padding: 8px 0; margin: 0; color: var(--danger); }
 .expense-accounting-notice { padding: 8px 10px; border-inline-start: 3px solid var(--brand); background: var(--bg-2); margin: 0; }
 .expense-accounting-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 16px; padding-block: 8px; border-block: 1px solid var(--line); }
@@ -37,6 +35,20 @@
 .expense-register-open, .expense-register-money { padding: 0; border: 0; background: transparent; text-align: inherit; color: var(--brand); cursor: pointer; font: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
 .expense-register-open:hover, .expense-register-money:hover { text-decoration-color: currentColor; }
 .expense-register-open:focus-visible, .expense-register-money:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+
+/* Card 20260929_207 — the selection column is gone, so a row IS the control.
+   The picked row carries the accent at the row's own surface plus a left rule
+   so the state reads at a glance, and a visible focus ring keeps the keyboard
+   path. A row that cannot join a batch is dimmed and inert rather than
+   looking pickable. */
+.expense-register-row--pickable { cursor: pointer; }
+.expense-register-row--pickable:hover { background: var(--bg-2); }
+.expense-register-table tbody tr[data-selected="true"] { background: var(--bg-2); }
+/* The left rule is a BORDER on the row's first cell, not a drop shadow: the
+   flat-sheet law (§3) forbids shadows on this surface. */
+.expense-register-table tbody tr[data-selected="true"] > td:first-child { border-inline-start: 3px solid var(--brand); }
+.expense-register-row--pickable:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.expense-register-row--locked { color: var(--fg-3); cursor: default; }
 .expense-accounting-facts, .expense-accounting-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 0; }
 .expense-accounting-facts dt, .expense-accounting-notes dt { color: var(--fg-2); margin-bottom: 4px; }
 .expense-accounting-facts dd, .expense-accounting-notes dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
@@ -76,8 +88,6 @@
   .expense-register-table td { display: block; padding: 2px 0; border: 0; text-align: start; min-width: 0; white-space: normal; }
   .expense-register-table td[data-label]::before { content: attr(data-label); display: block; color: var(--fg-2); font-size: var(--text-label-size); margin-bottom: 3px; }
   .expense-register-table .expense-register-context, .expense-register-table .expense-work-identity, .expense-register-table .expense-work-notes { grid-column: 1 / -1; min-width: 0; max-width: none; }
-  .expense-register-table .expense-register-context { padding-inline-end: 28px; }
-  .expense-register-table .expense-register-select { position: absolute; inset-inline-end: 0; top: 8px; }
   .expense-register-table tr[data-vehicle-start="true"] td { border-top: 0; }
   .expense-register-table .num { white-space: normal; text-align: start; }
   .expense-accounting-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-size: var(--text-label-size); }
@@ -87,7 +97,6 @@
 }
 @media (pointer: coarse) {
   .expense-register-open, .expense-register-money { min-height: var(--control-touch-h); }
-  .expense-register-select { min-width: var(--control-touch-h); min-height: var(--control-touch-h); display: grid; place-items: center; }
   .expense-accounting-check { min-height: var(--control-touch-h); }
 }
 
