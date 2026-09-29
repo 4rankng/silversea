@@ -49,6 +49,16 @@ export function ExpenseBoard({ view, filters, catalog, setPage, onEdit, onWork, 
     try { await confirm.mutateAsync(selected); setSelection(new Map()); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa đối chiếu được. Làm mới để kiểm tra phiên bản từng khoản.'); }
   }
+  /** Card 20260928_168 (PM ruling 2026-09-29 câu 3): the per-row duyệt lives in
+   *  the 'Ngày duyệt' column. It rides the SAME confirm mutation the batch
+   *  button uses, so who/when is recorded by the identical wiring
+   *  (confirmedAt/confirmedById) and a failure surfaces in the same place. */
+  async function confirmOne(entry: ExpenseAccountingEntry) {
+    if (busy) return;
+    setError('');
+    try { await confirm.mutateAsync([entry]); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa duyệt được. Làm mới để kiểm tra phiên bản khoản.'); }
+  }
   return <section className="expense-accounting" aria-label={view === 'ops' ? 'Chi phí OPS và hoàn ứng' : 'Phơi phiếu và tiền đường'}>
     {view === 'ops' && <>
       {entries.data && <div className="expense-accounting-summary">
@@ -72,7 +82,7 @@ export function ExpenseBoard({ view, filters, catalog, setPage, onEdit, onWork, 
     {error && <p role="alert" className="expense-accounting-error">{error}</p>}
     {query.isError ? <p role="alert">Không tải được dữ liệu. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void query.refetch()}>Thử lại</button></p>
       : query.isPending ? <p role="status">Đang tải…</p> : !query.data?.total ? <p className="expense-accounting-empty">Không có kết quả phù hợp. Thử đổi khoảng ngày hoặc bộ lọc.</p>
-        : <div aria-busy={query.isFetching}>{view === 'ops' ? <ExpenseRegisterRows rows={rows} selected={new Set(selection.keys())} selectable canViewPayments onOpen={onEdit} onSelect={select} /> : <ExpenseWorkRows rows={work.data?.items ?? []} onOpen={onWork} />}</div>}
+        : <div aria-busy={query.isFetching}>{view === 'ops' ? <ExpenseRegisterRows rows={rows} selected={new Set(selection.keys())} selectable canViewPayments onOpen={onEdit} onSelect={select} onConfirm={entry => void confirmOne(entry)} /> : <ExpenseWorkRows rows={work.data?.items ?? []} onOpen={onWork} />}</div>}
     <Pagination page={filters.page} totalPages={Math.ceil((query.data?.total ?? 0) / filters.limit)} totalItems={query.data?.total} pageSize={filters.limit} disabled={busy} onChange={page => { setSelection(new Map()); setPage(page); }} />
   </section>;
 }

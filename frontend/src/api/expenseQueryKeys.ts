@@ -10,6 +10,10 @@ export const expenseQueryKeys = {
     reconciliations: ['expense-accounting', 'reconciliations'] as const,
     report: (filters: object) => ['expense-accounting', 'report', filters] as const,
     assignments: ['expense-accounting', 'assignments'] as const,
+    // Card 20260928_168 — the sổ quỹ read (per source + period); the shared
+    // 'expense-accounting' prefix keeps it inside the workspace's broad
+    // invalidation, so a posted phiếu refreshes the book.
+    fundBook: (filters: object) => ['expense-accounting', 'fund-book', filters] as const,
   },
   shipmentFinance: {
     all: ['shipment-finance-records'] as const,

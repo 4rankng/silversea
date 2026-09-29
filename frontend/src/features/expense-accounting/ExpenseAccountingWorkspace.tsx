@@ -21,12 +21,14 @@ import { ExpenseReport } from './ExpenseReport';
 import { ExpenseAssignments } from './ExpenseAssignments';
 import { ExpenseCashDrawer } from './ExpenseCashDrawer';
 import { ExpenseHistory } from './ExpenseHistory';
+import { FundBookSection } from './FundBookSection';
 import { groupVoucherEntries } from './expense-accounting-model';
 import type { WorkFeeGroup } from './ExpenseWorkRows';
 import './ExpenseAccounting.css';
 
 const views = [
   { id: 'ops', label: 'Chi phí OPS / hoàn ứng' }, { id: 'work', label: 'Phơi phiếu / tiền đường' },
+  { id: 'fund-book', label: 'Sổ quỹ' },
   { id: 'reports', label: 'Báo cáo' }, { id: 'history', label: 'Lịch sử thu chi' },
   { id: 'records', label: 'Hóa đơn / cược' }, { id: 'assignments', label: 'Phân công xe' },
 ];
@@ -102,6 +104,7 @@ export function ExpenseAccountingWorkspace() {
     </form>}
     {!validRange && <p role="alert" className="expense-accounting-error">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}
     {validRange && (view === 'ops' || view === 'work') && <ExpenseBoard key={`${view}:${JSON.stringify(filters)}:${refresh}`} view={view} filters={filters} catalog={catalog.data} setPage={page => update({ page: String(page) })} onEdit={setEditing} onWork={(row, group) => setWork({ row, group })} onVoucher={openVoucher} onReconcile={setReconciliation} />}
+    {view === 'fund-book' && <FundBookSection />}
     {validRange && view === 'reports' && <ExpenseReport filters={filters} />}
     {view === 'history' && catalog.data && <ExpenseHistory catalog={catalog.data} onVoucher={openVoucher} />}
     {view === 'records' && <ShipmentFinancePanel />}

@@ -363,6 +363,16 @@ export async function autoOffsetRecordedExpense(tx: Tx, expenseId: number): Prom
 
 // Cash-backed remaining principal, shared by the wallet, catalog and legacy
 // settlement entry points. A RECORDED request without money is not an advance.
+//
+// Card 20260928_168 (PM ruling 2026-09-29 + PRD OpsVanHanh §9.2: "hoàn ứng
+// thực tế giảm nghĩa vụ còn lại đúng một lần", "sau khi phiếu post, sổ quỹ và
+// báo cáo hội tụ về một số"): money the staff has actually RETURNED — a
+// phiếu THU hoàn ứng, i.e. a RECORDED expense-cash IN voucher with FORWARDER
+// counterparty — is no longer in their hands, so it reduces the outstanding
+// exactly once, floored at 0 per staff. A reversed THU drops out via status;
+// a phiếu CHI bù (OUT) pays owed costs and never touches this number. The
+// same voucher class the wallet and the OPS fund book already book as
+// "Nộp lại tiền mặt".
 export async function getOutstandingAdvanceBalances(forwarderUserId?: number): Promise<{
   totalOutstanding: number;
   items: Array<{ forwarderId: number; name: string | null; outstanding: number }>;
@@ -371,7 +381,21 @@ export async function getOutstandingAdvanceBalances(forwarderUserId?: number): P
     .innerJoin(s.users, eq(s.users.id, s.advanceRequests.requesterId))
     .where(and(eq(s.advanceRequests.status, 'RECORDED'), forwarderUserId ? eq(s.advanceRequests.requesterId, forwarderUserId) : undefined));
   const ids = rows.map(row => row.request.id);
-  const [funded, consumed] = await Promise.all([getAdvanceFundedAmounts(db, ids), getAdvanceConsumedAmounts(db, ids)]);
+  const [funded, consumed, returned] = await Promise.all([
+    getAdvanceFundedAmounts(db, ids),
+    getAdvanceConsumedAmounts(db, ids),
+    db.select({ staffId: s.expenseCashVouchers.counterpartyId, amount: s.treasuryMovements.amount })
+      .from(s.expenseCashVouchers)
+      .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
+      .where(and(
+        eq(s.expenseCashVouchers.counterpartyType, 'FORWARDER'),
+        forwarderUserId ? eq(s.expenseCashVouchers.counterpartyId, forwarderUserId) : undefined,
+        eq(s.treasuryMovements.direction, 'IN'),
+        eq(s.expenseCashVouchers.status, 'RECORDED'),
+      )),
+  ]);
+  const returnedByStaff = new Map<number, number>();
+  for (const row of returned) returnedByStaff.set(row.staffId, (returnedByStaff.get(row.staffId) ?? 0) + Number(row.amount));
   const grouped = new Map<number, { forwarderId: number; name: string | null; outstanding: number }>();
   for (const { request, name } of rows) {
     const amount = Math.max(0, Math.min(Number(request.amount), funded.get(request.id) ?? 0) - (consumed.get(request.id) ?? 0));
@@ -379,7 +403,9 @@ export async function getOutstandingAdvanceBalances(forwarderUserId?: number): P
     const row = grouped.get(request.requesterId) ?? { forwarderId: request.requesterId, name, outstanding: 0 };
     row.outstanding = round2dp(row.outstanding + amount); grouped.set(request.requesterId, row);
   }
-  const items = [...grouped.values()];
+  const items = [...grouped.values()]
+    .map(row => ({ ...row, outstanding: round2dp(Math.max(0, row.outstanding - (returnedByStaff.get(row.forwarderId) ?? 0))) }))
+    .filter(row => row.outstanding > 0);
   return { items, totalOutstanding: round2dp(items.reduce((total, row) => total + row.outstanding, 0)) };
 }
 export async function getOutstandingAdvanceBalance(forwarderUserId?: number): Promise<number> {

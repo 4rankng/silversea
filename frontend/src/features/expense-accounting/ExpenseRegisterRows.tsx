@@ -16,13 +16,18 @@ function sameKeys(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
   return true;
 }
 
-export function ExpenseRegisterRows({ rows, selected, selectable, onSelect, onOpen, canViewPayments }: {
+export function ExpenseRegisterRows({ rows, selected, selectable, onSelect, onOpen, canViewPayments, onConfirm }: {
   rows: ExpenseAccountingEntry[];
   selected: Set<string>;
   selectable: boolean;
   canViewPayments: boolean;
   onSelect: (entry: ExpenseAccountingEntry, checked: boolean) => void;
   onOpen: (entry: ExpenseAccountingEntry) => void;
+  /** Card 20260928_168 (PM ruling 2026-09-29 câu 3): when a host offers duyệt,
+   *  the approve action lives IN the 'Ngày duyệt' column — a per-row button
+   *  for exactly the rows isConfirmableEntry admits. Hosts that do not pass
+   *  it (the lot panel, the work drawer) keep the read-only cell. */
+  onConfirm?: (entry: ExpenseAccountingEntry) => void;
 }) {
   // "All" means the confirmable rows only — the same helper that decides
   // whether a row can be picked here and the one the ops board uses for its
@@ -90,7 +95,11 @@ export function ExpenseRegisterRows({ rows, selected, selectable, onSelect, onOp
       <td data-label="Thực chi" className="num"><button type="button" className="expense-register-money" onClick={() => onOpen(entry)}>{expenseMoney(entry.amount)}</button></td>
       <td data-label="Thực thu" className="num">{expenseMoney(entry.customerChargeAmount)}</td>
       {canViewPayments && <><td data-label="Còn phải thu" className="num">{expenseMoney(entry.outstandingReceivable)}</td><td data-label="Còn phải trả" className="num">{expenseMoney(entry.outstandingPayable)}</td></>}
-      <td data-label="Ngày duyệt"><span>{entry.status === 'VOIDED' ? 'Đã hủy' : entry.confirmedAt ? 'Đã đối chiếu' : 'Chưa đối chiếu'}</span>{entry.confirmedAt && <small>{formatDate(entry.confirmedAt)}</small>}{entry.confirmedAt && <small>{`Người duyệt: ${entry.confirmedByName ?? (entry.confirmedById != null ? `#${entry.confirmedById}` : '—')}`}</small>}{entry.locked && !entry.confirmedAt && <small>Đã khóa chỉnh sửa</small>}</td>
+      <td data-label="Ngày duyệt">
+        {onConfirm && isConfirmableEntry(entry) && !entry.locked
+          ? <button type="button" className="btn btn--secondary btn--sm" onClick={() => onConfirm(entry)}>Duyệt</button>
+          : <><span>{entry.status === 'VOIDED' ? 'Đã hủy' : entry.confirmedAt ? 'Đã đối chiếu' : 'Chưa đối chiếu'}</span>{entry.confirmedAt && <small>{formatDate(entry.confirmedAt)}</small>}{entry.confirmedAt && <small>{`Người duyệt: ${entry.confirmedByName ?? (entry.confirmedById != null ? `#${entry.confirmedById}` : '—')}`}</small>}{entry.locked && !entry.confirmedAt && <small>Đã khóa chỉnh sửa</small>}</>}
+      </td>
     </tr>;
     })}</tbody>
   </table></div>;

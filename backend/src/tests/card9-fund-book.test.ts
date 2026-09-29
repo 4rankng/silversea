@@ -10,6 +10,10 @@
  *       a book; fund-less ACTIVE accounts are counted (unassignedAccounts),
  *       never mixed in; non-POSTED movements excluded.
  *   AC3 xe-nhà customer code: fill-only seed idempotent.
+ *   Card 20260928_168 (PM ruling câu 2): from/to period — carried opening
+ *       (số dư đầu kỳ lũy kế đến 'from'), windowed thu/chi/movements, and the
+ *       reversed-period refusal. The cross-table convergence with the 169
+ *       report lives in card168-fund-book-period.test.ts.
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -52,12 +56,12 @@ async function mkAccount(opts: { fundCode: 'COMPANY' | 'TM' | null; opening: str
   return account;
 }
 
-async function mkMovement(accountId: number, direction: 'IN' | 'OUT', amount: string, opts: { status?: string } = {}) {
+async function mkMovement(accountId: number, direction: 'IN' | 'OUT', amount: string, opts: { status?: string; valueDate?: string } = {}) {
   const [movement] = await db.insert(s.treasuryMovements).values({
     treasuryAccountId: accountId,
     direction,
     amount,
-    valueDate: new Date().toISOString().slice(0, 10),
+    valueDate: opts.valueDate ?? new Date().toISOString().slice(0, 10),
     status: opts.status ?? 'POSTED',
     sourceVersion: 1,
     createdBy: actorId,
@@ -122,6 +126,61 @@ describe('card 20260921_9 - per-source fund book', () => {
       (err: unknown) => {
         assert.ok(err instanceof ApiError, `expected ApiError, got ${(err as Error).name}`);
         assert.equal((err as ApiError).statusCode, 400);
+      },
+    );
+  });
+
+  // Card 20260928_168 (PM ruling 2026-09-29 câu 2): the sổ quỹ accepts a
+  // from/to period. The opening becomes the CARRIED opening — số dư đầu kỳ
+  // lũy kế đến 'from' — while thu/chi/movements cover only the window; the
+  // no-period read stays the whole-history card 9 contract.
+  test('a from/to period carries the opening and windows the flows (card 168 câu 2)', async () => {
+    await mkActor();
+    const company = await mkAccount({ fundCode: 'COMPANY', opening: '1000000' });
+    const other = await mkAccount({ fundCode: 'TM', opening: '0' });
+    const from = '2026-09-20';
+    await mkMovement(company.id, 'IN', '300000', { valueDate: '2026-09-10' });   // before: carried
+    await mkMovement(company.id, 'OUT', '250000', { valueDate: from });          // window edge
+    await mkMovement(company.id, 'IN', '50000', { valueDate: '2026-09-25' });    // window
+    await mkMovement(company.id, 'OUT', '10000', { valueDate: '2026-10-05' });   // after: excluded
+    await mkMovement(other.id, 'IN', '120000', { valueDate: '2026-09-25' });     // other book
+    const book = await listFundBook('COMPANY', { from, to: '2026-09-30' });
+    const row = book.accounts.find((account) => account.accountId === company.id);
+    assert.ok(row, 'account present in the windowed book');
+    assert.equal(row.openingBalance, 1300000, 'carried opening = base 1.000.000 + IN 300.000 trước from');
+    assert.equal(row.totalIn, 50000, 'thu counts only the window');
+    assert.equal(row.totalOut, 250000, 'chi counts only the window');
+    assert.equal(row.bookBalance, 1100000, 'closing = carried + thu − chi');
+    assert.deepEqual(row.movements.map((movement) => movement.id).length, 2, 'only window movements listed');
+    assert.equal(book.period.from, from);
+    assert.equal(book.period.to, '2026-09-30');
+    const tmBook = await listFundBook('TM', { from, to: '2026-09-30' });
+    const tmRow = tmBook.accounts.find((account) => account.accountId === other.id)!;
+    assert.equal(tmRow.totalIn, 120000, 'the TM book windows independently');
+    assert.equal(tmRow.openingBalance, 0, 'nothing before from: carried opening = base opening');
+    // A `to` alone windows the ending; a `from` alone carries the opening and
+    // leaves the window open — both half-windows stay coherent.
+    const toOnly = await listFundBook('COMPANY', { to: '2026-09-19' });
+    const toOnlyRow = toOnly.accounts.find((account) => account.accountId === company.id)!;
+    assert.equal(toOnlyRow.openingBalance, 1000000, 'no from: base opening');
+    assert.equal(toOnlyRow.totalIn, 300000);
+    assert.equal(toOnlyRow.bookBalance, 1300000);
+    const fromOnly = await listFundBook('COMPANY', { from: '2026-09-21' });
+    const fromOnlyRow = fromOnly.accounts.find((account) => account.accountId === company.id)!;
+    assert.equal(fromOnlyRow.openingBalance, 1050000, 'carried through 2026-09-20 (base + 300k − 250k)');
+    assert.equal(fromOnlyRow.totalIn, 50000);
+    assert.equal(fromOnlyRow.totalOut, 10000);
+    assert.equal(fromOnlyRow.bookBalance, 1090000);
+  });
+
+  test('a reversed period (from > to) is refused with 400', async () => {
+    await mkActor();
+    await listFundBook('COMPANY', { from: '2026-09-30', to: '2026-09-01' }).then(
+      () => { throw new Error('expected 400'); },
+      (err: unknown) => {
+        assert.ok(err instanceof ApiError, `expected ApiError, got ${(err as Error).name}`);
+        assert.equal((err as ApiError).statusCode, 400);
+        assert.match((err as ApiError).message, /Ngày bắt đầu phải trước hoặc bằng ngày kết thúc/);
       },
     );
   });

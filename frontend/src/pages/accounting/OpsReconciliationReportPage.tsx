@@ -13,9 +13,10 @@
 // backend refuses it on both sides (pinned by
 // backend/src/tests/card169-reconciliation-report.test.ts).
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ExpenseAccountingEntry, ExpenseReconciliation } from '@tingting/shared';
+import { expenseDateSchema, type ExpenseAccountingEntry, type ExpenseReconciliation } from '@tingting/shared';
 
 import { SkeletonTable, StatusText } from '../../components/shared';
 import { Btn, PageHeader } from '../../components/UI';
@@ -53,9 +54,22 @@ function directionVariant(remaining: number): 'warning' | 'info' | 'neutral' {
 }
 
 export default function OpsReconciliationReportPage() {
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [staffId, setStaffId] = useState('');
+  // Card 20260928_168 AC4: the Sổ quỹ's TÀI KHOẢN OPS row links here carrying
+  // the same period and staff ("cùng một bộ lọc"), so the accountant lands
+  // straight on this person's rows and the direction-correct Lập phiếu
+  // actions. The URL only seeds the initial filters — after mount the bar
+  // owns them.
+  const [searchParams] = useSearchParams();
+  const seeded = useRef(searchParams);
+  const [from, setFrom] = useState(() => {
+    const value = seeded.current.get('from');
+    return value && expenseDateSchema.safeParse(value).success ? value : '';
+  });
+  const [to, setTo] = useState(() => {
+    const value = seeded.current.get('to');
+    return value && expenseDateSchema.safeParse(value).success ? value : '';
+  });
+  const [staffId, setStaffId] = useState(() => (/^\d+$/.test(seeded.current.get('opsUserId') ?? '') ? seeded.current.get('opsUserId')! : ''));
   const [lotId, setLotId] = useState('');
   const [chiLot, setChiLot] = useState<ExpenseReconciliation | null>(null);
   const [thuLot, setThuLot] = useState<ExpenseReconciliation | null>(null);

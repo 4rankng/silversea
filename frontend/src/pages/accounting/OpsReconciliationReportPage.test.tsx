@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OpsReconciliationReportRow } from '../../api/opsReconciliationReportClient';
 
@@ -55,20 +56,28 @@ function mkLot(row: OpsReconciliationReportRow, remainingDifference: number): Ex
 let currentLot: ExpenseReconciliation = mkLot(rowPositive, 150000);
 const scopedCode = 'HU-QA-169';
 
-function page() {
+function page(initialEntry = '/accounting/hoan-ung') {
   return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <OpsReconciliationReportPage />
-    </QueryClientProvider>,
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <OpsReconciliationReportPage />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
 beforeEach(() => {
   reportApi.report.mockReset();
-  reportApi.report.mockImplementation((params: { reconciliationId?: number } | undefined) =>
-    params?.reconciliationId
-      ? Promise.resolve(scopedReport(currentLot.opsUserId === 6 ? rowSettled : rowPositive, scopedCode))
-      : Promise.resolve(unscopedReport));
+  reportApi.report.mockImplementation((params: { reconciliationId?: number; opsUserId?: number } | undefined) => {
+    if (params?.reconciliationId) {
+      return Promise.resolve(scopedReport(currentLot.opsUserId === 6 ? rowSettled : rowPositive, scopedCode));
+    }
+    // The service narrows the monthly view to the staff filter server-side —
+    // the mock mirrors that contract (card 20260928_168 seeds opsUserId from
+    // the Sổ quỹ row link).
+    const rows = params?.opsUserId ? unscopedReport.rows.filter(row => row.staffId === params.opsUserId) : unscopedReport.rows;
+    return Promise.resolve({ ...unscopedReport, rows, totals: rows.length ? unscopedReport.totals : { dntt: 0, advanced: 0, remaining: 0 } });
+  });
   expenseApi.catalog.mockReset().mockResolvedValue({
     staff: [], accountants: [], suppliers: [], expenseTypes: [], advances: [], pendingAdvances: [],
     opsUsers: [{ id: 5, name: 'NV A' }, { id: 6, name: 'NV B' }],
@@ -165,5 +174,25 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
     await screen.findByText(/Đợt HU-QA-169/);
     fireEvent.click(await screen.findByRole('button', { name: 'Lập phiếu thu' }));
     expect(await screen.findByTestId('thu-drawer')).toBeTruthy();
+  });
+
+  // Card 20260928_168 AC4 — the Sổ quỹ's TÀI KHOẢN OPS row links here with
+  // the same period and staff, so the converged number's phiếu flow starts
+  // pre-scoped ("cùng một bộ lọc").
+  it('seeds the staff and period from the URL (card 168 AC4)', async () => {
+    const seededView = page('/accounting/hoan-ung?opsUserId=5&from=2026-09-01&to=2026-09-30');
+    await screen.findByText('NV A', { selector: 'td' });
+    await waitFor(() => expect(screen.queryByText('NV B', { selector: 'td' })).not.toBeInTheDocument());
+    await waitFor(() => expect(reportApi.report).toHaveBeenCalledWith(expect.objectContaining({
+      opsUserId: 5, from: '2026-09-01', to: '2026-09-30',
+    })));
+    seededView.unmount();
+    // Garbage params never seed filters.
+    reportApi.report.mockClear();
+    page('/accounting/hoan-ung?opsUserId=abc&from=lộ-trở');
+    await screen.findByText('NV A', { selector: 'td' });
+    await waitFor(() => expect(reportApi.report).toHaveBeenCalledWith(expect.objectContaining({
+      opsUserId: undefined, from: undefined, to: undefined,
+    })));
   });
 });

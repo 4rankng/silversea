@@ -171,6 +171,47 @@ describe('ExpenseRegisterRows — Ngày duyệt column + approved rows (card 202
   });
 });
 
+/** Card 20260928_168 (PM ruling 2026-09-29 câu 3): the checkbox column is gone
+ *  and the duyệt action lives IN the 'Ngày duyệt' column — a per-row button on
+ *  exactly the rows that can be confirmed. Hosts that pass no onConfirm (the
+ *  lot panel, the work drawer) keep the read-only cell. */
+describe('ExpenseRegisterRows — the duyệt action lives in the Ngày duyệt column (card 20260928_168)', () => {
+  it('renders the per-row Duyệt button inside the Ngày duyệt cell and fires onConfirm for that row', () => {
+    const onConfirm = vi.fn();
+    const onOpen = vi.fn();
+    render(<ExpenseRegisterRows rows={[row(1)]} selected={new Set()} selectable canViewPayments onOpen={onOpen} onSelect={vi.fn()} onConfirm={onConfirm} />);
+    const cell = [...document.querySelectorAll('td')].find(td => td.dataset.label === 'Ngày duyệt') as HTMLElement;
+    expect(cell).toBeTruthy();
+    fireEvent.click(within(cell).getByRole('button', { name: 'Duyệt' }));
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ sourceId: 1 }));
+    // The press belongs to the control: it neither opens the entry nor picks the row.
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(cell.closest('tr')).not.toHaveAttribute('data-selected');
+  });
+
+  it('an approved row shows date and approver instead of the button — it cannot be duyệt-ed again', () => {
+    const onConfirm = vi.fn();
+    const approved = { ...row(9), confirmedAt: '2026-09-21T02:00:00.000Z', confirmedById: 42, confirmedByName: 'Kế toán B' } as ExpenseAccountingEntry;
+    render(<ExpenseRegisterRows rows={[approved]} selected={new Set()} selectable canViewPayments onOpen={vi.fn()} onSelect={vi.fn()} onConfirm={onConfirm} />);
+    expect(screen.queryByRole('button', { name: 'Duyệt' })).not.toBeInTheDocument();
+    expect(screen.getByText('Người duyệt: Kế toán B')).toBeInTheDocument();
+  });
+
+  it('a locked row keeps the read-only cell — same admission the batch button uses', () => {
+    const onConfirm = vi.fn();
+    const locked = { ...row(8), locked: true } as ExpenseAccountingEntry;
+    render(<ExpenseRegisterRows rows={[locked]} selected={new Set()} selectable canViewPayments onOpen={vi.fn()} onSelect={vi.fn()} onConfirm={onConfirm} />);
+    expect(screen.queryByRole('button', { name: 'Duyệt' })).not.toBeInTheDocument();
+    expect(screen.getByText('Đã khóa chỉnh sửa')).toBeInTheDocument();
+  });
+
+  it('a host that passes no onConfirm never sees the button (the lot panel, the work drawer)', () => {
+    render(<ExpenseRegisterRows rows={[row(1)]} selected={new Set()} selectable canViewPayments onOpen={vi.fn()} onSelect={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Duyệt' })).not.toBeInTheDocument();
+    expect(screen.getByText('Chưa đối chiếu')).toBeInTheDocument();
+  });
+});
+
 /** Card 20260922_7 put a "Chọn tất cả" checkbox in the header. Card
  *  20260929_207 removed the control, so these cases now pin where that
  *  capability lives: the row itself, and the scope a bulk pick covers. */

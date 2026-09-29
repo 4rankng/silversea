@@ -43,10 +43,17 @@ router.post('/reconciliations/:id/release', asyncHandler(async (req, res) => {
 router.get('/vouchers', asyncHandler(async (req, res) => res.json({ items: await listExpenseVouchers(getUser(req)) })));
 // Card 20260921_9 phase 1 — the per-source sổ quỹ: finance-only read of one
 // fund source's append-only book (COMPANY = TK công ty ACB | TM = Tiền mặt).
+// Card 20260928_168 (PM ruling 2026-09-29 câu 2): optional from/to period —
+// the book carries the opening balance lũy kế đến 'from' and windows its
+// thu/chi/movements.
 router.get('/fund-book', asyncHandler(async (req, res) => {
   requireExpenseFinance(getUser(req));
-  const source = parse(z.enum(['COMPANY', 'TM']), req.query.source);
-  res.json(await listFundBook(source));
+  const query = parse(z.object({
+    source: z.enum(['COMPANY', 'TM']),
+    from: expenseDateSchema.optional(),
+    to: expenseDateSchema.optional(),
+  }), req.query);
+  res.json(await listFundBook(query.source, { from: query.from, to: query.to }));
 }));
 // Card 20260921_10 — the ops cost review table (finance-only): rows carry
 // confirmRef so tick/tick-all posts the EXISTING batch /confirm — no forked

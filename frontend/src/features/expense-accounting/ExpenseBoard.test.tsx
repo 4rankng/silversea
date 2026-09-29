@@ -77,3 +77,17 @@ it('AC2: "Chọn tất cả" leaves the approved row out, so the batch never car
   fireEvent.click(screen.getByRole('button', { name: 'Lập phiếu thu' }));
   expect(onVoucher).toHaveBeenCalledWith([pending], 'IN');
 });
+
+/** Card 20260928_168 (PM ruling 2026-09-29 câu 3): the duyệt action lives in
+ *  the 'Ngày duyệt' column — per row, on the same confirm wiring the batch
+ *  button uses, so confirmedAt/confirmedById are recorded identically. */
+it('AC1: the per-row Duyệt control in the Ngày duyệt column posts the single-row confirm', async () => {
+  show();
+  await screen.findByText('Phí chưa duyệt');
+  // The approved row carries no control — only its date and approver.
+  expect(screen.queryAllByRole('button', { name: 'Duyệt' })).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
+  await waitFor(() => expect(confirm).toHaveBeenCalledWith([{ sourceKind: 'OPS', sourceId: 3, expectedVersion: 1 }]));
+  // A per-row duyệt never selects the row for a batch the accountant did not choose.
+  expect(screen.queryByText(/khoản đã chọn/)).not.toBeInTheDocument();
+});
