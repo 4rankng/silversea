@@ -22,29 +22,16 @@
   margin: 0;
 }
 
-.ops-wallet__cards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+/* Card 20260930_218 — the three bespoke balance cards are gone: the shared
+   .summary-rail carries the figures now (labels left, values right, no card
+   chrome). Only the negative-balance warning stays page-local. */
+.ops-wallet__negative {
+  margin: 8px 16px 0;
+  color: var(--warning-text);
+  font-size: var(--text-caption-size);
 }
-
-.ops-wallet-card {
-  min-width: 0;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-}
-
-.ops-wallet-card small { color: var(--ink-3); font-size: var(--text-caption-size); }
-.ops-wallet-card strong { overflow-wrap: anywhere; }
 
 @media (max-width: 640px) {
-  .ops-wallet__cards { grid-template-columns: 1fr; }
-  .ops-wallet-card { padding: 10px 12px; }
 
   .ops-wallet__bar {
     /* The app-shell topbar already prints the page title on phones; the H1
@@ -67,22 +54,6 @@
   }
 }
 
-.ops-wallet-card__label {
-  font-size: var(--text-label-size);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--fg-3);
-}
-
-.ops-wallet-card--balance .ops-wallet-card__label { color: var(--ink-2); }
-
-.ops-wallet-card strong {
-  font-size: var(--text-title-size);
-}
-
-.ops-wallet-card--balance strong {
-  font-size: var(--text-metric-size);
-}
 
 .ops-wallet__section {
   display: flex;

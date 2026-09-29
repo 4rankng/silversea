@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Btn } from '../components/UI';
 import { Plus } from 'lucide-react';
+import { SummaryRail } from '../design-system';
 import { useOpsWalletSummary, useOpsAdvanceRequests } from '../hooks/useOpsQueries';
 import { OpsAdvanceRequestModal } from '../features/ops/OpsAdvanceRequestModal';
 import { ExpenseReconciliationHistory } from '../features/expense-accounting/ExpenseReconciliationHistory';
@@ -59,29 +60,26 @@ export default function OpsWalletPage() {
       </header>
 
       <OpsQueryFeedback loading={summaryQuery.isLoading} error={summaryQuery.isError} label="số dư" onRetry={summaryQuery.refetch} />
-      <section className="ops-wallet__cards" aria-label="Số dư">
-        <div className="ops-wallet-card ops-wallet-card--balance">
-          <span className="ops-wallet-card__label">Số dư hiện tại</span>
-          <strong>{summary ? `${formatVnd(summary.balance)} ₫` : '…'}</strong>
-          {/* Honest debt: a negative balance is a fact, not an error state. */}
-          {summary && Number(summary.balance) < 0 && (
-            <small>Khoản chi vượt số tiền đang có; đối chiếu tạm ứng, chi phí và tiền hoàn lại.</small>
-          )}
-          <small>Đã ứng {summary ? formatVnd(summary.totalAdvance) : '…'} ₫</small>
-        </div>
-        <div className="ops-wallet-card">
-          <span className="ops-wallet-card__label">Đã trả lại</span>
-          <strong>{summary ? `${formatVnd(summary.returned ?? '0')} ₫` : '…'}</strong>
-          <small>Tiền đã hoàn về công ty theo quyết toán</small>
-        </div>
-        <div className="ops-wallet-card">
-          <span className="ops-wallet-card__label">Chi phí đã ghi nhận</span>
-          {/* Card 20260922_27: a cost total is not a success state — the green
-              token made the largest number on the page read as "good news". */}
-          <strong>{summary ? `${formatVnd(summary.approved)} ₫` : '…'}</strong>
-          <small>Tổng chi phí đã ghi nhận trong kỳ.</small>
-        </div>
-      </section>
+      {/* Card 20260930_218 — three bespoke balance cards, each carrying a
+          caption of its own, became the shared ruled summary rail: labels
+          left, values right, no card chrome. The two captions that only
+          restated their own label are gone (law §8 — no lecturing copy); the
+          "đã ứng" figure is real data and rides the rail as its own item. */}
+      <SummaryRail
+        ariaLabel="Số dư"
+        items={[
+          { label: 'Số dư hiện tại', value: summary ? `${formatVnd(summary.balance)} ₫` : '…' },
+          { label: 'Đã ứng', value: summary ? `${formatVnd(summary.totalAdvance)} ₫` : '…' },
+          { label: 'Đã trả lại', value: summary ? `${formatVnd(summary.returned ?? '0')} ₫` : '…' },
+          { label: 'Chi phí đã ghi nhận', value: summary ? `${formatVnd(summary.approved)} ₫` : '…' },
+        ]}
+      />
+      {/* Honest debt: a negative balance is a fact, not an error state. */}
+      {summary && Number(summary.balance) < 0 && (
+        <p className="ops-wallet__negative" role="status">
+          Khoản chi vượt số tiền đang có — đối chiếu tạm ứng, chi phí và tiền hoàn lại.
+        </p>
+      )}
 
       <OpsFundBookSection />
 

@@ -51,6 +51,9 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
         return Promise.resolve({
           items: [], closing: '0', walletBalance: '0',
           outstandingAdvanceBalance: '0', matches: true,
+          // The real payload always carries the window; the mock must too, or
+          // it exercises a body the server cannot send (card 20260930_218).
+          period: { from: null, to: null },
         });
       }
       if (url.startsWith('/ops/settlements')) return Promise.resolve({ items: [] });
@@ -191,7 +194,10 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
       ? { balance: '123000', totalAdvance: '123000', returned: '0', approved: '0' }
       : { items: [] }));
     fireEvent.click(within(screen.getAllByRole('alert')[0]).getByRole('button', { name: 'Thử lại' }));
-    expect(await screen.findByText('123.000 ₫')).toBeInTheDocument();
+    // The rail can legitimately print the same figure twice (here the balance
+    // and the advance are both 123.000 ₫) — assert the value renders, not that
+    // exactly one node carries it.
+    expect((await screen.findAllByText('123.000 ₫')).length).toBeGreaterThan(0);
   });
 
   it('opens settlement detail immediately and keeps a dismissible error state', async () => {
