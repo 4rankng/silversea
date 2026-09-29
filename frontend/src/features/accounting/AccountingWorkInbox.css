@@ -13,6 +13,23 @@
 .accounting-work-inbox__pagination button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-compact-h, 34px); padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-1); color: var(--fg-1); font-size: var(--text-caption-size); font-weight: 700; text-decoration: none; }
 .accounting-work-inbox__shortcuts a:first-child,
 .accounting-work-inbox__action { border-color: var(--brand); color: var(--brand); }
+
+/* Card 20260930_223 — the tap floor was gated on WIDTH, but touch is a
+   CAPABILITY. These are bare <a> elements (no `.btn`), so they never inherit
+   the global coarse-pointer floor in responsive.css either, and the compact
+   token is 30px. A touch device at 768/820/1024 therefore got 30px targets:
+   measured six of them in `.accounting-work-inbox__shortcuts`, all exactly
+   30.0px tall.
+   This rule deliberately does NOT repeat the phone block's layout (2-column
+   grid, smaller type, full-width action) — a 1024px tablet should keep the
+   desktop arrangement and only gain the floor. Same condition the rest of the
+   codebase pairs with its width bands: `(hover: none) and (pointer: coarse)`. */
+@media (hover: none) and (pointer: coarse) {
+  .accounting-work-inbox__shortcuts a,
+  .accounting-work-inbox__action,
+  .accounting-work-inbox__state button,
+  .accounting-work-inbox__pagination button { min-height: var(--control-touch-h); }
+}
 .accounting-work-inbox__batch-note { margin: -3px 0 2px; color: var(--fg-3); font-size: var(--text-caption-size); }
 .accounting-work-inbox__lane { min-width: 0; overflow: hidden; border: 1px solid var(--border-1); border-radius: 10px; background: var(--bg-1); }
 .accounting-work-inbox__lane > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border-1); }

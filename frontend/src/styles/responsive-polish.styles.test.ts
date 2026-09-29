@@ -107,3 +107,31 @@ describe('finance category-breakdown table — operational canvas hand-off', () 
     expect(recordTableCss).toContain('content: attr(data-label);');
   });
 });
+
+// Card 20260930_223 — the work-inbox controls took their 30px height from
+// --control-compact-h, and the only rule that raised them sat inside
+// `@media (max-width: 640px)`. Touch is a capability, not a width: a tablet at
+// 768/820/1024 is a touch device and kept 30px targets. Measured six of them
+// in `.accounting-work-inbox__shortcuts`, every one exactly 30.0px.
+// The fix keys the floor on `(hover: none) and (pointer: coarse)` — the same
+// condition the rest of the codebase pairs with its width bands.
+describe('work-inbox tap floor follows the pointer, not the width (card 20260930_223)', () => {
+  it('raises the shortcut/action/button floor on coarse pointers at any width', () => {
+    const coarse = accountingInboxCss.match(
+      /@media \(hover: none\) and \(pointer: coarse\)\s*\{([\s\S]*?)\n\}/,
+    )?.[1] ?? '';
+    expect(coarse).not.toBe('');
+    expect(coarse).toContain('.accounting-work-inbox__shortcuts a');
+    expect(coarse).toMatch(/min-height:\s*var\(--control-touch-h\)/);
+    // It must NOT drag the phone LAYOUT (2-column grid, smaller type) up to
+    // 1024px — a tablet keeps the desktop arrangement and only gains the floor.
+    expect(coarse).not.toContain('grid-template-columns');
+    expect(coarse).not.toContain('--fs-3xs');
+  });
+
+  it('leaves the compact token in force for fine pointers', () => {
+    expect(accountingInboxCss).toMatch(
+      /\.accounting-work-inbox__shortcuts a[\s\S]*?min-height:\s*var\(--control-compact-h/,
+    );
+  });
+});
