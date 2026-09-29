@@ -30,10 +30,8 @@ export interface TripQuickEditDraft {
 
 export interface TripQuickEditOptions {
   enabled: boolean;
-  selectedIds: Set<number>;
   drafts: Record<number, TripQuickEditDraft>;
   errors: Record<number, string>;
-  onToggleSelect: (tripId: number) => void;
   onDraftChange: (tripId: number, field: keyof TripQuickEditDraft, value: string) => void;
 }
 
@@ -49,8 +47,9 @@ export interface TripColumnSortOptions {
 }
 
 // Sortable column ids → GET /api/trips sortBy keys (the backend whitelist in
-// trip-queries.service.ts). Every data column is sortable; the quick-edit
-// select column is decorative and stays out.
+// trip-queries.service.ts). Every data column is sortable; the row itself is
+// the selection control (card 20260929_207), so there is no select column to
+// keep out of this map.
 const TRIP_COLUMN_SORT_KEYS: Partial<Record<string, string>> = {
   trip: 'tripCode',
   truck: 'truck',
@@ -160,30 +159,10 @@ export function buildTripColumns(
     };
   };
 
-  const quickColumns: ColumnDef<TripDetail>[] = quickEdit?.enabled ? [
-    {
-      id: 'select',
-      header: '',
-      enableSorting: false,
-      cell: ({ row }) => {
-        const trip = row.original;
-        const editable = isQuickEditable(trip);
-        return (
-          <input
-            type="checkbox"
-            className="quick-row-check"
-            checked={quickEdit.selectedIds.has(trip.id)}
-            disabled={!editable}
-            onClick={(e) => e.stopPropagation()}
-            onChange={() => quickEdit.onToggleSelect(trip.id)}
-            aria-label={`Chọn chuyến ${buildTripCode(trip)}`}
-          />
-        );
-      },
-    },
-  ] : [];
-
-  const columns: ColumnDef<TripDetail>[] = [
+  // Card 20260929_207: the selection column is gone from this definition — the
+  // row itself is the control (see TripListPage), so what follows is pure data
+  // columns and the page owns every selection interaction.
+  return [
     {
       id: 'trip',
       header: sortHeader('Chuyến · Mã', 'trip'),
@@ -509,7 +488,6 @@ export function buildTripColumns(
       },
     },
   ];
-  return [...quickColumns, ...columns];
 }
 
 /** Computes the per-row CSS variable bag used by the page for stripe colors. */

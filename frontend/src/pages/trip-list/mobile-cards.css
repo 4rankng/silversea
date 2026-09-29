@@ -149,12 +149,6 @@
   font-size: var(--fs-xs);
   font-weight: 700;
 }
-.trip-list-page .trip-mcard__check input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--tbl-green-700);
-}
 .trip-list-page .quick-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

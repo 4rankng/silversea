@@ -103,7 +103,6 @@ export function figuresPayloadFromDraft(trip: TripDetail, draft: TripQuickEditDr
 }
 
 export function columnClass(columnId: string): string {
-  if (columnId === 'select') return 'col-select center';
   if (columnId === 'truck') return 'col-truck';
   if (columnId === 'route') return 'col-route';
   if (columnId === 'container') return 'col-container';

@@ -19,6 +19,7 @@ import { columnClass, draftChanged, figuresPayloadFromDraft, isEditableInQuickMo
 import { TripListHero } from './trip-list-hero';
 import { useArrowKeyScroll } from './trip-list/useArrowKeyScroll';
 import { useTripListAnimations } from './use-trip-list-animations';
+import { useTableRowSelection } from '../hooks/useTableRowSelection';
 import './TripListPage.css';
 
 export default function TripListPage() {
@@ -51,7 +52,11 @@ export default function TripListPage() {
   const [sort, setSort] = useState<TableSortState | null>(null);
   const [quickEdit, setQuickEdit] = useState(false);
   const [quickDrafts, setQuickDrafts] = useState<Record<number, TripQuickEditDraft>>({});
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  // Card 20260929_207: the checkbox column is gone — a row is picked by
+  // clicking it (keyboard: focus the row, press Space).
+  const selection = useTableRowSelection<number>();
+  const { clear: clearSelection, isSelected, selectAll, selectedAmong, toggle: toggleSelection } = selection;
+  const selectedIds = selection.selected;
   const [quickErrors, setQuickErrors] = useState<Record<number, string>>({});
   const [quickMessage, setQuickMessage] = useState('');
   const [quickGovernanceReason, setQuickGovernanceReason] = useState('');
@@ -149,50 +154,38 @@ export default function TripListPage() {
   useEffect(() => {
     if (!quickEdit) return;
     setQuickDrafts((prev) => {
-      const next = { ...prev };
-      for (const trip of table.rows) {
-        if (!next[trip.id]) next[trip.id] = quickDraftFromTrip(trip);
-      }
-      return next;
+      // Hand `prev` back untouched when there is nothing to seed: a fresh
+      // object every pass re-renders, and `table.rows` is a new `[]` while the
+      // list loads, which spins this effect forever and locks the page.
+      const missing = table.rows.filter((trip) => !prev[trip.id]);
+      if (missing.length === 0) return prev;
+      return { ...prev, ...Object.fromEntries(missing.map((trip) => [trip.id, quickDraftFromTrip(trip)])) };
     });
   }, [quickEdit, table.rows]);
 
+  // A mode flip starts a fresh batch: drafts and selection are one working set.
   const toggleQuickEdit = useCallback(() => {
-    setQuickEdit((current) => {
-      const next = !current;
-      setQuickErrors({});
-      setQuickMessage('');
-      setSelectedIds(new Set());
-      setQuickDrafts(next
-        ? Object.fromEntries(table.rows.map((trip) => [trip.id, quickDraftFromTrip(trip)]))
-        : {});
-      return next;
-    });
-  }, [table.rows]);
+    const next = !quickEdit;
+    setQuickEdit(next);
+    setQuickErrors({});
+    setQuickMessage('');
+    clearSelection();
+    setQuickDrafts(next
+      ? Object.fromEntries(table.rows.map((trip) => [trip.id, quickDraftFromTrip(trip)]))
+      : {});
+  }, [clearSelection, quickEdit, table.rows]);
 
-  const handleToggleSelect = useCallback((tripId: number) => {
-    const trip = table.rows.find((item) => item.id === tripId);
-    if (!trip || !isEditableInQuickMode(trip)) return;
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(tripId)) next.delete(tripId);
-      else next.add(tripId);
-      return next;
-    });
-  }, [table.rows]);
-
+  // Card 20260929_207: no per-row checkbox remains, so `rowProps` on the row
+  // is the only way in. `editableIds` is the scope the toolbar's select-all
+  // label states: the rows on THIS page, never the whole filtered set.
+  const editableIds = useMemo(
+    () => table.rows.filter(isEditableInQuickMode).map((trip) => trip.id), [table.rows],
+  );
+  const allEditableSelected = selection.allOfSelected(editableIds);
   const handleSelectVisible = useCallback(() => {
-    setSelectedIds((prev) => {
-      const editableIds = table.rows.filter(isEditableInQuickMode).map((trip) => trip.id);
-      const allVisibleSelected = editableIds.length > 0 && editableIds.every((id) => prev.has(id));
-      const next = new Set(prev);
-      for (const id of editableIds) {
-        if (allVisibleSelected) next.delete(id);
-        else next.add(id);
-      }
-      return next;
-    });
-  }, [table.rows]);
+    if (allEditableSelected) clearSelection();
+    else selectAll(editableIds);
+  }, [allEditableSelected, clearSelection, editableIds, selectAll]);
 
   const handleDraftChange = useCallback((tripId: number, field: keyof TripQuickEditDraft, value: string) => {
     const trip = table.rows.find((item) => item.id === tripId);
@@ -204,14 +197,15 @@ export default function TripListPage() {
         [field]: value,
       },
     }));
-    setSelectedIds((prev) => new Set(prev).add(tripId));
+    // Editing a field implies the row belongs to the batch being saved.
+    if (!isSelected(tripId)) toggleSelection(tripId);
     setQuickErrors((prev) => {
       if (!prev[tripId]) return prev;
       const next = { ...prev };
       delete next[tripId];
       return next;
     });
-  }, [table.rows]);
+  }, [isSelected, table.rows, toggleSelection]);
 
   const selectedDirtyTrips = useMemo(
     () => table.rows.filter((trip) => selectedIds.has(trip.id) && isEditableInQuickMode(trip) && draftChanged(trip, quickDrafts[trip.id])),
@@ -254,20 +248,18 @@ export default function TripListPage() {
         : `Đã lưu ${response.updated} dòng.`);
       if (response.updated > 0) {
         await table.query.refetch();
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          for (const result of response.results) {
-            if (result.ok) next.delete(result.tripId);
-          }
-          return next;
-        });
+        // Rows that saved cleanly leave the batch; the ones that failed stay
+        // picked so the operator can fix and retry them.
+        selectAll(selectedAmong([...selectedIds].filter(
+          (tripId) => !response.results.some((result) => result.ok && result.tripId === tripId),
+        )));
       }
     } catch (err) {
       setQuickMessage(err instanceof Error ? err.message : 'Không thể lưu thay đổi.');
     } finally {
       setSavingQuickEdit(false);
     }
-  }, [hasCompletedQuickEdits, quickDrafts, quickGovernanceReason, savingQuickEdit, selectedDirtyTrips, table.query]);
+  }, [hasCompletedQuickEdits, quickDrafts, quickGovernanceReason, savingQuickEdit, selectAll, selectedAmong, selectedDirtyTrips, selectedIds, table.query]);
 
   const handleCopyPlan = useCallback(async (tripId: number) => {
     if (copyingPlanId) return;
@@ -370,10 +362,8 @@ export default function TripListPage() {
   // ── Table instance ──
   const columns = useMemo(() => buildTripColumns(warnThreshold, {
     enabled: quickEdit,
-    selectedIds,
     drafts: quickDrafts,
     errors: quickErrors,
-    onToggleSelect: handleToggleSelect,
     onDraftChange: handleDraftChange,
   }, {
     copyingPlanId,
@@ -381,7 +371,7 @@ export default function TripListPage() {
   }, {
     sort,
     onSortChange: handleSortChange,
-  }), [canCopyPlan, copyingPlanId, handleCopyPlan, handleDraftChange, handleToggleSelect, quickDrafts, quickEdit, quickErrors, selectedIds, sort, handleSortChange, warnThreshold]);
+  }), [canCopyPlan, copyingPlanId, handleCopyPlan, handleDraftChange, quickDrafts, quickEdit, quickErrors, sort, handleSortChange, warnThreshold]);
   const tableInstance = useReactTable({
     data: table.rows,
     columns,
@@ -439,8 +429,12 @@ export default function TripListPage() {
       {quickEdit && (
         <div className="quick-edit-toolbar">
           <div className="quick-edit-toolbar__main">
-            <button type="button" className="btn btn--secondary" onClick={handleSelectVisible}>
-              Chọn trang này
+            {/* Card 20260929_207: the header's select-all checkbox is gone, so
+                this button is the whole-page affordance; its label says so. */}
+            <button type="button" className="btn btn--secondary" onClick={handleSelectVisible}
+              disabled={editableIds.length === 0}
+              title={allEditableSelected ? 'Bỏ chọn các dòng đang hiện' : `Chọn ${editableIds.length} dòng trên trang này`}>
+              {allEditableSelected ? 'Bỏ chọn dòng trang này' : `Chọn cả trang này (${editableIds.length})`}
             </button>
             <button
               type="button"
@@ -514,23 +508,41 @@ export default function TripListPage() {
                 <EmptyState context="trips" title="Không tìm thấy chuyến đi nào." />
               </>
             ) : (
-              tableInstance.getRowModel().rows.map((row) => (
-                <ClickableCard
-                  key={row.id}
-                  to={quickEdit ? undefined : `/trips/${row.original.id}`}
-                  onClick={quickEdit ? () => handleToggleSelect(row.original.id) : undefined}
-                  className={`table-row${quickEdit ? ' quick-edit-row' : ''}${selectedIds.has(row.original.id) ? ' selected' : ''}${!isEditableInQuickMode(row.original) ? ' locked' : ''}`}
-                  style={tripRowStyle(row.original) as CSSProperties}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    return (
-                      <div key={cell.id} className={columnClass(cell.column.id)}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </div>
-                    );
-                  })}
-                </ClickableCard>
-              ))
+              tableInstance.getRowModel().rows.map((row) => {
+                const pickable = quickEdit && isEditableInQuickMode(row.original);
+                const isSelected = selection.isSelected(row.original.id);
+                const cells = row.getVisibleCells().map((cell) => (
+                  <div key={cell.id} className={columnClass(cell.column.id)}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </div>
+                ));
+                if (!quickEdit) {
+                  // Outside quick edit the row is a link to the trip detail.
+                  return (
+                    <ClickableCard key={row.id} to={`/trips/${row.original.id}`} className="table-row"
+                      style={tripRowStyle(row.original) as CSSProperties}>
+                      {cells}
+                    </ClickableCard>
+                  );
+                }
+                // Card 20260929_207: in quick edit the row IS the control, so
+                // `rowProps` is the only way in — which is what keeps a press
+                // on the row's own link or money input from picking it.
+                return (
+                  <div
+                    key={row.id}
+                    role="row"
+                    className={`table-row quick-edit-row${isSelected ? ' selected' : ''}${pickable ? '' : ' locked'}`}
+                    style={tripRowStyle(row.original) as CSSProperties}
+                    data-selected={isSelected || undefined}
+                    aria-selected={pickable ? isSelected : undefined}
+                    tabIndex={pickable ? 0 : undefined}
+                    {...selection.rowProps(row.original.id, { selectable: pickable })}
+                  >
+                    {cells}
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
@@ -571,22 +583,24 @@ export default function TripListPage() {
                 { key: 'driverSalary', label: 'Lương chuyến', unit: '₫' },
               ];
 
+              // Card 20260929_207: the mobile card is this same table at a
+              // narrow width, so it loses the checkbox too and rides the same
+              // `rowProps` — a press on a money field still edits, not picks.
               return (
                 <div
                   key={trip.id}
+                  role="row"
                   className={`trip-mcard trip-mcard--quick${selected ? ' selected' : ''}${!editable ? ' locked' : ''}`}
                   style={tripRowStyle(trip) as CSSProperties}
+                  data-selected={selected || undefined}
+                  aria-selected={editable ? selected : undefined}
+                  tabIndex={editable ? 0 : undefined}
+                  {...selection.rowProps(trip.id, { selectable: editable })}
                 >
                   <div className="trip-mcard__top">
-                    <label className="trip-mcard__check">
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        disabled={!editable}
-                        onChange={() => handleToggleSelect(trip.id)}
-                      />
-                      <span>{editable ? 'Chọn' : 'Khóa'}</span>
-                    </label>
+                    <span className="trip-mcard__check" aria-hidden="true">
+                      {editable ? (selected ? 'Đã chọn' : 'Chọn') : 'Khóa'}
+                    </span>
                     <span className={`status-pill ${pillClass}`}>{TRIP_STATUS_LABELS[trip.status]}</span>
                   </div>
                   <div className="trip-mcard__name">{trip.customer?.name ?? '—'}</div>
