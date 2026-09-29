@@ -18,7 +18,7 @@ const QA_ROOT = path.resolve(HERE, '..');
 const STAMP = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
 const OUT = process.env.OUT || path.join(QA_ROOT, 'evidence', `${STAMP}_card193-cus-columns`);
 const PAGE = process.env.COLUMNS_PATH || '/shipments';
-const STORAGE_KEY = 'cus-containers-hidden-cols';
+const STORAGE_KEY = 'cus-lots-hidden-cols'; // /shipments. The containers page (a different surface) uses cus-containers-hidden-cols; reading the wrong one made AC3 look unscoreable.
 
 const env = await loadEnv();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -60,9 +60,39 @@ notes.push(`localStorage keys matching /col|hidden/: ${JSON.stringify(probe.stor
 notes.push(`${STORAGE_KEY} = ${probe.storedValue}`);
 
 // AC3 — the choice must survive a reload. Only scorable if the control exists.
+let toggled = null;
 if (!probe.hasColumnControl) {
   problems.push('no column-visibility control found on the CUS shipments page — the feature is not reachable on this build');
 } else {
+  // Actually toggle a column, so the persistence claim has something to stand on.
+  // Without this the key stays null and AC3 is unscoreable.
+  const opened = await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button,[role="button"]')]
+      .find((b) => /cột|column|hiển thị|ẩn|columns?/i.test(`${b.innerText || ''} ${b.getAttribute('aria-label') || ''}`));
+    if (!btn) return null;
+    btn.click();
+    return (btn.innerText || btn.getAttribute('aria-label') || '').trim();
+  });
+  await sleep(900);
+  await page.screenshot({ path: path.join(OUT, 'columns-control-open.png'), fullPage: true });
+  // The picker renders plain checkboxes inside .column-picker__popover, not
+  // menuitemcheckbox — the first version of this driver looked for the ARIA
+  // role and found nothing.
+  toggled = await page.evaluate(() => {
+    const pop = document.querySelector('.column-picker__popover');
+    if (!pop) return null;
+    const boxes = [...pop.querySelectorAll('input[type="checkbox"]')];
+    const target = boxes.find((b) => /ghi ch[úu]/i.test(b.closest('label')?.innerText || b.parentElement?.innerText || '')) || boxes[0];
+    if (!target) return null;
+    const label = (target.closest('label')?.innerText || target.parentElement?.innerText || '').trim().slice(0, 40);
+    target.click();
+    return { label, wasChecked: target.checked };
+  });
+  notes.push(`toggled: ${JSON.stringify(toggled)}`);
+  await sleep(900);
+  await page.screenshot({ path: path.join(OUT, 'columns-after-toggle.png'), fullPage: true });
+  notes.push(`opened control "${opened ?? 'n/a'}", toggled "${toggled ?? 'n/a'}"`);
+
   const before = await page.evaluate((k) => window.localStorage.getItem(k), STORAGE_KEY);
   // A persistence claim needs a stored value. If the user has never toggled a
   // column, both reads are null and "null === null" would be a FALSE PASS —
@@ -77,6 +107,22 @@ if (!probe.hasColumnControl) {
     notes.push(`reload: ${STORAGE_KEY} ${before} -> ${after}`);
     if (before !== after) problems.push(`AC3: ${STORAGE_KEY} changed across reload (${before} -> ${after})`);
   }
+}
+
+// AC2 — GHI CHÚ must be absent while the data is empty, and must APPEAR once
+// the user turns it on. Read the headers again after the toggle.
+await page.keyboard.press('Escape').catch(() => {});
+await sleep(900);
+const headersAfter = await page.evaluate(() =>
+  [...document.querySelectorAll('thead th')].map((th) => (th.innerText || '').trim()).filter(Boolean));
+const ghiChuBefore = /ghi ch[úu]/i.test(probe.headers.join(' '));
+const ghiChuAfter = /ghi ch[úu]/i.test(headersAfter.join(' '));
+notes.push(`GHI CHÚ before toggle: ${ghiChuBefore} | after toggle: ${ghiChuAfter}`);
+await page.screenshot({ path: path.join(OUT, 'columns-header-after-toggle.png'), fullPage: true });
+if (!ghiChuBefore) notes.push('AC2 half: GHI CHÚ is hidden on the untouched session (consistent with "hidden only while the data is genuinely empty")');
+else problems.push('AC2: GHI CHÚ was already visible before any toggle — the default-empty hide did not happen');
+if (toggled && /ghi ch[úu]/i.test(toggled.label || '') && !ghiChuAfter) {
+  problems.push('AC2: user turned GHI CHÚ on but the column did not appear in the header row');
 }
 
 if (probe.headers.length === 0) {
