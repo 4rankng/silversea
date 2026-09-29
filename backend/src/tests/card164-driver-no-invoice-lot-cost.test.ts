@@ -11,11 +11,11 @@
  *   AC3 nothing is payable before the accountant confirm (no receivable
  *       projection exists at any point for these rows).
  */
-import { describe, test } from 'node:test';
+import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, like } from 'drizzle-orm';
 
-import { db } from '../db';
+import { db, client } from '../db';
 import * as s from '../db/schema';
 import { recordIncidentalCost } from '../services/driver.service';
 import { confirmAccountingExpenses } from '../services/expense-accounting-write.service';
@@ -128,6 +128,10 @@ describe('card 20260928_164 — chi phí lái xe không hóa đơn', () => {
       const [source] = await db.select().from(s.expenseAccountingSources).where(and(
         eq(s.expenseAccountingSources.sourceKind, 'DRIVER'),
         eq(s.expenseAccountingSources.sourceId, cost.id)));
+      // The confirm below posts a VENDOR_EXPENSE ledger row keyed
+      // `EXPENSE_SOURCE:<source id>`; nothing cascades to it (no FK from the
+      // source row's delete), so it needs its own tracked delete.
+      track(async () => { await db.delete(s.ledger).where(eq(s.ledger.receiptId, `EXPENSE_SOURCE:${source.id}`)); });
       track(async () => { await db.delete(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id)); });
       assert.ok(source, 'registry row exists');
       assert.equal(source.status, 'RECORDED', 'nguồn kế toán đang sống (khoản thu khách nằm ở dòng gốc, không có cột riêng trên bảng bridge)');
@@ -154,5 +158,31 @@ describe('card 20260928_164 — chi phí lái xe không hóa đơn', () => {
       assert.ok(financials, 'xác nhận chi phí lái xe phải cập nhật chi phí chuyến');
       assert.equal(Number(financials.reconciledExtraCost), amount, 'chi phí xe tăng đúng bằng số tiền vừa nhập');
     });
+  }
+});
+
+// The tracked deletes only keep this suite re-runnable on the shared local DB
+// if they actually run. node:test's after() fires even when a test fails, so a
+// red assertion still leaves no fixture behind; every delete is id-equality
+// scoped (plus this run's own `card164-<suffix>-` idempotency keys below), so
+// cleanup can never touch another suite's rows or real data. The
+// `audit_logs` rows the services write are the one deliberate exception:
+// the audit trail is append-only product behavior, carries no FK, and no
+// registry surface purges it.
+after(async () => {
+  try {
+    const errors: unknown[] = [];
+    for (const remove of cleanup) {
+      try { await remove(); } catch (error) { errors.push(error); }
+    }
+    // recordIncidentalCost parks one idempotency key per call under this
+    // run's own prefix; there is no id handle for it above, so sweep by
+    // prefix — `card164-${suffix}-` cannot match any other run's keys.
+    try {
+      await db.delete(s.idempotencyKeys).where(like(s.idempotencyKeys.idempotencyKey, `card164-${suffix}-%`));
+    } catch (error) { errors.push(error); }
+    if (errors.length > 0) throw new AggregateError(errors, 'card164 fixture cleanup failed');
+  } finally {
+    await client.end();
   }
 });

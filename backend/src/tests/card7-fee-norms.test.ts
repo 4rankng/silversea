@@ -37,7 +37,13 @@ async function mkDriverTrip() {
   track(async () => { await db.delete(s.users).where(eq(s.users.id, u.id)); });
   const [d] = await db.insert(s.drivers).values({ name: 'card7 driver', userId: u.id }).returning();
   track(async () => { await db.delete(s.drivers).where(eq(s.drivers.id, d.id)); });
-  const [customer] = await db.insert(s.customers).values({ name: `card7 cust ${cleanup.length}` }).returning();
+  // `cleanup.length` alone is NOT unique-index-safe: it restarts at 0 every
+  // run, and `customers` has a partial unique index on ACTIVE (name, tax_code)
+  // with tax_code COALESCEd to '' — so a run that dies before its cleanup
+  // leaves `card7 cust 2` behind and the next run collides on the first
+  // insert. The per-run `suffix` (same as every other name in this builder)
+  // keeps re-runs green even against a dirty shared DB.
+  const [customer] = await db.insert(s.customers).values({ name: `card7 cust ${suffix}-${cleanup.length}` }).returning();
   track(async () => { await db.delete(s.customers).where(eq(s.customers.id, customer.id)); });
   const [route] = await db.insert(s.routes).values({ name: 'card7 route' }).returning();
   track(async () => { await db.delete(s.routes).where(eq(s.routes.id, route.id)); });

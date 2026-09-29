@@ -2,9 +2,12 @@ import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray } from 'drizzle-orm';
 
-/** Unique-per-call fixture names without id-like fragments (case QA-2026-09-24-01):
- *  customers carry a partial unique index on (name, tax_code); the counter
- *  keeps same-run inserts distinct with a human ordinal. */
+/** Fixture-name ordinals (case QA-2026-09-24-01): customers carry a partial
+ *  unique index on (name, tax_code) with tax_code COALESCEd to '', so a name
+ *  must never repeat across runs either. The counter alone restarts at 0
+ *  every run and only keeps same-run inserts distinct; every customer insert
+ *  therefore pairs it with the scope's per-run `suffix` — a run that dies
+ *  before cleanup must not poison the next run's first insert. */
 let fixtureSeq = 0;
 import { TripStatus, Role, TxnType, FuelMode, LoadingType } from '@tingting/shared';
 import { db, client } from '../db';
@@ -213,7 +216,7 @@ interface TripSpec {
 async function createCompletedTripWithFees(spec: TripSpec) {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const [customer] = await db.insert(s.customers)
-    .values({ name: `Recon customer ${++fixtureSeq}` }).returning();
+    .values({ name: `Recon customer ${suffix}-${++fixtureSeq}` }).returning();
   const [route] = await db.insert(s.routes)
     .values({ name: `Recon route ${++fixtureSeq}` }).returning();
   const [cargoType] = await db.insert(s.cargoTypes)
@@ -573,7 +576,7 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
     const expenseTypeCode = `CHI_HO_RC_EDIT_${suffix}`.slice(0, 50);
     await seedChiHoExpenseType(expenseTypeCode);
     const [customer] = await db.insert(s.customers)
-      .values({ name: `Recon edit customer ${++fixtureSeq}` }).returning();
+      .values({ name: `Recon edit customer ${suffix}-${++fixtureSeq}` }).returning();
     createdCustomerIds.push(customer.id);
     const [route] = await db.insert(s.routes)
       .values({ name: `Recon edit route ${++fixtureSeq}` }).returning();
@@ -655,7 +658,7 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
     const expenseTypeCode = `CHI_HO_RC_UPD_${suffix}`.slice(0, 50);
     await seedChiHoExpenseType(expenseTypeCode);
     const [customer] = await db.insert(s.customers)
-      .values({ name: `Recon upd customer ${++fixtureSeq}` }).returning();
+      .values({ name: `Recon upd customer ${suffix}-${++fixtureSeq}` }).returning();
     createdCustomerIds.push(customer.id);
     const [route] = await db.insert(s.routes)
       .values({ name: `Recon upd route ${++fixtureSeq}` }).returning();
@@ -771,7 +774,7 @@ describe('US-007 aging: SERVICE_FEE AR surfaces in customer aging', () => {
     // with confirmZeroRevenue would book).
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const [customer] = await db.insert(s.customers)
-      .values({ name: `Recon aging fee customer ${++fixtureSeq}` }).returning();
+      .values({ name: `Recon aging fee customer ${suffix}-${++fixtureSeq}` }).returning();
     createdCustomerIds.push(customer.id);
     const [route] = await db.insert(s.routes)
       .values({ name: `Recon aging fee route ${++fixtureSeq}` }).returning();
@@ -864,7 +867,7 @@ interface BillableSeedCtx {
 async function mkBillableSeedCtx(opts: { feesHaveSupplier: boolean }): Promise<BillableSeedCtx> {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const [customer] = await db.insert(s.customers)
-    .values({ name: `Recon customer ${++fixtureSeq}` }).returning();
+    .values({ name: `Recon customer ${suffix}-${++fixtureSeq}` }).returning();
   const [route] = await db.insert(s.routes)
     .values({ name: `Recon route ${++fixtureSeq}` }).returning();
   const [cargoType] = await db.insert(s.cargoTypes)
