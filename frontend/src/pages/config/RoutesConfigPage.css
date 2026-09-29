@@ -84,6 +84,22 @@
     text-align: left;
     line-height: 1.45;
   }
+
+  /* Card 20260930_222 — the desktop column budgets were still reaching the
+     stacked cards. `td:nth-child(3)` ("Tên tuyến rút gọn") carries
+     `width: 200px` and `td.routes-table__code` carries 160px; as grid ITEMS
+     in a `repeat(2, minmax(0, 1fr))` row an explicit width overrides the
+     track, so the short-name cell stayed 200px wide inside a ~172px track and
+     pushed past the viewport — measured l=188 r=388 at 360, l=203 r=403 at
+     390, i.e. exactly one 200px cell sitting in the second column.
+     The selector carries `tbody tr` so it outranks the page's own budget
+     rules on element count; the plain `td` rule above cannot, because those
+     budgets have one more class-level token and are declared later in this
+     same file. Outside this container the budgets are untouched. */
+  .routes-config-page .routes-table tbody tr td:nth-child(3),
+  .routes-config-page .routes-table tbody tr td.routes-table__code,
+  .routes-config-page .routes-table tbody tr td.routes-table__distance,
+  .routes-config-page .routes-table tbody tr td.routes-table__actions-cell { width: auto; }
   .routes-config-page .routes-table tbody tr td::before {
     display: block;
     content: attr(data-label);
