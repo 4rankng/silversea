@@ -153,6 +153,92 @@ if (!target) {
   const errors = await page.evaluate(() =>
     [...document.querySelectorAll('[role="alert"], .error, [aria-invalid="true"]')]
       .map((e) => (e.innerText || '').trim()).filter(Boolean).slice(0, 5));
+
+  // ── The PM's load-bearing half: SAVE it, then prove the persisted total did
+  // not move. A negative row must be as if it did not exist. This is the part
+  // no unit test settles, because the claim is about what the system then
+  // shows.
+  const beforeCount = await page.evaluate(() => document.querySelectorAll('tbody tr').length);
+  // "Loại phí *" is a react-aria ComboBox rendered as an <input>, not a button —
+  // so it has to be reached through its <label for>. Re-query each step: the
+  // ids are generated per render.
+  const feeFieldId = await page.evaluate(() => {
+    const dialog = document.querySelector('[role="dialog"]') || document;
+    const label = [...dialog.querySelectorAll('label')].find((l) => /loại phí/i.test(l.innerText || ''));
+    return label?.getAttribute('for') || label?.control?.id || null;
+  });
+  notes.push(`Loại phí field id: ${JSON.stringify(feeFieldId)}`);
+  let picked = null;
+  if (feeFieldId) {
+    const sel = `[id="${feeFieldId}"]`;   // CSS.escape does not exist in Node
+    await page.focus(sel).catch(() => {});
+    await page.type(sel, 'Nâng', { delay: 60 });
+    await sleep(1200);
+    await page.screenshot({ path: path.join(OUT, 'fee-type-open.png'), fullPage: true });
+    picked = await page.evaluate(() => {
+      const opt = document.querySelector('[role="option"]:not([aria-disabled="true"])');
+      if (!opt) return null;
+      const label = (opt.innerText || '').trim().slice(0, 40);
+      opt.click();
+      return label;
+    });
+    if (!picked) {
+      // react-aria ComboBox: ArrowDown opens, ArrowDown+Enter commits.
+      await page.keyboard.press('ArrowDown');
+      await sleep(500);
+      await page.keyboard.press('Enter');
+      picked = '(committed via ArrowDown+Enter)';
+    }
+  }
+  notes.push(`picked Loại phí = ${JSON.stringify(picked)}`);
+  await sleep(800);
+
+  const submitted = await page.evaluate(() => {
+    const dialog = document.querySelector('[role="dialog"]') || document;
+    const btn = [...dialog.querySelectorAll('button')]
+      .find((b) => /^lưu$/i.test((b.innerText || '').trim()));
+    if (!btn) return false;
+    if (btn.disabled) return 'disabled';
+    btn.click();
+    return true;
+  });
+  notes.push(`save clicked: ${JSON.stringify(submitted)}`);
+  await sleep(3000);
+  await page.screenshot({ path: path.join(OUT, 'after-save.png'), fullPage: true });
+
+  const after = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('tbody tr')].map((r) => (r.innerText || '').replace(/\s+/g, ' ').trim());
+    return {
+      dialogStillOpen: Boolean(document.querySelector('[role="dialog"]')),
+      rows: rows.slice(0, 8),
+      toasts: [...document.querySelectorAll('[role="status"],[role="alert"],.toast')]
+        .map((t) => (t.innerText || '').trim()).filter(Boolean).slice(0, 4),
+    };
+  });
+  notes.push(`dialog open after save: ${after.dialogStillOpen}`);
+  notes.push(`toasts: ${JSON.stringify(after.toasts)}`);
+  notes.push(`rows now: ${JSON.stringify(after.rows).slice(0, 400)}`);
+
+  if (submitted === false) {
+    problems.push('the cost form has no Lưu button — the save path could not be exercised');
+  } else if (submitted === 'disabled') {
+    problems.push('the Lưu button stayed disabled, so a required control the driver does not set is still missing');
+  } else if (after.dialogStillOpen) {
+    // Distinguish "the amount was refused" from "something else refused it".
+    // The ownership guard is a DATA precondition: the OPS account must be
+    // assigned the truck that owns the shipment. That is not a statement about
+    // negatives, and saying so would be a false verdict.
+    const ownershipRefusal = after.toasts.some((t) => /không thuộc xe bạn|liên hệ Quản trị viên/i.test(t));
+    if (ownershipRefusal) {
+      problems.push('SAVE BLOCKED BY OWNERSHIP, not by the amount: the OPS account is not assigned the truck that owns this shipment ("' + after.toasts.join(' | ') + '"). The negative passed field validation and was submitted. The save half is UNPROVEN on data grounds — the scenario must link the OPS user to the truck.');
+    } else {
+      problems.push('the cost form stayed open after save and no ownership refusal was reported — the negative row does not appear to have been accepted');
+    }
+  } else if (!after.rows.some((r) => /-\s*50[.\d]*\s*₫|50[.\d]*\s*₫/.test(r))) {
+    notes.push('NOTE: saved, but no row carrying the 50.000 amount is visible on this page — treat the total half as UNPROVEN rather than passed');
+  } else {
+    notes.push('negative row saved and visible; the total half still needs a read of an aggregate, not this list');
+  }
   notes.push(`validation errors shown: ${JSON.stringify(errors)}`);
   if (errors.some((e) => /dương|lớn hơn 0|positive/i.test(e))) {
     problems.push(`the form still rejects negatives: ${errors.join(' | ')}`);
