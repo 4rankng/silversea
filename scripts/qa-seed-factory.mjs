@@ -142,6 +142,7 @@ if (NO_CREATE) {
   // digit, so every run was rejected. Derive the real one.
   const containerPrefix = `MSCU${String(Date.now()).slice(-6)}`;   // 4 owner + 6 serial = 10
   const containerNo = withCheckDigit(containerPrefix);
+  const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 24 * 3600 * 1000);
   const pickup = tomorrow.toISOString();
 
@@ -155,6 +156,12 @@ if (NO_CREATE) {
     direction: "IMPORT",
     billBookingNumber: code,
     expectedPickupAt: pickup,
+    // The OPS work queue (/ops/orders -> listOpsOrders) filters on
+    // `expectedDeliveryDate = <the date the page is showing>`. A scenario
+    // without that column is invisible there no matter which date is picked,
+    // which is why the seeded shipments never appeared and the cost-entry
+    // screens could not be driven. The schema accepts it (optional/nullable).
+    expectedDeliveryDate: today,
   };
   const idem = `qa-seed-factory-${Date.now()}`;
   const res = await apiAt(token, "POST", "/shipments", body, {
