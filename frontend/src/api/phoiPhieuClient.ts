@@ -200,6 +200,18 @@ export async function assignPhoiPhieuTruckAccountant(truckId: number, body: {
   });
 }
 
+// Card 20260928_166 — the 39-truck split in ONE request. The route is
+// all-or-nothing (assignTruckAccountantsBatch runs inside a single
+// transaction), so a bad truck aborts the whole batch rather than leaving a
+// half-applied split, and re-sending a batch whose trucks are already on that
+// accountant is a no-op instead of a second audit row. This client was simply
+// missing: the route existed, nothing could reach it.
+export async function assignPhoiPhieuTruckAccountantsBatch(body: {
+  accountantId: number | null; truckIds: number[];
+}, idempotencyKey?: string): Promise<{ items: PhoiPhieuTruckAssignment[] }> {
+  return api.post('/expense-accounting/assignments/batch', body, { idempotencyKey });
+}
+
 export async function correctPhoiPhieuRow(sourceId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
   return api.post(`/expense-accounting/entries/OPS/${sourceId}/correct`, body, {
     idempotencyKey,

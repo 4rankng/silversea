@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ReceiptText } from 'lucide-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { assignPhoiPhieuTruckAccountant, createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, listPhoiPhieuTruckAssignments, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 import { formatCurrency, formatDate } from '../../lib/format';
@@ -12,6 +12,7 @@ import { DateRangeFields, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
+import { PhoiPhieuTruckAssignments } from '../../features/accounting/PhoiPhieuTruckAssignments';
 import './PhoiPhieuControlPage.css';
 
 const TRIP_STATUS_OPTIONS = [
@@ -30,85 +31,6 @@ const money = (value: number | null | undefined) =>
 
 interface Filters {
   dateFrom: string; dateTo: string; status: string; search: string; sortBy: 'grouped' | 'date';
-}
-
-/** Card 20260921_8 — vehicle → kế toán phơi phiếu assignments: one vehicle
- *  belongs to exactly one accountant; the unassigned bucket stays visible so
- *  nothing is missed. Saves go through the version-guarded reassignment API. */
-function PhoiPhieuTruckAssignments() {
-  const queryClient = useQueryClient();
-  const boardQuery = useQuery({
-    queryKey: qk.phoiPhieu.truckAssignments,
-    queryFn: listPhoiPhieuTruckAssignments,
-  });
-  const [message, setMessage] = useState<string | null>(null);
-  const assignments = boardQuery.data?.assignments ?? [];
-  const unassigned = boardQuery.data?.unassignedTrucks ?? [];
-  const accountants = boardQuery.data?.accountants ?? [];
-
-  const saveMutation = useMutation({
-    mutationFn: (input: { truckId: number; accountantId: number | null; expectedVersion: number }) =>
-      assignPhoiPhieuTruckAccountant(input.truckId, { accountantId: input.accountantId, expectedVersion: input.expectedVersion }),
-    onSuccess: () => {
-      setMessage(null);
-      void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.truckAssignments });
-    },
-    onError: (error: Error) => setMessage(error.message),
-  });
-
-  return (
-    <details style={{ margin: '16px 0' }}>
-      <summary style={{ cursor: 'pointer', fontSize: 'var(--text-body-size)' }}>Phân công xe cho kế toán phơi phiếu</summary>
-      {message && <p role="alert">{message}</p>}
-      <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)', margin: '8px 0' }}>
-        <caption>Xe đã phân công</caption>
-        <thead><tr><th>Biển số</th><th>Kế toán phụ trách</th><th aria-label="Lưu" /></tr></thead>
-        <tbody>
-          {assignments.map((row) => (
-            <AssignmentRow key={row.truckId} row={row} accountants={accountants} onSave={saveMutation.mutate} />
-          ))}
-          {assignments.length === 0 && <tr><td colSpan={3}>Chưa có xe nào được phân công.</td></tr>}
-        </tbody>
-      </table>
-      <p style={{ fontSize: 'var(--text-caption-size)' }}>
-        <strong>Xe chưa phân công:</strong>{' '}
-        {unassigned.length === 0
-          ? 'không còn'
-          : unassigned.map((truck) => truck.plate).join(', ')}
-      </p>
-    </details>
-  );
-}
-
-function AssignmentRow({ row, accountants, onSave }: {
-  row: { truckId: number; plate: string; accountantId: number | null; version: number };
-  accountants: Array<{ id: number; fullName: string | null }>;
-  onSave: (input: { truckId: number; accountantId: number | null; expectedVersion: number }) => void;
-}) {
-  const [picked, setPicked] = useState<string>(row.accountantId == null ? '' : String(row.accountantId));
-  return (
-    <tr>
-      <td>{row.plate}</td>
-      <td>
-        <UuiSelectField
-          label={`Kế toán phụ trách ${row.plate}`}
-          hideLabel
-          value={picked}
-          onChange={(event) => setPicked(event.target.value)}
-          options={[{ value: '', label: '— Chưa gán —' }, ...accountants.map((accountant) => ({ value: String(accountant.id), label: accountant.fullName ?? `Kế toán #${accountant.id}` }))]}
-          width="content"
-        />
-      </td>
-      <td>
-        <button
-          type="button"
-          onClick={() => onSave({ truckId: row.truckId, accountantId: picked === '' ? null : Number(picked), expectedVersion: row.version })}
-        >
-          Lưu
-        </button>
-      </td>
-    </tr>
-  );
 }
 
 export default function PhoiPhieuControlPage() {

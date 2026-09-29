@@ -24,7 +24,7 @@ vi.mock('../../api/phoiPhieuClient', async (original) => ({
   assignPhoiPhieuTruckAccountant: assignOneMock,
 }));
 
-import PhoiPhieuControlPage from './PhoiPhieuControlPage';
+import { PhoiPhieuTruckAssignments } from './PhoiPhieuTruckAssignments';
 
 const UNASSIGNED = [
   { truckId: 11, plate: '15H-209.51' },
@@ -36,7 +36,7 @@ const ACCOUNTANTS = [{ id: 3, fullName: 'Nguyễn Thị Mai' }];
 function renderBoard() {
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <PhoiPhieuControlPage />
+      <PhoiPhieuTruckAssignments />
     </QueryClientProvider>,
   );
 }

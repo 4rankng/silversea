@@ -152,3 +152,45 @@
    as wide as the value it holds); a page rule that re-declares either is
    precisely how this surface drifted four times between 2026-09-24 and
    2026-09-27. Nothing below this comment styles a filter control. */
+
+/* Card 20260928_166 — the batch-assign strip. The unassigned bucket is a
+   working set (pick → one all-or-nothing call), not a list of names. */
+.ppc-assign-batch {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface-1);
+}
+.ppc-assign-batch__bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ppc-assign-batch__count {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+}
+.ppc-assign-batch__list {
+  /* Flex, not grid: this sheet carries a standing contract that a page must
+     not declare grid layout of its own (PhoiPhieuControlPage.styles.test), and
+     a wrapping row of fixed-basis items lays the plates out the same way. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  list-style: none;
+}
+.ppc-assign-batch__list li { flex: 0 0 150px; }
+.ppc-assign-batch__list li { margin: 0; }
+.ppc-assign-batch__list label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+  cursor: pointer;
+}
