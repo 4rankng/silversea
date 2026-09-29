@@ -11,6 +11,7 @@ import { ListFilterBar } from '../../components/ListFilterBar';
 import { DateRangeFields, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
+import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import './PhoiPhieuControlPage.css';
 
 const TRIP_STATUS_OPTIONS = [
@@ -113,7 +114,6 @@ function AssignmentRow({ row, accountants, onSave }: {
 export default function PhoiPhieuControlPage() {
   const [filters, setFilters] = useState<Filters>({ dateFrom: '', dateTo: '', status: '', search: '', sortBy: 'grouped' });
   const [reportScope, setReportScope] = useState<'' | 'SELF' | 'ALL' | 'UNASSIGNED'>('');
-  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [direction, setDirection] = useState<'IN' | 'OUT'>('OUT');
   const [treasuryAccountId, setTreasuryAccountId] = useState('');
   const [issuing, setIssuing] = useState(false);
@@ -131,24 +131,21 @@ export default function PhoiPhieuControlPage() {
   const stkQuery = useQuery({ queryKey: qk.phoiPhieu.stk, queryFn: () => listPhoiPhieuStk() });
   const rows = useMemo(() => rowsQuery.data?.items ?? [], [rowsQuery.data]);
   const canSelect = (row: PhoiPhieuRow) => row.confirmable;
-  const allSelected = rows.length > 0 && rows.filter(canSelect).every((row) => selected.has(row.tripId));
-
-  function toggleRow(row: PhoiPhieuRow) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(row.tripId)) next.delete(row.tripId);
-      else next.add(row.tripId);
-      return next;
-    });
-  }
-
+  // Card 20260929_207: the checkbox column is gone app-wide — a row is picked by
+  // clicking it (keyboard: focus the row, press Space). `selectable` still
+  // decides WHICH rows may be picked, so a row that cannot be issued stays
+  // inert instead of silently taking part in the voucher.
+  const selection = useTableRowSelection<number>();
+  const selected = selection.selected;
+  const selectableRows = useMemo(() => rows.filter(canSelect), [rows]);
+  const allSelected = selection.allOfSelected(selectableRows.map((row) => row.tripId));
+  const selectedCount = selection.countAmong(selectableRows.map((row) => row.tripId));
+  // Card 20260929_207: the "select every row" affordance moved out of the
+  // deleted header checkbox and into the toolbar, where its scope is stated in
+  // the label: it covers the rows ON THIS PAGE, never the whole filtered set.
   function toggleAll() {
-    setSelected((current) => {
-      if (rows.filter(canSelect).every((row) => current.has(row.tripId))) {
-        return new Set();
-      }
-      return new Set(rows.filter(canSelect).map((row) => row.tripId));
-    });
+    if (allSelected) selection.clear();
+    else selection.selectAll(selectableRows.map((row) => row.tripId));
   }
 
   async function issueVoucher() {
@@ -166,7 +163,7 @@ export default function PhoiPhieuControlPage() {
         tripIds: [...selected], direction, treasuryAccountId: Number(treasuryAccountId),
       });
       setMessage({ kind: 'ok', text: `Đã lập phiếu ${voucher.code}: ${voucher.entries} khoản, tổng ${formatCurrency(voucher.total)} — sổ quỹ đã được điều chỉnh.` });
-      setSelected(new Set());
+      selection.clear();
       await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll });
     } catch (error) {
       setMessage({ kind: 'err', text: error instanceof Error ? error.message : 'Không lập được phiếu.' });
@@ -209,9 +206,20 @@ export default function PhoiPhieuControlPage() {
           ariaLabel: 'Tìm kiếm',
         }}
         actions={(
-          <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} title={selected.size === 0 ? 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu' : undefined} onClick={() => void issueVoucher()}>
-            {voucherLabel}
-          </button>
+          <div className="ppc-actions">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={toggleAll}
+              disabled={selectableRows.length === 0}
+              title={allSelected ? 'Bỏ chọn các dòng đang hiện' : `Chọn ${selectableRows.length} dòng đang hiện trên trang này`}
+            >
+              {allSelected ? 'Bỏ chọn dòng trang này' : `Chọn cả trang này (${selectableRows.length})`}
+            </button>
+            <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} title={selected.size === 0 ? 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu' : undefined} onClick={() => void issueVoucher()}>
+              {voucherLabel}
+            </button>
+          </div>
         )}
       >
         <DateRangeFields
@@ -234,27 +242,43 @@ export default function PhoiPhieuControlPage() {
       {message && <p role="status" style={{ color: message.kind === 'ok' ? 'var(--ok, #16a34a)' : 'var(--err, #dc2626)' }}>{message.text}</p>}
       {rowsQuery.isError && <p role="alert">Không tải được bảng kiểm soát. Vui lòng thử lại.</p>}
 
+      {/* Card 20260929_207: the selection model is no longer a checkbox column, so
+          the board says so once, and keeps a live count. A row that cannot be
+          issued is dimmed and inert rather than looking pickable. */}
+      <p className="ppc-selection-hint" role="status">
+        {selectedCount === 0
+          ? `Bấm vào một dòng để chọn · ${selectableRows.length} dòng lập được phiếu trên trang này`
+          : `Đã chọn ${selectedCount} dòng`}
+      </p>
       <div className="shipment-container-ledger" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
         <table className="tt-table ppc-board">
           <caption>Bảng kiểm soát phơi phiếu - Tiền đường</caption>
           <thead><tr>
-            <th scope="col" className="ppc-col--select"><input type="checkbox" aria-label="Chọn tất cả" checked={allSelected} onChange={toggleAll} /></th>
             <th scope="col">Lịch trình</th>
             <th scope="col" className="ppc-col--customer-route">Khách hàng &amp; Tuyến</th>
             <th scope="col" className="ppc-col--thongso">Thông số container</th>
             <th scope="col" className="ppc-col--diadiem">Địa điểm nâng / hạ</th>
             <th scope="col">Thông tin xe</th>
-            <th scope="col" className="ppc-col--chiho">Chi hộ (Phải thu / Phải trả)</th>
+            <th scope="col" className="ppc-col--chiho" title="Chi hộ: phải thu và phải trả của lô hàng">Chi hộ (thu / trả)</th>
             <th scope="col" className="ppc-col--money">Tiền đường</th>
             <th scope="col" className="ppc-col--status">Trạng thái</th>
             <th scope="col" className="ppc-col--date">Ngày</th>
-            <th scope="col" className="ppc-col--ghichu">Ghi chú vận tải (cả cus + điều vận)</th>
+            <th scope="col" className="ppc-col--ghichu" title="Ghi chú vận tải của CUS và điều vận">Ghi chú vận tải</th>
             <th scope="col" className="ppc-col--ghichu">Ghi chú lái xe</th>
           </tr></thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.tripId}>
-                <td><input type="checkbox" aria-label={`Chọn chuyến ${row.tripCode ?? ''} container ${row.containerNumber ?? ''}`} disabled={!canSelect(row)} checked={selected.has(row.tripId)} onChange={() => toggleRow(row)} /></td>
+            {rows.map((row) => {
+              const pickable = canSelect(row);
+              const isSelected = selection.isSelected(row.tripId);
+              return (
+              <tr
+                key={row.tripId}
+                data-selected={isSelected || undefined}
+                aria-selected={pickable ? isSelected : undefined}
+                className={pickable ? 'ppc-row--pickable' : 'ppc-row--locked'}
+                tabIndex={pickable ? 0 : undefined}
+                {...selection.rowProps(row.tripId, { selectable: pickable })}
+              >
                 <td>{row.tripCode ?? '—'}<br /><small>{row.billOrBooking ?? ''}</small></td>
                 <td>{row.customerName ?? '—'}<br /><small>{row.routeName ?? ''}</small></td>
                 <td>{row.containerNumber ?? '—'}<br /><small>{row.containerTypeLabel ?? ''}</small><br /><small>Trọng tải: {row.cargoWeightKg != null ? row.cargoWeightKg.toLocaleString('vi-VN') + ' kg' : 'Chưa có trọng tải'}</small></td>
@@ -273,10 +297,11 @@ export default function PhoiPhieuControlPage() {
                 </td>
                 <td className="ppc-col--status">{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
                 <td className="ppc-col--date">{formatDate(row.departureDate)}</td>
-                <td>{row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}</td>
-                <td>{row.driverNote ?? '—'}</td>
+                <td className="ppc-col--ghichu">{row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}</td>
+                <td className="ppc-col--ghichu">{row.driverNote ?? '—'}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

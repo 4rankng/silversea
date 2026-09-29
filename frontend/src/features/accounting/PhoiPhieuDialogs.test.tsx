@@ -265,7 +265,10 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     renderBoard();
     const row = await findRow('ST-2609-0101');
     await screen.findByText('ST-2609-0102');
-    fireEvent.click(within(row).getByRole('checkbox'));
+    // Card 20260929_207: the row is the control now — the checkbox column is
+    // gone app-wide, so the same intent (pick this row, then read what the
+    // voucher would issue) is driven by clicking the row itself.
+    fireEvent.click(within(row).getByText('ST-2609-0101'));
     const button = screen.getByRole('button', { name: /Lập phiếu/ });
     expect(button.textContent).toContain('(2 khoản)');
     expect(button.textContent).not.toContain('dòng');

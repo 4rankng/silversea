@@ -14,7 +14,10 @@
    mid-number and "Chưa xác định" wrapped ragged. Explicit widths for the
    narrow/atomic columns; single-token cells expand (nowrap, no clip) per
    design law §4; the two ghi chú columns keep wrapping (long text). */
-.ppc-board th.ppc-col--select { width: 3%; min-width: 32px; }
+/* Card 20260929_207: the 3% selection track is gone with the checkbox column,
+   and its share goes back to the content columns — the board had 13 tracks
+   for 12 columns of content, which is why "Ghi chú vận tải" and the note bodies
+   were being crushed to four ragged lines. */
 /* Card 20260925_47: track shares rebalanced — the fixed 13-track layout
    squeezed unbreakable header tokens below their glyph floor ('Địa điểm nâng
    / hạ' fell to three ragged lines; 'CONTAINER' painted over its neighbour
@@ -28,7 +31,47 @@
 .ppc-board th.ppc-col--money { width: 10%; }
 .ppc-board th.ppc-col--status { width: 8%; }
 .ppc-board th.ppc-col--date { width: 9%; }
-.ppc-board th.ppc-col--ghichu { width: 7%; }
+.ppc-board th.ppc-col--ghichu { width: 10%; }
+
+/* Selection: a row IS the control now. The picked row carries the accent at
+   the row's own surface, a left rule so the state reads at a glance in a wide
+   board, and a visible focus ring for the keyboard path. A row that cannot be
+   issued is dimmed and never looks pickable. */
+.ppc-board tbody tr.ppc-row--pickable { cursor: pointer; }
+.ppc-board tbody tr.ppc-row--pickable:hover { background: var(--surface-2, var(--surface)); }
+.ppc-board tbody tr[data-selected="true"] {
+  background: var(--accent-soft, rgba(16, 122, 74, 0.08));
+}
+/* The left rule is a BORDER on the row's first cell, not a drop shadow: the
+   flat-sheet law (§3) forbids shadows on this surface, and the ratchet test
+   greps this whole file — comments included — for the shadow property, so
+   even naming it here would fail the board. */
+.ppc-board tbody tr[data-selected="true"] > td:first-child {
+  border-left: 3px solid var(--accent);
+}
+.ppc-board tbody tr.ppc-row--pickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.ppc-board tbody tr.ppc-row--locked { color: var(--fg-3); cursor: default; }
+
+/* The toolbar now carries two actions, and the board states its selection
+   model once instead of per-row. Both are page-owned, not filter layout. */
+.ppc-actions { display: flex; gap: 8px; align-items: center; }
+.ppc-selection-hint {
+  margin: 8px 0 4px;
+  color: var(--fg-3);
+  font-size: var(--text-caption-size, 12px);
+}
+
+/* The note columns carry free text (a dispatch note can be a code, a phone
+   number, a sentence). They wrap at spaces, never mid-token — the same law the
+   headers follow, applied to the body. */
+.ppc-board td.ppc-col--ghichu {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
 .ppc-board td.ppc-col--date { white-space: nowrap; }
 .ppc-board td.ppc-col--money .btn { margin-top: 4px; }
 .ppc-board .ppc-line { display: block; }
