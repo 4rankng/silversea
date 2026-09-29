@@ -61,7 +61,16 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
       return hydrateExpenseCashVoucher(tx, existing);
     }
   }
-  await lockExpenseCashSources(tx, input.entries);
+  // Card 20260929_211 — the per-source cash totals used to be read INSIDE the
+  // loop, one query per voucher line. lockExpenseCashSources has just resolved
+  // every source row (and locked it, in the order it always did), so the ids
+  // are already in hand: read every total in ONE query here, before the loop.
+  //
+  // This is deliberately a pure pre-read. The loop below keeps its exact shape,
+  // its exact order and its exact 409/400 sequence — nothing about WHEN a
+  // refusal fires moves, which is the one thing this refactor must not change.
+  const linkedIds = await lockExpenseCashSources(tx, input.entries);
+  const cashTotals = await getExpenseCashTotalsBatch(tx, [...linkedIds.values()]);
   const keys = input.entries.map(e => `${e.sourceKind}:${e.sourceId}`);
   if (new Set(keys).size !== keys.length) throw new ApiError(400, 'Không chọn trùng nguồn chi phí.');
   const items: Array<{ source: ExpenseAccountingSource; amount: number }> = [];
@@ -75,7 +84,7 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
     if (!source.confirmedAt) { unapproved.push(source.feeName || `khoản ${ref.sourceKind}`); continue; }
     if (input.direction === 'OUT' && (!source.payableEntityType || !source.payableEntityId)) throw new ApiError(409, 'Khoản công ty trả trực tiếp không phải tiền hoàn cho người khai báo.');
     if (input.direction === 'OUT' && source.payableEntityType === 'FORWARDER' && !source.reconciliationId) throw new ApiError(409, 'Lập bảng hoàn ứng trước để trừ đúng tiền ứng đã nhận.');
-    const cash = await getExpenseCashTotals(tx, source.id);
+    const cash = cashTotals.get(source.id) ?? await getExpenseCashTotals(tx, source.id);
     const remaining = input.direction === 'IN' ? Number(source.customerChargeAmount ?? 0) - cash.IN
       : Number(source.amount) - Number(source.allocatedAdvanceAmount) - cash.OUT;
     if (!Number.isSafeInteger(ref.amount) || ref.amount <= 0 || ref.amount > remaining) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} chỉ còn ${remaining}đ.`);

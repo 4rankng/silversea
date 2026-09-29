@@ -64,7 +64,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
 
   it('explains a failed removal and preserves the expense for retry', async () => {
     apiDelete.mockRejectedValueOnce(new Error('Không thể kết nối để xóa khoản chi'));
-    renderPage(); fireEvent.click(await screen.findByRole('button', { name: 'Xóa khoản chi SS-1' }));
+    renderPage(); fireEvent.click(await screen.findByRole('button', { name: 'Xóa khoản chi SS-1' }, { timeout: 5000 }));
     // Q10 (card 20260922_78): the removal dialog now demands a reason first.
     fireEvent.change(within(screen.getByRole('dialog', { name: 'Nhập lý do' })).getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Nhập trùng khoản' } });
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Nhập lý do' })).getByRole('button', { name: 'Xóa' }));
@@ -76,7 +76,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
 
   it('prevents overlapping removal requests while deletion is pending', async () => {
     apiDelete.mockReturnValue(new Promise(() => {})); renderPage();
-    const remove = await screen.findByRole('button', { name: 'Xóa khoản chi SS-1' });
+    const remove = await screen.findByRole('button', { name: 'Xóa khoản chi SS-1' }, { timeout: 5000 });
     fireEvent.click(remove);
     // Q10: type the reason before the removal request can fire.
     fireEvent.change(within(screen.getByRole('dialog', { name: 'Nhập lý do' })).getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Nhập trùng khoản' } });

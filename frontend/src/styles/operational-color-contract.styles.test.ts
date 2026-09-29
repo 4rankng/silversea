@@ -40,7 +40,13 @@ describe('operational color contract', () => {
       }
     }
     expect(masterPlan).not.toMatch(/color="(?:blue|orange|indigo)"/);
-    expect(masterPlan.match(/color="gray"/g)).toHaveLength(3);
+    // Card 20260930_215 deleted the master-plan pills — the Nhập/Xuất direction
+    // marker and the carrier-allocation chip are plain text now — so the pin
+    // that counted exactly three `color="gray"` Badge props went with them. The
+    // promise it guarded ("categories stay neutral") is stronger without them:
+    // the grid spends no badge colour at all, which the design-lock entries
+    // `master-plan/*/no-pill-in-grid` measure in the browser.
+    expect(masterPlan).not.toMatch(/color="(?:gray|blue|orange|indigo)"/);
     expect(detailedPlan).not.toMatch(/(?:utility-blue|#eff6ff|#1d4ed8|warning-primary)/);
     // Card 20260927_67 (5): the direction badge became an OUTLINED identifier
     // (Xuất/Nhập names a class of record, it is not a state), so this pin moved
