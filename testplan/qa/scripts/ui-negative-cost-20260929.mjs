@@ -15,6 +15,7 @@
 // Exits non-zero when a criterion is UNPROVEN, not only when it is wrong.
 
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from '../lib/env.mjs';
@@ -49,14 +50,35 @@ await page.screenshot({ path: path.join(OUT, 'ops-orders-before.png'), fullPage:
 
 // The shipment whose cost form we will exercise: the first row the OPS account
 // can actually act on. Picking by a real control, not a hard-coded id.
-const target = await page.evaluate(() => {
+// Drive the shipment the FIXTURE created, not simply the first row: the OPS
+// queue lists every same-day shipment and earlier scenario runs left theirs
+// there, so "first row" targets a shipment with no trip and no truck
+// assignment and the save is refused for reasons unrelated to the amount.
+function latestScenario() {
+  const dir = path.resolve(QA_ROOT, '..', '..', 'qa');   // repo-root qa/, not testplan/qa
+  const files = fsSync.readdirSync(dir).filter((d) => d.endsWith('_seed-factory'))
+    .map((d) => path.join(dir, d, 'scenario.json'))
+    .filter((f) => fsSync.existsSync(f))
+    .sort();
+  return files.at(-1) ?? null;
+}
+const scenarioPath = process.env.SCENARIO_JSON || latestScenario();
+let wantCode = null;
+try {
+  if (scenarioPath) wantCode = JSON.parse(fsSync.readFileSync(scenarioPath, 'utf8'))?.shipment?.billBookingNumber ?? null;
+} catch { /* no scenario file: fall back to the first row */ }
+notes.push(`targeting fixture shipment: ${wantCode ?? '(none - first row)'}`);
+
+const target = await page.evaluate((code) => {
   const rows = [...document.querySelectorAll('tbody tr')].filter((tr) => tr.querySelector('button, a'));
-  const first = rows.find((tr) => /khoản chi|khai chi|chi phí/i.test(tr.innerText || '')) || rows[0];
+  const first = (code && rows.find((tr) => (tr.innerText || '').includes(code)))
+    || rows.find((tr) => /khoản chi|khai chi|chi phí/i.test(tr.innerText || ''))
+    || rows[0];
   if (!first) return null;
   const btn = [...first.querySelectorAll('button, a')].find((b) => /khoản chi|khai chi|chi phí/i.test(b.innerText || ''))
     || first.querySelector('button, a');
   return { rowText: (first.innerText || '').trim().slice(0, 80), label: (btn?.innerText || '').trim().slice(0, 40) };
-});
+}, wantCode);
 notes.push(`buildHash=${buildHash} env=${env.env} target=${JSON.stringify(target)}`);
 
 if (!target) {

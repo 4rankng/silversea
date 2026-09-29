@@ -154,8 +154,12 @@ async function resolveLogin(roleName) {
 
 async function tryLogin(username) {
   try {
-    const c = await loginAt(username, { password: process.env.PASSWORD ?? 'Abc123' });
-    return c && c.token ? c.token : null;
+    // `login()` resolves to body.token — a STRING, not the body object. Reading
+    // `.token` off it is always undefined, so this could never succeed and the
+    // roster walk silently reported "no account authenticates" for every
+    // candidate, including ones that log in perfectly well.
+    const token = await loginAt(username, { password: process.env.PASSWORD ?? 'Abc123' });
+    return typeof token === 'string' && token ? token : null;
   } catch {
     return null;
   }
@@ -377,7 +381,7 @@ if (NO_CREATE) {
         // abort the whole scenario.
         const ops = await resolveLogin('giaonhan');
         if (!ops.token || !ops.username) {
-          log.push('ops-assignment SKIPPED: no OPS account authenticates on this target');
+          log.push(`ops-assignment SKIPPED: no OPS account authenticates (tried ${JSON.stringify(ops.tried)} username=${ops.username})`);
           scenario.opsAssignmentError = 'no OPS account authenticates';
         } else {
           const usersRes = await apiAt(adminToken, "GET", "/auth/users", undefined, { query: { limit: 200 } });
