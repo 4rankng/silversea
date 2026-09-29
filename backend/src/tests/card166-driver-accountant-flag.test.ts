@@ -8,7 +8,7 @@
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
