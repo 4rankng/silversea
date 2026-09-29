@@ -36,6 +36,11 @@ phantom finding, no pill in a data cell, no teaching copy, one "chưa" per recor
 - Sweep (390/768/1440, 4 roles): 0 overflow, 0 clipped, 0 sub-11px, 0 sub-40px;
   only remaining finding is the CUS debit 403 (now fixed in the FE).
   `qa/2026-09-30_role-sweep_*`.
+- Nine-width sweep (360…1440, 3 scan users): `offscreen` 58 → 2, both
+  `/config/routes` `td` (card 222, landed by another lane); `small` 18 remain on
+  `/accounting` at 768/820/1024 (card 223).
+- Desktop state matrix (1280/1440/1920/2560 × the 5 touched surfaces, with data):
+  0 overflow, 0 console/API error — `qa/2026-09-30_role-polish_matrix*`.
 - Frontend `tsc -b` 0 · vitest scoped sets green (dispatch 362, ops 50, copy-trim
   trees 379) · `pnpm design:lock` 200/201 · `pnpm design:drift` no growth.
 - Backend `tsc --noEmit` 0 · card 213 red→green logs in `qa/`.
