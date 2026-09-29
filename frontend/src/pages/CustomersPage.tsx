@@ -15,6 +15,7 @@ import { Input } from '../components/untitled-ui/base/input/input';
 import { EntityFormSection, RequiredHint } from '../components/shared/EntityFormParts';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, useTableQueryState } from '../design-system';
+import { useTableRowSelection } from '../hooks/useTableRowSelection';
 import { CustomerFilters, type CustomerFilterKey } from '../features/customers/CustomerFilters';
 import {
   customerDebtSummaryQuery,
@@ -268,7 +269,12 @@ export default function CustomersPage() {
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   // Card _37: column visibility (optional detail columns hidden by default),
   // secondary debt filter, bulk selection and the row slide-over drawer.
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Card 20260929_207: the row is the selection control — the checkbox column
+  // is gone app-wide. The bulk bar below still reads the same set, so every
+  // batch action (CSV, notify, lock) is unchanged.
+  const selection = useTableRowSelection<number>();
+  const selected = selection.selected;
+  const rowProps = selection.rowProps;
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openCustomerDrawer = (id: number) => { setDrawerId(id); setDrawerOpen(true); };
@@ -381,6 +387,12 @@ export default function CustomersPage() {
     });
     return { activeCount, lockedCount, filtered };
   }, [customers, filter, debtMap]);
+  // Card 20260929_207: the page-wide select-all, scoped to the rows on screen.
+  const allOnPageSelected = selection.allOfSelected(filtered.map((c) => c.id));
+  const toggleAllOnPage = () => {
+    if (allOnPageSelected) selection.clear();
+    else selection.selectAll(filtered.map((c) => c.id));
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -430,7 +442,7 @@ export default function CustomersPage() {
       // surface the affected count so the action's scope stays visible.
       const action = status === 'LOCKED' ? 'khóa' : 'mở khóa';
       toast({ kind: 'success', message: `Đã ${action} ${body?.updated ?? 0} tài khoản${body?.skipped ? ` (bỏ qua ${body.skipped})` : ''}` });
-      setSelected(new Set());
+      selection.clear();
       await refetchCustomers();
     } catch (e: unknown) {
       toastMutationError(e, 'Lỗi khóa/mở khóa');
@@ -644,16 +656,32 @@ export default function CustomersPage() {
             {bulkStatusBusy ? <Loader2 size={14} className="spin" /> : null}
             Khóa / Mở khóa
           </button>
-          <button className="btn btn--ghost btn--sm" onClick={() => setSelected(new Set())}>Bỏ chọn</button>
+          <button className="btn btn--ghost btn--sm" onClick={() => selection.clear()}>Bỏ chọn</button>
         </div>
       )}
+      {/* Card 20260929_207: the select-all and the selection model live OUTSIDE
+          the table, and the model is stated once. Row click picks; the customer
+          NAME opens the record (PM decision). */}
+      <div className="customers-selection-bar">
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          onClick={toggleAllOnPage}
+          disabled={filtered.length === 0}
+          title={allOnPageSelected ? 'Bỏ chọn các khách hàng đang hiện' : `Chọn ${filtered.length} khách hàng đang hiện trên trang này`}
+        >
+          {allOnPageSelected ? 'Bỏ chọn dòng trang này' : `Chọn cả trang này (${filtered.length})`}
+        </button>
+        <span className="customers-selection-bar__hint">
+          Bấm vào một dòng để chọn · bấm vào tên khách hàng để mở hồ sơ
+        </span>
+      </div>
 
       {/* ── Desktop table (>640px) ──────────────────────────────────────── */}
       <div className="desktop-only table-wrap">
         <div className="record-table-wrap">
           <table className="record-table ops-table" style={{ tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: 36 }} />
                 <col style={{ width: 140 }} />
                 <col />
                 <col style={{ width: 120 }} />
@@ -664,16 +692,6 @@ export default function CustomersPage() {
               </colgroup>
               <thead>
                 <tr>
-                  <th style={{ width: 36 }}>
-                    <input
-                      type="checkbox"
-                      aria-label="Chọn tất cả khách hàng trên trang"
-                      checked={filtered.length > 0 && selected.size === filtered.length}
-                      onChange={(e) => {
-                        setSelected(e.target.checked ? new Set(filtered.map(c => c.id)) : new Set());
-                      }}
-                    />
-                  </th>
                   <SortHeader label="Mã / Tên rút gọn" sortKey="shortName" sort={sort} onSortChange={applySort} />
                   <SortHeader label="Tên doanh nghiệp" sortKey="name" sort={sort} onSortChange={applySort} />
                   <SortHeader label="MST" sortKey="taxCode" sort={sort} onSortChange={applySort} />
@@ -685,51 +703,46 @@ export default function CustomersPage() {
               </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
                   <p style={{ fontSize: 'var(--text-data-size)' }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
-                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
                   <p>{error}</p>
                   <button className="btn btn--secondary btn--sm" style={{ marginTop: 8 }} onClick={() => refetchCustomers()}>Thử lại</button>
                 </td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <EmptyState variant="compact" context="clients" title={search || filter !== 'all' ? 'Không có khách hàng phù hợp.' : 'Chưa có dữ liệu'} />
                 </td></tr>
               )}
               {filtered.map((c) => (
-                  <tr key={c.id} role="button" tabIndex={0}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => openCustomerDrawer(c.id)}
-                    onKeyDown={e => {
-                      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault(); openCustomerDrawer(c.id);
-                      }
-                    }}
+                  <tr
+                    key={c.id}
+                    tabIndex={0}
+                    data-selected={selected.has(c.id) || undefined}
+                    aria-selected={selected.has(c.id)}
+                    className="customers-row"
+                    {...rowProps(c.id)}
                   >
-                    <td data-label="Chọn" style={{ width: 36 }} onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        aria-label={`Chọn ${c.shortName || c.name}`}
-                        checked={selected.has(c.id)}
-                        onChange={(e) => {
-                          setSelected(prev => {
-                            const next = new Set(prev);
-                            if (e.target.checked) next.add(c.id); else next.delete(c.id);
-                            return next;
-                          });
-                        }}
-                      />
-                    </td>
                     <td data-label="Mã / Tên rút gọn" className="customers-code-cell">
                       {c.shortName || <span className="customers-muted">—</span>}
                     </td>
+                    {/* Card 20260929_207 (PM decision): the row is the selection
+                        control, so opening the customer moved to the name — the
+                        cell that carries its identity. */}
                     <td data-label="Tên doanh nghiệp">
-                      <span className="customers-name-cell" title={c.name}>{c.name}</span>
+                      <button
+                        type="button"
+                        className="customers-name-open"
+                        aria-label={`Mở hồ sơ ${c.name}`}
+                        onClick={() => openCustomerDrawer(c.id)}
+                      >
+                        <span className="customers-name-cell" title={c.name}>{c.name}</span>
+                      </button>
                     </td>
                     <td data-label="Mã số thuế" className="customers-mono-cell">
                       {c.taxCode || <span className="customers-muted">—</span>}
