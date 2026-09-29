@@ -343,7 +343,15 @@ export async function reconcileShipmentContainersInTx(
   ) {
     throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
   }
-  if (derivedDate !== shipment.expectedDeliveryDate) {
+  // Card 20260929_203: the projection REPRODUCES a date, it does not own the
+  // column. Writing a derived `null` over a stored value destroyed the date
+  // the create call had just written (no container had an appointment yet, so
+  // derivedDate was null), and /ops/orders — which filters on this exact
+  // column — went empty for every newly created shipment, with no error
+  // anywhere. The 409 above already covers the one case where dropping the
+  // last appointment really is a mistake, so here the rule is simply: update
+  // the projection when it knows a date, never erase one it cannot reproduce.
+  if (derivedDate != null && derivedDate !== shipment.expectedDeliveryDate) {
     const allContainersDated = synchronizedContainers.length > 0
       && synchronizedContainers.every((container) => container.customerAppointmentAt != null);
     const becomesReady = shipment.cargoMode === CARGO_MODE.FCL
