@@ -69,8 +69,11 @@ router.get('/reconciliation-report', asyncHandler(async (req, res) => {
   const query = parse(z.object({
     from: expenseDateSchema.optional(), to: expenseDateSchema.optional(),
     // Card 20260928_169 — "đợt làm đề nghị". A đợt is an expense_reconciliations
-    // lot; when given it defines the report's window and staff.
+    // lot; when given it defines the report's window and staff. opsUserId is
+    // the employee axis (same positive-id pattern as expenseListQuerySchema's
+    // payerId); scoped to a lot it must agree with the lot's staff.
     reconciliationId: z.coerce.number().int().positive().optional(),
+    opsUserId: z.coerce.number().int().positive().optional(),
   }), req.query);
   res.json(await listMonthlyReconciliationReport(getUser(req), query));
 }));

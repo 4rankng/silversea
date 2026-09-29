@@ -3,6 +3,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { requireExpenseFinance } from './expense-accounting-write.service';
+import { getOutstandingAdvanceBalances } from './advance-shared.service';
 import { ApiError } from '../errors';
 import { expenseDateSchema } from '@tingting/shared';
 
@@ -30,12 +31,15 @@ export interface OpsReconciliationReport {
  *  hoàn ứng tháng). Per staff: ĐNTT = confirmed ops costs in the period (the
  *  card-10 confirmed spine; unconfirmed rows never count), ĐÃ ỨNG = the
  *  advance the staff still holds (RECORDED advance requests minus what the
- *  existing reconciliations already consumed), CÒN PHẢI HOÀN ỨNG = ĐNTT −
- *  ĐÃ ỨNG with an explicit direction label (+ company pays the worker back,
- *  − company collects the advance — never a bare negative). Vouchers ride the
- *  existing engine; once its phiếu chi/thu posts, the fund book and this
- *  report converge (the card-10 invariant). */
-export async function listMonthlyReconciliationReport(actor: ExpenseActor, query: { from?: string; to?: string; reconciliationId?: number }): Promise<OpsReconciliationReport> {
+ *  existing reconciliations already consumed), CÒN PHẢI HOÀN ỨNG = the SỔ QUỸ
+ *  closing formula — min(đã ứng, đã cấp) − đã tiêu — per the 2026-09-29 PM
+ *  ruling (card 168 board block "RULING PM", câu 1), which supersedes this
+ *  report's own ĐNTT − ĐÃ ỨNG: the number is the money actually granted and
+ *  still unconsumed, so the OPS-account row in Sổ quỹ and this report are the
+ *  same definition and cannot diverge. ĐNTT and ĐÃ ỨNG stay as displayed
+ *  columns; the phiếu direction still comes from the đợt's own difference
+ *  (the reconciliation engine's number), which the row action reads. */
+export async function listMonthlyReconciliationReport(actor: ExpenseActor, query: { from?: string; to?: string; reconciliationId?: number; opsUserId?: number }): Promise<OpsReconciliationReport> {
   requireExpenseFinance(actor);
   const today = new Date().toISOString().slice(0, 10);
   const from = query.from ?? `${today.slice(0, 7)}-01`;
@@ -49,11 +53,10 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   // A "đợt" is an `expense_reconciliations` lot. The PRD (OpsVanHanh §9.2)
   // defines it by semantics — a batch that OWNS a set of costs, ALLOCATES
   // received advances to them, and never lets one item land in two batches.
-  // A reconciliation links to advance requests through
-  // `expense_reconciliation_advances`; it does NOT link to individual cost
-  // rows, so the costs it owns are its `opsUserId` within its own from/to
-  // window. That is the same ownership rule, expressed on the data that
-  // actually exists.
+  // The lot owns exactly the cost rows it stamped
+  // (`expense_accounting_sources.reconciliation_id`, set by
+  // createExpenseReconciliation) and allocates advances through
+  // `expense_reconciliation_advances`.
   //
   // When a đợt is selected it DEFINES the report: its own window and its own
   // single staff member. An explicit from/to that disagrees with the lot would
@@ -68,12 +71,14 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
       opsUserId: s.expenseReconciliations.opsUserId,
       from: s.expenseReconciliations.from,
       to: s.expenseReconciliations.to,
+      voidedAt: s.expenseReconciliations.voidedAt,
     }).from(s.expenseReconciliations)
       .where(eq(s.expenseReconciliations.id, query.reconciliationId));
     if (!lot) throw new ApiError(404, 'Không tìm thấy đợt đối soát.');
-    const [voided] = await db.select({ voidedAt: s.expenseReconciliations.voidedAt })
-      .from(s.expenseReconciliations).where(eq(s.expenseReconciliations.id, query.reconciliationId));
-    if (voided?.voidedAt) throw new ApiError(400, 'Đợt đối soát đã bị hủy, không dùng để báo cáo.');
+    if (lot.voidedAt) throw new ApiError(400, 'Đợt đối soát đã bị hủy, không dùng để báo cáo.');
+    if (query.opsUserId !== undefined && query.opsUserId !== lot.opsUserId) {
+      throw new ApiError(400, 'Đợt đối soát thuộc nhân viên khác với bộ lọc nhân viên.');
+    }
     batchStaffId = lot.opsUserId;
     batchInfo = {
       id: lot.id,
@@ -88,21 +93,28 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   // equivalent of `sumExcludingNegative`: `filter (where amount >= 0)`. Same
   // rule as the in-memory helper (strictly negative rows dropped, 0 kept), and
   // the sum stays integer `::int` — no float touches the money.
+  // Card 20260928_169 — scoped to one đợt, ĐNTT counts exactly the costs the
+  // lot OWNS (the sources it stamped), never a window approximation: PRD §9.2
+  // "một khoản chi không được tính toàn bộ vào nhiều đợt", so another
+  // confirmed cost of the same staff inside the same window must not leak in.
+  const sourceJoin = [
+    eq(s.expenseAccountingSources.sourceKind, 'OPS'),
+    eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id),
+    isNotNull(s.expenseAccountingSources.confirmedAt),
+  ];
+  if (batchInfo) sourceJoin.push(eq(s.expenseAccountingSources.reconciliationId, batchInfo.id));
   const costRows = await db.select({
     staffId: s.opsExpenseEntries.paidById,
     dntt: sql<number>`coalesce(sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} >= 0), 0)::int`,
   }).from(s.opsExpenseEntries)
-    .innerJoin(s.expenseAccountingSources, and(
-      eq(s.expenseAccountingSources.sourceKind, 'OPS'),
-      eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id),
-      isNotNull(s.expenseAccountingSources.confirmedAt),
-    ))
+    .innerJoin(s.expenseAccountingSources, and(...sourceJoin))
     .where(and(
       eq(s.opsExpenseEntries.approvalStatus, 'RECORDED'),
-      gte(s.opsExpenseEntries.paidAt, costFrom),
-      lte(s.opsExpenseEntries.paidAt, costTo),
-      // A đợt owns exactly one staff member's costs in its own window.
-      batchStaffId === null ? undefined : eq(s.opsExpenseEntries.paidById, batchStaffId),
+      // Unscoped, the report is the monthly per-staff view: costs are owned by
+      // the period window. Scoped, the lot's own rows are the period — its
+      // window only rides along on the response for display.
+      batchInfo ? undefined : gte(s.opsExpenseEntries.paidAt, costFrom),
+      batchInfo ? undefined : lte(s.opsExpenseEntries.paidAt, costTo),
     ))
     .groupBy(s.opsExpenseEntries.paidById);
   const costByStaff = new Map(costRows.map((row) => [row.staffId, Number(row.dntt)] as const));
@@ -137,12 +149,22 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
       heldByStaff.set(key, (heldByStaff.get(key) ?? 0) - Number(row.consumed));
     }
   }
-  const heldByStaffKeyed = new Map<string, number>();
-  for (const [staffKey, held] of heldByStaff) heldByStaffKeyed.set(staffKey, held);
   const staffKeys = new Set<string>([
     ...[...costByStaff.keys()].map((id) => String(id)),
-    ...[...heldByStaffKeyed.keys()],
+    ...[...heldByStaff.keys()],
   ]);
+  // Card 168 PM ruling (2026-09-29, board "RULING PM" câu 1): Còn phải hoàn
+  // ứng is the Sổ quỹ closing formula — min(đã ứng, đã cấp) − đã tiêu — read
+  // from the SAME canonical authority the fund book reads, so the two tables
+  // are one definition and can never report different numbers. The per-request
+  // floor at 0 keeps it non-negative; > 0 means the staff still holds granted,
+  // unconsumed advance money. Scoped to a đợt the book number is still the
+  // staff's own — the lot fixes the staff, never the number.
+  const outstandingByStaff = new Map(
+    (await getOutstandingAdvanceBalances(batchStaffId ?? undefined)).items
+      .map((item) => [String(item.forwarderId), item.outstanding] as const),
+  );
+  for (const key of outstandingByStaff.keys()) staffKeys.add(key);
   const staffIdNumbers = [...staffKeys].map((key) => Number(key)).filter((id) => Number.isInteger(id) && id > 0);
   const staffRows = staffIdNumbers.length
     ? await db.select({ id: s.users.id, fullName: s.users.fullName, username: s.users.username })
@@ -153,28 +175,30 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   for (const key of staffKeys) {
     const staffId = Number(key);
     const dntt = costByStaff.get(staffId) ?? 0;
-    const advanced = heldByStaffKeyed.get(key) ?? 0;
-    const remaining = dntt - advanced;
-    if (dntt === 0 && advanced === 0) continue;
-    const direction: OpsReconciliationDirection = remaining > 0 ? 'CTY_THANH_TOAN_HOAN_UNG'
-      : remaining < 0 ? 'CTY_YEU_CAU_HOAN_TRA' : 'KHONG_CON_GI';
-    const note = remaining > 0 ? 'Công ty thanh toán hoàn ứng'
-      : remaining < 0 ? 'Công ty yêu cầu nhân viên hoàn trả tạm ứng' : 'Không còn chênh lệch';
+    const advanced = heldByStaff.get(key) ?? 0;
+    const remaining = outstandingByStaff.get(key) ?? 0;
+    if (dntt === 0 && advanced === 0 && remaining === 0) continue;
+    const direction: OpsReconciliationDirection = remaining > 0 ? 'CTY_YEU_CAU_HOAN_TRA' : 'KHONG_CON_GI';
+    const note = remaining > 0 ? 'Công ty yêu cầu nhân viên hoàn trả tạm ứng' : 'Không còn chênh lệch';
     rows.push({
       staffId,
       staffName: nameByStaff.get(staffId) ?? `NV #${staffId}`,
       dntt, advanced, remaining, direction, note,
     });
   }
-  rows.sort((a, b) => a.staffName.localeCompare(b.staffName, 'vi'));
+  // Card 20260928_169 — the employee axis: unscoped, a single staff filter
+  // narrows the monthly view to that person (scoped mode already validated the
+  // filter against the lot above). Totals derive from the visible rows.
+  const visibleRows = query.opsUserId === undefined ? rows : rows.filter((row) => row.staffId === query.opsUserId);
+  visibleRows.sort((a, b) => a.staffName.localeCompare(b.staffName, 'vi'));
   return {
     from: costFrom, to: costTo,
     ...(batchInfo ? { reconciliation: batchInfo } : {}),
-    rows,
+    rows: visibleRows,
     totals: {
-      dntt: rows.reduce((sum, row) => sum + row.dntt, 0),
-      advanced: rows.reduce((sum, row) => sum + row.advanced, 0),
-      remaining: rows.reduce((sum, row) => sum + row.remaining, 0),
+      dntt: visibleRows.reduce((sum, row) => sum + row.dntt, 0),
+      advanced: visibleRows.reduce((sum, row) => sum + row.advanced, 0),
+      remaining: visibleRows.reduce((sum, row) => sum + row.remaining, 0),
     },
   };
 }

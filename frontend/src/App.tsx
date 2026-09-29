@@ -128,6 +128,7 @@ const PhoiPhieuControlPage = lazy(() => import('./pages/accounting/PhoiPhieuCont
 const AccountingDebitClosePage = lazy(() => import('./pages/accounting/AccountingDebitClosePage'));
 const AccountingInvoiceTrackingPage = lazy(() => import('./pages/AccountingInvoiceTrackingPage'));
 const DepositRefundTrackerPage = lazy(() => import('./pages/accounting/DepositRefundTrackerPage'));
+const OpsReconciliationReportPage = lazy(() => import('./pages/accounting/OpsReconciliationReportPage'));
 const TirePositionsConfigPage = lazy(() => import('./pages/config/TirePositionsConfigPage'));
 const DebitNoteTemplatesConfigPage = lazy(() => import('./pages/config/DebitNoteTemplatesConfigPage'));
 const DebitNoteTemplateEditorPage = lazy(() => import('./pages/config/DebitNoteTemplateEditorPage'));
@@ -307,6 +308,10 @@ export function AppRoutes() {
             path="/accounting/deposit-tracker"
             element={isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? page(<DepositRefundTrackerPage />) : <Navigate to={homeRedirect} replace />}
           />
+          {/* Card 20260928_169 — Báo cáo tổng hợp hoàn ứng (per staff / per
+              đợt). Same finance-only gate as the expense-accounting surface it
+              reports on (requireExpenseFinance on the API). */}
+          <Route path="/accounting/hoan-ung" element={financeReaderOnly(page(<OpsReconciliationReportPage />))} />
           <Route path="/finance/treasury" element={capabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
           <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />

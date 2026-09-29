@@ -3,10 +3,13 @@
  * Service-level suite; fixtures `card11-*`/`CARD11-*`, local DB :5441.
  *
  * Coverage:
- *   AC1/AC2 columns + formula to the đồng: per staff ĐNTT (confirmed ops
- *       costs in period) − ĐÃ ỨNG (held advances) = remaining.
- *   AC3 sign labeled: + = company pays back, − = company collects, labeled —
- *       never a bare negative.
+ *   AC1/AC2 columns: per staff ĐNTT (confirmed ops costs in period) and ĐÃ ỨNG
+ *       (held advances). "Còn phải hoàn ứng" is the SỔ QUỸ closing formula —
+ *       min(đã ứng, đã cấp) − đã tiêu, the granted-but-unconsumed advance —
+ *       per the 2026-09-29 PM ruling (card 168 board "RULING PM" câu 1),
+ *       which supersedes this report's own ĐNTT − ĐÃ ỨNG.
+ *   AC3 label: > 0 the staff still holds advance money (collect it back),
+ *       0 nothing left; an UNFUNDED request is not an advance at all.
  *   Consumption: advances consumed by existing reconciliations reduce held.
  *   AC4: vouchers ride the existing engine (cited; engine has own suites).
  */
@@ -19,7 +22,7 @@ import * as s from '../db/schema';
 import { createOpsExpense } from '../services/ops-expenses.service';
 import { confirmAccountingExpenses } from '../services/expense-accounting-write.service';
 import { listMonthlyReconciliationReport } from '../services/ops-reconciliation-report.service';
-import { Role } from '@tingting/shared';
+import { Role, TxnType } from '@tingting/shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -92,6 +95,29 @@ async function mkShipment() {
   return { customer, route, shipment };
 }
 
+/** The 2026-09-29 ruling counts only money actually granted: write the same
+ *  funding pair the real engine posts (OPS_ADVANCE ledger + treasury OUT
+ *  movement) so the canonical outstanding reads this fixture. */
+async function fundAdvance(staff: { id: number }, advanceId: number, amount: number) {
+  const [account] = await db.insert(s.treasuryAccounts).values({
+    code: `CARD11-${suffix}-fund-${advanceId}`, name: `card11 fund ${suffix}-${advanceId}`,
+    type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', openingBalance: '0',
+    createdBy: 1, updatedBy: 1,
+  }).returning();
+  track(async () => { await db.delete(s.treasuryAccounts).where(eq(s.treasuryAccounts.id, account.id)); });
+  const [ledger] = await db.insert(s.ledger).values({
+    txnType: TxnType.OPS_ADVANCE, txnId: advanceId, entityType: 'FORWARDER', entityId: staff.id,
+    debit: '0', credit: String(amount), balance: String(amount), note: `card11 funded ${suffix}`,
+  }).returning();
+  track(async () => { await db.delete(s.ledger).where(eq(s.ledger.id, ledger.id)); });
+  const [movement] = await db.insert(s.treasuryMovements).values({
+    treasuryAccountId: account.id, direction: 'OUT', amount: String(amount),
+    valueDate: TODAY, status: 'POSTED', ledgerEntryId: ledger.id, sourceVersion: 1,
+    paymentContractVersion: 2, createdBy: 1, physicalReference: `card11-${suffix}-fund-${advanceId}`,
+  }).returning();
+  track(async () => { await db.delete(s.treasuryMovements).where(eq(s.treasuryMovements.id, movement.id)); });
+}
+
 
 describe('card 20260921_11 - bao cao tong hop hoan ung', () => {
   test('columns, formula to the dong, labeled signs (AC1-AC3)', async () => {
@@ -102,10 +128,12 @@ describe('card 20260921_11 - bao cao tong hop hoan ung', () => {
     await mkCostEntry(staffA, shipment.id, 250000, TODAY, { confirm: true });
     await mkCostEntry(staffA, shipment.id, 120000, TODAY, { confirm: true });
     const eOut = await mkCostEntry(staffA, shipment.id, 90000, LAST_MONTH, { confirm: true });
-    await db.insert(s.advanceRequests).values({ requesterId: staffA.id, amount: '300000', reason: 'card11 advance A', status: 'RECORDED' });
+    const [advanceA] = await db.insert(s.advanceRequests).values({ requesterId: staffA.id, amount: '300000', reason: 'card11 advance A', status: 'RECORDED' }).returning();
     await db.insert(s.advanceRequests).values({ requesterId: staffB.id, amount: '200000', reason: 'card11 advance B', status: 'RECORDED' });
     track(async () => { await db.delete(s.advanceRequests).where(eq(s.advanceRequests.reason, 'card11 advance A')); });
     track(async () => { await db.delete(s.advanceRequests).where(eq(s.advanceRequests.reason, 'card11 advance B')); });
+    // Staff A's advance was actually granted; staff B only requested one.
+    await fundAdvance(staffA, advanceA.id, 300000);
     const report = await listMonthlyReconciliationReport({ userId: acc.id, role: Role.ACCOUNTANT }, { from: TODAY, to: TODAY });
     const rowA = report.rows.find((row) => row.staffId === staffA.id);
     const rowB = report.rows.find((row) => row.staffId === staffB.id);
@@ -113,14 +141,18 @@ describe('card 20260921_11 - bao cao tong hop hoan ung', () => {
     assert.ok(rowB, 'staff B row present');
     assert.equal(rowA.dntt, 370000);
     assert.equal(rowA.advanced, 300000);
-    assert.equal(rowA.remaining, 70000);
-    assert.equal(rowA.direction, 'CTY_THANH_TOAN_HOAN_UNG');
-    assert.match(rowA.note, /thanh toán hoàn ứng/);
+    // 2026-09-29 ruling: remaining is the sổ quỹ closing number — granted
+    // 300.000, consumed 0 — not ĐNTT − ĐÃ ỨNG (which would read 70.000).
+    assert.equal(rowA.remaining, 300000);
+    assert.equal(rowA.direction, 'CTY_YEU_CAU_HOAN_TRA');
+    assert.match(rowA.note, /hoàn trả tạm ứng/);
     assert.equal(rowB.dntt, 0);
     assert.equal(rowB.advanced, 200000);
-    assert.equal(rowB.remaining, -200000);
-    assert.equal(rowB.direction, 'CTY_YEU_CAU_HOAN_TRA');
-    assert.match(rowB.note, /hoàn trả tạm ứng/);
+    // A RECORDED request without money is not an advance: no grant, no book
+    // balance, nothing to reimburse.
+    assert.equal(rowB.remaining, 0);
+    assert.equal(rowB.direction, 'KHONG_CON_GI');
+    assert.match(rowB.note, /Không còn chênh lệch/);
     assert.ok(eOut, 'out-of-period entry created for the filter rung');
   });
 
