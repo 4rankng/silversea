@@ -116,9 +116,10 @@
   background: var(--surface);
   position: relative;
 }
+/* Card 20260929_207: the 38px select track is gone with the checkbox column
+   — the row is the control now, so the data tracks start at the edge. */
 .trip-list-page.quick-edit-mode .table-head,
-  /* Card 20260929_207: the 38px select track is gone with the checkbox column
-     — the row is the control now, so the data tracks start at the edge. */
+.trip-list-page.quick-edit-mode .table-row {
   grid-template-columns: minmax(190px, 1.25fr) 90px minmax(160px, 1.35fr) minmax(80px, 0.6fr) 110px 118px 118px 118px 110px 110px 110px;
   min-width: 1280px;
 }
