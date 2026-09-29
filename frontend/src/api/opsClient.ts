@@ -45,12 +45,31 @@ export interface OpsFundBookEntry {
   amount: string;
 }
 
+export interface OpsFundBookPeriod {
+  from?: string;
+  to?: string;
+}
+
 export interface OpsFundBook {
   items: OpsFundBookEntry[];
+  /** Σ toàn thời gian — luôn là con số này, không đổi theo khoảng lọc. */
   closing: string;
   walletBalance: string;
+  /** "Còn phải hoàn ứng" của kế toán, cũng toàn thời gian. */
   outstandingAdvanceBalance: string;
   matches: boolean;
+  /**
+   * Card 20260928_168 (ruling PM 2026-09-29 câu 2): các con số theo khoảng
+   * ngày đang chọn. `periodOpening` là số dư lũy kế đến `from`, nên
+   * periodOpening + periodClosing luôn bằng `closing` — lát cắt không bao giờ
+   * lệch với sổ mà nó cắt ra. from/to null = không lọc, và khi đó mọi con số
+   * kỳ trùng đúng số toàn thời gian.
+   */
+  period: { from: string | null; to: string | null };
+  periodOpening: string;
+  periodIn: string;
+  periodOut: string;
+  periodClosing: string;
 }
 
 export type OpsExpenseStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -181,7 +200,11 @@ export const opsClient = {
 
   // ── Ví ──
   getWalletSummary: () => api.get<OpsWalletSummary>('/ops/wallet/summary'),
-  getFundBook: () => api.get<OpsFundBook>('/ops/wallet/fund-book'),
+  // Card 20260928_168 — the sổ quỹ reads over a period (ruling PM câu 2). The
+  // window is part of the REQUEST, not a client-side filter, so the rows and
+  // the summary figures always come from one read of one window.
+  getFundBook: (period?: OpsFundBookPeriod) =>
+    api.get<OpsFundBook>(`/ops/wallet/fund-book${qs({ from: period?.from, to: period?.to })}`),
   getWalletExpenses: (status?: OpsExpenseStatus) =>
     api.get<{ items: OpsExpenseRow[] }>(`/ops/wallet/expenses${qs({ status })}`),
   createAdvanceRequest: (body: { amount: number; reason: string }) =>

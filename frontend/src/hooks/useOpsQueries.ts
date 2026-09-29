@@ -12,6 +12,7 @@ import {
   type OpsExpenseStatus,
   type OpsFleetTruck,
   type OpsFundBook,
+  type OpsFundBookPeriod,
   type OpsOrderItem,
   type OpsSettlementDetail,
   type OpsSettlementListItem,
@@ -22,7 +23,9 @@ export const opsKeys = {
   orders: (date: string, q?: string) => ['ops', 'orders', date, q ?? ''] as const,
   expenseTypes: () => ['ops', 'expense-types'] as const,
   walletSummary: () => ['ops', 'wallet-summary'] as const,
-  fundBook: () => ['ops', 'fund-book'] as const,
+  // Card 20260928_168: the window is part of the key, so two different
+  // windows can never serve each other's cached rows.
+  fundBook: (from?: string, to?: string) => ['ops', 'fund-book', from ?? 'all', to ?? 'all'] as const,
   walletAdvanceRequests: (status?: string) => ['ops', 'wallet-advance-requests', status ?? 'all'] as const,
   walletExpenses: (status?: OpsExpenseStatus) => ['ops', 'wallet-expenses', status ?? 'all'] as const,
   expensePhotos: (id: number) => ['ops', 'expense-photos', id] as const,
@@ -78,10 +81,12 @@ export function useOpsWalletSummary() {
   });
 }
 
-export function useOpsFundBook() {
+export function useOpsFundBook(period?: OpsFundBookPeriod) {
+  const from = period?.from;
+  const to = period?.to;
   return useQuery<OpsFundBook>({
-    queryKey: opsKeys.fundBook(),
-    queryFn: () => opsClient.getFundBook(),
+    queryKey: opsKeys.fundBook(from, to),
+    queryFn: () => opsClient.getFundBook({ from, to }),
   });
 }
 

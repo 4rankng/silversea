@@ -51,6 +51,10 @@ const router = Router();
 
 const dateQuerySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date phải có dạng YYYY-MM-DD');
 const statusFilterSchema = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional();
+// Card 20260928_168 — the sổ quỹ's period window. Reuses the same
+// YYYY-MM-DD rule as every other date param in this file, so a malformed
+// window is a 400 and never a silently empty book.
+const fundBookPeriodSchema = z.object({ from: dateQuerySchema.optional(), to: dateQuerySchema.optional() });
 
 function parseId(value: string | string[] | undefined, label = 'ID'): number {
   return sharedParseId(value, label);
@@ -92,7 +96,11 @@ router.get('/wallet/summary', OPS_ONLY, asyncHandler(async (req: Request, res: R
 // hoàn ứng cash events (ADR 2026-09-24-ops-fund-book-scoped-read). Identity
 // comes only from the session; full treasury stays ACCOUNTANT/ADMIN.
 router.get('/wallet/fund-book', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
-  res.json(await getOpsFundBook(getUser(req).userId));
+  // Card 20260928_168, PM ruling câu 2: the SAME from/to the monthly report
+  // takes, so the sổ quỹ and "Còn phải hoàn ứng" can be read over ONE window
+  // instead of whole-history here against this-month there.
+  const { from, to } = fundBookPeriodSchema.parse(req.query);
+  res.json(await getOpsFundBook(getUser(req).userId, { from, to }));
 }));
 
 router.get('/wallet/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {

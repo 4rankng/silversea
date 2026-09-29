@@ -156,6 +156,33 @@ export interface OpsFundBook {
   outstandingAdvanceBalance: OpsMoney;
   /** The acceptance doc's khớp check: book closing vs accountant figure. */
   matches: boolean;
+  /**
+   * Card 20260928_168, PM ruling 2026-09-29 câu 2: "Sổ quỹ PHẢI lọc theo kỳ."
+   * Everything above stays the WHOLE-HISTORY truth — `closing` is what
+   * `matches` compares and what the reconciliation report's "Còn phải hoàn ứng"
+   * is checked against, so redefining it to mean "this month" would change
+   * what an existing column says. These are additive: null bounds mean "no
+   * window", and with no window every period figure equals the whole-history
+   * one. `periodOpening` is the cumulative total up to `from`, NOT a
+   * re-derived balance, so a window can never disagree with the closing it
+   * is a slice of.
+   */
+  period: { from: string | null; to: string | null };
+  periodOpening: OpsMoney;
+  periodIn: OpsMoney;
+  periodOut: OpsMoney;
+  periodClosing: OpsMoney;
+}
+
+export interface OpsFundBookQuery {
+  from?: string;
+  to?: string;
+}
+
+function inWindow(date: string, from: string | null, to: string | null): boolean {
+  // Items are ISO dates, so plain string compare is the same as a date compare
+  // and keeps the boundaries inclusive on both ends.
+  return (from === null || date >= from) && (to === null || date <= to);
 }
 
 const FUND_BOOK_KIND_WEIGHT: Record<OpsFundBookEntryKind, number> = {
@@ -167,7 +194,9 @@ function fundBookIsoDate(value: string | Date | null): string {
   return (value ?? '').slice(0, 10);
 }
 
-export async function getOpsFundBook(userId: number): Promise<OpsFundBook> {
+export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {}): Promise<OpsFundBook> {
+  const from = query.from ?? null;
+  const to = query.to ?? null;
   const [advanceRows, opsExpenseRows, proxyRows, refundRows, voucherRows, wallet] = await Promise.all([
     db.select({ id: s.advanceRequests.id, createdAt: s.advanceRequests.createdAt, reason: s.advanceRequests.reason })
       .from(s.advanceRequests)
@@ -247,12 +276,33 @@ export async function getOpsFundBook(userId: number): Promise<OpsFundBook> {
   items.sort((a, b) => a.date.localeCompare(b.date) || FUND_BOOK_KIND_WEIGHT[a.kind] - FUND_BOOK_KIND_WEIGHT[b.kind] || a.key.localeCompare(b.key));
   const closing = items.reduce((total, item) => total + BigInt(item.amount), 0n);
   const closingText = closing.toString();
+  const periodItems = from === null && to === null
+    ? items
+    : items.filter((item) => inWindow(item.date, from, to));
+  const periodClosingBig = periodItems.reduce((total, item) => total + BigInt(item.amount), 0n);
+  // The opening is the WHOLE-HISTORY closing minus the window, not a second
+  // independent balance: a slice can then never disagree with the book it was
+  // cut from, and with no window it is exactly zero.
+  const periodOpeningBig = closing - periodClosingBig;
+  const periodInBig = periodItems.reduce(
+    (total, item) => total + (BigInt(item.amount) > 0n ? BigInt(item.amount) : 0n), 0n);
+  const periodOutBig = periodItems.reduce(
+    (total, item) => total + (BigInt(item.amount) < 0n ? -BigInt(item.amount) : 0n), 0n);
   const outstanding = String(Math.round(await getOutstandingAdvanceBalance(userId)));
   return {
-    items,
+    // The ROWS are windowed too, not just the summary. Returning the whole
+    // history here would let the table show 09-29 activity under a 09-28
+    // filter while the summary counted only 09-28 — the display divergence
+    // this change exists to remove. With no window, periodItems IS items.
+    items: periodItems,
     closing: closingText,
     walletBalance: wallet.balance,
     outstandingAdvanceBalance: outstanding,
     matches: closingText === outstanding,
+    period: { from, to },
+    periodOpening: periodOpeningBig.toString(),
+    periodIn: periodInBig.toString(),
+    periodOut: periodOutBig.toString(),
+    periodClosing: periodClosingBig.toString(),
   };
 }
