@@ -44,7 +44,9 @@ async function mkRow(typeId: number, cargoWeightKg: number | null, day: string) 
   // The number must be unique per call: the board's own search and the unique
   // index both key on it, so a shared one fails the second fixture.
   const [container] = await db.insert(s.shipmentContainers)
-    .values({ shipmentId: shipment.id, containerNumber: `C172${suffix.slice(-5)}${containerIds.length}`.slice(0, 11), containerTypeId: typeId, cargoWeightKg })
+    // cargo_weight_kg is a numeric column: drizzle types it string, so the
+    // fixture carries the kg value across as its decimal string.
+    .values({ shipmentId: shipment.id, containerNumber: `C172${suffix.slice(-5)}${containerIds.length}`.slice(0, 11), containerTypeId: typeId, cargoWeightKg: cargoWeightKg == null ? null : String(cargoWeightKg) })
     .returning({ id: s.shipmentContainers.id });
   containerIds.push(container.id);
   // The board reaches the container through the trip's FULFILLMENT, not through
