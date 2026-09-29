@@ -118,6 +118,18 @@
   border-radius: 8px;
 }
 
+/* Card 20260930_219 — the expanded row must not demand more height than the
+   frame. Inside a fixed-layout table the expansion grew without bound, and its
+   tail (the action bar, e.g. the batch-assign strip of card 20260928_166) ended
+   up BELOW the app's scroll height: the scroller was already at its maximum
+   while the button sat below the fold, so no amount of scrolling reached it.
+   Bound the expanded area and let it scroll itself. */
+.shipment-debit-expand > td {
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* Card 20260924_9: the red exclusion line sits BESIDE the scroll box —
    inside the overflow-x wrap it rode the table's sideways scroll and its tail
    clipped at the right edge ("tràn/cắn mép phải"). Full wrap width, wraps at
