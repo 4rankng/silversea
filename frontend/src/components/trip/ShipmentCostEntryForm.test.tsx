@@ -105,7 +105,15 @@ describe('driver expense workflow — TC-CP-LX', () => {
     await choose('Chạy quá tải');
     const field = screen.getByLabelText(/Thực chi/) as HTMLInputElement;
 
-    fireEvent.change(field, { target: { value: '-30000' } });
+    // Card 20260929_209: drive the keys one at a time, the way a keypress does,
+    // and assert the INTERMEDIATE state. Setting the whole value in a single
+    // fireEvent bypasses exactly the step that was broken — which is how this
+    // test stayed green while pressing the minus key did nothing at all.
+    fireEvent.change(field, { target: { value: '-' } });
+    expect(field.value).toBe('-'); // the sign is on screen, waiting for digits
+    for (const value of ['-3', '-30', '-300', '-3000', '-30000']) {
+      fireEvent.change(field, { target: { value } });
+    }
 
     // Assert the DISPLAY, not a `min` attribute. This field is grouped, and
     // grouped mode renders a text input and deliberately does not forward

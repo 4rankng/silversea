@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { InputHTMLAttributes, ReactNode } from 'react';
 import { TextField, type TextFieldProps } from './TextField';
 
@@ -64,6 +65,13 @@ export function NumberField({
   signed = false,
   ...rest
 }: NumberFieldProps) {
+  // Card 20260929_209: a lone "-" is a legitimate INTERMEDIATE state — the user
+  // is one keystroke from typing a negative. Returning without emitting made
+  // the controlled field re-render the "-" away instantly, so on a desktop
+  // pressing minus did nothing at all, and on a phone the numeric keypad has
+  // no minus key to press. Held here in local state instead: the emitted
+  // contract stays `number | ''` and no consumer has to learn a new value.
+  const [pendingSign, setPendingSign] = useState(false);
   const handleChange: NonNullable<InputHTMLAttributes<HTMLInputElement>['onChange']> = (e) => {
     // Signed grouped keeps ONE leading minus. Stripping the rest of the
     // non-digits still lets a typed separator (".", ",") through harmlessly,
@@ -72,19 +80,32 @@ export function NumberField({
     const raw = grouped
       ? (signed ? e.target.value.replace(/[^\d-]/g, '').replace(/(?!^)-/g, '') : e.target.value.replace(/\D/g, ''))
       : e.target.value;
-    if (raw === '' || raw === '-') {
-      if (allowEmpty && raw === '') onChange('');
+    if (raw === '-') {
+      // Card 20260929_209: the sign is held here rather than emitted, so the
+      // public contract stays `number | ''` and no consumer learns a new value.
+      setPendingSign(true);
+      return;
+    }
+    setPendingSign(false);
+    if (raw === '') {
+      if (allowEmpty) onChange('');
       return;
     }
     const n = Number(raw);
     if (Number.isFinite(n)) onChange(n);
   };
 
-  const display = value === '' || value === null || value === undefined
-    ? ''
-    : grouped
-      ? viVn.format(Number(value))
-      : String(value);
+  // A typed sign means "I am replacing this number", so it wins over whatever
+  // was in the field — including a pre-filled catalog amount, which is the case
+  // on the driver's cost form and would otherwise leave the digits sitting there
+  // next to the minus the user just pressed.
+  const display = pendingSign
+    ? '-'
+    : value === '' || value === null || value === undefined
+      ? ''
+      : grouped
+        ? viVn.format(Number(value))
+        : String(value);
 
   return (
     <TextField
@@ -97,7 +118,12 @@ export function NumberField({
       prefix={prefix}
       suffix={suffix}
       placeholder={placeholder}
-      inputMode={grouped ? 'numeric' : 'decimal'}
+      // Card 20260929_209: a signed field must NOT ask for the `numeric`
+      // keypad — on a phone that keypad has no minus key at all, so a
+      // negative was unreachable no matter what the handler allowed.
+      // `text` is the only hint that reliably offers the sign; the field
+      // already filters to digits and one leading minus.
+      inputMode={signed ? 'text' : grouped ? 'numeric' : 'decimal'}
       {...rest}
     />
   );
