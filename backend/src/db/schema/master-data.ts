@@ -330,6 +330,12 @@ export const containerTypes = pgTable('container_types', {
   id: serial('id').primaryKey(),
   code: varchar('code', { length: 20 }).notNull().unique(), // e.g. "20DC", "40HC"
   name: varchar('name', { length: 50 }).notNull(),          // e.g. "20'DC", "40'HC"
+  // Card 20260928_172 — rated payload capacity in kg, by ISO container
+  // category (20'DC/HC/OT 28 200 · 20'RF 27 700 · 40'DC/HC/RF 26 500 · 45'HC
+  // 27 900). NULL = no rating known for this type and the UI shows "—" rather
+  // than a guess. NOT the same thing as a shipment's cargo weight, which the
+  // board shows beside it.
+  payloadKg: integer('payload_kg'),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

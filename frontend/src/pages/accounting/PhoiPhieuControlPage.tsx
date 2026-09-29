@@ -192,7 +192,7 @@ export default function PhoiPhieuControlPage() {
 
   return (
     <div className="page-shell">
-      <PageHeader title="Kiểm soát phơi phiếu - Tiền đường" />
+      <PageHeader title="Kiểm soát phơi phiếu" />
       {/* Card 20260927_152: the ONE shared strip. The search, the from/to pair
           and the Lập phiếu action are the bar's own items; the four secondary
           criteria render inline while the strip still fits two rows and fold
@@ -250,15 +250,15 @@ export default function PhoiPhieuControlPage() {
           ? `Bấm vào một dòng để chọn · ${selectableRows.length} dòng lập được phiếu trên trang này`
           : `Đã chọn ${selectedCount} dòng`}
       </p>
-      <div className="shipment-container-ledger" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
+      <div className="ppc-board-wrap" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
         <table className="tt-table ppc-board">
-          <caption>Bảng kiểm soát phơi phiếu - Tiền đường</caption>
+          <caption className="sr-only">Phơi phiếu và tiền đường theo chuyến</caption>
           <thead><tr>
-            <th scope="col">Lịch trình</th>
+            <th scope="col" className="ppc-col--lich-trinh">Lịch trình</th>
             <th scope="col" className="ppc-col--customer-route">Khách hàng &amp; Tuyến</th>
             <th scope="col" className="ppc-col--thongso">Thông số container</th>
             <th scope="col" className="ppc-col--diadiem">Địa điểm nâng / hạ</th>
-            <th scope="col">Thông tin xe</th>
+            <th scope="col" className="ppc-col--xe">Thông tin xe</th>
             <th scope="col" className="ppc-col--chiho" title="Chi hộ: phải thu và phải trả của lô hàng">Chi hộ (thu / trả)</th>
             <th scope="col" className="ppc-col--money">Tiền đường</th>
             <th scope="col" className="ppc-col--status">Trạng thái</th>
@@ -279,11 +279,20 @@ export default function PhoiPhieuControlPage() {
                 tabIndex={pickable ? 0 : undefined}
                 {...selection.rowProps(row.tripId, { selectable: pickable })}
               >
-                <td>{row.tripCode ?? '—'}<br /><small>{row.billOrBooking ?? ''}</small></td>
+                <td className="ppc-col--lich-trinh">{row.tripCode ?? '—'}<br /><small>{row.billOrBooking ?? ''}</small></td>
                 <td>{row.customerName ?? '—'}<br /><small>{row.routeName ?? ''}</small></td>
-                <td>{row.containerNumber ?? '—'}<br /><small>{row.containerTypeLabel ?? ''}</small><br /><small>Trọng tải: {row.cargoWeightKg != null ? row.cargoWeightKg.toLocaleString('vi-VN') + ' kg' : 'Chưa có trọng tải'}</small></td>
+                <td className="ppc-col--thongso">
+                  {row.containerNumber ?? '—'}
+                  <br /><small>{row.containerTypeLabel ?? ''}</small>
+                  {/* Card 20260928_172: the PM asked for TRỌNG TẢI CONTAINER, and
+                      the line that used to read "Trọng tải" was the CARGO weight —
+                      a different number that reads the same. Now both are named. A
+                      type with no ISO rating prints "—" rather than a guess. */}
+                  <br /><small>Trọng tải container: {row.containerPayloadKg != null ? row.containerPayloadKg.toLocaleString('vi-VN') + ' kg' : '—'}</small>
+                  <br /><small>Trọng lượng hàng: {row.cargoWeightKg != null ? row.cargoWeightKg.toLocaleString('vi-VN') + ' kg' : 'Chưa có'}</small>
+                </td>
                 <td>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>
-                <td>{row.plateNumber ?? '—'}<br /><small>{row.driverName ?? ''}</small></td>
+                <td className="ppc-col--xe">{row.plateNumber ?? '—'}<br /><small>{row.driverName ?? ''}</small></td>
                 <td className="ppc-col--chiho">
                   <span className="ppc-line">Phải thu: <span className="ppc-value">{money(row.chiHoThu)}</span></span>
                   <span className="ppc-line">Phải trả: <span className="ppc-value">{money(row.chiHoTra)}</span></span>

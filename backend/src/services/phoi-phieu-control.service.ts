@@ -34,8 +34,12 @@ export interface PhoiPhieuRow {
   routeName: string | null;
   containerNumber: string | null;
   containerTypeLabel: string | null;
-  /** Card 20260921_15 — trọng tải (the container's cargo weight from intake). */
+  /** Card 20260921_15 — trọng lượng HÀNG (the cargo weight from intake). */
   cargoWeightKg: number | null;
+  /** Card 20260928_172 — TRỌNG TẢI CONTAINER: the type's rated capacity, which
+   *  is what the PM asked for and is NOT the cargo weight above. null = the
+   *  type has no rating, and the UI prints "—" instead of guessing. */
+  containerPayloadKg: number | null;
   liftSite: string | null;
   dropSite: string | null;
   plateNumber: string | null;
@@ -110,6 +114,7 @@ export async function listPhoiPhieuRows(query: {
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeLabel: s.containerTypes.name,
     cargoWeightKg: s.shipmentContainers.cargoWeightKg,
+    containerPayloadKg: s.containerTypes.payloadKg,
     liftSite: liftPort.name,
     dropSite: dropPort.name,
     plateNumber: s.trucks.licensePlate,
@@ -281,6 +286,7 @@ export async function listPhoiPhieuRows(query: {
       containerNumber: row.containerNumber,
       containerTypeLabel: row.containerTypeLabel,
       cargoWeightKg: row.cargoWeightKg == null ? null : Number(row.cargoWeightKg),
+      containerPayloadKg: row.containerPayloadKg == null ? null : Number(row.containerPayloadKg),
       liftSite: row.liftSite,
       dropSite: row.dropSite,
       plateNumber: row.plateNumber,

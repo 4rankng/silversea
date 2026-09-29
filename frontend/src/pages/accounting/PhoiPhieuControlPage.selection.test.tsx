@@ -30,6 +30,8 @@ const row = (over: Partial<PhoiPhieuRow>): PhoiPhieuRow => ({
   containerNumber: 'CONT-1',
   containerTypeLabel: "40'HC",
   cargoWeightKg: 1000,
+  // Card 20260928_172 — the type's rated capacity, distinct from cargo weight.
+  containerPayloadKg: 26500,
   liftSite: 'Lạch Huyện',
   dropSite: 'Cát Hải',
   plateNumber: '60C-1',

@@ -55,7 +55,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({
     {
       tripId: 101, tripCode: 'ST-2609-0101', shipmentId: 9001, shipmentCode: 'SHP-9001',
       billOrBooking: 'BILL-001', customerName: 'Khách A', routeName: 'HP - HN',
-      containerNumber: 'ABCZ1234567', containerTypeLabel: '40HC', cargoWeightKg: 24000,
+      containerNumber: 'ABCZ1234567', containerTypeLabel: '40HC', cargoWeightKg: 24000, containerPayloadKg: 26500,
       liftSite: 'Đình Vũ', dropSite: 'Bắc Giang', plateNumber: '29K-123.45', driverName: 'Tuấn',
       departureDate: '2026-09-22T00:00:00.000Z', tripStatus: 'IN_TRANSIT',
       chiHoThu: null, chiHoTra: null, tienDuong: null,
@@ -65,7 +65,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({
     {
       tripId: 102, tripCode: 'ST-2609-0102', shipmentId: 9002, shipmentCode: 'SHP-9002',
       billOrBooking: 'BILL-002', customerName: 'Khách B', routeName: 'HP - QN',
-      containerNumber: 'DEFZ7654321', containerTypeLabel: '20GP', cargoWeightKg: 18000,
+      containerNumber: 'DEFZ7654321', containerTypeLabel: '20GP', cargoWeightKg: 18000, containerPayloadKg: 28200,
       liftSite: 'Đình Vũ', dropSite: 'Quảng Ninh', plateNumber: '29K-678.90', driverName: 'Thắng',
       departureDate: '2026-09-22T00:00:00.000Z', tripStatus: 'COMPLETED',
       chiHoThu: 1_350_000, chiHoTra: 1_350_000, tienDuong: 2_000_000,
@@ -75,7 +75,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({
     {
       tripId: 103, tripCode: 'ST-2609-0103', shipmentId: 9003, shipmentCode: 'SHP-9003',
       billOrBooking: null, customerName: 'ADC P 1790089547534-zcain7', routeName: 'ADC route P 1790089547534-zcain7',
-      containerNumber: 'GHIZ0001111', containerTypeLabel: '40HC', cargoWeightKg: null,
+      containerNumber: 'GHIZ0001111', containerTypeLabel: '40HC', cargoWeightKg: null, containerPayloadKg: 26500,
       liftSite: 'Đình Vũ', dropSite: 'Hải Phòng', plateNumber: '30K-111.22', driverName: 'card6 driver 1790004852053-9kzgw8-26',
       departureDate: '2026-09-23T00:00:00.000Z', tripStatus: 'CREATED',
       chiHoThu: null, chiHoTra: null, tienDuong: null,

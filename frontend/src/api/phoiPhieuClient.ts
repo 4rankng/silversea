@@ -11,7 +11,11 @@ export interface PhoiPhieuRow {
   routeName: string | null;
   containerNumber: string | null;
   containerTypeLabel: string | null;
+  /** Card 20260921_15 — trọng lượng HÀNG. */
   cargoWeightKg: number | null;
+  /** Card 20260928_172 — TRỌNG TẢI CONTAINER (rated capacity of the type).
+   *  Distinct from the cargo weight; null = this type has no rating. */
+  containerPayloadKg: number | null;
   liftSite: string | null;
   dropSite: string | null;
   plateNumber: string | null;
