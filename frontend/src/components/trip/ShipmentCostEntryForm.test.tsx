@@ -92,6 +92,46 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(api.createIncidentalCost.mock.calls[0][1].invoiceNumber).toBeUndefined();
   });
 
+  // Card 20260928_197 — the PM's words are "MỌI màn hình nhập chi phí (Ops,
+  // lái xe, hóa đơn kết hợp) cho phép nhập số DƯƠNG và số ÂM". The frontend pass
+  // opened the Ops modals and the correction drawer, and MISSED this form, so
+  // two separate gates still refused a negative: the <input min={1}>, which
+  // makes the browser reject the keystroke outright, and the hook's own
+  // `amount <= 0`. The backend already accepted the signed value — the 400 the
+  // form would have produced was a lie about what the server wanted.
+  it('card 197: a negative amount is accepted and sent as typed (the signed cost rule)', async () => {
+    setup(); await open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
+    await choose('Chạy quá tải');
+    const field = screen.getByLabelText(/Thực chi/) as HTMLInputElement;
+
+    fireEvent.change(field, { target: { value: '-30000' } });
+
+    // Assert the DISPLAY, not a `min` attribute. This field is grouped, and
+    // grouped mode renders a text input and deliberately does not forward
+    // min/max/step — they would be meaningless there, and NumberField's own
+    // contract says bounds are enforced save-side. Reading `min` off the DOM
+    // returned null and I nearly "proved" a bug that was not there; the value
+    // the user sees and the value the server receives are the real contract.
+    expect(field.value).toBe('-30.000');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+
+    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ amount: -30000 });
+    expect(screen.queryByText(/nguyên dương/)).toBeNull();
+  });
+
+  it('card 197: 0 stays rejected — an empty row is not a signed one', async () => {
+    setup(); await open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
+    await choose('Chạy quá tải');
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(api.createIncidentalCost).not.toHaveBeenCalled();
+  });
+
   it('distinguishes company-paid money and documents agreed shift allowance without adding an extra', async () => {
     setup(); await open();
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));

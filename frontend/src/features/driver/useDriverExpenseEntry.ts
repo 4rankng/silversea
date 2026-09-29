@@ -66,8 +66,14 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
     event.preventDefault();
     if (operation.current || readOnly) return;
     if (pendingFile) { setError('Ảnh chưa tải thành công. Thử tải lại hoặc bỏ ảnh trước khi lưu.'); return; }
-    if (draft.amount === '' || !Number.isSafeInteger(draft.amount) || draft.amount <= 0 || draft.amount > 999_999_999_999_999) {
-      setError('Nhập số tiền nguyên dương hợp lệ.'); return;
+    // Card 20260928_197 — the PM's "mọi màn hình nhập chi phí … cho phép nhập
+    // số DƯƠNG và số ÂM". Mirrors the backend `signedExpenseVndSchema` and the
+    // Ops modal exactly: a signed integer inside the money ceiling, with 0
+    // still rejected — 0 is an empty row, not a signed one. This guard said
+    // `<= 0`, so it refused every correction the card exists to allow, and
+    // the field's `min` could not help because grouped mode never forwards it.
+    if (draft.amount === '' || !Number.isSafeInteger(draft.amount) || draft.amount === 0 || Math.abs(draft.amount) > 999_999_999_999_999) {
+      setError('Nhập số tiền nguyên, tối đa 999.999.999.999.999đ (0 không dùng được).'); return;
     }
     const option = options.find(item => item.code === draft.option);
     if (!option) { setError('Định mức đã thay đổi. Chọn lại loại chi phí trước khi lưu.'); return; }

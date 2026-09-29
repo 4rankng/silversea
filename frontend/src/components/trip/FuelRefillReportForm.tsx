@@ -95,8 +95,12 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (amount === '' || !Number.isInteger(amount) || amount <= 0) {
-      setFormError('Vui lòng nhập số tiền hợp lệ (số nguyên dương).');
+    // Card 20260928_197 — the PM's rule covers EVERY cost entry screen, and a
+    // fuel line still has a correction case (a refill logged against the wrong
+    // trip). Signed integer, 0 still rejected, ceiling unchanged. Mirrors
+    // `signedExpenseVndSchema` and the Ops modal.
+    if (amount === '' || !Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 999_999_999_999_999) {
+      setFormError('Vui lòng nhập số tiền hợp lệ (số nguyên, có thể âm; 0 không dùng được).');
       return;
     }
     setSubmitting(true);
@@ -217,7 +221,7 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
             label="Số tiền đổ dầu (VND)"
             value={amount}
             onChange={setAmount}
-            min={1}
+            min={-999_999_999_999_999}
             step={1}
             disabled={submitting}
             placeholder="0"

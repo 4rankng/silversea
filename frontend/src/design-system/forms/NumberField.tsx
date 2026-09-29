@@ -24,6 +24,23 @@ export interface NumberFieldProps
    * text input where they would be meaningless.
    */
   grouped?: boolean;
+  /**
+   * Allow a leading minus in `grouped` mode. OFF by default, deliberately.
+   *
+   * Grouped mode strips every non-digit on entry, so a user cannot type a
+   * negative however the caller sets `min` — in grouped mode `min`/`max`/
+   * `step` are not even forwarded to the input, they are meaningless on a
+   * text field. Card 20260928_197 (the PM's "mọi màn hình nhập chi phí … cho
+   * phép nhập số DƯƠNG và số ÂM") needs the driver's cost form to take a
+   * negative, and that form is grouped.
+   *
+   * This is opt-in rather than a change to `grouped` itself because plenty of
+   * money fields are genuinely unsigned — quantities, rates, counts — and
+   * silently letting a minus into those would be a new defect. The display is
+   * unaffected either way: `viVn.format(-30000)` is already "-30.000", so the
+   * value renders signed the moment it can be entered.
+   */
+  signed?: boolean;
 }
 
 const viVn = new Intl.NumberFormat('vi-VN');
@@ -44,12 +61,19 @@ export function NumberField({
   placeholder = '0',
   allowEmpty = true,
   grouped = false,
+  signed = false,
   ...rest
 }: NumberFieldProps) {
   const handleChange: NonNullable<InputHTMLAttributes<HTMLInputElement>['onChange']> = (e) => {
-    const raw = grouped ? e.target.value.replace(/\D/g, '') : e.target.value;
-    if (raw === '') {
-      if (allowEmpty) onChange('');
+    // Signed grouped keeps ONE leading minus. Stripping the rest of the
+    // non-digits still lets a typed separator (".", ",") through harmlessly,
+    // because the sign is the only character with meaning here and a second
+    // one would make `Number()` produce NaN.
+    const raw = grouped
+      ? (signed ? e.target.value.replace(/[^\d-]/g, '').replace(/(?!^)-/g, '') : e.target.value.replace(/\D/g, ''))
+      : e.target.value;
+    if (raw === '' || raw === '-') {
+      if (allowEmpty && raw === '') onChange('');
       return;
     }
     const n = Number(raw);
