@@ -31,8 +31,11 @@
    hyphen ("TRP- / 2026- / 09- / 0013"). The two identity tracks now hold a
    token and the WRAPPING text columns pay for it: a company name or a place
    pair costs one more line, a broken identifier costs a misread.
-   Sum: 12 + 10 + 9 + 8 + 9 + 11 + 10 + 8 + 9 + 7 = 93 — relative weights,
-   which `table-layout: fixed` scales to the table's own 100%. */
+   Sum: 12 + 10 + 9 + 8 + 9 + 11 + 10 + 8 + 9 + 7 + 7 = 100 (the ghichu rule
+   covers both transport/driver note columns) — relative weights, which
+   `table-layout: fixed` scales to the table's own 100%. The ghichu-ops track
+   (card 20260928_162, the not-charged reason column) takes the note-track
+   weight; every track keeps its relative share of the 12-column board. */
 .ppc-board th.ppc-col--lich-trinh { width: 12%; }
 .ppc-board th.ppc-col--xe { width: 10%; }
 .ppc-board th.ppc-col--customer-route { width: 9%; }
@@ -43,6 +46,9 @@
 .ppc-board th.ppc-col--status { width: 8%; }
 .ppc-board th.ppc-col--date { width: 9%; }
 .ppc-board th.ppc-col--ghichu { width: 7%; }
+/* Card 20260928_162 — the OPS cost-note column (the not-charged reason).
+   Shares the note-track weight: relative budgets, fixed layout scales. */
+.ppc-board th.ppc-col--ghichu-ops { width: 7%; }
 
 /* The two identity tracks are wide enough for their COMMON token (a 15-char
    trip code + bill, a plate + driver), so the operator reads them on one line.

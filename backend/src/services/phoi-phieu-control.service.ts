@@ -57,6 +57,12 @@ export interface PhoiPhieuRow {
   eligibleIn: number;
   eligibleOut: number;
   cusDispatchNotes: string[];
+  /** Card 20260928_162 — the OPS expense-note family (the not-charged REASON
+   *  foremost), from the SAME projection the dispatch plan grids read
+   *  (`loadDispatchExpenseNotes`): free text only, never an amount (that
+   *  file's standing ruling). Same field name as the plan grids so the two
+   *  ruled surfaces cannot drift apart. */
+  opsRecoveryNotes: string[];
   driverNote: string | null;
   confirmable: boolean;
   openSources: Array<{ sourceId: number; expectedVersion: number; remaining: number }>;
@@ -224,8 +230,13 @@ export async function listPhoiPhieuRows(query: {
     else slot.OUT += Number(row.paid);
     cashBySource.set(row.sourceId, slot);
   }
-  const dispatchNotes = await loadDispatchExpenseNotes(shipmentIds);
-  const shipDispatchNotes = dispatchNotes;
+  // Card 20260928_162 — the phơi-phiếu board is the second ruled surface for
+  // the not-charged reason. It reads the SAME projection the dispatch plan
+  // grids read, so "same content on both surfaces" holds by construction.
+  // These OPS cost notes USED to ride inside `cusDispatchNotes` under a column
+  // titled "Ghi chú vận tải" — a cost reason is not a transport note, and the
+  // merge is exactly what made the reason hard to find here.
+  const opsExpenseNotes = await loadDispatchExpenseNotes(shipmentIds);
 
   // Driver notes: latest NOTE progress event per trip.
   const driverNotes = await db.select({ tripId: s.driverProgressEvents.tripId, note: s.driverProgressEvents.note, createdAt: s.driverProgressEvents.createdAt })
@@ -239,7 +250,6 @@ export async function listPhoiPhieuRows(query: {
     bucket.push(source);
     byShipment.set(source.shipmentId, bucket);
   }
-  void shipDispatchNotes;
   const noteByTrip = new Map<number, string>();
   for (const event of driverNotes) {
     if (!noteByTrip.has(event.tripId) && event.note) noteByTrip.set(event.tripId, event.note);
@@ -262,7 +272,7 @@ export async function listPhoiPhieuRows(query: {
       const remaining = Number(source.amount ?? 0) - Number(source.allocatedAdvanceAmount ?? 0);
       if (remaining > 0) openSources.push({ sourceId: source.id, expectedVersion: source.version, remaining });
     }
-    const cusDispatchNotes = [row.customerNote, row.operationalNotes, ...(shipDispatchNotes.get(row.shipmentId) ?? [])]
+    const cusDispatchNotes = [row.customerNote, row.operationalNotes]
       .filter((value): value is string => Boolean(value && value.trim()));
     // Eligible-set preview counts (case QA-2026-09-24-01): approved ∧
     // remaining>0 per direction — the same set the consolidated voucher
@@ -301,6 +311,7 @@ export async function listPhoiPhieuRows(query: {
         ? confirmedRoadByTrip.get(row.tripId) ?? 0
         : row.tienDuong == null ? null : Number(row.tienDuong),
       cusDispatchNotes,
+      opsRecoveryNotes: opsExpenseNotes.get(row.shipmentId) ?? [],
       driverNote: noteByTrip.get(row.tripId) ?? row.tripNotes ?? null,
       confirmable: openSources.length > 0,
       openSources,

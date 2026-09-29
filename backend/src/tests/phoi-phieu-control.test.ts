@@ -17,7 +17,7 @@ function track(table: any, id: number) {
 }
 let accountantId = 0;
 
-async function mkBoardFixture(opts: { charge?: number; amount?: number; day?: string; extra?: Array<{ amount: number; charge: number }>; reconciled?: boolean } = {}) {
+async function mkBoardFixture(opts: { charge?: number; amount?: number; day?: string; extra?: Array<{ amount: number; charge: number }>; reconciled?: boolean; note?: string; feeName?: string } = {}) {
   // Card 20260928_173: `day`/`amount` let one fixture move into a window no
   // other suite uses (the monthly report has no `search` filter, so the date
   // window is what makes the board and the report comparable). Defaults keep
@@ -54,6 +54,8 @@ async function mkBoardFixture(opts: { charge?: number; amount?: number; day?: st
     shipmentId: shipment.id, shipmentContainerId: container.id, expenseTypeCode: 'OTHER',
     amount: String(opts.amount ?? 250000), customerChargeAmount: String(opts.charge ?? 100000),
     costGroup: 'OPS_INCIDENTAL', payerKind: 'USER',
+    ...(opts.note !== undefined ? { note: opts.note } : {}),
+    ...(opts.feeName !== undefined ? { feeName: opts.feeName } : {}),
     paidById: user.id, paidAt: day,
   }).returning({ id: s.opsExpenseEntries.id });
   track(s.opsExpenseEntries, entry.id);
@@ -782,6 +784,37 @@ describe('soft-deleted shipments never surface on the phoi-phieu board (QA-fixtu
     assert.ok(!visible.some((row) => row.shipmentId === fixture.shipment.id), 'orphaned trip of a deleted shipment must not render');
     const markerRows = await listPhoiPhieuRows({ search: marker });
     assert.equal(markerRows.length, 0);
+  });
+});
+
+// Card 20260928_162 — the phơi-phiếu board is the second ruled surface for
+// the not-charged reason (ADR 2026-09-28, OpsVanHanh §9.1: "kế hoạch điều vận
+// (kế toán)" and "danh sách phơi phiếu (CUS/kế toán)"). The board reads the
+// SAME projection the dispatch grids read, so the reason cannot drift between
+// the two surfaces, and it rides its own field: it used to be merged into
+// `cusDispatchNotes` under a column titled "Ghi chú vận tải", which buried the
+// exact text kế toán/CUS is told to look for.
+describe('card 20260928_162 — lý do khoản không thu khách trên bảng phơi phiếu', () => {
+  test('the not-charged reason rides its own field, out of the transport-notes column', async () => {
+    const fixture = await mkBoardFixture({ charge: 0, note: 'Đã bao gồm trong đơn giá trọn gói' });
+    const rows = await listPhoiPhieuRows({ search: suffix });
+    const row = rows.find((candidate) => candidate.tripId === fixture.trip.id);
+    assert.ok(row, 'the fixture trip is on the board');
+    assert.deepEqual(row.opsRecoveryNotes, ['Đã bao gồm trong đơn giá trọn gói'],
+      'the reason of the not-charged line is readable on this surface');
+    assert.deepEqual(row.cusDispatchNotes, [],
+      'a cost reason is not a transport note — the column no longer swallows it');
+  });
+
+  test('a charged line contributes its fee name only — no amount, no commentary note', async () => {
+    const fixture = await mkBoardFixture({ charge: 100000, feeName: 'Phí kiểm thử 162', note: 'Ghi chú nội bộ của kế toán' });
+    const rows = await listPhoiPhieuRows({ search: suffix });
+    const row = rows.find((candidate) => candidate.tripId === fixture.trip.id);
+    assert.ok(row, 'the fixture trip is on the board');
+    assert.deepEqual(row.opsRecoveryNotes, ['Thu khách: Phí kiểm thử 162'],
+      'the charged family carries the fee name for ticking into the debit; the line\'s own note is not a not-charged reason');
+    assert.ok(row.opsRecoveryNotes.every((note) => !/\d{4,}/.test(note)),
+      'the ruling payload is reason text only — no amount ever rides this field');
   });
 });
 

@@ -30,6 +30,11 @@ export interface PhoiPhieuRow {
   eligibleIn: number;
   eligibleOut: number;
   cusDispatchNotes: string[];
+  /** Card 20260928_162 — the OPS expense-note family (the not-charged REASON
+   *  foremost) from the same projection the dispatch plan grids read. Reason
+   *  text only: no amount, no fund detail (OpsVanHanh §9.1). Optional so an
+   *  older in-flight backend payload still renders. */
+  opsRecoveryNotes?: string[];
   driverNote: string | null;
   confirmable: boolean;
   openSources: Array<{ sourceId: number; expectedVersion: number; remaining: number }>;

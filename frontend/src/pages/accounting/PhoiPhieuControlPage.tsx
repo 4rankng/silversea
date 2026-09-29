@@ -10,6 +10,7 @@ import { FilterDropdown } from '../../components/FilterDropdown';
 import { ListFilterBar } from '../../components/ListFilterBar';
 import { DateRangeFields, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
+import { OpsExpenseNoteLines } from '../../features/dispatch/components/OpsExpenseNoteLines';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { PhoiPhieuTruckAssignments } from '../../features/accounting/PhoiPhieuTruckAssignments';
@@ -186,6 +187,10 @@ export default function PhoiPhieuControlPage() {
             <th scope="col" className="ppc-col--status">Trạng thái</th>
             <th scope="col" className="ppc-col--date">Ngày</th>
             <th scope="col" className="ppc-col--ghichu" title="Ghi chú vận tải của CUS và điều vận">Ghi chú vận tải</th>
+            {/* Card 20260928_162 — the second ruled surface for the not-charged
+                reason. Same content as the dispatch plan grids, through the same
+                shared component; reason text only, never an amount. */}
+            <th scope="col" className="ppc-col--ghichu-ops" title="Lý do khoản không thu khách và ghi chú thu khách của lô — chỉ nội dung lý do, không kèm số tiền">Ghi chú chi phí OPS</th>
             <th scope="col" className="ppc-col--ghichu">Ghi chú lái xe</th>
           </tr></thead>
           <tbody>
@@ -229,6 +234,7 @@ export default function PhoiPhieuControlPage() {
                 <td className="ppc-col--status">{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
                 <td className="ppc-col--date">{formatDate(row.departureDate)}</td>
                 <td className="ppc-col--ghichu">{row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}</td>
+                <td className="ppc-col--ghichu-ops">{row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—'}</td>
                 <td className="ppc-col--ghichu">{row.driverNote ?? '—'}</td>
               </tr>
               );

@@ -46,11 +46,14 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => 
     expect(css).toMatch(/\.ppc-board th\.ppc-col--status\s*\{[^}]*width:\s*8%/);
     expect(css).toMatch(/\.ppc-board th\.ppc-col--date\s*\{[^}]*width:\s*9%/);
     expect(css).toMatch(/\.ppc-board th\.ppc-col--ghichu\s*\{[^}]*width:\s*7%/);
+    // Card 20260928_162 — the not-charged reason column takes the note-track
+    // weight; the budget stays explicit now that a 12th column exists.
+    expect(css).toMatch(/\.ppc-board th\.ppc-col--ghichu-ops\s*\{[^}]*width:\s*7%/);
     const shares = new Map(
       [...css.matchAll(/\.ppc-board th\s*\.ppc-col--([\w-]+)\s*\{[^}]*width:\s*([\d.]+)%/g)]
         .map((match) => [match[1], Number(match[2])]),
     );
-    expect([...shares.keys()], 'every track is declared').toHaveLength(10);
+    expect([...shares.keys()], 'every track is declared').toHaveLength(11);
     // The identity tracks carry the widest weight and the note tracks the
     // narrowest — inverting either is what starved the board.
     expect(shares.get('lich-trinh')!).toBeGreaterThan(shares.get('customer-route')!);
