@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Camera, CheckCircle2, Fuel, Loader2, Plus, ReceiptText } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, Fuel, Info, Loader2, Plus, ReceiptText } from 'lucide-react';
 import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
+import { tripHasPhoiPhieuAccountant } from '../../api/driverCostAssignment';
 import { buildIdempotencyKey } from '../../lib/idempotency';
 import { NumberField, DateField } from '../../design-system';
 import { formatCurrency, formatISODate, businessDateISO } from '../../lib/format';
@@ -47,11 +48,18 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Card 20260928_166 AC2 — warn, never block. Null until loaded so the banner
+  // cannot flash before we know; `null` means "we have not asked yet".
+  const [truckHasAccountant, setTruckHasAccountant] = useState<boolean | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const items = await driverClient.listIncidentalCosts(tripId);
+      const [items, hasAccountant] = await Promise.all([
+        driverClient.listIncidentalCosts(tripId),
+        tripHasPhoiPhieuAccountant(tripId),
+      ]);
       setEntries(items.filter((item) => item.costType === DriverIncidentalCostType.FUEL));
+      setTruckHasAccountant(hasAccountant);
       setLoadError(null);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Không thể tải danh sách lần đổ dầu.');
@@ -150,6 +158,17 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
         <div className="shipment-cost-entry__banner shipment-cost-entry__banner--error" role="alert">
           <AlertTriangle size={16} />
           <span>{loadError}</span>
+        </div>
+      )}
+
+      {truckHasAccountant === false && (
+        // Card 20260928_166 AC2 — advisory only. This is `role="status"`, not
+        // `role="alert"`, and it does NOT disable the submit: the PM asked for
+        // the split to make checking road fees easier, and a hard gate would
+        // block 32 of 40 trucks on the data as it stands.
+        <div className="shipment-cost-entry__banner" role="status">
+          <Info size={16} />
+          <span>Xe này chưa có kế toán phơi phiếu phụ trách. Bạn vẫn ghi được khoản chi này; kế toán sẽ phân công sau.</span>
         </div>
       )}
 

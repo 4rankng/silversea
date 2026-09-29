@@ -30,6 +30,7 @@ import {
   getDriverPayslipPeriods,
   getCompletionEvidenceStatus,
 } from '../services/driver.service';
+import { tripTruckHasActiveAccountant } from '../services/expense-accounting-reads.service';
 import {
   extractFuelEvidencePumpValues,
   persistFuelEvidenceReviewForDriver,
@@ -635,7 +636,12 @@ router.get('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, 
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const driver = await getDriverByUserId(getUser(req).userId);
   const items = await listIncidentalCosts(tripId, driver.id);
-  res.json({ items });
+  // Card 20260928_166 AC2 — warn, never block. A truck with no live phơi-phiếu
+  // accountant must not stop a driver from recording a real cost: measured on
+  // local, 32 of 40 trucks are unassigned, so a hard gate would block most of
+  // the driver's work. The flag lets the form say so plainly instead.
+  const hasAccountant = await tripTruckHasActiveAccountant(tripId);
+  res.json({ items, hasAccountant });
 }));
 
 // 27.8 cost-section Ghi chú — driver-written note for accounting to re-check

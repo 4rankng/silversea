@@ -261,6 +261,30 @@ export async function listTruckAccountantAssignments(actor: Actor, tx?: Tx): Pro
     .then(rows => rows.map(row => ({ ...row, version: row.version ?? 0, assignedAt: iso(row.assignedAt) })));
 }
 
+/**
+ * Card 20260928_166 AC2 — does this trip's truck have a live phơi-phiếu
+ * accountant?
+ *
+ * A driver must NOT be able to read the assignment map (`listTruckAccountantAssignments`
+ * is behind `requireFinance`), so this answers the single yes/no the driver
+ * actually needs. Deliberately returns a boolean and not a name: on an
+ * UNASSIGNED truck there is no accountant to name, and naming the assigned
+ * one would leak the accounting rota.
+ *
+ * No actor: the caller has already proven the caller drives this trip.
+ */
+export async function tripTruckHasActiveAccountant(tripId: number, tx?: Tx): Promise<boolean> {
+  const [row] = await (tx ?? db).select({ assigned: s.truckAccountantAssignments.id })
+    .from(s.trips)
+    .innerJoin(s.truckAccountantAssignments, and(
+      eq(s.truckAccountantAssignments.truckId, s.trips.truckId),
+      isNull(s.truckAccountantAssignments.endedAt),
+    ))
+    .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
+    .limit(1);
+  return Boolean(row?.assigned);
+}
+
 export async function getExpenseVoucher(actor: Actor, id: number, tx?: Tx): Promise<ExpenseVoucher> {
   requireFinance(actor); const executor = tx ?? db;
   const [stored] = await executor.select().from(s.expenseCashVouchers).where(eq(s.expenseCashVouchers.id, id));

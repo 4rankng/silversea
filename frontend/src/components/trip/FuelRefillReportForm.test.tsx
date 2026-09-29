@@ -6,10 +6,16 @@ const {
   listIncidentalCostsMock,
   createIncidentalCostMock,
   uploadReceiptPhotoMock,
+  hasAccountantMock,
 } = vi.hoisted(() => ({
   listIncidentalCostsMock: vi.fn(),
   createIncidentalCostMock: vi.fn(),
   uploadReceiptPhotoMock: vi.fn(),
+  hasAccountantMock: vi.fn(),
+}));
+
+vi.mock('../../api/driverCostAssignment', () => ({
+  tripHasPhoiPhieuAccountant: hasAccountantMock,
 }));
 
 vi.mock('../../api/driverClient', () => ({
@@ -54,12 +60,14 @@ function renderForm(tripId = 42) {
 describe('FuelRefillReportForm', () => {
   beforeEach(() => {
     listIncidentalCostsMock.mockReset();
+    hasAccountantMock.mockReset();
     createIncidentalCostMock.mockReset();
     uploadReceiptPhotoMock.mockReset();
   });
 
   it('renders the empty state when there are no existing refill reports', async () => {
     listIncidentalCostsMock.mockResolvedValue([]);
+    hasAccountantMock.mockResolvedValue(true);
     renderForm();
 
     expect(await screen.findByText(/Chưa có lần đổ dầu nào được báo cáo/)).toBeTruthy();
@@ -113,8 +121,34 @@ describe('FuelRefillReportForm', () => {
     await waitFor(() => expect(listIncidentalCostsMock).toHaveBeenCalledTimes(2));
   });
 
+  // Card 20260928_166 AC2 — the truck has no live phơi-phiếu accountant.
+  // The contract is WARN, NOT BLOCK: the PM wanted the split for convenience
+  // when checking road fees, and a hard gate would stop 32 of 40 trucks as the
+  // data stands. So the banner must appear AND the add button must stay usable.
+  it('warns when the truck has no accountant, and still lets the driver record a cost', async () => {
+    listIncidentalCostsMock.mockResolvedValue([]);
+    hasAccountantMock.mockResolvedValue(false);
+    renderForm();
+
+    expect(await screen.findByText(/chưa có kế toán phơi phiếu phụ trách/)).toBeTruthy();
+    // Advisory, not an error: it must not be announced as an alert.
+    expect(screen.queryByRole('alert')).toBeNull();
+    // And crucially NOT a gate — the form is still operable.
+    expect(screen.getByRole('button', { name: /Thêm lần đổ dầu/ })).toBeEnabled();
+  });
+
+  it('shows no assignment warning when the truck has an accountant', async () => {
+    listIncidentalCostsMock.mockResolvedValue([]);
+    hasAccountantMock.mockResolvedValue(true);
+    renderForm();
+
+    expect(await screen.findByText(/Chưa có lần đổ dầu nào được báo cáo/)).toBeTruthy();
+    expect(screen.queryByText(/chưa có kế toán phơi phiếu phụ trách/)).toBeNull();
+  });
+
   it('shows an inline error message when createIncidentalCost rejects', async () => {
     listIncidentalCostsMock.mockResolvedValue([]);
+    hasAccountantMock.mockResolvedValue(true);
     createIncidentalCostMock.mockRejectedValue(new Error('Không thể lưu lần đổ dầu do lỗi máy chủ.'));
 
     renderForm();
