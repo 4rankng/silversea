@@ -143,24 +143,30 @@ if (NO_CREATE) {
   const containerPrefix = `MSCU${String(Date.now()).slice(-6)}`;   // 4 owner + 6 serial = 10
   const containerNo = withCheckDigit(containerPrefix);
   const today = new Date().toISOString().slice(0, 10);
-  const tomorrow = new Date(Date.now() + 24 * 3600 * 1000);
-  const pickup = tomorrow.toISOString();
 
   // Containers are NO LONGER accepted on create: the deployed API answers
   // "Tạo lô hàng không nhập kèm danh sách container — tạo lô rồi dùng
   // PUT /api/shipments/{id}/containers". This factory still sent them inline,
   // so every run against a current API failed at step 3. Create the shipment,
   // then declare the container on its own endpoint.
+  // Field names must match `createShipmentBaseSchema` (shared/src/schemas/
+  // index.ts:1625). This factory had drifted from it on FIVE fields, and zod
+  // strips unknown keys SILENTLY — so the shipment was created every time with
+  // those columns null and nothing ever reported an error:
+  //   direction         -> tradeDirection
+  //   billBookingNumber -> blNumber (and bookingRef)
+  //   expectedPickupAt  -> not a create field at all
+  // plus the two the OPS work queue actually needs, so a scenario is visible
+  // there: `expectedDeliveryDate` (listOpsOrders filters on exactly that) and
+  // cargoMode, which several surfaces read.
   const body = {
     customerId: scenario.customer.id,
-    direction: "IMPORT",
-    billBookingNumber: code,
-    expectedPickupAt: pickup,
-    // The OPS work queue (/ops/orders -> listOpsOrders) filters on
-    // `expectedDeliveryDate = <the date the page is showing>`. A scenario
-    // without that column is invisible there no matter which date is picked,
-    // which is why the seeded shipments never appeared and the cost-entry
-    // screens could not be driven. The schema accepts it (optional/nullable).
+    tradeDirection: "IMPORT",
+    cargoMode: "FCL",
+    // IMPORT carries a Bill number only; EXPORT carries a Booking number only.
+    // Sending both is refused: "Một lô hàng chỉ có Số Bill (hàng Nhập) hoặc
+    // Số Booking (hàng Xuất)".
+    blNumber: code,
     expectedDeliveryDate: today,
   };
   const idem = `qa-seed-factory-${Date.now()}`;
