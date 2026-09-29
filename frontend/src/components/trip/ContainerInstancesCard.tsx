@@ -581,7 +581,6 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
         <button type="button" className="btn btn--secondary btn--sm" onClick={addRow}>
           <Plus size={16} aria-hidden="true" /> Thêm container
         </button>
-        <span>Dữ liệu container được gửi cùng nút hành động ở cuối biểu mẫu — “Tạo lệnh” khi tạo mới, “Lưu cập nhật” khi chỉnh sửa.</span>
       </div>
 
       {scanner && <ContainerScanner onCapture={handleCapture} onClose={() => setScanner(null)} />}

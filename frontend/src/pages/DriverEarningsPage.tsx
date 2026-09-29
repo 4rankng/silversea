@@ -237,7 +237,7 @@ export default function DriverEarningsPage() {
             </div>
             <div className="earnings-ledger-list__note">
               <dt>Ghi chú</dt>
-              <dd>Số chưa thanh toán là số dư sổ lương hiện tại, không phải phép cộng trực tiếp của các dòng phía trên. "Đã tạm ứng/đã thanh toán" chỉ tính tiền mặt công ty đã thực chi cho lái xe (không bao gồm khấu trừ kỷ luật).</dd>
+              <dd>Số chưa thanh toán là số dư sổ lương, không phải tổng các dòng phía trên.</dd>
             </div>
           </dl>
         </section>

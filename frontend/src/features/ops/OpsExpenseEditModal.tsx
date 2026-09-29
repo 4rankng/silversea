@@ -143,7 +143,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
           <button type="button" aria-label="Đóng" disabled={updateExpense.isPending || uploadingPhoto} onClick={onClose}><X size={18} /></button>
         </header>
         <div className="ops-modal__body">
-          {locked && <p role="status">Khoản đã đối chiếu. Kế toán điều chỉnh có liên kết tại bảng chi phí; bạn vẫn có thể bổ sung chứng từ.</p>}
+          {locked && <p role="status">Khoản đã đối chiếu — bạn vẫn có thể bổ sung chứng từ.</p>}
           {typesQuery.isPending && <p role="status">Đang tải danh mục loại phí…</p>}
           {typesQuery.isError && <div role="alert">
             <p>Không tải được danh mục loại phí. Nội dung đang nhập vẫn được giữ.</p>

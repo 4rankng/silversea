@@ -263,8 +263,8 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         </div>
         <p id="dispatch-allocation-description" className="dispatch-allocation-popover__description">
           {isMultiDay
-            ? 'Lô hàng có nhiều ngày đóng/trả khác nhau. Phân bổ nhà xe và số container cho từng ngày.'
-            : 'Chọn nhà xe và số container giao cho từng đơn vị. Có thể lưu khi chưa phân đủ và bổ sung sau.'}
+            ? 'Lô có nhiều ngày đóng/trả — phân bổ theo từng ngày.'
+            : 'Có thể lưu khi chưa phân đủ và bổ sung sau.'}
         </p>
 
         <section aria-labelledby="dispatch-allocation-summary-title" className={`dispatch-allocation-popover__summary is-${validation.overallState}`}>
@@ -376,7 +376,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         )}
         {optionsEmpty && !optionsError && !hasUserAllocations && (
           <div className="dispatch-allocation-popover__notice is-warning" role="status" data-testid="carrier-allocation-empty-externals">
-            <span>Chưa có nhà xe ngoài nào được cấu hình. Liên hệ Quản trị viên để bật cờ isCarrier trong danh mục Khách hàng.</span>
+            <span>Chưa có nhà xe ngoài nào được cấu hình. Liên hệ Quản trị viên.</span>
           </div>
         )}
         <div className={`dispatch-allocation-popover__notice dispatch-allocation-popover__allocation-note is-${validation.overallState}`} role={validation.overallState === 'error' ? 'alert' : 'status'}>

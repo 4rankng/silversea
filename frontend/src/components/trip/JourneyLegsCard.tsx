@@ -40,7 +40,7 @@ export function JourneyLegsCard({ collapsible, defaultCollapsed, number = 2 }: J
           <EmptyState
             context="routes"
             title="Chưa có chặng nào"
-            description="Nhập địa điểm và cự ly (Km) cho từng chặng để tính nhiên liệu theo định mức. Bạn cũng có thể bỏ qua và nhập thủ công."
+            description="Có thể bỏ qua và nhập nhiên liệu thủ công."
             action={
               <button type="button" className="btn btn--secondary btn--sm" onClick={addLeg}>
                 <Plus size={14} />

@@ -170,9 +170,9 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
         // `role="alert"`, and it does NOT disable the submit: the PM asked for
         // the split to make checking road fees easier, and a hard gate would
         // block 32 of 40 trucks on the data as it stands.
-        <div className="shipment-cost-entry__banner" role="status">
+        <div className="shipment-cost-entry__banner" role="status" data-testid="cost-entry-no-accountant">
           <Info size={16} />
-          <span>Xe này chưa có kế toán phơi phiếu phụ trách. Bạn vẫn ghi được khoản chi này; kế toán sẽ phân công sau.</span>
+          <span>Xe chưa có kế toán phơi phiếu — bạn vẫn ghi được khoản chi này.</span>
         </div>
       )}
 

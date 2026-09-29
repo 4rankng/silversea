@@ -130,7 +130,9 @@ describe('FuelRefillReportForm', () => {
     hasAccountantMock.mockResolvedValue(false);
     renderForm();
 
-    expect(await screen.findByText(/chưa có kế toán phơi phiếu phụ trách/)).toBeTruthy();
+    // The advisory banner is identified by its seam, not by its sentence —
+    // the copy is trimmed freely (card 20260930_216, law §8).
+    expect(await screen.findByTestId('cost-entry-no-accountant')).toBeTruthy();
     // Advisory, not an error: it must not be announced as an alert.
     expect(screen.queryByRole('alert')).toBeNull();
     // And crucially NOT a gate — the form is still operable.
@@ -143,7 +145,7 @@ describe('FuelRefillReportForm', () => {
     renderForm();
 
     expect(await screen.findByText(/Chưa có lần đổ dầu nào được báo cáo/)).toBeTruthy();
-    expect(screen.queryByText(/chưa có kế toán phơi phiếu phụ trách/)).toBeNull();
+    expect(screen.queryByTestId('cost-entry-no-accountant')).toBeNull();
   });
 
   it('shows an inline error message when createIncidentalCost rejects', async () => {

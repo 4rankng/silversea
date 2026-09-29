@@ -188,7 +188,7 @@ export default function TripCreatePage() {
               </div>
             </div>
             {canRecordException ? <div style={{ display: 'grid', gap: 8 }}>
-              <p>Ghi nhận ngoại lệ một lần cho chuyến này. Hạn mức áp dụng đến lúc lưu; nếu lưu thất bại, ngoại lệ không được tạo.</p>
+              <p>Ngoại lệ một lần cho chuyến này; áp dụng đến lúc lưu.</p>
               <label htmlFor="credit-exception-reason">Lý do ngoại lệ</label>
               <input id="credit-exception-reason" className="form-input" value={exceptionReason} onChange={event => setExceptionReason(event.target.value)} maxLength={1000} />
               <label htmlFor="credit-exception-ceiling">Tổng dư nợ và cam kết tối đa cho phép (₫)</label>
@@ -202,7 +202,7 @@ export default function TripCreatePage() {
                 const tripId = await form.handleSubmit(undefined, { creditException: { reason: exceptionReason.trim(), exposureCeiling: ceiling, scopeType: 'SHIPMENT', expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() } });
                 if (tripId) navigate(`/trips/${tripId}`);
               }}>Ghi ngoại lệ và tạo chuyến</button>
-            </div> : <p>Vai trò hiện tại không có quyền ghi ngoại lệ. Điều chỉnh dư nợ hoặc liên hệ Quản lý để xử lý tín dụng.</p>}
+            </div> : <p>Vai trò hiện tại không có quyền ghi ngoại lệ — liên hệ Quản lý.</p>}
           </section>
         )}
 

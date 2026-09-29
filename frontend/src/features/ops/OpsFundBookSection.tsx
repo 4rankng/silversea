@@ -18,7 +18,6 @@ export function OpsFundBookSection() {
       <header className="ops-wallet__section-head">
         <h2>Sổ quỹ</h2>
       </header>
-      <p className="ops-modal-hint">Chỉ hiển thị các khoản tạm ứng/hoàn ứng của bạn; sổ chỉ đọc.</p>
       <OpsQueryFeedback loading={isLoading} error={isError} label="sổ quỹ" onRetry={refetch} />
       {items.length === 0 && !isLoading && !isError && (
         <p className="ops-modal-hint">Chưa có khoản tạm ứng/hoàn ứng nào được ghi sổ.</p>

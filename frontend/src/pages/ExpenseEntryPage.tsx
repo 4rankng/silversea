@@ -686,7 +686,7 @@ export default function ExpenseEntryPage() {
                 )}
                 <p className="expense-hint">
                   {existingExpense?.paymentStatus === 'PAID'
-                    ? 'Đây là phiếu đã quyết toán. Thay đổi sẽ cập nhật trực tiếp; phiếu gốc và chứng từ lịch sử được giữ nguyên.'
+                    ? 'Phiếu đã quyết toán — thay đổi cập nhật trực tiếp, chứng từ gốc được giữ.'
                     : 'Khoản chi và công nợ được ghi nhận trực tiếp vào sổ kế toán.'}
                 </p>
               </div>}

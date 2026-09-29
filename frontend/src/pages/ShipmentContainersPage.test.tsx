@@ -872,8 +872,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
     expect((await screen.findByLabelText('Nhà xe')).textContent).toContain('Đội xe SilverSea');
     // CUS plans the internal plate too (Cap_nhat_UI_va_logic 1.3): the input
-    // renders for OWN, gated by permissions; copy states plan semantics.
-    expect(screen.getByText('Biển số nội bộ nhập ở đây là kế hoạch (dự kiến); lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.')).toBeTruthy();
+    // renders for OWN, gated by permissions, and the plan-semantics note rides
+    // its own seam — the sentence itself is trimmed freely (card 20260930_216).
+    expect(screen.getByTestId('plate-plan-note')).toBeTruthy();
     const plateInput = screen.getByLabelText('Biển số xe') as HTMLInputElement;
     expect(plateInput.disabled).toBe(true);
   });

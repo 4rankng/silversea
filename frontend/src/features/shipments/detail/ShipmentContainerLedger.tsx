@@ -491,8 +491,8 @@ function InlineEditor({
               <button type="button" disabled={saving} onClick={() => { setPlateNumber(''); setClearVehicleRequested(true); }}>Xóa biển số</button>
             </small>
           )}
-          {carrierId === 'OWN' && <small>Biển số nội bộ nhập ở đây là kế hoạch (dự kiến); lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
-          {carrierId !== 'OWN' && carrierId && <small>Biển số nhập ở đây là kế hoạch (dự kiến) cho nhà xe thuê; lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
+          {carrierId === 'OWN' && <small data-testid="plate-plan-note">Biển số ở đây là kế hoạch; lệnh điều xe là nguồn xác nhận cuối.</small>}
+          {carrierId !== 'OWN' && carrierId && <small>Biển số ở đây là kế hoạch; lệnh điều xe là nguồn xác nhận cuối.</small>}
         </div>
       )}
       {mode === 'notes' && (

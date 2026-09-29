@@ -52,7 +52,7 @@ export function DriverExpenseCorrectionForm({ entry, onSaved, onClose, onReload 
     finally { lock.current = false; setBusy(false); }
   }
   return <form className="shipment-cost-entry__form" aria-label={`Sửa khoản chi ${entry.feeName}`} onSubmit={event => void save(event)}>
-    {blocked ? <p role="status">Khoản chi đã đối chiếu, lập phiếu hoặc khóa. Liên hệ kế toán để điều chỉnh và giữ lịch sử.</p> : <>
+    {blocked ? <p role="status">Khoản chi đã đối chiếu hoặc khóa. Liên hệ kế toán để điều chỉnh.</p> : <>
       {error && <div role="alert" className="shipment-cost-entry__banner--error">{error}<button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => void onReload()}>Tải lại khoản chi</button></div>}
       <div className="shipment-cost-entry__fields">
         <TextField controlSize="sm" label="Tên khoản chi" value={name} required maxLength={200} disabled={busy} onChange={event => setName(event.target.value)} />
