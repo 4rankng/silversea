@@ -130,6 +130,20 @@
   margin-left: auto;
 }
 
+/* Card 20260930_221 — below 768px the month chip's period range ("01/09 –
+   30/09") no longer fits beside the topbar's title block: measured
+   `div.topbar-date l=162 r=392 vw=360`, `l=173 r=402 vw=390` on every route,
+   and still 4px over at 650. The month IS the control's state and the range is
+   repeated in the picker and in the trigger's `aria-label`, which is the
+   reasoning the driver bar has followed since the 2026-09-27 ruling — this one
+   band now carries it for every bar, so the driver-only copy is gone. */
+@media (max-width: 767px) {
+  .topbar-date__sep,
+  .topbar-date__period {
+    display: none;
+  }
+}
+
 /* MonthNavigator trigger + popover */
 .topbar-date {
   position: relative;
@@ -666,7 +680,9 @@
    The date chip drops its period range ("01/09 – 30/09") in this band — the
    month is the control's state and the range is repeated in the picker and in
    the trigger's aria-label — so chip + name + plate + bell share 390px without
-   truncating the driver name.
+   truncating the driver name. That rule lives in `styles/responsive.css`'s
+   ≤640 band now (card 20260930_221 extended it to every topbar, so a
+   driver-only copy would be a second owner of one rule).
    styles/responsive.css hides every `.topbar .icon-btn` on phones; the
    (0,3,0) driver selector below opts the bell back in regardless of that
    file's later source order. Selectors carry the `.topbar` class so they also
@@ -698,9 +714,6 @@
     order: 3;
     flex: 0 0 auto;
     margin-left: 0;
-  }
-  .topbar.topbar--driver .topbar-date__period {
-    display: none;
   }
   .topbar.topbar--driver .icon-btn {
     display: inline-flex;

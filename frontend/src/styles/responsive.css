@@ -309,7 +309,7 @@
     margin-left: auto;
   }
   .topbar-date { padding: 5px 8px; font-size: var(--fs-xs); gap: 5px; }
-  .topbar-date__sep { display: none; }
+
   .topbar-date__trigger {
     min-height: 32px;
     height: 32px;
@@ -320,7 +320,6 @@
   }
   .topbar-date__body { gap: 0; }
   .topbar-date__label { line-height: 1.35; }
-  .topbar-date__period { font-size: var(--fs-xs); line-height: 1.35; }
   .topbar-date__icon { width: 13px; height: 13px; }
   .topbar-date__caret { display: none; }
   /* Month-nav chevrons were 18×18 — borderline untappable. Bump to 28×28. */
