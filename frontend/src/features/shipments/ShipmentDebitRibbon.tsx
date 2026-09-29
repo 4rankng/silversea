@@ -3,21 +3,25 @@ import { FilterDropdown } from '../../components/FilterDropdown';
 import { ListFilterBar } from '../../components/ListFilterBar';
 import { Button as UUIButton } from '../../components/untitled-ui/base/buttons/button';
 import {
-  DateRangeFields, DateRangePresetSelect, DateRangePresets, InlineLabelSelect, SearchableSelect,
-  type DateRangePreset, type DateRangeValue, type SearchableSelectOption,
+  DateRangeFields, DateRangePresetSelect, DateRangePresets, InlineLabelSelect,
+  type DateRangePreset, type DateRangeValue,
 } from '../../design-system';
 
 /**
  * ShipmentDebitRibbon — Row 2 of `/shipments-debit` (card 20260927_153).
  *
  * ONE shared strip (card 20260927_152): the from/to delivery range and the
- * settlement quick ranges ride the bar, and the two secondary criteria — Khách
- * hàng (the page's fetch gate) and Khóa lô — live in `Bộ lọc`. The criteria
- * render INLINE while the strip still fits two rows and fold behind the trigger
- * only when the width leaves no other choice (operator 2026-09-27: "when there
- * is enough space we try our best to display all filters, not group inside bo
- * loc"), so the strip never grows a third row and a short value never takes a
- * whole line.
+ * settlement quick ranges ride the bar, and the one secondary criterion —
+ * Khóa lô — lives in `Bộ lọc`. The criterion renders INLINE while the strip
+ * still fits two rows and folds behind the trigger only when the width leaves
+ * no other choice (operator 2026-09-27: "when there is enough space we try our
+ * best to display all filters, not group inside bo loc"), so the strip never
+ * grows a third row and a short value never takes a whole line.
+ *
+ * Card _202: Khách hàng LEFT this strip. It is the screen's primary axis, not
+ * a criterion — it rides the page header, always visible and never folded
+ * behind `Bộ lọc`. The page hands this strip its range + lock criteria and URL
+ * writers only.
  *
  * This file is a COMPOSITION of the shared primitives, never a second
  * implementation of them: it declares no filter layout, no filter width and no
@@ -51,42 +55,33 @@ const SETTLEMENT_PRESETS: DateRangePreset[] = [
 ];
 
 export interface ShipmentDebitRibbonProps {
-  /** Customer choices, already mapped to the shared combobox option shape. */
-  customerOptions: SearchableSelectOption[];
-  /** Selected customer id ('' = none) — the page fetches nothing without it. */
-  customerId: string;
   /** Delivery-date bounds, ISO 'YYYY-MM-DD' ('' = unset). */
   deliveryFrom: string;
   deliveryTo: string;
   /** Lot-lock criterion; 'ALL' is the unset value the URL carries by absence. */
   lockStatus: 'ALL' | 'OPEN' | 'LOCKED';
-  /** Picking a customer drops the lot selection — it belonged to the old scope. */
-  onCustomerChange: (customerId: string) => void;
   /** Raw key from the lock criterion ('ALL' clears the URL param). */
   onLockChange: (lockKey: string) => void;
   onDeliveryRangeChange: (range: DateRangeValue) => void;
-  /** Clears exactly the two criteria the dialog owns. */
+  /** Clears exactly the criteria this strip owns. */
   onResetSecondary: () => void;
   /** Clears every filter of the strip. */
   onClear: () => void;
 }
 
 export function ShipmentDebitRibbon({
-  customerOptions,
-  customerId,
   deliveryFrom,
   deliveryTo,
   lockStatus,
-  onCustomerChange,
   onLockChange,
   onDeliveryRangeChange,
   onResetSecondary,
   onClear,
 }: ShipmentDebitRibbonProps) {
   const range = { from: deliveryFrom, to: deliveryTo };
-  // The badge counts exactly the criteria the dialog owns, so the trigger's
-  // "Bộ lọc, N đang áp dụng" and `Đặt lại` describe the same two criteria.
-  const secondaryCount = (customerId ? 1 : 0) + (lockStatus !== 'ALL' ? 1 : 0);
+  // The badge counts exactly the criterion the dialog owns, so the trigger's
+  // "Bộ lọc, N đang áp dụng" and `Đặt lại` describe the same criterion.
+  const secondaryCount = lockStatus !== 'ALL' ? 1 : 0;
   // One implementation of the ranges per container: the visible chips in the
   // bar, the dropdown inside the dialog. Bar and dialog each render the node
   // their measured mode calls for, so exactly one exists at any width.
@@ -94,7 +89,7 @@ export function ShipmentDebitRibbon({
   const presetOptions = <DateRangePresetSelect presets={SETTLEMENT_PRESETS} value={range} onChange={onDeliveryRangeChange} ariaLabel="Khoảng ngày nhanh" />;
   // The reset arms on ANY applied criterion, so "nothing filtered" reads as a
   // dead action instead of a click that changes nothing.
-  const hasFilters = customerId !== '' || deliveryFrom !== '' || deliveryTo !== '' || lockStatus !== 'ALL';
+  const hasFilters = deliveryFrom !== '' || deliveryTo !== '' || lockStatus !== 'ALL';
   return (
     <ListFilterBar
       presets={presetChips}
@@ -130,17 +125,6 @@ export function ShipmentDebitRibbon({
         presets={presetOptions}
         onReset={onResetSecondary}
       >
-        <SearchableSelect
-          id="shipment-debit-customer"
-          className="shipment-debit-ribbon__customer"
-          value={customerId}
-          onChange={onCustomerChange}
-          options={customerOptions}
-          placeholder="Khách hàng"
-          searchPlaceholder="Tìm khách hàng…"
-          emptyMessage="Không tìm thấy khách hàng phù hợp."
-          clearable clearLabel="Bỏ khách hàng" requiredMark required size="sm"
-        />
         <InlineLabelSelect
           id="shipment-debit-lock"
           label="Khóa lô"

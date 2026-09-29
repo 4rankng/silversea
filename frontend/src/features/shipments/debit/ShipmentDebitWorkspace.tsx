@@ -19,9 +19,12 @@ import './ShipmentDebitWorkspace.css';
 
 export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved }: {
   shipmentId: number;
-  /** Card _64: the L1 filter's customer — keys the active-frame fee catalog
-   *  (dedicated routing columns + the ghi chú aggregation). */
-  customerId: number;
+  /** Card _202: the ROW's own customer — keys the active-frame fee catalog
+   *  (dedicated routing columns + the ghi chú aggregation). `shipments.
+   *  customer_id` is nullable, so a lot can arrive without one: the fee
+   *  catalog is then simply not fetched (the hook is disabled on null) rather
+   *  than asked for a customer `0` that does not exist. */
+  customerId: number | null;
   locked: boolean;
   onSaved: () => void;
 }) {

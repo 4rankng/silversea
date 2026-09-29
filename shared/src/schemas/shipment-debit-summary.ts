@@ -7,8 +7,17 @@ import { z } from 'zod';
 
 const moneyString = z.string().regex(/^-?\d+(?:\.\d+)?$/);
 
+// Card _202: the customer is the page's PRIMARY axis, not a filter — an empty
+// `customerId` (or an absent one) means "every customer", which is what the
+// screen shows before anyone picks one. An empty string arrives from a
+// hand-edited URL, so it is normalised to absent rather than coerced to 0.
+const optionalCustomerId = z.preprocess(
+  (value) => (value === '' || value === null ? undefined : value),
+  z.coerce.number().int().positive('Khách hàng không hợp lệ').optional(),
+);
+
 export const shipmentDebitSummaryQuerySchema = z.object({
-  customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
+  customerId: optionalCustomerId,
   // "Ngày giao hàng" filter — the lot's expected delivery date (edd family,
   // PRD OpsVanHanh §3.1), not an appointment date.
   deliveryDateFrom: z.string().date().optional(),
@@ -17,6 +26,9 @@ export const shipmentDebitSummaryQuerySchema = z.object({
 });
 
 export const shipmentDebitSummaryItemSchema = z.object({
+  // The lot's own customer. The list can span customers, so the L2 workspace
+  // keys its fee catalog off THIS row, never off the page's filter.
+  customerId: z.number().int().positive().nullable(),
   shipmentId: z.number().int().positive(),
   code: z.string().nullable(),
   customerName: z.string().nullable(),

@@ -22,20 +22,20 @@ function toNumber(value: string | number | null | undefined): number {
 }
 
 export async function getShipmentDebitSummary(query: {
-  customerId: number;
+  /** Card _202: absent = every customer, not "no rows". */
+  customerId?: number;
   deliveryDateFrom?: string;
   deliveryDateTo?: string;
   lockStatus: 'ALL' | 'OPEN' | 'LOCKED';
 }): Promise<ShipmentDebitSummaryResponse> {
-  const conditions = [
-    eq(s.shipments.customerId, query.customerId),
-    isNull(s.shipments.deletedAt),
-  ];
+  const conditions = [isNull(s.shipments.deletedAt)];
+  if (query.customerId != null) conditions.push(eq(s.shipments.customerId, query.customerId));
   if (query.deliveryDateFrom) conditions.push(gte(s.shipments.expectedDeliveryDate, query.deliveryDateFrom));
   if (query.deliveryDateTo) conditions.push(lte(s.shipments.expectedDeliveryDate, query.deliveryDateTo));
   const lots = await db.select({
     id: s.shipments.id,
     code: s.shipments.shipmentCode,
+    customerId: s.shipments.customerId,
     customerName: s.customers.name,
     factoryName: s.operationalSites.shortName,
     factoryAddress: s.operationalSites.address,
@@ -324,6 +324,9 @@ export async function getShipmentDebitSummary(query: {
       ? receivableValue - freightAuto - chiHo
       : null;
     return {
+      // The row's OWN customer: the list can span customers, so the L2
+      // workspace's fee catalog keys off this, never off the caller's filter.
+      customerId: lot.customerId ?? null,
       shipmentId: lot.id,
       code: lot.code,
       customerName: lot.customerName,

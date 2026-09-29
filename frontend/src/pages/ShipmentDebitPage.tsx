@@ -14,7 +14,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState } from '../design-system';
+import { EmptyState, SearchableSelect } from '../design-system';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import './ShipmentDebitPage.css';
@@ -41,10 +41,9 @@ function overlappingLotCodesFrom(cause: unknown): string[] | null {
  *  first cell beside [+] (no tenth column), TỔNG PHẢI TRẢ rides its own
  *  wire field — null stays "Chưa xác định", never derived, never 0. */
 function DebitLotRow({
-  row, customerId, expanded, onToggle, onSaved, selected, onSelect, canManage,
+  row, expanded, onToggle, onSaved, selected, onSelect, canManage,
 }: {
   row: ShipmentDebitLotRow;
-  customerId: number;
   canManage: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -98,7 +97,9 @@ function DebitLotRow({
       {canManage && expanded && (
         <tr className="shipment-debit-expand">
           <td colSpan={9}>
-            <ShipmentDebitWorkspace shipmentId={row.shipmentId} customerId={Number(customerId)} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
+            {/* Card _202: the fee catalog keys off the ROW's customer — the
+                list can span customers, so the page's filter is not the truth. */}
+            <ShipmentDebitWorkspace shipmentId={row.shipmentId} customerId={row.customerId} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
           </td>
         </tr>
       )}
@@ -194,13 +195,14 @@ export function ShipmentDebitPage() {
   const bootstrap = useQuery({ queryKey: qk.shipmentDebit.bootstrap, queryFn: () => tripClient.getBootstrap() });
   const summary = useQuery({
     queryKey: qk.shipmentDebit.summary(customerId, deliveryFrom, deliveryTo, lockStatus),
+    // Card _202: an empty customer means EVERY customer, so the list always
+    // loads — the screen never opens on an empty face.
     queryFn: () => listShipmentDebitSummary({
-      customerId: Number(customerId),
+      customerId: customerId === '' ? null : Number(customerId),
       deliveryDateFrom: deliveryFrom || null,
       deliveryDateTo: deliveryTo || null,
       lockStatus,
     }),
-    enabled: customerId !== '' && Number.isFinite(Number(customerId)),
   });
 
   const customers = bootstrap.data?.customers ?? [];
@@ -214,6 +216,8 @@ export function ShipmentDebitPage() {
     label: customer.fullName ? `${customer.name} - ${customer.fullName}` : customer.name,
     searchText: `${customer.name} ${customer.fullName ?? ''}`,
   }));
+  // The picker's own wording, so the hint never echoes an id back at the user.
+  const selectedCustomerLabel = customerOptions.find((option) => option.value === customerId)?.label ?? '';
 
   return (
     <div className="shipment-debit-page data-workspace">
@@ -222,10 +226,11 @@ export function ShipmentDebitPage() {
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
-        {/* Card 20260926_51: two-tier header — Row 1 title + Xuất Debit Note
-            ghost top-right (disabled without customer or locked tick, hover
-            names the prerequisite); Row 2 is the shared filter strip
-            (card 20260927_153). */}
+        {/* Card _202: Row 1 is title + Xuất Debit Note (a per-customer action, so
+            it stays disabled until one customer is in scope); Row 2 is the
+            PROMOTED Khách hàng picker — the screen's primary axis, always
+            visible, never folded into `Bộ lọc`; Row 3 is the shared filter
+            strip (card 20260927_153) with the range and the lock criterion. */}
         <header className="shipment-debit-header" data-component="shipment-debit-header">
           <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
           {canManage && (
@@ -242,31 +247,43 @@ export function ShipmentDebitPage() {
             </span>
           )}
         </header>
-        {/* Card 20260927_153: Row 2 is the shared filter strip. It owns its own
-            layout and every control width (FilterBar.css L1-L3), so the page
-            hands it criteria values and URL writers only — no filter rule, no
-            applied-count and no reset markup lives here. */}
+        <div className="shipment-debit-customer-bar">
+          <SearchableSelect
+            id="shipment-debit-customer"
+            className="shipment-debit-customer-bar__picker"
+            value={customerId}
+            onChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
+            options={customerOptions}
+            placeholder="Tất cả khách hàng"
+            searchPlaceholder="Tìm khách hàng…"
+            emptyMessage="Không tìm thấy khách hàng phù hợp."
+            clearable clearLabel="Xem tất cả khách hàng" size="sm"
+          />
+          <p className="shipment-debit-customer-bar__hint">
+            {customerId === ''
+              ? 'Đang xem tất cả khách hàng. Chọn một khách để thu hẹp danh sách.'
+              : `Đang xem lô của ${selectedCustomerLabel}.`}
+          </p>
+        </div>
+        {/* Card 20260927_153: the filter strip owns its own layout and every
+            control width (FilterBar.css L1-L3), so the page hands it criteria
+            values and URL writers only — no filter rule, no applied-count and
+            no reset markup lives here. The customer left the strip in _202. */}
         <ShipmentDebitRibbon
-          customerOptions={customerOptions}
-          customerId={customerId}
           deliveryFrom={deliveryFrom}
           deliveryTo={deliveryTo}
           lockStatus={lockStatus}
-          onCustomerChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
           onLockChange={(key) => { setSelectedIds(new Set()); updateParam('lock', key === 'ALL' ? null : key); }}
           onDeliveryRangeChange={({ from, to }) => { updateParam('from', from || null); updateParam('to', to || null); }}
-          onResetSecondary={() => { setSelectedIds(new Set()); updateParam('customer', null); updateParam('lock', null); }}
+          onResetSecondary={() => { setSelectedIds(new Set()); updateParam('lock', null); }}
           onClear={() => {
             setSelectedIds(new Set());
-            updateParam('customer', null);
             updateParam('from', null);
             updateParam('to', null);
             updateParam('lock', null);
           }}
         />
-        {customerId === '' ? (
-          <EmptyState illustration="finance" title="Chưa chọn khách hàng" description="Chọn khách hàng để xem danh sách lô cần quyết toán." />
-        ) : summary.isPending ? (
+        {summary.isPending ? (
           <Skeleton height={320} />
         ) : items.length === 0 && !summary.isError ? (
           <EmptyState illustration="finance" title="Không có lô nào" description="Không có lô nào khớp bộ lọc hiện tại." />
@@ -303,7 +320,6 @@ export function ShipmentDebitPage() {
                   <DebitLotRow
                     key={row.shipmentId}
                     row={row}
-                    customerId={Number(customerId)}
                     canManage={canManage}
                     expanded={canManage && expandedId === row.shipmentId}
                     onToggle={() => toggleExpandedLot(row.shipmentId)}

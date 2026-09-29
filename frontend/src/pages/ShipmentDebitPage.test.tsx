@@ -56,6 +56,9 @@ const row = (over: Partial<ShipmentDebitLotRow> = {}): ShipmentDebitLotRow => ({
   lockStatus: 'OPEN',
   lockedAt: null,
   ...over,
+  // After the spread, so an explicit `customerId: null` (a lot with no
+  // customer) survives instead of collapsing back to the default.
+  customerId: over.customerId ?? 1,
 });
 
 beforeEach(() => {
@@ -88,25 +91,40 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     sessionStorage.removeItem('shipment-debit.expanded-lot');
   });
 
-  it('requires the customer pick before any list fetch happens', async () => {
+  it('loads every customer when none is picked — the screen never opens empty', async () => {
     const { container } = renderPage();
-    expect(await screen.findByText('Chưa chọn khách hàng')).toBeTruthy();
-    // Card 20260922_31: the empty face is the shared design-system EmptyState
-    // (illustration included) — never a hand-rolled two-line block — and the
-    // primary export action is disabled while nothing is selected.
-    const emptyState = container.querySelector('.ds-empty-state');
-    expect(emptyState).not.toBeNull();
-    expect(emptyState?.querySelector('.ds-empty-state__title')?.textContent).toBe('Chưa chọn khách hàng');
-    expect(emptyState?.querySelector<HTMLImageElement>('.ds-empty-state__illustration')?.src)
-      .toContain('/assets/illustrations/empty-4.png');
+    // Card _202: the customer is the page's primary axis, not a gate. With
+    // none picked the list is EVERY customer's, and the picker's own wording
+    // says so — the "Chưa chọn khách hàng" face is gone.
+    await waitFor(() => expect(listSummary).toHaveBeenCalledWith(expect.objectContaining({ customerId: null })));
+    expect(screen.queryByText('Chưa chọn khách hàng')).toBeNull();
+    expect(container.querySelector('.shipment-debit-customer-bar')).not.toBeNull();
+    expect(screen.getByText(/Đang xem tất cả khách hàng/)).toBeTruthy();
+    // The export action is still a per-customer action, so it stays disabled.
     expect((screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(listSummary).not.toHaveBeenCalled();
-    // Picking the customer fires the summary fetch with the numeric id —
-    // card 20260926_51: the picker is the shared searchable combobox whose
-    // trigger text IS the label.
-    fireEvent.click(await screen.findByRole('button', { name: 'Khách hàng' }));
+    // Picking a customer narrows the scope to that numeric id — the picker is
+    // the shared searchable combobox, promoted out of `Bộ lọc`.
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả khách hàng' }));
     fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
     await waitFor(() => expect(listSummary).toHaveBeenCalledWith(expect.objectContaining({ customerId: 1 })));
+    expect(screen.getByText(/Đang xem lô của KH A/)).toBeTruthy();
+  });
+
+  it('renders every customer the summary returns when no customer is picked', async () => {
+    listSummary.mockResolvedValue({
+      items: [
+        row({ customerId: 1, customerName: 'KH A', billOrBookNumber: 'BL-1', code: 'SHP-1' }),
+        row({ customerId: 2, customerName: 'KH B', billOrBookNumber: 'BL-2', code: 'SHP-2' }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    expect((await screen.findAllByText('BL-1')).length).toBeGreaterThan(0);
+    // The second lot's key rides its own row (identity chip + Số Bill).
+    expect(screen.getAllByText('BL-2').length).toBeGreaterThan(0);
+    // Each row names its OWN customer, so a mixed list stays readable.
+    expect(screen.getAllByText('KH A').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('KH B').length).toBeGreaterThan(0);
   });
 
   it('keeps customer, delivery-date range and lock status in the URL', async () => {
@@ -135,14 +153,16 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     expect(screen.queryByText('Từ ngày giao')).toBeNull();
     expect(screen.queryByText('Đến ngày giao')).toBeNull();
     expect(screen.queryByText('Trạng thái khóa lô')).toBeNull();
-    // The criteria ride the strip: the delivery range on the bar itself, with
-    // Khách hàng and Khóa lô as the criteria `Bộ lọc` owns (inline while the
-    // strip still fits two rows, folded behind the trigger when it does not)
-    // and Xóa lọc at the tail.
-    within(ribbon).getByRole('button', { name: 'Khách hàng' });
+    // Card _202: Khách hàng LEFT the strip — it is the screen's primary axis
+    // and rides its own always-visible bar above it. The strip keeps the
+    // delivery range, the Khóa lô criterion and Xóa lọc.
     within(ribbon).getByRole('group', { name: 'Khoảng ngày giao' });
     within(ribbon).getByRole('button', { name: 'Khóa lô: Tất cả' });
     within(ribbon).getByRole('button', { name: 'Xóa lọc' });
+    expect(within(ribbon).queryByRole('button', { name: /Khách hàng/ })).toBeNull();
+    const customerBar = container.querySelector('.shipment-debit-customer-bar') as HTMLElement;
+    expect(customerBar).not.toBeNull();
+    expect(within(customerBar).getByRole('button', { name: 'Tất cả khách hàng' })).toBeTruthy();
     // Row 1: Xuất Debit Note rides the title baseline, disabled without a
     // customer, with the hover tooltip naming the prerequisite.
     const header = container.querySelector('[data-component="shipment-debit-header"]') as HTMLElement;

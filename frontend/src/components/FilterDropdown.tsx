@@ -87,7 +87,19 @@ export function FilterDropdown({
   // `visibility: hidden` until they do.
   const position = usePopoverPosition(panelRef, triggerRef, isOpen, 320, 320);
   const close = useCallback(() => setIsOpen(false), []);
-  useClickOutside(panelRef, close, { escapeKey: true, enabled: isOpen, additionalRefs: [triggerRef] });
+  // Card _202: the criteria inside this dialog portal their own popovers
+  // (`.searchable-select__popover`, `[role="listbox"]`, the date picker) to
+  // document.body, so they are NOT inside `panelRef`. Without this selector a
+  // `pointerdown` on an option read as an outside press: the dialog closed on
+  // pointerdown, the listbox unmounted before the click landed, and the chosen
+  // value was discarded — the filter silently did nothing. Same list the other
+  // popovers in the repo pass (ShipmentsPage, ShipmentContainerLedger).
+  useClickOutside(panelRef, close, {
+    escapeKey: true,
+    enabled: isOpen,
+    additionalRefs: [triggerRef],
+    ignoreSelector: '.searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, [role="listbox"], .date-picker__popup, [data-date-picker], .time-picker__popup, [data-time-picker-overlay], .modal__content',
+  });
 
   // Escape (focus is inside the panel) and a press on dead space (focus falls
   // to <body>) both hand the keyboard back to the trigger; a press on another

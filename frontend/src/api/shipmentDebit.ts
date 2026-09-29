@@ -6,6 +6,9 @@ import type { ShipmentDebitEditPayload } from '@tingting/shared';
 
 /** One collapsed lot row on the CUS settlement screen (Chi phí - Quyết toán). */
 export interface ShipmentDebitLotRow {
+  /** Card _202: the row's OWN customer. The list can span customers, so the L2
+   *  workspace keys its fee catalog off this, never off the page's filter. */
+  customerId: number | null;
   shipmentId: number;
   code: string;
   customerName: string;
@@ -38,14 +41,17 @@ export interface ShipmentDebitSummary {
   excludedSum: string;
 }
 
-/** Settlement rollup per lot. Delivery date = shipments.expectedDeliveryDate. */
+/** Settlement rollup per lot. Delivery date = shipments.expectedDeliveryDate.
+ *  Card _202: an absent `customerId` means every customer — that is the state
+ *  the screen opens in, not an empty result. */
 export async function listShipmentDebitSummary(params: {
-  customerId: number;
+  customerId?: number | null;
   deliveryDateFrom?: string | null;
   deliveryDateTo?: string | null;
   lockStatus?: 'ALL' | 'OPEN' | 'LOCKED';
 }): Promise<ShipmentDebitSummary> {
-  const query = new URLSearchParams({ customerId: String(params.customerId) });
+  const query = new URLSearchParams();
+  if (params.customerId) query.set('customerId', String(params.customerId));
   if (params.deliveryDateFrom) query.set('deliveryDateFrom', params.deliveryDateFrom);
   if (params.deliveryDateTo) query.set('deliveryDateTo', params.deliveryDateTo);
   if (params.lockStatus && params.lockStatus !== 'ALL') query.set('lockStatus', params.lockStatus);

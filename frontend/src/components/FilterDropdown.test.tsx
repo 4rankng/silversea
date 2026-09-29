@@ -85,4 +85,37 @@ describe('FilterDropdown', () => {
     expect(screen.queryByRole('button', { name: /^Bộ lọc/ })).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+
+  it('does not dismiss when a criterion popover PORTALED to body is used (card _202)', () => {
+    // The criteria portal their own popovers (`.searchable-select__popover`,
+    // `[role="listbox"]`, the date picker) to document.body, so they are not
+    // inside the panel. Before _202 a pointerdown on one of those options read
+    // as an outside press: the dialog closed on pointerdown, the listbox
+    // unmounted before the click landed, and the pick was silently DISCARDED —
+    // the filter looked alive and did nothing.
+    renderDialog();
+    fireEvent.click(screen.getByRole('button', { name: /^Bộ lọc/ }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    const listbox = document.createElement('ul');
+    listbox.setAttribute('role', 'listbox');
+    const option = document.createElement('li');
+    option.setAttribute('role', 'option');
+    listbox.append(option);
+    document.body.append(listbox);
+    // The press lands on a node outside the panel, exactly as a real pick does.
+    fireEvent.pointerDown(option);
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    fireEvent.pointerDown(listbox);
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    // …and a press on dead space still dismisses (see the next case).
+    listbox.remove();
+  });
+
+  it('still dismisses on a press OUTSIDE the panel and outside any child popover', () => {
+    renderDialog();
+    fireEvent.click(screen.getByRole('button', { name: /^Bộ lọc/ }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 });

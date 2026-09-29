@@ -234,10 +234,12 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     });
     assert.deepEqual(result.items.map((row) => row.shipmentId), [inside.id]);
   });
-  test('customer is mandatory and the lock filter follows the real locks', async () => {
+  test('the lock filter follows the real locks, and no customer means every customer', async () => {
     const customer = await mkCustomer(`Debit E ${suffix}`);
+    const other = await mkCustomer(`Debit E other ${suffix}`);
     const locked = await mkLot(customer.id, '2026-09-15');
-    await mkLot(customer.id, '2026-09-16');
+    const open = await mkLot(customer.id, '2026-09-16');
+    await mkLot(other.id, '2026-09-16');
     await lockShipmentCost({ shipmentId: locked.id, expectedShipmentVersion: null, lockNote: null, actor: { userId: 0, role: 'ADMIN', username: 'p', email: 'p', fullName: 'p' } as never, idempotencyKey: `lock-filter-${suffix}` });
     const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
     const lockedItem = summary.items.find((row) => row.shipmentId === locked.id)!;
@@ -247,7 +249,16 @@ describe('shipment debit summary (Chi phí - Quyết toán L1)', () => {
     assert.equal(openOnly.items.some((row) => row.shipmentId === locked.id), false);
     const lockedOnly = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'LOCKED' });
     assert.deepEqual(lockedOnly.items.map((row) => row.shipmentId), [locked.id]);
-    assert.equal(shipmentDebitSummaryQuerySchema.safeParse({}).success, false, 'customerId is required by the query contract');
+    // Card _202: an absent customer is "every customer", not "no rows" — and
+    // each row carries its OWN customer so the L2 workspace keys correctly.
+    const everyone = await getShipmentDebitSummary({ lockStatus: 'ALL' });
+    const mine = everyone.items.filter((r) => r.customerId === customer.id).map((r) => r.shipmentId).sort();
+    assert.deepEqual(mine, [locked.id, open.id].sort(), 'the unfiltered rollup still holds this customer lots');
+    assert.ok(everyone.items.some((r) => r.customerId === other.id), 'and the other customer too');
+    assert.equal(shipmentDebitSummaryQuerySchema.safeParse({}).success, true, 'no customer is a valid scope');
+    assert.equal(shipmentDebitSummaryQuerySchema.safeParse({ customerId: '' }).success, true, 'an empty customer is "all", not 0');
+    assert.equal(shipmentDebitSummaryQuerySchema.safeParse({ customerId: 0 }).success, false, '0 is not a customer');
+    assert.equal(shipmentDebitSummaryQuerySchema.safeParse({ customerId: 'abc' }).success, false, 'garbage is not a customer');
   });
   test('TỔNG PHẢI TRẢ: live for open lots, frozen for locked lots, null stays null', async () => {
     const customer = await mkCustomer(`Debit payables ${suffix}`);
