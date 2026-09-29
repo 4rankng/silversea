@@ -1,48 +1,64 @@
-# HANDOFF.md — agent-contract rewrite + tree sweep (+ preserved journal warning)
+# HANDOFF.md — four-role UI/UX polish wave (cus · dieuvan · laixe · ops)
 
-**Updated:** 2026-09-29 00:20 (+08)
-**Controller:** Claude Code session (user-directed: contract rewrite → OpenWiki/.ua/ClaudeKit retirement → "commit all code in logical chunks")
-**Status:** LANDED — 8 commits on `prod` (b63b39ae..a4413cbf + handoff). One follow-up open: isolated re-adjudication of 16 backend suites that ran red under DB contention.
+**Updated:** 2026-09-30 01:55 (+08)
+**Controller:** Claude Code session (user order: "polish UI UX of cus (chungtu), dieuvan, laixe, ops for all device sizes", plus "avoid long text filler text in the app" and "commit frequently after each logical chunk")
+**Status:** LANDED — 6 commits on `prod` (8f9ab5ea, ccc6d5d9, e45588ea, fa0e6efc, 1cafa684, + this handoff). One card open on a PM question.
 
 ## Goal
 
-`AGENTS.md` is the single canonical agent contract every runtime follows; `CLAUDE.md` is a thin `@AGENTS.md` import; OpenWiki, the `.ua` knowledge base, and project ClaudeKit are retired; the whole working tree is swept into logical commits.
+The four operational roles read clean at every device size: no dead section, no
+phantom finding, no pill in a data cell, no teaching copy, one "chưa" per record.
 
-## Commit ledger (this wave)
+## Commit ledger
 
-- `b63b39ae` docs(agents): contract rewrite + OpenWiki/.ua retirement (machine blocks md5-verified)
-- `02f137d5` docs(adr): PM rulings for the parked chi-phi cards
-- `4cd7b694` chore(gate): pre-commit typechecks backend test files too (card 201)
-- `13bcf5c6` chore(frontend): tokenizer closure loop-variable binding (B023)
-- `9e5d0933` chore(kanban): measured AC verdicts on the 09-28 shipments cards
-- `e1060f0a` fix(frontend): phone filter rows share one line; status tabs justify
-- `a4413cbf` feat(accounting): signed expense amounts; totals drop negative rows (cards 197/181/147) + carrierType fixture fix
-- handoff commit (this file)
+- `8f9ab5ea` fix(ops): a dangling expense-source link no longer kills the register read (card 213)
+- `ccc6d5d9` fix(dispatch): status and direction are plain text, one "chưa" per record (card 215)
+- `e45588ea` chore(frontend): the UI sweeps measure the 40px touch floor the law sets (card 217)
+- `fa0e6efc` fix(ui): drop long instructional copy on the four roles' surfaces (card 216)
+- `1cafa684` fix(ops): wallet balances ride the shared rail; fund book stops crashing (card 218)
+- `617bffb7` fix(cus): debit workspace stops asking for a catalog its role cannot read (card 214 → 220)
+
+## Board
+
+- **DEV_COMPLETED:** 213, 215, 216, 217, 218 (dated evidence blocks + verify steps inside).
+- **IN_PROGRESS:** 220 (was 214; renumbered after a number collision with another
+  lane's 214) — `CẦN THÔNG TIN`: may CUS read the active quotation fee catalog?
+  The FE no longer calls it; the chi-hộ dedicated columns stay absent for CUS
+  until the PM rules.
+- Filed this wave: 213–218 (213 = ops wallet 404, 214 = CUS debit 403, 215 =
+  dispatch pill/duplicate, 216 = filler copy, 217 = sweep floor, 218 = wallet
+  density).
 
 ## QA
 
-- Root lint 0 errors (38 pre-existing warnings) · frontend typecheck 0 · ShipmentsTabs styles test 4/4 · backend test-inclusive typecheck 0 (after fixing `carrierType` in the new card197 fixture — column removed in the schema lean-down) · design drift FELL (rawZIndex 81→80).
-- Artifacts: `qa/2026-09-28_agents-contract-rewrite_lint.log`, `qa/2026-09-28_full-sweep_backend-typecheck-test.log`.
-- **Open item:** the full backend suite finished `exit 1` on 16 files while a second session's suite ran concurrently on the shared dev DB (connection-pool death mid-run: ECONNREFUSED, "Connection is closed"; 20s timeout patterns). The flagged files need one isolated re-run once the DB is quiet; a real regression there gets a follow-up fix commit. Typecheck (both bars) is green; the commit carries the caveat in its body.
+- Sweep (390/768/1440, 4 roles): 0 overflow, 0 clipped, 0 sub-11px, 0 sub-40px;
+  only remaining finding is the CUS debit 403 (now fixed in the FE).
+  `qa/2026-09-30_role-sweep_*`.
+- Frontend `tsc -b` 0 · vitest scoped sets green (dispatch 362, ops 50, copy-trim
+  trees 379) · `pnpm design:lock` 200/201 · `pnpm design:drift` no growth.
+- Backend `tsc --noEmit` 0 · card 213 red→green logs in `qa/`.
+- **Not run:** full backend suite, `make build`, E2E — no schema/RBAC/shared
+  change landed; the backend edit is a read-path guard with its own regression test.
 
-## Decisions (user-directed)
+## Decisions
 
-- Numbered contract sections §1–§11; standing directives promoted into §2 Non-negotiables (append-only history, prod untouchable, tickets-before-fixes, sweep-the-class, internal-IDs-never-user-facing).
-- CONTEXT.md authority order → pointer to AGENTS.md §1; handoff field list lives in CONTEXT.md (ROADMAP.md / HANDOFF.example.md references removed everywhere — both files were deleted at eef1e9b5).
-- `.claude/` moved to `~/.claude-removals/silversea-prod-20260928/`; only `skills/kanban-work` stays in the repo.
+- A dangling `expense_accounting_sources` link (polymorphic, no FK) is debris: a
+  LIST read skips it and logs a warning; a read-by-ref still 404s.
+- The touch floor is 40px (2026-09-27 ruling: the ceiling IS the floor) — both
+  sweeps now read it from the same law `scripts/design-lock.mjs` uses.
+- Filler copy is deleted on sight (law §8); messages carrying a decision
+  (blockers, permissions, errors, destructive confirmations) stay.
+- UI copy is asserted through seams (`data-testid`), never by pinning a sentence.
 
-## Concurrent work
+## Open items
 
-Another session is actively running backend suites on this checkout (card 164 verification, full node --test sweep from 00:11). Its runs are untouched; the 16-file adjudication waits for its window.
-
-## ⚠️ Preserved from 09-27 handoff: journal-restamp warning
-
-Do not commit a restamped/renumbered `backend/drizzle/meta/_journal.json` — especially not via `--no-verify`. Risk: 42710 duplicate-object class on the next staging + prod migrate. A real migration only APPENDS; if the append-only guard refuses → `git checkout -- backend/drizzle/meta/_journal.json` and regenerate properly.
-
-## Next
-
-- Isolated re-run of the 16 flagged backend files (see qa log for the list); follow-up fix commit if any fail solo.
-- `.codex/context-manifest.json` still references deleted `ROADMAP.md` + `HANDOFF.example.md` → `pnpm context:check` exits 1 (pre-existing; manifest untouched — shared machine config).
-- The Understand-Anything Stop hook in `.zcode/config.json` references the removed `.ua/`; remove `.zcode/` when retiring that runtime.
-- `.claude/` removal takes effect next session (project hooks/skills gone except kanban-work; MCP servers unaffected via root `.mcp.json`).
-- The moved ClaudeKit copy sits at `~/.claude-removals/silversea-prod-20260928/` — delete whenever; nothing references it.
+- 28 DRIVER links whose source row exists but whose `trips`/`drivers` join no
+  longer resolves (28 of 152 measured) — not deleted, needs a decision on the
+  legacy `drivers` table.
+- `pnpm check:ui` exits 1 on three pre-existing files
+  (AccountingWorkspacePage.css, CustomersPage.css, PhoiPhieuControlPage.css) —
+  none touched by this wave.
+- `filters/customers/w768/max-two-rows` design-lock fails (3 rows) — pre-existing,
+  /customers untouched here.
+- `OpsExpenseFormModal.containers.test.tsx` A1 is borderline (≈5.3s vs a 5s
+  timeout) — pre-existing flake class card 20260928_185.
