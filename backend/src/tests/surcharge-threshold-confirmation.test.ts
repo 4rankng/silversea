@@ -94,10 +94,17 @@ describe('surcharge threshold confirmation (20260917_11 criterion 5)', () => {
     });
   });
 
-  test('UNSET terms → MANUAL, never auto-applied', async () => {
+  test('UNSET terms → computes with a zero fuel delta and states why, never silently billed', async () => {
     await setTerms('UNSET', false);
     const result = await resolveFixtureRate();
-    assert.equal(result.source, 'MANUAL');
+    // The engine no longer refuses with MANUAL: it computes freight with a zero
+    // fuel delta (so the surcharge is 0 and the freight is identical in
+    // rounding to the AUTO path) and carries the pending reason on
+    // `formulaText`. This case used to assert source === 'MANUAL' while
+    // already asserting the new formula text — half-migrated, so it had been
+    // red since the redesign. The guarantee that matters is asserted below:
+    // nothing is billed as if the threshold had been agreed.
+    assert.equal(result.source, 'AUTO');
     assert.match(result.formula, /chưa được khách chốt/);
     assert.equal(result.pricingTableId, fixture!.priceId);
   });

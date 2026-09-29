@@ -241,7 +241,11 @@ test('E2E — Auth flow (Login, Me, User List, Create, Delete)', async () => {
   assert.ok(createdUserId);
 
   // Test 1.4: User list retrieval
-  const listRes = await testFetch('/api/auth/users', { token: adminToken });
+  // Ask for the user rather than scanning the default page: the list is
+  // paginated and caps well below a busy dev/staging roster, so "the first
+  // page happens to contain the row I just wrote" is not a property of the
+  // API — it is a property of how many users exist.
+  const listRes = await testFetch(`/api/auth/users?search=${encodeURIComponent(newUserUsername)}`, { token: adminToken });
   assert.strictEqual(listRes.status, 200);
   assert.ok(listRes.data.items.some((u: { id: number }) => u.id === createdUserId));
 
