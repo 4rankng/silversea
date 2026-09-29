@@ -199,7 +199,14 @@ for (const order of ['new-first', 'legacy-first', 'concurrent']) test(`vendor ca
     invoiceNumber: crypto.randomUUID(), invoiceDate: '2026-09-16', faceAmount: '1000000', supplierFeeAmount: '500000', createdBy: users[0].id, updatedBy: users[0].id }).returning();
   await db.insert(s.expenseAccountingSources).values({ sourceKind: 'INVOICE', sourceId: invoice.id, shipmentId: invoice.shipmentId, recordedById: users[0].id, confirmedById: users[0].id, confirmedAt: new Date() });
   await db.transaction(tx => LedgerService.postEntry(tx, { txnType: TxnType.VENDOR_EXPENSE, entityType: 'VENDOR', entityId: supplier.id, credit: 500000, debit: 0 }));
-  const input = { ...f.input, direction: 'OUT', entries: [{ sourceKind: 'INVOICE', sourceId: invoice.id, expectedVersion: 1, amount: 100000 }] };
+  // Card 20260928_167's fund gate maps INVOICE_SERVICE to Quỹ TM, so a vendor
+  // payment for an invoice line must be paid from a TM account. The shared
+  // `fixture()` account is a COMPANY account (correct for its OPS_REGULAR
+  // line), so this path needs its own — passing the company one is refused
+  // with "Các dòng này phải chi từ Quỹ TM", which is the gate working.
+  const [tmAccount] = await db.insert(s.treasuryAccounts).values({ code: `${tag}-tm-${supplier.id}`, name: `${tag} TM`, type: 'BANK', fundCode: 'TM', status: 'ACTIVE', createdBy: users[0].id, updatedBy: users[0].id }).returning();
+  accounts.push(tmAccount.id);
+  const input = { ...f.input, direction: 'OUT', treasuryAccountId: tmAccount.id, entries: [{ sourceKind: 'INVOICE', sourceId: invoice.id, expectedVersion: 1, amount: 100000 }] };
   const legacy = { supplierId: supplier.id, receiptId: expenseVoucherCode(input as Parameters<typeof expenseVoucherCode>[0]), amount: '100000', date: input.valueDate,
     treasuryAccountId: input.treasuryAccountId, valueDate: input.valueDate, physicalReference: input.physicalReference };
   const key = `${tag}-vendor-${order}`;

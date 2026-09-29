@@ -192,9 +192,16 @@ describe('invoice tracking (card 20260921_18)', () => {
     const rows = (cusRead.data as { rows: unknown[] }).rows;
     assert.ok(Array.isArray(rows));
 
-    const del = await api(accountantToken, 'DELETE', `/invoice-tracking/${created.id}`);
+    // Q10 (card 20260922_78): the delete needs a mandatory reason and
+    // soft-voids. This call predates the rule and was refused with 400.
+    const del = await api(accountantToken, 'DELETE', `/invoice-tracking/${created.id}`, { reason: 'card 18 cleanup' });
     assert.equal(del.status, 200);
     [expense] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, created.expenseId!));
-    assert.equal(expense, undefined, 'the mirrored expense deletes with the row');
+    // Q10 (card 20260922_78) turned this hard delete into a soft void, so the
+    // mirrored expense SURVIVES as VOIDED with the reason recorded. Asserting
+    // `undefined` pinned the pre-Q10 behaviour and would have failed anyone who
+    // tried to restore it.
+    assert.equal(expense?.approvalStatus, 'VOIDED', 'the mirrored expense is voided with the row, not erased');
+    assert.equal(expense?.deletionReason, 'card 18 cleanup', 'the mandatory reason is recorded on the void');
   });
 });
