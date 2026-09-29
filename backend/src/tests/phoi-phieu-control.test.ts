@@ -817,6 +817,24 @@ describe('card 20260928_170 — ô STK nguồn quỹ, dấu tiền vào sổ qu�
     assert.ok(offered.every((account) => account.fundCode === 'COMPANY' || account.fundCode === 'TM'),
       'không tài khoản nào chưa gán nguồn quỹ lọt vào ô STK');
   });
+  // Card 20260929_212: the list used to filter `type='CASH'`, so the two fund
+  // sources PM's own document names — "TK công ty – Ngân hàng ACB" and "TK TM",
+  // both bank accounts — could not be picked on this board at all. The AC2 case
+  // above only ever created CASH accounts, which is why that survived.
+  test('AC2b: ô STK mời chọn nguồn quỹ NGÂN HÀNG — đúng hai nguồn PM đã định nghĩa', async () => {
+    const [bankCompany] = await db.insert(s.treasuryAccounts).values({
+      code: `C12-STK-ACB-${suffix}`, name: `STK ACB ${suffix}`, type: 'BANK', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id, code: s.treasuryAccounts.code });
+    track(s.treasuryAccounts, bankCompany.id);
+    const [bankTm] = await db.insert(s.treasuryAccounts).values({
+      code: `C12-STK-ACTM-${suffix}`, name: `STK AC TM ${suffix}`, type: 'BANK', fundCode: 'TM', status: 'ACTIVE', createdBy: accountantId, updatedBy: accountantId,
+    }).returning({ id: s.treasuryAccounts.id, code: s.treasuryAccounts.code });
+    track(s.treasuryAccounts, bankTm.id);
+
+    const codes = (await listPhoiPhieuStk()).map((item) => item.code);
+    assert.ok(codes.includes(bankCompany.code), 'nguồn quỹ công ty dạng NGÂN HÀNG phải hiện trong ô STK');
+    assert.ok(codes.includes(bankTm.code), 'nguồn quỹ TM dạng NGÂN HÀNG phải hiện trong ô STK');
+  });
 
   test('AC3: phiếu thu cộng, phiếu chi trừ vào sổ quỹ của đúng STK', async () => {
     const inbound = await mkBoardFixture({ charge: 100000 });

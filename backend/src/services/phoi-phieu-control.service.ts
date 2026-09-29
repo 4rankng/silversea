@@ -447,17 +447,28 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
   return outer ? run(outer) : db.transaction(run);
 }
 
-/** Card 20260928_167/170 — the STK field offers the TWO fund sources only.
- *  `type='CASH'` alone also matched accounts nobody assigned a fund to
- *  (`fund_code IS NULL`), and the voucher engine then refuses that choice
- *  (`assertTreasuryFundAssigned`, treasury.service.ts), so the board could
- *  offer an STK the accountant can never post against. `FUND_SOURCES` is the
- *  same constant the fund book groups by, so the two cannot disagree about
- *  what a fund source is. */
+/** Card 20260928_167/170, corrected by 20260929_212 — the STK field offers
+ *  the TWO fund sources PM defined, whichever account TYPE they live in.
+ *
+ *  The original `type='CASH'` filter was doing two jobs and only one of them
+ *  was real. It did stop fund-less accounts leaking in (`fund_code IS NULL`),
+ *  but it ALSO hid every bank account — and PM's own document names the two
+ *  sources as "TK công ty – Ngân hàng ACB" and "TK TM", i.e. bank accounts.
+ *  Measured on staging (2026-09-29): with ACB/BANK/COMPANY and TM/BANK/TM
+ *  both present, this list returned nothing; adding one CASH account made it
+ *  return exactly that one. So the accountant could not pick either source PM
+ *  named, and a selected row could not be issued.
+ *
+ *  The `FUND_SOURCES` filter is the one that actually carries the meaning, and
+ *  it is the same constant the fund book groups by. It also keeps the picker
+ *  and the posting guard in step: `assertVoucherFundMatches` judges the chosen
+ *  account by its `fundCode` and never looks at `type`, so restricting the
+ *  list by type while the guard ignores it is exactly how the two drift apart.
+ */
 export async function listPhoiPhieuStk(): Promise<Array<{ id: number; code: string; name: string }>> {
   return db.select({ id: s.treasuryAccounts.id, code: s.treasuryAccounts.code, name: s.treasuryAccounts.name })
     .from(s.treasuryAccounts)
-    .where(and(eq(s.treasuryAccounts.status, 'ACTIVE'), eq(s.treasuryAccounts.type, 'CASH'),
+    .where(and(eq(s.treasuryAccounts.status, 'ACTIVE'),
       inArray(s.treasuryAccounts.fundCode, [...FUND_SOURCES])))
     .orderBy(asc(s.treasuryAccounts.code));
 }
