@@ -106,6 +106,16 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
           : <TextField controlSize="sm" label="Tên khoản chi" value={state.draft.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => state.patch({ feeName: event.target.value })} />}
         <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={state.draft.amount} onChange={(amount) => state.patch({ amount })} min={-999_999_999_999_999} step={1} max={999_999_999_999_999} required disabled={disabled}
           helpText={selected.amount ? `Gợi ý ${formatCurrency(selected.amount)}; sửa theo khoản thực tế. Chưa lưu thì chưa phát sinh tiền.` : undefined} />
+        {/* Card 20260928_181, tiêu chí 5: a negative amount is a real entry (a
+            refund), and every total in the system EXCLUDES negative lines
+            (sumExcludingNegative). That is invisible from the field itself, so
+            the screen has to say it — and only while a negative is typed, or the
+            line becomes noise on every other entry. */}
+        {Number(state.draft.amount) < 0 && (
+          <p className="shipment-cost-entry__empty" data-testid="shipment-cost-negative-note">
+            Số âm là khoản hoàn lại, không phải chi phí: dòng này được lưu nhưng KHÔNG cộng vào bất kỳ tổng nào.
+          </p>
+        )}
         <UuiSelectField label="Người chi" value={state.draft.payerKind} disabled={disabled} onChange={event => state.patch({ payerKind: event.target.value as 'USER' | 'COMPANY' })} options={[{ value: 'USER', label: 'Tôi chi' }, { value: 'COMPANY', label: 'Công ty đã trả' }]} />
         <DateField controlSize="sm" label="Ngày chi" value={state.draft.occurredAt} onChange={(occurredAt) => state.patch({ occurredAt })} required disabled={disabled} />
         {showInvoiceFields && <>

@@ -121,6 +121,28 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ amount: -30000 });
     expect(screen.queryByText(/nguyên dương/)).toBeNull();
   });
+  // Card 20260928_181, tiêu chí 5 — the note that says what a negative does.
+  // Card 197 made negatives ENTERABLE; without this the screen accepts -30.000
+  // in total silence while every total in the system quietly drops the line.
+  it('card 181: typing a negative explains that the line is excluded from every total', async () => {
+    setup(); await open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
+    await choose('Chạy quá tải');
+    const field = screen.getByLabelText(/Thực chi/);
+
+    // Absent while the amount is a normal cost — otherwise the line is noise
+    // on every other entry.
+    expect(screen.queryByTestId('shipment-cost-negative-note')).toBeNull();
+
+    fireEvent.change(field, { target: { value: '-30000' } });
+    const note = screen.getByTestId('shipment-cost-negative-note');
+    expect(note.textContent).toMatch(/không cộng vào bất kỳ tổng nào/i);
+
+    // …and gone again the moment the sign is fixed, so it is not a label the
+    // user learns to ignore.
+    fireEvent.change(field, { target: { value: '30000' } });
+    expect(screen.queryByTestId('shipment-cost-negative-note')).toBeNull();
+  });
 
   it('card 197: 0 stays rejected — an empty row is not a signed one', async () => {
     setup(); await open();
