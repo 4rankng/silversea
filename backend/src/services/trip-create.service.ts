@@ -105,6 +105,30 @@ export async function createTrip(data: {
     let authoritativeCargoTypeId = data.cargoTypeId ?? null;
     let sourceShipmentVersion: number | null = null;
 
+    // 0a. Master refs carry no DB FKs (repo convention: master-data integrity
+    //     is app-layer, mirroring assertShipmentMasterRefsExist on the
+    //     shipments path), so refuse a dangling customer or — on the direct,
+    //     shipment-less create — a dangling cargo type up front. Left to the
+    //     incidental lookups, a phantom customer surfaces as a late 404 from
+    //     the credit gate (or slips past it via a credit exception), and a
+    //     phantom cargo type as a generic pricing 400.
+    const [customerRef] = await tx.select({ id: s.customers.id })
+      .from(s.customers)
+      .where(eq(s.customers.id, data.customerId))
+      .limit(1);
+    if (!customerRef) {
+      throw new ApiError(400, 'Khách hàng không tồn tại.');
+    }
+    if (data.shipmentId == null && data.cargoTypeId != null) {
+      const [cargoTypeRef] = await tx.select({ id: s.cargoTypes.id })
+        .from(s.cargoTypes)
+        .where(eq(s.cargoTypes.id, data.cargoTypeId))
+        .limit(1);
+      if (!cargoTypeRef) {
+        throw new ApiError(400, 'Loại hàng không tồn tại.');
+      }
+    }
+
     // 0. Wave 0: if a shipmentId was provided, validate the shipment up front
     //    so a bad link fails the create cleanly (404 / 409) rather than
     //    silently inserting an unlinked trip. The cross-check runs in the
@@ -125,6 +149,9 @@ export async function createTrip(data: {
         customerId: s.shipments.customerId,
         cargoTypeId: s.shipments.cargoTypeId,
         version: s.shipments.version,
+        shipmentCode: s.shipments.shipmentCode,
+        blNumber: s.shipments.blNumber,
+        bookingRef: s.shipments.bookingRef,
       })
         .from(s.shipments)
         .where(and(eq(s.shipments.id, data.shipmentId), isNull(s.shipments.deletedAt)))
@@ -149,6 +176,24 @@ export async function createTrip(data: {
           'Lô hàng không thuộc khách hàng của chuyến đi.',
         );
       }
+      // The lot's own cargo ref must resolve. shipments.cargo_type_id has no
+      // DB FK, so legacy/import debris can leave a live lot pointing at a
+      // deleted cargo type — that used to surface as a misleading mismatch
+      // 409 or a generic pricing 400. Name the lot by its display key
+      // (Bill/Booking, never an internal id) and the way out instead.
+      if (shipment.cargoTypeId != null) {
+        const [lotCargoType] = await tx.select({ id: s.cargoTypes.id })
+          .from(s.cargoTypes)
+          .where(eq(s.cargoTypes.id, shipment.cargoTypeId))
+          .limit(1);
+        if (!lotCargoType) {
+          const lotKey = shipment.blNumber || shipment.bookingRef || shipment.shipmentCode;
+          throw new ApiError(
+            409,
+            `Loại hàng của lô hàng ${lotKey} không còn tồn tại. Hãy chỉnh lại loại hàng của lô rồi tạo lại chuyến.`,
+          );
+        }
+      }
       if (shipment.cargoTypeId != null && data.cargoTypeId != null && shipment.cargoTypeId !== data.cargoTypeId) {
         throw new ApiError(
           409,
@@ -156,6 +201,16 @@ export async function createTrip(data: {
         );
       }
       if (shipment.cargoTypeId == null && data.cargoTypeId != null) {
+        // Seeding writes the trip's cargo type INTO the lot, so the trips
+        // path must never seed a phantom ref — same guard the shipments
+        // intake applies to its own writes.
+        const [seedCargoType] = await tx.select({ id: s.cargoTypes.id })
+          .from(s.cargoTypes)
+          .where(eq(s.cargoTypes.id, data.cargoTypeId))
+          .limit(1);
+        if (!seedCargoType) {
+          throw new ApiError(400, 'Loại hàng không tồn tại.');
+        }
         const [seededShipment] = await tx.update(s.shipments)
           .set({
             cargoTypeId: data.cargoTypeId,
