@@ -27,7 +27,7 @@ describe('UnattachedTripsTable (card 20260924_3)', () => {
   it('renders trip rows with business keys, fees, and the chốt semantics verbatim', () => {
     render(<UnattachedTripsTable trips={[trip()]} />);
     const table = document.querySelector('.csc-debit-table--unattached') as HTMLElement;
-    expect(within(table).getByRole('caption', { name: 'Chuyến chưa gán fulfillment — chỉ hiển thị, không vào tổng chốt' })).toBeTruthy();
+    expect(within(table).getByRole('caption', { name: 'Chuyến chưa gán đầu việc vận chuyển — chỉ hiển thị, không vào tổng chốt' })).toBeTruthy();
     expect(within(table).getAllByRole('cell', { name: 'TRIP-26-0701' }).length).toBeGreaterThan(0);
     expect(within(table).getByText('Hải quan giám sát')).toBeTruthy();
     expect(within(table).getAllByText('150.000')).toHaveLength(2); // item amount + feeTotal agree

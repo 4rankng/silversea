@@ -15,7 +15,7 @@ export function UnattachedTripsTable({ trips }: { trips: ShipmentDebitDetail['un
   if (trips.length === 0) return null;
   return (
     <table className="csc-debit-table csc-debit-table--unattached">
-      <caption>Chuyến chưa gán fulfillment — chỉ hiển thị, không vào tổng chốt</caption>
+      <caption>Chuyến chưa gán đầu việc vận chuyển — chỉ hiển thị, không vào tổng chốt</caption>
       <thead><tr>
         <th scope="col">Mã chuyến</th>
         <th scope="col">Ngày chạy</th>

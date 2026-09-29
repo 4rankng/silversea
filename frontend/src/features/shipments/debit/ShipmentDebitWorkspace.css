@@ -85,6 +85,23 @@
   color: var(--ink-3);
 }
 
+/* The L1 table keeps its deliberate 1064px floor and scrolls sideways — that
+   floor is what stops the code chip shattering into a per-character sliver, so
+   it stays. But this workspace lives inside one of the L1 table's CELLS, so it
+   inherited that 1064px width and its own `overflow-x: auto` never engaged:
+   on a phone the accountant saw roughly the left third of every L2 table, the
+   section headings were sliced mid-word, and the right-hand columns were
+   unreachable. Bound the workspace to the screen at narrow widths so the L2
+   tables scroll INSIDE it, independently of the L1 table's own scroll. */
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .csc-debit-workspace {
+    width: 100vw;
+    max-width: 100vw;
+    box-sizing: border-box;
+    padding: 10px;
+  }
+}
+
 .csc-debit-input {
   width: 100%;
   min-width: 72px;
