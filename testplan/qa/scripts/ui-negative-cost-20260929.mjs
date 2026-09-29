@@ -158,7 +158,6 @@ if (!target) {
   // not move. A negative row must be as if it did not exist. This is the part
   // no unit test settles, because the claim is about what the system then
   // shows.
-  const beforeCount = await page.evaluate(() => document.querySelectorAll('tbody tr').length);
   // "Loại phí *" is a react-aria ComboBox rendered as an <input>, not a button —
   // so it has to be reached through its <label for>. Re-query each step: the
   // ids are generated per render.

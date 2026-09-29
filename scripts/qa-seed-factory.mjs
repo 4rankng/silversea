@@ -123,18 +123,25 @@ function roleCandidates(roleName, backend) {
   }
 }
 
+/** Persona key (ROLES keys) -> the ROLE name used by testaccounts.txt. */
+const PERSONA_ROLE = {
+  admin: 'ADMIN', giamdoc: 'MANAGER', ketoan: 'ACCOUNTANT', cus: 'CUS',
+  dieuvan: 'DISPATCHER', giaonhan: 'OPS', laixe: 'DRIVER', customer: 'CUSTOMER',
+};
+
 async function resolveLogin(roleName) {
   const override = process.env[`QA_USER_${String(roleName).toUpperCase()}`];
   // The factory's `--role` keys are PERSONA names (ROLES keys: cus, giaonhan,
   // laixe, …), while testaccounts.txt is keyed by ROLE (OPS, CUS, DRIVER, …).
   // Bridge the two, or the roster lookup finds nothing and silently falls back.
-  const rosterRole = (() => {
-    try { return getRole(roleName).role; } catch { return roleName; }
-  })();
+  // ROLES entries carry username/home/api but NO `role` field, so
+  // `getRole(x).role` is undefined, the roster regex matches nothing, and the
+  // walk silently falls through to the persona's own account. Map it explicitly.
+  const rosterRole = PERSONA_ROLE[String(roleName).toLowerCase()] ?? roleName;
   const candidates = override ? [override] : roleCandidates(rosterRole, BACKEND);
   if (candidates.length === 0) {
-    // No roster list for this role — fall back to the legacy single mapping.
-    return { token: await loginAt(roleName), username: getRole(roleName).username, tried: [getRole(roleName).username] };
+    // No roster list for this role — fall back to the persona's own account.
+    return { token: null, username: getRole(roleName)?.username ?? null, tried: [] };
   }
   const tried = [];
   for (const username of candidates) {
@@ -153,12 +160,13 @@ async function tryLogin(username) {
     return null;
   }
 }
-const { token: resolvedToken, username: resolvedUsername, tried: triedLogins } = await resolveLogin(roleKey);
-if (!resolvedToken) {
-  throw new Error(`no usable account for role ${roleKey}; tried ${triedLogins.join(', ')}`);
-}
-const token = resolvedToken;
-const account = resolvedUsername;
+// The CREATING account is the persona's own account, NOT the first candidate
+// in its role's roster. On staging the OPS roster starts at `hoangnh`, which is
+// correctly refused 403 on shipment CREATE — SHIPMENT_INTAKE_MUTATION_ROLES is
+// ADMIN/MANAGER/CUS/DISPATCHER. The roster walk is reserved for the one place
+// that genuinely needs "whichever account will drive the page".
+const token = await loginAt(roleKey);
+const account = roleDef.username;
 // Reference data (routes, container-types, ports) is gated behind the
 // `config` Casbin resource which cus / dieuvan / driver do not have. Use
 // an admin token for the lookups; the cus token still owns the shipment
@@ -313,6 +321,81 @@ if (NO_CREATE) {
       } else {
         scenario.expectedDeliveryDate = today;
         log.push(`expectedDeliveryDate re-asserted to ${today} (container write had cleared it)`);
+      }
+    }
+
+    // ── Step 4: a TRIP on a truck, plus that truck assigned to the driving OPS
+    // account. Without both, every write by the OPS user is refused by
+    // assertOpsExpenseAssignment (expense-owner-scope.service.ts:20-46) with
+    // "Lô này không thuộc xe bạn phụ trách".
+    //
+    // That guard grants on three alternatives:
+    //   (1) user_shipment_links — NO route writes that table, unreachable;
+    //   (2) truck_ops_assignments (active) + a trip of this shipment on that
+    //       truck — the only branch reachable through the API;
+    //   (3) an opsExpenseEntries row already written by that user — the thing
+    //       we are trying to create.
+    //
+    // Note the asymmetry: the account that CREATES a shipment must be
+    // ADMIN/MANAGER/CUS/DISPATCHER (SHIPMENT_INTAKE_MUTATION_ROLES) — an OPS
+    // account is refused 403. So the scenario is created by the caller and the
+    // DRIVING OPS account is attached afterwards. They are never the same user,
+    // and the driver-side account is whatever the QA harness resolves for OPS.
+    const cargoRes = await apiAt(adminToken, "GET", "/cargo-types", undefined, { query: { limit: 20 } });
+    const cargoTypeId = cargoRes?.data?.items?.[0]?.id ?? null;
+    const truckRes = await apiAt(adminToken, "GET", "/trucks", undefined, { query: { limit: 20 } });
+    const truckId = (truckRes?.data?.items ?? []).find((t) => t.status === 'ACTIVE')?.id ?? null;
+    // An in-house trip REQUIRES a driver ("Lái xe là bắt buộc cho chuyến xe nội bộ").
+    const driversRes = await apiAt(adminToken, "GET", "/drivers", undefined, { query: { limit: 20 } });
+    const driverId = (driversRes?.data?.items ?? [])
+      .find((d) => d.status === 'ACTIVE' && d.userId != null)?.userId ?? null;
+    if (!cargoTypeId || !truckId || !driverId) {
+      log.push(`trip SKIPPED: cargoType=${cargoTypeId} truck=${truckId} driver=${driverId}`);
+    } else {
+      const tripRes = await apiAt(adminToken, "POST", "/trips", {
+        customerId: scenario.customer.id,
+        routeId: scenario.route.id,
+        cargoTypeId,
+        containerTypeId: scenario.containerType.id,
+        containerCount: 1,
+        truckId,
+        driverId,
+        shipmentId: scenario.shipment.id,
+        departureDate: today,
+      }, { headers: { "Idempotency-Key": `${idem}-trip` } });
+      if (!tripRes.ok) {
+        log.push(`trip FAILED: ${tripRes.status} ${JSON.stringify(tripRes.data).slice(0, 180)}`);
+        scenario.tripError = { status: tripRes.status, body: tripRes.data };
+      } else {
+        const trip = tripRes.data?.trip ?? tripRes.data;
+        scenario.trip = { id: trip.id, truckId, driverId };
+        log.push(`trip: ${trip.id} on truck ${truckId} (driver user ${driverId})`);
+
+        // Attach the OPS account the harness will actually drive. Resolve it
+        // defensively: if no roster account authenticates, SKIP the assignment
+        // and say so — a missing assignment is a data gap, not a reason to
+        // abort the whole scenario.
+        const ops = await resolveLogin('giaonhan');
+        if (!ops.token || !ops.username) {
+          log.push('ops-assignment SKIPPED: no OPS account authenticates on this target');
+          scenario.opsAssignmentError = 'no OPS account authenticates';
+        } else {
+          const usersRes = await apiAt(adminToken, "GET", "/auth/users", undefined, { query: { limit: 200 } });
+          const opsUserId = (usersRes?.data?.items ?? []).find((u) => u.username === ops.username)?.id ?? null;
+          if (!opsUserId) {
+            log.push(`ops-assignment SKIPPED: ${ops.username} not in /auth/users`);
+            scenario.opsAssignmentError = 'OPS user id not resolvable';
+          } else {
+            const assign = await apiAt(adminToken, "PUT", `/ops/trucks/${truckId}/ops-assignment`, { opsUserId });
+            if (!assign.ok) {
+              log.push(`ops-assignment FAILED: ${assign.status} ${JSON.stringify(assign.data).slice(0, 180)}`);
+              scenario.opsAssignmentError = { status: assign.status, body: assign.data };
+            } else {
+              scenario.opsAssignment = { truckId, opsUserId, username: ops.username };
+              log.push(`ops-assignment: truck ${truckId} -> ${ops.username} (#${opsUserId})`);
+            }
+          }
+        }
       }
     }
   }
