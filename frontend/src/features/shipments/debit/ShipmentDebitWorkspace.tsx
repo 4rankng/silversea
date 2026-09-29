@@ -98,9 +98,17 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved
   }
 
   const auth = useAuth();
-  const feeCatalog = useActiveQuotationFees(customerId).data ?? [];
-  const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const role = auth?.user?.role;
+  // Card 20260930_214 — `/api/quotations` sits behind `casbinAuthz('config')`
+  // (backend/src/index.ts:229, policy.csv: `config, read` = DISPATCHER,
+  // MANAGER, ACCOUNTANT + ADMIN). Asking for the active fee catalog from a role
+  // the policy denies produced a 403 and a console error on every CUS visit;
+  // the query now only runs for a role that may read it, and the table renders
+  // without the dedicated routing columns instead of pretending they exist.
+  const canReadFeeCatalog = role === Role.ADMIN || role === Role.MANAGER
+    || role === Role.DISPATCHER || role === Role.ACCOUNTANT;
+  const feeCatalog = useActiveQuotationFees(canReadFeeCatalog ? customerId : null).data ?? [];
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const canLock = role === Role.ADMIN || role === Role.ACCOUNTANT || role === Role.CUS;
   const canAdjust = role === Role.ADMIN || role === Role.ACCOUNTANT;
   const settled = locked || justLocked;
