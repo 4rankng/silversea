@@ -23,7 +23,7 @@
  * Exit 0 on success, 1 if any required reference data is missing.
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { api, DEFAULT_BACKEND, login, ROLES, role as getRole } from "./lib/http.mjs";
 
@@ -70,11 +70,95 @@ const ARTIFACTS = process.env.ARTIFACTS ?? `qa/${new Date().toISOString().slice(
 const args = process.argv.slice(2);
 const JSON_OUT = args.includes("--json");
 const NO_CREATE = args.includes("--no-create");
-const roleArg = args.find((a) => a.startsWith("--role="));
-const roleKey = roleArg?.slice("--role=".length) ?? "cus";
+// Accept BOTH `--role=<value>` and `--role <value>`. Only the equals form used
+// to work, so `--role OPS` was silently ignored and everything fell back to
+// "cus" — a wrong-account fixture that looks like it worked.
+const roleEq = args.find((a) => a.startsWith("--role="));
+const roleSpaceIdx = args.indexOf("--role");
+const roleSpace = roleSpaceIdx >= 0 ? args[roleSpaceIdx + 1] : undefined;
+const roleKey = roleEq?.slice("--role=".length) ?? roleSpace ?? "cus";
 
-const roleDef = getRole(roleKey);
-const token = await loginAt(roleKey);
+const roleDef = getRole(roleKey);   // fallback only; the resolved account is what actually logs in
+
+/**
+ * Resolve the account the SAME way the QA harness does: walk the role's
+ * candidate list in testaccounts.txt and take the first that authenticates.
+ *
+ * This matters because the roster is per-environment and the two differ:
+ *   local   OPS: giaonhan, hoangnh, …
+ *   staging OPS: hoangnh, hungld, …
+ * The factory used to take ROLES[role].username unconditionally — i.e. always
+ * `giaonhan` — so on staging it created the scenario as an account the harness
+ * never logs in as. The harness then drove the app as `hoangnh`, who owns
+ * nothing in the scenario, and every write was refused with
+ * "Lô này không thuộc xe bạn phụ trách". Seeding under a DIFFERENT account
+ * than the one that will drive the page is the single cause behind the blocked
+ * rungs on cards 197, 157 and 173.
+ *
+ * Mirrors createSession in testplan/qa/lib/harness.mjs: same list, same
+ * walk, same env-tagged block.
+ */
+/**
+ * The role's candidate usernames for the environment `BACKEND` points at,
+ * parsed from testplan/testaccounts.txt — the same roster the harness reads.
+ * The block is chosen by host: localhost => `local`, anything else => `staging`.
+ */
+function roleCandidates(roleName, backend) {
+  try {
+    const text = readFileSync(
+      resolve(process.cwd(), 'testplan', 'testaccounts.txt'), 'utf8');
+    const host = (new URL(backend).hostname || '').toLowerCase();
+    const env = host === 'localhost' || host === '127.0.0.1' ? 'local' : 'staging';
+    const block = text.split(/\n(?=[a-z]+:\s*$)/m).find((b) => b.startsWith(`${env}:`));
+    if (!block) return [];
+    const m = block.match(new RegExp(`^\\s*${roleName}:\\s*(.*)$`, 'm'));
+    if (!m) return [];
+    return m[1]
+      .replace(/\([^)]*\)/g, ' ')          // drop (NV003) provenance notes
+      .split(',')
+      .map((n) => n.trim())
+      .filter((n) => /^[a-z][a-z0-9-]*$/i.test(n));
+  } catch {
+    return [];
+  }
+}
+
+async function resolveLogin(roleName) {
+  const override = process.env[`QA_USER_${String(roleName).toUpperCase()}`];
+  // The factory's `--role` keys are PERSONA names (ROLES keys: cus, giaonhan,
+  // laixe, …), while testaccounts.txt is keyed by ROLE (OPS, CUS, DRIVER, …).
+  // Bridge the two, or the roster lookup finds nothing and silently falls back.
+  const rosterRole = (() => {
+    try { return getRole(roleName).role; } catch { return roleName; }
+  })();
+  const candidates = override ? [override] : roleCandidates(rosterRole, BACKEND);
+  if (candidates.length === 0) {
+    // No roster list for this role — fall back to the legacy single mapping.
+    return { token: await loginAt(roleName), username: getRole(roleName).username, tried: [getRole(roleName).username] };
+  }
+  const tried = [];
+  for (const username of candidates) {
+    tried.push(username);
+    const tok = await tryLogin(username);
+    if (tok) return { token: tok, username, tried };
+  }
+  return { token: null, username: candidates[0], tried };
+}
+
+async function tryLogin(username) {
+  try {
+    const c = await loginAt(username, { password: process.env.PASSWORD ?? 'Abc123' });
+    return c && c.token ? c.token : null;
+  } catch {
+    return null;
+  }
+}
+const { token: resolvedToken, username: resolvedUsername, tried: triedLogins } = await resolveLogin(roleKey);
+if (!resolvedToken) {
+  throw new Error(`no usable account for role ${roleKey}; tried ${triedLogins.join(', ')}`);
+}
+const token = resolvedToken;
+const account = resolvedUsername;
 // Reference data (routes, container-types, ports) is gated behind the
 // `config` Casbin resource which cus / dieuvan / driver do not have. Use
 // an admin token for the lookups; the cus token still owns the shipment
@@ -82,7 +166,7 @@ const token = await loginAt(roleKey);
 const adminToken = await loginAt("admin");
 
 const log = [];
-const scenario = { createdAt: new Date().toISOString(), role: roleKey, username: roleDef.username };
+const scenario = { createdAt: new Date().toISOString(), role: roleKey, username: account };
 
 // 1) Look up an active, non-carrier customer (skip test/E2E entries with
 //    auto-generated names like "Q23 direct edit customer ..." or
