@@ -35,6 +35,11 @@ describe('DispatchIssueStatusChip', () => {
     rerender(<DispatchIssueStatusChip status="COMPLETED" />);
     expect(screen.getByText('Đã hoàn thành')).toBeTruthy();
   });
+
+  it('UNASSIGNED renders nothing — the cell placeholder already says it', () => {
+    const { container } = render(<DispatchIssueStatusChip status="UNASSIGNED" />);
+    expect(container.textContent).toBe('');
+  });
 });
 
 describe('DispatchIssueStatusSummaryChip', () => {

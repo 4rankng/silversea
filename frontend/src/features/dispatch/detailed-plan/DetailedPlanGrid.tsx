@@ -5,7 +5,6 @@ import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
 import type { DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
-import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Modal } from '../../../components/UI';
 import {
   DispatchPlanEditorCell,
@@ -323,9 +322,9 @@ export function DetailedPlanGrid({
                     )}
                     <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
                       {row.docs.tradeDirection === 'IMPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
+                        <span>Nhập</span>
                       ) : row.docs.tradeDirection === 'EXPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
+                        <span>Xuất</span>
                       ) : '—'}
                     </div>
                     {row.isCombined && (

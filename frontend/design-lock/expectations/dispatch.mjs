@@ -140,4 +140,15 @@ export default [
     note: 'specificity-proof card band for the master-plan cells',
   },
   ...dispatchDetailTextLocks,
+
+  // --- No pill chrome in a dispatch data cell (card 20260930_215) ----------
+  // The issue-status chip and the Nhập/Xuất direction marker were Untitled UI
+  // `Badge type="pill-color"` elements (`border-radius: 9999px`, `padding:
+  // 2px 8px`). §1 keeps a data cell plain text (plus the house colour-dot on a
+  // real status); a pill is the blob the 2026-09-22 ruling deleted. Measured 0
+  // matches on both grids before these locks landed.
+  { id: 'dispatch-detail/phone/no-pill-in-grid', role: 'dieuvan', path: '/dispatch-detail', width: PHONE, kind: 'count', selector: '.detailed-plan-grid [class*="rounded-full"]', max: 0, note: 'a status/direction value in a data cell is plain text — never a rounded-full pill' },
+  { id: 'dispatch-detail/desktop/no-pill-in-grid', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'count', selector: '.detailed-plan-grid [class*="rounded-full"]', max: 0, note: 'same promise at the desk band' },
+  { id: 'master-plan/phone/no-pill-in-grid', role: 'dieuvan', path: '/dispatch', width: PHONE, kind: 'count', selector: '.master-plan-grid [class*="rounded-full"]', max: 0, note: 'carrier allocation is identifying information (label + counts), not a pill' },
+  { id: 'master-plan/desktop/no-pill-in-grid', role: 'dieuvan', path: '/dispatch', width: 1440, kind: 'count', selector: '.master-plan-grid [class*="rounded-full"]', max: 0, note: 'same promise at the desk band' },
 ];

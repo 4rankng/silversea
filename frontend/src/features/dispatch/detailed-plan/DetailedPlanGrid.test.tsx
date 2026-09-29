@@ -156,14 +156,12 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Nhà máy XYZ')).toBeTruthy();
     expect(screen.getByText('LH — Biên Hòa')).toBeTruthy();
     expect(screen.queryByText('Lộ trình: LH — Biên Hòa')).toBeNull();
-    // Column 3: bill + badge
+    // Column 3: bill + direction. The direction is plain text in the data
+    // cell (design law §1 — no pill bubble, no rounded fill, no border); the
+    // rendered no-pill promise is held by the design-lock entry
+    // `dispatch-detail/*/no-pill-in-grid` (card 20260930_215).
     expect(screen.getByText('Bill: BL-2026-010')).toBeTruthy();
-    const directionBadge = screen.getByText('Xuất');
-    expect(directionBadge.classList.contains('rounded-full')).toBe(true);
-    // Status chips are text-only (2026-09-08 de-blob): tone via text color.
-    expect(directionBadge.classList.contains('bg-transparent')).toBe(true);
-    expect(directionBadge.classList.contains('text-utility-neutral-700')).toBe(true);
-    expect(directionBadge.classList.contains('text-xs')).toBe(true);
+    expect(screen.getByText('Xuất')).toBeTruthy();
     // Column 4: container stack
     expect(screen.getByText('MSCU1234567')).toBeTruthy();
     expect(screen.getByText('40HC')).toBeTruthy();
@@ -184,7 +182,7 @@ describe('DetailedPlanGrid', () => {
     ]);
   });
 
-  it('anchors the direction pill and quiet combined note on one document footer line', () => {
+  it('anchors the direction marker and quiet combined note on one document footer line', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     expect(css).toContain('.detailed-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }');
     expect(css).toContain('"combined direction"');

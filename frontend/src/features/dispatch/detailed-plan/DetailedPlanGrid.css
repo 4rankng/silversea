@@ -585,11 +585,11 @@
     overflow-wrap: normal;
   }
 
-  /* The direction chip used to own a second line under the route value, with
-     the record separator stranded at the end of the first. Inline — and the
-     badge itself un-blocked from its `size-max flex` default — the route cell
-     reads "Tuyến Hải Phòng · [Nhập]" on one line, which is what sets this
-     row's height. */
+  /* The direction marker used to own a second line under the route value, with
+     the record separator stranded at the end of the first. Inline, the route
+     cell reads "Tuyến Hải Phòng · Nhập" on one line, which is what sets this
+     row's height. (The marker was an Untitled UI pill badge until card
+     20260930_215; it is plain text now — law §1 bans the pill in a data cell.) */
   .detailed-plan-grid__documents-direction {
     display: inline;
     align-self: start;

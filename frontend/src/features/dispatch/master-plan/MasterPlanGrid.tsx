@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
 import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
-import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import {
   displayNote,
@@ -293,9 +292,9 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     </div>
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction" data-empty={!item.tradeDirection ? 'true' : undefined}>
                       {item.tradeDirection === 'IMPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
+                        <span>Nhập</span>
                       ) : item.tradeDirection === 'EXPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
+                        <span>Xuất</span>
                       ) : '—'}
                     </div>
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier" data-empty={!item.shippingLineName ? 'true' : undefined}>{item.shippingLineName ?? '—'}</div>
@@ -410,15 +409,12 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                             entry.count40 > 0 ? `${entry.count40}x40'` : null,
                           ].filter(Boolean).join(' · ');
                           return (
-                            <Badge
+                            <span
                               key={`${entry.carrierType}-${entry.externalCarrierId}`}
-                              type="pill-color"
-                              size="sm"
-                              color="gray"
                               className="master-plan-grid__chip"
                             >
                               {counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel}
-                            </Badge>
+                            </span>
                           );
                         })}
                       </span>

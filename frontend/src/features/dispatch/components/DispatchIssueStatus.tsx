@@ -5,7 +5,7 @@
  * module so the two screens (and the backend's driver-notification timing,
  * which keys on the same live-trips-row signal) can never drift apart.
  */
-import { Badge } from '../../../components/untitled-ui/base/badges/badges';
+import { StatusText, type StatusVariant } from '../../../components/shared/StatusText';
 
 export type DispatchIssueStatus = 'UNASSIGNED' | 'PLATED_NOT_ISSUED' | 'ISSUED' | 'ACCEPTED' | 'COMPLETED';
 
@@ -41,21 +41,30 @@ export function deriveDispatchIssueStatus(input: {
   return 'UNASSIGNED';
 }
 
-export function dispatchIssueStatusBadgeColor(status: DispatchIssueStatus): 'gray' | 'warning' | 'success' {
+/** Status tone for the shared text+dot treatment (design law §1: a data cell
+ *  is plain text plus the house colour-dot — never a pill bubble or a rounded
+ *  fill, which is what the Untitled UI `Badge type="pill-color"` this replaced
+ *  rendered: `border-radius: 9999px`, `padding: 2px 8px`). */
+export function dispatchIssueStatusVariant(status: DispatchIssueStatus): StatusVariant {
   switch (status) {
     case 'ISSUED':
     case 'COMPLETED': return 'success';
     case 'PLATED_NOT_ISSUED': return 'warning';
-    default: return 'gray';
+    default: return 'neutral';
   }
 }
 
-/** Status chip for fulfillment-level rows (Điều vận detail plan grid). */
+/** Status chip for fulfillment-level rows (Điều vận detail plan grid).
+ *  UNASSIGNED renders nothing: the cell's own plate placeholder already says
+ *  the vehicle is unassigned ("Chưa phân xe" / "CUS sẽ bổ sung"), and §1 keeps
+ *  one concept in one place — the shipment-level summary chip below has always
+ *  returned null for it. */
 export function DispatchIssueStatusChip({ status }: { status: DispatchIssueStatus }) {
+  if (status === 'UNASSIGNED') return null;
   return (
-    <Badge type="pill-color" size="sm" color={dispatchIssueStatusBadgeColor(status)}>
+    <StatusText variant={dispatchIssueStatusVariant(status)} className="dispatch-assignment-cell__issue">
       {DISPATCH_ISSUE_STATUS_LABELS[status]}
-    </Badge>
+    </StatusText>
   );
 }
 
@@ -70,12 +79,12 @@ export function DispatchIssueStatusSummaryChip({ plated, issued, total }: { plat
   }
   const partial = status === 'ISSUED' && issued < total;
   return (
-    <Badge type="pill-color" size="sm" color={dispatchIssueStatusBadgeColor(status)}>
+    <StatusText variant={dispatchIssueStatusVariant(status)}>
       {status === 'PLATED_NOT_ISSUED'
         ? DISPATCH_ISSUE_STATUS_LABELS.PLATED_NOT_ISSUED
         : partial
           ? `Đã phát lệnh ${issued}/${total} cont`
           : DISPATCH_ISSUE_STATUS_LABELS.ISSUED}
-    </Badge>
+    </StatusText>
   );
 }
