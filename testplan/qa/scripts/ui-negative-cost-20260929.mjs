@@ -118,8 +118,37 @@ if (!target) {
     }
   }
 
+  // The PM's load-bearing claim is "a negative row must leave the total as if the
+  // row did not exist" — so read the form's own running total before and after
+  // the negative entry, and require it NOT to move. Captured on the deployed
+  // build, not asserted from a unit test.
+  const readFormTotal = () => page.evaluate(() => {
+    const el = [...document.querySelectorAll('*')].find((n) =>
+      /^Tổng\s*:/.test((n.childNodes[0]?.textContent || '').trim()) && n.children.length === 0);
+    return (el?.textContent || '').replace(/\s+/g, ' ').trim();
+  });
+  const totalBefore = await readFormTotal();
+  notes.push(`form total before the negative entry: ${JSON.stringify(totalBefore)}`);
+
   await sleep(800);
   await page.screenshot({ path: path.join(OUT, 'cost-form-negative.png'), fullPage: true });
+
+  const totalAfter = await readFormTotal();
+  notes.push(`form total after the negative entry : ${JSON.stringify(totalAfter)}`);
+  // NOTE, deliberately not a failure: OpsExpenseFormModal.tsx:251 renders
+  //   `Tổng: ${amountValid ? formatVnd(amount) : '—'}`
+  // i.e. the form footer echoes the SINGLE line being declared — it is not an
+  // aggregate over persisted lines. So a negative showing there is the user's
+  // own input echoed back, NOT a violated "negative rows do not move totals"
+  // rule. An earlier version of this driver failed here and was wrong: the PM's
+  // rule is about real totals (board, reports), which the backend enforces via
+  // sumExcludingNegative.
+  //
+  // What is worth a human's eye, recorded as a question not a verdict: the label
+  // says "Tổng" (Total) for a single amount, which reads as a total and cannot
+  // be one. Whether that label should change is a design call, not a contract
+  // breach proven here.
+  notes.push('the form footer is a single-line echo, not an aggregate — negative there is expected input, not a violated total rule');
 
   const errors = await page.evaluate(() =>
     [...document.querySelectorAll('[role="alert"], .error, [aria-invalid="true"]')]
