@@ -29,14 +29,13 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency
 import { sendDebitNoteForCustomerConfirmation } from '../../services/debit-note-lifecycle.service';
 import { listAccountingTransportRows } from '../../services/accounting-transport-register.service';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 // Debit-note (AR) + payment-statement (AP) builder routes.
 // Mounted under the financial router → already gated by casbinAuthz('financial').
 // requireRoles adds explicit ACCOUNTANT/MANAGER/ADMIN defense-in-depth on every op
 // (DRIVER / FORWARDER never get financial write in policy.csv).
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 const BILLING_DOCUMENT_ISSUE_REQUEST_ENDPOINT = 'billing-documents.issue.request';
 const BILLING_DOCUMENT_SEND_CONFIRMATION_ENDPOINT = 'billing-documents.send-confirmation';
@@ -48,7 +47,7 @@ router.post('/finance/billing-documents/generate', declareNonMaterialWrite('Read
 }));
 
 // POST /api/finance/billing-documents — save a snapshot document
-router.post('/finance/billing-documents', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/billing-documents', declareMaterialWrite('billing-documents.create', { method: 'POST', path: '/api/finance/billing-documents' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const data = saveBillingDocumentSchema.parse(req.body);
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -93,7 +92,7 @@ router.get('/finance/billing-documents/:id', requireRoles(Role.ADMIN, Role.MANAG
 }));
 
 // PUT /api/finance/billing-documents/:id — edit in place (always-editable)
-router.put('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.put('/finance/billing-documents/:id', declareMaterialWrite('billing-documents.update', { method: 'PUT', path: '/api/finance/billing-documents/:id' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const data = saveBillingDocumentSchema.parse(req.body);
   const actor = getUser(req);
   const documentId = parseId(req.params.id, 'ID hóa đơn');
@@ -113,7 +112,7 @@ router.put('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandle
   res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/finance/billing-documents/:id/adjustments', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/billing-documents/:id/adjustments', declareMaterialWrite('billing-documents.adjustments.request', { method: 'POST', path: '/api/finance/billing-documents/:id/adjustments' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const input = billingDocumentAdjustmentRequestSchema.parse(req.body);
   const documentId = parseId(req.params.id, 'ID hóa đơn');
@@ -142,7 +141,7 @@ router.post('/finance/billing-documents/:id/adjustments', requireRoles(...ROLES)
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/finance/billing-documents/:id/issue', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/billing-documents/:id/issue', declareMaterialWrite('billing-documents.issue.request', { method: 'POST', path: '/api/finance/billing-documents/:id/issue' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const input = billingDocumentIssueRequestSchema.parse(req.body);
   const documentId = parseId(req.params.id, 'ID hóa đơn');
@@ -170,7 +169,7 @@ router.post('/finance/billing-documents/:id/issue', requireRoles(...ROLES), asyn
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/finance/billing-documents/:id/send-for-confirmation', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/billing-documents/:id/send-for-confirmation', declareMaterialWrite('billing-documents.send-confirmation', { method: 'POST', path: '/api/finance/billing-documents/:id/send-for-confirmation' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const input = sendDebitNoteForConfirmationSchema.parse(req.body);
   const documentId = parseId(req.params.id, 'ID hóa đơn');
@@ -196,7 +195,7 @@ router.post('/finance/billing-documents/:id/send-for-confirmation', requireRoles
 }));
 
 // DELETE /api/finance/billing-documents/:id — soft delete
-router.delete('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/finance/billing-documents/:id', declareMaterialWrite('billing-documents.delete', { method: 'DELETE', path: '/api/finance/billing-documents/:id' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const documentId = parseId(req.params.id, 'ID hóa đơn');
   const idempotencyKey = getRequestIdempotencyKey(req);

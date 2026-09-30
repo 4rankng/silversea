@@ -31,10 +31,9 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { emitNotification } from '../../services/notification.service';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 const advanceRequestListQuerySchema = z.object({
   status: z.nativeEnum(AdvanceRequestStatus).optional(),
@@ -80,7 +79,7 @@ router.get('/advance-settlements', asyncHandler(async (req: Request, res: Respon
 // (forwarder route records directly in one transaction). Any client
 // still calling these gets 404.
 
-router.post('/advance-settlements/:id/reversal', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/advance-settlements/:id/reversal', declareMaterialWrite('advance-settlements.reverse', { method: 'POST', path: '/api/advance-settlements/:id/reversal' }),  requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const parsed = directFinancialActionSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
@@ -111,7 +110,7 @@ router.post('/advance-settlements/:id/reversal', requireRoles(Role.ADMIN, Role.A
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.put('/advance-settlements/:id', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.put('/advance-settlements/:id', declareMaterialWrite('advance-settlements.update', { method: 'PUT', path: '/api/advance-settlements/:id' }),  requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   const parsed = updateAdvanceSettlementSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
@@ -145,7 +144,7 @@ router.put('/advance-settlements/:id', requireRoles(Role.ADMIN, Role.ACCOUNTANT)
 }));
 
 router.patch(
-  '/advance-settlements/:id/expenses/:expenseId',
+  '/advance-settlements/:id/expenses/:expenseId', declareMaterialWrite('advance-settlements.expenses.adjust', { method: 'PATCH', path: '/api/advance-settlements/:id/expenses/:expenseId' }), 
   requireRoles(Role.ADMIN, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const settlementId = parseInt(req.params.id as string, 10);

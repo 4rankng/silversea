@@ -12,10 +12,9 @@ import { autoApplyGovernanceAction } from '../../services/adjustment-governance.
 import { applyDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
 import { invalidateReportCaches } from '../../lib/report-cache';
 import { emitNotification } from '../../services/notification.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 function getRequestIdempotencyKey(req: Request): string | undefined {
   const requestBody = req.body as Record<string, unknown> | undefined;
@@ -41,7 +40,7 @@ router.get('/penalties/insights', asyncHandler(async (req: Request, res: Respons
   res.json(await getPenaltyInsights(parsed.data));
 }));
 
-router.post('/penalties', asyncHandler(async (req: Request, res: Response) => {
+router.post('/penalties', declareMaterialWrite('penalties.create', { method: 'POST', path: '/api/penalties' }),  asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
   const data = createPenaltySchema.parse(req.body);
@@ -104,7 +103,7 @@ router.post('/penalties', asyncHandler(async (req: Request, res: Response) => {
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/penalties/:id/cancel', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/penalties/:id/cancel', declareMaterialWrite('penalties.cancel', { method: 'POST', path: '/api/penalties/:id/cancel' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const penaltyId = parseInt(req.params.id as string, 10);
   const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
   const actor = getUser(req);

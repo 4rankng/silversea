@@ -25,7 +25,7 @@ import {
 } from '../../services/freight-rate-snapshot-lifecycle.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runIdempotent } from '../../services/idempotency.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 const FREIGHT_RATE_OVERRIDE_ENDPOINT = 'freight-rate-snapshots.override';
@@ -59,7 +59,6 @@ freightRatePreviewRoutes.get('/freight-preview', asyncHandler(async (req: Reques
 
 // ─── Financial surface (ADMIN / MANAGER / ACCOUNTANT) ───────────────────────
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // GET /api/pricing/snapshots/:id — frozen snapshot + trace + override, for
 // the debit-note builder surface.
@@ -89,7 +88,7 @@ router.get('/pricing/snapshots/:id/override', requireRoles(...ROLES), asyncHandl
 // PUT /api/pricing/snapshots/:id/override — accountant enters the negotiated
 // final debit freight (upsert). Reason is required whenever the final value
 // differs from the frozen system total (enforced in the service).
-router.put('/pricing/snapshots/:id/override', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.put('/pricing/snapshots/:id/override', declareMaterialWrite('freight-rate-snapshots.override', { method: 'PUT', path: '/api/pricing/snapshots/:id/override' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const snapshotId = parseSnapshotId(req);
   const parsed = freightRateOverrideSchema.safeParse(req.body ?? {});
   if (!parsed.success) {

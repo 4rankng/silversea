@@ -15,10 +15,9 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // ─── Debt Offsets ─────────────────────────────────────────────────────────────
 
@@ -39,7 +38,7 @@ router.get('/finance/debt-offsets', asyncHandler(async (req: Request, res: Respo
   res.json(await listDebtOffsets({ customerId, supplierId, approvalStatus }));
 }));
 
-router.post('/finance/debt-offsets', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/debt-offsets', declareMaterialWrite('debt-offsets.create', { method: 'POST', path: '/api/finance/debt-offsets' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const data = debtOffsetSchema.parse(req.body);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -69,7 +68,7 @@ router.post('/finance/debt-offsets/:id/approve', declareNonMaterialWrite('Retire
 );
 
 // Reverse a recorded debt offset; retain the existing ADMIN/MANAGER access.
-router.post('/finance/debt-offsets/:id/cancel',
+router.post('/finance/debt-offsets/:id/cancel', declareMaterialWrite('debt-offsets.cancel', { method: 'POST', path: '/api/finance/debt-offsets/:id/cancel' }), 
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string, 10);
