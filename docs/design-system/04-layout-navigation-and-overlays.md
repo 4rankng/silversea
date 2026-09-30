@@ -159,11 +159,11 @@ Measured 2026-09-27 on the working tree. Counts are greps over
 - **Enforced by** — `frontend/src/styles/overlay-surface.styles.test.ts` (fill = `var(--surface`, flat, no raw white).
 - **Gap** — no `maxTop`/density lock on drawer content; nothing pins the 580px width as law.
 ### Modal / Dialog
-- **Use** — `.modal` / `.modal__content` at `frontend/src/components/Modal.css:6,17` (max `--modal-max-w,480px`, ≤640px becomes a bottom sheet, body fields get `--control-mobile-h`); polished variant `.modal--polished` adds eyebrow/chips/corner accents (`:100`). Component exported from `frontend/src/components/UI.tsx:508`; 33 tsx files import `Modal` from `components/UI`.
-- **Never** — page-local modal markup (below). Density: dialog body must not wrap a UUI select in the legacy input boundary (`operational-density.styles.test.ts`).
-- **Divergence** — see ad-hoc list.
-- **Enforced by** — `frontend/src/styles/dialog-density-contract.styles.test.ts` (frozen-wrapper allowlist), `overlay-surface.styles.test.ts` (6 assertions incl. TSX overlays and elevation-shadow ban).
-- **Gap** — the mobile bottom-sheet shape lives only in `Modal.css`; `.confirm-box` and every ad-hoc modal re-implement it.
+- **Use** — the ONE modal module: `frontend/src/design-system/Modal.tsx` (+ `Modal.css`, card 20260930_227) owns portal-to-body, scrim + backdrop dismissal, Escape (picker-deferent) and Enter-confirm, focus trap + focus return (close AND unmount paths), nest-safe scroll lock, overlay stacking, house chrome (`.modal__head/__body/__foot`, `--modal-max-w` size, polished variant, ≤640px bottom sheet) and `chrome="bare"` mode for dialog-owned surfaces (`.modal--bare` stays centered). `components/UI` re-exports it for the 33 legacy import sites; new code imports from `@/design-system`.
+- **Never** — a second modal shell: private backdrop/Escape/scroll-lock/focus machinery, or page-local modal markup (below). Density: dialog body must not wrap a UUI select in the legacy input boundary (`operational-density.styles.test.ts`).
+- **Divergence** — the remaining ad-hoc modals below still re-implement surfaces; `features/ops/OpsModalBackdrop` is now a thin bare-mode adapter (skin only — its css owns `.ops-modal*`, no backdrop), and both dispatch hand-rolled portals were migrated (allocation popover rides bare Modal; tag manager rides the popover idiom).
+- **Enforced by** — `frontend/src/design-system/Modal.test.tsx` (THE overlay suite: Escape, focus return, scroll lock incl. nesting, backdrop dismiss + opt-out, picker deference, adapter cases), `dialog-density-contract.styles.test.ts` (frozen-wrapper allowlist), `overlay-surface.styles.test.ts` (incl. TSX overlays and elevation-shadow ban), `features/ops/ops-modal.styles.test.ts` (no parallel backdrop).
+- **Gap** — the mobile bottom-sheet shape lives only in `Modal.css`; `.confirm-box` and the remaining ad-hoc modals re-implement it.
 ### ConfirmDialog
 - **Use** — `.confirm-overlay` / `.confirm-box` at `frontend/src/components/ConfirmDialog.css:6,19` (`--z-confirm`, max-width 400px, 44px icon tile); consumed via `useConfirm` (34 files) or direct import (7 files).
 - **Never** — `window.confirm`; bespoke danger dialogs.
@@ -178,7 +178,7 @@ Measured 2026-09-27 on the working tree. Counts are greps over
 - **Gap** — no shared `Popover` positioning primitive exposed from the design-system barrel beyond the form widgets.
 ### Ad-hoc overlays (page-local modal/popover markup)
 Each re-implements a scrim + panel instead of `.modal`/`.drawer`:
-- `frontend/src/features/ops/ops-modal.css:4,8,11` — the largest parallel modal system (`.ops-modal*`, 12 tsx files), own backdrop and sheet.
+- `frontend/src/features/ops/ops-modal.css` — REDUCED to the ops SKIN (`.ops-modal*` surface + form furniture; 12 tsx files); the backdrop system is gone — every ops dialog mounts through the `OpsModalBackdrop` bare-mode adapter (card 20260930_227).
 - `frontend/src/pages/ShipmentsPage.css:703` `.cus-quick-edit-modal*` (+2 tsx).
 - `frontend/src/pages/ShipmentsPage.css:2028,2036` `.cus-appointment-backdrop` / `.cus-appointment-popover` (+2 tsx).
 - `frontend/src/pages/AuditLogPage.css:129` `.audit-detail-modal*` (+1 tsx).
@@ -186,7 +186,7 @@ Each re-implements a scrim + panel instead of `.modal`/`.drawer`:
 - `frontend/src/pages/config/debit-note-template-editor.css:681` `.debit-editor-preview__sheet` (+1 tsx).
 - `frontend/src/pages/portal/CustomerPortalLayout.css:197` `.customer-shell__backdrop` / `__account-popover`.
 - `frontend/src/pages/ForwarderTripDateRangePicker.css:10` `.ftrip-date-picker__backdrop` + `__dialog` (+1 tsx).
-- `frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.css:3` `.dispatch-allocation-popover__overlay` (+2 tsx).
+- `frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.css` — MIGRATED (card 20260930_227): the overlay is gone, the panel rides the bare design-system Modal (phone bottom sheet via `align-self`); only the surface skin remains.
 - `frontend/src/pages/clerk/ClerkShipmentCreatePage.css:64` `.csc-customer-popover` (+1 tsx).
 - `frontend/src/pages/OpsWalletPage.css:282` `.ops-settlement-sheet__*`.
 - `frontend/src/components/PhotoViewer.css:6` `.photo-viewer*` lightbox.
