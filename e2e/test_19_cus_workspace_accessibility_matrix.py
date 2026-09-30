@@ -213,7 +213,15 @@ def ensure_fixture(results: TestResults) -> tuple[int, int]:
         raise RuntimeError("Thiếu khách hàng để tạo fixture workspace")
     customer_id = customers[0]["id"]
 
-    users_response = admin_api.get("/api/auth/users")
+    # The users list has NO default ordering (user.service listUsers omits
+    # ORDER BY unless sortBy is passed), so a default-page scan is heap order:
+    # on the shared dev DB, with thousands of lanes' fixture users, the demo
+    # `cus` row lands off page 1 nondeterministically (the "Không tìm thấy tài
+    # khoản CUS demo" crash). Filter to the CUS role instead — the active CUS
+    # population is tens of rows, always inside one 500-row page, so the demo
+    # account is findable at any residue count. Roster: testplan/testaccounts
+    # .txt (local CUS demo stand-in `cus`, created by backend/src/seed.ts:60).
+    users_response = admin_api.get("/api/auth/users?role=CUS")
     users = rows(users_response)
     cus_user = next((user for user in users if user.get("username") == "cus"), None)
     if not cus_user:
