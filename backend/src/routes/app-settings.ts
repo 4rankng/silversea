@@ -34,7 +34,7 @@ import {
 } from '../services/price-config-governance.service';
 import { ApiError } from '../errors';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 import {
   getFinancialReportingPolicyState,
   getTruckFinancialProfileState,
@@ -43,7 +43,6 @@ import {
 } from '../services/financial-reporting-policy.service';
 
 export const appSettingsRouter = Router()
-appSettingsRouter.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const APP_SETTINGS_COMMANDS = {
   GENERAL_UPDATE: 'admin.app-settings.update',
   EMAIL_UPDATE: 'admin.app-settings.email.update',
@@ -113,7 +112,7 @@ appSettingsRouter.get(
 );
 
 appSettingsRouter.put(
-  '/email',
+  '/email', declareMaterialWrite('admin.app-settings.email.update', { method: 'PUT', path: '/api/admin/app-settings/email' }), 
   requireRoles(Role.ADMIN),
   asyncHandler(async (req, res) => {
     const update = emailSettingsUpdateSchema.parse(req.body);
@@ -152,7 +151,7 @@ appSettingsRouter.get(
   })),
 );
 appSettingsRouter.put(
-  '/',
+  '/', declareMaterialWrite('admin.app-settings.update', { method: 'PUT', path: '/api/admin/app-settings/' }), 
   requireRoles(Role.ADMIN),
   asyncHandler(async (req, res) => {
     const next = appSettingsSchema.parse(req.body);
@@ -215,7 +214,7 @@ appSettingsRouter.get(
 
 // KP-147: request endpoint removed — policy applies immediately.
 appSettingsRouter.post(
-  '/financial-reporting/policy',
+  '/financial-reporting/policy', declareMaterialWrite('admin.financial-reporting-policy.request', { method: 'POST', path: '/api/admin/app-settings/financial-reporting/policy' }), 
   requireRoles(Role.ADMIN),
   asyncHandler(async (req, res) => {
     const body = financialReportingPolicyRequestSchema.parse(req.body);
@@ -259,7 +258,7 @@ appSettingsRouter.get(
 
 // KP-147: request endpoint removed — truck profiles apply immediately.
 appSettingsRouter.post(
-  '/financial-reporting/truck-profiles',
+  '/financial-reporting/truck-profiles', declareMaterialWrite('admin.truck-financial-profile.request', { method: 'POST', path: '/api/admin/app-settings/financial-reporting/truck-profiles' }), 
   requireRoles(Role.ADMIN),
   asyncHandler(async (req, res) => {
     const body = truckFinancialProfileRequestSchema.parse(req.body);

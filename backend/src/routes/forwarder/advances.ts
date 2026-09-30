@@ -18,13 +18,12 @@ import { formatLocalDate } from '../../lib/format';
 import { parsePagination } from '../utils/pagination';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   createAdvanceRequestSchema, createAdvanceSettlementSchema,
 } from '@tingting/shared';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // ── Advance Requests ──
 
@@ -52,7 +51,7 @@ router.get('/advance-requests', asyncHandler(async (req: Request, res: Response)
   res.json({ ...result, counts: result.statusCounts });
 }));
 
-router.post('/advance-requests', asyncHandler(async (req: Request, res: Response) => {
+router.post('/advance-requests', declareMaterialWrite('forwarder.advance-requests.create', { method: 'POST', path: '/api/forwarder/me/advance-requests' }),  asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const parsed = createAdvanceRequestSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
@@ -141,7 +140,7 @@ router.post('/advance-settlements/preview', declareNonMaterialWrite('Read-only s
   res.send(html);
 }));
 
-router.post('/advance-settlements', asyncHandler(async (req: Request, res: Response) => {
+router.post('/advance-settlements', declareMaterialWrite('forwarder.advance-settlements.create', { method: 'POST', path: '/api/forwarder/me/advance-settlements' }),  asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const parsed = createAdvanceSettlementSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);

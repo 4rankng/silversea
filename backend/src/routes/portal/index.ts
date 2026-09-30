@@ -41,10 +41,9 @@ import {
 } from '../../services/shipment-coordination.service';
 import { throwValidation } from '../../lib/validation';
 import { submitCustomerDeliveryResponse } from '../../services/customer-delivery-response.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 function toCustomerDebitNote(doc: Awaited<ReturnType<typeof getDocument>>) {
   return {
@@ -234,7 +233,7 @@ router.get('/shipments/:id/customer-events', asyncHandler(async (req: Request, r
   res.json({ items });
 }));
 
-router.post('/shipments/:id/customer-events/:eventId/acknowledge', asyncHandler(async (req: Request, res: Response) => {
+router.post('/shipments/:id/customer-events/:eventId/acknowledge', declareMaterialWrite('portal.shipments.customer-events.acknowledge', { method: 'POST', path: '/api/portal/shipments/:id/customer-events/:eventId/acknowledge' }),  asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parsePositiveId(String(req.params.id), 'ID lô hàng');
   const eventId = parsePositiveId(String(req.params.eventId), 'ID sự kiện');
   const parsed = acknowledgeCustomerEventSchema.safeParse(req.body);
@@ -253,7 +252,7 @@ router.post('/shipments/:id/customer-events/:eventId/acknowledge', asyncHandler(
   res.status(201).json(acknowledgement);
 }));
 
-router.post('/shipments/:id/customer-events/:eventId/delivery-response', asyncHandler(async (req: Request, res: Response) => {
+router.post('/shipments/:id/customer-events/:eventId/delivery-response', declareMaterialWrite('portal.delivery-response', { method: 'POST', path: '/api/portal/shipments/:id/customer-events/:eventId/delivery-response' }),  asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parsePositiveId(String(req.params.id), 'ID lô hàng');
   const eventId = parsePositiveId(String(req.params.eventId), 'ID sự kiện');
   const parsed = customerDeliveryResponseSchema.safeParse(req.body);
@@ -275,7 +274,7 @@ router.get('/debit-notes/:id', asyncHandler(async (req: Request, res: Response) 
   res.json(toCustomerDebitNote(await getOwnDebitNote(req)));
 }));
 
-router.post('/debit-notes/:id/confirm', asyncHandler(async (req: Request, res: Response) => {
+router.post('/debit-notes/:id/confirm', declareMaterialWrite('portal.debit-notes.confirm', { method: 'POST', path: '/api/portal/debit-notes/:id/confirm' }),  asyncHandler(async (req: Request, res: Response) => {
   const doc = await getOwnDebitNote(req);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -316,7 +315,7 @@ router.post('/debit-notes/:id/confirm', asyncHandler(async (req: Request, res: R
   res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/debit-notes/:id/dispute', asyncHandler(async (req: Request, res: Response) => {
+router.post('/debit-notes/:id/dispute', declareMaterialWrite('portal.debit-notes.dispute', { method: 'POST', path: '/api/portal/debit-notes/:id/dispute' }),  asyncHandler(async (req: Request, res: Response) => {
   const doc = await getOwnDebitNote(req);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);

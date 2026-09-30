@@ -23,10 +23,9 @@ import {
   paperOrderCollectionSchema, orderExchangeSchema, FORWARDER_IDEMPOTENCY_ENDPOINTS,
 } from './forwarder-shared';
 import { runIdempotent } from '../../services/idempotency.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 async function updateOrderExchange(
   req: Request,
@@ -106,15 +105,15 @@ async function updateOrderExchange(
   res.json(outcome.result);
 }
 
-router.post('/shipments/:shipmentId/order-exchange/start', asyncHandler(
+router.post('/shipments/:shipmentId/order-exchange/start', declareMaterialWrite('forwarder.order-exchange.start', { method: 'POST', path: '/api/forwarder/me/shipments/:shipmentId/order-exchange/start' }),  asyncHandler(
   async (req: Request, res: Response) => updateOrderExchange(req, res, 'start'),
 ));
 
-router.post('/shipments/:shipmentId/order-exchange/complete', asyncHandler(
+router.post('/shipments/:shipmentId/order-exchange/complete', declareMaterialWrite('forwarder.order-exchange.complete', { method: 'POST', path: '/api/forwarder/me/shipments/:shipmentId/order-exchange/complete' }),  asyncHandler(
   async (req: Request, res: Response) => updateOrderExchange(req, res, 'complete'),
 ));
 
-router.post('/trips/:tripId/paper-order-collection', asyncHandler(async (req: Request, res: Response) => {
+router.post('/trips/:tripId/paper-order-collection', declareMaterialWrite('forwarder.paper-order.collection', { method: 'POST', path: '/api/forwarder/me/trips/:tripId/paper-order-collection' }),  asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const tripId = parseInt(req.params.tripId as string, 10);
   if (!Number.isInteger(tripId) || tripId <= 0) {

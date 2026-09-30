@@ -9,10 +9,8 @@ import * as pushService from '../services/push.service';
 import { config } from '../config';
 import type { Request, Response } from 'express';
 import { declareNonMaterialWrite } from '../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.get('/unread-count', asyncHandler(async (req: Request, res: Response) => {
   const count = await notifService.getUnreadCount(getUser(req).userId);

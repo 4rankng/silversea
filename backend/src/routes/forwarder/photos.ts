@@ -21,7 +21,7 @@ import {
 } from '../../services/forwarder.service';
 import { storageService } from '../../services/storage.service';
 import { sniffImageType } from '../../lib/format';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   acquireForwarderCleanupGuard, releaseForwarderCleanupGuard,
   deleteForwarderExpensePhotoCommand,
@@ -35,7 +35,6 @@ const MAX_IMAGE_DIMENSION = 2048;
 const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 
 router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Response) => {
@@ -54,7 +53,7 @@ router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Respon
   res.json({ items: photos });
 }));
 
-router.post('/expenses/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/expenses/:id/photos', declareMaterialWrite('forwarder.expense-photos.create', { method: 'POST', path: '/api/forwarder/me/expenses/:id/photos' }),  expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const file = req.file;
   if (!file) throw new ApiError(400, 'Không có file tải lên');
@@ -160,7 +159,7 @@ router.post('/expenses/:id/photos', expensePhotoUpload.single('file'), asyncHand
   }
 }));
 
-router.delete('/expense-photos/:id', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/expense-photos/:id', declareMaterialWrite('forwarder.expense-photos.delete', { method: 'DELETE', path: '/api/forwarder/me/expense-photos/:id' }),  asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const photoId = parseInt(req.params.id as string, 10);
   const idempotencyKey = requireForwarderIdempotencyKey(req);

@@ -21,6 +21,12 @@ function escapeRegexPath(path: string): string {
 // Dead rows pruned 2026-09-30 (card 20260930_230): the six salary-periods
 // governance-action rows (exclusion/close/reopen -actions check|approve) had
 // no mounts anywhere in src/routes — relics of the approval-workflow removal.
+// Approval-flow relics pruned 2026-09-30 (card 20260930_230 sweep): the
+// ops/advance/governance approve-reject rows, the salary -actions family, the
+// trips lock transition, shipment accounting-lock activation, delete-request
+// decisions, truck restore, gps backfill/recapture and fuel-invoice approval
+// had no mounts left in src/routes (constants exempted in the completeness
+// test with reasons).
 const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   // Card 20260928_166 AC1 — the 39-truck split. The batch route shipped without
   // this declaration: runShipmentWrite's audit persist found no declared
@@ -33,107 +39,13 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   // Card 20260922_57 quotation xlsx import commit — the route already demanded
   // an Idempotency-Key; the durable boundary makes the key real (replays
   // return the stored response instead of always creating a new frame).
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO, pattern: /^\/api\/upload$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_COMPANY_LOGO, pattern: /^\/api\/upload\/company-logo$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO_DELETE, pattern: /^\/api\/upload\/trips\/[^/]+\/photos\/[^/]+\/delete$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OCR_CAPTURE, pattern: /^\/api\/ocr$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OCR_PERSIST_ONLY, pattern: /^\/api\/ocr\/persist-only$/ },
-  { method: 'PATCH', endpoint: 'auth.profile.update', pattern: /^\/api\/auth\/me$/ },
-  { method: 'POST', endpoint: 'auth.password.change', pattern: /^\/api\/auth\/change-password$/ },
-  { method: 'POST', endpoint: 'auth.users.create', pattern: /^\/api\/auth\/users$/ },
-  { method: 'PATCH', endpoint: 'auth.users.update', pattern: /^\/api\/auth\/users\/[^/]+$/ },
-  { method: 'DELETE', endpoint: 'auth.users.delete', pattern: /^\/api\/auth\/users\/[^/]+$/ },
-  { method: 'POST', endpoint: 'auth.business-units.create', pattern: /^\/api\/auth\/business-units$/ },
-  { method: 'PATCH', endpoint: 'auth.business-units.update', pattern: /^\/api\/auth\/business-units\/[^/]+$/ },
-  { method: 'DELETE', endpoint: 'auth.business-units.deactivate', pattern: /^\/api\/auth\/business-units\/[^/]+$/ },
   // Ops field-operations portal (OpsVanHanh) — financial cash commands run
   // runIdempotent in routes/ops.ts with these durable endpoints.
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_APPROVE, pattern: /^\/api\/ops\/admin\/expenses\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_REJECT, pattern: /^\/api\/ops\/admin\/expenses\/[^/]+\/reject$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_APPROVE, pattern: /^\/api\/ops\/admin\/settlements\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_REJECT, pattern: /^\/api\/ops\/admin\/settlements\/[^/]+\/reject$/ },
-  { method: 'PUT', endpoint: 'admin.app-settings.email.update', pattern: /^\/api\/admin\/app-settings\/email$/ },
-  { method: 'PUT', endpoint: 'admin.app-settings.update', pattern: /^\/api\/admin\/app-settings$/ },
-  { method: 'POST', endpoint: 'admin.financial-reporting-policy.request', pattern: /^\/api\/admin\/app-settings\/financial-reporting\/policy$/ },
-  { method: 'POST', endpoint: 'admin.truck-financial-profile.request', pattern: /^\/api\/admin\/app-settings\/financial-reporting\/truck-profiles$/ },
-  { method: 'PUT', endpoint: 'admin.ocr-settings.update', pattern: /^\/api\/admin\/ocr-settings$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.TRUCK_RESTORE, pattern: /^\/api\/trucks\/restore$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_ACCOUNTING_LOCK_ACTIVATE, pattern: /^\/api\/shipments\/[^/]+\/accounting-lock$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST_DECISION, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/delete-requests\/[^/]+\/decision$/ },
-  { method: 'PUT', endpoint: 'expenses.update', pattern: /^\/api\/expenses\/[^/]+$/ },
-  { method: 'DELETE', endpoint: 'expenses.delete', pattern: /^\/api\/expenses\/[^/]+$/ },
-  { method: 'POST', endpoint: 'geotag.submit', pattern: /^\/api\/geotag$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_REQUEST_APPROVE, pattern: /^\/api\/advance-requests\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_REQUEST_REJECT, pattern: /^\/api\/advance-requests\/[^/]+\/reject$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_CHECK, pattern: /^\/api\/advance-settlements\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_APPROVE, pattern: /^\/api\/advance-settlements\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_REJECT, pattern: /^\/api\/advance-settlements\/[^/]+\/reject$/ },
   // Card 20260922_66/_61: quotation writes are governed (runIdempotent) —
   // declared here so the envelope 400s a key-less write with the VN message
   // instead of the audit guard's raw 500 "Material write audit context is
   // incomplete" (QA staging finding 2026-09-23). Endpoint strings MUST equal
   // the routes' runIdempotent endpoint values.
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/governance-actions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/governance-actions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_REJECT, pattern: /^\/api\/governance-actions\/[^/]+\/reject$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_RETURN, pattern: /^\/api\/governance-actions\/[^/]+\/return-for-evidence$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CANCEL, pattern: /^\/api\/governance-actions\/[^/]+\/cancel$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DEBIT_NOTE_CONFIRM, pattern: /^\/api\/portal\/debit-notes\/[^/]+\/confirm$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DEBIT_NOTE_DISPUTE, pattern: /^\/api\/portal\/debit-notes\/[^/]+\/dispute$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SALARY_PERIOD_CLOSE, pattern: /^\/api\/salary\/periods\/[^/]+\/close$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SALARY_PERIOD_REOPEN, pattern: /^\/api\/salary\/periods\/[^/]+\/reopen$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SALARY_PERIOD_ADJUSTMENT, pattern: /^\/api\/salary\/periods\/[^/]+\/adjustments$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/salary\/periods\/[^/]+\/adjustments\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/salary\/periods\/[^/]+\/adjustments\/[^/]+\/approve$/ },
-  { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.SALARY_WORKDAYS, pattern: /^\/api\/salary\/[^/]+\/[^/]+\/[^/]+\/workdays$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SALARY_CONFIRM, pattern: /^\/api\/salary\/[^/]+\/[^/]+\/[^/]+\/confirm$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/salary\/[^/]+\/[^/]+\/[^/]+\/confirm-actions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/salary\/[^/]+\/[^/]+\/[^/]+\/confirm-actions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SALARY_UNCONFIRM, pattern: /^\/api\/salary\/[^/]+\/[^/]+\/[^/]+\/unconfirm$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/salary\/[^/]+\/[^/]+\/[^/]+\/unconfirm-actions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/salary\/[^/]+\/[^/]+\/[^/]+\/unconfirm-actions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/salary\/periods\/[^/]+\/close-actions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/salary\/periods\/[^/]+\/close-actions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/salary\/periods\/[^/]+\/reopen-actions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/salary\/periods\/[^/]+\/reopen-actions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/salary\/periods\/[^/]+\/issue-actions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/salary\/periods\/[^/]+\/issue-actions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/salary\/periods\/[^/]+\/post-actions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/salary\/periods\/[^/]+\/post-actions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: 'trips.transition.locked', pattern: /^\/api\/trips\/[^/]+\/lock$/ },
-  { method: 'POST', endpoint: 'portal.shipments.customer-events.acknowledge', pattern: /^\/api\/portal\/shipments\/[^/]+\/customer-events\/[^/]+\/acknowledge$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DELIVERY_RESPONSE, pattern: /^\/api\/portal\/shipments\/[^/]+\/customer-events\/[^/]+\/delivery-response$/ },
-  { method: 'POST', endpoint: 'recoverable-costs.rejection-request', pattern: /^\/api\/recoverable-costs\/[^/]+\/request$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS, pattern: /^\/api\/driver\/me\/trips\/[^/]+\/progress$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS, pattern: /^\/api\/driver\/me\/fulfillments\/[^/]+\/progress$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_CREATE, pattern: /^\/api\/driver\/me\/fulfillments\/[^/]+\/pod$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_FILE_ATTACH, pattern: /^\/api\/driver\/me\/fulfillments\/[^/]+\/pod\/[^/]+\/files$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_SUBMIT, pattern: /^\/api\/driver\/me\/fulfillments\/[^/]+\/pod\/[^/]+\/submit$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_FULFILLMENT_COMPLETE, pattern: /^\/api\/driver\/me\/fulfillments\/[^/]+\/complete$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST, pattern: /^\/api\/driver\/me\/trips\/[^/]+\/incidental-costs$/ },
-  { method: 'POST', endpoint: 'driver.containers.create', pattern: /^\/api\/driver\/me\/trips\/[^/]+\/containers$/ },
-  { method: 'POST', endpoint: 'driver.fuel-evidence.create', pattern: /^\/api\/driver\/me\/trips\/[^/]+\/fuel-evidence$/ },
-  { method: 'PATCH', endpoint: 'driver.containers.update', pattern: /^\/api\/driver\/me\/trips\/[^/]+\/containers\/[^/]+$/ },
-  { method: 'PUT', endpoint: 'driver.containers.seals.replace', pattern: /^\/api\/driver\/me\/trips\/[^/]+\/containers\/[^/]+\/seals$/ },
-  { method: 'DELETE', endpoint: 'driver.trip-photos.delete', pattern: /^\/api\/driver\/me\/trips\/[^/]+\/photos\/[^/]+$/ },
-  { method: 'POST', endpoint: 'forwarder.containers.create', pattern: /^\/api\/forwarder\/me\/trips\/[^/]+\/containers$/ },
-  { method: 'POST', endpoint: 'forwarder.expenses.create', pattern: /^\/api\/forwarder\/me\/expenses$/ },
-  { method: 'PATCH', endpoint: 'forwarder.expenses.update', pattern: /^\/api\/forwarder\/me\/expenses\/[^/]+$/ },
-  { method: 'DELETE', endpoint: 'forwarder.expenses.delete', pattern: /^\/api\/forwarder\/me\/expenses\/[^/]+$/ },
-  { method: 'PUT', endpoint: 'forwarder.expense-completion.update', pattern: /^\/api\/forwarder\/me\/trips\/[^/]+\/expense-completion$/ },
-  { method: 'POST', endpoint: 'forwarder.advance-requests.create', pattern: /^\/api\/forwarder\/me\/advance-requests$/ },
-  { method: 'POST', endpoint: 'forwarder.advance-settlements.create', pattern: /^\/api\/forwarder\/me\/advance-settlements$/ },
-  { method: 'POST', endpoint: 'forwarder.expense-photos.create', pattern: /^\/api\/forwarder\/me\/expenses\/[^/]+\/photos$/ },
-  { method: 'DELETE', endpoint: 'forwarder.expense-photos.delete', pattern: /^\/api\/forwarder\/me\/expense-photos\/[^/]+$/ },
-  { method: 'POST', endpoint: 'forwarder.paper-order.collection', pattern: /^\/api\/forwarder\/me\/trips\/[^/]+\/paper-order-collection$/ },
-  { method: 'POST', endpoint: 'forwarder.order-exchange.start', pattern: /^\/api\/forwarder\/me\/shipments\/[^/]+\/order-exchange\/start$/ },
-  { method: 'POST', endpoint: 'forwarder.order-exchange.complete', pattern: /^\/api\/forwarder\/me\/shipments\/[^/]+\/order-exchange\/complete$/ },
-  { method: 'POST', endpoint: 'fuel-invoices.approve', pattern: /^\/api\/finance\/fuel-invoices\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: 'salary-periods.issue', pattern: /^\/api\/salary\/periods\/[^/]+\/issue$/ },
-  { method: 'POST', endpoint: 'salary-periods.post', pattern: /^\/api\/salary\/periods\/[^/]+\/post$/ },
-  { method: 'POST', endpoint: 'gps.backfill', pattern: /^\/api\/admin\/gps\/backfill$/ },
-  { method: 'POST', endpoint: 'gps.recapture', pattern: /^\/api\/admin\/gps\/recapture\/[^/]+$/ },
-  { method: 'POST', endpoint: 'ocr.pump', pattern: /^\/api\/ocr\/pump$/ },
 ];
 
 const DECLARED_MATERIAL_WRITE_ENDPOINTS = new Set(

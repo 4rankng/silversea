@@ -19,10 +19,9 @@ import {
   type OcrSettings,
 } from '../services/ocr-settings.service';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const OCR_SETTINGS_COMMAND = 'admin.ocr-settings.update';
 const OCR_UPDATED_AT_KEYS = [OCR_SETTING_KEYS.enabled, OCR_SETTING_KEYS.openrouterApiKey] as const;
 
@@ -75,7 +74,7 @@ router.get(
 );
 
 router.put(
-  '/',
+  '/', declareMaterialWrite('admin.ocr-settings.update', { method: 'PUT', path: '/api/admin/ocr-settings/' }), 
   asyncHandler(async (req: Request, res: Response) => {
     const data = ocrSettingsUpdateSchema.parse(req.body);
     const idempotencyKey = requireIdempotencyKey(req);

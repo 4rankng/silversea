@@ -39,7 +39,7 @@ import { getOcrSettings, ocrHasAvailableKey } from '../services/ocr-settings.ser
 import { OCR_DISABLED_ERROR } from '../services/ocr.service';
 import { checkOcrRateLimit } from '../services/ocr-rate-limiter';
 import { declareNonMaterialWrite } from '../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 import {
   listFuelEvidenceReviewsForOffice,
 } from '../services/fuel-evidence-review.service';
@@ -47,7 +47,6 @@ import {
 // auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
 // inherit casbinAuthz('ocr') from that single mount — no per-route policy.
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // Historical OCR decisions are retired and must not consume recognition quota.
 router.post('/fuel-evidence-reviews/:id/decision', declareNonMaterialWrite('Retired endpoint — mounted as a response-only 410 stub; kept from re-acquiring behaviour by the exhaustive test.'), requireRoles(Role.ACCOUNTANT), (_req, res) => {
@@ -279,7 +278,7 @@ export async function persistOcrPhoto({
  * Numbers are NEVER auto-committed here (spec Decision 1) — the caller must save
  * them through the existing container flow after visual confirmation.
  */
-router.post('/', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', declareMaterialWrite('ocr.capture', { method: 'POST', path: '/api/ocr/' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
   const type = req.body.type as 'CONTAINER' | 'SEAL';
 
@@ -405,7 +404,7 @@ router.post('/', upload.single('file'), asyncHandler(async (req: Request, res: R
  * or edit before committing. When litres × unitPrice deviates from total beyond
  * 5%, `mismatch: true` warns the caller to fall back to manual entry.
  */
-router.post('/pump', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/pump', declareMaterialWrite('ocr.pump', { method: 'POST', path: '/api/ocr/pump' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
   if (!file) throw new ApiError(400, 'Không có file tải lên');
 
@@ -490,7 +489,7 @@ router.get('/fuel-evidence-reviews', requireRoles(Role.ACCOUNTANT), asyncHandler
  * policy row, no new mount line. Requires `trip_id` (the photo must link to a
  * trip); `container_id` is optional (validated if present).
  */
-router.post('/persist-only', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/persist-only', declareMaterialWrite('ocr.persist-only', { method: 'POST', path: '/api/ocr/persist-only' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
   const type = req.body.type as 'CONTAINER' | 'SEAL';
 

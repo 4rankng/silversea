@@ -44,6 +44,26 @@ const EXEMPT: Record<string, string> = {
   // the registry row was a relic, pruned with the shipments-family migration
   // (card 20260930_230); the constant stays until the dead-constant sweep.
   'trips.pod.review': 'dead route — no mount exists (row pruned card 20260930_230)',
+  // The approval-flow relic block (card 20260930_230 sweep): these write
+  // routes were removed with the approval workflow and their -actions
+  // successors; no mounts exist anywhere in src/routes. Constants stay until
+  // the dead-constant sweep removes them.
+  'shipments.accounting-lock.activate': 'dead route — no mount exists',
+  'shipments.delete-request.decision': 'dead route — no mount exists',
+  'ops.expenses.approve': 'dead route — approval flow removed',
+  'ops.expenses.reject': 'dead route — approval flow removed',
+  'ops.settlements.approve': 'dead route — approval flow removed',
+  'ops.settlements.reject': 'dead route — approval flow removed',
+  'governance.check': 'dead route — no /api/governance-actions mount exists',
+  'governance.approve': 'dead route — no /api/governance-actions mount exists',
+  'governance.reject': 'dead route — no /api/governance-actions mount exists',
+  'governance.return-for-evidence': 'dead route — no /api/governance-actions mount exists',
+  'governance.cancel': 'dead route — no /api/governance-actions mount exists',
+  'advance-requests.approve': 'dead route — approval flow removed',
+  'advance-requests.reject': 'dead route — approval flow removed',
+  'advance-settlements.check': 'dead route — approval flow removed',
+  'advance-settlements.approve': 'dead route — approval flow removed',
+  'advance-settlements.reject': 'dead route — approval flow removed',
 };
 
 test('every idempotency write endpoint is declared in MATERIAL_WRITE_RULES (or exempt)', () => {

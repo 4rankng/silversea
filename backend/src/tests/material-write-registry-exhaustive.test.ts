@@ -836,16 +836,14 @@ describe('material-write registry coverage', () => {
       ['POST', '/api/salary-periods/2026-07/exclusions/9/complete-followup', 'config.salary-periods.exclusion.followup.complete'],
       ['POST', '/api/salary-periods/2026-07/close', 'config.salary-periods.close.request'],
       ['POST', '/api/salary-periods/2026-07/reopen', 'config.salary-periods.reopen.request'],
-      ['POST', '/api/salary/periods/2026-07/issue-actions/9/check', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK],
-      ['POST', '/api/salary/periods/2026-07/issue-actions/9/approve', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE],
-      ['POST', '/api/salary/periods/2026-07/post-actions/9/check', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK],
-      ['POST', '/api/salary/periods/2026-07/post-actions/9/approve', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE],
       ['POST', '/api/business-calendar', 'config.business_calendar_days.create'],
       ['PUT', '/api/business-calendar/3', 'config.business_calendar_days.update'],
       ['DELETE', '/api/business-calendar/3', 'config.business_calendar_days.delete'],
       ['POST', '/api/ancillary-revenue', 'config.ancillary_revenue.create'],
       ['PUT', '/api/ancillary-revenue/3', 'config.ancillary_revenue.update'],
       ['DELETE', '/api/ancillary-revenue/3', 'config.ancillary_revenue.delete'],
+      // The salary issue/post-actions cases were removed with their mounts
+      // (approval-workflow relics; registry rows pruned, card 20260930_230).
       ['POST', '/api/finance/fuel-invoices/123/corrections', 'fuel-invoices.correction.create'],
       ['POST', '/api/shipments/123/complete', IDEMPOTENCY_ENDPOINTS.SHIPMENT_COMPLETE],
     ] as const;

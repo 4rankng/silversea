@@ -240,7 +240,7 @@ router.post('/', declareMaterialWrite('expenses.submit', { method: 'POST', path:
 
 // KP-150: check/approve/reject endpoints removed — expenses post directly.
 
-router.put('/:id', declareMaterialWrite('expenses.governed-update', { method: 'PUT', path: '/api/expenses/:id' }),  asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', declareMaterialWrite('expenses.governed-update', { method: 'PUT', path: '/api/expenses/:id', canonicalAliases: ['expenses.update'] }),  asyncHandler(async (req: Request, res: Response) => {
   const validatedData = expenseSchema.partial().parse(req.body);
   const userId = getUser(req).userId;
   const userRole = getUser(req).role;
@@ -302,7 +302,7 @@ router.put('/:id', declareMaterialWrite('expenses.governed-update', { method: 'P
   res.json(result);
 }));
 
-router.delete('/:id', declareMaterialWrite('expenses.governed-delete', { method: 'DELETE', path: '/api/expenses/:id' }),  asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', declareMaterialWrite('expenses.governed-delete', { method: 'DELETE', path: '/api/expenses/:id', canonicalAliases: ['expenses.delete'] }),  asyncHandler(async (req: Request, res: Response) => {
   const userId = getUser(req).userId;
   const userRole = getUser(req).role;
   const id = Number(req.params.id);

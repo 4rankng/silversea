@@ -41,10 +41,9 @@ import {
   requestSalaryReopen,
 } from '../services/salary-confirmation-governance.service';
 import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const SALARY_PERIOD_ISSUE_ENDPOINT = 'salary-periods.issue';
 const SALARY_PERIOD_POST_ENDPOINT = 'salary-periods.post';
 
@@ -156,7 +155,7 @@ router.get('/periods/:period/overview', requireRoles(Role.MANAGER, Role.ADMIN, R
   });
 }));
 
-router.post('/periods/:period/close', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/periods/:period/close', declareMaterialWrite('salary-periods.close', { method: 'POST', path: '/api/salary/periods/:period/close' }),  requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const period = String(req.params.period);
   const note = typeof req.body?.note === 'string' ? req.body.note : null;
@@ -186,7 +185,7 @@ router.post('/periods/:period/close', requireRoles(Role.MANAGER, Role.ADMIN, Rol
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/periods/:period/reopen', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/periods/:period/reopen', declareMaterialWrite('salary-periods.reopen', { method: 'POST', path: '/api/salary/periods/:period/reopen' }),  requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const body = req.body ?? {};
   const expectedVersion = body && typeof body === 'object' ? Number((body as { expectedVersion?: unknown }).expectedVersion) : null;
@@ -229,7 +228,7 @@ router.post('/periods/:period/reopen', requireRoles(Role.MANAGER, Role.ADMIN, Ro
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/periods/:period/issue', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/periods/:period/issue', declareMaterialWrite('salary-periods.issue', { method: 'POST', path: '/api/salary/periods/:period/issue' }),  requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const body = req.body ?? {};
   const period = String(req.params.period);
@@ -271,7 +270,7 @@ router.post('/periods/:period/issue', requireRoles(Role.MANAGER, Role.ADMIN, Rol
   res.status(statusCode).json({ ...result, replayed });
 }));
 
-router.post('/periods/:period/post', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/periods/:period/post', declareMaterialWrite('salary-periods.post', { method: 'POST', path: '/api/salary/periods/:period/post' }),  requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const body = req.body ?? {};
   const period = String(req.params.period);
@@ -313,7 +312,7 @@ router.post('/periods/:period/post', requireRoles(Role.MANAGER, Role.ADMIN, Role
   res.status(statusCode).json({ ...result, replayed });
 }));
 
-router.post('/periods/:period/adjustments', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/periods/:period/adjustments', declareMaterialWrite('salary-periods.adjustments.request', { method: 'POST', path: '/api/salary/periods/:period/adjustments' }),  requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const period = String(req.params.period);
   const body = req.body ?? {};
@@ -382,7 +381,7 @@ router.get('/:driverId/:year/:month', requireRoles(Role.MANAGER, Role.ADMIN, Rol
 }));
 
 // PUT /api/salary/:driverId/:year/:month/workdays — batch update work days
-router.put('/:driverId/:year/:month/workdays', requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.put('/:driverId/:year/:month/workdays', declareMaterialWrite('salary.workdays', { method: 'PUT', path: '/api/salary/:driverId/:year/:month/workdays' }),  requireRoles(Role.MANAGER, Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const driverId = parseInt(String(req.params.driverId), 10);
   const year = parseInt(String(req.params.year), 10);
   const month = parseInt(String(req.params.month), 10);
@@ -440,7 +439,7 @@ router.put('/:driverId/:year/:month/workdays', requireRoles(Role.MANAGER, Role.A
 }));
 
 // POST /api/salary/:driverId/:year/:month/confirm — confirm salary period (DRAFT → CONFIRMED)
-router.post('/:driverId/:year/:month/confirm', requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/:driverId/:year/:month/confirm', declareMaterialWrite('salary.confirm', { method: 'POST', path: '/api/salary/:driverId/:year/:month/confirm' }),  requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const driverId = parseInt(String(req.params.driverId), 10);
   const year = parseInt(String(req.params.year), 10);
   const month = parseInt(String(req.params.month), 10);
@@ -475,7 +474,7 @@ router.post('/:driverId/:year/:month/confirm', requireRoles(Role.ADMIN, Role.ACC
 }));
 
 // POST /api/salary/:driverId/:year/:month/unconfirm — reopen confirmed salary period (CONFIRMED → DRAFT)
-router.post('/:driverId/:year/:month/unconfirm', requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/:driverId/:year/:month/unconfirm', declareMaterialWrite('salary.unconfirm', { method: 'POST', path: '/api/salary/:driverId/:year/:month/unconfirm' }),  requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const driverId = parseInt(String(req.params.driverId), 10);
   const year = parseInt(String(req.params.year), 10);
   const month = parseInt(String(req.params.month), 10);

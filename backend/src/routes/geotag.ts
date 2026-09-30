@@ -10,10 +10,9 @@ import { submitGeotag, getGeotag } from '../services/geotag.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { parseId } from './utils/parse-id';
 import { runIdempotent } from '../services/idempotency.service';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // Reuse the shared whitelist so the GET path param can't drift from the POST
 // body enum. `as GeotagEntityType` would bypass validation; safeParse keeps a
@@ -25,7 +24,7 @@ const entityTypeParam = z.enum(GEOTAG_ENTITY_TYPES);
  * Body validated by geotagSchema (shared). Ownership resolved per entity type
  * inside submitGeotag; freshness gate on gpsAt. Idempotent upsert.
  */
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
+router.post('/', declareMaterialWrite('geotag.submit', { method: 'POST', path: '/api/geotag/' }),  asyncHandler(async (req: Request, res: Response) => {
   const parsed = geotagSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
   const user = getUser(req);

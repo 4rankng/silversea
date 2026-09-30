@@ -36,7 +36,7 @@ import {
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
 import { assertTripShipmentAccountingUnlocked } from '../services/shipment-accounting-lock.service';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 // Maximum dimension for server-side downscale
 const MAX_IMAGE_DIMENSION = 2048;
@@ -300,7 +300,6 @@ async function releaseUploadCleanupGuard(
 
 
 const uploadRouter = Router()
-uploadRouter.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 function requireUploadIdempotencyKey(req: Request): string {
   const key = getRequestIdempotencyKey(req);
@@ -345,7 +344,7 @@ async function prepareCompanyLogo(
 // Company logo upload. Mirrors the config router role gate (config.ts): DRIVER
 // and FORWARDER cannot set the company identity. The storage key is persisted
 // to app_settings via PUT /api/config/company-info.
-uploadRouter.post('/company-logo', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+uploadRouter.post('/company-logo', declareMaterialWrite('upload.company-logo', { method: 'POST', path: '/api/upload/company-logo' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const role = getUser(req).role;
   if (role === Role.DRIVER || role === Role.OPS) {
     throw new ApiError(403, 'Không có quyền tải logo công ty');
@@ -403,7 +402,7 @@ uploadRouter.post('/company-logo', upload.single('file'), asyncHandler(async (re
   });
 }));
 
-uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+uploadRouter.post('/', declareMaterialWrite('upload.trip-photo', { method: 'POST', path: '/api/upload/' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
   const tripId = parseInt(req.body.trip_id);
   const type = req.body.type as TripPhotoType;
@@ -491,7 +490,7 @@ uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, 
   });
 }));
 
-uploadRouter.post('/trips/:tripId/photos/:type/delete', asyncHandler(async (req: Request, res: Response) => {
+uploadRouter.post('/trips/:tripId/photos/:type/delete', declareMaterialWrite('upload.trip-photo.delete', { method: 'POST', path: '/api/upload/trips/:tripId/photos/:type/delete' }),  asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
   if (isNaN(tripId)) throw new ApiError(400, 'trip_id không hợp lệ');
 
