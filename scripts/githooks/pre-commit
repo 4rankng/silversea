@@ -40,7 +40,14 @@ if [ "$journal" -eq 1 ]; then
 fi
 if [ "$fe" -eq 1 ]; then
   echo "[pre-commit] typechecking frontend…"
-  (cd "$root/frontend" && pnpm exec tsc --noEmit) || fail=1
+  # --incremental false: the 2026-09-30 miss. The project is `incremental: true`
+  # against a persistent .tsbuildinfo, so a file whose recorded version had not
+  # moved was not re-checked — 29 unresolvable import specifiers (a rewrite that
+  # pointed src/pages/* at ../../lib/format, i.e. outside src) committed green
+  # and the first thing to catch them was the docker image build. A full check
+  # per commit is exactly what this bar is for; --no-verify remains the
+  # documented escape hatch for when it is too slow.
+  (cd "$root/frontend" && pnpm exec tsc --noEmit --incremental false) || fail=1
   # Structure ratchet (incident 2026-09-08: allocation workstream landed two
   # api-client files over their frozen LOC ceilings because this hook only
   # typechecked). ~1s: the ratchet must gate mechanically, like the compile
@@ -77,7 +84,11 @@ if [ "$fail" -eq 1 ]; then
   echo "  (if you must bypass, say why in the commit body — a red main is worse)." >&2
   exit 1
 fi
-exit 0
+
+# The graph block below used to sit after the `exit 0` this gate ended with, so
+# it never ran in this repo (the 2026-09-30 audit found it dead). It is kept
+# reachable and last: it only runs on a commit the gates above accepted, and its
+# own `|| true` guards mean it can never block one.
 # >>> code-review-graph pre-commit hook >>>
 # Installed by code-review-graph. Remove this file to disable pre-commit graph checks.
 if command -v code-review-graph >/dev/null 2>&1; then
@@ -96,3 +107,5 @@ if command -v code-review-graph >/dev/null 2>&1; then
     fi
 fi
 # <<< code-review-graph pre-commit hook <<<
+
+exit 0
