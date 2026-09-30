@@ -3,7 +3,7 @@
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { db, type Executor, type Tx } from '../db';
+import type { Executor, Tx } from '../db';
 import { ApiError } from '../errors';
 
 

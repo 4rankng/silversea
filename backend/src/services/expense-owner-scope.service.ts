@@ -1,7 +1,7 @@
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import * as s from '../db/schema';
-import type { Executor, Tx } from './trip-shared';
+import type { Executor } from './trip-shared';
 import type { ExpenseAccountingSource } from './expense-accounting-source.service';
 import { ApiError } from '../errors';
 

@@ -65,6 +65,10 @@ export default defineConfig([
       '**/build/**',
       '**/node_modules/**',
       '**/.pnpm-store/**',
+      // The release tooling's git worktree at the repo root (see .gitignore);
+      // ESLint flat config does not read .gitignore, so without this the root
+      // gate tries to lint a second full frontend checkout.
+      '.deploy-head/**',
       // Vendored Untitled UI base — upstream canonical source, never edited here.
       'frontend/src/components/untitled-ui/**',
       // Generated evidence (gitignored) and driver scratch.
@@ -72,6 +76,10 @@ export default defineConfig([
       'qa/**',
       // Python e2e harness.
       'e2e/**',
+      // The transient deploy checkout (gitignored, `.gitignore`): a full repo
+      // copy whose own eslint.config.js cannot load without its node_modules —
+      // scanning it crashes `eslint .` mid-deploy. Same class as `dist/`.
+      '.deploy-head/**',
       'e2e/**',
       // `shared/tsconfig.json` sets `exclude: ["src/**/*.test.ts"]`, so the
       // project service cannot resolve them. Type-aware linting is therefore

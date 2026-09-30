@@ -17,7 +17,6 @@ import { quotationBaseClassCode } from '@tingting/shared';
 import { roundHalfAwayFromZero } from '@tingting/shared';
 import type { ComputeFreightRateResult } from '@tingting/shared';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
 
 
 // ─── Types ──────────────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ import {
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { customerTripReceivableAmount, LedgerService, tripExpenseVendorReceiptId } from './ledger.service';
-import type { Executor, Tx } from '../db';
+import type { Tx } from '../db';
 import {
   assertDraftDocumentLinesEditable,
   buildExpenseSourceVersionToken,

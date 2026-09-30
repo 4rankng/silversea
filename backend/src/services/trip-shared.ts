@@ -1,6 +1,6 @@
 // Trip Shared — Types and helpers used across trip sub-modules
 
-import { db, type Executor, type Tx } from '../db';
+import type { Executor, Tx } from '../db';
 import * as s from '../db/schema';
 import { isNull, eq, and } from 'drizzle-orm';
 
