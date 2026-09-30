@@ -15,8 +15,10 @@ import * as tripService from '../../services/trip.service';
 import { reassignIssuedDispatchWriteCommand } from '../../services/dispatch-planning.service';
 import { loadReassignmentGuardContext, loadFulfillmentVersion, resyncAttendanceAfterReassignment } from '../../services/trip-lifecycle-ops.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // Reassign truck/driver for not-yet-acknowledged trips (CREATED, or IN_TRANSIT
 // when only ops marked departure and the driver never accepted). Dispatchers

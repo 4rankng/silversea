@@ -12,8 +12,10 @@ import { autoApplyGovernanceAction } from '../../services/adjustment-governance.
 import { applyDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
 import { invalidateReportCaches } from '../../lib/report-cache';
 import { emitNotification } from '../../services/notification.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 function getRequestIdempotencyKey(req: Request): string | undefined {
   const requestBody = req.body as Record<string, unknown> | undefined;

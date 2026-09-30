@@ -28,18 +28,21 @@ import { parseId, parseOptionalId } from '../utils/parse-id';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { sendDebitNoteForCustomerConfirmation } from '../../services/debit-note-lifecycle.service';
 import { listAccountingTransportRows } from '../../services/accounting-transport-register.service';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
 // Debit-note (AR) + payment-statement (AP) builder routes.
 // Mounted under the financial router → already gated by casbinAuthz('financial').
 // requireRoles adds explicit ACCOUNTANT/MANAGER/ADMIN defense-in-depth on every op
 // (DRIVER / FORWARDER never get financial write in policy.csv).
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 const BILLING_DOCUMENT_ISSUE_REQUEST_ENDPOINT = 'billing-documents.issue.request';
 const BILLING_DOCUMENT_SEND_CONFIRMATION_ENDPOINT = 'billing-documents.send-confirmation';
 
 // POST /api/finance/billing-documents/generate — preview draft lines (pre-save)
-router.post('/finance/billing-documents/generate', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/billing-documents/generate', declareNonMaterialWrite('Read-only draft generation preview.'), requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const data = generateBillingDocumentSchema.parse(req.body);
   res.json(await billingService.generateDraft(data));
 }));

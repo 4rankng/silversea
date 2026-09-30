@@ -59,6 +59,8 @@ import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { getShipmentDebitDetail, saveDebitEdits } from '../../services/shipment-debit-detail.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   SHIPMENT_INTAKE_MUTATION_ROLES,
   parseId,
@@ -120,7 +122,8 @@ const shipmentPricingPreviewSchema = z.object({
   containerTypeIds: z.array(z.number().int().positive()).optional(),
 });
 
-const coreRoutes = Router();
+const coreRoutes = Router()
+coreRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 function resolveDriverNotes(input: { driverNotes?: string | null; operationalNotes?: string | null }) {
   return input.driverNotes !== undefined ? input.driverNotes : input.operationalNotes;
@@ -420,7 +423,7 @@ coreRoutes.get(
 // user is never blocked by an empty "Nhà máy" dropdown. Matches the GET
 // guard; the service additionally enforces CLERK customer-scope.
 coreRoutes.post(
-  '/operational-sites',
+  '/operational-sites', declareNonMaterialWrite('Reference-data CRUD (factory/warehouse master). Upsert keyed by the (customerId, code) partial unique index — replaying the same payload updates the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'),
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = operationalSiteSchema.safeParse(req.body);
@@ -456,7 +459,7 @@ coreRoutes.patch(
 );
 
 coreRoutes.post(
-  '/pricing-preview',
+  '/pricing-preview', declareNonMaterialWrite('Read-only shipment pricing calculation preview.'),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = shipmentPricingPreviewSchema.safeParse(req.body);

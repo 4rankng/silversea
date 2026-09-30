@@ -21,6 +21,7 @@ import {
 } from '../../services/forwarder.service';
 import { storageService } from '../../services/storage.service';
 import { sniffImageType } from '../../lib/format';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   acquireForwarderCleanupGuard, releaseForwarderCleanupGuard,
   deleteForwarderExpensePhotoCommand,
@@ -33,7 +34,8 @@ import {
 const MAX_IMAGE_DIMENSION = 2048;
 const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 
 router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Response) => {

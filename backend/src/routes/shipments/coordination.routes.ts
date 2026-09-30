@@ -30,6 +30,8 @@ import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parseId } from './shipment-shared';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
 const customerVisibleEventSchema = z.object({
   eventKey: z.string().trim().min(1).max(120),
@@ -53,7 +55,8 @@ const resolveHandoffSchema = z.object({
   rejectReason: z.string().trim().min(1).max(1_000).optional().nullable(),
 });
 
-const coordinationRoutes = Router();
+const coordinationRoutes = Router()
+coordinationRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 coordinationRoutes.get('/:id/customer-events', asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(req, res);
@@ -193,7 +196,7 @@ coordinationRoutes.post(
   }),
 );
 
-coordinationRoutes.post('/:id/change-requests/:requestId/review', (_req, res) => {
+coordinationRoutes.post('/:id/change-requests/:requestId/review', declareNonMaterialWrite('Retired endpoint — mounted as a response-only 410 stub; kept from re-acquiring behaviour by the exhaustive test.'), (_req, res) => {
   res.status(410).json({ error: 'Luồng phê duyệt đã được gỡ bỏ. Chỉnh sửa lô hàng trực tiếp.' });
 });
 

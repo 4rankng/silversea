@@ -24,6 +24,7 @@ import {
 } from '../services/invoice-tracking.service';
 import { requireRoles } from '../middleware/casbin';
 import { runIdempotent } from '../services/idempotency.service';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
 function parseId(value: string | string[] | undefined, label = 'ID'): number {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -38,7 +39,8 @@ function requireIdempotencyKey(req: Request): string {
   return key;
 }
 
-const accountingRoutes = Router();
+const accountingRoutes = Router()
+accountingRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 const OFFICE_ROLES = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 

@@ -17,10 +17,12 @@ import { getFuelConfig, getFuelPriceHistory, getEffectiveFuelPrice } from '../..
 import { fuelConfigSchema, companyInfoSchema } from '@tingting/shared';
 import { companyInfoFromSettings } from '../../services/company-info.service';
 import { requestOrApplyGovernedConfigAction, governedConfigVersionFromUpdatedAt } from '../../services/price-config-governance.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
 
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 // Operational config routes (T3c split) — road-config, fuel-config,
 // company-info, fuel-price-history endpoints, moved verbatim from
 // routes/config.ts. Governance payloads built via ./config-helpers.

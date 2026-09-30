@@ -42,12 +42,15 @@ import {
 } from '../services/ops-settlements.service';
 import { exportOpsSettlementXlsx } from '../services/ops-settlement-export.service';
 import { getOpsFleet, listActiveTruckOpsAssignments, setTruckOpsAssignment } from '../services/ops-fleet.service';
+import { declareNonMaterialWrite } from '../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
 const OPS_ONLY = requireRoles(Role.OPS);
 const OPS_APPROVERS = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 const ADMIN_ONLY = requireRoles(Role.ADMIN);
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 const dateQuerySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date phải có dạng YYYY-MM-DD');
 const statusFilterSchema = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional();
@@ -79,7 +82,7 @@ router.get('/orders', OPS_ONLY, asyncHandler(async (req: Request, res: Response)
 
 // Pins use PUT set-semantics (not POST-toggle) so a replayed request converges
 // on the requested state instead of flipping it again.
-router.put('/orders/shipment-pins/:shipmentId', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.put('/orders/shipment-pins/:shipmentId', declareNonMaterialWrite('Per-user bookmark upsert keyed by (user_id, shipment_id) with PUT set-semantics; a replay converges on the requested pinned state. No business entity mutation.'), OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const shipmentId = parseId(req.params.shipmentId, 'Mã lô');
   const { pinned } = z.object({ pinned: z.boolean() }).parse(req.body);
@@ -234,7 +237,7 @@ const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { f
  * "lưu trước, bổ sung ảnh sau"). Storage key = content hash, so a retried
  * upload of the same photo converges on one object without idempotency state.
  */
-router.post('/expense-photos/upload', OPS_ONLY, expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/expense-photos/upload', declareNonMaterialWrite('Content-hash storage-object upload; replaying the same photo converges on one object and creates no DB row until an explicit attach.'), OPS_ONLY, expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const file = req.file;
   if (!file) throw new ApiError(400, 'Không có file tải lên.');
@@ -264,14 +267,14 @@ router.post('/expense-photos/upload', OPS_ONLY, expensePhotoUpload.single('file'
   res.status(201).json({ storageKey, url: `/api/photos/${encodeURIComponent(storageKey)}` });
 }));
 
-router.post('/expenses/:id/photos', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/expenses/:id/photos', declareNonMaterialWrite('Attach keyed by the unique (ops_expense_id, storage_key) pair with onConflictDoNothing — a replay converges instead of duplicating evidence.'), OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const { storageKey } = z.object({ storageKey: z.string().min(1).max(500) }).parse(req.body);
   const photo = await attachOpsExpensePhoto(user.userId, parseId(req.params.id), storageKey);
   res.status(201).json(photo);
 }));
 
-router.delete('/expense-photos/:id', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.delete('/expense-photos/:id', declareNonMaterialWrite('Idempotent single-row photo deletion; the storage object is removed only when no other row references it.'), OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   await deleteOpsExpensePhoto(getUser(req).userId, parseId(req.params.id));
   res.json({ success: true });
 }));
@@ -389,7 +392,7 @@ router.get('/trucks/ops-assignments', ADMIN_ONLY, asyncHandler(async (_req: Requ
   res.json({ items: await listActiveTruckOpsAssignments() });
 }));
 
-router.put('/trucks/:truckId/ops-assignment', ADMIN_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.put('/trucks/:truckId/ops-assignment', declareNonMaterialWrite('Replaceable ops-oversight config: deactivate-then-insert converges to one active row per truck; a replay lands the same end state.'), ADMIN_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const truckId = parseId(req.params.truckId, 'Mã xe');
   const { opsUserId } = z.object({ opsUserId: z.number().int().positive().nullable() })
     .parse(req.body);

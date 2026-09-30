@@ -7,11 +7,13 @@ import { throwValidation } from '../lib/validation';
 import { parseId } from './utils/parse-id';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 import {
   listDepositTrackers, createDepositTracker, updateDepositTrackerDates, markDepositRefunded, normalizeDepositDate,
 } from '../services/deposit-refund-tracker.service';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throwValidation(result.error);

@@ -16,8 +16,10 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { throwValidation } from '../../lib/validation';
 
 import { invalidateReportCaches } from '../../lib/report-cache';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.put('/:id/containers', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string, 10);

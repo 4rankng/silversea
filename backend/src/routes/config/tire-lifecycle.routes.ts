@@ -13,12 +13,14 @@ import { cacheInvalidatePattern } from '../../lib/redis';
 import * as H from './config-helpers';
 import { installTireInTx, removeTireInTx, disposeTireInTx, transferTireInTx, isHttpError } from '../../services/tire.service';
 import { installTireSchema, disposeTireSchema, transferTireSchema } from '@tingting/shared';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 // Tire lifecycle routes (T3c split) — install/remove/dispose/transfer with
 // role-gated writes, moved verbatim from routes/config.ts.
 
 // Lifecycle endpoints — MANAGER/ACCOUNTANT/ADMIN only (writes). The mount-level
 // config Casbin gate already restricts broadly; requireRoles tightens write actions.
-export const tireLifecycleRouter = Router();
+export const tireLifecycleRouter = Router()
+tireLifecycleRouter.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 tireLifecycleRouter.post('/:id/install', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');

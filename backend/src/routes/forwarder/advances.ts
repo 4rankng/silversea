@@ -17,11 +17,14 @@ import {
 import { formatLocalDate } from '../../lib/format';
 import { parsePagination } from '../utils/pagination';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   createAdvanceRequestSchema, createAdvanceSettlementSchema,
 } from '@tingting/shared';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // ── Advance Requests ──
 
@@ -116,7 +119,7 @@ router.get('/advance-settlements/:id/export', asyncHandler(async (req: Request, 
   await exportSettlementXlsx(id, res);
 }));
 
-router.post('/advance-settlements/preview', asyncHandler(async (req: Request, res: Response) => {
+router.post('/advance-settlements/preview', declareNonMaterialWrite('Read-only settlement calculation preview.'), asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const parsed = createAdvanceSettlementSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);

@@ -14,8 +14,11 @@ import {
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // ─── Debt Offsets ─────────────────────────────────────────────────────────────
 
@@ -59,7 +62,7 @@ router.post('/finance/debt-offsets', requireRoles(Role.ADMIN, Role.MANAGER, Role
 
 // Retired public approval action. Authorized creation already records the
 // offset atomically; legacy clients must not trigger another financial effect.
-router.post('/finance/debt-offsets/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER),
+router.post('/finance/debt-offsets/:id/approve', declareNonMaterialWrite('Retired endpoint — mounted as a response-only 410 stub; kept from re-acquiring behaviour by the exhaustive test.'), requireRoles(Role.ADMIN, Role.MANAGER),
   (_req: Request, res: Response) => {
     res.status(410).json({ error: 'Luồng phê duyệt đã được loại bỏ. Đối trừ được ghi nhận trực tiếp khi tạo hợp lệ.' });
   },

@@ -12,6 +12,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { ApiError } from '../../errors';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   getPairSalarySettingsFrom,
   savePairSalarySettings,
@@ -22,7 +23,8 @@ const pairSalarySettingsUpdateSchema = z.object({
   ketHopSurcharge: z.number().int('Phụ phí kết hợp phải là số nguyên VND').min(0, 'Phụ phí kết hợp không được âm'),
 });
 
-export const pairSalarySettingsRouter = Router();
+export const pairSalarySettingsRouter = Router()
+pairSalarySettingsRouter.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 pairSalarySettingsRouter.get(
   '/pair-salary-settings',

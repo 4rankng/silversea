@@ -85,8 +85,11 @@ import {
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
 import { storageService } from '../services/storage.service';
+import { declareNonMaterialWrite } from '../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 const DRIVER_IDEMPOTENCY_ENDPOINTS = {
   CONTAINER_CREATE: 'driver.containers.create',
@@ -646,7 +649,7 @@ router.get('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, 
 
 // 27.8 cost-section Ghi chú — driver-written note for accounting to re-check
 // auto-recorded costs (Tiền đường, Phí Lạch Huyện). Idempotent upsert.
-router.put('/trips/:tripId/cost-submission-note', asyncHandler(async (req: Request, res: Response) => {
+router.put('/trips/:tripId/cost-submission-note', declareNonMaterialWrite('Driver cost-submission Ghi chú autosave (27.8 §2): replaceable per-trip note column written by full overwrite, replay-safe without a durable boundary; no financial figure mutation.'), asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const parsed = driverCostSubmissionNoteSchema.safeParse(req.body);

@@ -18,8 +18,10 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 
 import { invalidateReportCaches } from '../../lib/report-cache';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.put('/:id/pre-departure', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);

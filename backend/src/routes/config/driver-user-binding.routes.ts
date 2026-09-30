@@ -7,8 +7,10 @@ import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
 import { resolveIdempotencyKey } from '../../services/idempotency.service';
 import { bindDriverUser } from '../../services/driver-user-binding.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.use(requireRoles(Role.ADMIN));
 

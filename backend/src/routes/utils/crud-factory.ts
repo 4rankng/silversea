@@ -19,6 +19,7 @@ import { parsePagination } from './pagination';
 import { throwValidation } from '../../lib/validation';
 import { ApiError, isPgUniqueViolation } from '../../errors';
 import { getUser } from '../../middleware/auth';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   buildCrudIdempotencyEndpoint,
   resolveIdempotencyKey,
@@ -127,7 +128,8 @@ export function createCrudRouter<
     afterDelete,
     governance,
   } = options;
-  const sub = Router();
+  const sub = Router()
+  sub.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
   const hasSoftDelete = 'deletedAt' in table;
   const hasUpdatedAt = 'updatedAt' in table;
   const resource = getTableName(table);

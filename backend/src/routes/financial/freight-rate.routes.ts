@@ -25,6 +25,7 @@ import {
 } from '../../services/freight-rate-snapshot-lifecycle.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runIdempotent } from '../../services/idempotency.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
 const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 const FREIGHT_RATE_OVERRIDE_ENDPOINT = 'freight-rate-snapshots.override';
@@ -57,7 +58,8 @@ freightRatePreviewRoutes.get('/freight-preview', asyncHandler(async (req: Reques
 }));
 
 // ─── Financial surface (ADMIN / MANAGER / ACCOUNTANT) ───────────────────────
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // GET /api/pricing/snapshots/:id — frozen snapshot + trace + override, for
 // the debit-note builder surface.

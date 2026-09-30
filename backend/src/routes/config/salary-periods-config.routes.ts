@@ -23,6 +23,7 @@ import {
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import { salaryPeriodSchema, salaryPeriodDefaultSchema } from '@tingting/shared';
 import { requestOrApplyGovernedConfigAction } from '../../services/price-config-governance.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
 // Salary period config routes (T3c split) — the public resolve router and
 // the admin defaults/overrides router, moved verbatim from routes/config.ts.
@@ -45,7 +46,8 @@ salaryPeriodsRouter.get('/resolve', asyncHandler(async (req: Request, res: Respo
   res.json(await resolveSalaryPeriodDateRange(month, year));
 }));
 
-export const salaryPeriodsAdminRouter = Router();
+export const salaryPeriodsAdminRouter = Router()
+salaryPeriodsAdminRouter.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 salaryPeriodsAdminRouter.get('/default', asyncHandler(async (_req: Request, res: Response) => {
   res.json(await getSalaryPeriodDefault());

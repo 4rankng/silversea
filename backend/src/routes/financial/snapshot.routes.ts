@@ -14,8 +14,10 @@ import {
   runIdempotent,
 } from '../../services/idempotency.service';
 import type { Tx } from '../../services/trip-shared';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 
 function parseTripId(req: Request): number {

@@ -31,6 +31,7 @@ import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { throwValidation } from '../../lib/validation';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   SHIPMENT_INTAKE_MUTATION_ROLES,
   parseId,
@@ -54,7 +55,8 @@ const replaceShipmentDocumentSchema = z.object({
   expiresAt: z.string().trim().min(1).optional().nullable(),
 });
 
-const documentsRoutes = Router();
+const documentsRoutes = Router()
+documentsRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // ─── POST /:id/documents — record an uploaded document's metadata ──────────
 //

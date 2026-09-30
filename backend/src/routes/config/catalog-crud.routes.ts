@@ -33,12 +33,14 @@ import customersScreenRouter from './customers.routes';
 // shipment-debit-summary.test.ts and dist-safe-dynamic-imports.test.ts).
 import { spawnQuotationFuelApprovals } from '../../services/quotation.service';
 import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema, fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema } from '@tingting/shared';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
 // Catalog CRUD routes (T3c split) — the 26 crud-factory mounts plus the
 // bootstrap/pricing endpoints, moved verbatim from routes/config.ts.
 // Helper predicates/guards come from ./config-helpers (H. prefix).
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 /**
  * Three-state surcharge threshold confirmation (20260917_11, PRD

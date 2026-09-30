@@ -45,8 +45,10 @@ import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { parseId, runShipmentWrite, sendShipmentWrite } from './shipment-shared';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const cusWorkspaceRoutes = Router();
+const cusWorkspaceRoutes = Router()
+cusWorkspaceRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 cusWorkspaceRoutes.get(
   '/cus-workspace',

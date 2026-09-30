@@ -18,8 +18,10 @@ import { normalizeTreasuryPhysicalReference } from '../services/treasury.service
 import { listFundBook } from '../services/treasury-fund-book.service';
 import { listOpsCostReview } from '../services/ops-cost-review.service';
 import { listMonthlyReconciliationReport } from '../services/ops-reconciliation-report.service';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throwValidation(result.error);

@@ -19,8 +19,10 @@ import {
 
 import { requireForwarderIdempotencyKey, FORWARDER_IDEMPOTENCY_ENDPOINTS, forwarderTripContainerSchema } from './forwarder-shared';
 import { runIdempotent } from '../../services/idempotency.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;

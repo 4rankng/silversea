@@ -41,6 +41,7 @@ import {
 } from '../services/audit.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 import {
   armStorageCleanupGuard,
   cancelStorageCleanupGuard,
@@ -54,7 +55,8 @@ registerAuditEvent('POST', '/api/expenses', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PUT', '/api/expenses/', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('DELETE', '/api/expenses/', AuditEvent.ENTITY_DELETED);
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // B1: receipt-photo upload for company expenses. Mirrors the forwarder
 // expense-photo pipeline but writes to expense_photos (FK→expenses.id) and

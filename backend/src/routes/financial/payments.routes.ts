@@ -50,6 +50,7 @@ import { registerAuditEvent } from '../../services/audit-registry';
 import { AuditEvent } from '../../services/audit-types';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
 import { ApiError } from '../../errors';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   getTreasuryPosition,
   requestTreasuryAccountSetup,
@@ -81,7 +82,8 @@ const treasuryReversalSchema = z.object({
   reversalEvidence: z.string().trim().min(1).max(255),
 });
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 registerAuditEvent('POST', '/api/commissions', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('POST', '/api/drivers/', '/payouts', AuditEvent.DRIVER_SALARY_RECORDED);

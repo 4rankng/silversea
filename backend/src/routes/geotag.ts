@@ -10,8 +10,10 @@ import { submitGeotag, getGeotag } from '../services/geotag.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { parseId } from './utils/parse-id';
 import { runIdempotent } from '../services/idempotency.service';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // Reuse the shared whitelist so the GET path param can't drift from the POST
 // body enum. `as GeotagEntityType` would bypass validation; safeParse keeps a

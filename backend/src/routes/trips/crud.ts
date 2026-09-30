@@ -23,8 +23,10 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parsePagination } from '../utils/pagination';
 import { tripListSortQuerySchema } from './trips-shared';
 import { invalidateReportCaches } from '../../lib/report-cache';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // List trips with filters
 router.get('/', asyncHandler(async (req: Request, res: Response) => {

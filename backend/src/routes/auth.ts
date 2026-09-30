@@ -21,12 +21,15 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
 import type { Request, Response } from 'express';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
+import { declareNonMaterialWrite } from '../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
 // Audit event registrations
 registerAuditEvent('POST', '/api/auth/login', AuditEvent.USER_LOGIN);
 registerAuditEvent('POST', '/api/auth/logout', AuditEvent.USER_LOGOUT);
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 export const AUTH_COMMANDS = {
   PROFILE_UPDATE: 'auth.profile.update',
   PASSWORD_CHANGE: 'auth.password.change',
@@ -141,7 +144,7 @@ async function lockBusinessUnitVersion(tx: Tx, id: number, expected: Date, notFo
 
 // ─── Login ───────────────────────────────────────────────────────────────────
 
-router.post('/login', asyncHandler(async (req: Request, res: Response) => {
+router.post('/login', declareNonMaterialWrite('Authentication session creation; no business entity mutation.'), asyncHandler(async (req: Request, res: Response) => {
   const { identifier, password } = loginSchema.parse(req.body);
 
   const user = await userService.authenticate(identifier, password);
@@ -177,7 +180,7 @@ router.get('/me', authMiddleware, asyncHandler(async (req: Request, res: Respons
   res.json({ ...profile, capabilities });
 }));
 
-router.post('/logout', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+router.post('/logout', declareNonMaterialWrite('Authentication session revocation; independently token-bound and replay-safe.'), authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   await revokeCurrentTokenOrThrow(
     req,
     'Phiên đăng nhập chưa được thu hồi trên máy chủ. Vui lòng thử lại.',

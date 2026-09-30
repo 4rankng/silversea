@@ -17,8 +17,10 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 
 import { invalidateReportCaches } from '../../lib/report-cache';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // Exceptional reopen: applies directly in-request (maker-checker removed
 // 2026-09-11) — the completed trip reopens immediately on a valid request.

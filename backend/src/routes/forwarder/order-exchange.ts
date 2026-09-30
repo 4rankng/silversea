@@ -23,8 +23,10 @@ import {
   paperOrderCollectionSchema, orderExchangeSchema, FORWARDER_IDEMPOTENCY_ENDPOINTS,
 } from './forwarder-shared';
 import { runIdempotent } from '../../services/idempotency.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 async function updateOrderExchange(
   req: Request,

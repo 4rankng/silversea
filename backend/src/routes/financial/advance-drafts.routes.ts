@@ -9,8 +9,10 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { resolveAdvanceDraft } from '../../services/advance-draft.service';
 import { AuditEvent } from '../../services/audit-types';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const schema = z.object({
   expectedVersion: z.number().int().positive(), resolutionReason: z.string().trim().min(1).max(1000),
   amount: z.number().int().positive().max(999_999_999_999_999).optional(),

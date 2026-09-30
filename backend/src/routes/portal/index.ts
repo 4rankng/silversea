@@ -41,8 +41,10 @@ import {
 } from '../../services/shipment-coordination.service';
 import { throwValidation } from '../../lib/validation';
 import { submitCustomerDeliveryResponse } from '../../services/customer-delivery-response.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 function toCustomerDebitNote(doc: Awaited<ReturnType<typeof getDocument>>) {
   return {

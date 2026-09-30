@@ -13,7 +13,11 @@ import { AuditEvent } from '../services/audit-types';
 import type { AuditEventType } from '../services/audit-types';
 import { resolveAuditEvent } from '../services/audit-registry';
 import { ApiError } from '../errors';
-import { getMaterialWriteContext, matchDeclaredMaterialWrite } from './material-write';
+import {
+  getMaterialWriteContext,
+  installGeneratedMaterialWriteRules,
+  matchDeclaredMaterialWrite,
+} from './material-write';
 
 const AUDIT_FAILURE_MESSAGE = 'Không thể ghi nhật ký thao tác. Vui lòng thử lại.';
 
@@ -23,6 +27,11 @@ export function auditLogMiddleware(req: Request, res: Response, next: NextFuncti
   if (!['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     return next();
   }
+
+  // Mount-site material-write declarations install lazily here, so per-file
+  // test harnesses (which mount a subset of routers without the application
+  // entry) get the same generated registry the boot install provides.
+  installGeneratedMaterialWriteRules(req.app);
 
   const fullPath = (req.originalUrl || req.url || '').split('?')[0];
   const isLoginPath = fullPath.includes('/login');

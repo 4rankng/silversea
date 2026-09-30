@@ -34,6 +34,7 @@ import {
 } from '../services/price-config-governance.service';
 import { ApiError } from '../errors';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 import {
   getFinancialReportingPolicyState,
   getTruckFinancialProfileState,
@@ -41,7 +42,8 @@ import {
   requestTruckFinancialProfileVersion,
 } from '../services/financial-reporting-policy.service';
 
-export const appSettingsRouter = Router();
+export const appSettingsRouter = Router()
+appSettingsRouter.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const APP_SETTINGS_COMMANDS = {
   GENERAL_UPDATE: 'admin.app-settings.update',
   EMAIL_UPDATE: 'admin.app-settings.email.update',

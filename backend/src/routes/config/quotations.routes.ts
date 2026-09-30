@@ -18,6 +18,8 @@ import { buildQuotationExport } from '../../services/quotation-export.service';
 
 const quotationImportUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   createQuotation, decideQuotationFuelApprovals, deleteQuotation, getQuotation,
   listActiveQuotationFeesForCustomer, listQuotationFuelApprovals, listQuotations, updateQuotation,
@@ -28,7 +30,8 @@ import {
 
 const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(await listQuotations());
@@ -177,7 +180,7 @@ router.post('/fuel-approvals/decide', requireRoles(Role.ACCOUNTANT, Role.ADMIN),
 // Preview never writes; commit is per-sheet transactional and ALWAYS creates
 // a new quotation frame (ruling 6). Export round-trips the template layout.
 
-router.post('/import', requireRoles(Role.ACCOUNTANT, Role.ADMIN), quotationImportUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/import', declareNonMaterialWrite('Read-only xlsx parse/validate preview — "Preview never writes" (landed contract, card 20260922_57); no DB write.'), requireRoles(Role.ACCOUNTANT, Role.ADMIN), quotationImportUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) throw new ApiError(400, 'Chưa chọn tệp xlsx.');
   res.json(await previewQuotationImport(req.file.buffer));
 }));

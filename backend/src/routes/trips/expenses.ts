@@ -19,8 +19,11 @@ import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { throwValidation } from '../../lib/validation';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.get('/:id/adjustments', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string);
@@ -211,7 +214,7 @@ router.delete('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Respo
 }));
 
 // Approval endpoints are retired; editing the authorized source records directly.
-router.post('/:id/expenses/:eid/approve', (_req, res) => {
+router.post('/:id/expenses/:eid/approve', declareNonMaterialWrite('Retired endpoint — mounted as a response-only 410 stub; kept from re-acquiring behaviour by the exhaustive test.'), (_req, res) => {
   res.status(410).json({ error: 'Luồng phê duyệt đã được gỡ bỏ. Chỉnh sửa chi phí trực tiếp.' });
 });
 router.post('/:id/expenses/:eid/reject', (_req, res) => {

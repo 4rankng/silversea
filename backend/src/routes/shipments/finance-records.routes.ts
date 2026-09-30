@@ -8,6 +8,7 @@ import { ApiError } from '../../errors';
 import { throwValidation } from '../../lib/validation';
 import { listShipmentFinanceRecords, saveContainerDepositRecord, saveShipmentInvoiceRecord, shipmentFinanceOptions } from '../../services/shipment-finance-records.service';
 import { requireShipmentIdempotencyKey, runShipmentWrite, sendShipmentWrite } from './shipment-shared';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
 const querySchema = z.object({
   search: z.string().trim().max(200).optional(),
@@ -25,7 +26,8 @@ function shipmentId(value: unknown): number {
   return Number(value);
 }
 
-export const financeRecordsRoutes = Router();
+export const financeRecordsRoutes = Router()
+financeRecordsRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 financeRecordsRoutes.get('/finance-record-options', asyncHandler(async (req, res) => {
   res.json(await shipmentFinanceOptions(getUser(req), req.query.shipmentId ? shipmentId(req.query.shipmentId) : undefined));
 }));

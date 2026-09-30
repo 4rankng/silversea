@@ -22,8 +22,11 @@ import { getRequestIdempotencyKey } from './utils/idempotency';
 import { requireShipmentIdempotencyKey, runShipmentWrite, sendShipmentWrite } from './shipments/shipment-shared';
 
 import expenseAccountingCashRoutes from './expense-accounting-cash';
+import { declareNonMaterialWrite } from '../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // ── Card 20260921_12: Bảng kiểm soát phơi phiếu / tiền đường ────────────────
 
@@ -167,7 +170,7 @@ function parse<T extends z.ZodTypeAny>(schema: T, value: unknown): z.output<T> {
 const sourceSchema = z.enum(EXPENSE_SOURCE_KINDS);
 const idSchema = z.coerce.number().int().positive();
 const reportSchema = expenseListQuerySchema.extend({ direction: z.enum(['IN', 'OUT']), asOfDate: expenseDateSchema.optional() });
-router.post('/entries/:kind/:id/photos/upload', multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } }).single('file'), asyncHandler(async (req, res) => {
+router.post('/entries/:kind/:id/photos/upload', declareNonMaterialWrite('Content-hash evidence upload with unique storage-key attachment; replay converges on the same evidence without changing expense amounts, cash or reconciliation.'), multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } }).single('file'), asyncHandler(async (req, res) => {
   if (!req.file) throw new ApiError(400, 'Chọn ảnh chứng từ.');
   res.status(201).json(await attachAccountingExpensePhoto(getUser(req), parse(sourceSchema, req.params.kind), parse(idSchema, req.params.id), req.file));
 }));

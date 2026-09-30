@@ -25,8 +25,10 @@ import {
 } from './trips-shared';
 import { invalidateReportCaches } from '../../lib/report-cache';
 import { businessTitleOrDash } from '../../lib/business-keys';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.post('/:id/dispatch', asyncHandler(async (req: Request, res: Response) => {
   const idempotencyKey = getRequestIdempotencyKey(req);

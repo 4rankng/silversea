@@ -11,6 +11,7 @@ import { requireRoles } from '../middleware/casbin';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { requireShipmentIdempotencyKey } from './shipments/shipment-shared';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 import {
   getAccountingDebitBoard,
   createRateAdjustmentRequests,
@@ -22,7 +23,8 @@ import {
   listDebitSettlementRounds,
 } from '../services/debit-settlement-rounds.service';
 
-const accountingDebitRoutes = Router();
+const accountingDebitRoutes = Router()
+accountingDebitRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 const OFFICE_ROLES = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 

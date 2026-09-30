@@ -50,6 +50,8 @@ import { cacheInvalidate } from '../../lib/redis';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
 import { decomposeFulfillmentLessContainer } from '../../services/dispatch-detail-plan-fulfillment-less';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
 const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
   .pick({ licensePlate: true, isActive: true })
@@ -58,7 +60,8 @@ const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
     message: 'Cần có ít nhất một nội dung thay đổi.',
   });
 
-const dispatchPlanningRoutes = Router();
+const dispatchPlanningRoutes = Router()
+dispatchPlanningRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 dispatchPlanningRoutes.get(
   '/dispatch-handoffs',
@@ -614,7 +617,7 @@ dispatchPlanningRoutes.get(
 );
 
 dispatchPlanningRoutes.post(
-  '/dispatch-task-tags',
+  '/dispatch-task-tags', declareNonMaterialWrite('Reference-data CRUD (dispatch note-composer tag pool). Replay-safe by the normalized_label unique constraint — a duplicate POST returns 409 instead of duplicating; no financial or shipment-lifecycle mutation.'),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = createDispatchTaskTagSchema.safeParse(req.body);

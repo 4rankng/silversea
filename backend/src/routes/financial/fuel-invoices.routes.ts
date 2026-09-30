@@ -10,6 +10,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { ApiError } from '../../errors';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runIdempotent } from '../../services/idempotency.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   createFuelInvoice,
   getFuelInvoice,
@@ -90,7 +91,8 @@ function requireIdempotencyKey(req: Request): string {
   return idempotencyKey;
 }
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.get(
   '/finance/fuel-invoices',

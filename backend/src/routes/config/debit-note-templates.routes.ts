@@ -31,8 +31,10 @@ import {
   requestGovernedCrudUpdate,
 } from '../../services/price-config-governance.service';
 import { listDebitNoteTemplates, getDebitNoteTemplateById } from '../../services/debit-note-template-reads.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const COMMANDS = {
   CREATE: 'config.debit-note-templates.create',
   UPDATE: 'config.debit-note-templates.update',

@@ -9,6 +9,7 @@ import { initEnforcer } from './casbin/enforcer';
 import { authMiddleware, assetAuthMiddleware } from './middleware/auth';
 import { casbinAuthz, tripRouteAuthz } from './middleware/casbin';
 import { requireRoles } from './middleware/casbin';
+import { installGeneratedMaterialWriteRules } from './middleware/material-write';
 import { Role } from '@tingting/shared';
 import { auditLogMiddleware } from './middleware/audit';
 import { globalErrorHandler } from './middleware/errorHandler';
@@ -235,6 +236,12 @@ app.use('/api/audit-logs', authMiddleware, casbinAuthz('audit_logs'), auditLogRo
 // gating + MANAGER/ADMIN role (enforced inside the router).
 app.use('/api/fleet/tires', authMiddleware, casbinAuthz('config'), tireLifecycleRouter);
 app.use('/api/salary', authMiddleware, casbinAuthz('salary'), salaryRoutes);
+
+// Boot-time material-write coverage gate: a mounted write route that declares
+// nothing and has no hand-written registry row kills boot here, instead of
+// 500ing on the first live request while service-level suites stay green
+// (card 20260928_166 failure class).
+installGeneratedMaterialWriteRules(app);
 
 // ── 404 catch-all (before error handler so unmatched API routes get 404, not 500) ──
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Không tìm thấy API' }));

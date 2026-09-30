@@ -25,8 +25,10 @@ import {
   tripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema,
 } from '@tingting/shared';
 import { validateActiveExpenseTypeCode } from '../../services/forwarder-expense-commands.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;

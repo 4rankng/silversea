@@ -41,8 +41,10 @@ import {
   requestSalaryReopen,
 } from '../services/salary-confirmation-governance.service';
 import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const SALARY_PERIOD_ISSUE_ENDPOINT = 'salary-periods.issue';
 const SALARY_PERIOD_POST_ENDPOINT = 'salary-periods.post';
 

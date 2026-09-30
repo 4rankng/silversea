@@ -36,6 +36,7 @@ import {
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
 import { assertTripShipmentAccountingUnlocked } from '../services/shipment-accounting-lock.service';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 
 // Maximum dimension for server-side downscale
 const MAX_IMAGE_DIMENSION = 2048;
@@ -298,7 +299,8 @@ async function releaseUploadCleanupGuard(
  */
 
 
-const uploadRouter = Router();
+const uploadRouter = Router()
+uploadRouter.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 function requireUploadIdempotencyKey(req: Request): string {
   const key = getRequestIdempotencyKey(req);

@@ -12,8 +12,10 @@ import { parseId } from '../utils/parse-id';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { getCustomerLogisticsHistory, getCustomerPaymentHistory, notifyCustomers, setCustomersStatus } from '../../services/customers-screen.service';
 import { getCustomerDebtSummary } from '../../services/customer-debt-summary.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // Drawer audience: /customers is officeStaffOnly on the FE (ADMIN/MANAGER/
 // ACCOUNTANT) and payment history is financial data, so the drawer mirrors

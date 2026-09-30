@@ -31,8 +31,10 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { emitNotification } from '../../services/notification.service';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 const advanceRequestListQuerySchema = z.object({
   status: z.nativeEnum(AdvanceRequestStatus).optional(),

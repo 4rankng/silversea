@@ -9,6 +9,7 @@ import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
 import { resolveIdempotencyKey } from '../../services/idempotency.service';
 import { cacheInvalidate } from '../../lib/redis';
+import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 import {
   analyzeMasterWorkbook,
   applyMasterImport,
@@ -18,7 +19,8 @@ import {
   rejectMasterImport,
 } from '../../services/master-data-import.service';
 
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MASTER_IMPORT_MAX_BYTES, files: 2 },

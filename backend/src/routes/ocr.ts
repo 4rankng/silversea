@@ -38,16 +38,19 @@ import {
 import { getOcrSettings, ocrHasAvailableKey } from '../services/ocr-settings.service';
 import { OCR_DISABLED_ERROR } from '../services/ocr.service';
 import { checkOcrRateLimit } from '../services/ocr-rate-limiter';
+import { declareNonMaterialWrite } from '../middleware/material-write';
+import { legacyMaterialWriteRegistry } from '../middleware/material-write';
 import {
   listFuelEvidenceReviewsForOffice,
 } from '../services/fuel-evidence-review.service';
 
 // auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
 // inherit casbinAuthz('ocr') from that single mount — no per-route policy.
-const router = Router();
+const router = Router()
+router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // Historical OCR decisions are retired and must not consume recognition quota.
-router.post('/fuel-evidence-reviews/:id/decision', requireRoles(Role.ACCOUNTANT), (_req, res) => {
+router.post('/fuel-evidence-reviews/:id/decision', declareNonMaterialWrite('Retired endpoint — mounted as a response-only 410 stub; kept from re-acquiring behaviour by the exhaustive test.'), requireRoles(Role.ACCOUNTANT), (_req, res) => {
   res.status(410).json({ error: 'Luồng phê duyệt OCR đã được gỡ bỏ. Ảnh và số liệu OCR chỉ dùng để tham khảo.' });
 });
 
