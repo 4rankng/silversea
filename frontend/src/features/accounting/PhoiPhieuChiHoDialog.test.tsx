@@ -19,11 +19,11 @@ beforeEach(() => {
 function page() { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PhoiPhieuChiHoDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>); }
 describe('phơi chi-hộ row identity', () => {
   it('keeps native entry and source IDs distinct and preserves the untouched amount', async () => {
-    page(); await screen.findByDisplayValue('60000');
+    page(); await screen.findByDisplayValue('60.000');
     expect(screen.queryByText(/Đã thu\/trả vượt/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Số tiền thu dòng 1'), { target: { value: '66000' } });
-    expect(screen.getByLabelText('Số tiền trả dòng 1')).toHaveValue('50000');
-    expect(screen.getByLabelText('Số tiền thu dòng 2')).toHaveValue('80000');
+    expect(screen.getByLabelText('Số tiền trả dòng 1')).toHaveValue('50.000');
+    expect(screen.getByLabelText('Số tiền thu dòng 2')).toHaveValue('80.000');
     expect(screen.getByText('130.000 ₫')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
     await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));

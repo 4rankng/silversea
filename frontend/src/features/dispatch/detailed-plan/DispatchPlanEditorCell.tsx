@@ -12,7 +12,7 @@ import {
 import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
-import { DateTimeField, SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
+import { DateTimeField, NumberField, SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
 import {
   CURRENT_PLATE_PREFIX,
   EXTERNAL_VEHICLE_PREFIX,
@@ -30,7 +30,6 @@ import {
 } from './DispatchPlanCellValues';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
-import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import { IssueOrderFields } from './IssueOrderFields';
 import { useIssueOrder } from './useIssueOrder';
 import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, vehicleWarningSuffix, type VehicleFit } from './trailerFit';
@@ -101,8 +100,9 @@ interface DispatchPlanEditorCellProps {
 interface PlanEditorDraft {
   carrierValue: string;
   vehicleValue: string;
-  plannedRevenue: string;
-  plannedCarrierCost: string;
+  /** Money via NumberField — number | '' (the field's contract; '' = unset). */
+  plannedRevenue: number | '';
+  plannedCarrierCost: number | '';
   /** Giờ trả hàng — local 'YYYY-MM-DDTHH:mm' in Vietnam wall-clock; '' = unset. */
   plannedEndAt: string;
   classification: DispatchClassification;
@@ -131,12 +131,15 @@ function vietnamLocalInputToIso(local: string): string | null {
 }
 
 
+/** Stored estimates are digit strings; NumberField drafts hold number | ''. */
+const estimateToDraft = (value: string | null): number | '' => (value && value.trim() ? Number(value) : '');
+
 function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
   return {
     carrierValue: carrierValueForRow(row),
     vehicleValue: vehicleValueForRow(row),
-    plannedRevenue: row.estimates.plannedRevenue ?? '',
-    plannedCarrierCost: row.estimates.plannedCarrierCost ?? '',
+    plannedRevenue: estimateToDraft(row.estimates.plannedRevenue),
+    plannedCarrierCost: estimateToDraft(row.estimates.plannedCarrierCost),
     plannedEndAt: isoToVietnamLocalInput(row.plannedEndAt),
     classification: row.classification,
     operationalNotes: row.notes.vehicleNote,
@@ -232,16 +235,18 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const vehicleChanged = carrierSwitched
     ? draft.vehicleValue !== ''
     : vehiclePlateKey(draft.vehicleValue, vehicleOptions) !== vehiclePlateKey(vehicleValueForRow(row), vehicleOptions);
-  const revenue = parseVnd(draft.plannedRevenue);
-  const carrierCost = parseVnd(draft.plannedCarrierCost);
+  // NumberField guarantees a finite number or '' — the invalid-state branches
+  // of the old parseVnd flow are structurally gone for the draft values.
+  const draftRevenue = draft.plannedRevenue === '' ? null : draft.plannedRevenue;
+  const draftCarrierCost = draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost;
   const storedRevenue = parseVnd(row.estimates.plannedRevenue ?? '');
   const storedCarrierCost = parseVnd(row.estimates.plannedCarrierCost ?? '');
   const planDirty = carrierSwitched || vehicleChanged
     || draft.classification !== row.classification
     || (draft.operationalNotes ?? '') !== (row.notes.vehicleNote ?? '')
-    || !revenue.valid || !carrierCost.valid
-    || revenue.value !== storedRevenue.value
-    || carrierCost.value !== storedCarrierCost.value;
+    || !storedRevenue.valid || !storedCarrierCost.valid
+    || draftRevenue !== storedRevenue.value
+    || draftCarrierCost !== storedCarrierCost.value;
   const canIssue = issueStatus === 'PLATED_NOT_ISSUED' && !planDirty;
 
   const {
@@ -537,14 +542,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   async function save() {
     if (saving) return;
     const carrier = parseCarrier(draft.carrierValue);
-    const revenue = parseVnd(draft.plannedRevenue);
-    const carrierCost = parseVnd(draft.plannedCarrierCost);
     if (!carrier) {
       setError('Chọn nhà xe trước khi lưu.');
-      return;
-    }
-    if (!revenue.valid || !carrierCost.valid) {
-      setError('Cước dự kiến phải là số nguyên không âm.');
       return;
     }
     const body = vehicleBody(draft.vehicleValue);
@@ -577,8 +576,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         // Send the vehicle block only when the editor actually touches it —
         // an estimates/classification-only save must not disturb stored columns.
         ...(vehicleChanged ? body : {}),
-        plannedRevenue: revenue.value,
-        plannedCarrierCost: carrierCost.value,
+        plannedRevenue: draft.plannedRevenue === '' ? null : draft.plannedRevenue,
+        plannedCarrierCost: draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost,
         // Same touch-gating as the vehicle block: an untouched field must
         // never reach the wire and clobber a value another editor saved.
         ...(draftEndIso !== storedEnd ? { plannedEndAt: draftEndIso } : {}),
@@ -808,25 +807,25 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               disabled={saving || row.classification === 'LCL'}
               hint={row.classification === 'LCL' ? 'Hàng lẻ giữ phân loại Lẻ — gắn với hình thức lô hàng' : undefined}
             />
-            <TextField
+            <NumberField
               id={`dispatch-revenue-${row.fulfillmentId}`}
               className="dispatch-assignment-dialog__money dispatch-assignment-dialog__revenue"
               label="Cước thu dự kiến"
-              inputMode="numeric"
+              grouped
               autoComplete="off"
-              value={formatMoneyInput(draft.plannedRevenue)}
+              value={draft.plannedRevenue}
               suffix="đ"
-              onChange={(event) => { setDraft((current) => ({ ...current, plannedRevenue: normalizeMoneyInput(event.target.value) })); setError(null); }}
+              onChange={(n) => { setDraft((current) => ({ ...current, plannedRevenue: n })); setError(null); }}
               disabled={saving}
             />
-            <TextField
+            <NumberField
               id={`dispatch-cost-${row.fulfillmentId}`}
               className="dispatch-assignment-dialog__money dispatch-assignment-dialog__cost"
               label="Cước trả dự kiến"
-              inputMode="numeric"
+              grouped
               suffix="đ"
-              value={formatMoneyInput(draft.plannedCarrierCost)}
-              onChange={(event) => { setDraft((current) => ({ ...current, plannedCarrierCost: normalizeMoneyInput(event.target.value) })); setError(null); }}
+              value={draft.plannedCarrierCost}
+              onChange={(n) => { setDraft((current) => ({ ...current, plannedCarrierCost: n })); setError(null); }}
               disabled={saving}
             />
             <DateTimeField

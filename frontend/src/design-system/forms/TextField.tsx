@@ -2,7 +2,9 @@ import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
 import './TextField.css';
 
 export interface BaseFieldProps {
-  label: string;
+  /** Visible field label. Omitted for dense table-cell fields, where the
+   * column header is the label and the input carries its own aria-label. */
+  label?: string;
   required?: boolean;
   error?: string;
   helpText?: string;
@@ -36,10 +38,12 @@ export function TextField({
 
   return (
     <div className={cls}>
-      <label htmlFor={id} className="ds-field__label">
-        {label}
-        {required && <span className="ds-field__required" aria-hidden="true"> *</span>}
-      </label>
+      {label ? (
+        <label htmlFor={id} className="ds-field__label">
+          {label}
+          {required && <span className="ds-field__required" aria-hidden="true"> *</span>}
+        </label>
+      ) : null}
       {prefix || suffix ? (
         <div className="ds-field__input-group">
           {prefix && <span className="ds-field__affix">{prefix}</span>}

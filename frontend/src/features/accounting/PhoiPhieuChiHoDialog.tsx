@@ -10,6 +10,7 @@ import { qk } from '../../api/keys';
 import { useConfirm } from '../../components/UI';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
+import { NumberField } from '../../design-system';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
 import '../ops/ops-modal.css';
 import { OpsModalBackdrop } from '../ops/OpsModalBackdrop';
@@ -26,7 +27,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
     queryKey: qk.phoiPhieu.chiHo(tripId),
     queryFn: () => getPhoiPhieuChiHo(tripId),
   });
-  const [edits, setEdits] = useState<Record<number, { thu: string; tra: string }>>({});
+  const [edits, setEdits] = useState<Record<number, { thu: number | ''; tra: number | '' }>>({});
   const [linked, setLinked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -54,8 +55,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   const totals = useMemo(() => {
     const live = (row: PhoiPhieuFeeRow, key: 'thu' | 'tra') => {
       const edit = edits[row.entryId];
-      const value = edit ? Number(edit[key] ?? 0) : row[key === 'thu' ? 'amountThu' : 'amountTra'] ?? 0;
-      return Number.isFinite(value) ? value : 0;
+      const value = edit ? edit[key] : row[key === 'thu' ? 'amountThu' : 'amountTra'] ?? 0;
+      return value === '' ? 0 : value;
     };
     return {
       thu: rows.reduce((sum, row) => sum + live(row, 'thu'), 0),
@@ -63,9 +64,9 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
     };
   }, [rows, edits]);
 
-  function setEdit(row: PhoiPhieuFeeRow, key: 'thu' | 'tra', value: string) {
+  function setEdit(row: PhoiPhieuFeeRow, key: 'thu' | 'tra', value: number | '') {
     setEdits((current) => {
-      const target = { ...(current[row.entryId] ?? { thu: String(row.amountThu ?? ''), tra: String(row.amountTra ?? '') }) };
+      const target = { ...(current[row.entryId] ?? { thu: row.amountThu ?? '', tra: row.amountTra ?? '' }) };
       target[key] = value;
       if (linked) target[key === 'thu' ? 'tra' : 'thu'] = value;
       return { ...current, [row.entryId]: target };
@@ -79,9 +80,9 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
       for (const row of rows) {
         const edit = edits[row.entryId];
         if (!edit) continue;
-        const thu = edit.thu === '' ? null : Number(edit.thu);
-        const tra = edit.tra === '' ? null : Number(edit.tra);
-        if (Number(edit.thu ?? NaN) === Number(row.amountThu ?? NaN) && Number(edit.tra ?? NaN) === Number(row.amountTra ?? NaN)) continue;
+        const thu = edit.thu === '' ? null : edit.thu;
+        const tra = edit.tra === '' ? null : edit.tra;
+        if (thu === (row.amountThu ?? null) && tra === (row.amountTra ?? null)) continue;
         const payload = {
           expectedVersion: row.version, reason: 'Kế toán sửa số tiền trong xem chi tiết chi hộ',
           ...(Number.isFinite(thu ?? NaN) ? { customerChargeAmount: thu! } : {}),
@@ -154,8 +155,8 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
                       <td>{index + 1}</td>
                       <td>{row.feeName ?? '—'}</td>
                       <td>{row.invoiceNumber ?? '—'}</td>
-                      <td><input aria-label={`Số tiền thu dòng ${index + 1}`} value={edits[row.entryId]?.thu ?? String(row.amountThu ?? '')} onChange={(e) => setEdit(row, 'thu', e.target.value)} inputMode="numeric" /></td>
-                      <td><input aria-label={`Số tiền trả dòng ${index + 1}`} value={edits[row.entryId]?.tra ?? String(row.amountTra ?? '')} onChange={(e) => setEdit(row, 'tra', e.target.value)} inputMode="numeric" /></td>
+                      <td><NumberField aria-label={`Số tiền thu dòng ${index + 1}`} grouped value={edits[row.entryId]?.thu ?? row.amountThu ?? ''} onChange={(n) => setEdit(row, 'thu', n)} /></td>
+                      <td><NumberField aria-label={`Số tiền trả dòng ${index + 1}`} grouped value={edits[row.entryId]?.tra ?? row.amountTra ?? ''} onChange={(n) => setEdit(row, 'tra', n)} /></td>
                       <td>{row.payerName ?? '—'}</td>
                       <td><button type="button" className="btn btn--secondary btn--sm" disabled={saving || row.confirmed} title={row.confirmed ? 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa' : undefined} onClick={() => void removeRow(row)}>Xóa</button></td>
                     </tr>

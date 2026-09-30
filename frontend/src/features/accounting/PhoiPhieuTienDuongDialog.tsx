@@ -6,6 +6,7 @@ import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { formatCurrency } from '../../lib/format';
 import { DRIVER_INCIDENTAL_COST_LABELS } from '@tingting/shared';
+import { NumberField } from '../../design-system';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
 import '../ops/ops-modal.css';
 import { OpsModalBackdrop } from '../ops/OpsModalBackdrop';
@@ -32,7 +33,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
     queryFn: () => getPhoiPhieuTienDuong(tripId),
   });
   const [confirming, setConfirming] = useState<number | null>(null);
-  const [edits, setEdits] = useState<Record<number, string>>({});
+  const [edits, setEdits] = useState<Record<number, number | ''>>({});
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
@@ -49,8 +50,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   const totals = useMemo(() => {
     const live = (row: (typeof rows)[number]) => {
       const edit = edits[row.sourceId];
-      const value = edit === undefined ? row.amount : Number(edit);
-      return Number.isFinite(value) ? value : 0;
+      return edit === undefined ? row.amount : edit === '' ? 0 : edit;
     };
     return {
       total: rows.reduce((sum, row) => sum + live(row), 0),
@@ -84,7 +84,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
     }
   }
 
-  function setAmount(sourceId: number, value: string) {
+  function setAmount(sourceId: number, value: number | '') {
     setEdits((current) => ({ ...current, [sourceId]: value }));
   }
 
@@ -97,8 +97,8 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
     try {
       for (const row of rows) {
         const edit = edits[row.sourceId];
-        if (edit === undefined || Number(edit) === Number(row.amount)) continue;
-        const body = { expectedVersion: row.version, reason: EDIT_REASON, amount: Number(edit) };
+        if (edit === undefined || edit === row.amount) continue;
+        const body = { expectedVersion: row.version, reason: EDIT_REASON, amount: edit === '' ? 0 : edit };
         // `ExpenseSourceRef` carries the version too (shared/expense-accounting.ts
         // expenseSourceRefSchema) — the same row version the body states, exactly
         // as the house `sourceRef(entry)` helper builds it for other screens.
@@ -158,12 +158,12 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
                     <td>{row.driverName ?? '—'}</td>
                     <td>{formatCurrency(row.driverEnteredAmount ?? row.amount)}</td>
                     <td>
-                      <input
+                      <NumberField
                         aria-label={`Thực chi dòng ${index + 1}`}
-                        inputMode="numeric"
-                        value={edits[row.sourceId] ?? String(row.amount)}
+                        grouped
+                        value={edits[row.sourceId] ?? row.amount}
                         disabled={saving}
-                        onChange={(event) => setAmount(row.sourceId, event.target.value)}
+                        onChange={(n) => setAmount(row.sourceId, n)}
                       />
                     </td>
                     <td>
