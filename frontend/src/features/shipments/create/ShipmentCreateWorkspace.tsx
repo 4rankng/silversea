@@ -510,7 +510,7 @@ export function ShipmentCreateWorkspace() {
             />
           )}
 
-          <ShipmentCreateSection id="cargo" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng nguyên container hoặc hàng lẻ.">
+          <ShipmentCreateSection id="cargo" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng FCL hoặc hàng lẻ.">
             <div className="csc-cargo-choice-grid">
               <fieldset className="csc-mode" aria-required="true">
                 <legend>Loại hàng <span aria-hidden="true">*</span></legend>
@@ -525,7 +525,7 @@ export function ShipmentCreateWorkspace() {
                         onChange={() => changeMode(mode)}
                         disabled={Boolean(saving)}
                       />
-                      <span className="csc-mode__option">{mode === 'FCL' ? 'Hàng nguyên container (Cont)' : 'Hàng lẻ'}</span>
+                      <span className="csc-mode__option">{mode === 'FCL' ? 'Hàng FCL' : 'Hàng lẻ'}</span>
                     </label>
                   ))}
                 </div>

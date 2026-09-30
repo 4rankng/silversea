@@ -619,7 +619,7 @@ async function assertIntakeReady(
     return;
   }
 
-  if (containers.length === 0) throw new ApiError(409, 'Hàng nguyên container cần ít nhất một container.');
+  if (containers.length === 0) throw new ApiError(409, 'Hàng FCL cần ít nhất một container.');
   const incomplete = containers.find((container) => (
     container.containerTypeId == null
     || container.operationalSiteId == null

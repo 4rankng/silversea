@@ -230,7 +230,7 @@ export async function ensureShipmentFulfillmentsInTx(
     .where(eq(s.shipmentContainers.shipmentId, shipment.id))
     .orderBy(asc(s.shipmentContainers.id));
   if (shipment.cargoMode === CARGO_MODE.FCL && containers.length === 0) {
-    throw new ApiError(409, 'Lô hàng nguyên container phải có ít nhất một container.');
+    throw new ApiError(409, 'Lô hàng FCL phải có ít nhất một container.');
   }
   if (shipment.cargoMode === CARGO_MODE.LCL && containers.length > 0) {
     throw new ApiError(409, 'Lô hàng lẻ không được tạo container giả.');
@@ -332,7 +332,7 @@ export async function createFulfillmentForAddedContainer(
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
   if (shipment.cargoMode !== CARGO_MODE.FCL) {
-    throw new ApiError(409, 'Chỉ lô hàng nguyên container mới thêm được dòng container.');
+    throw new ApiError(409, 'Chỉ lô hàng FCL mới thêm được dòng container.');
   }
   const [container] = await tx.select().from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.id, containerId))
