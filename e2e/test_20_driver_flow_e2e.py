@@ -167,7 +167,12 @@ def create_driver_flow_fixture(ctx: SilverseaTestContext, results: TestResults):
                 # weight, and a silently unpriced dispatch is what the ruling
                 # forbids. The fixture carries one so TC-2023 exercises the
                 # assignment flow, not the deliberate missing-weight stop.
-                "cargoWeightKg": 18500,
+                # 17,500 kg also fits BOTH trailer types (20FT caps at 18,000,
+                # 40FT at 30,000 per TRAILER_CAPACITY_KG), so the deterministic
+                # id-ASC catalog order (card 20260930_242) can surface either
+                # type first without the assignment 409ing on capacity — the
+                # old 18,500 only fit the 40FT pick heap order happened to give.
+                "cargoWeightKg": 17500,
                 "routeId": routes[0]["id"],
                 "pickupPortId": ports[0]["id"],
                 "dropoffPortId": ports[-1]["id"],

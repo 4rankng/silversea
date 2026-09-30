@@ -545,7 +545,11 @@ export async function listUsers(requesterRole?: string, params: ListUsersParams 
           : undefined;
 
   const rowsQuery = selectUserWithDriver(db, where);
-  const items = await (orderBy ? rowsQuery.orderBy(...orderBy) : rowsQuery)
+  // Default id ASC when the caller passes no sortBy (card 20260930_242): the
+  // users list was heap order, so page 1 membership was nondeterministic on a
+  // database carrying many test-fixture rows — the e2e harness had to filter
+  // by role to find the demo accounts reliably.
+  const items = await (orderBy ? rowsQuery.orderBy(...orderBy) : rowsQuery.orderBy(asc(users.id)))
     .limit(limit)
     .offset((page - 1) * limit);
 

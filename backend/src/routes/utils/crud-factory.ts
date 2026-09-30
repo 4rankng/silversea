@@ -309,6 +309,13 @@ export function createCrudRouter<
       itemsQuery = itemsQuery.orderBy(...sortOverride);
     } else if (orderByField) {
       itemsQuery = itemsQuery.orderBy(asc(column(table, orderByField)));
+    } else {
+      // Factory default: deterministic id ASC for every mount that does not
+      // name a business order (card 20260930_242). Without this the page is
+      // heap order — nondeterministic page 1 across restarts/reloads — which
+      // is how the fleet catalogs and e2e walks kept flapping. Mounts with a
+      // chronology keep their explicit orderByField above.
+      itemsQuery = itemsQuery.orderBy(asc(column(table, 'id')));
     }
     const items = await itemsQuery.limit(limit).offset(offset);
 
