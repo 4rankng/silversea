@@ -2146,15 +2146,8 @@
   font-weight: 400;
 }
 
-/* Fixed backdrop to catch outside clicks and close popover cleanly */
-.cus-appointment-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-popover) - 1);
-  background: transparent;
-}
-
-/* In-app Bounded Appointment Popover */
+/* In-app Bounded Appointment Popover — dismissal rides the house popover
+ * idiom's useClickOutside (card 20261001_251); no private backdrop. */
 .cus-appointment-popover {
   position: absolute;
   top: calc(100% + 4px);

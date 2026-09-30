@@ -429,9 +429,10 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    const backdrop = container.querySelector('.cus-appointment-backdrop') as HTMLElement;
-    expect(backdrop).toBeDefined();
-    fireEvent.pointerDown(backdrop);
+    // House popover idiom (card 20261001_251): no private backdrop — the
+    // shared useClickOutside layer owns outside-press dismissal.
+    expect(container.querySelector('.cus-appointment-backdrop')).toBeNull();
+    fireEvent.pointerDown(document.body);
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 

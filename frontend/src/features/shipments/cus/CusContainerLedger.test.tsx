@@ -141,9 +141,8 @@ describe('ContainerLedger confirm affordances', () => {
     // No inline Save/Cancel inside the popover itself
     expect(document.querySelector('.cus-appointment-popover .cus-container-confirm')).toBeNull();
 
-    // Close via backdrop
-    const backdrop = document.querySelector('.cus-appointment-backdrop')!;
-    fireEvent.click(backdrop);
+    // Close via the house outside-press layer (no private backdrop — card 20261001_251)
+    fireEvent.pointerDown(document.body);
     expect(document.querySelector('.cus-appointment-popover')).toBeNull();
   });
 
@@ -237,8 +236,8 @@ describe('ContainerLedger confirm affordances', () => {
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
     setAppointment('09:00', '11/09/2026');
 
-    // Close popover
-    fireEvent.click(document.querySelector('.cus-appointment-backdrop')!);
+    // Close popover via the house outside-press layer
+    fireEvent.pointerDown(document.body);
 
     // Also change plate
     fireEvent.change(screen.getByLabelText(/Biển số xe/), { target: { value: '15C-999.99' } });
