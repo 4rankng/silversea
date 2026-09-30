@@ -64,6 +64,7 @@ vi.mock('../../components/UI', async () => {
 });
 
 import ClerkShipmentCreatePage from './ClerkShipmentCreatePage';
+import { configure } from '@testing-library/react';
 
 const longCustomerName = 'Công ty Cổ phần Vận tải và Logistics Biển Bắc';
 
@@ -125,7 +126,16 @@ async function choose(label: string, value: string) {
 // 2026-09-22 (FE item-6 audit, LEAD ruling): rotating ~5s-timeout flake at
 // fresh checkouts under machine load — 45 tests × heavy workspace imports.
 // Per-file timeout budget, NOT a suite-lightening: assertions unchanged.
-describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
+// Card 20260930_237: async queries (findBy*) ride the 1s Testing Library
+// default, which loses races across this file's combobox interaction chains
+// under ambient box load. Per-file async budget, same query contracts.
+configure({ asyncUtilTimeout: 15000 });
+
+// Card 20260930_237: the rotating-flake family re-measured — members cost
+// 5.0-9.3s solo (SEARCH-09 cases) and trip the 15s budget under ambient box
+// load. Budget raised to 30s, still per-file; the three heaviest chains
+// carry their own 60s contracts below.
+describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   beforeEach(() => {
     Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: vi.fn().mockImplementation(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })) });
     Object.values(mocks).forEach((mock) => mock.mockReset());
@@ -189,10 +199,13 @@ describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    expect(screen.getByText('Hàng nguyên container (Cont)')).toBeTruthy();
-    expect(screen.getByText('Hàng lẻ')).toBeTruthy();
-    // No customer-facing FCL/LCL jargon anywhere on the create form.
-    expect(screen.queryByText(/FCL|LCL/)).toBeNull();
+    // Card 20260930_237 async budget + card 20260930_241 rider (be86e189,
+    // user directive): the Loại hàng control reads 'Hàng FCL' — the lengthy
+    // 'Hàng nguyên container (Cont)' copy is retired, so the old no-FCL-jargon
+    // assertion is superseded by the approved short copy below. Wire values
+    // stay FCL/LCL (asserted via the payload below).
+    expect(await screen.findByText('Hàng FCL')).toBeTruthy();
+    expect(await screen.findByText('Hàng lẻ')).toBeTruthy();
 
     await choose('Khách hàng', '7');
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
@@ -506,7 +519,10 @@ describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
     await choose('Khách hàng', '7');
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ customerId: 7, cargoMode: 'FCL' }), expect.any(String)));
-    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+    // Card 20260930_237: the post-create shipment-list render rides the 1s
+    // default findBy budget and lost that race under parallel load; explicit
+    // 15s polling budget, same element contract.
+    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
   });
 
   it('VID-CUS-04: creates the initial declaration atomically without a second declaration write', async () => {
@@ -517,7 +533,10 @@ describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-ATOMIC' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ declarationNumber: 'TK-ATOMIC' }), expect.any(String)));
-    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+    // Card 20260930_237: the post-create shipment-list render rides the
+    // 1s default findBy budget and lost that race once under four-file
+    // parallel load; explicit 15s polling budget, same element contract.
+    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
     expect(mocks.createDeclaration).not.toHaveBeenCalled();
     expect(mocks.updateDeclaration).not.toHaveBeenCalled();
   });
@@ -590,7 +609,11 @@ describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
     expect(mocks.saveContainers).not.toHaveBeenCalled();
   });
 
-  it('TC-CUS-FACTORY-SEARCH-05 clears each previous factory and its derived route when customer changes', async () => {
+  // Card 20260930_237: the customer-change → factory/route clear-down chain
+  // measured 18.0s in a full run, and this file's heavy combobox family
+  // reaches 25.0s solo (VID replace=true). Explicit 60s contract (~2.4x
+  // the solo peak, the house drawer-deadline ratio).
+  it('TC-CUS-FACTORY-SEARCH-05 clears each previous factory and its derived route when customer changes', { timeout: 60000 }, async () => {
     mocks.bootstrap.mockResolvedValue({
       ...bootstrap,
       customers: [...bootstrap.customers, { id: 8, name: 'Khách hàng khác' }],
@@ -978,7 +1001,10 @@ describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
     expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toBeInvalid();
   });
 
-  it('persists an FCL appointment as the shipment dispatch-date authority', async () => {
+  // Card 20260930_237: the FCL appointment persistence chain measured
+  // 15.8s in a full run; explicit 60s contract per the file's heavy
+  // interaction family (solo peak in that family: 25.0s).
+  it('persists an FCL appointment as the shipment dispatch-date authority', { timeout: 60000 }, async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
@@ -1000,10 +1026,16 @@ describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
     ));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ tradeDirection: 'IMPORT' });
     expect(mocks.quickCreate.mock.calls[0][0].expectedDeliveryDate).toBeUndefined();
-    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+    // Card 20260930_237: the post-create shipment-list render rides the 1s
+    // default findBy budget and lost that race under parallel load; explicit
+    // 15s polling budget, same element contract.
+    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
   });
 
-  it.each([false, true])('VID-CUS-SELECT-02 saves cleared or replacement IDs without stale selections (replace=%s)', async (replace) => {
+  // Card 20260930_237: replace=true measures 21.0-25.0s SOLO and both
+  // cases hit 15.4-18.2s in full runs — a 30s contract already missed once
+  // under ambient box load. Explicit 60s contract (~2.4x the solo peak).
+  it.each([false, true])('VID-CUS-SELECT-02 saves cleared or replacement IDs without stale selections (replace=%s)', { timeout: 60000 }, async (replace) => {
     mocks.bootstrap.mockResolvedValue({ ...bootstrap, routes: [...bootstrap.routes, { id: 12, name: 'Tuyến thay thế' }], ports: [...bootstrap.ports, { id: 23, name: 'Cảng nâng thay thế' }, { id: 24, name: 'Cảng hạ thay thế' }] });
     mocks.sites.mockResolvedValue([...sites, { ...sites[0], id: 43, name: 'Nhà máy thay thế', routeId: null }]);
     renderPage();
@@ -1035,7 +1067,10 @@ describe('ClerkShipmentCreatePage', { timeout: 15_000 }, () => {
       : { operationalSiteId: null, routeId: null, pickupPortId: null, dropoffPortId: null };
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ containers: [expect.objectContaining(expected)] }), expect.any(String)));
     expect(mocks.saveContainers).not.toHaveBeenCalled();
-    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+    // Card 20260930_237: the post-create shipment-list render rides the 1s
+    // default findBy budget and lost that race under parallel load; explicit
+    // 15s polling budget, same element contract.
+    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
   });
 
   it('opens a confirmation before discarding entered data and creates nothing', async () => {

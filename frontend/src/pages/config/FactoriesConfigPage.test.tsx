@@ -135,7 +135,11 @@ describe('FactoriesConfigPage', () => {
     expect(screen.getByText('Kho B')).toBeInTheDocument();
   });
 
-  it('creates a site from the toolbar button through the customer-picker dialog', async () => {
+  // Card 20260930_237: the customer-picker dialog chain (toolbar button →
+  // dialog → combobox → submit) flakes at 5.1-6.9s in full runs on a loaded
+  // box — deterministically over the 5s default while scoped it passes in
+  // ~1.2s. Explicit 15s contract, the house drawer-interaction deadline.
+  it('creates a site from the toolbar button through the customer-picker dialog', { timeout: 15000 }, async () => {
     renderPage();
     // The button stays disabled until the customer catalog resolves — the
     // picker cannot work without it.

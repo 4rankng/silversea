@@ -162,7 +162,10 @@ describe('DebtDetailPage payment flow', () => {
     apiGetMock.mockResolvedValue([]);
   });
 
-  it('submits amount-only with a stable retry key, does not cap overpayment, and shows allocated/unapplied copy', async () => {
+  // Card 20260930_237: the amount-only submit + retry-key + overpayment-copy
+  // chain measured 5.3s at the full-run flake point; explicit 15s contract
+  // matching the house drawer-interaction deadline.
+  it('submits amount-only with a stable retry key, does not cap overpayment, and shows allocated/unapplied copy', { timeout: 15000 }, async () => {
     apiPostMock
       .mockRejectedValueOnce(new Error('Mạng chập chờn, vui lòng thử lại.'))
       .mockResolvedValueOnce({
