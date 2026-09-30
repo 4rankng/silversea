@@ -201,9 +201,12 @@
 .customers-muted { color: var(--ink-3); }
 
 /* Card 20260929_207 — the row is the selection control (PM decision: row click
-   picks, the customer NAME opens the record). The picked row is marked by a
-   background and a border on its first cell, never a shadow: the flat-sheet
-   law forbids one on this surface. */
+   picks, the customer NAME opens the record). The picked row wears the
+   sanctioned NEUTRAL INK selection treatment from `record-table.css`: a neutral
+   surface plus a 3px inset ink edge — never an accent fill, never a
+   brand-tinted rule. This grid paints its own zebra on the CELLS, so the
+   neutral surface rides them too and the ink edge is painted on the first cell
+   (a `tr` inset edge would sit under those cell backgrounds and vanish). */
 .customers-selection-bar {
   display: flex;
   gap: 10px;
@@ -213,8 +216,9 @@
 .customers-selection-bar__hint { color: var(--ink-3); font-size: var(--text-caption-size, 12px); }
 .record-table tbody tr.customers-row { cursor: pointer; }
 .record-table tbody tr.customers-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.record-table tbody tr.customers-row[data-selected] { background: var(--accent-soft); }
-.record-table tbody tr.customers-row[data-selected] > td:first-child { border-left: 3px solid var(--accent); }
+.record-table tbody tr.customers-row[data-selected],
+.record-table tbody tr.customers-row[data-selected] td { background: var(--surface); }
+.record-table tbody tr.customers-row[data-selected] > td:first-child { box-shadow: inset 3px 0 0 var(--ink); }
 .customers-name-open {
   display: block;
   max-width: 100%;

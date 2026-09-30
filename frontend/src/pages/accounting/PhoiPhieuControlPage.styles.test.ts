@@ -93,11 +93,16 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => 
     expect(shares.get('xe')!).toBeGreaterThanOrEqual(shares.get('ghichu')! * 1.4);
   });
 
-  // Card 20260929_207: the picked row is drawn WITHOUT a shadow — the flat
-  // sheet law forbids one, and the ratchet below reads any shadow in this
-  // file as a violation. The left rule is a border on the row's first cell.
-  it('the selected row is marked by a border, never a shadow (design law §3)', () => {
-    expect(css).toMatch(/tr\[data-selected="true"\][^{]*td:first-child\s*\{[^}]*border-left:\s*3px solid var\(--accent\)/);
+  // Card 20260929_207 + the selection-state contract: the picked row is drawn in
+  // NEUTRAL INK structure — a neutral surface plus the sanctioned 3px inset ink
+  // edge. The accent `border-left` this test used to pin is the superseded
+  // recipe; the sanctioned edge is a painted 1D rule, not depth, so it does
+  // not break the flat-sheet ratchet below.
+  it('the selected row is marked in neutral ink, never with an accent (design law §3)', () => {
+    const selected = css.match(/tr\[data-selected="true"\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(selected).toContain('background: var(--surface)');
+    expect(selected).toContain('box-shadow: inset 3px 0 0 var(--ink)');
+    expect(css).not.toMatch(/border-left:\s*[2-6]px solid/);
   });
 
   it('chi hộ affordance is an icon-only button with a ≥24px hit area (09-18 icon-action ruling, §5)', () => {
@@ -180,7 +185,20 @@ describe('phôi phiếu filter strip contract (card 20260927_152)', () => {
     expect(bar).toContain('{voucherLabel}');
   });
 
-  it('flat sheet — no shadow, gradient, or 3D anywhere (design law §3)', () => {
-    expect(css).not.toMatch(/box-shadow|gradient|perspective|rotate3d/);
+  // The flat-sheet law is about DEPTH: elevation, gradients and 3D. The
+  // selection edge sanctioned by the selection-state contract
+  // (`box-shadow: inset 3px 0 0 var(--ink)`) is a painted 1D rule, not a drop
+  // shadow, so it is subtracted before the sweep; comments go with it, so a
+  // note that merely NAMES the property no longer fails the board.
+  it('flat sheet — no drop shadow, gradient, or 3D anywhere (design law §3)', () => {
+    const declared = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(
+      declared.replace(/box-shadow:\s*inset 3px 0 0 var\(--ink\)/g, ''),
+    ).not.toMatch(/box-shadow|gradient|perspective|rotate3d/);
+    // Any shadow this sheet DOES carry is that one sanctioned ink edge — a
+    // second declaration in another form fails here even if it is ring-shaped.
+    expect(declared.match(/box-shadow/g)?.length ?? 0).toBe(
+      declared.match(/box-shadow:\s*inset 3px 0 0 var\(--ink\)/g)?.length ?? 0,
+    );
   });
 });

@@ -27,8 +27,13 @@ describe('debug multi bucket', () => {
     await screen.findByRole('button', { name: 'Chọn kế hoạch…' });
     fireEvent.click(screen.getByRole('button', { name: 'Chọn kế hoạch…' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Mới tạo' }));
-    await waitFor(() => expect(String(apiGet.mock.lastCall?.[0])).toContain('bucket=NEW'));
-    console.log('CALLS_AFTER_1:', apiGet.mock.calls.map((c) => c[0]).join(' || '));
+    // The call trace was printed with `console.log`, which `no-console` rejects
+    // (only error/warn are allowed). It rides in the assertion's message
+    // instead: same condition, and a failure still dumps every request.
+    await waitFor(() => expect(
+      String(apiGet.mock.lastCall?.[0]),
+      `CALLS_AFTER_1: ${apiGet.mock.calls.map((call) => String(call[0])).join(' || ')}`,
+    ).toContain('bucket=NEW'));
     fireEvent.click(await screen.findByRole('option', { name: 'Đã khóa' }));
     await new Promise((r) => setTimeout(r, 800));
     const search = document.querySelector('[data-testid="url-probe"]')?.getAttribute('data-search') ?? 'NO PROBE';

@@ -57,21 +57,18 @@
    those paint over the next column, which is worse than a hyphen break inside
    the cell (measured 2026-09-29). Law §4's no-EXPAND fallback applies. */
 
-/* Selection: a row IS the control now. The picked row carries the accent at
-   the row's own surface, a left rule so the state reads at a glance in a wide
-   board, and a visible focus ring for the keyboard path. A row that cannot be
-   issued is dimmed and never looks pickable. */
+/* Selection: a row IS the control now. The picked row wears the sanctioned
+   NEUTRAL INK selection treatment from `record-table.css` — a neutral surface
+   plus a 3px inset ink edge, so the state reads at a glance in a wide board
+   without impersonating a brand state — and a visible focus ring covers the
+   keyboard path. A row that cannot be issued is dimmed and never looks
+   pickable. The inset edge is a painted 1D rule, not depth, so this sheet's
+   flat-sheet ratchet still holds: no drop shadow, no gradient, no 3D. */
 .ppc-board tbody tr.ppc-row--pickable { cursor: pointer; }
 .ppc-board tbody tr.ppc-row--pickable:hover { background: var(--surface-2, var(--surface)); }
 .ppc-board tbody tr[data-selected="true"] {
-  background: var(--accent-soft, rgba(16, 122, 74, 0.08));
-}
-/* The left rule is a BORDER on the row's first cell, not a drop shadow: the
-   flat-sheet law (§3) forbids shadows on this surface, and the ratchet test
-   greps this whole file — comments included — for the shadow property, so
-   even naming it here would fail the board. */
-.ppc-board tbody tr[data-selected="true"] > td:first-child {
-  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 .ppc-board tbody tr.ppc-row--pickable:focus-visible {
   outline: 2px solid var(--accent);

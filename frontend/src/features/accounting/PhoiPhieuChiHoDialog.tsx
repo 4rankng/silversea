@@ -47,7 +47,10 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
   // because the panel only exists after `catalog.data` arrives.
   const addPanelOpen = adding && Boolean(catalog.data);
 
-  const rows = detail.data?.rows ?? [];
+  // Memoized so the `totals` memo below keeps a stable `rows` identity: the
+  // `?? []` fallback would otherwise hand it a new array every render and
+  // recompute the footer figures on every keystroke.
+  const rows = useMemo(() => detail.data?.rows ?? [], [detail.data]);
   const totals = useMemo(() => {
     const live = (row: PhoiPhieuFeeRow, key: 'thu' | 'tra') => {
       const edit = edits[row.entryId];

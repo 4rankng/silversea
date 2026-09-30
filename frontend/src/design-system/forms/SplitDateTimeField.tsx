@@ -81,7 +81,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
     : (draft.time || draft.date) ? 'incomplete' : 'empty';
   useEffect(() => {
     onCompletenessChange?.(completeness);
-  }, [completeness]);
+  }, [completeness, onCompletenessChange]);
   const validation = incomplete ? 'Nhập đủ giờ và ngày hợp lệ.'
     : required && !parsed ? 'Vui lòng nhập ngày và giờ.'
     : parsed && min && parsed < min.slice(0, 16) ? `Chọn từ ${formatDateTime24(min)}.`

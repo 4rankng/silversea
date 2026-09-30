@@ -37,16 +37,13 @@
 .expense-register-open:focus-visible, .expense-register-money:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 
 /* Card 20260929_207 — the selection column is gone, so a row IS the control.
-   The picked row carries the accent at the row's own surface plus a left rule
-   so the state reads at a glance, and a visible focus ring keeps the keyboard
-   path. A row that cannot join a batch is dimmed and inert rather than
-   looking pickable. */
+   The picked row wears the sanctioned NEUTRAL INK selection treatment from
+   `record-table.css` — a neutral surface plus a 3px inset ink edge, never a
+   brand-tinted rule — and a visible focus ring keeps the keyboard path. A row
+   that cannot join a batch is dimmed and inert rather than looking pickable. */
 .expense-register-row--pickable { cursor: pointer; }
 .expense-register-row--pickable:hover { background: var(--bg-2); }
-.expense-register-table tbody tr[data-selected="true"] { background: var(--bg-2); }
-/* The left rule is a BORDER on the row's first cell, not a drop shadow: the
-   flat-sheet law (§3) forbids shadows on this surface. */
-.expense-register-table tbody tr[data-selected="true"] > td:first-child { border-inline-start: 3px solid var(--brand); }
+.expense-register-table tbody tr[data-selected="true"] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }
 .expense-register-row--pickable:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .expense-register-row--locked { color: var(--fg-3); cursor: default; }
 .expense-accounting-facts, .expense-accounting-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 0; }

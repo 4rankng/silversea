@@ -39,7 +39,10 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   const confirmLock = useRef(false);
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
 
-  const rows = detail.data?.rows ?? [];
+  // Memoized so the `totals` memo below keeps a stable `rows` identity: the
+  // `?? []` fallback would otherwise hand it a new array every render and
+  // recompute the footer figures on every keystroke.
+  const rows = useMemo(() => detail.data?.rows ?? [], [detail.data]);
   // Card 20260928_171: the dialog now edits amounts, so both footer figures are
   // computed from the live rows+edits — the same "live" recompute the chi hộ
   // dialog uses, so a typed amount is what the accountant sees before saving.

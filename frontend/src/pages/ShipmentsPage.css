@@ -43,6 +43,27 @@
   line-height: 1.2;
 }
 
+/* The app-shell topbar prints the current page title on phones
+   (`styles/responsive.css` ≤640px band, `.topbar__context`), so a visible
+   title here is the same words twice within a few lines — the "title printed
+   twice" report on /shipments. The topbar copy is the visual surface at that
+   width; this heading stays in the a11y tree (same treatment
+   `PageHeader.css` gives `.page-header__title-visible`), and above 640px it
+   is the page's own title again. */
+@media (max-width: 640px) {
+  .shipments-control__title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
 /* The segmented tabs take the middle of the baseline; the actions cluster is
    pinned right. The tabs can shrink (labels truncate) but never push the
    actions off the row. */

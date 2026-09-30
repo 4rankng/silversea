@@ -71,7 +71,7 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       // alert alone disappears with the dialog; the toast survives it.
       toast({ kind: 'error', message });
     } finally { setSaving(false); }
-  }, [apiPath, handleMutationSuccess, refreshAll]);
+  }, [apiPath, handleMutationSuccess, refreshAll, toast]);
 
   // KP-135: Each mutation carries the caller-bound version token from the
   // snapshot the user loaded, not the ApiClient's generic updatedAtByPath
@@ -88,7 +88,7 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       setError(message);
       toast({ kind: 'error', message });
     } finally { setSaving(false); }
-  }, [apiPath, handleMutationSuccess, refreshAll]);
+  }, [apiPath, handleMutationSuccess, refreshAll, toast]);
 
   const doDelete = useCallback(async (id: number, expectedUpdatedAt?: string) => {
     setDeleting(id);
@@ -101,7 +101,7 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       setError(message);
       toast({ kind: 'error', message });
     } finally { setDeleting(null); }
-  }, [apiPath, handleMutationSuccess, refreshAll]);
+  }, [apiPath, handleMutationSuccess, refreshAll, toast]);
 
   const cancelForm = useCallback(() => { setShowAddForm(false); setEditingId(null); }, []);
 

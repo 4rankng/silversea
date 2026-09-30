@@ -86,6 +86,36 @@ describe('selection-state contract', () => {
     expect(css).toContain('content: attr(data-label);');
   });
 
+  // Card 20260929_207, completed 2026-09-30: the four remaining `data-selected`
+  // row surfaces dropped their accent left border / accent fill for the shared
+  // record-table recipe — a neutral surface plus the 3px inset ink edge. They
+  // are pinned HERE, the contract's home, so a later page cannot re-tint a
+  // selection edge into a brand colour, whichever property it reaches for.
+  it('pins the data-selected row surfaces that carry the shared neutral-ink edge', () => {
+    const surfaces = [
+      ['src/pages/AccountingWorkspacePage.css',
+        '.accounting-register__table tbody tr[data-selected] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }'],
+      ['src/pages/accounting/PhoiPhieuControlPage.css',
+        '.ppc-board tbody tr[data-selected="true"] {\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);\n}'],
+      ['src/features/expense-accounting/ExpenseAccounting.css',
+        '.expense-register-table tbody tr[data-selected="true"] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }'],
+      // The customers grid paints its zebra on the CELLS, so its neutral
+      // surface rides them and the ink edge is painted on the first cell — an
+      // edge on the `<tr>` would sit under those cell backgrounds and vanish.
+      ['src/pages/CustomersPage.css',
+        '.record-table tbody tr.customers-row[data-selected],\n.record-table tbody tr.customers-row[data-selected] td { background: var(--surface); }\n.record-table tbody tr.customers-row[data-selected] > td:first-child { box-shadow: inset 3px 0 0 var(--ink); }'],
+    ] as const;
+    for (const [sheet, rule] of surfaces) {
+      const css = read(sheet);
+      expect(css, sheet).toContain(rule);
+      // The banned full-height coloured left border stays gone from these
+      // sheets. The tint ban lives in the exact rule pinned above — a
+      // page-owned callout rail (`.expense-accounting-notice`) is not a
+      // selection state and is not this contract's business.
+      expect(css, sheet).not.toMatch(/border-left:\s*[2-6]px solid/);
+    }
+  });
+
   it('keeps success and warning as forwarder workflow context when a row is selected', () => {
     const css = read('src/pages/ForwarderTripsPage.css');
 

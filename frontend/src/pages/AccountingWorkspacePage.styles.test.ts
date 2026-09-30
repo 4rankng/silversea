@@ -73,13 +73,18 @@ describe('accounting workspace list-screen contract', () => {
   });
 
   // Card 20260929_207: the checkbox column is gone; the row carries the state
-  // on `data-selected` / `aria-selected`, and the rule that draws it is a
-  // BORDER on the row's first cell — the flat-sheet law (§3) forbids a shadow
-  // on this surface.
-  it('marks the picked row structurally (data-selected), and draws it with a border, never a shadow', () => {
+  // on `data-selected` / `aria-selected`. The selection-state contract then
+  // decides how that state is DRAWN: neutral ink structure (a neutral surface
+  // plus a 3px inset ink edge), never a brand/semantic tint and never an
+  // accent-filled row — the accent `border-left` this test used to pin is the
+  // superseded recipe, so the pins below name the sanctioned one.
+  it('marks the picked row structurally (data-selected) and draws it in neutral ink, never an accent', () => {
     expect(registerTsx).toContain('data-selected={selected || undefined}');
     expect(registerTsx).toContain('aria-selected={pickable ? selected : undefined}');
-    expect(pageCss).toMatch(/tr\[data-selected\][^{]*> td:first-child\s*\{[^}]*border-left:\s*3px solid var\(--accent\)/);
-    expect(pageCss).not.toMatch(/tr\[data-selected\][^{]*\{[^}]*box-shadow/);
+    const selected = pageCss.match(/tr\[data-selected\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(selected).toContain('background: var(--surface)');
+    expect(selected).toContain('box-shadow: inset 3px 0 0 var(--ink)');
+    expect(pageCss).not.toMatch(/border-left:\s*[2-6]px solid/);
+    expect(pageCss).not.toMatch(/tr\[data-selected\][^{]*\{[^}]*(var\(--accent\)|var\(--brand\))/);
   });
 });

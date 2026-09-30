@@ -79,10 +79,11 @@
 .accounting-register__table tbody tr.accounting-register__row--pickable { cursor: pointer; }
 .accounting-register__table tbody tr.accounting-register__row--pickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .accounting-register__table tbody tr.accounting-register__row--locked { cursor: default; }
-.accounting-register__table tbody tr[data-selected] { background: var(--accent-soft); }
-/* The picked row is marked by a BORDER on its first cell, never a shadow —
-   the flat-sheet law forbids one on this surface. */
-.accounting-register__table tbody tr[data-selected] > td:first-child { border-left: 3px solid var(--accent); }
+/* Card 20260929_207 + the selection-state contract: the picked row wears the
+   sanctioned NEUTRAL INK treatment shared by `record-table.css` — a neutral
+   surface plus a 3px inset ink edge, never an accent fill, never a
+   brand-tinted rule. */
+.accounting-register__table tbody tr[data-selected] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }
 
 /* The board states its selection model once, above the table. */
 .accounting-register__hint { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); }
