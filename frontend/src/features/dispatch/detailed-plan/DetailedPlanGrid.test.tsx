@@ -488,8 +488,8 @@ describe('DetailedPlanGrid', () => {
     // header and its ribbon are deleted, so neither may come back through this
     // file — only the page's own title row survives.
     expect(filtersSource).toContain('detailed-plan-header');
-    expect(filtersSource).toContain('<ListFilterBar');
-    expect(filtersSource).toContain('<FilterDropdown');
+    expect(filtersSource).toContain('<FilterBar');
+    expect(filtersSource).toContain('fold={{');
     expect(filtersSource).not.toContain('detailed-plan-ribbon');
     expect(filtersSource).not.toContain('<Drawer');
     // …and the page declares no strip layout: no ribbon rules, no header row

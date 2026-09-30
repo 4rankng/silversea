@@ -1,10 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from 'lucide-react';
-import { DateRangeFields, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, Tabs, type DateRangeValue } from '../../../design-system';
+import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, Tabs, type DateRangeValue } from '../../../design-system';
 import type { TabItem } from '../../../design-system';
-import { FilterDropdown } from '../../../components/FilterDropdown';
-import { ListFilterBar } from '../../../components/ListFilterBar';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
 import { businessDateISO } from '../../../lib/format';
@@ -121,24 +119,25 @@ const DATE_SCOPE_TABS: TabItem[] = [
 ];
 
 /**
- * The filter plane of /dispatch-detail (card 20260927_152).
+ * The filter plane of /dispatch-detail — an option adapter over the `FilterBar`
+ * band (cards 20260927_152 / 20260930_229).
  *
- * The strip IS the shared `ListFilterBar`: its `search` slot carries the quick
- * search, the criteria every list shares (the ONE `DateRangeFields` from/to
- * group, the quick day scope, the `Bộ lọc` trigger) are its items, and the
- * page's own actions — Gán xe and Xóa lọc — ride its `actions`. Every criterion
- * that is NOT shared (Khách hàng, Hướng, Điều xe, Dữ liệu, Xe/Tài xế, giờ chạy,
- * khu vực, the three điểm facet pickers, đội xe/rơ-moóc/tuyến) lives in ONE
- * `FilterDropdown` — the panel the drawer used to hold, now its dialog body.
+ * The band's `search` slot carries the quick search, the criteria every list
+ * shares (the ONE `DateRangeFields` from/to group, the quick day scope) are its
+ * items, and the page's own actions — Gán xe and Xóa lọc — ride its `actions`.
+ * Every criterion that is NOT shared (Khách hàng, Hướng, Điều xe, Dữ liệu,
+ * Xe/Tài xế, giờ chạy, khu vực, the three điểm facet pickers, đội xe/rơ-moóc/
+ * tuyến) is handed to the band's `fold` slot, which owns the `Bộ lọc` trigger,
+ * the applied count and the reset — the panel the drawer used to hold, now the
+ * band's dialog body.
  *
- * `inlineWhenRoom` is off because this surface mints fifteen criteria plus three
+ * `neverInline` is set because this surface mints fifteen criteria plus three
  * searchable facet pickers: the set can never hold the bar's two-row budget at
- * any width, which is exactly the case `FilterDropdown` documents for
- * `inlineWhenRoom={false}` (the call the dispatch master plan makes too).
+ * any width.
  *
  * The page therefore declares NO filter layout of its own: one wrapping line,
  * the search the only grower, every other control as wide as the value it
- * holds, and the fold measured by `filter-bar-mode.ts`. Behaviour is frozen —
+ * holds, and the fold measured by the band's own engine. Behaviour is frozen —
  * same state and URL params, same Vietnamese labels and placeholders, same
  * accessible names, same reset semantics.
  */
@@ -265,7 +264,7 @@ export function DetailedPlanFilters({
         <h1 className="detailed-plan-header__title">Kế hoạch Chi tiết Xe</h1>
       </header>
 
-      <ListFilterBar
+      <FilterBar
         search={{
           value: filters.q,
           onChange: (value) => onChange({ q: value }),
@@ -292,23 +291,9 @@ export function DetailedPlanFilters({
             </UUIButton>
           </>
         )}
-      >
-        <DateRangeFields
-          id="detailed-plan-date-range"
-          ariaLabel="Khoảng ngày vận chuyển"
-          size="sm"
-          from={rangeValue.from}
-          to={rangeValue.to}
-          onChange={applyRange}
-        />
-        <FilterDropdown
-          count={secondaryCount}
-          ariaLabel="Bộ lọc"
-          dialogLabel="Bộ lọc kế hoạch"
-          onReset={clearSecondaryFilters}
-          inlineWhenRoom={false}
-        >
-          <div className="detailed-plan-filter-panel">
+        fold={{
+          criteria: (
+            <div className="detailed-plan-filter-panel">
             {/* The four quick facets live HERE, not on the bar (operator,
                 2026-09-27: "why don't we group them in bộ lọc"). Four stacked
                 dropdowns measured 176px of chrome above the list at 390px and
@@ -388,8 +373,23 @@ export function DetailedPlanFilters({
             </section>
             <FleetFilterFields filters={filters} routeOptions={routeOptions} onChange={onChange} />
           </div>
-        </FilterDropdown>
-      </ListFilterBar>
+          ),
+          count: secondaryCount,
+          ariaLabel: 'Bộ lọc',
+          dialogLabel: 'Bộ lọc kế hoạch',
+          onReset: clearSecondaryFilters,
+          neverInline: true,
+        }}
+      >
+        <DateRangeFields
+          id="detailed-plan-date-range"
+          ariaLabel="Khoảng ngày vận chuyển"
+          size="sm"
+          from={rangeValue.from}
+          to={rangeValue.to}
+          onChange={applyRange}
+        />
+      </FilterBar>
     </>
   );
 }
