@@ -153,6 +153,13 @@ describe('unit formatters (axis absorbed from the per-feature alias modules)', (
     expect(formatViMonth(input)).toBe(expected);
   });
 
+  it('caps fraction digits for non-money measures without rounding money', () => {
+    expect(formatNumber(94.85, { decimals: 1 })).toBe('94,9');
+    expect(formatNumber(94.84, { decimals: 1 })).toBe('94,8');
+    expect(formatNumber(1234.5678, { decimals: 4 })).toBe('1.234,5678');
+    expect(formatNumber(100, { decimals: 1 })).toBe('100');
+  });
+
   it('renders the house empty token for missing measures', () => {
     expect(formatLiters(null)).toBe('—');
     expect(formatKm(null)).toBe('—');
