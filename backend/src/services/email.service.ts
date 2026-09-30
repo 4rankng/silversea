@@ -12,9 +12,9 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { config } from '../config';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { getEmailSettings } from './email-settings.service';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';

@@ -5,7 +5,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { groupOpsExpensesForSettlement } from './ops-expenses.service';

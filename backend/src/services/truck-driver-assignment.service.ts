@@ -11,7 +11,7 @@
 import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
 
 import { db } from '../db';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';

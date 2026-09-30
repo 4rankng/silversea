@@ -2,7 +2,7 @@ import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { treasuryFundCodeSchema, type Role, type TreasuryFundCode, type TreasuryAccountFundInput } from '@tingting/shared';
 
 import { runInTx } from '../lib/tx';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Executor, Tx } from './trip-shared';

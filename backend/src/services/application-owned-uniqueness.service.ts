@@ -1,7 +1,7 @@
 
 
 import type { Executor } from './trip-shared';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
+import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 
 type LockPart = string | number | boolean | Date | null | undefined;
 

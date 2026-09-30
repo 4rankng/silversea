@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { acquireAdvisoryLock, lockKeys } from '../services/advisory-lock.service';
 import {
   createAdjustmentSchema,
@@ -25,7 +25,6 @@ import {
 } from '../services/forwarder.service';
 import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.service';
 import {
-  TRIP_FINANCIAL_AUTHORITY_LOCK_NAMESPACE,
 } from '../services/trip-financial-authority-lock.service';
 import { updateDocument } from '../services/billing-document.service';
 

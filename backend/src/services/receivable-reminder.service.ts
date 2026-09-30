@@ -22,7 +22,7 @@
  *               finance for manual handling
  */
 import { db } from '../db';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { and, asc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { NotificationType, FINANCIAL_ROLES, Role } from '@tingting/shared';

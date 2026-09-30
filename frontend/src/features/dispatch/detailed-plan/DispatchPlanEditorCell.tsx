@@ -12,7 +12,7 @@ import {
 import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
-import { DateTimeField, NumberField, SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
+import { DateTimeField, NumberField, SearchableSelect, type SearchableSelectOption } from '../../../design-system';
 import {
   CURRENT_PLATE_PREFIX,
   EXTERNAL_VEHICLE_PREFIX,

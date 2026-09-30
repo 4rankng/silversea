@@ -4,7 +4,7 @@
 
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { eq, and, isNull, ne, sql } from 'drizzle-orm';
 import { TripStatus, Role } from '@tingting/shared';
 import { LedgerService } from './ledger.service';

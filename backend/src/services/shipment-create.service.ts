@@ -3,7 +3,7 @@
 // validators and input types live in shipment-lifecycle-shared.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { eq, sql } from 'drizzle-orm';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import type { AuthUser } from '../middleware/auth';

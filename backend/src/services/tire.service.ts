@@ -1,7 +1,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
-import { eq, and, isNull, ne, sql } from 'drizzle-orm';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
+import { and, eq, isNull, ne } from 'drizzle-orm';
 import { TIRE_STATUS_LABELS, type TireStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
 import {

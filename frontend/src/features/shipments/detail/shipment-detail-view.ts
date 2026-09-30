@@ -8,7 +8,6 @@ import type {
   ShipmentDetail as ShipmentDetailData,
   ShipmentCarrierAllocationGroup,
 } from '../../../api/shipmentClient';
-import { formatCurrency } from '../../../lib/format';
 
 export function allocationSummaryFromDetail(data: ShipmentDetailData): ShipmentCarrierAllocationGroup[] {
   const grouped = new Map<string, ShipmentCarrierAllocationGroup>();

@@ -9,7 +9,7 @@ import { LiveTripRow } from './dispatch-planning-utils.service';
 import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
 import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferTrailerTypeFromContainerCode, inferredVehicleCapacityKg, parseIsoWithZone, routeServiceDurationMinutes, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
 import { db } from '../db';
-import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
+import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { ApiError } from '../errors';
 import { resolveHandoff } from './dispatch-handoff.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
