@@ -4,6 +4,7 @@
  * to avoid duplication and ensure consistent error messages.
  */
 import { db } from '../db';
+import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 import * as s from '../db/schema';
@@ -85,12 +86,10 @@ export async function validateSettlementInputs(opts: {
   // uniqueness spans a link table and settlement status, so PostgreSQL cannot
   // express it as a simple partial unique index.
   if (checkAlreadyLinked) {
-    for (const id of [...new Set(advanceRequestIds)].sort((a, b) => a - b)) {
-      await dbOrTx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${id})`);
-    }
-    for (const id of [...new Set(tripExpenseIds ?? [])].sort((a, b) => a - b)) {
-      await dbOrTx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${id})`);
-    }
+    await acquireAdvisoryLocks(dbOrTx, [
+      ...[...new Set(advanceRequestIds)].map(lockKeys.advance),
+      ...[...new Set(tripExpenseIds ?? [])].map(lockKeys.expense),
+    ]);
   }
 
   // 1. Validate advance requests exist

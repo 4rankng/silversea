@@ -5,6 +5,7 @@ import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 import { TxnType, Role, sumExcludingNegative, type ExpenseReconciliationInput } from '@tingting/shared';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { getExpenseForCommand, requireExpenseFinance, type ExpenseActor } from './expense-accounting-write.service';
@@ -22,7 +23,7 @@ export async function createExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
   if (payer.role !== Role.OPS) throw new ApiError(400, 'Chọn nhân viên Ops.');
   await lockApplicationOwnedUniqueness(tx, 'expense-reconciliation-user', [input.opsUserId]);
   // Existing PT settlement takes the same advance locks before source locks.
-  for (const id of input.advances.map(a => a.advanceRequestId).sort((a, b) => a - b)) await tx.execute(sql`select pg_advisory_xact_lock(6101, ${id})`);
+  await acquireAdvisoryLocks(tx, input.advances.map(a => lockKeys.advance(a.advanceRequestId)));
   let advanceAmount = 0;
   for (const allocation of input.advances) {
     const [advance] = await tx.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, allocation.advanceRequestId)).for('update');
@@ -40,7 +41,7 @@ export async function createExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
     if (row.payableEntityType !== 'FORWARDER' || row.payableEntityId !== input.opsUserId || !row.confirmedAt || row.reconciliationId
       || row.expenseDate < input.from || row.expenseDate > input.to) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} không thuộc phạm vi đợt hoặc đã quyết toán.`);
     if (row.linkedTripExpenseId) {
-      await tx.execute(sql`select pg_advisory_xact_lock(6102, ${row.linkedTripExpenseId})`);
+      await acquireAdvisoryLock(tx, lockKeys.expense(row.linkedTripExpenseId));
       const [legacyClaim] = await tx.select({ id: s.settlementExpenses.id }).from(s.settlementExpenses)
         .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
         .where(and(eq(s.settlementExpenses.tripExpenseId, row.linkedTripExpenseId),
@@ -81,7 +82,7 @@ export async function recordFundedOpsAdvance(tx: Tx, actor: ExpenseActor, input:
   const treasury = await resolveTreasuryPaymentContract(tx, input, new Date());
   let advance;
   if (input.advanceRequestId) {
-    await tx.execute(sql`select pg_advisory_xact_lock(6101, ${input.advanceRequestId})`);
+    await acquireAdvisoryLock(tx, lockKeys.advance(input.advanceRequestId));
     [advance] = await tx.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, input.advanceRequestId)).for('update');
     if (!advance || advance.status !== 'RECORDED' || advance.requesterId !== input.opsUserId || Number(advance.amount) !== input.amount) throw new ApiError(409, 'Khoản ứng thay đổi hoặc không đúng đối tượng/số tiền.');
   } else advance = await createAdvanceRequest(input.opsUserId, { amount: input.amount, reason: input.reason }, tx);

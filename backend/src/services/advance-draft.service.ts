@@ -1,6 +1,7 @@
-import { and, eq, notInArray, sql } from 'drizzle-orm';
+import { and, eq, notInArray } from 'drizzle-orm';
 import { Role, TxnType, createAdvanceRequestSchema } from '@tingting/shared';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 
@@ -13,7 +14,7 @@ export async function resolveAdvanceDraft(tx: Tx, input: {
   const office = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(input.actorRole);
   if (!office && input.actorRole !== Role.OPS) throw new ApiError(403, 'Bạn không có quyền xử lý tạm ứng.');
   // Match settlement source-claim locks, then freeze the source version.
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${input.id})`);
+  await acquireAdvisoryLock(tx, lockKeys.advance(input.id));
   const [before] = await tx.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, input.id)).for('update');
   if (!before || (!office && before.requesterId !== input.actorId)) throw new ApiError(404, 'Không tìm thấy tạm ứng của bạn.');
   // Pre-demo audit: the OPS create path writes RECORDED (advance-request.service

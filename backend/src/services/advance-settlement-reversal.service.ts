@@ -5,6 +5,7 @@ import { tripExpenseServiceLedgerCondition, tripExpenseServiceReceiptId } from '
  * through the advance.service facade.
  */
 import { db } from '../db';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
@@ -59,7 +60,7 @@ export async function adjustSettlementExpense(
     if (settlement.status !== 'RECORDED') {
       throw new AdvanceError(409, 'Chỉ được điều chỉnh phiếu đã ghi nhận');
     }
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+    await acquireAdvisoryLock(tx, lockKeys.expense(expenseId));
     const [linked] = await tx.select({
       linkId: s.settlementExpenses.id,
       expenseId: s.tripExpenses.id,

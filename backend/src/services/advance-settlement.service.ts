@@ -4,6 +4,7 @@
  * re-exported through the advance.service facade.
  */
 import { db } from '../db';
+import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 'drizzle-orm';
@@ -41,13 +42,11 @@ export async function createAdvanceSettlement(
   const execute = async (tx: Tx) => {
     // Serialize claims before validation. After a concurrent creator commits,
     // READ COMMITTED makes the subsequent validation see its new links.
-    for (const requestId of [...data.advanceRequestIds].sort((a, b) => a - b)) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
-    }
-    const requestedExpenseIds = [...(data.tripExpenseIds ?? [])].sort((a, b) => a - b);
-    for (const expenseId of requestedExpenseIds) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
-    }
+    const requestedExpenseIds = [...(data.tripExpenseIds ?? [])];
+    await acquireAdvisoryLocks(tx, [
+      ...data.advanceRequestIds.map(lockKeys.advance),
+      ...requestedExpenseIds.map(lockKeys.expense),
+    ]);
     if (requestedExpenseIds.length > 0) {
       // Match forwarder expense mutation lock order:
       // expense resource → assignment row → completion scope.
@@ -61,10 +60,9 @@ export async function createAdvanceSettlement(
         tripId: s.tripExpenses.tripId,
         tripContainerId: s.tripExpenses.tripContainerId,
       }).from(s.tripExpenses).where(inArray(s.tripExpenses.id, requestedExpenseIds));
-      const scopeKeys = [...new Set(scopes.map(scope => scope.tripContainerId ?? -scope.tripId))].sort((a, b) => a - b);
-      for (const scopeKey of scopeKeys) {
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-      }
+      await acquireAdvisoryLocks(tx, scopes.map(scope =>
+        scope.tripContainerId != null ? lockKeys.containerScope(scope.tripContainerId) : lockKeys.tripScope(scope.tripId),
+      ));
     }
     // Shared validation: existence, ownership, status, and already-linked checks
     const { advanceRequests: advanceRequestRows, tripExpenses: tripExpenseRows } =
@@ -420,20 +418,17 @@ export async function updateAdvanceSettlement(
     if (settlement.status !== 'DRAFT') {
       throw new AdvanceError(409, 'Phiếu đã ghi nhận không thể sửa danh sách trực tiếp; dùng điều chỉnh khoản chi hoặc hoàn tác.');
     }
-    for (const requestId of [...data.advanceRequestIds].sort((a, b) => a - b)) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
-    }
-    const expenseIds = [...data.tripExpenseIds].sort((a, b) => a - b);
-    for (const expenseId of expenseIds) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
-    }
+    const expenseIds = [...data.tripExpenseIds];
+    await acquireAdvisoryLocks(tx, [
+      ...data.advanceRequestIds.map(lockKeys.advance),
+      ...expenseIds.map(lockKeys.expense),
+    ]);
     if (expenseIds.length > 0) {
       const scopes = await tx.select({ tripId: s.tripExpenses.tripId, tripContainerId: s.tripExpenses.tripContainerId })
         .from(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
-      const scopeKeys = [...new Set(scopes.map(scope => scope.tripContainerId ?? -scope.tripId))].sort((a, b) => a - b);
-      for (const scopeKey of scopeKeys) {
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-      }
+      await acquireAdvisoryLocks(tx, scopes.map(scope =>
+        scope.tripContainerId != null ? lockKeys.containerScope(scope.tripContainerId) : lockKeys.tripScope(scope.tripId),
+      ));
     }
     const validated = await validateSettlementInputs({
       dbOrTx: tx,
@@ -553,21 +548,16 @@ async function applyNewSettlementEffects(
     const linkedExpenseIds = expenseLinkIds.map(link => link.id);
     // Keep the exact completion scopes stable from eligibility validation until
     // approval commits. This uses the same lock namespace/order as Ops updates.
-    for (const expenseId of [...new Set(linkedExpenseIds)].sort((a, b) => a - b)) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
-    }
+    await acquireAdvisoryLocks(tx, [...new Set(linkedExpenseIds)].map(lockKeys.expense));
     const approvalScopes = linkedExpenseIds.length === 0
       ? []
       : await tx.select({
         tripId: s.tripExpenses.tripId,
         tripContainerId: s.tripExpenses.tripContainerId,
       }).from(s.tripExpenses).where(inArray(s.tripExpenses.id, linkedExpenseIds));
-    const scopeKeys = [...new Set(approvalScopes.map(expense =>
-      expense.tripContainerId ?? -expense.tripId,
-    ))].sort((a, b) => a - b);
-    for (const scopeKey of scopeKeys) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-    }
+    await acquireAdvisoryLocks(tx, approvalScopes.map(expense =>
+      expense.tripContainerId != null ? lockKeys.containerScope(expense.tripContainerId) : lockKeys.tripScope(expense.tripId),
+    ));
     const validated = await validateSettlementInputs({
       dbOrTx: tx,
       forwarderId: settlement.forwarderId,

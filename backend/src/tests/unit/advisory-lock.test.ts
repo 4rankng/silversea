@@ -154,4 +154,14 @@ describe('canonical lock order (deadlock contract, as data)', () => {
     const ordered = canonicalLockOrder([lockKeys.expense(100), lockKeys.expense(20), lockKeys.expense(3)]);
     assert.deepEqual(ordered.map((k) => (k as { id: number }).id), [3, 20, 100]);
   });
+
+  it('mixed-sign scope ids sort numerically (negated trip ids before container ids)', () => {
+    const ordered = canonicalLockOrder([
+      lockKeys.containerScope(3),
+      lockKeys.tripScope(7),   // id -7
+      lockKeys.tripScope(20),  // id -20
+      lockKeys.containerScope(50),
+    ]);
+    assert.deepEqual(ordered.map((k) => (k as { id: number }).id), [-20, -7, 3, 50]);
+  });
 });

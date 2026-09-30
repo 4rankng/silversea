@@ -199,10 +199,12 @@ export const LOCK_ORDER = {
   kindRank: { int: 0, hash: 1, text: 2, 'dual-hash': 3, 'bare-int': 4 },
 } as const;
 
-function lockOrderRank(key: AdvisoryLockKey): [number, number, string] {
+function lockOrderRank(key: AdvisoryLockKey): [number, number, number | string] {
   switch (key.kind) {
     case 'int':
-      return [LOCK_ORDER.kindRank.int, key.family, String(key.id).padStart(20, '0')];
+      // id stays NUMERIC: the container-scope family mixes positive container
+      // ids with negated trip ids, and lexical order would mis-sort negatives.
+      return [LOCK_ORDER.kindRank.int, key.family, key.id];
     case 'hash':
       return [LOCK_ORDER.kindRank.hash, key.family, key.text];
     case 'text':
@@ -210,7 +212,7 @@ function lockOrderRank(key: AdvisoryLockKey): [number, number, string] {
     case 'dual-hash':
       return [LOCK_ORDER.kindRank['dual-hash'], 0, `${key.a}\u0000${key.b}`];
     case 'bare-int':
-      return [LOCK_ORDER.kindRank['bare-int'], 0, String(key.id).padStart(20, '0')];
+      return [LOCK_ORDER.kindRank['bare-int'], 0, key.id];
   }
 }
 
@@ -242,6 +244,11 @@ export function canonicalLockOrder(keys: readonly AdvisoryLockKey[]): AdvisoryLo
   return [...unique.values()].sort((left, right) => {
     const [la, lb, lc] = lockOrderRank(left);
     const [ra, rb, rc] = lockOrderRank(right);
-    return la - ra || lb - rb || (lc < rc ? -1 : lc > rc ? 1 : 0);
+    if (la !== ra) return la - ra;
+    if (lb !== rb) return lb - rb;
+    // Third slots only compare within one key kind, so their types match.
+    if (typeof lc === 'number' && typeof rc === 'number') return lc - rc;
+    const ls = String(lc); const rs = String(rc);
+    return ls < rs ? -1 : ls > rs ? 1 : 0;
   });
 }

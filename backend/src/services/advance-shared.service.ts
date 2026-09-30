@@ -7,6 +7,7 @@ import { getAdvanceConsumedAmounts } from './advance-consumption.service';
  * advance.service facade that re-exports them.
  */
 import { db } from '../db';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { eq, and, desc, inArray, notInArray, sql } from 'drizzle-orm';
 import { TxnType, round2dp } from '@tingting/shared';
@@ -47,7 +48,7 @@ export async function generateSettlementCode(tx: Tx, now: Date = new Date()): Pr
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const prefix = `PT-${yy}${mm}`;
 
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6001, hashtext(${prefix}))`);
+  await acquireAdvisoryLock(tx, lockKeys.advanceSettlementCodePrefix(prefix));
 
   const [row] = await tx.select({ maxCode: sql<string | null>`max(${s.advanceSettlements.code})` })
     .from(s.advanceSettlements)
@@ -221,7 +222,7 @@ export async function autoOffsetRecordedExpense(tx: Tx, expenseId: number): Prom
 
   // Different expenses for the same Ops balance must allocate serially so they
   // cannot both consume the same residual advance snapshot.
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6202, ${initialForwarderId})`);
+  await acquireAdvisoryLock(tx, lockKeys.forwarderAccount(initialForwarderId));
 
   // Share the established manual-settlement lock order: advance requests first,
   // then expense. This closes races between automatic and governed settlement
@@ -232,10 +233,10 @@ export async function autoOffsetRecordedExpense(tx: Tx, expenseId: number): Prom
       eq(s.advanceRequests.requesterId, initialForwarderId),
       eq(s.advanceRequests.status, 'RECORDED'),
     ));
-  for (const requestId of candidateRequestIds.map((row) => row.id).sort((a, b) => a - b)) {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
-  }
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+  await acquireAdvisoryLocks(tx, [
+    ...candidateRequestIds.map((row) => lockKeys.advance(row.id)),
+    lockKeys.expense(expenseId),
+  ]);
 
   // Re-read every eligibility field and link only after all shared locks are
   // held. A stale pre-lock snapshot must never authorize a financial posting.
