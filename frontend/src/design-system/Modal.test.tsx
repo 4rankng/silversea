@@ -1,8 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { Modal } from './Modal';
+import { OpsModalBackdrop } from '../features/ops/OpsModalBackdrop';
+import { UuiSelectField } from './forms/UuiSelectField';
 
 /**
  * The one overlay suite (card 20260930_227): every dialog in the app rides
@@ -225,5 +227,78 @@ describe('Modal overlay suite — bare mode (ops shell, positioned panels)', () 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(document.body.style.overflow).toBe(''));
+  });
+
+  it('returns focus to the opener even when unmounted while still open', async () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+    const { unmount } = render(
+      <Modal chrome="bare" title="Điều chỉnh" ariaLabel="Điều chỉnh" isOpen onClose={() => {}}>
+        <div className="ops-modal"><button type="button">Lưu</button></div>
+      </Modal>,
+    );
+    await screen.findByRole('dialog', { name: 'Điều chỉnh' });
+    unmount();
+    expect(opener).toHaveFocus();
+    opener.remove();
+  });
+});
+
+describe('Modal overlay suite — ops shell adapter (OpsModalBackdrop)', () => {
+  it('lets a searchable child consume Escape without discarding its parent dialog', async () => {
+    const onClose = vi.fn();
+    function Form() {
+      const [value, setValue] = useState('');
+      return (
+        <OpsModalBackdrop ariaLabel="Chi phí" onClose={onClose}>
+          <div className="ops-modal">
+            <UuiSelectField
+              label="Loại phí"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              options={[
+                { value: '', label: 'Chọn loại phí' },
+                ...['Nâng', 'Hạ', 'Cân', 'Bốc xếp', 'Khác'].map((label) => ({ value: label, label })),
+              ]}
+            />
+            <button>Lưu</button>
+          </div>
+        </OpsModalBackdrop>
+      );
+    }
+    render(<Form />);
+    const input = screen.getByRole('combobox');
+    await act(async () => { input.focus(); fireEvent.click(input); });
+    fireEvent.change(input, { target: { value: 'Nâng' } });
+    await screen.findByRole('listbox');
+    fireEvent.keyDown(input, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Chi phí' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Lưu' }), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('contains focus, preserves the opener across rerenders and restores scroll on close', () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+    const originalOverflow = document.body.style.overflow;
+    const shell = (onClose: () => void) => (
+      <OpsModalBackdrop ariaLabel="Chi phí" onClose={onClose}>
+        <div className="ops-modal"><button>Đóng</button><button>Lưu</button></div>
+      </OpsModalBackdrop>
+    );
+    const { unmount, rerender } = render(shell(vi.fn()));
+    expect(document.body.style.overflow).toBe('hidden');
+    screen.getByRole('button', { name: 'Lưu' }).focus();
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
+    expect(screen.getByRole('button', { name: 'Đóng' })).toHaveFocus();
+    rerender(shell(vi.fn()));
+    unmount();
+    expect(opener).toHaveFocus();
+    expect(document.body.style.overflow).toBe(originalOverflow);
+    opener.remove();
   });
 });

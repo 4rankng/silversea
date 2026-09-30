@@ -117,7 +117,7 @@ describe('phôi phiếu detail dialogs render in the house modal shell (card 202
     // the dialog's on-screen position can never inherit the 100+-row board's
     // scroll offset (the 21,588px defect).
     expect(dialog.parentElement).toBe(document.body);
-    expect(dialog).toHaveClass('ops-modal-backdrop');
+    expect(dialog).toHaveClass('modal');
     await waitFor(() => expect(screen.getByText('Chi tiết chi hộ ST-2609-0001')).toBeInTheDocument());
   });
 
@@ -150,16 +150,17 @@ describe('phôi phiếu detail dialogs render in the house modal shell (card 202
     render(<PhoiPhieuTienDuongDialog tripId={7} onClose={onClose} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
     const dialog = await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
     expect(dialog.parentElement).toBe(document.body);
-    expect(dialog).toHaveClass('ops-modal-backdrop');
+    expect(dialog).toHaveClass('modal');
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('both dialog sources import the shared modal stylesheet (card acceptance 3)', () => {
+  it('both dialog sources ride the design-system modal — no cross-feature ops CSS (card 20260930_227)', () => {
     for (const file of ['PhoiPhieuChiHoDialog.tsx', 'PhoiPhieuTienDuongDialog.tsx']) {
       const source = readFileSync(resolve(process.cwd(), `src/features/accounting/${file}`), 'utf8');
-      expect(source).toContain("import '../ops/ops-modal.css';");
-      expect(source).toContain('OpsModalBackdrop');
+      expect(source).not.toContain("ops/ops-modal.css");
+      expect(source).not.toContain('OpsModalBackdrop');
+      expect(source).toMatch(/import \{[^}]*\bModal\b[^}]*\} from '\.\.\/\.\.\/design-system';/);
     }
   });
 });

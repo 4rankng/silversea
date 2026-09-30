@@ -1,4 +1,4 @@
-import React, { createContext, useId, useRef } from 'react';
+import React, { createContext, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { animate, utils } from 'animejs';
@@ -234,6 +234,28 @@ export function Modal({
     entrance: bare ? bareEntrance : overlayEntrance,
     exit: bare ? bareExit : overlayExit,
   });
+
+  // useAnimatedOverlay returns focus on the isOpen→false transition. A dialog
+  // that unmounts while still open (route change, parent conditional) owes the
+  // opener the same restoration — the module owns focus return in both paths.
+  const openerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!visible) return;
+    if (openerRef.current == null) {
+      openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
+  }, [visible]);
+  // The close path consumed the opener (useAnimatedOverlay restored it) —
+  // drop it so a later unmount never yanks focus back to a long-gone trigger.
+  useEffect(() => {
+    if (!visible) openerRef.current = null;
+  }, [visible]);
+  useEffect(() => {
+    return () => {
+      if (openerRef.current?.isConnected) openerRef.current.focus({ preventScroll: true });
+    };
+  }, []);
+
   useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose, overlayToken });
   useScrollLock(visible);
   useFocusTrap(bare ? overlayRef : contentRef, bare ? visible : visible && isOpen);

@@ -1,15 +1,13 @@
-import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
-import { useOpsModalDismiss } from './useOpsModalDismiss';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Modal } from '../../design-system/Modal';
 
 /**
- * Portaled ops modal backdrop — renders into document.body so the dialog
- * always sits above the topbar and sidebar stacking contexts.
- *
- * Replaces the inline `<div className="ops-modal-backdrop">` pattern that
- * every ops modal previously used.  The children must include a single
- * `.ops-modal` wrapper with the dialog content.
+ * Thin adapter (card 20260930_227): the ops dialog skins (.ops-modal*) ride
+ * the one design-system modal module in bare mode. Portal-to-body, scrim,
+ * Escape (picker-deferent), focus trap + return and body scroll lock are
+ * module-owned; the ops surface chrome (.ops-modal__head/__body/__foot) stays
+ * with the dialogs that render it. Scrim clicks never dismiss — these
+ * dialogs host editable forms, so an accidental click must not discard work.
  */
 export function OpsModalBackdrop({
   onClose,
@@ -20,13 +18,9 @@ export function OpsModalBackdrop({
   ariaLabel: string;
   children: ReactNode;
 }) {
-  const backdropRef = useOpsModalDismiss<HTMLDivElement>(onClose);
-  useFocusTrap(backdropRef, true);
-
-  return createPortal(
-    <div ref={backdropRef} tabIndex={-1} className="ops-modal-backdrop" role="dialog" aria-modal="true" aria-label={ariaLabel}>
+  return (
+    <Modal chrome="bare" title={ariaLabel} ariaLabel={ariaLabel} isOpen onClose={onClose}>
       {children}
-    </div>,
-    document.body,
+    </Modal>
   );
 }

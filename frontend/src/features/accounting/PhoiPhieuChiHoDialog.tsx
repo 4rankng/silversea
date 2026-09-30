@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   correctPhoiPhieuRow, getPhoiPhieuChiHo, updatePhoiPhieuMeta,
@@ -10,10 +9,8 @@ import { qk } from '../../api/keys';
 import { useConfirm } from '../../components/UI';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
-import { NumberField } from '../../design-system';
+import { Modal, NumberField } from '../../design-system';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
-import '../ops/ops-modal.css';
-import { OpsModalBackdrop } from '../ops/OpsModalBackdrop';
 
 interface Props {
   tripId: number;
@@ -39,7 +36,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
 
   // Card 20260923_11: this dialog and the "Thêm khoản chi" panel are two
   // aria-modal surfaces. `adding` used to mount the drawer *beside* the still
-  // rendered OpsModalBackdrop, so both bodies shared the viewport (the P3
+  // rendered dialog shell, so both bodies shared the viewport (the P3
   // screenshot: the "Nhập Thu và Trả bằng nhau" checkbox sat inside the
   // overlap). Exactly one surface is active at a time: once the panel has its
   // catalog and is therefore on screen, this dialog's surface is not rendered
@@ -128,18 +125,19 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
 
   return (
     <>
-      {/* Card 20260922_67: the house modal shell (features/ops) — portal into
-          document.body + fixed backdrop + scroll lock + Escape + focus return.
-          The backdrop carries the dialog role; the inner .ops-modal stays a
-          plain surface. */}
-      {/* Card 20260923_11: suppressed while the add panel owns the screen. */}
-      {!addPanelOpen && <OpsModalBackdrop onClose={onClose} ariaLabel="Chi tiết chi hộ">
-        <div className="ops-modal" style={{ maxWidth: 720 }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: 'var(--text-body-size)' }}>Chi tiết chi hộ {detail.data?.tripCode ?? ''}</h2>
-        <button type="button" aria-label="Đóng" onClick={onClose}><X size={16} aria-hidden="true" /></button>
-      </header>
-      <div className="ops-modal__body">
+      {/* The one design-system modal module owns the shell (portal, scrim,
+          Escape, focus return, scroll lock — card 20260930_227); house chrome
+          renders the header/close/footer so this dialog no longer re-assembles
+          them per surface. Card 20260923_11: suppressed while the add panel
+          owns the screen. */}
+      {!addPanelOpen && <Modal
+        isOpen
+        onClose={onClose}
+        title={`Chi tiết chi hộ ${detail.data?.tripCode ?? ''}`.trim()}
+        ariaLabel="Chi tiết chi hộ"
+        maxWidth={720}
+      >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
         {detail.isLoading && <p>Đang tải…</p>}
         {error && <p role="alert" style={{ color: 'var(--err, #dc2626)' }}>{error}</p>}
         {detail.data && (
@@ -187,8 +185,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
         {adding && catalog.isPending && <p role="status">Đang tải loại phí và nhân viên…</p>}
         {adding && catalog.isError && <p role="alert">{catalog.error.message} <button type="button" onClick={() => void catalog.refetch()}>Thử lại</button><button type="button" onClick={() => setAdding(false)}>Hủy</button></p>}
       </div>
-        </div>
-      </OpsModalBackdrop>}
+      </Modal>}
       {addPanelOpen && catalog.data && <ExpenseCreateDrawer
       work={{ tripId, shipmentCode: detail.data?.tripCode ?? null, containerNumber: null }}
       catalog={catalog.data} initialGroup="OPS_INCIDENTAL" entryScope="OPS"

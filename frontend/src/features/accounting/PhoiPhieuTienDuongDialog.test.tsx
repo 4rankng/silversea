@@ -58,8 +58,8 @@ describe('modal table headers never clip (case QA-2026-09-24-01; design law §4)
   it('the modal shell budgets the 7-column table — no 640px equal-share squeeze', async () => {
     mount();
     await screen.findByRole('columnheader', { name: 'Thực chi hiện tại (đ)' });
-    const modal = screen.getByRole('dialog', { name: 'Chi tiết tiền đường' }).querySelector('.ops-modal');
-    expect(modal).not.toBeNull();
-    expect(modal).toHaveStyle({ maxWidth: '760px' });
+    const content = screen.getByRole('dialog', { name: 'Chi tiết tiền đường' }).querySelector('.modal__content');
+    expect(content).not.toBeNull();
+    expect((content as HTMLElement).style.getPropertyValue('--modal-max-w')).toBe('760px');
   });
 });

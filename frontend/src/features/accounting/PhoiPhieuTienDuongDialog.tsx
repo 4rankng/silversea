@@ -1,15 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { confirmPhoiPhieuTienDuong, getPhoiPhieuTienDuong } from '../../api/phoiPhieuClient';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { formatCurrency } from '../../lib/format';
 import { DRIVER_INCIDENTAL_COST_LABELS } from '@tingting/shared';
-import { NumberField } from '../../design-system';
+import { Modal, NumberField } from '../../design-system';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
-import '../ops/ops-modal.css';
-import { OpsModalBackdrop } from '../ops/OpsModalBackdrop';
 
 interface Props {
   tripId: number;
@@ -121,18 +118,21 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
 
   return (
     <>
-      {/* Card 20260922_67: house modal shell — portal + backdrop + Escape +
-          focus return. The backdrop carries the dialog role. */}
+      {/* The one design-system modal module owns the shell (portal, scrim,
+          Escape, focus return, scroll lock — card 20260930_227); house chrome
+          renders the header/close so this dialog no longer re-assembles them.
+          Card 20260923_11: suppressed while the add panel owns the screen. */}
       {/* 7 fixed-layout columns need budgeted widths: the old 640px shell
           equal-shared them to ~91px and nowrap headers clipped mid-token.
           Wider shell + wrap-at-spaces headers (design law §4). */}
-      {!addPanelOpen && <OpsModalBackdrop onClose={onClose} ariaLabel="Chi tiết tiền đường">
-      <div className="ops-modal" style={{ maxWidth: 760 }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: 'var(--text-body-size)' }}>Chi tiết tiền đường {detail.data?.tripCode ?? ''}</h2>
-        <button type="button" aria-label="Đóng" onClick={onClose}><X size={16} aria-hidden="true" /></button>
-      </header>
-      <div className="ops-modal__body">
+      {!addPanelOpen && <Modal
+        isOpen
+        onClose={onClose}
+        title={`Chi tiết tiền đường ${detail.data?.tripCode ?? ''}`.trim()}
+        ariaLabel="Chi tiết tiền đường"
+        maxWidth={760}
+      >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
         {detail.isLoading && <p>Đang tải…</p>}
         {(error || detail.isError) && <p role="alert" style={{ color: 'var(--err, #dc2626)' }}>{error || detail.error?.message} <button type="button" className="btn btn--secondary btn--sm" disabled={busy || detail.isFetching} onClick={() => void detail.refetch().then(result => { if (!result.isError) setError(''); })}>Tải lại khoản chi</button></p>}
         {detail.data && (
@@ -196,8 +196,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
         {adding && catalog.isPending && <p role="status">Đang tải loại phí và nhân viên…</p>}
         {adding && catalog.isError && <p role="alert">{catalog.error.message} <button type="button" onClick={() => void catalog.refetch()}>Thử lại</button><button type="button" onClick={() => setAdding(false)}>Hủy</button></p>}
       </div>
-    </div>
-    </OpsModalBackdrop>}
+    </Modal>}
       {addPanelOpen && catalog.data && <ExpenseCreateDrawer
         work={{ tripId, shipmentCode: detail.data?.tripCode ?? null, containerNumber: null }}
         catalog={catalog.data} initialGroup="DRIVER_ROAD"
