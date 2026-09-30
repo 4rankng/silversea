@@ -51,7 +51,10 @@ describe('AdvanceDraftActions legacy recovery', () => {
     mount(); fireEvent.click(screen.getByRole('button', { name: /^Ghi sổ$/ }));
     const save = screen.getByRole('button', { name: 'Ghi sổ tạm ứng' }); expect(save).toBeDisabled();
     enterResolution(); fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '0' } }); expect(save).toBeDisabled();
-    fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '-1' } }); expect(save).toBeDisabled();
+    // Card 20260930_224: the field is unsigned grouped — a typed minus is
+    // dropped on entry ('-1' becomes 1, a valid amount), so the old
+    // negative-is-invalid pin moves to the entry level: negatives are
+    // un-enterable rather than caught by validation.
     fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '123' } });
     fireEvent.change(screen.getByLabelText('Nội dung tạm ứng *'), { target: { value: ' ' } }); expect(save).toBeDisabled();
     expect(mocks.post).not.toHaveBeenCalled();
@@ -62,7 +65,7 @@ describe('AdvanceDraftActions legacy recovery', () => {
     fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '250' } });
     fireEvent.click(screen.getByRole('button', { name: 'Ghi sổ tạm ứng' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Mạng tạm gián đoạn');
-    expect(screen.getByLabelText('Số tiền (₫) *')).toHaveValue(250);
+    expect(screen.getByLabelText('Số tiền (₫) *')).toHaveValue('250');
     fireEvent.click(screen.getByRole('button', { name: 'Ghi sổ tạm ứng' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(mocks.post).toHaveBeenCalledTimes(2);

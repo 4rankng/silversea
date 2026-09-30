@@ -81,7 +81,7 @@ function DraftActions({ request, voidOnly = false }: { request: AdvanceDraft; vo
         {/* business key render; id never user-facing — the draft payload carries no date/requester name */}
         <p className="text-muted">Tạm ứng{request.reason ? ` · ${request.reason}` : ''} · {voidOnly ? 'Chưa giao tiền' : 'Chưa ghi sổ'}. Thao tác lưu có hiệu lực ngay và giữ lịch sử đối chiếu.</p>
         {action === 'record' && <>
-          <NumberField label="Số tiền (₫) *" grouped required value={amount} disabled={pending} onChange={setAmount} error={amountValid ? '' : 'Nhập số tiền nguyên dương hợp lệ.'} />
+          <NumberField label="Số tiền (₫) *" grouped value={amount} disabled={pending} onChange={setAmount} error={amountValid ? '' : 'Nhập số tiền nguyên dương hợp lệ.'} />
           <FormGroup label="Nội dung tạm ứng *"><textarea className="input" rows={2} required maxLength={1000} value={reason} disabled={pending} onChange={event => setReason(event.target.value)} /></FormGroup>
         </>}
         <FormGroup label="Lý do xử lý *"><textarea className="input" rows={2} required maxLength={1000} value={resolutionReason} disabled={pending} onChange={event => setResolutionReason(event.target.value)} /></FormGroup>

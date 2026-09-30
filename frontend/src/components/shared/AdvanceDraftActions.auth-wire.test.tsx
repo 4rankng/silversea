@@ -52,8 +52,11 @@ describe('actual OPS auth and advance list wire contract', () => {
     expect(client.getQueryData(qk.auth.me)).toMatchObject({ id: 7, userId: 7, role: 'OPS' });
     fireEvent.click(screen.getByRole('button', { name: /^Ghi sổ$/ }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    for (const label of ['Số tiền (₫) *', 'Nội dung tạm ứng *', 'Lý do xử lý *']) expect(screen.getByLabelText(label)).toHaveClass('input');
-    fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '-1' } });
+    // Card 20260930_224: the amount field is the design-system NumberField
+    // (ds-field__input); the textareas keep the legacy `input` class.
+    expect(screen.getByLabelText('Số tiền (₫) *')).toHaveClass('ds-field__input');
+    for (const label of ['Nội dung tạm ứng *', 'Lý do xử lý *']) expect(screen.getByLabelText(label)).toHaveClass('input');
+    fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '' } });
     expect(screen.getByText('Nhập số tiền nguyên dương hợp lệ.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ghi sổ tạm ứng' })).toBeDisabled();
   });

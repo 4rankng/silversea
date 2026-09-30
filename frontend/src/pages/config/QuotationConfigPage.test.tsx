@@ -207,8 +207,8 @@ describe('QuotationConfigPage fee catalog (card 20260922_64)', () => {
     expect(within(feesRegion).getAllByText('Cột riêng — Hải quan giám sát').length).toBeGreaterThan(0);
     expect(within(feesRegion).getAllByText('Cột riêng — Nâng/Hạ Lạch Huyện').length).toBeGreaterThan(0);
     // TẠM defaults render in the inputs; pending-empty rows show no autofill.
-    expect(within(feesRegion).getByLabelText('Số tiền mặc định Phí mở tờ khai · Hàng thông thường')).toHaveValue('500000');
-    expect(within(feesRegion).getByLabelText('Số tiền mặc định Kiểm hóa')).toHaveValue('');
+    expect(within(feesRegion).getByLabelText('Số tiền mặc định Phí mở tờ khai · Hàng thông thường')).toHaveValue(500000);
+    expect(within(feesRegion).getByLabelText('Số tiền mặc định Kiểm hóa')).toHaveValue(null);
     expect(within(feesRegion).getAllByText('Cột chi phí khác').length).toBeGreaterThan(0);
   });
 
