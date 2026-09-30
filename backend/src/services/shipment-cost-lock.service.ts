@@ -9,7 +9,7 @@ import * as s from '../db/schema';
 import { db } from '../db';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
+import type { Executor } from '../db';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
 import { getShipmentDebitSummary } from './shipment-debit-summary.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
@@ -31,14 +31,14 @@ const LOT_CLAIM_LOCK_SCOPE = 'billing-document-lot-claim';
  * at most ONE issued debit note. Overlapping selections are rejected 409 with
  * the colliding lot codes so the UI can name them. */
 async function assertLotsNotInIssuedDebitNote(
-  tx: Tx,
+  executor: Executor,
   shipmentIds: readonly number[],
 ): Promise<void> {
   await lockApplicationOwnedUniquenessSet(
-    tx,
+    executor,
     shipmentIds.map((shipmentId) => ({ scope: LOT_CLAIM_LOCK_SCOPE, parts: [shipmentId] })),
   );
-  const overlapping = await tx.select({
+  const overlapping = await executor.select({
     shipmentId: s.debitNoteLots.shipmentId,
     shipmentCode: s.shipments.shipmentCode,
   })
@@ -62,8 +62,8 @@ async function assertLotsNotInIssuedDebitNote(
 /** Freeze gate for every Lớp-2 write surface on the shipment (mirrors
  *  assertShipmentAccountingUnlocked). Violations → 409 with the dedicated
  *  message. */
-export async function assertShipmentCostUnlocked(tx: Tx, shipmentId: number): Promise<void> {
-  const [active] = await tx.select({ id: s.shipmentCostLocks.id })
+export async function assertShipmentCostUnlocked(executor: Executor, shipmentId: number): Promise<void> {
+  const [active] = await executor.select({ id: s.shipmentCostLocks.id })
     .from(s.shipmentCostLocks)
     .where(and(
       eq(s.shipmentCostLocks.shipmentId, shipmentId),
@@ -213,7 +213,7 @@ export async function adjustShipmentCost(input: AdjustShipmentCostInput): Promis
     ))
     .limit(1);
   if (!lock) throw new ApiError(409, SHIPMENT_COST_NOT_LOCKED_MESSAGE);
-  await assertShipmentAccountingUnlocked(db as unknown as Tx, input.shipmentId);
+  await assertShipmentAccountingUnlocked(db, input.shipmentId);
   const [existing] = await db.select({ id: s.shipmentCostAdjustments.id })
     .from(s.shipmentCostAdjustments)
     .where(eq(s.shipmentCostAdjustments.idempotencyKey, input.idempotencyKey))

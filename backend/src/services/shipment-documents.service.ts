@@ -6,12 +6,11 @@
 // db/schema, shared helpers, and sibling leaf services — never
 // shipment.service itself.
 
-import { db } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
 import type { AuthUser } from '../middleware/auth';
 import {
   assertDispatcherCanMutateShipmentIntake,
@@ -21,16 +20,14 @@ import {
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import type { ShipmentDeclarationMutationInput } from './shipment-types';
 
-export async function listShipmentDocuments(shipmentId: number, tx?: Tx) {
-  const client = tx ?? db;
-  return await client.select().from(s.shipmentDocuments)
+export async function listShipmentDocuments(shipmentId: number, executor: Executor = db) {
+  return await executor.select().from(s.shipmentDocuments)
     .where(eq(s.shipmentDocuments.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentDocuments.createdAt));
 }
 
-export async function listShipmentDeclarations(shipmentId: number, tx?: Tx) {
-  const client = tx ?? db;
-  return await client.select().from(s.shipmentDeclarations)
+export async function listShipmentDeclarations(shipmentId: number, executor: Executor = db) {
+  return await executor.select().from(s.shipmentDeclarations)
     .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentDeclarations.createdAt));
 }
@@ -42,10 +39,9 @@ export async function listShipmentDeclarations(shipmentId: number, tx?: Tx) {
 // even when it carries no channel yet.
 export async function getLotDeclaredChannel(
   shipmentId: number,
-  tx?: Tx,
+  executor: Executor = db,
 ): Promise<(typeof s.shipmentDeclarations.channel.enumValues[number]) | null> {
-  const client = tx ?? db;
-  const [declaration] = await client.select({ channel: s.shipmentDeclarations.channel })
+  const [declaration] = await executor.select({ channel: s.shipmentDeclarations.channel })
     .from(s.shipmentDeclarations)
     .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentDeclarations.id))
@@ -177,10 +173,9 @@ export async function deleteShipmentDeclaration(
  * Check if a shipment has any expired documents (DO type with expiresAt in the
  * past). Returns the list of expired document rows. Empty = no expired docs.
  */
-export async function checkExpiredDocuments(shipmentId: number, transaction?: Tx) {
-  const client = transaction ?? db;
+export async function checkExpiredDocuments(shipmentId: number, executor: Executor = db) {
   const today = new Date().toISOString().slice(0, 10);
-  const docs = await client.select()
+  const docs = await executor.select()
     .from(s.shipmentDocuments)
     .where(and(
       eq(s.shipmentDocuments.shipmentId, shipmentId),
@@ -219,9 +214,8 @@ export interface DispatchReadiness {
  * the shipment. Throws 404 on a missing/soft-deleted shipment so callers can
  * surface the canonical not-found error before dispatch attempts.
  */
-export async function getDispatchReadiness(shipmentId: number, transaction?: Tx): Promise<DispatchReadiness> {
-  const client = transaction ?? db;
-  const [shipment] = await client.select({
+export async function getDispatchReadiness(shipmentId: number, executor: Executor = db): Promise<DispatchReadiness> {
+  const [shipment] = await executor.select({
     blNumber: s.shipments.blNumber,
   })
     .from(s.shipments)
@@ -234,7 +228,7 @@ export async function getDispatchReadiness(shipmentId: number, transaction?: Tx)
     missing.push('Số vận đơn (B/L)');
   }
 
-  const [containerCountRow] = await client.select({ count: count() })
+  const [containerCountRow] = await executor.select({ count: count() })
     .from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipmentId));
   const containerCount = containerCountRow?.count ?? 0;

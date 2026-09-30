@@ -8,7 +8,7 @@ import { and, asc, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { ShipmentChargeProposalField } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
+import type { Executor } from '../db';
 import {
   ISSUED_DEBIT_NOTE_STATUSES,
   SHIPMENT_PROPOSAL_BILLING_LINK_KIND,
@@ -30,11 +30,11 @@ import {
 } from './shipment-accounting-lock-shared.service';
 
 export async function loadCurrentProposalCoverageByShipment(
-  tx: Tx,
+  executor: Executor,
   shipmentId: number,
   options: FinanceSnapshotOptions = {},
 ): Promise<Map<string, ProposalCoverageRow>> {
-  const query = tx.select({
+  const query = executor.select({
     action: s.shipmentFinanceActions,
   }).from(s.shipmentFinanceActions)
     .where(and(
@@ -58,11 +58,11 @@ export async function loadCurrentProposalCoverageByShipment(
 }
 
 export async function loadCurrentProposalCoverageForDocumentLine(
-  tx: Tx,
+  executor: Executor,
   billingDocumentId: number,
   billingDocumentLineId: number,
 ): Promise<ProposalCoverageRow[]> {
-  const rows = await tx.select({
+  const rows = await executor.select({
     action: s.shipmentFinanceActions,
   }).from(s.shipmentFinanceActions)
     .where(and(
@@ -86,11 +86,11 @@ export async function loadCurrentProposalCoverageForDocumentLine(
 }
 
 export async function loadChargeProposalFactForUpdate(
-  tx: Tx,
+  executor: Executor,
   shipmentId: number,
   proposalFactId: number,
 ): Promise<ChargeProposalRow> {
-  const [proposal] = await tx.select({
+  const [proposal] = await executor.select({
     id: s.shipmentContainers.id,
     shipmentContainerId: s.shipmentContainers.id,
     version: s.shipmentContainers.chargeProposalVersion,
@@ -113,12 +113,12 @@ export async function loadChargeProposalFactForUpdate(
 }
 
 export async function loadCurrentBillingDocumentLine(
-  tx: Tx,
+  executor: Executor,
   billingDocumentId: number,
   billingDocumentLineId: number,
   options: FinanceSnapshotOptions = {},
 ): Promise<ChargeProposalLineRow | null> {
-  const query = tx.select({
+  const query = executor.select({
     id: s.billingDocumentLines.id,
     documentId: s.billingDocumentLines.documentId,
     sourceType: s.billingDocumentLines.sourceType,
@@ -137,11 +137,11 @@ export async function loadCurrentBillingDocumentLine(
 }
 
 export async function loadEligibleDebitNoteForShipment(
-  tx: Tx,
+  executor: Executor,
   shipment: typeof s.shipments.$inferSelect,
   billingDocumentId: number,
 ): Promise<typeof s.billingDocuments.$inferSelect> {
-  const [document] = await tx.select().from(s.billingDocuments)
+  const [document] = await executor.select().from(s.billingDocuments)
     .where(and(
       eq(s.billingDocuments.id, billingDocumentId),
       isNull(s.billingDocuments.deletedAt),
@@ -167,14 +167,14 @@ export async function loadEligibleDebitNoteForShipment(
 }
 
 export async function buildShipmentFinanceSnapshot(
-  tx: Tx,
+  executor: Executor,
   shipmentId: number,
   billingDocumentId: number,
   options: FinanceSnapshotOptions = {},
 ) {
-  const shipment = await lockShipment(tx, shipmentId, options);
+  const shipment = await lockShipment(executor, shipmentId, options);
 
-  const documentQuery = tx.select().from(s.billingDocuments)
+  const documentQuery = executor.select().from(s.billingDocuments)
     .where(and(
       eq(s.billingDocuments.id, billingDocumentId),
       isNull(s.billingDocuments.deletedAt),
@@ -195,7 +195,7 @@ export async function buildShipmentFinanceSnapshot(
     throw new ApiError(409, 'Debit Note chưa đủ điều kiện để xác nhận tài chính cho lô hàng này.');
   }
 
-  const liveTripsQuery = tx.select({ id: s.trips.id, status: s.trips.status })
+  const liveTripsQuery = executor.select({ id: s.trips.id, status: s.trips.status })
     .from(s.trips)
     .where(and(
       eq(s.trips.shipmentId, shipment.id),
@@ -208,7 +208,7 @@ export async function buildShipmentFinanceSnapshot(
     throw new ApiError(409, 'Chỉ được xác nhận khi mọi chuyến nguồn của lô hàng đã hoàn thành.');
   }
 
-  const claimsQuery = tx.select({
+  const claimsQuery = executor.select({
     tripId: s.billingDocumentTripClaims.tripId,
     financialPostingId: s.billingDocumentTripClaims.financialPostingId,
     financialPostingVersion: s.billingDocumentTripClaims.financialPostingVersion,
@@ -253,7 +253,7 @@ export async function buildShipmentFinanceSnapshot(
     throw new ApiError(409, 'Nguồn hạch toán của Debit Note đã thay đổi. Vui lòng xác nhận lại sau khi cập nhật chứng từ.');
   }
 
-  const sourceExpenses = await tx.select({
+  const sourceExpenses = await executor.select({
     id: s.tripExpenses.id,
     version: s.tripExpenses.version,
     approvalStatus: s.tripExpenses.approvalStatus,
@@ -289,7 +289,7 @@ export async function buildShipmentFinanceSnapshot(
 
   const recoveryFacts = recoverableExpenses.length === 0
     ? []
-    : await tx.select({
+    : await executor.select({
       id: s.shipmentRecoveryFacts.id,
       sourceExpenseId: s.shipmentRecoveryFacts.sourceExpenseId,
       version: s.shipmentRecoveryFacts.version,
@@ -313,7 +313,7 @@ export async function buildShipmentFinanceSnapshot(
     throw new ApiError(409, 'Theo dõi thu hồi không còn khớp nguồn chi phí. Vui lòng cập nhật trước khi xác nhận tài chính.');
   }
 
-  const chargeProposals = await tx.select({
+  const chargeProposals = await executor.select({
     id: s.shipmentContainers.id,
     shipmentContainerId: s.shipmentContainers.id,
     version: s.shipmentContainers.chargeProposalVersion,
@@ -325,7 +325,7 @@ export async function buildShipmentFinanceSnapshot(
   }).from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipment.id))
     .orderBy(asc(s.shipmentContainers.id));
-  const proposalCoverageByKey = await loadCurrentProposalCoverageByShipment(tx, shipment.id, options);
+  const proposalCoverageByKey = await loadCurrentProposalCoverageByShipment(executor, shipment.id, options);
   const proposalCoverage: ProposalCoverageRow[] = [];
   for (const proposal of chargeProposals) {
     const proposalChecksumValue = proposalChecksum(proposal);
@@ -378,7 +378,7 @@ export async function buildShipmentFinanceSnapshot(
       .filter((lineId): lineId is number => lineId != null);
     const linkedLines = linkedLineIds.length === 0
       ? []
-      : await tx.select({
+      : await executor.select({
         id: s.billingDocumentLines.id,
         documentId: s.billingDocumentLines.documentId,
         sourceType: s.billingDocumentLines.sourceType,

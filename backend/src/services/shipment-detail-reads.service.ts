@@ -3,7 +3,7 @@
 // assignments, and the detail assembler that fans out to the sibling leaves.
 // All user-facing messages in Vietnamese (PRD Mxx-HT-01).
 
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
@@ -12,7 +12,6 @@ import { localDateInBusinessZone } from '@tingting/shared';
 import type { DispatchSummary, TripPairKind } from '@tingting/shared';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
 import {
   buildShipmentSearchPredicate,
   normalizeShipmentRow,
@@ -51,8 +50,7 @@ export type ListShipmentsPaginatedResult = {
   dispatchSummary?: DispatchSummary;
 };
 
-export async function getShipment(id: number, tx?: Tx) {
-  const executor = tx ?? db;
+export async function getShipment(id: number, executor: Executor = db) {
   const [shipment] = await executor.select().from(s.shipments)
     .where(and(eq(s.shipments.id, id), isNull(s.shipments.deletedAt)))
     .limit(1);
@@ -224,8 +222,7 @@ async function decorateContainersWithPairKind(
   }));
 }
 
-export async function listShipmentCarrierAssignments(shipmentId: number, tx?: Tx) {
-  const executor = tx ?? db;
+export async function listShipmentCarrierAssignments(shipmentId: number, executor: Executor = db) {
   return executor.select({
     fulfillmentId: s.shipmentFulfillments.id,
     fulfillmentVersion: s.shipmentFulfillments.version,
@@ -247,9 +244,8 @@ export async function listShipmentCarrierAssignments(shipmentId: number, tx?: Tx
     .orderBy(asc(s.shipmentFulfillments.id));
 }
 
-export async function listShipmentStatusHistory(shipmentId: number, tx?: Tx) {
-  const client = tx ?? db;
-  const rows = await client.select().from(s.shipmentStatusHistory)
+export async function listShipmentStatusHistory(shipmentId: number, executor: Executor = db) {
+  const rows = await executor.select().from(s.shipmentStatusHistory)
     .where(eq(s.shipmentStatusHistory.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentStatusHistory.changedAt));
   return rows.map((row) => normalizeShipmentStatusHistoryRow(row));

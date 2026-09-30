@@ -1,10 +1,9 @@
 import { and, asc, count, desc, eq, gte, inArray, ilike, isNull, lt, lte, ne, or, type SQL } from 'drizzle-orm';
 import { Role, type ContainerDepositInput, type ContainerDepositRecord, type ShipmentInvoiceRecordInput } from '@tingting/shared';
-import { db } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertExpenseSourceMutable, ensureTripExpenseAccountingSource, lockExpenseSource, upsertExpenseAccountingSource } from './expense-accounting-source.service';
@@ -33,14 +32,12 @@ export interface ShipmentFinanceFilter {
   pageSize: number;
 }
 
-export async function listShipmentFinanceRecords(actor: AuthUser, filters: ShipmentFinanceFilter, transaction?: Tx) {
-  const q = transaction ?? db;
+export async function listShipmentFinanceRecords(actor: AuthUser, filters: ShipmentFinanceFilter, q: Executor = db) {
   if (!readers.includes(actor.role) || (actor.role === Role.CUS && !filters.shipmentId)) {
     throw new ApiError(403, 'Bạn không có quyền xem sổ chi phí này.');
   }
   if (filters.shipmentId) {
-    if (transaction) await assertActorCanAccessShipment(transaction, filters.shipmentId, actor);
-    else await db.transaction((tx) => assertActorCanAccessShipment(tx, filters.shipmentId!, actor));
+    await assertActorCanAccessShipment(q, filters.shipmentId, actor);
   }
   const canWrite = canWriteShipmentFinance(actor);
   const search = filters.search?.trim().replace(/[\\%_]/g, '\\$&');

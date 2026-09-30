@@ -5,12 +5,11 @@
 // shipment-close path, and the pending change-request read shared by review
 // and the detail assembler — so no leaf-to-leaf cycle arises.
 
-import { db } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import * as s from '../db/schema';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { TripPodStatus } from '@tingting/shared';
-import type { Tx } from './trip-shared';
 import { applyTripPatch } from './trip-composite.service';
 import { resolveFreightPrice } from './pricing.service';
 
@@ -307,10 +306,9 @@ export async function syncShipmentAuthorityToTrips(
 
 export async function listPendingShipmentChangeRequests(
   shipmentId: number,
-  tx?: Tx,
+  executor: Executor = db,
 ): Promise<ShipmentChangeRequestSummary[]> {
-  const client = tx ?? db;
-  const rows = await client.select({
+  const rows = await executor.select({
     request: s.shipmentChangeRequests,
     requesterId: s.users.id,
     requesterFullName: s.users.fullName,

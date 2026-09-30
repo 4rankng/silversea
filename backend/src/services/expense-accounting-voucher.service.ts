@@ -5,7 +5,7 @@ import { lockExpenseCashSources } from './expense-cash-lock.service';
 import { expenseVoucherCode } from './expense-cash-command.service';
 import type { GovernanceActionRow } from './governance-action-core.service';
 import * as s from '../db/schema';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from '../db';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
 import { assertTreasuryFundAssigned, assertVoucherFundMatches, resolveTreasuryPaymentContract, insertTreasuryMovement, appendTreasuryReversal } from './treasury.service';
@@ -20,11 +20,11 @@ import { hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './
  *  so a selection that reads it per row pays one query per row. This is the same join with
  *  `inArray`, grouped in memory: every requested id gets `{IN, OUT}`, zeroed when it has no
  *  recorded allocation, which is exactly what `getExpenseCashTotals` returned for it. */
-export async function getExpenseCashTotalsBatch(tx: Tx, sourceIds: number[]): Promise<Map<number, { IN: number; OUT: number }>> {
+export async function getExpenseCashTotalsBatch(executor: Executor, sourceIds: number[]): Promise<Map<number, { IN: number; OUT: number }>> {
   const totalsBySourceId = new Map<number, { IN: number; OUT: number }>();
   for (const sourceId of new Set(sourceIds)) totalsBySourceId.set(sourceId, { IN: 0, OUT: 0 });
   if (totalsBySourceId.size === 0) return totalsBySourceId;
-  const rows = await tx.select({
+  const rows = await executor.select({
     sourceId: s.expenseCashAllocations.expenseAccountingSourceId,
     direction: s.treasuryMovements.direction,
     amount: s.expenseCashAllocations.amount,
@@ -42,8 +42,8 @@ export async function getExpenseCashTotalsBatch(tx: Tx, sourceIds: number[]): Pr
 
 /** Single-source form keeps the shared domain name: three call sites read one source's cash
  *  totals and must stay on the same join/filter as the batch form above. */
-export async function getExpenseCashTotals(tx: Tx, sourceId: number) {
-  return (await getExpenseCashTotalsBatch(tx, [sourceId])).get(sourceId)!;
+export async function getExpenseCashTotals(executor: Executor, sourceId: number) {
+  return (await getExpenseCashTotalsBatch(executor, [sourceId])).get(sourceId)!;
 }
 
 export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: ExpenseVoucherInput, recordedAction?: GovernanceActionRow) {

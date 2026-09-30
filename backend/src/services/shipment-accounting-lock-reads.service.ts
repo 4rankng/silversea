@@ -3,10 +3,9 @@
 // Extracted from shipment-accounting-lock.service.ts verbatim (pure code
 // movement).
 import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
 import {
   ISSUED_DEBIT_NOTE_STATUSES,
   SHIPMENT_COST_CONFIRMATION_KIND,
@@ -25,8 +24,7 @@ import {
 } from './shipment-accounting-lock-shared.service';
 import { buildShipmentFinanceSnapshot } from './shipment-finance-snapshot.service';
 
-export async function getShipmentAccountingLock(shipmentId: number, tx?: Tx) {
-  const executor = tx ?? db;
+export async function getShipmentAccountingLock(shipmentId: number, executor: Executor = db) {
   const [row] = await executor.select({
     id: s.shipmentAccountingLocks.id,
     shipmentId: s.shipmentAccountingLocks.shipmentId,
@@ -46,8 +44,8 @@ export async function getShipmentAccountingLock(shipmentId: number, tx?: Tx) {
   return row ?? null;
 }
 
-export async function getShipmentAccountingLockSummary(shipmentId: number, tx?: Tx) {
-  const lock = await getShipmentAccountingLock(shipmentId, tx);
+export async function getShipmentAccountingLockSummary(shipmentId: number, executor: Executor = db) {
+  const lock = await getShipmentAccountingLock(shipmentId, executor);
   if (!lock) return null;
   return {
     id: lock.id,
@@ -60,9 +58,8 @@ export async function getShipmentAccountingLockSummary(shipmentId: number, tx?: 
 
 export async function getLatestShipmentDocumentCustody(
   shipmentId: number,
-  tx?: Tx,
+  executor: Executor = db,
 ): Promise<ShipmentDocumentCustodyFactRow | null> {
-  const executor = tx ?? db;
   const [row] = await executor.select({
     id: s.shipmentDocumentCustodyFacts.id,
     shipmentId: s.shipmentDocumentCustodyFacts.shipmentId,
@@ -81,11 +78,10 @@ export async function getLatestShipmentDocumentCustody(
 
 export async function getShipmentFinanceConfirmationSummary(
   shipmentId: number,
-  tx?: Tx,
+  executor: Executor = db,
 ): Promise<ShipmentFinanceConfirmationSummary> {
-  const executor = tx ?? db;
-  const latestApprovedReopen = await getLatestShipmentReopenApproval(shipmentId, executor as Tx);
-  const latestConfirmation = await getLatestShipmentFinanceConfirmationRow(shipmentId, executor as Tx);
+  const latestApprovedReopen = await getLatestShipmentReopenApproval(shipmentId, executor);
+  const latestConfirmation = await getLatestShipmentFinanceConfirmationRow(shipmentId, executor);
   const summary = mapConfirmationSummary(latestConfirmation, latestApprovedReopen?.appliedAt ?? null);
   if (
     summary.status !== 'CONFIRMED'
@@ -97,7 +93,7 @@ export async function getShipmentFinanceConfirmationSummary(
 
   try {
     const { checksum } = await buildShipmentFinanceSnapshot(
-      executor as Tx,
+      executor,
       shipmentId,
       summary.billingDocumentId,
       { lockRows: false },
@@ -121,12 +117,11 @@ export async function getShipmentFinanceConfirmationSummary(
  */
 export async function getShipmentFinanceConfirmationSummaries(
   shipmentIds: readonly number[],
-  tx?: Tx,
+  executor: Executor = db,
 ): Promise<Map<number, ShipmentFinanceConfirmationSummary>> {
   const ids = [...new Set(shipmentIds)];
   const summaries = new Map<number, ShipmentFinanceConfirmationSummary>();
   if (ids.length === 0) return summaries;
-  const executor = tx ?? db;
   const [confirmationRows, reopenRows, shipmentRows] = await Promise.all([
     executor.select({
       action: s.shipmentFinanceActions,
@@ -231,21 +226,21 @@ export async function getShipmentFinanceConfirmationSummaries(
  * mutation. Locking the shipment row serializes active-lock checks against
  * operational writes that follow this contract.
  */
-export async function assertShipmentAccountingUnlocked(tx: Tx, shipmentId: number) {
-  const shipment = await lockShipment(tx, shipmentId);
-  const lock = await loadActiveLockForUpdate(tx, shipmentId);
+export async function assertShipmentAccountingUnlocked(executor: Executor, shipmentId: number) {
+  const shipment = await lockShipment(executor, shipmentId);
+  const lock = await loadActiveLockForUpdate(executor, shipmentId);
   if (lock) throw new ApiError(409, SHIPMENT_ACCOUNTING_LOCKED_MESSAGE);
   return shipment;
 }
 
-export async function assertTripShipmentAccountingUnlocked(tx: Tx, tripId: number) {
-  const [trip] = await tx.select({ shipmentId: s.trips.shipmentId })
+export async function assertTripShipmentAccountingUnlocked(executor: Executor, tripId: number) {
+  const [trip] = await executor.select({ shipmentId: s.trips.shipmentId })
     .from(s.trips)
     .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
     .limit(1);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   if (trip.shipmentId != null) {
-    await assertShipmentAccountingUnlocked(tx, trip.shipmentId);
+    await assertShipmentAccountingUnlocked(executor, trip.shipmentId);
   }
   return trip.shipmentId;
 }

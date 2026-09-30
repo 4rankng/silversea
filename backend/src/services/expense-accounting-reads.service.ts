@@ -7,16 +7,14 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from 'dr
 import { Role, EXPENSE_COST_GROUP_LABELS, OPS_EXPENSE_SUGGESTIONS, expenseDateSchema, round2dp, sumExcludingNegative,
   type ExpenseAccountingEntry, type ExpenseAccountingList, type ExpenseListQuery, type ExpenseSourceKind,
   type ExpenseReconciliation, type ExpenseVoucher, type TruckAccountantAssignment } from '@tingting/shared';
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import logger from '../lib/logger';
 import { hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 
 type Actor = Pick<AuthUser, 'userId' | 'role'>;
-type Executor = Tx | typeof db;
 type Source = ExpenseAccountingSource & { legacy?: boolean };
 type Allocation = { sourceId: number; direction: string; amount: string; status: string; valueDate: string; reversalValueDate?: string | null };
 const financeRoles: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
@@ -264,19 +262,19 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
   });
 }
 
-export async function listExpenseAccountingEntries(actor: Actor, query: ExpenseListQuery, tx?: Tx) {
-  return expenseEntryPage(await loadExpenseAccountingEntries(actor, query, tx ?? db), actor, query);
+export async function listExpenseAccountingEntries(actor: Actor, query: ExpenseListQuery, executor: Executor = db) {
+  return expenseEntryPage(await loadExpenseAccountingEntries(actor, query, executor), actor, query);
 }
-export async function getExpenseAccountingEntry(actor: Actor, kind: ExpenseSourceKind, id: number, tx?: Tx) {
-  const rows = await loadExpenseAccountingEntries(actor, { page: 1, limit: 100 }, tx ?? db, vietnamToday(), true, { sourceKind: kind, sourceId: id });
+export async function getExpenseAccountingEntry(actor: Actor, kind: ExpenseSourceKind, id: number, executor: Executor = db) {
+  const rows = await loadExpenseAccountingEntries(actor, { page: 1, limit: 100 }, executor, vietnamToday(), true, { sourceKind: kind, sourceId: id });
   const found = rows.find(row => row.sourceKind === kind && row.sourceId === id);
   if (!found) throw new ApiError(404, 'Không tìm thấy khoản chi trong phạm vi của bạn.');
   return found;
 }
 
-export async function listTruckAccountantAssignments(actor: Actor, tx?: Tx): Promise<TruckAccountantAssignment[]> {
+export async function listTruckAccountantAssignments(actor: Actor, executor: Executor = db): Promise<TruckAccountantAssignment[]> {
   requireFinance(actor);
-  return (tx ?? db).select({ truckId: s.trucks.id, truckPlate: s.trucks.licensePlate, accountantId: s.truckAccountantAssignments.accountantId,
+  return executor.select({ truckId: s.trucks.id, truckPlate: s.trucks.licensePlate, accountantId: s.truckAccountantAssignments.accountantId,
     accountantName: s.users.fullName, version: s.truckAccountantAssignments.version, assignedAt: s.truckAccountantAssignments.assignedAt }).from(s.trucks)
     .leftJoin(s.truckAccountantAssignments, and(eq(s.truckAccountantAssignments.truckId, s.trucks.id), isNull(s.truckAccountantAssignments.endedAt)))
     .leftJoin(s.users, eq(s.users.id, s.truckAccountantAssignments.accountantId)).where(isNull(s.trucks.deletedAt)).orderBy(asc(s.trucks.licensePlate))
@@ -295,8 +293,8 @@ export async function listTruckAccountantAssignments(actor: Actor, tx?: Tx): Pro
  *
  * No actor: the caller has already proven the caller drives this trip.
  */
-export async function tripTruckHasActiveAccountant(tripId: number, tx?: Tx): Promise<boolean> {
-  const [row] = await (tx ?? db).select({ assigned: s.truckAccountantAssignments.id })
+export async function tripTruckHasActiveAccountant(tripId: number, executor: Executor = db): Promise<boolean> {
+  const [row] = await executor.select({ assigned: s.truckAccountantAssignments.id })
     .from(s.trips)
     .innerJoin(s.truckAccountantAssignments, and(
       eq(s.truckAccountantAssignments.truckId, s.trips.truckId),
@@ -307,8 +305,8 @@ export async function tripTruckHasActiveAccountant(tripId: number, tx?: Tx): Pro
   return Boolean(row?.assigned);
 }
 
-export async function getExpenseVoucher(actor: Actor, id: number, tx?: Tx): Promise<ExpenseVoucher> {
-  requireFinance(actor); const executor = tx ?? db;
+export async function getExpenseVoucher(actor: Actor, id: number, executor: Executor = db): Promise<ExpenseVoucher> {
+  requireFinance(actor);
   const [stored] = await executor.select().from(s.expenseCashVouchers).where(eq(s.expenseCashVouchers.id, id));
   if (!stored) throw new ApiError(404, 'Không tìm thấy phiếu thu/chi.');
   const voucher = await hydrateExpenseCashVoucher(executor, stored);
@@ -331,14 +329,13 @@ export async function getExpenseVoucher(actor: Actor, id: number, tx?: Tx): Prom
         : await executor.select({ name: s.suppliers.name }).from(s.suppliers).where(eq(s.suppliers.id, voucher.counterpartyId));
   return { ...voucher, reversal, counterpartyName: counterparty?.name ?? (counterparty && 'username' in counterparty ? counterparty.username : null), treasuryAccountName: account?.name ?? null, unappliedAmount: Number(receipt?.unappliedAmount ?? 0), amount: Number(voucher.amount), createdAt: voucher.createdAt.toISOString(), entries: entries.map(entry => ({ ...entry, amount: Number(entry.amount) })) };
 }
-export async function listExpenseVouchers(actor: Actor, tx?: Tx) {
-  requireFinance(actor); const executor = tx ?? db;
+export async function listExpenseVouchers(actor: Actor, executor: Executor = db) {
+  requireFinance(actor);
   const rows = await executor.select({ id: s.expenseCashVouchers.id }).from(s.expenseCashVouchers).innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId)).orderBy(desc(s.treasuryMovements.valueDate), desc(s.expenseCashVouchers.id));
-  return Promise.all(rows.map(row => getExpenseVoucher(actor, row.id, tx)));
+  return Promise.all(rows.map(row => getExpenseVoucher(actor, row.id, executor)));
 }
 
-export async function getExpenseReconciliation(actor: Actor, id: number, tx?: Tx): Promise<ExpenseReconciliation> {
-  const executor = tx ?? db;
+export async function getExpenseReconciliation(actor: Actor, id: number, executor: Executor = db): Promise<ExpenseReconciliation> {
   if (!isFinance(actor) && actor.role !== Role.OPS) throw new ApiError(403, 'Bạn không có quyền xem bảng hoàn ứng.');
   const [row] = await executor.select().from(s.expenseReconciliations).where(and(eq(s.expenseReconciliations.id, id), actor.role === Role.OPS ? eq(s.expenseReconciliations.opsUserId, actor.userId) : undefined));
   if (!row) throw new ApiError(404, 'Không tìm thấy bảng hoàn ứng.');
@@ -366,12 +363,11 @@ export async function getExpenseReconciliation(actor: Actor, id: number, tx?: Tx
     entries: entries.map(entry => ({ sourceKind: entry.sourceKind, sourceId: entry.sourceId, expectedVersion: entry.version })),
     advances: advances.map(advance => ({ ...advance, amount: Number(advance.amount) })) };
 }
-export async function listExpenseReconciliations(actor: Actor, tx?: Tx) {
+export async function listExpenseReconciliations(actor: Actor, executor: Executor = db) {
   if (!isFinance(actor) && actor.role !== Role.OPS) throw new ApiError(403, 'Bạn không có quyền xem bảng hoàn ứng.');
-  const executor = tx ?? db;
   const rows = await executor.select({ id: s.expenseReconciliations.id }).from(s.expenseReconciliations)
     .where(actor.role === Role.OPS ? eq(s.expenseReconciliations.opsUserId, actor.userId) : undefined).orderBy(desc(s.expenseReconciliations.id));
-  return Promise.all(rows.map(row => getExpenseReconciliation(actor, row.id, tx)));
+  return Promise.all(rows.map(row => getExpenseReconciliation(actor, row.id, executor)));
 }
 
 export interface ExpenseAccountingReportRow { entityType: string; entityId: number; entityName: string; carrierCode: string | null;
@@ -409,9 +405,8 @@ export function expenseAccountingReportRows(entries: readonly ExpenseAccountingE
   return { items, unknownCount, totals: { lift: sum(items.map(row => row.lift)), drop: sum(items.map(row => row.drop)), other: sum(items.map(row => row.other)),
     total: sum(items.map(row => row.total)), settled: nullableSum(items.map(row => row.settled)), outstanding: nullableSum(items.map(row => row.outstanding)) } };
 }
-export async function getExpenseAccountingReport(actor: Actor, query: ExpenseListQuery & { direction: 'IN' | 'OUT'; asOfDate?: string }, tx?: Tx) {
+export async function getExpenseAccountingReport(actor: Actor, query: ExpenseListQuery & { direction: 'IN' | 'OUT'; asOfDate?: string }, executor: Executor = db) {
   requireFinance(actor); const asOfDate = query.asOfDate ?? vietnamToday();
-  const executor = tx ?? db;
   const current = await loadExpenseAccountingEntries(actor, query, executor, asOfDate);
   const rows = filterExpenseEntries(await projectExpenseAdvancesAsOf(executor, current, asOfDate), actor, query);
   const report = expenseAccountingReportRows(rows, query.direction);
@@ -428,8 +423,8 @@ export async function getExpenseAccountingReport(actor: Actor, query: ExpenseLis
   return { direction: query.direction, dateBasis: 'expenseDate' as const, from: query.from ?? null, to: query.to ?? null, asOfDate, ...report };
 }
 
-export async function getExpenseAccountingCatalog(actor: Actor, tx?: Tx) {
-  requireRead(actor); const executor = tx ?? db;
+export async function getExpenseAccountingCatalog(actor: Actor, executor: Executor = db) {
+  requireRead(actor);
   const norms = await executor.select({ code: s.driverFeeNorms.code, label: s.driverFeeNorms.label, amount: s.driverFeeNorms.amount }).from(s.driverFeeNorms)
     .where(eq(s.driverFeeNorms.status, 'ACTIVE')).orderBy(asc(s.driverFeeNorms.code));
   const base = { costGroups: Object.entries(EXPENSE_COST_GROUP_LABELS).map(([code, label]) => ({ code, label })), driverCostSuggestions: norms.map(norm => ({ ...norm, amount: Number(norm.amount) })), opsFeeSuggestions: OPS_EXPENSE_SUGGESTIONS };
@@ -439,7 +434,7 @@ export async function getExpenseAccountingCatalog(actor: Actor, tx?: Tx) {
     executor.select({ id: s.users.id, name: s.users.fullName, username: s.users.username, role: s.users.role }).from(s.users)
       .where(and(inArray(s.users.role, [Role.ACCOUNTANT, Role.OPS, Role.DRIVER]), eq(s.users.status, 'ACTIVE'), isNull(s.users.deletedAt)))
       .then(rows => rows.map(person => ({ ...person, name: person.name?.trim() || person.username }))),
-    listTruckAccountantAssignments(actor, tx),
+    listTruckAccountantAssignments(actor, executor),
     executor.select().from(s.advanceRequests).where(eq(s.advanceRequests.status, 'RECORDED')),
   ]);
   const ids = advances.map(row => row.id);

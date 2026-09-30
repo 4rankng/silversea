@@ -9,7 +9,7 @@ import { type ShipmentChargeProposalField } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 
-import type { Tx } from './trip-shared';
+import type { Executor } from '../db';
 import { effectiveAmount } from './billing-document.service';
 
 export const ISSUED_DEBIT_NOTE_STATUSES = new Set([
@@ -244,11 +244,11 @@ export function billingLineEffectiveAmount(line: ChargeProposalLineRow): string 
 }
 
 export async function lockShipment(
-  tx: Tx,
+  executor: Executor,
   shipmentId: number,
   options: FinanceSnapshotOptions = {},
 ) {
-  const query = tx.select().from(s.shipments)
+  const query = executor.select().from(s.shipments)
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   const [shipment] = await (options.lockRows === false ? query : query.for('update'));
@@ -258,9 +258,9 @@ export async function lockShipment(
 
 export async function getLatestShipmentReopenApproval(
   shipmentId: number,
-  tx: Tx,
+  executor: Executor,
 ) {
-  const [row] = await tx.select({
+  const [row] = await executor.select({
     id: s.shipmentFinanceActions.id,
     appliedAt: s.shipmentFinanceActions.appliedAt,
   }).from(s.shipmentFinanceActions)
@@ -277,9 +277,9 @@ export async function getLatestShipmentReopenApproval(
 
 export async function getLatestShipmentFinanceConfirmationRow(
   shipmentId: number,
-  tx: Tx,
+  executor: Executor,
 ) {
-  const [row] = await tx.select({
+  const [row] = await executor.select({
     action: s.shipmentFinanceActions,
     fullName: s.users.fullName,
     username: s.users.username,
@@ -300,10 +300,10 @@ export async function getLatestShipmentFinanceConfirmationRow(
   };
 }
 export async function loadActiveLockForUpdate(
-  tx: Tx,
+  executor: Executor,
   shipmentId: number,
 ) {
-  const [lock] = await tx.select().from(s.shipmentAccountingLocks)
+  const [lock] = await executor.select().from(s.shipmentAccountingLocks)
     .where(and(
       eq(s.shipmentAccountingLocks.shipmentId, shipmentId),
       isNull(s.shipmentAccountingLocks.releasedAt),
@@ -341,12 +341,12 @@ export function mapConfirmationSummary(
 }
 
 export async function bumpShipmentVersion(
-  tx: Tx,
+  executor: Executor,
   shipmentId: number,
   currentVersion: number,
   actorId: number,
 ) {
-  const [updated] = await tx.update(s.shipments).set({
+  const [updated] = await executor.update(s.shipments).set({
     version: currentVersion + 1,
     updatedBy: actorId,
     updatedAt: new Date(),

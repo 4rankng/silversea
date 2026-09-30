@@ -1,7 +1,6 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { Role, round2dp, type ExpenseAccountingEntry, type ExpenseListQuery, type ExpenseWorkList, type ExpenseWorkRow } from '@tingting/shared';
-import { db } from '../db';
-import type { Tx } from './trip-shared';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { ExpenseActor } from './expense-accounting-write.service';
@@ -12,9 +11,8 @@ const amount = (value: string | null) => value == null ? null : Number(value);
 const sum = (rows: Array<number | null>) => rows.includes(null) ? null : rows.reduce<number>((total, n) => round2dp(total + (n ?? 0)), 0);
 
 /** One row per actual work/trip, including work without any submitted expense. */
-export async function listExpenseAccountingWork(actor: ExpenseActor, query: ExpenseListQuery, transaction?: Tx): Promise<ExpenseWorkList> {
+export async function listExpenseAccountingWork(actor: ExpenseActor, query: ExpenseListQuery, executor: Executor = db): Promise<ExpenseWorkList> {
   if (![Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(actor.role)) throw new ApiError(403, 'Bạn không có quyền xem phơi phiếu.');
-  const executor = transaction ?? db;
   const [work, entries, containerTypes, ports, assignments, carriers, suppliers, pairs, sites] = await Promise.all([
     executor.select({ t: { id: s.tripsComposite.id, status: s.tripsComposite.status, departureDate: s.tripsComposite.departureDate,
       totalRoadAllowance: s.tripsComposite.totalRoadAllowance, vehicleShiftAllowance: s.tripsComposite.vehicleShiftAllowance,

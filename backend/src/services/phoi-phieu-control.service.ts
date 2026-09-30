@@ -824,11 +824,7 @@ export async function getPhoiPhieuReport(query: {
   // Card 20260927_147 sweep — the same one-read-per-source pattern the voucher
   // path already dropped: this loop only needs each source's recorded cash
   // totals, so read the whole selection once instead of once per source.
-  // SAFETY: the batch read takes a transaction handle so its caller can read
-  // inside the same tx; `db` is the module-level handle, which satisfies that
-  // parameter at runtime. The cast only bridges drizzle's `Tx` vs `typeof db`
-  // types — it does not change which connection the query runs on.
-  const cashBySourceId = await getExpenseCashTotalsBatch(db as unknown as Tx, sources.map((source) => source.id));
+  const cashBySourceId = await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
   const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null; soLuong: number; phaiThu: number; phaiTra: number; movements: Set<string> }>();
   for (const source of sources) {
     // A NULL trip (the correct-route linked-replacement nulls the source's

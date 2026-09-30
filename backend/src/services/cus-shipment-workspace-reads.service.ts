@@ -17,7 +17,6 @@ import { CARGO_MODE } from '../db/schema';
 
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
 import {
   getShipmentFinanceConfirmationSummaries,
   getShipmentFinanceConfirmationSummary,
@@ -704,7 +703,7 @@ export async function buildWorkspaceDetail(
   executor: Executor = db,
 ): Promise<ShipmentCusWorkspaceDetail> {
   const support = await loadSupportRows([row.shipment.id], executor);
-  const confirmation = await getShipmentFinanceConfirmationSummary(row.shipment.id, executor as Tx);
+  const confirmation = await getShipmentFinanceConfirmationSummary(row.shipment.id, executor);
   const summary = buildListItem(row, support, actor, confirmation);
   const selectors = await loadSelectors(row.shipment.customerId, executor);
   const containers = (support.containersByShipment.get(row.shipment.id) ?? [])

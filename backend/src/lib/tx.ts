@@ -14,13 +14,12 @@
 // The callback must not commit/rollback the passed tx — db.transaction owns
 // the lifecycle in the top-level case.
 
-import { db } from '../db';
-import type { Tx } from '../services/trip-shared';
+import { db, type Executor, type Tx } from '../db';
 
-// Canonical re-export so routes can take the executor type without importing
+// Canonical re-export so routes can take the executor types without importing
 // the db client (the arch-layering db-client baseline exists to prevent routes
 // from opening their own connections; type-only access is not that).
-export type { Tx };
+export type { Executor, Tx };
 
 export function runInTx<T>(
   transaction: Tx | undefined,
