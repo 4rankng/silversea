@@ -103,7 +103,7 @@ describe('card 20260928_165 — ROAD_REPAIR lifecycle', () => {
   });
 
   test('read: after accountant confirm the receipt survives into the phơi-phiếu-facing read, receivable stays 0', async () => {
-    const { user, driver, trip, shipment } = await mkDriverTrip();
+    const { user, driver, trip } = await mkDriverTrip();
     const accountant = await mkAccountant();
     const storageKey = `card165lc/receipt-lc-${suffix}.jpg`;
     const [photo] = await db.insert(s.tripPhotos).values({

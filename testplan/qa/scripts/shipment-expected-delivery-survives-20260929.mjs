@@ -81,7 +81,6 @@ const bad = await call(cus.token, 'PUT', `/shipments/${lot.id}/containers`, {
   expectedVersion: lot.version ?? 1,
   containers: [{ containerNumber: BAD, containerTypeId: ctype.id, routeId: route.id, liftPortId: port.id, dischargePortId: port.id, weightKg: 25000 }],
 }, { 'Idempotency-Key': `${stamp}-bad` });
-const badBody = await bad.text();
 console.log(`\nCONTROL bad check-digit PUT -> ${bad.status}`);
 if (bad.status < 400) problems.push(`a container with a bad check digit was ACCEPTED (${bad.status}) — the control proves nothing`);
 
