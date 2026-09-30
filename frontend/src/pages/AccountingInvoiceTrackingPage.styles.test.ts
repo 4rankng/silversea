@@ -137,7 +137,7 @@ describe('invoice-tracking command strip (card 20260929_ivt — shared primitive
   it('row 2: the shared bar owns the strip — period fields, quick ranges, search slot, Bộ lọc dialog', () => {
     // Card 20260927_152: the page hands its criteria to the shared bar; the
     // layout (row packing, every filter width) lives in FilterBar.css.
-    expect(tsx).toContain('<ListFilterBar');
+    expect(tsx).toContain('<FilterBar');
     expect(tsx).toContain('<DateRangeFields');
     expect(tsx).toContain('<DateRangePresets');
     expect(tsx).toContain('<FilterDropdown');

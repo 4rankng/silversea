@@ -6,7 +6,7 @@ const tsx = readFileSync(resolve(process.cwd(), 'src/pages/PayableDetailPage.tsx
 
 describe('payable detail filter strip (card 20260927_152)', () => {
   it('renders the shared bar with the boxed ledger-type group and the period plane', () => {
-    expect(tsx).toContain('<ListFilterBar');
+    expect(tsx).toContain('<FilterBar');
     expect(tsx).toMatch(/<Tabs\s+variant="boxed" ariaLabel="Lọc loại giao dịch"/);
     expect(tsx).toContain('<PeriodFilter');
   });

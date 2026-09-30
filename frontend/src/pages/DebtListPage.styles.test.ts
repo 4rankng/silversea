@@ -10,7 +10,7 @@ const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('debt customer-list filter strip (card 20260927_152)', () => {
   it('renders the shared bar, with the status chip as the only criterion it owns', () => {
-    expect(tsx).toContain('<ListFilterBar');
+    expect(tsx).toContain('<FilterBar');
     expect(tsx).toContain('quickFilters');
     expect(tsx).toContain("placeholder: 'Tìm khách hàng...'");
     expect(tsx).toContain("ariaLabel: 'Tìm công nợ theo khách hàng'");

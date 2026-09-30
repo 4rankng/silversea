@@ -40,7 +40,7 @@ describe('accounting workspace list-screen contract', () => {
     // rules that laid the strip out (flex row + gap, the search cell, the
     // `flex: 1 1 150px` select stretch and the two toolbar grid bands) are
     // deleted, not re-pinned — a page rule may not size or stretch a control.
-    expect(registerTsx).toContain('<ListFilterBar');
+    expect(registerTsx).toContain('<FilterBar');
     expect(registerTsx).toContain('<FilterDropdown');
     expect(registerTsx).toContain('onReset={onResetSecondary}');
     expect(pageCss).not.toMatch(/\.accounting-register__(toolbar|search)\s*[,{]/);

@@ -15,7 +15,7 @@ describe('fuel-invoice filter strip (card 20260927_152)', () => {
     // the page only hands it values and writers.
     expect(page).toContain('<FuelInvoiceFilters');
     expect(page).not.toContain('className="fuel-invoices-toolbar"');
-    expect(plane).toContain('<ListFilterBar');
+    expect(plane).toContain('<FilterBar');
     expect(plane).toContain('<FilterDropdown');
   });
 
