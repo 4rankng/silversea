@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { eq, and, inArray, isNull } from 'drizzle-orm';
-import { Role, TripStatus, FuelMode, LoadingType } from '@tingting/shared';
+import { Role, TripStatus, FuelMode, LoadingType, TxnType } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
@@ -415,8 +415,12 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
     token: managerToken,
     headers: { 'Idempotency-Key': `comprehensive-trip-reassign-${tripId}` },
     body: JSON.stringify({
+      carrierType: 'OWN',
       truckId: altTruck.id,
-      driverId: altDriver.id
+      driverId: altDriver.id,
+      // Card 20260922_79 (Q11 closure): the reason is mandatory on
+      // reassignment; it rides audit_logs beside actor + timestamp.
+      reason: 'Điều phối đổi xe do xe bảo dưỡng định kỳ',
     })
   });
   if (reassignRes.status !== 200) console.log('REASSIGN FAIL:', reassignRes, 'altTruck:', altTruck.id, 'altDriver:', altDriver.id, 'busyTrucks:', [...curBusyTrucks], 'busyDrivers:', [...curBusyDrivers]);
@@ -656,6 +660,24 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   assert.ok(stmtRes.data.ledgerRows !== undefined);
 
   // 6. Payment receipts allocation
+  // Allocated receipts ride the AR source-authority model (2026-07-27 source
+  // authority policies): a payment may only allocate against a trip's actual
+  // outstanding (Σdebit − Σcredit over TRIP_REVENUE / PAYMENT_RECEIVED /
+  // ADJUSTMENT / UNLOCK_REVERSAL ledger rows) — paying beyond it 422s. The
+  // adjustment above posted a −100,000 credit, so seed the trip's receivable
+  // milestone (the q15/m56 fixture pattern) to give the 500,000 allocation a
+  // legitimate 500,000 outstanding.
+  await db.insert(s.ledger).values({
+    entityType: 'CUSTOMER',
+    entityId: customerId,
+    txnType: TxnType.TRIP_REVENUE,
+    txnId: tripId,
+    debit: '600000',
+    credit: '0',
+    balance: '600000',
+    note: 'Comprehensive E2E trip receivable',
+    timestamp: new Date('2026-07-27T00:00:00+07:00'),
+  });
   const paymentRes = await testFetch('/api/payments/receive', {
     method: 'POST',
     token: adminToken,
@@ -666,6 +688,7 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
       payments: [{ tripId: tripId, amount: 500000 }]
     })
   });
+  if (paymentRes.status !== 201) console.log('PAYMENT RECEIVE FAIL:', paymentRes, { customerId, tripId });
   assert.strictEqual(paymentRes.status, 201);
 });
 
