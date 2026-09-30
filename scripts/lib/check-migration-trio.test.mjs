@@ -108,6 +108,25 @@ describe("check-migration-trio", () => {
     assert.ok(has(trioViolations([], realSql), "journal has no entries"));
   });
 
+  test("full-tag snapshot names (hand-written trio norm) resolve, not just timestamp prefixes", () => {
+    // Since drizzle-kit generate was blocked, hand-written trios name their
+    // snapshot after the whole journal tag (`<ts>_<slug>_snapshot.json`). The
+    // timestamp-prefix lookup alone counted these as unresolved — the exact
+    // gap that hid journal idx 132's existing snapshot.
+    const fakeEntries = [
+      { idx: 200, tag: "20260928202603_retire_duplicate_fee_codes", when: 1 },
+      { idx: 201, tag: "20260929204221_container_payload_iso", when: 2 },
+    ];
+    const metaFiles = [
+      "20260928202603_retire_duplicate_fee_codes_snapshot.json",
+      "20260929204221_container_payload_iso_snapshot.json",
+    ];
+    const { viaIdx, viaTag, unresolved } = snapshotCoverage(fakeEntries, metaFiles);
+    assert.equal(viaIdx, 0);
+    assert.equal(viaTag, 2);
+    assert.deepEqual(unresolved, []);
+  });
+
   test("snapshot coverage resolves both naming conventions", () => {
     const meta = readdirSync(join(DRIZZLE, "meta"));
     const { viaIdx, viaTag, unresolved } = snapshotCoverage(entries(), meta);

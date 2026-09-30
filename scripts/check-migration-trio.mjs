@@ -113,14 +113,17 @@ export function trioViolations(entries, sqlFiles) {
 /**
  * Snapshot coverage, reported but never gated.
  *
- * Two naming conventions coexist: legacy `NNNN_snapshot.json` keyed on idx, and
- * timestamp-era `<YYYYMMDDHHMMSS>_snapshot.json` keyed on the tag prefix. 26
- * legacy entries resolve under NEITHER convention because their tag-embedded
- * number is offset from idx by exactly 4 — four indices were dropped early in
- * this repo's history, so the tag counter and the idx counter have disagreed
- * since long before the current team touched it. A snapshot-coverage gate would
- * therefore be red on a healthy tree, which teaches people to ignore it. It is
- * surfaced as information so a future drop is still visible.
+ * Three snapshot naming shapes coexist: legacy `NNNN_snapshot.json` keyed on
+ * idx, timestamp-era `<YYYYMMDDHHMMSS>_snapshot.json` keyed on the tag's
+ * timestamp prefix, and the full-tag `<ts>_<slug>_snapshot.json` — the
+ * hand-written trio norm since drizzle-kit generate was blocked. A legacy tail
+ * resolves under NONE of the three because its tag-embedded number is offset
+ * from idx by exactly 4 — four indices were dropped early in this repo's
+ * history, so the tag counter and the idx counter have disagreed since long
+ * before the current team touched it. A snapshot-coverage gate would therefore
+ * be red on a healthy tree, which teaches people to ignore it. The residue is
+ * surfaced as information (and pinned by the unit test) so a future drop is
+ * still visible.
  *
  * @returns {{viaIdx:number, viaTag:number, unresolved:string[]}}
  */
@@ -131,8 +134,9 @@ export function snapshotCoverage(entries, metaFiles) {
   const unresolved = [];
   for (const e of entries) {
     if (files.has(`${String(e.idx).padStart(4, '0')}_snapshot.json`)) viaIdx += 1;
-    else if (files.has(`${e.tag.split('_')[0]}_snapshot.json`)) viaTag += 1;
-    else unresolved.push(`${e.idx}:${e.tag}`);
+    else if (files.has(`${e.tag}_snapshot.json`) || files.has(`${e.tag.split('_')[0]}_snapshot.json`)) {
+      viaTag += 1;
+    } else unresolved.push(`${e.idx}:${e.tag}`);
   }
   return { viaIdx, viaTag, unresolved };
 }
