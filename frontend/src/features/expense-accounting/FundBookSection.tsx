@@ -11,7 +11,7 @@ import { expenseMoney } from './expense-accounting-model';
 
 /** Card 20260928_168 (PM ruling 2026-09-29, câu 1 + câu 2) — the accountant's
  *  Sổ quỹ: one fund source read over a from/to period, with the opening
- *  balance carried lũy kế đến 'from', plus the TÀI KHOẢN OPS entry whose
+ *  balance carried lũy kế đến 'from', plus the Tài khoản OPS entry whose
  *  closing IS the "Còn phải hoàn ứng" the 169 reimbursement report shows —
  *  both read the same canonical formula (min(đã ứng, đã cấp) − đã tiêu, cash
  *  returned included), so the two tables are one number by construction. The
@@ -83,7 +83,7 @@ export function FundBookSection() {
         />
       </FilterDropdown>
     </ListFilterBar>
-    <p className="expense-accounting-hint">Đầu kỳ là số dư lũy kế đến ngày bắt đầu; thu, chi và dòng sổ chỉ nằm trong kỳ. TÀI KHOẢN OPS ghi số tạm ứng OPS còn giữ — cùng một công thức với số "Còn phải hoàn ứng" của báo cáo hoàn ứng.</p>
+    <p className="expense-accounting-hint">Đầu kỳ là số dư lũy kế đến ngày bắt đầu; thu, chi và dòng sổ chỉ nằm trong kỳ. Tài khoản OPS ghi số tạm ứng OPS còn giữ — cùng một công thức với số "Còn phải hoàn ứng" của báo cáo hoàn ứng.</p>
     {!validRange && <p role="alert" className="expense-accounting-error">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}
     {book.isError && <p role="alert">Không tải được sổ quỹ. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void book.refetch()}>Thử lại</button></p>}
     {validRange && (book.isPending ? <p role="status">Đang tải sổ quỹ…</p> : book.data && <>
@@ -93,7 +93,7 @@ export function FundBookSection() {
         <div><span>Thu trong kỳ</span><strong>{expenseMoney(book.data.totals.totalIn)}</strong></div>
         <div><span>Chi trong kỳ</span><strong>{expenseMoney(book.data.totals.totalOut)}</strong></div>
         <div><span>Tồn cuối kỳ</span><strong>{expenseMoney(book.data.totals.bookBalance)}</strong></div>
-        <div><span>TÀI KHOẢN OPS · còn phải hoàn ứng</span><strong>{expenseMoney(book.data.opsAdvance.totalOutstanding)}</strong></div>
+        <div><span>Tài khoản OPS · còn phải hoàn ứng</span><strong>{expenseMoney(book.data.opsAdvance.totalOutstanding)}</strong></div>
       </div>
       <div className="expense-register-table-wrap"><table className="expense-register-table">
         <thead><tr><th scope="col">Tài khoản</th><th scope="col">Đầu kỳ</th><th scope="col">Thu</th><th scope="col">Chi</th><th scope="col">Tồn cuối kỳ</th></tr></thead>
@@ -108,7 +108,7 @@ export function FundBookSection() {
         </tbody>
       </table></div>
       {!book.data.accounts.length && <p className="expense-accounting-empty">Quỹ này chưa có tài khoản đang dùng.</p>}
-      <h3 className="expense-accounting-subtitle">TÀI KHOẢN OPS</h3>
+      <h3 className="expense-accounting-subtitle">Tài khoản OPS</h3>
       <div className="expense-register-table-wrap"><table className="expense-register-table">
         <thead><tr><th scope="col">Nhân viên</th><th scope="col">Tạm ứng còn giữ</th><th aria-label="Thao tác" /></tr></thead>
         <tbody>

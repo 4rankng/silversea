@@ -25,8 +25,9 @@ const tsx = read('src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx');
 
 describe('DetailedPlanFilters rides the shared strip (card 20260927_152)', () => {
   it('mounts the shared bar, its search slot and the shared Bộ lọc dropdown', () => {
-    expect(tsx).toContain('<ListFilterBar');
-    expect(tsx).toContain('<FilterDropdown');
+    // The band IS the shared strip and it mounts the `Bộ lọc` fold itself
+    // (card 20260930_229), so a page no longer wires the dropdown itself.
+    expect(tsx).toContain('<FilterBar');
     expect(tsx).toContain('<DateRangeFields');
     expect(tsx).toContain('ariaLabel="Khoảng ngày vận chuyển"');
     // The day scope is the shared boxed button group (operator ruling

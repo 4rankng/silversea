@@ -161,16 +161,25 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Sửa khoản chi SS-1/ }));
     const dialog = await screen.findByRole('dialog', { name: /Sửa khoản chi SS-1/ });
     expect(dialog).toBeInTheDocument();
-    // Prefilled with the current amount.
+    // Prefilled with the current amount — the money field is a grouped text
+    // input (card 20260928_197), so it holds the vi-VN rendering of 90.000.
     const amountInput = within(dialog).getByLabelText(/Thực chi \(VND\)/) as HTMLInputElement;
-    expect(amountInput).toHaveValue(90000);
+    expect(amountInput).toHaveValue('90.000');
+    // A grouped money field cannot hold a fraction: "." is a separator, so
+    // "123.45" reads as the integer 12.345 and stays a legal signed amount.
     fireEvent.change(amountInput, { target: { value: '123.45' } });
-    expect(amountInput).toHaveValue(123.45);
+    expect(amountInput).toHaveValue('12.345');
+    expect(amountInput).toHaveAttribute('aria-invalid', 'false');
+    // An amount past the signedExpenseVndSchema ceiling is still refused and
+    // still blocks the save.
+    fireEvent.change(amountInput, { target: { value: '1000000000000000' } });
+    expect(amountInput).toHaveValue('1.000.000.000.000.000');
     expect(amountInput).toHaveAttribute('aria-invalid', 'true');
+    fireEvent.change(within(dialog).getByLabelText(/Lý do điều chỉnh/), { target: { value: 'Sửa đúng chứng từ gốc' } });
     fireEvent.submit(dialog.querySelector('form')!);
     expect(apiPatch).not.toHaveBeenCalled();
     fireEvent.change(amountInput, { target: { value: '120000' } });
-    fireEvent.change(within(dialog).getByLabelText(/Lý do điều chỉnh/), { target: { value: 'Sửa đúng chứng từ gốc' } });
+    expect(amountInput).toHaveValue('120.000');
     // jsdom does not synthesize form submission from submit-button clicks
     // here; submit the form directly.
     fireEvent.submit(dialog.querySelector('form')!);

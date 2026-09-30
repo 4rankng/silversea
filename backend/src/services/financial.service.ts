@@ -25,7 +25,7 @@ import {
   type PaymentReceiptInput,
 } from './payment-allocation.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from './trip-shared';
 import {
   insertTreasuryMovement,
   resolveTreasuryPaymentContract,
@@ -61,8 +61,8 @@ function buildCarrierOverpaymentWarning(previousBalance: number, paymentAmount: 
   return `Thanh toán ${paymentAmount.toLocaleString('vi-VN')}₫ vượt công nợ thuê ngoài hiện tại ${previousBalance.toLocaleString('vi-VN')}₫. Bạn có chắc chắn muốn tiếp tục?`;
 }
 
-async function loadLedgerEntryTx(tx: Tx, ledgerId: number): Promise<LedgerEntryRow> {
-  const [row] = await tx.select().from(s.ledger)
+async function loadLedgerEntryTx(executor: Executor, ledgerId: number): Promise<LedgerEntryRow> {
+  const [row] = await executor.select().from(s.ledger)
     .where(eq(s.ledger.id, ledgerId))
     .limit(1);
   if (!row) {
@@ -87,12 +87,12 @@ function applyOverpaymentMetadata(
 }
 
 function latestEntityLedgerVersionTx(
-  tx: Tx,
+  executor: Executor,
   entityType: 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'CARRIER',
   entityId: number,
 ) {
   const entityTypes = entityType === 'CARRIER' ? ['CUSTOMER', 'CARRIER'] as const : [entityType];
-  return tx.select({ id: s.ledger.id })
+  return executor.select({ id: s.ledger.id })
     .from(s.ledger)
     .where(and(
       inArray(s.ledger.entityType, entityTypes),
@@ -103,11 +103,11 @@ function latestEntityLedgerVersionTx(
 }
 
 async function getEntityLedgerVersionTx(
-  tx: Tx,
+  executor: Executor,
   entityType: 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'CARRIER',
   entityId: number,
 ): Promise<number> {
-  const [row] = await latestEntityLedgerVersionTx(tx, entityType, entityId);
+  const [row] = await latestEntityLedgerVersionTx(executor, entityType, entityId);
   return row?.id ?? 0;
 }
 
@@ -180,20 +180,20 @@ export interface DriverPayoutInput extends TreasuryPaymentFields {
  * (debit may not exceed the current payable balance + 1 for rounding), then
  * post a single append-only ledger entry.
  */
-export async function recordDriverPayoutTx(tx: Tx, input: DriverPayoutInput): Promise<LedgerEntryRow> {
+export async function recordDriverPayoutTx(executor: Executor, input: DriverPayoutInput): Promise<LedgerEntryRow> {
   // Resolve driver name for a human-readable overpay error message
   // (no raw IDs in UI text — per project convention).
-  const [driver] = await tx.select({ name: s.drivers.name })
+  const [driver] = await executor.select({ name: s.drivers.name })
     .from(s.drivers)
     .where(eq(s.drivers.id, input.driverId))
     .limit(1);
   const driverLabel = driver?.name ?? `ID ${input.driverId}`;
 
   // Advisory lock — serialize concurrent payouts for the same driver
-  await LedgerService.lockEntity(tx, 'DRIVER', input.driverId);
+  await LedgerService.lockEntity(executor, 'DRIVER', input.driverId);
 
   // DRIVER ledger balance = payable (what the company still owes the driver).
-  const balance = await LedgerService.getBalanceTx(tx, 'DRIVER', input.driverId);
+  const balance = await LedgerService.getBalanceTx(executor, 'DRIVER', input.driverId);
   if (input.amount > balance + 1) {  // +1 to absorb rounding
     throw new ApiError(422,
       `Số thanh toán vượt quá số công nợ còn lại của lái xe ${driverLabel} (còn ${balance.toLocaleString('vi-VN')} ₫, nhập ${input.amount.toLocaleString('vi-VN')} ₫)`);
@@ -202,7 +202,7 @@ export async function recordDriverPayoutTx(tx: Tx, input: DriverPayoutInput): Pr
   const methodLabel = input.method === 'BANK' ? 'chuyển khoản' : 'tiền mặt';
   const note = `Thanh toán lương (${methodLabel}) — ${input.payoutDate}${input.note ? ' — ' + input.note : ''}`;
 
-  return LedgerService.postEntry(tx, {
+  return LedgerService.postEntry(executor, {
     txnType: TxnType.DRIVER_PAYOUT,
     entityType: 'DRIVER',
     entityId: input.driverId,
@@ -218,14 +218,14 @@ export async function recordDriverPayout(input: DriverPayoutInput) {
 }
 
 /** OPS ledger credits are cash handed to OPS; expenses consume them as debits. */
-export async function recordOpsReimbursementTx(tx: Tx, input: { opsUserId: number; amount: number; receiptId: string; note?: string; date: string }) {
-  await LedgerService.lockEntity(tx, 'FORWARDER', input.opsUserId);
+export async function recordOpsReimbursementTx(executor: Executor, input: { opsUserId: number; amount: number; receiptId: string; note?: string; date: string }) {
+  await LedgerService.lockEntity(executor, 'FORWARDER', input.opsUserId);
   // Caller locks sources and checks the explicitly reconciled residual. Other
   // batches/unallocated advances are not an implicit offset authorization.
   if (!Number.isSafeInteger(input.amount) || input.amount <= 0) {
     throw new ApiError(409, 'Số hoàn ứng vượt khoản còn phải trả cho OPS.');
   }
-  return LedgerService.postEntry(tx, { txnType: TxnType.OPS_SETTLEMENT, entityType: 'FORWARDER', entityId: input.opsUserId,
+  return LedgerService.postEntry(executor, { txnType: TxnType.OPS_SETTLEMENT, entityType: 'FORWARDER', entityId: input.opsUserId,
     debit: 0, credit: input.amount, receiptId: input.receiptId, note: input.note ?? 'Hoàn chi phí cho OPS',
     timestamp: new Date(`${input.date}T00:00:00+07:00`) });
 }
@@ -754,10 +754,10 @@ export interface VendorPaymentInput extends TreasuryPaymentFields {
   allocations?: Array<{ expenseId: number; amount: number }>;
 }
 
-export async function recordVendorPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
-  await LedgerService.lockEntity(tx, 'VENDOR', input.supplierId);
+export async function recordVendorPaymentTx(executor: Executor, input: VendorPaymentInput): Promise<VendorPaymentResult> {
+  await LedgerService.lockEntity(executor, 'VENDOR', input.supplierId);
 
-  const [latestRow] = await tx.select({ balance: s.ledger.balance })
+  const [latestRow] = await executor.select({ balance: s.ledger.balance })
     .from(s.ledger)
     .where(and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, input.supplierId)))
     .orderBy(desc(s.ledger.id))
@@ -774,7 +774,7 @@ export async function recordVendorPaymentTx(tx: Tx, input: VendorPaymentInput): 
     );
   }
 
-  const posted = await LedgerService.postEntry(tx, {
+  const posted = await LedgerService.postEntry(executor, {
     txnType: TxnType.VENDOR_PAYMENT,
     entityType: 'VENDOR',
     entityId: input.supplierId,

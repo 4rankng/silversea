@@ -9,7 +9,7 @@ import {
   lockApplicationOwnedUniqueness,
   lockApplicationOwnedUniquenessSet,
 } from './application-owned-uniqueness.service';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from './trip-shared';
 
 export const CUSTOMER_EVENT_TYPES = [
   'MILESTONE',
@@ -80,12 +80,12 @@ function actorCustomerIds(actor: AuthUser): number[] {
 }
 
 export async function assertActorCanAccessShipment(
-  tx: Tx,
+  executor: Executor,
   shipmentId: number,
   actor: AuthUser,
   options: { expectedCustomerId?: number; write?: boolean } = {},
 ): Promise<ShipmentAccessRow> {
-  const [shipment] = await tx.select({
+  const [shipment] = await executor.select({
     id: s.shipments.id,
     customerId: s.shipments.customerId,
     responsibleUnitId: s.shipments.responsibleUnitId,

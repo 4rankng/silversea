@@ -2,7 +2,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { round2dp, TxnType } from '@tingting/shared';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from './trip-shared';
 import {
   resolveCustomerPaymentDueDate,
   resolveSupplierPaymentDueDate,
@@ -16,12 +16,12 @@ import {
  * customer `dueDateFields` shape so `postEntry` consumes both uniformly.
  */
 async function buildSupplierDueDateFields(
-  tx: Tx,
+  executor: Executor,
   supplierId: number,
   kind: 'CHI_HO' | 'CUOC',
   basisDate: string,
 ) {
-  const snapshot = await resolveSupplierPaymentDueDate(tx, supplierId, kind, basisDate);
+  const snapshot = await resolveSupplierPaymentDueDate(executor, supplierId, kind, basisDate);
   if (!snapshot) return null;
   return {
     originalDueDate: snapshot.originalDate,
@@ -32,11 +32,11 @@ async function buildSupplierDueDateFields(
 }
 
 async function buildCarrierDueDateFields(
-  tx: Tx,
+  executor: Executor,
   customerCarrierId: number,
   basisDate: string,
 ) {
-  const [carrier] = await tx.select({
+  const [carrier] = await executor.select({
     linkedSupplierId: s.customers.linkedSupplierId,
   })
     .from(s.customers)
@@ -44,7 +44,7 @@ async function buildCarrierDueDateFields(
     .limit(1);
 
   if (!carrier?.linkedSupplierId) return null;
-  return buildSupplierDueDateFields(tx, carrier.linkedSupplierId, 'CUOC', basisDate);
+  return buildSupplierDueDateFields(executor, carrier.linkedSupplierId, 'CUOC', basisDate);
 }
 
 /** Common trip shape for ledger completion/reversal operations */
@@ -142,15 +142,15 @@ export class LedgerService {
   /**
    * Acquire a transaction-level advisory lock on entityType + entityId
    */
-  static async lockEntity(tx: Tx, entityType: string, entityId: number) {
+  static async lockEntity(executor: Executor, entityType: string, entityId: number) {
     const typeKey = this.getEntityTypeKey(entityType);
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(${typeKey}, ${entityId})`);
+    await executor.execute(sql`SELECT pg_advisory_xact_lock(${typeKey}, ${entityId})`);
   }
 
   /**
    * Acquire sorted locks for multiple entities to prevent deadlocks
    */
-  static async lockEntities(tx: Tx, entities: { entityType: 'CUSTOMER' | 'DRIVER' | 'VENDOR' | 'FORWARDER' | 'CARRIER'; entityId: number }[]) {
+  static async lockEntities(executor: Executor, entities: { entityType: 'CUSTOMER' | 'DRIVER' | 'VENDOR' | 'FORWARDER' | 'CARRIER'; entityId: number }[]) {
     // Sort entities globally to prevent deadlocks
     const sorted = [...entities].sort((a, b) => {
       const aKey = this.getEntityTypeKey(a.entityType);
@@ -160,7 +160,7 @@ export class LedgerService {
     });
 
     for (const entity of sorted) {
-      await this.lockEntity(tx, entity.entityType, entity.entityId);
+      await this.lockEntity(executor, entity.entityType, entity.entityId);
     }
   }
 
@@ -205,12 +205,12 @@ export class LedgerService {
   /**
    * Immutable insert of a ledger row inside transaction
    */
-  static async postEntry(tx: Tx, request: LedgerPostRequest) {
+  static async postEntry(executor: Executor, request: LedgerPostRequest) {
     // First lock the entity we are about to modify
-    await this.lockEntity(tx, request.entityType, request.entityId);
+    await this.lockEntity(executor, request.entityType, request.entityId);
 
     // Get latest ledger entry to compute running balance
-    const [lastEntry] = await tx.select()
+    const [lastEntry] = await executor.select()
       .from(s.ledger)
       .where(and(eq(s.ledger.entityType, request.entityType), eq(s.ledger.entityId, request.entityId)))
       .orderBy(desc(s.ledger.id))
@@ -228,7 +228,7 @@ export class LedgerService {
       newBalance = prevBalance + request.credit - request.debit;
     }
 
-    const [inserted] = await tx.insert(s.ledger).values({
+    const [inserted] = await executor.insert(s.ledger).values({
       txnType: request.txnType,
       txnId: request.txnId ?? null,
       receiptId: request.receiptId ?? null,
@@ -633,8 +633,8 @@ export class LedgerService {
    * Transaction-scoped balance read — use inside a db.transaction() callback
    * to see uncommitted entries from the current transaction.
    */
-  static async getBalanceTx(tx: Tx, entityType: string, entityId: number): Promise<number> {
-    const [last] = await tx.select({ balance: s.ledger.balance })
+  static async getBalanceTx(executor: Executor, entityType: string, entityId: number): Promise<number> {
+    const [last] = await executor.select({ balance: s.ledger.balance })
       .from(s.ledger)
       .where(and(eq(s.ledger.entityType, entityType), eq(s.ledger.entityId, entityId)))
       .orderBy(desc(s.ledger.id))
@@ -665,6 +665,11 @@ export class LedgerService {
       ORDER BY entity_type, entity_id, id DESC
     `);
 
+    // SAFETY: `db.execute` on a raw `SELECT` returns the driver row array
+    // untyped; the three columns named above are exactly what the query
+    // selects, in that order, and `balance` is a Postgres numeric that
+    // drizzle-orm/postgres-js hands back as a string. The cast only names
+    // that shape for the reader — it changes no runtime value.
     const rows = result as unknown as Array<{ entity_type: string; entity_id: number; balance: string }>;
     const map = new Map<string, number>();
     for (const row of rows) {

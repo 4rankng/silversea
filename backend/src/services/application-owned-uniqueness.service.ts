@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 
-import type { Tx } from './trip-shared';
+import type { Executor } from './trip-shared';
 
 type LockPart = string | number | boolean | Date | null | undefined;
 
@@ -21,19 +21,19 @@ function buildLockKey(lock: ApplicationOwnedUniquenessLock): string {
 }
 
 export async function lockApplicationOwnedUniqueness(
-  tx: Tx,
+  executor: Executor,
   scope: string,
   parts: readonly LockPart[],
 ): Promise<void> {
-  await lockApplicationOwnedUniquenessSet(tx, [{ scope, parts }]);
+  await lockApplicationOwnedUniquenessSet(executor, [{ scope, parts }]);
 }
 
 export async function lockApplicationOwnedUniquenessSet(
-  tx: Tx,
+  executor: Executor,
   locks: readonly ApplicationOwnedUniquenessLock[],
 ): Promise<void> {
   const keys = [...new Set(locks.map(buildLockKey))].sort();
   for (const key of keys) {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
+    await executor.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
   }
 }

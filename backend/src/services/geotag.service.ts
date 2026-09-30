@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { Role, type GeotagInput, type GeotagEntityType, type PhotoGeotag } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
-import type { Tx } from './trip-shared';
+import type { Executor } from '../db';
 
 /**
  * Event-driven mobile GPS geotagging — service layer.
@@ -59,7 +59,7 @@ export async function authorizeGeotag(
   entityType: GeotagEntityType,
   entityId: number,
   user: AuthUserLike,
-  dbOrTx: typeof db | Tx = db,
+  dbOrTx: Executor = db,
 ): Promise<void> {
   // Office/finance roles may geotag any photo (they backfill + correct).
   if (FINANCE_ROLES.has(user.role)) return;
@@ -116,12 +116,12 @@ function toResponse(row: typeof s.photoGeotags.$inferSelect): PhotoGeotag {
 export async function submitGeotag(
   input: GeotagInput,
   user: AuthUserLike,
-  dbOrTx: typeof db | Tx = db,
+  dbOrTx: Executor = db,
 ): Promise<PhotoGeotag> {
-  const execute = async (tx: Tx) => {
+  const execute = async (executor: Executor) => {
     validateGpsFreshness(input.gpsAt);
-    await authorizeGeotag(input.entityType, input.entityId, user, tx);
-    await lockApplicationOwnedUniqueness(tx, 'photo-geotag', [input.entityType, input.entityId]);
+    await authorizeGeotag(input.entityType, input.entityId, user, executor);
+    await lockApplicationOwnedUniqueness(executor, 'photo-geotag', [input.entityType, input.entityId]);
 
     const gpsAt = input.gpsAt ? new Date(input.gpsAt) : null;
     const values = {
@@ -139,7 +139,7 @@ export async function submitGeotag(
       recordedBy: user.userId,
     };
 
-    const [existing] = await tx.select({ id: s.photoGeotags.id })
+    const [existing] = await executor.select({ id: s.photoGeotags.id })
       .from(s.photoGeotags)
       .where(and(
         eq(s.photoGeotags.entityType, input.entityType),
@@ -148,7 +148,7 @@ export async function submitGeotag(
       .limit(1);
 
     const [row] = existing
-      ? await tx.update(s.photoGeotags)
+      ? await executor.update(s.photoGeotags)
         .set({
           lat: values.lat,
           lng: values.lng,
@@ -164,13 +164,13 @@ export async function submitGeotag(
         })
         .where(eq(s.photoGeotags.id, existing.id))
         .returning()
-      : await tx.insert(s.photoGeotags)
+      : await executor.insert(s.photoGeotags)
         .values(values)
         .returning();
     return toResponse(row);
   };
 
-  return dbOrTx === db ? db.transaction(execute) : execute(dbOrTx as Tx);
+  return dbOrTx === db ? db.transaction(execute) : execute(dbOrTx);
 }
 
 /** Read a geotag, enforcing the same ownership gate as submit. */

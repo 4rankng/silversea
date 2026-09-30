@@ -9,7 +9,7 @@ vi.mock('../../lib/api', () => ({ api: { get } }));
 import { FundBookSection } from './FundBookSection';
 
 /** Card 20260928_168 — the Sổ quỹ reads one fund source over a from/to period
- *  (carried opening, windowed thu/chi) and carries the TÀI KHOẢN OPS entry:
+ *  (carried opening, windowed thu/chi) and carries the Tài khoản OPS entry:
  *  the same canonical outstanding the 169 reimbursement report shows. The row
  *  action lands on the report pre-scoped to the SAME period and staff, where
  *  the existing direction-correct phiếu actions live. */
@@ -52,14 +52,14 @@ describe('FundBookSection — sổ quỹ theo kỳ (card 20260928_168)', () => {
     expect(within(row).getByText('2.000.000 ₫')).toBeTruthy(); // Đầu kỳ — carried
     expect(within(row).getByText('1.000.000 ₫')).toBeTruthy(); // Chi trong kỳ
     expect(within(row).getByText('1.300.000 ₫')).toBeTruthy(); // Tồn cuối kỳ
-    expect(screen.getByText('Đầu kỳ là số dư lũy kế đến ngày bắt đầu; thu, chi và dòng sổ chỉ nằm trong kỳ. TÀI KHOẢN OPS ghi số tạm ứng OPS còn giữ — cùng một công thức với số "Còn phải hoàn ứng" của báo cáo hoàn ứng.')).toBeTruthy();
+    expect(screen.getByText('Đầu kỳ là số dư lũy kế đến ngày bắt đầu; thu, chi và dòng sổ chỉ nằm trong kỳ. Tài khoản OPS ghi số tạm ứng OPS còn giữ — cùng một công thức với số "Còn phải hoàn ứng" của báo cáo hoàn ứng.')).toBeTruthy();
     expect(screen.getByText(/1 tài khoản đang dùng chưa phân nguồn quỹ/)).toBeTruthy();
   });
 
-  it('renders the TÀI KHOẢN OPS rows and the converged total', async () => {
+  it('renders the Tài khoản OPS rows and the converged total', async () => {
     section();
     await screen.findByText('NV A');
-    expect(screen.getByText('TÀI KHOẢN OPS · còn phải hoàn ứng')).toBeTruthy();
+    expect(screen.getByText('Tài khoản OPS · còn phải hoàn ứng')).toBeTruthy();
     const opsRow = screen.getByText('NV A').closest('tr') as HTMLElement;
     expect(within(opsRow).getByText('500.000 ₫')).toBeTruthy();
   });

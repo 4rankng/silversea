@@ -275,18 +275,33 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     // đương xóa dòng". It must be accepted here; the backend drops the row from
     // every total via sumExcludingNegative rather than netting it out.
     fireEvent.change(amount, { target: { value: '-123000' } });
-    expect(amount).toHaveValue(-123000);
+    // Grouped money field (card 20260928_197): a text input holding the vi-VN
+    // rendering, so the accepted negative reads "-123.000", not -123000.
+    expect(amount).toHaveValue('-123.000');
     expect(amount).toHaveAttribute('aria-invalid', 'false');
-    expect(submit).toBeEnabled();
     expect(screen.queryByText(/Số tiền phải là số nguyên khác 0/)).not.toBeInTheDocument();
+    // Cân xe is a no-invoice line, so opsCustomerCharge — the client mirror of
+    // the server's receivableForCost — charges nothing and the row carries its
+    // own mandatory reason (card 20260928_162). Satisfy that orthogonal gate
+    // once, so every submit-button assertion below is the AMOUNT's doing.
+    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'dòng chi âm, xem chứng từ gốc' } });
+    expect(submit).toBeEnabled();
     // 0 is an empty row, not a signed one.
     fireEvent.change(amount, { target: { value: '0' } });
     expect(amount).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText(/Số tiền không được bằng 0/)).toBeInTheDocument();
     expect(submit).toBeDisabled();
     expect(apiPost).not.toHaveBeenCalled();
+    // A grouped money field cannot hold a fraction — "." is the thousands
+    // separator, so "123.45" reads as the integer 12.345, the only shape the
+    // signed integer schema accepts. What it still refuses is 0 (above) and a
+    // value past the ceiling: both mark the field invalid and block the save.
     fireEvent.change(amount, { target: { value: '123.45' } });
-    expect(amount).toHaveValue(123.45);
+    expect(amount).toHaveValue('12.345');
+    expect(amount).toHaveAttribute('aria-invalid', 'false');
+    fireEvent.change(amount, { target: { value: '1000000000000000' } });
+    expect(amount).toHaveValue('1.000.000.000.000.000');
+    expect(amount).toHaveAttribute('aria-invalid', 'true');
     expect(submit).toBeDisabled();
     fireEvent.submit(submit.closest('form')!);
     expect(apiPost).not.toHaveBeenCalled();
@@ -304,6 +319,12 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     fireEvent.click(await screen.findByRole('combobox', { name: /Loại phí/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
     fireEvent.change(screen.getByLabelText(/Thực chi \(VND\)/), { target: { value: '123000' } });
+    // Cân xe is a no-invoice line, so opsCustomerCharge (the client mirror of
+    // the server's receivableForCost) charges nothing and the row cannot be
+    // saved without the reason — card 20260928_162. The gate is announced, so
+    // the operator is not left guessing why Lưu stays dark.
+    expect(screen.getByText(/ghi chú bắt buộc/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'cân xe tại cảng, khách tự thanh toán' } });
     const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });
     const form = dialog.querySelector('form')!;
     const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;

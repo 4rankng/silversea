@@ -2,7 +2,7 @@ import { and, eq, isNull, inArray, notInArray, or } from 'drizzle-orm';
 import { Role, TxnType, type ExpenseSourceRef, type ExpenseAccountingUpdate, type ExpenseSourceKind } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertExpenseSourceMutable, ensureLegacyExpenseSource, assertActiveExpensePayer, hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
@@ -25,21 +25,21 @@ export function assertExpenseActorScope(actor: ExpenseActor, row: ExpenseAccount
   if ([Role.OPS, Role.DRIVER].includes(actor.role) && (row.payerUserId === actor.userId || row.recordedById === actor.userId)) return;
   throw new ApiError(404, 'Không tìm thấy khoản chi trong phạm vi của bạn.');
 }
-export async function getExpenseForCommand(tx: Tx, actor: ExpenseActor, ref: ExpenseSourceRef) {
-  const [link] = await tx.select({ tripId: s.expenseAccountingSources.tripId }).from(s.expenseAccountingSources)
+export async function getExpenseForCommand(executor: Executor, actor: ExpenseActor, ref: ExpenseSourceRef) {
+  const [link] = await executor.select({ tripId: s.expenseAccountingSources.tripId }).from(s.expenseAccountingSources)
     .where(and(eq(s.expenseAccountingSources.sourceKind, ref.sourceKind), eq(s.expenseAccountingSources.sourceId, ref.sourceId)));
-  const [native] = !link?.tripId && ref.sourceKind === 'TRIP' ? await tx.select({ tripId: s.tripExpenses.tripId }).from(s.tripExpenses).where(eq(s.tripExpenses.id, ref.sourceId))
-    : !link?.tripId && ref.sourceKind === 'DRIVER' ? await tx.select({ tripId: s.driverIncidentalCosts.tripId }).from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, ref.sourceId)) : [];
+  const [native] = !link?.tripId && ref.sourceKind === 'TRIP' ? await executor.select({ tripId: s.tripExpenses.tripId }).from(s.tripExpenses).where(eq(s.tripExpenses.id, ref.sourceId))
+    : !link?.tripId && ref.sourceKind === 'DRIVER' ? await executor.select({ tripId: s.driverIncidentalCosts.tripId }).from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, ref.sourceId)) : [];
   const tripId = link?.tripId ?? native?.tripId;
   if (tripId) {
-    const [trip] = await tx.select({ pairId: s.trips.activeTripPairId }).from(s.trips).where(eq(s.trips.id, tripId));
-    const [pair] = trip?.pairId ? await tx.select().from(s.tripPairs).where(eq(s.tripPairs.id, trip.pairId)) : [];
-    await lockTripFinancialAuthority(tx, pair?.status === 'ACTIVE' ? [pair.firstTripId, pair.secondTripId] : [tripId]);
+    const [trip] = await executor.select({ pairId: s.trips.activeTripPairId }).from(s.trips).where(eq(s.trips.id, tripId));
+    const [pair] = trip?.pairId ? await executor.select().from(s.tripPairs).where(eq(s.tripPairs.id, trip.pairId)) : [];
+    await lockTripFinancialAuthority(executor, pair?.status === 'ACTIVE' ? [pair.firstTripId, pair.secondTripId] : [tripId]);
   }
-  const row = await ensureLegacyExpenseSource(tx, ref.sourceKind, ref.sourceId, actor.userId);
+  const row = await ensureLegacyExpenseSource(executor, ref.sourceKind, ref.sourceId, actor.userId);
   assertExpenseActorScope(actor, row);
-  await assertExpenseOwnerWriteScope(tx, actor, row);
-  if (actor.role === Role.CUS) await assertActorCanAccessShipment(tx, row.shipmentId, { ...actor, username: null, email: null, fullName: null });
+  await assertExpenseOwnerWriteScope(executor, actor, row);
+  if (actor.role === Role.CUS) await assertActorCanAccessShipment(executor, row.shipmentId, { ...actor, username: null, email: null, fullName: null });
   if (row.version !== ref.expectedVersion) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} đã thay đổi. Vui lòng tải lại.`);
   if (row.status !== 'RECORDED') throw new ApiError(409, 'Khoản chi đã hủy.');
   return row;

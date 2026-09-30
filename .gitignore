@@ -137,3 +137,6 @@ openwiki/.run.json
 
 # repowise local index (machine-generated; the post-commit hook resyncs) + keys
 .repowise/
+
+# deploy worktree (created by the release/deploy tooling, never source)
+.deploy-head/

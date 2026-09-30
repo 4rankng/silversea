@@ -73,8 +73,22 @@ test('authorized legacy draft recording saves a request without money with actor
     const replay = await call(row.id, 'record', actor, record(), key); assert.equal(replay.status, 200); assert.equal(replay.body.replayed, true);
     assert.equal((await call(row.id, 'record', actor, { ...record(), amount: 151 }, key)).status, 409);
     assert.equal((await call(row.id, 'record', actor === 'ops' ? 'admin' : 'ops', record(), key)).status, 409);
-    for (const action of ['record', 'void']) assert.equal((await call(row.id, action, actor, { ...record(2) })).status, 409);
-    assert.deepEqual(await state(row.id), saved);
+    if (actor === 'ops') {
+      // `record` is terminal for every actor. `void` is the one documented
+      // exception, and it is the point of the owner-withdrawal ruling: this
+      // row's requester IS ops and no money was ever funded, so the owner may
+      // still withdraw it. The full matrix lives in ops-advance-owner-void.
+      assert.equal((await call(row.id, 'record', actor, { ...record(2) })).status, 409, 'ops cannot re-record');
+      const voided = await call(row.id, 'void', actor, { ...record(2) });
+      assert.equal(voided.status, 200, JSON.stringify(voided.body));
+      const after = await state(row.id);
+      assert.equal(after.row?.status, 'VOIDED');
+      assert.equal(after.entries.length, 0, 'a withdrawal still posts no money');
+      assert.equal(after.audit.at(-1)?.message, 'Đã hủy tạm ứng chưa giao tiền');
+    } else {
+      for (const action of ['record', 'void']) assert.equal((await call(row.id, action, actor, { ...record(2) })).status, 409, `${actor} ${action}`);
+      assert.deepEqual(await state(row.id), saved);
+    }
   }
 });
 

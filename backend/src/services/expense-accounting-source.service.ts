@@ -2,7 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { expenseVndSchema, expenseDateSchema, signedExpenseVndSchema, type ExpenseCostGroup, type ExpenseSourceKind } from '@tingting/shared';
 import * as s from '../db/schema';
 import { db } from '../db';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -112,28 +112,28 @@ export interface ExpenseAccountingSourceInput {
   recordedById: number | null; note?: string | null; recoveryNote?: string | null; linkedTripExpenseId?: number | null; photoStorageKeys?: string[];
 }
 
-export async function lockExpenseSource(tx: Tx, kind: ExpenseSourceKind, id: number) {
-  await lockApplicationOwnedUniqueness(tx, 'expense-accounting-source', [kind, id]);
-  const [row] = await tx.select().from(s.expenseAccountingSources)
+export async function lockExpenseSource(executor: Executor, kind: ExpenseSourceKind, id: number) {
+  await lockApplicationOwnedUniqueness(executor, 'expense-accounting-source', [kind, id]);
+  const [row] = await executor.select().from(s.expenseAccountingSources)
     .where(and(eq(s.expenseAccountingSources.sourceKind, kind), eq(s.expenseAccountingSources.sourceId, id))).for('update');
-  return row ? hydrateExpenseAccountingSource(tx, row) : undefined;
+  return row ? hydrateExpenseAccountingSource(executor, row) : undefined;
 }
 
-export async function assertExpenseSourceMutable(tx: Tx, row: ExpenseAccountingSource) {
-  await assertShipmentAccountingUnlocked(tx, row.shipmentId);
+export async function assertExpenseSourceMutable(executor: Executor, row: ExpenseAccountingSource) {
+  await assertShipmentAccountingUnlocked(executor, row.shipmentId);
   if (row.status !== 'RECORDED' || row.confirmedAt || row.reconciliationId) throw new ApiError(409, 'Khoản chi đã đối chiếu/quyết toán. Cần điều chỉnh có liên kết; không sửa đè.');
-  const [allocation] = await tx.select({ id: s.expenseCashAllocations.id }).from(s.expenseCashAllocations)
+  const [allocation] = await executor.select({ id: s.expenseCashAllocations.id }).from(s.expenseCashAllocations)
     .innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
     .where(and(eq(s.expenseCashAllocations.expenseAccountingSourceId, row.id), eq(s.expenseCashVouchers.status, 'RECORDED'))).limit(1);
   if (allocation) throw new ApiError(409, 'Khoản chi đã thu/chi tiền; không sửa đè.');
   if (row.linkedTripExpenseId) {
-    const [claim] = await tx.select({ id: s.billingDocumentRecoverableClaims.id }).from(s.billingDocumentRecoverableClaims)
+    const [claim] = await executor.select({ id: s.billingDocumentRecoverableClaims.id }).from(s.billingDocumentRecoverableClaims)
       .where(and(eq(s.billingDocumentRecoverableClaims.expenseId, row.linkedTripExpenseId), isNull(s.billingDocumentRecoverableClaims.releasedAt))).limit(1);
     if (claim) throw new ApiError(409, 'Khoản chi đang thuộc chứng từ khách hàng; cần xử lý chứng từ trước khi sửa.');
   }
 }
 
-export async function upsertExpenseAccountingSource(tx: Tx, input: ExpenseAccountingSourceInput) {
+export async function upsertExpenseAccountingSource(executor: Executor, input: ExpenseAccountingSourceInput) {
   // Card 20260928_181 — the mirror carries the native expense amount, so it
   // accepts a signed amount (a negative trip expense must still be linkable to
   // a shipment invoice). Ops/driver sources cannot be negative yet because
@@ -142,40 +142,40 @@ export async function upsertExpenseAccountingSource(tx: Tx, input: ExpenseAccoun
   const charge = input.customerChargeAmount == null ? null : expenseVndSchema.parse(input.customerChargeAmount);
   expenseDateSchema.parse(input.expenseDate);
   if (input.invoiceDate) expenseDateSchema.parse(input.invoiceDate);
-  const before = await lockExpenseSource(tx, input.sourceKind, input.sourceId);
-  if (before) await assertExpenseSourceMutable(tx, before);
+  const before = await lockExpenseSource(executor, input.sourceKind, input.sourceId);
+  if (before) await assertExpenseSourceMutable(executor, before);
   const metadata = { payerKind: input.payerKind === 'SUPPLIER' ? null : input.payerKind, costGroup: input.costGroup, feeName: input.feeName, customerChargeAmount: charge == null ? null : String(charge),
     invoiceNumber: input.invoiceNumber?.trim() || null, invoiceDate: input.invoiceDate || null,
     recoveryNote: input.recoveryNote ?? null, photoStorageKeys: input.photoStorageKeys ?? before?.photoStorageKeys ?? [] };
-  if (input.sourceKind === 'OPS') await tx.update(s.opsExpenseEntries).set(metadata).where(eq(s.opsExpenseEntries.id, input.sourceId));
-  if (input.sourceKind === 'DRIVER') await tx.update(s.driverIncidentalCosts).set(metadata).where(eq(s.driverIncidentalCosts.id, input.sourceId));
+  if (input.sourceKind === 'OPS') await executor.update(s.opsExpenseEntries).set(metadata).where(eq(s.opsExpenseEntries.id, input.sourceId));
+  if (input.sourceKind === 'DRIVER') await executor.update(s.driverIncidentalCosts).set(metadata).where(eq(s.driverIncidentalCosts.id, input.sourceId));
   const values = { sourceKind: input.sourceKind, sourceId: input.sourceId, shipmentId: input.shipmentId,
     tripId: input.tripId ?? before?.tripId ?? null, linkedTripExpenseId: input.linkedTripExpenseId ?? before?.linkedTripExpenseId ?? null,
     recordedById: input.recordedById, updatedAt: new Date() };
   const [row] = before
-    ? await tx.update(s.expenseAccountingSources).set({ ...values, version: before.version + 1 }).where(eq(s.expenseAccountingSources.id, before.id)).returning()
-    : await tx.insert(s.expenseAccountingSources).values(values).returning();
-  return hydrateExpenseAccountingSource(tx, row);
+    ? await executor.update(s.expenseAccountingSources).set({ ...values, version: before.version + 1 }).where(eq(s.expenseAccountingSources.id, before.id)).returning()
+    : await executor.insert(s.expenseAccountingSources).values(values).returning();
+  return hydrateExpenseAccountingSource(executor, row);
 }
 
-async function markLegacyExpenseLink(tx: Tx, source: ExpenseAccountingSource, actorId: number) {
-  await tx.insert(s.auditLogs).values({ userId: actorId, message: 'EXPENSE_ACCOUNTING_LEGACY_LINKED',
+async function markLegacyExpenseLink(executor: Executor, source: ExpenseAccountingSource, actorId: number) {
+  await executor.insert(s.auditLogs).values({ userId: actorId, message: 'EXPENSE_ACCOUNTING_LEGACY_LINKED',
     entityType: 'expense_accounting_source', entityId: source.id,
     payload: { sourceKind: source.sourceKind, sourceId: source.sourceId, paymentHistoryUnattributed: true } });
   return { ...source, paymentHistoryUnattributed: true };
 }
 
-export async function ensureTripExpenseAccountingSource(tx: Tx, expenseId: number, actorId: number, options: { nativeRecordedNow?: boolean } = {}) {
-  const existing = await lockExpenseSource(tx, 'TRIP', expenseId);
+export async function ensureTripExpenseAccountingSource(executor: Executor, expenseId: number, actorId: number, options: { nativeRecordedNow?: boolean } = {}) {
+  const existing = await lockExpenseSource(executor, 'TRIP', expenseId);
   if (existing) return existing;
-  const [alreadyLinked] = await tx.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.linkedTripExpenseId, expenseId));
-  if (alreadyLinked) return hydrateExpenseAccountingSource(tx, alreadyLinked);
-  const [source] = await tx.select({ expense: s.tripExpenses, trip: s.trips }).from(s.tripExpenses)
+  const [alreadyLinked] = await executor.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.linkedTripExpenseId, expenseId));
+  if (alreadyLinked) return hydrateExpenseAccountingSource(executor, alreadyLinked);
+  const [source] = await executor.select({ expense: s.tripExpenses, trip: s.trips }).from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId)).where(eq(s.tripExpenses.id, expenseId));
   if (!source?.trip.shipmentId) throw new ApiError(409, 'Chi phí phải liên kết lô hàng hợp lệ.');
   const e = source.expense;
   if (!['RECORDED', 'APPROVED'].includes(e.approvalStatus)) throw new ApiError(409, 'Chi phí nguồn chưa ghi nhận hoặc đã hủy.');
-  const linked = await upsertExpenseAccountingSource(tx, {
+  const linked = await upsertExpenseAccountingSource(executor, {
     sourceKind: 'TRIP', sourceId: e.id, shipmentId: source.trip.shipmentId, tripId: source.trip.id, truckId: source.trip.truckId,
     customerId: source.trip.customerId, expenseTypeCode: e.expenseType, costGroup: e.costGroup, feeName: e.feeName ?? e.expenseType,
     amount: Number(e.buyAmount), customerChargeAmount: Number(e.sellAmount), expenseDate: e.expenseDate ?? String(source.trip.departureDate).slice(0, 10),
@@ -184,34 +184,34 @@ export async function ensureTripExpenseAccountingSource(tx: Tx, expenseId: numbe
     payableEntityId: e.settlementMethod === 'OPS_ADVANCE' ? e.forwarderId : e.supplierId,
     recordedById: e.createdBy, note: e.note, linkedTripExpenseId: e.id,
   });
-  return options.nativeRecordedNow ? linked : markLegacyExpenseLink(tx, linked, actorId);
+  return options.nativeRecordedNow ? linked : markLegacyExpenseLink(executor, linked, actorId);
 }
 
-export async function ensureLegacyExpenseSource(tx: Tx, kind: ExpenseSourceKind, id: number, actorId: number) {
-  const existing = await lockExpenseSource(tx, kind, id);
+export async function ensureLegacyExpenseSource(executor: Executor, kind: ExpenseSourceKind, id: number, actorId: number) {
+  const existing = await lockExpenseSource(executor, kind, id);
   if (existing) return existing;
-  if (kind === 'TRIP') return ensureTripExpenseAccountingSource(tx, id, actorId);
+  if (kind === 'TRIP') return ensureTripExpenseAccountingSource(executor, id, actorId);
   if (kind === 'OPS') {
-    const [data] = await tx.select({ expense: s.opsExpenseEntries, shipment: s.shipments }).from(s.opsExpenseEntries)
+    const [data] = await executor.select({ expense: s.opsExpenseEntries, shipment: s.shipments }).from(s.opsExpenseEntries)
       .innerJoin(s.shipments, eq(s.shipments.id, s.opsExpenseEntries.shipmentId)).where(eq(s.opsExpenseEntries.id, id));
     if (!data || !['RECORDED', 'APPROVED'].includes(data.expense.approvalStatus)) throw new ApiError(404, 'Không tìm thấy khoản chi đang ghi nhận.');
     const e = data.expense;
     if (!data.shipment.customerId) throw new ApiError(409, 'Lô hàng chưa có khách hàng.');
     if (e.opsSettlementId) throw new ApiError(409, 'Chi phí cũ đã quyết toán, chỉ được xem lịch sử.');
-    const linked = await upsertExpenseAccountingSource(tx, { sourceKind: kind, sourceId: id, shipmentId: e.shipmentId,
+    const linked = await upsertExpenseAccountingSource(executor, { sourceKind: kind, sourceId: id, shipmentId: e.shipmentId,
       shipmentContainerId: e.shipmentContainerId, customerId: data.shipment.customerId, expenseTypeCode: e.expenseTypeCode,
       costGroup: null, feeName: e.expenseTypeCode, amount: Number(e.amount), customerChargeAmount: null, expenseDate: e.paidAt,
       payerKind: 'USER', payerUserId: e.paidById, payableEntityType: 'FORWARDER', payableEntityId: e.paidById,
       recordedById: null, note: e.note });
-    return markLegacyExpenseLink(tx, linked, actorId);
+    return markLegacyExpenseLink(executor, linked, actorId);
   }
   if (kind === 'DRIVER') {
-    const [data] = await tx.select({ expense: s.driverIncidentalCosts, trip: s.trips }).from(s.driverIncidentalCosts)
+    const [data] = await executor.select({ expense: s.driverIncidentalCosts, trip: s.trips }).from(s.driverIncidentalCosts)
       .innerJoin(s.trips, eq(s.trips.id, s.driverIncidentalCosts.tripId)).where(eq(s.driverIncidentalCosts.id, id));
     if (!data?.trip.shipmentId) throw new ApiError(404, 'Không tìm thấy chi phí thuộc lô.');
-    const [driver] = await tx.select({ userId: s.drivers.userId }).from(s.drivers).where(eq(s.drivers.id, data.expense.driverId));
+    const [driver] = await executor.select({ userId: s.drivers.userId }).from(s.drivers).where(eq(s.drivers.id, data.expense.driverId));
     const e = data.expense;
-    const linked = await upsertExpenseAccountingSource(tx, { sourceKind: kind, sourceId: id, shipmentId: data.trip.shipmentId,
+    const linked = await upsertExpenseAccountingSource(executor, { sourceKind: kind, sourceId: id, shipmentId: data.trip.shipmentId,
       tripId: e.tripId, truckId: data.trip.truckId, customerId: data.trip.customerId, expenseTypeCode: e.costType,
       costGroup: e.costGroup, feeName: e.feeName ?? e.costType, amount: Number(e.amount),
       customerChargeAmount: e.customerChargeAmount == null ? null : Number(e.customerChargeAmount), expenseDate: e.occurredAt,
@@ -220,16 +220,16 @@ export async function ensureLegacyExpenseSource(tx: Tx, kind: ExpenseSourceKind,
       payableEntityType: e.payerKind === 'COMPANY' ? null : 'DRIVER', payableEntityId: e.payerKind === 'COMPANY' ? null : e.driverId,
       recordedById: e.recordedBy, note: e.note,
       photoStorageKeys: e.photoStorageKeys.length ? e.photoStorageKeys : e.receiptStorageKey ? [e.receiptStorageKey] : [] });
-    const [nativeRecord] = await tx.select({ id: s.auditLogs.id }).from(s.auditLogs).where(and(
+    const [nativeRecord] = await executor.select({ id: s.auditLogs.id }).from(s.auditLogs).where(and(
       eq(s.auditLogs.entityType, 'driver_incidental_cost'), eq(s.auditLogs.entityId, e.id),
       eq(s.auditLogs.message, 'DRIVER_INCIDENTAL_COST_RECORDED'))).limit(1);
-    return nativeRecord ? linked : markLegacyExpenseLink(tx, linked, actorId);
+    return nativeRecord ? linked : markLegacyExpenseLink(executor, linked, actorId);
   }
   throw new ApiError(404, 'Không tìm thấy nguồn chi phí.');
 }
 
-export async function assertActiveExpensePayer(tx: Tx, userId: number) {
-  const [user] = await tx.select().from(s.users).where(and(eq(s.users.id, userId), eq(s.users.status, 'ACTIVE'))).limit(1);
+export async function assertActiveExpensePayer(executor: Executor, userId: number) {
+  const [user] = await executor.select().from(s.users).where(and(eq(s.users.id, userId), eq(s.users.status, 'ACTIVE'))).limit(1);
   if (!user) throw new ApiError(400, 'Người thực chi không hoạt động.');
   return user;
 }
