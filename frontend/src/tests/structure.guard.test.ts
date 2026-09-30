@@ -164,8 +164,6 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // 2026-09-24 card _24 sweep part 2: +3 for disabled-button reason captions (silent-disable anti-pattern)
   'src/components/UI.tsx': 668,
   'src/components/untitled-ui/base/badges/badges.tsx': 416,
-  // 26/09: invalid-focus red outline ternary (error-wins-over-focus contract)
-  'src/components/untitled-ui/base/select/tag-select.tsx': 415,
   // Bumped 485 → 493: 2026-09-14 order-exchange refresh — the trip detail
   // refetch after a confirmed exchange adds the confirmed-state fact rows.
   // Reviewed as a contract change.

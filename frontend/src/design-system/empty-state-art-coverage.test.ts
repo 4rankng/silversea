@@ -13,9 +13,6 @@ import { describe, expect, it } from 'vitest';
  */
 
 const SRC = resolve(process.cwd(), 'src');
-// The design-system preview page exists to SHOW the variants (icon-only,
-// preview shapes) side by side — it is the one legitimate art-less host.
-const ALLOWED_ART_LESS = [join('pages', '_designSystemPreview.tsx')];
 
 function tsxFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -33,7 +30,6 @@ describe('empty-state art coverage', () => {
     for (const path of tsxFiles(SRC)) {
       const source = readFileSync(path, 'utf8');
       const rel = relative(SRC, path);
-      if (ALLOWED_ART_LESS.includes(rel)) continue;
       for (const match of source.matchAll(/<EmptyState\b[\s\S]*?\/>/g)) {
         total += 1;
         const block = match[0];
