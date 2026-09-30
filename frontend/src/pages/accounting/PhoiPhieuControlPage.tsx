@@ -7,8 +7,7 @@ import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 import { formatCurrency, formatDate } from '../../lib/format';
 import { PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
-import { DateRangeFields, UuiSelectField } from '../../design-system';
+import { DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { OpsExpenseNoteLines } from '../../features/dispatch/components/OpsExpenseNoteLines';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
@@ -121,7 +120,7 @@ export default function PhoiPhieuControlPage() {
           criteria render inline while the strip still fits two rows and fold
           into `Bộ lọc (N)` only when the width leaves no other choice. The page
           declares no filter layout — that is the bar's job (filter-bar law). */}
-      <ListFilterBar
+      <FilterBar
         search={{
           value: filters.search,
           onChange: (search) => setFilters((current) => ({ ...current, search })),
@@ -160,7 +159,7 @@ export default function PhoiPhieuControlPage() {
           <UuiSelectField label="Số tài khoản quỹ (STK)" value={treasuryAccountId} onChange={(e) => setTreasuryAccountId(e.target.value)}
             options={[{ value: '', label: '— Chọn STK —' }, ...(stkQuery.data?.items ?? []).map((account) => ({ value: String(account.id), label: account.code + ' - ' + account.name }))]} />
         </FilterDropdown>
-      </ListFilterBar>
+      </FilterBar>
 
       {message && <p role="status" style={{ color: message.kind === 'ok' ? 'var(--ok, #16a34a)' : 'var(--err, #dc2626)' }}>{message.text}</p>}
       {rowsQuery.isError && <p role="alert">Không tải được bảng kiểm soát. Vui lòng thử lại.</p>}

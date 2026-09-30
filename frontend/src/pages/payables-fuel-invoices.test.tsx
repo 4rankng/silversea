@@ -69,7 +69,10 @@ vi.mock('../components/UI', () => ({
   ),
 }));
 
-vi.mock('../design-system', () => ({
+vi.mock('../design-system', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../design-system')>();
+  return {
+  ...actual,
   SearchableSelect: ({
     id,
     value,
@@ -121,7 +124,8 @@ vi.mock('../design-system', () => ({
       {...rest}
     />
   ),
-}));
+  };
+});
 
 import { FuelInvoicesPanel } from './payables-fuel-invoices';
 
@@ -388,7 +392,7 @@ describe('FuelInvoicesPanel', () => {
     expect(screen.getByRole('columnheader', { name: 'Hóa đơn' }).getAttribute('aria-sort')).toBe('ascending');
   });
 
-  // Card 20260927_152: the strip is the shared `ListFilterBar`. The two
+  // Card 20260927_152: the strip is the shared `FilterBar` band. The two
   // criteria keep their labels AND their writers — each one still feeds the
   // fetch gate (`useFuelInvoices`), and the text query still narrows the rows
   // client-side.

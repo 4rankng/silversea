@@ -179,7 +179,7 @@ describe('PayableDetailPage ledger column sorting', () => {
     expect(renderedReferenceOrder(container)).toEqual(['TRIP-FUEL-B', 'TRIP-FUEL-A']);
   });
 
-  // Card 20260927_152: the page's filter plane is the ONE shared `ListFilterBar`
+  // Card 20260927_152: the page's filter plane is the ONE shared `FilterBar`
   // — the ledger-type group (the shared boxed `Tabs`) and the period plane are
   // both items of it, and the page-local `.dd-filters` chip row is gone.
   it('renders the shared strip with both the ledger-type group and the period plane inside it', () => {

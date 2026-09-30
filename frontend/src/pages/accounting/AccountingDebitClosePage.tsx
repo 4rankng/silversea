@@ -12,9 +12,8 @@ import {
 import { formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
-import { ListFilterBar } from '../../components/ListFilterBar';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { DateRangeFields, EmptyState, SearchableMultiSelect, SummaryRail } from '../../design-system';
+import { DateRangeFields, EmptyState, FilterBar, SearchableMultiSelect, SummaryRail } from '../../design-system';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
@@ -193,7 +192,7 @@ export default function AccountingDebitClosePage() {
     <div className="page-shell">
       <PageHeader title="Kế toán chốt debit" />
 
-      <ListFilterBar
+      <FilterBar
         search={{
           value: search,
           onChange: setSearch,
@@ -266,7 +265,7 @@ export default function AccountingDebitClosePage() {
             clearAllLabel="Bỏ chọn"
           />
         </FilterDropdown>
-      </ListFilterBar>
+      </FilterBar>
 
       <span aria-live="polite">
         {message && <p role={message.kind === 'ok' ? 'status' : 'alert'} className="debit-note">{message.text}</p>}

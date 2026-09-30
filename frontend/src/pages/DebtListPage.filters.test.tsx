@@ -1,5 +1,5 @@
 /**
- * Card 20260927_152 — the `/debt` strip rides the shared `ListFilterBar`.
+ * Card 20260927_152 — the `/debt` strip rides the shared `FilterBar` band.
  *
  * The page-local search shell (`.debt-filter-search`) and its chip row are gone,
  * so these pin the BEHAVIOUR they drove — the debounced `search` param and the

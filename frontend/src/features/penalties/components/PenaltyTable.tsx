@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, X, ChevronDown } from 'lucide-react';
 import { Panel, Btn, PageHeader } from '../../../components/UI';
-import { Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
+import { FilterBar, Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
 import { formatCurrency, formatNumber, formatDate } from '../../../lib/format';
 import { downloadCSV } from '../../../lib/csv';
@@ -14,7 +14,6 @@ import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
 import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
 import { PenaltyScoreboardCards, type PenaltyScoreboardCardRow } from './PenaltyScoreboardCards';
 import { SortHeader } from '../../../components/shared/SortHeader';
-import { ListFilterBar } from '../../../components/ListFilterBar';
 import { FilterDropdown } from '../../../components/FilterDropdown';
 import '../../../styles/table-sort.css';
 
@@ -208,7 +207,7 @@ export function PenaltyTable({
               The criterion renders inline in the bar while the strip still fits
               two rows (the measured filter-bar mode) and folds in only when the
               width leaves no other choice. */}
-          <ListFilterBar
+          <FilterBar
             search={{
               value: search,
               onChange: onSearchChange,
@@ -239,7 +238,7 @@ export function PenaltyTable({
                 ]}
               />
             </FilterDropdown>
-          </ListFilterBar>
+          </FilterBar>
 
           {listLoading ? (
             <div className="penalty-loading penalty-loading--padded">

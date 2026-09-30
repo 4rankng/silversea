@@ -19,8 +19,7 @@ import { qk } from '../api/keys';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { PeriodFilter, resolvePeriodRange, initialPeriodState, applyModeSwitch } from '../components/debt/PeriodFilter';
 import { PeriodSummaryCards } from '../components/debt/PeriodSummaryCards';
-import { ListFilterBar } from '../components/ListFilterBar';
-import { Tabs } from '../design-system';
+import { FilterBar, Tabs } from '../design-system';
 import { SortHeader } from '../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -427,7 +426,7 @@ export default function PayableDetailPage() {
             shared boxed `Tabs` primitive and the period plane rides the same
             row, so the page declares no filter layout of its own. The
             page-local `.dd-filters` chip row is deleted. */}
-        <ListFilterBar>
+        <FilterBar>
           <Tabs
             variant="boxed" ariaLabel="Lọc loại giao dịch"
             tabs={FILTER_OPTIONS.map((option) => ({ id: option.key, label: option.label }))}
@@ -447,7 +446,7 @@ export default function PayableDetailPage() {
             isApplying={isStatementFetching}
             isApplyDisabled={!isPeriodDirty || isStatementFetching}
           />
-        </ListFilterBar>
+        </FilterBar>
         <PeriodSummaryCards
           summary={typedStatement.periodSummary}
           isLoading={isStatementFetching}

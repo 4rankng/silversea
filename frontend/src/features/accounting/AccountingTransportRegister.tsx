@@ -11,10 +11,9 @@ import {
   transportReadinessLabel,
 } from './accountingWorkspaceUtils';
 import type { AccountingTransportFilterKey } from './accountingWorkspaceTypes';
-import { EmptyState, Pagination } from '../../design-system';
+import { EmptyState, FilterBar, Pagination } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
 import { useTableRowSelection, type RowSelection } from '../../hooks/useTableRowSelection';
 
 type AccountingTransportRegisterProps = {
@@ -150,7 +149,7 @@ export function AccountingTransportRegister({
         <p>{total} chuyến đủ điều kiện tài chính trong kỳ</p>
       </header>
 
-      {/* Card 20260927_152: the shared `ListFilterBar` owns the strip — one
+      {/* Card 20260927_152: the shared `FilterBar` band owns the strip — one
           wrapping row, no page-declared layout. The search is the bar's own
           cell; the four criteria live in `Bộ lọc` (rendered inline while the
           strip still fits two rows) and the submit/reset pair rides the actions
@@ -162,7 +161,7 @@ export function AccountingTransportRegister({
         }}
         role="search"
       >
-        <ListFilterBar
+        <FilterBar
           search={{
             value: search,
             onChange: onSearchChange,
@@ -241,7 +240,7 @@ export function AccountingTransportRegister({
               ]}
             />
           </FilterDropdown>
-        </ListFilterBar>
+        </FilterBar>
       </form>
 
       {error && (

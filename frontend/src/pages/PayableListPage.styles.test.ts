@@ -10,7 +10,7 @@ const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('payables list filter strip (card 20260927_152)', () => {
   it('renders the shared bar, with the category group as the criterion it owns', () => {
-    expect(tsx).toContain('<ListFilterBar');
+    expect(tsx).toContain('<FilterBar');
     expect(tsx).toContain('quickFilters');
     expect(tsx).toContain("placeholder: 'Tìm nhà cung cấp...'");
     expect(tsx).toContain("ariaLabel: 'Tìm công nợ theo nhà cung cấp'");

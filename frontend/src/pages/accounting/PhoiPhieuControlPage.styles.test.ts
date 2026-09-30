@@ -125,7 +125,7 @@ describe('báo cáo tháng report header (card 20260924_1, image11)', () => {
 
 // Card 20260927_152 (operator 2026-09-27: "try to keep filter section max 2
 // rows only", "the width of control should relative to value it holds"): the
-// page no longer owns the filter strip. `ListFilterBar` owns the layout and the
+// page no longer owns the filter strip. `FilterBar` owns the layout and the
 // shared sheet owns every control's width, so this sheet may declare NOTHING
 // about a filter control — the auto-fit grid, the pair wrappers, the ≤480 phone
 // band and the page-owned height overrides are deleted with the markup that
@@ -158,7 +158,7 @@ describe('phôi phiếu filter strip contract (card 20260927_152)', () => {
   });
 
   it('the bar carries the shared search slot and the two fields of the shared date pair', () => {
-    const bar = source.match(/<ListFilterBar([\s\S]*?)<\/ListFilterBar>/)?.[1] ?? '';
+    const bar = source.match(/<FilterBar([\s\S]*?)<\/FilterBar>/)?.[1] ?? '';
     expect(bar).toContain("placeholder: 'Mã chuyến, container, khách'");
     expect(bar).toContain("ariaLabel: 'Tìm kiếm'");
     expect(bar).toContain('<DateRangeFields');
@@ -167,7 +167,7 @@ describe('phôi phiếu filter strip contract (card 20260927_152)', () => {
   });
 
   it('the four secondary criteria live inside the dropdown, which comes last', () => {
-    const bar = source.match(/<ListFilterBar([\s\S]*?)<\/ListFilterBar>/)?.[1] ?? '';
+    const bar = source.match(/<FilterBar([\s\S]*?)<\/FilterBar>/)?.[1] ?? '';
     const dropdown = bar.match(/<FilterDropdown([\s\S]*?)<\/FilterDropdown>/)?.[1] ?? '';
     for (const label of ['Trạng thái', 'Sắp xếp', 'Loại phiếu', 'Số tài khoản quỹ (STK)']) {
       expect(dropdown).toContain(`label="${label}"`);
@@ -177,7 +177,7 @@ describe('phôi phiếu filter strip contract (card 20260927_152)', () => {
   });
 
   it('the Lập phiếu action rides the bar action slot — the page owns no filter row', () => {
-    const bar = source.match(/<ListFilterBar([\s\S]*?)<\/ListFilterBar>/)?.[1] ?? '';
+    const bar = source.match(/<FilterBar([\s\S]*?)<\/FilterBar>/)?.[1] ?? '';
     const actionsIndex = bar.indexOf('actions={(');
     expect(actionsIndex).toBeGreaterThan(-1);
     expect(actionsIndex).toBeLessThan(bar.indexOf('<DateRangeFields'));

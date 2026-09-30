@@ -1,6 +1,6 @@
 /**
  * Card 20260927_152 — `/debt/:id` and `/customers/:id` ride the shared
- * `ListFilterBar`: the period control is the bar's primary criterion and the
+ * the `FilterBar` band: the period control is the bar's primary criterion and the
  * ledger's txn-type chips are its one secondary criterion.
  *
  * The page-local `.dd-filters` row is gone, so these pin the BEHAVIOUR it drove
@@ -184,6 +184,6 @@ describe('DebtDetailPage filter strip', () => {
     expect(css).not.toMatch(/\.dd-filter-chip\b/);
     expect(css).not.toMatch(/\.dd-ledger-toolbar\b/);
     expect(page).not.toContain('className="dd-filters"');
-    expect(page).toContain('<ListFilterBar>');
+    expect(page).toContain('<FilterBar>');
   });
 });

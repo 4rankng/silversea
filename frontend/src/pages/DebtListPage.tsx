@@ -5,7 +5,6 @@ import { formatCurrency, moneyParts } from '../lib/format';
 import { api } from '../lib/api';
 import { useToast } from '../components/shared/Toast';
 import { SortHeader } from '../components/shared/SortHeader';
-import { ListFilterBar } from '../components/ListFilterBar';
 import {
   Users,
   Clock,
@@ -17,7 +16,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { PageHeader } from '../components/UI';
-import { Pagination, SummaryRail } from '../design-system';
+import { FilterBar, Pagination, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { Badge } from '../components/shared/Badge';
@@ -357,7 +356,7 @@ export default function DebtListPage() {
             Cross-bucket "Quá hạn" / "Rủi ro cao" pills stay removed: per-bucket
             filtering lives on the aging cards above, and mixing the two models
             grouped d30+d60 against an amount-based criterion. */}
-        <ListFilterBar
+        <FilterBar
           search={{
             value: searchInput,
             onChange: setSearchInput,

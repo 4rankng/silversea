@@ -8,10 +8,9 @@ import { AlertTriangle, Download, Phone, Building2, ArrowLeft, Plus, X, Loader2,
 import { useCustomerStatement, useSupplierStatement } from '../hooks/useQueries';
 import { api } from '../lib/api';
 import { Modal } from '../components/UI';
-import { Tabs } from '../design-system';
+import { FilterBar, Tabs } from '../design-system';
 import type { TabItem } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { FilterDropdown } from '../components/FilterDropdown';
 import { Tooltip } from '../components/shared/Tooltip';
 import AssetIcon from '../components/AssetIcon';
@@ -651,11 +650,11 @@ export default function DebtDetailPage() {
                 <span className="dd-cnt">{filteredRows.length} giao dịch</span>
               </div>
 
-              {/* ONE filter plane (card 20260927_152): the shared `ListFilterBar`
+              {/* ONE filter plane (card 20260927_152): the shared `FilterBar` band
                   hosts the period control as its primary criterion and the
                   ledger's txn-type chips ride `Bộ lọc` (the page's only
                   secondary criterion). */}
-              <ListFilterBar>
+              <FilterBar>
                 <PeriodFilter
                   mode={period.mode}
                   onModeChange={(m) => setPeriod(p => applyModeSwitch(p, m))}
@@ -682,7 +681,7 @@ export default function DebtDetailPage() {
                       onClick={() => setLedgerFilter(f.key)}>{f.label}</button>
                   ))}
                 </FilterDropdown>
-              </ListFilterBar>
+              </FilterBar>
               <PeriodSummaryCards
                 summary={statement?.periodSummary}
                 isLoading={isStatementFetching}

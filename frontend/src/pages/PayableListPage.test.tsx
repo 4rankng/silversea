@@ -201,7 +201,7 @@ describe('PayableListPage server-side column sorting', () => {
   });
 });
 
-// Card 20260927_152: the strip is the shared `ListFilterBar` and the category
+// Card 20260927_152: the strip is the shared `FilterBar` band and the category
 // group rides its quick-filter slot — the page-local `.payables-toolbar` is gone.
 describe('PayableListPage filter strip', () => {
   function payable(id: number, name: string, totalOutstanding: number) {

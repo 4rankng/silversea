@@ -1,6 +1,5 @@
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
-import { UuiSelectField } from '../../design-system';
+import { FilterBar, UuiSelectField } from '../../design-system';
 import type { FuelInvoiceStatus } from '../../api/financialClient';
 
 /**
@@ -67,7 +66,7 @@ export function FuelInvoiceFilters({
   };
 
   return (
-    <ListFilterBar
+    <FilterBar
       search={{
         value: search,
         onChange: onSearchChange,
@@ -100,6 +99,6 @@ export function FuelInvoiceFilters({
           inline
         />
       </FilterDropdown>
-    </ListFilterBar>
+    </FilterBar>
   );
 }

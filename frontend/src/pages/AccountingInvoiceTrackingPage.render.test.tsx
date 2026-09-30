@@ -97,7 +97,7 @@ describe('invoice-tracking board never paints internal identifiers', () => {
 });
 
 // Card 20260927_152: the bespoke `.invoice-tracking-search` shell is gone — the
-// text query now rides the shared `ListFilterBar` search slot. The filtering
+// text query now rides the shared `FilterBar` search slot. The filtering
 // behaviour it drove is unchanged, so this pins the behaviour, not the shell.
 describe('invoice-tracking filter bar search', () => {
   beforeEach(() => {

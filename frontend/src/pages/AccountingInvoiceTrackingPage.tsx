@@ -14,7 +14,6 @@ import {
 } from '@tingting/shared';
 import { Btn, PageHeader, useConfirm } from '../components/UI';
 import { useReasonPrompt } from '../components/reason-prompt';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { FilterDropdown } from '../components/FilterDropdown';
 import { DateRangeFields, DateRangePresets, DateRangePresetSelect, type DateRangePreset, type DateRangeValue } from '../design-system/forms/DateRangeFields';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
@@ -29,7 +28,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getModernRole } from '../lib/role-helpers';
 import { businessDateISO, formatBusinessRef, formatISODate, formatMoney } from '../lib/format';
 import InvoiceTrackingFormModal from '../features/accounting/InvoiceTrackingFormModal';
-import { EmptyState, SummaryRail } from '../design-system';
+import { EmptyState, FilterBar, SummaryRail } from '../design-system';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
@@ -230,7 +229,7 @@ export default function AccountingInvoiceTrackingPage() {
           `Nhà cung cấp` / `Chênh lệch` render INLINE while the strip still
           fits two rows and only collapse into `Bộ lọc (N)` when the width
           leaves no other choice. */}
-      <ListFilterBar
+      <FilterBar
         search={{
           value: search,
           onChange: setSearch,
@@ -266,7 +265,7 @@ export default function AccountingInvoiceTrackingPage() {
             options={[{ value: 'all', label: 'Tất cả' }, { value: 'diff', label: 'Chỉ xem dòng có lệch' }]}
           />
         </FilterDropdown>
-      </ListFilterBar>
+      </FilterBar>
 
       {actionError && <p className="invoice-tracking-alert" role="alert">{actionError}</p>}
 

@@ -4,7 +4,6 @@ import { formatCurrency, moneyParts } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
 import { ChevronRight, Gift } from 'lucide-react';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -29,7 +28,7 @@ import '../styles/operational-table-typography.css';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { EmptyState, Pagination, SearchableSelect, SummaryRail, Tabs, UuiSelectField } from '../design-system';
+import { EmptyState, FilterBar, Pagination, SearchableSelect, SummaryRail, Tabs, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -480,7 +479,7 @@ export default function PayableListPage() {
             shared boxed `Tabs` primitive (operator ruling 2026-09-27) and rides
             the bar's quick-filter slot, so this page declares no filter layout
             and no control width of its own. */}
-        <ListFilterBar
+        <FilterBar
           search={{
             value: searchInput,
             onChange: setSearchInput,

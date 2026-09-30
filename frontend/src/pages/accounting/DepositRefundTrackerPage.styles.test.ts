@@ -103,7 +103,7 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
 
 // Card 20260927_152 (operator 2026-09-27: "try to keep filter section max 2
 // rows only", "the width of control should relative to value it holds"): the
-// page no longer owns the filter strip. `ListFilterBar` owns the layout and the
+// page no longer owns the filter strip. `FilterBar` owns the layout and the
 // shared sheet owns every control's width, so this sheet may declare NOTHING
 // about a filter control. The row-packing pins that described the deleted
 // `.deposit-tracker-filters` rules (content-sizing, the 168/149px date floors,
@@ -134,7 +134,7 @@ describe('deposit tracker filter strip (card 20260927_152)', () => {
   });
 
   it('renders the shared strip — date pair, the status criterion, the two actions', () => {
-    expect(tsx).toContain('<ListFilterBar');
+    expect(tsx).toContain('<FilterBar');
     expect(tsx).toContain('<DateRangeFields');
     expect(tsx).toContain('<FilterDropdown');
     // Behaviour preserved: the page's own two actions stay reachable and the

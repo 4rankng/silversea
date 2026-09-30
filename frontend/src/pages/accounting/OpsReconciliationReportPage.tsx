@@ -21,8 +21,7 @@ import { expenseDateSchema, type ExpenseAccountingEntry, type ExpenseReconciliat
 import { SkeletonTable, StatusText } from '../../components/shared';
 import { Btn, PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
-import { DateRangeFields, EmptyState, SummaryRail, UuiSelectField } from '../../design-system';
+import { DateRangeFields, EmptyState, FilterBar, SummaryRail, UuiSelectField } from '../../design-system';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import {
   opsReconciliationReportClient,
@@ -117,7 +116,7 @@ export default function OpsReconciliationReportPage() {
     <div className="ops-reconciliation-report-page">
       <PageHeader title="Báo cáo tổng hợp hoàn ứng" description="Tiền ĐNTT đã xác nhận trừ tạm ứng phân bổ, theo nhân viên hoặc theo từng đợt đối soát. Chọn một đợt để lập phiếu thu/chi phần chênh lệch." />
       <section aria-label="Bộ lọc">
-        <ListFilterBar
+        <FilterBar
           actions={(
             <Btn variant="secondary" size="sm" onClick={() => void report.refetch()}>Lọc</Btn>
           )}
@@ -152,7 +151,7 @@ export default function OpsReconciliationReportPage() {
               options={[{ value: '', label: 'Tất cả' }, ...lotOptions]}
             />
           </FilterDropdown>
-        </ListFilterBar>
+        </FilterBar>
       </section>
 
       {report.data?.reconciliation && (

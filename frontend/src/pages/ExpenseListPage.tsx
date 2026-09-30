@@ -8,9 +8,8 @@ import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 
-import { EmptyState, Pagination, DateRangeFields, SummaryRail, UuiSelectField, useTableQueryState } from '../design-system';
+import { DateRangeFields, EmptyState, FilterBar, Pagination, SummaryRail, useTableQueryState, UuiSelectField } from '../design-system';
 import type { DateRangeValue } from '../design-system';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { FilterDropdown } from '../components/FilterDropdown';
 import { Btn } from '../components/UI';
 import { Money } from '../components/shared/Money';
@@ -231,7 +230,7 @@ export default function ExpenseListPage() {
           the shared two-field group, the three selects live behind `Bộ lọc`
           (they render inline while the strip still fits two rows), and the
           reset rides the bar's own action cluster. */}
-      <ListFilterBar
+      <FilterBar
         actions={hasFilters ? (
           <Btn
             variant="ghost"
@@ -288,7 +287,7 @@ export default function ExpenseListPage() {
             ]}
           />
         </FilterDropdown>
-      </ListFilterBar>
+      </FilterBar>
 
       {error && (
         <Alert

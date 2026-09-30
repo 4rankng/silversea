@@ -7,9 +7,8 @@ import { fuelEvidenceClient, type FuelEvidenceReviewRecord, type FuelEvidenceRev
 import { useAuthedPhotoUrls } from '../lib/api/photo';
 import { PageHeader, StatusPill } from '../components/UI';
 import { FilterDropdown } from '../components/FilterDropdown';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { formatCurrency } from '../lib/format';
-import { Pagination, UuiSelectField } from '../design-system';
+import { FilterBar, Pagination, UuiSelectField } from '../design-system';
 
 const STATUS_VARIANT: Record<FuelEvidenceReviewStatus, 'warn' | 'success' | 'danger'> = {
   PENDING: 'warn',
@@ -79,11 +78,11 @@ export default function FuelEvidenceReviewPage() {
         Ảnh đã được lưu. Số liệu OCR chưa xác minh; đối chiếu ảnh gốc khi nhập liệu.
       </p>
       {/* Card 20260927_152: the filter part of the old toolbar is the shared
-          `ListFilterBar` — `Trạng thái` is the only criterion, so it lives in
+          `FilterBar` band — `Trạng thái` is the only criterion, so it lives in
           `Bộ lọc` (inline while the strip still fits two rows). The page-local
           toolbar flex row and the 220px select cap it used to declare are
           deleted: no page rule sizes a filter control any more. */}
-      <ListFilterBar>
+      <FilterBar>
         <FilterDropdown
           count={status === 'ALL' ? 0 : 1}
           ariaLabel="Bộ lọc"
@@ -110,7 +109,7 @@ export default function FuelEvidenceReviewPage() {
             ]}
           />
         </FilterDropdown>
-      </ListFilterBar>
+      </FilterBar>
 
       {query.isLoading && <div className="panel" style={{ padding: 20 }}>Đang tải danh sách OCR nhiên liệu…</div>}
       {query.isError && <div className="panel" style={{ padding: 20, color: 'var(--danger)' }}>Không thể tải danh sách OCR nhiên liệu.</div>}

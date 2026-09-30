@@ -12,8 +12,7 @@ import { CalendarClock, Plus, X } from 'lucide-react';
 import { SkeletonTable, StatusText, useToast } from '../../components/shared';
 import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
-import { DateRangeFields, EmptyState, SummaryRail, UuiSelectField } from '../../design-system';
+import { DateRangeFields, EmptyState, FilterBar, SummaryRail, UuiSelectField } from '../../design-system';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import {
   createDepositTracker,
@@ -160,7 +159,7 @@ export default function DepositRefundTrackerPage() {
           of its own. The surrounding `<section aria-label="Bộ lọc">` is the
           landmark the page always exposed — it carries no styling. */}
       <section aria-label="Bộ lọc">
-        <ListFilterBar
+        <FilterBar
           actions={(
             <>
               <Btn variant="secondary" size="sm" onClick={() => void query.refetch()}>Lọc</Btn>
@@ -193,7 +192,7 @@ export default function DepositRefundTrackerPage() {
               ]}
             />
           </FilterDropdown>
-        </ListFilterBar>
+        </FilterBar>
       </section>
 
       {(showCvAlert || unrefundedTotal > 0) && (
