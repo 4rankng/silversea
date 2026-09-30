@@ -11,8 +11,8 @@ describe('Untitled UI flat-surface control boundaries', () => {
     'src/components/untitled-ui/base/select/select-native.tsx',
     'src/components/untitled-ui/base/select/select.tsx',
     'src/components/untitled-ui/base/select/combobox.tsx',
-    'src/components/untitled-ui/base/select/multi-select.tsx',
-    'src/components/untitled-ui/base/select/tag-select.tsx',
+    // multi-select.tsx / tag-select.tsx: deleted by the 2026-09-30
+    // verified-unreferenced audit (d195b7e0); their pins went with them.
   ])('%s uses a real border instead of a shadow-only boundary', (path) => {
     expect(read(path)).toContain('border border-primary');
   });
@@ -41,6 +41,5 @@ describe('Untitled UI flat-surface control boundaries', () => {
 
   it('gives select popovers a real boundary under the app-wide no-shadow contract', () => {
     expect(read('src/components/untitled-ui/base/select/popover.tsx')).toContain('border border-secondary');
-    expect(read('src/components/untitled-ui/base/select/multi-select.tsx')).toContain('border border-secondary');
   });
 });

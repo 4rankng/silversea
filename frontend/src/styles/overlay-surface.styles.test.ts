@@ -61,8 +61,8 @@ const TSX_SCOPE = [
   'src/components/UI/DropdownMenu/DropdownMenu.tsx', // radix dropdown surface
   'src/components/UI/Select/Select.tsx', // radix select surface
   'src/components/untitled-ui/base/select/popover.tsx', // uui select popover
-  'src/components/untitled-ui/base/select/multi-select.tsx', // uui multi popover
-  'src/components/untitled-ui/application/modals/modal.tsx', // uui modal surface
+  // multi-select.tsx / application/modals/modal.tsx: deleted by the
+  // 2026-09-30 verified-unreferenced audit (d195b7e0); pins went with them.
   'src/features/users/components/UserTable.tsx', // row-action menu
   'src/pages/SupplierListPage.tsx', // row-action menu (fill landed in a8c84bea mixed-hunk carry)
   'src/pages/CustomersPage.tsx', // row-action menu (fill carried by lead, landed d142ae3d)
@@ -117,8 +117,6 @@ const TSX_SURFACES: Array<[string, RegExp]> = [
   ['src/components/UI/DropdownMenu/DropdownMenu.tsx', /bg-\[var\(--surface\)\]/],
   ['src/components/UI/Select/Select.tsx', /bg-\[var\(--surface\)\]/],
   ['src/components/untitled-ui/base/select/popover.tsx', /bg-\[var\(--surface\)\]/],
-  ['src/components/untitled-ui/base/select/multi-select.tsx', /bg-\[var\(--surface\)\]/],
-  ['src/components/untitled-ui/application/modals/modal.tsx', /bg-\[var\(--surface\)\]/],
   ['src/features/users/components/UserTable.tsx', /background: 'var\(--surface\)'/],
   // CustomersConfigPage / SupplierListPage are the two files that actually
   // render a floating row menu with an inline surface fill. CustomersPage and
@@ -194,8 +192,6 @@ describe('floating overlays ride the --surface token (card 20260922_36, F4)', ()
     // bg-primary on buttons/inputs (a control fill) is out of card scope — only
     // the floating surface class lists are pinned here.
     expect(read('src/components/untitled-ui/base/select/popover.tsx')).not.toContain('border-secondary bg-primary');
-    expect(read('src/components/untitled-ui/base/select/multi-select.tsx')).not.toContain('border-secondary bg-primary');
-    expect(read('src/components/untitled-ui/application/modals/modal.tsx')).not.toContain('rounded-xl bg-primary');
   });
 
   it('every scope-exclusion names its carrying lane and date', () => {
