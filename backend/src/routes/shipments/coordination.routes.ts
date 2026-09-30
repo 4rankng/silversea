@@ -31,7 +31,7 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parseId } from './shipment-shared';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const customerVisibleEventSchema = z.object({
   eventKey: z.string().trim().min(1).max(120),
@@ -56,7 +56,6 @@ const resolveHandoffSchema = z.object({
 });
 
 const coordinationRoutes = Router()
-coordinationRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 coordinationRoutes.get('/:id/customer-events', asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(req, res);
@@ -65,7 +64,7 @@ coordinationRoutes.get('/:id/customer-events', asyncHandler(async (req: Request,
 }));
 
 coordinationRoutes.post(
-  '/:id/customer-events',
+  '/:id/customer-events', declareMaterialWrite('shipments.customer-events.create', { method: 'POST', path: '/api/shipments/:id/customer-events' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -91,7 +90,7 @@ coordinationRoutes.get('/:id/dispatch-handoff', asyncHandler(async (req: Request
 }));
 
 coordinationRoutes.post(
-  '/:id/dispatch-handoffs',
+  '/:id/dispatch-handoffs', declareMaterialWrite('shipments.dispatch-handoffs.create', { method: 'POST', path: '/api/shipments/:id/dispatch-handoffs' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -111,7 +110,7 @@ coordinationRoutes.post(
 );
 
 coordinationRoutes.post(
-  '/:id/dispatch-handoffs/:handoffId/resolve',
+  '/:id/dispatch-handoffs/:handoffId/resolve', declareMaterialWrite('shipments.handoff.resolve', { method: 'POST', path: '/api/shipments/:id/dispatch-handoffs/:handoffId/resolve' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);

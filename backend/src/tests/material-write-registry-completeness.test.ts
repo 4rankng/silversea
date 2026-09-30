@@ -40,6 +40,10 @@ const EXEMPT: Record<string, string> = {
   'debt-offsets.approve': 'dead constant — no route consumes it',
   'trip-expenses.approve': 'dead constant — approval flow removed 2026-09-15',
   'trip-expenses.reject': 'dead constant — approval flow removed 2026-09-15',
+  // No route mounts /api/shipments/:id/pod-reviews/:reviewId/review anywhere —
+  // the registry row was a relic, pruned with the shipments-family migration
+  // (card 20260930_230); the constant stays until the dead-constant sweep.
+  'trips.pod.review': 'dead route — no mount exists (row pruned card 20260930_230)',
 };
 
 test('every idempotency write endpoint is declared in MATERIAL_WRITE_RULES (or exempt)', () => {

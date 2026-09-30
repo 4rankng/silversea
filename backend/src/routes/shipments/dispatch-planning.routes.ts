@@ -51,7 +51,7 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
 import { decomposeFulfillmentLessContainer } from '../../services/dispatch-detail-plan-fulfillment-less';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
   .pick({ licensePlate: true, isActive: true })
@@ -61,7 +61,6 @@ const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
   });
 
 const dispatchPlanningRoutes = Router()
-dispatchPlanningRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 dispatchPlanningRoutes.get(
   '/dispatch-handoffs',
@@ -136,7 +135,7 @@ const truckDriverAssignmentSchema = z.object({
   driverId: z.number().int().positive().nullable(),
 });
 dispatchPlanningRoutes.patch(
-  '/dispatch-fleet/trucks/:truckId/assigned-driver',
+  '/dispatch-fleet/trucks/:truckId/assigned-driver', declareMaterialWrite('fleet.truck-driver.reassign', { method: 'PATCH', path: '/api/shipments/dispatch-fleet/trucks/:truckId/assigned-driver' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const truckId = parseInt(req.params.truckId as string, 10);
@@ -382,7 +381,7 @@ const updateFulfillmentEstimatesSchema = z.object({
 const updateDispatchDetailPlanSchema = atomicDispatchPlanEditSchema;
 
 dispatchPlanningRoutes.patch(
-  '/dispatch-detail-plan-rows/:fulfillmentId/carrier',
+  '/dispatch-detail-plan-rows/:fulfillmentId/carrier', declareMaterialWrite('shipments.fulfillments.carrier.assign', { method: 'PATCH', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/carrier' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -404,7 +403,7 @@ dispatchPlanningRoutes.patch(
 );
 
 dispatchPlanningRoutes.patch(
-  '/dispatch-detail-plan-rows/:fulfillmentId/plate',
+  '/dispatch-detail-plan-rows/:fulfillmentId/plate', declareMaterialWrite('shipments.fulfillments.plate.assign', { method: 'PATCH', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/plate' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -428,7 +427,7 @@ dispatchPlanningRoutes.patch(
 );
 
 dispatchPlanningRoutes.patch(
-  '/dispatch-detail-plan-rows/:fulfillmentId/estimates',
+  '/dispatch-detail-plan-rows/:fulfillmentId/estimates', declareMaterialWrite('shipments.fulfillments.estimates.update', { method: 'PATCH', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/estimates' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -453,7 +452,7 @@ dispatchPlanningRoutes.patch(
 // carrier → plate → estimates PATCHes with one fulfillment+shipment
 // transaction. Legacy endpoints remain for existing callers.
 dispatchPlanningRoutes.patch(
-  '/dispatch-detail-plan-rows/:fulfillmentId/plan',
+  '/dispatch-detail-plan-rows/:fulfillmentId/plan', declareMaterialWrite('shipments.fulfillments.plan.update', { method: 'PATCH', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/plan' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -492,7 +491,7 @@ dispatchPlanningRoutes.patch(
 );
 
 dispatchPlanningRoutes.post(
-  '/dispatch-detail-plan-rows/:fulfillmentId/complete-external',
+  '/dispatch-detail-plan-rows/:fulfillmentId/complete-external', declareMaterialWrite('dispatch.external-fulfillment.complete', { method: 'POST', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/complete-external' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -531,7 +530,7 @@ dispatchPlanningRoutes.get(
 );
 
 dispatchPlanningRoutes.post(
-  '/carrier-fleet-vehicles',
+  '/carrier-fleet-vehicles', declareMaterialWrite('shipments.carrier-fleet-vehicles.create', { method: 'POST', path: '/api/shipments/carrier-fleet-vehicles' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = carrierFleetVehicleSchema.safeParse(req.body);
@@ -556,7 +555,7 @@ dispatchPlanningRoutes.post(
 );
 
 dispatchPlanningRoutes.patch(
-  '/carrier-fleet-vehicles/:vehicleId',
+  '/carrier-fleet-vehicles/:vehicleId', declareMaterialWrite('shipments.carrier-fleet-vehicles.update', { method: 'PATCH', path: '/api/shipments/carrier-fleet-vehicles/:vehicleId' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const vehicleId = Number(req.params.vehicleId);
@@ -630,6 +629,7 @@ dispatchPlanningRoutes.post(
 
 dispatchPlanningRoutes.patch(
   '/dispatch-task-tags/:id',
+  declareNonMaterialWrite('Reference-data CRUD (dispatch note-composer tag pool). Full-overwrite rename — replaying the same payload rewrites the identical label; a rename onto a key another row holds 409s through the normalized_label uniqueness check, so no durable command boundary is needed.'),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const tagId = parseDispatchTaskTagId(req.params.id as string);
@@ -644,6 +644,7 @@ dispatchPlanningRoutes.patch(
 
 dispatchPlanningRoutes.delete(
   '/dispatch-task-tags/:id',
+  declareNonMaterialWrite('Reference-data CRUD (dispatch note-composer tag pool). Soft-delete (isActive=false) keeping the unique normalized_label key — idempotent on replay (deactivating an inactive row still reports success); no financial or shipment-lifecycle mutation.'),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const tagId = parseDispatchTaskTagId(req.params.id as string);
@@ -658,7 +659,7 @@ dispatchPlanningRoutes.delete(
 // decomposed; the editor cannot target them (no fulfillmentId), so this
 // governed write decomposes the lot and hands back the fresh fulfillment.
 dispatchPlanningRoutes.post(
-  '/dispatch-detail-plan-rows/decompose',
+  '/dispatch-detail-plan-rows/decompose', declareMaterialWrite('shipments.fulfillments.decompose', { method: 'POST', path: '/api/shipments/dispatch-detail-plan-rows/decompose' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = z.object({

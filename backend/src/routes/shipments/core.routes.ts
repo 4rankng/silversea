@@ -60,7 +60,7 @@ import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { getShipmentDebitDetail, saveDebitEdits } from '../../services/shipment-debit-detail.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   SHIPMENT_INTAKE_MUTATION_ROLES,
   parseId,
@@ -123,7 +123,6 @@ const shipmentPricingPreviewSchema = z.object({
 });
 
 const coreRoutes = Router()
-coreRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 function resolveDriverNotes(input: { driverNotes?: string | null; operationalNotes?: string | null }) {
   return input.driverNotes !== undefined ? input.driverNotes : input.operationalNotes;
@@ -158,7 +157,7 @@ function toShipmentRecoveryFactPayload(fact: {
 }
 
 coreRoutes.post(
-  '/:id/recovery-facts',
+  '/:id/recovery-facts', declareMaterialWrite('shipments.recovery.record', { method: 'POST', path: '/api/shipments/:id/recovery-facts' }), 
   requireRoles(Role.OPS, Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -349,7 +348,7 @@ coreRoutes.get('/duplicate-check', asyncHandler(async (req: Request, res: Respon
   res.json({ conflicts });
 }));
 coreRoutes.post(
-  '/:id/submit-for-dispatch',
+  '/:id/submit-for-dispatch', declareMaterialWrite('shipments.submit-for-dispatch', { method: 'POST', path: '/api/shipments/:id/submit-for-dispatch' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -372,7 +371,7 @@ coreRoutes.post(
 );
 
 coreRoutes.post(
-  '/:id/carrier-allocations',
+  '/:id/carrier-allocations', declareMaterialWrite('shipments.carrier-allocations.assign', { method: 'POST', path: '/api/shipments/:id/carrier-allocations' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -446,6 +445,7 @@ coreRoutes.get(
 
 coreRoutes.patch(
   '/operational-sites/:id',
+  declareNonMaterialWrite('Reference-data CRUD (factory/warehouse master). Version-checked partial update — a replay hits the stale-version 409 guard instead of applying twice, and identity fields (customer, code, site type) are immutable. No financial or shipment-lifecycle mutation.'),
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const siteId = Number.parseInt(req.params.id as string, 10);
@@ -479,7 +479,7 @@ coreRoutes.post(
 
 // ─── POST / — create draft shipment ────────────────────────────────────────
 coreRoutes.post(
-  '/',
+  '/', declareMaterialWrite('shipments.create', { method: 'POST', path: '/api/shipments/' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     // Same contract guard as POST /quick: `containers` is not part of the
@@ -537,7 +537,7 @@ coreRoutes.post(
 // while ACCOUNTANT remains limited to its separate review/close commands.
 // CUSTOMER/DRIVER/OPS remain denied at the mount.
 coreRoutes.post(
-  '/quick',
+  '/quick', declareMaterialWrite('shipments.quick-create', { method: 'POST', path: '/api/shipments/quick' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     // `containers` IS part of the quick contract now (create-workspace
@@ -619,7 +619,7 @@ coreRoutes.post(
 // ─── GET /:id — detail (shipment + containers + documents + declarations + history)
 // ─── POST /shipments/debit-notes — GỘP THEO KỲ consolidated export ─────────
 coreRoutes.post(
-  '/debit-notes',
+  '/debit-notes', declareMaterialWrite('shipments.debit-note-consolidated', { method: 'POST', path: '/api/shipments/debit-notes' }), 
   requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = z.object({
@@ -653,7 +653,7 @@ coreRoutes.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 
 // ─── PUT /:id — update with optimistic-lock version ────────────────────────
 coreRoutes.put(
-  '/:id',
+  '/:id', declareMaterialWrite('shipments.update', { method: 'PUT', path: '/api/shipments/:id' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -710,7 +710,7 @@ coreRoutes.put(
 
 // ─── POST /:id/transition — status transition ──────────────────────────────
 coreRoutes.post(
-  '/:id/transition',
+  '/:id/transition', declareMaterialWrite('shipments.transition', { method: 'POST', path: '/api/shipments/:id/transition' }), 
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -741,7 +741,7 @@ coreRoutes.post(
 
 // ─── POST /:id/dispatch — fulfillment → linked trip ────────────────────────
 coreRoutes.post(
-  '/:id/dispatch',
+  '/:id/dispatch', declareMaterialWrite('shipments.dispatch', { method: 'POST', path: '/api/shipments/:id/dispatch' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -779,7 +779,7 @@ coreRoutes.post(
 );
 
 coreRoutes.post(
-  '/:id/complete',
+  '/:id/complete', declareMaterialWrite('shipments.complete', { method: 'POST', path: '/api/shipments/:id/complete' }), 
   requireRoles(Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -808,7 +808,7 @@ coreRoutes.post(
 );
 
 coreRoutes.post(
-  '/:id/fulfillments/:fulfillmentId/cancellation-disposition',
+  '/:id/fulfillments/:fulfillmentId/cancellation-disposition', declareMaterialWrite('shipments.fulfillments.cancel', { method: 'POST', path: '/api/shipments/:id/fulfillments/:fulfillmentId/cancellation-disposition' }), 
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -841,7 +841,7 @@ coreRoutes.post(
 
 // ─── DELETE /:id — soft-delete (DRAFT/CANCELED only, version-gated) ─────────
 coreRoutes.delete(
-  '/:id',
+  '/:id', declareMaterialWrite('shipments.delete', { method: 'DELETE', path: '/api/shipments/:id' }), 
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -880,7 +880,7 @@ export { coreRoutes };
 
 // ─── POST /:id/lock — Khóa lô (lot cost lock, card 20260918_19) ────────────
 coreRoutes.post(
-  '/:id/lock',
+  '/:id/lock', declareMaterialWrite('shipments.cost-lock', { method: 'POST', path: '/api/shipments/:id/lock' }), 
   requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -904,7 +904,7 @@ coreRoutes.post(
 
 // ─── POST/GET /:id/cost-adjustments — điều chỉnh sau khóa (card _19) ────────
 coreRoutes.post(
-  '/:id/cost-adjustments',
+  '/:id/cost-adjustments', declareMaterialWrite('shipments.cost-adjust', { method: 'POST', path: '/api/shipments/:id/cost-adjustments' }), 
   requireRoles(Role.ACCOUNTANT, Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -954,7 +954,7 @@ coreRoutes.get(
 // note on chi-hộ rows; Phí khác add/remove). Strict payload guard keeps every
 // other cell read-only; the debit lock rejects edits while active.
 coreRoutes.put(
-  '/:id/debit-edits',
+  '/:id/debit-edits', declareMaterialWrite('shipments.debit-edits', { method: 'PUT', path: '/api/shipments/:id/debit-edits' }), 
   requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -999,7 +999,7 @@ coreRoutes.get(
 );
 
 coreRoutes.post(
-  '/:id/debit-note',
+  '/:id/debit-note', declareMaterialWrite('shipments.debit-note-from-lock', { method: 'POST', path: '/api/shipments/:id/debit-note' }), 
   requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);

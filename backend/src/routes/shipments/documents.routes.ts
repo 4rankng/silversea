@@ -31,7 +31,7 @@ import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { throwValidation } from '../../lib/validation';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   SHIPMENT_INTAKE_MUTATION_ROLES,
   parseId,
@@ -56,7 +56,6 @@ const replaceShipmentDocumentSchema = z.object({
 });
 
 const documentsRoutes = Router()
-documentsRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // ─── POST /:id/documents — record an uploaded document's metadata ──────────
 //
@@ -64,7 +63,7 @@ documentsRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20
 // records the resulting `storageKey` against the shipment. A future Wave 2
 // portal variant may accept multipart directly.
 documentsRoutes.post(
-  '/:id/documents',
+  '/:id/documents', declareMaterialWrite('shipments.documents.attach', { method: 'POST', path: '/api/shipments/:id/documents' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -96,7 +95,7 @@ documentsRoutes.post(
 );
 
 documentsRoutes.post(
-  '/:id/documents/:documentId/replace',
+  '/:id/documents/:documentId/replace', declareMaterialWrite('shipments.documents.replace', { method: 'POST', path: '/api/shipments/:id/documents/:documentId/replace' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -134,7 +133,7 @@ documentsRoutes.post(
 );
 
 documentsRoutes.post(
-  '/:id/declarations',
+  '/:id/declarations', declareMaterialWrite('shipments.declarations.create', { method: 'POST', path: '/api/shipments/:id/declarations' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -182,7 +181,7 @@ documentsRoutes.post(
 );
 
 documentsRoutes.put(
-  '/:id/declarations/:declarationId',
+  '/:id/declarations/:declarationId', declareMaterialWrite('shipments.declarations.update', { method: 'PUT', path: '/api/shipments/:id/declarations/:declarationId' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -235,7 +234,7 @@ documentsRoutes.put(
 
 // ─── DELETE /:id/declarations/:declarationId — remove one tờ khai (card 20260921_3) ──
 documentsRoutes.delete(
-  '/:id/declarations/:declarationId',
+  '/:id/declarations/:declarationId', declareMaterialWrite('shipments.declarations.delete', { method: 'DELETE', path: '/api/shipments/:id/declarations/:declarationId' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -277,7 +276,7 @@ documentsRoutes.get('/:id/containers', asyncHandler(async (req: Request, res: Re
 
 // ─── PUT /:id/containers — full reconcile of shipment containers ───────────
 documentsRoutes.put(
-  '/:id/containers',
+  '/:id/containers', declareMaterialWrite('shipments.containers.reconcile', { method: 'PUT', path: '/api/shipments/:id/containers' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
