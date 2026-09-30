@@ -145,30 +145,10 @@ describe('Drawer keyboard focus', () => {
     await waitFor(() => expect(document.activeElement).toBe(opener));
   });
 });
-describe('Overlay vs portaled children (card _19 regression lock)', () => {  it('keeps the Modal open when a click bubbles from a portaled child', async () => {
-    const pings: string[] = [];
-    function Harness() {
-      const [open, setOpen] = useState(false);
-      return (
-        <>
-          <button type="button" onClick={() => setOpen(true)}>Mở modal portal</button>
-          <Modal isOpen={open} onClose={() => setOpen(false)} title="Modal portal">
-            <PortaledPing onPing={() => pings.push('modal')} />
-          </Modal>
-        </>
-      );
-    }
-    render(<Harness />);
-    fireEvent.click(screen.getByRole('button', { name: 'Mở modal portal' }));
-    expect(await screen.findByRole('dialog', { name: 'Modal portal' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'ping-portaled' }));
-    expect(pings).toEqual(['modal']);
-    // The portaled click bubbles through the fiber tree into the modal
-    // content, whose stopPropagation shields the dismiss overlay.
-    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Modal portal' })).toBeTruthy());
-    expect(pings).toEqual(['modal']);
-  });
-
+describe('Overlay vs portaled children (card _19 regression lock)', () => {
+  // The Modal portaled-child case moved to the one overlay suite
+  // (src/design-system/Modal.test.tsx, card 20260930_227); Drawer keeps its
+  // case here.
   it('keeps the Drawer open when a click bubbles from a portaled child', async () => {
     const pings: string[] = [];
     function Harness() {
@@ -206,37 +186,9 @@ describe('Overlay vs portaled children (card _19 regression lock)', () => {  it(
 });
 
 describe('dialog a11y probe contract (role + aria-modal + accessible name)', () => {
-  it('Modal carries role=dialog, aria-modal and the title as its accessible name', async () => {
-    function Harness() {
-      const [open] = useState(true);
-      return (
-        <Modal isOpen={open} onClose={() => {}} title="Xóa cấu hình biểu phí" ariaLabel="Xóa cấu hình biểu phí">
-          <button type="button">Hành động</button>
-        </Modal>
-      );
-    }
-    render(<Harness />);
-    const dialog = await screen.findByRole('dialog', { name: 'Xóa cấu hình biểu phí' });
-    expect(dialog.getAttribute('role')).toBe('dialog');
-    expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(dialog.getAttribute('aria-label')).toBe('Xóa cấu hình biểu phí');
-  });
-
-  it('Modal names itself from the title heading when ariaLabel is absent', async () => {
-    function Harness() {
-      const [open] = useState(true);
-      return (
-        <Modal isOpen={open} onClose={() => {}} title="Chuyển loại hàng?">
-          <button type="button">Hành động</button>
-        </Modal>
-      );
-    }
-    render(<Harness />);
-    const dialog = await screen.findByRole('dialog', { name: 'Chuyển loại hàng?' });
-    expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(dialog.querySelector('.modal__title')?.getAttribute('id')).toBeTruthy();
-  });
-
+  // The Modal a11y probes moved to the one overlay suite
+  // (src/design-system/Modal.test.tsx, card 20260930_227); Drawer keeps its
+  // probe here.
   it('Drawer carries role=dialog, aria-modal and the title as its accessible name', async () => {
     function Harness() {
       const [open] = useState(true);

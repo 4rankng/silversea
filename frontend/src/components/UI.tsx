@@ -1,10 +1,10 @@
-import React, { createContext, useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
 import { animate, utils, type JSAnimation } from 'animejs';
 import { AssetIcon, type AssetIconName } from './AssetIcon';
 export { PageHeader } from './PageHeader';
-import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
+import { useAnimatedOverlay } from '../hooks/useAnimatedOverlay';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { bindFormGroupControl } from './form-group-control';
 import { Tooltip } from './shared/Tooltip';
@@ -14,35 +14,23 @@ import { Button as UIButton, type ButtonProps as UIButtonProps } from './untitle
 import { Label as UILabel } from './untitled-ui/base/input/label';
 import { HintText as UIHintText } from './untitled-ui/base/input/hint-text';
 
-/* Polished-modal compact context. */
-export const ModalCompactContext = createContext(false);
+/* The one modal module (card 20260930_227) lives in the design system; these
+ * re-exports keep the long-standing `components/UI` import path working for
+ * every existing dialog consumer. */
+export {
+  Modal,
+  ModalChip,
+  ModalChipLive,
+  ModalChipGhost,
+  ModalCompactContext,
+  useConfirmShortcuts,
+} from '../design-system/Modal';
+import { useConfirmShortcuts } from '../design-system/Modal';
+import { usePortalTarget } from '../design-system/hooks/usePortalTarget';
 
-/* ─── Shared overlay animation defaults ──────────────────────────────────── */
-const overlayEntrance: EntranceFn = (overlay, content, prefersReduced) => {
-  if (prefersReduced) {
-    utils.set(overlay, { opacity: 1 });
-    utils.set(content, { opacity: 1 });
-    return;
-  }
-  utils.set(overlay, { opacity: 0 });
-  animate(overlay, { opacity: [0, 1], duration: 180, ease: 'out(2)' });
-  utils.set(content, { opacity: 0, willChange: 'opacity' });
-  animate(content, {
-    opacity: [0, 1],
-    duration: 180,
-    ease: 'out(2)',
-  });
-};
-
-const overlayExit: ExitFn = (overlay, content, onDone) => {
-  animate(overlay, { opacity: [1, 0], duration: 160, ease: 'in(2)' });
-  animate(content, {
-    opacity: [1, 0],
-    duration: 160,
-    ease: 'in(3)',
-    onComplete: onDone,
-  });
-};
+/* ─── Shared overlay animation defaults ────────────────────────────────────
+ * The shared modal entrance/exit callbacks moved to the design-system modal
+ * module (card 20260930_227); Drawer keeps its own keyframes here. */
 
 /* ─── Extracted shared style constants ──────────────────────────────────── */
 const FLEX_ROW: React.CSSProperties = {
@@ -50,70 +38,6 @@ const FLEX_ROW: React.CSSProperties = {
   alignItems: 'center',
   gap: 8,
 };
-
-/* ─── Portal target helper ──────────────────────────────────────────────── */
-function usePortalTarget() {
-  const [target, setTarget] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setTarget(document.body);
-  }, []);
-  return target;
-}
-
-/* ─── Global confirm shortcuts ──────────────────────────────────────────────
- * Canonical keyboard pattern for any dialog/modal/drawer that asks the user
- * to confirm or cancel something:
- *   - Enter  → triggers the primary/confirm action (if provided)
- *   - Escape → triggers the cancel/close action
- *
- * Used by ConfirmDialog, Modal, Drawer below. Also exported so any one-off
- * custom dialog elsewhere in the app can opt-in by calling this hook.
- *
- * Listener is only attached while `isOpen` is true. Enter is suppressed when
- * focus is inside a <textarea> or contenteditable element so multi-line
- * editing still works naturally.
- * -------------------------------------------------------------------------- */
- 
-export function useConfirmShortcuts(opts: {
-  isOpen: boolean;
-  onConfirm?: () => void;
-  onCancel?: () => void;
-  overlayToken?: number | null;
-}) {
-  const { isOpen, onConfirm, onCancel, overlayToken } = opts;
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => {
-      // Nested controls (including React Aria comboboxes) consume selection
-      // and dismissal keys before this window-level form shortcut runs.
-      if (e.defaultPrevented) return;
-      if (overlayToken != null && !isTopOverlayToken(overlayToken)) return;
-      if (e.key === 'Escape' && onCancel) {
-        // _34: inner surfaces (appointment popover) own their own Escape —
-        // the window-level shortcut must not close the whole drawer too.
-        const target = e.target as HTMLElement | null;
-        if (target?.closest?.('[data-escape-boundary]')) return;
-        e.preventDefault();
-        onCancel();
-        return;
-      }
-      if (e.key === 'Enter' && onConfirm) {
-        const target = e.target as HTMLElement | null;
-        if (e.shiftKey || e.isComposing) return;
-        if (target) {
-          const tag = target.tagName;
-          if (tag === 'TEXTAREA') return;
-          if (target.isContentEditable) return;
-          if (tag === 'BUTTON') return;
-        }
-        e.preventDefault();
-        onConfirm();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, onConfirm, onCancel, overlayToken]);
-}
 
 /* ─── KPI Metric Card ───────────────────────────────────────────────────── */
 export interface KPITrend {
@@ -415,119 +339,6 @@ export function FormGroup({ label, htmlFor, helpText, error, children, style }: 
         <UIHintText id={feedbackId} size="sm" style={{ marginTop: 2 }}>{helpText}</UIHintText>
       )}
     </div>
-  );
-}
-
-/* ─── Modal chips (status badges for polished dialogs) ──────────────────── */
-
-export function ModalChip({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <span className={`modal__chip ${className}`}>{children}</span>;
-}
-
-export function ModalChipLive({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="modal__chip modal__chip--live">
-      <span className="modal__chip-dot" />
-      {children}
-    </span>
-  );
-}
-
-export function ModalChipGhost({ children }: { children: React.ReactNode }) {
-  return <span className="modal__chip modal__chip--ghost">{children}</span>;
-}
-
-/* ─── Modal ─────────────────────────────────────────────────────────────── */
-
-interface ModalProps {
-  isOpen: boolean;
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-  footer?: React.ReactNode;
-  onConfirm?: () => void;
-  maxWidth?: number | string;
-  /** Eyebrow text displayed above the title (polished variant). */
-  subtitle?: string;
-  /** Right-aligned slot in the header — typically status chips. */
-  headerRight?: React.ReactNode;
-  /** Enable the polished visual treatment (corner accents, gradient, eyebrow). */
-  polished?: boolean;
-  /** Explicit accessible dialog name. Needed when `title` is a display name
-   * (e.g. the entity's own name) so the dialog still announces the action. */
-  ariaLabel?: string;
-}
-
-export function Modal({ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 480, subtitle, headerRight, polished, ariaLabel }: ModalProps) {
-  const titleId = useId();
-  const portalTarget = usePortalTarget();
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  const { visible, handleClose, overlayToken } = useAnimatedOverlay({
-    overlayRef,
-    contentRef,
-    isOpen,
-    onClose,
-    entrance: overlayEntrance,
-    exit: overlayExit,
-  });
-  useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose, overlayToken });
-  useFocusTrap(contentRef, visible && isOpen);
-
-  if (!portalTarget) return null;
-
-  // Forward maxWidth via CSS variable so mobile overrides (max-width: 100%) win.
-  const cssVars = { '--modal-max-w': typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth } as React.CSSProperties;
-  const densityClass = hasOperationalDensity(currentPathname()) ? ' modal--operational-density' : '';
-  const polishedClass = polished ? ' modal--polished' : '';
-  return createPortal(
-    visible ? (
-      <div
-        ref={overlayRef}
-        className={`modal${densityClass}${polishedClass}`}
-        onClick={handleClose}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={ariaLabel ? undefined : titleId}
-        aria-label={ariaLabel}
-      >
-        <div
-          ref={contentRef}
-          className="modal__content"
-          style={cssVars}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="modal__head">
-            <div>
-              {subtitle && <p className="modal__eyebrow">{subtitle}</p>}
-              <h3 id={titleId} className="modal__title">{title}</h3>
-            </div>
-            {headerRight && <div className="modal__head-right">{headerRight}</div>}
-            <Tooltip label="Đóng (Esc)" side="bottom">
-              <button
-                className="btn btn--ghost btn--icon btn--sm modal__close"
-                onClick={handleClose}
-                aria-label="Đóng"
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            </Tooltip>
-          </div>
-          <div className="modal__body">
-            <ModalCompactContext.Provider value={Boolean(polished)}>
-              {children}
-            </ModalCompactContext.Provider>
-          </div>
-          {footer && (
-            <div className="modal__foot">
-              {footer}
-            </div>
-          )}
-        </div>
-      </div>
-    ) : null,
-    portalTarget,
   );
 }
 
