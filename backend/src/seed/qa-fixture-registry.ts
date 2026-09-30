@@ -25,7 +25,7 @@ export interface QaFixtureSurface {
   scrubColumns?: string[];
 }
 
-export const QA_SHIPMENT_FIELDS_SQL = `bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%' OR shipment_code ILIKE 'QA%' OR bl_number ILIKE 'CARD226-QA-%' OR bl_number ILIKE 'BILL-QAC1%' OR operational_notes ILIKE 'QA-BUG3%'`;
+export const QA_SHIPMENT_FIELDS_SQL = `bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%' OR shipment_code ILIKE 'QA%' OR bl_number ILIKE 'CARD226-QA-%' OR bl_number ILIKE 'BILL-QAC1%' OR operational_notes ILIKE 'QA-BUG3%' OR operational_notes ILIKE 'card226 advisory-lock probe%'`;
 export const QA_SHIPMENTS_SQL = `shipment_id IN (SELECT id FROM shipments WHERE ${QA_SHIPMENT_FIELDS_SQL})`;
 const QA_TRIPS_SQL = `trip_id IN (SELECT t.id FROM trips t JOIN shipments s ON s.id = t.shipment_id WHERE s.bl_number ILIKE 'QA%' OR s.booking_ref ILIKE 'QA%' OR s.shipment_code ILIKE 'QA%' OR s.bl_number ILIKE 'CARD226-QA-%' OR s.bl_number ILIKE 'BILL-QAC1%' OR s.operational_notes ILIKE 'QA-BUG3%')`;
 

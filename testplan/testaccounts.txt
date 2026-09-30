@@ -52,8 +52,11 @@ staging:
   # staff from the 4.9 Excel sheet (Mã NV in parentheses). Username = the
   # name-based rename (firstname-initials style, e.g. dungnv = Dũng Nguyễn Văn).
   # NO MANAGER / CUSTOMER-role accounts exist on staging — prod has none.
-  # Demo accounts (cus, dieuvan, ketoan, giamdoc, laixe…) DO NOT exist on
-  # staging anymore; they only exist on local dev.
+  # Demo accounts (dieuvan, ketoan, giamdoc, laixe…) DO NOT exist on
+  # staging anymore; they only exist on local dev. EXCEPTION (card
+  # 20260930_248 staging evidence, build 2c9ecf9f, 2026-10-01): the CUS
+  # demo account `cus` DOES exist on staging (6 CUS-role users; suite 19
+  # logged in as cus/Abc123 and passed 54/54).
   users:
     ADMIN:       admin, phuongnt (NV001), namnv (NV002)
     ACCOUNTANT:  hoapt (NV009), liennt (NV010), lydp (NV011),
