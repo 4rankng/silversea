@@ -15,7 +15,7 @@
 //        [--list] [--pin-isolation] [--keep-template]
 
 import { spawn } from 'node:child_process';
-import { openSync, closeSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import fs, { openSync, closeSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';
 import { fileURLToPath } from 'node:url';
@@ -39,6 +39,39 @@ const stamp = `${process.pid}${Date.now().toString(36)}`;
 const templateName = `sst_iso_tmpl_${stamp}`;
 const admin = postgres(adminUrl, { max: 1 });
 const createdDatabases = [];
+
+// Cross-process mutex (card 20260930_242 tail-gate lesson): the runner is
+// single-tenant by design — the startup self-heal below DROPS every sst_iso_*
+// database that is not this run's, so two concurrent runners destroy each
+// other's template mid-suite ("template database ... does not exist" at 30-350
+// suites in). The lock directory is O_EXCL-claimed; a holder that dies without
+// releasing (PID no longer alive) is stale and reclaimable. Wait, never fail:
+// queues this runner behind whichever lane holds the gate.
+const lockDir = '/tmp/sst_iso_runner.lock';
+const lockPidFile = `${lockDir}/pid`;
+async function acquireRunnerLock() {
+  for (;;) {
+    try {
+      fs.mkdirSync(lockDir, { recursive: false });
+      fs.writeFileSync(lockPidFile, String(process.pid));
+      return;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      try {
+        const holder = Number(fs.readFileSync(lockPidFile, 'utf8').trim());
+        process.kill(holder, 0); // throws ESRCH when the holder is gone
+      } catch {
+        // Stale holder (crashed runner): reclaim. rmdir fails only if another
+        // lane recreated it first — loop again in that case.
+        try { fs.rmSync(lockDir, { recursive: true }); } catch { /* raced */ }
+        continue;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+}
+await acquireRunnerLock();
+process.on('exit', () => { try { fs.rmSync(lockDir, { recursive: true }); } catch { /* already gone */ } });
 
 // Serialize CREATE DATABASE ... TEMPLATE clones — concurrent clones are the
 // documented PG caveat; execution parallelism is unaffected.
