@@ -135,6 +135,25 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     source: 'Phương án tính cước docx §5-1',
   },
   {
+    // Card 20261001_253: the app mounts the config gate at bare '/api'
+    // (index.ts:229) BEFORE the financial gate (:230), so a
+    // /api/finance/billing-documents request is evaluated by the CONFIG
+    // gate FIRST — where CUS (no config policy) died before the financial
+    // row below ever ran. Both bare-mount gates evaluate sequentially, so
+    // the grant must exist at BOTH resources: this mirror admits CUS at
+    // the config gate; the financial row below admits it at its own.
+    // Pattern, method and roles are identical to the financial row — no
+    // other cell of the authz matrix changes.
+    resource: 'config',
+    methods: ['GET'],
+    pathPattern: /^\/finance\/billing-documents\/\d+(\/export)?$/,
+    roles: [Role.CUS],
+    effect: 'bypass',
+    reason:
+      'Mirror of the financial debit-note read grant for the config gate: /api/finance requests pass the config gate first (mount order), so the issuing CUS must be admitted there too — settlement screen read/export of its own issued note (card 20261001_253).',
+    source: 'card 20261001_253 (mount-order fix; mirrors the Card-20260930_228 financial row)',
+  },
+  {
     resource: 'financial',
     methods: ['GET'],
     pathPattern: /^\/finance\/billing-documents\/\d+(\/export)?$/,

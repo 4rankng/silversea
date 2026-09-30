@@ -109,6 +109,19 @@ function oldHasRouteScopedRoleAllowance(
   ) {
     return true;
   }
+  // Card 20261001_253 (ruling change, same-commit oracle update per this
+  // file's rule): the config gate evaluates /api/finance paths FIRST (mount
+  // order), so the debit-note grant mirrors at the config resource. Before
+  // this ruling the mirror was absent — the grant was dead in the live mount
+  // chain and CUS could not read its own issued note (the 41/42 staging cell).
+  if (
+    resource === 'config'
+    && role === Role.CUS
+    && method === 'GET'
+    && /^\/finance\/billing-documents\/\d+(\/export)?$/.test(path)
+  ) {
+    return true;
+  }
   if (
     resource === 'financial'
     && role === Role.CUS
@@ -292,9 +305,12 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
   });
 
   describe('registry integrity', () => {
-    it('carries exactly the ten bypass rows and two exclusive rows ported from casbin.ts', () => {
-      assert.equal(ROUTE_GRANT_RULES.length, 12);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 10);
+    it('carries the ported bypass rows (ten + the 253 mirror) and two exclusive rows', () => {
+      // Card 20261001_253 added one config-resource mirror of the financial
+      // debit-note row: both bare-'/'api gates evaluate sequentially, so the
+      // grant must be reachable at each gate the request actually passes.
+      assert.equal(ROUTE_GRANT_RULES.length, 13);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 11);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 
