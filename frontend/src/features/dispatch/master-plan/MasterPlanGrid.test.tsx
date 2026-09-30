@@ -363,6 +363,30 @@ describe('MasterPlanGrid', () => {
     expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
   });
 
+  it('locks the allocation trigger for every status the backend refuses (READY_FOR_DISPATCH is the only assignable one)', () => {
+    // assignShipmentCarriers 409s for any status ≠ READY_FOR_DISPATCH, and again
+    // when the lot already carries a live trip. The trigger used to stay live on
+    // DISPATCHED / IN_TRANSIT rows, so the dispatcher's save came back as a bare
+    // "Lô hàng đã thay đổi" conflict that hid the real reason.
+    const onAllocate = vi.fn();
+    render(<MasterPlanGrid
+      items={[
+        item({ status: ShipmentStatus.DISPATCHED }),
+        item({ id: 2, status: ShipmentStatus.IN_TRANSIT }),
+        item({ id: 3, status: ShipmentStatus.COMPLETED }),
+      ]}
+      onAllocate={onAllocate}
+    />);
+
+    const triggers = screen.getAllByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
+    expect(triggers).toHaveLength(3);
+    for (const trigger of triggers) {
+      expect(trigger).toBeDisabled();
+      fireEvent.click(trigger);
+    }
+    expect(onAllocate).not.toHaveBeenCalled();
+  });
+
   it('hides the "Ghi chú" column when both operationalNotes and factoryNotes are empty', () => {
     render(
       <MasterPlanGrid
