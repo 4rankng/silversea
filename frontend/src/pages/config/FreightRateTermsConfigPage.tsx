@@ -9,19 +9,19 @@ import { useAllCustomers, useRoutesDropdown } from '../../hooks/useCatalogQuerie
 import { CONFIG } from '@tingting/shared';
 import type { FreightRateTermRow } from '../../api/pricingClient';
 import { DateInput } from '../../design-system/forms/DateInput';
-import { businessDateISO, formatDate } from '../../lib/format';
+import { formatNumber, formatMoney, businessDateISO, formatDate } from '../../lib/format';
 import './FreightRateTermsConfigPage.css';
 
-const fmtShare = (v: string) => Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+const fmtShare = (v: string) => formatNumber(Number(v), { decimals: 2 });
 /** Base fuel price F — numeric(12,4); vi-VN grouping, up to 4 decimals. */
-const fmtFuel = (v: string) => Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 4 });
+const fmtFuel = (v: string) => formatNumber(Number(v), { decimals: 4 });
 
 function renderThreshold(r: FreightRateTermRow) {
   if (r.surchargeThresholdPct != null) {
     return <span style={{ color: 'var(--info-text)' }}>{fmtShare(r.surchargeThresholdPct)}%</span>;
   }
   if (r.surchargeThresholdAbs != null) {
-    return <span style={{ color: 'var(--info-text)' }}>{Number(r.surchargeThresholdAbs).toLocaleString('vi-VN')} đ/lít</span>;
+    return <span style={{ color: 'var(--info-text)' }}>{formatMoney(Number(r.surchargeThresholdAbs))} đ/lít</span>;
   }
   if ((r as { surchargeThresholdMode?: string }).surchargeThresholdMode === 'UNSET') {
     // Distinct from NONE (criterion 3): "chưa chốt" must never share the
@@ -254,7 +254,7 @@ export default function FreightRateTermsConfigPage() {
           { header: 'Khách hàng', render: r => customerNames.get(r.customerId) ?? '—' },
           { header: 'Tuyến', render: r => routeNames.get(r.routeId) ?? '—' },
           { header: '% chia sẻ', render: r => `${fmtShare(r.sharePct)}%` },
-          { header: 'Km 1 chiều', render: r => r.billingKmOneWay.toLocaleString('vi-VN') },
+          { header: 'Km 1 chiều', render: r => formatNumber(r.billingKmOneWay) },
           { header: 'Giá gốc dầu F', render: r => fmtFuel(r.baseFuelPrice) },
           { header: 'Ngưỡng', render: r => renderThreshold(r) },
           { header: 'Trễ (ngày)', render: r => String(r.fuelLagDays) },

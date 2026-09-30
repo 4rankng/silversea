@@ -14,6 +14,7 @@ import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
 import { EmptyState } from '../../design-system';
+import { formatMoney } from '../../lib/format';
 
 export default function FuelConfigPage() {
   const queryClient = useQueryClient();
@@ -153,7 +154,7 @@ export default function FuelConfigPage() {
             <div className="input" aria-live="polite" style={{ display: 'flex', alignItems: 'center', minHeight: 44 }}>
               {surchargeDelta == null
                 ? 'Không phát sinh chênh lệch'
-                : `${surchargeDelta.toLocaleString('vi-VN')} đ/lít`}
+                : `${formatMoney(surchargeDelta)} đ/lít`}
             </div>
           </div>
         </div>
@@ -216,7 +217,7 @@ export default function FuelConfigPage() {
                 {sortedHistory.map((row) => (
                   <tr key={row.id}>
                     <td data-label="Ngày hiệu lực" style={{ whiteSpace: 'nowrap' }}>{new Date(row.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                    <td data-label="Đơn giá (₫/lít)" className="num" style={{ fontWeight: 600 }}>{Number(row.unitPrice).toLocaleString('vi-VN')}</td>
+                    <td data-label="Đơn giá (₫/lít)" className="num" style={{ fontWeight: 600 }}>{formatMoney(Number(row.unitPrice))}</td>
                     <td data-label="Người thay đổi" style={{ color: 'var(--ink-3)' }}>—</td>
                     <td data-label="Ghi chú" style={{ color: 'var(--ink-3)' }}>{row.note || '—'}</td>
                   </tr>

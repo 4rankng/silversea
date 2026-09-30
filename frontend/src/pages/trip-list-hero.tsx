@@ -2,6 +2,7 @@ import { Download, Pencil, Plus, X } from 'lucide-react';
 import { TripStatus } from '@tingting/shared';
 import { formatMoney, type StatusCounts } from '../features/trips';
 import type { tripClient } from '../api/tripClient';
+import { formatNumber } from '../lib/format';
 
 type Summary = Awaited<ReturnType<typeof tripClient.getTripsSummary>>;
 interface TripListHeroProps { statusCounts: StatusCounts; summary?: Summary; quickEdit: boolean; toggleQuickEdit: () => void; handleExport: () => void; onAdd: () => void; breakdownPct: { chot: number; htth: number; dang: number; moi: number; huy: number }; warnThreshold: number; month: number }
@@ -56,7 +57,7 @@ export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit
             <div className="metric">
               <div className="metric-label">Tổng KM tháng này</div>
               <div className="metric-value d-mono">
-                {(summary?.totalKm ?? 0).toLocaleString('vi-VN')}
+                {formatNumber(summary?.totalKm ?? 0)}
                 <span className="metric-unit">km</span>
               </div>
               <div className="metric-delta delta-flat">{statusCounts.all} chuyến tháng này</div>
@@ -64,7 +65,7 @@ export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit
             <div className="metric">
               <div className="metric-label">Tổng dầu tiêu thụ</div>
               <div className="metric-value d-mono">
-                {(summary?.totalFuel ?? 0).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}
+                {formatNumber(summary?.totalFuel ?? 0, { decimals: 0 })}
                 <span className="metric-unit">L</span>
               </div>
               <div className={`metric-delta ${(summary?.totalKm ?? 0) > 0 && (summary?.avgPer100 ?? 0) > warnThreshold ? 'delta-warn' : 'delta-flat'}`}>

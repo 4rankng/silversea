@@ -18,6 +18,7 @@ import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './PortalPages.css';
+import { formatDateTimeVN } from '../../lib/format';
 
 interface PortalShipmentDetail {
   shipment: {
@@ -188,7 +189,7 @@ export default function PortalShipmentDetailPage() {
         {eventError && <p className="portal-notice portal-notice--error" role="alert">{eventError}</p>}
         {!eventError && (events.length === 0 ? <p className="portal-list__meta">Chưa có cập nhật nào.</p> : <ol className="portal-timeline">{events.map((event) => {
           const acknowledged = acknowledgedIds.has(event.id);
-          return <li key={event.id}><div className="portal-timeline__meta"><span>Đã gửi khách hàng</span><time dateTime={event.occurredAt}>{new Date(event.occurredAt).toLocaleString('vi-VN')}</time></div><strong>{event.title}</strong><p>{event.message}</p><small>Phiên bản {event.version}</small>{acknowledged ? <span className="portal-status portal-status--success"><CheckCircle2 size={15}/> Khách hàng đã xác nhận</span> : <button className="portal-button portal-button--primary" onClick={() => setSelectedEvent(event)}>Xác nhận đã nhận thông tin</button>}</li>;
+          return <li key={event.id}><div className="portal-timeline__meta"><span>Đã gửi khách hàng</span><time dateTime={event.occurredAt}>{formatDateTimeVN(event.occurredAt)}</time></div><strong>{event.title}</strong><p>{event.message}</p><small>Phiên bản {event.version}</small>{acknowledged ? <span className="portal-status portal-status--success"><CheckCircle2 size={15}/> Khách hàng đã xác nhận</span> : <button className="portal-button portal-button--primary" onClick={() => setSelectedEvent(event)}>Xác nhận đã nhận thông tin</button>}</li>;
         })}</ol>)}
       </section>
 
@@ -217,7 +218,7 @@ export default function PortalShipmentDetailPage() {
                   {SHIPMENT_DOCUMENT_TYPE_LABELS[doc.type as keyof typeof SHIPMENT_DOCUMENT_TYPE_LABELS] ?? doc.type}
                   </strong>
                   <div className="portal-list__meta">
-                  Tải lên: {new Date(doc.createdAt).toLocaleString('vi-VN')}
+                  Tải lên: {formatDateTimeVN(doc.createdAt)}
                   </div>
                 </div>
               </div>
@@ -248,7 +249,7 @@ export default function PortalShipmentDetailPage() {
           {statusHistory.map((h) => (
             <div key={h.id} className="portal-list__meta portal-history-row">
               <span className="portal-history-label">{SHIPMENT_STATUS_LABELS[h.toStatus as keyof typeof SHIPMENT_STATUS_LABELS] ?? h.toStatus}</span>
-              <span>{new Date(h.changedAt).toLocaleString('vi-VN')}</span>
+              <span>{formatDateTimeVN(h.changedAt)}</span>
             </div>
           ))}
         </section>

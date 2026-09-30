@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { formatCurrency } from '../../lib/format';
 
-const vnd = (n: number) => n.toLocaleString('vi-VN');
 
 /**
  * Debit-note freight override — docx §4 manual override.
@@ -40,7 +40,7 @@ export function DebitNoteFreightOverride({
     <div data-debit-override style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
       <div>
         <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giá cước hệ thống</div>
-        <div style={{ fontFamily: 'var(--font-data)', fontWeight: 600 }}>{vnd(systemFreight)} đ</div>
+        <div style={{ fontFamily: 'var(--font-data)', fontWeight: 600 }}>{formatCurrency(systemFreight)}</div>
       </div>
       <div>
         <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giá cước đàm phán</div>

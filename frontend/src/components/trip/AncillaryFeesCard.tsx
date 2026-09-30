@@ -5,7 +5,7 @@ import { ANCILLARY_EXPENSE_TYPES } from '@tingting/shared';
 import type { AncillaryExpenseType } from '@tingting/shared';
 import type { TripExpense } from '@tingting/shared';
 import { tripClient } from '../../api/tripClient';
-import { formatCurrency } from '../../lib/format';
+import { formatMoney, formatCurrency } from '../../lib/format';
 import { useCatalogs } from '../../hooks/useCatalogs';
 import { InputWithPrefix } from './InputWithPrefix';
 import { StatusPill, Modal } from '../UI';
@@ -400,7 +400,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                         <input
                           className="input mono"
                           type="text"
-                          value={form.buyAmount ? Number(form.buyAmount).toLocaleString('vi-VN') : '0'}
+                          value={form.buyAmount ? formatMoney(Number(form.buyAmount)) : '0'}
                           readOnly
                           disabled
                           style={{ background: 'var(--bg-2)', color: 'var(--fg-3)', cursor: 'not-allowed', paddingRight: 32 }}

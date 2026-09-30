@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
-import { formatCurrency, formatDate } from '../../lib/format';
+import { formatNumber, formatCurrency, formatDate } from '../../lib/format';
 import { PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
@@ -214,8 +214,8 @@ export default function PhoiPhieuControlPage() {
                       the line that used to read "Trọng tải" was the CARGO weight —
                       a different number that reads the same. Now both are named. A
                       type with no ISO rating prints "—" rather than a guess. */}
-                  <br /><small>Trọng tải container: {row.containerPayloadKg != null ? row.containerPayloadKg.toLocaleString('vi-VN') + ' kg' : '—'}</small>
-                  <br /><small>Trọng lượng hàng: {row.cargoWeightKg != null ? row.cargoWeightKg.toLocaleString('vi-VN') + ' kg' : 'Chưa có'}</small>
+                  <br /><small>Trọng tải container: {row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + ' kg' : '—'}</small>
+                  <br /><small>Trọng lượng hàng: {row.cargoWeightKg != null ? formatNumber(row.cargoWeightKg) + ' kg' : 'Chưa có'}</small>
                 </td>
                 <td>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>
                 <td className="ppc-col--xe">{row.plateNumber ?? '—'}<br /><small>{row.driverName ?? ''}</small></td>

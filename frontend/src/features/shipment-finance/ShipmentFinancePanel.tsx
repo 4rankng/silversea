@@ -9,7 +9,7 @@ import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/shared/Toast';
-import { formatDate } from '../../lib/format';
+import { formatDate, formatCurrency } from '../../lib/format';
 import { ShipmentFinanceForm, type FinanceEditor } from './ShipmentFinanceForm';
 import './ShipmentFinancePanel.css';
 

@@ -45,7 +45,7 @@ describe('FreightPreviewCard', () => {
     expect(mockHook).toHaveBeenCalledWith(expect.objectContaining({ customerId: 1, transportDate: '2026-09-10' }));
     expect(container.querySelector('[data-freight-preview="auto"]')).not.toBeNull();
     expect(container.textContent).toContain('Tổng cước thu khách');
-    expect(container.textContent).toContain('5.071.744 đ');
+    expect(container.textContent).toContain('5.071.744 ₫');
   });
 
   it('renders the engine reason for a missing base price (15T) — never the old hardcoded line', () => {

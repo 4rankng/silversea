@@ -5,6 +5,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { formatMoney } from '../../lib/format';
 
 interface AncillaryRevenue {
   id: number;
@@ -77,7 +78,7 @@ export default function AncillaryRevenueConfigPage() {
           { header: 'Loại', render: (r) => <span style={{ fontWeight: 600 }}>{TYPE_LABELS[r.type] ?? r.type}</span> },
           { header: 'Số tiền (₫)', render: (r) => {
             const v = Number(r.amount); const cls: React.CSSProperties = v < 0 ? { color: 'var(--danger)' } : {};
-            return <span style={cls}>{v.toLocaleString('vi-VN')}</span>;
+            return <span style={cls}>{formatMoney(v)}</span>;
           } },
           { header: 'Ngày', render: (r) => r.date },
           { header: 'Ghi chú', render: (r) => r.note ?? '—' },

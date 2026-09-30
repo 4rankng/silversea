@@ -7,7 +7,7 @@ import { fuelEvidenceClient, type FuelEvidenceReviewRecord, type FuelEvidenceRev
 import { useAuthedPhotoUrls } from '../lib/api/photo';
 import { PageHeader, StatusPill } from '../components/UI';
 import { FilterDropdown } from '../components/FilterDropdown';
-import { formatCurrency } from '../lib/format';
+import { formatDateTimeVN, formatCurrency } from '../lib/format';
 import { FilterBar, Pagination, UuiSelectField } from '../design-system';
 
 const STATUS_VARIANT: Record<FuelEvidenceReviewStatus, 'warn' | 'success' | 'danger'> = {
@@ -142,7 +142,7 @@ export default function FuelEvidenceReviewPage() {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
-                  <div><strong>Chụp lúc</strong><div>{new Date(row.capturedAt).toLocaleString('vi-VN')}</div></div>
+                  <div><strong>Chụp lúc</strong><div>{formatDateTimeVN(row.capturedAt)}</div></div>
                   <div><strong>Lít</strong><div>{row.litres ?? '—'}</div></div>
                   <div><strong>Đơn giá</strong><div>{row.unitPrice ? formatCurrency(row.unitPrice) : '—'}</div></div>
                   <div><strong>Thành tiền</strong><div>{row.totalAmount ? formatCurrency(row.totalAmount) : '—'}</div></div>

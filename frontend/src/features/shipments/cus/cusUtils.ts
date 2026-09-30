@@ -12,7 +12,7 @@ import {
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
 import { ApiError } from '../../../lib/api';
-import { formatISODate, formatDateTimeShort } from '../../../lib/format';
+import { formatISODate, formatDateTimeShort, formatNumber } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
 export function formatQuantity(value: string | null, maximumFractionDigits = 2): string {
@@ -49,10 +49,10 @@ export function cargoModeLabel(cargoMode: ShipmentCusWorkspaceListItem['cargoMod
 
 export function worksheetQuantity(item: ShipmentCusWorkspaceListItem): string {
   if (item.operational.totalContainers > 0) {
-    return `${item.operational.totalContainers.toLocaleString('vi-VN')} cont`;
+    return `${formatNumber(item.operational.totalContainers)} cont`;
   }
   if (item.packageCount != null) {
-    return `${item.packageCount.toLocaleString('vi-VN')} ${item.packageType || 'kiện'}`;
+    return `${formatNumber(item.packageCount)} ${item.packageType || 'kiện'}`;
   }
   return '—';
 }
@@ -105,7 +105,7 @@ export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): strin
   if (vehicleReadiness === 'NO_CONTAINERS') return 'Không áp dụng điều xe';
   const waiting = Math.max(0, totalContainers - plateAssignedContainers);
   if (waiting >= totalContainers) return 'Toàn bộ chờ phân xe';
-  return `${waiting.toLocaleString('vi-VN')} cont chờ phân xe`;
+  return `${formatNumber(waiting)} cont chờ phân xe`;
 }
 
 export function noteLines(note: string | null | undefined): string[] {

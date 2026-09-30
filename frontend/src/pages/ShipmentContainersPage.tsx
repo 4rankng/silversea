@@ -32,7 +32,7 @@ import {
 import { useCusDetail } from '../features/shipments/cus/use-cus-detail';
 import { readCusPageSize } from '../features/shipments/cus/use-cus-workspace-state';
 import './ShipmentContainersPage.css';
-import { formatNumber } from '../../lib/format';
+import { formatNumber } from '../lib/format';
 
 // Date-scope quick ranges — the scopes the page always offered, in the shared
 // preset shape: `DateRangePresets` (boxed chips) rides the bar and

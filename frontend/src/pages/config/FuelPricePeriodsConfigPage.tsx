@@ -13,7 +13,7 @@ import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { quotationClient, type QuotationFuelApprovalRow } from '../../api/quotationClient';
 import { qk } from '../../api/keys';
 import { DateInput } from '../../design-system/forms/DateInput';
-import { formatDate } from '../../lib/format';
+import { formatMoney, formatDate } from '../../lib/format';
 
 /** Card 20260922_61: the kế-toán alert — pending "ĐỒNG Ý CẬP NHẬT BÁO GIÁ"
  *  rows surface as a banner + a role=dialog batch list (select-all + per-row;
@@ -166,7 +166,7 @@ function QuotationFuelApprovalAlert() {
   );
 }
 
-const fmtPrice = (v: string) => Number(v).toLocaleString('vi-VN');
+const fmtPrice = (v: string) => formatMoney(Number(v));
 
 function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean;

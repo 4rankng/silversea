@@ -1,5 +1,5 @@
-export function formatNumber(n: number | string | null | undefined): string {
-  return formatNumberWithOptions(n, {});
+export function formatNumber(n: number | string | null | undefined, options?: FormatValueOptions): string {
+  return formatNumberWithOptions(n, options ?? {});
 }
 
 /**
@@ -12,6 +12,26 @@ export function formatNumber(n: number | string | null | undefined): string {
  */
 export interface FormatValueOptions {
   empty?: string;
+  /**
+   * Cap on fraction digits for non-money measures (percent, coefficients,
+   * liters-adjacent ratios) — Intl maximumFractionDigits semantics. Money
+   * always goes through formatMoney's pinned zero-digit rounding instead.
+   */
+  decimals?: number;
+}
+
+// Cached formatters — the locale/options pair is constant, and hot paths
+// (counter animations) call these per frame; allocating Intl instances per
+// call showed up as frame cost.
+const VI_VN_ZERO_DIGITS = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
+const viVnDecimals = new Map<number, Intl.NumberFormat>();
+function viVnWithDecimals(decimals: number): Intl.NumberFormat {
+  let formatter = viVnDecimals.get(decimals);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: decimals });
+    viVnDecimals.set(decimals, formatter);
+  }
+  return formatter;
 }
 
 function formatNumberWithOptions(n: number | string | null | undefined, options: FormatValueOptions): string {
@@ -19,6 +39,9 @@ function formatNumberWithOptions(n: number | string | null | undefined, options:
   if (n == null) return empty;
   const num = typeof n === 'string' ? parseFloat(n) : n;
   if (isNaN(num)) return empty;
+  if (options.decimals !== undefined) {
+    return viVnWithDecimals(options.decimals).format(num);
+  }
   return num.toLocaleString('vi-VN');
 }
 
@@ -162,7 +185,7 @@ export function formatMoney(n: number | string | null | undefined, options?: For
   if (n == null) return empty;
   const num = typeof n === 'string' ? Number(n) : n;
   if (!Number.isFinite(num)) return empty;
-  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(num);
+  return VI_VN_ZERO_DIGITS.format(num);
 }
 
 /** Liters with one decimal and the Vietnamese decimal comma, e.g. "94,8 L". */

@@ -11,8 +11,7 @@ import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import { useToast } from '../components/shared/Toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../hooks/animations';
-import { FINANCIAL, CONFIG } from '@tingting/shared';
-import { expenseSchema } from '@tingting/shared';
+import { FINANCIAL, CONFIG, expenseSchema } from '@tingting/shared';
 import type { ExpenseWithRefs, Supplier, ExpenseCategory } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { resolveExpenseCatalogs } from '../features/expenses/expenseCatalogs';
@@ -27,6 +26,7 @@ import { useExpenseReceiptPhotos } from '../features/expenses/useExpenseReceiptP
 import { DateInput } from '../design-system/forms/DateInput';
 import { UuiSelectField } from '../design-system';
 import './ExpenseEntryPage.css';
+import { formatNumber } from '../lib/format';
 
 export default function ExpenseEntryPage() {
   const navigate = useNavigate();
@@ -163,8 +163,7 @@ export default function ExpenseEntryPage() {
   const formatAmountDisplay = (val: string) => {
     if (!val) return '';
     const num = parseFloat(val.replace(/,/g, ''));
-    if (isNaN(num)) return val;
-    return num.toLocaleString('vi-VN');
+    return isNaN(num) ? val : formatNumber(num);
   };
 
   const parseAmountInput = (displayVal: string) => {

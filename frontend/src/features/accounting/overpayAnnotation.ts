@@ -1,3 +1,4 @@
+import { formatMoney } from '../../lib/format';
 // Re-declared locally to keep this helper import-light for unit tests.
 interface OverpayRow {
   tongPhaiThuTra: number;
@@ -10,7 +11,7 @@ interface OverpayRow {
 export function overpayAnnotationOf(row: OverpayRow): string | null {
   if (row.tongPhaiThuTra > 0 && row.daThuTra > row.tongPhaiThuTra) {
     const diff = row.daThuTra - row.tongPhaiThuTra;
-    return `Đã thu/trả vượt — cần hoàn lại ${diff.toLocaleString('vi-VN')}`;
+    return `Đã thu/trả vượt — cần hoàn lại ${formatMoney(diff)}`;
   }
   return null;
 }

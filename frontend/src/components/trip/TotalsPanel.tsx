@@ -5,6 +5,7 @@ import { computeTripTotals } from "@tingting/shared";
 import { useTripFormContext } from "../../hooks/useTripFormContext";
 import { useFuelConfig } from '../../hooks/useQueries';
 import { Money } from '../shared/Money';
+import { formatMoney } from '../../lib/format';
 
 /**
  * Deep-luxe right-rail finance card for the trip edit page.
@@ -237,7 +238,7 @@ export function TotalsPanel() {
             )}
             {roadBreakdown.stations > 0 && (
               <div className="tc-totals-breakdown__row">
-                <span>Trạm BOT ({roadBreakdown.stations} × {Math.round(roadBreakdown.perStation).toLocaleString('vi-VN')})</span>
+                <span>Trạm BOT ({roadBreakdown.stations} × {formatMoney(roadBreakdown.perStation)})</span>
                 <Money value={Math.abs(roadBreakdown.stationCost)} sign="−" />
               </div>
             )}

@@ -6,7 +6,7 @@ import {
 } from '@tingting/shared';
 import { splitRoute } from '../../lib/route';
 import { formatDayMonth } from '../../lib/date';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatNumber } from '../../lib/format';
 import {
   buildTripCode, calcConsumption, getMissingIndicators,
   STATUS_PILL_CLASS, type TripListContainer, type TripListRow,
@@ -107,7 +107,7 @@ export function TripMobileCard({ trip, warnThreshold, style, copyingPlan, onCopy
         <div className="mm">
           <span className="lab">KM</span>
           <span className={km > 0 ? 'val' : 'val empty'}>
-            {km > 0 ? `${km.toLocaleString('vi-VN')} km` : '—'}
+            {km > 0 ? `${formatNumber(km)} km` : '—'}
           </span>
         </div>
         <div className="mm">

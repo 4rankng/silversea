@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { formatViMonth } from '../../lib/format';
+import { formatViMonth, formatDateTimeVN } from '../../lib/format';
 
 export function FinanceLoadingBlock() {
   return (
@@ -54,7 +54,7 @@ export function FinanceVersionList({
               </div>
               <div className="cfg-finance-history__foot">
                 <span>{row.createdByName}</span>
-                <span>{new Date(row.createdAt).toLocaleString('vi-VN')}</span>
+                <span>{formatDateTimeVN(row.createdAt)}</span>
               </div>
             </li>
           ))}

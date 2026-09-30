@@ -8,7 +8,7 @@ import { Drawer } from '../../components/UI';
 import { DateField, NumberField, TextField } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
-import { businessDateISO } from '../../lib/format';
+import { businessDateISO, formatMoney } from '../../lib/format';
 
 export type FinanceEditor = { kind: 'invoice'; record?: ShipmentInvoiceRecord } | { kind: 'deposit'; record?: ContainerDepositRecord };
 
@@ -87,7 +87,7 @@ export function ShipmentFinanceForm({ editor, shipmentId, principalLocked = fals
             const source = suppliers.data?.expenses.find((item) => String(item.id) === event.target.value);
             if (source) { setSupplierId(String(source.supplierId ?? '')); setSupplierFee(Number(source.buyAmount)); if (source.invoiceNumber) setInvoiceNumber(source.invoiceNumber); }
           }} options={[{ value: '', label: 'Ghi chi phí hóa đơn mới' }, ...(suppliers.data?.expenses ?? []).filter((item) => item.supplierId != null).map((item) => ({
-            value: String(item.id), label: `${item.invoiceNumber ? `${item.invoiceNumber} · ` : ''}${item.expenseType} · ${Number(item.buyAmount).toLocaleString('vi-VN')} đ`,
+            value: String(item.id), label: `${item.invoiceNumber ? `${item.invoiceNumber} · ` : ''}${item.expenseType} · ${formatMoney(Number(item.buyAmount))} đ`,
           }))]} hint="Chọn phí đã có để liên kết, tránh ghi trùng." />}
         {!sourceExpenseId && (suppliers.data?.trips?.length ?? 0) > 1 && <UuiSelectField label="Công việc chịu chi phí" required disabled={busy || Boolean(invoice?.tripId)} value={tripId}
           // business key render; id never user-facing — the trips option payload carries only tripCode

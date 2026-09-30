@@ -6,6 +6,7 @@ import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { useContainerTypes, usePorts } from '../../hooks/useCatalogQueries';
+import { formatMoney } from '../../lib/format';
 
 interface LiftPricing {
   id: number;
@@ -104,7 +105,7 @@ export default function LiftPricingConfigPage() {
         emptyHint="Thêm mức giá đầu tiên cho cảng."
         columns={[
           { header: 'Chiều', render: (r) => <span style={{ fontWeight: 600 }}>{DIR_LABELS[r.direction] ?? r.direction}</span> },
-          { header: 'Đơn giá (₫)', render: (r) => Number(r.unitPrice).toLocaleString('vi-VN') },
+          { header: 'Đơn giá (₫)', render: (r) => formatMoney(Number(r.unitPrice)) },
           { header: 'Cảng', render: (r) => portNames.get(r.portId) ?? 'Cảng không còn trong danh mục' },
           { header: 'Loại container', render: (r) => containerTypeNames.get(r.containerTypeId) ?? 'Không còn trong danh mục' },
           { header: 'Hàng/Rỗng', render: (r) => r.loadState === 'EMPTY' ? 'Rỗng' : 'Hàng' },

@@ -12,6 +12,7 @@ import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/pe
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
 import type { PenaltyReason } from '@tingting/shared';
 import { EmptyState, FilterBar } from '../../design-system';
+import { formatMoney } from '../../lib/format';
 
 /* ─── Page-scoped styles ─── */
 const pageStyles = `
@@ -336,7 +337,7 @@ export default function PenaltyReasonsConfigPage() {
     }
   };
 
-  const fmt = (n: number) => n.toLocaleString('vi-VN');
+  const fmt = (n: number) => formatMoney(n);
 
   /* ─── Derived stats ─── */
   const totalTypes = items.length;

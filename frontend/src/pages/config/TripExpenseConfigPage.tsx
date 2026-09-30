@@ -5,6 +5,7 @@ import { Save, Loader2 } from 'lucide-react';
 import { useRoadConfig, useSaveRoadConfig } from '../../hooks/useCatalogQueries';
 import { PageHeader, Panel } from '../../components/UI';
 import './config-page.css';
+import { formatNumber } from '../../lib/format';
 
 export default function TripExpenseConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
@@ -91,7 +92,7 @@ export default function TripExpenseConfigPage() {
 
   const fmt = (v: string) => {
     const n = Number(v);
-    return isNaN(n) ? '' : n.toLocaleString('vi-VN');
+    return isNaN(n) ? '' : formatNumber(n);
   };
 
   return (

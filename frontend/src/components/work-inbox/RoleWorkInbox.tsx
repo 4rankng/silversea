@@ -19,7 +19,7 @@ import {
 } from '@tingting/shared';
 import { api, ApiError } from '../../lib/api';
 import { buildIdempotencyKey } from '../../lib/idempotency';
-import { formatDateTimeShort } from '../../lib/format';
+import { formatNumber, formatDateTimeShort } from '../../lib/format';
 import { forwarderClient } from '../../api/forwarderClient';
 import { Tabs } from '../../design-system';
 
@@ -433,7 +433,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
         {data && data.totalPages > 1 && (
           <nav className="role-work-inbox__pagination" aria-label="Phân trang công việc">
             <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => Math.max(1, value - 1))}>Trang trước</button>
-            <span>Trang {data.page.toLocaleString('vi-VN')} / {data.totalPages.toLocaleString('vi-VN')} · {data.total.toLocaleString('vi-VN')} việc</span>
+            <span>Trang {formatNumber(data.page)} / {formatNumber(data.totalPages)} · {formatNumber(data.total)} việc</span>
             <button type="button" disabled={page >= data.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Trang sau</button>
           </nav>
         )}

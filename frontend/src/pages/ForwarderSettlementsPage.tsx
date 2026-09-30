@@ -3,7 +3,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Loader2, Plus, ArrowRight, Clock } from 'lucide-react';
 import { EmptyState, FilterBar, Pagination } from '../design-system';
-import { formatCurrency, formatDate } from '../lib/format';
+import { formatMoney, formatCurrency, formatDate } from '../lib/format';
 import { groupExpensesByContainer } from '../lib/expense-breakdown';
 import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '@tingting/shared';
 import { PageHeader, FilterPill } from '../components/UI';
@@ -86,7 +86,7 @@ export default function ForwarderSettlementsPage() {
   useEffect(() => {
     if (loadingSettlements || settlements.length === 0 || prefersReduced) return;
     animateCounters([
-      { el: heroExpenseRef.current, value: totalExpenseAll, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+      { el: heroExpenseRef.current, value: totalExpenseAll, format: (v: number) => formatMoney(v) },
       { el: heroTotalRef.current, value: totalCount, suffix: ' phiếu' },
       { el: heroPendingRef.current, value: pending, suffix: ' chờ xử lý' },
     ]);

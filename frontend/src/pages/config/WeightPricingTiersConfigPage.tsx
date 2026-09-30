@@ -4,6 +4,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { formatMoney } from '../../lib/format';
 
 interface WeightPricingTier {
   id: number;
@@ -55,7 +56,7 @@ export default function WeightPricingTiersConfigPage() {
         columns={[
           { header: 'Từ (kg)', render: (t) => <span style={{ fontWeight: 600 }}>{t.minKg}</span> },
           { header: 'Đến (kg)', render: (t) => t.maxKg },
-          { header: 'Giá/kg (₫)', render: (t) => Number(t.pricePerKg).toLocaleString('vi-VN') },
+          { header: 'Giá/kg (₫)', render: (t) => formatMoney(Number(t.pricePerKg)) },
           { header: 'Ngày hiệu lực', render: (t) => t.effectiveDate },
         ]}
         renderForm={(p) => <TierForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} onDelete={p.onDelete} deleting={p.deleting} />}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, BadgeCheck, CircleHelp, Download, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatCurrency } from '../../lib/format';
+import { formatNumber, formatDateTimeVN, formatCurrency } from '../../lib/format';
 import { customerServiceFinanceClient, type ProfitabilityDimension } from '../../api/customerServiceFinanceClient';
 import { qk } from '../../api/keys';
 import { Pagination, SummaryRail } from '../../design-system';
@@ -87,16 +87,16 @@ export function ProfitabilityReportPanel({ month, year }: { month: number; year:
     >
       <UuiSelectField id="profitability-dimension" label="Phân tích theo" value={dimension} onChange={(e) => { setDimension(e.target.value as ProfitabilityDimension); setPage(1); }} options={DIMENSIONS.map((item) => ({ value: item.value, label: item.label }))} />
     </ListFilterBar>
-    {data && <div className="workflow-profitability__meta"><span>Cập nhật đến {new Date(data.asOf).toLocaleString('vi-VN')}</span><span>{calculationVersionLabel(data.definitionVersion)}</span></div>}
+    {data && <div className="workflow-profitability__meta"><span>Cập nhật đến {formatDateTimeVN(data.asOf)}</span><span>{calculationVersionLabel(data.definitionVersion)}</span></div>}
     {error && <div className="workflow-notice workflow-notice--error" role="alert">{error}<button className="btn btn--ghost" onClick={() => { setActionError(null); void reportQuery.refetch(); }}><RotateCcw size={15}/> Thử lại</button></div>}
     {data?.lowMarginPolicy.status === 'UNCONFIGURED' && <div className="workflow-notice workflow-notice--partial" role="status"><CircleHelp size={18}/><span>{data.lowMarginPolicy.note}</span></div>}
-    {data?.lowMarginPolicy.status === 'CONFIGURED' && <div className="workflow-notice" role="status"><BadgeCheck size={18}/><span>Ngưỡng cảnh báo kỳ này: {data.lowMarginPolicy.thresholdPercent?.toLocaleString('vi-VN')}%. {data.lowMarginPolicy.note}</span></div>}
+    {data?.lowMarginPolicy.status === 'CONFIGURED' && <div className="workflow-notice" role="status"><BadgeCheck size={18}/><span>Ngưỡng cảnh báo kỳ này: {formatNumber(data.lowMarginPolicy.thresholdPercent)}%. {data.lowMarginPolicy.note}</span></div>}
     {data?.reconciliation.status === 'PARTIAL' && <div className="workflow-notice workflow-notice--partial"><AlertTriangle size={18}/><span>{data.reconciliation.note} Chênh lệch: {formatCurrency(data.reconciliation.difference)}.</span></div>}
     <SummaryRail ariaLabel="Tóm tắt lợi nhuận vận hành" items={[
       { label: 'Doanh thu', value: loading ? '—' : formatCurrency(data?.totals.revenue ?? 0) },
       { label: 'Chi phí trực tiếp', value: loading ? '—' : formatCurrency(data?.totals.directCost ?? 0) },
       { label: 'Lợi nhuận', value: loading ? '—' : formatCurrency(data?.totals.profit ?? 0) },
-      { label: 'Biên lợi nhuận', value: loading ? '—' : `${margin.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%` },
+      { label: 'Biên lợi nhuận', value: loading ? '—' : `${formatNumber(margin, { decimals: 1 })}%` },
     ]} />
     {!data && loading && <p className="workflow-profitability__empty" role="status">Đang tải báo cáo lợi nhuận…</p>}
     {data && data.items.length === 0 && !loading && <div className="workflow-profitability__empty" role="status">
@@ -105,8 +105,8 @@ export function ProfitabilityReportPanel({ month, year }: { month: number; year:
     </div>}
     <div className="workflow-table workflow-profitability__table" role="region" aria-label="Bảng lợi nhuận theo chiều phân tích" aria-busy={loading} tabIndex={0}><table><thead><tr><th>{DIMENSIONS.find((item) => item.value === dimension)?.label}</th><th>Chuyến</th><th>Thu</th><th>CP trực tiếp</th><th>CP đội xe</th><th>Lợi nhuận</th><th>Biên LN</th></tr></thead><tbody>{data?.items.map((item) => {
       const sourceReferences = item.sourceTripReferences ?? [];
-      return <tr key={`${item.key}:${item.label}:${item.attributionStatus}`}><td data-label={DIMENSIONS.find((entry) => entry.value === dimension)?.label ?? 'Nhóm phân tích'}><strong title={item.label ?? 'Thiếu phân bổ'}>{item.label ?? 'Thiếu phân bổ'}</strong>{item.attributionStatus === 'MISSING' && <small>{item.attributionNote}</small>}{sourceReferences.length > 0 && <small className="workflow-profitability__sources">Nguồn: {sourceReferences.slice(0, 3).map((source, index) => <span key={source.tripId}>{index > 0 && ' · '}<Link to={`/trips/${source.tripId}`}>{source.reference}</Link></span>)}{item.tripCount > sourceReferences.length && ` · +${(item.tripCount - sourceReferences.length).toLocaleString('vi-VN')} chuyến`}</small>}</td><td data-label="Số chuyến">{item.tripCount.toLocaleString('vi-VN')}</td><td data-label="Doanh thu">{formatCurrency(item.revenue)}</td><td data-label="Chi phí trực tiếp">{formatCurrency(item.directCost)}</td><td data-label="Chi phí đội xe">{formatCurrency(item.allocatedFleetFixedCost)}</td><td data-label="Lợi nhuận">{formatCurrency(item.profit)}</td><td data-label="Biên lợi nhuận">{item.marginRatio == null ? <span title="Không thể so sánh" aria-label="Không thể so sánh">—</span> : `${(item.marginRatio * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`}{item.alertState === 'LOW_MARGIN' && <small role="status">Biên lợi nhuận thấp</small>}</td></tr>;
+      return <tr key={`${item.key}:${item.label}:${item.attributionStatus}`}><td data-label={DIMENSIONS.find((entry) => entry.value === dimension)?.label ?? 'Nhóm phân tích'}><strong title={item.label ?? 'Thiếu phân bổ'}>{item.label ?? 'Thiếu phân bổ'}</strong>{item.attributionStatus === 'MISSING' && <small>{item.attributionNote}</small>}{sourceReferences.length > 0 && <small className="workflow-profitability__sources">Nguồn: {sourceReferences.slice(0, 3).map((source, index) => <span key={source.tripId}>{index > 0 && ' · '}<Link to={`/trips/${source.tripId}`}>{source.reference}</Link></span>)}{item.tripCount > sourceReferences.length && ` · +${formatNumber(item.tripCount - sourceReferences.length)} chuyến`}</small>}</td><td data-label="Số chuyến">{formatNumber(item.tripCount)}</td><td data-label="Doanh thu">{formatCurrency(item.revenue)}</td><td data-label="Chi phí trực tiếp">{formatCurrency(item.directCost)}</td><td data-label="Chi phí đội xe">{formatCurrency(item.allocatedFleetFixedCost)}</td><td data-label="Lợi nhuận">{formatCurrency(item.profit)}</td><td data-label="Biên lợi nhuận">{item.marginRatio == null ? <span title="Không thể so sánh" aria-label="Không thể so sánh">—</span> : `${formatNumber(item.marginRatio * 100, { decimals: 1 })}%`}{item.alertState === 'LOW_MARGIN' && <small role="status">Biên lợi nhuận thấp</small>}</td></tr>;
     })}</tbody></table></div>
-    {data && data.totalPages > 1 && <Pagination page={data.page} totalPages={data.totalPages} summary={<span>{data.totalGroups.toLocaleString('vi-VN')} nhóm</span>} onChange={setPage} disabled={loading} />}
+    {data && data.totalPages > 1 && <Pagination page={data.page} totalPages={data.totalPages} summary={<span>{formatNumber(data.totalGroups)} nhóm</span>} onChange={setPage} disabled={loading} />}
   </section>;
 }

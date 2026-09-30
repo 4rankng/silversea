@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
-import { formatCurrency } from '../lib/format';
+import { formatDateTimeVN, formatCurrency } from '../lib/format';
 import { Panel } from '../components/UI';
 import { EmptyState, FilterBar, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -182,7 +182,7 @@ export default function SalaryAttendancePage() {
                         <CheckCircle2 size={16} className="payslip-callout-icon" />
                         <div className="payslip-callout-text">
                           <strong>Đã phát hành phiếu lương</strong>
-                          <div>{new Date(lifecycle.payslipIssuedAt).toLocaleString('vi-VN')}</div>
+                          <div>{formatDateTimeVN(lifecycle.payslipIssuedAt)}</div>
                         </div>
                       </div>
                     )}
@@ -191,7 +191,7 @@ export default function SalaryAttendancePage() {
                         <Lock size={16} className="payslip-callout-icon" />
                         <div className="payslip-callout-text">
                           <strong>Đã hạch toán chính thức</strong>
-                          <div>{new Date(lifecycle.officialPostedAt).toLocaleString('vi-VN')}</div>
+                          <div>{formatDateTimeVN(lifecycle.officialPostedAt)}</div>
                         </div>
                       </div>
                     )}

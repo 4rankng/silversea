@@ -5,7 +5,7 @@ import { api } from '../../lib/api';
 import { Modal } from '../../components/UI';
 import { EmptyState, Pagination } from '../../design-system';
 import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
-import { formatISODate } from '../../lib/format';
+import { formatMoney, formatISODate } from '../../lib/format';
 import './PortalPages.css';
 import '../WorkflowFinance.css';
 
@@ -145,7 +145,7 @@ export default function PortalDebitNotesPage() {
         </div>
         <div className="portal-page__headline-stat" aria-label="Tổng số giấy báo nợ">
           <span>Tổng chứng từ</span>
-          <strong>{loading ? '—' : total.toLocaleString('vi-VN')}</strong>
+          <strong>{loading ? '—' : formatMoney(total)}</strong>
           <small>{pendingCount > 0 ? `${pendingCount} cần phản hồi trong trang này` : 'Không có phản hồi đang chờ'}</small>
         </div>
       </header>
@@ -180,7 +180,7 @@ export default function PortalDebitNotesPage() {
             <div><span>Hồ sơ đối soát</span><h2>Chứng từ đã phát hành</h2></div>
             <div className="portal-panel__totals">
               <span>Giá trị trong trang</span>
-              <strong>{visibleValue.toLocaleString('vi-VN')} ₫</strong>
+              <strong>{formatMoney(visibleValue)} ₫</strong>
             </div>
           </div>
           <div className="portal-list">
@@ -192,7 +192,7 @@ export default function PortalDebitNotesPage() {
                   <div className="portal-list__primary">
                     <span className={statusClass(doc.debitNoteStatus)}>{STATUS_LABELS[doc.debitNoteStatus ?? 'DRAFT']}</span>
                     <strong>Kỳ {new Date(doc.rangeFrom).toLocaleDateString('vi-VN')} – {new Date(doc.rangeTo).toLocaleDateString('vi-VN')}</strong>
-                    <span className="portal-debit-row__amount">{Number(doc.totalInclVat).toLocaleString('vi-VN')} ₫</span>
+                    <span className="portal-debit-row__amount">{formatMoney(Number(doc.totalInclVat))} ₫</span>
                     <span className="portal-list__meta">
                       Hóa đơn pháp lý: {doc.legalInvoiceRef?.status === 'ISSUED'
                         ? `Đã ghi nhận${doc.legalInvoiceRef.providerReference ? ` · ${doc.legalInvoiceRef.providerReference}` : ''}`

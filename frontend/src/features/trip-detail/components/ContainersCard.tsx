@@ -6,6 +6,7 @@ import { useAuthedPhotoUrls } from '../../../lib/api/photo';
 import { qk } from '../../../api/keys';
 import { PhotoViewer } from '../../../components/PhotoViewer';
 import '../../../components/PhotoViewer.css';
+import { formatNumber } from '../../../lib/format';
 
 /** Shape returned by GET /api/trips/:id/containers (listTripContainers). */
 export interface ServerContainer {
@@ -165,7 +166,7 @@ export function ContainersCard({ tripId }: Props) {
                           <div className="cf">
                             <span className="cf-label">Trọng lượng</span>
                             <span className="cf-value mono">
-                              {c.cargoWeightKg ? `${Number(c.cargoWeightKg).toLocaleString('vi-VN')} kg` : '—'}
+                              {c.cargoWeightKg ? `${formatNumber(Number(c.cargoWeightKg))} kg` : '—'}
                             </span>
                           </div>
                         </>

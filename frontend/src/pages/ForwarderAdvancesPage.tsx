@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Wallet, Loader2, Plus, X, User, AlertCircle, Clock, FileText, CheckCircle2 } from 'lucide-react';
-import { formatCurrency, formatDate } from '../lib/format';
+import { formatMoney, formatCurrency, formatDate } from '../lib/format';
 import { ADVANCE_REQUEST_STATUS_LABELS, AdvanceSettlementStatus, type AdvanceRequestStatus } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
 import { PageHeader, FormGroup, FilterPill } from '../components/UI';
@@ -66,10 +66,10 @@ export default function ForwarderAdvancesPage() {
   useEffect(() => {
     if (loading || totalRequests === 0 || prefersReduced) return;
     animateCounters([
-      { el: heroAmountRef.current, value: totalAmount, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+      { el: heroAmountRef.current, value: totalAmount, format: (v: number) => formatMoney(v) },
       { el: heroTotalRef.current, value: totalRequests, suffix: ' phiếu' },
       { el: heroPendingRef.current, value: recordedCount },
-      { el: heroOutstandingRef.current, value: outstanding, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+      { el: heroOutstandingRef.current, value: outstanding, format: (v: number) => formatMoney(v) },
     ]);
   }, [loading, totalRequests, totalAmount, recordedCount, outstanding, animateCounters, prefersReduced]);
 
@@ -139,14 +139,14 @@ export default function ForwarderAdvancesPage() {
         <div className="hero-kpi-row">
           <div className="hero-kpi-card">
             <span className="hero-kpi-card__eyebrow">Tổng tạm ứng</span>
-            <span className="hero-kpi-card__amount"><span ref={heroAmountRef}>{Math.round(totalAmount).toLocaleString('vi-VN')}</span><span className="hero-kpi-card__currency">₫</span></span>
+            <span className="hero-kpi-card__amount"><span ref={heroAmountRef}>{formatMoney(totalAmount)}</span><span className="hero-kpi-card__currency">₫</span></span>
             <span className="hero-kpi-card__subtitle">{totalRequests} phiếu tạm ứng</span>
             <Wallet size={72} className="hero-kpi-card__watermark" aria-hidden />
           </div>
           <div className="hero-kpi-stack">
             <div className={`hero-kpi-mini ${outstanding < 0 ? 'hero-kpi-mini--danger' : 'hero-kpi-mini--accent'}`}>
               <div className="hero-kpi-mini__body">
-                <span className="hero-kpi-mini__value" ref={heroOutstandingRef} style={outstanding < 0 ? { color: 'var(--danger)' } : undefined}>{Math.round(outstanding).toLocaleString('vi-VN')}</span>
+                <span className="hero-kpi-mini__value" ref={heroOutstandingRef} style={outstanding < 0 ? { color: 'var(--danger)' } : undefined}>{formatMoney(outstanding)}</span>
                 <span className="hero-kpi-mini__label">{outstanding < 0 ? 'chi vượt tạm ứng (₫)' : 'tồn tạm ứng (₫)'}</span>
               </div>
               <Wallet size={40} className="hero-kpi-mini__watermark" aria-hidden="true" />

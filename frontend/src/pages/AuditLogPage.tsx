@@ -16,6 +16,7 @@ import './AuditLogPage.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
 import { EmptyState, FilterBar, Tabs } from '../design-system';
+import { formatNumber } from '../lib/format';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -395,7 +396,7 @@ fontSize: 'var(--text-data-size)',
             <h2>Danh sách hoạt động</h2>
             <p>Chọn một bản ghi để xem đầy đủ thông tin và dữ liệu kỹ thuật.</p>
           </div>
-          <span className="audit-list-panel__count">{total.toLocaleString('vi-VN')} bản ghi</span>
+          <span className="audit-list-panel__count">{formatNumber(total)} bản ghi</span>
         </div>
           <div className="record-table-wrap" data-tour-id="audit-table">
             <table className="record-table ops-table table-hover">

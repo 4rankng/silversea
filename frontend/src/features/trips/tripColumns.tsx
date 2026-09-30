@@ -8,7 +8,7 @@ import {
 import type { TableSortState } from '../../lib/table-sort';
 import { splitRoute } from '../../lib/route';
 import { formatDayMonth } from '../../lib/date';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatNumber } from '../../lib/format';
 import {
   buildTripCode, calcConsumption, getMissingIndicators, getDataCompleteness,
   isMissingGroundPrice15T,
@@ -259,7 +259,7 @@ export function buildTripColumns(
                 </div>
                 <div className="route-destination">
                   {route.to}
-                  {km > 0 && <span className="route-km-inline"> · {km.toLocaleString('vi-VN')}km</span>}
+                  {km > 0 && <span className="route-km-inline"> · {formatNumber(km)}km</span>}
                 </div>
               </>
             ) : (

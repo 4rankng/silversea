@@ -16,7 +16,7 @@ import type { ShipmentDebitDetail } from '../../../api/shipmentDebit';
 import type { QuotationFeeRow } from '../../../api/quotationClient';
 import { dedicatedColumns, matchDedicatedColumn, buildDebitNote } from './ShipmentDebitTables.routing';
 import { num, type DraftState } from './ShipmentDebitTables.draft';
-import { formatMoney } from '../../../lib/format';
+import { formatMoney, formatDateTimeVN } from '../../../lib/format';
 
 export { DRAFT_EMPTY, buildDraft, deltaIsEmpty, buildDelta, type DraftState } from './ShipmentDebitTables.draft';
 
@@ -300,7 +300,7 @@ export function AdjustPanel({ detail, reason, setReason, pending, error, history
         <ul className="csc-debit-adjust__history">
           {history.map((item) => (
             <li key={item.id}>
-              <span>{new Date(item.adjustedAt).toLocaleString('vi-VN')}</span>
+              <span>{formatDateTimeVN(item.adjustedAt)}</span>
               <span>{item.reason}</span>
             </li>
           ))}

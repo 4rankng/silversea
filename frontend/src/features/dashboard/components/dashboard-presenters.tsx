@@ -1,6 +1,7 @@
 import type { DashboardDecisionKind, DashboardDecisionSeverity } from '@tingting/shared';
 import type { AssetIconName } from '../../../components/AssetIcon';
 import { Money } from '../../../components/shared/Money';
+import { formatNumber } from '../../../lib/format';
 
 export const greeting = () => {
   const hour = new Date().getHours();
@@ -80,7 +81,7 @@ export function CostBreakdown({ items, total }: { items: CostBreakdownItem[]; to
             key={item.name}
             className="wf-cost-row"
             role="listitem"
-            aria-label={`${item.name}: ${item.value.toLocaleString('vi-VN')} đồng, ${item.pct}%`}
+            aria-label={`${item.name}: ${formatNumber(item.value)} đồng, ${item.pct}%`}
           >
             <div className="wf-cost-row__heading">
               <span className="wf-cost-row__name">

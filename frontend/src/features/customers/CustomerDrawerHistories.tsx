@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { Money } from '../../components/shared/Money';
+import { formatMoney } from '../../lib/format';
 
 
 interface CustomerLogisticsItem {
@@ -66,8 +67,8 @@ export function CustomerDrawerHistories({ customerId }: { customerId: number }) 
         {payments == null ? <dd>…</dd> : payments.length === 0 ? <dd>—</dd> : payments.map((item) => (
           <dd key={item.id} style={{ fontWeight: 400 }}>
             {item.timestamp.slice(0, 10)} · {item.note || item.txnType} ·{' '}
-            {Number(item.credit ?? 0) > 0 ? `+${Number(item.credit).toLocaleString('vi-VN')}` : `-${Number(item.debit ?? 0).toLocaleString('vi-VN')}`}
-            {item.balance != null ? ` · còn lại ${Number(item.balance).toLocaleString('vi-VN')}` : ''}
+            {Number(item.credit ?? 0) > 0 ? `+${formatMoney(Number(item.credit))}` : `-${formatMoney(Number(item.debit ?? 0))}`}
+            {item.balance != null ? ` · còn lại ${formatMoney(Number(item.balance))}` : ''}
           </dd>
         ))}
       </dl>
