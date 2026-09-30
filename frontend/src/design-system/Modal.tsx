@@ -195,6 +195,8 @@ export interface ModalProps {
    * Required for bare overlays — their children own the visible chrome, so
    * the module cannot derive a name from markup. */
   ariaLabel?: string;
+  /** Id of the element that describes the dialog (aria-describedby). */
+  ariaDescribedBy?: string;
   /** 'house' renders the shared chrome; 'bare' renders mechanics only. */
   chrome?: 'house' | 'bare';
   /** Whether a scrim click dismisses the dialog. House dialogs default to
@@ -214,6 +216,7 @@ export function Modal({
   headerRight,
   polished,
   ariaLabel,
+  ariaDescribedBy,
   chrome = 'house',
   backdropDismiss,
 }: ModalProps) {
@@ -282,6 +285,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={bare || ariaLabel ? undefined : titleId}
+        aria-describedby={ariaDescribedBy}
         aria-label={ariaLabel}
       >
         {bare ? children : (

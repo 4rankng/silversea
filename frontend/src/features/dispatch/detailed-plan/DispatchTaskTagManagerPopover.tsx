@@ -1,7 +1,8 @@
-import { useState, useLayoutEffect, useRef, type RefObject } from 'react';
+import { useState, useRef, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Pencil, Trash2, X } from 'lucide-react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
+import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
 import {
   useDeactivateDispatchTaskTag,
   useDispatchTaskTags,
@@ -12,11 +13,12 @@ import {
  * Tag-pool manager for the dispatch note composer ("Ghi chú tác vụ"). Opens
  * from the pencil button next to the section label and lists the shared pool
  * with inline rename (Enter/Escape, 409 → "Tag đã tồn tại.") and two-step
- * delete confirm. Portal + fixed viewport-aware positioning + backdrop,
- * mirroring the CusAppointmentPopover pattern so the panel never clips inside
- * the assignment dialog. Deletion is a soft delete — historical notes keep
- * their text (parseNote degrades unmatched segments to manual text), and
- * re-adding the label later reactivates the row.
+ * delete confirm. Rides the house popover idiom (card 20260930_227): portal +
+ * shared viewport-aware positioning + click-outside/Escape dismissal — the
+ * same contract as the design-system picker surfaces — so the panel never
+ * clips inside the assignment dialog. Deletion is a soft delete — historical
+ * notes keep their text (parseNote degrades unmatched segments to manual
+ * text), and re-adding the label later reactivates the row.
  */
 export function DispatchTaskTagManagerPopover({ triggerRef, onClose, onRenamed }: {
   triggerRef: RefObject<HTMLElement | null>;
@@ -29,7 +31,6 @@ export function DispatchTaskTagManagerPopover({ triggerRef, onClose, onRenamed }
   const { deactivateTag, isDeactivating } = useDeactivateDispatchTaskTag();
 
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draftLabel, setDraftLabel] = useState('');
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -41,48 +42,10 @@ export function DispatchTaskTagManagerPopover({ triggerRef, onClose, onRenamed }
     additionalRefs: [triggerRef],
   });
 
-  // Viewport-aware positioning relative to the trigger — same flip + clamp
-  // logic as CusAppointmentPopover so the panel flips above when space is
-  // tight and never leaves the viewport.
-  useLayoutEffect(() => {
-    const trigger = triggerRef?.current;
-    if (!trigger) return;
-
-    const updatePosition = () => {
-      const triggerRect = trigger.getBoundingClientRect();
-      const popoverEl = popoverRef.current;
-      const popoverWidth = popoverEl?.offsetWidth || 260;
-      const popoverHeight = popoverEl?.offsetHeight || 300;
-      const gap = 4;
-      const padding = 12;
-
-      const vh = window.innerHeight || 900;
-      const vw = window.innerWidth || 1440;
-
-      const spaceBelow = vh - triggerRect.bottom - gap - padding;
-      const spaceAbove = triggerRect.top - gap - padding;
-
-      let top: number;
-      if (popoverHeight <= spaceBelow || spaceBelow >= spaceAbove) {
-        top = triggerRect.bottom + gap;
-      } else {
-        top = triggerRect.top - gap - popoverHeight;
-      }
-      top = Math.max(padding, Math.min(top, vh - padding - popoverHeight));
-
-      let left = triggerRect.left;
-      left = Math.max(padding, Math.min(left, vw - padding - popoverWidth));
-      setCoords({ top: Math.round(top), left: Math.round(left) });
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-    };
-  }, [triggerRef]);
+  // Viewport-aware positioning relative to the trigger — the shared hook
+  // (CusAppointmentPopover lineage) flips above when space is tight, clamps
+  // to the viewport and re-measures on resize/scroll/trigger move.
+  const position = usePopoverPosition(popoverRef, triggerRef, true, 280, 300);
 
   function beginRename(tag: { id: number; label: string }) {
     setEditingId(tag.id);
@@ -140,28 +103,26 @@ export function DispatchTaskTagManagerPopover({ triggerRef, onClose, onRenamed }
   }
 
   const popoverElement = (
-    <>
-      <div
-        className="dispatch-tag-manager__backdrop"
-        style={coords ? { zIndex: 1040 } : undefined}
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
-        onPointerDown={(e) => { e.stopPropagation(); onClose(); }}
-        aria-hidden="true"
-      />
-      <div
-        ref={popoverRef}
-        className="dispatch-tag-manager"
-        style={coords ? {
-          position: 'fixed',
-          top: `${coords.top}px`,
-          left: `${coords.left}px`,
-          right: 'auto',
-          bottom: 'auto',
-          zIndex: 1050,
-        } : undefined}
-        role="dialog"
-        aria-label="Quản lý tag"
-      >
+    <div
+      ref={popoverRef}
+      className="dispatch-tag-manager"
+      style={position ? {
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+      } : undefined}
+      role="dialog"
+      aria-label="Quản lý tag"
+      data-escape-boundary="true"
+      onKeyDown={(event) => {
+        // The panel owns its Escape (DatePickerSurface contract): consume it
+        // here so the hosting assignment dialog never closes underneath.
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }
+      }}
+    >
         <div className="dispatch-tag-manager__header">
           <strong>Quản lý tag</strong>
           <span className="dispatch-tag-manager__count">{tags.length}</span>
@@ -248,8 +209,7 @@ export function DispatchTaskTagManagerPopover({ triggerRef, onClose, onRenamed }
           <span>Xóa tag chỉ ẩn tag khỏi danh sách; ghi chú cũ giữ nguyên nội dung.</span>
           <span>Bấm ra ngoài để đóng</span>
         </div>
-      </div>
-    </>
+    </div>
   );
 
   if (typeof document !== 'undefined') {

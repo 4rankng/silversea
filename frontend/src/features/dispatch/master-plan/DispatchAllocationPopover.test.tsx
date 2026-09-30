@@ -188,15 +188,18 @@ describe('DispatchAllocationPopover', () => {
     expect(screen.queryByText('10/09')).toBeNull();
   });
 
-  it('focuses its close control then restores focus to the allocation trigger', async () => {
+  it('focuses its close control then restores focus to the opener on unmount', async () => {
+    // The design-system modal module owns focus return (card 20260930_227):
+    // it captures the focused opener when the overlay opens — the module
+    // replaced this dialog's bespoke returnFocusTarget plumbing.
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);
+    trigger.focus();
     const rendered = render(
       <DispatchAllocationPopover
         shipment={shipment()}
         onClose={vi.fn()}
         onSaved={vi.fn()}
-        returnFocusTarget={trigger}
       />,
     );
 
@@ -223,7 +226,7 @@ describe('DispatchAllocationPopover', () => {
   });
 
   it('labels every decision field and distinguishes a valid partial allocation from an error', async () => {
-    const { container } = render(
+    render(
       <DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />,
     );
 
@@ -245,8 +248,10 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '1' } });
 
     expect(await screen.findByText(/Có thể lưu phân bổ hiện tại và bổ sung sau/)).toBeTruthy();
-    expect(container.querySelector('.dispatch-allocation-popover__summary.is-partial')).toBeTruthy();
-    expect(container.querySelector('.dispatch-allocation-popover__summary.is-error')).toBeNull();
+    // The dialog portals to document.body (design-system modal module), so the
+    // class probes query the document, not the render container.
+    expect(document.querySelector('.dispatch-allocation-popover__summary.is-partial')).toBeTruthy();
+    expect(document.querySelector('.dispatch-allocation-popover__summary.is-error')).toBeNull();
     expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(false);
   });
 

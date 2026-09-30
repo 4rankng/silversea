@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   getCusShipmentWorkspaceDetail,
   saveShipmentCarrierAllocations,
@@ -7,6 +7,7 @@ import {
 } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { CloseButton } from '../../../components/untitled-ui/base/buttons/close-button';
+import { Modal } from '../../../design-system/Modal';
 import {
   AllocationDayGroup,
   AllocationRow,
@@ -27,16 +28,17 @@ interface DispatchAllocationPopoverProps {
   onClose: () => void;
   /** Called with the refreshed row after a successful save. */
   onSaved: (updated: ShipmentListItem) => void;
-  /** The master-plan action that opened this dialog, restored after it closes. */
-  returnFocusTarget?: HTMLElement | null;
 }
 
 /**
  * "Phân bổ phương tiện" popover (docx §4, TC-DV-DISPATCH-043):
  * Separates carrier allocation by packing/return date for multi-date lots,
- * with MAX-mode validation and partial saves supported.
+ * with MAX-mode validation and partial saves supported. Rides the one
+ * design-system modal module in bare mode (card 20260930_227) — scrim,
+ * dismissal, Escape, focus and scroll lock are module-owned; this component
+ * owns only the allocation surface.
  */
-export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFocusTarget }: DispatchAllocationPopoverProps) {
+export function DispatchAllocationPopover({ shipment, onClose, onSaved }: DispatchAllocationPopoverProps) {
   const { options, loading: optionsLoading, error: optionsError, empty: optionsEmpty, reload: reloadOptions } = useCarrierAllocationOptions();
   const [days, setDays] = useState<AllocationDayGroup[]>(() => buildInitialDayGroups(shipment));
   const [saving, setSaving] = useState(false);
@@ -64,18 +66,6 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     // prefill while the bootstrap list is still loading.
     return () => { active = false; };
   }, [shipment.id]);
-
-  useEffect(() => {
-    const closeControl = dialogRef.current?.querySelector<HTMLButtonElement>('button[aria-label="Đóng"]');
-    (closeControl ?? dialogRef.current)?.focus();
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      returnFocusTarget?.focus();
-    };
-  }, [onClose, returnFocusTarget]);
 
   const demand = useMemo(() => ({
     count20: shipment.containerCount20,
@@ -143,28 +133,6 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         : `[data-allocation-row="${nextIndex}"] button`;
       dialogRef.current?.querySelector<HTMLButtonElement>(selector)?.focus();
     });
-  };
-
-  const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), select:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])',
-    );
-    if (!focusable || focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   };
 
   const handleSave = async () => {
@@ -238,17 +206,18 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
   let globalRowOffset = 0;
 
   return (
-    <div className="dispatch-allocation-popover__overlay" onClick={onClose}>
+    <Modal
+      chrome="bare"
+      isOpen
+      onClose={onClose}
+      title="Phân bổ nhà xe"
+      ariaLabel="Phân bổ nhà xe"
+      ariaDescribedBy="dispatch-allocation-description"
+      backdropDismiss
+    >
       <div
         ref={dialogRef}
         className="dispatch-allocation-popover"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dispatch-allocation-title"
-        aria-describedby="dispatch-allocation-description"
-        tabIndex={-1}
-        onKeyDown={handleDialogKeyDown}
-        onClick={(event) => event.stopPropagation()}
       >
         <div className="dispatch-allocation-popover__header">
           <div className="dispatch-allocation-popover__heading">
@@ -410,6 +379,6 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
           </UUIButton>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

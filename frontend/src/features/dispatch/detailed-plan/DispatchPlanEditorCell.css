@@ -705,13 +705,6 @@
   background: var(--surface-hover);
 }
 
-.dispatch-tag-manager__backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1040;
-  background: transparent;
-}
-
 .dispatch-tag-manager {
   position: fixed;
   z-index: 1050;

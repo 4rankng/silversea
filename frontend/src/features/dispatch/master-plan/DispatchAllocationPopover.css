@@ -1,16 +1,7 @@
-/* Decision-first carrier allocation dialog for the dispatch master plan. */
-
-.dispatch-allocation-popover__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal, 300);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.48);
-  backdrop-filter: blur(2px);
-}
+/* Decision-first carrier allocation dialog for the dispatch master plan.
+ * The overlay mechanics (scrim, z-index, dismissal, focus, scroll lock) are
+ * module-owned (design-system/Modal.css, card 20260930_227); only the
+ * allocation surface is styled here. */
 
 .dispatch-allocation-popover {
   width: min(760px, calc(100vw - 32px));
@@ -462,12 +453,11 @@
 .dispatch-allocation-popover__add { margin-top: 0; }
 
 @media (max-width: 680px) {
-  .dispatch-allocation-popover__overlay {
-    align-items: flex-end;
-    padding: max(8px, env(safe-area-inset-top)) 8px 0;
-  }
-
+  /* Phone bottom sheet: the panel docks itself to the foot of the centered
+   * bare overlay (the house .modal--bare keeps centering; align-self wins
+   * for this surface only). */
   .dispatch-allocation-popover {
+    align-self: flex-end;
     width: 100%;
     max-height: calc(100dvh - max(8px, env(safe-area-inset-top)));
     padding: 12px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));

@@ -192,7 +192,6 @@ export default function MasterPlanPage() {
           shipment={allocating}
           onClose={() => setAllocating(null)}
           onSaved={(updated) => masterPlan.replaceItem(updated)}
-          returnFocusTarget={allocationTriggerRef.current}
         />
       )}
       <DispatchContainerDetailDrawer
