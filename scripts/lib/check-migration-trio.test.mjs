@@ -127,16 +127,17 @@ describe("check-migration-trio", () => {
     assert.deepEqual(unresolved, []);
   });
 
-  test("snapshot coverage resolves both naming conventions", () => {
+  test("snapshot coverage resolves all three naming conventions", () => {
     const meta = readdirSync(join(DRIZZLE, "meta"));
     const { viaIdx, viaTag, unresolved } = snapshotCoverage(entries(), meta);
     assert.ok(viaIdx > 0, "legacy NNNN_snapshot.json files must resolve by idx");
-    assert.ok(viaTag > 0, "timestamp-era snapshot files must resolve by tag prefix");
-    // 46 entries have no snapshot under either convention — pre-existing, and
-    // deliberately not gated. Pinned so the number cannot silently grow.
+    assert.ok(viaTag > 0, "timestamp-era snapshot files must resolve by tag prefix or full tag");
+    // 44 entries have no snapshot under any of the three conventions — the
+    // pre-existing legacy tail, deliberately not gated. Pinned so the number
+    // cannot silently grow.
     assert.equal(
       unresolved.length,
-      46,
+      44,
       `snapshot coverage changed (${viaIdx} by idx, ${viaTag} by tag, ${unresolved.length} unresolved) — if a snapshot was dropped, investigate`,
     );
   });
