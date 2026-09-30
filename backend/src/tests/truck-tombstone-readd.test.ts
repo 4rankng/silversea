@@ -15,6 +15,7 @@ import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 
 import { db, client } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import { config } from '../config';
@@ -85,6 +86,18 @@ before(async () => {
 after(async () => {
   await db.delete(s.trucks).where(eq(s.trucks.licensePlate, `TEST-TOMB-${suffix}`));
   await db.delete(s.users).where(eq(s.users.id, createdUserIds[0]!));
+  // Same teardown shape as this suite's sibling from the pairing rewrite
+  // (truck-driver-assignment.test.ts): fetch() keep-alive sockets would
+  // otherwise hold server.close() open, and the listening socket itself holds
+  // the event loop after green tests — the exit-hang bisected to 68bd2d5c,
+  // which cloned these suites without the sibling's close block.
+  server.closeAllConnections?.();
+  await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  // authMiddleware's token-blacklist check opens the module-level redis client
+  // on first request; without this quit the socket holds the event loop
+  // after green tests (the exit-hang bisected to 68bd2d5c, which cloned this
+  // suite without the sibling's teardown — see truck-driver-assignment.test.ts).
+  await disconnectRedis();
   await client.end({ timeout: 5 });
 });
 
