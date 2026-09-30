@@ -60,11 +60,9 @@ function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }
 export function DispatchContainerDetailDrawer({
   shipment,
   onClose,
-  returnFocusTarget,
 }: {
   shipment: ShipmentListItem | null;
   onClose: () => void;
-  returnFocusTarget?: HTMLElement | null;
 }) {
   const [detail, setDetail] = useState<ShipmentCusWorkspaceDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,8 +88,10 @@ export function DispatchContainerDetailDrawer({
   }, [shipment]);
 
   const close = () => {
+    // Focus return on close is Drawer-owned (useAnimatedOverlay captures the
+    // opener when the sheet opens) — the bespoke returnFocusTarget plumbing
+    // was a second implementation of the same contract (card 20261001_251).
     onClose();
-    window.requestAnimationFrame(() => returnFocusTarget?.focus());
   };
 
   const retry = () => {

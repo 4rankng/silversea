@@ -176,20 +176,15 @@ Measured 2026-09-27 on the working tree. Counts are greps over
 - **Divergence** — ad-hoc popovers exist (below).
 - **Enforced by** — `overlay-surface.styles.test.ts` z-layer scan.
 - **Gap** — no shared `Popover` positioning primitive exposed from the design-system barrel beyond the form widgets.
-### Ad-hoc overlays (page-local modal/popover markup)
-Each re-implements a scrim + panel instead of `.modal`/`.drawer`:
-- `frontend/src/features/ops/ops-modal.css` — REDUCED to the ops SKIN (`.ops-modal*` surface + form furniture; 12 tsx files); the backdrop system is gone — every ops dialog mounts through the `OpsModalBackdrop` bare-mode adapter (card 20260930_227).
-- `frontend/src/pages/ShipmentsPage.css:703` `.cus-quick-edit-modal*` (+2 tsx).
-- `frontend/src/pages/ShipmentsPage.css:2028,2036` `.cus-appointment-backdrop` / `.cus-appointment-popover` (+2 tsx).
-- `frontend/src/pages/AuditLogPage.css:129` `.audit-detail-modal*` (+1 tsx).
-- `frontend/src/pages/payables-fuel-invoices.css:360` `.fuel-invoice-modal__footer` (+1 tsx).
-- `frontend/src/pages/config/debit-note-template-editor.css:681` `.debit-editor-preview__sheet` (+1 tsx).
-- `frontend/src/pages/portal/CustomerPortalLayout.css:197` `.customer-shell__backdrop` / `__account-popover`.
-- `frontend/src/pages/ForwarderTripDateRangePicker.css:10` `.ftrip-date-picker__backdrop` + `__dialog` (+1 tsx).
-- `frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.css` — MIGRATED (card 20260930_227): the overlay is gone, the panel rides the bare design-system Modal (phone bottom sheet via `align-self`); only the surface skin remains.
-- `frontend/src/pages/clerk/ClerkShipmentCreatePage.css:64` `.csc-customer-popover` (+1 tsx).
-- `frontend/src/pages/OpsWalletPage.css:282` `.ops-settlement-sheet__*`.
-- `frontend/src/components/PhotoViewer.css:6` `.photo-viewer*` lightbox.
+### Ad-hoc overlays — census verdicts (card 20261001_251, 2026-10-01)
+The 227 census listed ~10 ad-hoc surfaces. Per-surface review resolved every entry — most were already riding shared surfaces:
+- `frontend/src/features/ops/ops-modal.css` — REDUCED to the ops SKIN (card 20260930_227); dialogs mount through the `OpsModalBackdrop` bare-mode adapter.
+- `frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.css` — MIGRATED (card 20260930_227): panel rides the bare design-system Modal; surface skin only.
+- `.cus-appointment-popover` (ShipmentsPage.css / CusAppointmentPopover) — MIGRATED (card 20261001_251): the private transparent backdrop div is gone; the shared stack (usePopoverPosition + useClickOutside + useFocusTrap) owns dismissal, the tag-manager/DatePickerSurface idiom.
+- `frontend/src/components/PhotoViewer.tsx` — MIGRATED (card 20261001_251): the lightbox rides the bare design-system Modal (portal/scrim/Escape/scroll-lock/focus/registration module-owned); the zoom/pan surface and keys stay local.
+- DispatchContainerDetailDrawer's `returnFocusTarget` plumbing — RESOLVED (card 20261001_251): redundant second focus-return implementation deleted; the house Drawer's useAnimatedOverlay owns it.
+- FALSE POSITIVES (never were ad-hoc systems): `.cus-quick-edit-modal*` and `.fuel-invoice-modal__footer` are content classes INSIDE house `Modal`s; `.debit-editor-preview__sheet` is a static paper preview (not an overlay); `.csc-customer-popover` is a skin class on the shared SearchableSelect popover; `.ops-settlement-sheet__*` rides `OpsModalBackdrop` since card 20260930_227; `ForwarderTripDateRangePicker` no longer exists.
+- DELIBERATE EXCEPTIONS: `AuditLogPage`'s detail sheet uses the NATIVE `<dialog>` element (`d-modal-end`, `::backdrop`) — the browser owns Escape, focus containment and top-layer stacking, so there is no hand-rolled mechanics to migrate; a redesign into `.modal`/`.drawer` chrome would be a visual decision, not an architecture one. `CustomerPortalLayout`'s `__backdrop` is the sanctioned navigation scrim (the `.sidebar-overlay` pattern) and its account popover rides the global dismissal layer.
 
 ---
 ## Chrome budgets & touch floors

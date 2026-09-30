@@ -197,7 +197,6 @@ export default function MasterPlanPage() {
       <DispatchContainerDetailDrawer
         shipment={containerDetailShipment}
         onClose={() => setContainerDetailShipment(null)}
-        returnFocusTarget={containerDetailTriggerRef.current}
       />
     </div>
   );
