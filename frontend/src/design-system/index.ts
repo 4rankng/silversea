@@ -31,6 +31,17 @@ export type { SparklineProps, SparklineVariant } from './Sparkline';
 export { Tabs } from './Tabs';
 export type { TabsProps, TabsVariant, TabItem } from './Tabs';
 
+// The filter band (card 20260930_229): the measured two-row budget and the
+// `Bộ lọc` fold are the band's own, so a surface that hands it criteria cannot
+// build a bar that exceeds the budget with nothing to fold into.
+export { FilterBar } from './FilterBar';
+export type {
+  FilterBarProps,
+  FilterBarSearchProps,
+  FilterBarFoldProps,
+  FilterBarColumns,
+} from './FilterBar';
+
 export { TextField } from './forms/TextField';
 export type { TextFieldProps, BaseFieldProps } from './forms/TextField';
 export { SelectField } from './forms/SelectField';

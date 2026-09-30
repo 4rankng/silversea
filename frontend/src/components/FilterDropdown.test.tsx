@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FilterDropdown } from './FilterDropdown';
-import { FilterBarModeProvider } from './filter-bar-mode';
+import { FilterBarModeProvider } from '../design-system/filter-bar-mode';
 
 /**
  * Contract tests for the ONE home of secondary filter criteria

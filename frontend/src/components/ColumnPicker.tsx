@@ -4,7 +4,7 @@ import { ChevronDown, Columns3 } from 'lucide-react';
 import { ColumnPickerPanel } from './ColumnPickerPanel';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { usePopoverPosition } from '../hooks/usePopoverPosition';
-import { useFilterBarMode } from './filter-bar-mode';
+import { useFilterBarMode } from '../design-system/filter-bar-mode';
 import type { LedgerColumn } from '../lib/column-visibility';
 import './ColumnPicker.css';
 

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, ListFilter } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { usePopoverPosition } from '../hooks/usePopoverPosition';
-import { useFilterBarMode, useFilterBarViewControls } from './filter-bar-mode';
+import { useFilterBarMode, useFilterBarViewControls } from '../design-system/filter-bar-mode';
 import './FilterDropdown.css';
 
 /**

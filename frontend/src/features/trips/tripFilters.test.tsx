@@ -8,7 +8,7 @@ import { TripFiltersBar, defaultStatusCounts, type StatusCounts, type TripFilter
 // forced here the only way it can be — the measure is stubbed, nothing about the
 // bar's markup or the dialog's behaviour is.
 const modeState = vi.hoisted(() => ({ value: 'inline' as 'inline' | 'dialog' }));
-vi.mock('../../components/filter-bar-mode', async (importOriginal) => {
+vi.mock('../../design-system/filter-bar-mode', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return { ...actual, useFilterBarFit: () => modeState.value };
 });

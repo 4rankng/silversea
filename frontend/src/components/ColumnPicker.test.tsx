@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ColumnPicker } from './ColumnPicker';
-import { FilterBarModeProvider } from './filter-bar-mode';
+import { FilterBarModeProvider } from '../design-system/filter-bar-mode';
 import type { LedgerColumn } from '../lib/column-visibility';
 
 const COLUMNS: readonly LedgerColumn[] = [

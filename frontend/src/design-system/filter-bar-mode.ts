@@ -10,10 +10,14 @@ import { createContext, useContext, useLayoutEffect, useRef, useState, type Reac
  * The rule is the operator's own two-row cap read as a decision procedure: keep
  * every criterion inline while the strip still fits TWO rows; the moment the
  * rows would become three, the criteria move into `Bộ lọc`. That is a measured
- * question, so `ListFilterBar` measures its own rows and publishes the verdict
- * here, and `FilterDropdown` renders its children inline or behind its trigger
- * accordingly. ONE copy of each criterion exists at any moment — no duplicated
- * markup, no duplicated ids, no ambiguous queries.
+ * question, so the `FilterBar` band measures its own rows and publishes the
+ * verdict here, and `FilterDropdown` renders its children inline or behind its
+ * trigger accordingly. ONE copy of each criterion exists at any moment — no
+ * duplicated markup, no duplicated ids, no ambiguous queries.
+ *
+ * Since card 20260930_229 this module is the row-budget half of the FilterBar
+ * band (`design-system/FilterBar.tsx`): the band is its only measuring caller,
+ * so the two-row cap is a property of the band, not a rule each page re-proves.
  *
  * The controller is monotone, which is what keeps it from flapping between the
  * two modes at a fixed width:
@@ -32,7 +36,7 @@ export type FilterBarMode = 'inline' | 'dialog' | 'dialog-presets';
 
 const MODE_CONTEXT = createContext<FilterBarMode>('dialog');
 
-/** The mode the surrounding `ListFilterBar` measured; `dialog` without a bar. */
+/** The mode the surrounding `FilterBar` measured; `dialog` without a bar. */
 export const useFilterBarMode = () => useContext(MODE_CONTEXT);
 
 export const FilterBarModeProvider = MODE_CONTEXT.Provider;
@@ -44,9 +48,10 @@ const VIEW_CONTROLS_CONTEXT = createContext<ReactNode>(null);
  * 20260928_193. It obeys the SAME measured placement as a criterion: on the bar
  * while the strip is `inline`, and inside `Bộ lọc` once the bar has folded
  * (a view control may not be the item that pushes a frozen surface onto a third
- * row). `ListFilterBar` publishes it here and renders it itself in `inline` mode
- * only; `FilterDropdown` renders it in the dialog panel, so exactly one instance
- * exists at any moment and the picker never becomes a declared breakpoint.
+ * row). The `FilterBar` band publishes it here and renders it itself in
+ * `inline` mode only; `FilterDropdown` renders it in the dialog panel, so
+ * exactly one instance exists at any moment and the picker never becomes a
+ * declared breakpoint.
  */
 export const useFilterBarViewControls = () => useContext(VIEW_CONTROLS_CONTEXT);
 
