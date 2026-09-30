@@ -11,7 +11,10 @@ import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { ApiError } from '../errors';
 import { disconnectRedis } from '../lib/redis';
-import { getMaterialWriteContext, matchDeclaredMaterialWrite } from '../middleware/material-write';
+import { getMaterialWriteContext, matchDeclaredMaterialWrite, declareMaterialWrite } from '../middleware/material-write';
+// Route families self-declare their registry rows at import time
+// (card 20260930_230); importing the registration module registers them.
+import '../routes/material-write-registration';
 import {
   IDEMPOTENCY_ENDPOINTS,
   hashPayload,
@@ -140,7 +143,7 @@ before(async () => {
     next();
   });
   app.use(auditLogMiddleware);
-  app.post('/api/payments/receive', async (req, res, next) => {
+  app.post('/api/payments/receive', declareMaterialWrite(IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE, { method: 'POST', path: '/api/payments/receive' }), async (req, res, next) => {
     try {
       if (req.body.mode === 'forbidden') {
         res.status(403).json({ error: 'Không có quyền' });
@@ -356,11 +359,11 @@ describe('Q23 durable command boundary', () => {
       ['PUT', '/api/fuel-config', 'config.fuel-config.update'],
       ['PUT', '/api/company-info', 'config.company-info.update'],
       ['POST', '/api/finance/credit-overrides', 'credit-overrides.create'],
-      ['POST', '/api/advance-requests/1/reject', 'advance-requests.reject'],
       ['POST', '/api/advance-settlements/1/reversal', 'advance-settlements.reverse'],
       ['PUT', '/api/finance/fuel-invoices/1', 'fuel-invoices.update'],
       ['POST', '/api/salary/periods/2026-07/issue', 'salary-periods.issue'],
-      ['POST', '/api/admin/gps/backfill', 'gps.backfill'],
+      // advance-requests.reject and gps.backfill samples removed with their
+      // routes — approval-flow relics with no mounts (card 20260930_230).
     ] as const;
 
     for (const [method, path, endpoint] of samples) {

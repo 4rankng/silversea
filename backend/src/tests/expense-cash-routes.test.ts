@@ -15,6 +15,7 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.se
 import { globalErrorHandler } from '../middleware/errorHandler';
 import expenseAccountingRoutes from '../routes/expense-accounting';
 import { auditLogMiddleware } from '../middleware/audit';
+import { declareMaterialWrite } from '../middleware/material-write';
 import { financeRecordsRoutes } from '../routes/shipments/finance-records.routes';
 import { setAuditPersistHandlerForTest } from '../services/audit.service';
 import financialRoutes from '../routes/financial/payments.routes';
@@ -305,11 +306,25 @@ for (const scenario of ['forbidden-alias', 'missing-registry']) test(`material a
   const f = await fixture(); const key = `${tag}-${scenario}`; keys.push(key);
   const path = scenario === 'forbidden-alias' ? '/api/expense-accounting/vouchers' : '/api/qa/undeclared-cash';
   const app = express(); app.use(express.json()); app.use(auditLogMiddleware); app.use(authMiddleware);
-  app.post(path, asyncHandler(async (_req, res) => {
-    const result = await runIdempotent({ endpoint: 'qa.forbidden-money-alias', idempotencyKey: key, payload: { customerId: f.customer.id },
-      createdBy: users[0].id, create: async tx => (await tx.update(s.customers).set({ name: `${f.customer.name}-SHOULD_ROLLBACK` }).where(eq(s.customers.id, f.customer.id)).returning())[0] });
-    res.json(result.result);
-  })); app.use(globalErrorHandler);
+  // forbidden-alias mounts a DECLARED path (the handler then runs a forbidden
+  // alias through runIdempotent and the audit persist refuses). missing-registry
+  // stays undeclared on purpose: since card 20260930_230 the refusal fires even
+  // earlier — the coverage install throws before the handler — same fail-closed
+  // 500 and rollback guarantees, now at the declaration boundary.
+  if (scenario === 'forbidden-alias') {
+    app.post(path, declareMaterialWrite('expenses.ops-reimburse', { method: 'POST', path: '/api/expense-accounting/vouchers', canonicalAliases: [IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE, IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR, IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT] }), asyncHandler(async (_req, res) => {
+      const result = await runIdempotent({ endpoint: 'qa.forbidden-money-alias', idempotencyKey: key, payload: { customerId: f.customer.id },
+        createdBy: users[0].id, create: async tx => (await tx.update(s.customers).set({ name: `${f.customer.name}-SHOULD_ROLLBACK` }).where(eq(s.customers.id, f.customer.id)).returning())[0] });
+      res.json(result.result);
+    }));
+  } else {
+    app.post(path, asyncHandler(async (_req, res) => {
+      const result = await runIdempotent({ endpoint: 'qa.forbidden-money-alias', idempotencyKey: key, payload: { customerId: f.customer.id },
+        createdBy: users[0].id, create: async tx => (await tx.update(s.customers).set({ name: `${f.customer.name}-SHOULD_ROLLBACK` }).where(eq(s.customers.id, f.customer.id)).returning())[0] });
+      res.json(result.result);
+    }));
+  }
+  app.use(globalErrorHandler);
   const isolated = http.createServer(app); await new Promise<void>(resolve => isolated.listen(0, resolve));
   try {
     const response = await fetch(`http://127.0.0.1:${(isolated.address() as AddressInfo).port}${path}`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: '{}' });
