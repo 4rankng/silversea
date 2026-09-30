@@ -601,19 +601,22 @@ def main() -> bool:
             # filter surfaces it.
             fixture_warning = page.locator(f"text=BLCUS{BOOK_SUFFIX_STORED}")
             fixture_warning.first.wait_for(timeout=10_000)
-            # Trạng thái filter is a React Aria UuiSelectField — no native
-            # <select> (ESLint @tingting/no-native-select guard). Since the
-            # searchable-select wave (ba1bf5ce) fields with >5 options render
-            # the combobox variant, whose trigger is a role="group" container
-            # rather than a <button>. Match both trigger shapes and pick the
-            # "Chờ phân xe" (AWAITING_VEHICLE) option — the merge replaced the
-            # legacy 2-state "Chưa điều xe" / "Đã phân xe" coarse chip with
-            # the 5-state vocabulary; AWAITING_VEHICLE is the new "no vehicle
-            # on the line yet" state, the closest equivalent to UNASSIGNED.
-            status_field = page.locator(".shipments-detail-filter").filter(
+            # Trạng thái filter is a React Aria combobox — no native <select>
+            # (ESLint @tingting/no-native-select guard). Card 20260930_243
+            # re-anchor: the criterion no longer lives inside the retired
+            # `.shipments-detail-filter` wrapper (that block now holds only
+            # the from/to date pair) — it is its own `.shipments-detail-
+            # criterion` cell in the FilterBar row, and the >5-option field
+            # renders the react-aria ComboBox (a div.react-aria-ComboBox
+            # container, not a <button>). Picking "Chờ phân xe"
+            # (AWAITING_VEHICLE) — the 5-state vocabulary's "no vehicle on the
+            # line yet" state, closest to the retired UNASSIGNED — is driven
+            # by clicking the ComboBox container; the applied value reads
+            # from its input.
+            status_field = page.locator(".shipments-detail-criterion").filter(
                 has=page.get_by_text("Trạng thái điều xe", exact=True),
             ).first
-            status_trigger = status_field.locator("button, [data-rac][role='group']").first
+            status_trigger = status_field.locator(".react-aria-ComboBox").first
             with page.expect_response(
                 lambda response: (
                     "/api/shipments/cus-workspace/containers?" in response.url
@@ -629,7 +632,7 @@ def main() -> bool:
                 timeout=5_000,
             )
             active_filter_visible = (
-                status_field.locator("button, [data-combobox-value]").first.inner_text().strip().startswith("Chờ phân xe")
+                status_field.locator("input").first.input_value().strip() == "Chờ phân xe"
             )
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
             wait_for_page_ready(page)
@@ -638,12 +641,18 @@ def main() -> bool:
             container_row = page.locator(".shipment-container-ledger tbody tr:visible").filter(has_text="MSKU1234565")
             container_row.wait_for(timeout=10_000)
             # The fixture row (still missing its appointment) must render the
-            # server-derived "Chưa cập nhật" warning with the Lịch hẹn field —
-            # asserted unfiltered, since the dispatch-status filter above only
-            # proves the filter contract, not the row's completeness state.
+            # server-derived warning with the Lịch hẹn field — asserted
+            # unfiltered, since the dispatch-status filter above only proves
+            # the filter contract, not the row's completeness state. Card
+            # 20260930_243 re-anchor: card 20260922_24 replaced the bare
+            # "Thiếu dữ liệu" disclosure with a named toggle
+            # (.shipment-container-ledger__missing-fields-toggle) whose label
+            # names the single missing field — for this fixture "Thiếu Lịch
+            # hẹn" — expanding a group whose per-field buttons jump to the
+            # editor; the Lịch hẹn item keeps its exact field-name label.
             warning = container_row.locator(".shipment-container-ledger__missing-fields").first
             warning.wait_for(state="visible", timeout=10_000)
-            disclosure = warning.get_by_role("button", name="Thiếu dữ liệu", exact=False)
+            disclosure = warning.locator(".shipment-container-ledger__missing-fields-toggle").first
             disclosure.click()
             missing_schedule = warning.get_by_role("button", name="Lịch hẹn", exact=True)
             missing_schedule.wait_for(state="visible", timeout=10_000)
