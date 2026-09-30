@@ -34,9 +34,9 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toContain('.shipments-detail-eyebrow');
     expect(css).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
-    // Card 20260922_42: the shared ListFilterBar owns row layout; the
+    // Card 20260922_42: the shared FilterBar owns row layout; the
     // self-made 12-col owner grid (card _36) is superseded and deleted.
-    expect(source).toContain('<ListFilterBar');
+    expect(source).toContain('<FilterBar');
     expect(css).not.toMatch(/\.shipments-detail-filters\s*\{[^}]*grid-template-columns/);
     // Card 20260927_152: the page declares no filter layout and no filter
     // width — `.filter-bar`'s wrapping row sizes every control, and the four
@@ -72,7 +72,7 @@ describe('shipment detail workboard styling', () => {
     // owns their layout, widths AND height token; the page keeps only the flat
     // treatment of the from/to fields' own input. The self-made disclosure
     // family is deleted, and no page rule declares a control dimension.
-    expect(source).toContain('<ListFilterBar');
+    expect(source).toContain('<FilterBar');
     expect(css).not.toMatch(/\.shipments-detail-filters \[data-uui-control\]\s*\{[^}]*--uui-control-h/);
     expect(css).not.toMatch(/\.shipments-detail-filters\s*\{[^}]*--uui-control-h/);
     const filterToolbar = css.match(/\.shipments-detail-filters\s*\{([^}]*)\}/)?.[1] ?? '';

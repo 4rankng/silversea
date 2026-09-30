@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, RotateCcw } from 'lucide-react';
 import { FilterDropdown } from '../components/FilterDropdown';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import {
   SHIPMENT_CUS_CONTAINER_SORT_KEYS,
@@ -12,7 +11,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { DateRangeFields, DateRangePresetSelect, DateRangePresets, EmptyState, Pagination, UuiSelectField, type DateRangePreset, type DateRangeValue } from '../design-system';
+import { DateRangeFields, DateRangePresets, DateRangePresetSelect, EmptyState, FilterBar, Pagination, type DateRangePreset, type DateRangeValue, UuiSelectField } from '../design-system';
 import { PageHeader } from '../components/UI';
 import {
   DISPATCH_STATUS,
@@ -33,6 +32,7 @@ import {
 import { useCusDetail } from '../features/shipments/cus/use-cus-detail';
 import { readCusPageSize } from '../features/shipments/cus/use-cus-workspace-state';
 import './ShipmentContainersPage.css';
+import { formatNumber } from '../../lib/format';
 
 // Date-scope quick ranges — the scopes the page always offered, in the shared
 // preset shape: `DateRangePresets` (boxed chips) rides the bar and
@@ -259,7 +259,7 @@ export default function ShipmentContainersPage() {
                 strip still fits two rows and fold into `Bộ lọc (N)` only when
                 the width leaves no other choice. Filter semantics identical:
                 same params, same handlers, same ranges. */}
-            <ListFilterBar
+            <FilterBar
               search={{
                 value: searchInput,
                 onChange: updateSearch,
@@ -313,7 +313,7 @@ export default function ShipmentContainersPage() {
                 <UuiSelectField label="Trạng thái điều xe" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-criterion" />
                 <UuiSelectField label="Trạng thái dữ liệu" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} wrapperClassName="shipments-detail-criterion" />
               </FilterDropdown>
-            </ListFilterBar>
+            </FilterBar>
           </div>
         </div>
 
@@ -322,7 +322,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} />
+          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} />
         </>}
       </section>
     </div>

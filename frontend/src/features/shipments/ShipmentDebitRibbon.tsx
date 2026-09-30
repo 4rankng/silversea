@@ -1,9 +1,8 @@
 import { RotateCcw } from 'lucide-react';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
 import { Button as UUIButton } from '../../components/untitled-ui/base/buttons/button';
 import {
-  DateRangeFields, DateRangePresetSelect, DateRangePresets, InlineLabelSelect,
+  DateRangeFields, DateRangePresetSelect, DateRangePresets, FilterBar, InlineLabelSelect,
   type DateRangePreset, type DateRangeValue,
 } from '../../design-system';
 
@@ -91,7 +90,7 @@ export function ShipmentDebitRibbon({
   // dead action instead of a click that changes nothing.
   const hasFilters = deliveryFrom !== '' || deliveryTo !== '' || lockStatus !== 'ALL';
   return (
-    <ListFilterBar
+    <FilterBar
       presets={presetChips}
       actions={(
         <UUIButton
@@ -117,7 +116,7 @@ export function ShipmentDebitRibbon({
         onChange={onDeliveryRangeChange}
       />
       {/* `Bộ lọc` rides LAST: it is the item that arrives and leaves as the
-          width changes (ListFilterBar's own ordering contract). */}
+          width changes (the FilterBar band's own ordering contract). */}
       <FilterDropdown
         count={secondaryCount}
         ariaLabel="Bộ lọc"
@@ -134,6 +133,6 @@ export function ShipmentDebitRibbon({
           ariaLabel="Trạng thái khóa lô"
         />
       </FilterDropdown>
-    </ListFilterBar>
+    </FilterBar>
   );
 }

@@ -4,17 +4,16 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Link } from 'react-router-dom';
 import { Role, type ContainerDepositRecord } from '@tingting/shared';
 import { shipmentFinanceClient } from '../../api/shipmentFinanceClient';
-import { DateRangeFields, Tabs } from '../../design-system';
+import { DateRangeFields, FilterBar, Tabs } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/shared/Toast';
 import { formatDate } from '../../lib/format';
 import { ShipmentFinanceForm, type FinanceEditor } from './ShipmentFinanceForm';
 import './ShipmentFinancePanel.css';
 
-const money = (value: string) => `${Number(value).toLocaleString('vi-VN')} đ`;
+const money = (value: string) => formatCurrency(value);
 const statusLabels: Record<ContainerDepositRecord['status'], string> = {
   WAITING_DOCUMENTS: 'Chưa nộp chứng từ', WAITING_REFUND: 'Chờ hoàn cược', PARTIAL: 'Đã hoàn một phần', REFUNDED: 'Đã hoàn đủ',
 };
@@ -60,7 +59,7 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false, accountingL
       ]}
     />}
     <form onSubmit={(event) => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
-      <ListFilterBar
+      <FilterBar
         search={{
           value: searchDraft,
           onChange: setSearchDraft,
@@ -95,7 +94,7 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false, accountingL
           <UuiSelectField label="Trạng thái" value={depositState} onChange={(event) => { setDepositState(event.target.value); setPage(1); }}
             options={[{ value: '', label: 'Tất cả' }, { value: 'OPEN', label: 'Chưa hoàn đủ' }, { value: 'REFUNDED', label: 'Đã hoàn đủ' }]} />
         </FilterDropdown>}
-      </ListFilterBar>
+      </FilterBar>
     </form>
     {query.isError ? <p role="alert">Không tải được hồ sơ. <button type="button" className="btn btn--ghost" onClick={() => void query.refetch()}>Thử lại</button></p>
       : query.isPending ? <p role="status">Đang tải hồ sơ…</p>

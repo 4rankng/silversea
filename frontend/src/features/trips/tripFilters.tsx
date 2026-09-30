@@ -2,9 +2,8 @@ import {
   TripStatus,
   type TripDetail,
 } from '@tingting/shared';
-import { Tabs } from '../../design-system';
+import { FilterBar, Tabs } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
-import { ListFilterBar } from '../../components/ListFilterBar';
 import { FilterDropdown } from '../../components/FilterDropdown';
 
 export interface StatusCounts {
@@ -43,7 +42,7 @@ const STATUS_TABS: Array<{ key: '' | TripStatus; label: string }> = [
  *
  * The page-local `.filters-card` (two hand-rolled rows, a divider, pill-shaped
  * selects and a 340px search) is gone: the strip is the ONE shared
- * `ListFilterBar`, which owns the layout, the search chrome and every control
+ * the `FilterBar` band, which owns the layout, the search chrome and every control
  * width, so this surface declares no filter geometry of its own.
  *
  * Which criteria are VISIBLE is measured, not declared (`filter-bar-mode.ts`):
@@ -65,7 +64,7 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
   const resetSecondary = () => { onTruckFilter(''); onCustomerFilter(''); };
 
   return (
-    <ListFilterBar
+    <FilterBar
       search={{
         value: searchQuery,
         onChange: onSearch,
@@ -127,7 +126,7 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
           ]}
         />
       </FilterDropdown>
-    </ListFilterBar>
+    </FilterBar>
   );
 }
 

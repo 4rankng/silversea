@@ -2,15 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, Printer } from 'lucide-react';
 import type { CustomerStatement } from '@tingting/shared';
 import { api } from '../../lib/api';
-import { EmptyState, DateRangeFields } from '../../design-system';
-import { ListFilterBar } from '../../components/ListFilterBar';
+import { DateRangeFields, EmptyState, FilterBar } from '../../design-system';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import { useCustomerPortalScope } from './CustomerPortalScope';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './PortalPages.css';
-import { formatDate } from '../../lib/format';
+import { formatMoney, formatDate } from '../../lib/format';
 
 function queryFor(dateFrom: string, dateTo: string, format?: 'xlsx' | 'pdf', customerId?: number | null) {
   const query = new URLSearchParams();
@@ -105,9 +104,9 @@ export default function PortalStatementPage() {
   const closingBalance = Number(summary?.closingBalance ?? data?.totalOutstanding ?? 0);
   const activityOperator = periodActivity < 0 ? '−' : '+';
   const balanceEquationLabel = [
-    `Số dư đầu kỳ ${openingBalance.toLocaleString('vi-VN')} đồng`,
-    `${periodActivity < 0 ? 'trừ' : 'cộng'} ${Math.abs(periodActivity).toLocaleString('vi-VN')} đồng`,
-    `bằng số dư cuối kỳ ${closingBalance.toLocaleString('vi-VN')} đồng`,
+    `Số dư đầu kỳ ${formatMoney(openingBalance)} đồng`,
+    `${periodActivity < 0 ? 'trừ' : 'cộng'} ${formatMoney(Math.abs(periodActivity))} đồng`,
+    `bằng số dư cuối kỳ ${formatMoney(closingBalance)} đồng`,
   ].join(', ');
 
   return (
@@ -120,7 +119,7 @@ export default function PortalStatementPage() {
         </div>
         <div className="portal-page__headline-stat" aria-label="Số dư công nợ hiện tại">
           <span>Số dư hiện tại</span>
-          <strong>{loading || error || !data ? '—' : `${Number(data.totalOutstanding).toLocaleString('vi-VN')} ₫`}</strong>
+          <strong>{loading || error || !data ? '—' : `${formatMoney(Number(data.totalOutstanding))} ₫`}</strong>
           <small>{loading || error ? 'Tài khoản đang xem' : data?.customer.name ?? 'Tài khoản đang xem'}</small>
         </div>
       </header>
@@ -140,7 +139,7 @@ export default function PortalStatementPage() {
             setAppliedRange({ dateFrom, dateTo });
           }}
         >
-          <ListFilterBar
+          <FilterBar
             actions={(
               <>
                 <button type="submit" className="portal-button portal-button--primary" disabled={loading}>Áp dụng kỳ</button>
@@ -159,7 +158,7 @@ export default function PortalStatementPage() {
                 setDateTo(next.to);
               }}
             />
-          </ListFilterBar>
+          </FilterBar>
         </form>
 
         {exportError && <div className="portal-notice portal-notice--error" role="alert">{exportError}</div>}
@@ -177,11 +176,11 @@ export default function PortalStatementPage() {
         ) : (
           <>
             <div className="portal-balance-equation" aria-label={balanceEquationLabel}>
-              <div><span>Số dư đầu kỳ</span><strong>{openingBalance.toLocaleString('vi-VN')} ₫</strong></div>
+              <div><span>Số dư đầu kỳ</span><strong>{formatMoney(openingBalance)} ₫</strong></div>
               <span className="portal-balance-equation__operator" aria-hidden="true">{activityOperator}</span>
-              <div><span>Phát sinh trong kỳ</span><strong>{Math.abs(periodActivity).toLocaleString('vi-VN')} ₫</strong></div>
+              <div><span>Phát sinh trong kỳ</span><strong>{formatMoney(Math.abs(periodActivity))} ₫</strong></div>
               <span className="portal-balance-equation__operator" aria-hidden="true">=</span>
-              <div className="portal-balance-equation__result"><span>Số dư cuối kỳ</span><strong>{closingBalance.toLocaleString('vi-VN')} ₫</strong></div>
+              <div className="portal-balance-equation__result"><span>Số dư cuối kỳ</span><strong>{formatMoney(closingBalance)} ₫</strong></div>
             </div>
             {data.unpaidTrips.length > 0 && (
               <section className="portal-due-list" aria-labelledby="portal-due-list-title">
@@ -196,7 +195,7 @@ export default function PortalStatementPage() {
                   <article key={trip.tripId} className="portal-due-row">
                     <div>
                       <strong>{trip.note || 'Chuyến chưa có mã'}</strong>
-                      <span>{trip.outstanding.toLocaleString('vi-VN')} ₫ còn phải thanh toán</span>
+                      <span>{formatMoney(trip.outstanding)} ₫ còn phải thanh toán</span>
                     </div>
                     <div>
                       <span>Ngày theo hợp đồng</span>
@@ -227,9 +226,9 @@ export default function PortalStatementPage() {
                         <tr key={row.id}>
                           <td data-label="Ngày">{formatDate(row.timestamp)}</td>
                           <td data-label="Nội dung">{row.note || row.tripCode || row.txnType}</td>
-                          <td data-label="Ghi nợ" className="portal-table__number">{Number(row.debit ?? 0).toLocaleString('vi-VN')} ₫</td>
-                          <td data-label="Thanh toán" className="portal-table__number">{Number(row.credit ?? 0).toLocaleString('vi-VN')} ₫</td>
-                          <td data-label="Số dư" className="portal-table__number portal-table__balance">{Number(row.balance ?? 0).toLocaleString('vi-VN')} ₫</td>
+                          <td data-label="Ghi nợ" className="portal-table__number">{formatMoney(Number(row.debit ?? 0))} ₫</td>
+                          <td data-label="Thanh toán" className="portal-table__number">{formatMoney(Number(row.credit ?? 0))} ₫</td>
+                          <td data-label="Số dư" className="portal-table__number portal-table__balance">{formatMoney(Number(row.balance ?? 0))} ₫</td>
                         </tr>
                       ))}
                     </tbody>

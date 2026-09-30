@@ -50,7 +50,7 @@ function setup(over: Partial<TripFiltersBarProps> = {}) {
 }
 
 describe('TripFiltersBar — the shared filter bar, not a page-local card', () => {
-  it('renders the shared ListFilterBar and none of the retired hand-rolled card', () => {
+  it('renders the shared FilterBar band and none of the retired hand-rolled card', () => {
     const { container } = setup();
     const bar = container.querySelector('.filter-bar.list-filter-bar');
     expect(bar).toBeTruthy();
