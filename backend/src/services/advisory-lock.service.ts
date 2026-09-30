@@ -126,15 +126,11 @@ export const lockKeys = {
   opsUser: (userId: number): AdvisoryLockKey => intKey(LOCK_FAMILY.opsUser, userId),
 
   // ── Single-bigint text keys (hashtextextended) ───────────────────────────
-  paymentReceipt: (receiptId: number): AdvisoryLockKey =>
+  paymentReceipt: (receiptId: number | string): AdvisoryLockKey =>
     textKey(`payment-receipt\u001f${receiptId}`),
-  /**
-   * Historical encoding has NO separator between name and id; kept
-   * byte-identical so concurrent old/new code during a deploy still
-   * serializes on the same lock.
-   */
-  paymentRefund: (paymentReceiptId: number): AdvisoryLockKey =>
-    textKey(`payment-refund${paymentReceiptId}`),
+  /** Refund flows serialize per receipt (source byte carries the \u001f separator). */
+  paymentRefund: (paymentReceiptId: number | string): AdvisoryLockKey =>
+    textKey(`payment-refund\u001f${paymentReceiptId}`),
   treasuryAccountSetup: (code: string): AdvisoryLockKey =>
     textKey(`treasury-account-setup\u001f${code}`),
   profitDistribution: (year: number, quarter: number): AdvisoryLockKey =>

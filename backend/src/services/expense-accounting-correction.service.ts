@@ -1,6 +1,7 @@
-import { and, eq, isNull, notInArray, sql } from 'drizzle-orm';
+import { and, eq, isNull, notInArray } from 'drizzle-orm';
 import { TxnType, type ExpenseAccountingUpdate, type ExpenseSourceKind } from '@tingting/shared';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -25,7 +26,7 @@ export async function correctAccountingExpense(tx: Tx, actor: ExpenseActor, kind
     .where(and(eq(s.expenseCashAllocations.expenseAccountingSourceId, before.id), eq(s.expenseCashVouchers.status, 'RECORDED'))).limit(1);
   if (allocation) throw new ApiError(409, 'Hoàn tác phiếu thu/chi đã phân bổ trước khi điều chỉnh khoản chi.');
   if (before.linkedTripExpenseId) {
-    await tx.execute(sql`select pg_advisory_xact_lock(6102, ${before.linkedTripExpenseId})`);
+    await acquireAdvisoryLock(tx, lockKeys.expense(before.linkedTripExpenseId));
     const [settlement] = await tx.select({ id: s.advanceSettlements.id }).from(s.settlementExpenses)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
       .where(and(eq(s.settlementExpenses.tripExpenseId, before.linkedTripExpenseId), notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))).limit(1);

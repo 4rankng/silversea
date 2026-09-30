@@ -2,6 +2,7 @@ import { aliasedTable, and, desc, eq, ilike, or, sql, type SQL } from 'drizzle-o
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { ApiError } from '../errors';
 import { extractPumpReading, type PumpReading, type PumpReadingOutcome } from './ocr.service';
 import type { Tx } from './trip-shared';
@@ -341,7 +342,7 @@ export async function persistFuelEvidenceReviewForDriver(
   args: PersistFuelEvidenceReviewArgs,
   tx: Tx,
 ): Promise<PersistFuelEvidenceReviewOutcome> {
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${args.tripId})`);
+  await acquireAdvisoryLock(tx, lockKeys.expense(args.tripId));
 
   const [trip] = await tx.select({ id: s.trips.id, driverId: s.trips.driverId })
     .from(s.trips)

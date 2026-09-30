@@ -6,6 +6,7 @@ export type { Executor, Tx };
 import * as s from '../db/schema';
 import { eq, and, isNull, desc, notInArray, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import {
   buildNoInvoicePolicySnapshotForExpenseInput,
   toNoInvoicePolicySnapshotValue,
@@ -51,7 +52,7 @@ async function lockTripExpenseMutation(executor: Executor, expenseId: number): P
   const [reference] = await executor.select({ tripId: s.tripExpenses.tripId })
     .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
   if (reference) await lockTripFinancialAuthority(executor, [reference.tripId]);
-  await executor.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+  await acquireAdvisoryLock(executor, lockKeys.expense(expenseId));
 }
 
 type TripExpenseRequiredFieldState = {
@@ -123,8 +124,7 @@ export async function setTripExpenseCompletion(
     // shipment -> expense scope. This prevents a scope update racing an e-POD
     // event from deadlocking with the aggregate readiness calculation.
     await lockTripCloseAggregate(tx, tripId);
-    const scopeKey = tripContainerId ?? -tripId;
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
+    await acquireAdvisoryLock(tx, tripContainerId != null ? lockKeys.containerScope(tripContainerId) : lockKeys.tripScope(tripId));
     if (trip.status === 'COMPLETED' || trip.status === 'CANCELED') {
       throw new ApiError(409, 'Không thể cập nhật kê khai của chuyến đã hoàn thành hoặc đã hủy');
     }
@@ -383,8 +383,7 @@ export async function createTripExpense(
     throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã hủy');
   }
 
-  const scopeKey = tripContainerId ?? -data.tripId;
-  await executor.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
+  await acquireAdvisoryLock(executor, tripContainerId != null ? lockKeys.containerScope(tripContainerId) : lockKeys.tripScope(data.tripId));
 
   // Null counterparties remain allowed for receivables-only fees. Approved
   // COMPANY_DIRECT rows with a supplier now also feed supplier AP at completion.
@@ -517,13 +516,14 @@ export async function updateTripExpense(
       )).limit(1);
     if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, chỉ được điều chỉnh trên phiếu hoàn ứng');
   }
-  const scopeKeys = [...new Set([
-    existing.tripContainerId ?? -existing.tripId,
-    patch.tripContainerId === undefined ? (existing.tripContainerId ?? -existing.tripId) : (patch.tripContainerId ?? -existing.tripId),
-  ])].sort((a, b) => a - b);
-  for (const scopeKey of scopeKeys) {
-    await executor.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-  }
+  const scopeKeyOf = (containerId: number | null | undefined, tripId: number) =>
+    containerId != null ? lockKeys.containerScope(containerId) : lockKeys.tripScope(tripId);
+  await acquireAdvisoryLocks(executor, [
+    scopeKeyOf(existing.tripContainerId, existing.tripId),
+    patch.tripContainerId === undefined
+      ? scopeKeyOf(existing.tripContainerId, existing.tripId)
+      : scopeKeyOf(patch.tripContainerId, existing.tripId),
+  ]);
 
   // O2C: costs stay editable after COMPLETED (no hard-freeze); only CANCELED
   // trips reject edits. A cost edit on a completed trip flips ar_snapshot_dirty.
@@ -752,8 +752,7 @@ export async function deleteTripExpenseInTx(
     expectedUpdatedAt,
     'Chi phí đã thay đổi. Vui lòng tải lại trước khi xóa.',
   );
-  const scopeKey = existing.tripContainerId ?? -existing.tripId;
-  await executor.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
+  await acquireAdvisoryLock(executor, existing.tripContainerId != null ? lockKeys.containerScope(existing.tripContainerId) : lockKeys.tripScope(existing.tripId));
   const [trip] = await executor.select({ status: s.trips.status }).from(s.trips)
     .where(eq(s.trips.id, existing.tripId)).limit(1);
   if (trip?.status === 'COMPLETED' || trip?.status === 'CANCELED') {
@@ -820,8 +819,7 @@ export async function deleteTripExpenseGuarded(
     }
     await assertCanonicalExpenseWrite(executor, expenseId);
     if (expense.approvalStatus === 'VOIDED' || expense.approvalStatus === 'REJECTED') return { error: 'Chi phí đã hủy được giữ lại để đối chiếu, không thể xóa.', status: 409 };
-    const scopeKey = expense.tripContainerId ?? -expense.tripId;
-    await executor.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
+    await acquireAdvisoryLock(executor, expense.tripContainerId != null ? lockKeys.containerScope(expense.tripContainerId) : lockKeys.tripScope(expense.tripId));
     await assertTripShipmentAccountingUnlocked(executor, tripId);
     // Preserve posted trip history.
     const [trip] = await executor.select({ status: s.trips.status })

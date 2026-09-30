@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { receiptCommandIdentity } from './cash-command-identity.service';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
@@ -600,9 +601,7 @@ async function createOrReplayPaymentReceiptTx(
   executor: Executor,
   input: NormalizedPaymentReceiptInput,
 ): Promise<PersistedPaymentReceiptResult> {
-  await executor.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${`payment-receipt\u001f${input.receiptId}`}, 0))`,
-  );
+  await acquireAdvisoryLock(executor, lockKeys.paymentReceipt(input.receiptId));
 
   const [existing] = await executor.select({
     id: s.paymentReceipts.id,
@@ -838,9 +837,7 @@ export async function requestPaymentReceiptGovernance(input: {
       ...input.payment,
       allocatedBy: input.makerId,
     }, treasury);
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`payment-receipt\u001f${normalized.receiptId}`}, 0))`,
-    );
+    await acquireAdvisoryLock(tx, lockKeys.paymentReceipt(normalized.receiptId));
     if (await getLegacyReceiptConflict(tx, normalized.receiptId)) {
       throw new ApiError(
         409,
@@ -1022,9 +1019,7 @@ export async function requestPaymentRefundGovernance(
     // concurrent refund re-reads fresh unappliedAmount/version instead of
     // passing on a stale snapshot. Double-refund protection itself is the
     // apply-time receipt version CAS in applyPaymentRefundGovernanceAction.
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`payment-refund${paymentReceiptId}`}, 0))`,
-    );
+    await acquireAdvisoryLock(tx, lockKeys.paymentRefund(paymentReceiptId));
 
     const [receipt] = await tx.select().from(s.paymentReceipts)
       .where(eq(s.paymentReceipts.id, paymentReceiptId))
