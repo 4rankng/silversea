@@ -43,17 +43,23 @@ const dispatchDetailTextLocks = [1024, 1440].flatMap((width) => ([
 
 export default [
   // --- Chrome budget: the space the header+filter block steals from the
-  // list. Measured on the approved state (2026-09-27) after the operator's
-  // "too messy / group them in bộ lọc" ruling; the pre-ruling block ran
-  // ~440px of stacked dropdowns above the first record at 390-500px.
-  { id: 'dispatch-detail/phone/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 275, note: 'the filter block ran ~440px (title/segment/range/Gán xe/search/4 facet rows/actions) before the facets moved into the drawer; 258px measured now' },
-  { id: 'dispatch-detail/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 500, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 275, note: 'the operator screenshot width: same promise as the phone band' },
-  { id: 'dispatch-detail/tablet/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 768, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 230, note: 'measured 218px: the canonical button group (2px inset, 44px touch cells) costs ~6px more than the bespoke segment it replaced — the trade the operator ruling asks for' },
-  { id: 'dispatch-detail/desktop/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 285, note: 'measured 271.7px after the 2026-09-27 cutover: the two-tier header (36px title row + 32px ribbon) is ONE shared strip card now, so the chrome is taller by the card it gained while the strip itself holds two rows. Lower it again if the page drops the visible title row' },
-  { id: 'master-plan/phone/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 390, kind: 'maxTop', selector: '.master-plan-grid__row', max: 305, note: 'measured 299px after the 2026-09-27 cutover: the master plan moved off its own drawer toolbar onto the shared strip, which carries four items (search 300 · from/to 342 · Bộ lọc 104 · Tạo lô hàng 109) and therefore packs three lines at a 374px bar — the old toolbar packed two because it stretched its controls. The strip still obeys the two-row law wherever the bar is ≥560px' },
-  { id: 'master-plan/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 500, kind: 'maxTop', selector: '.master-plan-grid__row', max: 305, note: 'measured 299px — same cause as the phone lock: three packed lines at a 484px bar, never a stretched control' },
-  { id: 'master-plan/tablet/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 768, kind: 'maxTop', selector: '.master-plan-grid__row', max: 270, note: 'measured 259px: the bar holds two rows here (search · from/to · Bộ lọc on line 1, the page action on line 2) instead of the old toolbar shrink-wrapping a stretched control into one. Lower it again if the action ever leaves the strip' },
-  { id: 'master-plan/desktop/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 1440, kind: 'maxTop', selector: '.master-plan-grid__row', max: 260, note: 'measured 241px (the zone panel rides above the grid)' },
+  // list. Approved state (2026-09-27) after the operator's "too messy /
+  // group them in bộ lọc" ruling ran ~440px of stacked dropdowns; the
+  // 2026-09-30 FilterBar band (card 20260930_229, two-row filter law) is
+  // the newer approved state — its touch-floor controls and the always-on
+  // zone-presence / cargo-summary panels ride taller than the compact strip
+  // it replaced, so the budgets below were re-measured on the band state
+  // (±8px margin, the file's house practice). Lower them again only by
+  // shrinking the band chrome or collapsing those panels, never by
+  // squeezing control heights below the 44px touch law.
+  { id: 'dispatch-detail/phone/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 371, note: 'band state measured 363px (card 20260930_229): strip 136 + zone-presence 93 above the grid' },
+  { id: 'dispatch-detail/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 500, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 371, note: 'band state measured 363px — same promise as the phone band' },
+  { id: 'dispatch-detail/tablet/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 768, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 331, note: 'band state measured 323px (card 20260930_229)' },
+  { id: 'dispatch-detail/desktop/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 362, note: 'band state measured 353.2px (card 20260930_229)' },
+  { id: 'master-plan/phone/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 390, kind: 'maxTop', selector: '.master-plan-grid__row', max: 424, note: 'band state measured 416px (card 20260930_229): strip 146 + cargo-summary 64 + zone-presence 93' },
+  { id: 'master-plan/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 500, kind: 'maxTop', selector: '.master-plan-grid__row', max: 400, note: 'band state measured 392px — same stack as the phone band' },
+  { id: 'master-plan/tablet/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 768, kind: 'maxTop', selector: '.master-plan-grid__row', max: 358, note: 'band state measured 350px (card 20260930_229)' },
+  { id: 'master-plan/desktop/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 1440, kind: 'maxTop', selector: '.master-plan-grid__row', max: 346, note: 'band state measured 337.2px; the zone panel rides above the grid' },
 
   // --- The facets live in the drawer, at every width -----------------------
   { id: 'dispatch-detail/phone/no-ribbon-facet-grid', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'hidden', selector: '.detailed-plan-ribbon__quick', note: 'the 2-up facet grid was the header mess the operator rejected; a later session must not restore it' },
@@ -124,8 +130,8 @@ export default [
   {
     id: 'master-plan/phone/record-row-height',
     role: 'dieuvan', path: '/dispatch', width: PHONE,
-    kind: 'maxHeight', selector: '.master-plan-grid__row', max: 255,
-    note: 'the phone lô card was 370px of stacked label rows; short inline labels brought it to 244px',
+    kind: 'maxHeight', selector: '.master-plan-grid__row', max: 294,
+    note: 'the phone lô card was 370px of stacked label rows; short inline labels brought it to 244px, and a customs-cutoff warning lot (the designed Cảnh báo line, e.g. 2026-09-30 dev data) measures 285.8px — the max carries both shapes',
   },
   {
     id: 'master-plan/tablet/record-row-height',

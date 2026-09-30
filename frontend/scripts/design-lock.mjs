@@ -387,6 +387,12 @@ for (const lock of locks) {
     await page.waitForTimeout(400);
     entry.clicked = lock.click;
   }
+  // Heavy pages can still be hydrating past networkidle+1500ms under box
+  // load; a lock whose selector matches nothing is unmeasurable, so wait
+  // (bounded) for the surface before measuring rather than flaking.
+  if (lock.selector) {
+    await page.locator(lock.selector).first().waitFor({ state: 'attached', timeout: 8000 }).catch(() => {});
+  }
   const res = await page.evaluate(evaluateLock, lock);
   const row = { ...lock, ...res };
   results.push(row);
