@@ -20,10 +20,9 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { throwValidation } from '../../lib/validation';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.get('/:id/adjustments', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string);
@@ -32,7 +31,7 @@ router.get('/:id/adjustments', asyncHandler(async (req: Request, res: Response) 
 }));
 
 // Create adjustment for a specific trip
-router.post('/:id/adjustment', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/adjustment', declareMaterialWrite('trips.adjustment', { method: 'POST', path: '/api/trips/:id/adjustment' }),  asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string);
   const data = createAdjustmentSchema.parse({ ...req.body, tripId });
   const user = getUser(req);
@@ -97,7 +96,7 @@ router.get('/:id/expenses', asyncHandler(async (req: Request, res: Response) => 
 }));
 
 // Authorized office entry records the validated expense immediately.
-router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/expenses', declareMaterialWrite('trip-expenses.create', { method: 'POST', path: '/api/trips/:id/expenses' }),  asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string, 10);
   const parsed = tripExpenseSchema.safeParse({ ...req.body, tripId });
   if (!parsed.success) throwValidation(parsed.error);
@@ -137,7 +136,7 @@ router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) =>
 }));
 
 // PUT /api/trips/:id/expenses/:eid — update expense
-router.put('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id/expenses/:eid', declareMaterialWrite('trip-expenses.update', { method: 'PUT', path: '/api/trips/:id/expenses/:eid' }),  asyncHandler(async (req: Request, res: Response) => {
   const eid = parseInt(req.params.eid as string, 10);
   const parsed = tripExpensePatchSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
@@ -180,7 +179,7 @@ router.put('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Response
 }));
 
 // DELETE /api/trips/:id/expenses/:eid — hard delete (only if trip not locked)
-router.delete('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id/expenses/:eid', declareMaterialWrite('trip-expenses.delete', { method: 'DELETE', path: '/api/trips/:id/expenses/:eid' }),  asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string, 10);
   const eid = parseInt(req.params.eid as string, 10);
 
@@ -217,7 +216,7 @@ router.delete('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Respo
 router.post('/:id/expenses/:eid/approve', declareNonMaterialWrite('Retired endpoint — mounted as a response-only 410 stub; kept from re-acquiring behaviour by the exhaustive test.'), (_req, res) => {
   res.status(410).json({ error: 'Luồng phê duyệt đã được gỡ bỏ. Chỉnh sửa chi phí trực tiếp.' });
 });
-router.post('/:id/expenses/:eid/reject', (_req, res) => {
+router.post('/:id/expenses/:eid/reject', declareNonMaterialWrite('Retired endpoint — mounted as a response-only 410 stub; kept from re-acquiring behaviour by the exhaustive test.'), (_req, res) => {
   res.status(410).json({ error: 'Luồng phê duyệt đã được gỡ bỏ. Chỉnh sửa chi phí trực tiếp.' });
 });
 

@@ -11,10 +11,8 @@ import { getUser } from '../../middleware/auth';
 import { markTripPodRecovered } from '../../services/trip-mutations.service';
 import { getExpectedVersion } from './trips-shared';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.post('/:id/pod-recovered', declareNonMaterialWrite('O2C POD-recovery flag setter (accountant/CUS); no direct financial mutation — the completion transition that consumes it runs its own durable boundary.'), requireRoles(Role.ACCOUNTANT, Role.CUS), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);

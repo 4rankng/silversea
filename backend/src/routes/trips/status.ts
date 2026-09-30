@@ -25,12 +25,11 @@ import {
 } from './trips-shared';
 import { invalidateReportCaches } from '../../lib/report-cache';
 import { businessTitleOrDash } from '../../lib/business-keys';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
-router.post('/:id/dispatch', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/dispatch', declareMaterialWrite('trips.transition.in_transit', { method: 'POST', path: '/api/trips/:id/dispatch' }),  asyncHandler(async (req: Request, res: Response) => {
   const idempotencyKey = getRequestIdempotencyKey(req);
   const outcome = await dispatchTripWriteCommand(
     parseInt(req.params.id as string),
@@ -46,7 +45,7 @@ router.post('/:id/dispatch', asyncHandler(async (req: Request, res: Response) =>
 // a trip may be marked "Hoàn thành" without photos; evidence can be added or
 // edited afterwards. This is the explicit replacement for the old auto-complete
 // that previously fired inside updateTripFigures whenever any photo existed.
-router.post('/:id/complete', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/complete', declareMaterialWrite('trips.financial-close', { method: 'POST', path: '/api/trips/:id/complete' }),  asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const expectedVersion = getExpectedVersion(req.body);
   if (expectedVersion === undefined) {
@@ -97,7 +96,7 @@ router.post('/:id/complete', asyncHandler(async (req: Request, res: Response) =>
 // their trips — dispatch/CUS complete on the driver's behalf. Distinct from
 // the governed POST /:id/complete above: no photos/milestones exist for
 // external carriers, so that flow can never apply to them.
-router.post('/:id/complete-external', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS), asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/complete-external', declareMaterialWrite('dispatch.external-fulfillment.complete', { method: 'POST', path: '/api/trips/:id/complete-external' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   if (!Number.isInteger(id) || id <= 0) {
     throw new ApiError(400, 'ID chuyến đi không hợp lệ');
@@ -117,7 +116,7 @@ router.post('/:id/complete-external', requireRoles(Role.ADMIN, Role.MANAGER, Rol
 }));
 
 // Cancel trip
-router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/cancel', declareMaterialWrite('trips.completed-cancel', { method: 'POST', path: '/api/trips/:id/cancel' }),  asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const expectedVersion = getExpectedVersion(req.body);
   const idempotencyKey = getRequestIdempotencyKey(req);

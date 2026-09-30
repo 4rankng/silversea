@@ -15,15 +15,14 @@ import * as tripService from '../../services/trip.service';
 import { reassignIssuedDispatchWriteCommand } from '../../services/dispatch-planning.service';
 import { loadReassignmentGuardContext, loadFulfillmentVersion, resyncAttendanceAfterReassignment } from '../../services/trip-lifecycle-ops.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // Reassign truck/driver for not-yet-acknowledged trips (CREATED, or IN_TRANSIT
 // when only ops marked departure and the driver never accepted). Dispatchers
 // own this pre-acceptance correction after an order has been issued.
-router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER), asyncHandler(async (req: Request, res: Response) => {
+router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: 'PATCH', path: '/api/trips/:id/reassign' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = req.body;
   // Card 20260922_79 (Q11 closure): the reason is mandatory. It is NOT copied

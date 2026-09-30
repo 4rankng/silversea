@@ -23,10 +23,9 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parsePagination } from '../utils/pagination';
 import { tripListSortQuerySchema } from './trips-shared';
 import { invalidateReportCaches } from '../../lib/report-cache';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // List trips with filters
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
@@ -62,7 +61,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // Create trip — only ADMIN/MANAGER can create (accountant still has trips:write for figure updates)
-router.post('/', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', declareMaterialWrite('trips.create', { method: 'POST', path: '/api/trips/' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const data = createTripSchema.parse(req.body);
   // Wave 0: SHIPMENT_FIRST_CREATE flag — when ON, shipmentId is mandatory on
   // every trip-create. When OFF (default), it stays optional. The schema
@@ -81,7 +80,7 @@ router.post('/', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req
 
 // Copy every editable planning/financial field atomically. Execution evidence,
 // expenses, lifecycle state, and container/seal identifiers start clean.
-router.post('/:id/copy', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/copy', declareMaterialWrite('trips.copy', { method: 'POST', path: '/api/trips/:id/copy' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const tripId = Number(req.params.id);
   if (!Number.isInteger(tripId) || tripId <= 0) {
     throw new ApiError(400, 'ID chuyến đi không hợp lệ');
@@ -102,7 +101,7 @@ router.get('/summary', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 
-router.post('/pairs', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/pairs', declareMaterialWrite('trips.pairs.create', { method: 'POST', path: '/api/trips/pairs' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const payload = createTripPairSchema.parse(req.body);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -139,7 +138,7 @@ router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
   });
 }));
 
-router.post('/bulk-figures', asyncHandler(async (req: Request, res: Response) => {
+router.post('/bulk-figures', declareMaterialWrite('trips.bulk-figures', { method: 'POST', path: '/api/trips/bulk-figures' }),  asyncHandler(async (req: Request, res: Response) => {
   const payload = bulkUpdateTripFiguresSchema.parse(req.body);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -236,7 +235,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // Soft-delete trip — only ADMIN/MANAGER, only CREATED status (flow 01 §2.6)
-router.delete('/:id', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', declareMaterialWrite('trips.delete', { method: 'DELETE', path: '/api/trips/:id' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const rawExpectedVersion = req.query.expectedVersion

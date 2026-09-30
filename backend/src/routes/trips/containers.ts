@@ -16,12 +16,11 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { throwValidation } from '../../lib/validation';
 
 import { invalidateReportCaches } from '../../lib/report-cache';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
-router.put('/:id/containers', asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id/containers', declareMaterialWrite('trips.containers', { method: 'PUT', path: '/api/trips/:id/containers' }),  asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string, 10);
   const parsed = tripContainerBatchSchema.parse(req.body);
   const userId = req.user?.userId ?? null;
@@ -59,7 +58,7 @@ router.get('/:id/instructions', asyncHandler(async (req: Request, res: Response)
 }));
 
 // PUT /api/trips/:id/instructions — upsert contact + guidance for a trip.
-router.put('/:id/instructions', asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id/instructions', declareMaterialWrite('trips.instructions', { method: 'PUT', path: '/api/trips/:id/instructions' }),  asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string, 10);
   if (!Number.isFinite(tripId) || tripId <= 0) {
     throw new ApiError(400, 'ID chuyến đi không hợp lệ');

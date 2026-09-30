@@ -13,3 +13,4 @@ import './accounting';
 import './accounting-deposit';
 import './accounting-debit';
 import './shipments';
+import './trips';
