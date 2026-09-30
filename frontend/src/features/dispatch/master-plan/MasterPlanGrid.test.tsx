@@ -772,7 +772,7 @@ describe('MasterPlanFilters', () => {
     expect(page).toContain('action={(');
     expect(page).toContain('dispatch-plan-page--wide');
     expect(css).toContain('max-width: 1400px');
-    expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 12px;\n  max-width: none;');
+    // Card 20260930_246: 12 → 8 — the advisory strips tighten so the first\n    // record meets its chrome budget at every width.\n    expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 8px;\n  max-width: none;');
     expect(css).toContain('.app-main:not(.driver-mode) .app-body > .dispatch-plan-page--wide');
   });
 });

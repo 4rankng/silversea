@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from 'lucide-react';
+import { useCoarsePointer } from '../useCoarsePointer';
 import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, Tabs, type DateRangeValue } from '../../../design-system';
 import type { TabItem } from '../../../design-system';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -255,7 +256,21 @@ export function DetailedPlanFilters({
     />
   );
 
+  const rangeFieldsOnCoarsePointer = useCoarsePointer();
+
+  const rangeFields = (
+    <DateRangeFields
+      id="detailed-plan-date-range"
+      ariaLabel="Khoảng ngày vận chuyển"
+      size="sm"
+      from={rangeValue.from}
+      to={rangeValue.to}
+      onChange={applyRange}
+    />
+  );
+
   return (
+
     <>
       {/* Page chrome above the strip: the visible title. The filter plane below
           it is the shared bar, which owns the row layout, the control widths
@@ -372,6 +387,12 @@ export function DetailedPlanFilters({
               </div>
             </section>
             <FleetFilterFields filters={filters} routeOptions={routeOptions} onChange={onChange} />
+            {rangeFieldsOnCoarsePointer ? (
+              <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-range">
+                <h3 id="detailed-plan-filter-range" className="detailed-plan-filter-panel__title">Khoảng ngày vận chuyển</h3>
+                <div className="detailed-plan-filter-panel__fields">{rangeFields}</div>
+              </section>
+            ) : null}
           </div>
           ),
           count: secondaryCount,
@@ -381,14 +402,7 @@ export function DetailedPlanFilters({
           neverInline: true,
         }}
       >
-        <DateRangeFields
-          id="detailed-plan-date-range"
-          ariaLabel="Khoảng ngày vận chuyển"
-          size="sm"
-          from={rangeValue.from}
-          to={rangeValue.to}
-          onChange={applyRange}
-        />
+        {!rangeFieldsOnCoarsePointer ? rangeFields : null}
       </FilterBar>
     </>
   );

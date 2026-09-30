@@ -42,17 +42,21 @@
 /* Cargo summary header */
 .master-plan-cargo-summary {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px 10px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
+  padding: 2px 10px;
+  margin-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--app-radius-md);
   font-size: var(--text-data-size);
   color: var(--fg-2);
 }
+/* Card 20260930_246 (§8 density): single-line advisory strip — padding
+   halved so the summary stops stealing a record's height. */
 
 .master-plan-cargo-summary__label {
   font-weight: 600;

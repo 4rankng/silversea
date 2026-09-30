@@ -13,8 +13,10 @@
 
 /* Dispatch planning is a high-volume operational surface. Both planning
    routes deliberately opt out of the shell's reading-width reading cap. */
+/* Card 20260930_246 (§8 density): 12 → 8 between the advisory strips so
+   the first record meets its chrome budget at every width. */
 .dispatch-plan-page--wide {
-  gap: 12px;
+  gap: 8px;
   max-width: none;
   margin: 0;
   padding: 0 0 24px;

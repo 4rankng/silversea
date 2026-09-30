@@ -7,6 +7,7 @@ import { configClient } from '../../../api/configClient';
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { MasterPlanFilters as FilterState } from './useDispatchMasterPlan';
 import './MasterPlanGrid.css';
+import { useCoarsePointer } from '../useCoarsePointer';
 
 interface MasterPlanFiltersProps {
   filters: FilterState;
@@ -244,6 +245,20 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
 
   const visibleZones = zones.filter((zone) => zone.showPortFacet !== false);
 
+  const rangeFieldsOnCoarsePointer = useCoarsePointer();
+
+  const rangeFields = (
+    <DateRangeFields
+          className="master-plan-filters__date-range"
+          id="master-plan-delivery-date-range"
+          ariaLabel="Khoảng ngày giao"
+          size="sm"
+          from={rangeValue.from}
+          to={rangeValue.to}
+          onChange={applyRange}
+    />
+  );
+
   return (
     <FilterBar
       search={{
@@ -297,6 +312,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                 Không tải được khu vực cảng — thử lại sau.
               </span>
             )}
+            {rangeFieldsOnCoarsePointer ? rangeFields : null}
           </>
         ),
         count: secondaryCount,
@@ -306,15 +322,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
         neverInline: true,
       }}
     >
-      <DateRangeFields
-        className="master-plan-filters__date-range"
-        id="master-plan-delivery-date-range"
-        ariaLabel="Khoảng ngày giao"
-        size="sm"
-        from={rangeValue.from}
-        to={rangeValue.to}
-        onChange={applyRange}
-      />
+      {!rangeFieldsOnCoarsePointer ? rangeFields : null}
     </FilterBar>
   );
 }

@@ -33,7 +33,10 @@
   background: transparent;
   border: 0;
   padding: 0;
-  margin: 0 0 16px;
+  /* Card 20260930_246 (§8 density): 16 → 8 — the band's own breathing room
+     was a full control row; half of it keeps the separation every locked
+     page still shows while returning the rest to the record surface. */
+  margin: 0 0 8px;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;

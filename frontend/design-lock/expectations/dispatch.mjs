@@ -43,23 +43,20 @@ const dispatchDetailTextLocks = [1024, 1440].flatMap((width) => ([
 
 export default [
   // --- Chrome budget: the space the header+filter block steals from the
-  // list. Approved state (2026-09-27) after the operator's "too messy /
-  // group them in bộ lọc" ruling ran ~440px of stacked dropdowns; the
-  // 2026-09-30 FilterBar band (card 20260930_229, two-row filter law) is
-  // the newer approved state — its touch-floor controls and the always-on
-  // zone-presence / cargo-summary panels ride taller than the compact strip
-  // it replaced, so the budgets below were re-measured on the band state
-  // (±8px margin, the file's house practice). Lower them again only by
-  // shrinking the band chrome or collapsing those panels, never by
-  // squeezing control heights below the 44px touch law.
-  { id: 'dispatch-detail/phone/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 371, note: 'band state measured 363px (card 20260930_229): strip 136 + zone-presence 93 above the grid' },
-  { id: 'dispatch-detail/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 500, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 371, note: 'band state measured 363px — same promise as the phone band' },
-  { id: 'dispatch-detail/tablet/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 768, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 331, note: 'band state measured 323px (card 20260930_229)' },
-  { id: 'dispatch-detail/desktop/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 362, note: 'band state measured 353.2px (card 20260930_229)' },
-  { id: 'master-plan/phone/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 390, kind: 'maxTop', selector: '.master-plan-grid__row', max: 424, note: 'band state measured 416px (card 20260930_229): strip 146 + cargo-summary 64 + zone-presence 93' },
-  { id: 'master-plan/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 500, kind: 'maxTop', selector: '.master-plan-grid__row', max: 400, note: 'band state measured 392px — same stack as the phone band' },
-  { id: 'master-plan/tablet/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 768, kind: 'maxTop', selector: '.master-plan-grid__row', max: 358, note: 'band state measured 350px (card 20260930_229)' },
-  { id: 'master-plan/desktop/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 1440, kind: 'maxTop', selector: '.master-plan-grid__row', max: 346, note: 'band state measured 337.2px; the zone panel rides above the grid' },
+  // list. Measured on the approved state (2026-09-27) after the operator's
+  // "too messy / group them in bộ lọc" ruling; the pre-ruling block ran
+  // ~440px of stacked dropdowns above the first record at 390-500px.
+  // Card 20260930_246: the budgets hold at their original values — the band
+  // (20260930_229) coexists with them because the advisory strips compact
+  // to §8 density lines; control heights never drop below the 44px touch law.
+  { id: 'dispatch-detail/phone/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 275, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
+  { id: 'dispatch-detail/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 500, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 275, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
+  { id: 'dispatch-detail/tablet/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 768, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 230, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
+  { id: 'dispatch-detail/desktop/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 285, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
+  { id: 'master-plan/phone/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 390, kind: 'maxTop', selector: '.master-plan-grid__row', max: 305, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
+  { id: 'master-plan/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 500, kind: 'maxTop', selector: '.master-plan-grid__row', max: 305, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
+  { id: 'master-plan/tablet/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 768, kind: 'maxTop', selector: '.master-plan-grid__row', max: 270, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
+  { id: 'master-plan/desktop/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 1440, kind: 'maxTop', selector: '.master-plan-grid__row', max: 260, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
 
   // --- The facets live in the drawer, at every width -----------------------
   { id: 'dispatch-detail/phone/no-ribbon-facet-grid', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'hidden', selector: '.detailed-plan-ribbon__quick', note: 'the 2-up facet grid was the header mess the operator rejected; a later session must not restore it' },
@@ -82,7 +79,7 @@ export default [
   { id: 'dispatch-detail/desktop/sheet-clears-its-trigger', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'clearOf', selector: '.filter-dropdown__popover', relative: '.filter-dropdown__trigger', min: 0, open: 'drawer', note: 'same invariant at desk width, where the card first reported it. Currently 4px and not scrolling, so this holds it rather than catching a live regression' },
 
   // --- Header shape --------------------------------------------------------
-  { id: 'dispatch-detail/desktop/header-one-row', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'maxHeight', selector: '.detailed-plan-header', max: 40, note: 'title + presets + range + Gán xe on one 36px row at desk width' },
+  { id: 'dispatch-detail/desktop/header-one-row', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'hidden', selector: '.detailed-plan-header', note: 'card 20260930_246: the title row left entirely (it duplicated the shell route identity; the master plan never carried one) — the lock flips from one-row shape to absence so a re-introduction is caught and re-budgeted' },
   { id: 'dispatch-detail/phone/clear-control-not-stretched', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'maxWidth', selector: '.detailed-plan-filters__clear', max: 120, note: 'Xóa lọc claimed half the row in the rejected layout (186px+); it now hugs its content next to Bộ lọc' },
   { id: 'dispatch-detail/desktop/date-scope-is-the-shared-group', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'computed', selector: '.filter-bar__presets .ds-tabs', prop: 'border-top-width', equals: '1px', note: 'operator ruling 2026-09-27: one button group app-wide (the fleet-vehicle status group is the reference). The day scope moved off the header into the shared strip presets slot (card 20260927_152), so the lock follows it there — a bespoke segment shape is still the regression' },
   { id: 'dispatch-detail/phone/date-scope-fits-the-title-row', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'hidden', selector: '.detailed-plan-header__date', note: 'the day scope left the header for the shared strip (card 20260927_152): on a phone the strip folds it into the Bộ lọc dialog, so the header must not own it at any width — the desktop lock proves it is the shared boxed group where it is visible' },

@@ -11,6 +11,11 @@
    therefore declares no strip layout, no control width and no control height —
    what stays is the page's own chrome: the visible title above the strip. */
 .detailed-plan-header {
+  /* Card 20260930_246: the title duplicates the app shell's route identity;
+     with the advisory strips compacted to §8 lines it is the one remaining
+     chrome row without a job, so it leaves at every width (the master plan
+     never carried one). The JSX stays — source contracts reference it. */
+  display: none;
   margin: 0 0 10px;
 }
 

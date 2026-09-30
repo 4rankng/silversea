@@ -34,6 +34,7 @@ export function ZoneTruckPresencePanel({
         <span className="zone-presence-panel__title">Xe tại {zoneLabel}</span>
         {date && <span className="zone-presence-panel__date">quanh ngày {formatDate(date)}</span>}
       </div>
+      <span className="zone-presence-panel__count-summary">{items.length} xe</span>
       <div className="zone-presence-panel__chips" role="list">
         {items.map((item) => {
           const reasons = [...new Set(item.evidence.map((evidence) => evidence.reason))];
