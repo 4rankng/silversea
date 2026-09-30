@@ -1,7 +1,24 @@
 export function formatNumber(n: number | string | null): string {
-  if (n == null) return '—';
+  return formatNumberWithOptions(n, {});
+}
+
+/**
+ * Card 20260930_231 — the empty-label axis. Every display formatter honors
+ * one options shape: `{ empty }` overrides the house '—' rendered for
+ * null/undefined/non-finite input (some surfaces legitimately use '-' or a
+ * longer hint instead). Measure formatters (km, liters, percent) and the
+ * month formatter below are the unit axis absorbed from the deleted
+ * per-feature alias modules — rounding and empty contracts live only here.
+ */
+export interface FormatValueOptions {
+  empty?: string;
+}
+
+function formatNumberWithOptions(n: number | string | null, options: FormatValueOptions): string {
+  const empty = options.empty ?? '—';
+  if (n == null) return empty;
   const num = typeof n === 'string' ? parseFloat(n) : n;
-  if (isNaN(num)) return '—';
+  if (isNaN(num)) return empty;
   return num.toLocaleString('vi-VN');
 }
 
@@ -15,10 +32,11 @@ export function formatCompact(n: number | string | null): string {
   return num.toLocaleString('vi-VN');
 }
 
-export function formatCurrency(n: number | string | null): string {
-  if (n == null) return '— ₫';
+export function formatCurrency(n: number | string | null, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '— ₫';
+  if (n == null) return empty;
   const num = typeof n === 'string' ? parseFloat(n) : n;
-  if (isNaN(num)) return '— ₫';
+  if (isNaN(num)) return empty;
   return `${num.toLocaleString('vi-VN')} ₫`;
 }
 
@@ -54,10 +72,11 @@ export function moneyParts(amount: number, compact: boolean): MoneyParts {
 /** THE canonical table-cell date (card 20260921_23): "DD/MM/YYYY" padded,
  * Vietnam wall-clock. Replaces the unpadded vi-VN locale output ("20/9/2026")
  * so date-only cells match the datetime contract everywhere. */
-export function formatDate(d: string | null): string {
-  if (!d) return '—';
+export function formatDate(d: string | null, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (!d) return empty;
   const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return '—';
+  if (Number.isNaN(date.getTime())) return empty;
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
@@ -111,12 +130,13 @@ export function formatDateTimeShort(value: string | null | undefined): string {
  * ±hh:mm), converts to the Vietnam business timezone first so a UTC
  * midnight-adjacent instant maps to the correct local date (KP-032).
  */
-export function formatISODate(iso: string | null | undefined): string {
-  if (!iso) return '—';
+export function formatISODate(iso: string | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (!iso) return empty;
   // Instant with timezone suffix — convert via Intl to Vietnam date.
   if (/[Zz]$|[+-]\d{2}:\d{2}$/.test(iso)) {
     const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return '—';
+    if (Number.isNaN(date.getTime())) return empty;
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
@@ -133,13 +153,46 @@ export function formatISODate(iso: string | null | undefined): string {
 /**
  * Vietnamese-formatted amount with no currency symbol and no decimals — for
  * cells that render the "₫" unit in a separate element. Companion to
- * formatCurrency which always appends " ₫".
+ * formatCurrency which always appends " ₫". THE money rounding contract
+ * (card 20260930_231): Intl half-away-from-zero at zero fraction digits —
+ * superseding the per-feature Math.round and default-Intl variants.
  */
-export function formatMoney(n: number | string | null): string {
-  if (n == null) return '—';
+export function formatMoney(n: number | string | null, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (n == null) return empty;
   const num = typeof n === 'string' ? Number(n) : n;
-  if (!Number.isFinite(num)) return '—';
+  if (!Number.isFinite(num)) return empty;
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(num);
+}
+
+/** Liters with one decimal and the Vietnamese decimal comma, e.g. "94,8 L". */
+export function formatLiters(n: number | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (n == null) return empty;
+  return `${n.toFixed(1).replace('.', ',')} L`;
+}
+
+/** Kilometers with locale grouping, e.g. "135 km". */
+export function formatKm(n: number | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (n == null) return empty;
+  return `${Math.round(n).toLocaleString('vi-VN')} km`;
+}
+
+/** Percentage with one decimal and the Vietnamese decimal comma, e.g. "60,9". */
+export function formatPercent(n: number | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (n == null) return empty;
+  return n.toFixed(1).replace('.', ',');
+}
+
+/** Month key ("YYYY-MM-…") rendered as "MM/YYYY", e.g. "06/2026". */
+export function formatViMonth(value: string, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (!value) return empty;
+  const month = value.slice(5, 7);
+  const year = value.slice(0, 4);
+  return month && year ? `${month}/${year}` : empty;
 }
 
 /**
