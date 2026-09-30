@@ -20,7 +20,7 @@ const animatedOverlaySource = readFileSync(
   'utf8',
 );
 const responsiveStyles = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
-const modalStyles = readFileSync(resolve(process.cwd(), 'src/components/Modal.css'), 'utf8');
+const modalStyles = readFileSync(resolve(process.cwd(), 'src/design-system/Modal.css'), 'utf8');
 const drawerStyles = readFileSync(resolve(process.cwd(), 'src/components/Drawer.css'), 'utf8');
 const shipmentStyles = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const userStyles = readFileSync(resolve(process.cwd(), 'src/features/users/users.css'), 'utf8');

@@ -32,7 +32,7 @@ const ALIAS_FILL = /var\(\s*--(?:bg[\w-]*|surface-1\b|surface-white\b|background
 // Overlay-layer CSS hosts in this card's scope. Comment = what floats there.
 const CSS_SCOPE = [
   'src/components/ConfirmDialog.css', // confirm modal surface
-  'src/components/Modal.css', // modal surface + polished variant
+  'src/design-system/Modal.css', // modal surface + polished variant
   'src/components/Drawer.css', // drawer surface
   'src/components/Table.css', // .fee-action-dropdown floating menu
   'src/components/UI.css', // shared UI primitives (checkbox, overlays)
@@ -89,8 +89,8 @@ const EXCLUDED: Array<{ file: string; lane: string; date: string }> = [
 // the compliant #fff fallback). Selector = last line of the rule's selector list.
 const CSS_SURFACES: Array<[string, RegExp]> = [
   ['src/components/ConfirmDialog.css', /^\.confirm-box$/],
-  ['src/components/Modal.css', /^\.modal__content$/],
-  ['src/components/Modal.css', /^\.modal--polished \.modal__content$/],
+  ['src/design-system/Modal.css', /^\.modal__content$/],
+  ['src/design-system/Modal.css', /^\.modal--polished \.modal__content$/],
   ['src/components/Drawer.css', /^\.drawer$/],
   ['src/components/Table.css', /^\.fee-action-dropdown$/],
   ['src/components/shared/Toast.css', /^\.toast$/],

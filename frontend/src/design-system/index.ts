@@ -73,3 +73,11 @@ export { BufferedUuiDateInput } from './forms/BufferedUuiDateInput';
 export type { BufferedUuiDateInputProps } from './forms/BufferedUuiDateInput';
 export { BufferedUuiDateTimeInput } from './forms/BufferedUuiDateTimeInput';
 export type { BufferedUuiDateTimeInputProps } from './forms/BufferedUuiDateTimeInput';
+
+// The one modal module (card 20260930_227): owns portal-to-body, scroll lock,
+// Escape (picker-deferent), focus trap + return, scrim dismissal, chrome and
+// size for every dialog surface in the app.
+export { Modal, ModalChip, ModalChipLive, ModalChipGhost, ModalCompactContext, useConfirmShortcuts } from './Modal';
+export type { ModalProps } from './Modal';
+export { usePortalTarget } from './hooks/usePortalTarget';
+export { useScrollLock } from './hooks/useScrollLock';

@@ -14,7 +14,7 @@ function collectTsxFiles(dir: string): string[] {
 
 describe('dialog density contract', () => {
   it('keeps phone text fields aligned with the shared phone select without collapsing notes', () => {
-    const modal = readFileSync(resolve(process.cwd(), 'src/components/Modal.css'), 'utf8');
+    const modal = readFileSync(resolve(process.cwd(), 'src/design-system/Modal.css'), 'utf8');
     expect(modal).toMatch(/\.modal__body \.field \.input:not\(textarea\)\s*\{[^}]*min-height:\s*var\(--control-mobile-h\)/);
     const ui = readFileSync(resolve(process.cwd(), 'src/components/UI.css'), 'utf8');
     expect(ui).toMatch(/\.field > \[data-label\]\s*\{[^}]*margin-bottom:\s*0/);

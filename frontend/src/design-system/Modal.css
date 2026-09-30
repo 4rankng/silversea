@@ -433,3 +433,22 @@
   .modal__foot > .modal__hint { flex: 0 0 100%; }
   .modal__foot:has(> .modal__hint) > .btn { flex: 1 1 0; }
 }
+
+/* ─── Bare mode (overlay mechanics, dialog-owned chrome) ──────────────────
+ * The module owns portal/scrim/dismissal/focus/scroll-lock; the children own
+ * every pixel of the dialog surface (ops dialogs, positioned panels). The
+ * mobile bottom-sheet shape is a house-chrome behavior, so a bare overlay
+ * keeps the centered shape at every band and restores the scrim-safe mobile
+ * gutters the legacy ops backdrop defined. */
+.modal--bare {
+  padding: 24px 12px;
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .modal--bare {
+    align-items: center;
+    padding: max(8px, env(safe-area-inset-top, 0px)) 8px max(8px, env(safe-area-inset-bottom, 0px));
+    overscroll-behavior: contain;
+  }
+}

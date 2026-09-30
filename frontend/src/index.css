@@ -20,7 +20,7 @@
 @import "./components/FilterBar.css";
 @import "./components/Table.css";
 @import "./components/Pill.css";
-@import "./components/Modal.css";
+@import "./design-system/Modal.css";
 @import "./components/Drawer.css";
 @import "./components/ConfirmDialog.css";
 @import "./components/InfoRow.css";
