@@ -24,7 +24,7 @@ import {
 } from '../services/invoice-tracking.service';
 import { requireRoles } from '../middleware/casbin';
 import { runIdempotent } from '../services/idempotency.service';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 function parseId(value: string | string[] | undefined, label = 'ID'): number {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -40,7 +40,6 @@ function requireIdempotencyKey(req: Request): string {
 }
 
 const accountingRoutes = Router()
-accountingRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 const OFFICE_ROLES = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 
@@ -57,7 +56,7 @@ function businessDate(): string {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
-accountingRoutes.post('/invoice-tracking', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+accountingRoutes.post('/invoice-tracking', declareMaterialWrite('accounting.invoice-tracking.create', { method: 'POST', path: '/api/accounting/invoice-tracking' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = invoiceTrackingCreateSchema.parse(req.body);
   const outcome = await runIdempotent({
@@ -71,7 +70,7 @@ accountingRoutes.post('/invoice-tracking', OFFICE_ROLES, asyncHandler(async (req
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-accountingRoutes.patch('/invoice-tracking/:id', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+accountingRoutes.patch('/invoice-tracking/:id', declareMaterialWrite('accounting.invoice-tracking.update', { method: 'PATCH', path: '/api/accounting/invoice-tracking/:id' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const id = parseId(req.params.id);
   const parsed = invoiceTrackingPatchSchema.parse(req.body);
@@ -85,7 +84,7 @@ accountingRoutes.patch('/invoice-tracking/:id', OFFICE_ROLES, asyncHandler(async
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-accountingRoutes.delete('/invoice-tracking/:id', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+accountingRoutes.delete('/invoice-tracking/:id', declareMaterialWrite('accounting.invoice-tracking.delete', { method: 'DELETE', path: '/api/accounting/invoice-tracking/:id' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const id = parseId(req.params.id);
   // Q10 (card 20260922_78): mandatory free-text reason; soft-voids the

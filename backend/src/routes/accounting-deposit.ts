@@ -7,13 +7,12 @@ import { throwValidation } from '../lib/validation';
 import { parseId } from './utils/parse-id';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 import {
   listDepositTrackers, createDepositTracker, updateDepositTrackerDates, markDepositRefunded, normalizeDepositDate,
 } from '../services/deposit-refund-tracker.service';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throwValidation(result.error);
@@ -36,7 +35,7 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(await listDepositTrackers(getUser(req), { from: query.from, to: query.to, status: query.status }));
 }));
 
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', declareMaterialWrite('accounting.deposit-tracker.create', { method: 'POST', path: '/api/accounting/deposits/' }),  asyncHandler(async (req, res) => {
   const user = getUser(req);
   const input = parse(z.object({
     billNumber: z.string().trim().min(1).max(80),
@@ -58,7 +57,7 @@ router.post('/', asyncHandler(async (req, res) => {
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.patch('/:id/dates', asyncHandler(async (req, res) => {
+router.patch('/:id/dates', declareMaterialWrite('accounting.deposit-tracker.dates', { method: 'PATCH', path: '/api/accounting/deposits/:id/dates' }),  asyncHandler(async (req, res) => {
   const user = getUser(req);
   const trackerId = parseId(req.params.id as string, 'ID dòng');
   const input = parse(z.object({
@@ -78,7 +77,7 @@ router.patch('/:id/dates', asyncHandler(async (req, res) => {
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.post('/:id/refund', asyncHandler(async (req, res) => {
+router.post('/:id/refund', declareMaterialWrite('accounting.deposit-tracker.refund', { method: 'POST', path: '/api/accounting/deposits/:id/refund' }),  asyncHandler(async (req, res) => {
   const user = getUser(req);
   const trackerId = parseId(req.params.id as string, 'ID dòng');
   // Legacy clients send an empty body (or only _requestId). Preserve that

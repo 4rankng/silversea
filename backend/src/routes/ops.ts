@@ -43,14 +43,13 @@ import {
 import { exportOpsSettlementXlsx } from '../services/ops-settlement-export.service';
 import { getOpsFleet, listActiveTruckOpsAssignments, setTruckOpsAssignment } from '../services/ops-fleet.service';
 import { declareNonMaterialWrite } from '../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 const OPS_ONLY = requireRoles(Role.OPS);
 const OPS_APPROVERS = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 const ADMIN_ONLY = requireRoles(Role.ADMIN);
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 const dateQuerySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date phải có dạng YYYY-MM-DD');
 const statusFilterSchema = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional();
@@ -124,7 +123,7 @@ router.get('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Reques
   res.json(await listAdvanceRequestsPaginated({ requesterId: user.userId, status, page, limit }));
 }));
 
-router.post('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/wallet/advance-requests', declareMaterialWrite('ops.advance-requests.create', { method: 'POST', path: '/api/ops/wallet/advance-requests' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = createAdvanceRequestSchema.parse(req.body);
   const outcome = await runIdempotent({
@@ -181,7 +180,7 @@ const expensePatchSchema = z.object({
 });
 
 
-router.post('/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = expenseCreateSchema.parse(req.body);
   const outcome = await runIdempotent({
@@ -195,7 +194,7 @@ router.post('/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: Respon
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.patch('/expenses/:id', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.patch('/expenses/:id', declareMaterialWrite('ops.expenses.update', { method: 'PATCH', path: '/api/ops/expenses/:id' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const expenseId = parseId(req.params.id);
   const parsed = expensePatchSchema.parse(req.body);
@@ -209,7 +208,7 @@ router.patch('/expenses/:id', OPS_ONLY, asyncHandler(async (req: Request, res: R
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.delete('/expenses/:id', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.delete('/expenses/:id', declareMaterialWrite('ops.expenses.delete', { method: 'DELETE', path: '/api/ops/expenses/:id' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const expenseId = parseId(req.params.id);
   // Q10 (card 20260922_78 batch 2): the soft void now captures a mandatory
@@ -296,7 +295,7 @@ router.get('/settlements', OPS_ONLY, asyncHandler(async (req: Request, res: Resp
   res.json({ items: await listOpsSettlements({ opsUserId: user.userId, status }) });
 }));
 
-router.post('/settlements', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/settlements', declareMaterialWrite('ops.settlements.create', { method: 'POST', path: '/api/ops/settlements' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const { note } = z.object({ note: z.string().max(500).optional() }).parse(req.body ?? {});
   const outcome = await runIdempotent({
@@ -310,7 +309,7 @@ router.post('/settlements', OPS_ONLY, asyncHandler(async (req: Request, res: Res
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.post('/settlements/:id/finalize', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/settlements/:id/finalize', declareMaterialWrite('ops.settlements.finalize', { method: 'POST', path: '/api/ops/settlements/:id/finalize' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const id = parseId(req.params.id);
   const outcome = await runIdempotent({
@@ -322,7 +321,7 @@ router.post('/settlements/:id/finalize', OPS_ONLY, asyncHandler(async (req: Requ
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.post('/settlements/:id/reopen-draft', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/settlements/:id/reopen-draft', declareMaterialWrite('ops.settlements.reopen-draft', { method: 'POST', path: '/api/ops/settlements/:id/reopen-draft' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const id = parseId(req.params.id);
   const outcome = await runIdempotent({

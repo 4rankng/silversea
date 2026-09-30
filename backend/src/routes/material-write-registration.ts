@@ -5,3 +5,10 @@
 // the hand-written registry; the exhaustive test's independent endpoint
 // extraction fails if a migrated family is missing here.
 import './config';
+import './expense-accounting';
+import './expense-accounting-cash';
+import './expense';
+import './ops';
+import './accounting';
+import './accounting-deposit';
+import './accounting-debit';

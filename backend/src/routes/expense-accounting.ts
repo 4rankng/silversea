@@ -23,10 +23,9 @@ import { requireShipmentIdempotencyKey, runShipmentWrite, sendShipmentWrite } fr
 
 import expenseAccountingCashRoutes from './expense-accounting-cash';
 import { declareNonMaterialWrite } from '../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // ── Card 20260921_12: Bảng kiểm soát phơi phiếu / tiền đường ────────────────
 
@@ -74,7 +73,7 @@ router.get('/phoi-phieu/truck-assignments', requireRoles(...PHOI_PHIEU_ROLES), a
   res.json(await listPhoiPhieuTruckAssignments());
 }));
 
-router.put('/phoi-phieu/trucks/:truckId/accountant', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
+router.put('/phoi-phieu/trucks/:truckId/accountant', declareMaterialWrite('expense-accounting.phoi-phieu.truck-assign', { method: 'PUT', path: '/api/expense-accounting/phoi-phieu/trucks/:truckId/accountant' }),  requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const user = getUser(req);
   const truckId = parse(idSchema, req.params.truckId);
   const input = parse(z.object({
@@ -105,7 +104,7 @@ router.get('/phoi-phieu/:tripId/tien-duong', requireRoles(...PHOI_PHIEU_ROLES), 
   res.json(await getPhoiPhieuTienDuong(tripId));
 }));
 
-router.put('/phoi-phieu/:tripId/phoi-meta', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
+router.put('/phoi-phieu/:tripId/phoi-meta', declareMaterialWrite('expense-accounting.phoi-phieu.phoi-meta', { method: 'PUT', path: '/api/expense-accounting/phoi-phieu/:tripId/phoi-meta' }),  requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   const input = parse(z.object({
     ngayLayPhoi: z.string().date().nullable().optional(),
@@ -124,7 +123,7 @@ router.put('/phoi-phieu/:tripId/phoi-meta', requireRoles(...PHOI_PHIEU_ROLES), a
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.delete('/phoi-phieu/:tripId/rows/:sourceId', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
+router.delete('/phoi-phieu/:tripId/rows/:sourceId', declareMaterialWrite('expense-accounting.phoi-phieu.row-void', { method: 'DELETE', path: '/api/expense-accounting/phoi-phieu/:tripId/rows/:sourceId' }),  requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   const sourceId = parse(idSchema, req.params.sourceId);
   const reason = parse(z.object({ reason: z.string().trim().min(1).max(500) }).strict(), req.body ?? {}).reason;
@@ -141,7 +140,7 @@ router.delete('/phoi-phieu/:tripId/rows/:sourceId', requireRoles(...PHOI_PHIEU_R
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.post('/phoi-phieu/vouchers', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
+router.post('/phoi-phieu/vouchers', declareMaterialWrite('expense-accounting.phoi-phieu.voucher', { method: 'POST', path: '/api/expense-accounting/phoi-phieu/vouchers' }),  requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const user = getUser(req);
   const input = parse(z.object({
     tripIds: z.array(z.number().int().positive()).min(1),
@@ -178,7 +177,7 @@ router.get('/entries', asyncHandler(async (req, res) => res.json(await listExpen
 router.get('/work', asyncHandler(async (req, res) => res.json(await listExpenseAccountingWork(getUser(req), parse(expenseListQuerySchema, req.query)))));
 router.get('/catalog', asyncHandler(async (req, res) => res.json(await getExpenseAccountingCatalog(getUser(req)))));
 router.get('/entries/:kind/:id', asyncHandler(async (req, res) => res.json(await getExpenseAccountingEntry(getUser(req), parse(sourceSchema, req.params.kind), parse(idSchema, req.params.id)))));
-router.post('/entries', asyncHandler(async (req, res) => {
+router.post('/entries', declareMaterialWrite('expense-accounting.create', { method: 'POST', path: '/api/expense-accounting/entries' }),  asyncHandler(async (req, res) => {
   const input = parse(expenseAccountingCreateSchema, req.body);
   requireShipmentIdempotencyKey(req, 'Cần mã thao tác để tránh ghi trùng khoản chi.');
   const result = await runShipmentWrite(req, 'expense-accounting.create', input, async tx => {
@@ -187,7 +186,7 @@ router.post('/entries', asyncHandler(async (req, res) => {
   });
   sendShipmentWrite(res, result.result);
 }));
-router.post('/entries/:kind/:id/update', asyncHandler(async (req, res) => {
+router.post('/entries/:kind/:id/update', declareMaterialWrite('expense-accounting.update', { method: 'POST', path: '/api/expense-accounting/entries/:kind/:id/update' }),  asyncHandler(async (req, res) => {
   const kind = parse(sourceSchema, req.params.kind); const id = parse(idSchema, req.params.id);
   const input = parse(expenseAccountingUpdateSchema, req.body);
   requireShipmentIdempotencyKey(req, 'Cần mã thao tác để thử lại an toàn.');
@@ -197,7 +196,7 @@ router.post('/entries/:kind/:id/update', asyncHandler(async (req, res) => {
   });
   sendShipmentWrite(res, result.result);
 }));
-router.post('/entries/:kind/:id/correct', asyncHandler(async (req, res) => {
+router.post('/entries/:kind/:id/correct', declareMaterialWrite('expense-accounting.correct', { method: 'POST', path: '/api/expense-accounting/entries/:kind/:id/correct' }),  asyncHandler(async (req, res) => {
   const kind = parse(sourceSchema, req.params.kind); const id = parse(idSchema, req.params.id);
   const input = parse(expenseAccountingUpdateSchema, req.body);
   requireShipmentIdempotencyKey(req, 'Cần mã thao tác để không điều chỉnh trùng.');
@@ -207,7 +206,7 @@ router.post('/entries/:kind/:id/correct', asyncHandler(async (req, res) => {
   });
   sendShipmentWrite(res, result.result);
 }));
-router.post('/confirm', asyncHandler(async (req, res) => {
+router.post('/confirm', declareMaterialWrite('expense-accounting.confirm', { method: 'POST', path: '/api/expense-accounting/confirm' }),  asyncHandler(async (req, res) => {
   const input = parse(expenseConfirmSchema, req.body);
   requireShipmentIdempotencyKey(req, 'Cần mã thao tác để đối chiếu không bị trùng.');
   const result = await runShipmentWrite(req, 'expense-accounting.confirm', input, async tx => {
@@ -217,7 +216,7 @@ router.post('/confirm', asyncHandler(async (req, res) => {
   sendShipmentWrite(res, result.result);
 }));
 router.get('/assignments', asyncHandler(async (req, res) => res.json({ items: await listTruckAccountantAssignments(getUser(req)) })));
-router.post('/assignments', asyncHandler(async (req, res) => {
+router.post('/assignments', declareMaterialWrite('expense-accounting.assign', { method: 'POST', path: '/api/expense-accounting/assignments' }),  asyncHandler(async (req, res) => {
   const input = parse(z.object({ truckId: idSchema, accountantId: idSchema.nullable(), expectedVersion: z.number().int().nonnegative() }).strict(), req.body);
   requireShipmentIdempotencyKey(req, 'Cần mã thao tác để cập nhật phân công.');
   const result = await runShipmentWrite(req, 'expense-accounting.assign', input, async tx => ({ body: await assignTruckAccountant(tx, getUser(req), input.truckId, input.accountantId, input.expectedVersion), status: 200, auditEntityId: input.truckId }));
@@ -226,7 +225,7 @@ router.post('/assignments', asyncHandler(async (req, res) => {
 // Card 20260928_166 AC1 — the 39-truck split in one request. All-or-nothing:
 // `assignTruckAccountantsBatch` runs inside this one transaction, so a bad truck
 // aborts every assignment in the batch rather than leaving a half-applied split.
-router.post('/assignments/batch', asyncHandler(async (req, res) => {
+router.post('/assignments/batch', declareMaterialWrite('expense-accounting.assign-batch', { method: 'POST', path: '/api/expense-accounting/assignments/batch' }),  asyncHandler(async (req, res) => {
   const input = parse(z.object({
     accountantId: idSchema.nullable(),
     truckIds: z.array(idSchema).min(1).max(200),

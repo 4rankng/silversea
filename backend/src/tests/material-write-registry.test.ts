@@ -15,6 +15,9 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { matchDeclaredMaterialWrite } from '../middleware/material-write';
+// Migrated route families self-declare their registry rows at import time
+// (card 20260930_230); importing the registration module registers them here.
+import '../routes/material-write-registration';
 
 describe('material-write registry covers the assignment batch route', () => {
   test('POST /api/expense-accounting/assignments/batch is a declared material write', () => {

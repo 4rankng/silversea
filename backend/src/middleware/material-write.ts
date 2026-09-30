@@ -24,43 +24,17 @@ function escapeRegexPath(path: string): string {
 const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'shipments.invoice-records.save', pattern: /^\/api\/shipments\/[^/]+\/invoice-records$/ },
   { method: 'POST', endpoint: 'shipments.container-deposits.save', pattern: /^\/api\/shipments\/[^/]+\/container-deposits$/ },
-  { method: 'POST', endpoint: 'expense-accounting.create', pattern: /^\/api\/expense-accounting\/entries$/ },
-  { method: 'POST', endpoint: 'expense-accounting.correct', pattern: /^\/api\/expense-accounting\/entries\/[^/]+\/[^/]+\/correct$/ },
-  { method: 'POST', endpoint: 'expense-reconciliation.release', pattern: /^\/api\/expense-accounting\/reconciliations\/[^/]+\/release$/ },
-  { method: 'POST', endpoint: 'expense-accounting.update', pattern: /^\/api\/expense-accounting\/entries\/[^/]+\/[^/]+\/update$/ },
-  { method: 'POST', endpoint: 'expense-accounting.confirm', pattern: /^\/api\/expense-accounting\/confirm$/ },
-  { method: 'POST', endpoint: 'expense-accounting.assign', pattern: /^\/api\/expense-accounting\/assignments$/ },
   // Card 20260928_166 AC1 — the 39-truck split. The batch route shipped without
   // this declaration: runShipmentWrite's audit persist found no declared
   // material-write endpoint and every real request 500'd while the
   // service-level suite (which skips the router) stayed green.
-  { method: 'POST', endpoint: 'expense-accounting.assign-batch', pattern: /^\/api\/expense-accounting\/assignments\/batch$/ },
   // Card 20260921_21/19/8+13 governance rider: the ten financial-write
   // routes wrapped in runIdempotent (see the accounting routes).
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_CONFIRM, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments\/confirm$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_WITHDRAW, pattern: /^\/api\/accounting\/debit-board\/rate-adjustments\/withdraw$/ },
   // Card 20260923_12 — Chọn Debit settlement rounds (đợt chốt) — one more
   // financial write in the runIdempotent family.
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_SETTLEMENT_ROUND_CREATE, pattern: /^\/api\/accounting\/debit-board\/settlement-rounds$/ },
   // Card 20260922_57 quotation xlsx import commit — the route already demanded
   // an Idempotency-Key; the durable boundary makes the key real (replays
   // return the stored response instead of always creating a new frame).
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_CREATE, pattern: /^\/api\/accounting\/deposits$/ },
-  { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_DATES, pattern: /^\/api\/accounting\/deposits\/[^/]+\/dates$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_REFUND, pattern: /^\/api\/accounting\/deposits\/[^/]+\/refund$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_VOUCHER, pattern: /^\/api\/expense-accounting\/phoi-phieu\/vouchers$/ },
-  { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_ROW_VOID, pattern: /^\/api\/expense-accounting\/phoi-phieu\/[^/]+\/rows\/[^/]+$/ },
-  { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_PHOI_META, pattern: /^\/api\/expense-accounting\/phoi-phieu\/[^/]+\/phoi-meta$/ },
-  { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.PHOI_PHIEU_TRUCK_ASSIGN, pattern: /^\/api\/expense-accounting\/phoi-phieu\/trucks\/[^/]+\/accountant$/ },
-  { method: 'POST', endpoint: 'expenses.ops-reimburse',
-    canonicalAliases: [IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE, IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR, IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT],
-    pattern: /^\/api\/expense-accounting\/vouchers$/ },
-  { method: 'POST', endpoint: 'expense-cash.reverse', pattern: /^\/api\/expense-accounting\/vouchers\/[^/]+\/reverse$/ },
-  { method: 'POST', endpoint: 'expense-cash.allocate', pattern: /^\/api\/expense-accounting\/vouchers\/[^/]+\/allocate$/ },
-  { method: 'POST', endpoint: 'expenses.reconcile', pattern: /^\/api\/expense-accounting\/reconciliations$/ },
-  { method: 'POST', endpoint: 'expenses.reconciliation.refund', pattern: /^\/api\/expense-accounting\/reconciliations\/[^/]+\/refund$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_ADVANCE_REQUEST_CREATE, pattern: /^\/api\/expense-accounting\/advances$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO, pattern: /^\/api\/upload$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_COMPANY_LOGO, pattern: /^\/api\/upload\/company-logo$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO_DELETE, pattern: /^\/api\/upload\/trips\/[^/]+\/photos\/[^/]+\/delete$/ },
@@ -76,23 +50,15 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'DELETE', endpoint: 'auth.business-units.deactivate', pattern: /^\/api\/auth\/business-units\/[^/]+$/ },
   // Ops field-operations portal (OpsVanHanh) — financial cash commands run
   // runIdempotent in routes/ops.ts with these durable endpoints.
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_CREATE, pattern: /^\/api\/ops\/expenses$/ },
-  { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_UPDATE, pattern: /^\/api\/ops\/expenses\/[^/]+$/ },
-  { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_DELETE, pattern: /^\/api\/ops\/expenses\/[^/]+$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_APPROVE, pattern: /^\/api\/ops\/admin\/expenses\/[^/]+\/approve$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_REJECT, pattern: /^\/api\/ops\/admin\/expenses\/[^/]+\/reject$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_CREATE, pattern: /^\/api\/ops\/settlements$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_FINALIZE, pattern: /^\/api\/ops\/settlements\/[^/]+\/finalize$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_REOPEN_DRAFT, pattern: /^\/api\/ops\/settlements\/[^/]+\/reopen-draft$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_APPROVE, pattern: /^\/api\/ops\/admin\/settlements\/[^/]+\/approve$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_SETTLEMENT_REJECT, pattern: /^\/api\/ops\/admin\/settlements\/[^/]+\/reject$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_ADVANCE_REQUEST_CREATE, pattern: /^\/api\/ops\/wallet\/advance-requests$/ },
   { method: 'PUT', endpoint: 'admin.app-settings.email.update', pattern: /^\/api\/admin\/app-settings\/email$/ },
   { method: 'PUT', endpoint: 'admin.app-settings.update', pattern: /^\/api\/admin\/app-settings$/ },
   { method: 'POST', endpoint: 'admin.financial-reporting-policy.request', pattern: /^\/api\/admin\/app-settings\/financial-reporting\/policy$/ },
   { method: 'POST', endpoint: 'admin.truck-financial-profile.request', pattern: /^\/api\/admin\/app-settings\/financial-reporting\/truck-profiles$/ },
   { method: 'PUT', endpoint: 'admin.ocr-settings.update', pattern: /^\/api\/admin\/ocr-settings$/ },
-  { method: 'POST', endpoint: 'expenses.submit', pattern: /^\/api\/expenses$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.CARRIER_FLEET_VEHICLE_CREATE, pattern: /^\/api\/shipments\/carrier-fleet-vehicles$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.CARRIER_FLEET_VEHICLE_UPDATE, pattern: /^\/api\/shipments\/carrier-fleet-vehicles\/[^/]+$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CARRIER_ALLOCATIONS_ASSIGN, pattern: /^\/api\/shipments\/[^/]+\/carrier-allocations$/ },
@@ -120,12 +86,8 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST_DECISION, pattern: /^\/api\/shipments\/cus-workspace\/[^/]+\/delete-requests\/[^/]+\/decision$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_RECOVERY_RECORD, pattern: /^\/api\/shipments\/[^/]+\/recovery-facts$/ },
-  { method: 'PUT', endpoint: 'expenses.governed-update', pattern: /^\/api\/expenses\/[^/]+$/ },
   { method: 'PUT', endpoint: 'expenses.update', pattern: /^\/api\/expenses\/[^/]+$/ },
-  { method: 'DELETE', endpoint: 'expenses.governed-delete', pattern: /^\/api\/expenses\/[^/]+$/ },
   { method: 'DELETE', endpoint: 'expenses.delete', pattern: /^\/api\/expenses\/[^/]+$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_CREATE, pattern: /^\/api\/expenses\/[^/]+\/photos$/ },
-  { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_DELETE, pattern: /^\/api\/expenses\/[^/]+\/photos\/[^/]+$/ },
   { method: 'POST', endpoint: 'geotag.submit', pattern: /^\/api\/geotag$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE, pattern: /^\/api\/payments\/receive$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENT_REFUNDS_CREATE, pattern: /^\/api\/payments\/receipts\/[^/]+\/refunds$/ },
@@ -228,9 +190,6 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_CREATE, pattern: /^\/api\/shipments\/[^/]+\/declarations$/ },
   { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_UPDATE, pattern: /^\/api\/shipments\/[^/]+\/declarations\/[^/]+$/ },
   { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_DELETE, pattern: /^\/api\/shipments\/[^/]+\/declarations\/[^/]+$/ },
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.INVOICE_TRACKING_CREATE, pattern: /^\/api\/accounting\/invoice-tracking$/ },
-  { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.INVOICE_TRACKING_UPDATE, pattern: /^\/api\/accounting\/invoice-tracking\/[^/]+$/ },
-  { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.INVOICE_TRACKING_DELETE, pattern: /^\/api\/accounting\/invoice-tracking\/[^/]+$/ },
   { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CONTAINERS_RECONCILE, pattern: /^\/api\/shipments\/[^/]+\/containers$/ },
   { method: 'DELETE', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE, pattern: /^\/api\/shipments\/[^/]+$/ },
   { method: 'POST', endpoint: 'portal.shipments.customer-events.acknowledge', pattern: /^\/api\/portal\/shipments\/[^/]+\/customer-events\/[^/]+\/acknowledge$/ },

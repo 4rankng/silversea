@@ -11,7 +11,7 @@ import { requireRoles } from '../middleware/casbin';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { requireShipmentIdempotencyKey } from './shipments/shipment-shared';
-import { legacyMaterialWriteRegistry } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 import {
   getAccountingDebitBoard,
   createRateAdjustmentRequests,
@@ -24,7 +24,6 @@ import {
 } from '../services/debit-settlement-rounds.service';
 
 const accountingDebitRoutes = Router()
-accountingDebitRoutes.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 const OFFICE_ROLES = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 
@@ -63,7 +62,7 @@ accountingDebitRoutes.get('/debit-board', OFFICE_ROLES, asyncHandler(async (req:
   res.json(await getAccountingDebitBoard(parsed.data));
 }));
 
-accountingDebitRoutes.post('/debit-board/rate-adjustments', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+accountingDebitRoutes.post('/debit-board/rate-adjustments', declareMaterialWrite('accounting.debit-board.rate-adjustment.request', { method: 'POST', path: '/api/accounting/debit-board/rate-adjustments' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = adjustmentRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
@@ -83,7 +82,7 @@ accountingDebitRoutes.post('/debit-board/rate-adjustments', OFFICE_ROLES, asyncH
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-accountingDebitRoutes.post('/debit-board/rate-adjustments/confirm', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+accountingDebitRoutes.post('/debit-board/rate-adjustments/confirm', declareMaterialWrite('accounting.debit-board.rate-adjustment.confirm', { method: 'POST', path: '/api/accounting/debit-board/rate-adjustments/confirm' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = decisionSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
@@ -99,7 +98,7 @@ accountingDebitRoutes.post('/debit-board/rate-adjustments/confirm', OFFICE_ROLES
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-accountingDebitRoutes.post('/debit-board/rate-adjustments/withdraw', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+accountingDebitRoutes.post('/debit-board/rate-adjustments/withdraw', declareMaterialWrite('accounting.debit-board.rate-adjustment.withdraw', { method: 'POST', path: '/api/accounting/debit-board/rate-adjustments/withdraw' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = decisionSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
@@ -119,7 +118,7 @@ accountingDebitRoutes.get('/debit-board/settlement-rounds', OFFICE_ROLES, asyncH
   res.json(await listDebitSettlementRounds());
 }));
 
-accountingDebitRoutes.post('/debit-board/settlement-rounds', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+accountingDebitRoutes.post('/debit-board/settlement-rounds', declareMaterialWrite('accounting.debit-board.settlement-round.create', { method: 'POST', path: '/api/accounting/debit-board/settlement-rounds' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = settlementRoundSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
