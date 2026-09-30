@@ -1,9 +1,6 @@
 import type { Request, RequestHandler } from 'express';
 import { ApiError } from '../errors';
-import {
-  IDEMPOTENCY_ENDPOINTS,
-  resolveIdempotencyKey,
-} from '../services/idempotency.service';
+import { resolveIdempotencyKey } from '../services/idempotency.service';
 
 type HttpMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
