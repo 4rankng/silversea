@@ -18,9 +18,10 @@ function escapeRegexPath(path: string): string {
   return path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Dead rows pruned 2026-09-30 (card 20260930_230): the six salary-periods
+// governance-action rows (exclusion/close/reopen -actions check|approve) had
+// no mounts anywhere in src/routes — relics of the approval-workflow removal.
 const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
-  { method: 'POST', endpoint: 'customers.bulk-notify', pattern: /^\/api\/customers\/bulk-notify$/ },
-  { method: 'POST', endpoint: 'customers.bulk-status', pattern: /^\/api\/customers\/bulk-status$/ },
   { method: 'POST', endpoint: 'shipments.invoice-records.save', pattern: /^\/api\/shipments\/[^/]+\/invoice-records$/ },
   { method: 'POST', endpoint: 'shipments.container-deposits.save', pattern: /^\/api\/shipments\/[^/]+\/container-deposits$/ },
   { method: 'POST', endpoint: 'expense-accounting.create', pattern: /^\/api\/expense-accounting\/entries$/ },
@@ -45,7 +46,6 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   // Card 20260922_57 quotation xlsx import commit — the route already demanded
   // an Idempotency-Key; the durable boundary makes the key real (replays
   // return the stored response instead of always creating a new frame).
-  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.QUOTATION_IMPORT_COMMIT, pattern: /^\/api\/quotations\/import\/commit$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_CREATE, pattern: /^\/api\/accounting\/deposits$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_DATES, pattern: /^\/api\/accounting\/deposits\/[^/]+\/dates$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_REFUND, pattern: /^\/api\/accounting\/deposits\/[^/]+\/refund$/ },
@@ -74,10 +74,6 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'auth.business-units.create', pattern: /^\/api\/auth\/business-units$/ },
   { method: 'PATCH', endpoint: 'auth.business-units.update', pattern: /^\/api\/auth\/business-units\/[^/]+$/ },
   { method: 'DELETE', endpoint: 'auth.business-units.deactivate', pattern: /^\/api\/auth\/business-units\/[^/]+$/ },
-  { method: 'POST', endpoint: 'master-data-import.apply', pattern: /^\/api\/config\/master-data-imports\/[^/]+\/apply$/ },
-  { method: 'POST', endpoint: 'master-data-import.reject', pattern: /^\/api\/config\/master-data-imports\/[^/]+\/reject$/ },
-  { method: 'POST', endpoint: 'master-data-import.analyze', pattern: /^\/api\/config\/master-data-imports\/(analyze|dry-run)$/ },
-  { method: 'POST', endpoint: 'config.driver-user-bindings.bind', pattern: /^\/api\/config\/driver-user-bindings\/[^/]+$/ },
   // Ops field-operations portal (OpsVanHanh) — financial cash commands run
   // runIdempotent in routes/ops.ts with these durable endpoints.
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_CREATE, pattern: /^\/api\/ops\/expenses$/ },
@@ -166,10 +162,6 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   // instead of the audit guard's raw 500 "Material write audit context is
   // incomplete" (QA staging finding 2026-09-23). Endpoint strings MUST equal
   // the routes' runIdempotent endpoint values.
-  { method: 'POST', endpoint: 'quotations.create', pattern: /^\/api\/quotations$/ },
-  { method: 'PUT', endpoint: 'quotations.update', pattern: /^\/api\/quotations\/[^/]+$/ },
-  { method: 'DELETE', endpoint: 'quotations.delete', pattern: /^\/api\/quotations\/[^/]+$/ },
-  { method: 'POST', endpoint: 'quotation-fuel-approvals.decide', pattern: /^\/api\/quotations\/fuel-approvals\/decide$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK, pattern: /^\/api\/governance-actions\/[^/]+\/check$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE, pattern: /^\/api\/governance-actions\/[^/]+\/approve$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_REJECT, pattern: /^\/api\/governance-actions\/[^/]+\/reject$/ },
@@ -273,31 +265,6 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'forwarder.paper-order.collection', pattern: /^\/api\/forwarder\/me\/trips\/[^/]+\/paper-order-collection$/ },
   { method: 'POST', endpoint: 'forwarder.order-exchange.start', pattern: /^\/api\/forwarder\/me\/shipments\/[^/]+\/order-exchange\/start$/ },
   { method: 'POST', endpoint: 'forwarder.order-exchange.complete', pattern: /^\/api\/forwarder\/me\/shipments\/[^/]+\/order-exchange\/complete$/ },
-  { method: 'POST', endpoint: 'config.tires.install', pattern: /^\/api\/fleet\/tires\/[^/]+\/install$/ },
-  { method: 'POST', endpoint: 'config.tires.remove', pattern: /^\/api\/fleet\/tires\/[^/]+\/remove$/ },
-  { method: 'POST', endpoint: 'config.tires.dispose', pattern: /^\/api\/fleet\/tires\/[^/]+\/dispose$/ },
-  { method: 'POST', endpoint: 'config.tires.transfer', pattern: /^\/api\/fleet\/tires\/[^/]+\/transfer$/ },
-  { method: 'PUT', endpoint: 'config.road-config.update', pattern: /^\/api\/road-config$/ },
-  { method: 'PUT', endpoint: 'config.fuel-config.update', pattern: /^\/api\/fuel-config$/ },
-  { method: 'PUT', endpoint: 'config.company-info.update', pattern: /^\/api\/company-info$/ },
-  { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.PAIR_SALARY_SETTINGS_UPDATE, pattern: /^\/api\/pair-salary-settings$/ },
-  { method: 'PUT', endpoint: 'config.salary-periods.default.update', pattern: /^\/api\/salary-periods\/default$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.override.create', pattern: /^\/api\/salary-periods$/ },
-  { method: 'PUT', endpoint: 'config.salary-periods.override.update', pattern: /^\/api\/salary-periods\/[^/]+$/ },
-  { method: 'DELETE', endpoint: 'config.salary-periods.override.delete', pattern: /^\/api\/salary-periods\/[^/]+$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.exclusion.create', pattern: /^\/api\/salary-periods\/[^/]+\/exclusions$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.exclusion.check', pattern: /^\/api\/salary-periods\/[^/]+\/exclusions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.exclusion.approve', pattern: /^\/api\/salary-periods\/[^/]+\/exclusions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.exclusion.followup.complete', pattern: /^\/api\/salary-periods\/[^/]+\/exclusions\/[^/]+\/complete-followup$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.close.request', pattern: /^\/api\/salary-periods\/[^/]+\/close$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.close.check', pattern: /^\/api\/salary-periods\/[^/]+\/close-actions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.close.approve', pattern: /^\/api\/salary-periods\/[^/]+\/close-actions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.reopen.request', pattern: /^\/api\/salary-periods\/[^/]+\/reopen$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.reopen.check', pattern: /^\/api\/salary-periods\/[^/]+\/reopen-actions\/[^/]+\/check$/ },
-  { method: 'POST', endpoint: 'config.salary-periods.reopen.approve', pattern: /^\/api\/salary-periods\/[^/]+\/reopen-actions\/[^/]+\/approve$/ },
-  { method: 'POST', endpoint: 'config.debit-note-templates.create', pattern: /^\/api\/debit-note-templates$/ },
-  { method: 'PUT', endpoint: 'config.debit-note-templates.update', pattern: /^\/api\/debit-note-templates\/[^/]+$/ },
-  { method: 'DELETE', endpoint: 'config.debit-note-templates.delete', pattern: /^\/api\/debit-note-templates\/[^/]+$/ },
   { method: 'POST', endpoint: 'credit-overrides.create', pattern: /^\/api\/finance\/credit-overrides$/ },
   { method: 'POST', endpoint: 'fuel-invoices.create', pattern: /^\/api\/finance\/fuel-invoices$/ },
   { method: 'PUT', endpoint: 'fuel-invoices.update', pattern: /^\/api\/finance\/fuel-invoices\/[^/]+$/ },

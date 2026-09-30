@@ -31,10 +31,9 @@ import {
   requestGovernedCrudUpdate,
 } from '../../services/price-config-governance.service';
 import { listDebitNoteTemplates, getDebitNoteTemplateById } from '../../services/debit-note-template-reads.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const COMMANDS = {
   CREATE: 'config.debit-note-templates.create',
   UPDATE: 'config.debit-note-templates.update',
@@ -123,7 +122,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // POST / — create (transactional single-default enforcement)
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
+router.post('/', declareMaterialWrite('config.debit-note-templates.create', { method: 'POST', path: '/api/debit-note-templates/' }),  asyncHandler(async (req: Request, res: Response) => {
   const data = debitNoteTemplateSchema.parse(req.body);
   const createdBy = getUser(req).userId;
   const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi tạo mẫu giấy báo nợ.');
@@ -146,7 +145,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // PUT /:id — update (full form; transactional single-default enforcement)
-router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', declareMaterialWrite('config.debit-note-templates.update', { method: 'PUT', path: '/api/debit-note-templates/:id' }),  asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = debitNoteTemplateSchema.parse(req.body);
@@ -176,7 +175,7 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
 
 // DELETE /:id — soft delete. Deleting the active default may leave zero defaults;
 // the resolver then falls back to the legacy renderer until a new default is set.
-router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', declareMaterialWrite('config.debit-note-templates.delete', { method: 'DELETE', path: '/api/debit-note-templates/:id' }),  asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi xóa mẫu giấy báo nợ.');
   const expectedUpdatedAt = requireExpectedUpdatedAt(

@@ -12,7 +12,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { ApiError } from '../../errors';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   getPairSalarySettingsFrom,
   savePairSalarySettings,
@@ -24,7 +24,6 @@ const pairSalarySettingsUpdateSchema = z.object({
 });
 
 export const pairSalarySettingsRouter = Router()
-pairSalarySettingsRouter.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 pairSalarySettingsRouter.get(
   '/pair-salary-settings',
@@ -35,7 +34,7 @@ pairSalarySettingsRouter.get(
 );
 
 pairSalarySettingsRouter.put(
-  '/pair-salary-settings',
+  '/pair-salary-settings', declareMaterialWrite('config.pair-salary-settings.update', { method: 'PUT', path: '/api/pair-salary-settings' }), 
   requireRoles(Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const next = pairSalarySettingsUpdateSchema.parse(req.body);

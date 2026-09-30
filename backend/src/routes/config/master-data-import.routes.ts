@@ -9,7 +9,7 @@ import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
 import { resolveIdempotencyKey } from '../../services/idempotency.service';
 import { cacheInvalidate } from '../../lib/redis';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   analyzeMasterWorkbook,
   applyMasterImport,
@@ -20,7 +20,6 @@ import {
 } from '../../services/master-data-import.service';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MASTER_IMPORT_MAX_BYTES, files: 2 },
@@ -61,8 +60,8 @@ const analyzeHandler = asyncHandler(async (req: Request, res: Response) => {
 });
 
 // POST /analyze and /dry-run — upload and persist a redacted dry-run.
-router.post('/analyze', receiveWorkbooks, analyzeHandler);
-router.post('/dry-run', receiveWorkbooks, analyzeHandler);
+router.post('/analyze', declareMaterialWrite('master-data-import.analyze', { method: 'POST', path: '/api/config/master-data-imports/analyze' }),  receiveWorkbooks, analyzeHandler);
+router.post('/dry-run', declareMaterialWrite('master-data-import.analyze', { method: 'POST', path: '/api/config/master-data-imports/dry-run' }),  receiveWorkbooks, analyzeHandler);
 
 // GET /:id — persistent batch status and redacted row outcomes.
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -71,7 +70,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // POST /:id/apply — explicitly apply accepted rows using optimistic locking.
-router.post('/:id/apply', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/apply', declareMaterialWrite('master-data-import.apply', { method: 'POST', path: '/api/config/master-data-imports/:id/apply' }),  asyncHandler(async (req: Request, res: Response) => {
   const idempotencyKey = resolveIdempotencyKey({
     headerValue: req.header('Idempotency-Key'),
     requestId: req.body?._requestId,
@@ -96,7 +95,7 @@ router.post('/:id/apply', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // POST /:id/reject — close a dry-run without applying any business row.
-router.post('/:id/reject', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/reject', declareMaterialWrite('master-data-import.reject', { method: 'POST', path: '/api/config/master-data-imports/:id/reject' }),  asyncHandler(async (req: Request, res: Response) => {
   const idempotencyKey = resolveIdempotencyKey({
     headerValue: req.header('Idempotency-Key'),
     requestId: req.body?._requestId,

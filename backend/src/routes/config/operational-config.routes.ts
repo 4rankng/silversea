@@ -17,12 +17,11 @@ import { getFuelConfig, getFuelPriceHistory, getEffectiveFuelPrice } from '../..
 import { fuelConfigSchema, companyInfoSchema } from '@tingting/shared';
 import { companyInfoFromSettings } from '../../services/company-info.service';
 import { requestOrApplyGovernedConfigAction, governedConfigVersionFromUpdatedAt } from '../../services/price-config-governance.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 // Operational config routes (T3c split) — road-config, fuel-config,
 // company-info, fuel-price-history endpoints, moved verbatim from
 // routes/config.ts. Governance payloads built via ./config-helpers.
@@ -33,7 +32,7 @@ router.get('/road-config', asyncHandler(async (_req: Request, res: Response) => 
   res.json(row);
 }));
 
-router.put('/road-config', asyncHandler(async (req: Request, res: Response) => {
+router.put('/road-config', declareMaterialWrite('config.road-config.update', { method: 'PUT', path: '/api/road-config' }),  asyncHandler(async (req: Request, res: Response) => {
   const requestedData = H.roadConfigGovernanceSchema.parse(req.body);
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật cấu hình đường.');
   const expectedUpdatedAt = H.readExpectedUpdatedAt(req);
@@ -80,7 +79,7 @@ router.get('/fuel-config', asyncHandler(async (_req: Request, res: Response) => 
   res.json(row);
 }));
 
-router.put('/fuel-config', asyncHandler(async (req: Request, res: Response) => {
+router.put('/fuel-config', declareMaterialWrite('config.fuel-config.update', { method: 'PUT', path: '/api/fuel-config' }),  asyncHandler(async (req: Request, res: Response) => {
   const data = fuelConfigSchema.parse(req.body);
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật cấu hình nhiên liệu.');
   const expectedUpdatedAt = H.readExpectedUpdatedAt(req);
@@ -123,7 +122,7 @@ router.get('/company-info', asyncHandler(async (_req: Request, res: Response) =>
   res.json({ ...companyInfoFromSettings(rows), updatedAt: await H.getCompanyInfoUpdatedAt() });
 }));
 
-router.put('/company-info', asyncHandler(async (req: Request, res: Response) => {
+router.put('/company-info', declareMaterialWrite('config.company-info.update', { method: 'PUT', path: '/api/company-info' }),  asyncHandler(async (req: Request, res: Response) => {
   const candidate = req.body as Record<string, unknown>;
   const data = companyInfoSchema.parse({
     ...candidate,

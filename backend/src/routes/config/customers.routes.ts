@@ -12,10 +12,9 @@ import { parseId } from '../utils/parse-id';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { getCustomerLogisticsHistory, getCustomerPaymentHistory, notifyCustomers, setCustomersStatus } from '../../services/customers-screen.service';
 import { getCustomerDebtSummary } from '../../services/customer-debt-summary.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 // Drawer audience: /customers is officeStaffOnly on the FE (ADMIN/MANAGER/
 // ACCOUNTANT) and payment history is financial data, so the drawer mirrors
@@ -73,7 +72,7 @@ const bulkNotifySchema = z.object({
   message: z.string().trim().min(1).max(2000),
 });
 
-router.post('/bulk-notify', requireRoles(...SCREEN_ROLES), asyncHandler(async (req, res) => {
+router.post('/bulk-notify', declareMaterialWrite('customers.bulk-notify', { method: 'POST', path: '/api/customers/bulk-notify' }),  requireRoles(...SCREEN_ROLES), asyncHandler(async (req, res) => {
   res.json(await notifyCustomers(bulkNotifySchema.parse(req.body), getUser(req).userId, getRequestIdempotencyKey(req)));
 }));
 
@@ -89,7 +88,7 @@ const bulkStatusSchema = z.object({
 // expected_updated_at optimistic guard) — the actor's decision supersedes any
 // concurrent single-row edit, and the per-request transaction keeps the flip
 // atomic.
-router.post('/bulk-status', requireRoles(...SCREEN_ROLES), asyncHandler(async (req, res) => {
+router.post('/bulk-status', declareMaterialWrite('customers.bulk-status', { method: 'POST', path: '/api/customers/bulk-status' }),  requireRoles(...SCREEN_ROLES), asyncHandler(async (req, res) => {
   res.json(await setCustomersStatus(bulkStatusSchema.parse(req.body), getUser(req).userId, getRequestIdempotencyKey(req)));
 }));
 

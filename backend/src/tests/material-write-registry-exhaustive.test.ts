@@ -15,9 +15,9 @@ import {
   listDeclaredMaterialWriteEndpoints,
   matchDeclaredMaterialWrite,
 } from '../middleware/material-write';
-// The crud-factory family self-declares its registry rows at import time
-// (card 20260930_230); importing the mount module registers them here.
-import '../routes/config/catalog-crud.routes';
+// Migrated route families self-declare their registry rows at import time
+// (card 20260930_230); importing the registration module registers them here.
+import '../routes/material-write-registration';
 
 const routesRoot = path.resolve(process.cwd(), 'src/routes');
 const catalogCrudRoutePath = path.join(routesRoot, 'config/catalog-crud.routes.ts');
@@ -829,15 +829,13 @@ describe('material-write registry coverage', () => {
       ['PUT', '/api/salary-periods/2026-07', 'config.salary-periods.override.update'],
       ['DELETE', '/api/salary-periods/2026-07', 'config.salary-periods.override.delete'],
       ['POST', '/api/salary-periods/2026-07/exclusions', 'config.salary-periods.exclusion.create'],
-      ['POST', '/api/salary-periods/2026-07/exclusions/9/check', 'config.salary-periods.exclusion.check'],
-      ['POST', '/api/salary-periods/2026-07/exclusions/9/approve', 'config.salary-periods.exclusion.approve'],
+      // The six governance-action cases (exclusions/close/reopen -actions
+      // check|approve) were removed with the action routes themselves — no
+      // `-actions` mount exists anywhere in src (approval-workflow removal;
+      // registry rows pruned with them, card 20260930_230).
       ['POST', '/api/salary-periods/2026-07/exclusions/9/complete-followup', 'config.salary-periods.exclusion.followup.complete'],
       ['POST', '/api/salary-periods/2026-07/close', 'config.salary-periods.close.request'],
-      ['POST', '/api/salary-periods/2026-07/close-actions/9/check', 'config.salary-periods.close.check'],
-      ['POST', '/api/salary-periods/2026-07/close-actions/9/approve', 'config.salary-periods.close.approve'],
       ['POST', '/api/salary-periods/2026-07/reopen', 'config.salary-periods.reopen.request'],
-      ['POST', '/api/salary-periods/2026-07/reopen-actions/9/check', 'config.salary-periods.reopen.check'],
-      ['POST', '/api/salary-periods/2026-07/reopen-actions/9/approve', 'config.salary-periods.reopen.approve'],
       ['POST', '/api/salary/periods/2026-07/issue-actions/9/check', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK],
       ['POST', '/api/salary/periods/2026-07/issue-actions/9/approve', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE],
       ['POST', '/api/salary/periods/2026-07/post-actions/9/check', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK],

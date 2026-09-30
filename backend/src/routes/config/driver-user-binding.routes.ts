@@ -7,14 +7,13 @@ import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
 import { resolveIdempotencyKey } from '../../services/idempotency.service';
 import { bindDriverUser } from '../../services/driver-user-binding.service';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.use(requireRoles(Role.ADMIN));
 
-router.post('/:driverId', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:driverId', declareMaterialWrite('config.driver-user-bindings.bind', { method: 'POST', path: '/api/config/driver-user-bindings/:driverId' }),  asyncHandler(async (req: Request, res: Response) => {
   const outcome = await bindDriverUser({
     driverId: Number(req.params.driverId),
     userId: Number(req.body?.userId),

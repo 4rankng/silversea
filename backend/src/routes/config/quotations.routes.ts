@@ -19,7 +19,7 @@ import { buildQuotationExport } from '../../services/quotation-export.service';
 const quotationImportUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   createQuotation, decideQuotationFuelApprovals, deleteQuotation, getQuotation,
   listActiveQuotationFeesForCustomer, listQuotationFuelApprovals, listQuotations, updateQuotation,
@@ -31,7 +31,6 @@ import {
 const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 
 const router = Router()
-router.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(await listQuotations());
@@ -81,7 +80,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(await getQuotation(id));
 }));
 
-router.post('/', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', declareMaterialWrite('quotations.create', { method: 'POST', path: '/api/quotations/' }),  requireRoles(...WRITE_ROLES), asyncHandler(async (req: Request, res: Response) => {
   const parsed = quotationCreateSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.errors[0]?.message ?? 'Dữ liệu báo giá không hợp lệ');
   const actor = getUser(req);
@@ -102,7 +101,7 @@ router.post('/', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Request,
   res.status(replayed ? 200 : 201).json(result);
 }));
 
-router.put('/:id', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', declareMaterialWrite('quotations.update', { method: 'PUT', path: '/api/quotations/:id' }),  requireRoles(...WRITE_ROLES), asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const parsed = quotationUpdateSchema.safeParse(req.body ?? {});
@@ -125,7 +124,7 @@ router.put('/:id', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Reques
   res.json(result);
 }));
 
-router.delete('/:id', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', declareMaterialWrite('quotations.delete', { method: 'DELETE', path: '/api/quotations/:id' }),  requireRoles(...WRITE_ROLES), asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const actor = getUser(req);
@@ -149,7 +148,7 @@ router.delete('/:id', requireRoles(...WRITE_ROLES), asyncHandler(async (req: Req
 // decide endpoint; 'Để sau' makes no call (rows stay PENDING). Reads share
 // the mount's casbin 'config' gate; decisions are finance-gated.
 
-router.post('/fuel-approvals/decide', requireRoles(Role.ACCOUNTANT, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
+router.post('/fuel-approvals/decide', declareMaterialWrite('quotation-fuel-approvals.decide', { method: 'POST', path: '/api/quotations/fuel-approvals/decide' }),  requireRoles(Role.ACCOUNTANT, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const parsed = z.object({
     ids: z.array(z.number().int().positive()).min(1, 'Chưa chọn dòng nào.'),
@@ -185,7 +184,7 @@ router.post('/import', declareNonMaterialWrite('Read-only xlsx parse/validate pr
   res.json(await previewQuotationImport(req.file.buffer));
 }));
 
-router.post('/import/commit', requireRoles(Role.ACCOUNTANT, Role.ADMIN), quotationImportUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/import/commit', declareMaterialWrite('quotations.import.commit', { method: 'POST', path: '/api/quotations/import/commit' }),  requireRoles(Role.ACCOUNTANT, Role.ADMIN), quotationImportUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   if (!req.file) throw new ApiError(400, 'Chưa chọn tệp xlsx.');
   const idempotencyKey = getRequestIdempotencyKey(req);
