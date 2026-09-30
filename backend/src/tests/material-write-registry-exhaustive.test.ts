@@ -258,10 +258,7 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/trip-external-close.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DISPATCH_EXTERNAL_FULFILLMENT_COMPLETE',
   }],
-  ['shipments/pod.routes.ts|POST|/:id/pod-reviews/:submissionId/review', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-review.service.ts'),
-    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW',
-  }],
+  
   ['shipments/core.routes.ts|POST|/:id/complete', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-lifecycle.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COMPLETE',
@@ -274,10 +271,7 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-governance.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST',
   }],
-  ['shipments/cus-workspace.routes.ts|POST|/cus-workspace/:id/delete-requests/:actionId/decision', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-governance.service.ts'),
-    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST_DECISION',
-  }],
+  
   ['shipments/cus-workspace.routes.ts|POST|/cus-workspace/:id/container-edit-request', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-governance.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.CONTAINER_EDIT_REQUEST',

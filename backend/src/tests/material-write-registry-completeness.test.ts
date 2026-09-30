@@ -31,40 +31,13 @@ import '../routes/material-write-registration';
  * here until they are removed.
  */
 const EXEMPT: Record<string, string> = {
-  // No route consumes these via runIdempotent — leftover constants from
-  // decommissioned flows (approval workflow removed 2026-09-15; legacy
-  // change-request/fulfillment/completion/debt-offset paths re-routed).
-  'shipments.change-requests.review': 'dead constant — no route consumes it',
-  'shipments.fulfillments.assign': 'dead constant — no route consumes it',
-  'shipments.completion.recompute': 'dead constant — no route consumes it',
-  'debt-offsets.approve': 'dead constant — no route consumes it',
-  'trip-expenses.approve': 'dead constant — approval flow removed 2026-09-15',
-  'trip-expenses.reject': 'dead constant — approval flow removed 2026-09-15',
-  // No route mounts /api/shipments/:id/pod-reviews/:reviewId/review anywhere —
-  // the registry row was a relic, pruned with the shipments-family migration
-  // (card 20260930_230); the constant stays until the dead-constant sweep.
-  'trips.pod.review': 'dead route — no mount exists (row pruned card 20260930_230)',
-  // The approval-flow relic block (card 20260930_230 sweep): these write
-  // routes were removed with the approval workflow and their -actions
-  // successors; no mounts exist anywhere in src/routes. Constants stay until
-  // the dead-constant sweep removes them.
-  'shipments.accounting-lock.activate': 'dead route — no mount exists',
-  'shipments.delete-request.decision': 'dead route — no mount exists',
-  'ops.expenses.approve': 'dead route — approval flow removed',
-  'ops.expenses.reject': 'dead route — approval flow removed',
-  'ops.settlements.approve': 'dead route — approval flow removed',
-  'ops.settlements.reject': 'dead route — approval flow removed',
-  'governance.check': 'dead route — no /api/governance-actions mount exists',
-  'governance.approve': 'dead route — no /api/governance-actions mount exists',
-  'governance.reject': 'dead route — no /api/governance-actions mount exists',
-  'governance.return-for-evidence': 'dead route — no /api/governance-actions mount exists',
-  'governance.cancel': 'dead route — no /api/governance-actions mount exists',
-  'advance-requests.approve': 'dead route — approval flow removed',
-  'advance-requests.reject': 'dead route — approval flow removed',
-  'advance-settlements.check': 'dead route — approval flow removed',
-  'advance-settlements.approve': 'dead route — approval flow removed',
-  'advance-settlements.reject': 'dead route — approval flow removed',
-};
+  // Empty since the card 20260930_240 dead-constant sweep: every exemption
+  // row was a dead IDEMPOTENCY_ENDPOINTS constant whose route was removed
+  // with the approval workflow (2026-09-15) or its successors — constants and
+  // rows went together. An entry here still means "a live idempotency
+  // constant deliberately outside the registry"; it must never mean "dead
+  // constant awaiting removal" again — dead ones get removed, not parked.
+}
 
 test('every idempotency write endpoint is declared in MATERIAL_WRITE_RULES (or exempt)', () => {
   const declared = new Set(listDeclaredMaterialWriteEndpoints());
