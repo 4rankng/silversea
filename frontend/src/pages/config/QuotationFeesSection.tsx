@@ -6,6 +6,7 @@
 // 6 — new version, never overwrite; concurrent-edit loss is recoverable via
 // the _62 version history).
 import { useEffect, useRef, useState } from 'react';
+import { NumberField } from '../../design-system';
 import {
   FEE_ROUTING_MODES,
   type FeeRoutingMode,
@@ -26,7 +27,8 @@ interface FeeRowDraft {
   id: number | null;
   feeName: string;
   subType: string;
-  amountText: string; // '' = pending-empty (renders —, saves null)
+  /** Ungrouped NumberField value — quotation defaults may carry decimals; '' saves null. */
+  amount: number | '';
   routing: FeeRoutingMode;
   note: string;
   isNew: boolean;
@@ -53,7 +55,7 @@ export function QuotationFeesSection({ fees, saving, onSaveFees }: QuotationFees
       id: row.id,
       feeName: row.feeName,
       subType: row.subType ?? '',
-      amountText: row.defaultAmount == null ? '' : String(row.defaultAmount),
+      amount: row.defaultAmount == null ? '' : row.defaultAmount,
       routing: row.routing,
       note: row.note ?? '',
       isNew: false,
@@ -75,7 +77,7 @@ export function QuotationFeesSection({ fees, saving, onSaveFees }: QuotationFees
       id: null,
       feeName: '',
       subType: '',
-      amountText: '',
+      amount: '',
       // Entry-time classification default (shared helper): the two dedicated
       // fees classify by name; the operator can change it before saving.
       routing: 'OTHER_COSTS',
@@ -97,7 +99,7 @@ export function QuotationFeesSection({ fees, saving, onSaveFees }: QuotationFees
       .map((row) => ({
         feeName: row.feeName.trim(),
         subType: row.subType.trim() || null,
-        defaultAmount: row.amountText.trim() === '' ? null : Number(row.amountText.replace(/\./g, '').replace(',', '.')),
+        defaultAmount: row.amount === '' ? null : row.amount,
         routing: row.routing,
         note: row.note.trim() || null,
         sortOrder: rows.indexOf(row),
@@ -137,12 +139,11 @@ export function QuotationFeesSection({ fees, saving, onSaveFees }: QuotationFees
                   <input aria-label="Phân loại" value={row.subType} onChange={(e) => updateRow(row.key, { subType: e.target.value })} />
                 ) : (row.subType || '—')}</td>
                 <td>
-                  <input
+                  <NumberField
                     aria-label={`Số tiền mặc định ${row.feeName || 'dòng mới'}${row.subType ? ` · ${row.subType}` : ''}`}
-                    className="quotation-fees__amount-input"
-                    inputMode="numeric"
-                    value={row.amountText}
-                    onChange={(e) => updateRow(row.key, { amountText: e.target.value })}
+                    className="quotation-fees__amount"
+                    value={row.amount}
+                    onChange={(n) => updateRow(row.key, { amount: n })}
                   />
                 </td>
                 <td>

@@ -8,6 +8,7 @@ import { CrudTable } from '../../components/config/CrudTable';
 import { Drawer } from '../../components/UI';
 import { CONFIG, Role } from '@tingting/shared';
 import { useAuth } from '../../hooks/useAuth';
+import { NumberField } from '../../design-system';
 import type { FuelPricePeriodRow } from '../../api/pricingClient';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { quotationClient, type QuotationFuelApprovalRow } from '../../api/quotationClient';
@@ -177,12 +178,12 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
   deleting?: boolean;
 }) {
   const [effectiveFrom, setEffectiveFrom] = useState(item?.effectiveFrom ?? '');
-  const [unitPrice, setUnitPrice] = useState(item?.unitPrice ?? '');
+  const [unitPrice, setUnitPrice] = useState<number | ''>(item?.unitPrice ? Number(item.unitPrice) : '');
   const [sourceNote, setSourceNote] = useState(item?.sourceNote ?? '');
 
   const canSave = Boolean(effectiveFrom)
-    && Boolean(unitPrice.trim())
-    && Number(unitPrice) > 0;
+    && typeof unitPrice === 'number'
+    && unitPrice > 0;
 
   return (
     <InlineForm colSpan={3}>
@@ -198,16 +199,12 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
       </div>
       <div style={{ flex: 1, minWidth: 160 }}>
         <Field label="Giá dầu mới (đ/lít)">
-          <input
-            className="input"
-            type="number"
-            min="1"
+          <NumberField
+            grouped
             required
-            step="1"
-            inputMode="numeric"
             placeholder="21740"
             value={unitPrice}
-            onChange={e => setUnitPrice(e.target.value)}
+            onChange={setUnitPrice}
           />
         </Field>
       </div>
@@ -231,7 +228,7 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
           if (!canSave) return;
           onsave({
             effectiveFrom,
-            unitPrice: Number(unitPrice),
+            unitPrice,
             ...(sourceNote.trim() ? { sourceNote: sourceNote.trim() } : {}),
           });
         }}

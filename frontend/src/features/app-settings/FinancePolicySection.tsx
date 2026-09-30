@@ -12,6 +12,7 @@ import type {
 import { FinanceLoadingBlock, FinanceVersionList } from './FinanceVersionList';
 import { FinancePolicyStatusCard } from './FinancePolicyStatusCard';
 import { formatISODate, formatMoney } from '../../lib/format';
+import { NumberField } from '../../design-system';
 
 export type FinanceTab = 'policy' | 'truck';
 
@@ -33,16 +34,16 @@ type FinancePolicySectionProps = {
   handleTruckSelectionChange: (nextTruckId: number) => Promise<void>;
   truckEffectiveFrom: string;
   setTruckEffectiveFrom: Dispatch<SetStateAction<string>>;
-  truckAcquisitionCost: string;
-  setTruckAcquisitionCost: Dispatch<SetStateAction<string>>;
-  truckResidualValue: string;
-  setTruckResidualValue: Dispatch<SetStateAction<string>>;
+  truckAcquisitionCost: number | '';
+  setTruckAcquisitionCost: Dispatch<SetStateAction<number | ''>>;
+  truckResidualValue: number | '';
+  setTruckResidualValue: Dispatch<SetStateAction<number | ''>>;
   truckInServiceDate: string;
   setTruckInServiceDate: Dispatch<SetStateAction<string>>;
-  truckUsefulLifeMonths: string;
-  setTruckUsefulLifeMonths: Dispatch<SetStateAction<string>>;
-  truckMonthlyFixedCost: string;
-  setTruckMonthlyFixedCost: Dispatch<SetStateAction<string>>;
+  truckUsefulLifeMonths: number | '';
+  setTruckUsefulLifeMonths: Dispatch<SetStateAction<number | ''>>;
+  truckMonthlyFixedCost: number | '';
+  setTruckMonthlyFixedCost: Dispatch<SetStateAction<number | ''>>;
   truckSubmitLabel: string;
   requestTruckFinancialProfileVersion: () => Promise<void>;
   truckMessage: string | null;
@@ -341,36 +342,32 @@ export function FinancePolicySection({
               </div>
               <div className="field">
                 <label htmlFor="truck-acquisition-cost">Nguyên giá (VND)</label>
-                <input
+                <NumberField
                   id="truck-acquisition-cost"
-                  className="input"
-                  inputMode="numeric"
+                  grouped
                   value={truckAcquisitionCost}
-                  onChange={(event) => setTruckAcquisitionCost(event.target.value)}
+                  onChange={setTruckAcquisitionCost}
                   disabled={requestTruckProfile.isPending}
                 />
-                <p className="cfg-field-hint">{truckAcquisitionCost ? `${formatMoney(truckAcquisitionCost)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
+                <p className="cfg-field-hint">{truckAcquisitionCost !== '' ? `${formatMoney(truckAcquisitionCost)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
               </div>
               <div className="field">
                 <label htmlFor="truck-residual-value">Giá trị thu hồi (VND)</label>
-                <input
+                <NumberField
                   id="truck-residual-value"
-                  className="input"
-                  inputMode="numeric"
+                  grouped
                   value={truckResidualValue}
-                  onChange={(event) => setTruckResidualValue(event.target.value)}
+                  onChange={setTruckResidualValue}
                   disabled={requestTruckProfile.isPending}
                 />
-                <p className="cfg-field-hint">{truckResidualValue ? `${formatMoney(truckResidualValue)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
+                <p className="cfg-field-hint">{truckResidualValue !== '' ? `${formatMoney(truckResidualValue)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
               </div>
               <div className="field">
                 <label htmlFor="truck-useful-life-months">Thời gian sử dụng (tháng)</label>
-                <input
+                <NumberField
                   id="truck-useful-life-months"
-                  className="input"
-                  inputMode="numeric"
                   value={truckUsefulLifeMonths}
-                  onChange={(event) => setTruckUsefulLifeMonths(event.target.value)}
+                  onChange={setTruckUsefulLifeMonths}
                   disabled={requestTruckProfile.isPending}
                   aria-invalid={truckError?.includes('Thời gian sử dụng') ? true : undefined}
                   aria-describedby={truckError?.includes('Thời gian sử dụng') ? 'truck-life-error' : undefined}
@@ -383,15 +380,14 @@ export function FinancePolicySection({
               </div>
               <div className="field">
                 <label htmlFor="truck-monthly-fixed-cost">Chi phí cố định mỗi tháng (VND)</label>
-                <input
+                <NumberField
                   id="truck-monthly-fixed-cost"
-                  className="input"
-                  inputMode="numeric"
+                  grouped
                   value={truckMonthlyFixedCost}
-                  onChange={(event) => setTruckMonthlyFixedCost(event.target.value)}
+                  onChange={setTruckMonthlyFixedCost}
                   disabled={requestTruckProfile.isPending}
                 />
-                <p className="cfg-field-hint">{truckMonthlyFixedCost ? `${formatMoney(truckMonthlyFixedCost)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
+                <p className="cfg-field-hint">{truckMonthlyFixedCost !== '' ? `${formatMoney(truckMonthlyFixedCost)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
               </div>
             </div>
             {truckError && !truckError?.includes('Thời gian sử dụng') && (

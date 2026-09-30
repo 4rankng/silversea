@@ -1,6 +1,18 @@
 import React from 'react';
 import './InputWithPrefix.css';
-import { formatMoneyInput, normalizeMoneyInput } from '../../lib/moneyInput';
+
+// Local vi-VN money formatting for the trip-form family's raw-digit-string
+// contract (card 20260930_224): lib/moneyInput is deleted; the full numeric
+// migration of the trip form is its own follow-up card. Unsigned by design
+// here — see the card's known-gap note.
+const viVnGrouping = new Intl.NumberFormat('vi-VN');
+const digitsOnly = (value: string): string => value.replace(/\D/g, '');
+const formatMoneyInput = (raw: string): string => {
+  const normalized = digitsOnly(raw);
+  if (!normalized) return '';
+  const n = parseInt(normalized, 10);
+  return Number.isNaN(n) ? '' : viVnGrouping.format(n);
+};
 
 interface InputWithPrefixProps {
   id?: string;
@@ -39,7 +51,7 @@ export function InputWithPrefix({ id, value, onChange, placeholder, prefix, mono
       const cursorPos = el.selectionEnd ?? el.value.length;
       const afterCursor = el.value.slice(cursorPos);
       digitsRightRef.current = (afterCursor.match(/\d/g) ?? []).length;
-      onChange(normalizeMoneyInput(el.value));
+      onChange(digitsOnly(el.value));
     } else {
       onChange(e.target.value);
     }

@@ -12,7 +12,7 @@ import { CalendarClock, Plus, X } from 'lucide-react';
 import { SkeletonTable, StatusText, useToast } from '../../components/shared';
 import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { DateRangeFields, EmptyState, FilterBar, SummaryRail, UuiSelectField } from '../../design-system';
+import { DateRangeFields, EmptyState, FilterBar, NumberField, SummaryRail, UuiSelectField } from '../../design-system';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import {
   createDepositTracker,
@@ -318,13 +318,13 @@ function DateEditForm({ row, onSaved }: {
 }) {
   const [cvDate, setCvDate] = useState(row.cvSubmittedDate ?? '');
   const [expected, setExpected] = useState(row.expectedRefundDate ?? nextExpectedRefundDefault(row.cvSubmittedDate) ?? '');
-  const [amount, setAmount] = useState(Number(row.depositAmount) > 0 ? row.depositAmount : '');
+  const [amount, setAmount] = useState<number | ''>(Number(row.depositAmount) > 0 ? Number(row.depositAmount) : '');
   const [note, setNote] = useState(row.note ?? '');
   const refundMutation = useMutation({
     mutationFn: () => updateDepositTrackerDates(row.id, {
       cvSubmittedDate: cvDate || null,
       expectedRefundDate: expected || null,
-      ...(amount.trim() ? { depositAmount: parseDepositAmount(amount) } : {}),
+      ...(amount !== '' ? { depositAmount: parseDepositAmount(String(amount)) } : {}),
       note: note.trim() || null,
     }),
     onSuccess: () => {
@@ -333,7 +333,7 @@ function DateEditForm({ row, onSaved }: {
   });
   return (
     <form className="deposit-tracker-form" onSubmit={(event) => { event.preventDefault(); refundMutation.mutate(); }}>
-      <FormGroup label="Số tiền cược (₫)"><input className="input" value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="numeric" /></FormGroup>
+      <NumberField label="Số tiền cược (₫)" grouped value={amount} onChange={setAmount} />
       <BufferedUuiDateInput label="Ngày nộp CV" value={cvDate} onChange={(value) => {
         if (!expected || expected === nextExpectedRefundDefault(cvDate)) setExpected(nextExpectedRefundDefault(value) ?? '');
         setCvDate(value);
@@ -353,13 +353,13 @@ function CreateForm({ onSaved }: {
   const [billNumber, setBillNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [carrierName, setCarrierName] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState<number | ''>('');
   const [cvDate, setCvDate] = useState('');
   const [note, setNote] = useState('');
   const createMutation = useMutation({
     mutationFn: () => createDepositTracker({
       billNumber, customerName, carrierName,
-      depositAmount: parseDepositAmount(amount),
+      depositAmount: parseDepositAmount(amount === '' ? '' : String(amount)),
       cvSubmittedDate: cvDate || null,
       note: note || null,
     }),
@@ -372,7 +372,7 @@ function CreateForm({ onSaved }: {
       <FormGroup label="Số Bill"><input className="input" value={billNumber} onChange={(event) => setBillNumber(event.target.value)} required maxLength={80} /></FormGroup>
       <FormGroup label="Khách hàng"><input className="input" value={customerName} onChange={(event) => setCustomerName(event.target.value)} required /></FormGroup>
       <FormGroup label="Hãng tàu"><input className="input" value={carrierName} onChange={(event) => setCarrierName(event.target.value)} required /></FormGroup>
-      <FormGroup label="Số tiền cược (₫)"><input className="input" value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="numeric" required /></FormGroup>
+      <NumberField label="Số tiền cược (₫)" grouped value={amount} onChange={setAmount} />
       <BufferedUuiDateInput label="Ngày nộp CV (tùy chọn)" value={cvDate} onChange={setCvDate} />
       <FormGroup label="Ghi chú"><input className="input" value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} /></FormGroup>
       {createMutation.isError && <p role="alert">{createMutation.error.message}</p>}

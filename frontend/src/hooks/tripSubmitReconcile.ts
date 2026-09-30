@@ -1,8 +1,14 @@
 import type { TripDetail } from '@tingting/shared';
 import type { FormLeg } from './useTripFormLegs';
-import { moneyInputToNumber } from '../lib/moneyInput';
 import { businessDateISO } from '../lib/format';
 import { ApiError } from '../lib/api';
+
+// Trip-form money state is raw digit strings (InputWithPrefix contract,
+// card 20260930_224); lib/moneyInput is deleted.
+const digitsToNumber = (value: string): number | undefined => {
+  const digits = value.replace(/\D/g, '');
+  return digits ? Number(digits) : undefined;
+};
 
 const calendarDate = (value: unknown) => value ? businessDateISO(new Date(String(value))) : null;
 const optionalText = (value: unknown) => value == null || value === '' ? null : String(value);
@@ -14,9 +20,9 @@ export class TripEditConflictError extends ApiError {
   }
 }
 
-export function moneyOrZero(value: string): number { return moneyInputToNumber(value) ?? 0; }
-export function moneyOrUndefined(value: string): number | undefined { return moneyInputToNumber(value); }
-export function moneyOrNull(value: string): number | null { return moneyInputToNumber(value) ?? null; }
+export function moneyOrZero(value: string): number { return digitsToNumber(value) ?? 0; }
+export function moneyOrUndefined(value: string): number | undefined { return digitsToNumber(value); }
+export function moneyOrNull(value: string): number | null { return digitsToNumber(value) ?? null; }
 
 /** Pre-create leg validation: a leg with any field filled must carry both
  *  endpoints and a non-negative numeric distance. Pure and shared with the

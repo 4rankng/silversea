@@ -24,9 +24,8 @@ import {
 import { ExpenseBasicFields, ExpenseLoading, ExpensePhotoAside } from './expense-entry-sections';
 import { useExpenseReceiptPhotos } from '../features/expenses/useExpenseReceiptPhotos';
 import { DateInput } from '../design-system/forms/DateInput';
-import { UuiSelectField } from '../design-system';
+import { UuiSelectField, NumberField } from '../design-system';
 import './ExpenseEntryPage.css';
-import { formatNumber } from '../lib/format';
 
 export default function ExpenseEntryPage() {
   const navigate = useNavigate();
@@ -130,7 +129,7 @@ export default function ExpenseEntryPage() {
         categoryId: existingExpense.categoryId || '',
         truckId: existingExpense.truckId || '',
         vehicleComponent: existingExpense.vehicleComponent || 'TRUCK',
-        amount: existingExpense.amount || '',
+        amount: Number(existingExpense.amount) || '',
         paymentStatus: (existingExpense.paymentStatus as 'PAID' | 'UNPAID') || 'UNPAID',
         validFrom: existingExpense.validFrom?.slice(0, 10) || '',
         validTo: existingExpense.validTo?.slice(0, 10) || '',
@@ -158,16 +157,6 @@ export default function ExpenseEntryPage() {
         return next;
       });
     }
-  };
-
-  const formatAmountDisplay = (val: string) => {
-    if (!val) return '';
-    const num = parseFloat(val.replace(/,/g, ''));
-    return isNaN(num) ? val : formatNumber(num);
-  };
-
-  const parseAmountInput = (displayVal: string) => {
-    return `${displayVal.trim().startsWith('-') ? '-' : ''}${displayVal.replace(/[^\d]/g, '')}`;
   };
 
   const handleCreateSupplier = async () => {
@@ -578,22 +567,17 @@ export default function ExpenseEntryPage() {
 
               <div className="expense-group">
                 <label htmlFor="amount" className="expense-label">Số tiền (đ) <span className="expense-required">*</span></label>
-                <div className="expense-amount-wrapper">
-                  <input
-                    type="text"
-                    name="amount"
-                    id="amount"
-                    inputMode="numeric"
-                    className="expense-input expense-amount-input"
-                    aria-invalid={Boolean(errors.amount) || undefined}
-                    value={form.amount ? formatAmountDisplay(form.amount) : ''}
-                    onChange={e => set('amount', parseAmountInput(e.target.value))}
-                    placeholder="0"
-                  />
-                  <span className="expense-amount-suffix">
-                    đ
-                  </span>
-                </div>
+                <NumberField
+                  id="amount"
+                  grouped
+                  signed
+                  suffix="đ"
+                  className="expense-amount"
+                  aria-invalid={Boolean(errors.amount) || undefined}
+                  value={form.amount}
+                  onChange={n => set('amount', n)}
+                  placeholder="0"
+                />
                 {errors.amount && <p className="expense-field-error">{errors.amount}</p>}
               </div>
 

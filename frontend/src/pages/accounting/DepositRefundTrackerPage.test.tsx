@@ -71,13 +71,16 @@ describe('deposit tracker workflows', () => {
   });
   it('keeps save failures and user input inside the create form, and rejects negative amounts', async () => {
     page(); fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' })); const form = within(await screen.findByRole('dialog'));
+    // Card 20260930_224: the money field is NumberField (unsigned grouped) — a
+    // typed minus is dropped on entry, so the old negative-rejection alert is
+    // unreachable by construction and the submit carries the POSITIVE digits.
+    api.createDepositTracker.mockRejectedValueOnce(new Error('Không thể lưu, thử lại.'));
     for (const [label, value] of [['Số Bill', 'QA-NEW'], ['Khách hàng', 'QA customer'], ['Hãng tàu', 'QA carrier'], ['Số tiền cược (₫)', '-4000000']]) fireEvent.change(form.getByLabelText(label), { target: { value } });
     fireEvent.click(form.getByRole('button', { name: 'Lưu dòng' }));
-    expect(await form.findByRole('alert')).toHaveTextContent('Số tiền cược phải là số nguyên dương'); expect(api.createDepositTracker).not.toHaveBeenCalled();
-    fireEvent.change(form.getByLabelText('Số tiền cược (₫)'), { target: { value: '4000000' } });
-    api.createDepositTracker.mockRejectedValue(new Error('Không thể lưu, thử lại.'));
-    fireEvent.click(form.getByRole('button', { name: 'Lưu dòng' }));
-    await waitFor(() => expect(form.getByRole('alert')).toHaveTextContent('Không thể lưu, thử lại.'));
+    await waitFor(() => expect(api.createDepositTracker).toHaveBeenCalledWith(expect.objectContaining({ depositAmount: 4000000 })));
+    // The failure keeps the dialog open with the user's input retained.
+    expect(await form.findByRole('alert')).toHaveTextContent('Không thể lưu, thử lại.');
+    expect(form.getByLabelText('Số tiền cược (₫)')).toHaveValue('4.000.000');
     expect(form.getByLabelText('Số Bill')).toHaveValue('QA-NEW');
     expect(api.createDepositTracker).toHaveBeenCalledWith(expect.objectContaining({ cvSubmittedDate: null, depositAmount: 4000000 }));
   });

@@ -103,11 +103,11 @@ export default function AppSettingsConfigPage() {
   const truckProfiles = useTruckFinancialProfiles(selectedTruckId);
   const requestTruckProfile = useRequestTruckFinancialProfile();
   const [truckEffectiveFrom, setTruckEffectiveFrom] = useState('');
-  const [truckAcquisitionCost, setTruckAcquisitionCost] = useState('');
-  const [truckResidualValue, setTruckResidualValue] = useState('');
+  const [truckAcquisitionCost, setTruckAcquisitionCost] = useState<number | ''>('');
+  const [truckResidualValue, setTruckResidualValue] = useState<number | ''>('');
   const [truckInServiceDate, setTruckInServiceDate] = useState('');
-  const [truckUsefulLifeMonths, setTruckUsefulLifeMonths] = useState('');
-  const [truckMonthlyFixedCost, setTruckMonthlyFixedCost] = useState('');
+  const [truckUsefulLifeMonths, setTruckUsefulLifeMonths] = useState<number | ''>('');
+  const [truckMonthlyFixedCost, setTruckMonthlyFixedCost] = useState<number | ''>('');
   const [truckMessage, setTruckMessage] = useState<string | null>(null);
   const [truckError, setTruckError] = useState<string | null>(null);
 
@@ -141,11 +141,11 @@ export default function AppSettingsConfigPage() {
     if (!truckProfiles.data) return;
     const current = truckProfiles.data.currentProfile;
     setTruckEffectiveFrom(truckProfiles.data.currentVietnamMonthStart);
-    setTruckAcquisitionCost(current?.acquisitionCost ?? '');
-    setTruckResidualValue(current?.residualValue ?? '');
+    setTruckAcquisitionCost(current?.acquisitionCost ? Number(current.acquisitionCost) : '');
+    setTruckResidualValue(current?.residualValue ? Number(current.residualValue) : '');
     setTruckInServiceDate(current?.inServiceDate ?? '');
-    setTruckUsefulLifeMonths(current?.usefulLifeMonths != null ? String(current.usefulLifeMonths) : '');
-    setTruckMonthlyFixedCost(current?.monthlyFixedCost ?? '');
+    setTruckUsefulLifeMonths(current?.usefulLifeMonths ?? '');
+    setTruckMonthlyFixedCost(current?.monthlyFixedCost ? Number(current.monthlyFixedCost) : '');
   }, [truckProfiles.data]);
 
   const saveGeneralSettings = async () => {
@@ -243,8 +243,7 @@ export default function AppSettingsConfigPage() {
       setTruckError('Tháng hiệu lực và ngày đưa vào sử dụng là bắt buộc.');
       return;
     }
-    const usefulLifeMonths = Number(truckUsefulLifeMonths);
-    if (!Number.isInteger(usefulLifeMonths) || usefulLifeMonths <= 0) {
+    if (typeof truckUsefulLifeMonths !== 'number' || !Number.isInteger(truckUsefulLifeMonths) || truckUsefulLifeMonths <= 0) {
       setTruckError('Thời gian sử dụng phải là số nguyên lớn hơn 0.');
       return;
     }
@@ -252,11 +251,11 @@ export default function AppSettingsConfigPage() {
       expectedPublicVersion: truckProfiles.data.publicVersion,
       truckId: truckProfiles.data.selectedTruckId,
       effectiveFrom: truckEffectiveFrom,
-      acquisitionCost: truckAcquisitionCost,
-      residualValue: truckResidualValue,
+      acquisitionCost: truckAcquisitionCost === '' ? '' : String(truckAcquisitionCost),
+      residualValue: truckResidualValue === '' ? '' : String(truckResidualValue),
       inServiceDate: truckInServiceDate,
-      usefulLifeMonths,
-      monthlyFixedCost: truckMonthlyFixedCost,
+      usefulLifeMonths: truckUsefulLifeMonths,
+      monthlyFixedCost: truckMonthlyFixedCost === '' ? '' : String(truckMonthlyFixedCost),
     } as const;
     const confirmed = await confirm(
       `Áp dụng hồ sơ tài chính cho xe ${truckProfiles.data.selectedTruckLabel} hiệu lực từ ${formatViMonth(truckEffectiveFrom)} ngay lập tức?`,
@@ -316,11 +315,11 @@ export default function AppSettingsConfigPage() {
       truckProfiles.data
         && (
           truckEffectiveFrom !== truckProfiles.data.currentVietnamMonthStart
-          || truckAcquisitionCost !== (truckProfiles.data.currentProfile?.acquisitionCost ?? '')
-          || truckResidualValue !== (truckProfiles.data.currentProfile?.residualValue ?? '')
+          || truckAcquisitionCost !== (truckProfiles.data.currentProfile?.acquisitionCost ? Number(truckProfiles.data.currentProfile.acquisitionCost) : '')
+          || truckResidualValue !== (truckProfiles.data.currentProfile?.residualValue ? Number(truckProfiles.data.currentProfile.residualValue) : '')
           || truckInServiceDate !== (truckProfiles.data.currentProfile?.inServiceDate ?? '')
-          || truckUsefulLifeMonths !== (truckProfiles.data.currentProfile?.usefulLifeMonths != null ? String(truckProfiles.data.currentProfile.usefulLifeMonths) : '')
-          || truckMonthlyFixedCost !== (truckProfiles.data.currentProfile?.monthlyFixedCost ?? '')
+          || truckUsefulLifeMonths !== (truckProfiles.data.currentProfile?.usefulLifeMonths ?? '')
+          || truckMonthlyFixedCost !== (truckProfiles.data.currentProfile?.monthlyFixedCost ? Number(truckProfiles.data.currentProfile.monthlyFixedCost) : '')
         )
     );
     if (truckDraftDirty) {

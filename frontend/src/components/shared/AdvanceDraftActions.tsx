@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../lib/api';
 import { qk } from '../../api/keys';
 import { FormGroup, Modal } from '../UI';
+import { NumberField } from '../../design-system';
 
 type AdvanceDraft = {
   id: number; version: number; requesterId: number; status: string; amount: string; reason: string;
@@ -30,7 +31,7 @@ function DraftActions({ request, voidOnly = false }: { request: AdvanceDraft; vo
   const user = auth?.user;
   const queryClient = useQueryClient();
   const [action, setAction] = useState<'record' | 'void' | null>(null);
-  const [amount, setAmount] = useState(request.amount);
+  const [amount, setAmount] = useState<number | ''>(request.amount ? Number(request.amount) : '');
   const [reason, setReason] = useState(request.reason);
   const [resolutionReason, setResolutionReason] = useState('');
   const [pending, setPending] = useState(false);
@@ -42,18 +43,19 @@ function DraftActions({ request, voidOnly = false }: { request: AdvanceDraft; vo
   // Office recovery stays DRAFT-only: withdrawing a RECORDED request is the
   // owner's own action, so `voidOnly` never renders for an office actor.
   if ((!office && !owner) || (voidOnly && !owner) || !Number.isInteger(request.version)) return null;
+  const amountValid = typeof amount === 'number' && Number.isSafeInteger(amount)
+    && amount > 0 && amount <= 999_999_999_999_999;
   const valid = resolutionReason.trim().length > 0 && resolutionReason.length <= 1000
-    && (action === 'void' || (Number.isSafeInteger(Number(amount)) && Number(amount) > 0
-      && Number(amount) <= 999_999_999_999_999 && reason.trim().length > 0 && reason.length <= 1000));
+    && (action === 'void' || (amountValid && reason.trim().length > 0 && reason.length <= 1000));
   function open(next: 'record' | 'void') {
-    setAmount(request.amount); setReason(request.reason); setResolutionReason(''); setError('');
+    setAmount(request.amount ? Number(request.amount) : ''); setReason(request.reason); setResolutionReason(''); setError('');
     command.current = { fingerprint: '', key: '' }; setAction(next);
   }
   async function save() {
     if (!valid || !action || busy.current) return;
     busy.current = true; setPending(true); setError('');
     const body = { expectedVersion: request.version, resolutionReason: resolutionReason.trim(),
-      ...(action === 'record' ? { amount: Number(amount), reason: reason.trim() } : {}) };
+      ...(action === 'record' ? { amount, reason: reason.trim() } : {}) };
     const fingerprint = JSON.stringify({ action, body });
     if (command.current.fingerprint !== fingerprint) command.current = { fingerprint, key: crypto.randomUUID() };
     try {
@@ -79,7 +81,7 @@ function DraftActions({ request, voidOnly = false }: { request: AdvanceDraft; vo
         {/* business key render; id never user-facing — the draft payload carries no date/requester name */}
         <p className="text-muted">Tạm ứng{request.reason ? ` · ${request.reason}` : ''} · {voidOnly ? 'Chưa giao tiền' : 'Chưa ghi sổ'}. Thao tác lưu có hiệu lực ngay và giữ lịch sử đối chiếu.</p>
         {action === 'record' && <>
-          <FormGroup label="Số tiền (₫) *" error={Number.isSafeInteger(Number(amount)) && Number(amount) > 0 && Number(amount) <= 999_999_999_999_999 ? '' : 'Nhập số tiền nguyên dương hợp lệ.'}><input className="input" type="number" inputMode="numeric" min="1" max="999999999999999" step="1" required value={amount} disabled={pending} onChange={event => setAmount(event.target.value)} /></FormGroup>
+          <NumberField label="Số tiền (₫) *" grouped required value={amount} disabled={pending} onChange={setAmount} error={amountValid ? '' : 'Nhập số tiền nguyên dương hợp lệ.'} />
           <FormGroup label="Nội dung tạm ứng *"><textarea className="input" rows={2} required maxLength={1000} value={reason} disabled={pending} onChange={event => setReason(event.target.value)} /></FormGroup>
         </>}
         <FormGroup label="Lý do xử lý *"><textarea className="input" rows={2} required maxLength={1000} value={resolutionReason} disabled={pending} onChange={event => setResolutionReason(event.target.value)} /></FormGroup>

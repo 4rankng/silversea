@@ -28,7 +28,6 @@ import {
   resolveContainerCount,
 } from './tripFormDispatchUtils';
 import { usePersistedContainerType } from './usePersistedContainerType';
-import { moneyInputToNumber } from '../lib/moneyInput';
 import { useTripFormSubmit } from './use-trip-form-submit';
 import type { SubmitOptions } from './use-trip-form-submit';
 
@@ -37,7 +36,8 @@ const LOADED_RATE = FUEL_LOADED_NORM_FALLBACK;
 const EMPTY_RATE = FUEL_EMPTY_NORM_FALLBACK;
 
 function moneyOrZero(value: string): number {
-  return moneyInputToNumber(value) ?? 0;
+  const digits = value.replace(/\D/g, '');
+  return digits ? Number(digits) : 0;
 }
 
 /** OCR recognition result broadcast to container-aware components (e.g. the
@@ -485,7 +485,8 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
   );
 
   const estimatedDispatchRevenue = useMemo(() => {
-    const explicitRevenue = moneyInputToNumber(s.revenue);
+    const revenueDigits = s.revenue.replace(/\D/g, '');
+    const explicitRevenue = revenueDigits ? Number(revenueDigits) : undefined;
     if (explicitRevenue != null && explicitRevenue > 0) return explicitRevenue;
     if (suggestedPrice != null && suggestedPrice > 0) {
       return suggestedPrice * resolveContainerCount(s.containerCount);
