@@ -4,8 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Role, type ExpenseAccountingEntry, type ExpenseListQuery, type ExpenseWorkRow } from '@tingting/shared';
 import { Drawer } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
-import { DateRangeFields, UuiSelectField, Tabs } from '../../design-system';
+import { DateRangeFields, FilterBar, Tabs, UuiSelectField } from '../../design-system';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { businessDateISO } from '../../lib/format';
@@ -83,7 +82,7 @@ export function ExpenseAccountingWorkspace() {
     {view === 'ops' && catalog.data && <div className="expense-accounting-toolbar-actions"><button type="button" className="btn btn--secondary btn--sm" onClick={() => setAdvance(true)}>Chi tạm ứng OPS</button></div>}
     {catalog.isError && <p role="alert" className="expense-accounting-error">Không tải được danh mục thao tác. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void catalog.refetch()}>Thử lại</button></p>}
     {['ops', 'work', 'reports'].includes(view) && <form onSubmit={event => { event.preventDefault(); update({ search: draftSearch.trim() }); }}>
-      <ListFilterBar
+      <FilterBar
         search={{ value: draftSearch, onChange: setDraftSearch, placeholder: 'Lô, khách, số cont, xe, tên phí', ariaLabel: 'Tìm công việc', inputProps: { maxLength: 200 } }}
         actions={<><button type="submit" className="btn btn--secondary btn--sm">Tìm</button>{hasFilters && <button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa lọc</button>}</>}
       >
@@ -100,7 +99,7 @@ export function ExpenseAccountingWorkspace() {
           {view === 'ops' ? <UuiSelectField label="Người thực chi" value={String(filters.payerId ?? '')} onChange={event => update({ payerId: event.target.value })} options={[{ value: '', label: 'Tất cả OPS' }, ...(catalog.data?.opsUsers ?? []).map(item => ({ value: String(item.id), label: item.name }))]} /> : <UuiSelectField label="Kế toán phụ trách xe" value={assigned} onChange={event => update({ accountantId: event.target.value })} options={[{ value: 'all', label: 'Tất cả xe' }, { value: '0', label: 'Chưa phân công' }, ...(catalog.data?.accountants ?? []).map(item => ({ value: String(item.id), label: item.name }))]} />}
           <UuiSelectField label="Đối chiếu chi phí" value={filters.confirmed ?? ''} onChange={event => update({ confirmed: event.target.value })} options={[{ value: '', label: 'Tất cả' }, { value: 'false', label: 'Chưa đối chiếu' }, { value: 'true', label: 'Đã đối chiếu' }]} />
         </FilterDropdown>
-      </ListFilterBar>
+      </FilterBar>
     </form>}
     {!validRange && <p role="alert" className="expense-accounting-error">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}
     {validRange && (view === 'ops' || view === 'work') && <ExpenseBoard key={`${view}:${JSON.stringify(filters)}:${refresh}`} view={view} filters={filters} catalog={catalog.data} setPage={page => update({ page: String(page) })} onEdit={setEditing} onWork={(row, group) => setWork({ row, group })} onVoucher={openVoucher} onReconcile={setReconciliation} />}

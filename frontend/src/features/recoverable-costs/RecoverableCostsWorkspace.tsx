@@ -11,8 +11,7 @@ import {
 } from 'lucide-react';
 import { Btn, StatusPill, type PillVariant } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
-import { EmptyState, Pagination, UuiSelectField } from '../../design-system';
+import { EmptyState, FilterBar, Pagination, UuiSelectField } from '../../design-system';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, type TableSortState } from '../../lib/table-sort';
 import { RECOVERABLE_COST_SORT_KEYS, type RecoverableCostSortKey } from '@tingting/shared';
@@ -309,7 +308,7 @@ export function RecoverableCostsWorkspace() {
           the result count rides the bar's status slot. The landmark the page
           always exposed is kept; it carries no styling. */}
       <section aria-label="Bộ lọc chi phí">
-        <ListFilterBar
+        <FilterBar
           status={(
             <div className="recoverable-costs__toolbar-meta" aria-live="polite">
               <Scale size={17} aria-hidden="true" />
@@ -335,7 +334,7 @@ export function RecoverableCostsWorkspace() {
               onChange={(event) => { setStatus(event.target.value); setPage(1); }}
             />
           </FilterDropdown>
-        </ListFilterBar>
+        </FilterBar>
       </section>
 
       {error && (

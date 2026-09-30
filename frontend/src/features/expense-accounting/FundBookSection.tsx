@@ -4,8 +4,7 @@ import { expenseDateSchema } from '@tingting/shared';
 import { api } from '../../lib/api';
 import { qk } from '../../api/keys';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
-import { DateRangeFields, UuiSelectField } from '../../design-system';
+import { DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
 import { businessDateISO } from '../../lib/format';
 import { expenseMoney } from './expense-accounting-model';
 
@@ -59,7 +58,7 @@ export function FundBookSection() {
   });
 
   return <section className="expense-accounting" aria-label="Sổ quỹ">
-    <ListFilterBar>
+    <FilterBar>
       <DateRangeFields
         size="sm"
         ariaLabel="Kỳ sổ quỹ"
@@ -82,7 +81,7 @@ export function FundBookSection() {
           options={([{ value: 'COMPANY', label: SOURCE_LABELS.COMPANY }, { value: 'TM', label: SOURCE_LABELS.TM }] as const)}
         />
       </FilterDropdown>
-    </ListFilterBar>
+    </FilterBar>
     <p className="expense-accounting-hint">Đầu kỳ là số dư lũy kế đến ngày bắt đầu; thu, chi và dòng sổ chỉ nằm trong kỳ. Tài khoản OPS ghi số tạm ứng OPS còn giữ — cùng một công thức với số "Còn phải hoàn ứng" của báo cáo hoàn ứng.</p>
     {!validRange && <p role="alert" className="expense-accounting-error">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}
     {book.isError && <p role="alert">Không tải được sổ quỹ. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void book.refetch()}>Thử lại</button></p>}
