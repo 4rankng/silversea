@@ -20,6 +20,29 @@ def rows(resp):
     return resp.get("data", {}).get("items", resp.get("data", [])) if isinstance(resp.get("data"), dict) else resp.get("data", [])
 
 
+def all_rows(api, path, limit=100):
+    """Every row of a paginated catalog list, walking pages until `total`.
+
+    TC-2021's fleet preconditions (card 20260930_239): the drivers/trucks
+    catalogs ride the generic CRUD factory, which for these tables declares NO
+    ordering (no orderByField, no sortable whitelist) — pages are heap order,
+    so a fixed page-1 scan silently depends on whatever rows other suites'
+    runs left behind (the shared dev DB carries 200+ residual 'cardN/CF/ZS'
+    driver rows at any moment, and they recur with every suite run). Walking
+    bounded by `total` makes the lookup deterministic at any row count without
+    touching product code or purging a shared database other lanes are using.
+    """
+    items, page, sep = [], 1, "&" if "?" in path else "?"
+    while True:
+        data = api.get(f"{path}{sep}page={page}&limit={limit}").get("data", {})
+        batch = data.get("items", []) if isinstance(data, dict) else data
+        items.extend(batch)
+        total = data.get("total", len(items)) if isinstance(data, dict) else len(items)
+        if not batch or len(items) >= total:
+            return items
+        page += 1
+
+
 def request_json(api, method, path, body=None, headers=None):
     if method == "POST":
         result = api.post(path, body, headers=headers)
@@ -76,10 +99,13 @@ def create_driver_flow_fixture(ctx: SilverseaTestContext, results: TestResults):
     sites = rows(admin_api.get(f"/api/shipments/operational-sites?customerId={customer_id}"))
     container_types = rows(admin_api.get("/api/container-types?page=1&pageSize=25"))
     ports = rows(admin_api.get("/api/ports?page=1&pageSize=25"))
-    # Also get trucks and drivers via admin API (dispatcher may not have fleet access)
-    trucks_list = rows(admin_api.get("/api/trucks?limit=50"))
-    drivers_list_api = rows(admin_api.get("/api/drivers?limit=50"))
-    trailers_list = rows(admin_api.get("/api/trailers?limit=50"))
+    # Also get trucks and drivers via admin API (dispatcher may not have fleet
+    # access). Paginated walks, not page-1 scans (card 20260930_239): these
+    # catalogs have no stable ordering, so the fleet preconditions must not
+    # depend on which rows happen to land on page 1.
+    trucks_list = all_rows(admin_api, "/api/trucks")
+    drivers_list_api = all_rows(admin_api, "/api/drivers")
+    trailers_list = all_rows(admin_api, "/api/trailers")
 
     if not routes or not cargo_types or not sites:
         results.fail("TC-2000", "Master data loaded",
@@ -136,6 +162,12 @@ def create_driver_flow_fixture(ctx: SilverseaTestContext, results: TestResults):
                 "containerTypeId": cont_type["id"],
                 "containerNumber": "MSCU6639870",
                 "shippingLineName": "Hãng tàu E2E",
+                # Card 20260922_58 ruling 4c: a weightless container lot 409s
+                # at dispatch ("Thiếu trọng tải") — pricing freezes only with a
+                # weight, and a silently unpriced dispatch is what the ruling
+                # forbids. The fixture carries one so TC-2023 exercises the
+                # assignment flow, not the deliberate missing-weight stop.
+                "cargoWeightKg": 18500,
                 "routeId": routes[0]["id"],
                 "pickupPortId": ports[0]["id"],
                 "dropoffPortId": ports[-1]["id"],
@@ -369,7 +401,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         ctx.screenshot(page, "TC-2032_driver_bottom_nav")
 
         # Check order cards
-        cards = page.locator(".driver-journey-card").filter(has_text=trip["tripCode"])
+        cards = page.locator(".driver-journey-card").filter(has_text=f"BL{BOOKING_PREFIX}")
         card_count = cards.count()
         if card_count == 1:
             results.pass_("TC-2033", f"Created trip #{trip['id']} visible in Lệnh mới")
@@ -492,7 +524,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
                 if running_tab.count() > 0:
                     running_tab.first.click()
                     page.wait_for_timeout(1000)
-                    running_cards = page.locator(".driver-journey-card").filter(has_text=trip["tripCode"])
+                    running_cards = page.locator(".driver-journey-card").filter(has_text=f"BL{BOOKING_PREFIX}")
                     if acceptance_status in (200, 201) and running_cards.count() == 1:
                         results.pass_("TC-2046", f"Order moved to 'Đã nhận' ({running_cards.count()} card(s))")
                     else:
@@ -519,7 +551,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         page.wait_for_load_state("networkidle")
         # Reload defaults to Lệnh mới; the accepted fixture now belongs to Đã nhận.
         page.locator("button:has-text('Đã nhận')").click()
-        typography_card = page.locator(".driver-journey-card").filter(has_text=trip["tripCode"])
+        typography_card = page.locator(".driver-journey-card").filter(has_text=f"BL{BOOKING_PREFIX}")
         typography_card.wait_for(state="visible", timeout=15000)
         overflow = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
         if overflow:
