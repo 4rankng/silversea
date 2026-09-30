@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ExpenseAccountingEntry } from '@tingting/shared';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
-import { photoSrc } from '../../lib/api/photo';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { sourceRef } from './expense-accounting-model';
 import './ExpenseProofs.css';
 
@@ -11,6 +11,9 @@ export function ExpenseProofs({ entry, canUpload }: { entry: ExpenseAccountingEn
   const cache = useQueryClient();
   const lock = useRef(false);
   const [keys, setKeys] = useState(entry.photoStorageKeys);
+  // DRV-DET-08: proof photos load with the Authorization header (blob), never
+  // a ?token= query string. Index-aligned with `keys`.
+  const urls = useAuthedPhotoUrls(keys);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +31,7 @@ export function ExpenseProofs({ entry, canUpload }: { entry: ExpenseAccountingEn
   }
   return <section className="expense-proofs" aria-label="Chứng từ khoản chi">
     <h3 className="expense-accounting-subtitle">Chứng từ</h3>
-    {keys.length > 0 && <div className="expense-accounting-photos">{keys.map((key, index) => <a key={key} href={photoSrc(key)} target="_blank" rel="noreferrer"><img src={photoSrc(key)} alt={`Chứng từ ${index + 1}`} /></a>)}</div>}
+    {keys.length > 0 && <div className="expense-accounting-photos">{keys.map((key, index) => <a key={key} href={urls[index] || undefined} target="_blank" rel="noreferrer"><img src={urls[index]} alt={`Chứng từ ${index + 1}`} /></a>)}</div>}
     {canUpload && <label className="btn btn--secondary expense-accounting-file">{busy ? 'Đang tải ảnh…' : 'Bổ sung ảnh chứng từ'}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/heic,image/heif" disabled={busy} onChange={event => { const next = event.target.files?.[0]; event.currentTarget.value = ''; if (next) void upload(next); }} /></label>}
     {error && <p role="alert" className="expense-accounting-error">{error}</p>}
     {file && !busy && <div className="expense-accounting-file"><span>{file.name}</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => void upload(file)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" onClick={() => { setFile(null); setError(''); }}>Bỏ ảnh chưa tải</button></div>}

@@ -3,7 +3,7 @@ import { Camera, Loader2, X, Trash2 } from 'lucide-react';
 import { useOpsExpenseTypes, useUpdateOpsExpense, useAttachOpsExpensePhoto, useOpsExpensePhotos, useDeleteOpsExpensePhoto } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsExpenseRow } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
-import { getAuthenticatedPhotoUrl } from '../../lib/api';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { DateInput } from '../../design-system/forms/DateInput';
@@ -85,7 +85,11 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
 
   // Server-side photo count via readback (reactively updates through cache
   // invalidation from useAttachOpsExpensePhoto → useOpsExpensePhotos).
-  const serverPhotoCount = existingPhotosData?.items.length ?? 0;
+  const serverPhotos = existingPhotosData?.items ?? [];
+  // DRV-DET-08: receipt evidence loads with the Authorization header (blob),
+  // never a ?token= query string. Index-aligned with `serverPhotos`.
+  const serverPhotoUrls = useAuthedPhotoUrls(serverPhotos.map((photo) => photo.storageKey));
+  const serverPhotoCount = serverPhotos.length;
   const missingReceipt = serverPhotoCount === 0 && entry.requiresInvoice === true;
 
   async function handlePhotoUpload(files: FileList | File[] | null) {
@@ -211,9 +215,9 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
             {pendingFiles.length > 0 && !uploadingPhoto && <div className="expense-accounting-file" role="status"><span>{pendingFiles.length} ảnh chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => void handlePhotoUpload(pendingFiles)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" onClick={() => setPendingFiles([])}>Bỏ ảnh chưa tải</button></div>}
             {serverPhotoCount > 0 && (
               <ul className="ops-form-photos__list">
-                {(existingPhotosData?.items ?? []).map((photo, photoIndex) => (
+                {serverPhotos.map((photo, photoIndex) => (
                   <li key={photo.storageKey}>
-                    <img src={getAuthenticatedPhotoUrl(`/api/photos/${encodeURIComponent(photo.storageKey)}`)} alt="Biên lai khoản chi" />
+                    <img src={serverPhotoUrls[photoIndex]} alt="Biên lai khoản chi" />
                     {/* Business key + position — never the DB row id (internal-ids law). */}
                     <button type="button" aria-label={`Xóa ảnh biên lai ${entry.shipmentCode ?? 'khoản chi'} · ảnh ${photoIndex + 1}`} disabled={locked || deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được ảnh.' }))}><Trash2 size={14} /></button>
                   </li>

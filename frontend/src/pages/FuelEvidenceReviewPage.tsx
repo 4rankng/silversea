@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { qk } from '../api/keys';
 
 import { fuelEvidenceClient, type FuelEvidenceReviewRecord, type FuelEvidenceReviewStatus } from '../api/fuelEvidenceClient';
-import { getAuthenticatedPhotoUrl } from '../lib/api';
+import { useAuthedPhotoUrls } from '../lib/api/photo';
 import { PageHeader, StatusPill } from '../components/UI';
 import { FilterDropdown } from '../components/FilterDropdown';
 import { ListFilterBar } from '../components/ListFilterBar';
@@ -46,6 +46,9 @@ export default function FuelEvidenceReviewPage() {
   });
 
   const items = useMemo(() => query.data?.items ?? [], [query.data]);
+  // DRV-DET-08: evidence photos load with the Authorization header (blob),
+  // never a ?token= query string. Index-aligned with `items`.
+  const photoUrls = useAuthedPhotoUrls(items.map((row) => row.photoUrl));
   const total = query.data?.total ?? 0;
   const limit = query.data?.limit ?? 20;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -117,12 +120,12 @@ export default function FuelEvidenceReviewPage() {
       )}
 
       <div className="fuel-evidence-review__list">
-        {items.map((row) => (
+        {items.map((row, rowIndex) => (
           <section key={row.id} className="panel" style={{ padding: 16 }}>
             <div className="fuel-evidence-review__card">
               <div>
                 <img
-                  src={getAuthenticatedPhotoUrl(row.photoUrl)}
+                  src={photoUrls[rowIndex]}
                   alt={`Ảnh nhiên liệu ${row.tripCode ?? '—'}`}
                   style={{ width: '100%', borderRadius: 12, border: '1px solid var(--border-1)', objectFit: 'cover' }}
                 />

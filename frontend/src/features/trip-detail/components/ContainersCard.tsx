@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Package, Loader2, Camera, ImageOff } from 'lucide-react';
 import { api } from '../../../lib/api';
-import { photoSrc } from '../../../lib/api/photo';
+import { useAuthedPhotoUrls } from '../../../lib/api/photo';
 import { qk } from '../../../api/keys';
 import { PhotoViewer } from '../../../components/PhotoViewer';
 import '../../../components/PhotoViewer.css';
@@ -77,8 +77,10 @@ export function ContainersCard({ tripId }: Props) {
   // Prefer the new plural arrays; fall back to singular for older clients.
   const contKeys = data?.contPhotoKeys ?? (data?.contPhotoKey ? [data.contPhotoKey] : []);
   const sealKeys = data?.sealPhotoKeys ?? (data?.sealPhotoKey ? [data.sealPhotoKey] : []);
-  const contUrls = contKeys.map(photoSrc);
-  const sealUrls = sealKeys.map(photoSrc);
+  // DRV-DET-08: container/seal photos load with the Authorization header
+  // (blob), never a ?token= query string.
+  const contUrls = useAuthedPhotoUrls(contKeys);
+  const sealUrls = useAuthedPhotoUrls(sealKeys);
 
   const openGallery = (kind: 'cont' | 'seal', idx: number) => {
     const offset = kind === 'cont' ? 0 : contUrls.length;

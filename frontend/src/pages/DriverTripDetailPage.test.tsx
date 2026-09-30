@@ -1230,17 +1230,24 @@ describe('DriverTripDetailPage', () => {
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
-    // BentoThumb HEAD-preflights the authenticated photo URL inside its mount
-    // effect — the stub must be in place BEFORE renderPage() paints the tile,
-    // or the failed preflight permanently falls back to the placeholder.
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as Response));
+    // Both biên bản tiles (the bento thumb and the preview strip) resolve the
+    // photo through the Authorization-header blob fetch — never the protected
+    // path itself, and never a `?token=` URL.
+    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['note'], { type: 'image/jpeg' }));
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:delivery-note'),
+      revokeObjectURL: vi.fn(),
+    }));
     renderPage();
 
     try {
       const img = await screen.findByAltText('Ảnh biên bản');
-      expect(img.getAttribute('src')).toContain(encodeURIComponent('trips/55/delivery-note.jpg'));
+      await waitFor(() => expect(img.getAttribute('src')).toBe('blob:delivery-note'));
+      expect(getBlob).toHaveBeenCalledWith('/api/photos/trips%2F55%2Fdelivery-note.jpg');
+      expect(document.querySelector('img[src*="token="]')).toBeNull();
       expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
     } finally {
+      getBlob.mockRestore();
       vi.unstubAllGlobals();
     }
   });

@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Camera, Loader2, Save, Package, AlertCircle, Pencil, X, Check } from 'lucide-react';
 import { api, fileCommandFingerprint } from '../../lib/api';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useToast } from '../shared/Toast';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import { PhotoViewer } from '../PhotoViewer';
-import { photoSrc, renderThumb } from './DriverTripPhotos';
+import { AuthedPhotoImg, renderThumb } from './DriverTripPhotos';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { normalizeContainerNumber } from '@tingting/shared';
 import { checkContainerNumber } from './container-instance-helpers';
 import { TextField } from '../../design-system';
@@ -54,7 +55,7 @@ interface Props {
   onSaved: () => void;
 }
 
-// photoSrc + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
+// AuthedPhotoImg + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
 // (structure-guard split shared across the driver photo surfaces).
 export function DriverContainerCard({ tripId, readOnly = false, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
   const { toast } = useToast();
@@ -264,14 +265,12 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
 
   // Populated slots only — gallery order follows the tile strip (cont, seal,
   // biên bản). Empty slots never imply an openable image.
-  const viewerPhotos = useMemo(() => [
-    contPhotoKey ? { label: 'Cont', url: photoSrc(contPhotoKey) } : null,
-    sealPhotoKey ? { label: 'Seal', url: photoSrc(sealPhotoKey) } : null,
-    deliveryNotePhotoKey ? { label: 'Biên bản', url: photoSrc(deliveryNotePhotoKey) } : null,
-  ].filter((entry): entry is { label: string; url: string } => entry != null), [contPhotoKey, sealPhotoKey, deliveryNotePhotoKey]);
+  const viewerKeys = [contPhotoKey, sealPhotoKey, deliveryNotePhotoKey].filter((key): key is string => key != null);
+  const viewerUrls = useAuthedPhotoUrls(viewerKeys);
 
   const openViewer = (label: string, opener: HTMLButtonElement) => {
-    const index = viewerPhotos.findIndex((entry) => entry.label === label);
+    const slot = label === 'Cont' ? contPhotoKey : label === 'Seal' ? sealPhotoKey : deliveryNotePhotoKey;
+    const index = viewerKeys.indexOf(slot ?? '');
     if (index < 0) return;
     viewerOpenerRef.current = opener;
     setViewerIndex(index);
@@ -541,7 +540,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                     >
                       {removingPhoto === 'CONTAINER' ? <Loader2 size={12} className="spin" /> : <X size={12} />}
                     </button>
-                    <img className="dcc-photo" src={photoSrc(lastPhotos.cont)} alt="Ảnh cont" />
+                    <AuthedPhotoImg photoKey={lastPhotos.cont} className="dcc-photo" alt="Ảnh cont" />
                     <figcaption>Ảnh cont</figcaption>
                   </figure>
                 )}
@@ -556,7 +555,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                     >
                       {removingPhoto === 'SEAL' ? <Loader2 size={12} className="spin" /> : <X size={12} />}
                     </button>
-                    <img className="dcc-photo" src={photoSrc(lastPhotos.seal)} alt="Ảnh seal" />
+                    <AuthedPhotoImg photoKey={lastPhotos.seal} className="dcc-photo" alt="Ảnh seal" />
                     <figcaption>Ảnh seal</figcaption>
                   </figure>
                 )}
@@ -573,7 +572,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                     >
                       {removingNote ? <Loader2 size={12} className="spin" /> : <X size={12} />}
                     </button>
-                    <img className="dcc-photo" src={photoSrc(deliveryNotePhotoKey)} alt="Ảnh biên bản giao hàng" />
+                    <AuthedPhotoImg photoKey={deliveryNotePhotoKey} className="dcc-photo" alt="Ảnh biên bản giao hàng" />
                     <figcaption>Ảnh biên bản</figcaption>
                   </figure>
                 )}
@@ -678,9 +677,9 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             gallery across the populated slots. The fixed overlay never
             scrolls the page behind it; closing restores focus to the opener
             tile so keyboard/AT users land exactly where they left. */}
-        {viewerIndex != null && viewerPhotos[viewerIndex] && (
+        {viewerIndex != null && viewerUrls[viewerIndex] && (
           <PhotoViewer
-            urls={viewerPhotos.map((entry) => entry.url)}
+            urls={viewerUrls}
             initialIndex={viewerIndex}
             onClose={() => {
               setViewerIndex(null);

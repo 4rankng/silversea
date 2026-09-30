@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { photoViewerPropsMock, scannerPropsMock, setRowsMock, useTripFormContextMock } = vi.hoisted(() => ({
@@ -121,7 +121,7 @@ describe('ContainerInstancesCard flat manifest layout', () => {
     expect(screen.getByRole('button', { name: 'Mở ảnh seal 2' })).toBeTruthy();
   });
 
-  it('gives each populated seal photo a distinct view/delete name and opens the correct lightbox', () => {
+  it('gives each populated seal photo a distinct view/delete name and opens the correct lightbox', async () => {
     const context = useTripFormContextMock();
     useTripFormContextMock.mockReturnValue({
       ...context,
@@ -141,7 +141,20 @@ describe('ContainerInstancesCard flat manifest layout', () => {
     expect(screen.getByRole('button', { name: 'Mở ảnh seal 1' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Xoá ảnh seal 1' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Xoá ảnh seal 2' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Mở ảnh seal 2' }));
+
+    // DRV-DET-08: a tile reaches its photo through the Authorization-header
+    // blob hook, which settles a microtask after mount. A `blob:` preview the
+    // driver just picked passes through that hook UNCHANGED, so wait for the
+    // settled src before opening the lightbox — otherwise the viewer is handed
+    // the pending '' and never the real object URL.
+    await waitFor(() => {
+      expect(screen.getByAltText('Ảnh seal 1 LSQU1077373').getAttribute('src')).toBe('blob:seal-1');
+      expect(screen.getByAltText('Ảnh seal 2 LSQU1077373').getAttribute('src')).toBe('blob:seal-2');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Mở ảnh seal 2' }));
+    });
 
     const viewerProps = photoViewerPropsMock.mock.calls.at(-1)?.[0] as { urls: string[]; initialIndex: number };
     expect(viewerProps.urls).toEqual(['blob:seal-2']);

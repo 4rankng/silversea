@@ -1,31 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getToken } from '../token';
 import { api } from './client';
-
-/**
- * Photo URLs are protected behind the JWT, but the `<img>` tag can't send
- * Authorization headers.
- *
- * DEPRECATED for new call sites — see `useAuthedPhotoUrls` below. This helper
- * attaches the token as a query string, which leaks it into nginx access logs,
- * browser history, Referer headers and proxy logs; DRV-DET-08 forbids that
- * shape for evidence photos. It stays only for the call sites that have not
- * been migrated yet and it must not be used by new code.
- *
- * The token is read via the centralized `lib/token` cache rather than
- * re-parsing `localStorage` on every URL construction.
- */
-export function getAuthenticatedPhotoUrl(url: string | null | undefined): string {
-  if (!url) return '';
-  if (url.startsWith('/api/photos/') || url.includes('/api/photos/')) {
-    const token = getToken();
-    if (token) {
-      const separator = url.includes('?') ? '&' : '?';
-      return `${url}${separator}token=${encodeURIComponent(token)}`;
-    }
-  }
-  return url;
-}
 
 /**
  * Resolve a stored photo reference to the authenticated photo route path the
@@ -43,25 +17,41 @@ export function photoRoutePath(value: string | null | undefined): string | null 
 }
 
 /**
- * Resolve a stored photo reference to an authenticated, browser-renderable URL.
+ * Load ONE protected photo with the Authorization header and hand back a
+ * `blob:` URL the DOM can render (DRV-DET-08: a JWT must never ride in a query
+ * string, where browser history, Referer headers and proxy logs capture it —
+ * so this is the only way an `<img>` reaches a protected photo).
  *
- * Legacy synchronous form: it still returns a `?token=` URL. Prefer
- * `useAuthedPhotoUrls` (async blob fetch with the Authorization header), which
- * is what DRV-DET-08 requires for evidence photos.
+ * - A `blob:` input (a file the caller just picked) passes through untouched:
+ *   it is already a local object URL.
+ * - A denied or failed read resolves to '' — a caller renders no image instead
+ *   of the raw protected URL, so a denied read is never presented as a
+ *   successful one.
+ *
+ * REVOKE CONTRACT: when the returned value differs from the input, this
+ * function created it and the CALLER owns it — it must call
+ * `URL.revokeObjectURL` once the element stops rendering it. When the returned
+ * value is the input unchanged, the object URL belongs to whoever created the
+ * preview and must NOT be revoked here.
  */
-export function photoSrc(value: string | null | undefined): string {
+export async function loadAuthedPhotoObjectUrl(value: string | null | undefined): Promise<string> {
   if (!value) return '';
   if (value.startsWith('blob:')) return value;
-  return getAuthenticatedPhotoUrl(photoRoutePath(value) as string);
+  const path = photoRoutePath(value);
+  if (!path) return '';
+  try {
+    return URL.createObjectURL(await api.getBlob(path));
+  } catch {
+    return '';
+  }
 }
 
 /**
  * Load protected evidence photos with the Authorization header and hand back
- * `blob:` URLs the DOM can render (DRV-DET-08: a JWT must never ride in a
- * query string, where browser history, Referer and proxy logs can capture it).
+ * `blob:` URLs the DOM can render.
  *
  * - `blob:` previews (a file the driver just picked) pass through untouched —
- *   they are already local object URLs.
+ *   they are already local object URLs and stay owned by their creator.
  * - Values that fail to load resolve to '' — the caller renders no image
  *   instead of the raw protected URL, so a denied read is never presented as a
  *   successful one.
@@ -70,9 +60,13 @@ export function photoSrc(value: string | null | undefined): string {
  *
  * Takes the whole list so a caller can resolve a `map()` result without
  * calling a hook inside the loop; the returned array is index-aligned with the
- * input.
+ * input. `reloadKey` re-runs the fetch for the same values — the retry
+ * affordance on a surface that offers one.
  */
-export function useAuthedPhotoUrls(values: Array<string | null | undefined>): string[] {
+export function useAuthedPhotoUrls(
+  values: Array<string | null | undefined>,
+  reloadKey = 0,
+): string[] {
   // The array identity changes every render; its joined contents do not. The
   // signature is what the effect (and therefore the fetches) keys on.
   const signature = values.map((value) => value ?? '').join('\u0000');
@@ -80,21 +74,21 @@ export function useAuthedPhotoUrls(values: Array<string | null | undefined>): st
 
   useEffect(() => {
     const entries = signature.length === 0 ? [] : signature.split('\u0000');
+    // Drop the previous batch first: an index-aligned array must never pair a
+    // stale URL with a new value (a removed photo would shift the whole list).
+    setUrls((prev) => (prev.length === 0 ? prev : []));
     let active = true;
     const createdUrls: string[] = [];
     void Promise.all(entries.map(async (value) => {
-      if (value.startsWith('blob:')) return value;
-      const path = photoRoutePath(value);
-      if (!path) return '';
-      try {
-        const blob = await api.getBlob(path);
-        if (!active) return '';
-        const objectUrl = URL.createObjectURL(blob);
-        createdUrls.push(objectUrl);
-        return objectUrl;
-      } catch {
-        return '';
+      const url = await loadAuthedPhotoObjectUrl(value);
+      // Only URLs this effect created are revoked; a pending preview belongs to
+      // its creator. Late arrivals (a fetch that lands after unmount) would
+      // never be seen by the cleanup, so they are revoked here instead.
+      if (url && url !== value) {
+        if (active) createdUrls.push(url);
+        else URL.revokeObjectURL(url);
       }
+      return active ? url : '';
     })).then((next) => {
       if (active) setUrls(next);
     });
@@ -102,7 +96,16 @@ export function useAuthedPhotoUrls(values: Array<string | null | undefined>): st
       active = false;
       for (const objectUrl of createdUrls) URL.revokeObjectURL(objectUrl);
     };
-  }, [signature]);
+  }, [signature, reloadKey]);
 
   return urls;
+}
+
+/**
+ * Single-value convenience over `useAuthedPhotoUrls` for a surface that
+ * renders exactly one photo: `const src = useAuthedPhotoUrl(key)`. Same
+ * failure semantics — `''` when the read is denied, pending or absent.
+ */
+export function useAuthedPhotoUrl(value: string | null | undefined): string {
+  return useAuthedPhotoUrls([value])[0] ?? '';
 }

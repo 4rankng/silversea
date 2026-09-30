@@ -14,7 +14,9 @@ vi.mock('../../../lib/api', () => ({
 }));
 
 vi.mock('../../../lib/api/photo', () => ({
-  photoSrc: (key: string) => key,
+  // The blob transport has its own suite (lib/api/photo.test.ts) and the cases
+  // here carry no photo keys, so the loader only has to exist.
+  useAuthedPhotoUrls: (values: Array<string | null | undefined>) => values.map((value) => value ?? ''),
 }));
 
 vi.mock('../../../components/PhotoViewer', () => ({

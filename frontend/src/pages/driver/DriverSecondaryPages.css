@@ -161,12 +161,6 @@
   color: var(--danger);
 }
 
-@media (max-width: 1023px) {
-  .driver-secondary-page {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px));
-  }
-}
-
 @media (hover: hover) {
   .driver-secondary-page .driver-trip-card:hover {
     background: var(--surface-2);

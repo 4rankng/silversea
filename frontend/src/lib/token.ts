@@ -7,10 +7,9 @@
  * makes a future migration to HttpOnly cookies or a refresh-token flow a
  * one-file change.
  *
- * Components that need a token for display only (e.g. `<img>` tags via the
- * `getAuthenticatedPhotoUrl` helper) should continue to call that helper,
- * which now goes through this hook's cached value instead of re-reading
- * localStorage on every URL construction.
+ * Protected photos no longer come through here at all: `<img>` surfaces load
+ * them as blobs through `lib/api/photo` with the Authorization header the api
+ * client attaches, so no display path builds a token-bearing URL.
  */
 const STORAGE_KEY = 'token';
 

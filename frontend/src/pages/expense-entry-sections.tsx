@@ -6,7 +6,7 @@ import { DateInput } from '../design-system/forms/DateInput';
 import { UuiSelectField } from '../design-system';
 import { Btn } from '../components/UI';
 import { useState } from 'react';
-import { getAuthenticatedPhotoUrl } from '../lib/api/photo';
+import { useAuthedPhotoUrls } from '../lib/api/photo';
 import { PhotoViewer } from '../components/PhotoViewer';
 
 interface BasicFieldsProps { form: FormState; errors: Record<string, string>; isEdit: boolean; existingExpense?: ExpenseWithRefs; set: <K extends keyof FormState>(key: K, value: FormState[K]) => void }
@@ -75,19 +75,17 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
 
 interface PhotoAsideProps { photos: { id: number; url: string }[]; uploading: boolean; isEdit: boolean; submitting: boolean; saveDisabled?: boolean; handleBack: () => void; removePhoto: (index: number) => void; handlePhotoUpload: (files: FileList) => void }
 export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveDisabled, handleBack, removePhoto, handlePhotoUpload }: PhotoAsideProps) {
-  // Receipt thumbnails sit behind the JWT: the raw URL 401s in an <img>, so
-  // every src goes through the token-append helper (fresh blob: previews
-  // pass through unchanged). A failed load gets a retryable hint — retry
-  // re-reads the current token and reloads the image, never re-uploads.
-  const [failedIds, setFailedIds] = useState<Set<number>>(new Set());
+  // Receipt thumbnails sit behind the JWT, so every src is an Authorization-
+  // header blob fetch (DRV-DET-08 — never a `?token=` URL; a fresh `blob:`
+  // preview passes through unchanged). A read that fails resolves to '', which
+  // shows the same retryable hint an <img> error used to: Thử lại refetches,
+  // it never re-uploads.
   const [reloadKey, setReloadKey] = useState(0);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const clearFailure = (id: number) => setFailedIds((prev) => {
-    if (!prev.has(id)) return prev;
-    const next = new Set(prev);
-    next.delete(id);
-    return next;
-  });
+  const receiptUrls = useAuthedPhotoUrls(photos.map((p) => p.url), reloadKey);
+  // The hook returns an index-aligned array only once every read has settled,
+  // so a length match is what separates "đang tải" from "tải không được".
+  const settled = receiptUrls.length === photos.length;
   return <>
                 <div className="expense-layout__aside">
                   <div className="expense-panel expense-panel--photo">
@@ -100,12 +98,12 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveD
                         <div className="expense-photo-grid">
                           {photos.map((p, idx) => (
                             <div key={p.id} className="expense-photo-thumb">
-                              {failedIds.has(p.id) ? (
+                              {settled && !receiptUrls[idx] ? (
                                 <div className="expense-photo-thumb__error" role="alert">
                                   <span>Không tải được ảnh</span>
                                   <button
                                     type="button"
-                                    onClick={() => { clearFailure(p.id); setReloadKey((k) => k + 1); }}
+                                    onClick={() => setReloadKey((k) => k + 1)}
                                   >
                                     Thử lại
                                   </button>
@@ -118,11 +116,8 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveD
                                   onClick={() => setViewerIndex(idx)}
                                 >
                                   <img
-                                    key={`${p.id}-${reloadKey}`}
-                                    src={getAuthenticatedPhotoUrl(p.url)}
+                                    src={receiptUrls[idx]}
                                     alt={`Ảnh ${idx + 1}`}
-                                    onLoad={() => clearFailure(p.id)}
-                                    onError={() => setFailedIds((prev) => new Set(prev).add(p.id))}
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                   />
                                 </button>
@@ -130,7 +125,7 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveD
                               <button
                                 type="button"
                                 aria-label={`Xóa ảnh hóa đơn ${idx + 1}`}
-                                onClick={() => { removePhoto(idx); clearFailure(p.id); }}
+                                onClick={() => removePhoto(idx)}
                                 className="expense-photo-remove"
                               >
                                 <X size={16} />
@@ -185,7 +180,7 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveD
                 </div>
       {viewerIndex != null && (
         <PhotoViewer
-          urls={photos.map((p) => getAuthenticatedPhotoUrl(p.url))}
+          urls={receiptUrls}
           initialIndex={viewerIndex}
           onClose={() => setViewerIndex(null)}
         />

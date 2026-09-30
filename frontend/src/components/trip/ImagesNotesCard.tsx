@@ -2,7 +2,7 @@ import React from 'react';
 import './ImagesNotesCard.css';
 import { Upload, Loader2, X } from 'lucide-react';
 import { CardSection } from './CardSection';
-import { getAuthenticatedPhotoUrl } from '../../lib/api';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useTripFormContext } from '../../hooks/useTripFormContext';
 
 interface ImagesNotesCardProps {
@@ -13,6 +13,9 @@ interface ImagesNotesCardProps {
 export function ImagesNotesCard({ collapsible, defaultCollapsed }: ImagesNotesCardProps) {
   const form = useTripFormContext();
   const { notes, setNotes, photoUrls, uploading, uploadPhotos, removePhoto } = form;
+  // DRV-DET-08: trip photos load with the Authorization header (blob), never a
+  // ?token= query string. Index-aligned with `photoUrls`.
+  const authedPhotoUrls = useAuthedPhotoUrls(photoUrls);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -46,9 +49,9 @@ export function ImagesNotesCard({ collapsible, defaultCollapsed }: ImagesNotesCa
           <label>Ảnh đính kèm</label>
           {photoUrls.length > 0 && (
             <div className="photo-grid">
-              {photoUrls.map((url, i) => (
+              {photoUrls.map((_url, i) => (
                 <div key={i} className="photo-thumb">
-                  <img src={getAuthenticatedPhotoUrl(url)} alt={`Preview ${i + 1}`} />
+                  <img src={authedPhotoUrls[i]} alt={`Preview ${i + 1}`} />
                   <button
                     type="button"
                     className="photo-thumb__remove"

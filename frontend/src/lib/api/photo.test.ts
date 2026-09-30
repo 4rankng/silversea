@@ -1,27 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { setToken } from '../token';
 import { api } from './client';
-import { photoSrc, useAuthedPhotoUrls } from './photo';
+import { photoRoutePath, useAuthedPhotoUrl, useAuthedPhotoUrls } from './photo';
 
-// DEPRECATED shim: still pinned because unrelated surfaces (trip-detail cards,
-// ops expense modals) have not migrated yet. Delete this block with the
-// `photoSrc` export once the last `?token=` call site is gone (DRV-DET-08).
-describe('photoSrc (deprecated ?token= shim)', () => {
-  beforeEach(() => {
-    setToken('test-token');
+describe('photoRoutePath', () => {
+  it('encodes a bare storage key into the authenticated photo route', () => {
+    expect(photoRoutePath('trips/95/container-image.jpg')).toBe('/api/photos/trips%2F95%2Fcontainer-image.jpg');
   });
 
-  it('preserves a pending browser object URL for immediate preview', () => {
-    const objectUrl = 'blob:https://vantai.tingting.vip/preview-id';
-
-    expect(photoSrc(objectUrl)).toBe(objectUrl);
-  });
-
-  it('keeps persisted storage keys behind the authenticated photo route', () => {
-    expect(photoSrc('trips/95/container-image.jpg')).toBe(
-      '/api/photos/trips%2F95%2Fcontainer-image.jpg?token=test-token',
-    );
+  it('passes an already-formed route through and rejects empty/preview values', () => {
+    expect(photoRoutePath('/api/photos/denied.jpg')).toBe('/api/photos/denied.jpg');
+    expect(photoRoutePath('blob:https://vantai.tingting.vip/preview-id')).toBeNull();
+    expect(photoRoutePath(null)).toBeNull();
   });
 });
 
@@ -80,5 +71,66 @@ describe('useAuthedPhotoUrls', () => {
     unmount();
 
     expect(vi.mocked(URL.revokeObjectURL)).toHaveBeenCalledWith('blob:object-3');
+  });
+
+  it('refetches the same values when the retry key changes', async () => {
+    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['abc']));
+
+    const { result, rerender } = renderHook(
+      ({ retry }: { retry: number }) => useAuthedPhotoUrls(['trips/95/a.jpg'], retry),
+      { initialProps: { retry: 0 } },
+    );
+    await waitFor(() => expect(result.current[0]).toBe('blob:object-3'));
+
+    rerender({ retry: 1 });
+
+    await waitFor(() => expect(getBlob).toHaveBeenCalledTimes(2));
+  });
+
+  it('empties the batch while a changed list refetches, so no stale URL survives under a new value', async () => {
+    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValueOnce(new Blob(['a']));
+    const { result, rerender } = renderHook(
+      ({ values }: { values: string[] }) => useAuthedPhotoUrls(values),
+      { initialProps: { values: ['trips/95/a.jpg'] } },
+    );
+    await waitFor(() => expect(result.current).toEqual(['blob:object-1']));
+
+    let release: (() => void) | undefined;
+    getBlob.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve(new Blob(['abcde'])); }));
+    await act(async () => { rerender({ values: ['trips/95/b.jpg'] }); });
+
+    // In flight: the removed photo's URL must not linger under the new value.
+    expect(result.current).toEqual([]);
+
+    await act(async () => { release?.(); });
+    await waitFor(() => expect(result.current).toEqual(['blob:object-5']));
+  });
+});
+
+describe('useAuthedPhotoUrl', () => {
+  beforeEach(() => {
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn((blob: Blob) => `blob:object-${blob.size}`),
+      revokeObjectURL: vi.fn(),
+    }));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('resolves a single value, and an absent one to an empty string', async () => {
+    vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['abc']));
+
+    const { result, rerender } = renderHook(
+      ({ value }: { value: string | null }) => useAuthedPhotoUrl(value),
+      { initialProps: { value: 'trips/95/a.jpg' as string | null } },
+    );
+    await waitFor(() => expect(result.current).toBe('blob:object-3'));
+
+    rerender({ value: null });
+
+    await waitFor(() => expect(result.current).toBe(''));
   });
 });

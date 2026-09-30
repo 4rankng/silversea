@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Image as ImageIcon, ImageOff } from 'lucide-react';
-import { getAuthenticatedPhotoUrl } from '../../../lib/api';
+import { useAuthedPhotoUrls } from '../../../lib/api/photo';
 import { PhotoViewer } from '../../../components/PhotoViewer';
 import '../../../components/PhotoViewer.css';
 
@@ -14,10 +14,12 @@ export function PhotosCard({ photoUrls }: PhotosCardProps) {
   // placeholder instead of the browser's default broken-image glyph
   // (which is just a tiny "?" icon — looks broken on mobile).
   const [brokenSet, setBrokenSet] = useState<Set<number>>(new Set());
+  // DRV-DET-08: trip photos load with the Authorization header (blob), never a
+  // ?token= query string. Called before the empty-state early return so the
+  // hook order stays stable.
+  const authUrls = useAuthedPhotoUrls(photoUrls ?? []);
 
   if (!photoUrls || photoUrls.length === 0) return null;
-
-  const authUrls = photoUrls.map(u => getAuthenticatedPhotoUrl(u));
 
   return (
     <section className="card anim d6" style={{ marginBottom: 20 }}>

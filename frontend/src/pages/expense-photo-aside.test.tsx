@@ -1,15 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-// Token cache the helper reads (lib/token) — pin it so assertions on the
-// appended query param are deterministic.
-const { getTokenMock } = vi.hoisted(() => ({ getTokenMock: vi.fn() }));
-vi.mock('../lib/token', () => ({ getToken: getTokenMock }));
-vi.mock('../lib/api/photo', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/api/photo')>();
-  return actual;
-});
-
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../lib/api';
 import { ExpensePhotoAside } from './expense-entry-sections';
 
 const PHOTOS = [{ id: 11, url: '/api/photos/expense-photos%2F2%2Fabc.png' }];
@@ -28,12 +19,21 @@ function renderAside(photos = PHOTOS) {
   );
 }
 
-// Receipt thumbnails sit behind the JWT — the raw URL 401s in an <img>. The
-// src must carry the token, a failed load swaps in a retryable hint, and the
-// thumb opens the shared full-image viewer.
+// Receipt thumbnails sit behind the JWT, so the src is an Authorization-header
+// blob fetch (DRV-DET-08 — never a `?token=` URL). The thumb opens the shared
+// full-image viewer, and a read that fails swaps in a retryable hint.
 describe('ExpensePhotoAside receipt thumbnails', () => {
   beforeEach(() => {
-    getTokenMock.mockReturnValue('jwt-for-test');
+    vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['abc'], { type: 'image/png' }));
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:receipt'),
+      revokeObjectURL: vi.fn(),
+    }));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('allows selecting receipt photos before the expense is saved', () => {
@@ -46,27 +46,34 @@ describe('ExpensePhotoAside receipt thumbnails', () => {
     expect(screen.queryByText(/duyệt/i)).toBeNull();
   });
 
-  it('wraps the img src with the auth token query param', () => {
+  it('renders the thumb from an authenticated blob fetch instead of a ?token= URL', async () => {
     renderAside();
+
     const img = screen.getByAltText('Ảnh 1') as HTMLImageElement;
-    expect(img.src).toContain('token=jwt-for-test');
-    expect(img.src).toContain('/api/photos/expense-photos');
+    await waitFor(() => expect(img.getAttribute('src')).toBe('blob:receipt'));
+    expect(api.getBlob).toHaveBeenCalledWith('/api/photos/expense-photos%2F2%2Fabc.png');
+    expect(document.querySelector('img[src*="token="]')).toBeNull();
   });
 
-  it('swaps a failed load for a retryable hint and reloads on retry', () => {
+  it('swaps a failed read for a retryable hint and refetches on retry', async () => {
+    vi.mocked(api.getBlob).mockRejectedValue(new Error('403'));
     renderAside();
-    const img = screen.getByAltText('Ảnh 1') as HTMLImageElement;
-    fireEvent.error(img);
-    expect(screen.getByRole('alert')).toHaveTextContent('Không tải được ảnh');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được ảnh');
+    expect(api.getBlob).toHaveBeenCalledTimes(1);
+
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    // Retry re-mounts the img (key bump) back to the loading state.
-    expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByAltText('Ảnh 1')).toBeTruthy();
+
+    // Retry re-runs the read; it never re-uploads the file.
+    await waitFor(() => expect(api.getBlob).toHaveBeenCalledTimes(2));
   });
 
-  it('opens the full-image viewer from the thumb button', () => {
+  it('opens the full-image viewer from the thumb button', async () => {
     renderAside();
+    await waitFor(() => expect(screen.getByAltText('Ảnh 1').getAttribute('src')).toBe('blob:receipt'));
+
     fireEvent.click(screen.getByRole('button', { name: 'Xem ảnh hóa đơn 1' }));
+
     // The viewer mounts its own zoomable copy of the image beside the thumb.
     expect(screen.getAllByAltText('Ảnh 1').length).toBe(2);
   });

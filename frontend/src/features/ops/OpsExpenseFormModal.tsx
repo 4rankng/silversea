@@ -3,7 +3,7 @@ import { Camera, Loader2, Trash2, X } from 'lucide-react';
 import { useOpsExpenseTypes, useCreateOpsExpense } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsOrderItem } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
-import { getAuthenticatedPhotoUrl } from '../../lib/api';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
 import { formatVnd, localDateInputValue } from './opsStatus';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
@@ -54,6 +54,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const [financial, setFinancial] = useOpsExpenseFinancialDraft();
   const savingRef = useRef(false);
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
+  // DRV-DET-08: receipt evidence loads with the Authorization header (blob),
+  // never a ?token= query string. Index-aligned with `photos`.
+  const photoUrls = useAuthedPhotoUrls(photos.map((photo) => photo.storageKey));
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -242,9 +245,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             {pendingFiles.length > 0 && !uploading && <div className="expense-accounting-file" role="status"><span>{pendingFiles.length} ảnh chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => void handleFiles(pendingFiles)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" onClick={() => setPendingFiles([])}>Bỏ ảnh chưa tải</button></div>}
             {photos.length > 0 && (
               <ul className="ops-form-photos__list">
-                {photos.map((photo) => (
+                {photos.map((photo, photoIndex) => (
                   <li key={photo.storageKey}>
-                    <img src={getAuthenticatedPhotoUrl(`/api/photos/${encodeURIComponent(photo.storageKey)}`)} alt={photo.name} />
+                    <img src={photoUrls[photoIndex]} alt={photo.name} />
                     <button
                       type="button"
                       aria-label={`Xóa ${photo.name}`}

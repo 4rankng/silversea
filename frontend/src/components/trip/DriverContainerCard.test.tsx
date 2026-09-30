@@ -4,15 +4,15 @@ import { DriverContainerCard } from './DriverContainerCard';
 
 const toastSpy = vi.hoisted(() => vi.fn());
 
-vi.mock('../../lib/api', () => ({
+vi.mock('../../lib/api/client', () => ({
   api: {
     upload: vi.fn(),
     delete: vi.fn(),
     post: vi.fn(),
     patch: vi.fn(),
+    getBlob: vi.fn(),
   },
   fileCommandFingerprint: () => 'test-fingerprint',
-  getAuthenticatedPhotoUrl: (url: string) => url,
 }));
 
 vi.mock('../../lib/imageCompression', () => ({
@@ -37,6 +37,18 @@ vi.mock('../shared/ContainerScanner', () => ({
 import { api } from '../../lib/api';
 
 const uploadMock = vi.mocked(api.upload);
+
+/** Tiles resolve their photo through the Authorization-header blob fetch
+ *  (DRV-DET-08 — never a `?token=` URL). Satisfy the transport so a tile
+ *  renders an image instead of its placeholder, and so a test can assert the
+ *  route the read actually went to. */
+function stubPhotoTransport() {
+  vi.mocked(api.getBlob).mockResolvedValue(new Blob(['photo'], { type: 'image/jpeg' }));
+  vi.stubGlobal('URL', Object.assign(URL, {
+    createObjectURL: vi.fn(() => 'blob:authed-photo'),
+    revokeObjectURL: vi.fn(),
+  }));
+}
 
 function declaredContainer(containerNumber: string) {
   return {
@@ -193,11 +205,18 @@ describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => 
   });
 
   it('renders the thumbnail with a remove action when a biên bản photo exists', async () => {
+    stubPhotoTransport();
     renderCard({ deliveryNotePhotoKey: 'trips/55/other-note.jpg' });
 
     const img = await screen.findByAltText('Ảnh biên bản giao hàng');
-    expect(img.getAttribute('src')).toContain(encodeURIComponent('trips/55/other-note.jpg'));
+    expect(img.getAttribute('src')).toBe('blob:authed-photo');
+    expect(api.getBlob).toHaveBeenCalledWith('/api/photos/trips%2F55%2Fother-note.jpg');
+    expect(document.querySelector('img[src*="token="]')).toBeNull();
     expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 });
 
@@ -211,9 +230,7 @@ describe('DriverContainerCard — unified photo block', () => {
   });
 
   it('saved bento shows three equal slots, ghost retake row and tile delete — no standalone biên bản section', async () => {
-    // BentoThumb HEAD-preflights the authenticated photo URL before rendering
-    // an <img> — satisfy the preflight so tiles render as images, not placeholders.
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as Response));
+    stubPhotoTransport();
     renderCard({
       containers: [declaredContainer('MSKU1234567')],
       contPhotoKey: 'trips/55/cont.jpg',
@@ -250,7 +267,7 @@ describe('DriverContainerCard — full-image viewer', () => {
   });
 
   it('opens the viewer on a populated tile and returns focus to it on Escape', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as Response));
+    stubPhotoTransport();
     renderCard({
       containers: [declaredContainer('MSKU1234567')],
       contPhotoKey: 'trips/55/cont.jpg',

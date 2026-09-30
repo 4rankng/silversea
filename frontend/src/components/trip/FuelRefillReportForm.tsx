@@ -6,7 +6,7 @@ import { tripHasPhoiPhieuAccountant } from '../../api/driverCostAssignment';
 import { buildIdempotencyKey } from '../../lib/idempotency';
 import { NumberField, DateField } from '../../design-system';
 import { formatCurrency, formatISODate, businessDateISO } from '../../lib/format';
-import { photoSrc } from '../../lib/api/photo';
+import { useAuthedPhotoUrl, useAuthedPhotoUrls } from '../../lib/api/photo';
 import './ShipmentCostEntryForm.css';
 
 interface FuelRefillEntry {
@@ -51,6 +51,11 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
   // Card 20260928_166 AC2 — warn, never block. Null until loaded so the banner
   // cannot flash before we know; `null` means "we have not asked yet".
   const [truckHasAccountant, setTruckHasAccountant] = useState<boolean | null>(null);
+  // DRV-DET-08: receipt evidence loads with the Authorization header (blob),
+  // never a ?token= query string. Index-aligned with `entries`; the draft
+  // preview is a single value (a fresh local `blob:` pick passes through).
+  const receiptUrls = useAuthedPhotoUrls(entries.map((entry) => entry.receiptStorageKey));
+  const draftReceiptUrl = useAuthedPhotoUrl(receiptStorageKey);
 
   const refresh = useCallback(async () => {
     try {
@@ -184,11 +189,11 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
         <p className="shipment-cost-entry__empty">Chưa có lần đổ dầu nào được báo cáo cho chuyến này.</p>
       ) : (
         <ul className="shipment-cost-entry__list">
-          {entries.map((entry) => (
+          {entries.map((entry, entryIndex) => (
             <li key={entry.id} className="shipment-cost-entry__item">
               {entry.receiptStorageKey && (
                 <img
-                  src={photoSrc(entry.receiptStorageKey)}
+                  src={receiptUrls[entryIndex]}
                   alt="Hóa đơn đổ dầu"
                   className="shipment-cost-entry__thumb"
                 />
@@ -266,7 +271,7 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
             </label>
             {receiptStorageKey && (
               <div className="shipment-cost-entry__receipt-preview">
-                <img src={photoSrc(receiptStorageKey)} alt="Hóa đơn đổ dầu đã chụp" />
+                <img src={draftReceiptUrl} alt="Hóa đơn đổ dầu đã chụp" />
                 <span><ReceiptText size={14} /> Đã đính kèm ảnh hóa đơn</span>
               </div>
             )}
