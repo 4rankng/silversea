@@ -1972,7 +1972,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.queryByRole('dialog', { name: 'Bỏ thay đổi container?' })).toBeNull();
   });
 
-  it('saves only the server-permitted container fields with optimistic versions', async () => {
+  // Same treatment as the drawer-lifecycle case above (card 20260928_196): the
+  // chain is render → findAllByText → open the drawer → findByLabelText →
+  // segmented time/date entry → save, and it measures ~6.4-7.2s of honest test
+  // time on a loaded dev box, i.e. deterministically over vitest's 5s default.
+  it('saves only the server-permitted container fields with optimistic versions', { timeout: 15000 }, async () => {
     apiPost.mockResolvedValueOnce({
       line: {
         ...detail.containers[0],
