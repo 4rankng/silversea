@@ -1,7 +1,6 @@
 import type { RefObject } from 'react';
 import { Download, Plus, RotateCcw } from 'lucide-react';
-import { ListFilterBar } from '../../components/ListFilterBar';
-import { Tabs } from '../../design-system';
+import { FilterBar, Tabs } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { formatCurrency } from '../../lib/format';
 
@@ -42,15 +41,20 @@ export interface CustomerFiltersProps {
 
 /**
  * The `/customers` filter strip (card 20260927_152), extracted from
- * `CustomersPage` so the page stays inside its line ceiling.
+ * `CustomersPage` so the page stays inside its line ceiling — an option
+ * adapter over the `FilterBar` band since card 20260930_229.
  *
- * The strip itself IS the shared `ListFilterBar`: this component declares no
- * bar markup, no search shell, no spacer and no control width — the page-local
- * strip box, its two rows and its 190px status width are gone with it.
+ * The band owns the strip: this component declares no bar markup, no search
+ * shell, no spacer and no control width — the page-local strip box, its two
+ * rows and its 190px status width are gone with it.
  *
  * The status axis keeps BOTH of its pre-existing controls: the shared boxed
  * `Tabs` segment (with counts) rides the quick-filter slot and the labelled
- * select stays a bar criterion. Each carries its own label/aria name and both
+ * select is handed to the band's `fold` slot. While the strip holds two rows
+ * the select renders inline exactly as before; past the budget it is the bar
+ * that folds it behind `Bộ lọc` — /customers@640 used to be the one surface
+ * the audit could only EXEMPT from the two-row law because it had no fold
+ * affordance at all. Each control carries its own label/aria name and both
  * write the same `onFilter`, so the move drops no label, control or writer.
  */
 export function CustomerFilters({
@@ -61,7 +65,7 @@ export function CustomerFilters({
   excludeOwnFleet, onExcludeOwnFleetChange,
 }: CustomerFiltersProps) {
   return (
-    <ListFilterBar
+    <FilterBar
       search={{
         value: search,
         onChange: onSearch,
@@ -137,19 +141,28 @@ export function CustomerFilters({
           )}
         </>
       )}
-    >
-      <UuiSelectField
-        label="Trạng thái"
-        hideLabel
-        ariaLabel="Lọc theo trạng thái"
-        value={filter === 'active' ? 'active' : filter === 'locked' ? 'locked' : 'all'}
-        onChange={(event) => onFilter(event.target.value as CustomerFilterKey)}
-        options={[
-          { value: 'all', label: 'Trạng thái: tất cả' },
-          { value: 'active', label: 'Trạng thái: hoạt động' },
-          { value: 'locked', label: 'Trạng thái: tạm khoá' },
-        ]}
-      />
-    </ListFilterBar>
+      fold={{
+        criteria: (
+          <UuiSelectField
+            label="Trạng thái"
+            hideLabel
+            ariaLabel="Lọc theo trạng thái"
+            value={filter === 'active' ? 'active' : filter === 'locked' ? 'locked' : 'all'}
+            onChange={(event) => onFilter(event.target.value as CustomerFilterKey)}
+            options={[
+              { value: 'all', label: 'Trạng thái: tất cả' },
+              { value: 'active', label: 'Trạng thái: hoạt động' },
+              { value: 'locked', label: 'Trạng thái: tạm khoá' },
+            ]}
+          />
+        ),
+        count: filter !== 'all' ? 1 : 0,
+        ariaLabel: 'Bộ lọc',
+        dialogLabel: 'Bộ lọc khách hàng',
+        // Đặt lại clears exactly the folded criterion (the status axis); the
+        // strip's own reset ("Xóa lọc") keeps clearing search + status + tick.
+        onReset: () => onFilter('all'),
+      }}
+    />
   );
 }

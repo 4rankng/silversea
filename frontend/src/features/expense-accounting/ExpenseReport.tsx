@@ -3,11 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { expenseDateSchema, type ExpenseAccountingEntry, type ExpenseListQuery } from '@tingting/shared';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Drawer } from '../../components/UI';
-import { FilterDropdown } from '../../components/FilterDropdown';
-import { ListFilterBar } from '../../components/ListFilterBar';
 import { expenseAccountingClient, type ExpenseReportRow, type ExpenseReport as ExpenseReportData } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
-import { DateField, UuiSelectField } from '../../design-system';
+import { DateField, FilterBar, UuiSelectField } from '../../design-system';
 import { businessDateISO, formatDate } from '../../lib/format';
 import { expenseMoney } from './expense-accounting-model';
 
@@ -53,23 +51,25 @@ export function ExpenseReport({ filters }: { filters: ExpenseListQuery }) {
     reportBody = <ReportResult report={report.data} direction={direction} filterKey={filterKey} onOpenDetail={setDetail} />;
   }
   return <section className="expense-accounting" aria-label="Báo cáo công nợ chi phí">
-    {/* Card 20260927_152: the strip is the shared `ListFilterBar` — the cutoff
-        date is the page's own single-date field (no from/to pair exists here),
-        `Loại báo cáo` is the only criterion the dialog owns, and the export
+    {/* Card 20260930_229: the strip is the `FilterBar` band — the cutoff date
+        is the page's own single-date field (no from/to pair exists here),
+        `Loại báo cáo` is the only criterion handed to the band's fold (inline
+        while the strip holds two rows, behind `Bộ lọc` past it), and the export
         rides the bar's action slot. No page rule sizes either control. */}
-    <ListFilterBar
+    <FilterBar
       actions={<button type="button" className="btn btn--secondary btn--sm" onClick={() => void download()} disabled={exporting || report.isPending || report.isError}>{exporting ? 'Đang xuất…' : 'Tải XLSX'}</button>}
+      fold={{
+        criteria: (
+          <UuiSelectField label="Loại báo cáo" value={direction} onChange={event => setFilter('reportDirection', event.target.value)} options={[{ value: 'IN', label: 'Phải thu khách hàng' }, { value: 'OUT', label: 'Phải trả / chi phí xe' }]} />
+        ),
+        count: direction === 'OUT' ? 1 : 0,
+        ariaLabel: 'Bộ lọc',
+        dialogLabel: 'Bộ lọc báo cáo công nợ',
+        onReset: () => setFilter('reportDirection', 'IN'),
+      }}
     >
       <DateField controlSize="sm" label="Thanh toán tính đến" value={dateValue} onChange={changeDate} required />
-      <FilterDropdown
-        count={direction === 'OUT' ? 1 : 0}
-        ariaLabel="Bộ lọc"
-        dialogLabel="Bộ lọc báo cáo công nợ"
-        onReset={() => setFilter('reportDirection', 'IN')}
-      >
-        <UuiSelectField label="Loại báo cáo" value={direction} onChange={event => setFilter('reportDirection', event.target.value)} options={[{ value: 'IN', label: 'Phải thu khách hàng' }, { value: 'OUT', label: 'Phải trả / chi phí xe' }]} />
-      </FilterDropdown>
-    </ListFilterBar>
+    </FilterBar>
     <p className="expense-accounting-hint">Khoảng ngày lọc theo ngày phát sinh chi phí. Đã thu / trả tính đến ngày được chọn; cùng bộ lọc được dùng khi xuất.</p>
     {error && <p role="alert" className="expense-accounting-error">{error}</p>}
     {reportBody}

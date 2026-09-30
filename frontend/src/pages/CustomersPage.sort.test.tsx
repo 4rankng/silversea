@@ -141,7 +141,8 @@ describe('customers command strip + grid (card 20260927_152)', () => {
     // renders the shared bar; the page-local strip box, its row1/row2 split and
     // its own search shell are deleted.
     expect(tsx).toContain('<CustomerFilters');
-    expect(plane).toContain('ListFilterBar');
+    expect(plane).toContain('<FilterBar');
+    expect(plane).toContain('fold={{');
     expect(plane).toContain('Top 4 KH chiếm');
     expect(tsx).not.toContain('Rủi ro cao');
     expect(tsx).not.toContain('customers-strip__row');
