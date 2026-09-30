@@ -1,13 +1,23 @@
-// ui-filter-audit-20260927.mjs — the repeatable filter-strip audit (card
-// 20260927_152).
+// ui-filter-audit-20260927.mjs — the repeatable filter-strip STYLING-DRIFT
+// audit (card 20260927_152; re-scoped by card 20260930_229).
 //
-// What it proves, per shared filter bar, at every device width:
-//   1. the bar renders AT MOST TWO VISUAL ROWS at ≥460px CSS (the operator's
-//      ruling: "try to keep filter section max 2 rows only");
-//   2. no control is wider than the value it holds — every family has a cap,
+// The two-row law itself is STRUCTURAL since the FilterBar band
+// (`frontend/src/design-system/FilterBar.tsx`): the band measures its own rows
+// (`filter-bar-mode.ts`, two-line budget) and mounts the `Bộ lọc` fold itself
+// for every `fold` slot, so a bar can no longer render three rows with nothing
+// to fold into — the `rowExempt` carve-out this script used to carry is dead
+// with the law it excused. The bar-level contracts (fold opens, two-row cap,
+// anchor gating) are pinned once in
+// `frontend/src/design-system/FilterBar.test.tsx`, and the rendered row budget
+// is locked by `design-lock/expectations/filters.mjs`.
+//
+// What this script still proves, per shared filter bar, at every device width —
+// the STYLING DRIFT a refactor can silently regress, which no structural
+// guarantee covers:
+//   1. no control is wider than the value it holds — every family has a cap,
 //      and a control that owns a whole line fails L3;
-//   3. nothing overflows the bar or the page;
-//   4. a `Bộ lọc` trigger opens its panel ANCHORED to the trigger (within 8px
+//   2. nothing overflows the bar or the page;
+//   3. a `Bộ lọc` trigger opens its panel ANCHORED to the trigger (within 8px
 //      below, or within 8px above when flipped) and the panel never covers the
 //      control that opened it — the operator's "why the dropdown jump around
 //      not right below where I clicked".
@@ -38,12 +48,6 @@ const WIDTHS = (process.env.WIDTHS || '390,500,640,768,1024,1187,1440').split(',
 // A 768/1024 tablet is a touch device: `pointer: coarse` media queries key off
 // this, so those widths must be captured in a touch context.
 const TOUCH_MAX = Number(process.env.TOUCH_MAX || 1024);
-// The 2-row cap is promised from a 560px-WIDE BAR — the width at which the four
-// blocks (search, from/to group, `Bộ lọc`, quick ranges) still pack into two
-// flex lines (measured: 2 lines at a 572px bar, 3 at 460) — so the floor
-// compares against the bar's own box, not the viewport. Below it the strip is
-// allowed the packed extra line the width forces.
-const TWO_ROW_FLOOR = Number(process.env.TWO_ROW_FLOOR || 560);
 const SHOTS = process.env.SHOTS !== '0';
 
 // Role -> local dev username (backend/src/seed.ts demo users).
@@ -115,8 +119,7 @@ const ROUTE_FILTER = process.env.ROUTES ? process.env.ROUTES.split(',').map((s) 
  * Runs in the page. Measures every shared `.filter-bar` on the route (a page may
  * legitimately render more than one bar) and returns one record per bar.
  */
-function measureBars(config) {
-  const { twoRowFloor } = config;
+function measureBars() {
   const vis = (el) => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return false;
@@ -191,20 +194,13 @@ function measureBars(config) {
     const outside = items
       .filter((el) => el.getBoundingClientRect().right > box.right + 1)
       .map((el) => name(el));
-    // Card 20260928_195: the two-row law assumes a bar CAN fold. A bar with no
-    // `Bộ lọc` trigger has no fold affordance at all, so when its content truly
-    // needs three lines at that width there is nothing to fold INTO — the only
-    // ways left to reach two rows are dropping a control, or reordering the
-    // SHARED bar's slots (quickFilters renders after children, so a page cannot
-    // move it without changing the component every other page uses). That is a
-    // reasoned condition, not a pass: it is reported as `rowExempt` with its
-    // reason, counted separately and never silently green. Every other bar is
-    // still held to the law. `/customers`@640 is the one case today — 600px of
-    // usable row carrying search 300 + status select 148.7 + status chips 275.1
-    // + a 369.3 action cluster that grows further once "Xóa lọc" appears.
-    const noFoldAffordance = !bar.querySelector('.filter-dropdown__trigger');
-    const overRowFloor = box.width >= twoRowFloor && tops.length > 2;
-    const rowExempt = overRowFloor && noFoldAffordance;
+    // `rows` is recorded as INFORMATION (triage context for the caps below),
+    // not a verdict: the two-row budget itself is the FilterBar band's own
+    // measured law since card 20260930_229 — pinned in
+    // `design-system/FilterBar.test.tsx` and locked rendered by
+    // `design-lock/expectations/filters.mjs` — so this audit no longer judges
+    // it, and the `rowExempt` carve-out (a bar with no fold affordance) is
+    // unreachable through the band's `fold` slot by construction.
     out.push({
       bar: name(bar),
       box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) },
@@ -215,10 +211,6 @@ function measureBars(config) {
         const r = el.getBoundingClientRect();
         return { el: name(el), w: r1(r.width), top: Math.round(r.top), right: Math.round(r.right) };
       }),
-      twoRowFloor,
-      twoRowViolation: overRowFloor && !rowExempt,
-      rowExempt,
-      rowExemptReason: rowExempt ? '3+ rows and no Bộ lọc trigger to fold into' : null,
       collapsed: Boolean(bar.querySelector('.filter-dropdown__trigger')),
       overflowCaps: over,
       outsideBar: outside,
@@ -345,7 +337,7 @@ for (const surface of surfaces) {
       report.skipped.push({ ...surface, width, reason: `redirected to ${new URL(page.url()).pathname}` });
       continue;
     }
-    const measured = await page.evaluate(measureBars, { twoRowFloor: TWO_ROW_FLOOR });
+    const measured = await page.evaluate(measureBars);
     if (!measured.bars.length) {
       // Card 20260928_190: "no shared .filter-bar rendered" was one bucket for
       // two very different facts. A surface that has no bar in its code is out of
@@ -379,18 +371,16 @@ for (const surface of surfaces) {
       // is counted and printed rather than silently passing.
       const anchorApplicable = dropdown.applicable !== false;
       row.anchorApplicable = anchorApplicable;
-      row.flagged = Boolean(bar.twoRowViolation || bar.overflowCaps.length || bar.outsideBar.length || bar.pageOverflow > 1 || !dropdown.ok);
+      row.flagged = Boolean(bar.overflowCaps.length || bar.outsideBar.length || bar.pageOverflow > 1 || !dropdown.ok);
       report.findings.push(row);
       const flags = [
-        bar.twoRowViolation ? `rows=${bar.rows}` : '',
-        bar.rowExempt ? `rows=${bar.rows} EXEMPT (${bar.rowExemptReason})` : '',
         bar.overflowCaps.length ? `cap=${bar.overflowCaps.map((o) => `${o.family} ${o.w}>${o.cap}`).join(',')}` : '',
         bar.outsideBar.length ? `outside=${bar.outsideBar.length}` : '',
         bar.pageOverflow > 1 ? `pgOvf=${bar.pageOverflow}` : '',
         !dropdown.ok ? `anchor=${dropdown.reason || `gap ${dropdown.gapBelow}/${dropdown.gapAbove} overlap ${dropdown.overlaps}`}` : '',
         !anchorApplicable ? 'anchor n/a (inline)' : '',
       ].filter(Boolean).join(' ');
-      const mark = row.flagged ? 'FAIL' : row.rowExempt ? 'EXPT' : 'ok  ';
+      const mark = row.flagged ? 'FAIL' : 'ok  ';
       process.stdout.write(`${mark} ${surface.label.padEnd(18)} ${String(width).padEnd(5)} bar${index} rows=${bar.rows} ${flags}\n`);
       if (SHOTS && bar.box.w > 40) {
         const clip = { x: Math.max(0, bar.box.x - 4), y: Math.max(0, bar.box.y - 4), width: Math.min(bar.box.w + 8, width), height: Math.min(bar.box.h + 8, 1200) };
@@ -406,7 +396,6 @@ await browser.close();
 await fs.writeFile(path.join(OUT, 'report.json'), JSON.stringify(report, null, 2));
 
 const flagged = report.findings.filter((f) => f.flagged);
-const exempt = report.findings.filter((f) => f.rowExempt);
 const anchorNA = report.findings.filter((f) => f.anchorApplicable === false);
 const unverified = report.skipped.filter((s) => String(s.kind || '').startsWith('unverified'));
 const outOfScope = report.skipped.filter((s) => String(s.kind || '').startsWith('out of scope'));
@@ -416,10 +405,6 @@ const outOfScope = report.skipped.filter((s) => String(s.kind || '').startsWith(
 // non-zero — an unmeasured surface is an open hole, not a pass. A bar that
 // renders inline has nothing to anchor; that is counted, not failed.
 process.stdout.write(`\nfilter-audit: ${report.findings.length} bars measured · ${flagged.length} flagged\n`);
-if (exempt.length) {
-  process.stdout.write(`  row-law exemptions: ${exempt.length} — reasoned, NOT clean passes\n`);
-  for (const f of exempt) process.stdout.write(`    ${f.surface}@${f.width} bar${f.barIndex}: ${f.rowExemptReason}\n`);
-}
 process.stdout.write(`  anchor check: ${report.findings.length - anchorNA.length} verified · ${anchorNA.length} n/a (bar renders inline, nothing to anchor)\n`);
 process.stdout.write(`  not measured: ${unverified.length} UNVERIFIED (open holes) · ${outOfScope.length} out of scope · ${report.skipped.length - unverified.length - outOfScope.length} other\n`);
 if (unverified.length) {
