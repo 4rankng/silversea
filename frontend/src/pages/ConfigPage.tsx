@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { PageHeader } from '../components/UI';
-import { ListFilterBar } from '../components/ListFilterBar';
+import { FilterBar } from '../design-system';
 import { AssetIcon } from '../components/AssetIcon';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
@@ -182,10 +182,10 @@ export default function ConfigPage() {
         description="Quản lý định mức, quy tắc tính toán, người dùng & tích hợp hệ thống"
       />
 
-      {/* The strip IS the shared `ListFilterBar` (card 20260927_152): the page
+      {/* The strip IS the shared `FilterBar` (card 20260927_152): the page
           declares no toolbar markup, no search shell and no width of its own.
           The match count keeps its own `aria-live` slot as the bar's status. */}
-      <ListFilterBar
+      <FilterBar
         search={{
           value: searchQuery,
           onChange: setSearchQuery,

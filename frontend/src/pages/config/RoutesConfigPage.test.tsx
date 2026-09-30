@@ -129,8 +129,8 @@ describe('UI-CD-09 catalog query whitespace', () => {
   });
 });
 
-describe('ListFilterBar adoption (card 20260927_152)', () => {
-  it('search lives in the shared ListFilterBar, never in a page-local strip', async () => {
+describe('FilterBar adoption (card 20260927_152)', () => {
+  it('search lives in the shared FilterBar, never in a page-local strip', async () => {
     const { container } = renderPage();
     await screen.findByText('Hải Phòng - Nội Bài');
     const bar = container.querySelector('.list-filter-bar');
@@ -217,12 +217,12 @@ describe('routes true grid (card 20260926_59 — chief bounce)', () => {
     expect(css).toMatch(/tbody tr:nth-child\(even\)/);
   });
 
-  it('header is the shared PageHeader and the strip is the shared ListFilterBar', () => {
+  it('header is the shared PageHeader and the strip is the shared FilterBar band', () => {
     // Card 20260927_152: the page-local 36px strip (with its own search shell)
-    // is deleted — header chrome is PageHeader, the plane is ListFilterBar.
+    // is deleted — header chrome is PageHeader, the plane is the FilterBar band.
     expect(tsx).not.toContain('routes-strip');
     expect(tsx).toContain('<PageHeader');
-    expect(tsx).toContain('ListFilterBar');
+    expect(tsx).toContain('<FilterBar');
     expect(tsx).toContain('routes-title-count');
     expect(tsx).toContain('Thêm tuyến');
     // the month-picker law keeps the navigator off config routes

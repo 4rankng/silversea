@@ -216,8 +216,8 @@ describe('FactoriesConfigPage filter strip', () => {
 
   it('keeps the toolbar layout out of the page source', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/pages/config/FactoriesConfigPage.tsx'), 'utf8');
-    expect(source).toContain("import { ListFilterBar } from '../../components/ListFilterBar';");
-    expect(source).toContain('<ListFilterBar');
+    expect(source).toContain("import { FilterBar } from '../../design-system';");
+    expect(source).toContain('<FilterBar');
     expect(source).not.toContain('className="toolbar"');
     // No page-declared control width or stretch spacer survives.
     expect(source).not.toContain('maxWidth: 280');

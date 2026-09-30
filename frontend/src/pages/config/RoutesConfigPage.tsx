@@ -6,7 +6,6 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Loader2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { configClient } from '../../api/configClient';
 import { PageHeader, useConfirm } from '../../components/UI';
-import { ListFilterBar } from '../../components/ListFilterBar';
 import { useCRUD } from '../../hooks/useCRUD';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
@@ -16,7 +15,7 @@ import '../../styles/operational-table-typography.css';
 import './config-page.css';
 import './RoutesConfigPage.css';
 import { RouteFormModal } from './route-form-modal';
-import { EmptyState } from '../../design-system';
+import { EmptyState, FilterBar } from '../../design-system';
 
 export default function RoutesConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
@@ -93,14 +92,14 @@ export default function RoutesConfigPage() {
   return (
     <div ref={pageRef} className="cfg-page cfg-page--routes routes-config-page">
       {/* Page chrome is the shared `PageHeader`; the strip itself IS the shared
-          `ListFilterBar` (card 20260927_152) — the page declares no bar markup,
+          `FilterBar` band (card 20260927_152) — the page declares no bar markup,
           no search shell and no spacer of its own, and its actions (the reset
           and the create CTA) ride the plane's own action cluster. */}
       <PageHeader
         title={<>Tuyến đường <span className="routes-title-count">({totalCount})</span></>}
         onBack={handleBack}
       />
-      <ListFilterBar
+      <FilterBar
         search={{
           value: search,
           onChange: setSearch,

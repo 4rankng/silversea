@@ -17,8 +17,7 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/ta
 import type { Customer } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import { CustomerForm } from './CustomerForm';
-import { EmptyState } from '../../design-system';
-import { ListFilterBar } from '../../components/ListFilterBar';
+import { EmptyState, FilterBar } from '../../design-system';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
@@ -244,7 +243,7 @@ export default function CustomersConfigPage() {
         {/* Shared filter-bar contract (card 20260922_38): one quick-filter
             group + search; the duplicate mobile "Lọc khách hàng" select is
             gone (one input per datum — the pills wrap under the bar contract). */}
-        <ListFilterBar
+        <FilterBar
           search={{ value: search, onChange: setSearch, placeholder: 'Tên, MST, điện thoại…', ariaLabel: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' }}
           quickFiltersLabel="Lọc khách hàng"
           quickFilters={(['all', 'high-risk', 'active', 'locked'] as const).map(f => {

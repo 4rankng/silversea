@@ -68,8 +68,8 @@ describe('fleet catalog command strips (card 20260926_57 — chief spec)', () =>
   });
 
   it('row 2 IS the shared filter plane — no page-local toolbar anywhere (card 20260927_152)', () => {
-    expect(shell).toContain("import { ListFilterBar } from '../../../components/ListFilterBar';");
-    expect(shell).toContain('<ListFilterBar');
+    expect(shell).toContain("import { FilterBar } from '../../../design-system';");
+    expect(shell).toContain('<FilterBar');
     // The bespoke toolbar, its search wrapper and the page-owned widths are gone
     // from BOTH the shell's markup and the sheet's rules: a page rule may not
     // size or lay out a filter control, and the search cap belongs to

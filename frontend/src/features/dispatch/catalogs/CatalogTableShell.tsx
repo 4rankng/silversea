@@ -1,12 +1,12 @@
 /**
  * Shared shell for the dispatcher resource-catalog views: a command strip
  * (title + status tabs + primary action), then the ONE shared filter plane
- * (`ListFilterBar`), then the panel-wrapped table. Read-only chrome — mutations
+ * (`FilterBar`), then the panel-wrapped table. Read-only chrome — mutations
  * live in the views' own modals.
  *
  * The strip used to be a page-local `.dispatch-catalogs__toolbar` flex row with
  * its own search wrapper, counter and reset (card 20260926_57). Card
- * 20260927_152 makes the shared `ListFilterBar` the only filter plane, so the
+ * 20260927_152 makes the shared `FilterBar` the only filter plane, so the
  * toolbar IS that bar now: the search rides the bar's own search slot, the
  * view's criteria arrive as bar children (secondary ones behind `Bộ lọc`), the
  * result counter is the `status` node and the conditional reset is the page
@@ -16,7 +16,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { Panel } from '../../../components/UI';
-import { ListFilterBar } from '../../../components/ListFilterBar';
+import { FilterBar } from '../../../design-system';
 
 export function CatalogTableShell({
   title,
@@ -73,7 +73,7 @@ export function CatalogTableShell({
           {actions && <div className="dispatch-catalogs__strip-actions">{actions}</div>}
         </div>
       )}
-      <ListFilterBar
+      <FilterBar
         search={{
           value: search,
           onChange: onSearchChange,
@@ -95,7 +95,7 @@ export function CatalogTableShell({
         ) : undefined}
       >
         {filters}
-      </ListFilterBar>
+      </FilterBar>
       <Panel flush>{children}</Panel>
     </div>
   );

@@ -10,9 +10,8 @@ import { useCRUD } from '../../hooks/useCRUD';
 import { Modal, useConfirm, Btn, FormGroup, PageHeader } from '../../components/UI';
 import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/penalties/penalty-reason-severity';
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
-import { ListFilterBar } from '../../components/ListFilterBar';
 import type { PenaltyReason } from '@tingting/shared';
-import { EmptyState } from '../../design-system';
+import { EmptyState, FilterBar } from '../../design-system';
 
 /* ─── Page-scoped styles ─── */
 const pageStyles = `
@@ -417,11 +416,11 @@ export default function PenaltyReasonsConfigPage() {
       </div>
 
       {/* ── Filter Bar ──────────────────────────────────────────── */}
-      {/* The strip IS the shared `ListFilterBar` (card 20260927_152): the page
+      {/* The strip IS the shared `FilterBar` (card 20260927_152): the page
           declares no bar markup, no search shell and no spacer. The four
           severity toggles are quick filters (one axis, mutually exclusive), and
           the sort toggle is the strip's action. */}
-      <ListFilterBar
+      <FilterBar
         search={{
           value: searchTerm,
           onChange: setSearchTerm,

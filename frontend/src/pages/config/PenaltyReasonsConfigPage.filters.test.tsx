@@ -1,6 +1,6 @@
 /**
  * Card 20260927_152 — `/config/penalty-reasons` rides the shared
- * `ListFilterBar`.
+ * the `FilterBar` band.
  *
  * The hand-rolled bar (its own `.filter-bar__search` shell, `.filter-bar__spacer`
  * and `filter-tab` toggles) is gone, so these pin the BEHAVIOUR it drove — the
@@ -135,8 +135,8 @@ describe('PenaltyReasonsConfigPage filter strip', () => {
 
   it('keeps the page free of hand-rolled bar markup', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/pages/config/PenaltyReasonsConfigPage.tsx'), 'utf8');
-    expect(source).toContain("import { ListFilterBar } from '../../components/ListFilterBar';");
-    expect(source).toContain('<ListFilterBar');
+    expect(source).toContain("import { EmptyState, FilterBar } from '../../design-system';");
+    expect(source).toContain('<FilterBar');
     expect(source).not.toContain('className="filter-bar"');
     expect(source).not.toContain('filter-bar__search');
     expect(source).not.toContain('filter-bar__spacer');

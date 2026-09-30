@@ -8,7 +8,7 @@ import { Alert } from '../../components/shared/Alert';
 import { useToast } from '../../components/shared/Toast';
 import { Field } from '../../components/config/Field';
 import { FormActions } from '../../components/config/FormActions';
-import { ListFilterBar } from '../../components/ListFilterBar';
+import { FilterBar } from '../../design-system';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { configClient } from '../../api/configClient';
@@ -162,7 +162,7 @@ export default function FactoriesConfigPage() {
         iconName="company-profile"
       />
       <div className="table-wrap">
-        <ListFilterBar
+        <FilterBar
           search={{
             value: search,
             onChange: setSearch,
@@ -196,7 +196,7 @@ export default function FactoriesConfigPage() {
               options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: customer.id, label: customer.name }))]}
             />
           </FilterDropdown>
-        </ListFilterBar>
+        </FilterBar>
         <div className="table-scroll">
           <div className="record-table-wrap">
           <table className="record-table ops-table factories-table">

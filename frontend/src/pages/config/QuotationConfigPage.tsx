@@ -1,10 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '../../components/UI';
-import { EmptyState, UuiSelectField } from '../../design-system';
+import { EmptyState, FilterBar, UuiSelectField } from '../../design-system';
 import { Alert } from '../../components/shared/Alert';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
-import { ListFilterBar } from '../../components/ListFilterBar';
 import {
   type QuotationFeeInput,
   type QuotationView,
@@ -183,7 +182,7 @@ export default function QuotationConfigPage() {
       <PageHeader title="Báo giá" description="Lưới giá theo khách hàng — mẫu báo giá 1" />
       {frames.isError && <Alert variant="error" style="soft">{String(frames.error)}</Alert>}
 
-      <ListFilterBar
+      <FilterBar
         actions={(
           <>
           <label className="btn btn--secondary" style={{ cursor: 'pointer' }}>
@@ -222,7 +221,7 @@ export default function QuotationConfigPage() {
         />
         <BufferedUuiDateInput label="Từ ngày" size="sm" value={dateFrom} onChange={setDateFrom} />
         <BufferedUuiDateInput label="Đến ngày" size="sm" value={dateTo} onChange={setDateTo} />
-      </ListFilterBar>
+      </FilterBar>
 
       {importError && <Alert variant="error" style="soft">{importError}</Alert>}
       {importPreviewData && (
