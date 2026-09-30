@@ -1,29 +1,39 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { PhotoViewer } from './PhotoViewer';
+import { Modal } from '../design-system/Modal';
 
 describe('PhotoViewer interactions', () => {
-  it('contains focus, closes only the viewer with Escape and restores its opener', () => {
+  it('contains focus, closes only the viewer with Escape and restores its opener', async () => {
     const opener = document.createElement('button');
     document.body.append(opener);
     opener.focus();
-    const parentEscape = vi.fn();
-    window.addEventListener('keydown', parentEscape);
-    const onClose = vi.fn();
-    const { unmount } = render(<PhotoViewer urls={['/photo.jpg']} onClose={onClose} />);
+    // The old capture-phase stopPropagation pin is superseded by the module's
+    // overlay-token stack (card 20261001_251): the TOPMOST overlay owns
+    // Escape, so a viewer opened inside a dialog closes ONLY itself.
+    const parentOnClose = vi.fn();
+    function Host() {
+      const [viewerOpen, setViewerOpen] = useState(true);
+      return (
+        <Modal isOpen onClose={parentOnClose} title="Ảnh chứng từ chuyến">
+          {viewerOpen && <PhotoViewer urls={['/photo.jpg']} onClose={() => setViewerOpen(false)} />}
+        </Modal>
+      );
+    }
+    const { unmount } = render(<Host />);
     expect(screen.getByRole('dialog', { name: 'Xem ảnh chứng từ' })).toBeInTheDocument();
-    const close = screen.getByRole('button', { name: 'Đóng ảnh' });
-    expect(close).toHaveFocus();
-    fireEvent.keyDown(close, { key: 'Tab' });
-    expect(screen.getByRole('button', { name: 'Thu nhỏ' })).toHaveFocus();
-    parentEscape.mockClear();
+    const first = screen.getByRole('button', { name: 'Thu nhỏ' });
+    expect(first).toHaveFocus();
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+    expect(screen.getByRole('button', { name: 'Đóng ảnh' })).toHaveFocus();
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(parentEscape).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Xem ảnh chứng từ' })).toBeNull());
+    expect(parentOnClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Ảnh chứng từ chuyến' })).toBeInTheDocument();
     unmount();
     expect(opener).toHaveFocus();
     opener.remove();
-    window.removeEventListener('keydown', parentEscape);
   });
 
   it('offers retry for an unavailable image and resets zoom when moving to another image', () => {
