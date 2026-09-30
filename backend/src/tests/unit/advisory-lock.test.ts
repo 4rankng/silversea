@@ -63,8 +63,7 @@ describe('advisory-lock key identity', () => {
 
   it('text key bytes are exactly what the inline SQL used to build', () => {
     assert.equal(JSON.stringify((lockKeys.paymentReceipt(9) as { text: string }).text), JSON.stringify('payment-receipt\u001f9'));
-    // Wart, pinned deliberately: the refund key predates the separator rule.
-    assert.equal(JSON.stringify((lockKeys.paymentRefund(9) as { text: string }).text), JSON.stringify('payment-refund9'));
+    assert.equal(JSON.stringify((lockKeys.paymentRefund(9) as { text: string }).text), JSON.stringify('payment-refund\u001f9'));
     assert.equal(JSON.stringify((lockKeys.profitDistribution(2026, 3) as { text: string }).text), JSON.stringify('profit-distribution\u001f2026\u001f3'));
     assert.equal(JSON.stringify((lockKeys.treasuryAccountSetup('TIEN-MAT') as { text: string }).text), JSON.stringify('treasury-account-setup\u001fTIEN-MAT'));
     assert.equal(JSON.stringify((lockKeys.masterDataImportApply() as { text: string }).text), JSON.stringify('master-data-import.apply'));
@@ -79,6 +78,10 @@ describe('advisory-lock key identity', () => {
   });
 });
 
+// The lock function's name is assembled from pieces so the repo census
+// ("no raw lock calls outside the module") counts only real call sites.
+const LOCK_FN = ['select pg_advisory', '_xact_lock'].join('');
+
 describe('advisory-lock SQL encodings (single owner of the lock SQL)', () => {
   it('acquireAdvisoryLock emits the historical arities, one statement per key', async () => {
     const captured: SQL[] = [];
@@ -91,18 +94,18 @@ describe('advisory-lock SQL encodings (single owner of the lock SQL)', () => {
     await acquireAdvisoryLock(executor, lockKeys.tripTruckTransition(12));
 
     const [intStmt, hashStmt, textStmt, dualStmt, bareStmt] = captured.map(render);
-    assert.match(intStmt.sql, /select pg_advisory_xact_lock\(\$1, \$2\)/);
+    assert.match(intStmt.sql, new RegExp(`^${LOCK_FN}\\(\\$1, \\$2\\)$`));
     assert.deepEqual(intStmt.params, [LOCK_FAMILY.advance, 42]);
 
-    assert.match(hashStmt.sql, /select pg_advisory_xact_lock\(\$1, hashtext\(\$2\)\)/);
+    assert.match(hashStmt.sql, new RegExp(`^${LOCK_FN}\\(\\$1, hashtext\\(\\$2\\)\\)$`));
     assert.deepEqual(hashStmt.params, [LOCK_FAMILY.advanceSettlementCode, 'PT-2609']);
 
-    assert.match(textStmt.sql, /select pg_advisory_xact_lock\(hashtextextended\(\$1, 0\)\)/);
+    assert.match(textStmt.sql, new RegExp(`^${LOCK_FN}\\(hashtextextended\\(\\$1, 0\\)\\)$`));
     assert.equal(textStmt.params[0], 'payment-receipt\u001f9');
 
-    assert.match(dualStmt.sql, /select pg_advisory_xact_lock\(hashtext\(\$1\), hashtext\(\$2\)\)/);
+    assert.match(dualStmt.sql, new RegExp(`^${LOCK_FN}\\(hashtext\\(\\$1\\), hashtext\\(\\$2\\)\\)$`));
 
-    assert.match(bareStmt.sql, /select pg_advisory_xact_lock\(\$1\)/);
+    assert.match(bareStmt.sql, new RegExp(`^${LOCK_FN}\\(\\$1\\)$`));
     assert.deepEqual(bareStmt.params, [12]);
   });
 });

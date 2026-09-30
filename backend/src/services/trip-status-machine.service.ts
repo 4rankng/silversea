@@ -4,6 +4,7 @@
 
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { eq, and, isNull, ne, sql } from 'drizzle-orm';
 import { TripStatus, Role } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
@@ -164,7 +165,7 @@ export async function transitionTripStatus(
       // without it, two READ COMMITTED transactions could both see 0 IN_TRANSIT
       // rows and both proceed (phantom-read race).
       if (trip.truckId) {
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(${trip.truckId})`);
+        await acquireAdvisoryLock(tx, lockKeys.tripTruckTransition(trip.truckId));
       }
       const busyTrips = trip.truckId ? await tx.select({
         id: s.trips.id, tripCode: s.trips.tripCode,

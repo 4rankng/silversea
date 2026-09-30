@@ -158,6 +158,11 @@ export const lockKeys = {
    * numbering; a separate one-int key space, kept as-is for compatibility).
    */
   tripTruckTransition: (truckId: number): AdvisoryLockKey => ({ kind: 'bare-int', id: truckId }),
+  /**
+   * Seed setup serializes concurrent bootstrap processes on one dated constant
+   * (the date pins the deploy wave that introduced it).
+   */
+  seedReferenceSetup: (): AdvisoryLockKey => ({ kind: 'bare-int', id: 2026080101 }),
 } as const;
 
 /** The single owner of the lock SQL. No other file may spell this function. */

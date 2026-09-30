@@ -1,6 +1,7 @@
-import { sql } from 'drizzle-orm';
+
 
 import type { Executor } from './trip-shared';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 
 type LockPart = string | number | boolean | Date | null | undefined;
 
@@ -32,8 +33,6 @@ export async function lockApplicationOwnedUniquenessSet(
   executor: Executor,
   locks: readonly ApplicationOwnedUniquenessLock[],
 ): Promise<void> {
-  const keys = [...new Set(locks.map(buildLockKey))].sort();
-  for (const key of keys) {
-    await executor.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
-  }
+  const keys = [...new Set(locks.map(buildLockKey))];
+  await acquireAdvisoryLocks(executor, keys.map(lockKeys.text));
 }

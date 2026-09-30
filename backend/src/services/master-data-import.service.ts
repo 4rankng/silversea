@@ -5,6 +5,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
 import { db, type Tx } from '../db';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { reassignTruckDriverInTx } from './truck-driver-assignment.service';
@@ -1006,7 +1007,7 @@ async function replayExistingAnalysis(
   file: MasterWorkbookFile,
 ): Promise<AnalyzeMasterWorkbookResult> {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`master-import:${sourceFileHash}:${MASTER_IMPORT_PARSER_VERSION}`}, 0))`);
+    await acquireAdvisoryLock(tx, lockKeys.masterImportFile(sourceFileHash, MASTER_IMPORT_PARSER_VERSION));
     const [batch] = await tx.select().from(s.masterImportBatches)
       .where(eq(s.masterImportBatches.id, batchId)).limit(1).for('update');
     if (!batch) throw new ApiError(404, 'Không tìm thấy lô nhập Master Data.');
@@ -1044,7 +1045,7 @@ export async function analyzeMasterWorkbook(
 
   try {
     return await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`master-import:${sourceFileHash}:${MASTER_IMPORT_PARSER_VERSION}`}, 0))`);
+      await acquireAdvisoryLock(tx, lockKeys.masterImportFile(sourceFileHash, MASTER_IMPORT_PARSER_VERSION));
       const [existing] = await tx.select().from(s.masterImportBatches).where(and(
         eq(s.masterImportBatches.sourceFileHash, sourceFileHash),
         eq(s.masterImportBatches.parserVersion, MASTER_IMPORT_PARSER_VERSION),
@@ -1109,7 +1110,7 @@ async function applyParsedRows(
   parsed: ParsedWorkbook,
   actorId: number,
 ): Promise<Record<string, number>> {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${'master-data-import.apply'}, 0))`);
+  await acquireAdvisoryLock(tx, lockKeys.masterDataImportApply());
   const persistedRows = await tx.select().from(s.masterImportRowResults)
     .where(eq(s.masterImportRowResults.batchId, batchId));
   const persistedBySource = new Map(persistedRows.map((row) => [`${row.sheetName}:${row.rowNumber}`, row]));

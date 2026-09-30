@@ -5,6 +5,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { groupOpsExpensesForSettlement } from './ops-expenses.service';
@@ -27,7 +28,7 @@ async function generateOpsSettlementCode(tx: Tx, now: Date = new Date()): Promis
   const yy = String(now.getFullYear()).slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const prefix = `OS-${yy}${mm}`;
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6301, hashtext(${prefix}))`);
+  await acquireAdvisoryLock(tx, lockKeys.opsSettlementCodePrefix(prefix));
   const [row] = await tx
     .select({ maxCode: sql<string | null>`max(${s.opsSettlements.code})` })
     .from(s.opsSettlements)
@@ -50,7 +51,7 @@ export async function createOpsSettlement(
   transaction?: Tx,
 ) {
   const run = async (tx: Tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6302, ${userId})`);
+    await acquireAdvisoryLock(tx, lockKeys.opsUser(userId));
 
     const entries = await tx
       .select({ id: s.opsExpenseEntries.id, amount: s.opsExpenseEntries.amount })
@@ -229,7 +230,7 @@ export async function finalizeOpsSettlement(userId: number, settlementId: number
 
 /** Release a historical incomplete batch so its owner can correct evidence and recreate it. */
 export async function reopenOpsSettlementDraft(userId: number, settlementId: number, tx: Tx) {
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6302, ${userId})`);
+  await acquireAdvisoryLock(tx, lockKeys.opsUser(userId));
   const [settlement] = await tx.select().from(s.opsSettlements)
     .where(and(eq(s.opsSettlements.id, settlementId), eq(s.opsSettlements.opsUserId, userId))).for('update');
   if (!settlement) throw new ApiError(404, 'Không tìm thấy phiếu quyết toán.');

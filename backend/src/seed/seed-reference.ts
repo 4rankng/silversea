@@ -11,6 +11,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema/index.js';
 import { ports, routes, containerTypes } from './data/index.js';
+import { acquireAdvisoryLock, lockKeys } from '../services/advisory-lock.service';
 import { normalizedTextEquals } from './seed-identity.js';
 
 export interface ReferenceSeedResult {
@@ -24,7 +25,7 @@ export async function seedReference(): Promise<ReferenceSeedResult> {
     // Reference names do not all have simple database unique constraints.
     // Serialize the idempotent resolve/update/insert sequence across concurrent
     // setup processes instead of allowing duplicate ports, routes, or cargo.
-    await tx.execute(sql`select pg_advisory_xact_lock(2026080101)`);
+    await acquireAdvisoryLock(tx, lockKeys.seedReferenceSetup());
 
     const portByName = new Map<string, number>();
     const routeByName = new Map<string, number>();

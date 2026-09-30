@@ -8,9 +8,10 @@
  * Layering: imports dispatch-planning-utils only (utils <- this <- everyone),
  * so detail-plan/commands/queries can all depend on it acyclically.
  */
-import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
 
 import { db } from '../db';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
@@ -163,7 +164,7 @@ export async function reassignTruckDriverInTx(tx: Tx, input: {
   if (input.skipAdvisoryLock !== true) {
     // Same advisory-lock class as dispatch issuance contention (6201), so a
     // reassignment and an order issuance on the same truck serialize.
-    await tx.execute(sql`select pg_advisory_xact_lock(6201, ${input.truckId})`);
+    await acquireAdvisoryLock(tx, lockKeys.dispatchResource(input.truckId));
   }
 
   const [current] = await tx.select({

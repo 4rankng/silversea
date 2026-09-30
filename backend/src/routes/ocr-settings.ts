@@ -6,6 +6,7 @@ import {
   type OcrSettingsResponse,
 } from '@tingting/shared';
 import { getAppSettingsUpdatedAt } from '../services/config.service';
+import { acquireAdvisoryLock, lockKeys } from '../services/advisory-lock.service';
 import * as s from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
@@ -91,9 +92,7 @@ router.put(
         // The idempotency service already locks per request key; this second
         // lock prevents two different keys with the same version from merging
         // stale provider values and silently overwriting each other.
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtextextended(${OCR_SETTINGS_COMMAND}, 0))`,
-        );
+        await acquireAdvisoryLock(tx, lockKeys.ocrSettingsCommand());
         const currentUpdatedAt = await getAppSettingsUpdatedAt(OCR_UPDATED_AT_KEYS, tx);
         assertOptionalVersion(
           currentUpdatedAt,

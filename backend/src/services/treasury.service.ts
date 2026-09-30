@@ -2,6 +2,7 @@ import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { treasuryFundCodeSchema, type Role, type TreasuryFundCode, type TreasuryAccountFundInput } from '@tingting/shared';
 
 import { runInTx } from '../lib/tx';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Executor, Tx } from './trip-shared';
@@ -467,9 +468,7 @@ export async function requestTreasuryAccountSetup(input: {
     throw new ApiError(400, 'Số dư hoặc ngày số dư đầu kỳ không hợp lệ');
   }
   const execute = async (tx: Tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`treasury-account-setup\u001f${code}`}, 0))`,
-    );
+    await acquireAdvisoryLock(tx, lockKeys.treasuryAccountSetup(code));
     const [existing] = await tx.select({ id: s.treasuryAccounts.id })
       .from(s.treasuryAccounts).where(eq(s.treasuryAccounts.code, code)).limit(1);
     if (existing) throw new ApiError(409, 'Mã tài khoản tiền mặt/ngân hàng đã tồn tại');

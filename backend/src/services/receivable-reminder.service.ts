@@ -22,6 +22,7 @@
  *               finance for manual handling
  */
 import { db } from '../db';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { and, asc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { NotificationType, FINANCIAL_ROLES, Role } from '@tingting/shared';
@@ -857,8 +858,7 @@ async function suppressRetry(logId: number, reason: string, maxRetries: number):
 
 async function reclaimStalePendingReminderLog(logId: number, stalePendingCutoff: Date): Promise<boolean> {
   return db.transaction(async (tx) => {
-    const lockKey = `receivable-reminder:retry:${logId}`;
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
+    await acquireAdvisoryLock(tx, lockKeys.text(`receivable-reminder:retry:${logId}`));
 
     const [log] = await tx.select({
       status: s.customerEmailLogs.status,
@@ -982,8 +982,7 @@ async function claimReminderEmailLog(
   recipientEmail: string | null,
 ): Promise<{ id: number; leaseToken: string } | null> {
   return db.transaction(async (tx) => {
-    const lockKey = `receivable-reminder:email:${customerId}:${businessDate}`;
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
+    await acquireAdvisoryLock(tx, lockKeys.text(`receivable-reminder:email:${customerId}:${businessDate}`));
 
     const [existing] = await tx.select({ id: s.customerEmailLogs.id })
       .from(s.customerEmailLogs)
@@ -1243,7 +1242,7 @@ async function insertNotificationsOnce(input: {
   if (input.targetUserIds.length === 0) return 0;
   const notificationType = normalizeNotificationType(input.type);
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${input.lockKey}, 0))`);
+    await acquireAdvisoryLock(tx, lockKeys.text(input.lockKey));
     const conditions = [
       eq(s.notifications.relatedEntityType, 'customers'),
       eq(s.notifications.relatedEntityId, input.customerId),

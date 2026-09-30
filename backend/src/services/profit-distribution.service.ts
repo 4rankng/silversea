@@ -17,6 +17,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { eq, and, isNull, desc, sql, gte, inArray } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
@@ -90,9 +91,7 @@ function distributionSubjectKey(quarter: number, year: number): string {
 }
 
 async function lockDistributionQuarter(tx: Tx, quarter: number, year: number): Promise<void> {
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${`profit-distribution\u001f${year}\u001f${quarter}`}, 0))`,
-  );
+  await acquireAdvisoryLock(tx, lockKeys.profitDistribution(year, quarter));
 }
 
 function hasSqlState(error: unknown, sqlState: string): boolean {

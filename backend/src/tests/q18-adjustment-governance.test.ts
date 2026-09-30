@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { and, eq, inArray, sql } from 'drizzle-orm';
+import { acquireAdvisoryLock, lockKeys } from '../services/advisory-lock.service';
 import {
   createAdjustmentSchema,
   FuelMode,
@@ -512,12 +513,7 @@ describe('Q18 bounded adjustment governance', () => {
       releaseAuthorityLock = resolve;
     });
     const authorityBlocker = db.transaction(async (tx) => {
-      await tx.execute(sql`
-        SELECT pg_advisory_xact_lock(
-          ${TRIP_FINANCIAL_AUTHORITY_LOCK_NAMESPACE},
-          ${trip.id}
-        )
-      `);
+      await acquireAdvisoryLock(tx, lockKeys.tripFinancialAuthority(trip.id));
       markAuthorityLockAcquired();
       await releaseAuthority;
     });

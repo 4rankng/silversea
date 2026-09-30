@@ -1,6 +1,7 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray, sql } from 'drizzle-orm';
+import { acquireAdvisoryLock, lockKeys } from '../services/advisory-lock.service';
 import { Role } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -488,7 +489,7 @@ describe('O2C trip close readiness authority', () => {
     const scopeMayCommit = new Promise<void>((resolve) => { releaseScopeTransaction = resolve; });
     const scopeCompletion = db.transaction(async (tx) => {
       await lockTripCloseAggregate(tx, tripId);
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${containerId})`);
+      await acquireAdvisoryLock(tx, lockKeys.containerScope(containerId));
       announceScopeLocks();
       await scopeMayCommit;
       return setTripExpenseCompletion(tripId, containerId, true, userIds[1], tx);

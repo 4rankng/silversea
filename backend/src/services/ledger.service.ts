@@ -1,5 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { round2dp, TxnType } from '@tingting/shared';
 import type { Executor, Tx } from './trip-shared';
@@ -128,23 +129,10 @@ export interface LedgerPostRequest {
 
 export class LedgerService {
   /**
-   * Safe hashing to map entity type to key for pg_advisory_xact_lock
-   */
-  private static getEntityTypeKey(type: string): number {
-    if (type === 'CUSTOMER') return 1;
-    if (type === 'DRIVER') return 2;
-    if (type === 'VENDOR') return 3;
-    if (type === 'FORWARDER') return 4;
-    if (type === 'CARRIER') return 5;
-    return 6;
-  }
-
-  /**
    * Acquire a transaction-level advisory lock on entityType + entityId
    */
   static async lockEntity(executor: Executor, entityType: string, entityId: number) {
-    const typeKey = this.getEntityTypeKey(entityType);
-    await executor.execute(sql`SELECT pg_advisory_xact_lock(${typeKey}, ${entityId})`);
+    await acquireAdvisoryLock(executor, lockKeys.ledgerEntity(entityType, entityId));
   }
 
   /**
@@ -152,16 +140,9 @@ export class LedgerService {
    */
   static async lockEntities(executor: Executor, entities: { entityType: 'CUSTOMER' | 'DRIVER' | 'VENDOR' | 'FORWARDER' | 'CARRIER'; entityId: number }[]) {
     // Sort entities globally to prevent deadlocks
-    const sorted = [...entities].sort((a, b) => {
-      const aKey = this.getEntityTypeKey(a.entityType);
-      const bKey = this.getEntityTypeKey(b.entityType);
-      if (aKey !== bKey) return aKey - bKey;
-      return a.entityId - b.entityId;
-    });
-
-    for (const entity of sorted) {
-      await this.lockEntity(executor, entity.entityType, entity.entityId);
-    }
+    // The module's canonical order is the same global (family, id) sort this
+    // method always applied.
+    await acquireAdvisoryLocks(executor, entities.map((entity) => lockKeys.ledgerEntity(entity.entityType, entity.entityId)));
   }
 
   /**

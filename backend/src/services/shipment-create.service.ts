@@ -3,6 +3,7 @@
 // validators and input types live in shipment-lifecycle-shared.
 import { db } from '../db';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { eq, sql } from 'drizzle-orm';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import type { AuthUser } from '../middleware/auth';
@@ -60,7 +61,7 @@ export async function allocateShipmentCode(tx: Tx, createdAt: Date): Promise<str
   const yy = String(createdAt.getFullYear()).slice(-2);
   const mm = String(createdAt.getMonth() + 1).padStart(2, '0');
   const yearMonth = `${yy}${mm}`;
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('shipment_code_counter:' || ${yearMonth}, 0))`);
+  await acquireAdvisoryLock(tx, lockKeys.shipmentCodeCounter(yearMonth));
   const [row] = await tx.select().from(s.shipmentCodeCounters)
     .where(eq(s.shipmentCodeCounters.yearMonth, yearMonth));
   // Guard against legacy id-era codes (SHP-<YYMM>-<NNNNN> was once

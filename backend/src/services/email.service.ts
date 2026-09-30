@@ -12,6 +12,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { config } from '../config';
 import { and, eq, sql } from 'drizzle-orm';
 import { getEmailSettings } from './email-settings.service';
@@ -293,8 +294,7 @@ async function claimRetryEmailAttempt(logId: number): Promise<{
   status: 'SENT';
 } | null> {
   return db.transaction(async (tx) => {
-    const lockKey = `customer-email-log:retry:${logId}`;
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
+    await acquireAdvisoryLock(tx, lockKeys.text(`customer-email-log:retry:${logId}`));
 
     const [log] = await tx.select().from(s.customerEmailLogs)
       .where(eq(s.customerEmailLogs.id, logId))
