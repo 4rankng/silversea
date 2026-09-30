@@ -1,4 +1,5 @@
 import type { ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
+import { formatDate } from '../../../lib/format';
 // Styles live with the component so every host page (master plan + detail plan)
 // loads them — DetailedPlanGrid.css is only bundled on /dispatch-detail.
 import './ZoneTruckPresencePanel.css';
@@ -31,7 +32,7 @@ export function ZoneTruckPresencePanel({
     <section className="zone-presence-panel" aria-label={`Xe tại ${zoneLabel}`}>
       <div className="zone-presence-panel__head">
         <span className="zone-presence-panel__title">Xe tại {zoneLabel}</span>
-        {date && <span className="zone-presence-panel__date">quanh ngày {date}</span>}
+        {date && <span className="zone-presence-panel__date">quanh ngày {formatDate(date)}</span>}
       </div>
       <div className="zone-presence-panel__chips" role="list">
         {items.map((item) => {

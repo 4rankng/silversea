@@ -75,7 +75,14 @@ export function OpsFundBookSection() {
             <tbody>
               {items.map((item, index) => {
                 const value = Number(item.amount);
-                const running = items.slice(0, index + 1).reduce((sum, entry) => sum + Number(entry.amount), 0);
+                // The running balance starts at the window's OPENING balance,
+                // not zero: with a date window set, the rows below are the
+                // window only, and a 0-based column would contradict the
+                // "Số dư đầu kỳ" line printed under the same table. Without a
+                // window the backend reports an opening of 0, so this is the
+                // same number the old expression produced.
+                const opening = Number(data?.periodOpening ?? 0);
+                const running = opening + items.slice(0, index + 1).reduce((sum, entry) => sum + Number(entry.amount), 0);
                 return (
                   <tr key={item.key} className="ops-wallet__row ops-wallet__row--fund-book">
                     <td data-label="Ngày">{formatDate(item.date)}</td>

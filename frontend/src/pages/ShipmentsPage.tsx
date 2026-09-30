@@ -112,7 +112,11 @@ const LOT_DATE_PRESETS = [
 export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER;
+  // Mirrors the route guard `shipmentCreatorOnly` (App.tsx) and the role
+  // matrix in testplan/roles/01-cus.md: ADMIN, MANAGER, CUS, DISPATCHER. The
+  // in-page gate used to omit DISPATCHER, so a dispatcher who could open
+  // /shipments/new by URL saw no button on the list.
+  const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER;
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const pageSize = readCusPageSize(searchParams.get('limit'));

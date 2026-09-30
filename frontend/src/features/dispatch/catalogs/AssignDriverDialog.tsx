@@ -17,22 +17,29 @@ export interface AssignDriverDialogProps {
   error: string | null;
   truck: Truck | null;
   currentDriverName: string | null;
+  /** Trucks.driver id the truck is assigned to right now — seeds the picker so
+   *  "Lưu phân công" without touching the field is a no-op, not an unassign. */
+  currentDriverId: number | null;
   driverOptions: Array<{ value: string; label: string }>;
   onsave: (driverId: number | null) => void;
   oncancel: () => void;
 }
 
 export function AssignDriverDialog({
-  isOpen, saving, error, truck, currentDriverName, driverOptions, onsave, oncancel,
+  isOpen, saving, error, truck, currentDriverName, currentDriverId, driverOptions, onsave, oncancel,
 }: AssignDriverDialogProps) {
   const [driverId, setDriverId] = useState<number>(0);
 
   useEffect(() => {
     if (isOpen) {
-      // 0 = keep "— Chưa phân —"; the backend treats a null payload the same.
-      setDriverId(0);
+      // Seed from the truck's CURRENT driver. The dialog used to reset to 0 on
+      // every open, and submit posts `driverId || null`; opening the dialog to
+      // read the pairing and pressing Lưu therefore silently unassigned the
+      // driver (reassignTruckDriver(truck.id, null)). 0 stays the deliberate
+      // "— Chưa phân —" choice, which the operator now has to make explicitly.
+      setDriverId(currentDriverId ?? 0);
     }
-  }, [isOpen, truck?.id]);
+  }, [isOpen, truck?.id, currentDriverId]);
 
   if (!truck) return null;
 

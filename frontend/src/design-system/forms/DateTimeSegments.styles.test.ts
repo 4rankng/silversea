@@ -20,6 +20,16 @@ describe('date segments read DD/MM/YYYY with even slash gaps (card 20260924_10)'
     expect(css).toContain(".date-seg[data-seg='yyyy'] { width: 2.91em; }");
   });
 
+  it('pins the TIME segments too, so the group never falls back to the native input width', () => {
+    // Card 20260930: hh/mm had no width rule and inherited the native <input>
+    // intrinsic width (~20ch ≈ 147px each). The time group measured ~307px —
+    // three times its date sibling — and pushed SplitDateTimeField's
+    // min-content to ~418px, past every narrow host (the CUS create-lot
+    // "Ngày giờ đóng trả" cell clipped the whole date half).
+    expect(css).toContain(".date-seg[data-seg='hh'] { width: 1.706em; }");
+    expect(css).toContain(".date-seg[data-seg='mm'] { width: 2.2em; }");
+  });
+
   it('centers the separators with symmetric margins', () => {
     const sep = css.match(/\.date-sep\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(sep).toContain('margin-inline: 2px');

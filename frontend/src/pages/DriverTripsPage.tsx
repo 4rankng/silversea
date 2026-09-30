@@ -104,6 +104,13 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   const locations = driverLocationLabels(card.tradeDirection, card.dropPortName, card.returnDepotName);
   const hasPorts = isPresent(card.loadingPortName) || isPresent(locations.drop) || isPresent(locations.delivery) || isPresent(locations.returnDepot) || card.tradeDirection === 'IMPORT';
   const tradeLabel = tradeDirectionLabel(card);
+  // Bill/booking is the driver-facing document identity (CHIEF 26/09). When no
+  // document was captured the chip says so: the internal SHP-YYMM-NNNNN
+  // shipment code is a system key and never titles a driver screen — the same
+  // rule DriverTripHeader already applies on the detail screen (card
+  // 20260927_1). Mirrors the app-wide "Chưa có Bill/Booking" pending copy.
+  const billLabel = card.blNumber || card.bookingRef || 'Chưa có Bill/Booking';
+  const billPending = !card.blNumber && !card.bookingRef;
   const { selectedLabels: operationTags, manualText: operationManualText } = parseDriverTaskNote(card.operationalNotes, tagLabels);
 
   /* Ticket 365943ea field order: Nhà máy (top) → Tuyến đường → Cont →
@@ -116,10 +123,12 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
       <div className="driver-journey-card__header">
         {/* CHIEF 26/09: drivers match shipments by SỐ BILL/BOOKING — the bill
             leads the card; the internal TRP code never renders (internal-ids
-            law). One card rides one fulfillment, so one bill per card. */}
-        {card.shipmentCode && (
-          <span className="driver-journey-card__bill">{card.blNumber || card.bookingRef || card.shipmentCode}</span>
-        )}
+            law). One card rides one fulfillment, so one bill per card. The
+            shipment code is a system key too, so a card whose documents were
+            never filled in states the gap instead of leaking it. */}
+        <span className={`driver-journey-card__bill${billPending ? ' driver-journey-card__bill--pending' : ''}`}>
+          {billLabel}
+        </span>
         <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
           {tag}
         </span>

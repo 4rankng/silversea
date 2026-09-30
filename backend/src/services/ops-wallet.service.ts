@@ -201,8 +201,13 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
     db.select({ id: s.advanceRequests.id, createdAt: s.advanceRequests.createdAt, reason: s.advanceRequests.reason })
       .from(s.advanceRequests)
       .where(and(eq(s.advanceRequests.requesterId, userId), eq(s.advanceRequests.status, 'RECORDED'))),
-    db.select({ id: s.opsExpenseEntries.id, paidAt: s.opsExpenseEntries.paidAt, expenseTypeCode: s.opsExpenseEntries.expenseTypeCode, note: s.opsExpenseEntries.note, amount: s.opsExpenseEntries.amount })
+    db.select({ id: s.opsExpenseEntries.id, paidAt: s.opsExpenseEntries.paidAt, expenseTypeCode: s.opsExpenseEntries.expenseTypeCode, expenseTypeName: s.forwarderExpenseTypes.name, feeName: s.opsExpenseEntries.feeName, note: s.opsExpenseEntries.note, amount: s.opsExpenseEntries.amount })
       .from(s.opsExpenseEntries)
+      // The "Diễn giải" line is read by a person, so it carries the catalog's
+      // Vietnamese label — never the machine code. Same rule as the wallet
+      // history ("Loại phí"): a custom fee_name wins, but only when it is a
+      // real name (rows written before that rule stored the code here).
+      .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
       .where(and(
         eq(s.opsExpenseEntries.paidById, userId),
         or(isNull(s.opsExpenseEntries.payerKind), ne(s.opsExpenseEntries.payerKind, 'COMPANY')),
@@ -250,7 +255,10 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
     // sign (the entry is stored as -amount) and RAISE the closing balance.
     const expenseAmount = Number(row.amount);
     if (expenseAmount <= 0) continue;
-    items.push({ key: `ops-expense-${row.id}`, date: fundBookIsoDate(row.paidAt), kind: 'EXPENSE', label: `Chi phí: ${row.expenseTypeCode}${row.note ? ` — ${row.note}` : ''}`, reference: null, amount: String(-Math.round(expenseAmount)) });
+    const expenseName = row.feeName && row.feeName !== row.expenseTypeCode
+      ? row.feeName
+      : row.expenseTypeName ?? row.expenseTypeCode;
+    items.push({ key: `ops-expense-${row.id}`, date: fundBookIsoDate(row.paidAt), kind: 'EXPENSE', label: `Chi phí: ${expenseName}${row.note ? ` — ${row.note}` : ''}`, reference: null, amount: String(-Math.round(expenseAmount)) });
   }
   for (const row of proxyRows) {
     // Card 20260928_181 — same rule for the trip-expense entries.

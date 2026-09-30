@@ -257,7 +257,12 @@ export async function createOpsExpense(
 
   const source = await upsertExpenseAccountingSource(transaction, { sourceKind: 'OPS', sourceId: entry.id,
     shipmentId: entry.shipmentId, shipmentContainerId: entry.shipmentContainerId, customerId: shipment.customerId,
-    expenseTypeCode: entry.expenseTypeCode, costGroup, feeName: input.feeName ?? entry.expenseTypeCode,
+    // feeName is the operator's CUSTOM name for the line. It must never fall
+    // back to the machine code: the code is not a name, and every surface that
+    // prefers feeName over the catalog label (wallet history "Loại phí", Sổ quỹ
+    // "Diễn giải", the edit-modal prefill) then prints LIFT_EMPTY/FEE_CLEANING
+    // into a Vietnamese money table. Blank stays blank → the catalog name shows.
+    expenseTypeCode: entry.expenseTypeCode, costGroup, feeName: input.feeName?.trim() || '',
     amount: Number(entry.amount), customerChargeAmount: customerCharge,
     expenseDate: entry.paidAt, payerKind: 'USER', payerUserId: userId, payableEntityType: 'FORWARDER', payableEntityId: userId,
     recordedById: userId, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, note: entry.note,
@@ -606,6 +611,10 @@ export async function listOpsExpenses(filters: {
 
   const nativeRows = rows.map((row) => ({
     ...row,
+    // Rows written before the write-path fix carry the catalog CODE in
+    // fee_name. A code is not a custom name, so it is dropped here and the
+    // consumer falls back to expenseTypeName (the Vietnamese catalog label).
+    feeName: row.feeName && row.feeName !== row.expenseTypeCode ? row.feeName : null,
     version: row.version ?? 1,
     confirmedAt: row.confirmedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

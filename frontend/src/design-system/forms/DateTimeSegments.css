@@ -66,6 +66,19 @@
 .date-seg-group .date-seg-wrapper .date-seg[data-seg='dd'] { width: 1.706em; }
 .date-seg-group .date-seg-wrapper .date-seg[data-seg='mm2'] { width: 1.956em; }
 .date-seg-group .date-seg-wrapper .date-seg[data-seg='yyyy'] { width: 2.91em; }
+/* Hours/minutes are two-glyph digits exactly like 'dd', so they carry the same
+   box. They had NO width rule and fell back to the native <input> intrinsic
+   width (~20ch ≈ 147px each): the time group measured ~307px, three times its
+   date sibling, and pushed SplitDateTimeField's min-content to ~418px, past
+   any narrow host (the CUS create-lot "Ngày giờ đóng trả" cell is ~170px, so
+   the whole control was clipped by the container table's scroll box). */
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='hh'] { width: 1.706em; }
+/* 'mm' is the lowercase placeholder (minutes, kept distinct from the month
+   'MM'), and lowercase m is wider than the uppercase glyphs the other boxes
+   were measured from: at 1.706em the placeholder measured 21.43px against an
+   18.47px content box, shaving the second m. 2.2em restores the same ~1.5px
+   slack per side the date boxes carry. */
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='mm'] { width: 2.2em; }
 
 .date-sep {
   flex: 0 0 auto;

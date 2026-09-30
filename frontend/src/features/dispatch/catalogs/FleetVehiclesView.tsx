@@ -101,15 +101,19 @@ export function FleetVehiclesView() {
       }));
   }, [drivers, trucks]);
 
-  const { driverByTruck, trailerById, active, maintenance } = useMemo(() => {
+  const { driverByTruck, trailerById, active, down } = useMemo(() => {
     const driverByTruck = new Map<number, string>();
     drivers.forEach((d) => {
       if (d.assignedTruckId) driverByTruck.set(d.assignedTruckId, d.name);
     });
     const trailerById = new Map(trailers.map((t) => [t.id, t]));
     const active = trucks.filter((t) => t.status === 'ACTIVE').length;
-    const maintenance = trucks.filter((t) => t.status === 'MAINTENANCE').length;
-    return { driverByTruck, trailerById, active, maintenance };
+    // The "Bảo trì / Ngưng" tab selects every non-ACTIVE status (see the
+    // statusFilter branch below), so its count must be the same predicate.
+    // Counting MAINTENANCE alone made the badge disagree with the rows the tab
+    // opens whenever a truck carried another retirement status.
+    const down = trucks.filter((t) => t.status !== 'ACTIVE').length;
+    return { driverByTruck, trailerById, active, down };
   }, [trucks, drivers, trailers]);
 
   const needle = search.trim().toLowerCase();
@@ -175,8 +179,8 @@ export function FleetVehiclesView() {
   const statusTabs = useMemo<TabItem[]>(() => [
     { id: 'all', label: 'Tất cả', count: trucks.length },
     { id: 'active', label: 'Hoạt động', count: active, countTone: 'accent' },
-    { id: 'down', label: 'Bảo trì / Ngưng', count: maintenance, countTone: 'warning' },
-  ], [trucks.length, active, maintenance]);
+    { id: 'down', label: 'Bảo trì / Ngưng', count: down, countTone: 'warning' },
+  ], [trucks.length, active, down]);
 
   return (
     <div ref={rootRef}>
@@ -334,6 +338,7 @@ export function FleetVehiclesView() {
         error={assignError}
         truck={assignTruck}
         currentDriverName={assignTruck ? driverByTruck.get(assignTruck.id) ?? null : null}
+        currentDriverId={assignTruck ? drivers.find((d) => d.assignedTruckId === assignTruck.id)?.id ?? null : null}
         driverOptions={driverOptions}
         onsave={saveAssign}
         oncancel={() => setAssignOpen(false)}

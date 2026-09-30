@@ -100,7 +100,7 @@
 .csc-container-col__number { width: 128px; }
 .csc-container-col__type { width: 104px; }
 .csc-container-col__route { width: 180px; }
-.csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory, .csc-container-col__appointment { width: auto; }
+.csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
 .csc-container-col__weight { width: 96px; }
 .csc-container-col__actions { width: 44px; }
 .csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -330,8 +330,13 @@
 }
 .csc-field-warning__link:hover { color: #92400e; }
 
-/* Separate time/date controls remain usable in the repeatable desktop grid. */
-.csc-container-col__appointment { width: 170px; }
+/* Separate time/date controls remain usable in the repeatable desktop grid.
+ * 176px is the control's measured floor: the two segment groups carry
+ * min-width:max-content (a cramped segment clips its digits), so the pair
+ * cannot render below ~171px. At 170px the date half spilled out of the cell
+ * and the container table's scroll box sheared it off, leaving only "HH :".
+ * The other three auto columns absorb the 6px. */
+.csc-container-col__appointment { width: 176px; }
 
 /* Stacked records are forms, not spreadsheet previews. Show their controls
  * continuously and keep catalog creation beside its selector so invisible

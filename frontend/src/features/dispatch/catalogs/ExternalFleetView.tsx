@@ -100,8 +100,16 @@ export function ExternalFleetView() {
     return rows.filter((row) => {
       if (statusFilter === 'active' && !row.isActive) return false;
       if (statusFilter === 'down' && row.isActive) return false;
-      if (needle && !plateNeedle(row.licensePlate).includes(needle)) return false;
-      if (!needle && text && !row.carrierName.toLowerCase().includes(text)) return false;
+      // Plate and carrier name are two ways to find the same row, so a query
+      // matches EITHER. The branches used to be exclusive (`if (needle) …
+      // else if (text) …`), and plateNeedle() is non-empty for any letters or
+      // digits — so typing a carrier name ("Vận tải Hải An") took the plate
+      // branch and always returned zero rows.
+      if (text) {
+        const plateHit = needle.length > 0 && plateNeedle(row.licensePlate).includes(needle);
+        const carrierHit = row.carrierName.toLowerCase().includes(text);
+        if (!plateHit && !carrierHit) return false;
+      }
       return true;
     });
   }, [rows, search, statusFilter]);

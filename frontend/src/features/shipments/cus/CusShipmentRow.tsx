@@ -110,7 +110,7 @@ export function CusShipmentRow({
   const scheduleContent = <>
     {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
     {groupsToShow.map((group) => (
-      <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
+      <span key={`${group.at}-${group.factoryName ?? ''}`}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
     ))}
     {/* Card 20260915_35 (lead ruling: fork a): the "Chỉnh sửa Lịch trình" dialog
         writes the SHIPMENT-level closingAt/plannedReturnAt, but for FCL lots the

@@ -93,13 +93,29 @@ function renderPage() {
 
 describe('DriverTripsPage', () => {
   it('journey card leads with the bill/booking code and never shows the internal TRP code (CHIEF 26/09)', () => {
+    // The document number rides blNumber/bookingRef; shipmentCode is our
+    // internal SHP-/QADRV- key and must never surface on a driver screen.
     useDriverJourneyBoardMock.mockReturnValue(board([
-      card({ tripCode: 'TRP-202609-0019', shipmentCode: 'BILL-2026-0777' }),
+      card({ tripCode: 'TRP-202609-0019', blNumber: 'BILL-2026-0777', shipmentCode: 'QADRV-SHP-9999' }),
     ]));
     renderPage();
     expect(screen.getByText('BILL-2026-0777')).toBeTruthy();
     expect(screen.queryByText(/TRP-/)).toBeNull();
     expect(screen.queryByText('TRIP-55')).toBeNull();
+    expect(screen.queryByText('QADRV-SHP-9999')).toBeNull();
+  });
+
+  it('journey card never titles itself with the internal shipment code when no bill/booking was captured', () => {
+    // The chip used to fall through to shipmentCode (SHP-YYMM-NNNNN) whenever
+    // blNumber and bookingRef were empty, putting a system key where the driver
+    // scans for their document number. The card now states the gap instead,
+    // mirroring DriverTripHeader's rule and the app-wide pending copy.
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ blNumber: null, bookingRef: null, shipmentCode: 'SHP-2609-00042' }),
+    ]));
+    renderPage();
+    expect(screen.getByText('Chưa có Bill/Booking')).toBeTruthy();
+    expect(screen.queryByText('SHP-2609-00042')).toBeNull();
   });
 
   beforeEach(() => {

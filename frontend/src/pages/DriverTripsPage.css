@@ -484,6 +484,14 @@
   overflow-wrap: anywhere;
 }
 
+/* No bill/booking captured yet: the chip states the gap in plain prose
+   instead of titling the card with the internal shipment code. */
+.driver-journey-card__bill--pending {
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--fg-3, var(--ink-3));
+}
+
 @media (hover: hover) {
   .driver-journey-card__footer--quiet:hover {
     background: var(--surface-2);

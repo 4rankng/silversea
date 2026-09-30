@@ -28,7 +28,11 @@ describe('ZoneTruckPresencePanel', () => {
     );
 
     expect(screen.getByText('Xe tại Lạch Huyện')).toBeTruthy();
-    expect(screen.getByText('quanh ngày 2026-08-20')).toBeTruthy();
+    // The advisory date is a user-facing date cell, so it rides the canonical
+    // DD/MM/YYYY table-date contract (lib/format formatDate) instead of the raw
+    // ISO the API sends — the panel used to print 'quanh ngày 2026-08-20'.
+    expect(screen.getByText('quanh ngày 20/08/2026')).toBeTruthy();
+    expect(screen.queryByText(/2026-08-20/)).toBeNull();
     expect(screen.getByText('51C-123.45')).toBeTruthy();
     expect(screen.getByText('Hạ D-1')).toBeTruthy();
     expect(screen.getByText('Lấy D+1')).toBeTruthy();

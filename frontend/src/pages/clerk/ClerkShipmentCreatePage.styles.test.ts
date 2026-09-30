@@ -66,7 +66,14 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
     expect(css).toMatch(/\.csc-container-col__weight\s*\{[^}]*width:\s*96px;/);
     expect(css).toMatch(/\.csc-container-col__actions\s*\{[^}]*width:\s*44px;/);
-    expect(css).toMatch(/\.csc-container-col__pickup-port,[^}]*\.csc-container-col__appointment\s*\{[^}]*width:\s*auto;/);
+    expect(css).toMatch(/\.csc-container-col__pickup-port,\s*\.csc-container-col__dropoff-port,\s*\.csc-container-col__factory\s*\{[^}]*width:\s*auto;/);
+    // The appointment column is deliberately NOT auto: the SplitDateTimeField
+    // it holds carries min-width:max-content segment groups, so its floor is
+    // ~171px and an auto track sheared the date half of the control out of the
+    // cell (only "HH :" stayed visible). The declared width must clear it.
+    const appointmentWidth = Number(/\.csc-container-col__appointment\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0);
+    expect(appointmentWidth).toBeGreaterThanOrEqual(172);
+    expect(css).not.toMatch(/\.csc-container-col__appointment[,\s][^{]*\{[^}]*width:\s*auto;/);
     expect(css).not.toMatch(/\.csc-container-table thead th:nth-child\([^)]*\)\s*\{[^}]*width:\s*\d+%;/);
     expect(css).toMatch(/\.csc-container-table td:not\(\.csc-container-row__actions\)\s*>\s*\*\s*\{[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.csc-container-table select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/);

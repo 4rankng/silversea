@@ -54,7 +54,7 @@ export function OpsAccountantTab() {
             <tbody>
               {items.map((row) => (
                 <tr key={row.id}>
-                  <td>{row.paidAt}</td>
+                  <td>{formatDate(row.paidAt)}</td>
                   <td>{row.shipmentCode ?? 'Chưa gắn lô'}</td>
                   <td>{row.containerNumber ?? 'Chung lô'}</td>
                   <td>{row.expenseTypeName ?? row.expenseTypeCode}</td>

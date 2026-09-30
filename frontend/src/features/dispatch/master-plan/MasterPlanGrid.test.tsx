@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 
 import { MasterPlanGrid } from './MasterPlanGrid';
@@ -27,6 +28,10 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   containerTypeSummary: '2 x 40HC + 1 x 20DC',
   totalCargoWeightKg: 41000.75,
   allocationStatus: 'NOT_ALLOCATED',
+  // The master plan's allocation trigger is gated on READY_FOR_DISPATCH, which
+  // is the only status the backend accepts a carrier assignment for. The
+  // fixture models a dispatchable lot, so the trigger is live in these tests.
+  status: ShipmentStatus.READY_FOR_DISPATCH,
   carrierAllocationSummary: [],
   appointmentGroups: [],
   containerPortGroups: [

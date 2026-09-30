@@ -246,10 +246,14 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
           {items.map((item) => {
             const urgency = cutoffUrgency(item.customsCutoffAt);
             const portGroupLines = aggregateContainerPortGroupLines(item, scheduleDate);
-            // A completed lot's allocation is history — the backend rejects
-            // carrier changes once the lot leaves READY_FOR_DISPATCH, so the
-            // button must not invite the attempt.
-            const allocationLocked = item.status === ShipmentStatus.COMPLETED;
+            // A lot's allocation is editable ONLY while it sits in
+            // READY_FOR_DISPATCH: `assignShipmentCarriers` 409s for every other
+            // status ("Chỉ được gán lại nhà xe khi lô đang sẵn sàng điều xe.")
+            // and again when the lot already has a live trip. Locking on
+            // COMPLETED alone left the trigger live on DISPATCHED / IN_TRANSIT
+            // rows, so the dispatcher's save came back as a bare conflict
+            // ("Lô hàng đã thay đổi") that hid the real reason.
+            const allocationLocked = item.status !== ShipmentStatus.READY_FOR_DISPATCH;
             return (
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
