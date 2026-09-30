@@ -145,14 +145,8 @@
   }
 }
 
-/* Below 1024px the fixed driver bottom-nav (60px + safe-area) sits over the
-   page footer at max scroll: the shell clearance is dropped for full-bleed
-   task screens (bottom-nav.css `:has()` rule owns shell padding at every
-   width), so the screen must clear the nav itself. Two-class selector wins
-   the cascade over `.driver-task-screen`'s 32px base padding regardless of
-   CSS import order. */
-@media (max-width: 1023px) {
-  .driver-trip-pod-screen.driver-task-screen {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px));
-  }
-}
+/* QA-2026-09-27-01: no nav reserve here. The driver bottom-nav is a flex
+   sibling of .app-body inside .app-main — it never overlays the scroll area —
+   and this screen's own completion footer is in normal flow too, so the 76px
+   strip only produced blank page below the footer. The screen keeps
+   `.driver-task-screen`'s authored 32px bottom padding. */

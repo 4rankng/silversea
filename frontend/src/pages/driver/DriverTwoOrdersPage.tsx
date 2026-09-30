@@ -56,9 +56,13 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
       </div>
       <h3 className="dt-card__route">{trip.routeName || 'Tuyến không xác định'}</h3>
       <div className="dt-card__meta">
+        {/* QA-2026-09-27-01 (#5) / internal-ids law: the Truck icon belongs to
+            the PLATE (the driver-facing vehicle identity), never to the
+            internal TRP/SHP trip code. The code no longer titles this line;
+            a missing plate reads as '—' like every other empty fact. */}
         <span className="dt-card__meta-item">
           <Truck size={14} />
-          <span className="dt-card__meta-text">{trip.tripCode ?? 'Chuyến chưa có mã'}</span>
+          <span className="dt-card__meta-text">{trip.truckPlate || '—'}</span>
         </span>
         <span className="dt-card__meta-item">
           <Building2 size={14} />
@@ -69,8 +73,7 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
           <span className="dt-card__meta-text">{formatContainerList(trip.containerNumbers)}</span>
         </span>
       </div>
-      <div className="dt-card__footer">
-        <span className="dt-card__truck">{trip.truckPlate || '—'}</span>
+      <div className="dt-card__footer" style={{ justifyContent: 'flex-end' }}>
         <ArrowRight size={16} />
       </div>
     </Link>

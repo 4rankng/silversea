@@ -509,6 +509,25 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     view.unmount();
   });
 
+  it('a both-group edit lands in ONE Save — the editor hands the scheduler both fields', () => {
+    const { view, onSaveSchedule } = renderScheduleEditor('LCL');
+
+    // Both groups move at once: the container appointment (ngày + giờ) and the
+    // lot-level Ngày vận chuyển. The screen offers a single Save, so the draft
+    // must carry both and the editor must not dead-end on a red error.
+    const dateInputs = document.querySelectorAll('input[placeholder="DD"]');
+    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '16:17' } });
+    fireEvent.change(dateInputs[0], { target: { value: '23/09/2026' } });
+    fireEvent.change(dateInputs[1], { target: { value: '20/09/2026' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
+
+    expect(onSaveSchedule).toHaveBeenCalledTimes(1);
+    const [, , draft] = onSaveSchedule.mock.calls[0];
+    expect(draft).toEqual({ transportDate: '2026-09-20', customerAppointmentAt: '2026-09-23T16:17' });
+    expect(screen.queryByRole('alert')).toBeNull();
+    view.unmount();
+  });
+
   it('invalid typed 24h time stays in the editor without saving', async () => {
     const { onSaveSchedule } = renderScheduleEditor('FCL');
     fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '25:99' } });

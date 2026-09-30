@@ -151,4 +151,18 @@ describe('SuppliersView (dispatcher read-only)', () => {
     })));
     await waitFor(() => expect(invalidateAllCatalogs).toHaveBeenCalled());
   });
+
+  it('labels each KPI with the basis of its number', () => {
+    suppliersState.data = { items: [supplier(), supplier({ id: 2, status: 'INACTIVE' })], total: 37 };
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
+
+    // `total` is the whole dataset carried by the paginated response; the active
+    // count is only the rows on this page. The two labels must say so.
+    expect(screen.getByText('Tổng (tất cả)')).toBeTruthy();
+    expect(screen.getByText('Đang hoạt động (trang này)')).toBeTruthy();
+  });
 });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { useOpsExpensePhotos, useDeleteOpsExpensePhoto } from '../../hooks/useOpsQueries';
-import { getAuthenticatedPhotoUrl } from '../../lib/api';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import '../../components/PhotoViewer.css';
 
@@ -20,7 +20,8 @@ export function OpsExpensePhotosModal({ expenseId, canDelete = false, onClose }:
   const deletePhoto = useDeleteOpsExpensePhoto();
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const photos = data?.items ?? [];
-  const urls = photos.map((photo) => getAuthenticatedPhotoUrl(photo.url));
+  // DRV-DET-08: Authorization-header blob fetch, not a ?token= query string.
+  const urls = useAuthedPhotoUrls(photos.map((photo) => photo.url));
 
   return (
     <OpsModalBackdrop onClose={onClose} ariaLabel="Ảnh biên lai">

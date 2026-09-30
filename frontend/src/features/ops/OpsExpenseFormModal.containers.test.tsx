@@ -88,7 +88,7 @@ describe('ops expense form — Số Cont persistence (audit c12 cluster A)', () 
   it('A2: a shared-lot submit serializes container null — never Number("") = 0', async () => {
     show();
     await chooseType('Phí soi chiếu');
-    fireEvent.change(screen.getByRole('spinbutton', { name: /Thực chi/ }), { target: { value: '450000' } });
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '450000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
     const payload = api.createExpense.mock.calls[0][0];
@@ -123,5 +123,36 @@ describe('ops expense form — Số Cont persistence (audit c12 cluster A)', () 
     fireEvent.click(screen.getByRole('button', { name: 'Soi chiếu' }));
     expect(screen.getByLabelText('Tên khoản chi')).toHaveValue('Soi chiếu');
     expect(screen.getByRole('combobox', { name: 'Loại phí' })).toHaveValue('Phí soi chiếu');
+  });
+
+  // Card 20260928_197: every cost-entry screen takes a positive AND a negative
+  // amount and groups thousands — the driver's form did, this one did not.
+  it('A4: the money field groups thousands and keeps a typed negative', async () => {
+    show();
+    const money = screen.getByLabelText(/Thực chi/);
+    expect(money).toHaveAttribute('type', 'text');
+    fireEvent.change(money, { target: { value: '250000' } });
+    expect(money).toHaveValue('250.000');
+    fireEvent.change(money, { target: { value: '-250000' } });
+    expect(money).toHaveValue('-250.000');
+  });
+
+  it('A5: a row that charges no customer cannot be saved without a note', async () => {
+    show();
+    // "Chi công nhân" carries no invoice, so its charge is only the operator's
+    // "Thực thu (thu khách)" override — blank means the server refuses the row.
+    await chooseType('Chi công nhân');
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '250000' } });
+    const save = screen.getByRole('button', { name: 'Lưu' });
+    expect(save).toBeDisabled();
+    expect(screen.getByText(/ghi chú bắt buộc/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'Nhà xe tự chịu' } });
+    expect(save).toBeEnabled();
+    // Charging the customer lifts the requirement on its own, with no note.
+    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: '' } });
+    expect(save).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Thực thu (thu khách)'), { target: { value: '250000' } });
+    expect(save).toBeEnabled();
+    expect(api.createExpense).not.toHaveBeenCalled();
   });
 });

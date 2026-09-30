@@ -100,14 +100,11 @@ export function TripPodSubmission({
 }: TripPodSubmissionProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
-  // Which required slot the fullscreen scanner is capturing for (vantaiphucloc
-  // EPOD pattern: "Chụp" opens the live-camera overlay with torch + gallery,
-  // not a bare <input capture> — camera-denied devices still get the picker).
+  // Which required slot the fullscreen scanner captures for (live-camera overlay with torch + gallery, not a bare <input capture>).
   const [scanning, setScanning] = useState<TripPodFileType | null>(null);
 
-  // Ticket 36d0183d: uploaded e-POD images render as tappable thumbnails
-  // (authenticated blob fetch through the pod-files endpoint) that open the
-  // fullscreen PhotoViewer; PDFs and not-yet-loaded files keep the meta row.
+  // Ticket 36d0183d: uploaded e-POD images (authenticated blob fetch) render as
+  // tappable thumbnails opening the fullscreen viewer; PDFs keep the meta row.
   const [thumbUrls, setThumbUrls] = useState<Record<number, string>>({});
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const createdUrlsRef = useRef<string[]>([]);
@@ -127,10 +124,13 @@ export function TripPodSubmission({
     const fulfillmentId = currentSubmission?.fulfillmentId;
     if (!fulfillmentId) return;
     let cancelled = false;
+    // Marker Set read once: it is mutated in place, never reassigned, so the
+    // cleanup below closes over this same object.
+    const fetchedIds = fetchedIdsRef.current;
     const pendingIds = new Set<number>();
     for (const file of imageFiles) {
-      if (fetchedIdsRef.current.has(file.id)) continue;
-      fetchedIdsRef.current.add(file.id);
+      if (fetchedIds.has(file.id)) continue;
+      fetchedIds.add(file.id);
       pendingIds.add(file.id);
       driverClient.downloadPodFile(fulfillmentId, file.id)
         .then((blob) => {
@@ -143,14 +143,14 @@ export function TripPodSubmission({
         .catch(() => {
           if (cancelled) return;
           pendingIds.delete(file.id);
-          fetchedIdsRef.current.delete(file.id);
+          fetchedIds.delete(file.id);
         });
     }
     return () => {
       cancelled = true;
       // Release canceled requests before the replacement effect starts. A late
       // response must not clear markers owned by the replacement request.
-      pendingIds.forEach((id) => fetchedIdsRef.current.delete(id));
+      pendingIds.forEach((id) => fetchedIds.delete(id));
     };
   }, [currentSubmission, imageFiles]);
 

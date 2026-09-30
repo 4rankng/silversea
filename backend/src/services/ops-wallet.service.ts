@@ -162,10 +162,11 @@ export interface OpsFundBook {
    * `matches` compares and what the reconciliation report's "Còn phải hoàn ứng"
    * is checked against, so redefining it to mean "this month" would change
    * what an existing column says. These are additive: null bounds mean "no
-   * window", and with no window every period figure equals the whole-history
-   * one. `periodOpening` is the cumulative total up to `from`, NOT a
-   * re-derived balance, so a window can never disagree with the closing it
-   * is a slice of.
+   * window", and with no window the opening is 0 and `periodClosing` equals
+   * the whole-history `closing`. `periodOpening` is the cumulative total
+   * STRICTLY BEFORE `from`, so `periodOpening + (net in window)` is
+   * `periodClosing` and a window can never disagree with the closing it is a
+   * slice of.
    */
   period: { from: string | null; to: string | null };
   periodOpening: OpsMoney;
@@ -287,11 +288,19 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
   const periodItems = from === null && to === null
     ? items
     : items.filter((item) => inWindow(item.date, from, to));
-  const periodClosingBig = periodItems.reduce((total, item) => total + BigInt(item.amount), 0n);
-  // The opening is the WHOLE-HISTORY closing minus the window, not a second
-  // independent balance: a slice can then never disagree with the book it was
-  // cut from, and with no window it is exactly zero.
-  const periodOpeningBig = closing - periodClosingBig;
+  // Pre-demo audit (sổ quỹ period summary): the opening is the cumulative
+  // balance STRICTLY BEFORE `from` (0 when nothing is windowed), and the
+  // closing is that opening plus the window's net — i.e. the balance as of the
+  // end of `to`. The old pair read the window's NET as the closing and pushed
+  // `closing − net` into the opening, so an item dated AFTER `to` was silently
+  // counted as opening and "Số dư cuối kỳ" was a net, not a balance.
+  // `periodOpening + (window net)` is `periodClosing` by construction, and the
+  // closing is `closing` as soon as the window reaches the last item.
+  const periodOpeningBig = from === null
+    ? 0n
+    : items.reduce((total, item) => total + (item.date < from ? BigInt(item.amount) : 0n), 0n);
+  const periodClosingBig = periodOpeningBig
+    + periodItems.reduce((total, item) => total + BigInt(item.amount), 0n);
   const periodInBig = periodItems.reduce(
     (total, item) => total + (BigInt(item.amount) > 0n ? BigInt(item.amount) : 0n), 0n);
   const periodOutBig = periodItems.reduce(

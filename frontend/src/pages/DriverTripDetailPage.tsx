@@ -28,7 +28,7 @@ import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQu
 import { useQuery } from '@tanstack/react-query';
 import { qk } from '../api/keys';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
-import { getAuthenticatedPhotoUrl } from '../lib/api';
+import { useAuthedPhotoUrls } from '../lib/api/photo';
 import { compressImageFile } from '../lib/imageCompression';
 import { formatCurrency, formatDate } from '../lib/format';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -96,6 +96,12 @@ function DriverTripDetailContent() {
   const cancelled = trip?.status === TripStatus.CANCELED;
   const closed = completed || cancelled;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
+  const latestFuelEvidence = trip?.fuelEvidenceReviews?.[0] ?? null;
+  // DRV-DET-08: protected evidence loads through an Authorization-header blob
+  // fetch (`useAuthedPhotoUrls` → object URL, revoked on unmount). The JWT
+  // must never ride in the query string where history/Referer/proxy logs can
+  // capture it. Called before every early return so the hook order is stable.
+  const fuelEvidencePhotoUrl = useAuthedPhotoUrls([latestFuelEvidence?.photoUrl ?? null])[0] ?? '';
 
   const latestCompletedIndex = useMemo(() => {
     let index = -1;
@@ -324,7 +330,6 @@ function DriverTripDetailContent() {
   // surfaces the two mandatory-photo gaps so the driver knows what is missing
   // before tapping through.
   const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
-  const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
   // Card 20260926_28 item 10: live completion state for the sticky bar (and
   // the top progress strip) — missing = the POD-gate files still absent.
@@ -531,7 +536,7 @@ function DriverTripDetailContent() {
               <div className="driver-task-fuel-details">
                 <div className="driver-task-fuel-grid">
                   <img
-                    src={getAuthenticatedPhotoUrl(latestFuelEvidence.photoUrl)}
+                    src={fuelEvidencePhotoUrl}
                     alt="Ảnh nhiên liệu"
                     className="driver-task-fuel-img"
                   />
@@ -615,7 +620,10 @@ function DriverTripDetailContent() {
               onClick={() => navigate(`/my-trips/${validFulfillmentId}/pod`)}
             >
               <FileCheck2 size={16} />
-              <span>{trip.status === 'IN_TRANSIT' ? 'Hoàn thành' : completeCtaLabel(trip.status)}</span>
+              {/* DRV-DET-06: "Hoàn tất lệnh vận chuyển" — this bar navigates
+                  to the e-POD screen; the uppercase HOÀN THÀNH CHUYẾN literal
+                  lives on that screen's footer. */}
+              <span>{completeCtaLabel(trip.status)}</span>
             </button>
           </div>
         </div>

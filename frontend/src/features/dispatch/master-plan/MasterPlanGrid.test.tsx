@@ -79,6 +79,51 @@ describe('MasterPlanGrid', () => {
     fireEvent.keyDown(notesArea, { key: 'Enter', ctrlKey: true });
     expect(onUpdateNotes).toHaveBeenCalledWith(item(), 'Dòng một\nDòng hai');
   });
+  it('locks the note trigger for a DISPATCHER outside the intake window only', () => {
+    const dispatched = item({ id: 1, status: ShipmentStatus.DISPATCHED, operationalNotes: 'Giao giờ hành chính' });
+    const intake = item({ id: 2, status: ShipmentStatus.READY_FOR_DISPATCH });
+    const { rerender } = render(
+      <MasterPlanGrid items={[dispatched]} onAllocate={vi.fn()} onUpdateNotes={vi.fn()} />,
+    );
+    // Every other role keeps the affordance on any status — the gate is
+    // role-scope, not a blanket removal.
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeTruthy();
+
+    rerender(<MasterPlanGrid items={[dispatched]} onAllocate={vi.fn()} onUpdateNotes={vi.fn()} notesIntakeOnly />);
+    // The note itself still reads; only the edit trigger the backend would 403 is gone.
+    expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeNull();
+
+    rerender(<MasterPlanGrid items={[intake]} onAllocate={vi.fn()} onUpdateNotes={vi.fn()} notesIntakeOnly />);
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeTruthy();
+  });
+
+  it('hides the note modal "Sửa ghi chú" affordance on a locked DISPATCHER row', () => {
+    const longNote = 'Lái xe chú ý liên hệ thủ kho trước 30 phút để chuẩn bị bốc xếp hàng hóa cẩn thận, không làm rách bao bì.';
+    const locked = render(
+      <MasterPlanGrid
+        items={[item({ status: ShipmentStatus.DISPATCHED, operationalNotes: longNote })]}
+        onAllocate={vi.fn()}
+        onUpdateNotes={vi.fn()}
+        notesIntakeOnly
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
+    expect(screen.getByText(longNote)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Sửa ghi chú' })).toBeNull();
+    locked.unmount();
+
+    render(
+      <MasterPlanGrid
+        items={[item({ status: ShipmentStatus.DISPATCHED, operationalNotes: longNote })]}
+        onAllocate={vi.fn()}
+        onUpdateNotes={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
+    expect(screen.getByRole('button', { name: 'Sửa ghi chú' })).toBeTruthy();
+  });
+
   it('renders lift and drop locations from each container group instead of the legacy lot fields', () => {
     const fixture = {
       ...item({ pickupLocation: null, deliveryLocation: null, containerTypeSummary: null }),

@@ -10,10 +10,10 @@ import * as s from '../db/schema';
 import { getOpsFundBook } from '../services/ops-wallet.service';
 
 const ids: {
-  users: number[]; customers: number[]; shipments: number[]; treasuryAccount?: number;
+  users: number[]; customers: number[]; shipments: number[]; treasuryAccounts: number[];
   advances: number[]; ledgers: number[]; movements: number[]; expenses: number[];
   settlements: number[]; settlementRequests: number[];
-} = { users: [], customers: [], shipments: [], advances: [], ledgers: [], movements: [], expenses: [], settlements: [], settlementRequests: [] };
+} = { users: [], customers: [], shipments: [], treasuryAccounts: [], advances: [], ledgers: [], movements: [], expenses: [], settlements: [], settlementRequests: [] };
 const key = `ops-fund-book-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const shortCode = ('SQ' + Date.now().toString(36)).slice(0, 20);
 
@@ -27,7 +27,7 @@ test('Sổ quỹ OPS: self-scoped entries, closing reconciles with wallet formul
 
   const [account] = await db.insert(s.treasuryAccounts).values({
     code: key, name: 'Sổ quỹ test fund', type: 'CASH', createdBy: owner.id, updatedBy: owner.id,
-  }).returning(); ids.treasuryAccount = account.id;
+  }).returning(); ids.treasuryAccounts.push(account.id);
 
   // Owner: funded advance 1,000,000 + approved expense 600,000 + settlement allocating 600,000
   // → book closing 400,000 == accountant outstanding 400,000 (khớp).
@@ -127,11 +127,16 @@ test('Sổ quỹ OPS: lọc theo kỳ, và trên cùng khoảng ngày thì khớ
   const [shipment] = await db.insert(s.shipments).values({ customerId: customer.id, cargoMode: 'FCL', status: 'PENDING_DATE' }).returning(); ids.shipments.push(shipment.id);
   const [account] = await db.insert(s.treasuryAccounts).values({
     code: `${key}-3`, name: 'Sổ quỹ period fund', type: 'CASH', createdBy: owner.id, updatedBy: owner.id,
-  }).returning();
+  }).returning(); ids.treasuryAccounts.push(account.id);
 
   // Two events on two different days, so a window can actually cut between them.
+  // The fund book dates an ADVANCE item by the REQUEST's createdAt (not the
+  // funding movement's valueDate), so the fixture sets it explicitly: relying
+  // on `now()` would move this row to "today" and quietly break the window math
+  // below depending on the day the suite runs.
   const [advance] = await db.insert(s.advanceRequests).values({
     requesterId: owner.id, amount: '1000000', reason: `Tạm ứng period ${key}`, status: 'RECORDED',
+    createdAt: new Date('2026-09-20T00:00:00Z'),
   }).returning(); ids.advances.push(advance.id);
   const [ledgerRow] = await db.insert(s.ledger).values({
     txnType: 'OPS_ADVANCE', txnId: advance.id, entityType: 'FORWARDER', entityId: owner.id, balance: '0',
@@ -156,8 +161,8 @@ test('Sổ quỹ OPS: lọc theo kỳ, và trên cùng khoảng ngày thì khớ
   const all = await getOpsFundBook(owner.id);
   assert.equal(all.closing, '400000', 'whole history: 1,000,000 − 600,000');
 
-  // No window asked for: every period figure collapses onto the whole-history
-  // one, so an existing caller that passes no params sees no behaviour change.
+  // No window asked for: the opening is 0 and the closing is the whole-history
+  // closing, so an existing caller that passes no params sees no behaviour change.
   assert.deepEqual(all.period, { from: null, to: null });
   assert.equal(all.periodOpening, '0', 'nothing sits before an unbounded window');
   assert.equal(all.periodClosing, all.closing);
@@ -174,18 +179,30 @@ test('Sổ quỹ OPS: lọc theo kỳ, và trên cùng khoảng ngày thì khớ
   assert.equal(full.closing, full.closing, 'whole-history closing unchanged by a window');
   assert.equal(full.matches, true, 'the khớp check still judges the whole history, not the window');
 
-  // A window that cuts between the two events: the opening carries the advance
-  // that happened before it, so the slice still reconciles to the whole.
+  // A window that cuts between the two events: the opening is the balance
+  // BEFORE `from` (the 09-20 advance), and the closing is that opening plus the
+  // window's net — the balance at the end of `to`, NOT the window's net alone.
   const narrow = await getOpsFundBook(owner.id, { from: '2026-09-25', to: '2026-09-25' });
   assert.equal(narrow.periodOpening, '1000000', 'the 09-20 advance rolled into the opening');
   assert.equal(narrow.periodIn, '0');
   assert.equal(narrow.periodOut, '600000');
-  assert.equal(narrow.periodClosing, '-600000', 'the window on its own closes negative — the advance is not in it');
+  assert.equal(narrow.periodClosing, '400000', 'opening + the window net = the balance at the end of `to`');
+  assert.equal(narrow.periodClosing, narrow.closing,
+    'this window reaches the last item, so its closing IS the whole-history closing');
   assert.equal(
-    Number(narrow.periodOpening) + Number(narrow.periodClosing),
-    Number(full.closing),
-    'a slice plus its opening always reconstructs the whole-history closing',
+    Number(narrow.periodOpening) + (Number(narrow.periodIn) - Number(narrow.periodOut)),
+    Number(narrow.periodClosing),
+    'periodOpening + (net in window) always reconstructs periodClosing',
   );
+
+  // Regression (pre-demo audit): a window that ENDS BEFORE the later item. The
+  // opening must be what preceded `from` — nothing — not `closing − windowNet`,
+  // which silently counted the 09-25 expense (dated after `to`) as opening.
+  const early = await getOpsFundBook(owner.id, { from: '2026-09-01', to: '2026-09-21' });
+  assert.equal(early.periodOpening, '0', 'nothing precedes the window');
+  assert.equal(early.periodClosing, '1000000', 'the balance at the end of `to`: the 09-25 expense is not in it');
+  assert.equal(Number(early.periodClosing) - Number(all.closing), 600000,
+    'the item dated AFTER `to` never lands in this window — neither in its closing nor in its opening');
 
   // The row list must be windowed, not just the summary. Found by a live smoke
   // run, not by a unit test: the sums filtered correctly while `items` still
@@ -218,7 +235,7 @@ after(async () => {
     if (ids.expenses.length) await db.delete(s.opsExpenseEntries).where(inArray(s.opsExpenseEntries.id, ids.expenses));
     if (ids.shipments.length) await db.delete(s.shipments).where(inArray(s.shipments.id, ids.shipments));
     if (ids.customers.length) await db.delete(s.customers).where(inArray(s.customers.id, ids.customers));
-    if (ids.treasuryAccount) await db.delete(s.treasuryAccounts).where(eq(s.treasuryAccounts.id, ids.treasuryAccount));
+    if (ids.treasuryAccounts.length) await db.delete(s.treasuryAccounts).where(inArray(s.treasuryAccounts.id, ids.treasuryAccounts));
     if (ids.users.length) await db.delete(s.users).where(inArray(s.users.id, ids.users));
   } finally {
     await client.end();

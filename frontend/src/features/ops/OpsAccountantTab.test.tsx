@@ -74,6 +74,49 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
     expect(screen.queryByRole('button', { name: /duyệt/i })).toBeNull();
   });
 
+  // The sheet modal used to mount only once `sheet.data` existed, so "Xem phiếu"
+  // looked dead while the detail was in flight and stayed dead after a failure.
+  const settlementDetail = {
+    settlement: {
+      id: 3, code: 'OS-2609-0001', status: 'RECORDED', totalAmount: '350000', note: null,
+      createdAt: '2026-09-07T00:00:00.000Z', approvedAt: null, opsUserId: 7, opsUserName: 'Ops A',
+    },
+    grouping: { groups: [], totals: { withInvoice: '0', withoutInvoice: '0', grand: '0' } },
+  };
+
+  it('shows the sheet modal loading for a settlement still in flight', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/ops/admin/settlements/3') return new Promise(() => {});
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ opsSettlementId: 3 })] });
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    await screen.findByText('SS-9');
+    fireEvent.click(screen.getByRole('button', { name: 'Xem phiếu' }));
+    expect(await screen.findByText('Đang tải phiếu quyết toán…')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Phiếu quyết toán Ops' })).toBeInTheDocument();
+  });
+
+  it('surfaces a failed settlement detail with a retry that loads the sheet', async () => {
+    let failDetail = true;
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/ops/admin/settlements/3') {
+        return failDetail ? Promise.reject(new Error('Mất kết nối')) : Promise.resolve(settlementDetail);
+      }
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ opsSettlementId: 3 })] });
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    await screen.findByText('SS-9');
+    fireEvent.click(screen.getByRole('button', { name: 'Xem phiếu' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được phiếu quyết toán');
+    failDetail = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(await screen.findByText('OS-2609-0001')).toBeInTheDocument();
+    expect(apiPost).not.toHaveBeenCalled();
+  });
+
   it('shows missing receipt as outstanding evidence without approving it implicitly', async () => {
     apiGet.mockImplementation((url: string) => Promise.resolve({ items: url.startsWith('/ops/admin/expenses') ? [expense({ hasPhoto: false })] : [] }));
     renderTab();

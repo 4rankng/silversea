@@ -8,7 +8,7 @@ import {
 import { driverClient } from '../../api/driverClient';
 import { NumberField, DateField, TextField, UuiSelectField, Tabs, EmptyState } from '../../design-system';
 import { formatCurrency, formatISODate } from '../../lib/format';
-import { photoSrc } from '../../lib/api/photo';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { driverExpenseOption, driverExpenseOptionInvoiceClass, requiredEvidenceTypeForExpenseCode } from '../../features/driver/driver-expense-options';
 import { useDriverExpenseEntry } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
@@ -34,6 +34,11 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
   }, [state.entries.length, onEntriesCountChange]);
 
   const disabled = readOnly || state.busy || state.uploading;
+  // DRV-DET-08: receipt evidence loads with the Authorization header (blob),
+  // never a ?token= query string. Index-aligned with state.entries; the draft
+  // preview is a single value (a fresh local `blob:` pick passes through).
+  const receiptUrls = useAuthedPhotoUrls(state.entries.map((entry) => entry.receiptStorageKey));
+  const draftReceiptUrl = useAuthedPhotoUrls([state.draft.receiptStorageKey])[0] ?? '';
   const selected = driverExpenseOption(state.draft.option, state.options);
   // Card 20260928_163/164 — the picked fee's CATALOG class decides whether Số
   // hóa đơn is asked for and whether a free-text name exists at all (a
@@ -82,8 +87,8 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         description="Thêm khoản thực chi trong chuyến; kế toán đối chiếu và thanh toán riêng."
       />
     )) :
-      <ul className="shipment-cost-entry__list">{state.entries.map(entry => <li key={entry.id} className="shipment-cost-entry__item">
-        {entry.receiptStorageKey && <a href={photoSrc(entry.receiptStorageKey)} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><img src={photoSrc(entry.receiptStorageKey)} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}
+      <ul className="shipment-cost-entry__list">{state.entries.map((entry, index) => <li key={entry.id} className="shipment-cost-entry__item">
+        {entry.receiptStorageKey && <a href={receiptUrls[index] || undefined} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><img src={receiptUrls[index]} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}
         <div className="shipment-cost-entry__item-body"><div className="shipment-cost-entry__item-top"><strong>{entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong><span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span></div>
           <div className="shipment-cost-entry__item-meta"><span>{formatISODate(entry.occurredAt)}</span><span>{entry.payerKind === 'COMPANY' ? 'Công ty đã trả' : 'Tôi chi'}</span>{entry.costGroup && <span>{entry.costGroup === 'DRIVER_ROAD' ? 'Tiền đường' : 'Chi phí lô hàng'}</span>}{entry.invoiceNumber && <span>HĐ {entry.invoiceNumber}</span>}</div>
           {entry.note && <span className="shipment-cost-entry__item-note">{entry.note}</span>}
@@ -131,7 +136,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         <input type="file" accept="image/*" className="sr-only" aria-label="Chọn ảnh biên lai" disabled={disabled} onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ''; if (file) void state.upload(file); }} />
       </label>
       {state.pendingFile && !state.uploading && <div className="shipment-cost-entry__upload-retry" role="status"><span>{state.pendingFile.name} · Chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" disabled={disabled} onClick={() => { if (state.pendingFile) void state.upload(state.pendingFile); }}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={state.discardPendingFile}>Bỏ ảnh chưa tải</button></div>}
-      {state.draft.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><img src={photoSrc(state.draft.receiptStorageKey)} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
+      {state.draft.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><img src={draftReceiptUrl} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
       {/* Card 20260928_165 — the road-repair fee's document is the hand-written
           receipt; the form blocks the submit (never silently) until it is
           attached, and the server refuses the entry without it. */}

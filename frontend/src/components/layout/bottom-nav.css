@@ -72,11 +72,24 @@ html:has(body .app.is-driver) {
     display: none !important;
   }
 
-  /* Match the full-bleed rule above: its :has specificity otherwise
-     cancels this reserve and hides the final action behind the tabs. */
-  .driver-mode .app-body,
-  .app.is-driver .app-body:has(.driver-journey, .driver-task-screen) {
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 12px));
+  /* Card QA-2026-09-27-01 residual (driver task screens still ended in a
+     ~200px blank): the tab bar is a flex SIBLING of .app-body inside
+     .app-main (`position: relative`, `flex-shrink: 0`) — it is never an
+     overlay, so it already owns its own space in the layout column. The
+     nav-sized reserve that used to live here was therefore a SECOND, dead
+     strip stacked under each screen's own sticky-bar clearance (measured
+     390x844: 70px here + 140px on `.driver-task-screen--has-complete-bar`
+     = 210px of blank after the last section). Removed; the screen's own
+     reserve still clears the fixed action bar it was authored for.
+     The bar's geometry now lives in one place — `--bottom-nav-h`, consumed
+     by `.bottom-nav` below AND by the fixed accept/complete bars
+     (DriverTripDetailPage.css) — so the two can never drift by the 5px the
+     old hard-coded `bottom: 60px` was off by. */
+  :root {
+    /* Tab row: 4px top pad + 32px icon wrap + 2px gap + ~15px label. */
+    --bottom-nav-tab-h: 53px;
+    /* Real bar height: hairline + tab row + the home-indicator strip. */
+    --bottom-nav-h: calc(1px + var(--bottom-nav-tab-h) + max(12px, env(safe-area-inset-bottom, 0px)));
   }
 
   /* Driver full-bleed: strip the app-main gradient so driver pages own their bg */
@@ -90,8 +103,12 @@ html:has(body .app.is-driver) {
     flex-shrink: 0;
     /* Card 20260927_149 (CHIEF research fix #1): env() applies ONCE — as the
        home-indicator padding below. The old height calc() added the same
-       inset a second time, inflating the bar and misplacing it on iOS. */
+       inset a second time, inflating the bar and misplacing it on iOS.
+       QA-2026-09-27-01: the bar now consumes the same `--bottom-nav-h`
+       token the sticky action bars offset by (declared above), so the bar's
+       real height IS the offset — no second, drifting source of truth. */
     height: auto;
+    min-height: var(--bottom-nav-h);
     box-sizing: border-box;
     /* Fully opaque — list/detail content scrolls underneath this fixed bar at
        every scroll position (not just the bottom), so any transparency lets

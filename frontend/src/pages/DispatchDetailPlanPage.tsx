@@ -3,6 +3,7 @@ import { ConfirmDialog } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
+import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import './DispatchPlanPage.css';
@@ -16,6 +17,14 @@ import './DispatchPlanPage.css';
 export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
   const [reassignTripId, setReassignTripId] = useState<number | null>(null);
+  // Ghép chuyến (LoHangKepKetHop §3.1): the row whose trip anchors the pair;
+  // null keeps the dialog closed. Candidates are the loaded unpaired OWN
+  // rows with trips — the same set the grid offers the button for.
+  const [pairRow, setPairRow] = useState<DispatchDetailPlanRow | null>(null);
+  const pairCandidates = detailPlan.items.filter((item) => item.dispatch.tripId != null
+    && item.dispatch.carrierType !== 'EXTERNAL'
+    && !item.dispatch.pairKind
+    && item.dispatch.tripStatus !== 'CANCELED');
   // Staff close for external-carrier trips: external drivers don't use the
   // app, so dispatch/CUS confirm the completion from the grid row.
   const [completingRow, setCompletingRow] = useState<DispatchDetailPlanRow | null>(null);
@@ -61,6 +70,7 @@ export default function DispatchDetailPlanPage() {
           onOpenTripReassign={setReassignTripId}
           onCompleteExternalTrip={setCompletingRow}
           onIssueOrder={detailPlan.issueOrder}
+          onOpenPair={setPairRow}
           onEnsureFulfillment={detailPlan.ensureFulfillment}
           autoOpenFulfillmentId={detailPlan.autoOpenFulfillmentId}
           onAutoOpenConsumed={detailPlan.consumeAutoOpen}
@@ -80,6 +90,13 @@ export default function DispatchDetailPlanPage() {
         tripId={reassignTripId}
         onClose={() => setReassignTripId(null)}
         onReassigned={detailPlan.refresh}
+      />
+
+      <PairTripsDialog
+        row={pairRow}
+        candidates={pairCandidates}
+        onClose={() => setPairRow(null)}
+        onPaired={detailPlan.refresh}
       />
 
       <ConfirmDialog

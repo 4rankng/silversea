@@ -4,7 +4,7 @@ import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 
-/** Explicit recovery of unposted legacy drafts; recorded financial history stays immutable. */
+/** Explicit recovery of unposted legacy drafts, plus the owner's withdrawal of an unfunded recorded request (which is not yet financial history); everything else stays immutable. */
 export async function resolveAdvanceDraft(tx: Tx, input: {
   id: number; action: 'record' | 'void'; expectedVersion: number;
   actorId: number; actorRole: Role; resolutionReason: string;
@@ -16,8 +16,22 @@ export async function resolveAdvanceDraft(tx: Tx, input: {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${input.id})`);
   const [before] = await tx.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, input.id)).for('update');
   if (!before || (!office && before.requesterId !== input.actorId)) throw new ApiError(404, 'Không tìm thấy tạm ứng của bạn.');
-  if (before.status !== 'DRAFT') throw new ApiError(409, 'Chỉ tạm ứng chưa ghi sổ được xử lý.');
+  // Pre-demo audit: the OPS create path writes RECORDED (advance-request.service
+  // `createAdvanceRequest` — "Record the request directly without approval"), so
+  // a DRAFT-only guard made an OPS's own just-created request impossible to
+  // withdraw: the UI rendered nothing and the service refused. The OWNER may
+  // void their own RECORDED request while no money has been funded and no
+  // settlement claims it — both conditions are enforced below. Every other
+  // status stays refused with the same message, and the office side keeps its
+  // DRAFT-only rule.
+  const ownerVoid = !office && input.action === 'void' && before.status === 'RECORDED';
+  if (before.status !== 'DRAFT' && !ownerVoid) throw new ApiError(409, 'Chỉ tạm ứng chưa ghi sổ được xử lý.');
   if (before.version !== input.expectedVersion) throw new ApiError(409, 'Tạm ứng đã thay đổi. Tải lại trước khi tiếp tục.');
+  // "Chưa giao tiền" is the whole licence for that withdrawal, and this ledger
+  // row IS the funding record: `getAdvanceFundedAmounts` reads the same
+  // OPS_ADVANCE entry plus its POSTED, un-reversed treasury movement, so
+  // "funded > 0" implies this lookup finds a row. One check therefore covers
+  // both, and it refuses rather than voiding money that actually moved.
   const [posted] = await tx.select({ id: s.ledger.id }).from(s.ledger).where(and(
     eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, input.id),
   )).limit(1);
@@ -42,7 +56,8 @@ export async function resolveAdvanceDraft(tx: Tx, input: {
   const ledgerEntryId = null;
   await tx.insert(s.auditLogs).values({
     userId: input.actorId, entityType: 'advance-request-draft', entityId: input.id,
-    message: input.action === 'record' ? 'Đã ghi sổ tạm ứng cũ' : 'Đã hủy tạm ứng chưa ghi sổ',
+    message: input.action === 'record' ? 'Đã ghi sổ tạm ứng cũ'
+      : before.status === 'DRAFT' ? 'Đã hủy tạm ứng chưa ghi sổ' : 'Đã hủy tạm ứng chưa giao tiền',
     payload: { action: input.action, actorRole: input.actorRole, resolutionReason, before, after, ledgerEntryId },
   });
   return after!;

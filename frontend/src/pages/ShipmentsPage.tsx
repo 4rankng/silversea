@@ -57,9 +57,9 @@ const LOT_DELETE_BLOCK_MESSAGES = {
 // Card 20260926_47 — Row 1 status tabs. Each tab is a lens over the current
 // page, matching the pageSummary vocabulary the API already reports (the
 // workspace list endpoint has no server-side status param — the slice is
-// client-side over the loaded page, so "Tất cả" counts come from `total`
-// while the three readiness tabs count the current page, exactly like the
-// summary rail they replace).
+// client-side over the loaded page). Only "Tất cả" counts the whole filtered
+// set (`total`); the three readiness counts are page-scoped, so their labels
+// name that basis — a 1206 total beside 20/20/20 must not read as one scale.
 const LOT_STATUS_TABS = [
   {
     id: 'all',
@@ -70,14 +70,14 @@ const LOT_STATUS_TABS = [
   },
   {
     id: 'needsSchedule',
-    label: 'Chưa chốt lịch',
+    label: 'Chưa chốt lịch (trang)',
     countTone: undefined,
     countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.needsSchedule,
     matches: (item: ShipmentCusWorkspaceListItem) => item.operational.scheduleReadiness === 'WAITING_DATE',
   },
   {
     id: 'needsVehicle',
-    label: 'Chờ điều xe',
+    label: 'Chờ điều xe (trang)',
     countTone: 'warning' as const,
     countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.needsVehicle,
     matches: (item: ShipmentCusWorkspaceListItem) => (
@@ -86,7 +86,7 @@ const LOT_STATUS_TABS = [
   },
   {
     id: 'waitingAccounting',
-    label: 'Chờ đối soát',
+    label: 'Chờ đối soát (trang)',
     countTone: 'info' as const,
     countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.waitingAccounting,
     matches: (item: ShipmentCusWorkspaceListItem) => (

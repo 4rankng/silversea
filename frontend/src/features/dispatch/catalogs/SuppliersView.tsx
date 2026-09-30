@@ -72,7 +72,7 @@ export function SuppliersView() {
       </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
       <div className="kpi-grid dispatch-catalogs__summary" style={{ marginBottom: 16 }}>
-        <KPI label="Tổng (toàn bộ trang)" value={total} unit="NCC" icon={Store} />
+        <KPI label="Tổng (tất cả)" value={total} unit="NCC" icon={Store} />
         <KPI label="Đang hoạt động (trang này)" value={activeCount} unit="NCC" icon={Store} variant="success" />
       </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}

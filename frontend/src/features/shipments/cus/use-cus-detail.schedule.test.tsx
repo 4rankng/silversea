@@ -1,9 +1,10 @@
 // Regression lock for saveSchedule's dual-path schedule save — the load-
 // bearing normalization is behavioral, not cosmetic: an appointment-less row
 // drafts customerAppointmentAt null while formatVietnamDateTimeInput reads
-// '', and without normalizing, the both-changed guard fires on EVERY
-// transport-only save for appointment-less rows (the dead-end this card
-// fixed). The matrix below pins each save path against mocked writers.
+// '', and without normalizing, a transport-only save would look like a
+// two-group change and rewrite the appointment. The matrix below pins each
+// save path against mocked writers, including the both-groups-in-one-press
+// case the editor used to dead-end on.
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -241,15 +242,32 @@ describe('useCusDetail saveSchedule — non-FCL transport-date paths', () => {
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
   });
 
-  it('still refuses a simultaneous transport + appointment change (two-step guard)', async () => {
+  it('saves both groups in one press: lot date first, appointment on the returned version', async () => {
     const row = flatRow();
     const api = await setup(row);
+    updateShipment.mockResolvedValue({ version: 9 });
 
-    await expect(act(async () => {
+    await act(async () => {
       await api.saveSchedule(line(), row, { transportDate: '2026-09-20', customerAppointmentAt: '2026-09-21T08:00' });
-    })).rejects.toThrow('lưu độc lập');
+    });
 
-    expect(updateShipment).not.toHaveBeenCalled();
+    expect(updateShipment).toHaveBeenCalledWith(5, { expectedVersion: 2, expectedDeliveryDate: '2026-09-20' });
+    // The appointment write threads the version the shipment write handed back
+    // (9, not the stale 2) — the ordering the single Save stands on.
+    expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(5, 11, {
+      expectedShipmentVersion: 9,
+      customerAppointmentAt: '2026-09-21T08:00:00+07:00',
+    }, expect.any(String));
+  });
+
+  it('does not write the appointment when the lot-date write fails', async () => {
+    const row = flatRow();
+    const api = await setup(row);
+    updateShipment.mockRejectedValueOnce(new Error('Hết phiên bản.'));
+
+    await expect(api.saveSchedule(line(), row, { transportDate: '2026-09-20', customerAppointmentAt: '2026-09-21T08:00' }))
+      .rejects.toThrow('Hết phiên bản.');
+
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
   });
 });

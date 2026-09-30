@@ -355,16 +355,15 @@ export function useCusDetail(params: CusDetailListParams) {
     const transportChanged = activeEdit.detail.summary.cargoMode !== 'FCL'
       && draft.transportDate !== row.transportDate;
     // Normalize empty-vs-null: an appointment-less row drafts null while the
-    // formatter reads '' — without this, the both-changed guard below fires
-    // on every transport-only save for appointment-less rows.
+    // formatter reads '' — without this, a transport-only save would look
+    // like a two-group change and rewrite the appointment with its own value.
     const appointmentChanged = (draft.customerAppointmentAt || null) !== (currentAppointmentInput || null);
-    if (transportChanged && appointmentChanged) {
-      throw new Error('Ngày vận chuyển và lịch hẹn được lưu độc lập. Hãy lưu từng nhóm một.');
-    }
     const signature = JSON.stringify(['schedule', activeEdit.detail.summary.id, line.id, line.shipmentVersion, draft.transportDate, appointmentAt]);
     const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
     editIdempotencyKeys.current[signature] = key;
     try {
+      // Two version authorities, one Save: commit the lot date first, then the
+      // container appointment on the version the shipment write returned.
       let expectedShipmentVersion = line.shipmentVersion;
       if (transportChanged) {
         const updated = await updateShipment(row.shipmentId, {

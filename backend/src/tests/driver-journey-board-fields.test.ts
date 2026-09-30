@@ -20,10 +20,12 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray } from 'drizzle-orm';
+import { DRIVER_FULFILLMENT_PROGRESS_SEQUENCE, TRIP_POD_REQUIRED_FILE_TYPES } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
+import { getDriverCompletionEvidenceStatus } from '../services/trip-pod.service';
 import { getDriverFulfillmentDetail } from '../services/driver.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -209,6 +211,45 @@ async function mkContainerlessTrip(args: {
   return { shipment, fulfillment, trip };
 }
 
+/** Drive a trip to the state the board used to bucket on: every progress
+ *  milestone recorded plus a SUBMITTED submission carrying both mandatory
+ *  files, i.e. `getDriverCompletionEvidenceStatus(tripId).ready === true`.
+ *  Callers clear it with the three deletes at the end of their test. */
+async function completeTripEvidence(args: {
+  tripId: number; fulfillmentId: number; driverId: number; uploadedBy: number;
+}) {
+  await db.insert(s.driverProgressEvents).values(
+    DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.map((eventType) => ({
+      tripId: args.tripId,
+      driverId: args.driverId,
+      eventType,
+      occurredAt: new Date(),
+    })),
+  );
+  const [submission] = await db.insert(s.tripPodSubmissions).values({
+    tripId: args.tripId,
+    fulfillmentId: args.fulfillmentId,
+    submissionVersion: 1,
+    sourceTripVersion: 1,
+    status: 'SUBMITTED',
+    submittedBy: args.uploadedBy,
+    submittedAt: new Date(),
+  }).returning();
+  for (const fileType of TRIP_POD_REQUIRED_FILE_TYPES) {
+    await db.insert(s.tripPodFiles).values({
+      submissionId: submission.id,
+      fileType,
+      storageKey: `qa/${suffix}/${args.tripId}/${fileType}.jpg`,
+      originalFileName: `${fileType}.jpg`,
+      mimeType: 'image/jpeg',
+      sizeBytes: 1024,
+      sha256: 'a'.repeat(64),
+      uploadedBy: args.uploadedBy,
+    });
+  }
+  return submission;
+}
+
 describe('journey-board card fields — operationalNotes + factoryShortName', () => {
   test('cards carry operationalNotes verbatim and resolve blank-safe factory labels', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
@@ -348,6 +389,73 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
     assert.equal(bucketByTrip.get(tripC.id), 'NEW', 'CREATED → Lệnh mới (unchanged)');
 
     await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, tripB.id));
+  });
+
+  // TC-LX-TIENDO-022 / DRV-LIST-02: a card reaches Lịch sử when the trip is
+  // COMPLETED, not when its e-POD evidence is merely complete. The old rule
+  // filed an acknowledged IN_TRANSIT trip under Lịch sử as soon as both
+  // mandatory photos were submitted, so a driver who had not yet pressed
+  // HOÀN THÀNH CHUYẾN lost the order from Đã nhận.
+  test('complete e-POD evidence keeps a running trip in Đã nhận until it is completed', async () => {
+    const { user, driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Đủ chứng từ');
+    const { fulfillment, trip } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tripStatus: 'IN_TRANSIT',
+    });
+    const submission = await completeTripEvidence({
+      tripId: trip.id, fulfillmentId: fulfillment.id, driverId: driver.id, uploadedBy: user.id,
+    });
+
+    // Fixture proof: the readiness signal the old bucket read is ON, so the
+    // assertion below actually pins the bucket rule.
+    assert.equal((await getDriverCompletionEvidenceStatus(trip.id)).ready, true, 'fixture must be evidence-ready');
+
+    const before = await getDriverJourneyBoard(driver.id);
+    assert.equal(
+      before.items.find((card) => card.tripId === trip.id)?.bucket,
+      'RUNNING',
+      'IN_TRANSIT + complete e-POD stays in Đã nhận',
+    );
+
+    // Completion — not the upload — is what files the card under Lịch sử.
+    await db.update(s.trips).set({ status: 'COMPLETED' }).where(eq(s.trips.id, trip.id));
+    const after2 = await getDriverJourneyBoard(driver.id);
+    assert.equal(
+      after2.items.find((card) => card.tripId === trip.id)?.bucket,
+      'HISTORY',
+      'COMPLETED → Lịch sử',
+    );
+
+    await db.delete(s.tripPodFiles).where(eq(s.tripPodFiles.submissionId, submission.id));
+    await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.id, submission.id));
+    await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, trip.id));
+  });
+});
+
+// Soft-deleted lots are purged from every other list surface. The board used
+// to keep serving cards for them, so a driver saw purged QA lots they could no
+// longer act on (staging: 4 of 5 cards for one driver).
+describe('journey-board soft-delete filter — tombstoned shipments never surface', () => {
+  test('a deleted shipment drops its card while the live sibling stays', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Xoá Mềm');
+    const tripArgs = {
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tripStatus: 'IN_TRANSIT' as const,
+    };
+    const live = await mkContainerTrip(tripArgs);
+    const purged = await mkContainerTrip(tripArgs);
+    await db.update(s.shipments)
+      .set({ deletedAt: new Date() })
+      .where(eq(s.shipments.id, purged.shipment.id));
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const tripIds = board.items.map((card) => card.tripId);
+    assert.ok(tripIds.includes(live.trip.id), 'live shipment card must stay on the board');
+    assert.ok(!tripIds.includes(purged.trip.id), 'soft-deleted shipment must not surface a card');
   });
 });
 

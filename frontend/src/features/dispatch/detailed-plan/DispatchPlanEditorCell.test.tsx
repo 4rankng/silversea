@@ -765,6 +765,8 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
   // a container code starting with 20 needs a 20FT trailer, anything else a
   // 40FT one — a provable mismatch 409s at Phát lệnh ("Rơ-moóc không phù hợp
   // với loại container").
+  // The capacity advisory (AC DISP-MP-02) shares the ⚠ glyph, so the
+  // trailer tests assert on the 'rơ-moóc' copy instead of the glyph alone.
   const FIT_TRUCK = PAIRED_TRUCK; // 20FT, plate 15H-052.82
   const MISMATCH_TRUCK = { ...OTHER_TRUCK, id: 156, licensePlate: '60C-123.45', trailerType: '40FT' };
   const UNKNOWN_TRUCK = { ...PAIRED_TRUCK, id: 157, licensePlate: '70H-000.01', trailerType: null };
@@ -793,7 +795,7 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
 
     const fitLabel = options.find((label) => label.includes('15H-052.82'))!;
     const mismatchLabel = options.find((label) => label.includes('60C-123.45'))!;
-    expect(fitLabel).not.toContain('⚠');
+    expect(fitLabel).not.toContain('rơ-moóc');
     expect(mismatchLabel).toContain('⚠ rơ-moóc 40FT, cần 20FT');
     expect(options.indexOf(mismatchLabel)).toBe(options.length - 1);
   });
@@ -802,7 +804,7 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
     mockTruckPage([FIT_TRUCK, MISMATCH_TRUCK]);
     renderCell(row({ classification: 'DOUBLE' }));
     const options = await openVehicleDropdown();
-    expect(options.find((label) => label.includes('60C-123.45'))).not.toContain('⚠');
+    expect(options.find((label) => label.includes('60C-123.45'))).not.toContain('rơ-moóc');
     expect(options.find((label) => label.includes('15H-052.82'))).toContain('cần 40FT');
   });
 
@@ -812,7 +814,7 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
     const options = await openVehicleDropdown();
 
     // No provable mismatch → no warning; the fit still outranks "unknown".
-    expect(options.every((label) => !label.includes('⚠'))).toBe(true);
+    expect(options.every((label) => !label.includes('rơ-moóc'))).toBe(true);
     expect(options.findIndex((label) => label.includes('15H-052.82'))).toBeLessThan(options.findIndex((label) => label.includes('70H-000.01')));
   });
 
@@ -829,7 +831,7 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
 
     const fitLabel = options.find((label) => label.includes('60C-123.45'))!;
     const mismatchLabel = options.find((label) => label.includes('15H-052.82'))!;
-    expect(fitLabel).not.toContain('⚠');
+    expect(fitLabel).not.toContain('rơ-moóc');
     expect(mismatchLabel).toContain('⚠ rơ-moóc 20FT, cần 40FT');
     expect(options.indexOf(mismatchLabel)).toBe(options.length - 1);
   });
@@ -843,7 +845,20 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
 
     expect(options[0]).toContain('15H-052.82');
     expect(options[0]).toContain('⚠ rơ-moóc 20FT, cần 40FT');
-    expect(options[options.length - 1]).not.toContain('⚠');
+    expect(options[options.length - 1]).not.toContain('rơ-moóc');
+  });
+
+  it('marks an option whose capacity is below the row cargo weight and leaves a fitting one unmarked (AC DISP-MP-02)', async () => {
+    // Same 20FT trailer in both cases — only the inferred capacity differs
+    // (backend TRAILER_CAPACITY_KG: 20FT → 18000, 40FT → 30000).
+    const overloaded = { ...FIT_TRUCK, id: 158, licensePlate: '51C-111.11', capacityKg: '18000' };
+    const fitting = { ...FIT_TRUCK, id: 159, licensePlate: '51C-222.22', capacityKg: '30000' };
+    mockTruckPage([overloaded, fitting]);
+    renderCell(row());
+    const options = await openVehicleDropdown();
+
+    expect(options.find((label) => label.includes('51C-111.11'))).toContain('⚠ Vượt tải trọng khả dụng');
+    expect(options.find((label) => label.includes('51C-222.22'))).not.toContain('⚠');
   });
 
   it('carries the mismatch warning on pinned D±1 suggestion labels too', async () => {

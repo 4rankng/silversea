@@ -168,7 +168,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
               }}
               options={expenseTypeOptions}
             />
-            <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} onChange={setAmount}
+            <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={amount} onChange={setAmount}
               min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required error={amountError} />
             <label>
               Ngày chi *

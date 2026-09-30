@@ -7,7 +7,12 @@ vi.mock('../../../api/configClient', () => ({
   configClient: { getDispatchZones: vi.fn() },
 }));
 
+vi.mock('../../../api/shipmentClient', () => ({
+  listZonePortFacets: vi.fn(),
+}));
+
 import { configClient } from '../../../api/configClient';
+import { listZonePortFacets } from '../../../api/shipmentClient';
 import { MasterPlanFilters } from './MasterPlanFilters';
 
 const EMPTY_FILTERS = {
@@ -168,6 +173,42 @@ describe('MasterPlanFilters', () => {
     const renamed = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
     expect(await within(renamed).findByRole('button', { name: 'Cảng Lạch Huyện' })).toBeTruthy();
     expect(within(renamed).queryByRole('button', { name: 'Cảng Đã đổi tên' })).toBeNull();
+  });
+
+  it('scopes each zone facet to its own ports and never clears a sibling zone', async () => {
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({
+      items: [
+        { code: 'ZONE_A', label: 'Lạch Huyện', sortOrder: 10, showPortFacet: true },
+        { code: 'ZONE_B', label: 'Quảng Ninh', sortOrder: 20, showPortFacet: true },
+      ],
+    });
+    vi.mocked(listZonePortFacets).mockImplementation(async (code: string) => ({
+      items: code === 'ZONE_A'
+        ? [{ id: 11, name: 'Cảng A', code: null }]
+        : [{ id: 22, name: 'Cảng B', code: null }],
+    }));
+
+    const onChange = vi.fn();
+    const { rerender } = render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
+    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
+
+    // Pick a port under zone A: only ids this zone lists may reach the wire.
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Cảng Lạch Huyện' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cảng A' }));
+    expect(onChange).toHaveBeenLastCalledWith({ portIds: [11] });
+
+    rerender(<MasterPlanFilters filters={{ ...EMPTY_FILTERS, portIds: [11] }} onChange={onChange} />);
+    // Zone B never listed port 11, so it must not claim the selection…
+    expect(within(dialog).getByRole('button', { name: 'Cảng Quảng Ninh' })).toBeTruthy();
+    // …while zone A carries it as its own chip.
+    expect(within(dialog).getByRole('button', { name: '1 đã chọn' })).toBeTruthy();
+
+    // Clearing zone B merges: A's selection survives the write.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cảng Quảng Ninh' }));
+    const zoneBPopover = await screen.findByRole('dialog', { name: 'Chọn Cảng Quảng Ninh' });
+    fireEvent.click(within(zoneBPopover).getByRole('button', { name: 'Bỏ chọn' }));
+    expect(onChange).toHaveBeenLastCalledWith({ portIds: [11] });
   });
 
 });

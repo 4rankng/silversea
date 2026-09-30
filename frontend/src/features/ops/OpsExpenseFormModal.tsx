@@ -13,6 +13,7 @@ import { NumberField } from '../../design-system/forms/NumberField';
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
 import { OpsExpenseFinancialFields, opsFinancialPayload, opsGroupForType, useOpsExpenseFinancialDraft } from './OpsExpenseFinancialFields';
+import { opsCustomerCharge } from './opsCustomerCharge';
 interface Props {
   order: OpsOrderItem;
   onClose: () => void;
@@ -91,7 +92,17 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     : amount === 0 ? 'Số tiền không được bằng 0 — nhập (+) chi phí hoặc (−) chi phí để bỏ dòng'
     : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
   const typesReady = typesQuery.isSuccess && Boolean(typesData?.items.length);
-  const canSubmit = typesReady && Boolean(typeCode) && amountValid && !createExpense.isPending && !uploading && pendingFiles.length === 0;
+  // Card 20260928_162 — the server refuses a save whose row does not charge the
+  // customer and carries no note (`createOpsExpense`). The form already knows
+  // that answer through `opsCustomerCharge`, the client mirror of the server's
+  // `receivableForCost`, so it blocks the submit instead of letting the
+  // operator walk into the red toast. Invoice groups charge the amount; a
+  // no-invoice row charges only its "Thực thu (thu khách)" override, so blank
+  // means uncharged — as does going negative.
+  const customerCharge = opsCustomerCharge(financial, amountValid ? Number(amount) : 0);
+  const noteRequired = customerCharge <= 0;
+  const canSubmit = typesReady && Boolean(typeCode) && amountValid && (!noteRequired || note.trim() !== '')
+    && !createExpense.isPending && !uploading && pendingFiles.length === 0;
 
   async function handleFiles(files: FileList | File[] | null) {
     if (!files?.length || uploading || savingRef.current) return;
@@ -190,7 +201,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               }}
               options={expenseTypeOptions}
             />
-            <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} onChange={setAmount}
+            <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={amount} onChange={setAmount}
               min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required error={amountError} />
             <label>
               Ngày chi *
@@ -204,6 +215,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             Ghi chú
             <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} />
           </label>
+          {noteRequired && <p className="ops-modal-hint">Dòng chi này không thu khách hàng — ghi chú bắt buộc, ghi rõ lý do để kế toán / CUS đọc được.</p>}
 
           <div className="ops-form-photos">
             <div className="ops-form-photos__head">

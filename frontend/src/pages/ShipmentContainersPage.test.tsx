@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusContainerFlatResponse, ShipmentCusWorkspaceDetail } from '@tingting/shared';
@@ -1039,5 +1039,35 @@ describe('Trạng thái dữ liệu filter (20260917_3)', () => {
       expect(url).not.toContain('informationStatus');
     });
     expect(screen.queryByRole('button', { name: /Trạng thái dữ liệu/i })).toHaveTextContent('Tất cả');
+  });
+});
+
+describe('workboard day rollover (tab left open past Vietnam midnight)', () => {
+  it('rolls the default date filter and the "Hôm nay chờ phân xe" rail at the boundary', async () => {
+    vi.useFakeTimers();
+    try {
+      // 2026-09-16T16:30Z = 23:30 on the Vietnam wall clock, so the boundary is
+      // 30 minutes away. The single row's transport date is the NEXT Vietnam
+      // day and it carries no carrier, so the rail must flip 0 → 1.
+      vi.setSystemTime(new Date('2026-09-16T16:30:00.000Z'));
+      apiGet.mockResolvedValue({
+        ...response,
+        items: [{ ...response.items[1], id: 13, containerNumber: 'CONT-ROLL', transportDate: '2026-09-17', carrierName: null, plateNumber: null }],
+      });
+      render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+      const settle = async () => { await act(async () => { await vi.advanceTimersByTimeAsync(0); }); };
+      await settle();
+      expect(String(apiGet.mock.lastCall?.[0] ?? '')).toContain('transportDateFrom=2026-09-16&transportDateTo=2026-09-16');
+      const railValue = () => screen.getByText('Hôm nay chờ phân xe').nextElementSibling?.textContent;
+      expect(railValue()).toBe('0');
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(31 * 60 * 1000); });
+      await settle();
+      expect(String(apiGet.mock.lastCall?.[0] ?? '')).toContain('transportDateFrom=2026-09-17&transportDateTo=2026-09-17');
+      expect(railValue()).toBe('1');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

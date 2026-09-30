@@ -60,10 +60,11 @@ export interface OpsFundBook {
   matches: boolean;
   /**
    * Card 20260928_168 (ruling PM 2026-09-29 câu 2): các con số theo khoảng
-   * ngày đang chọn. `periodOpening` là số dư lũy kế đến `from`, nên
-   * periodOpening + periodClosing luôn bằng `closing` — lát cắt không bao giờ
-   * lệch với sổ mà nó cắt ra. from/to null = không lọc, và khi đó mọi con số
-   * kỳ trùng đúng số toàn thời gian.
+   * ngày đang chọn. `periodOpening` là số dư lũy kế TRƯỚC `from` (0 khi không
+   * lọc) và `periodClosing` = periodOpening + net trong kỳ, tức số dư cuối
+   * `to`; do đó periodOpening + (net trong kỳ) luôn bằng periodClosing — lát
+   * cắt không bao giờ lệch với sổ mà nó cắt ra. from/to null = không lọc, và
+   * khi đó `periodClosing` trùng đúng `closing` toàn thời gian.
    */
   period: { from: string | null; to: string | null };
   periodOpening: string;

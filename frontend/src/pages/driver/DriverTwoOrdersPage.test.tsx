@@ -13,7 +13,7 @@
  *   - allToday empty → "Hôm nay không có lệnh".
  *   - loading → spinner; error → error state.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -80,6 +80,28 @@ describe('DriverTwoOrdersPage — M8.3 two-orders view', () => {
     expect(activeCard.getAttribute('href')).toBe('/my-trips/10');
     expect(nextCard.getAttribute('href')).toBe('/my-trips/20');
     expect(activeCard).not.toBe(nextCard);
+  });
+
+  // QA-2026-09-27-01 (#5) / internal-ids law: the Truck icon belongs to the
+  // PLATE — the driver-facing vehicle identity. The internal TRP/SHP code must
+  // never ride this line (it is not a number the driver can act on).
+  it('labels the plate with the truck icon and keeps the internal trip code off the card', async () => {
+    useDriverTwoOrdersMock.mockReturnValue({
+      data: {
+        date: '2026-07-26',
+        active: TRIP({ id: 10, fulfillmentId: 110, tripCode: 'TRP-202609-0013', status: 'IN_TRANSIT' }),
+        next: null,
+        firstOrderLate: false,
+        allToday: [TRIP({ id: 10 })],
+      },
+      isLoading: false, error: null,
+    });
+    renderAt();
+    const card = await screen.findByTestId('two-orders-card-Lệnh đang chạy');
+    const truckRow = card.querySelector('.dt-card__meta .dt-card__meta-item');
+    expect(truckRow?.querySelector('svg')).toBeTruthy();
+    expect(truckRow?.textContent).toBe('51C-1234');
+    expect(within(card).queryByText(/TRP-202609-0013/)).toBeNull();
   });
 
   it('prefers the persisted ordered pair view when a cross-day pair exists', async () => {

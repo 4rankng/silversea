@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverProgressEventType, TripPodStatus, TripStatus } from '@tingting/shared';
 import { setToken } from '../lib/token';
+import { api } from '../lib/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const getDriverTripMock = vi.hoisted(() => vi.fn());
@@ -303,13 +304,18 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Chụp ảnh nhiên liệu')).toBeTruthy();
   });
 
-  // Regression: the fuel-evidence <img> consumed the raw /api/photos/ URL.
-  // <img> cannot send the Authorization header, so assetAuthMiddleware 401'd
-  // and the browser rendered a broken image; OCR was unaffected (the backend
-  // reads the stored bytes directly). The src must go through
-  // getAuthenticatedPhotoUrl so the JWT rides along as ?token=.
-  it('renders the fuel evidence photo through the token-authenticated URL', async () => {
+  // DRV-DET-08 regression: evidence photos load through an authenticated blob
+  // fetch (`useAuthedPhotoUrls`). The JWT rides in the Authorization header —
+  // never in a `?token=` query string, where browser history, Referer headers
+  // and proxy logs can capture it. The <img> renders the object URL, so the raw
+  // protected path never reaches the DOM.
+  it('loads the fuel evidence photo through an authenticated blob fetch (no ?token= URL)', async () => {
     setToken('jwt-for-img-test');
+    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['fuel'], { type: 'image/jpeg' }));
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:fuel-evidence'),
+      revokeObjectURL: vi.fn(),
+    }));
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fuelEvidenceReviews: [{
@@ -340,9 +346,14 @@ describe('DriverTripDetailPage', () => {
     // The alt no longer carries the trip code: internal ids never render on
     // a user surface (dc1b1cba), so the code-leading variant would fail here.
     const img = await screen.findByAltText('Ảnh nhiên liệu');
-    expect(img.getAttribute('src')).toContain('token=jwt-for-img-test');
+    await waitFor(() => expect(img.getAttribute('src')).toBe('blob:fuel-evidence'));
+    expect(getBlob).toHaveBeenCalledWith('/api/photos/fuel-evidence%2F55%2F3%2Fhash-rand.jpg');
+    expect(document.querySelector('img[src*="token="]')).toBeNull();
     expect(screen.getByText(/OCR chưa xác minh/)).toBeTruthy();
     expect(screen.queryByText(/Chờ kế toán xác nhận/)).toBeNull();
+
+    getBlob.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   it('renders the sticky accept bar and the Hoàn tất lệnh vận chuyển footer button (e-POD lives on its own page now)', async () => {
@@ -432,9 +443,10 @@ describe('DriverTripDetailPage', () => {
 
     renderPageWithBoard();
 
-    // Tapping the sticky "Hoàn thành" action navigates to the pod page; we
-    // don't fire any completion command from the trip detail anymore.
-    const cta = await screen.findByRole('button', { name: /Hoàn thành/ });
+    // Tapping the sticky "Hoàn tất lệnh vận chuyển" action navigates to the
+    // pod page; we don't fire any completion command from the trip detail
+    // anymore (DRV-DET-06: completion lives on the e-POD screen).
+    const cta = await screen.findByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     fireEvent.click(cta);
 
     // The driver lands on THIS trip's pod screen — the route param is the
@@ -486,7 +498,7 @@ describe('DriverTripDetailPage', () => {
     renderPageWithBoard();
 
     await screen.findByTestId('complete-sticky-bar');
-    const cta = screen.getByRole('button', { name: /Hoàn thành/ });
+    const cta = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     fireEvent.click(cta);
 
     // The trip detail doesn't fire a completion command from the sticky
@@ -758,7 +770,7 @@ describe('DriverTripDetailPage', () => {
     // the completion action navigates to the e-POD screen.
     expect(screen.getByTestId('complete-sticky-bar')).toBeTruthy();
     expect(screen.getByTestId('complete-sticky-status').textContent).toBe('Còn thiếu 2 chứng từ');
-    const btn = screen.getByRole('button', { name: /Hoàn thành/ });
+    const btn = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     expect(btn).toBeEnabled();
   });
 

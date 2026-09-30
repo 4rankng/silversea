@@ -11,14 +11,11 @@
   box-sizing: border-box;
 }
 
-/* Below 1024px the driver bottom-nav is fixed over the viewport at
-   60px + safe-area. Without matching clearance the last card in the list can
-   never be scrolled clear of it. */
-@media (max-width: 1023px) {
-  .driver-journey {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px));
-  }
-}
+/* QA-2026-09-27-01: the ≤1023px nav reserve that used to live here assumed
+   the bottom-nav overlays the viewport. It does not — it is a flex sibling of
+   .app-body inside .app-main (bottom-nav.css owns that geometry), so this was
+   a second, dead strip under the page. The base rule's 24px bottom padding is
+   the only clearance the list needs. */
 
 /* Shared tabs own selection and keyboard behavior. Only the journey's
    equal-width layout and touch size are specific to this screen. */
@@ -26,7 +23,13 @@
   width: 100%;
 }
 
-.driver-journey__tabs .ds-tabs__btn {
+/* QA-2026-09-27-01 (#3): this declaration was already 44px but never won.
+   The phone/coarse blanket floor in responsive.css is `#root button
+   { min-height: var(--control-touch-h) }` (currently 40px) — an ID selector,
+   which out-ranks any class-only rule, so the tabs rendered 41.19px. The
+   ID-scoped selector below out-ranks it and keeps the 44px floor
+   (docs/design-guidelines.md §5) on the journey sub-tabs. */
+#root .driver-journey__tabs .ds-tabs__btn {
   flex: 1 1 0;
   min-width: 0;
   min-height: 44px;
@@ -50,12 +53,15 @@
 
 /* Day-view entry — the header control that reaches the M8.3 day-view screen
    (card 20260922_30). Square-cornered button, not a pill: it is navigation,
-   and pills stay reserved for status. */
+   and pills stay reserved for status. QA-2026-09-27-01 (#3): this is a real
+   navigation control, so it holds the documented 44px touch floor
+   (docs/design-guidelines.md §5) instead of `--control-touch-h`, which the
+   2026-09-27 density ruling set to 40px. */
 .driver-journey__day-view {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: var(--control-touch-h);
+  min-height: 44px;
   padding: 6px 12px;
   border: 1px solid var(--line-2);
   border-radius: var(--r-sm);

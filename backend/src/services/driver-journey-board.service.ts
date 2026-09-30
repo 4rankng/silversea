@@ -71,13 +71,16 @@ export interface DriverJourneyCard {
 }
 
 /**
- * Completed trips appear in History. For an acknowledged IN_TRANSIT trip,
- * complete submitted evidence also makes the card historical; finance
- * readiness is independent from the driver's evidence workflow.
+ * Lịch sử means completed or cancelled (DRV-LIST-02) and a card may only
+ * reach it once the trip IS completed (TC-LX-TIENDO-022: the card leaves Đã
+ * nhận for Lịch sử on HOÀN THÀNH CHUYẾN, not on an upload). Complete e-POD
+ * evidence on a still-running trip keeps the card inside Đã nhận — it is a
+ * readiness signal the driver sees on the card, not a status the trip has
+ * reached. Finance readiness is independent from the driver's evidence
+ * workflow and never moves the card either.
  */
 function bucketForStatus(
   status: typeof s.trips.$inferSelect.status,
-  evidenceReady: boolean,
   acknowledged: boolean,
 ): DriverJourneyBucket {
   if (status === 'COMPLETED') return 'HISTORY';
@@ -87,8 +90,7 @@ function bucketForStatus(
     // Status alone must not mark the order "Đã nhận" — without the driver's
     // ORDER_RECEIVED milestone the card belongs in Lệnh mới so the accept
     // bar stays reachable.
-    if (!acknowledged) return 'NEW';
-    return evidenceReady ? 'HISTORY' : 'RUNNING';
+    return acknowledged ? 'RUNNING' : 'NEW';
   }
   return 'NEW';
 }
@@ -185,6 +187,11 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       eq(s.trips.driverId, driverId),
       isNull(s.trips.deletedAt),
       isNull(s.shipmentFulfillments.canceledAt),
+      // Soft-deleted lots are purged from every other list surface; without
+      // this the board still served cards for tombstoned shipments (staging:
+      // 4 of a driver's 5 cards came from the QA-fixture purge, so the driver
+      // saw purged lots they can no longer act on).
+      isNull(s.shipments.deletedAt),
       inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED']),
     ))
     .orderBy(desc(s.trips.plannedStartAt));
@@ -219,7 +226,9 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
 
   // Ghép chuyến pairs (kẹp/kết-hợp): ACTIVE pairs drive grouping + tags. KẾT
   // HỢP additionally locks the second card until the first order is finished
-  // (COMPLETED or evidence-ready — the same signal the buckets use).
+  // (COMPLETED or evidence-ready). That signal is deliberately NOT the bucket:
+  // an evidence-ready order is finished enough to start the next leg, while
+  // its own card still belongs to Đã nhận until the trip is completed.
   const pairIds = [...new Set(rows.flatMap((row) => (row.activeTripPairId != null ? [row.activeTripPairId] : [])))];
   const pairById = new Map<number, { pairKind: string; status: string; firstTripId: number; secondTripId: number }>();
   if (pairIds.length > 0) {
@@ -266,7 +275,6 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       isAdHoc: row.isAdHoc,
       bucket: bucketForStatus(
         row.tripStatus,
-        evidenceByTripId.get(row.tripId) ?? false,
         acknowledgedTripIds.has(row.tripId),
       ),
       classification: row.dispatchClassification,

@@ -26,6 +26,10 @@ interface MasterPlanGridProps {
   scheduleDate?: string | null;
   /** Called when dispatch staff saves an inline operational-notes edit. */
   onUpdateNotes?: OperationalNoteSave;
+  /** DISPATCHER scope: the backend accepts a dispatcher's write on intake-stage
+   *  lots only (`assertDispatcherCanMutateShipmentIntake`), so for that role the
+   *  note affordance is offered where the save can succeed and nowhere else. */
+  notesIntakeOnly?: boolean;
 }
 
 /** Schedule blocks: one per container appointment — the ICT line leads in the
@@ -204,18 +208,28 @@ function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?:
   });
 }
 
+/** The statuses a DISPATCHER may write (`assertDispatcherCanMutateShipmentIntake`). */
+const DISPATCHER_INTAKE_STATUSES: Record<string, true> = {
+  [ShipmentStatus.PENDING_DATE]: true,
+  [ShipmentStatus.READY_FOR_DISPATCH]: true,
+};
+
 /**
  * Multi-line dispatch master-plan grid (docx §3): 8 grouped columns with
  * distinct lift/drop port columns and no horizontal scroll. The allocation column exposes its
  * allocation values as the edit trigger, matching the full-cell editing
  * contract used by data grids.
  */
-export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes }: MasterPlanGridProps) {
+export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes, notesIntakeOnly = false }: MasterPlanGridProps) {
   const [activeNoteModal, setActiveNoteModal] = useState<ActiveNoteDetail | null>(null);
   const {
     editingNotesId, editingNotesValue, setEditingNotesValue, savingNotes,
     notesError, notesInputRef, startNotesEdit, cancelNotesEdit, saveNotesEdit,
   } = useMasterPlanNoteEditor(onUpdateNotes);
+  // The modal's "Sửa ghi chú" obeys the same dispatcher stage gate as the trigger.
+  const noteModalShipment = activeNoteModal?.shipment;
+  const noteModalEditable = Boolean(noteModalShipment && onUpdateNotes
+    && (!notesIntakeOnly || DISPATCHER_INTAKE_STATUSES[noteModalShipment.status]));
 
   return (
     <div className="master-plan-grid__wrapper">
@@ -254,6 +268,9 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             // rows, so the dispatcher's save came back as a bare conflict
             // ("Lô hàng đã thay đổi") that hid the real reason.
             const allocationLocked = item.status !== ShipmentStatus.READY_FOR_DISPATCH;
+            // Same stage rule for the note trigger: outside the intake window a
+            // dispatcher's save is a 403, so the affordance is not offered there.
+            const notesLocked = notesIntakeOnly && !DISPATCHER_INTAKE_STATUSES[item.status];
             return (
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
@@ -428,7 +445,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   </UUIButton>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Ghi chú" data-label-short="Ghi chú">
-                  {editingNotesId === item.id ? (
+                  {editingNotesId === item.id && !notesLocked ? (
                     <div className="master-plan-grid__notes-editor">
                       <textarea
                         ref={notesInputRef}
@@ -472,9 +489,9 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     </div>
                   ) : (
                     <>
-                      {(item.operationalNotes || onUpdateNotes) && (
+                      {(item.operationalNotes || (onUpdateNotes && !notesLocked)) && (
                         <div className="master-plan-grid__line master-plan-grid__line--notes">
-                          {onUpdateNotes ? (
+                          {onUpdateNotes && !notesLocked ? (
                             <button
                               type="button"
                               className="master-plan-grid__notes-trigger"
@@ -555,7 +572,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
       <MasterPlanNoteModal
         activeNote={activeNoteModal}
         onClose={() => setActiveNoteModal(null)}
-        onEditOperationalNote={onUpdateNotes ? startNotesEdit : undefined}
+        onEditOperationalNote={noteModalEditable ? startNotesEdit : undefined}
       />
     </div>
   );

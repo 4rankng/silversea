@@ -10,6 +10,7 @@ import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsSettlementSheet } from './OpsSettlementsPanel';
 import { useAdminOpsSettlement } from '../../hooks/useOpsQueries';
 import { formatVnd } from './opsStatus';
+import { OpsQueryFeedback } from './OpsQueryFeedback';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
@@ -27,6 +28,9 @@ export function OpsAccountantTab() {
   const sheet = useAdminOpsSettlement(sheetFor);
 
   const items = data?.items ?? [];
+  // The settlement detail is what the "Xem phiếu" modal renders; held as a
+  // local so the pending/error branches below can share one narrowing.
+  const detail = sheet.data;
 
   return (
     <div className="ops-acc">
@@ -123,34 +127,37 @@ export function OpsAccountantTab() {
         <OpsExpensePhotosModal expenseId={photosFor} onClose={() => setPhotosFor(null)} />
       )}
 
-      {sheetFor != null && sheet.data && (
+      {sheetFor != null && (
         <OpsModalBackdrop onClose={() => setSheetFor(null)} ariaLabel="Phiếu quyết toán Ops">
           <div className="ops-modal">
             <header className="ops-modal__head">
-              <h2>{sheet.data.settlement.code}</h2>
+              <h2>{detail?.settlement.code ?? 'Phiếu quyết toán Ops'}</h2>
               <div className="ops-modal__head-actions">
-                <button
+                {detail && <button
                   type="button"
                   className="btn-secondary"
                   onClick={() => void opsClient
-                    .downloadSettlementExport(sheetFor, sheet.data.settlement.code, true)
+                    .downloadSettlementExport(detail.settlement.id, detail.settlement.code, true)
                     .catch((error: unknown) => toast({
                       kind: 'error',
                       message: error instanceof Error ? error.message : 'Tải Excel thất bại.',
                     }))}
                 >
                   Excel
-                </button>
+                </button>}
                 <button type="button" aria-label="Đóng" onClick={() => setSheetFor(null)}><X size={16} aria-hidden="true" /></button>
               </div>
             </header>
             <div className="ops-modal__body">
-              <OpsSettlementSheet grouping={sheet.data.grouping} meta={{
-                code: sheet.data.settlement.code,
-                createdAt: sheet.data.settlement.createdAt,
-                opsName: sheet.data.settlement.opsUserName,
-                note: sheet.data.settlement.note,
-              }} />
+              {/* The modal used to mount only once `data` existed, so "Xem phiếu"
+                  looked dead while the request was in flight or after it failed. */}
+              <OpsQueryFeedback loading={sheet.isPending} error={sheet.isError} label="phiếu quyết toán" onRetry={sheet.refetch} />
+              {detail && <OpsSettlementSheet grouping={detail.grouping} meta={{
+                code: detail.settlement.code,
+                createdAt: detail.settlement.createdAt,
+                opsName: detail.settlement.opsUserName,
+                note: detail.settlement.note,
+              }} />}
             </div>
           </div>
         </OpsModalBackdrop>

@@ -85,13 +85,22 @@ export function ExternalFleetView() {
     },
   });
 
+  // The register drawer's banner is this view's only failure surface, and a
+  // toggle fires with that drawer closed — so a failed toggle writes the same
+  // `formError`, rendered on the page too (see the banner below the shell).
   const toggle = useMutation({
     mutationFn: (row: CatalogRow) => updateCarrierFleetVehicle(row.id, { isActive: !row.isActive }),
-    onSuccess: invalidate,
+    onSuccess: () => { setFormError(''); invalidate(); },
+    onError: (error: unknown) => {
+      setFormError(error instanceof Error ? error.message : 'Không thể đổi trạng thái xe ngoài.');
+    },
   });
 
   const carrierOptions = carriers.data?.items ?? [];
-  const rows = fleet.data?.catalog ?? [];
+  // Memoized: `rows` feeds the `filtered` and `statusTabs` memos, and the
+  // `?? []` fallback would give them a new identity every render, voiding
+  // both. The sibling `?? []` consts are render-only, so they stay plain.
+  const rows = useMemo(() => fleet.data?.catalog ?? [], [fleet.data]);
   const linked = fleet.data?.linkedTrucks ?? [];
 
   const filtered = useMemo(() => {
@@ -141,6 +150,11 @@ export function ExternalFleetView() {
     <div>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Xe ngoài' }]} />
       {fleet.error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
+      {/* A failed register/toggle has no drawer on screen to land in when it is
+          closed, so the same message also shows on the page itself. */}
+      {!registerOpen && formError && (
+        <div className="dispatch-catalogs__error" role="alert">{formError}</div>
+      )}
       <CatalogTableShell
         title="Xe ngoài"
         tabs={(

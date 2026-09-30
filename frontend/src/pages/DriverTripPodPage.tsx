@@ -8,9 +8,9 @@
  * lifecycle: ensure-draft, upload files, submit, and complete the trip.
  *
  * The trip detail page (`DriverTripDetailPage`) keeps the task info, the
- * container card, the fuel image, and a "Bước tiếp: e-POD" CTA that navigates
- * here while the trip is IN_TRANSIT. The `Hoàn thành chuyến` action that used
- * to live on the trip detail is the footer button of THIS page.
+ * container card, the fuel image, and a "Hoàn tất lệnh vận chuyển" CTA that
+ * navigates here while the trip is IN_TRANSIT. The `HOÀN THÀNH CHUYẾN` action
+ * that used to live on the trip detail is the footer button of THIS page.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -35,16 +35,9 @@ import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } fro
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
+import { podCompleteCtaLabel } from '../features/driver/driver-trip-model';
 import './DriverTripDetailPage.css';
 import './DriverTripPodPage.css';
-
-// Status-aware completion CTA label — same logic as DriverTripDetailPage:
-// only IN_TRANSIT can complete, COMPLETED is done, others read as not-yet.
-function completeCtaLabel(status: DriverTaskDetail['status']): string {
-  if (status === 'IN_TRANSIT') return 'Hoàn thành chuyến';
-  if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
-  return 'Chưa thể hoàn thành chuyến';
-}
 
 export function DriverTripPodPage() {
   const { id: fulfillmentIdParam } = useParams<{ id: string }>();
@@ -359,8 +352,13 @@ export function DriverTripPodPage() {
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
+            {/* DRV-DET-06 + DRV-DET-05: the screen states that the e-POD is
+                mandatory without a second `e-POD bắt buộc` label (the
+                TripPodSubmission card above owns that literal), and names the
+                uppercase command the driver must press. */}
             <p>
-              Thêm đủ hai loại chứng từ, rồi bấm Hoàn thành chuyến để lưu và kết thúc lệnh.
+              e-POD là bắt buộc: thêm đủ hai loại chứng từ — Phiếu bãi / phiếu hạ và Biên bản
+              giao nhận — rồi bấm HOÀN THÀNH CHUYẾN để gửi hồ sơ và kết thúc lệnh.
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
@@ -383,7 +381,7 @@ export function DriverTripPodPage() {
           >
             <FileCheck2 size={18} />
             <span>
-              {completing || submitting ? 'Đang gửi…' : documentBusy ? 'Đang lưu chứng từ…' : completeCtaLabel(trip.status)}
+              {completing || submitting ? 'Đang gửi…' : documentBusy ? 'Đang lưu chứng từ…' : podCompleteCtaLabel(trip.status)}
             </span>
           </button>
         </div>

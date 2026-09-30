@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, RotateCcw } from 'lucide-react';
 import { FilterDropdown } from '../components/FilterDropdown';
 import { ListFilterBar } from '../components/ListFilterBar';
@@ -20,6 +20,7 @@ import {
   ShipmentContainerLedger,
 } from '../features/shipments/detail/ShipmentContainerLedger';
 import { useHiddenColumns } from '../hooks/useHiddenColumns';
+import { useVietnamToday } from '../hooks/useVietnamToday';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import {
@@ -62,7 +63,9 @@ function ShipmentContainerLedgerSkeleton() {
 }
 
 export default function ShipmentContainersPage() {
-  const today = useMemo(() => formatVietnamDateInput(new Date()), []);
+  // Rolls at Vietnam midnight: a tab left open overnight keeps the default
+  // date filter and the "Hôm nay chờ phân xe" rail on the current day.
+  const today = useVietnamToday();
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = readPositiveInteger(searchParams.get('page'), 1);
   // Rows per page lives in the URL like every other workboard param, so a

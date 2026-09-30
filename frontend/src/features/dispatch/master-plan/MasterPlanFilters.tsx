@@ -68,32 +68,55 @@ function FacetMultiSelect({
 }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [facets, setFacets] = useState<FacetItem[]>([]);
+  // Every zone picker reads and writes the ONE shared `portIds` array, so the
+  // ids this zone has listed are the only way to tell its own ports from
+  // another zone's. A search narrows `facets` to a subset, so the known set
+  // must accumulate across loads instead of tracking the current list.
+  const [knownIds, setKnownIds] = useState<ReadonlySet<number>>(() => new Set());
   const pickerId = useId();
+
+  const applyFacets = useCallback((items: FacetItem[]) => {
+    setFacets(items);
+    setKnownIds((current) => {
+      const next = new Set(current);
+      for (const item of items) next.add(item.id);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!isPickerOpen) return;
     let cancelled = false;
     loadFacets()
-      .then((items) => { if (!cancelled) setFacets(items); })
+      .then((items) => { if (!cancelled) applyFacets(items); })
       .catch(() => { if (!cancelled) setFacets([]); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPickerOpen]);
+  }, [isPickerOpen, applyFacets]);
 
   const handleSearch = useCallback((query: string) => {
     loadFacets(query || undefined)
-      .then((items) => setFacets(items))
+      .then(applyFacets)
       .catch(() => setFacets([]));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [applyFacets]);
+
+  // The zone's own slice of the shared selection, and the merge that writes it
+  // back: every id this zone does not own belongs to a sibling picker and is
+  // carried through untouched, so one zone's edit can never clear another's.
+  const zoneValues = selected.filter((id) => knownIds.has(id)).map(String);
+  const handleChange = (values: string[]) => {
+    const foreign = selected.filter((id) => !knownIds.has(id));
+    onSelectionChange([...new Set([...foreign, ...values.map(Number)])]);
+  };
 
   return (
     <div className="master-plan-filters__facet">
       <span className="master-plan-filters__label">{label}</span>
       <SearchableMultiSelect
         id={pickerId}
-        values={selected.map(String)}
-        onChange={(values) => onSelectionChange(values.map(Number))}
+        values={zoneValues}
+        onChange={handleChange}
         options={facets.map((facet) => ({ value: String(facet.id), label: facet.name }))}
         placeholder={label}
         searchPlaceholder={`Tìm ${label.toLowerCase()}…`}

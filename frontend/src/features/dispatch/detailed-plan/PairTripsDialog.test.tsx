@@ -94,7 +94,9 @@ describe('PairTripsDialog', () => {
     expect(payload.secondTrip.expectedVersion).toBe(7);
     expect(onPaired).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
-  });
+    // The full submit flow (React Aria select + Modal + waitFor) lands just
+    // past vitest's 5s default on a loaded machine.
+  }, 20_000);
 
   it('surfaces the server rejection message instead of closing', async () => {
     useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900 }), isLoading: false });

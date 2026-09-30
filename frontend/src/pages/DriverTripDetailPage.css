@@ -18,14 +18,21 @@
    accept bar (and, on mobile, the driver bottom-nav it's pinned above).
    _44: desktop 1440 reported the Số cont & Seal / Hình ảnh sections cut
    off behind the floating bar — clearance raised past the bar's real
-   height (button + padding + gradient fade) with margin to spare. */
+   height (button + padding + gradient fade) with margin to spare.
+   QA-2026-09-27-01: the ≤1023px value was measured against the rendered
+   bar (72px: 10px pad + 52px button + 10px pad) and the dead 70px
+   shell reserve it used to stack on (bottom-nav.css) is gone, so the
+   authored clearance is now bar + 32px margin — the page ends at the CTA
+   instead of in ~210px of blank. The ≥1024px tier keeps its authored
+   value: no tab bar there, and its clearance is the one the desktop
+   cut-off report was fixed against. */
 .driver-task-screen--has-accept-bar {
   padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-width: 1023px) {
   .driver-task-screen--has-accept-bar {
-    padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -161,7 +168,8 @@
 
 @media (max-width: 1023px) {
   .driver-task-complete-sticky {
-    bottom: calc(60px + env(safe-area-inset-bottom, 12px));
+    /* Same single source of truth as the accept bar above. */
+    bottom: var(--bottom-nav-h);
   }
 }
 
@@ -225,14 +233,16 @@
 }
 
 /* Bottom clearance mirrors the accept bar so the last section never hides
-   behind the sticky completion bar. */
+   behind the sticky completion bar. QA-2026-09-27-01: 92px = the measured
+   60px bar (10px pad + 40px button + 10px pad) + 32px margin; the dead 70px
+   shell reserve that used to sit under it is removed (bottom-nav.css). */
 .driver-task-screen--has-complete-bar {
   padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-width: 1023px) {
   .driver-task-screen--has-complete-bar {
-    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -792,10 +802,14 @@
   position: fixed;
   left: 0;
   right: 0;
-  /* Card 20260926_62: the bottom nav (fixed, 60px + safe-area) shares this
-     edge — the accept bar stacks ABOVE it or the two render on top of each
-     other (CHIEF screenshot: pill floating over the nav + capture strip). */
-  bottom: calc(60px + env(safe-area-inset-bottom, 12px));
+  /* Card QA-2026-09-27-01: the offset used to hard-code a 60px bar while the
+     rendered nav measured 65.3px at 390x844, so each fixed bar's bottom edge
+     landed 5.3px BELOW the nav's top edge and clipped its hairline +
+     active-tab indicator. The offset now derives from the nav's real height
+     (`--bottom-nav-h`, declared next to the bar itself in bottom-nav.css) —
+     one source of truth for both. ≥1024px has no tab bar, so the fallback
+     parks the bar on the viewport edge like its sibling completion bar. */
+  bottom: var(--bottom-nav-h, 0px);
   z-index: var(--z-sticky, 100);
   display: flex;
   justify-content: center;
@@ -808,12 +822,6 @@
 @media (min-width: 1024px) {
   .driver-task-accept-sticky {
     padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-@media (max-width: 1023px) {
-  .driver-task-accept-sticky {
-    bottom: calc(60px + env(safe-area-inset-bottom, 12px));
   }
 }
 

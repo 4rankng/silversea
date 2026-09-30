@@ -34,7 +34,7 @@ describe('OPS expense catalog failure recovery', () => {
     api.getExpenseTypes.mockRejectedValueOnce(new Error('Catalog unavailable')).mockResolvedValue(types);
     const { client, close } = show(edit);
     expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được danh mục loại phí');
-    fireEvent.change(screen.getByRole('spinbutton', { name: /Thực chi/ }), { target: { value: '125000' } });
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '125000' } });
     fireEvent.change(screen.getByLabelText('Ghi chú', { exact: true }), { target: { value: 'Giữ bản đang nhập' } });
     if (edit) fireEvent.change(screen.getByLabelText(/Lý do điều chỉnh/), { target: { value: 'Sửa số thực chi' } });
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
@@ -42,7 +42,7 @@ describe('OPS expense catalog failure recovery', () => {
     expect(api.updateExpense).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại loại phí' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-    expect(screen.getByRole('spinbutton', { name: /Thực chi/ })).toHaveValue(125000);
+    expect(screen.getByLabelText(/Thực chi/)).toHaveValue('125.000');
     expect(screen.getByLabelText('Ghi chú', { exact: true })).toHaveValue('Giữ bản đang nhập');
     expect(close).not.toHaveBeenCalled();
     if (!edit) await chooseFee();

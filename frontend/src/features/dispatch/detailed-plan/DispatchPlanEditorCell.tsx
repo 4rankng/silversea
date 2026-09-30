@@ -33,7 +33,7 @@ import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
 import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import { IssueOrderFields } from './IssueOrderFields';
 import { useIssueOrder } from './useIssueOrder';
-import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, trailerMismatchSuffix } from './trailerFit';
+import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, vehicleWarningSuffix, type VehicleFit } from './trailerFit';
 import './DispatchPlanEditorCell.css';
 
 export type IssueOrderResult = DispatchShipmentResponse;
@@ -197,9 +197,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [vehicleCursor, setVehicleCursor] = useState<string | null>(null);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [suggestions, setSuggestions] = useState<Array<{ truckId: number; plateNumber: string; reasons: Array<'D-1_DROP' | 'D+1_PICKUP'> }>>([]);
-  // Trailer type per loaded truck id — lets the pinned D±1 suggestion labels
-  // carry the same mismatch warning as the page list without re-fetching.
-  const truckTrailerTypesRef = useRef(new Map<number, string | null>());
+  // Trailer type + capacity per loaded truck id — lets the pinned D±1
+  // suggestion labels carry the same advisories as the page list, no refetch.
+  const truckFitRef = useRef(new Map<number, VehicleFit>());
   // Truck fleet-page carrier links (id → link) from the loaded pages — the
   // own-truck promotion reads this so an explicit link wins over the generic
   // internal default.
@@ -273,7 +273,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     setDraft(draftForRow(row));
     setOpen(true);
     onAutoOpenConsumed?.(autoOpenFulfillmentId);
-  }, [autoOpenFulfillmentId, row, open]);
+  }, [autoOpenFulfillmentId, row, open, onAutoOpenConsumed]);
 
   useEffect(() => {
     if (open || !restoreFocusRef.current) return;
@@ -337,7 +337,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       let mapped: SearchableSelectOption[];
       if (isOwnFleet) {
         const trucks = response.items as DispatchTruck[];
-        truckTrailerTypesRef.current = new Map(trucks.map((truck) => [truck.id, truck.trailerType]));
+        truckFitRef.current = new Map(trucks.map((truck) => [truck.id, { trailerType: truck.trailerType, capacityKg: truck.capacityKg }]));
         truckCarrierLinksRef.current = new Map(trucks
           .filter((truck) => truck.carrierId != null)
           .map((truck) => [truck.id, { plate: truck.licensePlate, carrierId: truck.carrierId!, carrierName: truck.carrierName ?? '' }]));
@@ -346,7 +346,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         const ranked = requiredTrailerType != null
           ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
           : trucks;
-        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType) }));
+        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType, row.container.cargoWeightKg) }));
       } else {
         mapped = (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       }
@@ -404,7 +404,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       .filter((suggestion) => vehicleOptions.some((option) => option.value === `${OWN_TRUCK_PREFIX}${suggestion.truckId}`))
       .map((suggestion) => {
         const tags = suggestion.reasons.map((reason) => SUGGESTION_LABELS[reason]).join(' · ');
-        const warning = trailerMismatchSuffix(truckTrailerTypesRef.current.get(suggestion.truckId) ?? null, requiredTrailerType);
+        const warning = vehicleWarningSuffix(truckFitRef.current.get(suggestion.truckId), requiredTrailerType, row.container.cargoWeightKg);
         return {
           value: `${OWN_TRUCK_PREFIX}${suggestion.truckId}`,
           label: `${suggestion.plateNumber} — ${tags}${warning}`,
@@ -427,7 +427,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         : row.dispatch.assignedPlate ?? 'Biển số hiện tại');
     const withoutDuplicate = matchIndex !== -1 ? merged.filter((_, index) => index !== matchIndex) : merged;
     return [{ value: draft.vehicleValue, label }, ...withoutDuplicate];
-  }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.container.containerTypeLabel, suggestions, vehicleOptions]);
+  }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.container.containerTypeLabel, row.container.cargoWeightKg, suggestions, vehicleOptions]);
 
   async function openEditor() {
     if (disabled) return;
@@ -516,7 +516,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       if (isOwnFleet) {
         const trucks = response.items as DispatchTruck[];
         for (const truck of trucks) {
-          truckTrailerTypesRef.current.set(truck.id, truck.trailerType);
+          truckFitRef.current.set(truck.id, { trailerType: truck.trailerType, capacityKg: truck.capacityKg });
           if (truck.carrierId != null) {
             truckCarrierLinksRef.current.set(truck.id, { plate: truck.licensePlate, carrierId: truck.carrierId, carrierName: truck.carrierName ?? '' });
           }
@@ -525,7 +525,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         const ranked = requiredTrailerType != null
           ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
           : trucks;
-        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType) }));
+        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType, row.container.cargoWeightKg) }));
       } else {
         mapped = (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       }
