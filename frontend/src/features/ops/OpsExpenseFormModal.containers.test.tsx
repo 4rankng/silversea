@@ -67,7 +67,13 @@ beforeEach(() => {
   api.createExpense.mockResolvedValue(entry);
 });
 
-describe('ops expense form — Số Cont persistence (audit c12 cluster A)', () => {
+// Every case here drives a long interaction chain (open catalog menu, choose a
+// type, open a second combobox, submit) through the real modal, and the module's
+// import alone costs ~11s. Measured on a loaded dev machine the file's first
+// case sits at ~5.4s pristine / ~6.4s with the grouped money field — i.e. over
+// vitest's 5s default before any change, so the cluster carries an explicit
+// deadline like the other interaction-chain suites in this repo.
+describe('ops expense form — Số Cont persistence (audit c12 cluster A)', { timeout: 20_000 }, () => {
   it('A1: keeps the Số Cont selection through Loại phí and Nhóm chi phí changes', async () => {
     show();
     expect(soContTrigger().textContent).toContain('Phí chung lô');
