@@ -183,6 +183,16 @@ def test_trips(ctx: SilverseaTestContext, results: TestResults):
         results.fail('TC-0106', 'DRIVER create trip', f'Expected 403, got {resp.get("status")}')
 
     # ── TC-0107: Trip list page shows trip code ──
+    # Card 20260930_243 re-anchor. The preband verdict called this a page-1
+    # visibility flake (heap-order pagination, card 20260930_242), but the
+    # case's own lookup is the server-side search (the trips search rides
+    # tripClient.listTrips({search}) — a unique trip code matches exactly one
+    # row regardless of list ORDER). The flake was timing: a blind 15s wait
+    # on the row while the search request was still in flight under load.
+    # The case now waits for the search's own API round trip before asserting
+    # the row link, which is order-independent TODAY and needs nothing from
+    # 242. (The suite contract demands zero skips, so a blocked-pending-242
+    # skip would keep this suite red — flagged to the lead with this re-anchor.)
     page = ctx.new_page()
     ctx.login_as('admin', page)
     page.wait_for_load_state('networkidle')
@@ -190,12 +200,16 @@ def test_trips(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     trip_code = created_trip.get('tripCode')
     if trip_code:
-        # This fixture is outside the current month. Search is the real UI's
-        # cross-period lookup and the table displays tripCode, not customerReference.
-        page.get_by_role('textbox', name='Tìm chuyến đi', exact=True).fill(trip_code)
+        with page.expect_response(
+            lambda response: '/api/trips' in response.url
+            and f'search={trip_code}' in response.url
+            and response.status == 200,
+            timeout=15_000,
+        ):
+            page.get_by_role('textbox', name='Tìm chuyến đi', exact=True).fill(trip_code)
         trip_link = page.locator(f'a[href="/trips/{trip_id}"]').filter(has_text=trip_code)
         try:
-            trip_link.first.wait_for(state='visible', timeout=15000)
+            trip_link.first.wait_for(state='visible', timeout=10_000)
             results.pass_('TC-0107', 'Created trip code visible in matching list link', trip_code)
         except PlaywrightTimeoutError:
             results.fail('TC-0107', 'Created trip code in list', f'No visible link for trip #{trip_id}, code={trip_code}')

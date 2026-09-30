@@ -35,36 +35,44 @@ def test_system_admin(ctx: SilverseaTestContext, results: TestResults):
     ctx.screenshot(page, 'TC-1001_users_page')
     page.close()
 
-    # TC-1002: KPI cards accurate
+    # TC-1002: KPI cards accurate (card 20260930_243 refresh). The count is
+    # API-derived (/api/auth/users total) and compared against the summary
+    # rail's "Tổng tài khoản" cell — the rail renders the number vi-VN
+    # formatted (1.881, not 1881), so the assertion formats the API count the
+    # same way instead of hardcoding either form.
     resp = api.get('/api/auth/users')
     if resp.get('status') == 200:
         user_count = resp['data'].get('total', 0)
+        formatted = f'{user_count:,}'.replace(',', '.')
         page = ctx.new_page()
         ctx.login_as('admin', page)
         page.goto(f'{BASE_URL}/users')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
         kpi_text = page.locator('.summary-rail').first.inner_text()
-        if str(user_count) in kpi_text:
-            results.pass_('TC-1002', f'KPI cards match API count ({user_count})')
+        if formatted in kpi_text:
+            results.pass_('TC-1002', f'KPI cards match API count ({formatted})')
         else:
-            results.fail('TC-1002', 'KPI cards', f'API total={user_count}, KPI text missing count')
+            results.fail('TC-1002', 'KPI cards', f'API total={user_count} (rendered {formatted}) missing from rail')
         page.close()
     else:
         results.fail('TC-1002', 'KPI cards', f'API status: {resp.get("status")}')
 
-    # TC-1003: Role pill filters visible
+    # TC-1003: Role filter visible (card 20260930_243 refresh). The retired
+    # `.filter-pill` row became the shared boxed Tabs group riding the filter
+    # bar (`.filter-bar .ds-tabs__btn`, one chip per role with its count) —
+    # the case asserts every role chip is present there.
     page = ctx.new_page()
     ctx.login_as('admin', page)
     page.goto(f'{BASE_URL}/users')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    pills = page.locator('.filter-pill').all()
-    pill_labels = []
-    for p in pills:
+    tabs = page.locator('.filter-bar .ds-tabs__btn')
+    tab_labels = []
+    for i in range(tabs.count()):
         try:
-            pill_labels.append(p.inner_text().strip())
-        except:
+            tab_labels.append(tabs.nth(i).inner_text().strip())
+        except Exception:
             pass
     expected_roles = [
         'Quản trị viên',
@@ -76,21 +84,24 @@ def test_system_admin(ctx: SilverseaTestContext, results: TestResults):
         'Chứng từ',  # Canonical ROLE_LABELS[Role.CUS]; still assert every role.
         'Điều vận',
     ]
-    found = all(any(role in label for label in pill_labels) for role in expected_roles)
+    found = all(any(role in label for label in tab_labels) for role in expected_roles)
     if found:
-        results.pass_('TC-1003', f'Role filter pills visible ({len(pill_labels)} pills)')
+        results.pass_('TC-1003', f'Role filter chips visible ({len(tab_labels)} tabs)')
     else:
-        results.fail('TC-1003', 'Role filter pills', f'Found labels: {pill_labels}')
-    ctx.screenshot(page, 'TC-1003_role_pills')
+        results.fail('TC-1003', 'Role filter chips', f'Found labels: {tab_labels}')
+    ctx.screenshot(page, 'TC-1003_role_filter')
     page.close()
 
-    # TC-1004: User search input exists
+    # TC-1004: User search input exists (card 20260930_243 refresh). The
+    # retired `.toolbar__search` chrome became the FilterBar band's search
+    # shell — the input is `.filter-bar__search input`, accessible name
+    # "Tìm tài khoản" (the page's own aria-label).
     page = ctx.new_page()
     ctx.login_as('admin', page)
     page.goto(f'{BASE_URL}/users')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if assert_element_visible(page, '.toolbar__search input', timeout=3000):
+    if assert_element_visible(page, '.filter-bar__search input[aria-label="Tìm tài khoản"]', timeout=3000):
         results.pass_('TC-1004', 'User search input exists')
     else:
         results.fail('TC-1004', 'User search input', 'Search input not found')

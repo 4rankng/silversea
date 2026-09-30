@@ -138,7 +138,14 @@ def test_driver_portal(ctx: SilverseaTestContext, results: TestResults):
     empty_period = None
 
     def select_driver_month(month, year):
-        page.get_by_role('button', name='Chọn tháng', exact=True).click()
+        # Card 20260930_243 re-anchor: the trigger's accessible NAME is no
+        # longer exactly "Chọn tháng" — the topbar date button now announces
+        # "Chọn tháng · Tháng M/YYYY, DD/MM – DD/MM", so a name-exact role
+        # lookup times out. The stable target is the button itself:
+        # .topbar-date__trigger (the dialog it opens is still aria-labelled
+        # exactly "Chọn tháng", and the picker internals — .month-picker__year,
+        # Năm trước/sau buttons, 12 .month-picker__cell — are unchanged).
+        page.locator('.topbar-date__trigger').click()
         picker = page.get_by_role('dialog', name='Chọn tháng', exact=True)
         shown_year = int(re.search(r'\d{4}', picker.locator('.month-picker__year').inner_text()).group())
         direction = 'Năm sau' if year > shown_year else 'Năm trước'
