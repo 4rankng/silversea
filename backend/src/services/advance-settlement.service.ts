@@ -521,7 +521,7 @@ export async function updateAdvanceSettlement(
   } else {
     await db.transaction(execute);
   }
-  const detail = await getAdvanceSettlement(settlementId, options.transaction ?? db);
+  const detail = await getAdvanceSettlement(settlementId, options.transaction);
   if (!detail) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng sau khi cập nhật');
   if (options.emitNotification !== false) {
     emitNotification({

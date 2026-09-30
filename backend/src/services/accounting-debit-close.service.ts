@@ -20,7 +20,7 @@
 // an approval queue: confirm/withdraw NEVER change rates (đối soát only).
 import { and, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import * as s from '../db/schema';
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import { sumExcludingNegative } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
@@ -75,11 +75,11 @@ export interface AccountingDebitBoardRow {
 export async function getAccountingDebitBoard(query: {
   dateFrom?: string;
   dateTo?: string;
-}): Promise<{ items: AccountingDebitBoardRow[]; total: number }> {
+}, executor: Executor = db): Promise<{ items: AccountingDebitBoardRow[]; total: number }> {
   const conditions = [isNull(s.shipments.deletedAt)];
   if (query.dateFrom) conditions.push(gte(s.shipments.expectedDeliveryDate, query.dateFrom));
   if (query.dateTo) conditions.push(lte(s.shipments.expectedDeliveryDate, query.dateTo));
-  const lots = await db.select({
+  const lots = await executor.select({
     id: s.shipments.id,
     code: s.shipments.shipmentCode,
     customerId: s.shipments.customerId,
@@ -101,7 +101,7 @@ export async function getAccountingDebitBoard(query: {
   // freezes are additive legs; the dispatch freeze supersedes the intake
   // freeze) — same grain rule as shipment-debit-summary. Cước thu = the
   // freight component; Phụ ps = the surcharge component of the same grain.
-  const grainRows = await db.select({
+  const grainRows = await executor.select({
     shipmentId: s.freightRateSnapshots.shipmentId,
     tripId: s.freightRateSnapshots.tripId,
     freightAmount: s.freightRateSnapshots.freightAmount,
@@ -150,7 +150,7 @@ export async function getAccountingDebitBoard(query: {
   // customerChargeAmount = negotiated customer charge). Other ops rows =
   // Phát sinh ĐV. Known when rows exist — never a fabricated 0.
   const zoneCode = 'ZONE_SURCHARGE';
-  const opsRows = await db.select({
+  const opsRows = await executor.select({
     shipmentId: s.opsExpenseEntries.shipmentId,
     expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
     amount: s.opsExpenseEntries.amount,
@@ -198,7 +198,7 @@ export async function getAccountingDebitBoard(query: {
 
   // Phát sinh cus: OTHER trip_expenses sell side (existing receivable rollup
   // precedent). Known when the lot has trip-expense rows at all.
-  const revenueRows = await db.select({
+  const revenueRows = await executor.select({
     shipmentId: s.trips.shipmentId,
     expenseType: s.tripExpenses.expenseType,
     sell: s.tripExpenses.sellAmount,
@@ -223,7 +223,7 @@ export async function getAccountingDebitBoard(query: {
 
   // Cước trả ĐV: carrier cost known iff every active trip has one
   // (debit-summary precedent).
-  const carrierRows = await db.select({
+  const carrierRows = await executor.select({
     shipmentId: s.trips.shipmentId,
     total: sql<string>`coalesce(sum(${s.tripCarrierInfo.externalFreightCost}), 0)::text`,
     known: sql<number>`count(${s.tripCarrierInfo.externalFreightCost})::int`,
@@ -245,7 +245,7 @@ export async function getAccountingDebitBoard(query: {
   // when subcontracted (trucks.carrierId), otherwise the own-fleet plate;
   // external-carrier trips show the customer-as-carrier name
   // (accounting-transport-register precedent).
-  const tripRows = await db.select({
+  const tripRows = await executor.select({
     shipmentId: s.trips.shipmentId,
     licensePlate: s.trucks.licensePlate,
     truckCarrierId: s.trucks.carrierId,
@@ -279,13 +279,13 @@ export async function getAccountingDebitBoard(query: {
   }
 
   // Thông số container labels per lot (shipment_containers).
-  const containerRows = await db.select({
+  const containerRows = await executor.select({
     shipmentId: s.shipmentContainers.shipmentId,
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeId: s.shipmentContainers.containerTypeId,
   }).from(s.shipmentContainers)
     .where(inArray(s.shipmentContainers.shipmentId, lotIds));
-  const containerTypeRows = await db.select({ id: s.containerTypes.id, name: s.containerTypes.name })
+  const containerTypeRows = await executor.select({ id: s.containerTypes.id, name: s.containerTypes.name })
     .from(s.containerTypes);
   const containerTypeLabels = new Map(containerTypeRows.map((r) => [r.id, r.name]));
   const containersByLot = new Map<number, string[]>();
@@ -303,7 +303,7 @@ export async function getAccountingDebitBoard(query: {
   // delivery date per customer+route; falls back to the latest when none is
   // applicable yet. DATA-driven: absent until the customer populates rows.
   const routeIds = [...new Set(lots.map((lot) => lot.routeId).filter((v): v is number => v != null))];
-  const ruRateRows = routeIds.length > 0 ? await db.select({
+  const ruRateRows = routeIds.length > 0 ? await executor.select({
     customerId: s.pricingTables.customerId,
     routeId: s.pricingTables.routeId,
     price: s.pricingTables.price,
@@ -328,7 +328,7 @@ export async function getAccountingDebitBoard(query: {
   }
 
   // Rate-adjustment state per lot: latest non-withdrawn PENDING/CONFIRMED.
-  const adjRows = await db.select({
+  const adjRows = await executor.select({
     id: s.shipmentRateAdjustmentRequests.id,
     shipmentId: s.shipmentRateAdjustmentRequests.shipmentId,
     status: s.shipmentRateAdjustmentRequests.status,
@@ -350,7 +350,7 @@ export async function getAccountingDebitBoard(query: {
   // Resolve external-carrier names in ONE customers query, then assemble
   // Phân xe labels per lot: OWN plate and/or carrier name (+ external plate
   // fallback when the carrier has no name row).
-  const externalNameRows = carrierNameIds.size > 0 ? await db.select({
+  const externalNameRows = carrierNameIds.size > 0 ? await executor.select({
     id: s.customers.id,
     name: s.customers.name,
   }).from(s.customers)
@@ -378,7 +378,7 @@ export async function getAccountingDebitBoard(query: {
   // card verbatim — and the page where kế toán ticks rows and bills the customer
   // on the debit. Reuses the SAME projection as the dispatch board; no second
   // copy of the note is derived here. Same executor default (db) as this file.
-  const opsNotesByShipment = await loadDispatchExpenseNotes(lots.map((lot) => lot.id));
+  const opsNotesByShipment = await loadDispatchExpenseNotes(lots.map((lot) => lot.id), executor);
 
   // Row assembly — P1 arithmetic: Tổng 1 EXCLUDES Phí RU; lợi nhuận =
   // Tổng thu − Tổng 1 − Phí RU (null when any component null).
@@ -498,8 +498,8 @@ export async function createRateAdjustmentRequests(input: {
 export async function confirmRateAdjustmentRequests(input: {
   requestIds: number[];
   userId: number;
-}, transaction?: Tx): Promise<{ confirmed: number }> {
-  const updated = await (transaction ?? db).update(s.shipmentRateAdjustmentRequests)
+}, executor: Executor = db): Promise<{ confirmed: number }> {
+  const updated = await executor.update(s.shipmentRateAdjustmentRequests)
     .set({ status: 'CONFIRMED', confirmedBy: input.userId, confirmedAt: new Date() })
     .where(and(
       inArray(s.shipmentRateAdjustmentRequests.id, input.requestIds),
@@ -513,8 +513,8 @@ export async function confirmRateAdjustmentRequests(input: {
 export async function withdrawRateAdjustmentRequests(input: {
   requestIds: number[];
   userId: number;
-}, transaction?: Tx): Promise<{ withdrawn: number }> {
-  const updated = await (transaction ?? db).update(s.shipmentRateAdjustmentRequests)
+}, executor: Executor = db): Promise<{ withdrawn: number }> {
+  const updated = await executor.update(s.shipmentRateAdjustmentRequests)
     .set({ withdrawnAt: new Date() })
     .where(and(
       inArray(s.shipmentRateAdjustmentRequests.id, input.requestIds),
@@ -526,9 +526,9 @@ export async function withdrawRateAdjustmentRequests(input: {
 }
 
 /** The debit-export guard (both issuance routes 409 while PENDING). */
-export async function assertNoPendingRateAdjustment(shipmentIds: number[]): Promise<void> {
+export async function assertNoPendingRateAdjustment(shipmentIds: number[], executor: Executor = db): Promise<void> {
   if (shipmentIds.length === 0) return;
-  const pending = await db.select({
+  const pending = await executor.select({
     shipmentId: s.shipmentRateAdjustmentRequests.shipmentId,
     code: s.shipments.shipmentCode,
   }).from(s.shipmentRateAdjustmentRequests)

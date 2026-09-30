@@ -1,11 +1,10 @@
 import { and, asc, count, desc, eq, isNull, sql, type SQL } from 'drizzle-orm';
 import { OPS_EXPENSE_TYPE_DEFAULTS, recoverableCostListQuerySchema } from '@tingting/shared';
 import type { z } from 'zod';
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
 
 /** Sort keys accepted by the list endpoint (mirrors RECOVERABLE_COST_SORT_KEYS
  * in the shared query schema — keep the two lists in sync). */
@@ -392,10 +391,9 @@ export async function listRecoverableCosts(
 export async function getRecoverableCost(
   actor: Pick<AuthUser, 'userId' | 'role'>,
   expenseId: number,
-  transaction?: Tx,
+  executor: Executor = db,
 ) {
-  const client = transaction ?? db;
-  const [row] = await client.select(recoverableSelection)
+  const [row] = await executor.select(recoverableSelection)
     .from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
     .innerJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))

@@ -4,14 +4,13 @@ import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from '../db';
 import { getAppSettings } from './app-settings.service';
 
 const DEFAULT_WARNING_THRESHOLD = 0.8;
 const TIER_ONE_MAX_RATIO = 0.1;
 const CREDIT_REQUESTABLE_ROLES = new Set<Role>([Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT]);
 
-type DbLike = Tx | typeof db;
 type CreditOverrideRow = typeof s.creditOverrideRequests.$inferSelect;
 export type CreditOverrideWorkflowStatus =
   | 'RECORDED'
@@ -219,7 +218,7 @@ async function enrichCreditOverrideViews(
 
 async function getApprovedUncollectedAmount(
   customerId: number,
-  executor: DbLike,
+  executor: Executor,
   options: { excludeCreditOverrideRequestId?: number | null } = {},
 ): Promise<number> {
   const [activeTrips] = await executor.select({
@@ -247,7 +246,7 @@ async function getApprovedUncollectedAmount(
 
 async function getCustomerOutstandingAmount(
   customerId: number,
-  executor: DbLike,
+  executor: Executor,
 ): Promise<number> {
   const [result] = await executor.select({
     outstanding: sql<string>`greatest(
@@ -262,7 +261,7 @@ async function getCustomerOutstandingAmount(
   return toMoney(result?.outstanding);
 }
 
-async function loadCustomerCreditProfile(customerId: number, executor: DbLike) {
+async function loadCustomerCreditProfile(customerId: number, executor: Executor) {
   const [customer] = await executor.select({
     id: s.customers.id,
     creditLimit: s.customers.creditLimit,
@@ -281,7 +280,7 @@ async function loadCustomerCreditProfile(customerId: number, executor: DbLike) {
   return { creditLimit, warningThreshold };
 }
 
-async function loadShipmentForOverride(shipmentId: number, customerId: number, executor: DbLike): Promise<void> {
+async function loadShipmentForOverride(shipmentId: number, customerId: number, executor: Executor): Promise<void> {
   const [shipment] = await executor.select({
     id: s.shipments.id,
     customerId: s.shipments.customerId,
@@ -296,7 +295,7 @@ async function loadShipmentForOverride(shipmentId: number, customerId: number, e
   }
 }
 
-async function hasPriorApprovedOverride(customerId: number, executor: DbLike): Promise<boolean> {
+async function hasPriorApprovedOverride(customerId: number, executor: Executor): Promise<boolean> {
   const [row] = await executor.select({ total: count() })
     .from(s.creditOverrideRequests)
     .where(and(
@@ -321,7 +320,7 @@ export async function checkCreditLimit(
     excludeCreditOverrideRequestId?: number | null;
   } = {},
 ): Promise<CreditCheckResult> {
-  const executor = options.transaction ?? db;
+  const executor: Executor = options.transaction ?? db;
   const proposedAmount = Math.max(0, Math.trunc(options.proposedAmount ?? 0));
   const [{ creditLimit, warningThreshold }, outstanding, approvedUncollected] = await Promise.all([
     loadCustomerCreditProfile(customerId, executor),

@@ -455,7 +455,7 @@ export async function saveDocument(
   const docId = transaction
     ? await execute(transaction)
     : await db.transaction(execute);
-  return getDocument(docId, transaction ?? db);
+  return getDocument(docId, transaction);
 }
 
 export async function updateDocument(
@@ -617,7 +617,7 @@ export async function updateDocument(
     await replaceBillingDocumentSourcePeriodLocks(tx, id, sourceLockIds);
   };
   await runInTx(transaction, execute);
-  return getDocument(id, transaction ?? db);
+  return getDocument(id, transaction);
 }
 
 async function persistLines(tx: Tx, documentId: number, lines: BillingDocumentLine[]): Promise<void> {

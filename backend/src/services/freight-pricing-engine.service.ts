@@ -9,7 +9,7 @@
  * Source: `Phương án tính cước tự động.docx` + PRD `CuocPhiThietKeDB.md`.
  */
 
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, inArray, isNull, lte, notInArray } from 'drizzle-orm';
 import { computeFreightRate } from '@tingting/shared';
@@ -19,7 +19,6 @@ import type { ComputeFreightRateResult } from '@tingting/shared';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 
-type DbOrTx = typeof db | Tx;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -483,7 +482,7 @@ export async function resolveFreightRate(
  */
 export async function persistFreightRateSnapshot(
   result: ResolvedFreightRate,
-  opts: { shipmentId?: number | null; tripId?: number | null; executor?: DbOrTx },
+  opts: { shipmentId?: number | null; tripId?: number | null; executor?: Executor },
 ): Promise<number> {
   const [row] = await (opts.executor ?? db)
     .insert(s.freightRateSnapshots)
@@ -519,7 +518,7 @@ export interface CreateDebitNoteOverrideInput {
   overrideReason?: string;
   overrideBy?: number;
   /** Participate in the caller's transaction (idempotency wrapper); defaults to the pool. */
-  executor?: DbOrTx;
+  executor?: Executor;
 }
 
 /**

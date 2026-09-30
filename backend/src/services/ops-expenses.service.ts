@@ -172,15 +172,14 @@ export function assertOwnStorageKey(userId: number, key: string): void {
 export async function createOpsExpense(
   userId: number,
   input: CreateOpsExpenseInput,
-  transaction?: Tx,
+  executor: Executor = db,
 ): Promise<OpsExpenseWriteResult> {
-  if (!transaction) return db.transaction(tx => createOpsExpense(userId, input, tx));
-  const executor: Executor = transaction ?? db;
-  await assertOpsExpenseAssignment(transaction, userId, input.shipmentId);
+  if (executor === db) return db.transaction(tx => createOpsExpense(userId, input, tx));
+  await assertOpsExpenseAssignment(executor, userId, input.shipmentId);
   const amount = parseOpsMoney(input.amount);
   assertValidPaidAt(input.paidAt);
   const expenseType = await assertActiveExpenseType(input.expenseTypeCode);
-  await assertShipmentAccountingUnlocked(transaction, input.shipmentId);
+  await assertShipmentAccountingUnlocked(executor, input.shipmentId);
 
   const [shipment] = await executor
     .select({ id: s.shipments.id, customerId: s.shipments.customerId })
@@ -245,7 +244,7 @@ export async function createOpsExpense(
   // Placed AFTER customerCharge is computed, which is the only place the
   // "does this charge the customer" answer exists — invoice groups always
   // charge (charge = amount), so this bites only the no-invoice rows the PM
-  // meant. The insert above is inside the caller's transaction, so throwing
+  // meant. The insert above is inside the caller's executor, so throwing
   // here rolls the row back rather than leaving an orphan.
   if (customerCharge <= 0 && !input.note?.trim()) {
     throw new ApiError(
@@ -254,7 +253,7 @@ export async function createOpsExpense(
     );
   }
 
-  const source = await upsertExpenseAccountingSource(transaction, { sourceKind: 'OPS', sourceId: entry.id,
+  const source = await upsertExpenseAccountingSource(executor, { sourceKind: 'OPS', sourceId: entry.id,
     shipmentId: entry.shipmentId, shipmentContainerId: entry.shipmentContainerId, customerId: shipment.customerId,
     // feeName is the operator's CUSTOM name for the line. It must never fall
     // back to the machine code: the code is not a name, and every surface that
@@ -280,17 +279,16 @@ export async function updateOpsExpense(
     expectedVersion?: number;
     reason?: string;
   },
-  transaction?: Tx,
+  executor: Executor = db,
 ): Promise<OpsExpenseWriteResult> {
-  if (!transaction) return db.transaction(tx => updateOpsExpense(userId, expenseId, patch, tx));
-  const executor: Executor = transaction ?? db;
+  if (executor === db) return db.transaction(tx => updateOpsExpense(userId, expenseId, patch, tx));
   const entry = await getEditableExpense(userId, expenseId, executor);
-  await assertOpsExpenseAssignment(transaction, userId, entry.shipmentId);
+  await assertOpsExpenseAssignment(executor, userId, entry.shipmentId);
   if (!patch.reason?.trim()) throw new ApiError(400, 'Nhập lý do điều chỉnh khoản chi.');
-  await assertShipmentAccountingUnlocked(transaction, entry.shipmentId);
-  const source = await lockExpenseSource(transaction, 'OPS', expenseId);
+  await assertShipmentAccountingUnlocked(executor, entry.shipmentId);
+  const source = await lockExpenseSource(executor, 'OPS', expenseId);
   if (source) {
-    await assertExpenseSourceMutable(transaction, source);
+    await assertExpenseSourceMutable(executor, source);
     if (patch.expectedVersion !== source.version) throw new ApiError(409, 'Khoản chi đã thay đổi. Tải lại trước khi sửa.');
   }
   const next: Record<string, unknown> = { updatedAt: new Date(), approvalStatus: 'RECORDED' };
@@ -344,14 +342,14 @@ export async function updateOpsExpense(
     const nextCharge = patch.customerChargeAmount === undefined && !chargeIsInvariant
       ? source.customerChargeAmount
       : receivableForCost(updated.amount, effectiveGroup, chargeIsInvariant ? undefined : patch.customerChargeAmount);
-    const after = await upsertExpenseAccountingSource(transaction, { ...source, sourceKind: 'OPS', sourceId: expenseId,
+    const after = await upsertExpenseAccountingSource(executor, { ...source, sourceKind: 'OPS', sourceId: expenseId,
       amount: Number(updated.amount), customerChargeAmount: nextCharge == null ? null : Number(nextCharge),
       expenseDate: updated.paidAt, expenseTypeCode: updated.expenseTypeCode, shipmentContainerId: updated.shipmentContainerId,
       costGroup: effectiveGroup, feeName: patch.feeName ?? source.feeName,
       invoiceNumber: patch.invoiceNumber === undefined ? source.invoiceNumber : patch.invoiceNumber,
       invoiceDate: patch.invoiceDate === undefined ? source.invoiceDate : patch.invoiceDate,
       recoveryNote: patch.recoveryNote === undefined ? source.recoveryNote : patch.recoveryNote, note: updated.note });
-    await transaction.insert(s.auditLogs).values({ userId, message: 'EXPENSE_ACCOUNTING_UPDATED', entityType: 'expense_accounting_source', entityId: source.id,
+    await executor.insert(s.auditLogs).values({ userId, message: 'EXPENSE_ACCOUNTING_UPDATED', entityType: 'expense_accounting_source', entityId: source.id,
       payload: { reason: patch.reason.trim(), before: source, after } });
     return { ...updated, version: after.version, costGroup: after.costGroup, invoiceNumber: after.invoiceNumber, invoiceDate: after.invoiceDate };
   }
@@ -362,19 +360,18 @@ export async function deleteOpsExpense(
   userId: number,
   expenseId: number,
   reason: string,
-  transaction?: Tx,
+  executor: Executor = db,
 ): Promise<void> {
   // Q10 (card 20260922_78): deletes are governed soft voids — reason is
   // mandatory and persisted on the row with the actor.
   if (!reason || !reason.trim()) throw new ApiError(400, 'Lý do xóa là bắt buộc.');
-  if (!transaction) return db.transaction(tx => deleteOpsExpense(userId, expenseId, reason, tx));
-  const executor: Executor = transaction ?? db;
+  if (executor === db) return db.transaction(tx => deleteOpsExpense(userId, expenseId, reason, tx));
   const entry = await getEditableExpense(userId, expenseId, executor);
-  await assertOpsExpenseAssignment(transaction, userId, entry.shipmentId);
-  const source = await lockExpenseSource(transaction, 'OPS', expenseId);
+  await assertOpsExpenseAssignment(executor, userId, entry.shipmentId);
+  const source = await lockExpenseSource(executor, 'OPS', expenseId);
   if (source) {
-    await assertExpenseSourceMutable(transaction, source);
-    await transaction.update(s.expenseAccountingSources).set({ status: 'VOIDED', version: source.version + 1, updatedAt: new Date() }).where(eq(s.expenseAccountingSources.id, source.id));
+    await assertExpenseSourceMutable(executor, source);
+    await executor.update(s.expenseAccountingSources).set({ status: 'VOIDED', version: source.version + 1, updatedAt: new Date() }).where(eq(s.expenseAccountingSources.id, source.id));
   }
   const [voided] = await executor.update(s.opsExpenseEntries).set({
     approvalStatus: 'VOIDED',
@@ -476,7 +473,7 @@ export async function listOpsExpensePhotos(
  *  rule (strictly negative rows are dropped, 0 is kept), same integer money —
  *  the sum never leaves `numeric`. */
 export async function recomputeOpsSettlementTotal(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: Tx,
   settlementId: number,
 ): Promise<void> {
   const [row] = await tx
