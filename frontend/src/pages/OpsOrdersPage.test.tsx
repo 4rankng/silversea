@@ -149,7 +149,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(pageStyles).toContain('@media (pointer: coarse)');
   });
 
-  it('declares no filter plane of its own — the strip is the shared ListFilterBar', () => {
+  it('declares no filter plane of its own — the strip is the shared FilterBar band', () => {
     // Card 20260927_152: the page shipped its own control container, control
     // shell and a 220px search width. The shared bar owns all three now, so a
     // page-local filter rule reappearing here is the regression this pins.

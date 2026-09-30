@@ -7,8 +7,7 @@ import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
 import { localDateInputValue, shipmentStatusText } from '../features/ops/opsStatus';
 import './OpsOrdersPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
-import { BufferedUuiDateInput } from '../design-system';
-import { ListFilterBar } from '../components/ListFilterBar';
+import { BufferedUuiDateInput, FilterBar } from '../design-system';
 import { formatDate } from '../lib/format';
 import { useToast } from '../components/shared/Toast';
 
@@ -78,7 +77,7 @@ export default function OpsOrdersPage() {
       {/* Card 20260927_152: the filters are the ONE shared strip — the search
           takes the bar's own cell, the expected-delivery day is the shared
           labelled date field beside it, and no page rule sizes either one. */}
-      <ListFilterBar
+      <FilterBar
         search={{
           value: searchInput,
           onChange: setSearchInput,
@@ -92,7 +91,7 @@ export default function OpsOrdersPage() {
           value={date}
           onChange={setDate}
         />
-      </ListFilterBar>
+      </FilterBar>
 
       <p className="ops-orders__meta">
         {isLoading ? 'Đang tải…' : `${items.length} lô · ngày ${formatDate(date)}`}

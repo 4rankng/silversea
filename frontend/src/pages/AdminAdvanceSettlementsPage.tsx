@@ -9,7 +9,6 @@ import {
 } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
 import { PageHeader, StatusPill, FilterPill } from '../components/UI';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { Money } from '../components/shared/Money';
 import {
@@ -24,7 +23,7 @@ import {
 } from './admin-advance-settlement-summary';
 import './AdminAdvanceSettlementsPage.css';
 import '../styles/operational-table-typography.css';
-import { Pagination } from '../design-system';
+import { FilterBar, Pagination } from '../design-system';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -416,7 +415,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
         {/* Card 20260927_152 — one shared bar replaces the desktop toolbar +
             the phone-only status select (one implementation per datum); the
             full-set tab counts ride the quick-filter slot. */}
-        <ListFilterBar
+        <FilterBar
           quickFiltersLabel="Lọc theo trạng thái"
           quickFilters={TABS.map((tab) => (
             <FilterPill

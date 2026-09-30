@@ -10,8 +10,7 @@ import { Role, ROLE_LABELS, ROLE_PILL, FilterKey } from '../utils';
 import type { UserRow } from '../utils';
 import { StatusStrip, StatusSwatch } from '../../../components/shared/StatusStrip';
 import { PageHeader } from '../../../components/UI';
-import { EmptyState, Pagination, SummaryRail, Tabs } from '../../../design-system';
-import { ListFilterBar } from '../../../components/ListFilterBar';
+import { EmptyState, FilterBar, Pagination, SummaryRail, Tabs } from '../../../design-system';
 import '../../../styles/record-table.css';
 import '../../../styles/operational-table-typography.css';
 
@@ -131,7 +130,7 @@ export function UserTable({
           gone — and the search is the bar's own cell. No page rule declares the
           strip's layout, its control widths or its heights. */}
       <div data-tour-id="users-role-filters">
-        <ListFilterBar
+        <FilterBar
           search={{
             value: search,
             onChange: onSearchChange,
@@ -150,7 +149,7 @@ export function UserTable({
               count: f === 'all' ? total : roleCounts?.[f] ?? 0,
             }))}
           />
-        </ListFilterBar>
+        </FilterBar>
       </div>
 
       {/* ── Unified panel: table + footer ───────────────────────────────── */}

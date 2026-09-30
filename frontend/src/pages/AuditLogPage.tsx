@@ -15,8 +15,7 @@ import { ACTION_LABELS, resolveCategory, formatTimeShort } from '../lib/audit-he
 import './AuditLogPage.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
-import { EmptyState, Tabs } from '../design-system';
-import { ListFilterBar } from '../components/ListFilterBar';
+import { EmptyState, FilterBar, Tabs } from '../design-system';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -366,7 +365,7 @@ fontSize: 'var(--text-data-size)',
           selected category prints a total: that is the one count the query
           returns, so no invented per-category number is shown. */}
       <div data-tour-id="audit-filters">
-        <ListFilterBar
+        <FilterBar
           search={{
             value: search,
             onChange: setSearch,
@@ -386,7 +385,7 @@ fontSize: 'var(--text-data-size)',
               count: filter === cat.key ? total : undefined,
             }))}
           />
-        </ListFilterBar>
+        </FilterBar>
       </div>
 
       {/* ── Full-width activity list ── */}

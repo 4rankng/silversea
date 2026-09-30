@@ -4,8 +4,7 @@ import { formatCurrency, formatDate } from '../lib/format';
 import { ADVANCE_REQUEST_STATUS_LABELS, AdvanceSettlementStatus, type AdvanceRequestStatus } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
 import { PageHeader, FormGroup, FilterPill } from '../components/UI';
-import { ListFilterBar } from '../components/ListFilterBar';
-import { Pagination } from '../design-system';
+import { FilterBar, Pagination } from '../design-system';
 import { useForwarderAdvanceRequestsTable, useCreateAdvanceRequest, useForwarderAdvanceBalance, useForwarderSettlements } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations, useCounterAnimation } from '../hooks/animations';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
@@ -249,7 +248,7 @@ export default function ForwarderAdvancesPage() {
           control width; the full-set status counts ride the quick-filter slot
           as the shared `.filter-chip`. */}
       {totalRequests > 0 && (
-        <ListFilterBar
+        <FilterBar
           quickFiltersLabel="Lọc theo trạng thái"
           quickFilters={(
             <>

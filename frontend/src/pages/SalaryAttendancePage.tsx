@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
 import { Panel } from '../components/UI';
-import { ListFilterBar } from '../components/ListFilterBar';
-import { EmptyState, SummaryRail } from '../design-system';
+import { EmptyState, FilterBar, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import {
   CalCell,
@@ -72,7 +71,7 @@ export default function SalaryAttendancePage() {
           ride the bar's action cluster, so this page declares no filter layout,
           no control width and no control height of its own. The roster below is
           page content (a driver picker list), not a control plane. */}
-      <ListFilterBar
+      <FilterBar
         search={{
           value: searchTerm,
           onChange: setSearchTerm,

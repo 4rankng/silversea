@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { Truck as TruckIcon } from 'lucide-react';
 import { useConfirm } from '../components/UI';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { SupplierCarrierTrucksSection } from '../features/suppliers/SupplierCarrierTrucksSection';
 import { api } from '../lib/api';
 import { Input } from '../components/untitled-ui/base/input/input';
@@ -20,7 +19,7 @@ import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, KPI, StatusPill, Modal, ModalChip, ModalChipLive } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useDropdownDismiss } from '../hooks/useDropdownDismiss';
-import { EmptyState, Pagination, useTableQueryState } from '../design-system';
+import { EmptyState, FilterBar, Pagination, useTableQueryState } from '../design-system';
 import { SupplierType, type Supplier } from '@tingting/shared';
 import { CONFIG } from '@tingting/shared';
 import { configClient } from '../api/configClient';
@@ -375,12 +374,12 @@ export default function SupplierListPage() {
         />
       </div>
 
-      {/* The strip IS the shared `ListFilterBar` (card 20260927_152): the page
+      {/* The strip IS the shared `FilterBar` (card 20260927_152): the page
           declares no bar markup, no search shell and no spacer — the component
           owns `.filter-bar`, its search cell and its pinning. The six toggles
           narrow the same list (they are quick filters, not secondary criteria),
           so they ride `quickFilters` with the shared chip shape. */}
-      <ListFilterBar
+      <FilterBar
         search={{
           value: search,
           onChange: setSearch,

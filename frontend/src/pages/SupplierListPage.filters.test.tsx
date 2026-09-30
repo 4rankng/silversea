@@ -1,5 +1,5 @@
 /**
- * Card 20260927_152 — the `/suppliers` strip rides the shared `ListFilterBar`.
+ * Card 20260927_152 — the `/suppliers` strip rides the shared `FilterBar` band.
  *
  * The page-local bar (hand-rolled `.filter-bar` + `.filter-bar__search` +
  * `.filter-bar__spacer`) is gone, so these pin the BEHAVIOUR it drove — the
@@ -137,8 +137,8 @@ describe('SupplierListPage filter strip', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.css'), 'utf8');
 
-    expect(page).toContain("import { ListFilterBar } from '../components/ListFilterBar';");
-    expect(page).toContain('<ListFilterBar');
+    expect(page).toContain("import { EmptyState, FilterBar, Pagination, useTableQueryState } from '../design-system';");
+    expect(page).toContain('<FilterBar');
     expect(page).not.toContain('className="filter-bar"');
     expect(page).not.toContain('filter-bar__search');
     expect(page).not.toContain('filter-bar__spacer');

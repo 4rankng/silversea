@@ -2,12 +2,11 @@ import type { LinkedExpense, LinkedRequest } from '../api/forwarderClient';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Loader2, Plus, ArrowRight, Clock } from 'lucide-react';
-import { EmptyState, Pagination } from '../design-system';
+import { EmptyState, FilterBar, Pagination } from '../design-system';
 import { formatCurrency, formatDate } from '../lib/format';
 import { groupExpensesByContainer } from '../lib/expense-breakdown';
 import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '@tingting/shared';
 import { PageHeader, FilterPill } from '../components/UI';
-import { ListFilterBar } from '../components/ListFilterBar';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { useForwarderSettlements } from '../hooks/useForwarderQueries';
@@ -166,7 +165,7 @@ export default function ForwarderSettlementsPage() {
           full-set status counts ride the quick-filter slot as the shared
           `.filter-chip`. */}
       {totalCount > 0 && (
-        <ListFilterBar
+        <FilterBar
           quickFiltersLabel="Lọc theo trạng thái"
           quickFilters={(
             <>
