@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { useCreateOpsAdvanceRequest } from '../../hooks/useOpsQueries';
 import { useToast } from '../../components/shared/Toast';
-import { formatVnd } from './opsStatus';
+import { formatMoney } from '../../lib/format';
 import { NumberField } from '../../design-system/forms/NumberField';
 
 import './ops-modal.css';
@@ -63,7 +63,7 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
           </label>
         </div>
         <footer className="ops-modal__foot">
-          <div>{amountValid ? `${formatVnd(Number(amount))} ₫` : ''}</div>
+          <div>{amountValid ? `${formatMoney(Number(amount))} ₫` : ''}</div>
           <div className="ops-modal__actions">
             <button type="button" className="btn-secondary" onClick={close} disabled={createAdvance.isPending}>Đóng</button>
             <button type="submit" className="btn-primary" disabled={!canSubmit || createAdvance.isPending}>

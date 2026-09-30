@@ -1,4 +1,4 @@
-export function formatNumber(n: number | string | null): string {
+export function formatNumber(n: number | string | null | undefined): string {
   return formatNumberWithOptions(n, {});
 }
 
@@ -14,7 +14,7 @@ export interface FormatValueOptions {
   empty?: string;
 }
 
-function formatNumberWithOptions(n: number | string | null, options: FormatValueOptions): string {
+function formatNumberWithOptions(n: number | string | null | undefined, options: FormatValueOptions): string {
   const empty = options.empty ?? '—';
   if (n == null) return empty;
   const num = typeof n === 'string' ? parseFloat(n) : n;
@@ -32,7 +32,7 @@ export function formatCompact(n: number | string | null): string {
   return num.toLocaleString('vi-VN');
 }
 
-export function formatCurrency(n: number | string | null, options?: FormatValueOptions): string {
+export function formatCurrency(n: number | string | null | undefined, options?: FormatValueOptions): string {
   const empty = options?.empty ?? '— ₫';
   if (n == null) return empty;
   const num = typeof n === 'string' ? parseFloat(n) : n;
@@ -157,7 +157,7 @@ export function formatISODate(iso: string | null | undefined, options?: FormatVa
  * (card 20260930_231): Intl half-away-from-zero at zero fraction digits —
  * superseding the per-feature Math.round and default-Intl variants.
  */
-export function formatMoney(n: number | string | null, options?: FormatValueOptions): string {
+export function formatMoney(n: number | string | null | undefined, options?: FormatValueOptions): string {
   const empty = options?.empty ?? '—';
   if (n == null) return empty;
   const num = typeof n === 'string' ? Number(n) : n;

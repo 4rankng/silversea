@@ -25,13 +25,33 @@ import { OperationalPolicySection } from '../../features/app-settings/Operationa
 import { OcrSection } from '../../features/app-settings/OcrSection';
 import { EmailSection } from '../../features/app-settings/EmailSection';
 import { PairSalarySection } from '../../features/app-settings/PairSalarySection';
-import {
-  formatViMonth,
-  fromThresholdPercent,
-  percentInputToNumber,
-  ratioToPercentInput,
-  toThresholdPercent,
-} from '../../features/app-settings/formatters';
+import { formatViMonth } from '../../lib/format';
+
+// Percent-field converters for the settings form (moved verbatim from the
+// deleted features/app-settings/formatters.ts — field parsing, not display
+// formatting, so they live with their only consumer).
+function toThresholdPercent(value: number): string {
+  return Number.isFinite(value) ? String(Math.round(value * 10000) / 100) : '80';
+}
+
+function fromThresholdPercent(value: string): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const ratio = parsed / 100;
+  if (ratio < 0.01 || ratio > 0.99) return null;
+  return Math.round(ratio * 10000) / 10000;
+}
+
+function ratioToPercentInput(value: number | null): string {
+  if (value == null) return '';
+  return String(Math.round(value * 10000) / 100);
+}
+
+function percentInputToNumber(value: string): number | null {
+  if (value.trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 import './config-page.css';
 
 /** ADMIN home for global switches and external-service credentials. */

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronRight, ChevronUp, Download, Truck } from 'lucide-react';
-import { formatNumber } from '../lib/format';
+import { formatMoney, formatNumber } from '../lib/format';
 import { useAuth } from '../hooks/useAuth';
 import type { DashboardDecisionItem, Role, TripDetail } from '@tingting/shared';
 import { ROLE_LABELS } from '@tingting/shared';
@@ -20,7 +20,7 @@ import { CompanyInfoSetupBanner } from '../features/dashboard/components/Company
 import './DashboardPage.css';
 import './WorkflowFinance.css';
 import { ExecutiveFinancialStrip } from '../components/dashboard/ExecutiveFinancialStrip';
-import { CostBreakdown, DeltaPill, decisionIcon, fmtVN, greeting, runningSum, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
+import { CostBreakdown, DeltaPill, decisionIcon, greeting, runningSum, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
 
 type DashboardStatTone = 'revenue' | 'cost' | 'gross' | 'net' | 'debt';
 
@@ -376,7 +376,7 @@ export default function DashboardPage() {
           icon={<AssetIcon name="analytics" size={15} />}
           label={`Doanh thu · ${String(currentMonth).padStart(2, '0')}/${currentYear}`}
           delta={<DeltaPill mom={revenueMoM} />}
-          value={fmtVN(revenue)}
+          value={formatMoney(revenue)}
           valueRef={element => { kpiRefs.current.revenue = element; }}
           description={<>Tháng trước · {formatNumber(prevRevenue)} ₫</>}
         />
@@ -385,7 +385,7 @@ export default function DashboardPage() {
           icon={<AssetIcon name="expense" size={15} />}
           label="Tổng chi phí"
           delta={<DeltaPill mom={costsMoM} />}
-          value={fmtVN(costs)}
+          value={formatMoney(costs)}
           valueRef={element => { kpiRefs.current.costs = element; }}
           description={<>{costRatio.toFixed(1)}% doanh thu</>}
         />
@@ -394,7 +394,7 @@ export default function DashboardPage() {
           icon={<AssetIcon name="gross-margin" size={15} />}
           label="Lợi nhuận gộp"
           delta={<DeltaPill mom={grossMoM} />}
-          value={fmtVN(grossProfit)}
+          value={formatMoney(grossProfit)}
           valueRef={element => { kpiRefs.current.gross = element; }}
           description={<>Biên gộp · {grossMargin.toFixed(1)}%</>}
         />
@@ -403,7 +403,7 @@ export default function DashboardPage() {
           icon={<AssetIcon name="profit" size={15} />}
           label="Lợi nhuận ròng"
           delta={<DeltaPill mom={netMoM} />}
-          value={fmtVN(netProfit)}
+          value={formatMoney(netProfit)}
           valueRef={element => { kpiRefs.current.net = element; }}
           description={<>Sau phí quản lý · <button className="d-btn d-btn-link d-btn-xs wf-link" onClick={() => navigate('/profit')}>Phân chia →</button></>}
         />
@@ -411,7 +411,7 @@ export default function DashboardPage() {
           tone="debt"
           icon={<AssetIcon name="receivables" size={15} />}
           label="Công nợ phải thu"
-          value={fmtVN(receivablesSummary?.totalOutstanding ?? 0)}
+          value={formatMoney(receivablesSummary?.totalOutstanding ?? 0)}
           description={<>{receivablesSummary?.overdueCustomers ?? 0} khách quá hạn</>}
         />
       </div>

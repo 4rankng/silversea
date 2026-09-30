@@ -15,7 +15,7 @@ import { useReasonPrompt } from '../../components/reason-prompt';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
 import { useToast } from '../../components/shared/Toast';
-import { formatVnd } from './opsStatus';
+import { formatMoney } from '../../lib/format';
 
 import './ops-modal.css';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
@@ -70,7 +70,7 @@ export function OpsExpenseHistory() {
     try {
       // Q10 (card 20260922_78): the delete asks for a mandatory free-text
       // reason — cancel/empty aborts without any request.
-      const reason = await prompt(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatVnd(row.amount)} ₫?`, { confirmLabel: 'Xóa' });
+      const reason = await prompt(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatMoney(row.amount)} ₫?`, { confirmLabel: 'Xóa' });
       if (reason == null) return;
       await deleteExpense.mutateAsync({ id: row.id, reason });
     } catch (error) { toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được khoản chi. Vui lòng thử lại.' }); }
@@ -117,7 +117,7 @@ export function OpsExpenseHistory() {
                 <td data-label="Mã lô">{row.shipmentCode ?? '—'}</td>
                 <td data-label="Cont">{row.containerNumber ?? 'Chung lô'}</td>
                 <td data-label="Loại phí">{row.feeName ?? row.expenseTypeName ?? row.expenseTypeCode}</td>
-                <td className="ops-money" data-label="Số tiền">{formatVnd(row.amount)} ₫</td>
+                <td className="ops-money" data-label="Số tiền">{formatMoney(row.amount)} ₫</td>
                 <td data-label="Chứng từ">
                   <button
                     type="button"
@@ -190,7 +190,7 @@ function OpsLegacyExpenseDetail({ row, onClose }: { row: OpsExpenseRow; onClose:
   const query = useQuery({ queryKey: qk.opsLegacyExpense(row.sourceId), queryFn: () => expenseAccountingClient.get({ sourceKind: 'TRIP', sourceId: row.sourceId! }) });
   return <Drawer isOpen onClose={onClose} title="Khoản chi được nhập từ kế toán" footer={<button className="btn btn--secondary" onClick={onClose}>Đóng</button>}>
     <p>{row.shipmentCode} · {row.feeName ?? row.expenseTypeName}</p>
-    <p>Thực chi: <strong>{formatVnd(row.amount)} ₫</strong></p>
+    <p>Thực chi: <strong>{formatMoney(row.amount)} ₫</strong></p>
     {row.note && <p style={{ whiteSpace: 'pre-wrap' }}>{row.note}</p>}
     {query.isLoading && <p role="status">Đang tải chứng từ…</p>}
     {query.isError && <p role="alert">Chưa tải được khoản chi. <button onClick={() => void query.refetch()}>Thử lại</button></p>}

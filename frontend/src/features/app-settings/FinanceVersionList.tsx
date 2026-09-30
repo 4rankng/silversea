@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { formatViMonth } from './formatters';
+import { formatViMonth } from '../../lib/format';
 
 export function FinanceLoadingBlock() {
   return (

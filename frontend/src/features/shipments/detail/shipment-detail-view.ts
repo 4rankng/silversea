@@ -2,18 +2,13 @@
  * ShipmentDetailPage view-model helpers, extracted to keep the page under its
  * frozen LOC ceiling (structure guard). Pure formatting + the carrier
  * allocation grouping that feeds the "Nhà xe" section — no React, no queries.
- * Date formatting goes through lib/format (the structure guard's canonical
- * home); only formatVnd (not a date formatter) lives here.
+ * Formatting goes through lib/format (the structure guard's canonical home).
  */
 import type {
   ShipmentDetail as ShipmentDetailData,
   ShipmentCarrierAllocationGroup,
 } from '../../../api/shipmentClient';
-
-export function formatVnd(value: number | null | undefined): string {
-  if (value == null) return '—';
-  return `${Math.round(value).toLocaleString('vi-VN')} ₫`;
-}
+import { formatCurrency } from '../../../lib/format';
 
 export function allocationSummaryFromDetail(data: ShipmentDetailData): ShipmentCarrierAllocationGroup[] {
   const grouped = new Map<string, ShipmentCarrierAllocationGroup>();

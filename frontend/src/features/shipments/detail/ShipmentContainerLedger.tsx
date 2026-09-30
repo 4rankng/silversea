@@ -128,12 +128,6 @@ function directionLabel(direction: ShipmentCusContainerFlatRow['direction']): st
   return 'Chưa xác định';
 }
 
-function formatDate(value: string | null): string {
-  // Delegates to the shared ISO-date formatter; only the empty-state text is
-  // this surface's own.
-  if (!value) return 'Chưa có ngày';
-  return formatISODate(value);
-}
 
 function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
   const value = row.customerAppointmentAt;
@@ -829,7 +823,7 @@ export function ShipmentContainerLedger({
 {!isHidden('schedule') && (<td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
                     {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule ops-schedule">
                       {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
-                      <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatDate(appointmentInput.slice(0, 10))].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
+                      <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatISODate(appointmentInput.slice(0, 10), { empty: 'Chưa có ngày' })].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
                   </td>)}
 {!isHidden('vehicle') && (<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">

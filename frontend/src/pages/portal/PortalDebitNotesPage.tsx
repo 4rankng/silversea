@@ -27,12 +27,6 @@ function statusClass(status: BillingDocument['debitNoteStatus']) {
   return 'portal-status';
 }
 
-function formatDate(value: string | null | undefined) {
-  // Delegates to the shared ISO-date formatter; only the empty-state text is
-  // this surface's own.
-  if (!value) return 'Chưa có dữ liệu lịch sử';
-  return formatISODate(value);
-}
 
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -208,8 +202,8 @@ export default function PortalDebitNotesPage() {
                     </span>
                   </div>
                   <dl className="portal-debit-row__dates">
-                    <div><dt>Hạn hợp đồng</dt><dd>{formatDate(doc.originalDueDate)}</dd></div>
-                    <div><dt>Ngày xử lý</dt><dd>{formatDate(doc.processingDueDate)}</dd></div>
+                    <div><dt>Hạn hợp đồng</dt><dd>{formatISODate(doc.originalDueDate, { empty: 'Chưa có dữ liệu lịch sử' })}</dd></div>
+                    <div><dt>Ngày xử lý</dt><dd>{formatISODate(doc.processingDueDate, { empty: 'Chưa có dữ liệu lịch sử' })}</dd></div>
                   </dl>
                   <div className="portal-actions">
                     <button type="button" className="portal-button" disabled={busy} onClick={() => void exportDoc(doc, 'xlsx')}>

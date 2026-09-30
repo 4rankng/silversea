@@ -8,7 +8,7 @@ import { ExpenseReconciliationHistory } from '../features/expense-accounting/Exp
 import { OpsExpenseHistory } from '../features/ops/OpsExpenseHistory';
 import { OpsSettlementsPanel } from '../features/ops/OpsSettlementsPanel';
 import { OpsFundBookSection } from '../features/ops/OpsFundBookSection';
-import { formatVnd } from '../features/ops/opsStatus';
+import { formatMoney } from '../lib/format';
 import './OpsWalletPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
@@ -68,10 +68,10 @@ export default function OpsWalletPage() {
       <SummaryRail
         ariaLabel="Số dư"
         items={[
-          { label: 'Số dư hiện tại', value: summary ? `${formatVnd(summary.balance)} ₫` : '…' },
-          { label: 'Đã ứng', value: summary ? `${formatVnd(summary.totalAdvance)} ₫` : '…' },
-          { label: 'Đã trả lại', value: summary ? `${formatVnd(summary.returned ?? '0')} ₫` : '…' },
-          { label: 'Chi phí đã ghi nhận', value: summary ? `${formatVnd(summary.approved)} ₫` : '…' },
+          { label: 'Số dư hiện tại', value: summary ? `${formatMoney(summary.balance)} ₫` : '…' },
+          { label: 'Đã ứng', value: summary ? `${formatMoney(summary.totalAdvance)} ₫` : '…' },
+          { label: 'Đã trả lại', value: summary ? `${formatMoney(summary.returned ?? '0')} ₫` : '…' },
+          { label: 'Chi phí đã ghi nhận', value: summary ? `${formatMoney(summary.approved)} ₫` : '…' },
         ]}
       />
       {/* Honest debt: a negative balance is a fact, not an error state. */}
@@ -103,11 +103,11 @@ export default function OpsWalletPage() {
                 {advanceItems.map((row) => (
                   <tr key={row.id} className={`ops-wallet__row ops-wallet__row--advance${row.status === 'DRAFT' ? ' ops-wallet__row--draft' : ''}`}>
                     <td data-label="Ngày">{formatDate(row.createdAt)}</td>
-                    <td className="ops-money" data-label="Số tiền">{formatVnd(row.amount)} ₫</td>
+                    <td className="ops-money" data-label="Số tiền">{formatMoney(row.amount)} ₫</td>
                     <td className="ops-wallet__wide" data-label="Lý do">{row.reason}</td>
                     <td className="ops-wallet__advance-status" data-label="Trạng thái">
                       <span style={{ color: advanceStatusColor(row), fontWeight: 600, fontSize: 'var(--text-body-size)' }}>
-                        {['RECORDED', 'APPROVED'].includes(row.status) ? Number(row.fundedAmount ?? 0) > 0 ? `Đã nhận ${formatVnd(row.fundedAmount!)} ₫` : 'Chưa giao tiền' : ADVANCE_STATUS_LABELS[row.status] ?? row.status}
+                        {['RECORDED', 'APPROVED'].includes(row.status) ? Number(row.fundedAmount ?? 0) > 0 ? `Đã nhận ${formatMoney(row.fundedAmount!)} ₫` : 'Chưa giao tiền' : ADVANCE_STATUS_LABELS[row.status] ?? row.status}
                       </span>
                       <AdvanceDraftActions request={row} />
                     </td>

@@ -9,7 +9,7 @@ import {
 } from '../../hooks/useOpsQueries';
 import { opsClient } from '../../api/opsClient';
 import { useToast } from '../../components/shared/Toast';
-import { formatVnd } from './opsStatus';
+import { formatMoney } from '../../lib/format';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
@@ -77,7 +77,7 @@ export function OpsSettlementsPanel() {
                 <tr key={item.id} className="ops-wallet__row">
                   <td className="ops-money" data-label="Mã phiếu">{item.code}</td>
                   <td data-label="Ngày lập">{formatDate(item.createdAt)}</td>
-                  <td className="ops-money" data-label="Tổng">{formatVnd(item.totalAmount)} ₫</td>
+                  <td className="ops-money" data-label="Tổng">{formatMoney(item.totalAmount)} ₫</td>
                   <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="ops-row-actions ops-wallet__wide">
                     <button type="button" className="btn-secondary" onClick={() => setDetailId(item.id)}>
@@ -168,23 +168,23 @@ export function OpsSettlementSheet({ grouping, meta }: {
                     <tr key={index}>
                       <td>{item.containerNumber ?? 'Phí chung lô'}</td>
                       <td>{item.expenseTypeName ?? ''}</td>
-                      <td className="ops-money">{formatVnd(item.amount)} ₫</td>
+                      <td className="ops-money">{formatMoney(item.amount)} ₫</td>
                     </tr>
                   ))}
                   <tr className="ops-settlement-sheet__subtotal">
                     <td colSpan={2}>Tổng {basketKey === 'withInvoice' ? 'có hóa đơn' : 'không hóa đơn'}</td>
-                    <td className="ops-money">{formatVnd(basket.total)} ₫</td>
+                    <td className="ops-money">{formatMoney(basket.total)} ₫</td>
                   </tr>
                 </tbody>
               </table>
             );
           })}
-          <p className="ops-settlement-sheet__group-total">Tổng lô: {formatVnd(group.total)}</p>
+          <p className="ops-settlement-sheet__group-total">Tổng lô: {formatMoney(group.total)}</p>
         </section>
       ))}
       <p className="ops-settlement-sheet__grand">
-        TỔNG CỘNG: {formatVnd(grouping.totals.grand)}
-        (Có HĐ: {formatVnd(grouping.totals.withInvoice)} · Không HĐ: {formatVnd(grouping.totals.withoutInvoice)})
+        TỔNG CỘNG: {formatMoney(grouping.totals.grand)}
+        (Có HĐ: {formatMoney(grouping.totals.withInvoice)} · Không HĐ: {formatMoney(grouping.totals.withoutInvoice)})
       </p>
       <div className="ops-settlement-sheet__signatures">
         <span>Người lập (Ops)<small>(Ký, ghi rõ họ tên)</small></span>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Truck, User, Calendar, Package, Hash, CheckCircle } from 'lucide-react';
-import { fmtDate } from '../formatters';
+import { formatDate } from '../../../lib/format';
 import type { TripDetail } from '@tingting/shared';
 import { api } from '../../../lib/api';
 import { qk } from '../../../api/keys';
@@ -58,8 +58,8 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
       mono: true,
     },
     containerRow,
-    { icon: <Calendar size={17} />, label: 'Ngày khởi hành', value: fmtDate(trip.departureDate), mono: true, isDate: true },
-    { icon: <CheckCircle size={17} />, label: 'Ngày hoàn thành', value: trip.completedAt ? fmtDate(trip.completedAt) : '—', mono: true },
+    { icon: <Calendar size={17} />, label: 'Ngày khởi hành', value: formatDate(trip.departureDate), mono: true, isDate: true },
+    { icon: <CheckCircle size={17} />, label: 'Ngày hoàn thành', value: trip.completedAt ? formatDate(trip.completedAt) : '—', mono: true },
     { icon: <Hash size={17} />, label: 'Mã tham chiếu', value: trip.customerReference ?? 'Chưa có', muted: !trip.customerReference, full: true },
   ];
 

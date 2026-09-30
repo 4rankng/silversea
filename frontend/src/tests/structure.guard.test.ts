@@ -544,10 +544,6 @@ describe('frontend structure guard', () => {
       'src/features/dispatch/master-plan/MasterPlanGrid.tsx',
       'src/pages/SettlementPrintPage.tsx',
       'src/pages/ShipmentDetailPage.tsx',
-      // Delegating wrappers (phase 4): body is a lib/formatISODate call, only
-      // the surface-specific empty-state text is local.
-      'src/features/shipments/detail/ShipmentContainerLedger.tsx',
-      'src/pages/portal/PortalDebitNotesPage.tsx',
       // 2026-09-16 unified-datetime patch batch: driver trip model derives
       // display labels from trip legs; the buffered hook normalizes partial
       // date text for the shared surfaces.

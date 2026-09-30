@@ -5,7 +5,8 @@ import { opsClient, type OpsOrderItem } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
-import { formatVnd, localDateInputValue } from './opsStatus';
+import { localDateInputValue } from './opsStatus';
+import { formatMoney } from '../../lib/format';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { NumberField } from '../../design-system/forms/NumberField';
@@ -263,7 +264,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         </div>
 
         <footer className="ops-modal__foot">
-          <div>{`Tổng: ${amountValid ? formatVnd(String(amount)) : '—'} ₫`}</div>
+          <div>{`Tổng: ${amountValid ? formatMoney(String(amount)) : '—'} ₫`}</div>
           <div className="ops-modal__actions">
             <button type="button" className="btn-secondary" onClick={onClose} disabled={busy || uploading}>Đóng</button>
             <button type="submit" className="btn-primary" disabled={!canSubmit}>

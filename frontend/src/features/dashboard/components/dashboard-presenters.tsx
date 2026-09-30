@@ -9,8 +9,6 @@ export const greeting = () => {
   return 'Chào buổi tối';
 };
 
-export const fmtVN = (value: number) => Math.round(value).toLocaleString('vi-VN');
-
 export const runningSum = (values: number[]): number[] => {
   let total = 0;
   return values.map((value) => (total += value));

@@ -11,6 +11,7 @@ import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { UuiSelectField } from '../../design-system';
 import { usePageAnimations } from '../../hooks/animations';
+import { formatCurrency } from '../../lib/format';
 
 interface ForwarderExpenseType {
   id: number;
@@ -26,11 +27,6 @@ interface ForwarderExpenseType {
   defaultMarkup?: boolean;
   billingLabel?: string | null;
   vatRate?: string | null;
-}
-
-function formatVnd(value?: string | null): string {
-  const num = Number(value ?? 0);
-  return Number.isFinite(num) ? `${num.toLocaleString('vi-VN')} đ` : '—';
 }
 
 function PolicyCheckbox({
@@ -357,8 +353,8 @@ export default function ForwarderExpenseTypesConfigPage() {
             header: 'Ngưỡng',
             render: (item) => (
               <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-2)', lineHeight: 1.45 }}>
-                <div>{formatVnd(item.noInvoicePerItemLimit)} / khoản</div>
-                <div>{formatVnd(item.noInvoicePerDayLimit)} / ngày</div>
+                <div>{formatCurrency(item.noInvoicePerItemLimit)} / khoản</div>
+                <div>{formatCurrency(item.noInvoicePerDayLimit)} / ngày</div>
               </div>
             ),
           },

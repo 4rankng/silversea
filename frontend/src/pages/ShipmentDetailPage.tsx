@@ -25,8 +25,8 @@ import { useDebitNoteOverride, useSaveDebitNoteOverride } from '../hooks/usePric
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
 import { ShipmentExpensePanel } from '../features/expense-accounting/ShipmentExpensePanel';
 import { ShipmentFinancePanel } from '../features/shipment-finance/ShipmentFinancePanel';
-import { formatDate, formatDateTimeShort as formatDateTime } from '../lib/format';
-import { formatVnd, allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
+import { formatCurrency, formatDate, formatDateTimeShort as formatDateTime } from '../lib/format';
+import { allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
 import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';
 
@@ -180,8 +180,8 @@ export default function ShipmentDetailPage() {
                 <div><dt>Kiện hàng</dt><dd>{shipment.packageCount != null ? `${shipment.packageCount}${shipment.packageType ? ` ${shipment.packageType}` : ' kiện'}` : '—'}</dd></div>
               </>
             )}
-            <div><dt>Cước dự kiến</dt><dd>{formatVnd(shipment.pricingProjection?.freightPrice)}</dd></div>
-            <div><dt>Phụ phí nhiên liệu dự kiến</dt><dd>{formatVnd(shipment.pricingProjection?.expectedFuelSurcharge)}</dd></div>
+            <div><dt>Cước dự kiến</dt><dd>{formatCurrency(shipment.pricingProjection?.freightPrice)}</dd></div>
+            <div><dt>Phụ phí nhiên liệu dự kiến</dt><dd>{formatCurrency(shipment.pricingProjection?.expectedFuelSurcharge)}</dd></div>
             {accountingLock && (
               <div className="shipment-detail__field--wide">
                 <dt>Khóa lô</dt>
