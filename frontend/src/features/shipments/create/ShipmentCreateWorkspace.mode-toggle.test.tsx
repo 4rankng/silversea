@@ -118,7 +118,7 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
     await waitFor(() => expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument());
-    expect(screen.getByRole('radio', { name: /Hàng nguyên/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Hàng FCL/ })).toBeChecked();
     expect(input).toHaveValue(part === 'time' ? '14' : '20');
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Chuyển và xóa dữ liệu' }));
@@ -131,7 +131,7 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     const weight = screen.getByLabelText('Trọng lượng (kg)');
     fireEvent.change(weight, { target: { value: '1200' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
     await waitFor(() => expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument());
@@ -148,7 +148,7 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Kho lấy hàng' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('combobox', { name: 'Kho lấy hàng' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Kho A' }));
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
   // Segmented datetime fields raise this screen's DOM weight; keep the heavy
   // full-workspace render deterministic above the 5s default.
@@ -161,7 +161,7 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm ngày giao' }));
     const date = document.querySelector<HTMLInputElement>('.csc-extra-dates__row [data-date-input]')!;
     fireEvent.change(date, { target: { value: '20/09' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
   });
 
@@ -170,15 +170,15 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     fireEvent.change(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan'), { target: { value: '14:' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
     await waitFor(() => expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument());
     fireEvent.change(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan'), { target: { value: '14:23' } });
     fireEvent.change(screen.getByLabelText('Ngày — Hạn hoàn tất hải quan'), { target: { value: '20/09/2026' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Hàng nguyên/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Hàng FCL/ })).toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan')).toHaveValue('14');
@@ -199,9 +199,9 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Ghi chú cho khách hàng')).toHaveValue('Call customer before delivery');
     fireEvent.change(screen.getByLabelText('Quy cách đóng gói'), { target: { value: 'Pallet' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Chuyển và xóa dữ liệu' }));
-    await waitFor(() => expect(screen.getByRole('radio', { name: /Hàng nguyên/ })).toBeChecked());
+    await waitFor(() => expect(screen.getByRole('radio', { name: /Hàng FCL/ })).toBeChecked());
     expect(screen.getByLabelText('Ghi chú cho khách hàng')).toHaveValue('Call customer before delivery');
     expect(screen.getByLabelText('Ghi chú cho lái xe')).toHaveValue('Check seal before leaving');
   });
