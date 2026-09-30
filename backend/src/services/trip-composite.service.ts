@@ -10,7 +10,7 @@
 // Invariant: a trips row and its two sidecar rows are created together and
 // never deleted independently (no FKs by project convention — app-level 1:1).
 
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -36,7 +36,9 @@ export const TRIP_CARRIER_FIELD_NAMES: ReadonlySet<string> = new Set([
   'externalDriverPhone',
 ]);
 
-export type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+// Executor comes from ../db (the one Executor seam); re-exported for the
+// trip-composite patch writers below.
+export type { Executor };
 
 /**
  * Route each key of a mixed trips patch to its owning table. Values (including

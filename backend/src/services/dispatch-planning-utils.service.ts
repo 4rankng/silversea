@@ -3,7 +3,7 @@
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { db } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import { ApiError } from '../errors';
 
 
@@ -31,7 +31,10 @@ export const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortNam
 export const PORT_OPERATIONAL_NAME = operationalName(s.ports.shortName, s.ports.name);
 
 
-export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+// Canonical database-handle types live in ../db (the one Executor seam).
+// Re-exported here for the dispatch modules that already import Tx from utils;
+// import from ../db in new code.
+export type { Executor, Tx };
 
 export type LiveTripRow = Pick<
   typeof s.tripsComposite.$inferSelect,

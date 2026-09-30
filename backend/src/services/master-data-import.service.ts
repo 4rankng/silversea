@@ -4,7 +4,7 @@ import ExcelJS from 'exceljs';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
-import { db } from '../db';
+import { db, type Tx } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { reassignTruckDriverInTx } from './truck-driver-assignment.service';
@@ -41,7 +41,12 @@ import {
   type TruckSpecPayload,
 } from './master-data-import-sep2026.service';
 
-export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+// Re-exported so the Sep-2026 two-file merge names the same transaction type
+// from this module — the single authority for the import pipeline — instead of
+// reaching into `../db` a second time.
+export type { Tx };
+
+// Canonical database-handle type lives in ../db (the one Executor seam).
 type Classification = typeof s.masterImportRowClassificationEnum.enumValues[number];
 
 export const MASTER_IMPORT_MAX_BYTES = 15 * 1024 * 1024;
@@ -741,6 +746,11 @@ function summarizeRows(rows: ParsedRow[]): Record<string, number> {
 async function parseWorkbook(buffer: Buffer): Promise<ParsedWorkbook> {
   const workbook = new ExcelJS.Workbook();
   try {
+    // SAFETY: `Buffer` IS the ExcelJS buffer shape at runtime — ExcelJS only
+    // reads it as a byte source — but its published type is the browser `Blob`
+    // union, which a Node `Buffer` does not structurally satisfy. The cast
+    // bridges that declaration gap only; the `try` below still turns a
+    // malformed workbook into the 400 the route expects.
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
   } catch {
     throw new ApiError(400, 'Tệp XLSX không hợp lệ hoặc đã bị hỏng.');

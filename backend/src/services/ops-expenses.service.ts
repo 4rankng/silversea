@@ -4,7 +4,7 @@
  * pure grouping used by settlements + exports.
  */
 import { listLegacyOpsExpenseHistory } from './ops-legacy-expense-history.service';
-import { db } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, exists, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
@@ -14,8 +14,7 @@ import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMu
 import { assertOpsExpenseAssignment } from './expense-owner-scope.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type Executor = typeof db | Tx;
+// Tx / Executor come from ../db (the one Executor seam).
 
 export interface CreateOpsExpenseInput {
   shipmentId: number;

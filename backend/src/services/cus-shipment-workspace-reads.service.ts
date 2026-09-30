@@ -11,7 +11,7 @@ import { Role, ShipmentCusBucket, ShipmentStatus, localDateInBusinessZone, type 
 import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 
 
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
 
@@ -32,7 +32,7 @@ export * from './cus-workspace-mapping.service';
 
 import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess } from './cus-workspace-builders.service';
 
-type Executor = typeof db | Tx;
+// Executor comes from ../db (the one Executor seam).
 export type ShipmentRow = typeof s.shipments.$inferSelect;
 export type ShipmentFulfillmentRow = typeof s.shipmentFulfillments.$inferSelect;
 
