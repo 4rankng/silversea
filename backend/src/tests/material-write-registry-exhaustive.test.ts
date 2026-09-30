@@ -15,6 +15,9 @@ import {
   listDeclaredMaterialWriteEndpoints,
   matchDeclaredMaterialWrite,
 } from '../middleware/material-write';
+// The crud-factory family self-declares its registry rows at import time
+// (card 20260930_230); importing the mount module registers them here.
+import '../routes/config/catalog-crud.routes';
 
 const routesRoot = path.resolve(process.cwd(), 'src/routes');
 const catalogCrudRoutePath = path.join(routesRoot, 'config/catalog-crud.routes.ts');

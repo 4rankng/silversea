@@ -2,7 +2,6 @@ import type { Request, RequestHandler } from 'express';
 import { ApiError } from '../errors';
 import {
   IDEMPOTENCY_ENDPOINTS,
-  buildCrudIdempotencyEndpoint,
   resolveIdempotencyKey,
 } from '../services/idempotency.service';
 
@@ -15,72 +14,9 @@ interface MaterialWriteRule {
   pattern: RegExp;
 }
 
-interface CrudMaterialWriteSpec {
-  basePath: string;
-  resource: string;
-  disableDelete?: boolean;
-}
-
 function escapeRegexPath(path: string): string {
   return path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-
-function createCrudMaterialWriteRules(spec: CrudMaterialWriteSpec): MaterialWriteRule[] {
-  const escapedBasePath = escapeRegexPath(`/api${spec.basePath}`);
-  const rules: MaterialWriteRule[] = [
-    {
-      method: 'POST',
-      endpoint: buildCrudIdempotencyEndpoint(spec.resource, 'create'),
-      pattern: new RegExp(`^${escapedBasePath}$`),
-    },
-    {
-      method: 'PUT',
-      endpoint: buildCrudIdempotencyEndpoint(spec.resource, 'update'),
-      pattern: new RegExp(`^${escapedBasePath}/[^/]+$`),
-    },
-  ];
-  if (!spec.disableDelete) {
-    rules.push({
-      method: 'DELETE',
-      endpoint: buildCrudIdempotencyEndpoint(spec.resource, 'delete'),
-      pattern: new RegExp(`^${escapedBasePath}/[^/]+$`),
-    });
-  }
-  return rules;
-}
-
-const CONFIG_CRUD_MATERIAL_WRITE_SPECS: readonly CrudMaterialWriteSpec[] = [
-  { basePath: '/business-calendar', resource: 'business_calendar_days' },
-  { basePath: '/customers', resource: 'customers' },
-  { basePath: '/trucks', resource: 'trucks' },
-  { basePath: '/trailers', resource: 'trailers' },
-  { basePath: '/routes', resource: 'routes' },
-  { basePath: '/cargo-types', resource: 'cargo_types' },
-  { basePath: '/container-types', resource: 'container_types' },
-  { basePath: '/seal-types', resource: 'seal_types' },
-  { basePath: '/ports', resource: 'ports' },
-  { basePath: '/dispatch-zones', resource: 'dispatch_zones', disableDelete: true },
-  { basePath: '/forwarder-expense-types', resource: 'forwarder_expense_types' },
-  { basePath: '/pricing-tables', resource: 'pricing_tables' },
-  { basePath: '/road-allowances', resource: 'road_allowances' },
-  { basePath: '/fuel-norms', resource: 'fuel_norms' },
-  { basePath: '/weight-pricing-tiers', resource: 'weight_pricing_tiers' },
-  { basePath: '/lift-pricing', resource: 'lift_pricing' },
-  { basePath: '/freight-rate-terms', resource: 'freight_rate_terms' },
-  { basePath: '/fuel-consumption-norms', resource: 'fuel_consumption_norms' },
-  { basePath: '/vehicle-size-classes', resource: 'vehicle_size_classes' },
-  { basePath: '/fuel-price-periods', resource: 'fuel_price_periods' },
-  { basePath: '/ancillary-revenue', resource: 'ancillary_revenue' },
-  { basePath: '/penalty-reasons', resource: 'penalty_reasons' },
-  { basePath: '/management-fees', resource: 'management_fees' },
-  { basePath: '/cap-table', resource: 'cap_table_history' },
-  { basePath: '/truck-cap', resource: 'truck_cap_table' },
-  { basePath: '/suppliers', resource: 'suppliers' },
-  { basePath: '/expense-categories', resource: 'expense_categories' },
-  { basePath: '/tire-positions', resource: 'tire_positions' },
-  { basePath: '/drivers', resource: 'drivers', disableDelete: true },
-  { basePath: '/fleet/tires', resource: 'tires' },
-];
 
 const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'customers.bulk-notify', pattern: /^\/api\/customers\/bulk-notify$/ },
@@ -373,7 +309,6 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'gps.backfill', pattern: /^\/api\/admin\/gps\/backfill$/ },
   { method: 'POST', endpoint: 'gps.recapture', pattern: /^\/api\/admin\/gps\/recapture\/[^/]+$/ },
   { method: 'POST', endpoint: 'ocr.pump', pattern: /^\/api\/ocr\/pump$/ },
-  ...CONFIG_CRUD_MATERIAL_WRITE_SPECS.flatMap(createCrudMaterialWriteRules),
 ];
 
 const DECLARED_MATERIAL_WRITE_ENDPOINTS = new Set(

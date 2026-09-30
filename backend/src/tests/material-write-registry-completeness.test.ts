@@ -20,6 +20,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { listDeclaredMaterialWriteEndpoints } from '../middleware/material-write';
 import { IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
+// The crud-factory family self-declares its registry rows at import time
+// (card 20260930_230); importing the mount module registers them here.
+import '../routes/config/catalog-crud.routes';
 
 /**
  * Endpoints exempt from registry coverage, with the reason. Keep SHORT — an

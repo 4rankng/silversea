@@ -19,7 +19,7 @@ import { parsePagination } from './pagination';
 import { throwValidation } from '../../lib/validation';
 import { ApiError, isPgUniqueViolation } from '../../errors';
 import { getUser } from '../../middleware/auth';
-import { legacyMaterialWriteRegistry } from '../../middleware/material-write';
+import { declareMaterialWrite, declareNonMaterialWrite } from '../../middleware/material-write';
 import {
   buildCrudIdempotencyEndpoint,
   resolveIdempotencyKey,
@@ -90,6 +90,11 @@ export interface CrudRouterOptions<
     shouldGovernUpdate?: (id: number, data: Partial<TData>, req: Request, current: TRow) => boolean;
     shouldGovernDelete?: (id: number, req: Request) => boolean;
   };
+  /** Full request path this router is mounted under (e.g. '/api/customers');
+   *  the three write mounts self-declare their material-write registry rows.
+   *  Express 5 hides mount prefixes from middleware, so the factory cannot
+   *  derive it. */
+  materialWritePath?: string;
 }
 
 function apiErrorFromUniqueConstraint(err: unknown): ApiError | null {
@@ -127,12 +132,24 @@ export function createCrudRouter<
     beforeDelete,
     afterDelete,
     governance,
+    materialWritePath,
   } = options;
   const sub = Router()
-  sub.use(legacyMaterialWriteRegistry()); // migration bridge (card 20260930_230): rows still live in the hand-written registry;
   const hasSoftDelete = 'deletedAt' in table;
   const hasUpdatedAt = 'updatedAt' in table;
   const resource = getTableName(table);
+  // The mount site passes the full request path (express 5 hides mount
+  // prefixes from middleware); the three write mounts self-declare their
+  // registry rows here, at router construction.
+  const createWriteDeclaration = () => materialWritePath
+    ? declareMaterialWrite(buildCrudIdempotencyEndpoint(resource, 'create'), { method: 'POST', path: materialWritePath })
+    : declareNonMaterialWrite('crud-factory mount without materialWritePath — bridge during migration (card 20260930_230)');
+  const updateWriteDeclaration = () => materialWritePath
+    ? declareMaterialWrite(buildCrudIdempotencyEndpoint(resource, 'update'), { method: 'PUT', path: `${materialWritePath}/:id` })
+    : declareNonMaterialWrite('crud-factory mount without materialWritePath — bridge during migration (card 20260930_230)');
+  const deleteWriteDeclaration = () => (materialWritePath && !disableDelete)
+    ? declareMaterialWrite(buildCrudIdempotencyEndpoint(resource, 'delete'), { method: 'DELETE', path: `${materialWritePath}/:id` })
+    : declareNonMaterialWrite(disableDelete ? 'Delete is disabled for this resource (405).' : 'crud-factory mount without materialWritePath — bridge during migration (card 20260930_230)');
   if (!hasUpdatedAt) {
     throw new Error(`Generated configuration resource "${resource}" must expose updatedAt`);
   }
@@ -301,7 +318,7 @@ export function createCrudRouter<
     res.json({ items, total: Number(countRow?.count ?? 0), page, pageSize: limit });
   }));
 
-  sub.post('/', asyncHandler(async (req: Request, res: Response) => {
+  sub.post('/', createWriteDeclaration(), asyncHandler(async (req: Request, res: Response) => {
     const idempotencyKey = requireIdempotencyKey(req);
     const actor = getUser(req);
     const { result } = await runIdempotent({
@@ -359,7 +376,7 @@ export function createCrudRouter<
     res.json(item);
   }));
 
-  sub.put('/:id', asyncHandler(async (req: Request, res: Response) => {
+  sub.put('/:id', updateWriteDeclaration(), asyncHandler(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string);
     const idempotencyKey = requireIdempotencyKey(req);
     const expectedUpdatedAt = requireExpectedUpdatedAt(req);
@@ -419,7 +436,7 @@ export function createCrudRouter<
     res.json(result);
   }));
 
-  sub.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+  sub.delete('/:id', deleteWriteDeclaration(), asyncHandler(async (req: Request, res: Response) => {
     if (disableDelete) return res.status(405).json({ error: 'Không hỗ trợ xóa' });
     const id = parseInt(req.params.id as string);
     if (deleteMode === 'soft' && !hasSoftDelete) return res.status(405).json({ error: 'Không hỗ trợ xóa' });
