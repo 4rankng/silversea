@@ -19,8 +19,23 @@ import { getDashboardWidgets } from '../services/dashboard-widgets.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const now = new Date();
-const m = now.getMonth() + 1;
-const y = now.getFullYear();
+
+// The widget counts a trip by its VIETNAM business completion date
+// (reporting-shared.tripCompletionBusinessDateSql anchors completedAt to
+// Asia/Ho_Chi_Minh) and windows it into the month passed to
+// getDashboardWidgets. Deriving that month from the local clock breaks for
+// seven hours at every month boundary: at Sep 30 21:00 UTC the local month
+// is still September, yet every trip completed "now" already carries the
+// Vietnam business date Oct 1 and falls OUTSIDE September's window —
+// card 20261001_255: exactly how this suite red-flapped in the isolated
+// runner (TZ=UTC) while passing solo at other hours. Anchor the month to
+// the same Vietnam business date the widget counts by (UTC+7, no DST).
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+function vietnamMonthYear(at: Date = now): { m: number; y: number } {
+  const vn = new Date(at.getTime() + VN_OFFSET_MS);
+  return { m: vn.getUTCMonth() + 1, y: vn.getUTCFullYear() };
+}
+const { m, y } = vietnamMonthYear();
 
 const createdTripIds: number[] = [];
 const createdTruckIds: number[] = [];
@@ -58,6 +73,24 @@ async function mkTrip(truckId: number | null, customerId: number, routeId: numbe
   createdTripIds.push(trip.id);
   return trip;
 }
+
+describe('M11.5 — salary-period month derivation (card 20261001_255)', () => {
+  test('the widget month follows the Vietnam business date across the UTC boundary', () => {
+    // Vietnam's day starts at 17:00 UTC. 16:59:30Z on Sep 30 is still
+    // Sep 30 in BOTH zones (23:59:30 Vietnam); thirty seconds later the
+    // Vietnam business date is already Oct 1 — the derivation must follow it,
+    // because that is where the widget's business-date window places a trip
+    // completed "now".
+    assert.deepEqual(vietnamMonthYear(new Date('2026-09-30T16:59:30Z')), { m: 9, y: 2026 });
+    assert.deepEqual(vietnamMonthYear(new Date('2026-09-30T17:00:30Z')), { m: 10, y: 2026 });
+    // The mirror boundary at the next month end: Oct 31 17:00Z is Nov 1 in
+    // Vietnam while UTC still says October.
+    assert.deepEqual(vietnamMonthYear(new Date('2026-10-31T16:59:30Z')), { m: 10, y: 2026 });
+    assert.deepEqual(vietnamMonthYear(new Date('2026-10-31T17:00:30Z')), { m: 11, y: 2026 });
+    // Midnight UTC on the 1st is unambiguous in both zones.
+    assert.deepEqual(vietnamMonthYear(new Date('2026-10-01T00:00:00Z')), { m: 10, y: 2026 });
+  });
+});
 
 describe('M11.5 — dashboard widgets', () => {
   test('twoWayCargoRatio: correct percentage', async () => {
