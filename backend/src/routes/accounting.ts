@@ -44,8 +44,8 @@ const accountingRoutes = Router()
 const OFFICE_ROLES = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 
 accountingRoutes.get('/invoice-tracking', asyncHandler(async (req: Request, res: Response) => {
-  const from = String(req.query.from ?? businessDate());
-  const to = String(req.query.to ?? businessDate());
+  const from = parseRangeDate(req.query.from, businessDate());
+  const to = parseRangeDate(req.query.to, businessDate());
   const { rows, totals } = await listInvoiceTracking(from, to);
   res.json({ rows, totals });
 }));
@@ -54,6 +54,22 @@ function businessDate(): string {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
   return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/** Strict real-calendar YYYY-MM-DD for query range bounds. A plain Date.parse
+ *  passes 2026-09-31 (JS rolls it into October), so the round-trip check is the
+ *  validation: an impossible day answers a business 400 naming the value
+ *  instead of a Postgres date-cast 500. */
+function parseRangeDate(value: unknown, fallback: string): string {
+  if (value === undefined || value === null || value === '') return fallback;
+  const raw = String(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new ApiError(400, `Khoảng ngày không hợp lệ: ${raw}`);
+  const [y, m, d] = raw.split('-').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  if (utc.getUTCFullYear() !== y || utc.getUTCMonth() !== m - 1 || utc.getUTCDate() !== d) {
+    throw new ApiError(400, `Khoảng ngày không hợp lệ: ${raw}`);
+  }
+  return raw;
 }
 
 accountingRoutes.post('/invoice-tracking', declareMaterialWrite('accounting.invoice-tracking.create', { method: 'POST', path: '/api/accounting/invoice-tracking' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {

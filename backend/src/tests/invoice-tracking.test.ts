@@ -158,6 +158,17 @@ describe('invoice tracking (card 20260921_18)', () => {
     assert.deepEqual(ft, { invoice: 12000000, paid: 8000000, difference: 4000000 });
   });
 
+  test('nonexistent calendar date in the range is a 400, never a 500', async () => {
+    // 2026-09-31 does not exist; Postgres date casts throw and the route
+    // must answer a business 400 naming the value, not leak a 500.
+    const bad = await api(accountantToken, 'GET', '/invoice-tracking?from=2026-09-01&to=2026-09-31');
+    assert.equal(bad.status, 400, `expected 400 for to=2026-09-31, got ${bad.status}`);
+    const message = (bad.data as { error?: string }).error ?? '';
+    assert.match(message, /2026-09-31/);
+    const badFrom = await api(accountantToken, 'GET', '/invoice-tracking?from=2026-02-30&to=2026-09-30');
+    assert.equal(badFrom.status, 400, `expected 400 for from=2026-02-30, got ${badFrom.status}`);
+  });
+
   test('expense mirror stays in sync and CUS cannot write but can read', async () => {
     const lot = await mkLot('C');
     const create = await api(accountantToken, 'POST', '/invoice-tracking', {
