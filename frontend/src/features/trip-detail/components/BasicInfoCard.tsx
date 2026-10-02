@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Truck, User, Calendar, Package, Hash, CheckCircle } from 'lucide-react';
 import { formatDate } from '../../../lib/format';
@@ -22,6 +23,7 @@ interface BasicInfoRow {
   isDate?: boolean;
   muted?: boolean;
   full?: boolean;
+  link?: string;
 }
 
 export function BasicInfoCard({ trip }: BasicInfoCardProps) {
@@ -63,6 +65,16 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
     { icon: <Hash size={17} />, label: 'Mã tham chiếu', value: trip.customerReference ?? 'Chưa có', muted: !trip.customerReference, full: true },
   ];
 
+  if (trip.shipmentId) {
+    rows.push({
+      icon: <Package size={17} />,
+      label: 'Lô hàng',
+      value: `Chi tiết lô hàng #${trip.shipmentId} →`,
+      link: `/shipments/${trip.shipmentId}`,
+      full: true,
+    });
+  }
+
   return (
     <div className="card">
       <div className="card-head">
@@ -75,7 +87,17 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
               <span className="ri">{row.icon}</span>
               <div className="info-meta">
                 <div className="lbl">{row.label}</div>
-                <div className={`val ${row.mono ? 'mono' : ''} ${row.muted ? 'muted' : ''}`}>{row.value}</div>
+                {row.link ? (
+                  <Link
+                    to={row.link}
+                    className={`val ${row.mono ? 'mono' : ''} ${row.muted ? 'muted' : ''}`}
+                    style={{ color: 'var(--accent, #059669)', fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    {row.value}
+                  </Link>
+                ) : (
+                  <div className={`val ${row.mono ? 'mono' : ''} ${row.muted ? 'muted' : ''}`}>{row.value}</div>
+                )}
               </div>
             </div>
           ))}

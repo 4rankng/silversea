@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 const { useQueryMock } = vi.hoisted(() => ({
@@ -45,7 +46,11 @@ describe('BasicInfoCard container summary', () => {
       isLoading: false,
     });
 
-    render(<BasicInfoCard trip={baseTrip as unknown as TripDetail} />);
+    render(
+      <MemoryRouter>
+        <BasicInfoCard trip={baseTrip as unknown as TripDetail} />
+      </MemoryRouter>
+    );
 
     expect(screen.getByText('Hình thức hàng')).toBeTruthy();
     expect(screen.getByText('Lô hàng lẻ')).toBeTruthy();
@@ -63,10 +68,31 @@ describe('BasicInfoCard container summary', () => {
       isLoading: false,
     });
 
-    render(<BasicInfoCard trip={{ ...baseTrip, containerCount: 2 } as unknown as TripDetail} />);
+    render(
+      <MemoryRouter>
+        <BasicInfoCard trip={{ ...baseTrip, containerCount: 2 } as unknown as TripDetail} />
+      </MemoryRouter>
+    );
 
     expect(screen.getByText('Số container')).toBeTruthy();
     expect(screen.getByText('2')).toBeTruthy();
     expect(screen.queryByText('Lô hàng lẻ')).toBeNull();
+  });
+
+  it('renders a shipment details link when shipmentId is present', () => {
+    useQueryMock.mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <BasicInfoCard trip={{ ...baseTrip, shipmentId: 42 } as unknown as TripDetail} />
+      </MemoryRouter>
+    );
+
+    const link = screen.getByRole('link', { name: /Chi tiết lô hàng #42/i });
+    expect(link).toBeTruthy();
+    expect(link.getAttribute('href')).toBe('/shipments/42');
   });
 });

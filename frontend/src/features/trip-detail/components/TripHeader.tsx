@@ -1,7 +1,8 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Play, Pencil, Check, XCircle, Shuffle, FilePen,
-  Building2, Loader2, MoreHorizontal,
+  Building2, Loader2, MoreHorizontal, Package,
 } from 'lucide-react';
 import { TRIP_STATUS_LABELS, TripStatus, type TripDetail } from '@tingting/shared';
 import { Tooltip } from '../../../components/shared/Tooltip';
@@ -61,6 +62,15 @@ export function TripHeader({
       </div>
 
       <div className="header-actions" data-tour-id="trip-detail-financials">
+        {trip.shipmentId && (
+          <Link
+            to={`/shipments/${trip.shipmentId}`}
+            className="btn btn--secondary tdp-shipment-link-btn"
+            title="Xem chi tiết lô hàng"
+          >
+            <Package size={15} />Chi tiết lô hàng
+          </Link>
+        )}
         {canEdit && (
           <button className="btn tdp-edit-btn" onClick={onEdit}>
             <Pencil size={15} />Chỉnh sửa
