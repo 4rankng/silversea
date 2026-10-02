@@ -374,6 +374,7 @@ export interface PenaltyReason {
 
 export interface Trip {
   id: number;
+  shipmentId?: number | null;
   customerId: number;
   customerReference: string | null;
   truckId: number;
