@@ -5,6 +5,7 @@ import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
+import { billBookingTitle } from '../lib/business-keys';
 
 /** Sort keys accepted by the list endpoint (mirrors RECOVERABLE_COST_SORT_KEYS
  * in the shared query schema — keep the two lists in sync). */
@@ -132,6 +133,8 @@ function recoverableSortSql(key: RecoverableCostSortKey): SQL {
     case 'customerName': return sql`${s.customers.name}`;
     case 'shipmentCode': return sql`${s.shipments.shipmentCode}`;
     case 'tripCode': return sql`${s.trips.tripCode}`;
+    case 'shipmentReference': return sql`coalesce(nullif(btrim(${s.shipments.blNumber}), ''), nullif(btrim(${s.shipments.bookingRef}), ''))`;
+    case 'tripReference': return sql`coalesce(nullif(btrim(${s.trips.customerReference}), ''), nullif(btrim(${s.shipments.blNumber}), ''), nullif(btrim(${s.shipments.bookingRef}), ''))`;
     case 'expenseName': return expenseNameSortSql();
     case 'buyAmount': return sql`${s.tripExpenses.buyAmount}`;
     case 'recoverablePrincipalAmount': return sql`${s.tripExpenses.recoverablePrincipalAmount}`;
@@ -231,8 +234,10 @@ function toRecoverableCost(row: RecoverableCostRow) {
     version: row.version,
     tripId: row.tripId,
     tripCode: row.tripCode,
+    tripReference: billBookingTitle(row.customerReference, row.billNumber?.trim() || row.bookingRef),
     shipmentId: row.shipmentId,
     shipmentCode: row.shipmentCode,
+    shipmentReference: billBookingTitle(row.billNumber, row.bookingRef),
     customerId: row.customerId,
     customerName: row.customerName,
     expenseType: row.expenseType,
@@ -265,8 +270,11 @@ const recoverableSelection = {
   version: s.tripExpenses.version,
   tripId: s.tripExpenses.tripId,
   tripCode: s.trips.tripCode,
+  customerReference: s.trips.customerReference,
   shipmentId: s.trips.shipmentId,
   shipmentCode: s.shipments.shipmentCode,
+  billNumber: s.shipments.blNumber,
+  bookingRef: s.shipments.bookingRef,
   customerId: s.trips.customerId,
   customerName: s.customers.name,
   expenseType: s.tripExpenses.expenseType,
@@ -294,8 +302,11 @@ type RecoverableCostRow = {
   version: number;
   tripId: number;
   tripCode: string | null;
+  customerReference: string | null;
   shipmentId: number | null;
   shipmentCode: string | null;
+  billNumber: string | null;
+  bookingRef: string | null;
   customerId: number;
   customerName: string;
   expenseType: string;

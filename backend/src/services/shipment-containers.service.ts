@@ -11,7 +11,7 @@ import { db, type Executor, type Tx } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
-import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import {
@@ -35,7 +35,12 @@ import type {
 } from './shipment-types';
 
 export async function listShipmentContainers(shipmentId: number, executor: Executor = db) {
-  return await executor.select().from(s.shipmentContainers)
+  return await executor.select({
+    ...getTableColumns(s.shipmentContainers),
+    containerTypeName: s.containerTypes.name,
+    containerTypeCode: s.containerTypes.code,
+  }).from(s.shipmentContainers)
+    .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
     .where(eq(s.shipmentContainers.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentContainers.createdAt));
 }

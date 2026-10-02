@@ -7,3 +7,8 @@
 export function businessTitleOrDash(code: string | null | undefined): string {
   return code != null && code.trim() !== '' ? code : '—';
 }
+
+/** Bill/Booking is the transport display key; never substitute a database code. */
+export function billBookingTitle(bill: string | null | undefined, booking?: string | null): string {
+  return bill?.trim() || booking?.trim() || 'Chưa có số Bill/Booking';
+}

@@ -38,7 +38,7 @@ async function mkRow(typeId: number, cargoWeightKg: number | null, day: string) 
   const [route] = await db.insert(s.routes).values({ name: `C172 route ${suffix}` }).returning({ id: s.routes.id });
   routeIds.push(route.id);
   const [shipment] = await db.insert(s.shipments)
-    .values({ customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED' })
+    .values({ customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED', expectedDeliveryDate: day })
     .returning({ id: s.shipments.id });
   shipmentIds.push(shipment.id);
   // The number must be unique per call: the board's own search and the unique

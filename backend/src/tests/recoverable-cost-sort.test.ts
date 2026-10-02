@@ -32,14 +32,17 @@ const createdClaimIds: number[] = [];
 const createdBillingDocIds: number[] = [];
 
 async function seedBase() {
-  const [route] = await db.insert(s.routes).values({ name: `${marker} route` }).returning();
+  const scope = `${marker} ${createdRouteIds.length}`;
+  const [route] = await db.insert(s.routes).values({ name: `${scope} route` }).returning();
   createdRouteIds.push(route.id);
   // Two customers so a name sort has two distinct values.
-  for (const name of [`${marker} Zeta`, `${marker} Anpha`]) {
+  const customerIds: number[] = [];
+  for (const name of [`${scope} Zeta`, `${scope} Anpha`]) {
     const [customer] = await db.insert(s.customers).values({ name }).returning({ id: s.customers.id });
     createdCustomerIds.push(customer.id);
+    customerIds.push(customer.id);
   }
-  return { routeId: route.id };
+  return { routeId: route.id, customerIds };
 }
 
 async function seedShipment(customerId: number, shipmentCode: string | null) {
@@ -140,9 +143,46 @@ after(async () => {
 });
 
 describe('listRecoverableCosts column sorting', () => {
-  test('sorts variance numerically, evidence by presence, eligibility by JS-agreeing rank; default order unchanged', async () => {
+  test('QA-AUDIT-UI-37 recoverable list/detail use business references and explicit reference sorts', async () => {
     const { routeId } = await seedBase();
-    const [customerZeta, customerAnpha] = createdCustomerIds;
+    const customerId = createdCustomerIds.at(-1)!;
+    const fixtures = [
+      { bill: ' A-BILL-RECOVERY ', booking: null, reference: null, shipment: 'A-BILL-RECOVERY', trip: 'A-BILL-RECOVERY' },
+      { bill: null, booking: ' B-BOOK-RECOVERY ', reference: ' C-CUSTOMER-REFERENCE ', shipment: 'B-BOOK-RECOVERY', trip: 'C-CUSTOMER-REFERENCE' },
+      { bill: null, booking: null, reference: null, shipment: 'Chưa có số Bill/Booking', trip: 'Chưa có số Bill/Booking' },
+    ];
+    const ownIds: number[] = [];
+    for (const [index, input] of fixtures.entries()) {
+      const shipmentId = await seedShipment(customerId, `SHP-INTERNAL-${index}`);
+      await db.update(s.shipments).set({ blNumber: input.bill, bookingRef: input.booking }).where(eq(s.shipments.id,shipmentId));
+      const tripId = await seedTrip(customerId,routeId,shipmentId,`TRP-INTERNAL-${index}`);
+      await db.update(s.trips).set({customerReference:input.reference}).where(eq(s.trips.id,tripId));
+      const expenseId = await seedExpense(tripId); ownIds.push(expenseId);
+      const detail = await getRecoverableCost(adminActor,expenseId);
+      assert.equal(detail.shipmentReference,input.shipment);
+      assert.equal(detail.tripReference,input.trip);
+      assert.equal(detail.shipmentId,shipmentId);
+      assert.equal(detail.tripId,tripId);
+      assert.equal(detail.shipmentCode,`SHP-INTERNAL-${index}`,'Raw API compatibility retained');
+      assert.equal(detail.tripCode,`TRP-INTERNAL-${index}`,'Raw API compatibility retained');
+      assert.equal(detail.buyAmount,100000);
+    }
+    const base={page:1,limit:100,customerId};
+    for (const sortBy of ['shipmentReference','tripReference'] as const) {
+      const ascending=await listRecoverableCosts(adminActor,{...base,sortBy,sortDir:'asc'});
+      const descending=await listRecoverableCosts(adminActor,{...base,sortBy,sortDir:'desc'});
+      assert.deepEqual(ascending.items.map(item=>item.id),ownIds);
+      assert.deepEqual(descending.items.map(item=>item.id),[ownIds[1],ownIds[0],ownIds[2]]);
+      for (const [index,item] of ascending.items.entries()) {
+        assert.equal(item.shipmentReference,fixtures[index].shipment);
+        assert.equal(item.tripReference,fixtures[index].trip);
+      }
+    }
+    const raw=await listRecoverableCosts(adminActor,{...base,sortBy:'tripCode',sortDir:'desc'});
+    assert.deepEqual(raw.items.map(item=>item.id),[...ownIds].reverse());
+  });
+  test('sorts variance numerically, evidence by presence, eligibility by JS-agreeing rank; default order unchanged', async () => {
+    const { routeId, customerIds: [customerZeta, customerAnpha] } = await seedBase();
 
     const zetaShipment = await seedShipment(customerZeta, `${marker}-L01`);
     const anphaShipment = await seedShipment(customerAnpha, null);
@@ -204,7 +244,7 @@ describe('listRecoverableCosts column sorting', () => {
     // The dev database carries real rows; every assertion scopes to the rows
     // this test seeded (both marker customers).
     const seeded = (items: Awaited<ReturnType<typeof listRecoverableCosts>>['items']) =>
-      items.filter(item => item.customerName.startsWith(marker));
+      items.filter(item => [customerZeta, customerAnpha].includes(item.customerId));
 
     // Absent sort params reproduce the default newest-first order exactly.
     const defaultOrder = await listRecoverableCosts(adminActor, { ...base });
@@ -221,18 +261,18 @@ describe('listRecoverableCosts column sorting', () => {
 
     // Variance sorts numerically (zeta rows only carry distinct variances).
     const varianceAsc = await listRecoverableCosts(adminActor, { ...base, sortBy: 'variance', sortDir: 'asc' });
-    const zetaVariances = varianceAsc.items.filter(item => item.customerName.includes('Zeta')).map(item => item.sellAmount - item.buyAmount);
+    const zetaVariances = seeded(varianceAsc.items).filter(item => item.customerName.includes('Zeta')).map(item => item.sellAmount - item.buyAmount);
     assert.deepEqual(zetaVariances, [90_000, 300_000, 700_000]);
     const varianceDesc = await listRecoverableCosts(adminActor, { ...base, sortBy: 'variance', sortDir: 'desc' });
     assert.deepEqual(
-      varianceDesc.items.filter(item => item.customerName.includes('Zeta')).map(item => item.sellAmount - item.buyAmount),
+      seeded(varianceDesc.items).filter(item => item.customerName.includes('Zeta')).map(item => item.sellAmount - item.buyAmount),
       [700_000, 300_000, 90_000],
     );
 
     // Evidence: none (0) < substitute (1) < invoice (2); claimed rows carry
     // invoices too, so filter to the unclaimed review set.
     const evidenceAsc = await listRecoverableCosts(adminActor, { ...base, sortBy: 'evidence', sortDir: 'asc' });
-    const reviewSet = evidenceAsc.items.filter(item => item.claim == null && item.customerName.includes('Anpha'));
+    const reviewSet = seeded(evidenceAsc.items).filter(item => item.claim == null && item.customerName.includes('Anpha'));
     assert.deepEqual(reviewSet.map(item => item.invoiceNumber), [null, null, 'INV-RC-1']);
 
     // Eligibility asc ranks by the frontend state order; the SQL rank must
@@ -292,5 +332,8 @@ describe('listRecoverableCosts column sorting', () => {
     assert.equal(recoverableCostListQuerySchema.safeParse({ sortBy: 'nonsense' }).success, false);
     assert.equal(recoverableCostListQuerySchema.safeParse({ sortBy: 'variance', sortDir: 'desc' }).success, true);
     assert.equal(recoverableCostListQuerySchema.safeParse({ sortBy: 'variance', sortDir: 'DESC' }).success, false);
+    for (const sortBy of ['shipmentReference', 'tripReference', 'shipmentCode', 'tripCode']) {
+      assert.equal(recoverableCostListQuerySchema.safeParse({ sortBy, sortDir: 'asc' }).success, true);
+    }
   });
 });

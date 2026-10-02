@@ -48,6 +48,7 @@ export async function correctAccountingExpense(tx: Tx, actor: ExpenseActor, kind
   } else {
     const [native] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, id)).for('update');
     const [replacement] = await tx.insert(s.driverIncidentalCosts).values({ tripId: native.tripId, driverId: native.driverId, costType: native.costType,
+      driverEnteredAmount: native.driverEnteredAmount, expenseTypeCode: native.expenseTypeCode, feeNormCode: native.feeNormCode,
       amount: native.amount, occurredAt: native.occurredAt, note: native.note, receiptStorageKey: native.receiptStorageKey, recordedBy: actor.userId }).returning();
     sourceId = replacement.id;
   }

@@ -1812,6 +1812,88 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.equal(byFulfillmentId.get(fulfillmentB!.id)?.taskStatus, 'READY');
   });
 
+  test('external staff completion honors supplied versions and replays the matching close once', async () => {
+    const accepted = await createAcceptedFulfillment();
+    const externalCarrier = await createCustomer(`External carrier version ${suffix}-${createdCustomerIds.length}`);
+    await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, externalCarrier.id));
+    const [carrierVehicle] = await db.insert(s.carrierFleetVehicles).values({
+      carrierId: externalCarrier.id,
+      licensePlate: '51H-67892',
+      normalizedPlate: '51H67892',
+      createdBy: adminUserId,
+    }).returning();
+    await db.update(s.shipmentFulfillments).set({
+      plannedCarrierType: 'EXTERNAL',
+      plannedExternalCarrierId: externalCarrier.id,
+    }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+    const dispatch = await apiFetch<{ trip: { id: number; version: number } }>(
+      `/${accepted.shipmentId}/dispatch`, {
+        method: 'POST', token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-07T08:00:00+07:00',
+          plannedEndAt: '2026-08-07T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'EXTERNAL',
+          externalCarrierId: externalCarrier.id,
+          externalCarrierVehicleId: carrierVehicle.id,
+        },
+      },
+    );
+    assert.equal(dispatch.status, 201, JSON.stringify(dispatch.data));
+    createdTripIds.push(dispatch.data.trip.id);
+    const tripId = dispatch.data.trip.id;
+    const dateChange = await fetch(`${baseUrl}/api/trips/${tripId}/departure-date`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json', Authorization: `Bearer ${managerToken}`,
+        'Idempotency-Key': `external-version-date-change-${suffix}`,
+      },
+      body: JSON.stringify({ departureDate: '2026-08-08', expectedVersion: dispatch.data.trip.version }),
+    });
+    assert.equal(dateChange.status, 200, JSON.stringify(await dateChange.json()));
+    const [before] = await db.select().from(s.trips).where(eq(s.trips.id, tripId));
+    assert.equal(before.version, dispatch.data.trip.version + 1);
+    const postingsBefore = await db.select().from(s.tripFinancialPostings)
+      .where(eq(s.tripFinancialPostings.tripId, tripId));
+    const close = async (expectedVersion: number, key: string) => {
+      const response = await fetch(`${baseUrl}/api/trips/${tripId}/complete-external`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json', Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': key,
+        },
+        body: JSON.stringify({ expectedVersion }),
+      });
+      return { status: response.status, data: await response.json() as Record<string, unknown> };
+    };
+    const staleKey = `external-version-stale-${suffix}`;
+    const stale = await close(dispatch.data.trip.version, staleKey);
+    assert.equal(stale.status, 409, JSON.stringify(stale.data));
+    assert.deepEqual((await db.select().from(s.trips).where(eq(s.trips.id, tripId)))[0], before);
+    assert.deepEqual(await db.select().from(s.tripFinancialPostings)
+      .where(eq(s.tripFinancialPostings.tripId, tripId)), postingsBefore);
+    assert.equal((await db.select().from(s.idempotencyKeys)
+      .where(eq(s.idempotencyKeys.idempotencyKey, staleKey))).length, 0);
+
+    const matchingKey = `external-version-matching-${suffix}`;
+    const completed = await close(before.version, matchingKey);
+    assert.equal(completed.status, 200, JSON.stringify(completed.data));
+    assert.equal(completed.data.status, 'COMPLETED');
+    const [completedShipment] = await db.select({ status: s.shipments.status })
+      .from(s.shipments).where(eq(s.shipments.id, accepted.shipmentId));
+    assert.equal(completedShipment.status, 'COMPLETED');
+    const postingsAfter = await db.select().from(s.tripFinancialPostings)
+      .where(eq(s.tripFinancialPostings.tripId, tripId));
+    const replay = await close(before.version, matchingKey);
+    assert.equal(replay.status, 200, JSON.stringify(replay.data));
+    assert.equal(replay.data.replayed, true);
+    assert.equal(replay.data.version, completed.data.version);
+    assert.deepEqual(await db.select().from(s.tripFinancialPostings)
+      .where(eq(s.tripFinancialPostings.tripId, tripId)), postingsAfter);
+  });
+
   test('staff close: dispatch issues an external order without driver name and completes the trip', async () => {
     const accepted = await createAcceptedFulfillment();
     const externalCarrier = await createCustomer(`External carrier close ${suffix}-${createdCustomerIds.length}`);
@@ -1875,8 +1957,9 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.ok(closeData.completedAt);
 
     // The closed trip now reads as completed on the detail plan.
-    const [shipmentRow] = await db.select({ code: s.shipments.shipmentCode })
+    const [shipmentRow] = await db.select({ code: s.shipments.shipmentCode, status: s.shipments.status })
       .from(s.shipments).where(eq(s.shipments.id, accepted.shipmentId)).limit(1);
+    assert.equal(shipmentRow.status, 'COMPLETED');
     const detail = await apiFetch<{ items: Array<{ fulfillmentId: number; taskStatus: string }> }>(
       `/dispatch-detail-plan-rows?limit=10&q=${encodeURIComponent(shipmentRow.code ?? '')}`,
       { token: managerToken },

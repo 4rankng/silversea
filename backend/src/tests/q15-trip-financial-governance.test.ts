@@ -237,6 +237,7 @@ before(async () => {
     { username: `q15-trip-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT, status: 'ACTIVE' },
     { username: `q15-trip-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE' },
     { username: `q15-trip-viewer-${suffix}`, passwordHash: 'x', role: Role.DRIVER, status: 'ACTIVE' },
+    { username: `q15-trip-dispatcher-${suffix}`, passwordHash: 'x', role: Role.DISPATCHER, status: 'ACTIVE' },
   ]).returning({ id: s.users.id, role: s.users.role });
   userIds.push(...actors.map((actor) => actor.id));
 
@@ -344,6 +345,75 @@ after(async () => {
 });
 
 describe('Q15 trip financial governance', () => {
+  it('rejects ordinary dispatch of a completed trip without changing its accounting state', async () => {
+    const trip = await createTripFixture(TripStatus.IN_TRANSIT);
+    const close = await api('POST', `/api/trips/${trip.id}/complete`, {
+      expectedVersion: trip.version,
+      reason: 'Hoàn thành chuyến trước khi kiểm tra ranh giới mở lại',
+    }, 2, `q15-dispatch-completed-close-${suffix}`);
+    assert.equal(close.status, 200, JSON.stringify(close.body));
+    const [completed] = await db.select().from(s.trips)
+      .where(eq(s.trips.id, trip.id));
+    const postings = await db.select().from(s.tripFinancialPostings)
+      .where(eq(s.tripFinancialPostings.tripId, trip.id));
+    const ledger = await ledgerRows(trip.id);
+    assert.ok(completed.completedAt);
+    assert.ok(postings.some((posting) => posting.status === 'ACTIVE'));
+
+    for (const actorIndex of [0, 2, 4]) {
+      const dispatchKey = `q15-dispatch-completed-${actorIndex}-${suffix}`;
+      const result = await api('POST', `/api/trips/${trip.id}/dispatch`, {
+        expectedVersion: completed.version,
+      }, actorIndex, dispatchKey);
+      assert.equal(result.status, 409, JSON.stringify(result.body));
+      const [unchanged] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+      assert.deepEqual(unchanged, completed);
+      assert.deepEqual(await db.select().from(s.tripFinancialPostings)
+        .where(eq(s.tripFinancialPostings.tripId, trip.id)), postings);
+      assert.deepEqual(await ledgerRows(trip.id), ledger);
+      assert.equal((await db.select().from(s.idempotencyKeys)
+        .where(eq(s.idempotencyKeys.idempotencyKey, dispatchKey))).length, 0);
+    }
+  });
+
+  it('validates actor and payload identity when replaying completed-trip cancellation', async () => {
+    const trip = await createTripFixture(TripStatus.IN_TRANSIT);
+    const close = await api('POST', `/api/trips/${trip.id}/complete`, {
+      expectedVersion: trip.version,
+      reason: 'Hoàn thành trước khi hủy và kiểm tra thử lại',
+    }, 2, `q15-cancel-replay-close-${suffix}`);
+    assert.equal(close.status, 200, JSON.stringify(close.body));
+    const [completed] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+    const cancelBody = { expectedVersion: completed.version, reason: 'Hủy chuyến và hoàn nhập' };
+    const cancelKey = `q15-cancel-replay-identity-${suffix}`;
+    const canceled = await api('POST', `/api/trips/${trip.id}/cancel`, cancelBody, 2, cancelKey);
+    assert.equal(canceled.status, 200, JSON.stringify(canceled.body));
+    const replay = await api('POST', `/api/trips/${trip.id}/cancel`, cancelBody, 2, cancelKey);
+    assert.equal(replay.status, 200, JSON.stringify(replay.body));
+    assert.equal(replay.body.replayed, true);
+    assert.equal(replay.body.id, canceled.body.id);
+    const ledger = await ledgerRows(trip.id);
+    const [canceledTrip] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+    const otherTrip = await createTripFixture(TripStatus.CREATED);
+
+    for (const attempt of [
+      { tripId: trip.id, actorIndex: 0, body: cancelBody },
+      { tripId: trip.id, actorIndex: 2, body: { ...cancelBody, reason: 'Lý do khác' } },
+      { tripId: trip.id, actorIndex: 2, body: { ...cancelBody, expectedVersion: completed.version + 1 } },
+      { tripId: otherTrip.id, actorIndex: 2, body: cancelBody },
+    ]) {
+      const result = await api('POST', `/api/trips/${attempt.tripId}/cancel`, attempt.body,
+        attempt.actorIndex, cancelKey);
+      assert.equal(result.status, 409, JSON.stringify(result.body));
+    }
+    assert.deepEqual(await ledgerRows(trip.id), ledger);
+    assert.deepEqual((await db.select().from(s.trips).where(eq(s.trips.id, trip.id)))[0], canceledTrip);
+    const [unchangedOther] = await db.select().from(s.trips).where(eq(s.trips.id, otherTrip.id));
+    assert.equal(unchangedOther.status, TripStatus.CREATED);
+    assert.equal(unchangedOther.version, otherTrip.version);
+    assert.equal((await ledgerRows(otherTrip.id)).length, 0);
+  });
+
   it('retires office expense approval routes without mutating recorded or incomplete evidence', async () => {
     const trip = await createTripFixture(TripStatus.IN_TRANSIT);
     for (const completeEvidence of [true, false]) {

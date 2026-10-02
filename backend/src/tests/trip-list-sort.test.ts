@@ -1,11 +1,11 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
-import { getTrips } from '../services/trip-queries.service';
+import { getTrips, getTripById, getTripsSummary } from '../services/trip-queries.service';
 
 // Server-side sort coverage for GET /api/trips (TRIP_LIST_SORT_SQL). All rows
 // are scoped to one unique customer so shared-database neighbours can never
@@ -42,19 +42,34 @@ async function mkTrip(input: {
   customerId: number;
   departureDate: string;
   revenue?: string | null;
+  status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
+  fuelLiters?: string | null;
   routeName?: string;
+  tripCode?: string;
+  customerReference?: string | null;
+  carrierType?: 'OWN' | 'EXTERNAL';
+  externalFreightCost?: string | null;
+  vatRate?: string;
+  customerCommission?: string;
+  reconciledExtraCost?: string;
 }) {
   const route = await mkRoute(input.routeName ?? `Sort route ${suffix}-${createdRouteIds.length}`);
   const cargoType = await mkCargoType();
   const row = await insertTripComposite(db, {
-    tripCode: `SORT-${suffix}-${createdTripIds.length}`.slice(0, 50),
+    tripCode: input.tripCode ?? `SORT-${suffix}-${createdTripIds.length}`.slice(0, 50),
+    customerReference: input.customerReference ?? null,
     customerId: input.customerId,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    status: 'COMPLETED',
+    status: input.status ?? 'COMPLETED',
+    fuelLiters: input.fuelLiters,
     departureDate: input.departureDate,
     completedAt: null,
-    carrierType: 'OWN',
+    carrierType: input.carrierType ?? 'OWN',
+    externalFreightCost: input.externalFreightCost,
+    vatRate: input.vatRate,
+    customerCommission: input.customerCommission,
+    reconciledExtraCost: input.reconciledExtraCost,
     revenue: input.revenue ?? null,
     grossProfit: '250000',
   });
@@ -67,6 +82,68 @@ function listedIds(result: Awaited<ReturnType<typeof getTrips>>): number[] {
 }
 
 describe('trips list server-side sort', () => {
+  test('missing-fuel summary matches OWN running/completed row applicability (QA-AUDIT-FIN-01)', async () => {
+    const customer = await mkCustomer();
+    const departureDate = '2097-04-21';
+    const baseline = await getTripsSummary(departureDate, departureDate);
+    const common = { customerId: customer.id, departureDate };
+    await mkTrip({ ...common, status: 'IN_TRANSIT', fuelLiters: null });
+    await mkTrip({ ...common, status: 'COMPLETED', fuelLiters: '0' });
+    await mkTrip({ ...common, status: 'COMPLETED', fuelLiters: '5' });
+    await mkTrip({ ...common, status: 'CREATED', fuelLiters: null });
+    await mkTrip({ ...common, status: 'CANCELED', fuelLiters: null });
+    await mkTrip({ ...common, carrierType: 'EXTERNAL', status: 'IN_TRANSIT', fuelLiters: null });
+    await mkTrip({ ...common, carrierType: 'EXTERNAL', status: 'COMPLETED', fuelLiters: null });
+    const summary = await getTripsSummary(departureDate, departureDate);
+    assert.equal(summary.missingFuel - baseline.missingFuel, 2);
+    assert.equal(summary.statusCounts.all - baseline.statusCounts.all, 7);
+    assert.equal(summary.statusCounts.CREATED - baseline.statusCounts.CREATED, 1);
+    assert.equal(summary.statusCounts.CANCELED - baseline.statusCounts.CANCELED, 1);
+    assert.equal(summary.statusCounts.IN_TRANSIT - baseline.statusCounts.IN_TRANSIT, 2);
+    assert.equal(summary.statusCounts.COMPLETED - baseline.statusCounts.COMPLETED, 3);
+    assert.equal(summary.totalFuel - baseline.totalFuel, 5);
+  });
+
+  test('external profit sort preserves inclusive hire cost, commission, extras and blank hire (QA-AUDIT-FIN-01)', async () => {
+    const customer = await mkCustomer();
+    const common = { customerId: customer.id, departureDate: '2026-10-01', carrierType: 'EXTERNAL' as const, revenue: '10800000', vatRate: '0.08' };
+    const commission = await mkTrip({ ...common, externalFreightCost: '5400000', customerCommission: '600000' });
+    const noCommission = await mkTrip({ ...common, externalFreightCost: '5832000' });
+    const extras = await mkTrip({ ...common, externalFreightCost: '5400000', reconciledExtraCost: '1000000' });
+    const blankHire = await mkTrip({ ...common, externalFreightCost: null });
+    await db.update(s.tripFinancialState).set({ reconciledExtraCost: null }).where(eq(s.tripFinancialState.tripId, blankHire));
+    await db.update(s.tripFinancialState).set({ reconciledTollCost: '42000', tollDeduction: '55000' }).where(eq(s.tripFinancialState.tripId, extras));
+    const asc = await getTrips({ customerId: customer.id, sortBy: 'grossProfit', sortDir: 'asc' });
+    assert.deepEqual(listedIds(asc), [extras, commission, noCommission, blankHire]);
+    const desc = await getTrips({ customerId: customer.id, sortBy: 'grossProfit', sortDir: 'desc' });
+    assert.deepEqual(listedIds(desc), [blankHire, noCommission, commission, extras]);
+    const listedExtra = asc.items.find(row => 'id' in row && row.id === extras);
+    assert.ok(listedExtra);
+    assert.equal('reconciledExtraCost' in listedExtra ? listedExtra.reconciledExtraCost : undefined, '1000000');
+    const detail = await getTripById(extras);
+    assert.equal('reconciledExtraCost' in detail ? detail.reconciledExtraCost : undefined, '1000000');
+    assert.equal('tollDeduction' in detail ? detail.tollDeduction : undefined, '55000');
+    assert.equal('reconciledTollCost' in detail ? detail.reconciledTollCost : undefined, '42000');
+    const blank = await getTripById(blankHire);
+    assert.equal('reconciledExtraCost' in blank ? blank.reconciledExtraCost : undefined, null);
+    assert.equal('reconciledTollCost' in blank ? blank.reconciledTollCost : undefined, null);
+  });
+  test('business-reference sorting uses displayed references with missing values last while tripCode retains its API meaning', async () => {
+    const customer = await mkCustomer();
+    const laterReference = await mkTrip({ customerId: customer.id, departureDate: '2026-10-01', tripCode: `A-${suffix}`, customerReference: ' QA-WF04-114144 ' });
+    const earlierReference = await mkTrip({ customerId: customer.id, departureDate: '2026-10-01', tripCode: `Z-${suffix}`, customerReference: 'BOOK-001' });
+    const tiedReference = await mkTrip({ customerId: customer.id, departureDate: '2026-10-01', tripCode: `Y-${suffix}`, customerReference: 'BOOK-001' });
+    const blank = await mkTrip({ customerId: customer.id, departureDate: '2026-10-01', tripCode: `M-${suffix}`, customerReference: '  ' });
+    const missing = await mkTrip({ customerId: customer.id, departureDate: '2026-10-01', tripCode: `N-${suffix}`, customerReference: null });
+
+    const asc = await getTrips({ customerId: customer.id, sortBy: 'customerReference', sortDir: 'asc' });
+    assert.deepEqual(listedIds(asc), [tiedReference, earlierReference, laterReference, missing, blank]);
+    const desc = await getTrips({ customerId: customer.id, sortBy: 'customerReference', sortDir: 'desc' });
+    assert.deepEqual(listedIds(desc), [laterReference, tiedReference, earlierReference, missing, blank]);
+    const legacy = await getTrips({ customerId: customer.id, sortBy: 'tripCode', sortDir: 'asc' });
+    assert.deepEqual(listedIds(legacy), [laterReference, blank, missing, tiedReference, earlierReference]);
+  });
+
   test('absent sort params keep the default departureDate-desc, id-desc order', async () => {
     const customer = await mkCustomer();
     const oldest = await mkTrip({ customerId: customer.id, departureDate: '2026-08-01', revenue: '100' });

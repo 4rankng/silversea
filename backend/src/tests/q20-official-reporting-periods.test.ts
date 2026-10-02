@@ -1,6 +1,6 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { count, inArray, isNull } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -297,6 +297,14 @@ describe('Q20 official reporting period attribution', () => {
     const currentMonthPnl = await getPnlReport(currentMonth, currentYear);
     const dashboardAfter = await getDashboardStats();
     assert.equal(dashboardAfter.executive, undefined, 'base dashboard consumers must not load executive-only aggregates');
+    const [liveFleet] = await db.select({ total: count() }).from(s.trucks).where(isNull(s.trucks.deletedAt));
+    assert.ok(liveFleet.total > 0, 'the real reporting truck fixture makes fleet-count decoding observable');
+    assert.equal(typeof dashboardAfter.totalTrucks, 'number', 'PostgreSQL grouped counts must be decoded before addition');
+    assert.equal(dashboardAfter.totalTrucks, liveFleet.total, 'dashboard total must equal the independently decoded live truck count');
+    assert.ok(Object.values(dashboardAfter.fleetStatus).every(value => typeof value === 'number'));
+    assert.equal(dashboardAfter.totalTrucks, Object.values(dashboardAfter.fleetStatus).reduce((sum, value) => sum + Number(value), 0));
+    assert.equal(typeof dashboardAfter.totalDrivers, 'number');
+    assert.equal(typeof dashboardAfter.inTransitTrips, 'number');
     const previousQuarterPreview = await previewDistribution(previousQuarter, previousQuarterYear);
     const currentQuarterPreview = await previewDistribution(currentQuarter, currentYear);
     const previousFuelVariance = await getFuelVarianceReport(previousMonth, previousYear);

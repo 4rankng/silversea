@@ -55,6 +55,8 @@ async function createLockedTrip(input: {
     cargoTypeId,
     cargoMode: 'FCL',
     factoryName: `Nhà máy ${input.suffix}`,
+    tradeDirection: 'IMPORT',
+    blNumber: `ATR-BILL-${input.suffix}`,
     status: 'DISPATCHED',
   }).returning();
   shipmentIds.push(shipment.id);

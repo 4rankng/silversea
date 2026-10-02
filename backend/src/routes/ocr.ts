@@ -44,8 +44,7 @@ import {
   listFuelEvidenceReviewsForOffice,
 } from '../services/fuel-evidence-review.service';
 
-// auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
-// inherit casbinAuthz('ocr') from that single mount — no per-route policy.
+// Auth + Casbin ('ocr') apply to every route at the mount point in index.ts.
 const router = Router()
 
 // Historical OCR decisions are retired and must not consume recognition quota.
@@ -53,15 +52,16 @@ router.post('/fuel-evidence-reviews/:id/decision', declareNonMaterialWrite('Reti
   res.status(410).json({ error: 'Luồng phê duyệt OCR đã được gỡ bỏ. Ảnh và số liệu OCR chỉ dùng để tham khảo.' });
 });
 
-// OCR rate limit: 2 requests/second globally to protect upstream API quotas.
-router.use(asyncHandler(async (_req: Request, res: Response, next) => {
+// Only recognition spends upstream quota. Historical reads and photo-only
+// persistence retain their own authorization and validation without this limit.
+const enforceRecognitionRateLimit = asyncHandler(async (_req: Request, res: Response, next) => {
   const allowed = await checkOcrRateLimit();
   if (!allowed) {
     res.status(429).json({ error: 'OCR đang quá tải. Vui lòng thử lại sau.' });
     return;
   }
   next();
-}));
+});
 const OCR_PUMP_ENDPOINT = 'ocr.pump';
 let extractPumpReadingHandler = extractPumpReading;
 
@@ -278,11 +278,10 @@ export async function persistOcrPhoto({
  * Numbers are NEVER auto-committed here (spec Decision 1) — the caller must save
  * them through the existing container flow after visual confirmation.
  */
-router.post('/', declareMaterialWrite('ocr.capture', { method: 'POST', path: '/api/ocr/' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', enforceRecognitionRateLimit, declareMaterialWrite('ocr.capture', { method: 'POST', path: '/api/ocr/' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
-  const type = req.body.type as 'CONTAINER' | 'SEAL';
-
   if (!file) throw new ApiError(400, 'Không có file tải lên');
+  const type = req.body.type as 'CONTAINER' | 'SEAL';
   if (type !== 'CONTAINER' && type !== 'SEAL') {
     throw new ApiError(400, 'Loại ảnh không hợp lệ (CONTAINER hoặc SEAL)');
   }
@@ -404,7 +403,7 @@ router.post('/', declareMaterialWrite('ocr.capture', { method: 'POST', path: '/a
  * or edit before committing. When litres × unitPrice deviates from total beyond
  * 5%, `mismatch: true` warns the caller to fall back to manual entry.
  */
-router.post('/pump', declareMaterialWrite('ocr.pump', { method: 'POST', path: '/api/ocr/pump' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/pump', enforceRecognitionRateLimit, declareMaterialWrite('ocr.pump', { method: 'POST', path: '/api/ocr/pump' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
   if (!file) throw new ApiError(400, 'Không có file tải lên');
 
@@ -491,9 +490,8 @@ router.get('/fuel-evidence-reviews', requireRoles(Role.ACCOUNTANT), asyncHandler
  */
 router.post('/persist-only', declareMaterialWrite('ocr.persist-only', { method: 'POST', path: '/api/ocr/persist-only' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
-  const type = req.body.type as 'CONTAINER' | 'SEAL';
-
   if (!file) throw new ApiError(400, 'Không có file tải lên');
+  const type = req.body.type as 'CONTAINER' | 'SEAL';
 
   const user = getUser(req);
   const tripId = parseIdParam(req.body.trip_id, 'trip_id');

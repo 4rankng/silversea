@@ -12,6 +12,7 @@ import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
 import { ApiError } from '../errors';
 import logger from '../lib/logger';
+import { billBookingTitle } from '../lib/business-keys';
 import { hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 
 type Actor = Pick<AuthUser, 'userId' | 'role'>;
@@ -184,7 +185,7 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
   return uniqueExpenseSources([...canonical, ...fallbacks]).filter(row => !hiddenKeys.has(key(row)) && !(row.sourceKind === 'TRIP' && hiddenTrips.has(row.sourceId)));
 }
 
-export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseListQuery, executor: Executor, asOfDate = vietnamToday(), includeVoided = false, ref?: { sourceKind: ExpenseSourceKind; sourceId: number }): Promise<ExpenseAccountingEntry[]> {
+export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseListQuery, executor: Executor, asOfDate = vietnamToday(), includeVoided = false, ref?: { sourceKind: ExpenseSourceKind; sourceId: number }): Promise<Array<ExpenseAccountingEntry & { billRef: string | null }>> {
   requireRead(actor); expenseDateSchema.parse(asOfDate);
   const sources = (await loadSources(executor, actor, query, includeVoided, ref)).filter(row => isFinance(actor) || actor.role === Role.CUS
     || row.payerUserId === actor.userId || row.recordedById === actor.userId);
@@ -196,7 +197,7 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
   const reversalMovement = alias(s.treasuryMovements, 'expense_reversal');
   const [shipments, trips, users, customers, containers, assignments, locks, allocations, photos, attachments] = await Promise.all([
     executor.select().from(s.shipments).where(inArray(s.shipments.id, shipmentIds)),
-    tripIds.length ? executor.select({ trip: { id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, driverId: s.tripsComposite.driverId,
+    tripIds.length ? executor.select({ trip: { id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, customerReference: s.tripsComposite.customerReference, driverId: s.tripsComposite.driverId,
         carrierType: s.tripsComposite.carrierType, externalEntityId: s.tripsComposite.externalEntityId, externalEntityType: s.tripsComposite.externalEntityType,
         externalPlateNumber: s.tripsComposite.externalPlateNumber, externalDriverName: s.tripsComposite.externalDriverName,
         costSubmissionNote: s.tripsComposite.costSubmissionNote }, driverName: s.drivers.name, driverUserId: s.drivers.userId, routeName: s.routes.name }).from(s.tripsComposite)
@@ -239,13 +240,15 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
     const canViewPayments = actor.role !== Role.CUS;
     const carrier = trip?.trip.carrierType === 'OWN' ? { name: 'SilverSea', code: 'SILVERSEA_INTERNAL' }
       : trip?.trip.externalEntityId ? {
-        name: (trip.trip.externalEntityType === 'SUPPLIER' ? carrierSuppliers : carrierCustomers).find(c => c.id === trip.trip.externalEntityId)?.name ?? `Nhà xe #${trip.trip.externalEntityId}`,
+        name: (trip.trip.externalEntityType === 'SUPPLIER' ? carrierSuppliers : carrierCustomers).find(c => c.id === trip.trip.externalEntityId)?.name?.trim() || 'Chưa có tên nhà xe',
         code: `${trip.trip.externalEntityType}:${trip.trip.externalEntityId}`,
       } : null;
     return { ...row, id: row.id, version: row.version, amount: Number(row.amount), customerChargeAmount: row.customerChargeAmount == null ? null : Number(row.customerChargeAmount),
-      shipmentCode: shipment?.shipmentCode ?? `#${row.shipmentId}`, tripCode: trip?.trip.tripCode ?? null,
+      billRef: (shipment?.tradeDirection === 'IMPORT' ? shipment.blNumber : shipment?.bookingRef)?.trim() || null,
+      shipmentCode: billBookingTitle(shipment?.blNumber, shipment?.bookingRef),
+      tripCode: trip ? billBookingTitle(trip.trip.customerReference, shipment?.blNumber?.trim() || shipment?.bookingRef) : null,
       truckPlate: trucks.find(truck => truck.id === row.truckId)?.plate ?? trip?.trip.externalPlateNumber ?? null,
-      customerName: customers.find(customer => customer.id === row.customerId)?.name ?? shipment?.rawCustomerName ?? `#${row.customerId}`,
+      customerName: customers.find(customer => customer.id === row.customerId)?.name?.trim() || shipment?.rawCustomerName?.trim() || 'Chưa có tên khách hàng',
       containerNumber: containers.find(container => container.id === row.shipmentContainerId)?.containerNumber ?? null,
       payerName: payer?.name ?? payer?.username ?? null, confirmedByName: confirmer?.name?.trim() || confirmer?.username || null,
       confirmedAt: iso(row.confirmedAt), photoStorageKeys: [...new Set([...storedPhotos, ...attachments.filter(e => e.expenseAccountingSourceId === row.id).map(e => e.storageKey)])],
@@ -384,7 +387,7 @@ export function expenseAccountingReportRows(entries: readonly ExpenseAccountingE
     const entityId = direction === 'IN' ? row.customerId : carrierReport ? Number(row.carrierCode!.split(':')[1] ?? 0) : row.payableEntityId!;
     const carrierCode = carrierReport ? row.carrierCode : null;
     const groupKey = `${entityType}:${entityId}:${carrierCode ?? ''}`;
-    const group = groups.get(groupKey) ?? { entityType, entityId, entityName: direction === 'IN' ? row.customerName : carrierReport ? row.carrierName! : row.payerName ?? `${entityType} #${entityId}`,
+    const group = groups.get(groupKey) ?? { entityType, entityId, entityName: direction === 'IN' ? row.customerName : carrierReport ? row.carrierName! : row.payerName?.trim() || 'Chưa có tên bên nhận',
       carrierCode, lift: 0, drop: 0, other: 0, total: 0, settled: 0, outstanding: 0, entries: [] };
     const category = row.costGroup === 'INVOICED_LIFT' ? 'lift' : row.costGroup === 'INVOICED_DROP' ? 'drop' : 'other';
     group.entries.push(row);

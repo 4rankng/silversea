@@ -315,7 +315,9 @@ export async function loadShipmentCloseAuthorityContext(tx: Tx, shipmentId: numb
 export async function listRequiredShipmentAuthorityTrips(
   tx: Tx,
   requiredFulfillmentIds: number[],
-): Promise<ShipmentAuthorityTripRow[]> {
+): Promise<Array<ShipmentAuthorityTripRow & Pick<typeof s.trips.$inferSelect, 'driverId'> & {
+  carrierType: (typeof s.tripCarrierInfo.$inferSelect)['carrierType'] | null;
+}>> {
   if (requiredFulfillmentIds.length === 0) {
     return [];
   }
@@ -342,9 +344,12 @@ export async function listRequiredShipmentAuthorityTrips(
     revenueOriginal: s.tripFinancialState.revenueOriginal,
     revenueEmptyReturn: s.tripFinancialState.revenueEmptyReturn,
     podRecoveredAt: s.trips.podRecoveredAt,
+    driverId: s.trips.driverId,
+    carrierType: s.tripCarrierInfo.carrierType,
   })
     .from(s.trips)
     .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .where(and(
       inArray(s.trips.fulfillmentId, requiredFulfillmentIds),
       sql`${s.trips.status} <> 'CANCELED'`,

@@ -7,6 +7,7 @@ import { ApiError } from '../errors';
 import { computeLiveSalary } from './salary-calculation.service';
 import { restoreSalarySnapshot, attendanceFingerprint } from './salary-confirmed-snapshot';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import { billBookingTitle } from '../lib/business-keys';
 
 
 /** Convert a Date to a YYYY-MM-DD string in the Asia/Ho_Chi_Minh business timezone. */
@@ -59,18 +60,21 @@ export function computeStandardWorkDays(year: number, month: number): number {
 /**
  * Get work days for a driver in a given date range.
  */
-/** Trip labels (code + route name) for TRIP_DAY work-day enrichment. */
+/** Business reference + route for TRIP_DAY enrichment; retain the legacy alias. */
 export async function getTripLabelsForWorkDays(tripIds: number[]): Promise<
   Array<{ id: number; tripCode: string | null; routeName: string | null }>
 > {
   if (tripIds.length === 0) return [];
-  return db.select({
+  const rows = await db.select({
     id: s.trips.id,
-    tripCode: s.trips.tripCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
     routeName: s.routes.name,
   }).from(s.trips)
+    .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .where(inArray(s.trips.id, tripIds));
+  return rows.map(row => ({ id: row.id, tripCode: billBookingTitle(row.blNumber, row.bookingRef), routeName: row.routeName }));
 }
 
 export async function getWorkDays(

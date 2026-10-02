@@ -124,21 +124,16 @@ router.post('/:id/cancel', declareMaterialWrite('trips.completed-cancel', { meth
 
   // 2026-09-11 maker-checker removal: a completed-trip cancellation now
   // APPLIES in-request, so a retried (same-key) request observes the trip
-  // already CANCELED and must replay the stored outcome instead of falling
-  // through to the plain-cancel branch (which 409s on CANCELED).
-  if (idempotencyKey && currentStatus !== TripStatus.COMPLETED) {
-    const stored = await findIdempotencyRecord(
+  // already CANCELED. Keep that retry in the completed-cancel namespace so
+  // runIdempotent validates the original actor and payload before replaying.
+  const completedCancellationRecord = idempotencyKey && currentStatus !== TripStatus.COMPLETED
+    ? await findIdempotencyRecord(
       IDEMPOTENCY_ENDPOINTS.TRIP_COMPLETED_CANCEL,
       idempotencyKey,
-    );
-    if (stored?.responseSnapshot != null) {
-      res.status(stored.responseStatusCode ?? 200)
-        .json({ ...(stored.responseSnapshot as Record<string, unknown>), replayed: true });
-      return;
-    }
-  }
+    )
+    : null;
 
-  if (currentStatus === TripStatus.COMPLETED) {
+  if (currentStatus === TripStatus.COMPLETED || completedCancellationRecord != null) {
     if (expectedVersion === undefined) {
       throw new ApiError(400, 'Phiên bản chuyến đi là bắt buộc');
     }

@@ -17,7 +17,7 @@ export async function listLegacyOpsExpenseHistory(userId: number, status?: strin
     version: row.version, confirmedAt: row.confirmedAt, costGroup: row.costGroup, feeName: row.feeName,
     invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate,
     customerChargeAmount: row.customerChargeAmount == null ? null : String(row.customerChargeAmount), recoveryNote: row.recoveryNote,
-    shipmentId: row.shipmentId, shipmentCode: row.shipmentCode, containerNumber: row.containerNumber,
+    shipmentId: row.shipmentId, shipmentCode: row.shipmentCode, billRef: row.billRef, containerNumber: row.containerNumber,
     expenseTypeCode: row.expenseTypeCode, expenseTypeName: row.feeName,
     requiresInvoice: row.costGroup?.startsWith('INVOICED_') ?? null, amount: String(row.amount), paidAt: row.expenseDate,
     note: row.note, approvalStatus: 'RECORDED', rejectionReason: null, opsSettlementId: null,

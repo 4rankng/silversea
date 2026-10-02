@@ -22,6 +22,6 @@ test('supported backend entry points refresh the shared runtime package', async 
   for (const lifecycle of ['predev', 'prebuild', 'preseed', 'pretest']) {
     assert.equal(backendPackage.scripts[lifecycle], 'pnpm --dir ../shared build');
   }
-  assert.match(makefile, /\(cd backend && pnpm dev\)/);
+  assert.match(makefile, /\(cd backend && PORT="\$\(DEV_BACKEND_PORT\)" DATABASE_URL="\$\(DEV_DATABASE_URL\)" pnpm dev\)/);
   assert.doesNotMatch(makefile, /\(cd backend && npx tsx watch src\/index\.ts\)/);
 });

@@ -318,11 +318,21 @@ export async function recomputeShipmentCompletion(
         && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
     };
     const allCompletedViaDriverClose = requiredFulfillments.every(completedViaDriver);
+    // External carriers have no app driver/e-POD. Their authorized staff
+    // close already establishes completion on the authoritative trip; use
+    // its persisted carrier type and linkage, never the planned allocation.
+    const allCompletedOperationally = allRequiredTripsPresent && requiredFulfillments.every((row) => {
+      const trip = tripsByFulfillment.get(row.id)?.[0];
+      return completedViaDriver(row) || (trip != null
+        && trip.status === TripStatus.COMPLETED
+        && trip.carrierType === 'EXTERNAL'
+        && trip.driverId == null);
+    });
 
-    // Partial close: some required fulfillments' trips are driver-closed but
+    // Partial close: some required fulfillments' trips are closed but
     // others are still pending (planned carrier allocation with no dispatched
     // trip yet). The shipment does NOT advance on a partial close — the
-    // driver-close branch above only fires when EVERY required fulfillment
+    // operational close branch above only fires when EVERY required fulfillment
     // has closed, so a partially closed shipment stays on its dispatch-driven
     // branch below (DISPATCHED/IN_TRANSIT per trip presence; a leg actively
     // IN_TRANSIT keeps the shipment operational). The trip-level container
@@ -331,14 +341,16 @@ export async function recomputeShipmentCompletion(
     let reason = 'Tự động cập nhật theo tình trạng điều xe hiện tại.';
     if (allCompletedAndAccepted) {
       // Strict accountant-reviewed close. Keep this branch AHEAD of the
-      // driver full-close branch: it is a superset test, so a trailing
-      // driver branch would shadow it forever — when the accountant review
+      // operational full-close branch: it is a superset test, so a trailing
+      // operational branch would shadow it forever — when the accountant review
       // is reintroduced, the strict gate must actually execute.
       targetStatus = 'COMPLETED';
       reason = 'Tự động hoàn thành khi mọi tác vụ đã duyệt e-POD, thu hồi POD gốc và chốt xong.';
-    } else if (allCompletedViaDriverClose) {
+    } else if (allCompletedOperationally) {
       targetStatus = 'COMPLETED';
-      reason = 'Tài xế đã hoàn thành chuyến. Lô hàng chuyển sang Hoàn thành (kế toán review sẽ xử lý chi phí sau).';
+      reason = allCompletedViaDriverClose
+        ? 'Tài xế đã hoàn thành chuyến. Lô hàng chuyển sang Hoàn thành (kế toán review sẽ xử lý chi phí sau).'
+        : 'Mọi tác vụ vận chuyển đã hoàn thành. Chi phí được đối chiếu riêng.';
     } else if (anyInTransit) {
       // Advance a DISPATCHED shipment to IN_TRANSIT only when every required
       // fulfillment has a dispatched trip: a partially-dispatched shipment

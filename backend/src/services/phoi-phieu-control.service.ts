@@ -6,13 +6,16 @@
  *  treasury movement against the chosen STK — the quỹ ledger adjusts through
  *  the existing engine (card 9 owns the nguồn-quỹ dimension on top). */
 import { createHash } from 'node:crypto';
-import { aliasedTable, and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { aliasedTable, and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
+import { operationalName } from '../db/master-data-name';
+import { billBookingTitle } from '../lib/business-keys';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
+import { dispatchDetailTransportDateSql } from './dispatch-planning-utils.service';
 import { createExpenseVoucher, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
 import { FUND_SOURCES } from './treasury-fund-book.service';
 import { propagateRecordedExpense } from './source-change.service';
@@ -23,6 +26,20 @@ void expenseVndSchema;
 const carrierCustomer = aliasedTable(s.customers, 'carrier_customer');
 const liftPort = aliasedTable(s.ports, 'lift_port');
 const dropPort = aliasedTable(s.ports, 'drop_port');
+const containerFactory = aliasedTable(s.operationalSites, 'phoi_container_factory');
+const shipmentFactory = aliasedTable(s.operationalSites, 'phoi_shipment_factory');
+const carrierSupplier = aliasedTable(s.suppliers, 'phoi_carrier_supplier');
+const supplierCarrierCustomer = aliasedTable(s.customers, 'phoi_supplier_carrier_customer');
+const externalCarrierName = sql<string | null>`case when ${s.tripCarrierInfo.externalEntityId} is null then null
+  when ${s.tripCarrierInfo.externalEntityType} = 'CUSTOMER' then coalesce(${operationalName(carrierCustomer.shortName, carrierCustomer.name)}, N'Đơn vị vận chuyển không còn trong danh mục')
+  when ${s.tripCarrierInfo.externalEntityType} = 'SUPPLIER' then coalesce(${operationalName(supplierCarrierCustomer.shortName, supplierCarrierCustomer.name)}, ${operationalName(carrierSupplier.shortName, carrierSupplier.name)}, N'Đơn vị vận chuyển không còn trong danh mục')
+  else N'Chưa xác định đơn vị vận chuyển' end`;
+
+type ChiHoConfirmation = 'CONFIRMED' | 'UNCONFIRMED';
+function confirmationCondition(value?: ChiHoConfirmation): SQL | undefined {
+  return value === 'CONFIRMED' ? isNotNull(s.expenseAccountingSources.confirmedAt)
+    : value === 'UNCONFIRMED' ? isNull(s.expenseAccountingSources.confirmedAt) : undefined;
+}
 
 export interface PhoiPhieuRow {
   tripId: number;
@@ -31,6 +48,7 @@ export interface PhoiPhieuRow {
   shipmentCode: string | null;
   billOrBooking: string | null;
   customerName: string | null;
+  factoryName: string | null;
   routeName: string | null;
   containerNumber: string | null;
   containerTypeLabel: string | null;
@@ -44,7 +62,9 @@ export interface PhoiPhieuRow {
   dropSite: string | null;
   plateNumber: string | null;
   driverName: string | null;
+  carrierName: string | null;
   departureDate: string | null;
+  transportDate: string | null;
   tripStatus: string | null;
   /** Chi hộ Phải trả = what SS pays the field (Σ source amount). */
   chiHoTra: number | null;
@@ -80,24 +100,44 @@ function billOrBookingOf(direction: string | null, bl: string | null, booking: s
  *  way; the sort choice never narrows the row set. */
 export async function listPhoiPhieuRows(query: {
   dateFrom?: string; dateTo?: string; status?: string; search?: string;
-  sortBy?: 'grouped' | 'date';
+  sortBy?: 'grouped' | 'date'; confirmation?: ChiHoConfirmation;
 }): Promise<PhoiPhieuRow[]> {
+  const transportDate = dispatchDetailTransportDateSql();
   // A live trip of a soft-deleted shipment is orphaned data - never listed.
   const tripConditions: (SQL | undefined)[] = [
     isNull(s.trips.deletedAt),
     isNull(s.shipments.deletedAt),
     ne(s.trips.status, 'CANCELED'),
   ];
-  if (query.dateFrom) tripConditions.push(gte(s.trips.departureDate, query.dateFrom));
-  if (query.dateTo) tripConditions.push(lte(s.trips.departureDate, query.dateTo));
+  if (query.dateFrom) tripConditions.push(gte(transportDate, query.dateFrom));
+  if (query.dateTo) tripConditions.push(lte(transportDate, query.dateTo));
   if (query.status) tripConditions.push(eq(s.trips.status, query.status as TripStatus));
+  if (query.confirmation) tripConditions.push(exists(db.select({ id: s.expenseAccountingSources.id })
+    .from(s.expenseAccountingSources)
+    .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
+    .where(and(eq(s.expenseAccountingSources.shipmentId, s.shipments.id),
+      eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+      confirmationCondition(query.confirmation)))));
   const search = query.search?.trim();
   if (search) {
     const needle = `%${search}%`;
     tripConditions.push(or(
       ilike(s.trips.tripCode, needle),
+      ilike(s.shipments.blNumber, needle),
+      ilike(s.shipments.bookingRef, needle),
       ilike(s.shipmentContainers.containerNumber, needle),
       ilike(s.customers.name, needle),
+      exists(db.select({ id: s.expenseAccountingSources.id }).from(s.expenseAccountingSources)
+        .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
+        .where(and(eq(s.expenseAccountingSources.shipmentId, s.shipments.id),
+          eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+          confirmationCondition(query.confirmation),
+          or(ilike(s.opsExpenseEntries.feeName, needle), ilike(s.opsExpenseEntries.invoiceNumber, needle))))),
+      exists(db.select({ id: s.expenseAccountingSources.id }).from(s.expenseAccountingSources)
+        .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
+        .where(and(eq(s.driverIncidentalCosts.tripId, s.trips.id),
+          eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+          or(ilike(s.driverIncidentalCosts.feeName, needle), ilike(s.driverIncidentalCosts.invoiceNumber, needle))))),
     )!);
   }
 
@@ -105,6 +145,7 @@ export async function listPhoiPhieuRows(query: {
     tripId: s.trips.id,
     tripCode: s.trips.tripCode,
     departureDate: s.trips.departureDate,
+    transportDate,
     tripStatus: s.trips.status,
     tienDuong: s.tripFinancialState.totalRoadAllowance,
     tripNotes: s.trips.notes,
@@ -114,6 +155,10 @@ export async function listPhoiPhieuRows(query: {
     bookingRef: s.shipments.bookingRef,
     tradeDirection: s.shipments.tradeDirection,
     customerName: s.customers.name,
+    factoryName: sql<string | null>`case when ${s.trips.factorySiteName} is not null or ${s.trips.factorySiteAddress} is not null
+      then nullif(btrim(${s.trips.factorySiteName}), '') else coalesce(
+        ${operationalName(containerFactory.shortName, containerFactory.name)},
+        ${operationalName(shipmentFactory.shortName, shipmentFactory.name)}, nullif(btrim(${s.shipments.factoryName}), '')) end`,
     customerNote: s.shipments.customerNotes,
     operationalNotes: s.shipments.operationalNotes,
     routeName: s.routes.name,
@@ -123,17 +168,24 @@ export async function listPhoiPhieuRows(query: {
     containerPayloadKg: s.containerTypes.payloadKg,
     liftSite: liftPort.name,
     dropSite: dropPort.name,
-    plateNumber: s.trucks.licensePlate,
-    driverName: s.drivers.name,
+    plateNumber: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${s.tripCarrierInfo.externalPlateNumber} else ${s.trucks.licensePlate} end`,
+    driverName: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then nullif(btrim(${s.tripCarrierInfo.externalDriverName}), '') else ${s.drivers.name} end`,
+    carrierName: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'OWN' then N'Xe nhà' else ${externalCarrierName} end`,
   })
     .from(s.trips)
     .innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .leftJoin(s.customers, and(eq(s.customers.id, s.shipments.customerId), isNull(s.customers.deletedAt)))
     .leftJoin(s.routes, eq(s.routes.id, s.trips.routeId))
     .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .leftJoin(carrierCustomer, and(eq(carrierCustomer.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER')))
+    .leftJoin(carrierSupplier, and(eq(carrierSupplier.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'SUPPLIER')))
+    .leftJoin(supplierCarrierCustomer, and(eq(supplierCarrierCustomer.id, carrierSupplier.linkedCustomerId), eq(supplierCarrierCustomer.isCarrier, true), eq(supplierCarrierCustomer.status, 'ACTIVE'), isNull(supplierCarrierCustomer.deletedAt)))
     .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id,
       sql`(select fc.shipment_container_id from shipment_fulfillments fc where fc.id = ${s.trips.fulfillmentId} limit 1)`))
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .leftJoin(containerFactory, eq(containerFactory.id, s.shipmentContainers.operationalSiteId))
+    .leftJoin(shipmentFactory, eq(shipmentFactory.id, s.shipments.operationalSiteId))
     .leftJoin(aliasedTable(s.ports, 'lift_port'), eq(liftPort.id, s.shipmentContainers.pickupPortId))
     .leftJoin(aliasedTable(s.ports, 'drop_port'), eq(dropPort.id, s.shipmentContainers.dropoffPortId))
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
@@ -145,7 +197,7 @@ export async function listPhoiPhieuRows(query: {
     // re-ordering of this query: an ORDER BY before this LIMIT let the two modes
     // return different 300-row windows, which is exactly what the card forbids —
     // and what this function's own doc comment already promised.
-    .orderBy(desc(s.trips.departureDate), desc(s.trips.id))
+    .orderBy(asc(isNull(transportDate)), desc(transportDate), desc(s.trips.id))
     .limit(300);
   if (rows.length === 0) return [];
 
@@ -181,7 +233,8 @@ export async function listPhoiPhieuRows(query: {
     .from(s.expenseAccountingSources)
     .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
     .where(and(inArray(s.expenseAccountingSources.shipmentId, shipmentIds),
-      eq(s.expenseAccountingSources.status, 'RECORDED'), eq(s.expenseAccountingSources.sourceKind, 'OPS')));
+      eq(s.expenseAccountingSources.status, 'RECORDED'), eq(s.expenseAccountingSources.sourceKind, 'OPS'),
+      confirmationCondition(query.confirmation)));
   // Card 20260921_14 rework: the parent Tien-duong cell sums CONFIRMED
   // driver-entered costs for the trip — the same spine the detail dialog reads.
   const confirmedRoad = await db.select({
@@ -292,6 +345,7 @@ export async function listPhoiPhieuRows(query: {
       shipmentCode: row.shipmentCode,
       billOrBooking: billOrBookingOf(row.tradeDirection, row.blNumber, row.bookingRef),
       customerName: row.customerName,
+      factoryName: row.factoryName,
       routeName: row.routeName,
       containerNumber: row.containerNumber,
       containerTypeLabel: row.containerTypeLabel,
@@ -301,7 +355,9 @@ export async function listPhoiPhieuRows(query: {
       dropSite: row.dropSite,
       plateNumber: row.plateNumber,
       driverName: row.driverName,
+      carrierName: row.carrierName,
       departureDate: row.departureDate,
+      transportDate: row.transportDate,
       tripStatus: row.tripStatus,
       chiHoTra,
       chiHoThu,
@@ -361,7 +417,7 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
     const tripRows = await tx.select({
       tripId: s.trips.id,
       shipmentId: s.trips.shipmentId,
-      shipmentCode: s.shipments.shipmentCode,
+      blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef,
     })
       .from(s.trips)
       .innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
@@ -408,10 +464,10 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
       const shipmentId = trip.shipmentId as number;
       const customerId = customerIdByShipment.get(shipmentId);
       const shipmentSources = sources.filter((source) => source.shipmentId === shipmentId);
-      if (shipmentSources.length === 0) throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khoản chi hộ để lập phiếu.`);
+      if (shipmentSources.length === 0) throw new ApiError(409, `Lô ${billBookingTitle(trip.blNumber, trip.bookingRef)} chưa có khoản chi hộ để lập phiếu.`);
       const entries: Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }> = [];
       for (const source of shipmentSources) {
-        if (customerId == null) throw new ApiError(409, `Lô ${trip.shipmentCode ?? shipmentId} chưa có khách hàng.`);
+        if (customerId == null) throw new ApiError(409, `Lô ${billBookingTitle(trip.blNumber, trip.bookingRef)} chưa có khách hàng.`);
         if (seenSourceIds.has(source.id)) {
           continue;
         }
@@ -500,7 +556,7 @@ export interface PhoiPhieuFeeRow {
   confirmed: boolean;
 }
 
-export async function getPhoiPhieuChiHo(tripId: number): Promise<{
+export async function getPhoiPhieuChiHo(tripId: number, confirmation?: ChiHoConfirmation): Promise<{
   tripId: number; tripCode: string | null; shipmentId: number;
   ngayLayPhoi: string | null; trangThaiLay: string | null;
   rows: PhoiPhieuFeeRow[]; totals: { thu: number; tra: number };
@@ -529,7 +585,8 @@ export async function getPhoiPhieuChiHo(tripId: number): Promise<{
     .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
     .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
     .where(and(eq(s.expenseAccountingSources.shipmentId, trip.shipmentId),
-      eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED')))
+      eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+      confirmationCondition(confirmation)))
     .orderBy(asc(s.expenseAccountingSources.id));
   const feeRows: PhoiPhieuFeeRow[] = rows.map((row, index) => ({
     entryId: row.entryId,
@@ -632,14 +689,14 @@ export interface PhoiPhieuTienDuongRow {
   occurredAt: string | null;
 }
 
-export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
+export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor = db): Promise<{
   tripId: number; tripCode: string | null;
   rows: PhoiPhieuTienDuongRow[]; totals: { total: number; confirmed: number };
 }> {
-  const [trip] = await db.select({ tripId: s.trips.id, tripCode: s.trips.tripCode })
+  const [trip] = await executor.select({ tripId: s.trips.id, tripCode: s.trips.tripCode })
     .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến.');
-  const rows = await db.select({
+  const rows = await executor.select({
     id: s.driverIncidentalCosts.id,
     costType: s.driverIncidentalCosts.costType,
     feeName: s.driverIncidentalCosts.feeName,
@@ -655,9 +712,10 @@ export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
     .leftJoin(s.expenseAccountingSources, and(
       eq(s.expenseAccountingSources.sourceKind, 'DRIVER'),
       eq(s.expenseAccountingSources.sourceId, s.driverIncidentalCosts.id),
-      eq(s.expenseAccountingSources.status, 'RECORDED'),
     ))
-    .where(eq(s.driverIncidentalCosts.tripId, tripId))
+    .where(and(eq(s.driverIncidentalCosts.tripId, tripId),
+      // Retained correction history is distinct from genuinely unlinked legacy costs.
+      or(isNull(s.expenseAccountingSources.id), ne(s.expenseAccountingSources.status, 'VOIDED'))))
     .orderBy(asc(s.driverIncidentalCosts.id));
   void s.trips;
   const feeRows: PhoiPhieuTienDuongRow[] = rows.map((row) => ({
@@ -760,10 +818,6 @@ export async function getPhoiPhieuReport(query: {
 
   const tripIds = (await db.select({ id: s.trips.id })
     .from(s.trips).where(and(...tripConditions))).map((row) => row.id);
-  if (tripIds.length === 0) {
-    return { rows: [], grand: { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0 } };
-  }
-
   const sources = await db.select({
     id: s.expenseAccountingSources.id,
     tripId: s.expenseAccountingSources.tripId,
@@ -804,17 +858,19 @@ export async function getPhoiPhieuReport(query: {
   } else {
     const parties = await db.select({
       tripId: s.trips.id,
-      externalName: carrierCustomer.name,
-      plate: s.trucks.licensePlate,
+      name: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${externalCarrierName}
+        when nullif(${s.trucks.licensePlate}, '') is not null then ${INTERNAL_CARRIER_CODE} else null end`,
     })
       .from(s.trips)
       .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
-      .leftJoin(aliasedTable(s.customers, 'carrier_customer'), eq(carrierCustomer.id, s.tripCarrierInfo.externalEntityId))
-      .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId));
+      .leftJoin(carrierCustomer, and(eq(carrierCustomer.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER')))
+      .leftJoin(carrierSupplier, and(eq(carrierSupplier.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'SUPPLIER')))
+      .leftJoin(supplierCarrierCustomer, and(eq(supplierCarrierCustomer.id, carrierSupplier.linkedCustomerId), eq(supplierCarrierCustomer.isCarrier, true), eq(supplierCarrierCustomer.status, 'ACTIVE'), isNull(supplierCarrierCustomer.deletedAt)))
+      .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId)).where(inArray(s.trips.id, tripIds));
     for (const row of parties) {
       if (!tripParty.has(row.tripId)) {
         tripParty.set(row.tripId, {
-          name: row.externalName ?? (row.plate ? INTERNAL_CARRIER_CODE : null),
+          name: row.name,
           ghiChu: null,
         });
       }
@@ -901,6 +957,7 @@ export async function listPhoiPhieuTruckAssignments(): Promise<{
     plate: s.trucks.licensePlate,
     accountantId: s.truckAccountantAssignments.accountantId,
     accountantName: s.users.fullName,
+    accountantUsername: s.users.username,
     version: s.truckAccountantAssignments.version,
   }).from(s.truckAccountantAssignments)
     .innerJoin(s.trucks, eq(s.trucks.id, s.truckAccountantAssignments.truckId))
@@ -918,9 +975,22 @@ export async function listPhoiPhieuTruckAssignments(): Promise<{
     : await db.select({ truckId: s.trucks.id, plate: s.trucks.licensePlate })
         .from(s.trucks)
         .where(eq(s.trucks.status, 'ACTIVE')).orderBy(asc(s.trucks.licensePlate));
-  const accountants = await db.select({ id: s.users.id, fullName: s.users.fullName })
+  const accountants = await db.select({ id: s.users.id, fullName: s.users.fullName, username: s.users.username })
     .from(s.users)
     .where(and(eq(s.users.role, 'ACCOUNTANT'), isNull(s.users.deletedAt)))
     .orderBy(asc(s.users.fullName));
-  return { assignments, unassignedTrucks, accountants };
+  return {
+    assignments: assignments.map((row) => ({
+      truckId: row.truckId,
+      plate: row.plate,
+      accountantId: row.accountantId,
+      accountantName: row.accountantName?.trim() || row.accountantUsername?.trim() || null,
+      version: row.version,
+    })),
+    unassignedTrucks,
+    accountants: accountants.map((row) => ({
+      id: row.id,
+      fullName: row.fullName?.trim() || row.username?.trim() || null,
+    })),
+  };
 }

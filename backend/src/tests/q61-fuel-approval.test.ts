@@ -3,7 +3,7 @@
 // the OLD period until kế toán ticks Đồng ý; Không/Để sau keep the old price.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -15,8 +15,6 @@ import { resolveFreightRate } from '../services/freight-pricing-engine.service';
 import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-q61`;
-/** Marker note on every fixture period — before() purges orphans by it. */
-let periodIdWatermark = 0;
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdClassIds: number[] = [];
@@ -102,6 +100,9 @@ async function mkActor() {
 
 after(async () => {
   try {
+    // Period entry also targets pre-existing active quotations. Those effects
+    // belong to our exact periods even when the customer is not our fixture.
+    await db.delete(s.quotationFuelApprovals).where(inArray(s.quotationFuelApprovals.fuelPricePeriodId, createdPeriodIds));
     await db.delete(s.quotationFuelApprovals).where(inArray(s.quotationFuelApprovals.customerId, createdCustomerIds));
     await db.delete(s.quotationCells).where(inArray(s.quotationCells.quotationId, createdQuotationIds));
     await db.delete(s.quotations).where(inArray(s.quotations.id, createdQuotationIds));
@@ -110,20 +111,20 @@ after(async () => {
     await db.delete(s.freightRateTerms).where(inArray(s.freightRateTerms.id, createdTermsIds));
     await db.delete(s.fuelConsumptionNorms).where(inArray(s.fuelConsumptionNorms.id, createdNormIds));
     await db.delete(s.fuelPricePeriods).where(inArray(s.fuelPricePeriods.id, createdPeriodIds));
-    await db.delete(s.fuelPricePeriods).where(sql`id > ${periodIdWatermark}`);
     await db.delete(s.vehicleSizeClasses).where(inArray(s.vehicleSizeClasses.id, createdClassIds));
     await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
     await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
     await db.delete(s.users).where(inArray(s.users.id, createdUserId));
-  } catch { /* best-effort */ }
-  await client.end();
-  await disconnectRedis();
+  } finally {
+    await client.end();
+    await disconnectRedis();
+  }
 });
 
 before(async () => {
   // Orphan purge: earlier crashed runs left periods at their fixture dates.
   // This run's dates are derived from the same offsets, so clear exactly the
-  // window the fixtures will use, then set the id watermark for after().
+  // window the fixtures will use. after() removes only exact owned periods.
   const days = [40, 30, 20, 10].map((offset) => (
     new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10)
   )).concat(['2035-01-01', '2035-06-01']);
@@ -134,8 +135,6 @@ before(async () => {
         .where(inArray(s.fuelPricePeriods.effectiveFrom, days))),
   );
   await db.delete(s.fuelPricePeriods).where(inArray(s.fuelPricePeriods.effectiveFrom, days));
-  const [watermark] = await db.select({ maxId: sql`max(id)` }).from(s.fuelPricePeriods);
-  periodIdWatermark = Number(watermark?.maxId ?? 0);
 });
 
 

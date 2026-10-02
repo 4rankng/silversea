@@ -33,7 +33,7 @@ async function mkBoardFixture(opts: { charge?: number; amount?: number; day?: st
   const [route] = await db.insert(s.routes).values({ name: 'C12 route' }).returning({ id: s.routes.id });
   track(s.routes, route.id);
   const [shipment] = await db.insert(s.shipments).values({
-    customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED',
+    customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED', expectedDeliveryDate: day,
   }).returning({ id: s.shipments.id });
   track(s.shipments, shipment.id);
   const [container] = await db.insert(s.shipmentContainers).values({
@@ -234,7 +234,7 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
       const [route] = await db.insert(s.routes).values({ name: 'C16 route' }).returning({ id: s.routes.id });
       track(s.routes, route.id);
       const [shipment] = await db.insert(s.shipments).values({
-        customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED',
+        customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED', expectedDeliveryDate: day,
       }).returning({ id: s.shipments.id });
       track(s.shipments, shipment.id);
       let truckId: number | null = null;
@@ -316,7 +316,7 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
       // One shipment per trip: `trips_shipment_without_fulfillment_live_uniq`
       // admits only ONE fulfillment-less live trip per shipment.
       const [shipment] = await db.insert(s.shipments)
-        .values({ customerId: customer.id, cargoMode: 'FCL', status: 'DISPATCHED' })
+        .values({ customerId: customer.id, cargoMode: 'FCL', status: 'DISPATCHED', expectedDeliveryDate: day })
         .returning({ id: s.shipments.id });
       track(s.shipments, shipment.id);
       const [trip] = await db.insert(s.trips).values({
@@ -720,7 +720,7 @@ describe('voucher consumes the approved chi-hộ set only (case QA-2026-09-24-01
     const [route] = await db.insert(s.routes).values({ name: 'C12 driver-only route' }).returning({ id: s.routes.id });
     track(s.routes, route.id);
     const [shipment] = await db.insert(s.shipments).values({
-      customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED',
+      customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED', expectedDeliveryDate: '2026-09-22',
     }).returning({ id: s.shipments.id });
     track(s.shipments, shipment.id);
     const [fulfillment] = await db.insert(s.shipmentFulfillments).values({

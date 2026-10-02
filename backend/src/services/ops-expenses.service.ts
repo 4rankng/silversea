@@ -526,6 +526,7 @@ export interface OpsExpenseListRow {
   id: number;
   shipmentId: number;
   shipmentCode: string | null;
+  billRef: string | null;
   containerNumber: string | null;
   expenseTypeCode: string;
   expenseTypeName: string | null;
@@ -571,6 +572,9 @@ export async function listOpsExpenses(filters: {
       recoveryNote: s.opsExpenseEntries.recoveryNote,
       shipmentId: s.opsExpenseEntries.shipmentId,
       shipmentCode: s.shipments.shipmentCode,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+      tradeDirection: s.shipments.tradeDirection,
       containerNumber: s.shipmentContainers.containerNumber,
       expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
       expenseTypeName: s.forwarderExpenseTypes.name,
@@ -605,17 +609,21 @@ export async function listOpsExpenses(filters: {
     .orderBy(desc(s.opsExpenseEntries.paidAt), desc(s.opsExpenseEntries.id))
     .limit((filters.limit ?? 100) + (filters.offset ?? 0));
 
-  const nativeRows = rows.map((row) => ({
-    ...row,
-    // Rows written before the write-path fix carry the catalog CODE in
-    // fee_name. A code is not a custom name, so it is dropped here and the
-    // consumer falls back to expenseTypeName (the Vietnamese catalog label).
-    feeName: row.feeName && row.feeName !== row.expenseTypeCode ? row.feeName : null,
-    version: row.version ?? 1,
-    confirmedAt: row.confirmedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-    hasPhoto: Boolean(row.hasPhoto),
-  }));
+  const nativeRows = rows.map((row) => {
+    const { blNumber, bookingRef, tradeDirection, ...expense } = row;
+    return {
+      ...expense,
+      billRef: (tradeDirection === 'IMPORT' ? blNumber : bookingRef)?.trim() || null,
+      // Rows written before the write-path fix carry the catalog CODE in
+      // fee_name. A code is not a custom name, so it is dropped here and the
+      // consumer falls back to expenseTypeName (the Vietnamese catalog label).
+      feeName: row.feeName && row.feeName !== row.expenseTypeCode ? row.feeName : null,
+      version: row.version ?? 1,
+      confirmedAt: row.confirmedAt?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString(),
+      hasPhoto: Boolean(row.hasPhoto),
+    };
+  });
   const legacy = filters.paidById != null && filters.settlementId == null
     ? await listLegacyOpsExpenseHistory(filters.paidById, filters.status) : [];
   return [...nativeRows, ...legacy].sort((a, b) => b.paidAt.localeCompare(a.paidAt) || b.id - a.id)

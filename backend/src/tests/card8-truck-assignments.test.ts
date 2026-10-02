@@ -168,6 +168,22 @@ describe('card 20260921_8 - vehicle assignment + board scope', () => {
     const mine = board.assignments.find((row) => row.truckId === truckA.id);
     assert.ok(mine, 'active assignment listed');
     assert.equal(mine.accountantId, acctA.id, 'assignment resolves to its accountant');
+    assert.equal(mine.accountantName, acctA.username, 'missing full name uses the actual account identity');
+    const choice = board.accountants.find((row) => row.id === acctA.id);
+    assert.ok(choice, 'the existing accountant remains selectable');
+    assert.equal(choice.fullName, acctA.username, 'the option resolves the same actual account identity');
+    assert.deepEqual(Object.keys(choice).sort(), ['fullName', 'id'], 'identity resolution adds no user fields');
+    assert.deepEqual(Object.keys(mine).sort(), ['accountantId', 'accountantName', 'plate', 'truckId', 'version'], 'assignment response shape stays unchanged');
+    const [storedAccount] = await db.select({ fullName: s.users.fullName, username: s.users.username }).from(s.users)
+      .where(eq(s.users.id, acctA.id));
+    assert.deepEqual(storedAccount, { fullName: null, username: acctA.username }, 'the display read does not rewrite account data');
+
+    const fullName = `Kế toán ${acctA.username}`;
+    await db.update(s.users).set({ fullName: `  ${fullName}  `, status: 'INACTIVE' }).where(eq(s.users.id, acctA.id));
+    const retained = await listPhoiPhieuTruckAssignments();
+    assert.equal(retained.accountants.find((row) => row.id === acctA.id)?.fullName, fullName,
+      'trimmed display identity retains the existing undeleted inactive population');
+    assert.equal(retained.assignments.find((row) => row.truckId === truckA.id)?.accountantName, fullName);
     assert.ok(board.unassignedTrucks.some((row) => row.truckId === truckFree.id), 'unassigned truck bucket visible');
   });
 });

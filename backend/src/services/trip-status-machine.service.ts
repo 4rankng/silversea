@@ -154,8 +154,14 @@ export async function transitionTripStatus(
           'Chỉ Quản lý, Điều phối hoặc Quản trị viên mới có quyền xuất phát chuyến đi',
         );
       }
-      if (currentStatus !== TripStatus.CREATED && currentStatus !== TripStatus.COMPLETED) {
-        throw new ApiError(409, 'Chỉ có thể xuất phát chuyến đi ở trạng thái Mới tạo hoặc Hoàn thành');
+      if (currentStatus === TripStatus.COMPLETED) {
+        throw new ApiError(
+          409,
+          'Chuyến đã chốt chỉ được mở lại bằng thao tác mở lại tài chính có quyền và lý do hợp lệ',
+        );
+      }
+      if (currentStatus !== TripStatus.CREATED) {
+        throw new ApiError(409, 'Chỉ có thể xuất phát chuyến đi ở trạng thái Mới tạo');
       }
       // Unrelated trips cannot share a running truck. A persisted ACTIVE
       // KEP pair is the exception: its two 20ft containers run together.

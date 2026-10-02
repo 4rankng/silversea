@@ -51,6 +51,7 @@ before(async () => {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: customer.id,
     shipmentCode: `INBOX-${suffix}`.slice(0, 50),
+    blNumber: `QA-INBOX-${suffix}`,
     status: 'COMPLETED',
     cargoMode: 'LCL',
   }).returning();
@@ -76,6 +77,7 @@ before(async () => {
   readyTripCode = `READY-${suffix}`.slice(0, 50);
   const trip = await insertTripComposite(db, {
     tripCode: readyTripCode,
+    customerReference: `QA-INBOX-${suffix}`,
     customerId: customer.id,
     routeId: route.id,
     shipmentId: shipment.id,
@@ -248,7 +250,7 @@ describe('work inbox projection', () => {
   });
 
   test('customer dispute stays advisory and does not block financially ready work', async () => {
-    const result = await financialWorkInbox({ search: readyTripCode, page: 1, limit: 25 });
+    const result = await financialWorkInbox({ search: `QA-INBOX-${suffix}`, page: 1, limit: 25 });
     const row = result.items.find((candidate) => candidate.tripId === readyTripId);
     assert.ok(row);
     assert.equal(row.state, 'ACTION');

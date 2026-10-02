@@ -21,6 +21,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 
 import { eq } from 'drizzle-orm';
 import { db, client } from '../db';
@@ -43,8 +44,17 @@ let baseUrl = '';
 let accountantToken = '';
 let accountantUserId = 0;
 let createdPeriodId = 0;
+let fixtureDate = '';
 
 before(async () => {
+  // effectiveFrom is globally unique. Pick an unused suite-owned date instead
+  // of reusing a business/previous-run period, without deleting any existing row.
+  const occupied = new Set((await db.select({ date: fuelPricePeriods.effectiveFrom })
+    .from(fuelPricePeriods)).map(row => row.date));
+  const day = new Date('8100-01-01T00:00:00.000Z');
+  day.setUTCDate(day.getUTCDate() + Number.parseInt(randomUUID().slice(0, 6), 16) % 100000);
+  while (occupied.has(day.toISOString().slice(0, 10))) day.setUTCDate(day.getUTCDate() + 1);
+  fixtureDate = day.toISOString().slice(0, 10);
   await initAuditService();
   await initEnforcer();
 
@@ -113,7 +123,7 @@ describe('fuel-price-period create envelope (card _61 rung)', () => {
     const res = await fetch(`${baseUrl}/api/fuel-price-periods`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Connection: 'close', Authorization: `Bearer ${accountantToken}` },
-      body: JSON.stringify({ unitPrice: '29940.00', effectiveFrom: '2026-10-01' }),
+      body: JSON.stringify({ unitPrice: '29940.00', effectiveFrom: fixtureDate }),
     });
     const body = await res.json() as { error?: string };
     assert.equal(res.status, 400, `key-less write must 400, got ${res.status}: ${JSON.stringify(body).slice(0, 200)}`);
@@ -124,7 +134,7 @@ describe('fuel-price-period create envelope (card _61 rung)', () => {
     const res = await fetch(`${baseUrl}/api/fuel-price-periods`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accountantToken}`, 'Idempotency-Key': `qfp-keyed-${suffix}` },
-      body: JSON.stringify({ unitPrice: '29940.00', effectiveFrom: '2026-10-01' }),
+      body: JSON.stringify({ unitPrice: '29940.00', effectiveFrom: fixtureDate }),
     });
     const body = await res.json() as { id?: number; error?: string };
     assert.equal(res.status, 201, `keyed write must 201, got ${res.status}: ${JSON.stringify(body).slice(0, 200)}`);

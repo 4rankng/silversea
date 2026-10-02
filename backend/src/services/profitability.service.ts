@@ -349,7 +349,6 @@ export async function getProfitabilityReport(input: {
   if (sourceTripIds.length > 0) {
     const sourceTrips = await q.select({
       id: s.trips.id,
-      tripCode: s.trips.tripCode,
       billNumber: s.shipments.blNumber,
       bookingRef: s.shipments.bookingRef,
     }).from(s.trips)
@@ -360,7 +359,6 @@ export async function getProfitabilityReport(input: {
         sourceTrip.id,
         sourceTrip.billNumber?.trim()
           || sourceTrip.bookingRef?.trim()
-          || sourceTrip.tripCode?.trim()
           || 'Chưa có Bill/Booking',
       );
     }

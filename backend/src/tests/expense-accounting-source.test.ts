@@ -61,6 +61,74 @@ async function trip(tx: Tx, ctx: Awaited<ReturnType<typeof setup>>) {
   return insertTripComposite(tx, { tripCode: crypto.randomUUID(), shipmentId: ctx.shipment.id, customerId: ctx.customer.id,
     routeId: ctx.route.id, cargoTypeId: ctx.cargo.id, departureDate: '2026-09-16', status: 'CREATED', carrierType: 'OWN', fulfillmentId: fulfillment.id });
 }
+test('QA-AUDIT-UI-37 expense list/detail source identities retain Bill/Booking and omit internal codes', async () => fixture(async (tx, ctx) => {
+  const work = await trip(tx, ctx);
+  const source = await ops(tx, ctx);
+  await tx.update(s.expenseAccountingSources).set({ tripId: work.id }).where(eq(s.expenseAccountingSources.id, source.id));
+  for (const input of [
+    { tradeDirection: 'IMPORT' as const, blNumber: ' BL-EXPENSE-SOURCE ', bookingRef: null, expected: 'BL-EXPENSE-SOURCE' },
+    { tradeDirection: 'EXPORT' as const, blNumber: null, bookingRef: ' BOOK-EXPENSE-SOURCE ', expected: 'BOOK-EXPENSE-SOURCE' },
+    { tradeDirection: null, blNumber: null, bookingRef: null, expected: 'Chưa có số Bill/Booking' },
+  ]) {
+    await tx.update(s.shipments).set({ tradeDirection: input.tradeDirection, blNumber: input.blNumber, bookingRef: input.bookingRef }).where(eq(s.shipments.id, ctx.shipment.id));
+    const detail = await getExpenseAccountingEntry(ctx.actor, 'OPS', source.sourceId, tx);
+    const list = await listExpenseAccountingEntries(ctx.actor, { shipmentId: ctx.shipment.id, page: 1, limit: 25 }, tx);
+    const row = list.items.find(item=>item.id===source.id);
+    assert.ok(row);
+    for (const entry of [detail,row]) {
+      assert.equal(entry.shipmentCode,input.expected);
+      assert.equal(entry.tripCode,input.expected);
+      assert.equal(entry.shipmentId,ctx.shipment.id);
+      assert.equal(entry.tripId,work.id);
+      assert.equal(entry.sourceId,source.sourceId);
+      assert.equal(entry.amount,500000);
+    }
+  }
+}));
+test('QA-AUDIT-UI-37 missing party names stay honest in source reads and report groups', async () => fixture(async (tx, ctx) => {
+  const work = await trip(tx, ctx);
+  const source = await ops(tx, ctx);
+  await tx.update(s.expenseAccountingSources).set({ tripId: work.id }).where(eq(s.expenseAccountingSources.id, source.id));
+  await tx.update(s.tripCarrierInfo).set({ carrierType: 'EXTERNAL', externalEntityId: ctx.customer.id, externalEntityType: 'CUSTOMER' }).where(eq(s.tripCarrierInfo.tripId, work.id));
+  let detail = await getExpenseAccountingEntry(ctx.actor, 'OPS', source.sourceId, tx);
+  assert.equal(detail.customerName, ctx.customer.name);
+  assert.equal(detail.carrierName, ctx.customer.name);
+  await tx.delete(s.customers).where(eq(s.customers.id, ctx.customer.id));
+  await tx.update(s.shipments).set({ rawCustomerName: '   ' }).where(eq(s.shipments.id, ctx.shipment.id));
+  detail = await getExpenseAccountingEntry(ctx.actor, 'OPS', source.sourceId, tx);
+  const list = await listExpenseAccountingEntries(ctx.actor, { shipmentId: ctx.shipment.id, page: 1, limit: 25 }, tx);
+  for (const row of [detail, list.items.find(row => row.id === source.id)!]) {
+    assert.equal(row.customerName, 'Chưa có tên khách hàng');
+    assert.equal(row.carrierName, 'Chưa có tên nhà xe');
+    assert.equal(row.customerId, ctx.customer.id);
+    assert.equal(row.carrierCode, `CUSTOMER:${ctx.customer.id}`);
+    assert.equal(row.sourceId, source.sourceId);
+    assert.equal(row.amount, 500000);
+  }
+  const incoming = await getExpenseAccountingReport(ctx.actor, { shipmentId: ctx.shipment.id, page: 1, limit: 25, direction: 'IN' }, tx);
+  assert.equal(incoming.items[0].entityId, ctx.customer.id);
+  assert.equal(incoming.items[0].entityName, 'Chưa có tên khách hàng');
+  assert.equal(incoming.totals.total, 300000);
+  const carrier = await getExpenseAccountingReport(ctx.actor, { shipmentId: ctx.shipment.id, page: 1, limit: 25, direction: 'OUT' }, tx);
+  assert.equal(carrier.items[0].entityName, 'Chưa có tên nhà xe');
+  assert.equal(carrier.items[0].carrierCode, `CUSTOMER:${ctx.customer.id}`);
+  assert.equal(carrier.totals.total, 500000);
+  await tx.update(s.tripCarrierInfo).set({ externalEntityId: null, externalEntityType: null }).where(eq(s.tripCarrierInfo.tripId, work.id));
+  await tx.delete(s.users).where(eq(s.users.id, ctx.user.id));
+  const payer = await getExpenseAccountingReport(ctx.actor, { shipmentId: ctx.shipment.id, page: 1, limit: 25, direction: 'OUT' }, tx);
+  assert.equal(payer.items[0].entityName, 'Chưa có tên bên nhận');
+  assert.equal(payer.items[0].entityId, ctx.user.id);
+  assert.equal(payer.totals.total, 500000);
+  await tx.update(s.shipments).set({ rawCustomerName: '  Khách hàng lịch sử  ' }).where(eq(s.shipments.id, ctx.shipment.id));
+  assert.equal((await getExpenseAccountingEntry(ctx.actor, 'OPS', source.sourceId, tx)).customerName, 'Khách hàng lịch sử');
+  const [supplier] = await tx.insert(s.suppliers).values({ name: 'Nhà xe lịch sử', status: 'INACTIVE' }).returning();
+  await tx.update(s.tripCarrierInfo).set({ externalEntityId: supplier.id, externalEntityType: 'SUPPLIER' }).where(eq(s.tripCarrierInfo.tripId, work.id));
+  assert.equal((await getExpenseAccountingEntry(ctx.actor, 'OPS', source.sourceId, tx)).carrierName, supplier.name);
+  await tx.delete(s.suppliers).where(eq(s.suppliers.id, supplier.id));
+  const missingSupplier = await getExpenseAccountingEntry(ctx.actor, 'OPS', source.sourceId, tx);
+  assert.equal(missingSupplier.carrierName, 'Chưa có tên nhà xe');
+  assert.equal(missingSupplier.carrierCode, `SUPPLIER:${supplier.id}`);
+}));
 test('payables report names invoice suppliers from their canonical record, including inactive history', async () => fixture(async (tx, ctx) => {
   const [active, historical] = await tx.insert(s.suppliers).values([
     { name: 'A supplier still active', status: 'ACTIVE' },

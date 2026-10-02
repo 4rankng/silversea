@@ -7,6 +7,7 @@
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
@@ -24,6 +25,7 @@ const created = {
   customerIds: [] as number[],
   routeIds: [] as number[],
   quotationIds: [] as number[],
+  fuelPeriodIds: [] as number[],
 };
 
 let customerId = 0;
@@ -40,6 +42,21 @@ async function mkQuotation(effectiveDate = '2026-09-15'): Promise<number> {
   return id;
 }
 
+async function mkFuelPeriod(unitPrice: string) {
+  // Preserve globally keyed historical periods. Conflict-safe insertion only
+  // reserves a new fixture date; it never updates or deletes another owner.
+  const day = new Date('8500-01-01T00:00:00.000Z');
+  day.setUTCDate(day.getUTCDate() + Number.parseInt(randomUUID().slice(0, 6), 16) % 100000);
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const [period] = await db.insert(s.fuelPricePeriods).values({
+      unitPrice, effectiveFrom: day.toISOString().slice(0, 10), sourceNote: `Version fixture ${suffix}`,
+    }).onConflictDoNothing().returning();
+    if (period) { created.fuelPeriodIds.push(period.id); return period; }
+    day.setUTCDate(day.getUTCDate() + 1);
+  }
+  throw new Error('Could not reserve a unique quotation-version fixture fuel period');
+}
+
 before(async () => {
   const [customer] = await db.insert(s.customers).values({ name: `Q62 customer ${suffix}` }).returning();
   customerId = customer.id;
@@ -47,14 +64,23 @@ before(async () => {
 });
 
 after(async () => {
-  for (const qid of created.quotationIds) {
-    await db.delete(s.quotationVersionSnapshots).where(eq(s.quotationVersionSnapshots.quotationId, qid));
-    await db.delete(s.quotationFees).where(eq(s.quotationFees.quotationId, qid));
-    await db.delete(s.quotationCells).where(eq(s.quotationCells.quotationId, qid));
-    await db.delete(s.quotations).where(eq(s.quotations.id, qid));
+  try {
+    if (created.fuelPeriodIds.length) {
+      await db.delete(s.quotationFuelApprovals)
+        .where(inArray(s.quotationFuelApprovals.fuelPricePeriodId, created.fuelPeriodIds));
+    }
+    for (const qid of created.quotationIds) {
+      await db.delete(s.quotationVersionSnapshots).where(eq(s.quotationVersionSnapshots.quotationId, qid));
+      await db.delete(s.quotationFees).where(eq(s.quotationFees.quotationId, qid));
+      await db.delete(s.quotationCells).where(eq(s.quotationCells.quotationId, qid));
+      await db.delete(s.quotations).where(eq(s.quotations.id, qid));
+    }
+    if (created.fuelPeriodIds.length) await db.delete(s.fuelPricePeriods)
+      .where(inArray(s.fuelPricePeriods.id, created.fuelPeriodIds));
+    if (created.customerIds.length) await db.delete(s.customers).where(inArray(s.customers.id, created.customerIds));
+  } finally {
+    await client.end();
   }
-  if (created.customerIds.length) await db.delete(s.customers).where(inArray(s.customers.id, created.customerIds));
-  await client.end();
 });
 
 describe('quotation version history (card 20260922_62)', () => {
@@ -87,8 +113,7 @@ describe('quotation version history (card 20260922_62)', () => {
 
   test('A1b FUEL_APPROVED releases per quotation; DECLINED does not', async () => {
     const qid = await mkQuotation('2026-09-20');
-    const [period] = await db.insert(s.fuelPricePeriods)
-      .values({ unitPrice: '29940.00', effectiveFrom: '2026-10-01' }).returning();
+    const period = await mkFuelPeriod('29940.00');
     const pending = await spawnQuotationFuelApprovals(period.id);
     assert.ok(pending > 0);
     const rows = await db.select()
@@ -112,8 +137,7 @@ describe('quotation version history (card 20260922_62)', () => {
   test('DECLINED decision releases nothing', async () => {
     const qid = await mkQuotation('2026-09-25');
     const before = await listQuotationVersions(qid);
-    const [period] = await db.insert(s.fuelPricePeriods)
-      .values({ unitPrice: '30000.00', effectiveFrom: '2026-10-02' }).returning();
+    const period = await mkFuelPeriod('30000.00');
     await spawnQuotationFuelApprovals(period.id);
     const rows = await db.select()
       .from(s.quotationFuelApprovals).where(eq(s.quotationFuelApprovals.fuelPricePeriodId, period.id));

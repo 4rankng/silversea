@@ -11,6 +11,7 @@ import type { Tx } from '../services/trip-shared';
 import { upsertExpenseAccountingSource, hydrateExpenseAccountingSource } from '../services/expense-accounting-source.service';
 import { confirmAccountingExpenses, updateAccountingExpense } from '../services/expense-accounting-write.service';
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
+import { getPhoiPhieuTienDuong } from '../services/phoi-phieu-control.service';
 import { createOpsExpense, updateOpsExpense } from '../services/ops-expenses.service';
 import { assertExpenseOwnerWriteScope, assertOpsExpenseAssignment } from '../services/expense-owner-scope.service';
 import { updateTripExpense, deleteTripExpenseGuarded } from '../services/forwarder.service';
@@ -93,6 +94,78 @@ test('FIX17-S06 confirmed OPS replacement preserves original, reverses obligatio
   const [audit] = await tx.select().from(s.auditLogs).where(and(eq(s.auditLogs.entityId, source.id), eq(s.auditLogs.message, 'EXPENSE_ACCOUNTING_CORRECTED')));
   assert.equal((audit.payload as { replacementSourceId: number }).replacementSourceId, after.id);
   await assert.rejects(correctAccountingExpense(tx, ctx.actor, 'OPS', source.sourceId, { expectedVersion: confirmed.version, amount: 1, reason: 'Thử lại phiên bản cũ' }), /đã thay đổi/);
+}));
+for (const variant of ['CATALOG', 'NORM', 'LEGACY'] as const) test(`QA-AUDIT-PHOI-11 ${variant} correction and forward correction preserve original driver provenance`, async () => fixture(async (tx, ctx) => {
+  const work = await trip(tx, ctx);
+  const [driver] = await tx.insert(s.drivers).values({ name: 'Driver', userId: ctx.user.id }).returning();
+  await tx.update(s.trips).set({ driverId: driver.id }).where(eq(s.trips.id, work.id));
+  const [catalog] = await tx.select().from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.code, 'OTHER'));
+  const [norm] = await tx.select().from(s.driverFeeNorms).where(eq(s.driverFeeNorms.code, 'NIGHT_RETURN'));
+  assert.ok(catalog); assert.ok(norm);
+  const original = {
+    driverEnteredAmount: variant === 'CATALOG' ? '10000110000' : variant === 'NORM' ? '0' : null,
+    expenseTypeCode: variant === 'CATALOG' ? catalog.code : null,
+    feeNormCode: variant === 'NORM' ? norm.code : null,
+    costType: variant === 'NORM' ? DriverIncidentalCostType.ROAD_ALLOWANCE : DriverIncidentalCostType.OTHER,
+  };
+  const key = `expense-accounting/DRIVER/${crypto.randomUUID()}/receipt.jpg`;
+  const [native] = await tx.insert(s.driverIncidentalCosts).values({ ...original, tripId: work.id, driverId: driver.id,
+    amount: '100000', occurredAt: '2026-09-16', note: 'Giữ biên lai gốc', receiptStorageKey: key,
+    photoStorageKeys: [key], recordedBy: ctx.user.id }).returning();
+  const metadata = { costGroup: variant === 'CATALOG' ? 'DRIVER_SHIPMENT' as const : 'DRIVER_ROAD' as const,
+    feeName: 'Phí lái xe đã lưu', invoiceNumber: variant === 'CATALOG' ? 'QA-PHOI11' : null,
+    invoiceDate: variant === 'CATALOG' ? '2026-09-16' : null, recoveryNote: 'Giữ phân loại gốc' };
+  const charge = variant === 'CATALOG' ? 120000 : 0;
+  const source = await upsertExpenseAccountingSource(tx, { sourceKind: 'DRIVER', sourceId: native.id, shipmentId: ctx.shipment.id,
+    tripId: work.id, customerId: ctx.customer.id, expenseTypeCode: native.costType, ...metadata,
+    amount: 100000, customerChargeAmount: charge, expenseDate: native.occurredAt, payerKind: 'USER', payerUserId: ctx.user.id,
+    payableEntityType: 'DRIVER', payableEntityId: driver.id, recordedById: ctx.user.id, note: native.note, photoStorageKeys: [key] });
+  await tx.insert(s.expenseAccountingEvidence).values({ expenseAccountingSourceId: source.id, storageKey: key, uploadedById: ctx.user.id });
+  const [confirmed] = await confirmAccountingExpenses(tx, ctx.actor, [{ sourceKind: 'DRIVER', sourceId: native.id, expectedVersion: source.version }]);
+  const [originalHead] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, native.id));
+  const [legacy] = await tx.insert(s.driverIncidentalCosts).values({ tripId: work.id, driverId: driver.id,
+    costType: DriverIncidentalCostType.OTHER, amount: '500', occurredAt: native.occurredAt }).returning();
+  let active = confirmed;
+  const heads = [confirmed];
+  for (const amount of [70000, 100000]) {
+    active = await correctAccountingExpense(tx, ctx.actor, 'DRIVER', active.sourceId,
+      { expectedVersion: active.version, amount, reason: 'Đối chiếu rồi khôi phục số tiền phải trả' });
+    assert.ok(active.confirmedAt); assert.equal(active.amount, String(amount));
+    assert.equal(active.sourceKind, 'DRIVER'); assert.equal(active.tripId, work.id);
+    assert.equal(active.customerChargeAmount, String(charge));
+    assert.equal(active.costGroup, metadata.costGroup); assert.equal(active.feeName, metadata.feeName);
+    assert.equal(active.invoiceNumber, metadata.invoiceNumber); assert.equal(active.invoiceDate, metadata.invoiceDate);
+    assert.equal(active.recoveryNote, metadata.recoveryNote); assert.equal(active.note, native.note);
+    assert.deepEqual(active.photoStorageKeys, [key]);
+    assert.ok(heads.every(head => head.id !== active.id && head.sourceId !== active.sourceId));
+    heads.push(active);
+    const [saved] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, active.sourceId));
+    assert.deepEqual({ driverEnteredAmount: saved.driverEnteredAmount, expenseTypeCode: saved.expenseTypeCode,
+      feeNormCode: saved.feeNormCode, costType: saved.costType }, original);
+    assert.equal(saved.driverId, driver.id); assert.equal(saved.tripId, work.id);
+    assert.equal(saved.receiptStorageKey, key); assert.equal(saved.occurredAt, native.occurredAt);
+    assert.equal(saved.note, native.note); assert.equal(saved.payerKind, 'USER');
+    assert.equal(saved.costGroup, metadata.costGroup); assert.equal(saved.invoiceNumber, metadata.invoiceNumber);
+    assert.equal(saved.invoiceDate, metadata.invoiceDate); assert.equal(saved.recoveryNote, metadata.recoveryNote);
+    const detail = await getPhoiPhieuTienDuong(work.id, tx);
+    assert.deepEqual(detail.rows.map(row => row.sourceId).sort((a, b) => a - b), [legacy.id, active.sourceId].sort((a, b) => a - b));
+    const visible = detail.rows.find(row => row.sourceId === active.sourceId)!;
+    assert.equal(visible.driverEnteredAmount, original.driverEnteredAmount == null ? null : Number(original.driverEnteredAmount));
+    assert.equal(visible.amount, amount); assert.equal(visible.confirmed, true); assert.equal(visible.version, active.version);
+    assert.equal(detail.rows.find(row => row.sourceId === legacy.id)!.confirmed, false);
+    assert.equal(detail.rows.find(row => row.sourceId === legacy.id)!.version, 1);
+    assert.deepEqual(detail.totals, { total: amount + 500, confirmed: amount });
+    const obligations = await tx.select().from(s.ledger).where(and(eq(s.ledger.entityType, 'DRIVER'), eq(s.ledger.entityId, driver.id)));
+    assert.equal(obligations.reduce((sum, row) => sum + Number(row.debit) - Number(row.credit), 0), -amount);
+  }
+  const [originalNative] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, native.id));
+  assert.deepEqual(originalNative, originalHead);
+  for (const head of heads.slice(0, -1)) {
+    const [saved] = await tx.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, head.id));
+    assert.equal(saved.status, 'VOIDED'); assert.equal(saved.version, head.version + 1);
+  }
+  const evidence = await tx.select().from(s.expenseAccountingEvidence).where(eq(s.expenseAccountingEvidence.storageKey, key));
+  assert.equal(evidence.length, 1); assert.equal(evidence[0].expenseAccountingSourceId, source.id);
 }));
 for (const status of ['CREATED', 'COMPLETED'] as const) test(`FIX17-S06 ${status} toll correction preserves allowances and replaces actual once`, async () => fixture(async (tx, ctx) => {
   const work = await trip(tx, ctx);

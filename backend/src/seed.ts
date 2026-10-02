@@ -79,25 +79,41 @@ export async function seed() {
     passwordHash: schema.users.passwordHash,
   }).from(schema.users);
   const existingUserByUsername = new Map<string, (typeof existingUsers)[number]>();
+  const emailOwnerByContact = new Map<string, number>();
+  const phoneOwnerByContact = new Map<string, number>();
   for (const existingUser of existingUsers) {
+    // Unique contacts remain owned even by a soft-deleted account.
+    if (existingUser.email) emailOwnerByContact.set(existingUser.email, existingUser.id);
+    if (existingUser.phone) phoneOwnerByContact.set(existingUser.phone, existingUser.id);
     const key = existingUser.username;
     if (!key) continue;
     existingUserByUsername.set(key, existingUser);
   }
 
   for (const user of users) {
-    const canonicalUser = { ...user, status: 'ACTIVE' as const };
     const existingUser = existingUserByUsername.get(user.username);
+    const emailOwner = emailOwnerByContact.get(user.email);
+    const phoneOwner = phoneOwnerByContact.get(user.phone);
+    const canonicalUser = {
+      ...user,
+      email: emailOwner == null || emailOwner === existingUser?.id ? user.email : null,
+      phone: phoneOwner == null || phoneOwner === existingUser?.id ? user.phone : null,
+      status: 'ACTIVE' as const,
+    };
     if (existingUser) {
       // Legacy rows (e.g. a pre-wipe `laixe` with NULL email/phone) keep
-      // their account but must carry the canonical contact identity so the
-      // driver↔user phone backfill below can link them.
+      // their account. Fill each missing contact only when unclaimed, and
+      // preserve independently populated or administrator-modified contacts.
       // Also ensure password hash is current — staging-synced DBs may carry
       // a different hash that prevents demo login.
       const needsUpdate: Record<string, unknown> = {};
-      if (!existingUser.email || !existingUser.phone) {
+      if (!existingUser.email && canonicalUser.email) {
         needsUpdate.email = canonicalUser.email;
+        emailOwnerByContact.set(canonicalUser.email, existingUser.id);
+      }
+      if (!existingUser.phone && canonicalUser.phone) {
         needsUpdate.phone = canonicalUser.phone;
+        phoneOwnerByContact.set(canonicalUser.phone, existingUser.id);
       }
       // Sync the password hash only when the stored one fails to authenticate
       // the demo password (e.g. a devdb-synced DB carrying prod hashes) — a
@@ -113,7 +129,9 @@ export async function seed() {
       }
       continue;
     }
-    await db.insert(schema.users).values(canonicalUser);
+    const [insertedUser] = await db.insert(schema.users).values(canonicalUser).returning({ id: schema.users.id });
+    if (canonicalUser.email) emailOwnerByContact.set(canonicalUser.email, insertedUser.id);
+    if (canonicalUser.phone) phoneOwnerByContact.set(canonicalUser.phone, insertedUser.id);
   }
 
   console.log('✅ Users seeded!');

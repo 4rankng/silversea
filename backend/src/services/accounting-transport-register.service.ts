@@ -23,6 +23,7 @@ import { TxnType } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
+import { billBookingTitle } from '../lib/business-keys';
 
 const TIMEZONE = 'Asia/Ho_Chi_Minh' as const;
 const carrier = alias(s.customers, 'accounting_transport_carrier');
@@ -79,7 +80,7 @@ const podDecisionProjection = db.select({
 // at the orderBy call site.
 type TransportSortKey = NonNullable<AccountingTransportRegisterQuery['sortBy']>;
 const TRANSPORT_SORT_SQL: Record<TransportSortKey, SQL> = {
-  tripCode: sql`${s.trips.tripCode}`,
+  tripCode: sql`coalesce(nullif(btrim(${s.shipments.blNumber}), ''), nullif(btrim(${s.shipments.bookingRef}), ''))`,
   customerName: sql`${operationalName(s.customers.shortName, s.customers.name)}`,
   carrierName: sql`coalesce(${operationalName(carrier.shortName, carrier.name)}, N'Xe nhà')`,
   revenue: sql`${s.profitabilitySnapshots.revenue}`,
@@ -201,6 +202,8 @@ export async function listAccountingTransportRows(
     financialPostingEffectiveAt: s.tripFinancialPostings.effectiveAt,
     tripId: s.trips.id,
     tripCode: s.trips.tripCode,
+    billNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
     completionDate: completionBusinessDate,
     customerId: s.customers.id,
     customerName: operationalName(s.customers.shortName, s.customers.name),
@@ -294,7 +297,7 @@ export async function listAccountingTransportRows(
       financialPostingVersion: row.financialPostingVersion,
       financialPostingEffectiveAt: row.financialPostingEffectiveAt.toISOString(),
       tripId: row.tripId,
-      tripCode: row.tripCode ?? null,
+      tripCode: billBookingTitle(row.billNumber, row.bookingRef),
       completionDate: row.completionDate,
       customerId: row.customerId,
       customerName: row.customerName,

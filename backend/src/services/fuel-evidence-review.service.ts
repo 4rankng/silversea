@@ -6,6 +6,7 @@ import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { ApiError } from '../errors';
 import { extractPumpReading, type PumpReading, type PumpReadingOutcome } from './ocr.service';
 import type { Tx } from './trip-shared';
+import { billBookingTitle } from '../lib/business-keys';
 
 export type FuelEvidenceReviewStatus = typeof s.fuelEvidenceReviewStatusEnum.enumValues[number];
 
@@ -57,6 +58,8 @@ interface FuelEvidenceReviewRow {
   id: number;
   tripId: number;
   tripCode: string | null;
+  billNumber: string | null;
+  bookingRef: string | null;
   ownerDriverId: number;
   ownerUserId: number;
   ownerName: string | null;
@@ -177,7 +180,7 @@ function toView(row: FuelEvidenceReviewRow): FuelEvidenceReviewView {
   return {
     id: row.id,
     tripId: row.tripId,
-    tripCode: row.tripCode,
+    tripCode: billBookingTitle(row.billNumber, row.bookingRef),
     ownerDriverId: row.ownerDriverId,
     ownerUserId: row.ownerUserId,
     ownerName: row.ownerName,
@@ -225,6 +228,8 @@ function reviewRowSelection() {
     id: s.fuelEvidenceReviews.id,
     tripId: s.fuelEvidenceReviews.tripId,
     tripCode: s.trips.tripCode,
+    billNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
     ownerDriverId: s.fuelEvidenceReviews.ownerDriverId,
     ownerUserId: s.fuelEvidenceReviews.ownerUserId,
     ownerName: ownerUser.fullName,
@@ -270,6 +275,7 @@ function reviewRowQuery(executor: typeof db | Tx = db) {
   return executor.select(reviewRowSelection())
     .from(s.fuelEvidenceReviews)
     .innerJoin(s.trips, eq(s.trips.id, s.fuelEvidenceReviews.tripId))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .innerJoin(ownerDriver, eq(ownerDriver.id, s.fuelEvidenceReviews.ownerDriverId))
     .leftJoin(ownerUser, eq(ownerUser.id, ownerDriver.userId))
     .leftJoin(reviewerUser, eq(reviewerUser.id, s.fuelEvidenceReviews.reviewerId));
@@ -303,6 +309,8 @@ export async function listFuelEvidenceReviewsForOffice(filters: {
     const pattern = `%${filters.search.trim()}%`;
     conditions.push(or(
       ilike(s.trips.tripCode, pattern),
+      ilike(s.shipments.blNumber, pattern),
+      ilike(s.shipments.bookingRef, pattern),
       ilike(ownerUser.fullName, pattern),
     ) as SQL<unknown>);
   }
@@ -325,6 +333,7 @@ export async function listFuelEvidenceReviewsForOffice(filters: {
     db.select({ total: sql<number>`count(*)::int` })
       .from(s.fuelEvidenceReviews)
       .innerJoin(s.trips, eq(s.trips.id, s.fuelEvidenceReviews.tripId))
+      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
       .innerJoin(ownerDriver, eq(ownerDriver.id, s.fuelEvidenceReviews.ownerDriverId))
       .leftJoin(ownerUser, eq(ownerUser.id, ownerDriver.userId))
       .where(whereClause),

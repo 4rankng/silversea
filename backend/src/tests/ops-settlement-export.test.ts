@@ -19,10 +19,10 @@ function group(shipmentId: number, overrides: Record<string, unknown> = {}) {
 }
 
 // Internal DB ids never render in the exported file: the lot header falls back
-// code → Số Bill/Booking → em-dash, the preparer line never falls back to the
+// Số Bill/Booking → explicit missing-key label, the preparer line never falls back to the
 // ops user id.
 describe('ops settlement XLSX export display keys', () => {
-  test('codeless lot rows carry a business key or an em-dash, never the DB id', async () => {
+  test('every lot carries its business key or names the missing key, never an internal code', async () => {
     const { buffer } = await exportOpsSettlementXlsx(0, {
       settlement: {
         id: 1, code: 'OS-2609-0001', status: 'RECORDED', totalAmount: '0',
@@ -49,9 +49,10 @@ describe('ops settlement XLSX export display keys', () => {
     });
     const joined = texts.join('\n');
 
-    assert.match(joined, /Lô SHP-2609-00010/);
+    assert.match(joined, /Lô BILL-CODED/);
+    assert.doesNotMatch(joined, /SHP-2609-00010/);
     assert.match(joined, /Lô BILL-ONLY/);
-    assert.match(joined, /Lô —/);
+    assert.match(joined, /Lô Chưa có số Bill\/Booking/);
     assert.doesNotMatch(joined, /Lô 10\b/);
     assert.doesNotMatch(joined, /Lô 11\b/);
     assert.doesNotMatch(joined, /Lô 12\b/);

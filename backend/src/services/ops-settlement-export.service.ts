@@ -41,9 +41,8 @@ export async function exportOpsSettlementXlsx(
 
   for (const group of grouping.groups) {
     const header = sheet.addRow([
-      `Lô ${group.shipmentCode ?? group.billRef ?? '—'}`,
+      `Lô ${group.billRef?.trim() || 'Chưa có số Bill/Booking'}`,
       group.customerName ?? '',
-      `Bill/Booking: ${group.billRef ?? '—'}`,
     ]);
     header.font = { bold: true };
 
@@ -68,7 +67,7 @@ export async function exportOpsSettlementXlsx(
       subtotal.getCell(3).numFmt = MONEY_FORMAT;
     }
 
-    const groupTotal = sheet.addRow(['', `Tổng lô ${group.shipmentCode ?? ''}`, Number(group.total), '']);
+    const groupTotal = sheet.addRow(['', `Tổng lô ${group.billRef?.trim() || 'Chưa có số Bill/Booking'}`, Number(group.total), '']);
     groupTotal.font = { bold: true };
     groupTotal.getCell(3).numFmt = MONEY_FORMAT;
     sheet.addRow([]);

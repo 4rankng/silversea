@@ -35,6 +35,7 @@ const phoiPhieuQuerySchema = z.object({
   status: z.string().max(20).optional(),
   search: z.string().trim().max(64).optional(),
   sortBy: z.enum(['grouped', 'date']).optional(),
+  confirmation: z.enum(['CONFIRMED', 'UNCONFIRMED']).optional(),
 });
 
 const PHOI_PHIEU_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
@@ -96,7 +97,8 @@ router.put('/phoi-phieu/trucks/:truckId/accountant', declareMaterialWrite('expen
 
 router.get('/phoi-phieu/:tripId/chi-ho', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
-  res.json(await getPhoiPhieuChiHo(tripId));
+  const query = parse(z.object({ confirmation: z.enum(['CONFIRMED', 'UNCONFIRMED']).optional() }), req.query);
+  res.json(await getPhoiPhieuChiHo(tripId, query.confirmation));
 }));
 
 router.get('/phoi-phieu/:tripId/tien-duong', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
