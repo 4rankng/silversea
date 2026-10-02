@@ -490,7 +490,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.MANAGER]: 'Quản lý',
   [Role.ACCOUNTANT]: 'Kế toán',
   [Role.DRIVER]: 'Lái xe',
-  [Role.OPS]: 'Nhân viên vận hành', // formerly 'Giao nhận'
+  [Role.OPS]: 'Vận hành', // formerly 'Giao nhận'
   [Role.CUSTOMER]: 'Khách hàng',
   [Role.DISPATCHER]: 'Điều vận',
   // Card 20260921_25: business label, never the internal role code — the

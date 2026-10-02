@@ -35,6 +35,8 @@ export const RECOVERABLE_COST_SORT_KEYS = [
   'customerName',
   'shipmentCode',
   'tripCode',
+  'shipmentReference',
+  'tripReference',
   'expenseName',
   'buyAmount',
   'recoverablePrincipalAmount',

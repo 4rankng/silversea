@@ -423,6 +423,8 @@ export interface Trip {
   tollCost: string | null;
   reconciledTollCost?: string | null;
   reconciledExtraCost?: string | null;
+  /** System-managed backhaul toll deduction returned by trip reads. */
+  tollDeduction?: string | null;
   revenueOriginal: string | null;
   revenueOverriddenBy: number | null;
   revenueOverriddenAt: string | null;
@@ -441,6 +443,8 @@ export interface Trip {
   vatRate: string;
   carrierType: 'OWN' | 'EXTERNAL';
   externalCarrierId: number | null;
+  externalEntityType?: 'CUSTOMER' | 'SUPPLIER' | null;
+  externalCarrierName?: string | null;
   externalFreightCost: string | null;
   externalPlateNumber: string | null;
   externalDriverName: string | null;

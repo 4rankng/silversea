@@ -350,6 +350,8 @@ export {
   validateContainerNumber,
   suggestCorrections,
 } from './calculations/iso6346';
+export { applyCommittedLegacyFuelFreeze } from './calculations/committedLegacyFuel';
+export type { CommittedLegacyFuelInput } from './calculations/committedLegacyFuel';
 export { computeTripTotals, computeRoadAllowance } from './calculations/tripTotals';
 export type { ComputeTripTotalsInput, ComputeTripTotalsOutput } from './calculations/tripTotals';
 export { computeFifoAging } from './calculations/fifoAging';

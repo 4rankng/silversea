@@ -121,6 +121,31 @@ export const PAGE_CATALOG = {
     path: '/accounting',
     section: 'financials',
   },
+  accountingDebitClose: {
+    title: 'Kế toán chốt debit',
+    path: '/accounting/chot-debit',
+    section: 'financials',
+  },
+  accountingDepositTracker: {
+    title: 'Theo dõi hoàn cược',
+    path: '/accounting/deposit-tracker',
+    section: 'financials',
+  },
+  accountingReconciliation: {
+    title: 'Báo cáo hoàn ứng',
+    path: '/accounting/hoan-ung',
+    section: 'financials',
+  },
+  accountingInvoiceTracking: {
+    title: 'Theo dõi hóa đơn',
+    path: '/accounting/invoice-tracking',
+    section: 'financials',
+  },
+  accountingPhoiPhieu: {
+    title: 'Kiểm soát phơi phiếu',
+    path: '/accounting/phoi-phieu',
+    section: 'financials',
+  },
   profit: {
     title: 'Phân chia lợi nhuận',
     path: '/profit',
@@ -424,6 +449,13 @@ export const PAGE_CATALOG = {
     title: 'Chi tiết phiếu thanh toán',
     path: (p: Record<string, string | number>) => `/my-settlements/${p.id}`,
     pathPattern: '/my-settlements/:id',
+    requiresParams: ['id'],
+  },
+
+  settlementDetail: {
+    title: 'Chi tiết phiếu thanh toán',
+    path: (p: Record<string, string | number>) => `/settlements/${p.id}`,
+    pathPattern: '/settlements/:id',
     requiresParams: ['id'],
   },
 
