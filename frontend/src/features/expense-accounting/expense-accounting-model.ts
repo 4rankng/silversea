@@ -7,6 +7,15 @@ export function expenseKey(entry: Pick<ExpenseAccountingEntry, 'sourceKind' | 's
 export function sourceRef(entry: ExpenseAccountingEntry): ExpenseSourceRef {
   return { sourceKind: entry.sourceKind, sourceId: entry.sourceId, expectedVersion: entry.version };
 }
+/** Card 20260928_168 AC2 — the ONE rule behind every "selectable" set on the
+ *  expense register: a row may join a confirm batch. An approved row keeps
+ *  `status: 'RECORDED'` and only gains `confirmedAt`, so a `status`-only
+ *  predicate re-selects it and the batch is refused wholesale
+ *  (`Khoản … đã đối chiếu.`). Ticket-all, page-all and the per-row checkbox
+ *  all read this helper so the three can never drift apart. */
+export function isConfirmableEntry(entry: Pick<ExpenseAccountingEntry, 'status' | 'confirmedAt'>): boolean {
+  return entry.status === 'RECORDED' && !entry.confirmedAt;
+}
 export function expenseMoney(value: number | null | undefined): string {
   return value == null ? 'Chưa xác định' : formatCurrency(value);
 }

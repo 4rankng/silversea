@@ -134,7 +134,7 @@ export const tripClient = {
 
   cancelTrip: (id: number) => api.post<Trip>(TRIPS.CANCEL(id), {}),
 
-  reassignTrip: (id: number, data: { carrierType?: 'OWN' | 'EXTERNAL', truckId?: number | null, driverId?: number | null, externalCarrierId?: number | null, externalPlateNumber?: string | null, externalDriverName?: string | null, externalDriverPhone?: string | null, expectedVersion?: number }) =>
+  reassignTrip: (id: number, data: { carrierType?: 'OWN' | 'EXTERNAL', truckId?: number | null, driverId?: number | null, externalCarrierId?: number | null, externalPlateNumber?: string | null, externalDriverName?: string | null, externalDriverPhone?: string | null, reason: string, expectedVersion?: number }) =>
     api.patch<TripDetail>(TRIPS.REASSIGN(id), data),
 
   getPricing: (customerId: number, routeId: number, date?: string) =>
@@ -156,12 +156,6 @@ export const tripClient = {
 
   deleteTripExpense: (tripId: number, eid: number) =>
     api.delete<{ ok: boolean }>(TRIPS.EXPENSE(tripId, eid)),
-
-  approveTripExpense: (tripId: number, eid: number) =>
-    api.post<{ ok: true; outcome: 'APPROVED' | 'RETURN_FOR_EVIDENCE' }>(TRIPS.EXPENSE_APPROVE(tripId, eid), {}),
-
-  rejectTripExpense: (tripId: number, eid: number) =>
-    api.post<{ ok: boolean }>(TRIPS.EXPENSE_REJECT(tripId, eid), {}),
 
   // ─── Trip instructions (N2 / B1.3) ──────────────────────────────────────────
   // Manager-authored contact + free-text guidance. Returns null when no row

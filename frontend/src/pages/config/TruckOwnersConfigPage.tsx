@@ -215,7 +215,7 @@ export default function TruckOwnersConfigPage() {
       )}
 
       <Panel>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--line)' }}>
           <div style={{ fontSize: 'var(--text-data-size)', color: 'var(--fg-3)' }}>
             Hiện tại: <strong style={{ color: 'var(--fg-1)' }}>{activeOwners.length}</strong> đối tác · {items.length - activeOwners.length} bản ghi lịch sử
           </div>

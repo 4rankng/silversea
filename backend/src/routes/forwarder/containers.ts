@@ -19,10 +19,11 @@ import {
 
 import { requireForwarderIdempotencyKey, FORWARDER_IDEMPOTENCY_ENDPOINTS, forwarderTripContainerSchema } from './forwarder-shared';
 import { runIdempotent } from '../../services/idempotency.service';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
 
-router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: Response) => {
+router.post('/trips/:tripId/containers', declareMaterialWrite('forwarder.containers.create', { method: 'POST', path: '/api/forwarder/me/trips/:tripId/containers' }),  asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const tripId = parseInt(req.params.tripId as string, 10);
   const parsed = forwarderTripContainerSchema.safeParse({ ...req.body, tripId });

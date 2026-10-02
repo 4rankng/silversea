@@ -4,6 +4,7 @@
 
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { eq, and, isNull, ne, sql } from 'drizzle-orm';
 import { TripStatus, Role } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
@@ -14,7 +15,7 @@ import {
   getTripCompositeInTx, splitTripPatch, tripCompositeSelect,
   upsertTripCarrierInfo, upsertTripFinancialState,
 } from './trip-composite.service';
-import { assertActiveApprovalApplication } from './governance-action-core.service';
+import { assertActiveDirectApplication } from './governance-action-core.service';
 import { deriveMilestoneFromTripStatus } from './milestone.service';
 import {
   createFinancialPosting,
@@ -126,7 +127,7 @@ export async function transitionTripStatus(
       // 2026-09-11 maker-checker removal: the cross-person persisted
       // authorization is gone with governance_actions; the in-memory
       // approval-application guard carries the apply-time authorization.
-      assertActiveApprovalApplication(tx, options?.governanceActionId);
+      assertActiveDirectApplication(tx, options?.governanceActionId);
       governanceAuthorized = true;
     }
 
@@ -153,8 +154,14 @@ export async function transitionTripStatus(
           'Chỉ Quản lý, Điều phối hoặc Quản trị viên mới có quyền xuất phát chuyến đi',
         );
       }
-      if (currentStatus !== TripStatus.CREATED && currentStatus !== TripStatus.COMPLETED) {
-        throw new ApiError(409, 'Chỉ có thể xuất phát chuyến đi ở trạng thái Mới tạo hoặc Hoàn thành');
+      if (currentStatus === TripStatus.COMPLETED) {
+        throw new ApiError(
+          409,
+          'Chuyến đã chốt chỉ được mở lại bằng thao tác mở lại tài chính có quyền và lý do hợp lệ',
+        );
+      }
+      if (currentStatus !== TripStatus.CREATED) {
+        throw new ApiError(409, 'Chỉ có thể xuất phát chuyến đi ở trạng thái Mới tạo');
       }
       // Unrelated trips cannot share a running truck. A persisted ACTIVE
       // KEP pair is the exception: its two 20ft containers run together.
@@ -164,7 +171,7 @@ export async function transitionTripStatus(
       // without it, two READ COMMITTED transactions could both see 0 IN_TRANSIT
       // rows and both proceed (phantom-read race).
       if (trip.truckId) {
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(${trip.truckId})`);
+        await acquireAdvisoryLock(tx, lockKeys.tripTruckTransition(trip.truckId));
       }
       const busyTrips = trip.truckId ? await tx.select({
         id: s.trips.id, tripCode: s.trips.tripCode,
@@ -225,7 +232,7 @@ export async function transitionTripStatus(
       if (currentStatus === TripStatus.COMPLETED) {
         throw new ApiError(
           409,
-          'Chuyến đã chốt chỉ được mở lại bằng yêu cầu có kiểm tra và phê duyệt',
+          'Chuyến đã chốt chỉ được mở lại bằng thao tác mở lại tài chính có quyền và lý do hợp lệ',
         );
       }
       // An external-carrier trip never enters IN_TRANSIT — no app driver
@@ -289,7 +296,7 @@ export async function transitionTripStatus(
           );
         }
         if (!routineShipmentClose && !governanceAuthorized) {
-          throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
+          throw new ApiError(409, 'Thao tác phải được thực hiện qua lệnh tài chính có kiểm tra quyền và dữ liệu');
         }
 
         // POD-recovery gate (O2C): physical paper return ("Đã thu hồi chứng từ
@@ -347,7 +354,7 @@ export async function transitionTripStatus(
       }
       if (currentStatus === TripStatus.COMPLETED) {
         if (!governanceAuthorized) {
-          throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
+          throw new ApiError(409, 'Thao tác phải được thực hiện qua lệnh tài chính có kiểm tra quyền và dữ liệu');
         }
       }
 

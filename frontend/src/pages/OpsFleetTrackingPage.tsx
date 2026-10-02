@@ -1,8 +1,10 @@
-import { Loader2, RefreshCw, Truck } from 'lucide-react';
+import { opsBillReference } from '../features/ops/opsStatus';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useOpsFleet } from '../hooks/useOpsQueries';
 import './OpsFleetTrackingPage.css';
 import { Btn } from '../components/UI';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
+import { formatDateTimeShort } from '../lib/format';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   CREATED: { label: 'Chờ nhận lệnh', color: 'var(--info, #2563eb)' },
@@ -21,15 +23,6 @@ const PROGRESS_LABELS: Record<string, string> = {
   LOADING_OR_RETURNING: 'đang đóng/trả hàng',
   DELIVERED: 'đã giao',
 };
-
-function timeLabel(iso: string | null): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
-}
 
 /**
  * Theo dõi phương tiện (OpsVanHanh §4): read-only — mọi thao tác ghi đều
@@ -74,21 +67,21 @@ export default function OpsFleetTrackingPage() {
               return (
                 <tr key={truck.truckId} className="ops-fleet__row">
                   <td className="ops-fleet__plate" data-label="Biển số xe">
-                    <Truck size={14} aria-hidden /> {truck.licensePlate}
+                    {truck.licensePlate}
                   </td>
-                  <td data-label="Rơ-moóc">{truck.trailerPlate ?? '—'}</td>
+                  <td data-label="Rơ-moóc">{truck.trailerPlate ?? <span className="ops-fleet__missing">Chưa có rơ-moóc</span>}</td>
                   <td className="ops-fleet__wide" data-label="Lệnh đang gán">
-                    {truck.tripCode
-                      ? `${truck.tripCode}${truck.shipmentCode ? ` · ${truck.shipmentCode}` : ''}`
-                      : '—'}
+                    {truck.tripId != null
+                      ? opsBillReference(truck.billRef)
+                      : <span className="ops-fleet__missing">Chưa gán lệnh</span>}
                   </td>
-                  <td data-label="Tài xế">{truck.driverName ?? '—'}</td>
+                  <td data-label="Tài xế">{truck.driverName ?? <span className="ops-fleet__missing">Chưa có tài xế</span>}</td>
                   <td data-label="Trạng thái">
                     {status
                       ? <span style={{ color: status.color }}>{status.label}{progress ? ` (${progress})` : ''}</span>
                       : <span className="ops-fleet__idle">Đang rảnh</span>}
                   </td>
-                  <td data-label="Cập nhật">{timeLabel(truck.updatedAt)}</td>
+                  <td data-label="Cập nhật">{formatDateTimeShort(truck.updatedAt)}</td>
                 </tr>
               );
             })}

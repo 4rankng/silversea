@@ -122,6 +122,9 @@ export async function assertUniqueCatalogString(args: {
     | typeof s.tirePositions.name | typeof s.containerTypes.code | typeof s.ports.code
     | typeof s.forwarderExpenseTypes.code;
   message: string;
+  /** Ruling (ii) on 20260926_14: when only tombstoned rows match the key,
+   *  surface the business message naming the plate and the trash remedy. */
+  tombstoneMessage?: (key: string) => string;
 }): Promise<void> {
   const key = normalizeCatalogKey(args.value);
   if (!key) return;
@@ -135,6 +138,16 @@ export async function assertUniqueCatalogString(args: {
     .where(and(...conditions))
     .limit(1);
   if (duplicate) throw new ApiError(409, args.message);
+  const tombstoneConditions = [
+    sql`upper(regexp_replace(btrim(${args.column}), '\\s+', ' ', 'g')) = ${key}`,
+    sql`${args.table.deletedAt} is not null`,
+  ];
+  const tombstones = await args.tx.select({ id: args.table.id }).from(args.table)
+    .where(and(...tombstoneConditions));
+  if (tombstones.length > 0 && args.tombstoneMessage) {
+    console.log(`[catalog-uniqueness] ${args.scope}: ${tombstones.length} tombstone row(s) hold the requested key - surfacing the trash remedy.`);
+    throw new ApiError(409, args.tombstoneMessage(key));
+  }
 }
 
 /** Zone codes are DB-owned (dispatch_zones) — reject writes carrying a code
@@ -268,7 +281,7 @@ export function sameConfigValue(current: unknown, incoming: unknown): boolean {
     if (!Array.isArray(current) || !Array.isArray(incoming)) return false;
     if (current.length !== incoming.length) return false;
     const sorted = (values: unknown[]) => [...values].map(String).sort();
-    return sorted(current).join(' ') === sorted(incoming).join(' ');
+    return sorted(current).join(' ') === sorted(incoming).join(' ');
   }
   if (typeof current === 'number' || typeof incoming === 'number') {
     return Number(current) === Number(incoming);

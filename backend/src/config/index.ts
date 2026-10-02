@@ -7,8 +7,7 @@ dotenv.config();
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// Default VAPID subject (RFC 8030 "from" contact). Single source — referenced
-// by the schema default, the dev fallback, and the parse-failure recovery below.
+// Default VAPID subject (RFC 8030 "from" contact), shared by schema and defaults.
 const VAPID_SUBJECT_DEFAULT = 'mailto:admin@tingting.vip';
 
 // Express `trust proxy` setting — controls how `req.ip` reads X-Forwarded-For.
@@ -131,8 +130,11 @@ const raw = {
 const withDefaults = {
   ...raw,
   port: raw.port || '3001',
-  databaseUrl: raw.databaseUrl || (isProd ? undefined : 'postgres://postgres:postgres@localhost:5442/silversea'),
-  redisUrl: raw.redisUrl || (isProd ? undefined : 'redis://localhost:6392'),
+  databaseUrl: raw.databaseUrl || (isProd ? undefined : 'postgres://postgres:postgres@localhost:5441/silversea'),
+  // 6391 = this checkout's ss-prod-redis (the ss-main checkout's redis is 6392).
+  // REDIS_URL in backend/.env must win at runtime; the default only has to
+  // name the right container for THIS tree.
+  redisUrl: raw.redisUrl || (isProd ? undefined : 'redis://localhost:6391'),
   jwtSecret: raw.jwtSecret || (isProd ? undefined : 'dev-secret-change-in-production'),
   jwtExpiresIn: raw.jwtExpiresIn || '7d',
   uploadDir: raw.uploadDir || './uploads',
@@ -159,30 +161,10 @@ if (!result.success) {
   for (const issue of result.error.issues) {
     console.error(`   ${issue.path.join('.')}: ${issue.message}`);
   }
-  if (isProd) {
-    console.error('\nMissing or invalid environment variables. Exiting.');
-    process.exit(1);
-  }
-  // In development, log warnings but continue with defaults
-  console.warn('⚠️  Running with defaults — fix before deploying!');
+  // Never replace an explicitly selected database, Redis or test mode because
+  // another setting is invalid. Defaults apply only before validation.
+  console.error('\nMissing or invalid environment variables. Exiting.');
+  process.exit(1);
 }
 
-export const config = result.success ? result.data : configSchema.parse({
-  port: 3001,
-  databaseUrl: 'postgres://postgres:postgres@localhost:5442/silversea',
-  redisUrl: 'redis://localhost:6392',
-  jwtSecret: 'dev-secret-change-in-production',
-  jwtExpiresIn: '7d',
-  uploadDir: './uploads',
-  nodeEnv: 'development',
-  googleMapsApiKey: '',
-  openrouterApiKey: '',
-  map4dApiKey: '',
-  map4dApiUrl: 'https://api.map4d.vn',
-  corsOrigin: '',
-  trustProxy: false,
-  vapidPublicKey: '',
-  vapidPrivateKey: '',
-  vapidSubject: VAPID_SUBJECT_DEFAULT,
-  settingsEncryptionKey: '',
-});
+export const config = result.data;

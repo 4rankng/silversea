@@ -10,8 +10,11 @@ describe('global filter density contract', () => {
 
     expect(tokens).toContain('--filter-control-h: var(--control-compact-h);');
     expect(tokens).toContain('--filter-control-font-size: var(--control-compact-font-size);');
-    // Compact geometry is independent of the shared text roles.
-    expect(tokens).toMatch(/@media \(max-width: 640px\)[\s\S]*--filter-control-h: var\(--control-mobile-h\);/);
+    // Compact geometry is independent of the shared text roles — and it holds
+    // on phones too: the operator ruled the strip follows the tab-row height
+    // ("these two oversize ... please follow same height as [the tab row]"),
+    // so the ≤640 band no longer raises the filter height to the touch size.
+    expect(tokens).toMatch(/@media \(max-width: 640px\)[\s\S]*--filter-control-h: var\(--control-compact-h\);/);
   });
 
   it('applies the shared contract to common and accounting filters', () => {
@@ -19,12 +22,15 @@ describe('global filter density contract', () => {
     const accounting = read('src/pages/AccountingWorkspacePage.css');
     const expense = read('src/pages/ExpenseListPage.css');
     const debt = read('src/pages/DebtListPage.css');
-    const tripList = read('src/pages/trip-list/filters.css');
+    // `src/pages/trip-list/filters.css` was in this loop until card 20260927_152:
+    // the trips plane is the shared ListFilterBar now, so the sheet no longer
+    // styles a filter control and has no density token to pin (its remaining
+    // rules are card/row styles).
 
     expect(filterBar).toContain('var(--filter-control-h)');
     expect(filterBar).toContain('var(--control-field-font-size)');
     expect(filterBar).toContain('var(--text-control-compact-size)');
-    for (const stylesheet of [accounting, expense, debt, tripList]) {
+    for (const stylesheet of [accounting, expense, debt]) {
       expect(stylesheet).toContain('var(--filter-control-h)');
       expect(stylesheet).toContain('var(--filter-control-font-size)');
     }

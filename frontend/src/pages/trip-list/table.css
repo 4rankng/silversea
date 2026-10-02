@@ -14,7 +14,7 @@
   color: var(--ink-3);
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(203, 211, 206, 0.72);
-  border-radius: 999px;
+  border-radius: 8px;
   max-width: 100%;
   letter-spacing: 0;
   user-select: none;
@@ -71,19 +71,19 @@
   overscroll-behavior-x: contain;
 }
 .trip-list-page .table-scroll-body::-webkit-scrollbar { width: 0; height: 6px; }
-.trip-list-page .table-scroll-body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+.trip-list-page .table-scroll-body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
 .trip-list-page .table-scroll-body::-webkit-scrollbar-thumb:hover { background: var(--line-3); }
 .trip-list-page .table-scroll-body::-webkit-scrollbar-track { background: transparent; }
 /* Grid: trip | truck | route+km | container | tiêu hao | tiền đường | doanh thu | tổng CP | LN gộp | status */
 .trip-list-page .table-head {
   display: grid;
-  grid-template-columns: minmax(200px, 1.3fr) 124px minmax(250px, 1.45fr) minmax(104px, 0.6fr) 116px 116px 112px 112px 104px 104px;
+  grid-template-columns: minmax(200px, 1.3fr) 124px minmax(250px, 1.45fr) minmax(104px, 0.6fr) 116px 116px 112px 112px 100px 100px;
   padding: 14px 16px;
   gap: 10px;
   background: var(--surface-2);
   border-bottom: 2px solid var(--line-2);
   width: 100%;
-  min-width: 1460px;
+  min-width: 1424px;
   align-items: center;
   position: sticky;
   top: 0;
@@ -103,7 +103,7 @@
 
 .trip-list-page .table-row {
   display: grid;
-  grid-template-columns: minmax(200px, 1.3fr) 124px minmax(250px, 1.45fr) minmax(104px, 0.6fr) 116px 116px 112px 112px 104px 104px;
+  grid-template-columns: minmax(200px, 1.3fr) 124px minmax(250px, 1.45fr) minmax(104px, 0.6fr) 116px 116px 112px 112px 100px 100px;
   padding: 14px 16px;
   gap: 10px;
   align-items: center;
@@ -111,14 +111,16 @@
   transition: background 150ms ease;
   cursor: pointer;
   width: 100%;
-  min-width: 1460px;
+  min-width: 1424px;
   min-height: 60px;
   background: var(--surface);
   position: relative;
 }
+/* Card 20260929_207: the 38px select track is gone with the checkbox column
+   — the row is the control now, so the data tracks start at the edge. */
 .trip-list-page.quick-edit-mode .table-head,
 .trip-list-page.quick-edit-mode .table-row {
-  grid-template-columns: 38px minmax(190px, 1.25fr) 90px minmax(160px, 1.35fr) minmax(80px, 0.6fr) 110px 118px 118px 118px 110px 110px 110px;
+  grid-template-columns: minmax(190px, 1.25fr) 90px minmax(160px, 1.35fr) minmax(80px, 0.6fr) 110px 118px 118px 118px 110px 110px 110px;
   min-width: 1280px;
 }
 .trip-list-page .table-row::before {
@@ -176,11 +178,11 @@
 .trip-list-page .cb {
   width: 18px; height: 18px;
   border: 1.6px solid var(--tbl-line-strong);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--surface);
   cursor: pointer;
   display: grid; place-items: center;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition: border-color var(--t-fast), background var(--t-fast);
 }
 .trip-list-page .cb:hover { border-color: var(--tbl-green-600); }
 .trip-list-page .cb.checked { background: var(--ink); border-color: var(--ink); }
@@ -212,11 +214,11 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   max-width: 100%;
   padding: 6px 10px;
   border: 1px solid color-mix(in srgb, var(--tbl-green-600) 22%, var(--line));
-  border-radius: 7px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--tbl-green-050) 70%, var(--surface));
   color: var(--tbl-green-700);
   font-size: var(--fs-xs);
@@ -225,7 +227,7 @@
   letter-spacing: 0;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), opacity var(--t-fast), transform var(--t-fast);
 }
 /* Overlay on hover instead of reserving its own row — the button sits on
    top of the trip code/date line (left edge of the cell) rather than
@@ -327,10 +329,9 @@
   align-items: center;
   gap: 8px;
 
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .trip-list-page .plate::before {
   content: "";
@@ -500,6 +501,29 @@
   white-space: nowrap;
 }
 
+/* D2 (CHANGELOG 2026-09-20): missing 15T ground price — '—' with a compact
+   right-aligned chip; nowrap + flex-shrink 0 keeps the column from stretching
+   or wrapping the label. */
+.trip-list-page .money-empty.trip-missing-price {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.trip-list-page .trip-missing-price-chip {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-style: normal;
+  color: var(--warning-text);
+  background: var(--warning-soft);
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 1;
+}
+
 .trip-list-page .status-cell {
   display: flex;
   flex-direction: column;
@@ -557,7 +581,7 @@
   color: var(--success-text);
   background: var(--success-soft);
   border: 1px solid color-mix(in srgb, var(--success) 22%, transparent);
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: var(--fs-xs);
   font-weight: 700;
 }
@@ -574,11 +598,6 @@
   cursor: not-allowed;
   opacity: 0.68;
 }
-.trip-list-page .quick-row-check {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--tbl-green-700);
-}
 .trip-list-page .quick-edit-cell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -589,7 +608,7 @@
 .trip-list-page .quick-money-input {
   width: 100%;
   min-width: 0;
-  height: 44px;
+  height: var(--control-max-h);
   padding: 0 8px;
   border: 1px solid var(--line-2);
   border-radius: 8px;
@@ -616,17 +635,11 @@
   font-weight: 700;
 }
 .trip-list-page .quick-row-error {
-  max-width: 86px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
-  border-radius: 999px;
-  padding: 2px 7px;
   font-size: var(--fs-xs);
   font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .trip-list-page .pill-moi {
@@ -666,17 +679,42 @@
   justify-content: center;
 }
 .trip-list-page .action-btn {
-  width: 44px; height: 44px;
+  width: var(--control-max-h); height: var(--control-max-h);
   display: grid; place-items: center;
   border-radius: 8px;
   background: var(--surface);
   border: 1px solid var(--line);
   color: var(--ink-3);
   cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
 }
 .trip-list-page .action-btn:hover {
   border-color: var(--tbl-green-600);
   color: var(--tbl-green-700);
   background: var(--tbl-green-050);
+}
+
+/* ── Compact desktop (1024–1439): column priority (QA-2026-09-22-03) ──── */
+/* Law §4 reserves horizontal scroll for token tables; /trips is a data table.
+   Below the wide-desktop threshold (Layout WIDE_DESKTOP_MIN_WIDTH, 1440) the
+   analytic columns yield their tracks instead of the row scrolling: Tiêu hao
+   (consumption) and Tổng đi đường (road) both live on trip detail; no
+   missing-data warning rides on them (getMissingIndicators covers revenue +
+   fuel, both visible at every width; the D2 "Thiếu giá 15T" chip is in the
+   revenue column). Money strings and tokens stay whole — the template floors
+   are content floors (trip code ≈82px, plate chip ≈98px, container token
+   ≈86px, revenue chip case ≈110px, money ≈75px), no ellipsis, no mid-token
+   clip; long text wraps per law §4. Computed + pinned in
+   TripListPage.styles.test.ts: floors 828 + gaps 70 + padding 32 = 930 ≤ the
+   1175px scrollport budget at 1280. */
+@media (max-width: 1439px) {
+  .trip-list-page .col-consumption,
+  .trip-list-page .col-road {
+    display: none;
+  }
+  .trip-list-page .table-head,
+  .trip-list-page .table-row {
+    grid-template-columns: minmax(120px, 1.3fr) 104px minmax(120px, 1.45fr) 88px 112px 92px 92px 100px;
+    min-width: 0;
+  }
 }

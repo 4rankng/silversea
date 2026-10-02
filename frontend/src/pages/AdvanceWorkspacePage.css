@@ -16,7 +16,7 @@
 }
 
 .advance-workspace__governance-link {
-  min-height: 44px;
+  min-height: var(--control-max-h);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -37,61 +37,14 @@
   color: var(--brand);
 }
 
+/* Group placement only. Content-sized cells wrap and keep their control
+   geometry through the shared `bordered` variant (design-system/Tabs.css). */
 .advance-workspace__views {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   max-width: 720px;
   margin-bottom: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  overflow: hidden;
-  background: var(--surface);
 }
 
-.advance-workspace__views.ds-tabs {
-  display: grid;
-  gap: 0;
-  padding: 0;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  border-bottom: 1px solid var(--line);
-}
-
-.advance-workspace__views .ds-tabs__btn {
-  min-width: 0;
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 16px;
-  color: var(--ink-2);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  text-align: center;
-  border-radius: 0;
-  border-bottom: 2px solid transparent;
-}
-
-.advance-workspace__views .ds-tabs__btn + .ds-tabs__btn {
-  border-left: 1px solid var(--line);
-}
-
-.advance-workspace__views .ds-tabs__btn:hover:not(:disabled):not(.ds-tabs__btn--active) {
-  background: var(--surface-2);
-  color: var(--ink);
-}
-
-.advance-workspace__views .ds-tabs__btn--active {
-  background: var(--surface);
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-  box-shadow: none;
-}
-
-.advance-workspace__governance-link:focus-visible,
-.advance-workspace__views .ds-tabs__btn:focus-visible {
+.advance-workspace__governance-link:focus-visible {
   position: relative;
   z-index: 1;
   outline: 2px solid var(--brand);
@@ -147,20 +100,12 @@
     margin-bottom: 14px;
   }
 
-  .advance-workspace__views .ds-tabs__btn {
-    min-height: 44px;
-    padding: 6px;
-    line-height: var(--lh-snug);
-  }
-
-  .advance-workspace__views .ds-tabs__btn span,
   .advance-workspace__section-heading p {
     overflow-wrap: anywhere;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .advance-workspace__views .ds-tabs__btn,
   .advance-workspace__governance-link {
     transition: none;
   }

@@ -28,18 +28,29 @@ const suffixSchema = z.string()
   .trim()
   .regex(CUS_SEARCH_PATTERN, 'Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
 
+// Rows-per-page the CUS workboards offer, largest first-class option last: the
+// office asked to see up to 200 rows without paging (2026-09-18). Kept here so
+// the URL vocabulary, the selector, and the API cap cannot drift apart.
+export const SHIPMENT_CUS_PAGE_SIZES = [20, 50, 100, 200] as const;
+export type ShipmentCusPageSize = typeof SHIPMENT_CUS_PAGE_SIZES[number];
+
 // Shared filter shape for both CUS workspace GET surfaces. The overview and
 // container endpoints deliberately expose distinct strict contracts: only the
 // container workboard accepts the server-derived completeness filter.
 const shipmentCusWorkspaceQueryShape = {
   searchSuffix: suffixSchema.optional(),
+  // 20260917_12: tri-state ad-hoc list filter — 'true' returns only lệnh
+  // chạy ngoài rows, 'false' only catalog-flow rows, absent = no filter.
+  isAdHoc: z.enum(['true', 'false']).optional(),
   transportDateFrom: z.string().date().optional(),
   transportDateTo: z.string().date().optional(),
   customerId: z.coerce.number().int().positive().optional(),
   direction: z.enum(['IMPORT', 'EXPORT']).optional(),
   bucket: z.nativeEnum(ShipmentCusBucket).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  // Cap matches SHIPMENT_CUS_PAGE_SIZES' largest option — the API accepts any
+  // size in 1..200, the UI offers the presets.
+  limit: z.coerce.number().int().min(1).max(200).default(20),
 };
 
 function refineTransportDateOrder(input: { transportDateFrom?: string; transportDateTo?: string }) {
@@ -263,6 +274,9 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   effectiveFactoryNames: z.array(z.string()),
   billOrBookNumber: z.string().nullable(),
   declarationNumber: z.string().nullable(),
+  // Card 20260921_3: ALL non-empty declaration numbers (id-asc) for the
+  // Chứng từ column join — mirrors the XLSX export concatenation.
+  declarationNumbers: z.array(z.string()).optional(),
   shippingLineName: z.string().nullable(),
   routeName: z.string().nullable(),
   isCombined: z.boolean(),
@@ -327,6 +341,18 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
     declarationIssuedAt: z.string().datetime().nullable(),
     declarationScope: z.enum(['SINGLE', 'SHARED']).nullable(),
     declarationNote: z.string().nullable(),
+    // Card 20260921_3: every declaration row of the lot (id-asc), so the
+    // documents quick-edit can manage the full list and the row column can
+    // join all numbers. Optional for raw producers that predate the field.
+    declarations: z.array(z.object({
+      id: z.number().int().positive(),
+      declarationNumber: z.string().nullable(),
+      // Whole-row PUT contract: the modal resends these verbatim so the
+      // endpoint's unconditional set never wipes existing metadata.
+      issuedAt: z.string().datetime().nullable(),
+      scope: z.enum(['SINGLE', 'SHARED']).nullable(),
+      note: z.string().nullable(),
+    }).strict()).optional(),
   }).strict(),
   fieldAccess: shipmentCusWorkspaceShipmentFieldAccessSchema,
   operational: shipmentCusWorkspaceOperationalSummarySchema,
@@ -373,6 +399,7 @@ const shipmentCusWorkspaceFieldPermissionsSchema = z.object({
 export const shipmentCusWorkspaceContainerLineSchema = z.object({
   id: z.number().int().positive(),
   ordinal: z.number().int().positive(),
+  operationalSiteId: z.number().int().positive().nullable(),
   containerNumber: z.string().nullable(),
   containerTypeId: z.number().int().positive().nullable(),
   containerTypeLabel: z.string().nullable(),
@@ -402,6 +429,7 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
     routeId: z.number().int().positive().nullable(),
   }).strict(),
   fieldAccess: z.object({
+    operationalSiteId: fieldAccessSchema,
     containerNumber: fieldAccessSchema,
     containerTypeId: fieldAccessSchema,
     cargoWeightKg: fieldAccessSchema,
@@ -509,14 +537,9 @@ export const shipmentCusReopenRequestSchema = z.object({
   reason: z.string().trim().min(1, 'Lý do đề nghị điều chỉnh là bắt buộc').max(2_000),
 }).strict();
 
-export const shipmentCusReopenDecisionSchema = z.object({
-  expectedVersion: z.coerce.number().int().positive(),
-  decision: z.enum(['APPROVE', 'REJECT']),
-  reason: z.string().trim().min(1, 'Lý do xử lý là bắt buộc').max(2_000),
-}).strict();
-
 export const shipmentCusContainerLineUpdateSchema = z.object({
   expectedShipmentVersion: z.coerce.number().int().positive(),
+  operationalSiteId: z.coerce.number().int().positive().nullable().optional(),
   containerNumber: z.string().trim().max(50, 'Số container không được quá 50 ký tự').nullable().optional(),
   cargoWeightKg: z.union([z.number().finite(), z.string()]).transform((value, ctx) => {
     const raw = String(value).trim();
@@ -616,6 +639,57 @@ export const shipmentCusContainerLineUpdateResultSchema = z.object({
   line: shipmentCusWorkspaceContainerLineSchema,
 }).strict();
 
+// Card 20260921_2 — CUS adds a container row after intake: the same fields
+// the row editor shows, plus the row appointment (schedule follows the
+// container — a new row is a new row awaiting its appointment, no
+// re-confirmation step). Strict like its sibling; expectedShipmentVersion
+// keeps the optimistic-version contract the line editor already uses.
+export const shipmentCusContainerAddSchema = z.object({
+  expectedShipmentVersion: z.coerce.number().int().positive(),
+  containerNumber: z.string().trim()
+    .min(1, 'Số container là bắt buộc')
+    .max(50, 'Số container không được quá 50 ký tự'),
+  containerTypeId: z.coerce.number().int().positive().nullable().optional(),
+  cargoWeightKg: z.union([z.number().finite(), z.string()]).transform((value, ctx) => {
+    const raw = String(value).trim();
+    if (!/^(0|[1-9]\d{0,8})(?:\.\d{1,2})?$/.test(raw)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Trọng lượng phải là số không âm, tối đa 9 chữ số nguyên và 2 chữ số thập phân.' });
+      return z.NEVER;
+    }
+    return `${raw.includes('.') ? raw : `${raw}.00`}`.replace(/\.(\d)$/, '.$10');
+  }).nullable().optional(),
+  cargoVolumeCbm: z.union([z.number().finite(), z.string()]).transform((value, ctx) => {
+    const raw = String(value).trim();
+    if (!/^(0|[1-9]\d*)(?:\.\d{1,3})?$/.test(raw) || raw.split('.')[0]!.length > 9) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Thể tích phải là số không âm, tối đa 9 chữ số nguyên và 3 chữ số thập phân.' });
+      return z.NEVER;
+    }
+    const [integer, fraction = ''] = raw.split('.');
+    return `${integer}.${fraction.padEnd(3, '0')}`;
+  }).nullable().optional(),
+  routeId: z.coerce.number().int().positive().nullable().optional(),
+  operationalSiteId: z.coerce.number().int().positive().nullable().optional(),
+  liftSiteId: z.coerce.number().int().positive().nullable().optional(),
+  dropoffSiteId: z.coerce.number().int().positive().nullable().optional(),
+  customerAppointmentAt: z.string()
+    .datetime({ offset: true, message: 'Ngày giờ đóng/trả hàng không hợp lệ.' })
+    .nullable()
+    .optional(),
+}).strict();
+
+export const shipmentCusContainerAddResultSchema = z.object({
+  line: shipmentCusWorkspaceContainerLineSchema,
+}).strict();
+
+export const shipmentCusContainerRemoveSchema = z.object({
+  expectedShipmentVersion: z.coerce.number().int().positive(),
+}).strict();
+
+export const shipmentCusContainerRemoveResultSchema = z.object({
+  removedId: z.number().int().positive(),
+  shipmentVersion: z.number().int().positive(),
+}).strict();
+
 const nonNegativeMoneyStringSchema = z.string().regex(/^(0|[1-9]\d*)$/);
 
 export const shipmentRecoveryRecordSchema = z.object({
@@ -670,6 +744,7 @@ export const shipmentCusContainerFlatRowSchema = z.object({
     cargoVolumeCbm: z.string().nullable(),
   }).strict(),
   fieldAccess: z.object({
+    operationalSiteId: fieldAccessSchema,
     containerNumber: fieldAccessSchema,
     containerTypeId: fieldAccessSchema,
     cargoWeightKg: fieldAccessSchema,
@@ -746,8 +821,11 @@ export type ShipmentCusFinanceConfirmationCreateInput = z.infer<typeof shipmentC
 export type ShipmentCusDocumentCustodyUpdateInput = z.infer<typeof shipmentCusDocumentCustodyUpdateSchema>;
 export type ShipmentCusLockInput = z.infer<typeof shipmentCusLockSchema>;
 export type ShipmentCusReopenRequestInput = z.infer<typeof shipmentCusReopenRequestSchema>;
-export type ShipmentCusReopenDecisionInput = z.infer<typeof shipmentCusReopenDecisionSchema>;
 export type ShipmentCusContainerLineUpdateInput = z.infer<typeof shipmentCusContainerLineUpdateSchema>;
+export type ShipmentCusContainerAddInput = z.infer<typeof shipmentCusContainerAddSchema>;
+export type ShipmentCusContainerAddResult = z.infer<typeof shipmentCusContainerAddResultSchema>;
+export type ShipmentCusContainerRemoveInput = z.infer<typeof shipmentCusContainerRemoveSchema>;
+export type ShipmentCusContainerRemoveResult = z.infer<typeof shipmentCusContainerRemoveResultSchema>;
 export type ShipmentCusContainerLineUpdateResult = z.infer<typeof shipmentCusContainerLineUpdateResultSchema>;
 export type ShipmentRecoveryRecordInput = z.infer<typeof shipmentRecoveryRecordSchema>;
 export type ShipmentRecoveryRecordResult = z.infer<typeof shipmentRecoveryRecordResultSchema>;

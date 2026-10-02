@@ -1,6 +1,6 @@
 import {
   Plus, Pencil, Trash2,
-  Loader2, KeyRound, Mail, Search, UserX, MoreVertical, X,
+  Loader2, KeyRound, Mail, UserX, MoreVertical,
   ArrowUpDown, ArrowUp, ArrowDown, Building2,
   Users, ShieldCheck, UserCog,
 } from 'lucide-react';
@@ -9,9 +9,8 @@ import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { Role, ROLE_LABELS, ROLE_PILL, FilterKey } from '../utils';
 import type { UserRow } from '../utils';
 import { StatusStrip, StatusSwatch } from '../../../components/shared/StatusStrip';
-import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PageHeader } from '../../../components/UI';
-import { Pagination, SummaryRail } from '../../../design-system';
+import { EmptyState, FilterBar, Pagination, SummaryRail, Tabs } from '../../../design-system';
 import '../../../styles/record-table.css';
 import '../../../styles/operational-table-typography.css';
 
@@ -71,17 +70,6 @@ const AVATAR_ICON: Record<Role, typeof Users> = {
   [Role.DISPATCHER]: UserCog,
 };
 
-const ROLE_FILTER_CLS: Record<string, string> = {
-  [Role.ADMIN]: 'filter-pill--admin',
-  [Role.MANAGER]: 'filter-pill--manager',
-  [Role.ACCOUNTANT]: 'filter-pill--accountant',
-  [Role.DRIVER]: 'filter-pill--driver',
-  [Role.OPS]: 'filter-pill--forwarder',
-  [Role.CUSTOMER]: 'filter-pill--forwarder',
-  [Role.CUS]: 'filter-pill--accountant',
-  [Role.DISPATCHER]: 'filter-pill--manager',
-};
-
 function RoleAvatar({ role }: { role: Role }) {
   const Icon = AVATAR_ICON[role] || Users;
   return (
@@ -136,54 +124,35 @@ export function UserTable({
         ]}
       />
 
-      {/* ── Unified panel: toolbar + table + footer ─────────────────────── */}
-      <div className="users-table-panel" data-tour-id="users-table">
-        {/* Filter toolbar */}
-        <div
-          className="toolbar users-role-toolbar"
-          data-tour-id="users-role-filters"
-          role="group"
-          aria-label="Lọc tài khoản theo vai trò"
+      {/* ── Filters: the ONE shared strip (card 20260927_152) ────────────── */}
+      {/* One shared category picker keeps every role/count reachable without
+          a multi-row role strip. The bar owns the search and control layout. */}
+      <div data-tour-id="users-role-filters">
+        <FilterBar
+          search={{
+            value: search,
+            onChange: onSearchChange,
+            placeholder: 'Tìm theo username, email, SĐT...',
+            ariaLabel: 'Tìm tài khoản',
+          }}
         >
-          {(['all', ...Object.values(Role)] as FilterKey[]).map(f => {
-            const count = f === 'all' ? total : roleCounts?.[f] ?? 0;
-            const label = f === 'all' ? 'Tất cả' : ROLE_LABELS[f as Role];
-            return (
-              <button
-                key={f}
-                className={`filter-pill${filter === f ? ' is-active' : ''} ${ROLE_FILTER_CLS[f] || ''}`}
-                onClick={() => onFilterChange(f)}
-                aria-pressed={filter === f}
-              >
-                <span>{label}</span>
-                {filter === f && <span className="filter-pill__count">{count}</span>}
-              </button>
-            );
-          })}
-          <div className="toolbar__spacer" />
-          <div className="toolbar__search" style={{ position: 'relative' }}>
-            <Search size={14} />
-            <input
-              type="text"
-              aria-label="Tìm tài khoản"
-              placeholder="Tìm theo username, email, SĐT..."
-              value={search}
-              onChange={e => onSearchChange(e.target.value)}
-              style={{ paddingRight: search ? '28px' : '10px' }}
-            />
-            {search && (
-              <button
-                className="search-clear-btn"
-                onClick={() => onSearchChange('')}
-                title="Xóa tìm kiếm"
-                aria-label="Xóa nội dung tìm kiếm"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-        </div>
+          <Tabs
+            variant="boxed"
+            presentation="select"
+            ariaLabel="Lọc tài khoản theo vai trò"
+            value={filter}
+            onChange={(id) => onFilterChange(id as FilterKey)}
+            tabs={(['all', ...Object.values(Role)] as FilterKey[]).map(f => ({
+              id: f,
+              label: f === 'all' ? 'Tất cả' : ROLE_LABELS[f as Role],
+              count: f === 'all' ? total : roleCounts?.[f] ?? 0,
+            }))}
+          />
+        </FilterBar>
+      </div>
 
+      {/* ── Unified panel: table + footer ───────────────────────────────── */}
+      <div className="users-table-panel" data-tour-id="users-table">
         {/* Legend */}
         {(canManage || canEditDriversOnly) && (
           <div className="users-list-legend">
@@ -323,9 +292,7 @@ function DesktopTable({
               <tr>
                 <td colSpan={7} data-label="">
                   <div className="users-empty">
-                    <img src={resolveEmptyIllustration('empty-users')} alt="" aria-hidden="true" className="users-empty__illustration" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    <p className="users-empty__title">Không tìm thấy tài khoản</p>
-                    <p className="users-empty__desc">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                    <EmptyState variant="compact" context="users" title="Không tìm thấy tài khoản" description="Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm" />
                   </div>
                 </td>
               </tr>
@@ -482,7 +449,7 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, bu
                     {activeMenuId === u.id && (
                       <div className="users-mobile-card__dropdown" role="menu" style={{
                         position: 'absolute', right: 0, top: '100%', zIndex: 100,
-                        background: '#fff', border: '1px solid var(--line)', borderRadius: 8,
+                        background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8,
                         overflow: 'hidden', minWidth: 120,
                       }} onClick={(e) => e.stopPropagation()}>
                         {canManage && canDelete && (

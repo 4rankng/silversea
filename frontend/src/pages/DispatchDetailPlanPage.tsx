@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { ConfirmDialog, PageHeader } from '../components/UI';
+import { ConfirmDialog } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
+import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
+import { billBookingReference } from '../lib/business-reference';
 import './DispatchPlanPage.css';
 
 /**
@@ -16,6 +18,14 @@ import './DispatchPlanPage.css';
 export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
   const [reassignTripId, setReassignTripId] = useState<number | null>(null);
+  // Ghép chuyến (LoHangKepKetHop §3.1): the row whose trip anchors the pair;
+  // null keeps the dialog closed. Candidates are the loaded unpaired OWN
+  // rows with trips — the same set the grid offers the button for.
+  const [pairRow, setPairRow] = useState<DispatchDetailPlanRow | null>(null);
+  const pairCandidates = detailPlan.items.filter((item) => item.dispatch.tripId != null
+    && item.dispatch.carrierType !== 'EXTERNAL'
+    && !item.dispatch.pairKind
+    && item.dispatch.tripStatus !== 'CANCELED');
   // Staff close for external-carrier trips: external drivers don't use the
   // app, so dispatch/CUS confirm the completion from the grid row.
   const [completingRow, setCompletingRow] = useState<DispatchDetailPlanRow | null>(null);
@@ -38,12 +48,6 @@ export default function DispatchDetailPlanPage() {
 
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
-      <PageHeader
-        title="Kế hoạch Chi tiết Xe"
-        iconName="truck"
-        description="Gom chuyến, kiểm tra lịch chạy và gán biển số theo từng container."
-      />
-
       <section className="dispatch-plan-page__workspace">
         <DetailedPlanGrid
           filters={detailPlan.filters}
@@ -67,6 +71,7 @@ export default function DispatchDetailPlanPage() {
           onOpenTripReassign={setReassignTripId}
           onCompleteExternalTrip={setCompletingRow}
           onIssueOrder={detailPlan.issueOrder}
+          onOpenPair={setPairRow}
           onEnsureFulfillment={detailPlan.ensureFulfillment}
           autoOpenFulfillmentId={detailPlan.autoOpenFulfillmentId}
           onAutoOpenConsumed={detailPlan.consumeAutoOpen}
@@ -88,12 +93,18 @@ export default function DispatchDetailPlanPage() {
         onReassigned={detailPlan.refresh}
       />
 
+      <PairTripsDialog
+        row={pairRow}
+        candidates={pairCandidates}
+        onClose={() => setPairRow(null)}
+        onPaired={detailPlan.refresh}
+      />
+
       <ConfirmDialog
         isOpen={completingRow != null}
         message={`Hoàn thành chuyến với xe ngoài ${
-          completingRow?.container.containerNumber
-            ?? completingRow?.docs.billNumber
-            ?? completingRow?.shipmentCode ?? ''
+          completingRow?.container.containerNumber?.trim()
+            || billBookingReference(completingRow?.docs.billNumber)
         }? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.`}
         confirmLabel={completing ? 'Đang hoàn thành…' : 'Hoàn thành chuyến'}
         onConfirm={() => void confirmCompleteExternalTrip()}

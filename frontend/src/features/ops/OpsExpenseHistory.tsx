@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { opsBillReference } from './opsStatus';
+import { useQuery } from '@tanstack/react-query';
+import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { qk } from '../../api/keys';
+import { ExpenseProofs } from '../expense-accounting/ExpenseProofs';
+import { useRef, useState } from 'react';
 import { Image as ImageIcon, Pencil, Trash2 } from 'lucide-react';
 import {
   useOpsWalletExpenses,
   useDeleteOpsExpense,
 } from '../../hooks/useOpsQueries';
 import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
-import { useConfirm } from '../../components/UI';
+import { Drawer, useConfirm } from '../../components/UI';
+import { Tabs } from '../../design-system';
+import { useReasonPrompt } from '../../components/reason-prompt';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
-import { formatVnd } from './opsStatus';
+import { useToast } from '../../components/shared/Toast';
+import { formatMoney } from '../../lib/format';
 
 import './ops-modal.css';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
@@ -38,7 +46,7 @@ const STATUS_LABELS: Record<OpsExpenseStatus, string> = {
 };
 
 const isEditableExpense = (row: OpsExpenseRow) =>
-  row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED' && row.opsSettlementId == null;
+  row.sourceKind !== 'TRIP' && !row.confirmedAt && row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED' && row.opsSettlementId == null;
 
 /**
  * Lịch sử chi phí của Ops (OpsVanHanh §5.3): nhãn đỏ "Nợ chứng từ" khi chưa
@@ -48,58 +56,74 @@ export function OpsExpenseHistory() {
   const [status, setStatus] = useState<OpsExpenseStatus | undefined>(undefined);
   const { data, isLoading, isError, refetch } = useOpsWalletExpenses(status);
   const deleteExpense = useDeleteOpsExpense();
-  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
+  const deleteLock = useRef(false);
+  const [deleting, setDeleting] = useState(false);
+  const { dialog } = useConfirm();
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
+  const [legacyFor, setLegacyFor] = useState<OpsExpenseRow | null>(null);
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [editing, setEditing] = useState<OpsExpenseRow | null>(null);
 
+  async function handleDelete(row: OpsExpenseRow) {
+    if (deleteLock.current) return;
+    deleteLock.current = true; setDeleting(true);
+    try {
+      // Q10 (card 20260922_78): the delete asks for a mandatory free-text
+      // reason — cancel/empty aborts without any request.
+      const reason = await prompt(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatMoney(row.amount)} ₫?`, { confirmLabel: 'Xóa' });
+      if (reason == null) return;
+      await deleteExpense.mutateAsync({ id: row.id, reason });
+    } catch (error) { toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được khoản chi. Vui lòng thử lại.' }); }
+    finally { deleteLock.current = false; setDeleting(false); }
+  }
+
   const items = data?.items ?? [];
+
+  const hasEditableRow = items.some((row: OpsExpenseRow) => isEditableExpense(row));
 
   return (
     <section className="ops-wallet__section" aria-label="Lịch sử chi phí">
       <header className="ops-wallet__section-head">
         <h2>Lịch sử chi phí</h2>
-        <div className="ops-wallet__filters" role="group" aria-label="Lọc theo trạng thái">
-          {STATUS_FILTERS.map((filter) => (
-            <button
-              key={filter.label}
-              type="button"
-              className={status === filter.value ? 'is-active' : ''}
-              aria-pressed={status === filter.value}
-              onClick={() => setStatus(filter.value)}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          variant="boxed"
+          ariaLabel="Lọc theo trạng thái"
+          value={status ?? 'all'}
+          onChange={(id) => setStatus(id === 'all' ? undefined : id as OpsExpenseStatus)}
+          tabs={STATUS_FILTERS.map((filter) => ({ id: filter.value ?? 'all', label: filter.label }))}
+        />
       </header>
 
       <div className="ops-wallet__scroll">
+        {/* Card 20260921_26: the actions column renders only when some row
+                     is editable — an always-present empty column read as a rendering bug. */}
         <table className="tt-table ops-wallet__table">
           <thead>
             <tr>
               <th>Ngày</th>
-              <th>Mã lô</th>
+              <th>Bill / Booking</th>
               <th>Cont</th>
               <th>Loại phí</th>
               <th>Số tiền</th>
               <th>Chứng từ</th>
               <th>Trạng thái</th>
-              <th aria-label="Thao tác" />
+              {hasEditableRow && <th aria-label="Thao tác" />}
             </tr>
           </thead>
           <tbody>
             {items.map((row: OpsExpenseRow) => (
               <tr key={row.id} className="ops-wallet__row">
-                <td data-label="Ngày">{row.paidAt}</td>
-                <td data-label="Mã lô">{row.shipmentCode ?? '—'}</td>
+                <td data-label="Ngày">{row.paidAt.split('-').reverse().join('/')}</td>
+                <td data-label="Bill / Booking">{opsBillReference(row.billRef)}</td>
                 <td data-label="Cont">{row.containerNumber ?? 'Chung lô'}</td>
-                <td data-label="Loại phí">{row.expenseTypeName ?? row.expenseTypeCode}</td>
-                <td className="ops-money" data-label="Số tiền">{formatVnd(row.amount)}</td>
+                <td data-label="Loại phí">{row.feeName ?? row.expenseTypeName ?? row.expenseTypeCode}</td>
+                <td className="ops-money" data-label="Số tiền">{formatMoney(row.amount)} ₫</td>
                 <td data-label="Chứng từ">
                   <button
                     type="button"
                     className={`ops-doc-state${row.hasPhoto ? '' : ' is-debt'}`}
-                    onClick={() => isEditableExpense(row) ? setEditing(row) : setPhotosFor(row.id)}
+                    onClick={() => row.sourceKind === 'TRIP' ? setLegacyFor(row) : (isEditableExpense(row) || (row.confirmedAt && row.opsSettlementId == null)) ? setEditing(row) : setPhotosFor(row.id)}
                     title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai'}
                   >
                     <ImageIcon size={13} />
@@ -114,12 +138,13 @@ export function OpsExpenseHistory() {
                     <span className="ops-reject-reason" title={row.rejectionReason}> — {row.rejectionReason}</span>
                   )}
                 </td>
+                {hasEditableRow && (
                 <td className="ops-row-actions" aria-label="Thao tác">
                   {isEditableExpense(row) && (
                     <button
                       type="button"
-                      className="btn-secondary"
-                      aria-label={`Sửa khoản chi ${row.shipmentCode ?? row.id}`}
+                      className="btn btn--secondary"
+                      aria-label={`Sửa khoản chi ${opsBillReference(row.billRef)}`}
                       onClick={() => setEditing(row)}
                     >
                       <Pencil size={13} />
@@ -129,21 +154,20 @@ export function OpsExpenseHistory() {
                   {isEditableExpense(row) && (
                     <button
                       type="button"
-                      className="btn-secondary ops-danger"
-                      aria-label={`Xóa khoản chi ${row.shipmentCode ?? row.id}`}
-                      onClick={() => void confirm(
-                        `Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatVnd(row.amount)} ₫?`,
-                        { variant: 'danger', confirmLabel: 'Xóa' },
-                      ).then((ok) => (ok ? deleteExpense.mutateAsync(row.id) : undefined)).catch(() => undefined)}
+                      className="btn btn--secondary ops-danger"
+                      aria-label={`Xóa khoản chi ${opsBillReference(row.billRef)}`}
+                      disabled={deleting}
+                      onClick={() => void handleDelete(row)}
                     >
                       <Trash2 size={13} />
                     </button>
                   )}
                 </td>
+                )}
               </tr>
             ))}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={8} className="ops-wallet__empty">Chưa có khoản chi nào.</td></tr>
+              <tr><td colSpan={hasEditableRow ? 8 : 7} className="ops-wallet__empty">Chưa có khoản chi nào.</td></tr>
             )}
           </tbody>
         </table>
@@ -156,7 +180,21 @@ export function OpsExpenseHistory() {
       {editing && (
         <OpsExpenseEditModal entry={editing} onClose={() => setEditing(null)} />
       )}
+      {legacyFor && <OpsLegacyExpenseDetail row={legacyFor} onClose={() => setLegacyFor(null)} />}
       {dialog}
+      {reasonDialog}
     </section>
   );
+}
+
+function OpsLegacyExpenseDetail({ row, onClose }: { row: OpsExpenseRow; onClose: () => void }) {
+  const query = useQuery({ queryKey: qk.opsLegacyExpense(row.sourceId), queryFn: () => expenseAccountingClient.get({ sourceKind: 'TRIP', sourceId: row.sourceId! }) });
+  return <Drawer isOpen onClose={onClose} title="Khoản chi được nhập từ kế toán" footer={<button className="btn btn--secondary" onClick={onClose}>Đóng</button>}>
+    <p>{opsBillReference(row.billRef)} · {row.feeName ?? row.expenseTypeName}</p>
+    <p>Thực chi: <strong>{formatMoney(row.amount)} ₫</strong></p>
+    {row.note && <p style={{ whiteSpace: 'pre-wrap' }}>{row.note}</p>}
+    {query.isLoading && <p role="status">Đang tải chứng từ…</p>}
+    {query.isError && <p role="alert">Chưa tải được khoản chi. <button onClick={() => void query.refetch()}>Thử lại</button></p>}
+    {query.data && <ExpenseProofs entry={query.data} canUpload={false} />}
+  </Drawer>;
 }

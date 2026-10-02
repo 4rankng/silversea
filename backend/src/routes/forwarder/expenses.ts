@@ -7,7 +7,9 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { getUser } from '../../middleware/auth';
 import { throwValidation } from '../../lib/validation';
 import { listUnlinkedTripExpenses } from '../../services/forwarder.service';
 import {
@@ -23,10 +25,11 @@ import {
   tripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema,
 } from '@tingting/shared';
 import { validateActiveExpenseTypeCode } from '../../services/forwarder-expense-commands.service';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
 
-router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {
+router.post('/expenses', declareMaterialWrite('forwarder.expenses.create', { method: 'POST', path: '/api/forwarder/me/expenses' }),  asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   await validateActiveExpenseTypeCode(req.body?.expenseType);
   const parsed = tripExpenseSchema.safeParse({ ...req.body, forwarderId: forwarder.id });
@@ -40,7 +43,7 @@ router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.patch('/expenses/:id', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/expenses/:id', declareMaterialWrite('forwarder.expenses.update', { method: 'PATCH', path: '/api/forwarder/me/expenses/:id' }),  asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const expenseId = parseInt(req.params.id as string, 10);
   const parsed = tripExpensePatchSchema.safeParse(req.body);
@@ -63,7 +66,7 @@ router.patch('/expenses/:id', asyncHandler(async (req: Request, res: Response) =
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.put('/trips/:tripId/expense-completion', asyncHandler(async (req: Request, res: Response) => {
+router.put('/trips/:tripId/expense-completion', declareMaterialWrite('forwarder.expense-completion.update', { method: 'PUT', path: '/api/forwarder/me/trips/:tripId/expense-completion' }),  asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const tripId = parseInt(req.params.tripId as string, 10);
   const parsed = tripExpenseCompletionSchema.safeParse(req.body);
@@ -78,7 +81,7 @@ router.put('/trips/:tripId/expense-completion', asyncHandler(async (req: Request
   res.json(outcome.result);
 }));
 
-router.delete('/expenses/:id', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/expenses/:id', declareMaterialWrite('forwarder.expenses.delete', { method: 'DELETE', path: '/api/forwarder/me/expenses/:id' }),  asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const expenseId = parseInt(req.params.id as string, 10);
   const idempotencyKey = requireForwarderIdempotencyKey(req);
@@ -86,11 +89,17 @@ router.delete('/expenses/:id', asyncHandler(async (req: Request, res: Response) 
     req,
     'Cần tải lại phiên bản chi phí mới nhất trước khi xóa.',
   );
+  // Q10 (card 20260922_78): the delete reason is mandatory, free text, and
+  // stored on the soft-voided row with the actor's user id.
+  const reason = z.object({ reason: z.string().trim().min(1, 'Lý do xóa là bắt buộc.').max(500) })
+    .parse((req.body ?? {})).reason;
   const outcome = await deleteForwarderExpenseCommand({
     forwarderId: forwarder.id,
     expenseId,
     expectedUpdatedAt,
     idempotencyKey,
+    reason,
+    deletedBy: getUser(req).userId,
   });
   if (outcome.result.auditEntityKey) {
     res.locals.auditEntityKey = outcome.result.auditEntityKey;

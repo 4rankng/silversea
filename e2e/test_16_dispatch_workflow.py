@@ -18,18 +18,20 @@ VIEWPORTS = [
     ("narrow", 320, 720),
 ]
 
-CONTROL_MIN_SIZE = 44
+CONTROL_MIN_SIZE = 40
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MASTER_DATA_FIXTURE = next(
-    (REPO_ROOT / "docs/quytrinh").rglob("29.7 - DATA PM.xlsx"),
-    None,
-)
+MASTER_DATA_FIXTURE = next((path for path in (
+    REPO_ROOT / "docs/customer-data/4.9 - Import data form.xlsx",
+    REPO_ROOT / "docs/quytrinh/29.7 - DATA PM.xlsx",
+) if path.is_file()), None)
 if MASTER_DATA_FIXTURE is None:
-    # The DATA PM workbook is a customer delivery, not a repo artifact — the
-    # suite documents master-data-import behavior that needs it. Skip loudly
-    # instead of crashing run_all with a bare traceback.
-    print("SKIP SUITE 16: master-data fixture 'docs/quytrinh/29.7 - DATA PM.xlsx' not present (customer delivery, not committed).")
-    sys.exit(0)
+    # Use only an actual delivered workbook. Missing setup remains a red gate.
+    results = TestResults('16-dispatch-workflow')
+    results.fail('SUITE-16-FIXTURE', 'Customer master-data workbook is unavailable',
+                 "No delivered September or July workbook is available.")
+    results.write_json()
+    results.print_summary()
+    sys.exit(1)
 
 ROLE_SURFACES = {
     "admin": "/config/master-data-import",
@@ -50,13 +52,10 @@ def assert_control_box(
     context: str,
     min_size=None,
 ):
-    # 44px is the phone touch floor (responsive.css ≤640px universal rule).
-    # Desktop/tablet controls ride the sizing contract's --control-default-h
-    # (40px) — docs/design-guidelines.md §Global sizing contract — so the
-    # desktop floor is 40, not the phone floor.
+    # The 2026-09-27 sizing law uses 40px touch / 32px compact desktop.
     if min_size is None:
         width = (page.viewport_size or {}).get("width", 1440)
-        min_size = 44 if width <= 640 else 40
+        min_size = CONTROL_MIN_SIZE if width < 768 else 32
     try:
         locator.wait_for(state="visible", timeout=5000)
         if not locator.is_visible():
@@ -80,7 +79,11 @@ def iso_local_now(hours_ahead: int = 2) -> str:
 
 
 def prepare_admin_import(page: Page):
-    page.locator("#master-data-file").set_input_files(str(MASTER_DATA_FIXTURE))
+    if MASTER_DATA_FIXTURE.name == "4.9 - Import data form.xlsx":
+        page.locator("#master-data-file-form").set_input_files(str(MASTER_DATA_FIXTURE))
+    else:
+        page.get_by_text("Tệp Master Data cũ (một tệp duy nhất)", exact=True).click()
+        page.locator("#master-data-file-legacy").set_input_files(str(MASTER_DATA_FIXTURE))
 
 
 def proxy_api_for_page(page: Page):
@@ -144,8 +147,6 @@ def prepare_dispatch_issue(page: Page):
 
 def responsive_role_matrix(ctx: SilverseaTestContext, results: TestResults):
     for role, path in ROLE_SURFACES.items():
-        page = ctx.new_page({"width": 1440, "height": 1000})
-        ctx.login_as(role, page)
         role_failures = []
         # The dispatch surface owns the responsive workflow, so it receives
         # desktop/tablet/mobile coverage. The surrounding role routes need one
@@ -153,7 +154,8 @@ def responsive_role_matrix(ctx: SilverseaTestContext, results: TestResults):
         # matrix turns this suite into a multi-minute browser soak.
         viewports = VIEWPORTS if role == "manager" else [VIEWPORTS[0]]
         for label, width, height in viewports:
-            page.set_viewport_size({"width": width, "height": height})
+            page = ctx.new_page({"width": width, "height": height}, touch=width <= 1024)
+            ctx.login_as(role, page)
             page.goto(f"{BASE_URL}{path}")
             wait_for_surface(page)
             page.wait_for_timeout(250)
@@ -278,7 +280,12 @@ def responsive_role_matrix(ctx: SilverseaTestContext, results: TestResults):
                     # no permanent reload action. The search field remains the
                     # manager's usable control when there is no task to issue
                     # and no handoff to accept.
-                    fallback = page.get_by_role("searchbox", name="Tìm kiếm lô hàng")
+                    search_input = page.get_by_role("textbox", name="Tìm kiếm lô hàng")
+                    search_input.wait_for(state="visible", timeout=5000)
+                    assert search_input.is_enabled(), "dispatch search input is disabled"
+                    search_input.click()
+                    assert search_input.evaluate("node => node === document.activeElement"), "dispatch search cannot receive focus"
+                    fallback = page.locator(".filter-bar__search").filter(has=search_input)
                     control_ok = assert_control_box(
                         page,
                         fallback,
@@ -286,20 +293,21 @@ def responsive_role_matrix(ctx: SilverseaTestContext, results: TestResults):
                         results,
                         f"TC-1604-{role.upper()}-{label}-control",
                         f"{label}: dispatch search control",
-                        # The canonical UUI `sm` input itself is 32px on
-                        # desktop/laptop; its bordered group is 34px. Compact
-                        # touch layouts promote the control to the mobile bar.
-                        min_size=32 if width >= 768 else CONTROL_MIN_SIZE,
+                        # Measure the full shared search boundary. Its text
+                        # input is inset by the border; the compact legacy
+                        # strip is30px and the phone strip is40px.
+                        min_size=30 if width >= 768 else CONTROL_MIN_SIZE,
                     )
 
             if not control_ok:
                 role_failures.append(f"{label}: primary control missing or undersized")
+            if role_failures:
+                ctx.screenshot(page, f"TC-1604_{role}_{label}_fail")
+            page.close()
         if role_failures:
-            ctx.screenshot(page, f"TC-1604_{role}_fail")
             results.fail(f"TC-1604-{role.upper()}", f"{role} responsive role surface", "; ".join(role_failures))
         else:
-            results.pass_(f"TC-1604-{role.upper()}", f"{role} surface is usable at all five viewports", path)
-        page.close()
+            results.pass_(f"TC-1604-{role.upper()}", f"{role} surface is usable at designated viewports", path)
 
 
 def test_dispatch_workflow(ctx: SilverseaTestContext, results: TestResults):
@@ -466,7 +474,7 @@ def test_dispatch_workflow(ctx: SilverseaTestContext, results: TestResults):
     responsive_role_matrix(ctx, results)
 
     for role in ("manager", "clerk", "driver"):
-        page = ctx.new_page({"width": 390, "height": 844})
+        page = ctx.new_page({"width": 390, "height": 844}, touch=True)
         ctx.login_as(role, page)
         page.goto(f"{BASE_URL}{ROLE_SURFACES[role]}")
         wait_for_surface(page)

@@ -37,12 +37,11 @@
 }
 
 .fwd-order-panel__body { padding: 0 16px; }
+/* §4 no-truncation doctrine: order-panel values are fully observable — long
+   text wraps (overflow-wrap), no clamp and no hover fallback needed for
+   these short-form values (card 20260922_49). */
 .fwd-order-panel__body .info-row__value {
-  display: -webkit-box;
-  overflow: hidden;
   overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .fwd-expense-form {
@@ -70,8 +69,7 @@
 }
 
 .fwd-expense-grid--primary {
-  grid-template-columns:
-    minmax(280px, 2fr)
+  grid-template-columns: minmax(280px, 2fr)
     minmax(145px, 0.85fr)
     minmax(145px, 0.85fr)
     minmax(220px, 1.55fr);
@@ -83,8 +81,7 @@
 }
 
 .fwd-expense-grid--invoice {
-  grid-template-columns:
-    minmax(150px, 0.9fr)
+  grid-template-columns: minmax(150px, 0.9fr)
     minmax(170px, 0.95fr)
     minmax(180px, 1.05fr)
     minmax(210px, 1.25fr);
@@ -161,9 +158,8 @@
 
 .fwd-expense-group__header > div { display: grid; gap: 2px; }
 .fwd-expense-group__header strong { font-size: var(--text-data-size); color: var(--fg-1); }
-.fwd-expense-group__header span, .fwd-expense-group__empty { font-size: var(--text-caption-size); color: var(--fg-3); }
-.fwd-expense-group__empty { padding: 12px 20px; }
-.fwd-expense-action { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; }
+.fwd-expense-group__header span { font-size: var(--text-caption-size); color: var(--fg-3); }
+.fwd-expense-action { min-width: var(--control-max-h); min-height: var(--control-max-h); display: inline-grid; place-items: center; }
 
 .fwd-expense-record { padding: 10px 20px; border-bottom: 1px solid var(--border-1); }
 .fwd-expense-record__layout { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
@@ -233,7 +229,7 @@
 
 @media (max-width: 560px) {
   .fwd-expense-group__header { align-items: flex-start; }
-  .fwd-expense-group__header .btn { min-height: 44px; }
+  .fwd-expense-group__header .btn { min-height: var(--control-max-h); }
 }
 
 /* ── Back button ─────────────────────────────────────────── */
@@ -340,7 +336,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: var(--brand-subtle, rgba(0, 177, 79, 0.08));
+  background: var(--brand-subtle, rgba(0, 90, 45, 0.08));
   border-color: var(--brand-border, rgba(0, 107, 63, 0.22));
 }
 
@@ -415,14 +411,6 @@
   gap: 8px;
 }
 
-/* ── Empty expenses ──────────────────────────────────────── */
-.fwd-expenses-empty {
-  padding: 16px 20px;
-  color: var(--fg-3);
-  font-size: var(--text-data-size);
-  text-align: center;
-}
-
 /* ── Expenses list wrapper ───────────────────────────────── */
 .fwd-expenses-list {
   padding: 4px 0;
@@ -472,7 +460,7 @@
 }
 
 .fwd-instructions__link {
-  color: var(--brand, #00B14F);
+  color: var(--brand);
   text-decoration: none;
   font-weight: 500;
 }

@@ -44,7 +44,9 @@ describe('DispatchContainerDetailDrawer', () => {
     const onClose = vi.fn();
     render(<DispatchContainerDetailDrawer shipment={shipment} onClose={onClose} />);
 
-    expect(await screen.findByRole('dialog', { name: 'Chi tiết cont' })).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'Chi tiết container' })).toBeTruthy();
+    expect(screen.getByText('BL-01 · Công ty ABC')).toBeTruthy();
+    expect(screen.queryByText(/SS-000100/)).toBeNull();
     await waitFor(() => expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledWith(1));
     expect(screen.getByRole('columnheader', { name: 'STT' })).toBeTruthy();
     expect(screen.getByRole('cell', { name: '1' })).toBeTruthy();

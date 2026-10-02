@@ -10,6 +10,7 @@ import { qk } from '../../api/keys';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import type { DebitNoteTemplate } from '@tingting/shared';
+import { EmptyState } from '../../design-system';
 import './config-page.css';
 
 function groupLabel(mode: DebitNoteTemplate['groupingMode']) {
@@ -70,19 +71,16 @@ export default function DebitNoteTemplatesConfigPage() {
           </div>
         ) : templates.length === 0 ? (
           <div className="cfg-empty debit-template-list-empty">
-            <img
-              className="debit-template-list-empty__image"
-              src="/assets/illustrations/empty-debit-note-template.png"
-              alt=""
-              loading="lazy"
+            <EmptyState
+              context="debit-note-template"
+              title="Chưa có mẫu nào"
+              description="Tạo mẫu Excel để xuất giấy báo nợ theo khách hàng."
+              action={
+                <button type="button" className="btn btn--primary" onClick={() => navigate('/config/debit-note-templates/new')}>
+                  <Plus size={16} /> Thêm mẫu
+                </button>
+              }
             />
-            <div className="debit-template-list-empty__copy">
-              <strong>Chưa có mẫu nào</strong>
-              <span>Tạo mẫu Excel để xuất giấy báo nợ theo khách hàng.</span>
-            </div>
-            <button type="button" className="btn btn--primary" onClick={() => navigate('/config/debit-note-templates/new')}>
-              <Plus size={16} /> Thêm mẫu
-            </button>
           </div>
         ) : (
           <div className="debit-template-list">

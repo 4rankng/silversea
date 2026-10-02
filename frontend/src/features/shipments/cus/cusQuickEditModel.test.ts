@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import {
-  buildQuickEditDeclarationBody,
   buildQuickEditDraft,
   buildQuickEditPayload,
+  diffQuickEditDeclarations,
+  factoryDetailPath,
   isQuickEditUnchanged,
   quickEditAccessKeys,
   quickEditDeclarationChanged,
@@ -31,8 +32,18 @@ function makeItem(overrides: Record<string, unknown> & { raw?: Record<string, un
       declarationNumber: 'TK789',
       declarationId: 11,
       declarationIssuedAt: '2026-08-31T02:00:00.000Z' as string | null,
-      declarationScope: 'IMPORT' as string | null,
+      declarationScope: 'SINGLE' as string | null,
       declarationNote: 'ghi-chu-to-khai' as string | null,
+      declarations: [
+        {
+          id: 11,
+          declarationNumber: 'TK789',
+          channel: null,
+          issuedAt: '2026-08-31T02:00:00.000Z',
+          scope: 'SINGLE',
+          note: 'ghi-chu-to-khai',
+        },
+      ] as unknown as Array<{ id: number; declarationNumber: string | null; channel: 'RED' | 'YELLOW' | 'GREEN' | null; issuedAt: string | null; scope: 'SINGLE' | 'SHARED' | null; note: string | null }>,
       tradeDirection: 'EXPORT',
       shippingLineName: 'Hãng Tàu X',
       packageCount: 12,
@@ -85,7 +96,7 @@ describe('buildQuickEditDraft', () => {
     expect(draft.packageCount).toBe('12');
     expect(draft.cargoWeightKg).toBe('1200');
     expect(draft.time).toBe(scheduleTime(item));
-    expect(draft.declarationId).toBe(11);
+    expect(draft.declarations.map((row) => row.id)).toEqual([11]);
   });
 
   it('blanks numeric seed when the row carries null', () => {
@@ -102,11 +113,14 @@ describe('isQuickEditUnchanged', () => {
     expect(isQuickEditUnchanged(draftFrom(item, 'identity', { factoryName: 'Factory B' }), item)).toBe(false);
   });
 
-  it('documents: declaration ignored for diff when READ_ONLY', () => {
+  it('documents: declaration list diff ignored when READ_ONLY', () => {
     const item = makeItem();
-    expect(isQuickEditUnchanged(draftFrom(item, 'documents', { declarationNumber: 'CHANGED' }), item)).toBe(false);
+    const withNewRow = draftFrom(item, 'documents');
+    withNewRow.declarations = [...withNewRow.declarations, { id: null, declarationNumber: 'TK-NEW', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
+    expect(isQuickEditUnchanged(withNewRow, item)).toBe(false);
     const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'locked' } } });
-    expect(isQuickEditUnchanged(draftFrom(locked, 'documents', { declarationNumber: 'CHANGED' }), locked)).toBe(true);
+    expect(isQuickEditUnchanged(draftFrom(locked, 'documents', {}), locked)).toBe(true);
+    expect(isQuickEditUnchanged(withNewRow, locked)).toBe(true);
   });
 
   it('cargo: numeric-string equality includes blanked nulls', () => {
@@ -135,6 +149,20 @@ describe('quickEditSaveIdentity', () => {
 });
 
 describe('buildQuickEditPayload', () => {
+  it('UI-CD-12 never sends a parent factory label for an FCL container factory', () => {
+    const item = makeItem({ cargoMode: 'FCL' });
+    expect(buildQuickEditPayload(draftFrom(item, 'identity', { factoryName: 'Wrong parent' }), item)).toEqual({ expectedVersion: 3 });
+  });
+
+  it('UI-CD-12 links to container factories without hiding undated rows', () => {
+    const item = makeItem({ raw: { customerId: 7 }, billOrBookNumber: 'BL/12345', declarationNumber: null });
+    const url = new URL(factoryDetailPath(item), 'http://local');
+    expect(url.pathname).toBe('/shipments-detail');
+    expect(url.searchParams.get('dateScope')).toBe('all');
+    expect(url.searchParams.get('customerId')).toBe('7');
+    expect(url.searchParams.get('searchSuffix')).toBe('BL/12345');
+    expect(new URL(factoryDetailPath(makeItem({ raw: { customerId: 7 }, billOrBookNumber: null, declarationNumber: 'TK1234' })), 'http://local').searchParams.get('searchSuffix')).toBe('TK1234');
+  });
   it('notes field ships multiline text verbatim — no newline stripping on the save path', () => {
     const item = makeItem();
     const note = '- 123\n- ABC';
@@ -219,22 +247,81 @@ describe('buildQuickEditPayload', () => {
 });
 
 describe('declaration upsert rules', () => {
-  it('flags a change only for documents mode with write access and a diverging number', () => {
+  it('flags a change only for documents mode with write access and a diverging list', () => {
     const item = makeItem();
-    expect(quickEditDeclarationChanged(draftFrom(item, 'documents', { declarationNumber: 'TK000' }), item)).toBe(true);
+    const changed = draftFrom(item, 'documents');
+    changed.declarations[0].declarationNumber = 'TK000';
+    expect(quickEditDeclarationChanged(changed, item)).toBe(true);
     expect(quickEditDeclarationChanged(draftFrom(item, 'documents'), item)).toBe(false);
-    expect(quickEditDeclarationChanged(draftFrom(item, 'cargo', { declarationNumber: 'TK000' }), item)).toBe(false);
+    expect(quickEditDeclarationChanged(draftFrom(item, 'cargo'), item)).toBe(false);
     const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'x' } } });
-    expect(quickEditDeclarationChanged(draftFrom(locked, 'documents', { declarationNumber: 'TK000' }), locked)).toBe(false);
+    expect(quickEditDeclarationChanged(draftFrom(locked, 'documents'), locked)).toBe(false);
   });
 
   it('resends issuedAt/scope/note verbatim and nulls an emptied number', () => {
-    const draft = draftFrom(makeItem(), 'documents', { declarationNumber: '   ' });
-    expect(buildQuickEditDeclarationBody(draft)).toEqual({
-      declarationNumber: null,
-      issuedAt: '2026-08-31T02:00:00.000Z',
-      scope: 'IMPORT',
-      note: 'ghi-chu-to-khai',
-    });
+    const draft = draftFrom(makeItem(), 'documents');
+    draft.declarations[0].declarationNumber = '   ';
+    const diff = diffQuickEditDeclarations(draft, makeItem());
+    expect(diff.updates).toEqual([{
+      id: 11,
+      body: {
+        declarationNumber: null,
+        issuedAt: '2026-08-31T02:00:00.000Z',
+        scope: 'SINGLE',
+        note: 'ghi-chu-to-khai',
+      },
+    }]);
+    expect(diff.deletes).toEqual([]);
+    expect(diff.creates).toEqual([]);
+  });
+});
+
+describe('multi-row diff (card 20260921_3)', () => {
+  it('creates a POST only for a new row carrying a number', () => {
+    const item = makeItem();
+    const draft = draftFrom(item, 'documents');
+    draft.declarations.push({ id: null, declarationNumber: 'TK-2', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
+    draft.declarations.push({ id: null, declarationNumber: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
+    const diff = diffQuickEditDeclarations(draft, item);
+    expect(diff.creates).toEqual([{
+      declarationNumber: 'TK-2',
+      issuedAt: null,
+      scope: undefined,
+      note: null,
+    }]);
+    expect(diff.updates).toEqual([]);
+    expect(diff.deletes).toEqual([]);
+  });
+
+  it('deletes stored rows removed in the draft, after updates and before creates semantically', () => {
+    const item = makeItem();
+    const draft = draftFrom(item, 'documents');
+    draft.declarations = [];
+    const diff = diffQuickEditDeclarations(draft, item);
+    expect(diff.deletes).toEqual([11]);
+    expect(diff.updates).toEqual([]);
+    expect(diff.creates).toEqual([]);
+  });
+
+  it('ignores stale ids for writes but still deletes seed rows absent from the draft', () => {
+    const item = makeItem();
+    const draft = draftFrom(item, 'documents');
+    draft.declarations = [{ id: 999, declarationNumber: 'GHOST', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
+    const diff = diffQuickEditDeclarations(draft, item);
+    // Ghost 999 produces no write; seed row 11 was removed in the modal, so
+    // it deletes. A row ADDED concurrently (never seeded) can never delete.
+    expect(diff.updates).toEqual([]);
+    expect(diff.creates).toEqual([]);
+    expect(diff.deletes).toEqual([11]);
+  });
+
+  it('never deletes a declaration added concurrently after the modal opened', () => {
+    const item = makeItem();
+    const draft = draftFrom(item, 'documents');
+    item.raw = { ...item.raw, declarations: [...(item.raw.declarations ?? []), { id: 12, declarationNumber: 'TK-CONCURRENT', issuedAt: null, scope: 'SINGLE', note: null }] };
+    const diff = diffQuickEditDeclarations(draft, item);
+    expect(diff.deletes).toEqual([]);
+    expect(diff.updates).toEqual([]);
+    expect(diff.creates).toEqual([]);
   });
 });

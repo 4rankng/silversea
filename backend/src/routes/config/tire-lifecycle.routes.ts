@@ -13,13 +13,14 @@ import { cacheInvalidatePattern } from '../../lib/redis';
 import * as H from './config-helpers';
 import { installTireInTx, removeTireInTx, disposeTireInTx, transferTireInTx, isHttpError } from '../../services/tire.service';
 import { installTireSchema, disposeTireSchema, transferTireSchema } from '@tingting/shared';
+import { declareMaterialWrite } from '../../middleware/material-write';
 // Tire lifecycle routes (T3c split) — install/remove/dispose/transfer with
 // role-gated writes, moved verbatim from routes/config.ts.
 
 // Lifecycle endpoints — MANAGER/ACCOUNTANT/ADMIN only (writes). The mount-level
 // config Casbin gate already restricts broadly; requireRoles tightens write actions.
-export const tireLifecycleRouter = Router();
-tireLifecycleRouter.post('/:id/install', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+export const tireLifecycleRouter = Router()
+tireLifecycleRouter.post('/:id/install', declareMaterialWrite('config.tires.install', { method: 'POST', path: '/api/fleet/tires/:id/install' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = installTireSchema.parse(req.body);
@@ -51,7 +52,7 @@ tireLifecycleRouter.post('/:id/install', requireRoles(Role.ADMIN, Role.MANAGER, 
   }
 }));
 
-tireLifecycleRouter.post('/:id/remove', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+tireLifecycleRouter.post('/:id/remove', declareMaterialWrite('config.tires.remove', { method: 'POST', path: '/api/fleet/tires/:id/remove' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi tháo lốp.');
@@ -78,7 +79,7 @@ tireLifecycleRouter.post('/:id/remove', requireRoles(Role.ADMIN, Role.MANAGER, R
   }
 }));
 
-tireLifecycleRouter.post('/:id/dispose', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+tireLifecycleRouter.post('/:id/dispose', declareMaterialWrite('config.tires.dispose', { method: 'POST', path: '/api/fleet/tires/:id/dispose' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = disposeTireSchema.parse(req.body);
@@ -106,7 +107,7 @@ tireLifecycleRouter.post('/:id/dispose', requireRoles(Role.ADMIN, Role.MANAGER, 
   }
 }));
 
-tireLifecycleRouter.post('/:id/transfer', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+tireLifecycleRouter.post('/:id/transfer', declareMaterialWrite('config.tires.transfer', { method: 'POST', path: '/api/fleet/tires/:id/transfer' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = transferTireSchema.parse(req.body);

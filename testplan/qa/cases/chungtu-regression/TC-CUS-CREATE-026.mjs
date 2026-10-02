@@ -2,26 +2,31 @@
 // §1.11 / TC-CUS-CREATE-026 — Duplicate Bill/Booking/Declaration guard.
 // Source: báo cáo khách hàng 2026-09-07.
 
+import { findShipmentWhere } from '../../lib/fixtures.mjs';
+
 export const caseId = 'TC-CUS-CREATE-026';
 export const role = 'CUS';
 
 export default async function (ctx) {
+  const envTag = `[${ctx.env.env}]`;
   await ctx.goto('/shipments/new');
 
-  // 1. Pick an existing BL from the staging DB so we can collide with it.
-  const list = await ctx.apiGet('/shipments?page=1&limit=10');
-  const items = list.body.items || list.body.data || [];
-  const existingBLs = items.map((s) => s.blNumber || s.bl_number).filter(Boolean);
-  if (existingBLs.length === 0) {
-    return { verdict: 'BLOCKED', errors: ['no shipments on staging to test against'] };
+  // 1. The fixture is a lot that HAS a Bill/Booking number. Find it by PROPERTY
+  //    across pages, never by position: page 1 is whatever lot ran last, so a
+  //    page-1-only scan reported "no shipments available" on a DB that holds
+  //    hundreds of them (card 20260928_159 — run order must not decide).
+  const billOf = (shipment) => String(shipment?.blNumber ?? shipment?.bl_number ?? '').trim();
+  const target = await findShipmentWhere(ctx, (shipment) => billOf(shipment).length > 0);
+  if (!target) {
+    return { verdict: 'BLOCKED', errors: [`${envTag} no shipment carries a Bill/Booking number on this env — nothing to collide a duplicate against`] };
   }
-  const dupBL = existingBLs[0];
+  const dupBL = billOf(target);
 
   // 2. Fill required fields: customer + hình thức + the duplicate BL.
   const cust = await ctx.pickComboboxByPlaceholder('Gõ để tìm kiếm', 'Long Minh');
-  if (!cust.ok) return { verdict: 'BLOCKED', errors: [`kh: ${cust.error}`] };
+  if (!cust.ok) return { verdict: 'BLOCKED', errors: [`${envTag} kh: ${cust.error}`] };
   const hinhThuc = await ctx.pickHinhThucNhapKhau();
-  if (!hinhThuc.ok) return { verdict: 'BLOCKED', errors: [`hình thức: ${hinhThuc.error}`] };
+  if (!hinhThuc.ok) return { verdict: 'BLOCKED', errors: [`${envTag} hình thức: ${hinhThuc.error}`] };
 
   // Find the Bill/Booking field by label
   const billHandle = await ctx.page.evaluateHandle(() => {
@@ -35,7 +40,7 @@ export default async function (ctx) {
     return null;
   });
   const billEl = billHandle.asElement();
-  if (!billEl) return { verdict: 'BLOCKED', errors: ['Bill/Booking field not found'] };
+  if (!billEl) return { verdict: 'BLOCKED', errors: [`${envTag} Bill/Booking field not found`] };
 
   await billEl.click();
   await ctx.page.evaluate((node) => { node.value = ''; }, billEl);
@@ -62,11 +67,17 @@ export default async function (ctx) {
     c.method === 'POST' && /\/api\/shipments\/?(\?.*)?$/.test(c.url)
   );
 
-  // DB-side check: count shipments with this BL (should still be 1, not 2).
-  // Use the detail endpoint to scan all shipments since the list may be paginated.
-  const after = await ctx.apiGet('/shipments?page=1&limit=200');
-  const afterItems = after.body.items || after.body.data || [];
-  const dbCount = afterItems.filter((s) => (s.blNumber || s.bl_number) === dupBL).length;
+  // DB-side check: count shipments carrying this BL across the SAME scanned
+  // window the fixture came from — a page-1-only count missed lots deeper in
+  // the list and read as "unchanged" for the wrong reason.
+  let dbCount = 0;
+  for (let page = 1; page <= 4; page += 1) {
+    const res = await ctx.apiGet(`/shipments?limit=100&page=${page}`);
+    const pageItems = res.body.items || res.body.data || [];
+    if (pageItems.length === 0) break;
+    dbCount += pageItems.filter((s) => billOf(s) === dupBL).length;
+    if (pageItems.length < 100) break;
+  }
 
   // PASS evidence: any of (a) inline warning mentions duplicate + username,
   // (b) POST returned 409, (c) DB count unchanged (= 1).

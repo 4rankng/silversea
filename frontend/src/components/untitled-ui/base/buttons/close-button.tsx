@@ -6,7 +6,7 @@ const sizes = {
     xs: { root: "size-7", icon: "size-4" },
     sm: { root: "size-9", icon: "size-5" },
     md: { root: "size-10", icon: "size-5" },
-    lg: { root: "size-11", icon: "size-6" },
+    lg: { root: "size-10", icon: "size-6" },
 };
 
 const themes = {

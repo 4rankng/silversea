@@ -13,6 +13,8 @@ import {
   shipmentCusWorkspaceQuerySchema,
   shipmentCusContainerQuerySchema,
   shipmentCusContainerLineUpdateSchema,
+  shipmentCusContainerAddSchema,
+  shipmentCusContainerRemoveSchema,
   shipmentCusFinanceConfirmationCreateSchema,
   shipmentCusDocumentCustodyUpdateSchema,
   shipmentCusLockSchema,
@@ -23,6 +25,8 @@ import {
   listCusShipmentContainers,
   listCusShipmentWorkspace,
   updateCusShipmentContainerLine,
+  addCusShipmentContainer,
+  removeCusShipmentContainer,
 } from '../../services/cus-shipment-workspace.service';
 import {
   activateShipmentAccountingLock,
@@ -41,8 +45,9 @@ import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { parseId, runShipmentWrite, sendShipmentWrite } from './shipment-shared';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
-const cusWorkspaceRoutes = Router();
+const cusWorkspaceRoutes = Router()
 
 cusWorkspaceRoutes.get(
   '/cus-workspace',
@@ -77,7 +82,7 @@ cusWorkspaceRoutes.get(
 );
 
 cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/containers/:containerId',
+  '/cus-workspace/:id/containers/:containerId', declareMaterialWrite('shipments.cus.container-line.update', { method: 'POST', path: '/api/shipments/cus-workspace/:id/containers/:containerId' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -113,7 +118,74 @@ cusWorkspaceRoutes.post(
 );
 
 cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/finance-confirmations',
+  '/cus-workspace/:id/containers', declareMaterialWrite('shipments.cus.container.add', { method: 'POST', path: '/api/shipments/cus-workspace/:id/containers' }), 
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentCusContainerAddSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_ADD,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const outcome = await addCusShipmentContainer({
+          shipmentId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: 201,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+cusWorkspaceRoutes.post(
+  '/cus-workspace/:id/containers/:containerId/remove', declareMaterialWrite('shipments.cus.container.remove', { method: 'POST', path: '/api/shipments/cus-workspace/:id/containers/:containerId/remove' }), 
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const containerId = Number.parseInt(req.params.containerId as string, 10);
+    if (!Number.isInteger(containerId) || containerId <= 0) {
+      throw new ApiError(400, 'ID container không hợp lệ');
+    }
+    const parsed = shipmentCusContainerRemoveSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_REMOVE,
+      { shipmentId, containerId, data: parsed.data },
+      async (tx) => {
+        const outcome = await removeCusShipmentContainer({
+          shipmentId,
+          containerId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: 200,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+cusWorkspaceRoutes.post(
+  '/cus-workspace/:id/finance-confirmations', declareMaterialWrite('shipments.cus.finance-confirm', { method: 'POST', path: '/api/shipments/cus-workspace/:id/finance-confirmations' }), 
   requireRoles(Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -144,7 +216,7 @@ cusWorkspaceRoutes.post(
 );
 
 cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/proposal-billing-links',
+  '/cus-workspace/:id/proposal-billing-links', declareMaterialWrite('shipments.cus.proposal-billing.review', { method: 'POST', path: '/api/shipments/cus-workspace/:id/proposal-billing-links' }), 
   requireRoles(Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -175,7 +247,7 @@ cusWorkspaceRoutes.post(
 );
 
 cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/document-custody',
+  '/cus-workspace/:id/document-custody', declareMaterialWrite('shipments.cus.document-custody.update', { method: 'POST', path: '/api/shipments/cus-workspace/:id/document-custody' }), 
   requireRoles(Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -206,7 +278,7 @@ cusWorkspaceRoutes.post(
 );
 
 cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/lock',
+  '/cus-workspace/:id/lock', declareMaterialWrite('shipments.cus.lock', { method: 'POST', path: '/api/shipments/cus-workspace/:id/lock' }), 
   requireRoles(Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -237,7 +309,7 @@ cusWorkspaceRoutes.post(
 );
 
 cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/reopen-requests',
+  '/cus-workspace/:id/reopen-requests', declareMaterialWrite('shipments.cus.reopen-request', { method: 'POST', path: '/api/shipments/cus-workspace/:id/reopen-requests' }), 
   requireRoles(Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -268,7 +340,7 @@ cusWorkspaceRoutes.post(
 );
 
 cusWorkspaceRoutes.delete(
-  '/cus-workspace/:id',
+  '/cus-workspace/:id', declareMaterialWrite('shipments.delete-request', { method: 'DELETE', path: '/api/shipments/cus-workspace/:id' }), 
   requireRoles(Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);

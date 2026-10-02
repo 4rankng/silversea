@@ -4,8 +4,8 @@
  * Covers the no-invoice policy boundary after the approval-workflow removal:
  *   - only allowed categories can proceed without invoice (create boundary)
  *   - the policy snapshot carries evidence and limit configuration
- *   - trip-expense approvals apply directly (tiered escalation was removed)
- *   - the disbursement report aggregates APPROVED no-invoice expenses
+ *   - trip expenses record directly while substitute evidence stays required
+ *   - the report recognizes recorded costs and preserves historical approval audit
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +14,8 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
-import { transitionApproval } from '../services/approval.service';
+import { createTripExpense } from '../services/forwarder.service';
+import { disconnectRedis } from '../lib/redis';
 import {
   buildNoInvoicePolicySnapshotForExpenseInput,
   getNoInvoiceDisbursementReport,
@@ -33,14 +34,12 @@ const createdPhotoIds: number[] = [];
 const createdAuditIds: number[] = [];
 const createdUserIds: number[] = [];
 let makerId: number;
-let approverId: number;
 
 before(async () => {
   const users = await db.insert(s.users).values([
     { username: `m47-maker-${suffix}`, passwordHash: 'x', role: 'ACCOUNTANT' },
-    { username: `m47-approver-${suffix}`, passwordHash: 'x', role: 'ADMIN' },
   ]).returning({ id: s.users.id });
-  [makerId, approverId] = users.map(user => user.id);
+  [makerId] = users.map(user => user.id);
   createdUserIds.push(...users.map(user => user.id));
 });
 
@@ -88,7 +87,7 @@ async function mkTrip(opts: { withShipment?: boolean } = {}) {
     tripCode: `M47-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: cust.id, routeId: route.id, cargoTypeId: cargo.id,
     shipmentId,
-    status: 'COMPLETED', departureDate: '2026-07-15', carrierType: 'OWN',
+    status: 'IN_TRANSIT', departureDate: '2026-07-15', carrierType: 'OWN',
   });
   createdTripIds.push(trip.id);
   return trip;
@@ -124,29 +123,6 @@ async function mkExpense(opts: {
   return e;
 }
 
-/** Run transitionApproval in a rollback-only tx so the guard fires but
- *  no PENDING row is left APPROVED. */
-async function runApproveTx(
-  expenseId: number,
-  actorRole: 'ADMIN' | 'MANAGER' | 'ACCOUNTANT' = 'ADMIN',
-): Promise<{ outcome: 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE' }> {
-  let result: { outcome: 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE' } | null = null;
-  try {
-    await db.transaction(async (tx) => {
-      result = await transitionApproval(tx, {
-        table: 'trip_expenses', id: expenseId, toStatus: 'APPROVED',
-        actorId: approverId, actorRole,
-      });
-      throw new RollbackSentinel();
-    });
-  } catch (e) {
-    if (e instanceof RollbackSentinel && result) return result;
-    throw e;
-  }
-  throw new Error('Expected rollback sentinel');
-}
-class RollbackSentinel extends Error {}
-
 after(async () => {
   const namePattern = `M47 %${suffix}%`;
   try {
@@ -169,6 +145,7 @@ after(async () => {
     if (createdFetIds.length > 0) await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, createdFetIds));
     if (createdUserIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   } catch (err) { console.warn('[m47] cleanup:', (err as Error).message); }
+  await disconnectRedis();
   await client.end();
 });
 
@@ -198,30 +175,38 @@ describe('M4.7 — no-invoice policy snapshot (create boundary)', () => {
   });
 });
 
-describe('M4.7 — transitionApproval wiring', () => {
-  test('APPROVE no-invoice expense with allowed + evidence + small amount → succeeds', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'wire-ok' });
+describe('M4.7 — direct no-invoice recording', () => {
+  test('valid substitute evidence records immediately with no approver', async () => {
+    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'direct-valid' });
     const trip = await mkTrip();
-    const e = await mkExpense({ tripId: trip.id, expenseTypeCode: fet.code, buyAmount: '300000', note: 'biên nhận' });
-    const result = await runApproveTx(e.id, 'ACCOUNTANT');
-    assert.equal(result.outcome, 'APPROVED');
+    const row = await createTripExpense(db, {
+      tripId: trip.id, forwarderId: null, createdBy: makerId, expenseType: fet.code,
+      buyAmount: '300000', sellAmount: '0', settlementMethod: 'COMPANY_DIRECT',
+      expenseDate: '2026-07-15', payeeName: 'Warehouse recipient',
+      note: 'Receipt for unloading', noInvoiceEvidenceTypes: ['RECEIPT'],
+    });
+    createdExpenseIds.push(row.id);
+    assert.equal(row.approvalStatus, 'RECORDED');
+    assert.equal(row.approvedBy, null);
+    assert.equal(row.approvedAt, null);
+    assert.deepEqual(row.noInvoiceEvidenceTypes, ['RECEIPT']);
+    const today = new Date().toISOString().slice(0, 10);
+    const report = await getNoInvoiceDisbursementReport({ from: today, to: today, categoryCode: fet.code });
+    assert.equal(report.items.length, 1);
+    assert.equal(report.items[0].expenseId, row.id);
+    assert.equal(report.totals.sumBuyAmount, 300000);
+    assert.equal(report.items[0].approverId, null, 'new costs do not fabricate a legacy approval');
   });
 
-  test('REJECT bypasses the guard', async () => {
-    const fet = await mkFet({ substituteEvidenceAllowed: false, tag: 'wire-reject' });
+  test('missing substitute evidence still rejects before recording', async () => {
+    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'direct-missing' });
     const trip = await mkTrip();
-    const e = await mkExpense({ tripId: trip.id, expenseTypeCode: fet.code, note: null });
-    try {
-      await db.transaction(async (tx) => {
-        await transitionApproval(tx, {
-          table: 'trip_expenses', id: e.id, toStatus: 'REJECTED',
-          actorId: approverId, actorRole: 'ACCOUNTANT',
-        });
-        throw new RollbackSentinel();
-      });
-    } catch (err) {
-      if (!(err instanceof RollbackSentinel)) throw err;
-    }
+    await assert.rejects(createTripExpense(db, {
+      tripId: trip.id, forwarderId: null, createdBy: makerId, expenseType: fet.code,
+      buyAmount: '300000', expenseDate: '2026-07-15', payeeName: 'Warehouse recipient',
+      note: 'Missing evidence', noInvoiceEvidenceTypes: [],
+    }), (error: Error & { statusCode?: number }) => error.statusCode === 400 && /chứng cứ/.test(error.message));
+    assert.equal((await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.tripId, trip.id))).length, 0);
   });
 });
 
@@ -287,7 +272,7 @@ describe('M4.7 slice 2 — getNoInvoiceDisbursementReport', () => {
     assert.equal(hasInv, false, 'invoiced expense excluded from no-invoice report');
   });
 
-  test('excludes non-APPROVED expenses', async () => {
+  test('excludes historical pending expenses', async () => {
     const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'rpt-pending' });
     const trip = await mkTrip();
     await mkExpense({
@@ -300,7 +285,7 @@ describe('M4.7 slice 2 — getNoInvoiceDisbursementReport', () => {
     assert.equal(hasPending, false, 'PENDING expense excluded');
   });
 
-  test('traces to approver via audit log', async () => {
+  test('preserves historical approver audit without creating a new workflow', async () => {
     const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'rpt-audit' });
     const trip = await mkTrip();
     const e = await mkExpense({

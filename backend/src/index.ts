@@ -4,10 +4,12 @@ import cors from 'cors';
 import { config } from './config';
 import { client as dbClient } from './db';
 import { disconnectRedis } from './lib/redis';
+import { checkRedisAtBoot } from './lib/boot-redis';
 import { initEnforcer } from './casbin/enforcer';
 import { authMiddleware, assetAuthMiddleware } from './middleware/auth';
 import { casbinAuthz, tripRouteAuthz } from './middleware/casbin';
 import { requireRoles } from './middleware/casbin';
+import { installGeneratedMaterialWriteRules } from './middleware/material-write';
 import { Role } from '@tingting/shared';
 import { auditLogMiddleware } from './middleware/audit';
 import { globalErrorHandler } from './middleware/errorHandler';
@@ -45,6 +47,9 @@ import ocrRoutes from './routes/ocr';
 import mapsRoutes from './routes/maps';
 import notificationRoutes from './routes/notifications';
 import opsRoutes from './routes/ops';
+import accountingRoutes from './routes/accounting';
+import accountingDepositRoutes from './routes/accounting-deposit';
+import accountingDebitRoutes from './routes/accounting-debit';
 import salaryRoutes from './routes/salary';
 import geotagRoutes from './routes/geotag';
 import recoverableCostRoutes from './routes/recoverable-costs';
@@ -180,6 +185,11 @@ app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), f
 // the router (OPS portal routes / ADMIN·MANAGER·ACCOUNTANT approvals /
 // ADMIN-only truck assignment), so no Casbin resource is introduced here.
 app.use('/api/ops', authMiddleware, opsRoutes);
+app.use('/api/accounting', authMiddleware, casbinAuthz('accounting'), accountingRoutes);
+app.use('/api/accounting/deposits', authMiddleware, casbinAuthz('accounting'), accountingDepositRoutes);
+// Card 20260921_21 — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (chot-debit CORE); mounted
+// adjacent to its siblings so the /api/accounting prefix cannot shadow it.
+app.use('/api/accounting', authMiddleware, casbinAuthz('accounting'), accountingDebitRoutes);
 app.use('/api/forwarder-expenses', authMiddleware, casbinAuthz('financial'), forwarderAdminRoutes);
 app.use('/api/admin/ocr-settings', authMiddleware, casbinAuthz('ocr-settings'), requireRoles(Role.ADMIN), ocrSettingsRoutes);
 app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);
@@ -227,11 +237,31 @@ app.use('/api/audit-logs', authMiddleware, casbinAuthz('audit_logs'), auditLogRo
 app.use('/api/fleet/tires', authMiddleware, casbinAuthz('config'), tireLifecycleRouter);
 app.use('/api/salary', authMiddleware, casbinAuthz('salary'), salaryRoutes);
 
+// Boot-time material-write coverage gate: a mounted write route that declares
+// nothing and has no hand-written registry row kills boot here, instead of
+// 500ing on the first live request while service-level suites stay green
+// (card 20260928_166 failure class).
+installGeneratedMaterialWriteRules(app);
+
 // ── 404 catch-all (before error handler so unmatched API routes get 404, not 500) ──
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Không tìm thấy API' }));
 
 // ── Global error handler (MUST be last) ────────────────────────────────────
 app.use(globalErrorHandler);
+
+// Boot-time dependency gate: a wrong redis URL used to surface only as
+// silent per-request 503s — the config must die loudly here instead.
+const redisBoot = await checkRedisAtBoot(config.redisUrl);
+if (!redisBoot.ok) {
+  console.error('');
+  console.error('  ██ CRITICAL BOOT FAILURE — REDIS UNREACHABLE ██');
+  console.error(`  ██ url: ${redisBoot.url}`);
+  console.error(`  ██ ${redisBoot.error}`);
+  console.error('  ██ fix REDIS_URL in backend/.env, then restart. ██');
+  console.error('');
+  process.exit(1);
+}
+console.log(`[Boot] redis ok at ${redisBoot.url}`);
 
 const server = app.listen(config.port, () => {
   console.log(`NEPO API running on port ${config.port} [${config.nodeEnv}]`);

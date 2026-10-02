@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import {
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
+  EXPENSE_FEE_GROUP_LABELS,
   NO_INVOICE_EVIDENCE_TYPE_LABELS,
   NO_INVOICE_POLICY_DEFAULTS,
+  expenseFeeGroupOf,
 } from '@tingting/shared';
 import { Loader2, Save, Trash2 } from 'lucide-react';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { UuiSelectField } from '../../design-system';
 import { usePageAnimations } from '../../hooks/animations';
+import { formatCurrency } from '../../lib/format';
 
 interface ForwarderExpenseType {
   id: number;
+  category?: string | null;
   code: string;
   name: string;
   status: string;
@@ -22,11 +27,6 @@ interface ForwarderExpenseType {
   defaultMarkup?: boolean;
   billingLabel?: string | null;
   vatRate?: string | null;
-}
-
-function formatVnd(value?: string | null): string {
-  const num = Number(value ?? 0);
-  return Number.isFinite(num) ? `${num.toLocaleString('vi-VN')} đ` : '—';
 }
 
 function PolicyCheckbox({
@@ -54,6 +54,20 @@ function PolicyCheckbox({
   );
 }
 
+/** Display labels for the settlement category of an expense type (BE _3). */
+const CATEGORY_LABELS: Record<string, string> = {
+  HQGS: 'HQGS (hải quan giám sát)',
+  PHAT_SINH: 'Phát sinh',
+  KHAC: 'Khác',
+  LIFT: 'Phí nâng',
+  DROP: 'Phí hạ',
+  CSHT: 'CSHT (sửa chữa hạ tầng)',
+  CARRIER_DETENTION: 'Cược hãng tàu',
+  REPAIR_ADVANCE: 'Tạm thu sửa chữa',
+  CARRIER_FREIGHT: 'Cước hãng tàu',
+  ZONE_SURCHARGE: 'Phụ phí vùng',
+};
+
 function ExpenseTypeForm({
   saving,
   item,
@@ -74,6 +88,7 @@ function ExpenseTypeForm({
   const [code, setCode] = useState(item?.code || '');
   const [name, setName] = useState(item?.name || '');
   const [defaultMarkup, setDefaultMarkup] = useState<boolean>(item?.defaultMarkup ?? false);
+  const [category, setCategory] = useState<string>(item?.category ?? '');
   const [billingLabel, setBillingLabel] = useState(item?.billingLabel || '');
   const [vatRate, setVatRate] = useState(item?.vatRate ? String(parseFloat(item.vatRate) * 100) : '8');
   const [requiresInvoice, setRequiresInvoice] = useState(item?.requiresInvoice ?? false);
@@ -123,6 +138,17 @@ function ExpenseTypeForm({
           </Field>
         </div>
       </div>
+
+      <UuiSelectField
+        label="Nhóm chi phí (quyết toán)"
+        size="md"
+        value={category}
+        onChange={(event) => setCategory(event.target.value)}
+        options={[
+          { value: '', label: '— Chưa phân nhóm —' },
+          ...Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label })),
+        ]}
+      />
 
       <Field label="Nhãn trên giấy báo nợ">
         <input
@@ -252,6 +278,7 @@ function ExpenseTypeForm({
                 name: name.trim(),
                 defaultMarkup,
                 billingLabel: billingLabel.trim() || null,
+                category: category || null,
                 vatRate: Number.isFinite(rate) ? (rate / 100).toFixed(3) : '0.080',
                 requiresInvoice,
                 substituteEvidenceAllowed: noInvoiceEnabled,
@@ -291,10 +318,14 @@ export default function ForwarderExpenseTypesConfigPage() {
         iconName="forwarder-expense"
         showDelete={false}
         pageSlug="forwarder-expense-types"
-        emptyIllustration="empty-expenses.svg"
+        emptyContext="expenses"
         emptyTitle="Chưa có loại chi phí"
         emptyHint="Thêm các loại chi phí giao nhận để nhân viên ghi nhận khi phát sinh."
         columns={[
+          {
+            header: 'Nhóm',
+            render: (item) => <span style={{ fontWeight: 600, color: expenseFeeGroupOf(item.category) === 'OTHER' ? 'var(--fg-2)' : 'var(--brand)' }}>{EXPENSE_FEE_GROUP_LABELS[expenseFeeGroupOf(item.category)]}</span>,
+          },
           {
             header: 'Mã',
             render: (item) => <span style={{ fontFamily: 'var(--font-data)', fontWeight: 600, color: 'var(--fg-1)' }}>{item.code}</span>,
@@ -322,8 +353,8 @@ export default function ForwarderExpenseTypesConfigPage() {
             header: 'Ngưỡng',
             render: (item) => (
               <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-2)', lineHeight: 1.45 }}>
-                <div>{formatVnd(item.noInvoicePerItemLimit)} / khoản</div>
-                <div>{formatVnd(item.noInvoicePerDayLimit)} / ngày</div>
+                <div><span className="data-token">{formatCurrency(item.noInvoicePerItemLimit)}</span> / khoản</div>
+                <div><span className="data-token">{formatCurrency(item.noInvoicePerDayLimit)}</span> / ngày</div>
               </div>
             ),
           },

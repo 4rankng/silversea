@@ -2,417 +2,61 @@
    ≤3 lines/cell, no horizontal scroll at 1280px. Follows the
    dispatch-plan-page__* BEM conventions. */
 
-.master-plan-filters {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  align-items: end;
-  gap: 10px;
-  margin-bottom: 14px;
-}
+/* Unified dispatch toolbar (case QA-2026-09-27-02 / card 20260927_2, re-cut on
+   the one-filter-strip contract, card 20260927_152): the strip is the shared
+   `ListFilterBar` — search, the from/to date group, the page action — and every
+   master-plan criterion beyond them (Xuất/Nhập, Phân xe, the zone facets, Nhà
+   xe) rides the shared `Bộ lọc` dropdown. This sheet owns the criteria that
+   live INSIDE that dialog plus the grid surface below; the bar's layout and
+   every control width belong to FilterBar.css / ListFilterBar.css, and the
+   dialog's packing belongs to FilterDropdown.css. No surface of its own: the
+   bar IS the shared card. */
 
 .master-plan-filters__zones-error {
-  align-self: center;
-  color: var(--warning-text, #b45309);
+  color: var(--warning-text);
   font-size: var(--text-data-size);
 }
 
-/* UUI inputs/selects carry their own borders, focus rings, and sizing;
-   these rules only shape them inside the flex bar. */
-
-.master-plan-filters__search {
-  grid-column: span 5;
-  min-width: 0;
-}
-
-.master-plan-filters__field {
-  min-width: 0;
-}
-
+/* The dialog's criteria stack label-over-control like the UUI fields beside
+   them (a UUI Select renders its own label); this span is the label slot for
+   the multi-select facets. Typography only — the dialog body owns the packing
+   (FilterDropdown.css). */
 .master-plan-filters__label {
-  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+  color: var(--color-fg-secondary, var(--fg-2));
   font-size: var(--text-label-size);
   font-weight: 600;
 }
 
-.master-plan-filters__select {
-  width: auto;
-}
-
-.master-plan-filters__direction {
-  /* The field label needs a little more room than the selected "Tất cả"
-     value; anything wider is unused toolbar space. */
-  grid-column: span 2;
-}
-
-.master-plan-filters__allocation {
-  /* This fits the longest allocation label plus the Select affordance without
-     turning a categorical filter into a half-row control. */
-  grid-column: span 2;
-}
-
-.master-plan-filters__date-range {
-  /* Keep the date inputs and their related actions in one operational row.
-     The date field intentionally takes a complete flex line when needed so
-     its shortcuts and the create action never become an orphaned button row. */
-  grid-column: span 9;
-  display: grid;
-  grid-template-columns: minmax(0, 320px) max-content;
-  gap: 5px 8px;
-  align-items: end;
-}
-
-.master-plan-filters__date-range > .master-plan-filters__label {
-  grid-column: 1 / -1;
-}
-
-.master-plan-filters__date-inputs {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-}
-
-.master-plan-filters__date-input {
-  min-width: 0;
-}
-
-.master-plan-filters__date-input input {
-  min-width: 0;
-}
-
-.master-plan-filters__date-sep {
-  color: var(--text-secondary, #94a3b8);
-}
-
-.master-plan-filters__date-actions {
-  display: flex;
-  gap: 6px;
-  grid-column: 2;
-  grid-row: 2;
-  align-items: stretch;
-  white-space: nowrap;
-}
-
-.master-plan-filters__date-action {
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--fg-2);
-}
-
-.master-plan-filters__date-action:hover {
-  border-color: var(--fg-3);
-  background: var(--surface-2);
-  color: var(--fg-1);
-}
-
-.master-plan-filters__date-action.is-active {
-  border-color: var(--fg-1);
-  background: var(--surface-2);
-  color: var(--fg-1);
-}
-
-.master-plan-filters__actions {
-  grid-column: span 3;
-  justify-self: end;
-  align-self: end;
-  white-space: nowrap;
-}
-
-.master-plan-filters__advanced-fields {
-  display: contents;
-}
-
-.master-plan-filters__advanced-trigger {
-  display: none;
-}
-
-.master-plan-filters__count {
-  display: inline-grid;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: 999px;
-  place-items: center;
-  background: var(--accent);
-  color: var(--surface);
-  font-size: var(--text-caption-size);
-  font-weight: 700;
-  line-height: 1;
-}
-
-.master-plan-filters__drawer-content {
-  display: grid;
-  gap: 24px;
-}
-
-.master-plan-filters__drawer-group + .master-plan-filters__drawer-group {
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
-}
-
-.master-plan-filters__drawer-title {
-  margin: 0 0 12px;
-  color: var(--fg-1);
-  font-size: var(--text-section-size);
-  font-weight: 650;
-}
-
-.master-plan-filters__drawer-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px 12px;
-}
-
-.master-plan-filters__drawer-fields .master-plan-filters__facet,
-.master-plan-filters__drawer-fields .master-plan-filters__allocation,
-.master-plan-filters__drawer-fields .master-plan-filters__date-range {
-  grid-column: auto;
-  width: 100%;
-}
-
-.master-plan-filters__drawer-fields .master-plan-filters__date-range {
-  grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.master-plan-filters__drawer-fields .master-plan-filters__date-actions {
-  grid-column: 1;
-  grid-row: auto;
-  flex-wrap: wrap;
-}
-
-/* Multi-select facet controls for ports and carriers */
+/* Multi-select facet criteria for ports and carriers: a label over the shared
+   `SearchableMultiSelect`. The cell declares no width, so the control is as
+   wide as the facet names it holds; the dialog body decides where it wraps. */
 .master-plan-filters__facet {
-  grid-column: span 3;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  position: relative;
-}
-
-.master-plan-filters__facet-trigger {
-  box-sizing: border-box;
-  display: flex;
-  min-height: var(--control-compact-h);
-  height: var(--control-compact-h);
-  align-items: center;
-  justify-content: space-between;
+  /* The UUI fields beside this one stack their label at 6px. A 4px stack drops
+     this label 2px below theirs while the controls stay bottom-aligned. */
   gap: 6px;
-  padding: 0 10px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--app-radius-sm);
-  color: var(--fg-2);
-  font-size: var(--control-compact-font-size);
-  font-weight: 400;
-  line-height: var(--control-compact-line-height);
-  cursor: pointer;
-  transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
-}
-
-@media (max-width: 640px) {
-  .master-plan-filters__facet-trigger {
-    min-height: var(--control-mobile-h);
-    height: var(--control-mobile-h);
-    font-size: var(--fs-3xs);
-    line-height: var(--control-mobile-line-height);
-  }
-}
-
-.master-plan-filters__facet-trigger:hover {
-  border-color: var(--fg-3);
-}
-
-.master-plan-filters__facet-trigger:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
-}
-
-.master-plan-filters__facet-trigger.has-selection {
-  color: var(--fg-1);
-  font-weight: 500;
-}
-
-.master-plan-filters__facet-trigger-value {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.master-plan-filters__facet-trigger-icon {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  color: var(--fg-3);
-  transition: transform 150ms var(--ease);
-}
-
-.master-plan-filters__facet-trigger-icon.is-open {
-  transform: rotate(180deg);
-}
-
-/* Popover dropdown for multi-select facets */
-.master-plan-filters__facet-picker {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 10;
-  width: 100%;
-  min-width: 260px;
-  max-width: 320px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--app-radius-md);
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  max-height: 400px;
-}
-
-.master-plan-filters__facet-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
-}
-
-.master-plan-filters__facet-search-icon {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  color: var(--fg-3);
-}
-
-.master-plan-filters__facet-search-input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  font-size: var(--control-field-font-size);
-  color: var(--fg-1);
-  outline: none;
-}
-
-.master-plan-filters__facet-search-input::placeholder {
-  color: var(--fg-3);
-}
-
-.master-plan-filters__facet-search-clear {
-  flex-shrink: 0;
-  padding: 2px;
-  background: transparent;
-  border: 0;
-  color: var(--fg-3);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.master-plan-filters__facet-search-clear:hover {
-  color: var(--fg-1);
-}
-
-.master-plan-filters__facet-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-
-.master-plan-filters__facet-feedback {
-  display: block;
-  padding: 16px 12px;
-  text-align: center;
-  color: var(--fg-3);
-  font-size: var(--text-data-size);
-}
-
-.master-plan-filters__facet-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: background-color 100ms var(--ease);
-}
-
-.master-plan-filters__facet-option:hover {
-  background: color-mix(in srgb, var(--fg-1) 4%, transparent);
-}
-
-.master-plan-filters__facet-option-checkbox {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-.master-plan-filters__facet-option-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-label-size);
-  color: var(--fg-1);
-}
-
-.master-plan-filters__facet-option-check {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  color: var(--accent);
-}
-
-.master-plan-filters__facet-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-top: 1px solid var(--line);
-  background: var(--surface-2);
-  border-radius: 0 0 var(--app-radius-md) var(--app-radius-md);
-}
-
-.master-plan-filters__facet-footer-text {
-  font-size: var(--text-caption-size);
-  color: var(--fg-3);
-}
-
-.master-plan-filters__facet-footer-clear {
-  padding: 4px 8px;
-  background: transparent;
-  border: 0;
-  color: var(--accent);
-  font-size: var(--text-caption-size);
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: var(--radius-xs);
-  transition: background-color 100ms var(--ease);
-}
-
-.master-plan-filters__facet-footer-clear:hover {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 /* Cargo summary header */
 .master-plan-cargo-summary {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px 10px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
+  padding: 2px 10px;
+  margin-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--app-radius-md);
   font-size: var(--text-data-size);
   color: var(--fg-2);
 }
+/* Card 20260930_246 (§8 density): single-line advisory strip — padding
+   halved so the summary stops stealing a record's height. */
 
 .master-plan-cargo-summary__label {
   font-weight: 600;
@@ -437,87 +81,6 @@
 .master-plan-cargo-summary__zone-hint {
   margin-left: auto;
   color: var(--fg-2);
-}
-
-@container (max-width: 1040px) {
-  .master-plan-filters {
-    grid-template-columns: minmax(0, 1fr) minmax(124px, 160px) auto auto;
-  }
-
-  .master-plan-filters__search,
-  .master-plan-filters__direction,
-  .master-plan-filters__actions,
-  .master-plan-filters__advanced-trigger {
-    grid-column: auto;
-  }
-
-  .master-plan-filters__direction,
-  .master-plan-filters__advanced-trigger {
-    min-width: 0;
-  }
-
-  .master-plan-filters__advanced-fields {
-    display: none;
-  }
-
-  .master-plan-filters__advanced-trigger {
-    display: inline-flex;
-    justify-content: center;
-  }
-
-  .master-plan-filters__facet-picker {
-    position: fixed;
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
-    max-height: 60vh;
-    border-radius: var(--app-radius-md) var(--app-radius-md) 0 0;
-    animation: slideUp 200ms var(--ease);
-  }
-}
-
-@container (max-width: 640px) {
-  .master-plan-filters { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 6px; }
-  .master-plan-filters__search { grid-column: 1 / -1; }
-  .master-plan-filters__direction { grid-column: 1; }
-  .master-plan-filters__advanced-trigger { grid-column: 2; }
-  .master-plan-filters__actions { grid-column: 3; justify-self: stretch; min-width: 0; }
-  .master-plan-filters__actions > .btn { width: 100%; }
-}
-
-@media (max-width: 767px) {
-  .drawer.master-plan-filters__drawer {
-    max-width: 100%;
-  }
-
-  .master-plan-filters__drawer .drawer__head {
-    padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 10px;
-  }
-
-  .master-plan-filters__drawer .drawer__body {
-    padding: 12px;
-  }
-
-  .master-plan-filters__drawer .drawer__foot {
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-  }
-
-  .master-plan-filters__drawer-fields {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
 }
 
 .master-plan-grid__wrapper {
@@ -581,20 +144,18 @@
 
 /* A record is not itself an action. Restrict the quiet desktop scan aid to
    fine pointers: touch browsers otherwise retain :hover while the user is
-   merely scrolling, which made whole records look selected. */
-@media (prefers-reduced-motion: no-preference) {
-  .master-plan-grid__row {
-    transition: background-color 150ms var(--ease);
-  }
-}
-
+   merely scrolling, which made whole records look selected.
+   NO background transition here (card 20260926_63): the grid refetch
+   replaces hovered rows mid-hover, and a 150ms background transition lets
+   the painted hover tint stick on the replacement nodes after the pointer
+   has left — multiple rows rendered permanently tinted (CHIEF 27/09). */
 @media (hover: hover) and (pointer: fine) {
   .master-plan-grid__row:hover {
-    /* A neutral two-percent ink wash provides orientation in a dense desktop
-       grid without impersonating an active, selected, or status state. */
     background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
   }
 }
+
+
 
 .master-plan-grid__cell {
   padding: 10px 12px;
@@ -657,8 +218,7 @@
 
 .master-plan-grid__route-shipping {
   display: grid;
-  grid-template-areas:
-    "route route"
+  grid-template-areas: "route route"
     "carrier direction";
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto minmax(0, 1fr);
@@ -676,6 +236,13 @@
 
 .master-plan-grid__line--urgent {
   color: var(--danger-text);
+  font-weight: var(--fw-semibold);
+}
+
+.master-plan-grid__line--warning {
+  /* §2 color law: "Cảnh báo" (containers missing appointment lock) is a
+     needs-attention warning — amber, not danger red (red = error/blocked). */
+  color: var(--warning-text);
   font-weight: var(--fw-semibold);
 }
 
@@ -802,7 +369,7 @@
   margin: 0;
   align-items: center;
   justify-content: flex-end;
-  color: var(--accent);
+  color: var(--accent-2);
   background: transparent;
   border: 0;
   font-size: var(--ops-table-meta-size, 11px);
@@ -952,8 +519,7 @@
   .master-plan-grid__row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas:
-      "schedule customer"
+    grid-template-areas: "schedule customer"
       "route route"
       "lift drop"
       "cargo allocation"
@@ -983,15 +549,15 @@
   .master-plan-grid__cell[data-label="Ghi chú"] { grid-area: notes; }
 
   .master-plan-grid__cell::before {
-    display: block;
-    margin-bottom: 4px;
-    color: var(--fg-3);
-    content: attr(data-label);
+    display: inline;
+    margin: 0 6px 0 0;
+    color: var(--fg-2);
+    content: attr(data-label-short);
     font-size: var(--text-label-size);
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    line-height: 1.3;
-    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.6;
+    text-transform: none;
   }
 
   .master-plan-grid__line {
@@ -1001,7 +567,7 @@
 
   .master-plan-grid__container-detail-trigger,
   .master-plan-grid__note-detail-trigger {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   .master-plan-grid__cell--action {
@@ -1014,24 +580,19 @@
   }
 
   .master-plan-grid__allocation-trigger {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     padding: 10px 16px;
   }
 
-  /* Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell
-     holds a 44px trigger, so the cell body lands at ~64px tall. The notes
-     cell directly below is text-only — an empty "—" placeholder or a
-     short note would render ~40-50px, leaving a ~14-24px height pop in
-     the action + notes footer pair. Ground the notes-trigger to 44px so
-     empty/short notes share the action-cell rhythm AND keep the 44px
-     touch target that the design system reserves for tappable surfaces
-     (design-system.md: "Compact field typography is shared too: sm
-     fields use 12px on desktop and 14px at narrow widths, while
-     retaining the 44px touch target"). */
+  /* Keep empty/short notes on the shared 40px compact control budget.
+     Allocation and note records may grow to show their multiple facts;
+     their inner detail actions retain the ordinary control budget. */
   .master-plan-grid__notes-trigger {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
+  /* (this rule's sentence-case override for the phone/tablet record lives at
+     the end of this band — see the 2026-09-27 record-line block) */
   .master-plan-grid__allocation-label {
     display: block;
     margin-bottom: 4px;
@@ -1042,13 +603,85 @@
     line-height: 1.3;
     text-transform: uppercase;
   }
+
+  /* Value runs ride the record line: the plain line stack, the schedule
+     blocks and the two port location blocks all collapse to inline. */
+  .master-plan-grid__line,
+  .master-plan-grid__schedule-block,
+  .master-plan-grid__location-block {
+    display: inline;
+    margin-right: 8px;
+  }
+
+  .master-plan-grid__line + .master-plan-grid__line,
+  .master-plan-grid__schedule-block + .master-plan-grid__schedule-block,
+  .master-plan-grid__location-block + .master-plan-grid__location-block {
+    margin-top: 0;
+  }
+
+  .master-plan-grid__line + .master-plan-grid__line::before,
+  .master-plan-grid__schedule-block + .master-plan-grid__schedule-block::before,
+  .master-plan-grid__location-block + .master-plan-grid__location-block::before {
+    margin-right: 8px;
+    color: var(--fg-3);
+    content: '·';
+  }
+
+  /* The route block and the cargo block were fixed grids/flex runs, so their
+     label could never ride the first value. Released to inline on the phone
+     record they read as one line each — "Tuyến C12 route · Nhập · Hãng tàu"
+     and "Hàng 1 x Container · 22 t · Chi tiết". */
+  .master-plan-grid__route-shipping,
+  .master-plan-grid__route-shipping-route,
+  .master-plan-grid__route-shipping-carrier,
+  .master-plan-grid__route-shipping-direction,
+  .master-plan-grid__cargo-content,
+  .master-plan-grid__cargo-summary {
+    display: inline;
+  }
+
+  /* The direction chip and the cargo "Chi tiết" action are block-level flex
+     boxes — inline so neither forces its own line. */
+  .master-plan-grid__route-shipping-direction > span {
+    display: inline-flex;
+    vertical-align: middle;
+  }
+
+  /* Ghi chú's own value run (the note preview + the OPS line) never opens on
+     a stranded separator. */
+  .master-plan-grid__cell[data-label="Ghi chú"] .master-plan-grid__line + .master-plan-grid__line::before {
+    content: none;
+    margin-right: 0;
+  }
+
+  /* The action cell's trigger paints its own label inside the button, so the
+     td label above it would print the concept twice (§1 one concept, one
+     place) — the ≤900 band hid it, the label rule above must not undo that. */
+  .master-plan-grid__cell--action::before {
+    display: none;
+  }
+
+  /* A '—' placeholder no longer drags a separator through the record line
+     ("Khách C12 CUSTOMER 117 · — · —"); the desktop table keeps its column. */
+  .master-plan-grid__line[data-empty='true'] {
+    display: none;
+  }
+
+  /* The allocation trigger paints its own label inside the button; it takes
+     the same sentence-case voice so the card has one label style, not two. */
+  .master-plan-grid__allocation-label {
+    margin-bottom: 2px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
 }
 
 /* Phone retains the semantic pairs while reducing the inherited cell inset. */
 @container (max-width: 599px) {
-  .master-plan-grid__cell { padding: 8px 10px; }
+  .master-plan-grid__cell { padding: 6px 10px; }
   .master-plan-grid__cell--action { padding: 0; }
-  .master-plan-grid__allocation-trigger { padding: 8px 10px; }
+  .master-plan-grid__allocation-trigger { padding: 6px 10px; }
 }
 
 /* Shared Table.css paints every hovered td green. Suppress that passive wash

@@ -44,6 +44,7 @@
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
+import { calculateCheckDigit } from '@tingting/shared';
 import { insertTripComposite } from '../services/trip-composite.service';
 
 // ─── Idempotency marker ────────────────────────────────────────────────────────
@@ -221,15 +222,19 @@ const CONTAINER_PREFIXES = ['MSCU', 'TCLU', 'CMAU', 'EGHU', 'OOLU', 'FCIU', 'HLX
 function genContainerNumber(used: Set<string>): string {
   for (let attempt = 0; attempt < 50; attempt++) {
     const prefix = pick(CONTAINER_PREFIXES);
-    const digits = String(randInt(1000000, 9999999));
-    const candidate = prefix + digits;
+    const serial = String(randInt(100000, 999999));
+    // Card 20260922_76: the 7th digit is the ISO 6346 check digit — compute
+    // it (not random) so quick-add's re-validation accepts seeded lots.
+    const check = calculateCheckDigit(prefix + serial);
+    const candidate = `${prefix}${serial}${check}`;
     if (!used.has(candidate)) {
       used.add(candidate);
       return candidate;
     }
   }
-  // Pathological: fall back to a timestamp-derived unique number.
-  return 'BULK' + String(Date.now() + Math.floor(Math.random() * 1000)).slice(-7);
+  // Pathological: fall back to a timestamp-derived unique (still valid) number.
+  const serial = String(Date.now()).slice(-6);
+  return `MSCU${serial}${calculateCheckDigit(`MSCU${serial}`)}`;
 }
 function genSealNumber(): string {
   return 'SL' + String(randInt(1_000_000, 9_999_999));
@@ -352,6 +357,9 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
     const [created] = await db.insert(s.customers).values({
       name: fullName,
       shortName,
+      // Card 20260922_70: KH-2xxx range for bulk synthetic customers —
+      // disjoint from the sheet run (KH-0001…) and demo samples (KH-1xxx…).
+      code: `KH-${String(2000 + i + 1).padStart(4, '0')}`,
       taxCode,
       contactPerson: genVietnameseName(),
       phone: genPhone(),
@@ -756,6 +764,41 @@ export async function seedBulkData(): Promise<{ created: boolean; stats: Record<
     stats.expenses++;
   }
   console.log(`  ✅ Expenses: +${stats.expenses}`);
+
+  // ── 8b. Card 20260922_71: trip-expense fixture with invoice + declaration
+  // number — the chứng từ cell's 'TK …' title fallback needs BOTH values in
+  // at least one seeded row (fresh seeds otherwise create no trip_expenses).
+  {
+    const opsUserId = (await resolveActiveUserIdsByRole()).get('giaonhan') ?? null;
+    const [completedTrip] = await db.select({ id: s.trips.id })
+      .from(s.trips).where(eq(s.trips.status, 'COMPLETED'))
+      .orderBy(s.trips.id).limit(1);
+    if (opsUserId != null && completedTrip != null) {
+      const [existing] = await db.select({ id: s.tripExpenses.id })
+        .from(s.tripExpenses)
+        .where(eq(s.tripExpenses.declarationNumber, '103020261100012345'))
+        .limit(1);
+      if (!existing) {
+        await db.insert(s.tripExpenses).values({
+          tripId: completedTrip.id,
+          forwarderId: opsUserId,
+          createdBy: opsUserId,
+          expenseType: 'OTHER',
+          buyAmount: '820000',
+          sellAmount: '900000',
+          settlementMethod: 'OPS_ADVANCE',
+          expenseDate: '2026-08-16',
+          payeeName: null,
+          invoiceNumber: 'BOT-2026-008812',
+          declarationNumber: '103020261100012345',
+          approvalStatus: 'RECORDED',
+          note: 'BULK fixture: phí cầu đường BOT kèm số tờ khai (card 20260922_71)',
+          noInvoiceEvidenceTypes: [],
+        });
+        console.log('  ✅ Trip-expense fixture: invoice + declaration number (+1)');
+      }
+    }
+  }
 
   // ── 9. Notifications: a handful so the bell icon isn't empty on first load
   for (let i = 0; i < 25; i++) {

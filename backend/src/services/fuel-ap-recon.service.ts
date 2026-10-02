@@ -6,16 +6,12 @@ import { inArray } from 'drizzle-orm';
  * VENDOR ledger when trips lock — sum of trips.totalFuelCost) against the
  * INVOICED fuel cost (sum of trip_expenses rows where the expenseType
  * indicates fuel and the supplier matches). Per-(supplier × truck × period)
- * variance flags surprises so accountants can request explanations before
- * approving the supplier's invoice.
+ * variance supports factual reconciliation without blocking direct recording.
  *
  * Status flag:
  *   - 'OK'       — |variancePct| ≤ threshold (default 5%) OR both sides zero
  *   - 'VARIANCE' — |variancePct| > threshold, or expected=0 but invoiced>0
  *
- * The follow-up approval-block slice (M6.1 slice 2) will call this service
- * from the expense-approval flow and reject the approval when status='VARIANCE'
- * without a recorded explanation.
  */
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -180,7 +176,9 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
   const legacyExpenseRows = await db.select({
     supplierId: s.tripExpenses.supplierId,
     truckId: s.trips.truckId,
-    invoicedFuelCost: sql<string>`coalesce(sum(coalesce(${recordedSettlementAdjustedBuyAmount}::numeric, ${s.tripExpenses.buyAmount})), 0)`,
+    // Card 20260928_181 — a negative fuel-expense row behaves as if it did
+    // not exist; the row filter is on the expense's own buy_amount.
+    invoicedFuelCost: sql<string>`coalesce(sum(coalesce(${recordedSettlementAdjustedBuyAmount}::numeric, ${s.tripExpenses.buyAmount})) filter (where ${s.tripExpenses.buyAmount} > 0), 0)`,
   })
     .from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))

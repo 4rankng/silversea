@@ -1,4 +1,6 @@
-import { useId, type KeyboardEvent, type ReactNode } from 'react';
+import { Children, isValidElement, useId, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { UuiSelectField } from './forms/UuiSelectField';
 import './Tabs.css';
 
 /**
@@ -10,7 +12,10 @@ import './Tabs.css';
  *   - DebtDetailPage.tsx (workspace tabs — owned by sibling plan, migrate later)
  *
  * Two variants cover both existing patterns:
- *   - 'boxed': pill-style container (daisyUI `d-tabs-boxed`) — good for primary navigation.
+ *   - 'boxed': THE canonical button group (operator ruling 2026-09-27: the
+ *     fleet-vehicle status group is the reference look, used "consistently
+ *     globally") — hairline container, flat white active pill, plain tone-
+ *     coloured counts.
  *   - 'bordered': underline-style (daisyUI `d-tabs-border`) — good for in-card sections.
  *   - 'plain': raw chips with active state — drop-in for Payables' category chips.
  *
@@ -21,12 +26,15 @@ import './Tabs.css';
 export type TabsVariant = 'boxed' | 'bordered' | 'plain';
 
 export interface TabItem {
-  /** Stable id used for active matching and list keys. */
+  /** Stable id used for active matching and list scopes. */
   id: string;
   /** Visible label. Vietnamese in user-facing UIs. */
   label: ReactNode;
   /** Optional count badge (e.g. open items count). */
   count?: number;
+  /** Tone of the count numeral — 'accent' = green (healthy), 'warning' =
+   *  amber (down/waiting on us), 'info' = neutral teal. */
+  countTone?: 'accent' | 'warning' | 'info';
   /** Disable this tab. */
   disabled?: boolean;
 }
@@ -38,11 +46,46 @@ export interface TabsProps {
   variant?: TabsVariant;
   /** Accessible label for the tablist. Always provide in Vietnamese. */
   ariaLabel: string;
+  /** Optional shared panel id — sets `aria-controls` on every tab (the
+   *  one-panel-per-group pattern, e.g. the work inbox queues). */
+  panelId?: string;
   className?: string;
+  /** Category filters can use the same dropdown on every viewport. */
+  presentation?: 'responsive' | 'select';
 }
 
-export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, className }: TabsProps) {
+function labelText(node: ReactNode): string {
+  return Children.toArray(node).map(child => {
+    if (typeof child === 'string' || typeof child === 'number') return String(child);
+    return isValidElement<{ children?: ReactNode }>(child) ? labelText(child.props.children) : '';
+  }).join(' ').replace(/\s+/g, ' ').trim();
+}
+
+export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, panelId, className, presentation = 'responsive' }: TabsProps) {
+  const narrow = useMediaQuery('(max-width: 767px)');
+  const coarse = useMediaQuery('(pointer: coarse)');
+  const asSelect = presentation === 'select' || (variant === 'boxed' && (narrow || coarse));
   const groupId = useId();
+  const tablistRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const list = tablistRef.current;
+    const selected = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list || !selected) return;
+    const reveal = () => {
+      const frame = list.getBoundingClientRect();
+      const tab = selected.getBoundingClientRect();
+      if (tab.left < frame.left) list.scrollLeft -= frame.left - tab.left;
+      else if (tab.right > frame.right) list.scrollLeft += tab.right - frame.right;
+    };
+    reveal();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', reveal);
+      return () => window.removeEventListener('resize', reveal);
+    }
+    const observer = new ResizeObserver(reveal);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [value, asSelect]);
   const tabbableId = tabs.find((tab) => tab.id === value && !tab.disabled)?.id
     ?? tabs.find((tab) => !tab.disabled)?.id;
   const variantClass = variant === 'boxed' ? 'd-tabs-boxed' : variant === 'bordered' ? 'd-tabs-border' : '';
@@ -68,8 +111,28 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, clas
     nextTab.click();
   };
 
+  if (asSelect) {
+    return (
+      <div className={['ds-tabs-category', className].filter(Boolean).join(' ')}>
+        <UuiSelectField
+          label={ariaLabel}
+          placeholder={ariaLabel}
+          hideLabel
+          searchable={false}
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          options={tabs.map(tab => ({
+            value: tab.id,
+            label: `${labelText(tab.label)}${tab.count === undefined ? '' : ` (${tab.count})`}`,
+            disabled: tab.disabled,
+          }))}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={cls} role="tablist" aria-label={ariaLabel}>
+    <div ref={tablistRef} className={cls} data-control-group={variant === 'boxed' ? 'compact' : undefined} role="tablist" aria-label={ariaLabel}>
       {tabs.map((t) => {
         const isActive = t.id === value;
         return (
@@ -79,6 +142,7 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, clas
             role="tab"
             id={`ds-tab-${groupId}-${t.id}`}
             aria-selected={isActive}
+            aria-controls={panelId}
             tabIndex={t.id === tabbableId ? 0 : -1}
             disabled={t.disabled}
             className={`ds-tabs__btn d-tab${isActive ? ' ds-tabs__btn--active' : ''}`}
@@ -87,7 +151,11 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, clas
           >
             <span className="ds-tabs__label">{t.label}</span>
             {t.count !== undefined && (
-              <span className={`ds-tabs__count${isActive ? ' ds-tabs__count--active' : ''}`}>{t.count}</span>
+              <span className={[
+                'ds-tabs__count',
+                t.countTone ? `ds-tabs__count--${t.countTone}` : '',
+                isActive ? ' ds-tabs__count--active' : '',
+              ].filter(Boolean).join(' ')}>{t.count}</span>
             )}
           </button>
         );

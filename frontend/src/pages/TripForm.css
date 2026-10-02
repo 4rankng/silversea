@@ -113,10 +113,10 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--t-fast);
 }
 .tc-card.is-collapsible .tc-card-head-btn:hover {
-  background: var(--bg-2, #F7F5F1);
+  background: var(--bg-2);
 }
 .tc-card.is-collapsible .tc-card-head-btn:focus-visible {
   outline: 2px solid var(--accent);
@@ -125,7 +125,7 @@
 .tc-card.is-collapsed .tc-card-head { border-bottom: none; }
 .tc-card-chev {
   color: var(--fg-3);
-  transition: transform 200ms ease, color 120ms ease;
+  transition: transform var(--t-normal), color var(--t-fast);
   flex-shrink: 0;
 }
 .tc-card-chev.is-open { transform: rotate(180deg); color: var(--fg-2); }
@@ -187,7 +187,7 @@
   .tc-page-head { padding: 16px 14px 8px; flex-wrap: wrap; gap: 12px; }
   .tc-page-title { font-size: var(--text-title-size); line-height: 1.35; }
   .tc-page-sub { font-size: var(--fs-xs); }
-  .tc-back-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  .tc-back-btn { width: var(--control-max-h); height: var(--control-max-h); min-width: var(--control-max-h); min-height: var(--control-max-h); }
   .tc-form-row,
   .tc-form-row--three { grid-template-columns: 1fr; }
   .tc-card { margin-bottom: 16px; padding-bottom: 16px; border-radius: 0; }

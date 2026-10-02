@@ -9,14 +9,14 @@
 .dispatch-driver-note { gap: 4px; }
 
 .dispatch-driver-note__label {
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   font-size: var(--text-label-size, 11px);
   font-weight: 500;
 }
 
 .dispatch-driver-note__tasks,
 .dispatch-driver-note__text {
-  color: var(--text-primary, #101828);
+  color: var(--fg-1);
   font-size: var(--text-body-size, 12px);
   line-height: 1.45;
   white-space: pre-wrap;

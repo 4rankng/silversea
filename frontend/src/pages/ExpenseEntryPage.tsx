@@ -2,16 +2,16 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2, X, Plus, Check } from 'lucide-react';
 import { api } from '../lib/api';
+import { useReasonPrompt } from '../components/reason-prompt';
 import { configClient } from '../api/configClient';
-import { PageHeader, useConfirm } from '../components/UI';
+import { Btn, PageHeader, useConfirm } from '../components/UI';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import { useToast } from '../components/shared/Toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../hooks/animations';
-import { FINANCIAL, CONFIG } from '@tingting/shared';
-import { expenseSchema } from '@tingting/shared';
+import { FINANCIAL, CONFIG, expenseSchema } from '@tingting/shared';
 import type { ExpenseWithRefs, Supplier, ExpenseCategory } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { resolveExpenseCatalogs } from '../features/expenses/expenseCatalogs';
@@ -24,7 +24,7 @@ import {
 import { ExpenseBasicFields, ExpenseLoading, ExpensePhotoAside } from './expense-entry-sections';
 import { useExpenseReceiptPhotos } from '../features/expenses/useExpenseReceiptPhotos';
 import { DateInput } from '../design-system/forms/DateInput';
-import { UuiSelectField } from '../design-system';
+import { UuiSelectField, NumberField } from '../design-system';
 import './ExpenseEntryPage.css';
 
 export default function ExpenseEntryPage() {
@@ -41,6 +41,8 @@ export default function ExpenseEntryPage() {
   const [pageError, setPageError] = useState('');
   const [governanceReason, setGovernanceReason] = useState('');
   const [savedExpenseId, setSavedExpenseId] = useState<number | null>(null);
+  const [deletingVoucher, setDeletingVoucher] = useState(false);
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const { photos, uploading, photoError, handlePhotoUpload, removePhoto, savePendingPhotos } = useExpenseReceiptPhotos(id, savedExpenseId);
   // True once an edit-mode expense has been hydrated into the form (see effect
   // below) — the "ready" baseline for the discard-dirty guard so the
@@ -61,7 +63,7 @@ export default function ExpenseEntryPage() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
 
-  const { data: expenseCatalogs, isLoading: loadingExpenseCatalogs } = useQuery({
+  const expenseCatalogsQuery = useQuery({
     queryKey: qk.tripForm.expenseFormCatalogs,
     queryFn: async (): Promise<ExpenseCatalogs> => {
       const [suppliers, categories] = await Promise.all([
@@ -72,19 +74,48 @@ export default function ExpenseEntryPage() {
     },
     staleTime: 60 * 1000,
   });
+  const { data: expenseCatalogs, isLoading: loadingExpenseCatalogs } = expenseCatalogsQuery;
+  const catalogsUnavailable = !expenseCatalogs;
   const { suppliers, categories } = resolveExpenseCatalogs(expenseCatalogs);
 
-  const { data: existingExpense, isLoading: loadingExpense } = useQuery<ExpenseWithRefs>({
+  const existingExpenseQuery = useQuery<ExpenseWithRefs>({
     queryKey: qk.tripForm.expense(id!),
     queryFn: () => api.get(`${FINANCIAL.EXPENSE(Number(id))}`),
     enabled: isEdit,
   });
+
+  const { data: existingExpense, isLoading: loadingExpense } = existingExpenseQuery;
 
   const { rootRef } = usePageAnimations({ ready: !loadingExpense });
 
   const { confirm, dialog } = useConfirm();
   const guard = useDirtyGuard([form, governanceReason, photos.filter(photo => photo.file).map(photo => photo.id)], hydrated);
   const handleBack = () => navigate('/expenses');
+
+  // Q10 (card 20260922_78): the voucher delete rides the governed endpoint
+  // (reason + Idempotency-Key + optimistic version) — the row is soft-voided
+  // server-side, never removed.
+  const handleDeleteVoucher = async () => {
+    if (!isEdit || !existingExpense) return;
+    const reason = await prompt('Xóa phiếu chi này? Phiếu được giữ lại ở trạng thái đã hủy kèm lý do để đối chiếu.', { confirmLabel: 'Xóa phiếu' });
+    if (reason == null) return;
+    setDeletingVoucher(true);
+    try {
+      await api.delete(`${FINANCIAL.EXPENSE(Number(id))}`, {
+        headers: {
+          'Idempotency-Key': crypto.randomUUID(),
+          'If-Unmodified-Since': new Date(existingExpense.updatedAt).toUTCString(),
+        },
+        body: JSON.stringify({ reason }),
+      });
+      toast({ kind: 'success', message: 'Đã xóa phiếu chi (lưu lý do).' });
+      navigate('/expenses');
+    } catch (e) {
+      toast({ kind: 'error', message: e instanceof Error ? e.message : 'Không xóa được phiếu chi. Vui lòng thử lại.' });
+    } finally {
+      setDeletingVoucher(false);
+    }
+  };
   useBackShortcut(handleBack, {
     isDirty: guard.isDirty,
     confirmDiscard: () => confirm('Thoát mà không lưu? Các thay đổi chưa lưu sẽ bị mất.', { variant: 'warning', confirmLabel: 'Thoát' }),
@@ -98,7 +129,7 @@ export default function ExpenseEntryPage() {
         categoryId: existingExpense.categoryId || '',
         truckId: existingExpense.truckId || '',
         vehicleComponent: existingExpense.vehicleComponent || 'TRUCK',
-        amount: existingExpense.amount || '',
+        amount: Number(existingExpense.amount) || '',
         paymentStatus: (existingExpense.paymentStatus as 'PAID' | 'UNPAID') || 'UNPAID',
         validFrom: existingExpense.validFrom?.slice(0, 10) || '',
         validTo: existingExpense.validTo?.slice(0, 10) || '',
@@ -126,17 +157,6 @@ export default function ExpenseEntryPage() {
         return next;
       });
     }
-  };
-
-  const formatAmountDisplay = (val: string) => {
-    if (!val) return '';
-    const num = parseFloat(val.replace(/,/g, ''));
-    if (isNaN(num)) return val;
-    return num.toLocaleString('vi-VN');
-  };
-
-  const parseAmountInput = (displayVal: string) => {
-    return `${displayVal.trim().startsWith('-') ? '-' : ''}${displayVal.replace(/[^\d]/g, '')}`;
   };
 
   const handleCreateSupplier = async () => {
@@ -197,7 +217,7 @@ export default function ExpenseEntryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting || uploading) return;
+    if (submitting || uploading || catalogsUnavailable || (isEdit && !existingExpense)) return;
     setErrors({});
     setPageError('');
 
@@ -234,7 +254,7 @@ export default function ExpenseEntryPage() {
       const FRIENDLY: Record<string, string> = {
         supplierId: 'Vui lòng chọn nhà cung cấp',
         categoryId: 'Vui lòng chọn hạng mục chi phí',
-        amount: 'Số tiền phải là số dương',
+        amount: 'Số tiền phải là số nguyên lớn hơn 0, tối đa 999.999.999.999.999đ',
         expenseDate: 'Vui lòng chọn ngày phát sinh chi phí',
         paymentStatus: 'Vui lòng chọn trạng thái thanh toán',
       };
@@ -327,6 +347,19 @@ export default function ExpenseEntryPage() {
     return <ExpenseLoading />;
   }
 
+  if (isEdit && existingExpenseQuery.isError && !existingExpense) {
+    return <div className="expense-page-wrap">
+      <PageHeader title="Không tải được chi phí" onBack={handleBack} />
+      <div className="expense-page-error" role="alert">
+        <p>{existingExpenseQuery.error instanceof Error ? existingExpenseQuery.error.message : 'Không thể tải phiếu chi. Vui lòng thử lại.'}</p>
+        <div className="expense-error-actions">
+          <Btn onClick={() => void existingExpenseQuery.refetch()} disabled={existingExpenseQuery.isFetching}>Thử lại</Btn>
+          <Btn variant="ghost" onClick={handleBack}>Về danh sách chi phí</Btn>
+        </div>
+      </div>
+    </div>;
+  }
+
   return (
     <div ref={rootRef} className="expense-page-wrap">
       {dialog}
@@ -340,6 +373,18 @@ export default function ExpenseEntryPage() {
         />
 
         <form onSubmit={handleSubmit} className="expense-page-form">
+          {expenseCatalogsQuery.isError && <div className="expense-page-error" role="alert">
+            <p>Không tải được danh mục nhà cung cấp và hạng mục. Nội dung đang nhập được giữ nguyên.</p>
+            <Btn onClick={() => void expenseCatalogsQuery.refetch()} disabled={expenseCatalogsQuery.isFetching}>Tải lại danh mục</Btn>
+          </div>}
+          {(isEdit && existingExpense) && (
+            <div className="expense-page-danger-row">
+              <button type="button" className="btn btn--danger btn--sm" disabled={deletingVoucher} onClick={() => void handleDeleteVoucher()}>
+                {deletingVoucher ? 'Đang xóa…' : 'Xóa phiếu chi'}
+              </button>
+            </div>
+          )}
+          {reasonDialog}
           {(pageError || photoError) && (
             <div className="animate-shake expense-page-error">
               <strong>Lỗi:</strong> {pageError || photoError}
@@ -348,20 +393,19 @@ export default function ExpenseEntryPage() {
 
           <div className="expense-page-layout">
             <fieldset disabled={savedExpenseId != null} className="expense-layout__main" style={{ minWidth: 0, border: 0, padding: 0, margin: 0 }}>
-              <div className="expense-panel">
-                <div className="expense-panel__header">
-                  <h2 className="expense-panel__title">Thông tin chung</h2>
-                  <p className="expense-panel__subtitle">{isEdit ? 'Cập nhật' : 'Nhập'} các thông tin cơ bản cho phiếu chi</p>
+              <div className="panel expense-panel">
+                <div className="panel__head">
+                  <h2 className="panel__title">Thông tin chung</h2>
                 </div>
 
-                <div className="expense-panel__body expense-grid">
+                <div className="panel__body expense-grid">
               <ExpenseBasicFields form={form} errors={errors} isEdit={isEdit} existingExpense={existingExpense} set={set} />
 
               <div className="expense-group expense-group--catalog">
                 <div className="expense-label-row">
                   <label htmlFor={showNewSupplier ? 'newSupplierName' : 'supplierId'} className="expense-label">Nhà cung cấp <span className="expense-required">*</span></label>
                   {!showNewSupplier && (
-                    <button type="button" onClick={() => setShowNewSupplier(true)} className="expense-add-btn">
+                    <button type="button" onClick={() => setShowNewSupplier(true)} className="btn btn--ghost btn--sm">
                       <Plus size={14} /> Thêm mới
                     </button>
                   )}
@@ -379,36 +423,37 @@ export default function ExpenseEntryPage() {
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateSupplier(); } if (e.key === 'Escape') { setShowNewSupplier(false); setNewSupplierName(''); } }}
                       autoFocus
                     />
-                    <button type="button" aria-label="Lưu nhà cung cấp mới" className="btn btn--primary expense-quick-create-save" disabled={creatingSupplier || !newSupplierName.trim()} onClick={handleCreateSupplier}>
+                    <button type="button" aria-label="Lưu nhà cung cấp mới" className="btn btn--primary btn--icon btn--sm" disabled={creatingSupplier || !newSupplierName.trim()} onClick={handleCreateSupplier}>
                       {creatingSupplier ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
                     </button>
-                    <button type="button" aria-label="Hủy thêm nhà cung cấp" className="btn btn--ghost btn--sm expense-quick-create-cancel" onClick={() => { setShowNewSupplier(false); setNewSupplierName(''); }}>
+                    <button type="button" aria-label="Hủy thêm nhà cung cấp" className="btn btn--ghost btn--icon btn--sm" onClick={() => { setShowNewSupplier(false); setNewSupplierName(''); }}>
                       <X size={16} />
                     </button>
                   </div>
                 ) : (
                   <UuiSelectField
+                    size="md"
                     id="supplierId"
                     label="Nhà cung cấp"
                     hideLabel
                     value={form.supplierId === null || form.supplierId === undefined ? '' : String(form.supplierId)}
-                    disabled={loadingExpenseCatalogs}
+                    disabled={catalogsUnavailable}
                     onChange={e => set('supplierId', e.target.value ? Number(e.target.value) : '')}
                     controlClassName="expense-select"
+                    error={errors.supplierId}
                     options={[
                       { value: '', label: loadingExpenseCatalogs ? 'Đang tải nhà cung cấp…' : 'Chọn nhà cung cấp…' },
                       ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
                     ]}
                   />
                 )}
-                {errors.supplierId && <p className="expense-field-error">{errors.supplierId}</p>}
               </div>
 
               <div className="expense-group expense-group--catalog">
                 <div className="expense-label-row">
                   <label htmlFor={showNewCategory ? 'newCategoryName' : 'categoryId'} className="expense-label">Hạng mục <span className="expense-required">*</span></label>
                   {!showNewCategory && (
-                    <button type="button" onClick={() => setShowNewCategory(true)} className="expense-add-btn">
+                    <button type="button" onClick={() => setShowNewCategory(true)} className="btn btn--ghost btn--sm">
                       <Plus size={14} /> Thêm mới
                     </button>
                   )}
@@ -426,34 +471,36 @@ export default function ExpenseEntryPage() {
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); } if (e.key === 'Escape') { setShowNewCategory(false); setNewCategoryName(''); } }}
                       autoFocus
                     />
-                    <button type="button" aria-label="Lưu hạng mục mới" className="btn btn--primary expense-quick-create-save" disabled={creatingCategory || !newCategoryName.trim()} onClick={handleCreateCategory}>
+                    <button type="button" aria-label="Lưu hạng mục mới" className="btn btn--primary btn--icon btn--sm" disabled={creatingCategory || !newCategoryName.trim()} onClick={handleCreateCategory}>
                       {creatingCategory ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
                     </button>
-                    <button type="button" aria-label="Hủy thêm hạng mục" className="btn btn--ghost btn--sm expense-quick-create-cancel" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}>
+                    <button type="button" aria-label="Hủy thêm hạng mục" className="btn btn--ghost btn--icon btn--sm" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}>
                       <X size={16} />
                     </button>
                   </div>
                 ) : (
                   <UuiSelectField
+                    size="md"
                     id="categoryId"
                     label="Hạng mục"
                     hideLabel
                     value={form.categoryId === null || form.categoryId === undefined ? '' : String(form.categoryId)}
-                    disabled={loadingExpenseCatalogs}
+                    disabled={catalogsUnavailable}
                     onChange={e => set('categoryId', e.target.value ? Number(e.target.value) : '')}
                     controlClassName="expense-select"
+                    error={errors.categoryId}
                     options={[
                       { value: '', label: loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Chọn hạng mục…' },
                       ...categories.map(c => ({ value: String(c.id), label: c.name })),
                     ]}
                   />
                 )}
-                {errors.categoryId && <p className="expense-field-error">{errors.categoryId}</p>}
               </div>
 
               <div className="expense-group">
                 <label htmlFor="expenseType" className="expense-label">Loại chi phí</label>
                 <UuiSelectField
+                    size="md"
                   id="expenseType"
                   label="Loại chi phí"
                   hideLabel
@@ -481,6 +528,7 @@ export default function ExpenseEntryPage() {
                 <div className="expense-group">
                   <label htmlFor="truckId" className="expense-label">Biển số xe <span className="expense-required">*</span></label>
                   <UuiSelectField
+                    size="md"
                     id="truckId"
                     label="Biển số xe"
                     hideLabel
@@ -500,6 +548,7 @@ export default function ExpenseEntryPage() {
                 <div className="expense-group">
                   <label htmlFor="truckId" className="expense-label">Biển số rơ-moóc <span className="expense-required">*</span></label>
                   <UuiSelectField
+                    size="md"
                     id="truckId"
                     label="Biển số rơ-moóc"
                     hideLabel
@@ -517,21 +566,17 @@ export default function ExpenseEntryPage() {
 
               <div className="expense-group">
                 <label htmlFor="amount" className="expense-label">Số tiền (đ) <span className="expense-required">*</span></label>
-                <div className="expense-amount-wrapper">
-                  <input
-                    type="text"
-                    name="amount"
-                    id="amount"
-                    inputMode="numeric"
-                    className="expense-input expense-amount-input"
-                    value={form.amount ? formatAmountDisplay(form.amount) : ''}
-                    onChange={e => set('amount', parseAmountInput(e.target.value))}
-                    placeholder="0"
-                  />
-                  <span className="expense-amount-suffix">
-                    đ
-                  </span>
-                </div>
+                <NumberField
+                  id="amount"
+                  grouped
+                  signed
+                  suffix="đ"
+                  className="expense-amount"
+                  aria-invalid={Boolean(errors.amount) || undefined}
+                  value={form.amount}
+                  onChange={n => set('amount', n)}
+                  placeholder="0"
+                />
                 {errors.amount && <p className="expense-field-error">{errors.amount}</p>}
               </div>
 
@@ -623,7 +668,7 @@ export default function ExpenseEntryPage() {
                 )}
                 <p className="expense-hint">
                   {existingExpense?.paymentStatus === 'PAID'
-                    ? 'Đây là phiếu đã quyết toán. Thay đổi sẽ cập nhật trực tiếp; phiếu gốc và chứng từ lịch sử được giữ nguyên.'
+                    ? 'Phiếu đã quyết toán — thay đổi cập nhật trực tiếp, chứng từ gốc được giữ.'
                     : 'Khoản chi và công nợ được ghi nhận trực tiếp vào sổ kế toán.'}
                 </p>
               </div>}
@@ -631,7 +676,8 @@ export default function ExpenseEntryPage() {
               </div>
             </fieldset>
 
-            <ExpensePhotoAside photos={photos} uploading={uploading} isEdit={isEdit} submitting={submitting} handleBack={handleBack} removePhoto={removePhoto} handlePhotoUpload={handlePhotoUpload} />
+            <ExpensePhotoAside photos={photos} uploading={uploading} isEdit={isEdit} submitting={submitting}
+                saveDisabled={catalogsUnavailable} handleBack={handleBack} removePhoto={removePhoto} handlePhotoUpload={handlePhotoUpload} />
           </div>
         </form>
       </div>

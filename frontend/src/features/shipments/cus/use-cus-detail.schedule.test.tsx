@@ -1,9 +1,10 @@
 // Regression lock for saveSchedule's dual-path schedule save — the load-
 // bearing normalization is behavioral, not cosmetic: an appointment-less row
 // drafts customerAppointmentAt null while formatVietnamDateTimeInput reads
-// '', and without normalizing, the both-changed guard fires on EVERY
-// transport-only save for appointment-less rows (the dead-end this card
-// fixed). The matrix below pins each save path against mocked writers.
+// '', and without normalizing, a transport-only save would look like a
+// two-group change and rewrite the appointment. The matrix below pins each
+// save path against mocked writers, including the both-groups-in-one-press
+// case the editor used to dead-end on.
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -25,16 +26,18 @@ vi.mock('../../../api/shipmentClient', () => ({
   updateCusShipmentContainerLine,
 }));
 
+import { CUS_DETAIL_PAGE_SIZE } from './cusDetailModel';
 import { useCusDetail, type CusDetailListParams } from './use-cus-detail';
 
 const baseParams: CusDetailListParams = {
   page: 1,
+  pageSize: CUS_DETAIL_PAGE_SIZE,
   searchSuffix: '',
   transportDateFrom: '',
   transportDateTo: '',
   customerId: 0,
   direction: '',
-  dispatchStatus: '',
+  dispatchStatus: '', informationStatus: '',
   sortKey: null,
   sortDir: 'asc',
 };
@@ -148,9 +151,9 @@ function Probe({ row, onReady }: { row: ShipmentCusContainerFlatRow; onReady: (a
   );
 }
 
-async function setup(row: ShipmentCusContainerFlatRow, lineOverride?: Partial<ShipmentCusWorkspaceContainerLine>) {
+async function setup(row: ShipmentCusContainerFlatRow, lineOverride?: Partial<ShipmentCusWorkspaceContainerLine>, workspace = detail(lineOverride)) {
   listCusShipmentContainers.mockResolvedValue({ items: [row], total: 1, totalPages: 1 } as unknown as ShipmentCusContainerFlatResponse);
-  getCusShipmentWorkspaceDetail.mockResolvedValue(detail(lineOverride));
+  getCusShipmentWorkspaceDetail.mockResolvedValue(workspace);
   updateShipment.mockResolvedValue({ version: 3 });
   updateCusShipmentContainerLine.mockResolvedValue({});
   let api: ReturnType<typeof useCusDetail> | null = null;
@@ -165,6 +168,50 @@ async function setup(row: ShipmentCusContainerFlatRow, lineOverride?: Partial<Sh
 
 describe('useCusDetail saveSchedule — non-FCL transport-date paths', () => {
   afterEach(() => vi.clearAllMocks());
+
+  // 2026-09-18: the office asked to see up to 200 rows without paging, so the
+  // page size is a caller parameter now — it must reach the API and the key.
+  it('passes the requested page size through to the container list query', async () => {
+    listCusShipmentContainers.mockResolvedValue({ items: [], total: 0, totalPages: 1 } as unknown as ShipmentCusContainerFlatResponse);
+    function SizeProbe() {
+      useCusDetail({ ...baseParams, pageSize: 200 });
+      return null;
+    }
+    render(<SizeProbe />);
+    await waitFor(() => expect(listCusShipmentContainers).toHaveBeenCalledWith(expect.objectContaining({ limit: 200 })));
+  });
+
+  it('UI-CD-12 saves FCL identity through the versioned container command only', async () => {
+    const row = flatRow();
+    const workspace = detail();
+    workspace.summary.cargoMode = 'FCL';
+    workspace.containers[0].fieldAccess.operationalSiteId = { mode: 'DIRECT', reason: '' };
+    const api = await setup(row, undefined, workspace);
+    await act(async () => {
+      await api.saveIdentity(row, { operationalSiteId: 18, factoryName: 'ignored parent', routeId: 8, deliveryLocation: 'ignored parent' });
+    });
+    expect(updateShipment).not.toHaveBeenCalled();
+    expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(5, 11, { expectedShipmentVersion: 2, operationalSiteId: 18 }, expect.any(String));
+  });
+
+  it('UI-CD-12 refuses an immutable FCL factory', async () => {
+    const row = flatRow();
+    const workspace = detail();
+    workspace.summary.cargoMode = 'FCL';
+    workspace.containers[0].fieldAccess.operationalSiteId = { mode: 'READ_ONLY', reason: 'Lô đã chốt' };
+    const api = await setup(row, undefined, workspace);
+    await expect(api.saveIdentity(row, { operationalSiteId: 18, factoryName: null, routeId: null, deliveryLocation: null })).rejects.toThrow('Lô đã chốt');
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+    expect(updateShipment).not.toHaveBeenCalled();
+  });
+
+  it('UI-CD-12 preserves the LCL parent identity command', async () => {
+    const row = flatRow();
+    const api = await setup(row);
+    await act(async () => { await api.saveIdentity(row, { factoryName: 'Kho mới', routeId: 9, deliveryLocation: 'Điểm giao mới' }); });
+    expect(updateShipment).toHaveBeenCalledWith(5, { expectedVersion: 2, factoryName: 'Kho mới', routeId: 9, deliveryLocation: 'Điểm giao mới' });
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
 
   it('transport-only save on an appointment-less LCL row writes the shipment date and nothing else', async () => {
     const row = flatRow();
@@ -195,15 +242,32 @@ describe('useCusDetail saveSchedule — non-FCL transport-date paths', () => {
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
   });
 
-  it('still refuses a simultaneous transport + appointment change (two-step guard)', async () => {
+  it('saves both groups in one press: lot date first, appointment on the returned version', async () => {
     const row = flatRow();
     const api = await setup(row);
+    updateShipment.mockResolvedValue({ version: 9 });
 
-    await expect(act(async () => {
+    await act(async () => {
       await api.saveSchedule(line(), row, { transportDate: '2026-09-20', customerAppointmentAt: '2026-09-21T08:00' });
-    })).rejects.toThrow('lưu độc lập');
+    });
 
-    expect(updateShipment).not.toHaveBeenCalled();
+    expect(updateShipment).toHaveBeenCalledWith(5, { expectedVersion: 2, expectedDeliveryDate: '2026-09-20' });
+    // The appointment write threads the version the shipment write handed back
+    // (9, not the stale 2) — the ordering the single Save stands on.
+    expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(5, 11, {
+      expectedShipmentVersion: 9,
+      customerAppointmentAt: '2026-09-21T08:00:00+07:00',
+    }, expect.any(String));
+  });
+
+  it('does not write the appointment when the lot-date write fails', async () => {
+    const row = flatRow();
+    const api = await setup(row);
+    updateShipment.mockRejectedValueOnce(new Error('Hết phiên bản.'));
+
+    await expect(api.saveSchedule(line(), row, { transportDate: '2026-09-20', customerAppointmentAt: '2026-09-21T08:00' }))
+      .rejects.toThrow('Hết phiên bản.');
+
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
   });
 });

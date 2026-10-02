@@ -1,0 +1,22 @@
+/* Card 20260928_162 — the shared OPS expense-note line, tokenized after the
+   operational table note typography (the same variables the master-plan note
+   lines use). Design law §4: a data cell wraps, never clips; a note keeps its
+   stored line breaks. No clamp, no tooltip — the ruling wants the reason
+   READABLE on the surface, not hidden behind a hover. */
+.ops-expense-note-line {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--fg-2);
+  font-size: var(--ops-table-note-size);
+  font-weight: var(--ops-table-note-weight);
+  line-height: var(--ops-table-note-line-height);
+}
+
+.ops-expense-note-line + .ops-expense-note-line {
+  margin-top: 4px;
+}
+
+.ops-expense-note-line strong {
+  font-weight: var(--fw-semibold);
+}

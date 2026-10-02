@@ -23,20 +23,33 @@
   overflow: hidden;
   margin-bottom: 12px;
   border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+/* Surface color encodes money state (card _42): the green family is the
+   POSITIVE balance surface only — negative reads as attention (bronze),
+   zero or missing data stays neutral. Positive rendering is unchanged. */
+.earnings-hero-bento--positive {
+  color: var(--ink);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--accent) 13%, transparent), transparent 52%),
     var(--surface);
-}
-
-.earnings-hero-bento--positive {
-  color: var(--ink);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -22px rgba(0, 90, 45, 0.45);
 }
 
 .earnings-hero-bento--negative {
   color: var(--ink);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--warning) 9%, transparent), transparent 52%),
+    var(--surface);
   border-color: color-mix(in srgb, var(--danger) 20%, var(--line));
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.earnings-hero-bento--zero {
+  color: var(--ink);
+  border-color: var(--line);
+  box-shadow: none;
 }
 
 .earnings-hero-bento__content {
@@ -52,6 +65,14 @@
   letter-spacing: 0.04em;
   color: var(--accent-ink);
   margin-bottom: 8px;
+}
+
+.earnings-hero-bento--negative .earnings-hero-bento__eyebrow {
+  color: var(--warning-text);
+}
+
+.earnings-hero-bento--zero .earnings-hero-bento__eyebrow {
+  color: var(--ink-2);
 }
 
 .earnings-hero-bento__amount {
@@ -93,14 +114,14 @@
   z-index: 1;
 }
 
-.earnings-hero-bento__watermark {
-  position: absolute;
-  right: 24px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0.045;
-  z-index: 0;
-  color: var(--ink);
+.earnings-hero-bento--negative .earnings-hero-bento__icon {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.earnings-hero-bento--zero .earnings-hero-bento__icon {
+  background: var(--surface-2);
+  color: var(--ink-2);
 }
 
 .earnings-equation-card,
@@ -181,8 +202,18 @@
 }
 
 .earnings-equation__item--total {
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+
+.earnings-equation__item--total.earnings-equation__item--success {
   background: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+}
+
+.earnings-equation__item--total.earnings-equation__item--danger {
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--line));
 }
 
 .earnings-ledger-grid {
@@ -325,7 +356,7 @@
   gap: 10px;
   padding: 10px 12px;
   border-top: 1px solid var(--line);
-  transition: background 120ms ease;
+  transition: background var(--t-fast);
 }
 
 .earnings-penalty-row:hover {
@@ -381,12 +412,6 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-}
-
-.earnings-penalties-empty img {
-  width: 108px;
-  height: 90px;
-  object-fit: contain;
 }
 
 .earnings-loading {
@@ -507,16 +532,16 @@
 }
 .driver-earnings-page .vehicle-alerts-strip__label {
   font-weight: 600;
-  color: var(--fg-1, #1a1a1a);
+  color: var(--fg-1);
 }
 .driver-earnings-page .vehicle-alerts-strip__date {
-  color: var(--fg-2, #666);
+  color: var(--fg-2);
 
 }
 .driver-earnings-page .vehicle-alerts-strip__days {
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   white-space: nowrap;
 }
 .driver-earnings-page .vehicle-alerts-strip__item--overdue .vehicle-alerts-strip__days {
@@ -530,8 +555,7 @@
 @media (max-width: 480px) {
   .driver-earnings-page .vehicle-alerts-strip__item {
     grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "label days"
+    grid-template-areas: "label days"
       "date  days";
   }
   .driver-earnings-page .vehicle-alerts-strip__label { grid-area: label; }

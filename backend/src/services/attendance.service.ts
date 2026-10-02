@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, gte, lte, isNull, ne, inArray } from 'drizzle-orm';
@@ -7,9 +7,8 @@ import { ApiError } from '../errors';
 import { computeLiveSalary } from './salary-calculation.service';
 import { restoreSalarySnapshot, attendanceFingerprint } from './salary-confirmed-snapshot';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import { billBookingTitle } from '../lib/business-keys';
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type DbLike = Tx | typeof db;
 
 /** Convert a Date to a YYYY-MM-DD string in the Asia/Ho_Chi_Minh business timezone. */
 function toBusinessDate(value: Date | null | undefined): string | null {
@@ -26,8 +25,8 @@ function toBusinessDate(value: Date | null | undefined): string | null {
   return year && month && day ? `${year}-${month}-${day}` : null;
 }
 
-async function lockDriverWorkDay(tx: Tx, driverId: number, date: string): Promise<void> {
-  await lockApplicationOwnedUniqueness(tx, 'driver-work-day', [driverId, date]);
+async function lockDriverWorkDay(executor: Executor, driverId: number, date: string): Promise<void> {
+  await lockApplicationOwnedUniqueness(executor, 'driver-work-day', [driverId, date]);
 }
 
 async function lockSalaryConfirmation(tx: Tx, driverId: number, year: number, month: number): Promise<void> {
@@ -61,25 +60,28 @@ export function computeStandardWorkDays(year: number, month: number): number {
 /**
  * Get work days for a driver in a given date range.
  */
-/** Trip labels (code + route name) for TRIP_DAY work-day enrichment. */
+/** Business reference + route for TRIP_DAY enrichment; retain the legacy alias. */
 export async function getTripLabelsForWorkDays(tripIds: number[]): Promise<
   Array<{ id: number; tripCode: string | null; routeName: string | null }>
 > {
   if (tripIds.length === 0) return [];
-  return db.select({
+  const rows = await db.select({
     id: s.trips.id,
-    tripCode: s.trips.tripCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
     routeName: s.routes.name,
   }).from(s.trips)
+    .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .where(inArray(s.trips.id, tripIds));
+  return rows.map(row => ({ id: row.id, tripCode: billBookingTitle(row.blNumber, row.bookingRef), routeName: row.routeName }));
 }
 
 export async function getWorkDays(
   driverId: number,
   startDate: string,
   endDate: string,
-  executor: DbLike = db,
+  executor: Executor = db,
 ) {
   return executor.select().from(s.driverWorkDays)
     .where(and(
@@ -220,7 +222,7 @@ export async function syncTripWorkDays(
   departureDate: string,
   arrivalDate: string | null,
   createdBy?: number | null,
-  executor: DbLike = db,
+  executor: Executor = db,
 ) {
   const endDate = arrivalDate || departureDate;
 
@@ -235,10 +237,10 @@ export async function syncTripWorkDays(
     cur.setUTCDate(cur.getUTCDate() + 1);
   }
 
-  const execute = async (tx: Tx) => {
+  const execute = async (executor: Executor) => {
     for (const date of dates) {
-      await lockDriverWorkDay(tx, driverId, date);
-      const [existing] = await tx.select({ id: s.driverWorkDays.id, existingTripId: s.driverWorkDays.tripId })
+      await lockDriverWorkDay(executor, driverId, date);
+      const [existing] = await executor.select({ id: s.driverWorkDays.id, existingTripId: s.driverWorkDays.tripId })
         .from(s.driverWorkDays)
         .where(and(
           eq(s.driverWorkDays.driverId, driverId),
@@ -253,7 +255,7 @@ export async function syncTripWorkDays(
         if (existing.existingTripId != null && existing.existingTripId !== tripId) {
           continue;
         }
-        await tx.update(s.driverWorkDays)
+        await executor.update(s.driverWorkDays)
           .set({
             status: 'TRIP_DAY',
             tripId,
@@ -263,7 +265,7 @@ export async function syncTripWorkDays(
         continue;
       }
 
-      await tx.insert(s.driverWorkDays)
+      await executor.insert(s.driverWorkDays)
         .values({ driverId, date, status: 'TRIP_DAY', tripId, note: null, createdBy: createdBy ?? null });
     }
   };
@@ -272,7 +274,7 @@ export async function syncTripWorkDays(
     await db.transaction(execute);
     return;
   }
-  await execute(executor as Tx);
+  await execute(executor);
 }
 
 /**
@@ -284,11 +286,11 @@ export async function syncTripWorkDays(
 export async function removeTripWorkDays(
   driverId: number,
   tripId: number,
-  executor: DbLike = db,
+  executor: Executor = db,
 ) {
-  const execute = async (tx: Tx) => {
+  const execute = async (executor: Executor) => {
     // Find all work day records currently attributed to this trip
-    const affectedDays = await tx.select({
+    const affectedDays = await executor.select({
       id: s.driverWorkDays.id,
       date: s.driverWorkDays.date,
     })
@@ -302,7 +304,7 @@ export async function removeTripWorkDays(
     if (affectedDays.length === 0) return;
 
     // Find other active trips for this driver whose date range may overlap
-    const otherTrips = await tx.select({
+    const otherTrips = await executor.select({
       id: s.trips.id,
       departureDate: s.trips.departureDate,
       completedAt: s.trips.completedAt,
@@ -327,11 +329,11 @@ export async function removeTripWorkDays(
       });
 
       if (coveringTrip) {
-        await tx.update(s.driverWorkDays)
+        await executor.update(s.driverWorkDays)
           .set({ tripId: coveringTrip.id, updatedAt: new Date() })
           .where(eq(s.driverWorkDays.id, day.id));
       } else {
-        await tx.delete(s.driverWorkDays)
+        await executor.delete(s.driverWorkDays)
           .where(eq(s.driverWorkDays.id, day.id));
       }
     }
@@ -341,7 +343,7 @@ export async function removeTripWorkDays(
     await db.transaction(execute);
     return;
   }
-  await execute(executor as Tx);
+  await execute(executor);
 }
 
 /**
@@ -351,7 +353,7 @@ export async function computeAttendanceSummary(
   driverId: number,
   year: number,
   month: number,
-  executor: DbLike = db,
+  executor: Executor = db,
 ) {
   // Resolve the salary period date range
   const period = await resolveSalaryPeriodDateRange(month, year);
@@ -432,7 +434,7 @@ export async function getSalaryConfirmationRecord(
   driverId: number,
   year: number,
   month: number,
-  executor: DbLike = db,
+  executor: Executor = db,
 ): Promise<SalaryConfirmationRecord | null> {
   const [confirmation] = await executor.select({
     id: s.salaryConfirmations.id,
@@ -461,7 +463,7 @@ export async function getSalaryConfirmationRecord(
 /** A confirmed payslip is immutable; later operational days remain available for reconciliation. */
 export async function computeSalary(
   driverId: number, year: number, month: number,
-  confirmationMap?: ConfirmationMap, executor: DbLike = db,
+  confirmationMap?: ConfirmationMap, executor: Executor = db,
 ) {
   const confirmation = confirmationMap?.get(driverId) ?? (await executor.select({
     status: s.salaryConfirmations.status,
@@ -611,7 +613,7 @@ export async function unconfirmSalary(
   month: number,
   transaction?: Tx,
 ) {
-  const execute = async (executor: DbLike) => {
+  const execute = async (executor: Executor) => {
     const [driver] = await executor.select({ id: s.drivers.id })
       .from(s.drivers)
       .where(and(eq(s.drivers.id, driverId), isNull(s.drivers.deletedAt)))

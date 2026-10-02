@@ -1,0 +1,371 @@
+/* Chi phí - Quyết toán (card 20260918_17) — L1 collapsed lot list. UUI
+   controls own control density; this file owns the page header, the promoted
+   customer bar and the settlement table only. Card 20260926_51 adds the
+   two-tier header: Row 1 title + Xuất Debit Note ghost top-right; Row 2 the
+   shared filter strip (card 20260927_153 — ShipmentDebitRibbon), whose layout
+   and control widths belong to FilterBar.css / ListFilterBar.css. */
+
+.shipment-debit-page {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Row 1: title left, Xuất Debit Note pinned top-right on the same 36px
+   baseline. Flat; the export button keeps its disabled de-brand rule below. */
+.shipment-debit-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+}
+
+.shipment-debit-header__title {
+  margin: 0;
+  margin-right: auto;
+  color: var(--color-fg-primary, var(--fg-1));
+  font-size: var(--text-section-size, 16px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.shipment-debit-header__export[title] {
+  cursor: help;
+}
+
+/* Card _202: Khách hàng is OUT of the filter strip and rides its own bar, so
+   it is always visible and never folded behind `Bộ lọc`. The customer-name
+   pool is unbounded, so the control is floored/capped to hold its value
+   instead of stretching to a full legal name. Sizing only — the picker is not
+   a bar control, so no bar rule applies to it. */
+.shipment-debit-customer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-width: 0;
+}
+
+.shipment-debit-customer-bar__picker {
+  width: auto;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.shipment-debit-customer-bar__hint {
+  margin: 0;
+  min-width: 0;
+  color: var(--color-fg-secondary, var(--fg-3));
+  font-size: var(--text-caption-size, 12px);
+  line-height: 1.3;
+}
+
+/* The shared `ListFilterBar` strip owns its layout, its wrapping and every
+   control width (FilterBar.css L1-L3), so this sheet declares NO filter
+   layout: a page rule that re-declares the bar's flex/grid is exactly how a
+   family default `width: 100%` came back twice on 2026-09-27. */
+
+/* The title row holds at 390; the strip packs its own lines and folds its
+   criteria into `Bộ lọc` — the shared bar carries no phone band by design. */
+@media (max-width: 640px) {
+  .shipment-debit-header { height: auto; min-height: 36px; }
+  .shipment-debit-customer-bar { align-items: stretch; }
+  .shipment-debit-customer-bar__picker { width: 100%; max-width: none; }
+  .shipment-debit-customer-bar__hint { flex-basis: 100%; }
+}
+
+/* Coarse-pointer heights come from the shared bar (FilterBar.css): the page
+   never declares a UUI field dimension (control-density contract). */
+@media (pointer: coarse) {
+  .shipment-debit-header { height: auto; }
+}
+
+.shipment-debit-workspace {
+  display: grid;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--surface);
+  min-width: 0;
+}
+
+/* Card 20260922_31: with nothing selected the export action dropped to 50%
+   opacity on its brand fill, so it still read as the live primary CTA at a
+   glance. While disabled it now drops the brand fill entirely — neutral
+   surface + muted ink — so "no lot selected yet" is unmistakable. Anchored on
+   the workspace section that wraps the shared filter bar (card 20260922_38
+   rework M1), not just the page wrapper. */
+.shipment-debit-workspace button.shipment-debit-export:disabled {
+  background: var(--surface-2);
+  color: var(--fg-3);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+/* The empty face adopts the shared illustrated treatment (/shipments,
+   /shipments-detail): a bare title+description block never reads as the
+   design-system empty state. */
+.shipment-debit-workspace > .ds-empty-state .ds-empty-state__illustration {
+  width: min(220px, 80vw);
+  height: 150px;
+  opacity: 1;
+}
+
+.shipment-debit-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+}
+
+/* Card 20260930_219 — the expanded row must not demand more height than the
+   frame. Inside a fixed-layout table the expansion grew without bound, and its
+   tail (the action bar, e.g. the batch-assign strip of card 20260928_166) ended
+   up BELOW the app's scroll height: the scroller was already at its maximum
+   while the button sat below the fold, so no amount of scrolling reached it.
+   Bound the expanded area and let it scroll itself. */
+.shipment-debit-expand > td {
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Card 20260924_9: the red exclusion line sits BESIDE the scroll box —
+   inside the overflow-x wrap it rode the table's sideways scroll and its tail
+   clipped at the right edge ("tràn/cắn mép phải"). Full wrap width, wraps at
+   word level so a long line runs over two lines without eating a word; the
+   danger ink and weight moved here from the inline style (single source).
+   Flat: padding + tokens only, no shadow/3D. */
+.shipment-debit-shadow-line {
+  margin: 0;
+  padding: 6px 2px;
+  color: var(--danger);
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Scroll cue for the L1 table (card 20260924_9): silent on desktop, revealed
+   inside the phone media block at the end of this sheet. */
+.shipment-debit-scroll-hint {
+  display: none;
+  margin: 0;
+  padding: 0 2px;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+}
+
+/* Fixed layout hands every unmeasured column to the identity column: the
+   seven measured columns hold their content, and ALL surplus width lands in
+   THÔNG TIN LÔ HÀNG — full-width rows with roomy identity cells instead of
+   money columns stretched around short values. */
+.shipment-debit-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--text-caption-size);
+  /* UI87 adds24px to the prior1064px minimum for the leading control
+     column; all other column allocations keep their existing budget.
+     Card 20260924_9: the global table rail floors every table at 900px
+     (components/Table.css), and the identity column is this table's only
+     unmeasured column — at a 390px viewport it inherited just
+     900 − 840 = 60px, so the QA0915-138-EXC chip shattered per character
+     into a vertical sliver. Floor the table at the honest sum of its nine
+     columns (840 measured + 224 identity = 1064): the identity cell always
+     gets a word-wrap floor, and the overflow-x wrap scrolls sideways
+     (with the phone-visible hint below) instead of shredding content. */
+  min-width: 1088px;
+}
+
+.shipment-debit-table th {
+  text-align: left;
+  padding: 8px 10px;
+  /* Card 20260924_9: nowrap clipped headers mid-word at 390 ("THÔNG" with
+     THÔNG TIN LÔ HÀNG lost, "TỔ…" at the cell edge). Headers now wrap — at
+     WORD boundaries only: keep-all holds Vietnamese tokens whole and
+     overflow-wrap: normal refuses the inherited emergency break (law §4;
+     house pattern ppc-board / invoice-tracking thead, card 20260922_54). */
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  color: var(--ink-2);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-1);
+}
+
+/* Column triage so the nine columns fit 1280 and the widened 1440 sidebar
+   without horizontal scroll: long money headers wrap to two lines (their
+   values set the minimum), text headers stay single-line, and TRẠNG THÁI is
+   fixed per the standing fixed-status-column ruling. */
+/* The shared coarse control is40px. Reserve56px including matching6px
+   cell insets at every width; the old32px column leaked into the identity. */
+.shipment-debit-table th.shipment-debit-col--lead { width: 56px; padding-inline: 6px; }
+.shipment-debit-table th.shipment-debit-col--docs { width: 118px; }
+.shipment-debit-table th.shipment-debit-col--money { white-space: normal; }
+.shipment-debit-table th.shipment-debit-col--freight { width: 110px; }
+.shipment-debit-table th.shipment-debit-col--chiho { width: 104px; }
+.shipment-debit-table th.shipment-debit-col--receivable { width: 118px; }
+.shipment-debit-table th.shipment-debit-col--payable { width: 104px; }
+.shipment-debit-table th.shipment-debit-col--profit { width: 104px; }
+.shipment-debit-table th.shipment-debit-col--status {
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
+}
+
+.shipment-debit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-1);
+  vertical-align: top;
+}
+
+.shipment-debit-row[data-locked] {
+  background: color-mix(in srgb, var(--brand) 6%, transparent);
+}
+
+.shipment-debit-row__expand-button {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid var(--border-1);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+/* display:flex/grid on a <td> overrides table-cell and makes the row's
+   consecutive broken cells merge into ONE anonymous column (card _12 root
+   cause: the whole row shifted left by two headers). Keep tds plain. */
+.shipment-debit-table td.shipment-debit-row__lead {
+  padding-inline: 6px;
+  white-space: nowrap;
+}
+
+/* Identity block: code chip on top, customer in caps, factory in parens,
+   address italic — the drawing's three-line cell. Card _202: with no
+   customer filter the customer line is the ONLY thing telling two lots apart,
+   so it stays a first-class line of the cell. */
+.shipment-debit-row__identity {
+  min-width: 220px;
+}
+
+.shipment-debit-row__identity > * {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  /* Word-level only (card 20260924_9): the previous per-character break mode
+     let fixed layout size each child's min-content down to one character, so
+     the code chip stacked QA0915-138-EXC as a per-character sliver.
+     break-word wraps at spaces first and only breaks a token that genuinely
+     cannot fit (law §4). */
+  overflow-wrap: break-word;
+}
+
+/* Business keys may contain long unbroken segments. Keep them inside their
+   fixed-layout cell — but wrap at word level (card 20260924_9): the chip
+   reads as one horizontal token wherever the column allows, and only a true
+   overflow breaks it, never per character. */
+.shipment-debit-row__code {
+  justify-self: start;
+  font-weight: 600;
+  font-size: 11px;
+  max-width: 100%;
+  color: var(--ink-2);
+  border: 1px solid var(--border-1);
+  border-radius: 6px;
+  padding: 1px 6px;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.shipment-debit-row__customer {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.shipment-debit-row__factory {
+  color: var(--ink-2);
+}
+
+.shipment-debit-row__address {
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+.shipment-debit-row__docs {
+  min-width: 0;
+}
+
+.shipment-debit-row__docs > span {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  /* Word-level wrap (card 20260924_9): `anywhere` broke the pair mid-token —
+     "QA0915- / 138-EXC", "Chưa / có". The label owns its own line (rule
+     below), so the value now reads whole beneath it in clear order. */
+  overflow-wrap: break-word;
+}
+
+/* 9.6px inherited small rendered the metadata unreadable — the label sits
+   at 11px on the mid ink token (AA ≈ 7.4:1 on the surface). It also takes
+   its own line (card 20260924_9): "Số Bill:" above the value instead of
+   riding a wrap that split the pair across lines mid-word. */
+.shipment-debit-row__docs small {
+  display: block;
+  color: var(--ink-2);
+  font-size: 11px;
+}
+
+.shipment-debit-row__money {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.shipment-debit-row__money--strong {
+  font-weight: 700;
+}
+
+.shipment-debit-row__lock {
+  display: inline-block;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.shipment-debit-row__lock--locked {
+  color: var(--ink-1);
+}
+
+.shipment-debit-row__lock--open {
+  color: var(--ink-3);
+}
+
+/* Row-click selection (user ruling 2026-09-19): the checkbox never existed
+   in the drawing — a locked row highlights instead of a tick. */
+.shipment-debit-row[data-locked] { cursor: pointer; }
+.shipment-debit-row[data-selected] { background: rgba(37, 99, 235, 0.08); box-shadow: inset 2px 0 0 #2563eb; }
+
+/* ============================================================================
+ * Card 20260924_9 — phone media block (390 / 640 / coarse pointer).
+ *
+ * The L1 table keeps its1088px floor so the identity cell never slivers
+ * (the 900px rail inherited from components/Table.css shredded the
+ * QA0915-138-EXC chip per character). The wrap then scrolls sideways — say
+ * so plainly with the hidden-by-default `.shipment-debit-scroll-hint` and
+ * give the leading expand control the shared40px touch floor. The base
+ * leading column already reserves56px with matching6px cell insets.
+ *
+ * Match the project's house media syntax (responsive.css + debit's own
+ * coarse query): `(max-width: 640px), (hover: none) and (pointer: coarse)`.
+ * ========================================================================== */
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .shipment-debit-scroll-hint {
+    display: block;
+  }
+
+  .shipment-debit-row__expand-button {
+    width: var(--control-max-h);
+    height: var(--control-max-h);
+  }
+}

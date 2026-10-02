@@ -92,7 +92,7 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
       maxWidth={560}
     >
       <div className="csc-customer-dialog">
-        <p>Khách hàng mới sẽ được thêm vào danh mục và chọn ngay cho lô hàng này. Thông tin công nợ chi tiết có thể bổ sung sau trong trang quản trị khách hàng.</p>
+        <p>Thông tin công nợ bổ sung sau trong trang quản trị khách hàng.</p>
         {error && <div role="alert" className="csc-customer-dialog__error">{error}</div>}
         <UTextField
           label="Tên khách hàng"
@@ -115,7 +115,7 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
             label="Mã số thuế"
             value={taxCode}
             onChange={(event) => { setTaxCode(event.target.value); setError(null); }}
-            maxLength={50}
+            maxLength={20}
             placeholder="Không bắt buộc"
             disabled={saving}
           />

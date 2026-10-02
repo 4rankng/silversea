@@ -30,8 +30,10 @@ function makeCost(overrides: Partial<RecoverableCost> = {}): RecoverableCost {
     version: 7,
     tripId: 12,
     tripCode: 'CH-2608-012',
+    tripReference: 'DNKM13333',
     shipmentId: 18,
     shipmentCode: 'DNKM13333',
+    shipmentReference: 'DNKM13333',
     customerId: 4,
     customerName: 'Công ty Long Minh',
     expenseType: 'LIFT_ON',
@@ -117,7 +119,33 @@ describe('RecoverableCostsPage', () => {
     expect(screen.queryByText(/\b2,2\s*(tr|M)\b/i)).toBeNull();
   });
 
-  it('filters by recorded status and resets the requested page to one', async () => {
+
+  it.each([
+    ['zero', { sellAmount: 1_500_000 }, '0 ₫', null],
+    ['positive', {}, '700.000 ₫', 'is-positive'],
+    ['negative', { buyAmount: 2_200_000, sellAmount: 1_500_000 }, '-700.000 ₫', 'is-negative'],
+  ] as const)('keeps %s variance tone truthful in both record views and the page summary', async (_state, amounts, expectedAmount, expectedTone) => {
+    listRecoverableCostsMock.mockResolvedValue({ items: [makeCost(amounts)], total: 1, page: 1, limit: 25 });
+    renderPage();
+    const ledger = await screen.findByTestId('recoverable-cost-ledger');
+    const records = screen.getByTestId('recoverable-cost-records');
+    const summary = screen.getByRole('region', { name: 'Tổng hợp trang hiện tại' });
+    const summaryOwner = within(summary).getByText('Chênh lệch thu/chi').parentElement;
+    const ledgerValue = ledger.querySelector('[data-label="Chênh lệch thu/chi"] .recoverable-costs__money');
+    const recordValue = records.querySelector('.recoverable-costs__record-variance .recoverable-costs__money');
+    const summaryValue = summaryOwner?.querySelector('strong');
+
+    for (const value of [ledgerValue, recordValue, summaryValue]) {
+      expect(value).toHaveTextContent(expectedAmount);
+    }
+    for (const owner of [ledgerValue, recordValue, summaryOwner]) {
+      expect(owner?.classList.contains('is-positive')).toBe(expectedTone === 'is-positive');
+      expect(owner?.classList.contains('is-negative')).toBe(expectedTone === 'is-negative');
+    }
+    expect(requestRecoverableCostMock).not.toHaveBeenCalled();
+  });
+
+  it('filters by recorded status and resets the requested page to one', { timeout: 15000 }, async () => {
     listRecoverableCostsMock.mockResolvedValue({ items: Array.from({ length: 25 }, (_, index) => makeCost({ id: index + 1 })), total: 30, page: 1, limit: 25 });
     renderPage();
     await screen.findAllByText('Công ty Long Minh');
@@ -213,10 +241,15 @@ describe('RecoverableCostsPage', () => {
     // The global tbody td rule (components/Table.css) sets white-space: nowrap;
     // the ledger must reset it so narrow columns wrap instead of clipping content.
     const ledgerStyles = readFileSync(resolve(process.cwd(), 'src/features/recoverable-costs/RecoverableCostsWorkspace.css'), 'utf8');
-    expect(ledgerStyles).toMatch(/__ledger th,\.recoverable-costs__ledger td\{[^}]*white-space:normal/);
-    expect(ledgerStyles).toMatch(/__evidence span\{overflow-wrap:anywhere;min-width:0\}/);
+    // Whitespace-tolerant on purpose: these assert the CONTRACT (ledger cells
+    // wrap, evidence spans wrap, money cells do not), not the byte layout of
+    // the stylesheet. Pinning `overflow-wrap:anywhere` with no space broke on a
+    // harmless reformat to `overflow-wrap: anywhere` while the rule itself was
+    // still present and correct (card 20260928_153).
+    expect(ledgerStyles).toMatch(/__ledger th,\.recoverable-costs__ledger td\s*\{[^}]*white-space:\s*normal/);
+    expect(ledgerStyles).toMatch(/__evidence span\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*min-width:\s*0[^}]*\}/);
     // Money cells stay nowrap — VND figures must not wrap.
-    expect(ledgerStyles).toMatch(/__ledger td\.num,\.recoverable-costs__ledger td \.recoverable-costs__money\{white-space:nowrap\}/);
+    expect(ledgerStyles).toMatch(/__ledger td\.num,\.recoverable-costs__ledger td \.recoverable-costs__money\s*\{[^}]*white-space:\s*nowrap[^}]*\}/);
   });
 
   // 15s budget (default 5s): five sequential async waits + double 25-row

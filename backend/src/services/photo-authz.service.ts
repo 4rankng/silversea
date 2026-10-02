@@ -4,6 +4,8 @@ import * as s from '../db/schema';
 import { and, eq, sql, or } from 'drizzle-orm';
 import { hydrateExpenseAccountingSource } from './expense-accounting-source.service';
 import { Role } from '@tingting/shared';
+import { assertOpsExpenseAssignment } from './expense-owner-scope.service';
+import { ApiError } from '../errors';
 
 /**
  * Ownership-scoped authorization for receipt photos served under the AMBIGUOUS
@@ -106,8 +108,7 @@ export async function authorizeExpensePhoto(
       .innerJoin(s.drivers, eq(s.drivers.id, s.driverIncidentalCosts.driverId))
       .innerJoin(s.users, eq(s.users.id, s.drivers.userId)).innerJoin(s.trips, eq(s.trips.id, s.driverIncidentalCosts.tripId))
       .where(or(eq(s.driverIncidentalCosts.receiptStorageKey, storageKey), sql`${s.driverIncidentalCosts.photoStorageKeys} @> ${JSON.stringify([storageKey])}::jsonb`)),
-    executor.select({ ownerUserId: s.opsExpenseEntries.paidById, ownerStatus: s.users.status,
-      hasCurrentAssignment: sql<boolean>`EXISTS (SELECT 1 FROM user_shipment_links l WHERE l.shipment_id = ${s.opsExpenseEntries.shipmentId} AND l.user_id = ${user.userId})` })
+    executor.select({ ownerUserId: s.opsExpenseEntries.paidById, ownerStatus: s.users.status, shipmentId: s.opsExpenseEntries.shipmentId })
       .from(s.opsExpensePhotos).innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.opsExpensePhotos.opsExpenseId))
       .innerJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById)).where(eq(s.opsExpensePhotos.storageKey, storageKey)),
     executor.select({ source: s.expenseAccountingSources }).from(s.expenseAccountingEvidence)
@@ -142,8 +143,22 @@ export async function authorizeExpensePhoto(
       && fuelRows[0].ownerUserStatus === 'ACTIVE');
   const okDriver = driverRows.every(row => FINANCE_ROLES.has(user.role) || (user.role === Role.DRIVER && row.ownerUserId === user.userId
     && row.ownerStatus === 'ACTIVE' && row.driverStatus === 'ACTIVE' && row.currentDriverId === row.claimDriverId));
-  const okOps = opsRows.every(row => FINANCE_ROLES.has(user.role) || (user.role === Role.OPS && row.ownerUserId === user.userId
-    && row.ownerStatus === 'ACTIVE' && row.hasCurrentAssignment));
+  // Match the expense workflow's current scope: a manual link, active truck
+  // assignment, or the user's saved expense. Cache per shipment for shared keys.
+  const opsScopes = new Map<number, Promise<boolean>>();
+  const canReadOpsShipment = (shipmentId: number) => {
+    let decision = opsScopes.get(shipmentId);
+    if (!decision) {
+      decision = assertOpsExpenseAssignment(executor, user.userId, shipmentId).then(() => true).catch((error: unknown) => {
+        if (error instanceof ApiError && error.statusCode === 403) return false;
+        throw error;
+      });
+      opsScopes.set(shipmentId, decision);
+    }
+    return decision;
+  };
+  const okOps = (await Promise.all(opsRows.map(async row => FINANCE_ROLES.has(user.role) || (user.role === Role.OPS && row.ownerUserId === user.userId
+    && row.ownerStatus === 'ACTIVE' && await canReadOpsShipment(row.shipmentId))))).every(Boolean);
   let okAccounting = true;
   for (const match of accountingRows) {
     if (FINANCE_ROLES.has(user.role)) continue;
@@ -151,9 +166,8 @@ export async function authorizeExpensePhoto(
     if ((source.payerUserId !== user.userId && source.recordedById !== user.userId) || ![Role.OPS, Role.DRIVER].includes(user.role)) { okAccounting = false; continue; }
     if (user.role === Role.DRIVER) okAccounting = okAccounting && source.tripId != null && (await checkDriverTripPhotoAccess(user.userId, source.tripId, executor)) === 'owned';
     if (user.role === Role.OPS) {
-      const [assignment] = await executor.select({ id: s.userShipmentLinks.id }).from(s.userShipmentLinks)
-        .where(and(eq(s.userShipmentLinks.userId, user.userId), eq(s.userShipmentLinks.shipmentId, source.shipmentId)));
-      okAccounting = okAccounting && Boolean(assignment);
+      const [owner] = await executor.select({ status: s.users.status }).from(s.users).where(eq(s.users.id, user.userId)).limit(1);
+      okAccounting = okAccounting && owner?.status === 'ACTIVE' && await canReadOpsShipment(source.shipmentId);
     }
   }
   const allow = okTrip && okExpense && okFuel && okDriver && okOps && okAccounting;

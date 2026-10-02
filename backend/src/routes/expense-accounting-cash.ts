@@ -1,3 +1,4 @@
+import { releaseExpenseReconciliation } from '../services/expense-reconciliation-release.service';
 import { Router } from 'express';
 import { lockExpenseCashSources } from '../services/expense-cash-lock.service';
 import { replayCashAction } from '../services/cash-command-replay.service';
@@ -14,19 +15,77 @@ import { createExpenseReconciliation, recordFundedOpsAdvance, refundExpenseRecon
 import { getExpenseReconciliation, getExpenseVoucher, listExpenseReconciliations, listExpenseVouchers } from '../services/expense-accounting-reads.service';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
 import { normalizeTreasuryPhysicalReference } from '../services/treasury.service';
+import { listFundBook } from '../services/treasury-fund-book.service';
+import { listOpsCostReview } from '../services/ops-cost-review.service';
+import { listMonthlyReconciliationReport } from '../services/ops-reconciliation-report.service';
+import { declareMaterialWrite } from '../middleware/material-write';
 
-const router = Router();
+const router = Router()
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throwValidation(result.error);
   return result.data;
 }
+// Owner-scoped reads run before the finance-only mutation guard.
+router.get('/reconciliations', asyncHandler(async (req, res) => res.json({ items: await listExpenseReconciliations(getUser(req)) })));
+router.get('/reconciliations/:id', asyncHandler(async (req, res) => res.json(await getExpenseReconciliation(getUser(req), parse(z.coerce.number().int().positive(), req.params.id)))));
 router.use(['/vouchers', '/reconciliations', '/advances'], (req, _res, next) => { requireExpenseFinance(getUser(req)); next(); });
 const positiveId = z.coerce.number().int().positive();
 const fund = { treasuryAccountId: positiveId, valueDate: expenseDateSchema, physicalReference: z.string().trim().min(1).max(160) };
 
+router.post('/reconciliations/:id/release', declareMaterialWrite('expense-reconciliation.release', { method: 'POST', path: '/api/expense-accounting/reconciliations/:id/release' }),  asyncHandler(async (req, res) => {
+  const actor = getUser(req); const id = parse(positiveId, req.params.id);
+  const input = parse(z.object({ reason: z.string().trim().min(1).max(1000) }).strict(), req.body);
+  const result = await runIdempotent({ endpoint: 'expense-reconciliation.release', idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
+    payload: { id, ...input }, createdBy: actor.userId, responseStatusCode: 200,
+    create: async tx => { await releaseExpenseReconciliation(tx, actor, id, input.reason); return getExpenseReconciliation(actor, id, tx); } });
+  res.status(result.statusCode).json(result.result);
+}));
 router.get('/vouchers', asyncHandler(async (req, res) => res.json({ items: await listExpenseVouchers(getUser(req)) })));
-router.post('/vouchers', asyncHandler(async (req, res) => {
+// Card 20260921_9 phase 1 — the per-source sổ quỹ: finance-only read of one
+// fund source's append-only book (COMPANY = TK công ty ACB | TM = Tiền mặt).
+// Card 20260928_168 (PM ruling 2026-09-29 câu 2): optional from/to period —
+// the book carries the opening balance lũy kế đến 'from' and windows its
+// thu/chi/movements.
+router.get('/fund-book', asyncHandler(async (req, res) => {
+  requireExpenseFinance(getUser(req));
+  const query = parse(z.object({
+    source: z.enum(['COMPANY', 'TM']),
+    from: expenseDateSchema.optional(),
+    to: expenseDateSchema.optional(),
+  }), req.query);
+  res.json(await listFundBook(query.source, { from: query.from, to: query.to }));
+}));
+// Card 20260921_10 — the ops cost review table (finance-only): rows carry
+// confirmRef so tick/tick-all posts the EXISTING batch /confirm — no forked
+// confirmation path.
+router.get('/ops-review', asyncHandler(async (req, res) => {
+  requireExpenseFinance(getUser(req));
+  const query = parse(z.object({
+    from: expenseDateSchema.optional(), to: expenseDateSchema.optional(),
+    payerId: z.coerce.number().int().positive().optional(),
+    progress: z.enum(['CHUA_XAC_NHAN', 'DA_XAC_NHAN', 'DA_LAP_PHIEU']).optional(),
+    page: z.coerce.number().int().min(1).optional(), limit: z.coerce.number().int().min(1).max(100).optional(),
+  }), req.query);
+  res.json(await listOpsCostReview(getUser(req), query));
+}));
+// Card 20260921_11 — the monthly reconciliation summary (finance-only):
+// per-staff ĐNTT vs held advances with labeled sign semantics; vouchers ride
+// the existing engine.
+router.get('/reconciliation-report', asyncHandler(async (req, res) => {
+  requireExpenseFinance(getUser(req));
+  const query = parse(z.object({
+    from: expenseDateSchema.optional(), to: expenseDateSchema.optional(),
+    // Card 20260928_169 — "đợt làm đề nghị". A đợt is an expense_reconciliations
+    // lot; when given it defines the report's window and staff. opsUserId is
+    // the employee axis (same positive-id pattern as expenseListQuerySchema's
+    // payerId); scoped to a lot it must agree with the lot's staff.
+    reconciliationId: z.coerce.number().int().positive().optional(),
+    opsUserId: z.coerce.number().int().positive().optional(),
+  }), req.query);
+  res.json(await listMonthlyReconciliationReport(getUser(req), query));
+}));
+router.post('/vouchers', declareMaterialWrite('expenses.ops-reimburse', { method: 'POST', path: '/api/expense-accounting/vouchers', canonicalAliases: ['payments.receive', 'payments.vendor', 'drivers.payout'] }),  asyncHandler(async (req, res) => {
   const actor = getUser(req); const input = parse(expenseVoucherSchema, req.body);
   const command = await prepareExpenseCashCommand(actor, input);
   const key = resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') });
@@ -59,7 +118,7 @@ router.post('/vouchers', asyncHandler(async (req, res) => {
     create: async tx => { const row = await createExpenseVoucher(tx, actor, input); return getExpenseVoucher(actor, row.id, tx); } });
   res.status(result.statusCode).json({ ...result.result, replayed: result.replayed });
 }));
-router.post('/vouchers/:id/reverse', asyncHandler(async (req, res) => {
+router.post('/vouchers/:id/reverse', declareMaterialWrite('expense-cash.reverse', { method: 'POST', path: '/api/expense-accounting/vouchers/:id/reverse' }),  asyncHandler(async (req, res) => {
   const actor = getUser(req); const id = parse(positiveId, req.params.id);
   const input = parse(z.object({ expectedVersion: positiveId, reason: z.string().trim().min(1).max(2000), valueDate: expenseDateSchema, physicalReference: fund.physicalReference }).strict(), req.body);
   const result = await runIdempotent({ endpoint: 'expense-cash.reverse', idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
@@ -67,7 +126,7 @@ router.post('/vouchers/:id/reverse', asyncHandler(async (req, res) => {
     create: async tx => { await reverseExpenseVoucher(tx, actor, id, input); return getExpenseVoucher(actor, id, tx); } });
   res.json({ ...result.result, replayed: result.replayed });
 }));
-router.post('/vouchers/:id/allocate', asyncHandler(async (req, res) => {
+router.post('/vouchers/:id/allocate', declareMaterialWrite('expense-cash.allocate', { method: 'POST', path: '/api/expense-accounting/vouchers/:id/allocate' }),  asyncHandler(async (req, res) => {
   const actor = getUser(req); const id = parse(positiveId, req.params.id);
   const input = parse(z.object({ expectedVersion: positiveId }).strict(), req.body);
   const result = await runIdempotent({ endpoint: 'expense-cash.allocate', idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
@@ -75,15 +134,14 @@ router.post('/vouchers/:id/allocate', asyncHandler(async (req, res) => {
     create: async tx => { await allocateOutstandingExpenseVoucher(tx, actor, id, input.expectedVersion); return getExpenseVoucher(actor, id, tx); } });
   res.json({ ...result.result, replayed: result.replayed });
 }));
-router.get('/reconciliations', asyncHandler(async (req, res) => res.json({ items: await listExpenseReconciliations(getUser(req)) })));
-router.post('/reconciliations', asyncHandler(async (req, res) => {
+router.post('/reconciliations', declareMaterialWrite('expenses.reconcile', { method: 'POST', path: '/api/expense-accounting/reconciliations' }),  asyncHandler(async (req, res) => {
   const actor = getUser(req); const input = parse(expenseReconciliationSchema, req.body);
   const result = await runIdempotent({ endpoint: 'expenses.reconcile', idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
     payload: input, createdBy: actor.userId, entityType: 'expense_reconciliation', responseStatusCode: 201,
     create: async tx => { const row = await createExpenseReconciliation(tx, actor, input); return getExpenseReconciliation(actor, row.id, tx); } });
   res.status(result.statusCode).json({ ...result.result, replayed: result.replayed });
 }));
-router.post('/reconciliations/:id/refund', asyncHandler(async (req, res) => {
+router.post('/reconciliations/:id/refund', declareMaterialWrite('expenses.reconciliation.refund', { method: 'POST', path: '/api/expense-accounting/reconciliations/:id/refund' }),  asyncHandler(async (req, res) => {
   const actor = getUser(req); const id = parse(positiveId, req.params.id);
   const input = parse(z.object({ ...fund, amount: expenseVndSchema.refine(v => v > 0), reason: z.string().trim().min(1).max(2000) }).strict(), req.body);
   const result = await runIdempotent({ endpoint: 'expenses.reconciliation.refund', idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
@@ -91,7 +149,7 @@ router.post('/reconciliations/:id/refund', asyncHandler(async (req, res) => {
     create: async tx => { const row = await refundExpenseReconciliation(tx, actor, id, input); return getExpenseVoucher(actor, row.id, tx); } });
   res.json({ ...result.result, replayed: result.replayed });
 }));
-router.post('/advances', asyncHandler(async (req, res) => {
+router.post('/advances', declareMaterialWrite('ops.advance-requests.create', { method: 'POST', path: '/api/expense-accounting/advances' }),  asyncHandler(async (req, res) => {
   const actor = getUser(req);
   const input = parse(z.object({ ...fund, opsUserId: positiveId, amount: expenseVndSchema.refine(v => v > 0), reason: z.string().trim().min(1).max(2000), advanceRequestId: positiveId.optional() }).strict(), req.body);
   const result = await runIdempotent({ endpoint: IDEMPOTENCY_ENDPOINTS.OPS_ADVANCE_REQUEST_CREATE, idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),

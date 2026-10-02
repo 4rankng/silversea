@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -117,7 +119,27 @@ describe('FactoriesConfigPage', () => {
     expect(await screen.findByText(/Dùng nút "Tạo mới" hoặc form nhận lô của CUS/)).toBeTruthy();
   });
 
-  it('creates a site from the toolbar button through the customer-picker dialog', async () => {
+  it('matches Vietnamese terms without accents and recovers from no results', async () => {
+    renderPage();
+    await screen.findByText('Nhà máy A');
+    const input = screen.getByRole('textbox', { name: 'Tìm nhà máy / kho' });
+    for (const query of ['nha may', '  NHA   MAY  ', 'nha may dinh vu', 'FAC-1']) {
+      fireEvent.change(input, { target: { value: query } });
+      expect(screen.getByText('Nhà máy A')).toBeInTheDocument();
+      expect(screen.queryByText('Kho B')).not.toBeInTheDocument();
+    }
+    fireEvent.change(input, { target: { value: 'no matching site' } });
+    expect(screen.getByText(/Không tìm thấy nhà máy/)).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.getByText('Nhà máy A')).toBeInTheDocument();
+    expect(screen.getByText('Kho B')).toBeInTheDocument();
+  });
+
+  // Card 20260930_237: the customer-picker dialog chain (toolbar button →
+  // dialog → combobox → submit) flakes at 5.1-6.9s in full runs on a loaded
+  // box — deterministically over the 5s default while scoped it passes in
+  // ~1.2s. Explicit 15s contract, the house drawer-interaction deadline.
+  it('creates a site from the toolbar button through the customer-picker dialog', { timeout: 15000 }, async () => {
     renderPage();
     // The button stays disabled until the customer catalog resolves — the
     // picker cannot work without it.
@@ -170,5 +192,40 @@ describe('FactoriesConfigPage', () => {
     fireEvent.click((await screen.findAllByTitle('Sửa điểm vận hành'))[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Cập nhật' }));
     expect(await screen.findByText(/Dữ liệu vừa bị/i, undefined, { timeout: 3000 })).toBeTruthy();
+  });
+});
+
+describe('FactoriesConfigPage filter strip', () => {
+  it('renders the shared bar with the search slot, the customer criterion and the create action', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Nhà máy A');
+
+    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+    expect(bar).not.toBeNull();
+    // The page-local toolbar row is gone: the bar owns the strip.
+    expect(container.querySelector('.toolbar')).toBeNull();
+
+    const input = within(bar).getByRole('textbox', { name: 'Tìm nhà máy / kho' });
+    expect(input.getAttribute('placeholder')).toBe('Tìm theo mã, tên, địa chỉ…');
+
+    // Khách hàng is the surface's one secondary criterion; at the jsdom width
+    // the measured ladder renders it inline inside the bar.
+    const select = bar.querySelector('.ds-uui-select') as HTMLElement;
+    expect(select).not.toBeNull();
+    expect(select.textContent).toContain('Khách hàng');
+
+    expect(within(bar).getByRole('button', { name: /Tạo mới/ })).toBeInTheDocument();
+    expect(bar.querySelector('.cfg-page__summary')?.textContent).toContain('2 mục');
+  });
+
+  it('keeps the toolbar layout out of the page source', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/pages/config/FactoriesConfigPage.tsx'), 'utf8');
+    expect(source).toContain("import { FilterBar } from '../../design-system';");
+    expect(source).toContain('<FilterBar');
+    expect(source).not.toContain('className="toolbar"');
+    // No page-declared control width or stretch spacer survives.
+    expect(source).not.toContain('maxWidth: 280');
+    expect(source).not.toContain('maxWidth: 240');
+    expect(source).not.toContain("style={{ flex: 1 }}");
   });
 });

@@ -1,13 +1,15 @@
 import { AgingDisclosure } from '../components/finance/AgingDisclosure';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
+import { billBookingReference } from '../lib/business-reference';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
-import { Search, ChevronRight, Gift } from 'lucide-react';
+import { ChevronRight, Gift } from 'lucide-react';
 import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ClickableCard } from '../components/shared/ClickableCard';
+import { SkeletonTable } from '../components/shared/Skeleton';
 import { usePostCommission } from '../hooks/useQueries';
 import { financialClient } from '../api/financialClient';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
@@ -24,11 +26,10 @@ import './PayableListPage.css';
 import '../styles/table-sort.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { Pagination, SearchableSelect, SummaryRail, UuiSelectField } from '../design-system';
+import { EmptyState, FilterBar, Pagination, SearchableSelect, SummaryRail, Tabs, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -86,12 +87,12 @@ export function CommissionModal({
   const tripOptions = (tripOptionsQuery.data?.items ?? []).map((trip) => ({
     value: String(trip.id),
     label: [
-      trip.tripCode || 'Chuyến chưa có mã',
+      billBookingReference(trip.customerReference),
       trip.customer?.name || 'Khách hàng chưa xác định',
       trip.route?.name || 'Tuyến chưa xác định',
       trip.departureDate || 'Chưa có ngày khởi hành',
     ].join(' · '),
-    searchText: `${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
+    searchText: `${trip.customerReference ?? ''} ${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
   }));
 
   useEffect(() => {
@@ -136,7 +137,7 @@ export function CommissionModal({
           <button className="btn btn--secondary btn--sm" onClick={onClose} disabled={isPending}>
             Hủy bỏ
           </button>
-          <button className="btn btn--primary btn--sm" onClick={handleSubmit} disabled={!canSubmit}>
+          <button className="btn btn--primary btn--sm" onClick={handleSubmit} disabled={!canSubmit} title={canSubmit ? undefined : 'Nhập đủ nhà cung cấp và số tiền hợp lệ để ghi hoa hồng'}>
             {isPending ? 'Đang ghi...' : 'Ghi nhận'}
           </button>
         </>
@@ -474,40 +475,29 @@ export default function PayableListPage() {
 
       {/* ── Zone 3: Data Card ───────────────────────────────────────────── */}
       <div className="payables-data-card">
-        {/* Category chips */}
-        <div className="payables-category-chips" role="tablist" aria-label="Lọc theo loại công nợ">
-          {CATEGORY_CHIPS.map(chip => {
-            const isActive = chip.value === category;
-            return (
-              <button
-                key={chip.label}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                className={`payables-category-chip${isActive ? ' is-active' : ''}`}
-                onClick={() => table.setFilter('category', chip.value)}
-              >
-                {chip.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Toolbar row */}
-        <div className="payables-toolbar">
-          <div className="payables-toolbar__spacer" />
-          <div className="payables-toolbar__search">
-            <Search size={14} style={{ color: 'var(--ink-3)' }} />
-            <input
-              type="text"
-              name="supplierPayableSearch"
-              aria-label="Tìm công nợ theo nhà cung cấp"
-              placeholder="Tìm nhà cung cấp..."
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
+        {/* Card 20260927_152 — the shared bar owns the strip's layout, the
+            search chrome and every control width. The category group is the
+            shared boxed `Tabs` primitive (operator ruling 2026-09-27) and rides
+            the bar's quick-filter slot, so this page declares no filter layout
+            and no control width of its own. */}
+        <FilterBar
+          search={{
+            value: searchInput,
+            onChange: setSearchInput,
+            placeholder: 'Tìm nhà cung cấp...',
+            ariaLabel: 'Tìm công nợ theo nhà cung cấp',
+            inputProps: { name: 'supplierPayableSearch' },
+          }}
+          quickFilters={(
+            <Tabs
+              variant="boxed"
+              tabs={CATEGORY_CHIPS.map(chip => ({ id: chip.value ?? 'all', label: chip.label }))}
+              value={category ?? 'all'}
+              onChange={(id) => table.setFilter('category', id === 'all' ? undefined : id as PayablesCategory)}
+              ariaLabel="Lọc theo loại công nợ"
             />
-          </div>
-        </div>
+          )}
+        />
 
         {error && (
           <div className="panel" style={{ padding: 16, color: 'var(--danger)', marginBottom: 20 }}>
@@ -516,8 +506,9 @@ export default function PayableListPage() {
         )}
 
         {loading ? (
-          <div style={{ padding: 48, textAlign: 'center', color: 'var(--ink-3)' }}>
-            Đang tải dữ liệu công nợ phải trả...
+          <div role="status">
+            <SkeletonTable rows={6} cols={7} />
+            <span className="sr-only">Đang tải dữ liệu công nợ phải trả…</span>
           </div>
         ) : (
           <>
@@ -525,10 +516,7 @@ export default function PayableListPage() {
             <div className="mobile-only mobile-table-wrap">
               <div className="m-card-list">
                 {payables.length === 0 ? (
-                  <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--ink-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <img src={resolveEmptyIllustration('empty-payables')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    Không tìm thấy dữ liệu.
-                  </div>
+                  <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu." />
                 ) : (
                   payables.map(d => {
                     const totalAging = d.aging.current + d.aging.d30 + d.aging.d60 + d.aging.over90;
@@ -540,7 +528,7 @@ export default function PayableListPage() {
                       <ClickableCard key={`${d.kind ?? 'vendor'}-${d.supplier.id}`} to={rowHref(d)} className="m-card">
                         <div className="m-card__top">
                           <span className="m-card__title">{d.supplier.name}</span>
-                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--danger' : '--success'} m-card__row-value`} style={{ fontSize: 'var(--text-body-size)' }}>
+                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--warning' : '--success'} m-card__row-value`} style={{ fontSize: 'var(--text-body-size)' }}>
                             {formatCurrency(d.totalOutstanding)}
                           </span>
                         </div>
@@ -585,7 +573,7 @@ export default function PayableListPage() {
                       <SortHeader label="31-60 ngày" sortKey="d30" sort={sortState} onSortChange={handleSortChange} />
                       <SortHeader label="61-90 ngày" sortKey="d60" sort={sortState} onSortChange={handleSortChange} />
                       <SortHeader label=">90 ngày" sortKey="over90" sort={sortState} onSortChange={handleSortChange} />
-                      <th style={{ width: 48 }}></th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -594,7 +582,6 @@ export default function PayableListPage() {
                         as="tr"
                         key={`${d.kind ?? 'vendor'}-${d.supplier.id}`}
                         to={rowHref(d)}
-                        style={{ cursor: 'pointer' }}
                       >
                         <td data-label="Nhà cung cấp">
                           <div style={{ display: 'flex', alignItems: 'center', fontWeight: 600, color: 'var(--fg-1)' }}>
@@ -606,7 +593,7 @@ export default function PayableListPage() {
                         </td>
                         <td data-label="Tổng nợ" className="num typo-mono" style={{
                           fontWeight: 700,
-                          color: d.totalOutstanding > 0 ? 'var(--danger)' : 'var(--success)'
+                          color: d.totalOutstanding > 0 ? 'var(--warning-text)' : 'var(--success)'
                         }}>
                           {formatCurrency(d.totalOutstanding)}
                         </td>
@@ -616,7 +603,7 @@ export default function PayableListPage() {
                         <td data-label="31-60 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
                           {d.aging.d30 > 0 ? formatCurrency(d.aging.d30) : '—'}
                         </td>
-                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning, #D97706)' : 'var(--fg-3)' }}>
+                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
                           {d.aging.d60 > 0 ? formatCurrency(d.aging.d60) : '—'}
                         </td>
                         <td data-label=">90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
@@ -630,11 +617,8 @@ export default function PayableListPage() {
 
                     {payables.length === 0 && (
                       <tr>
-                        <td colSpan={7} data-label="" style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                            <img src={resolveEmptyIllustration('empty-payables')} alt="" aria-hidden="true" style={{ width: 130, height: 108, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                            Không tìm thấy dữ liệu công nợ phải trả.
-                          </div>
+                        <td colSpan={7} data-label="">
+                          <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu công nợ phải trả." />
                         </td>
                       </tr>
                     )}

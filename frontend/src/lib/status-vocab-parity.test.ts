@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   ADVANCE_REQUEST_STATUS_LABELS,
   ADVANCE_SETTLEMENT_STATUS_LABELS,
-  APPROVAL_STATUS_LABELS,
   CARRIER_TYPE_LABELS,
   DRIVER_INCIDENTAL_COST_LABELS,
   DRIVER_PROGRESS_EVENT_LABELS,
@@ -26,7 +25,6 @@ import {
   TRUCK_CAP_ROLE_LABELS,
   AdvanceRequestStatus,
   AdvanceSettlementStatus,
-  ApprovalStatus,
   CarrierType,
   DriverIncidentalCostType,
   DriverProgressEventType,
@@ -58,7 +56,7 @@ import {
  * added behind a suppress) and living documentation of the contract.
  *
  * Divergent wording pairs RESOLVED 2026-09-01 by user decision:
- *   - TripPod: unified to "Chờ duyệt" / "Đã duyệt" — canonical map moved to
+ *   - TripPod: records submitted evidence and customer acknowledgment; canonical map moved to
  *     shared as TRIP_POD_STATUS_LABELS (both e-POD surfaces + work inboxes).
  *   - container dispatchStatus: collapsed 2026-09-08 to the four-state
  *     vocabulary (Chờ phân xe / Đã tạo chuyến / Đang chạy / Hoàn thành) —
@@ -86,7 +84,6 @@ describe('shared status vocabulary — label maps cover their enums exactly', ()
     ['ROLE_LABELS', Role, ROLE_LABELS],
     ['CARRIER_TYPE_LABELS', CarrierType, CARRIER_TYPE_LABELS],
     ['SETTLEMENT_METHOD_LABELS', SettlementMethod, SETTLEMENT_METHOD_LABELS],
-    ['APPROVAL_STATUS_LABELS', ApprovalStatus, APPROVAL_STATUS_LABELS],
     ['ADVANCE_REQUEST_STATUS_LABELS', AdvanceRequestStatus, ADVANCE_REQUEST_STATUS_LABELS],
     ['ADVANCE_SETTLEMENT_STATUS_LABELS', AdvanceSettlementStatus, ADVANCE_SETTLEMENT_STATUS_LABELS],
     ['NOTIFICATION_TYPE_LABELS', NotificationType, NOTIFICATION_TYPE_LABELS],

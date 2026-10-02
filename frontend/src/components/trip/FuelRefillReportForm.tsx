@@ -1,11 +1,13 @@
+import { PhotoImage } from '../shared/PhotoImage';
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Camera, CheckCircle2, Fuel, Loader2, Plus, ReceiptText } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, Fuel, Info, Loader2, Plus, ReceiptText } from 'lucide-react';
 import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
+import { tripHasPhoiPhieuAccountant } from '../../api/driverCostAssignment';
 import { buildIdempotencyKey } from '../../lib/idempotency';
 import { NumberField, DateField } from '../../design-system';
 import { formatCurrency, formatISODate, businessDateISO } from '../../lib/format';
-import { photoSrc } from '../../lib/api/photo';
+import { useAuthedPhotoUrl, useAuthedPhotoUrls } from '../../lib/api/photo';
 import './ShipmentCostEntryForm.css';
 
 interface FuelRefillEntry {
@@ -47,11 +49,23 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Card 20260928_166 AC2 — warn, never block. Null until loaded so the banner
+  // cannot flash before we know; `null` means "we have not asked yet".
+  const [truckHasAccountant, setTruckHasAccountant] = useState<boolean | null>(null);
+  // DRV-DET-08: receipt evidence loads with the Authorization header (blob),
+  // never a ?token= query string. Index-aligned with `entries`; the draft
+  // preview is a single value (a fresh local `blob:` pick passes through).
+  const receiptUrls = useAuthedPhotoUrls(entries.map((entry) => entry.receiptStorageKey));
+  const draftReceiptUrl = useAuthedPhotoUrl(receiptStorageKey);
 
   const refresh = useCallback(async () => {
     try {
-      const items = await driverClient.listIncidentalCosts(tripId);
+      const [items, hasAccountant] = await Promise.all([
+        driverClient.listIncidentalCosts(tripId),
+        tripHasPhoiPhieuAccountant(tripId),
+      ]);
       setEntries(items.filter((item) => item.costType === DriverIncidentalCostType.FUEL));
+      setTruckHasAccountant(hasAccountant);
       setLoadError(null);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Không thể tải danh sách lần đổ dầu.');
@@ -87,8 +101,12 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (amount === '' || !Number.isInteger(amount) || amount <= 0) {
-      setFormError('Vui lòng nhập số tiền hợp lệ (số nguyên dương).');
+    // Card 20260928_197 — the PM's rule covers EVERY cost entry screen, and a
+    // fuel line still has a correction case (a refill logged against the wrong
+    // trip). Signed integer, 0 still rejected, ceiling unchanged. Mirrors
+    // `signedExpenseVndSchema` and the Ops modal.
+    if (amount === '' || !Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 999_999_999_999_999) {
+      setFormError('Vui lòng nhập số tiền hợp lệ (số nguyên, có thể âm; 0 không dùng được).');
       return;
     }
     setSubmitting(true);
@@ -153,6 +171,17 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
         </div>
       )}
 
+      {truckHasAccountant === false && (
+        // Card 20260928_166 AC2 — advisory only. This is `role="status"`, not
+        // `role="alert"`, and it does NOT disable the submit: the PM asked for
+        // the split to make checking road fees easier, and a hard gate would
+        // block 32 of 40 trucks on the data as it stands.
+        <div className="shipment-cost-entry__banner" role="status" data-testid="cost-entry-no-accountant">
+          <Info size={16} />
+          <span>Xe chưa có kế toán phơi phiếu — bạn vẫn ghi được khoản chi này.</span>
+        </div>
+      )}
+
       {loading ? (
         <p className="shipment-cost-entry__loading">
           <Loader2 size={16} className="spin" /> Đang tải danh sách đổ dầu…
@@ -161,11 +190,11 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
         <p className="shipment-cost-entry__empty">Chưa có lần đổ dầu nào được báo cáo cho chuyến này.</p>
       ) : (
         <ul className="shipment-cost-entry__list">
-          {entries.map((entry) => (
+          {entries.map((entry, entryIndex) => (
             <li key={entry.id} className="shipment-cost-entry__item">
               {entry.receiptStorageKey && (
-                <img
-                  src={photoSrc(entry.receiptStorageKey)}
+                <PhotoImage
+                  src={receiptUrls[entryIndex]}
                   alt="Hóa đơn đổ dầu"
                   className="shipment-cost-entry__thumb"
                 />
@@ -198,7 +227,7 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
             label="Số tiền đổ dầu (VND)"
             value={amount}
             onChange={setAmount}
-            min={1}
+            min={-999_999_999_999_999}
             step={1}
             disabled={submitting}
             placeholder="0"
@@ -243,7 +272,7 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
             </label>
             {receiptStorageKey && (
               <div className="shipment-cost-entry__receipt-preview">
-                <img src={photoSrc(receiptStorageKey)} alt="Hóa đơn đổ dầu đã chụp" />
+                <PhotoImage src={draftReceiptUrl} alt="Hóa đơn đổ dầu đã chụp" />
                 <span><ReceiptText size={14} /> Đã đính kèm ảnh hóa đơn</span>
               </div>
             )}

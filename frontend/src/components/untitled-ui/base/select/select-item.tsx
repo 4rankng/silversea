@@ -20,14 +20,14 @@ const sizes = {
         checkbox: "sm" as const,
     },
     md: {
-        root: "p-2 pr-2.5 gap-2 *:data-icon:size-5",
+        root: "py-1.5 pl-2 pr-2.5 gap-2 *:data-icon:size-5",
         text: fieldTextSizes.md,
         textContainer: "gap-x-2",
         check: "size-5",
         checkbox: "sm" as const,
     },
     lg: {
-        root: "p-2.5 pl-2 gap-2 *:data-icon:size-5",
+        root: "px-2.5 py-1.5 pl-2 gap-2 *:data-icon:size-5",
         text: fieldTextSizes.lg,
         textContainer: "gap-x-2",
         check: "size-5",
@@ -86,7 +86,10 @@ export const SelectItem = ({
             {(state) => (
                 <div
                     className={cx(
-                        "flex cursor-pointer items-center rounded-md outline-hidden select-none max-md:min-h-11 [@media(pointer:coarse)]:min-h-11",
+                        // The option wrapper contributes 1px above/below. Its
+                        // single-line touch target fits the shared 40px ceiling;
+                        // genuinely multiline labels keep their intrinsic height.
+                        "flex cursor-pointer items-center rounded-md outline-hidden select-none max-md:min-h-[calc(var(--control-max-h)-2px)] [@media(pointer:coarse)]:min-h-[calc(var(--control-max-h)-2px)]",
                         (state.isFocused || state.isHovered || (state.isSelected && selectionIndicator !== "checkbox")) && "bg-primary_hover",
                         state.isDisabled && "cursor-not-allowed opacity-50",
                         state.isFocusVisible && "ring-2 ring-focus-ring ring-inset",

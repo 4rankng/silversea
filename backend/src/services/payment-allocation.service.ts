@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { receiptCommandIdentity } from './cash-command-identity.service';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
@@ -8,7 +9,7 @@ import type { PaymentAllocationMethod, PaymentReceiptResult } from '@tingting/sh
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent, hashPayload } from './idempotency.service';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
   buildGovernanceAction,
@@ -205,8 +206,8 @@ function effectiveDueDate(processingDueDate: string | null, originalDueDate: str
   return processingDueDate ?? originalDueDate ?? issueTimestamp.slice(0, 10);
 }
 
-async function assertActiveCustomerTx(tx: Tx, customerId: number): Promise<void> {
-  const [customer] = await tx.select({
+async function assertActiveCustomerTx(executor: Executor, customerId: number): Promise<void> {
+  const [customer] = await executor.select({
     id: s.customers.id,
     status: s.customers.status,
     deletedAt: s.customers.deletedAt,
@@ -221,6 +222,15 @@ async function assertActiveCustomerTx(tx: Tx, customerId: number): Promise<void>
   if (customer.status !== 'ACTIVE') {
     throw new ApiError(422, 'Khách hàng đã bị khóa và không thể ghi nhận thanh toán');
   }
+}
+
+/** Card 20260927_147 — the receivable contract is named here (the module that owns it)
+ *  so batched callers read the same shape instead of re-deriving it. */
+export interface TripReceivableState {
+  resolvedTripIds: number[];
+  tripCodeById: Map<number, string>;
+  authorityByTripId: Map<number, TripAuthoritySnapshot>;
+  outstandingByTargetKey: Map<string, number>;
 }
 
 type TripAuthoritySnapshot = {
@@ -252,11 +262,11 @@ type CustomerPaymentLedgerRowInput = {
 };
 
 export async function getTripReceivableState(
-  tx: Tx,
+  executor: Executor,
   customerId: number,
   tripIds?: number[],
-) {
-  const tripRows = await tx.select({
+): Promise<TripReceivableState> {
+  const tripRows = await executor.select({
     tripId: s.trips.id,
     tripCode: s.trips.tripCode,
   }).from(s.trips)
@@ -274,7 +284,7 @@ export async function getTripReceivableState(
     return { resolvedTripIds, tripCodeById, authorityByTripId, outstandingByTargetKey };
   }
 
-  const authorityRows = await tx.select({
+  const authorityRows = await executor.select({
     tripId: s.ledger.txnId,
     ledgerId: s.ledger.id,
     issueTimestamp: s.ledger.timestamp,
@@ -324,7 +334,7 @@ export async function getTripReceivableState(
     }
   }
 
-  const directOutstandingRows = await tx.select({
+  const directOutstandingRows = await executor.select({
     tripId: s.ledger.txnId,
     outstanding: sql<string>`coalesce(sum(${s.ledger.debit}), 0) - coalesce(sum(${s.ledger.credit}), 0)`,
   }).from(s.ledger)
@@ -342,7 +352,7 @@ export async function getTripReceivableState(
     directOutstandingByTripId.set(row.tripId, Math.max(0, Number(row.outstanding ?? 0)));
   }
 
-  const documentRows = await tx.select({
+  const documentRows = await executor.select({
     documentId: s.billingDocuments.id,
     sourceTripId: s.billingDocumentLines.sourceId,
     originalDueDate: s.billingDocuments.originalDueDate,
@@ -366,7 +376,7 @@ export async function getTripReceivableState(
   // CUSTOMER ADJUSTMENT ledger rows stamped `GBN-ADJ:` by the apply adapter, so
   // document outstanding is now reconciled from the ledger itself.
   const documentAdjustmentRows = documentIds.length > 0
-    ? await tx.select({
+    ? await executor.select({
       documentId: s.ledger.txnId,
       delta: sql<string>`coalesce(sum(${s.ledger.debit}), 0) - coalesce(sum(${s.ledger.credit}), 0)`,
     })
@@ -381,7 +391,7 @@ export async function getTripReceivableState(
       .groupBy(s.ledger.txnId)
     : [];
   const documentPayments = documentIds.length > 0
-    ? await tx.select({
+    ? await executor.select({
       targetType: s.paymentAllocations.targetType,
       targetId: s.paymentAllocations.targetId,
       billingDocumentId: s.paymentAllocations.billingDocumentId,
@@ -414,7 +424,7 @@ export async function getTripReceivableState(
     const current = documentOutstandingById.get(row.documentId) ?? 0;
     documentOutstandingById.set(row.documentId, current);
   }
-  const documentTotals = await tx.select({
+  const documentTotals = await executor.select({
     id: s.billingDocuments.id,
     totalInclVat: s.billingDocuments.totalInclVat,
   })
@@ -502,14 +512,14 @@ export async function getTripReceivableState(
   return { resolvedTripIds, tripCodeById, authorityByTripId, outstandingByTargetKey };
 }
 
-async function getLegacyReceiptConflict(tx: Tx, receiptId: string): Promise<boolean> {
-  const [ledgerRow] = await tx.select({ id: s.ledger.id })
+async function getLegacyReceiptConflict(executor: Executor, receiptId: string): Promise<boolean> {
+  const [ledgerRow] = await executor.select({ id: s.ledger.id })
     .from(s.ledger)
     .where(eq(s.ledger.receiptId, receiptId))
     .limit(1);
   if (ledgerRow) return true;
 
-  const [allocationRow] = await tx.select({ id: s.paymentAllocations.id })
+  const [allocationRow] = await executor.select({ id: s.paymentAllocations.id })
     .from(s.paymentAllocations)
     .where(and(
       eq(s.paymentAllocations.receiptId, receiptId),
@@ -519,8 +529,8 @@ async function getLegacyReceiptConflict(tx: Tx, receiptId: string): Promise<bool
   return Boolean(allocationRow);
 }
 
-async function loadPaymentReceiptResultTx(tx: Tx, paymentReceiptId: number): Promise<PaymentReceiptResult> {
-  const [receipt] = await tx.select({
+async function loadPaymentReceiptResultTx(executor: Executor, paymentReceiptId: number): Promise<PaymentReceiptResult> {
+  const [receipt] = await executor.select({
     id: s.paymentReceipts.id,
     receiptId: s.paymentReceipts.receiptId,
     customerId: s.paymentReceipts.customerId,
@@ -540,7 +550,7 @@ async function loadPaymentReceiptResultTx(tx: Tx, paymentReceiptId: number): Pro
     throw new ApiError(404, 'Phiếu thu không tồn tại');
   }
 
-  const allocations = await tx.select({
+  const allocations = await executor.select({
     tripId: s.paymentAllocations.sourceTripId,
     targetId: s.paymentAllocations.targetId,
     amount: s.paymentAllocations.amount,
@@ -571,8 +581,8 @@ async function loadPaymentReceiptResultTx(tx: Tx, paymentReceiptId: number): Pro
   };
 }
 
-async function getLatestCustomerLedgerVersionTx(tx: Tx, customerId: number): Promise<number> {
-  const [row] = await tx.select({ id: s.ledger.id })
+async function getLatestCustomerLedgerVersionTx(executor: Executor, customerId: number): Promise<number> {
+  const [row] = await executor.select({ id: s.ledger.id })
     .from(s.ledger)
     .where(and(
       eq(s.ledger.entityType, 'CUSTOMER'),
@@ -588,14 +598,12 @@ export async function loadPaymentReceiptResult(paymentReceiptId: number, tx?: Tx
 }
 
 async function createOrReplayPaymentReceiptTx(
-  tx: Tx,
+  executor: Executor,
   input: NormalizedPaymentReceiptInput,
 ): Promise<PersistedPaymentReceiptResult> {
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${`payment-receipt\u001f${input.receiptId}`}, 0))`,
-  );
+  await acquireAdvisoryLock(executor, lockKeys.paymentReceipt(input.receiptId));
 
-  const [existing] = await tx.select({
+  const [existing] = await executor.select({
     id: s.paymentReceipts.id,
     customerId: s.paymentReceipts.customerId,
     requestHash: s.paymentReceipts.requestHash,
@@ -612,10 +620,10 @@ async function createOrReplayPaymentReceiptTx(
         `receipt_id=${input.receiptId}`,
       );
     }
-    return { ...(await loadPaymentReceiptResultTx(tx, existing.id)), created: false };
+    return { ...(await loadPaymentReceiptResultTx(executor, existing.id)), created: false };
   }
 
-  if (await getLegacyReceiptConflict(tx, input.receiptId)) {
+  if (await getLegacyReceiptConflict(executor, input.receiptId)) {
     throw new ApiError(
       409,
       'Mã biên lai đã tồn tại trong dữ liệu cũ và không thể phát lại an toàn. Vui lòng dùng mã biên lai mới.',
@@ -623,11 +631,11 @@ async function createOrReplayPaymentReceiptTx(
     );
   }
 
-  await LedgerService.lockEntity(tx, 'CUSTOMER', input.customerId);
-  await assertActiveCustomerTx(tx, input.customerId);
+  await LedgerService.lockEntity(executor, 'CUSTOMER', input.customerId);
+  await assertActiveCustomerTx(executor, input.customerId);
 
   const receivableState = await getTripReceivableState(
-    tx,
+    executor,
     input.customerId,
     input.payments?.map((payment) => payment.tripId),
   );
@@ -740,7 +748,7 @@ async function createOrReplayPaymentReceiptTx(
   const allocatedTotal = allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
   const unappliedAmount = Math.max(0, input.receivedAmount - allocatedTotal);
 
-  const [receipt] = await tx.insert(s.paymentReceipts).values({
+  const [receipt] = await executor.insert(s.paymentReceipts).values({
     receiptId: input.receiptId,
     customerId: input.customerId,
     receivedAmount: String(input.receivedAmount),
@@ -757,7 +765,7 @@ async function createOrReplayPaymentReceiptTx(
 
   const ledgerCredits: CustomerPaymentLedgerRowInput[] = [];
   if (allocations.length > 0) {
-    await tx.insert(s.paymentAllocations).values(allocations.map((allocation, index) => ({
+    await executor.insert(s.paymentAllocations).values(allocations.map((allocation, index) => ({
       receiptId: input.receiptId,
       paymentReceiptId: receipt.id,
       allocationOrder: index + 1,
@@ -795,8 +803,8 @@ async function createOrReplayPaymentReceiptTx(
   }
 
   if (ledgerCredits.length > 0) {
-    let runningBalance = await LedgerService.getBalanceTx(tx, 'CUSTOMER', input.customerId);
-    await tx.insert(s.ledger).values(ledgerCredits.map((entry) => {
+    let runningBalance = await LedgerService.getBalanceTx(executor, 'CUSTOMER', input.customerId);
+    await executor.insert(s.ledger).values(ledgerCredits.map((entry) => {
       runningBalance -= entry.credit;
       return {
         txnType: TxnType.PAYMENT_RECEIVED,
@@ -812,7 +820,7 @@ async function createOrReplayPaymentReceiptTx(
     }));
   }
 
-  return { ...(await loadPaymentReceiptResultTx(tx, receipt.id)), created: true };
+  return { ...(await loadPaymentReceiptResultTx(executor, receipt.id)), created: true };
 }
 
 export async function requestPaymentReceiptGovernance(input: {
@@ -829,9 +837,7 @@ export async function requestPaymentReceiptGovernance(input: {
       ...input.payment,
       allocatedBy: input.makerId,
     }, treasury);
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`payment-receipt\u001f${normalized.receiptId}`}, 0))`,
-    );
+    await acquireAdvisoryLock(tx, lockKeys.paymentReceipt(normalized.receiptId));
     if (await getLegacyReceiptConflict(tx, normalized.receiptId)) {
       throw new ApiError(
         409,
@@ -1013,9 +1019,7 @@ export async function requestPaymentRefundGovernance(
     // concurrent refund re-reads fresh unappliedAmount/version instead of
     // passing on a stale snapshot. Double-refund protection itself is the
     // apply-time receipt version CAS in applyPaymentRefundGovernanceAction.
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`payment-refund${paymentReceiptId}`}, 0))`,
-    );
+    await acquireAdvisoryLock(tx, lockKeys.paymentRefund(paymentReceiptId));
 
     const [receipt] = await tx.select().from(s.paymentReceipts)
       .where(eq(s.paymentReceipts.id, paymentReceiptId))
@@ -1047,7 +1051,7 @@ export async function requestPaymentRefundGovernance(
       subjectId: receipt.id,
       subjectKey: `payment-receipt:${receipt.id}:refund:v${receipt.version}`,
       actionKind: 'PAYMENT_REFUND',
-      status: 'PENDING_CHECK',
+      status: 'READY',
       reason,
       originalVersion: receipt.version,
       beforeSnapshot: {
@@ -1102,7 +1106,7 @@ export async function applyPaymentRefundGovernanceAction(
   }
   assertPositiveWholeAmount(amount, 'amount');
   if (action.approverId == null) {
-    throw new ApiError(409, 'Yêu cầu hoàn tiền chưa có người phê duyệt');
+    throw new ApiError(409, 'Lệnh hoàn tiền chưa xác định được người thực hiện');
   }
 
   const [receipt] = await tx.select().from(s.paymentReceipts)
@@ -1183,12 +1187,12 @@ export async function applyPaymentRefundGovernanceAction(
 }
 
 /** Shared receipt authority for direct UI and transaction-composed expense commands. */
-export async function recordPaymentReceiptTx(tx: Tx, input: PaymentReceiptInput): Promise<PersistedPaymentReceiptResult> {
-  const treasury = await resolveTreasuryPaymentContract(tx, input, new Date());
-  const result = await createOrReplayPaymentReceiptTx(tx, normalizePaymentReceiptInput(input, treasury));
+export async function recordPaymentReceiptTx(executor: Executor, input: PaymentReceiptInput): Promise<PersistedPaymentReceiptResult> {
+  const treasury = await resolveTreasuryPaymentContract(executor, input, new Date());
+  const result = await createOrReplayPaymentReceiptTx(executor, normalizePaymentReceiptInput(input, treasury));
   if (treasury.treasuryAccountId && treasury.valueDate && treasury.physicalReference) {
     if (!input.allocatedBy) throw new ApiError(400, 'Thiếu người ghi nhận phiếu thu.');
-    await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'IN',
+    await insertTreasuryMovement(executor, { treasuryAccountId: treasury.treasuryAccountId, direction: 'IN',
       amount: result.receivedAmount, valueDate: treasury.valueDate, physicalReference: treasury.physicalReference,
       paymentContractVersion: treasury.paymentContractVersion, paymentReceiptId: result.id, sourceVersion: result.version,
       externalReference: result.receiptId, createdBy: input.allocatedBy });

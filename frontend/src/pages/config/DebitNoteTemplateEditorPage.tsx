@@ -45,13 +45,14 @@ export default function DebitNoteTemplateEditorPage() {
 
   useEffect(() => {
     if (!template) return;
-    setForm(current => {
-      if (JSON.stringify(current) !== baselineRef.current) return current;
-      const loaded = toForm(template);
-      baselineRef.current = JSON.stringify(loaded);
-      return loaded;
-    });
-  }, [template]);
+    const loaded = toForm(template);
+    const loadedBaseline = JSON.stringify(loaded);
+    if (JSON.stringify(form) !== baselineRef.current || loadedBaseline === baselineRef.current) return;
+    // Keep loading outside a replayable state updater. A dirty draft retains
+    // its previous baseline until the operator restores or saves it.
+    baselineRef.current = loadedBaseline;
+    setForm(loaded);
+  }, [template, form]);
 
   const visibleColumns = useMemo(() => (form.columns ?? []).filter(column => column.width > 0), [form.columns]);
   const hasGroupedHeaders = useMemo(() => (form.columns ?? []).some(column => column.headerGroup), [form.columns]);

@@ -39,8 +39,8 @@
 
 | Slot | Value |
 |---|---|
-| Local UI | `http://localhost:7174` |
-| Local API | `http://localhost:3001/api` |
+| Local UI | `http://localhost:7175` |
+| Local API | `http://localhost:3002/api` |
 | Staging UI | `https://vantai.tingting.vip` |
 | Staging API | `https://vantai.tingting.vip/api` |
 | **No prod access** | deploy + bare health only, per `AGENTS.md` |

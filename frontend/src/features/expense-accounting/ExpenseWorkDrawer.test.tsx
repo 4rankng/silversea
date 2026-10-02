@@ -9,6 +9,13 @@ vi.mock('../../components/UI', () => ({ Drawer: ({ children, footer }: { childre
 import { ExpenseWorkDrawer } from './ExpenseWorkDrawer';
 const entry = { sourceKind: 'DRIVER', sourceId: 7, version: 3, status: 'RECORDED', feeName: 'Vé cầu đường', amount: 80000, costGroup: 'DRIVER_ROAD', shipmentCode: 'BL7', locked: false } as ExpenseAccountingEntry;
 const work = { id: 'trip:10', tripId: 10, shipmentId: 1, shipmentCode: 'BL7', containerNumber: 'CONT7', vehiclePlate: '15C-123', entries: [entry] } as ExpenseWorkRow;
+
+/** Card 20260929_207 — the per-row checkbox is gone; the row is the control. */
+const pickRow = (name: RegExp) => {
+  const row = screen.getByText(name).closest('tr') as HTMLElement;
+  fireEvent.click(row);
+  return row;
+};
 function show() {
   const onClose = vi.fn(); const onCreate = vi.fn();
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}><ExpenseWorkDrawer work={work} group="road" onClose={onClose} onEdit={vi.fn()} onCreate={onCreate} onVoucher={vi.fn()} /></QueryClientProvider>);
@@ -17,7 +24,7 @@ function show() {
 beforeEach(() => { confirm.mockReset().mockResolvedValue({ items: [] }); });
 it('confirms the selected receipt source and its version before closing', async () => {
   const { onClose } = show();
-  fireEvent.click(screen.getByRole('checkbox', { name: /Vé cầu đường/ }));
+  pickRow(/Vé cầu đường/);
   fireEvent.click(screen.getByRole('button', { name: 'Đối chiếu chi phí' }));
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   expect(confirm).toHaveBeenCalledWith([{ sourceKind: 'DRIVER', sourceId: 7, expectedVersion: 3 }]);
@@ -25,10 +32,10 @@ it('confirms the selected receipt source and its version before closing', async 
 it('retains the selected receipt after a stale-source failure and preserves the road add context', async () => {
   confirm.mockRejectedValue(new Error('Khoản chi đã thay đổi'));
   const { onClose, onCreate } = show();
-  fireEvent.click(screen.getByRole('checkbox', { name: /Vé cầu đường/ }));
+  const row = pickRow(/Vé cầu đường/);
   fireEvent.click(screen.getByRole('button', { name: 'Đối chiếu chi phí' }));
   await screen.findByText('Khoản chi đã thay đổi');
-  expect(screen.getByRole('checkbox')).toBeChecked();
+  expect(row).toHaveAttribute('data-selected', 'true');
   expect(onClose).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Thêm khoản chi' }));
   expect(onCreate).toHaveBeenCalledWith(work, 'road');

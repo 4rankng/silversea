@@ -6,9 +6,9 @@ function makeFile(name: string, type: string, sizeBytes: number): File {
 }
 
 describe('formatPhotoTimestamp', () => {
-  it('formats as YYYY-MM-DD HH:mm:ss with zero padding', () => {
-    expect(formatPhotoTimestamp(new Date(2026, 7, 28, 9, 5, 0))).toBe('2026-08-28 09:05:00');
-    expect(formatPhotoTimestamp(new Date(2026, 11, 31, 23, 59, 59))).toBe('2026-12-31 23:59:59');
+  it('formats the capture instant in Vietnam time regardless of the browser timezone', () => {
+    expect(formatPhotoTimestamp(new Date('2026-08-28T02:05:00Z'))).toBe('2026-08-28 09:05:00');
+    expect(formatPhotoTimestamp(new Date('2026-12-31T16:59:59Z'))).toBe('2026-12-31 23:59:59');
   });
 });
 
@@ -53,7 +53,7 @@ describe('compressImageFile', () => {
   it('burns the capture timestamp into the image pixels when requested', async () => {
     const original = makeFile('photo.jpg', 'image/jpeg', 50_000);
     const compressedBytes = new Uint8Array(20_000);
-    const stamp = new Date(2026, 7, 28, 14, 30);
+    const stamp = new Date('2026-08-28T07:30:00Z');
 
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({
       width: 2000,
@@ -82,7 +82,7 @@ describe('compressImageFile', () => {
 
   it('stamps even an already-small JPEG (stamp forces the re-encode)', async () => {
     const original = makeFile('small.jpg', 'image/jpeg', 5_000);
-    const stamp = new Date(2026, 7, 28, 8, 0);
+    const stamp = new Date('2026-08-28T01:00:00Z');
 
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({
       width: 800,

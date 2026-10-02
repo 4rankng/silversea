@@ -14,6 +14,9 @@ export type DispatchZoneOption = { code: string; label: string; sortOrder: numbe
 interface DispatchZoneRow extends DispatchZoneOption {
   id: number;
   isActive: boolean;
+  /** Exactly one zone should carry the default presence pin (BE-enforced). */
+  isDefault?: boolean;
+  showPortFacet?: boolean;
 }
 
 type ZoneChoice = string;
@@ -25,12 +28,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
   const [name, setName] = useState(item?.name || '');
   const [shortName, setShortName] = useState(item?.shortName || '');
   const [code, setCode] = useState(item?.code || '');
-  const [classification, setClassification] = useState(item?.classification || '');
-  const [legalEntity, setLegalEntity] = useState(item?.legalEntity || '');
   const [address, setAddress] = useState(item?.address || '');
-  const [isLachHuyen, setIsLachHuyen] = useState(item?.isLachHuyen || false);
-  const [opsPortalUrl, setOpsPortalUrl] = useState(item?.opsPortalUrl || '');
-  const [position, setPosition] = useState(item?.position || '');
   const [zone, setZone] = useState<ZoneChoice>(item?.dispatchZone ?? 'NONE');
 
   return (
@@ -39,7 +37,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
         <Field label="Tên cảng/bãi">
           <input
             className="input"
-            value={name}
+            required pattern={'.*\\S.*'} value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Ví dụ: Cảng Lạch Huyện"
             autoFocus
@@ -53,28 +51,6 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             value={code}
             onChange={e => setCode(e.target.value)}
             placeholder="Ví dụ: VNLCH"
-          />
-        </Field>
-      </div>
-      <div style={{ flex: 1, minWidth: 140 }}>
-        <UuiSelectField
-          label="Phân loại"
-          value={classification}
-          onChange={e => setClassification(e.target.value)}
-          options={[
-            { value: '', label: '— Chọn —' },
-            { value: 'Cảng', label: 'Cảng' },
-            { value: 'Bãi', label: 'Bãi' },
-          ]}
-        />
-      </div>
-      <div style={{ flex: 2, minWidth: 200 }}>
-        <Field label="Pháp nhân">
-          <input
-            className="input"
-            value={legalEntity}
-            onChange={e => setLegalEntity(e.target.value)}
-            placeholder="Pháp nhân sở hữu"
           />
         </Field>
       </div>
@@ -97,43 +73,6 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
         />
       </div>
       <div style={{ flex: 1, minWidth: 140 }}>
-        <Field label="Thuộc Lạch Huyện">
-          <label style={{
-            display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-            padding: '9px 12px', border: '1px solid var(--line)',
-            borderRadius: 'var(--app-radius-md)', background: isLachHuyen ? 'var(--warning-soft, #fef3c7)' : 'transparent',
-          }}>
-            <input
-              type="checkbox"
-              checked={isLachHuyen}
-              onChange={e => setIsLachHuyen(e.target.checked)}
-              style={{ width: 16, height: 16, cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: 'var(--text-data-size)' }}>Lạch Huyện</span>
-          </label>
-        </Field>
-      </div>
-      <div style={{ flex: 2, minWidth: 200 }}>
-        <Field label="Web tác nghiệp">
-          <input
-            className="input"
-            value={opsPortalUrl}
-            onChange={e => setOpsPortalUrl(e.target.value)}
-            placeholder="https://..."
-          />
-        </Field>
-      </div>
-      <div style={{ flex: 2, minWidth: 200 }}>
-        <Field label="Vị trí">
-          <input
-            className="input"
-            value={position}
-            onChange={e => setPosition(e.target.value)}
-            placeholder="Vị trí trong cảng/bãi"
-          />
-        </Field>
-      </div>
-      <div style={{ flex: 1, minWidth: 140 }}>
         <Field label="Tên viết tắt">
           <input
             className="input"
@@ -153,15 +92,12 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
           if (!name.trim()) return;
           onsave({
             name: name.trim(),
-            shortName: shortName.trim() || null,
+            // short_name is NOT NULL DEFAULT '' on the wire — an explicit
+            // null overrides the column default and 500s the insert.
+            shortName: shortName.trim(),
             code: code.trim() || null,
-            classification: classification || null,
-            legalEntity: legalEntity.trim() || null,
             address: address.trim() || null,
             dispatchZone: zone === 'NONE' ? null : zone,
-            isLachHuyen,
-            opsPortalUrl: opsPortalUrl.trim() || null,
-            position: position.trim() || null,
           });
         }}
       />
@@ -177,6 +113,8 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   const [label, setLabel] = useState(item?.label ?? '');
   const [sortOrder, setSortOrder] = useState(item?.sortOrder ?? 0);
   const [isActive, setIsActive] = useState(item?.isActive ?? true);
+  const [isDefault, setIsDefault] = useState(item?.isDefault ?? false);
+  const [showPortFacet, setShowPortFacet] = useState(item?.showPortFacet ?? true);
 
   return (
     <InlineForm colSpan={4}>
@@ -186,7 +124,7 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
             className="input"
             value={code}
             onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="Ví dụ: LACH_HUYEN"
+            placeholder="Ví dụ: ZONE_A"
             disabled={!!item}
             autoFocus={!item}
           />
@@ -196,9 +134,9 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
         <Field label="Tên khu vực">
           <input
             className="input"
-            value={label}
+            required pattern={'.*\\S.*'} value={label}
             onChange={e => setLabel(e.target.value)}
-            placeholder="Lạch Huyện"
+            placeholder="Tên khu vực điều phối"
             autoFocus={!!item}
           />
         </Field>
@@ -214,6 +152,22 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
             onChange={e => setSortOrder(Number(e.target.value))}
           />
         </Field>
+      <div style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+          padding: '9px 12px', border: '1px solid var(--line)',
+          borderRadius: 'var(--app-radius-md)', background: isDefault ? 'var(--warning-soft, #fef3c7)' : 'transparent',
+          width: '100%',
+        }}>
+          <input
+            type="checkbox"
+            checked={isDefault}
+            onChange={e => setIsDefault(e.target.checked)}
+            style={{ width: 16, height: 16, cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 'var(--text-data-size)' }}>Mặc định</span>
+        </label>
+      </div>
       </div>
       <div style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
         <UuiSelectField
@@ -226,6 +180,10 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
           onChange={(e) => setIsActive(e.target.value === 'ACTIVE')}
         />
       </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input type="checkbox" checked={showPortFacet} disabled={saving} onChange={event => setShowPortFacet(event.target.checked)} />
+        <span>Hiện bộ lọc cảng ở kế hoạch tổng quát</span>
+      </label>
       <FormActions
         saving={saving}
         isedit={!!item}
@@ -235,8 +193,8 @@ function ZoneForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
         onsave={() => {
           if (!label.trim()) return;
           onsave(item
-            ? { label: label.trim(), sortOrder, isActive }
-            : { code: code.trim(), label: label.trim(), sortOrder, isActive });
+            ? { label: label.trim(), sortOrder, isActive, isDefault, showPortFacet }
+            : { code: code.trim(), label: label.trim(), sortOrder, isActive, isDefault, showPortFacet });
         }}
       />
     </InlineForm>
@@ -278,32 +236,8 @@ export default function PortsConfigPage() {
         },
         { header: 'Mã cảng', render: (p) => <span style={{ color: 'var(--fg-2)', whiteSpace: 'nowrap' }}>{p.code || '—'}</span> },
         {
-          header: 'Phân loại',
-          render: (p) => <span style={{ color: 'var(--fg-2)' }}>{p.classification || '—'}</span>,
-        },
-        {
-          header: 'Pháp nhân',
-          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.legalEntity || '—'}</span>,
-        },
-        {
           header: 'Địa chỉ',
           render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.address || '—'}</span>,
-        },
-        {
-          header: 'Thuộc Lạch Huyện',
-          render: (p) => p.isLachHuyen
-            ? <span className="badge badge--success">Có</span>
-            : <span style={{ color: 'var(--fg-3)' }}>—</span>,
-        },
-        {
-          header: 'Web tác nghiệp',
-          render: (p) => p.opsPortalUrl
-            ? <a href={p.opsPortalUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontSize: 'var(--text-data-size)' }}>{p.opsPortalUrl}</a>
-            : <span style={{ color: 'var(--fg-3)' }}>—</span>,
-        },
-        {
-          header: 'Vị trí',
-          render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)' }}>{p.position || '—'}</span>,
         },
         {
           header: 'Khu vực điều phối',
@@ -320,13 +254,13 @@ export default function PortsConfigPage() {
     {user?.role === Role.ADMIN && (
     <CrudTable<DispatchZoneRow>
       title="Khu vực điều phối"
-      description="Taxonomy cụm cảng — thêm cụm mới (VD: Ninh Bình) tại đây, cảng được gán vào khu vực ở bảng trên"
+      description="Quản lý khu vực điều phối và bộ lọc cảng. Gán cảng vào khu vực ở bảng trên."
       endpoint="/dispatch-zones" colSpan={4}
       pageSlug="dispatch-zones"
       showDelete={false}
       sortFn={(a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, 'vi')}
       emptyTitle="Chưa có khu vực nào"
-      emptyHint="Thêm khu vực điều phối đầu tiên (VD: Lạch Huyện)."
+      emptyHint="Thêm khu vực điều phối đầu tiên."
       columns={[
         { header: 'Mã', render: (z) => <span style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{z.code}</span> },
         { header: 'Tên khu vực', render: (z) => <span>{z.label}</span> },
@@ -334,8 +268,8 @@ export default function PortsConfigPage() {
         {
           header: 'Trạng thái',
           render: (z) => z.isActive
-            ? <span className="cfg-pill cfg-pill--success">Đang dùng</span>
-            : <span className="cfg-pill cfg-pill--neutral">Đã ngưng</span>,
+            ? <span className="cfg-pill cfg-pill--success cfg-status-tag">Đang dùng</span>
+            : <span className="cfg-pill cfg-pill--neutral cfg-status-tag">Đã ngưng</span>,
         },
       ]}
       renderForm={(p) => (

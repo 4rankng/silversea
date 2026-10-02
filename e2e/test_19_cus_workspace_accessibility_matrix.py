@@ -134,21 +134,26 @@ def check(results: TestResults, tc_id: str, title: str, condition: bool, detail:
 
 def login_page(ctx: SilverseaTestContext, role_key: str, page: Page):
     if role_key != "dispatcher":
-        return ctx.login_as(role_key, page)
+        session = ctx.login_as(role_key, page)
+        if role_key == "clerk":
+            # Finish the post-login route before beginning a second navigation.
+            page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).wait_for(timeout=10_000)
+        return session
 
-    api = login("dispatcher")
+    login("dispatcher")
     page.goto(f"{BASE_URL}/login")
     wait_for_page_ready(page)
     page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', DISPATCHER_USERNAME)
     page.fill('input[type="password"]', DISPATCHER_PASSWORD)
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
-    page.wait_for_load_state("domcontentloaded")
-    page.wait_for_timeout(500)
-    page.evaluate(f'localStorage.setItem("token", "{api.token}")')
-    if "/login" in page.url:
-        page.goto(BASE_URL)
-        wait_for_page_ready(page)
-    return page, api.token, {"role": "DISPATCHER"}
+    # The mounted AuthProvider owns the session created by this UI login.
+    # Replacing it with the earlier API session triggers its stale-session guard.
+    page.wait_for_url(lambda url: "/login" not in url, timeout=15_000)
+    wait_for_page_ready(page)
+    token = page.evaluate('localStorage.getItem("token")')
+    if not token:
+        raise AssertionError("Dispatcher UI login navigated without a session token")
+    return page, token, {"role": "DISPATCHER"}
 
 
 def no_horizontal_overflow(page: Page) -> bool:
@@ -208,7 +213,15 @@ def ensure_fixture(results: TestResults) -> tuple[int, int]:
         raise RuntimeError("Thiếu khách hàng để tạo fixture workspace")
     customer_id = customers[0]["id"]
 
-    users_response = admin_api.get("/api/auth/users")
+    # The users list has NO default ordering (user.service listUsers omits
+    # ORDER BY unless sortBy is passed), so a default-page scan is heap order:
+    # on the shared dev DB, with thousands of lanes' fixture users, the demo
+    # `cus` row lands off page 1 nondeterministically (the "Không tìm thấy tài
+    # khoản CUS demo" crash). Filter to the CUS role instead — the active CUS
+    # population is tens of rows, always inside one 500-row page, so the demo
+    # account is findable at any residue count. Roster: testplan/testaccounts
+    # .txt (local CUS demo stand-in `cus`, created by backend/src/seed.ts:60).
+    users_response = admin_api.get("/api/auth/users?role=CUS")
     users = rows(users_response)
     cus_user = next((user for user in users if user.get("username") == "cus"), None)
     if not cus_user:
@@ -430,7 +443,9 @@ def open_mobile_drawer(page: Page):
     dialog.wait_for(timeout=10_000)
     page.wait_for_function(
         """() => {
-          const transform = getComputedStyle(document.querySelector('[role="dialog"]')).transform;
+          const dialog = document.querySelector('[role="dialog"]');
+          if (!dialog) return false;
+          const transform = getComputedStyle(dialog).transform;
           return transform === 'none' || Math.abs(new DOMMatrixReadOnly(transform).m41) < 1;
         }""",
         timeout=2_500,

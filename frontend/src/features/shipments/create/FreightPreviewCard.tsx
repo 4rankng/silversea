@@ -1,7 +1,8 @@
 import { useFreightPreview } from '../../../hooks/usePricingQueries';
 import type { FreightPreviewInput } from '../../../api/pricingClient';
+import { formatCurrency } from '../../../lib/format';
 
-const vnd = (n: number) => n.toLocaleString('vi-VN');
+
 
 /**
  * Live freight preview for the CUS create workspace.
@@ -33,7 +34,8 @@ export function FreightPreviewCard({
     return (
       <div data-freight-preview="manual"
         style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-data-size)', color: 'var(--ink-2)' }}>
-        Thiếu giá gốc — nhập tay
+        <div style={{ fontWeight: 600, color: 'var(--ink)' }}>Chưa đủ căn cứ tính tự động — nhập tay</div>
+        <div>{data.formula}</div>
       </div>
     );
   }
@@ -44,15 +46,15 @@ export function FreightPreviewCard({
       <div style={{ fontFamily: 'var(--font-data)', color: 'var(--ink-2)', marginBottom: 6 }}>{data.formula}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ color: 'var(--ink-2)' }}>Cước gốc sau chia sẻ</span>
-        <span style={{ fontFamily: 'var(--font-data)' }}>{vnd(data.freight)} đ</span>
+        <span style={{ fontFamily: 'var(--font-data)' }}>{formatCurrency(data.freight)}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ color: 'var(--ink-2)' }}>Phụ phí dầu chênh lệch</span>
-        <span style={{ fontFamily: 'var(--font-data)' }}>{vnd(data.surcharge)} đ</span>
+        <span style={{ fontFamily: 'var(--font-data)' }}>{formatCurrency(data.surcharge)}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: 4 }}>
         <span>Tổng cước thu khách</span>
-        <span style={{ fontFamily: 'var(--font-data)' }}>{vnd(data.total)} đ</span>
+        <span style={{ fontFamily: 'var(--font-data)' }}>{formatCurrency(data.total)}</span>
       </div>
     </div>
   );

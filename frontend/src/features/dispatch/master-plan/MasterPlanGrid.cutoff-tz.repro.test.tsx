@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { MasterPlanGrid } from './MasterPlanGrid';
@@ -63,20 +63,16 @@ describe('MasterPlanGrid — customs cutoff and schedule hour pin Asia/Ho_Chi_Mi
   it('renders the schedule hour-line fallback in the Vietnam hour, not the machine hour', () => {
     render(<MasterPlanGrid items={[item({ plannedReturnAt: '2026-09-15T22:00:00+07:00' })]} onAllocate={vi.fn()} />);
     const text = document.body.textContent ?? '';
-    expect(text).toContain('22H'); // machine hour would render "0H"
+    expect(text).toContain('22:00 15/09/2026'); // machine hour would render "07:00"
   });
 
-  it('computes the Hôm nay/Hôm sau quick actions from the Vietnam calendar day, not the machine day', () => {
-    const onChange = vi.fn();
+  it('no longer renders date preset quick actions — the date inputs cover them (filter-bar law §5)', () => {
     render(<MasterPlanFilters filters={{
       q: '', tradeDirection: '', allocationStatus: '',
       deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [],
-    }} onChange={onChange} />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Hôm nay' })[0]);
-    const vietnamToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
-    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({
-      deliveryDateFrom: vietnamToday,
-      deliveryDateTo: vietnamToday,
-    }));
+    }} onChange={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Hôm nay' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hôm sau' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tất cả các ngày' })).toBeNull();
   });
 });

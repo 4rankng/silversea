@@ -9,6 +9,12 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import salaryRoutes from '../routes/salary';
+import { insertTripComposite } from '../services/trip-composite.service';
+
+const fixtureTripIds: number[] = [];
+const fixtureRouteIds: number[] = [];
+const fixtureCargoTypeIds: number[] = [];
+const fixtureCustomerIds: number[] = [];
 import {
   requestSalaryConfirmation,
   requestSalaryReopen,
@@ -143,6 +149,18 @@ after(async () => {
     await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.driverId, createdDriverIds));
     await db.delete(s.salaryConfirmations).where(inArray(s.salaryConfirmations.driverId, createdDriverIds));
     await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
+  }
+  if (fixtureTripIds.length > 0) {
+    await db.delete(s.trips).where(inArray(s.trips.id, fixtureTripIds));
+  }
+  if (fixtureCargoTypeIds.length > 0) {
+    await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, fixtureCargoTypeIds));
+  }
+  if (fixtureRouteIds.length > 0) {
+    await db.delete(s.routes).where(inArray(s.routes.id, fixtureRouteIds));
+  }
+  if (fixtureCustomerIds.length > 0) {
+    await db.delete(s.customers).where(inArray(s.customers.id, fixtureCustomerIds));
   }
   if (createdUserIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
@@ -290,7 +308,25 @@ describe('confirmed individual salary snapshots', () => {
     const before = (await confirmSalary(driver.id, year, month, accountant.id)).salary;
     await createClosedPeriodLock(accountant.id);
     await db.update(s.drivers).set({ baseSalary: '19000000' }).where(eq(s.drivers.id, driver.id));
-    await syncTripWorkDays(driver.id, 990001, periodRange.start, periodRange.start, accountant.id);
+    // Real trip — driver_work_days.trip_id is FK-backed; sentinel ids only
+    // ever resolved on the accumulated shared dev database (card _40).
+    const [snapCustomer] = await db.insert(s.customers).values({ name: `Q15 snap customer ${suffix}` }).returning();
+    fixtureCustomerIds.push(snapCustomer.id);
+    const [snapRoute] = await db.insert(s.routes).values({ name: `Q15 snap route ${suffix}` }).returning();
+    fixtureRouteIds.push(snapRoute.id);
+    const [snapCargo] = await db.insert(s.cargoTypes).values({ name: `Q15 snap cargo ${suffix}` }).returning();
+    fixtureCargoTypeIds.push(snapCargo.id);
+    const snapTrip = await insertTripComposite(db, {
+      tripCode: `Q15-SNAP-${suffix}`.slice(0, 50),
+      customerId: snapCustomer.id,
+      routeId: snapRoute.id,
+      cargoTypeId: snapCargo.id,
+      status: 'COMPLETED',
+      departureDate: periodRange.start,
+      carrierType: 'OWN',
+    });
+    fixtureTripIds.push(snapTrip.id);
+    await syncTripWorkDays(driver.id, snapTrip.id, periodRange.start, periodRange.start, accountant.id);
     const operationalDay = await db.select().from(s.driverWorkDays).where(eq(s.driverWorkDays.driverId, driver.id));
     assert.equal(operationalDay[0]?.status, 'TRIP_DAY', 'late driver completion may still record the operational fact');
     const after = await computeSalary(driver.id, year, month);

@@ -190,33 +190,31 @@
 
 ---
 
-### TC-RBAC-007 — Create-only: xóa dữ liệu phiên cũ → phải phê duyệt
+### TC-RBAC-007 — Quyền xóa không chuyển thành yêu cầu phê duyệt
 
-- **Mã PRD:** TC-MO2C-17, O2C Bước 0
-- **Mức độ:** P0
-- **Các bước:**
-  1. Đăng nhập `CUS`. Tạo 1 lô. **Logout**.
-  2. Đăng nhập lại `CUS`. Thử xóa lô của phiên cũ.
-- **Kết quả mong đợi (Pass:**
-  - Không cho xóa trực tiếp.
-  - Yêu cầu Admin/Giám đốc phê duyệt.
-- **Bằng chứng:** ảnh "Cần phê duyệt" / nút xóa disabled
+- **Mã PRD:** TC-MO2C-17, O2C Bước 0; **Mức độ:** P0.
+- **Các bước:** CUS tạo lô, đăng xuất/đăng nhập lại; thử xóa với vai trò chỉ có
+  quyền tạo, rồi thử với vai trò có quyền xóa hiện hành trên một lô đủ điều kiện.
+- **Pass:** quyền xóa, phạm vi và tình trạng lô quyết định kết quả; sai quyền bị
+  từ chối, đúng quyền xóa trực tiếp có lịch sử. Không có hàng đợi xin duyệt hoặc
+  nút yêu cầu người khác duyệt. Phiên đăng nhập không cấp thêm quyền tài chính.
+- **Bằng chứng:** API đúng/sai quyền, dữ liệu và lịch sử trước/sau.
 
 ---
 
-### TC-RBAC-008 — Chi phí/chứng từ đã duyệt → cấm xóa
+### TC-RBAC-008 — Bảo vệ chi phí đã ghi sổ/thanh toán/chốt kỳ
 
-- **Mã PRD:** TC-MO2C-17, O2C Bước 0
-- **Mức độ:** P0
-- **Các bước:**
-  1. Chi phí đã được Kế toán duyệt.
-  2. Bất kỳ ai (kể cả admin) thử xóa chi phí đã duyệt từ UI thường.
-- **Kết quả mong đợi (Pass):**
-  - Không cho xóa chi phí đã duyệt (bất kỳ ai, bất kỳ phiên nào).
-  - Chỉ Admin/Giám đốc xử lý qua workflow đặc biệt.
-- **Bằng chứng:** ảnh "Không thể xóa chi phí đã duyệt"
+- **Mã PRD:** TC-MO2C-17, O2C Bước 0; **Mức độ:** P0.
+- **Các bước:** thử sửa đè/xóa thường khoản đã ghi sổ, đã trả hoặc khóa kỳ; dùng
+  hành động điều chỉnh/đảo được phép với lý do, phiên bản và kỳ hợp lệ.
+- **Pass:** không mất giao dịch gốc, phân bổ hay lịch sử. Bảo vệ tài chính vẫn
+  áp dụng kể cả ADMIN; hành động điều chỉnh hợp lệ thực hiện trực tiếp. Không
+  yêu cầu duyệt, không hiểu mã `APPROVED` lịch sử là quyền sửa/xóa hiện tại.
+- **Bằng chứng:** lỗi dữ liệu/khóa kỳ; giao dịch điều chỉnh và liên kết nguồn.
 
 ---
+
+
 
 ## 7.5 — Hủy chuyến / Ngoại lệ
 
@@ -254,19 +252,19 @@
 
 ---
 
-### TC-RBAC-011 — 2 người cùng duyệt → first-approve-wins
+### TC-RBAC-011 — Hai thao tác đối chiếu cùng phiên bản không ghi trùng
 
-- **Mã PRD:** Q23
-- **Mức độ:** P0
-- **Các bước:**
-  1. 2 người cùng bấm "Duyệt" khoản chi.
-- **Kết quả mong đợi (Pass):**
-  - Duyệt đầu tiên thắng.
-  - Người sau nhận "đã được duyệt".
-  - Audit ghi cả 2 lần thử.
-- **Bằng chứng:** ảnh 2 request (1 OK, 1 "đã được duyệt") + audit
+- **Mã PRD:** Q23; **Mức độ:** P0.
+- **Các bước:** hai người có quyền đồng thời ghi nhận/đối chiếu cùng khoản chi
+  với cùng phiên bản; thử lại cùng khóa idempotency của yêu cầu thành công.
+- **Pass:** chỉ một thay đổi và một kết quả tài chính được ghi. Yêu cầu cạnh
+  tranh nhận xung đột rõ; thử lại cùng yêu cầu trả kết quả đã có. Không sinh
+  approval state, hai khoản tiền hoặc sửa đè thay đổi người trước.
+- **Bằng chứng:** kết quả API, phiên bản, lịch sử và nguồn chi phí trước/sau.
 
 ---
+
+
 
 ## 7.7 — Menu ẩn theo vai trò
 
@@ -295,10 +293,10 @@
 | __/__/__ | TC-RBAC-005 | | | Customer row-scope | |
 | __/__/__ | TC-RBAC-006 | | | Xóa phiên hiện tại | |
 | __/__/__ | TC-RBAC-007 | | | Xóa phiên cũ | |
-| __/__/__ | TC-RBAC-008 | | | Cấm xóa đã duyệt | |
+| __/__/__ | TC-RBAC-008 | | | Bảo vệ chi phí đã ghi sổ/thanh toán/chốt kỳ | |
 | __/__/__ | TC-RBAC-009 | | | Hủy chuyến | |
 | __/__/__ | TC-RBAC-010 | | | Conflict 409 | |
-| __/__/__ | TC-RBAC-011 | | | First-approve-wins | |
+| __/__/__ | TC-RBAC-011 | | | Đối chiếu đồng thời không ghi trùng | |
 | __/__/__ | TC-RBAC-012 | | | Sidebar theo vai trò | |
 | __/__/__ | TC-RBAC-013 | | | Staff thấy toàn bộ KH/lô | |
 | __/__/__ | TC-RBAC-014 | | | CUS allowance KH + site (POST-only) | |

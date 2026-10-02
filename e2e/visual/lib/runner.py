@@ -1,6 +1,6 @@
 """Visual regression test runner core.
 
-Drives Playwright against localhost:7174, logs in via API for speed, then
+Drives Playwright against localhost:7175, logs in via API for speed, then
 sets localStorage.token and navigates to each TC's URL, runs assertions,
 and captures one full-page screenshot per TC.
 
@@ -42,8 +42,8 @@ if str(E2E_ROOT) not in sys.path:
 
 from visual.lib.accounts import ACCOUNTS, DEFAULT_PASSWORD  # noqa: E402
 
-BASE_URL = os.environ.get("VISUAL_URL", "http://localhost:7174").rstrip("/")
-API_URL = os.environ.get("VISUAL_API", "http://localhost:3001").rstrip("/")
+BASE_URL = os.environ.get("VISUAL_URL", "http://localhost:7175").rstrip("/")
+API_URL = os.environ.get("VISUAL_API", "http://localhost:3002").rstrip("/")
 VIEWPORT_DESKTOP = {"width": 1280, "height": 900}
 VIEWPORT_MOBILE = {"width": 375, "height": 667}
 

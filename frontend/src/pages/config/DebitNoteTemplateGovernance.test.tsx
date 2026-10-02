@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { qk } from '../../api/keys';
+import { StrictMode } from 'react';
 import type { DebitNoteTemplate } from '@tingting/shared';
 
 const mocks = vi.hoisted(() => ({
@@ -199,6 +200,32 @@ describe('Debit note template save/delete UX', () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
     expect(screen.getByRole('textbox', { name: 'Tên mẫu' })).toHaveValue('Bản chỉnh chưa lưu');
     expect(mocks.saveDebitNoteTemplate).not.toHaveBeenCalled();
+  });
+
+  it('loads an existing template after StrictMode query delivery and keeps its baseline clean', async () => {
+    mocks.params = { id: String(sampleTemplate.id) };
+    mocks.useQuery.mockReturnValue({ data: undefined, isLoading: true });
+    const page = render(<StrictMode><DebitNoteTemplateEditorPage /></StrictMode>);
+    mocks.useQuery.mockReturnValue({ data: sampleTemplate, isLoading: false });
+    page.rerender(<StrictMode><DebitNoteTemplateEditorPage /></StrictMode>);
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Tên mẫu' })).toHaveValue(sampleTemplate.name));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/config/debit-note-templates'));
+    expect(mocks.confirm).not.toHaveBeenCalled();
+    expect(mocks.navigate).toHaveBeenCalledWith('/config/debit-note-templates');
+    expect(mocks.updateDebitNoteTemplate).not.toHaveBeenCalled();
+  });
+
+  it('does not replace a dirty existing draft when its persisted template is refreshed', async () => {
+    mocks.params = { id: String(sampleTemplate.id) };
+    mocks.useQuery.mockReturnValue({ data: sampleTemplate, isLoading: false });
+    const page = render(<StrictMode><DebitNoteTemplateEditorPage /></StrictMode>);
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Tên mẫu' })).toHaveValue(sampleTemplate.name));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tên mẫu' }), { target: { value: 'Bản chỉnh chưa lưu' } });
+    mocks.useQuery.mockReturnValue({ data: { ...sampleTemplate }, isLoading: false });
+    page.rerender(<StrictMode><DebitNoteTemplateEditorPage /></StrictMode>);
+    expect(screen.getByRole('textbox', { name: 'Tên mẫu' })).toHaveValue('Bản chỉnh chưa lưu');
+    expect(mocks.updateDebitNoteTemplate).not.toHaveBeenCalled();
   });
 
 });

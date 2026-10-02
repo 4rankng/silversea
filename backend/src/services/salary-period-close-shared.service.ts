@@ -448,7 +448,7 @@ export function throwSalaryReadinessBlocked(
     .map((driver) => driver.driverName);
   throw new ApiError(
     409,
-    `Kỳ lương ${period} còn lái xe chờ xử lý: ${blockingNames.join(', ')}. Muốn chốt phần còn lại phải có loại trừ đã duyệt sang kỳ bổ sung hoặc điều chỉnh.`,
+    `Kỳ lương ${period} còn lái xe chờ xử lý: ${blockingNames.join(', ')}. Muốn chốt phần còn lại phải ghi nhận loại trừ sang kỳ bổ sung hoặc điều chỉnh.`,
   );
 }
 

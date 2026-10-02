@@ -1,6 +1,7 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray, sql } from 'drizzle-orm';
+import { acquireAdvisoryLock, lockKeys } from '../services/advisory-lock.service';
 import { Role } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -309,7 +310,46 @@ async function createExpenseScopeRecomputeFixture(args: {
     await db.delete(s.shipments).where(eq(s.shipments.id, shipment.id));
   };
 
-  return { shipment, trip, cleanup };
+  return { shipment, fulfillment, trip, cleanup };
+}
+
+async function createExternalCompletionSibling(
+  shipment: typeof s.shipments.$inferSelect,
+  status: 'CREATED' | 'COMPLETED',
+  sourceContainerId?: number,
+) {
+  const [shipmentContainer] = sourceContainerId == null
+    ? await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerNumber: `EXT${String(Date.now()).slice(-8)}`,
+      createdBy: userIds[1],
+    }).returning()
+    : await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.id, sourceContainerId));
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'FCL_CONTAINER',
+    cargoMode: 'FCL',
+    shipmentContainerId: shipmentContainer.id,
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+    dispatchClassification: 'SINGLE',
+    createdBy: userIds[1],
+  }).returning();
+  const trip = await insertTripComposite(db, {
+    customerId, routeId, departureDate: '2026-08-03',
+    shipmentId: shipment.id, fulfillmentId: fulfillment.id,
+    status, carrierType: 'EXTERNAL', driverId: null,
+  });
+  const cleanup = async () => {
+    await db.delete(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, trip.id));
+    await db.delete(s.tripCarrierInfo).where(eq(s.tripCarrierInfo.tripId, trip.id));
+    await db.delete(s.trips).where(eq(s.trips.id, trip.id));
+    await db.delete(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    if (sourceContainerId == null) {
+      await db.delete(s.shipmentContainers).where(eq(s.shipmentContainers.id, shipmentContainer.id));
+    }
+  };
+  return { fulfillment, trip, shipmentContainer, cleanup };
 }
 
 async function prepareFixtureForDirectClose(shipmentIdForFixture: number, tripIdForFixture: number) {
@@ -335,6 +375,103 @@ async function prepareFixtureForDirectClose(shipmentIdForFixture: number, tripId
 }
 
 describe('O2C trip close readiness authority', () => {
+  test('completed external FCL and LCL work completes the shipment without app-driver evidence', async () => {
+    for (const cargoMode of ['FCL', 'LCL'] as const) {
+      const fixture = await createExpenseScopeRecomputeFixture({ cargoMode, submissionStatus: 'SUBMITTED' });
+      try {
+        await applyTripPatch(db, fixture.trip.id, { status: 'COMPLETED', carrierType: 'EXTERNAL', driverId: null });
+        await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.tripId, fixture.trip.id));
+        await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, fixture.trip.id));
+        const recomputed = await recomputeShipmentCompletion(fixture.shipment.id, { changedBy: userIds[2] });
+        assert.equal(recomputed.status, 'COMPLETED');
+        const [persisted] = await db.select().from(s.shipments).where(eq(s.shipments.id, fixture.shipment.id));
+        assert.equal(persisted.status, 'COMPLETED');
+      } finally {
+        await fixture.cleanup();
+      }
+    }
+  });
+
+  test('mixed closure waits for pending external work and valid own-driver evidence', async () => {
+    const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'FCL', submissionStatus: 'SUBMITTED' });
+    const external = await createExternalCompletionSibling(fixture.shipment, 'CREATED');
+    try {
+      await applyTripPatch(db, fixture.trip.id, { status: 'COMPLETED' });
+      assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'DISPATCHED');
+      await applyTripPatch(db, external.trip.id, { status: 'IN_TRANSIT' });
+      assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'IN_TRANSIT');
+      await applyTripPatch(db, external.trip.id, { status: 'COMPLETED' });
+      await db.update(s.tripPodSubmissions).set({ status: 'REJECTED' })
+        .where(eq(s.tripPodSubmissions.tripId, fixture.trip.id));
+      assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'DISPATCHED');
+      await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.tripId, fixture.trip.id));
+      assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'DISPATCHED');
+      await db.insert(s.tripPodSubmissions).values({
+        tripId: fixture.trip.id, fulfillmentId: fixture.fulfillment.id,
+        submissionVersion: 2, sourceTripVersion: fixture.trip.version,
+        status: 'SUBMITTED', submittedBy: userIds[0], submittedAt: new Date(),
+      });
+      assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'COMPLETED');
+    } finally {
+      await external.cleanup();
+      await fixture.cleanup();
+    }
+  });
+
+  test('external closure waits until every required fulfillment has an authoritative trip', async () => {
+    const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'FCL', submissionStatus: 'SUBMITTED' });
+    const external = await createExternalCompletionSibling(fixture.shipment, 'CREATED');
+    try {
+      await applyTripPatch(db, fixture.trip.id, { status: 'COMPLETED', carrierType: 'EXTERNAL', driverId: null });
+      await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.tripId, fixture.trip.id));
+      await applyTripPatch(db, external.trip.id, { fulfillmentId: null });
+      assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'DISPATCHED');
+      await applyTripPatch(db, external.trip.id, { fulfillmentId: external.fulfillment.id, status: 'IN_TRANSIT' });
+      assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'IN_TRANSIT');
+      await applyTripPatch(db, external.trip.id, { status: 'COMPLETED' });
+      assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'COMPLETED');
+    } finally {
+      await external.cleanup();
+      await fixture.cleanup();
+    }
+  });
+
+  test('external closure preserves canceled-work waiver and pending replacement authority', async () => {
+    for (const disposition of ['NOT_REQUIRED', 'REPLACED'] as const) {
+      const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'FCL', submissionStatus: 'SUBMITTED' });
+      const canceled = await createExternalCompletionSibling(fixture.shipment, 'CREATED');
+      let replacement: Awaited<ReturnType<typeof createExternalCompletionSibling>> | null = null;
+      try {
+        await applyTripPatch(db, fixture.trip.id, { status: 'COMPLETED', carrierType: 'EXTERNAL', driverId: null });
+        await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.tripId, fixture.trip.id));
+        await applyTripPatch(db, canceled.trip.id, { status: 'CANCELED' });
+        await db.update(s.shipmentFulfillments).set({
+          canceledAt: new Date(), cancellationDisposition: disposition,
+        }).where(eq(s.shipmentFulfillments.id, canceled.fulfillment.id));
+        if (disposition === 'REPLACED') {
+          replacement = await createExternalCompletionSibling(fixture.shipment, 'CREATED', canceled.shipmentContainer.id);
+          await db.update(s.shipmentFulfillments).set({
+            replacementFulfillmentId: replacement.fulfillment.id,
+          }).where(eq(s.shipmentFulfillments.id, canceled.fulfillment.id));
+        }
+        assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'DISPATCHED');
+        if (replacement) {
+          await applyTripPatch(db, replacement.trip.id, { status: 'COMPLETED' });
+        } else {
+          await db.update(s.shipmentFulfillments).set({
+            notRequiredApprovedBy: userIds[1], notRequiredApprovedAt: new Date(),
+            notRequiredReason: 'Khách không còn yêu cầu phần việc này',
+          }).where(eq(s.shipmentFulfillments.id, canceled.fulfillment.id));
+        }
+        assert.equal((await recomputeShipmentCompletion(fixture.shipment.id)).status, 'COMPLETED');
+      } finally {
+        if (replacement) await replacement.cleanup();
+        await canceled.cleanup();
+        await fixture.cleanup();
+      }
+    }
+  });
+
   test('rejects missing, draft, and rejected e-POD; a saved submission passes the gate', async () => {
     await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /Chưa có e-POD hợp lệ/);
     for (const status of ['DRAFT', 'REJECTED'] as const) {
@@ -488,7 +625,7 @@ describe('O2C trip close readiness authority', () => {
     const scopeMayCommit = new Promise<void>((resolve) => { releaseScopeTransaction = resolve; });
     const scopeCompletion = db.transaction(async (tx) => {
       await lockTripCloseAggregate(tx, tripId);
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${containerId})`);
+      await acquireAdvisoryLock(tx, lockKeys.containerScope(containerId));
       announceScopeLocks();
       await scopeMayCommit;
       return setTripExpenseCompletion(tripId, containerId, true, userIds[1], tx);

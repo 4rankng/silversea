@@ -1,15 +1,11 @@
 import bcrypt from 'bcryptjs';
 import { db } from './db';
 import * as schema from './db/schema';
-import {
-  DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
-  OPS_EXPENSE_TYPE_DEFAULTS,
-  NO_INVOICE_POLICY_DEFAULTS,
-  Role,
-} from '@tingting/shared';
+import { Role } from '@tingting/shared';
 import { eq, and, desc, isNotNull, isNull, sql } from 'drizzle-orm';
 import { COMPANY_INFO_SETTING_KEYS, COMPANY_INFO_DEFAULTS } from './services/company-info.service';
 import { reassignTruckDriverInTx } from './services/truck-driver-assignment.service';
+import { ZONE_SURCHARGE_KIND } from './services/zone-surcharge.service';
 import {
   createShipment,
   transitionShipmentStatus,
@@ -25,31 +21,54 @@ import { seedCustomers } from './seed/seed-customers';
 import { seedReference } from './seed/seed-reference';
 import { seedLiftPricing } from './seed/seed-lift-pricing';
 import { seedPricingTables } from './seed/seed-pricing-tables';
+import { seedForwarderExpenseTypes } from './seed/seed-expense-types';
 import { seedDemoFreightPricing } from './seed/seed-demo-freight-pricing';
 import { seedOperationalSites } from './seed/seed-operational-sites';
 import { seedFactories } from './seed/seed-factories';
 import { seedPorts } from './seed/seed-ports';
 import { seedVehiclesFromExcel } from './seed/seed-vehicles-from-excel';
 import { resolveSeedActors, seedTrips } from './seed/seed-trips';
+import { seedQuotationFixtures } from './seed/seed-quotation-fixtures';
 import { seedVendorFinancials } from './seed/seed-vendor-financials';
 import { seedForwarderMoney } from './seed/seed-forwarder-money';
 import { seedCustomerAr } from './seed/seed-customer-ar';
 import { seedBulkData } from './seed/seed-bulk-data';
 
+/** Demo-data sections run independently of one another: a section the
+ *  environment cannot support (e.g. a fund-less staging aborts the
+ *  forwarder-money settlement with AdvanceError 409) is skipped with a loud
+ *  named warning instead of aborting the whole run — the seed still exits 0
+ *  and every other section lands. Catalog/reference sections deliberately
+ *  stay OUTSIDE this wrapper: a half-filled catalog is a real defect, a
+ *  half-filled demo dataset is only a degraded demo. */
+async function runDemoSection<T>(name: string, section: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await section();
+  } catch (error) {
+    console.warn(`\n⚠️  [seed] SKIP section "${name}": ${error instanceof Error ? error.message : String(error)}\n`);
+    return undefined;
+  }
+}
+
 export async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
 
   const users = [
-    { username: 'admin', email: 'admin@nepo.vn', phone: '0900000000', passwordHash, role: Role.ADMIN, fullName: 'Trần Văn Admin' },
-    { username: 'giamdoc', email: 'giamdoc@nepo.vn', phone: '0900000001', passwordHash, role: Role.MANAGER, fullName: 'Lê Văn Tỉnh' },
-    { username: 'ketoan', email: 'ketoan@nepo.vn', phone: '0900000002', passwordHash, role: Role.ACCOUNTANT, fullName: 'Nguyễn Thị Mai' },
-    { username: 'cus', email: 'cus@nepo.vn', phone: '0900000005', passwordHash, role: Role.CUS, fullName: 'Nhân viên CUS Demo' },
-    { username: 'dieuvan', email: 'dieuvan@nepo.vn', phone: '0900000006', passwordHash, role: Role.DISPATCHER, fullName: 'Nhân viên Điều vận Demo' },
-    { username: 'laixe', email: 'laixe@nepo.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
-    { username: 'giaonhan', email: 'giaonhan@nepo.vn', phone: '0900000004', passwordHash, role: Role.OPS, fullName: 'Nguyễn Văn Giao' },
-    { username: 'thu', email: 'thu@nepo.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
-    { username: 'pho', email: 'pho@nepo.vn', phone: '0900000011', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Phố' },
-    { username: 'quyet', email: 'quyet@nepo.vn', phone: '0900000012', passwordHash, role: Role.DRIVER, fullName: 'Lê Văn Quyết' },
+    { username: 'admin', email: 'admin@silversea.vn', phone: '0900000000', passwordHash, role: Role.ADMIN, fullName: 'Trần Văn Admin' },
+    { username: 'giamdoc', email: 'giamdoc@silversea.vn', phone: '0900000001', passwordHash, role: Role.MANAGER, fullName: 'Lê Văn Tỉnh' },
+    { username: 'ketoan', email: 'ketoan@silversea.vn', phone: '0900000002', passwordHash, role: Role.ACCOUNTANT, fullName: 'Nguyễn Thị Mai' },
+    { username: 'cus', email: 'cus@silversea.vn', phone: '0900000005', passwordHash, role: Role.CUS, fullName: 'Nhân viên CUS Demo' },
+    { username: 'dieuvan', email: 'dieuvan@silversea.vn', phone: '0900000006', passwordHash, role: Role.DISPATCHER, fullName: 'Nhân viên Điều vận Demo' },
+    { username: 'laixe', email: 'laixe@silversea.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
+    { username: 'giaonhan', email: 'giaonhan@silversea.vn', phone: '0900000004', passwordHash, role: Role.OPS, fullName: 'Nguyễn Văn Giao' },
+    // Card 20260922_72: named staff from testaccounts.txt — dev-seed and the
+    // prod mirror now agree on these logins (password rule: Abc123).
+    { username: 'thanhdc', email: 'thanhdc@silversea.vn', phone: '0900000020', passwordHash, role: Role.CUS, fullName: 'Trần Đức Thanh' },
+    { username: 'dungnv', email: 'dungnv@silversea.vn', phone: '0900000021', passwordHash, role: Role.DISPATCHER, fullName: 'Nguyễn Văn Dũng' },
+    { username: 'dvthuc', email: 'dvthuc@silversea.vn', phone: '0900000022', passwordHash, role: Role.DRIVER, fullName: 'Đỗ Văn Thức' },
+    { username: 'thu', email: 'thu@silversea.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
+    { username: 'pho', email: 'pho@silversea.vn', phone: '0900000011', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Phố' },
+    { username: 'quyet', email: 'quyet@silversea.vn', phone: '0900000012', passwordHash, role: Role.DRIVER, fullName: 'Lê Văn Quyết' },
   ];
 
   const existingUsers = await db.select({
@@ -60,25 +79,41 @@ export async function seed() {
     passwordHash: schema.users.passwordHash,
   }).from(schema.users);
   const existingUserByUsername = new Map<string, (typeof existingUsers)[number]>();
+  const emailOwnerByContact = new Map<string, number>();
+  const phoneOwnerByContact = new Map<string, number>();
   for (const existingUser of existingUsers) {
+    // Unique contacts remain owned even by a soft-deleted account.
+    if (existingUser.email) emailOwnerByContact.set(existingUser.email, existingUser.id);
+    if (existingUser.phone) phoneOwnerByContact.set(existingUser.phone, existingUser.id);
     const key = existingUser.username;
     if (!key) continue;
     existingUserByUsername.set(key, existingUser);
   }
 
   for (const user of users) {
-    const canonicalUser = { ...user, status: 'ACTIVE' as const };
     const existingUser = existingUserByUsername.get(user.username);
+    const emailOwner = emailOwnerByContact.get(user.email);
+    const phoneOwner = phoneOwnerByContact.get(user.phone);
+    const canonicalUser = {
+      ...user,
+      email: emailOwner == null || emailOwner === existingUser?.id ? user.email : null,
+      phone: phoneOwner == null || phoneOwner === existingUser?.id ? user.phone : null,
+      status: 'ACTIVE' as const,
+    };
     if (existingUser) {
       // Legacy rows (e.g. a pre-wipe `laixe` with NULL email/phone) keep
-      // their account but must carry the canonical contact identity so the
-      // driver↔user phone backfill below can link them.
+      // their account. Fill each missing contact only when unclaimed, and
+      // preserve independently populated or administrator-modified contacts.
       // Also ensure password hash is current — staging-synced DBs may carry
       // a different hash that prevents demo login.
       const needsUpdate: Record<string, unknown> = {};
-      if (!existingUser.email || !existingUser.phone) {
+      if (!existingUser.email && canonicalUser.email) {
         needsUpdate.email = canonicalUser.email;
+        emailOwnerByContact.set(canonicalUser.email, existingUser.id);
+      }
+      if (!existingUser.phone && canonicalUser.phone) {
         needsUpdate.phone = canonicalUser.phone;
+        phoneOwnerByContact.set(canonicalUser.phone, existingUser.id);
       }
       // Sync the password hash only when the stored one fails to authenticate
       // the demo password (e.g. a devdb-synced DB carrying prod hashes) — a
@@ -94,7 +129,9 @@ export async function seed() {
       }
       continue;
     }
-    await db.insert(schema.users).values(canonicalUser);
+    const [insertedUser] = await db.insert(schema.users).values(canonicalUser).returning({ id: schema.users.id });
+    if (canonicalUser.email) emailOwnerByContact.set(canonicalUser.email, insertedUser.id);
+    if (canonicalUser.phone) phoneOwnerByContact.set(canonicalUser.phone, insertedUser.id);
   }
 
   console.log('✅ Users seeded!');
@@ -117,10 +154,10 @@ export async function seed() {
   const userByUsername = new Map(userAccounts.map(u => [u.username, u.id]));
 
   const driverSeeds = [
-    { username: 'laixe', email: 'laixe@nepo.vn', name: 'Phạm Văn Hùng',  phone: '0900000003', baseSalary: '5000000', status: 'ACTIVE' as const },
-    { username: 'thu',   email: 'thu@nepo.vn',   name: 'Nguyễn Văn Thụ', phone: '0900000010', baseSalary: '4500000', status: 'ACTIVE' as const },
-    { username: 'quyet', email: 'quyet@nepo.vn', name: 'Lê Văn Quyết',   phone: '0900000012', baseSalary: '4500000', status: 'ACTIVE' as const },
-    { username: 'pho',   email: 'pho@nepo.vn',   name: 'Nguyễn Văn Phố', phone: '0900000011', baseSalary: '5000000', status: 'ACTIVE' as const },
+    { username: 'laixe', email: 'laixe@silversea.vn', name: 'Phạm Văn Hùng',  phone: '0900000003', baseSalary: '5000000', status: 'ACTIVE' as const },
+    { username: 'thu',   email: 'thu@silversea.vn',   name: 'Nguyễn Văn Thụ', phone: '0900000010', baseSalary: '4500000', status: 'ACTIVE' as const },
+    { username: 'quyet', email: 'quyet@silversea.vn', name: 'Lê Văn Quyết',   phone: '0900000012', baseSalary: '4500000', status: 'ACTIVE' as const },
+    { username: 'pho',   email: 'pho@silversea.vn',   name: 'Nguyễn Văn Phố', phone: '0900000011', baseSalary: '5000000', status: 'ACTIVE' as const },
   ].map((d) => ({
     userId: userByUsername.get(d.username) ?? userByEmail.get(d.email) ?? null,
     name: d.name,
@@ -558,8 +595,8 @@ export async function seed() {
   // exists, ADMIN owns its label/order/status — a re-run must never revert
   // operator edits.
   const dispatchZoneSeeds = [
-    { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10 },
-    { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20 },
+    { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10, showPortFacet: false },
+    { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20, showPortFacet: false },
   ];
   let zoneInsertCount = 0;
   for (const zone of dispatchZoneSeeds) {
@@ -584,6 +621,7 @@ export async function seed() {
     { name: 'TC - HICT',                          shortName: 'HICT',        code: 'HICT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
     { name: 'TIL - HTIT',                         shortName: 'HTIT',        code: 'HTIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
     { name: 'Hateco - HHIT',                      shortName: 'HHIT',        code: 'HHIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
+    { name: 'SITC - Lạch Huyện',                  shortName: 'SITC LH',     code: 'SITCLH', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
     // Hải Phòng cluster — Cấm river mouth, ICDs and yards (HAI_PHONG)
     { name: 'Cảng Hải Phòng',                    shortName: 'Hải Phòng',    code: 'HPH',  city: 'Hải Phòng', address: 'Quận Hồng Bàng, Hải Phòng', dispatchZone: 'HAI_PHONG' },
     { name: 'Cảng Đình Vũ',                      shortName: 'Đình Vũ',      code: 'DVU',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
@@ -667,53 +705,48 @@ export async function seed() {
     console.log(`✅ Ports already exist, ${zoneFilled} zone backfilled, ${shortNameFilled} short name backfilled.`);
   }
 
-  // ─── Forwarder expense types (user-configurable) ─────────────────────────
-  // Upsert all 8 fee types with defaultMarkup, billingLabel, vatRate so that
-  // re-running seed is safe and always brings the table up to date.
-  const defaultNoInvoiceCodes = new Set([
-    'LIFTING',
-    'LOWERING',
-    'WEIGHING',
-    'INFRASTRUCTURE',
-    'INSPECTION',
-    'INSPECTION_SVC',
-    'OTHER',
-  ]);
-  let fetUpsertCount = 0;
-  const existingForwarderExpenseTypes = await db.select({
-    id: schema.forwarderExpenseTypes.id,
-    code: schema.forwarderExpenseTypes.code,
-  }).from(schema.forwarderExpenseTypes);
-  const forwarderExpenseTypeByCode = new Map(
-    existingForwarderExpenseTypes
-      .filter((row) => row.code)
-      .map((row) => [normalizeSeedText(row.code), row.id] as const),
-  );
-  for (const [code, meta] of Object.entries(OPS_EXPENSE_TYPE_DEFAULTS)) {
-    const substituteEvidenceAllowed = defaultNoInvoiceCodes.has(code);
-    const values = {
-      code,
-      name: meta.name,
-      requiresInvoice: false,
-      substituteEvidenceAllowed,
-      noInvoiceEvidenceTypes: substituteEvidenceAllowed ? [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES] : [],
-      noInvoicePerItemLimit: String(NO_INVOICE_POLICY_DEFAULTS.perItemLimit),
-      noInvoicePerDayLimit: String(NO_INVOICE_POLICY_DEFAULTS.perDayLimit),
-      defaultMarkup: meta.defaultMarkup,
-      billingLabel: meta.billingLabel,
-      vatRate: '0.080',
-    } as const;
-    const existingId = forwarderExpenseTypeByCode.get(normalizeSeedText(code));
-    if (existingId != null) {
-      await db.update(schema.forwarderExpenseTypes)
-        .set({ ...values, deletedAt: null, updatedAt: new Date() })
-        .where(eq(schema.forwarderExpenseTypes.id, existingId));
-    } else {
-      await db.insert(schema.forwarderExpenseTypes).values(values);
-    }
-    fetUpsertCount++;
+  // ─── Zone-surcharge fee config (fill-only, card 20260922_63) ─────────────
+  // The per-lift lift fee is CONFIG DATA on Lạch Huyện-cluster ports; the
+  // customer's negotiated default (500.000/lift) ships as seed data so fresh
+  // checkouts match staging. Insert-missing only: a re-run never reverts
+  // operator edits to label or amount.
+  const zoneFeeSeeds = [
+    { code: 'HICT', label: 'Phí nâng/hạ Lạch Huyện', amount: '500000' },
+    { code: 'HTIT', label: 'Phí nâng/hạ Lạch Huyện', amount: '500000' },
+    { code: 'HHIT', label: 'Phí nâng/hạ Lạch Huyện', amount: '500000' },
+    { code: 'SITCLH', label: 'Phí nâng/hạ Lạch Huyện', amount: '500000' },
+  ];
+  let zoneFeeInserted = 0;
+  for (const fee of zoneFeeSeeds) {
+    const [feePort] = await db.select({ id: schema.ports.id })
+      .from(schema.ports)
+      .where(and(eq(schema.ports.code, fee.code), isNull(schema.ports.deletedAt)))
+      .limit(1);
+    if (!feePort) continue;
+    const [existingFee] = await db.select({ id: schema.portZoneSurcharges.id })
+      .from(schema.portZoneSurcharges)
+      .where(and(
+        eq(schema.portZoneSurcharges.portId, feePort.id),
+        eq(schema.portZoneSurcharges.kindSlug, ZONE_SURCHARGE_KIND),
+      ))
+      .limit(1);
+    if (existingFee) continue;
+    await db.insert(schema.portZoneSurcharges).values({
+      portId: feePort.id,
+      kindSlug: ZONE_SURCHARGE_KIND,
+      label: fee.label,
+      amount: fee.amount,
+    });
+    zoneFeeInserted += 1;
   }
-  console.log(`✅ Forwarder expense types upserted! (${fetUpsertCount} codes)`);
+  console.log(`✅ Zone-surcharge fee config ensured (${zoneFeeInserted} inserted of ${zoneFeeSeeds.length} planned).`);
+
+  // ─── Forwarder expense types (fill-only seed) ────────────────────────────
+  // Card 20260922_1: the fill logic moved verbatim to seed/seed-expense-types.ts
+  // so the make-demo seed step can run it without demo data; the fill-only
+  // semantics are pinned by tests there and unchanged here.
+  const fet = await seedForwarderExpenseTypes();
+  console.log(`✅ Forwarder expense types fill-only: ${fet.inserted} inserted, ${fet.backfilled} categories backfilled, admin data untouched`);
 
   // ─── Own company info (used on config/document surfaces) ─────────────────
   // Seeds empty placeholder rows from COMPANY_INFO_DEFAULTS (white-label — no
@@ -756,6 +789,9 @@ export async function seed() {
   // matrix seeder so the withheld (blank-Excel) 15T rungs converge to demo
   // prices instead of staying soft-deleted. seed-prod excludes this module.
   await seedDemoFreightPricing();
+  // Card 20260922_64 QA fixtures: LONG MINH + LOG COM frames carrying the
+  // verbatim Chi-phí-khác catalog (case 07 preconditions; upsert-only).
+  await seedQuotationFixtures();
   // Seed operational sites (factories + warehouses) after customers so the
   // shipment intake "Nhà máy"/"Kho lấy hàng" dropdowns are never empty.
   await seedOperationalSites();
@@ -765,7 +801,9 @@ export async function seed() {
   await seedVehiclesFromExcel();
   await seedFactories();
 
-  await seedShipments(passwordHash);
+  // Demo section — idempotent: re-runs reuse the marker rows the seeder
+  // probes for, so a second run reuses rather than duplicates.
+  await runDemoSection('shipments', () => seedShipments(passwordHash));
   await seedClerkScope();
 
   // Trips flow through the real dispatch chain (carrier allocation → handoff
@@ -774,19 +812,29 @@ export async function seed() {
   const seedActors = await resolveSeedActors();
   const opsUser = await db.select().from(schema.users)
     .where(eq(schema.users.username, 'giaonhan')).limit(1);
-  const { opsExpenseIds } = await seedTrips({ ...seedActors, ops: opsUser[0] });
+  // Demo section — idempotent: trip fixtures are ref-keyed (bill/booking),
+  // re-runs reuse them; passes the (possibly empty) expense ids downstream.
+  const { opsExpenseIds } = await runDemoSection('trips', () => seedTrips({ ...seedActors, ops: opsUser[0] }))
+    .then((result) => result ?? { opsExpenseIds: [] as number[] });
   const adminUser = await db.select({ id: schema.users.id }).from(schema.users)
     .where(eq(schema.users.username, 'admin')).limit(1);
-  await seedVendorFinancials(seedActors.manager.userId, adminUser[0]!.id);
+  // Demo section — idempotent: vendor balances are upsert-keyed.
+  await runDemoSection('vendor-financials', () => seedVendorFinancials(seedActors.manager.userId, adminUser[0]!.id));
 
-  await seedForwarderMoney({ ops: opsUser[0]!.id, approver: adminUser[0]!.id }, opsExpenseIds);
+  // Demo section — idempotent: scoped to the fixture owner, exact advance
+  // plans and settlement note. Tolerated-skip: on an environment without the
+  // confirmed fund transactions the real settlement validation rejects with
+  // AdvanceError 409 ('Tạm ứng chưa có đủ giao dịch quỹ xác nhận tiền thực
+  // giao') — the business rule wins, the section skips loudly.
+  await runDemoSection('forwarder-money', () => seedForwarderMoney({ ops: opsUser[0]!.id, approver: adminUser[0]!.id }, opsExpenseIds));
 
   // e-POD acceptance + debit note + payment receipt close the O2C loop.
-  await seedCustomerAr({
+  // Demo section — idempotent: O2C fixtures are marker-keyed.
+  await runDemoSection('customer-ar', () => seedCustomerAr({
     cus: seedActors.cus as never,
     accountant: seedActors.accountant as never,
     manager: seedActors.manager as never,
-  });
+  }));
 
   // Bulk synthetic dataset (≈250 shipments, ≈200 trips, ≈30 customers,
   // ≈60 expenses). Idempotent: a single `BULK-MARKER-DO-NOT-DELETE` row
@@ -795,7 +843,9 @@ export async function seed() {
   // shape assertions; the bulk rows are additive and use the `BULK-`
   // prefix on every ref so existing tests continue to assert on the
   // small canonical set.
-  await seedBulkData();
+  // Demo section — idempotent: the BULK-MARKER-DO-NOT-DELETE row marks the
+  // dataset and is probed on every run.
+  await runDemoSection('bulk-data', () => seedBulkData());
 }
 
 export async function seedClerkScope(): Promise<void> {
@@ -907,9 +957,8 @@ export async function seedClerkScope(): Promise<void> {
 
 // Stable reference IDs resolved by name/code at seed runtime (never
 // hard-coded) so they survive RESTART IDENTITY from a wipe.
-let PORT_HAI_PHONG = 0;
-let PORT_DINH_VU = 0;
-let PORT_LACH_HUYEN = 0;
+const SEED_PORT_IDS_BY_CODE: Record<string, number> = {};
+const SEED_PORT_IDS_BY_NAME: Record<string, number> = {};
 let CONTAINER_TYPE_40DC = 0;
 let CONTAINER_TYPE_40HC = 0;
 let ROUTE_NEWEB = 0;
@@ -921,9 +970,8 @@ async function resolveSeedReferenceIds() {
     .from(schema.ports)
     .where(isNull(schema.ports.deletedAt));
   for (const p of portByName) {
-    if (p.name === 'Cảng Hải Phòng') PORT_HAI_PHONG = p.id;
-    if (p.name === 'Cảng Đình Vũ') PORT_DINH_VU = p.id;
-    if (p.code === 'HICT') PORT_LACH_HUYEN = p.id;
+    if (p.code) SEED_PORT_IDS_BY_CODE[p.code] = p.id;
+    if (p.name) SEED_PORT_IDS_BY_NAME[normalizeSeedText(p.name)] = p.id;
   }
   const ctByCode = await db.select({ id: schema.containerTypes.id, code: schema.containerTypes.code })
     .from(schema.containerTypes)
@@ -940,9 +988,27 @@ async function resolveSeedReferenceIds() {
     if (r.name === 'ASKEY') ROUTE_ASKEY = r.id;
     if (r.name === 'SUNRISE+  SJ') ROUTE_SUNRISE = r.id;
   }
-  if (!PORT_HAI_PHONG || !PORT_DINH_VU || !PORT_LACH_HUYEN || !CONTAINER_TYPE_40DC || !CONTAINER_TYPE_40HC) {
+  if (!hasHaPhongFerrySeedAnchors()) {
     throw new Error('Seed reference lookup failed: ports/container types missing — run the earlier seeders first.');
   }
+}
+
+/**
+ * The Wave-0 shipment seeding drives the Hải Phòng ferry-lane demo, so it
+ * needs all six catalog anchors resolved by the earlier seeders: the two
+ * ferry ports by code, the same two by Vietnamese name (the lookups the
+ * ferry schedules reference), the HICT port, and both 40-foot container
+ * types. Any miss means the catalog seed order changed.
+ */
+function hasHaPhongFerrySeedAnchors(): boolean {
+  return Boolean(
+    SEED_PORT_IDS_BY_CODE['HPH']
+    && SEED_PORT_IDS_BY_NAME[normalizeSeedText('Cảng Hải Phòng')]
+    && SEED_PORT_IDS_BY_NAME[normalizeSeedText('Cảng Đình Vũ')]
+    && SEED_PORT_IDS_BY_CODE['HICT']
+    && CONTAINER_TYPE_40DC
+    && CONTAINER_TYPE_40HC
+  );
 }
 
 export async function seedShipments(passwordHash: string) {
@@ -968,7 +1034,7 @@ export async function seedShipments(passwordHash: string) {
     { name: 'Công ty TNHH Canon Việt Nam', taxCode: '0301444222', contactPerson: 'Lê Thị Hương', phone: '02253992222' },
   ];
   const sampleCustomers: { id: number; name: string }[] = [];
-  for (const c of sampleCustomerSeeds) {
+  for (const [sampleIndex, c] of sampleCustomerSeeds.entries()) {
     const normalisedTaxCode = c.taxCode.toLowerCase().trim();
     const [existing] = await db.select({ id: schema.customers.id, name: schema.customers.name })
       .from(schema.customers)
@@ -981,7 +1047,14 @@ export async function seedShipments(passwordHash: string) {
       sampleCustomers.push(existing);
       continue;
     }
-    const [created] = await db.insert(schema.customers).values({ ...c, shortName: c.name.replace(/^(Công ty|CÔNG TY)[^ ]* /, '').slice(0, 60) }).returning({ id: schema.customers.id, name: schema.customers.name });
+    // Card 20260922_70: demo sample customers get codes in a range disjoint
+    // from the master-data sheet run (KH-0001… = seedCustomers) so every
+    // seeded customer row renders a non-empty Mã KH.
+    const [created] = await db.insert(schema.customers).values({
+      ...c,
+      code: `KH-${String(1000 + sampleIndex + 1).padStart(4, '0')}`,
+      shortName: c.name.replace(/^(Công ty|CÔNG TY)[^ ]* /, '').slice(0, 60),
+    }).returning({ id: schema.customers.id, name: schema.customers.name });
     sampleCustomers.push(created);
   }
   console.log(`  ✅ Sample customers (${sampleCustomers.length} stable rows)`);
@@ -1002,9 +1075,9 @@ export async function seedShipments(passwordHash: string) {
     fullName: string;
     customerId: number;
   }> = [
-    { username: 'customer', email: 'customer@nepo.vn', phone: '0900000020', fullName: 'Khách hàng Demo', customerId: portalCustomer.id },
-    { username: 'samsung-cs', email: 'samsung.cs@nepo.vn', phone: '0900000021', fullName: 'Trần Minh Đức', customerId: samsungCustomer.id },
-    { username: 'canon-cs', email: 'canon.cs@nepo.vn', phone: '0900000022', fullName: 'Lê Thị Hương', customerId: canonCustomer.id },
+    { username: 'customer', email: 'customer@silversea.vn', phone: '0900000030', fullName: 'Khách hàng Demo', customerId: portalCustomer.id },
+    { username: 'samsung-cs', email: 'samsung.cs@silversea.vn', phone: '0900000031', fullName: 'Trần Minh Đức', customerId: samsungCustomer.id },
+    { username: 'canon-cs', email: 'canon.cs@silversea.vn', phone: '0900000032', fullName: 'Lê Thị Hương', customerId: canonCustomer.id },
   ];
   for (const seed of customerPortalSeeds) {
     const [existing] = await db.select({ id: schema.users.id })
@@ -1272,8 +1345,8 @@ export async function seedShipments(passwordHash: string) {
       // carry type + both ports. IMPORT: lift at the sea port, drop at the
       // inland site; EXPORT is the mirror.
       const [pickupPortId, dropoffPortId] = s.tradeDirection === 'IMPORT'
-        ? [PORT_HAI_PHONG, PORT_DINH_VU]
-        : [PORT_DINH_VU, PORT_LACH_HUYEN];
+        ? [SEED_PORT_IDS_BY_NAME[normalizeSeedText('Cảng Hải Phòng')], SEED_PORT_IDS_BY_NAME[normalizeSeedText('Cảng Đình Vũ')]]
+        : [SEED_PORT_IDS_BY_NAME[normalizeSeedText('Cảng Đình Vũ')], SEED_PORT_IDS_BY_CODE['HICT']];
       // Per-container factory authority resolves by code within the shipment's
       // customer; a missing/invalid code leaves authority null (legacy row).
       const factorySiteIds = new Map<string, number>();

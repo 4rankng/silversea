@@ -1,0 +1,62 @@
+/* DateRangeFields — the ONE from/to date filter (CHIEF ruling 2026-09-27:
+   "choose from and to separately instead of one long control", then
+   "I dont want daterangepicker").
+
+   Two independent single-date fields (BufferedUuiDateInput) sharing one
+   transparent track pair, with a decorative `→` between them. Each field is
+   still its own control with its own one-month calendar; order is enforced by
+   `min`/`max`, so the calendar disables out-of-range days and a typed
+   out-of-order date is refused.
+
+   Field anatomy (operator reference 2026-09-27: "Từ 01/09/2026 → Đến
+   30/09/2026"): the cue rides INSIDE the field as a prefix and the field's ONE
+   border sits on an inner boundary — the shared `BufferedUuiDateInput` normally
+   stacks label-over-control and paints the border on `.date-seg-group`, which
+   left the cue floating above an uneven top edge. Only the `prefix` variant
+   moves the border; every other consumer keeps the label-above anatomy.
+
+   Flat law (docs/design-guidelines.md §3): the pair itself never paints a
+   background, border, radius or shadow — the two fields carry their own
+   chrome, exactly like every other control in a filter bar. */
+
+.date-range-fields {
+  display: grid;
+  /* The pair occupies one complete host-grid row, including portalled filter
+     dialogs. A single half-row track cannot contain both DD/MM/YYYY fields.
+     Inline FilterBar flex sizing remains its shared context owner. */
+  grid-column: 1 / -1;
+  width: min(100%, 348px);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.date-range-fields > [data-input-wrapper] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* The seam marker between the two fields; never a control. */
+.date-range-fields__arrow {
+  color: var(--ink-3);
+  font-size: var(--text-control-compact-size);
+  line-height: 1;
+  padding-top: calc((var(--uui-control-h, var(--filter-control-h)) - 1em) / 2);
+  user-select: none;
+}
+
+/* BufferedUuiDateInput owns the prefix control border/state/geometry.
+   This pair owns only the two tracks; helpers stay below either endpoint
+   without moving its sibling control down. */
+
+/* Legacy label-above anatomy for any caller that renders no prefix. */
+.date-range-fields > [data-input-wrapper]:not([data-has-prefix]) [data-label],
+.date-range-fields > [data-input-wrapper]:not([data-has-prefix]) label {
+  margin-bottom: 0;
+  white-space: nowrap;
+}

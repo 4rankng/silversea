@@ -24,6 +24,9 @@ export interface ShipmentContainerInput {
   rawPickupPortName?: string | null;
   rawDropoffPortName?: string | null;
   operationalSiteId?: number | null;
+  /** Ad-hoc row-tier free-text factory/route — XOR with the ids above. */
+  rawFactoryName?: string | null;
+  rawRouteName?: string | null;
   customerAppointmentAt?: string | null;
   notes?: string | null;
 }

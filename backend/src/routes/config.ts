@@ -28,11 +28,17 @@ import {
 } from './config/salary-periods-config.routes';
 import { auditLogRouter } from './config/audit-logs.routes';
 import { pairSalarySettingsRouter } from './config/pair-salary-settings.routes';
+import quotationsRouter from './config/quotations.routes';
 
 export { tireLifecycleRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, auditLogRouter };
 export { catalogBootstrapRouter } from './config/catalog-crud.routes';
 
 const router = Router();
+// Mounted WITH its path prefix (QA 2026-09-23 staging incident on the _66
+// registration): a bare `router.use(quotationsRouter)` resolves GET '/' to
+// /api/ and lets GET '/:id' swallow /api/quotations (400 "ID không hợp lệ").
+// Every sibling mounts under its literal path — so does quotations.
+router.use('/quotations', quotationsRouter);
 router.use(catalogCrudRouter);
 router.use(operationalConfigRouter);
 router.use(pairSalarySettingsRouter);

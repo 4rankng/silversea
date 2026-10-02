@@ -26,7 +26,7 @@ import { assertCanMakeGovernanceAction } from './governance-policy';
 // close a services-graph import cycle.
 import {
   applyGovernanceActionDirect,
-  assertActiveApprovalApplication,
+  assertActiveDirectApplication,
   buildGovernanceAction,
   type GovernanceActionRow,
   type GovernanceApplyAdapter,
@@ -39,8 +39,6 @@ import {
 } from './advance.service';
 import { applyCompanyExpenseGovernanceAction } from './expense.service';
 import { applyFuelInvoiceGovernanceAction } from './fuel-invoice.service';
-import { applyCreditOverrideGovernanceAction } from './credit-limit.service';
-import { applyTripExpenseGovernanceAction } from './approval.service';
 import { transitionTripStatus } from './trip-status-machine.service';
 import {
   updateTripFigures,
@@ -53,6 +51,7 @@ import {
   getActiveFinancialPosting,
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
+import { businessTitleOrDash } from '../lib/business-keys';
 
 function requireReason(reason: string): string {
   const normalized = reason.trim();
@@ -455,12 +454,6 @@ async function applyGovernanceAction(
   if (action.subjectType === 'FUEL_INVOICE') {
     return applyFuelInvoiceGovernanceAction(tx, action);
   }
-  if (action.subjectType === 'CREDIT_OVERRIDE') {
-    return applyCreditOverrideGovernanceAction(tx, action);
-  }
-  if (action.subjectType === 'TRIP_EXPENSE') {
-    return applyTripExpenseGovernanceAction(tx, action);
-  }
   return applyTripGovernanceAction(tx, action);
 }
 
@@ -468,7 +461,7 @@ async function applyTripGovernanceAction(
   tx: Tx,
   action: GovernanceActionRow,
 ) {
-  assertActiveApprovalApplication(tx, action.id);
+  assertActiveDirectApplication(tx, action.id);
   if (action.subjectType !== 'TRIP' || action.subjectId == null) {
     throw new ApiError(409, 'Yêu cầu điều chỉnh không có chuyến đi hợp lệ');
   }
@@ -532,7 +525,7 @@ async function applyTripGovernanceAction(
     await persistNotificationInTx(tx, {
       type: NotificationType.TRIP_COMPLETED,
       title: 'Chuyến hoàn thành',
-      message: `Chuyến ${completed.tripCode} đã hoàn thành`,
+      message: `Chuyến ${businessTitleOrDash(completed.tripCode)} đã hoàn thành`,
       relatedEntityType: 'trips',
       relatedEntityId: completed.id,
       targetDriverId: completed.driverId ?? undefined,
@@ -593,7 +586,7 @@ async function applyTripGovernanceAction(
       await persistNotificationInTx(tx, {
         type: NotificationType.TRIP_CANCELED,
         title: 'Chuyến đã hủy',
-        message: `Chuyến ${canceled.tripCode} đã bị hủy`,
+        message: `Chuyến ${businessTitleOrDash(canceled.tripCode)} đã bị hủy`,
         relatedEntityType: 'trips',
         relatedEntityId: canceled.id,
         targetDriverId: canceled.driverId ?? undefined,

@@ -1,0 +1,34 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { beforeEach, expect, it, vi } from 'vitest';
+const { get, uploadProof } = vi.hoisted(() => ({ get: vi.fn(), uploadProof: vi.fn() }));
+vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: { get, uploadProof } }));
+import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
+beforeEach(() => { get.mockReset().mockResolvedValue({ sourceKind: 'DRIVER', sourceId: 5, version: 1, status: 'RECORDED', photoStorageKeys: [] }); uploadProof.mockReset(); });
+it('opens saved evidence on demand and retains a failed file for explicit retry', async () => {
+  uploadProof.mockRejectedValueOnce(new Error('Bạn không còn được phân công chuyến này.')).mockResolvedValueOnce({ storageKey: 'proof.jpg' });
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DriverSavedExpenseProofs expenseId={5} /></QueryClientProvider>);
+  expect(get).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Xem / bổ sung chứng từ' }));
+  const picker = await screen.findByLabelText('Bổ sung ảnh chứng từ');
+  const file = new File(['proof'], 'receipt.png', { type: 'image/png' });
+  fireEvent.change(picker, { target: { files: [file] } });
+  await screen.findByText('Bạn không còn được phân công chuyến này.');
+  expect(screen.getByText('receipt.png')).toBeInTheDocument();
+  expect(uploadProof).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại ảnh' }));
+  await waitFor(() => expect(uploadProof).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.queryByText('receipt.png')).not.toBeInTheDocument());
+  expect(uploadProof.mock.calls[1][0]).toEqual({ sourceKind: 'DRIVER', sourceId: 5, expectedVersion: 1 });
+  expect(uploadProof.mock.calls[1][0]).toEqual(uploadProof.mock.calls[0][0]);
+  expect(uploadProof.mock.calls[1][1]).toBe(file);
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Thử tải lại ảnh' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Chưa có ảnh chứng từ.')).not.toBeInTheDocument();
+  // The stored key remains a slot even though this test supplies no protected image body.
+  expect(document.querySelectorAll('.expense-accounting-photos > a')).toHaveLength(1);
+  expect(document.querySelector('.expense-accounting-photos > a')).not.toHaveAttribute('href');
+  expect(screen.queryByAltText('Chứng từ 1')).not.toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Chứng từ 1 (không tải được)' })).toHaveTextContent('Không tải được');
+  expect(document.querySelector('img[src=""]')).toBeNull();
+});

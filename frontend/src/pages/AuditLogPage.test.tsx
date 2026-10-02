@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -75,5 +75,28 @@ describe('AuditLogPage server-side column sort', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Người dùng' }));
     await waitFor(() => expect(lastUrl()).toBe('/audit-logs?page=1&limit=10&sortBy=userName&sortDir=desc'));
     expect(screen.getByRole('columnheader', { name: 'Người dùng' }).getAttribute('aria-sort')).toBe('descending');
+  });
+});
+
+describe('AuditLogPage filter strip (card 20260927_152)', () => {
+  it('keeps the category labels and writes the picked category as the one query param', async () => {
+    renderAuditPage();
+    const tablist = await screen.findByRole('tablist', { name: 'Lọc theo nhóm hoạt động' });
+    for (const label of ['Tất cả', 'Chuyến đi', 'Cấu hình', 'Tài chính', 'Xác thực', 'Kỷ luật']) {
+      expect(within(tablist).getByRole('tab', { name: new RegExp(label) })).toBeTruthy();
+    }
+    // The mock returns total: 2 for every category, so the numeral rides the
+    // selected tab only — the same one number the page printed before, now as
+    // `Tabs`' plain count slot instead of a pill. It arrives with the query.
+    await waitFor(() => expect(within(tablist).getByRole('tab', { name: /^Tất cả\s*2$/ })).toBeTruthy());
+
+    fireEvent.click(within(tablist).getByRole('tab', { name: /^Chuyến đi$/ }));
+    await waitFor(() => expect(lastUrl()).toBe('/audit-logs?page=1&limit=10&category=trip'));
+  });
+
+  it('keeps the shared search cell wired to the query', async () => {
+    renderAuditPage();
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Tìm trong nhật ký người dùng' }), { target: { value: 'An' } });
+    await waitFor(() => expect(lastUrl()).toBe('/audit-logs?page=1&limit=10&search=An'));
   });
 });

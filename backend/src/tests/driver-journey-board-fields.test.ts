@@ -20,10 +20,12 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray } from 'drizzle-orm';
+import { DRIVER_FULFILLMENT_PROGRESS_SEQUENCE, TRIP_POD_REQUIRED_FILE_TYPES } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
+import { getDriverCompletionEvidenceStatus } from '../services/trip-pod.service';
 import { getDriverFulfillmentDetail } from '../services/driver.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -209,6 +211,45 @@ async function mkContainerlessTrip(args: {
   return { shipment, fulfillment, trip };
 }
 
+/** Drive a trip to the state the board used to bucket on: every progress
+ *  milestone recorded plus a SUBMITTED submission carrying both mandatory
+ *  files, i.e. `getDriverCompletionEvidenceStatus(tripId).ready === true`.
+ *  Callers clear it with the three deletes at the end of their test. */
+async function completeTripEvidence(args: {
+  tripId: number; fulfillmentId: number; driverId: number; uploadedBy: number;
+}) {
+  await db.insert(s.driverProgressEvents).values(
+    DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.map((eventType) => ({
+      tripId: args.tripId,
+      driverId: args.driverId,
+      eventType,
+      occurredAt: new Date(),
+    })),
+  );
+  const [submission] = await db.insert(s.tripPodSubmissions).values({
+    tripId: args.tripId,
+    fulfillmentId: args.fulfillmentId,
+    submissionVersion: 1,
+    sourceTripVersion: 1,
+    status: 'SUBMITTED',
+    submittedBy: args.uploadedBy,
+    submittedAt: new Date(),
+  }).returning();
+  for (const fileType of TRIP_POD_REQUIRED_FILE_TYPES) {
+    await db.insert(s.tripPodFiles).values({
+      submissionId: submission.id,
+      fileType,
+      storageKey: `qa/${suffix}/${args.tripId}/${fileType}.jpg`,
+      originalFileName: `${fileType}.jpg`,
+      mimeType: 'image/jpeg',
+      sizeBytes: 1024,
+      sha256: 'a'.repeat(64),
+      uploadedBy: args.uploadedBy,
+    });
+  }
+  return submission;
+}
+
 describe('journey-board card fields — operationalNotes + factoryShortName', () => {
   test('cards carry operationalNotes verbatim and resolve blank-safe factory labels', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
@@ -349,6 +390,73 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
 
     await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, tripB.id));
   });
+
+  // TC-LX-TIENDO-022 / DRV-LIST-02: a card reaches Lịch sử when the trip is
+  // COMPLETED, not when its e-POD evidence is merely complete. The old rule
+  // filed an acknowledged IN_TRANSIT trip under Lịch sử as soon as both
+  // mandatory photos were submitted, so a driver who had not yet pressed
+  // HOÀN THÀNH CHUYẾN lost the order from Đã nhận.
+  test('complete e-POD evidence keeps a running trip in Đã nhận until it is completed', async () => {
+    const { user, driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Đủ chứng từ');
+    const { fulfillment, trip } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tripStatus: 'IN_TRANSIT',
+    });
+    const submission = await completeTripEvidence({
+      tripId: trip.id, fulfillmentId: fulfillment.id, driverId: driver.id, uploadedBy: user.id,
+    });
+
+    // Fixture proof: the readiness signal the old bucket read is ON, so the
+    // assertion below actually pins the bucket rule.
+    assert.equal((await getDriverCompletionEvidenceStatus(trip.id)).ready, true, 'fixture must be evidence-ready');
+
+    const before = await getDriverJourneyBoard(driver.id);
+    assert.equal(
+      before.items.find((card) => card.tripId === trip.id)?.bucket,
+      'RUNNING',
+      'IN_TRANSIT + complete e-POD stays in Đã nhận',
+    );
+
+    // Completion — not the upload — is what files the card under Lịch sử.
+    await db.update(s.trips).set({ status: 'COMPLETED' }).where(eq(s.trips.id, trip.id));
+    const after2 = await getDriverJourneyBoard(driver.id);
+    assert.equal(
+      after2.items.find((card) => card.tripId === trip.id)?.bucket,
+      'HISTORY',
+      'COMPLETED → Lịch sử',
+    );
+
+    await db.delete(s.tripPodFiles).where(eq(s.tripPodFiles.submissionId, submission.id));
+    await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.id, submission.id));
+    await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, trip.id));
+  });
+});
+
+// Soft-deleted lots are purged from every other list surface. The board used
+// to keep serving cards for them, so a driver saw purged QA lots they could no
+// longer act on (staging: 4 of 5 cards for one driver).
+describe('journey-board soft-delete filter — tombstoned shipments never surface', () => {
+  test('a deleted shipment drops its card while the live sibling stays', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Xoá Mềm');
+    const tripArgs = {
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tripStatus: 'IN_TRANSIT' as const,
+    };
+    const live = await mkContainerTrip(tripArgs);
+    const purged = await mkContainerTrip(tripArgs);
+    await db.update(s.shipments)
+      .set({ deletedAt: new Date() })
+      .where(eq(s.shipments.id, purged.shipment.id));
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const tripIds = board.items.map((card) => card.tripId);
+    assert.ok(tripIds.includes(live.trip.id), 'live shipment card must stay on the board');
+    assert.ok(!tripIds.includes(purged.trip.id), 'soft-deleted shipment must not surface a card');
+  });
 });
 
 // One delivery-stage resolution shared by the journey card and the
@@ -356,7 +464,7 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
 // with the canonical IMPORT dropoff port retained even for same-place delivery.
 // EXPORT exposes a separate return stage only when different from delivery.
 describe('delivery-stage chain — card + detail share one resolution', () => {
-  test('IMPORT with distinct depot: snapshot site delivers, port becomes the return depot on both surfaces', async () => {
+  test('IMPORT: the drop is the port; the factory snapshot never takes HA', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
     const site = await mkSite(customer.id, 'Nhà máy Nhập Hàng');
     const depot = await mkPort('Bãi JJ LOGISTICS');
@@ -370,15 +478,15 @@ describe('delivery-stage chain — card + detail share one resolution', () => {
 
     const board = await getDriverJourneyBoard(driver.id);
     const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
-    assert.equal(card.dropPortName, 'Kho NEWEB-1', 'snapshot delivery site leads the card drop');
-    assert.equal(card.returnDepotName, 'Bãi JJ LOGISTICS', 'distinct depot port surfaces as the return depot');
+    assert.equal(card.dropPortName, 'Bãi JJ LOGISTICS', 'port leads; the factory snapshot never takes the drop label');
+    assert.equal(card.returnDepotName, null, 'Tra-rong row is dead - same place as the drop itself');
 
     const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
-    assert.equal(detail.deliveryLocation, 'Kho NEWEB-1', 'detail agrees with the card');
-    assert.equal(detail.returnDepotName, 'Bãi JJ LOGISTICS', 'detail return depot agrees with the card');
+    assert.equal(detail.deliveryLocation, 'Bãi JJ LOGISTICS', 'detail agrees with the card');
+    assert.equal(detail.returnDepotName, null, 'detail agrees: no second row for the same place');
   });
 
-  test('free-text deliveryLocation overrides the snapshot on both surfaces; depot still distinct', async () => {
+  test('free text carries the drop only when no port is recorded (port-first contract)', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
     const site = await mkSite(customer.id, 'Nhà máy Giao Hàng');
     const depot = await mkPort('Bãi Trả Rỗng');
@@ -392,11 +500,11 @@ describe('delivery-stage chain — card + detail share one resolution', () => {
 
     const board = await getDriverJourneyBoard(driver.id);
     const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
-    assert.equal(card.dropPortName, 'Điểm giao điều vận chỉ định', 'dispatcher free text wins over the snapshot');
-    assert.equal(card.returnDepotName, 'Bãi Trả Rỗng');
+    assert.equal(card.dropPortName, 'Bãi Trả Rỗng', 'the recorded port beats free text under the port-first rule');
+    assert.equal(card.returnDepotName, null);
     const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
-    assert.equal(detail.deliveryLocation, 'Điểm giao điều vận chỉ định');
-    assert.equal(detail.returnDepotName, 'Bãi Trả Rỗng');
+    assert.equal(detail.deliveryLocation, 'Bãi Trả Rỗng');
+    assert.equal(detail.returnDepotName, null);
   });
 
   test('EXPORT same place: port equals the delivery → one row, no return depot', async () => {
@@ -419,7 +527,7 @@ describe('delivery-stage chain — card + detail share one resolution', () => {
     assert.equal(detail.returnDepotName, null);
   });
 
-  test('DRV-R02 IMPORT retains a same-place canonical return port and never substitutes the factory for a missing port', async () => {
+  test('DRV-R02 IMPORT keeps the drop coherent: a same-place port collapses to one row; free text carries when no port exists', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
     const site = await mkSite(customer.id, 'Nhà máy nhập');
     const depot = await mkPort('Cảng giao và trả rỗng');
@@ -429,7 +537,7 @@ describe('delivery-stage chain — card + detail share one resolution', () => {
     const missing = await mkContainerTrip({ ...common, deliveryLocation: 'Nhà máy nhận hàng' });
     const board = await getDriverJourneyBoard(driver.id);
     for (const [fixture, expectedDepot, expectedDelivery] of [
-      [same, depot.name, depot.name], [missing, null, 'Nhà máy nhận hàng'],
+      [same, null, depot.name], [missing, null, 'Nhà máy nhận hàng'],
     ] as const) {
       const card = board.items.find((c) => c.fulfillmentId === fixture.fulfillment.id)!;
       assert.equal(card.returnDepotName, expectedDepot);

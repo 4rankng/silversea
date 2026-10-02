@@ -16,19 +16,21 @@ export const OPS_EXPENSE_SUGGESTIONS: ReadonlyArray<{ group: ExpenseCostGroup; n
   { group: 'INVOICED_DROP', names: ['Hạ vỏ', 'Hạ hàng', 'Lưu vỏ', 'Lưu bãi hạ'] },
   { group: 'INVOICED_OTHER', names: ['Hạ tầng công nghệ', 'Gia hạn', 'Vệ sinh', 'Soi chiếu', 'Kiểm hóa', 'Bốc xếp', 'Công nhân', 'Cơ sở hạ tầng', 'Lưu kho'] },
   { group: 'OPS_REGULAR', names: ['Làm hàng luồng xanh', 'Làm hàng luồng vàng', 'Làm hàng luồng đỏ', 'Chọn vỏ', 'Chi hải quan'] },
-  { group: 'OPS_INCIDENTAL', names: ['Sửa tờ khai', 'Ship Lạch Huyện', 'Chi công nhân', 'Ngoài giờ', 'Nợ phơi', 'Xe nâng', 'Kẹp chì hải quan', 'Bóc tem nguy hiểm'] },
+  { group: 'OPS_INCIDENTAL', names: ['Sửa tờ khai', 'Vận chuyển phát sinh', 'Chi công nhân', 'Ngoài giờ', 'Nợ phơi', 'Xe nâng', 'Kẹp chì hải quan', 'Bóc tem nguy hiểm'] },
 ];
-export const DRIVER_EXPENSE_SUGGESTIONS = [
-  { code: 'LIFT_DROP_ALLOWANCE', label: 'Phụ cấp nâng/hạ Lạch Huyện, TIL, Hateco', amount: 50000 },
-  { code: 'NIGHT_RETURN', label: 'Trả đêm', amount: 100000 },
-  { code: 'TURNAROUND', label: 'Chạy hàng quay đầu', amount: 100000 },
-  { code: 'OVERLOAD', label: 'Chạy quá tải', amount: 200000 },
-  { code: 'ICD_RELOCATION', label: 'Đảo chuyển ICD/Đăng Khoa', amount: 200000 },
-  { code: 'SUNDAY', label: 'Chạy chủ nhật', amount: 200000 },
-  { code: 'SHIFT', label: 'Lưu ca', amount: 200000 },
-  { code: 'SPECIAL_CONTAINER', label: 'Container 45HC / lạnh', amount: 200000 },
-] as const;
 export const expenseVndSchema = z.number().finite().int().min(0).max(999_999_999_999_999);
+/**
+ * Card 20260928_181 — a SIGNED expense amount. The PM rule lets an expense row
+ * carry a negative number, and such a row is then excluded from every total
+ * (see `sumExcludingNegative`). The constraints stay as tight as the unsigned
+ * schema: integer VND inside the money ceiling, with 0 rejected — 0 is an empty
+ * row, not a signed row. Use this ONLY for the amount of an expense line
+ * (trip expense buy amount, Ops expense amount, driver incidental amount);
+ * revenue, deposits, advances and voucher/treasury amounts keep `expenseVndSchema`.
+ */
+export const signedExpenseVndSchema = z.number().finite().int()
+  .min(-999_999_999_999_999).max(999_999_999_999_999)
+  .refine(value => value !== 0, 'Số tiền không được bằng 0.');
 export const expenseDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
@@ -42,7 +44,7 @@ export const expenseInputFields = {
 };
 export const expenseAccountingUpdateSchema = z.object({
   expectedVersion: z.number().int().positive(), reason: z.string().trim().min(1).max(1000),
-  ...expenseInputFields, amount: expenseVndSchema.refine(v => v > 0).optional(), customerChargeAmount: expenseVndSchema.optional(),
+  ...expenseInputFields, amount: signedExpenseVndSchema.optional(), customerChargeAmount: expenseVndSchema.optional(),
   expenseDate: expenseDateSchema.optional(), note: z.string().max(2000).nullable().optional(),
   payerKind: z.enum(['USER', 'COMPANY', 'SUPPLIER']).optional(), payerUserId: z.number().int().positive().nullable().optional(),
   photoStorageKeys: z.array(z.string().min(1).max(500)).max(20).optional(),
@@ -81,6 +83,10 @@ export interface ExpenseAccountingEntry {
   amount: number; customerChargeAmount: number | null; invoiceNumber: string | null; invoiceDate: string | null;
   expenseDate: string; payerKind: 'USER' | 'COMPANY' | 'SUPPLIER' | null; payerUserId: number | null;
   payerName: string | null; recordedById: number | null; confirmedById: number | null; confirmedAt: string | null;
+  /** Card 20260928_168 AC1 — who approved, resolved for display. The write path
+   *  stores only `confirmedById`; a reader that has the name fills it. Null when
+   *  the row is unapproved, so a UI must not read it as "approved by nobody". */
+  confirmedByName: string | null;
   note: string | null; recoveryNote: string | null; photoStorageKeys: string[];
   receivedAmount: number | null; paidAmount: number | null; outstandingReceivable: number | null; outstandingPayable: number | null;
   payableEntityType: 'FORWARDER' | 'DRIVER' | 'VENDOR' | 'CARRIER' | null; payableEntityId: number | null;
@@ -96,6 +102,7 @@ export interface ExpenseAccountingList {
   unknownReceivableCount: number; unknownPayableCount: number; canViewPayments: boolean;
 }
 export interface ExpenseVoucher {
+  reversal?: { valueDate: string; physicalReference: string; amount: number; reason: string | null; reversedById: number | null } | null;
   counterpartyName?: string | null; treasuryAccountName?: string | null;
   unappliedAmount?: number; paymentReceiptId?: number | null;
   id: number; code: string; direction: 'IN' | 'OUT'; treasuryAccountId: number; valueDate: string;
@@ -104,9 +111,11 @@ export interface ExpenseVoucher {
   entries: Array<ExpenseSourceRef & { amount: number }>;
 }
 export interface ExpenseReconciliation {
+  voidedAt?: string | null;
   id: number; code: string; opsUserId: number; from: string; to: string; amount: number; advanceAmount: number;
   initialDifference: number; paidAmount: number; refundedAmount: number; remainingDifference: number;
   entries: ExpenseSourceRef[]; createdAt: string; note: string | null;
+  advances?: Array<{ advanceRequestId: number; amount: number; reason: string | null }>;
 }
 export interface TruckAccountantAssignment {
   truckId: number; truckPlate: string; accountantId: number | null; accountantName: string | null;
@@ -114,8 +123,13 @@ export interface TruckAccountantAssignment {
 }
 
 export interface ExpenseWorkRow {
-  id: string; tripId: number | null; shipmentId: number; shipmentCode: string;
+  // shipmentCode carries a BUSINESS key (Số Booking/Bill) since the id-leak
+  // purge — id-derived codes are banned from display text. null = neither
+  // present → the UI renders '—'.
+  id: string; tripId: number | null; shipmentId: number; shipmentCode: string | null;
   scheduledAt: string | null; customerName: string; routeName: string | null;
+  factoryName: string | null;
+  roadBreakdown: { roadAllowance: number | null; shiftAllowance: number | null; toll: number | null; extra: number | null; tollBasis: 'ACTUAL' | 'ESTIMATED' | 'UNKNOWN'; sharedWithTripId: number | null };
   containerNumber: string | null; containerType: string | null; classification: string | null;
   liftLocation: string | null; dropLocation: string | null; carrierName: string | null;
   vehiclePlate: string | null; driverName: string | null; operationalNotes: string | null; driverNotes: string | null;
@@ -127,7 +141,11 @@ export interface ExpenseWorkList {
 }
 export const expenseAccountingCreateSchema = z.object({
   tripId: z.number().int().positive(), expenseTypeCode: z.string().trim().min(1).max(50),
-  amount: expenseVndSchema.refine(v => v > 0), customerChargeAmount: expenseVndSchema,
+  // Card 20260928_197 — the expense amount is SIGNED (card 20260928_181's
+  // `signedExpenseVndSchema`); every total that reads it drops negative rows
+  // via `sumExcludingNegative`. `customerChargeAmount` is the receivable side
+  // and stays unsigned — money owed by a customer is never negative.
+  amount: signedExpenseVndSchema, customerChargeAmount: expenseVndSchema,
   expenseDate: expenseDateSchema, costGroup: z.enum(EXPENSE_COST_GROUPS), feeName: z.string().trim().min(1).max(200),
   invoiceNumber: z.string().trim().max(100).nullable().optional(), invoiceDate: expenseDateSchema.nullable().optional(),
   payerKind: z.enum(['COMPANY', 'USER', 'SUPPLIER']), payerUserId: z.number().int().positive().nullable().optional(),

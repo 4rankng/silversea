@@ -8,7 +8,10 @@ import { AlertTriangle, Download, Phone, Building2, ArrowLeft, Plus, X, Loader2,
 import { useCustomerStatement, useSupplierStatement } from '../hooks/useQueries';
 import { api } from '../lib/api';
 import { Modal } from '../components/UI';
+import { FilterBar, Tabs } from '../design-system';
+import type { TabItem } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { FilterDropdown } from '../components/FilterDropdown';
 import { Tooltip } from '../components/shared/Tooltip';
 import AssetIcon from '../components/AssetIcon';
 import BillingDocumentsPanel from '../components/billing/BillingDocumentsPanel';
@@ -40,6 +43,7 @@ const AR_LEDGER_SORT_ACCESSORS = {
 import { coerceFiniteNumber, nextPaymentRequestKey, paymentDraftFingerprint, paymentResultMessage } from '../features/accounting/debt-payment-model';
 import { DualEntityLookupError, ReceivableLedgerRow, ReceivableLedgerCard } from '../features/accounting/receivable-ledger';
 import { LinkedSupplierPayableLedger, LEDGER_TIEBREAKER } from '../features/accounting/linked-supplier-payable';
+
 export default function DebtDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -248,11 +252,13 @@ export default function DebtDetailPage() {
   const oldestUnpaidTrip = unpaidTrips[0] ?? null;
   const activeAgingRange = activeAgingIdx >= 0 ? AGING_RANGES[activeAgingIdx] : null;
   const activeAgingAmount = activeAgingIdx >= 0 ? agingAmounts[activeAgingIdx] : 0;
-  const workspaceTabs: Array<{ key: WorkspaceTab; label: string; meta: string }> = [
-    { key: 'ledger', label: 'Chi tiết công nợ', meta: `${statement?.ledgerRows.length ?? 0} khoản phát sinh` },
-    { key: 'payments', label: 'Thanh toán', meta: hasDebt ? `${unpaidTrips.length} chuyến chưa thu` : 'Không còn nợ' },
-    { key: 'statement', label: 'Bảng kê', meta: 'Lập chứng từ thanh toán' },
-    { key: 'debit-note', label: 'Giấy báo nợ', meta: 'Nhắc nợ theo mẫu' },
+  // Workspace navigation — the shared boxed Tabs primitive (2026-09-27 ruling);
+  // each cell keeps its two lines (business name + secondary meta line).
+  const workspaceTabs: TabItem[] = [
+    { id: 'ledger', label: <>Chi tiết công nợ<small className="dd-workspace-tab__meta">{statement?.ledgerRows.length ?? 0} khoản phát sinh</small></> },
+    { id: 'payments', label: <>Thanh toán<small className="dd-workspace-tab__meta">{hasDebt ? `${unpaidTrips.length} chuyến chưa thu` : 'Không còn nợ'}</small></> },
+    { id: 'statement', label: <>Bảng kê<small className="dd-workspace-tab__meta">Lập chứng từ thanh toán</small></> },
+    { id: 'debit-note', label: <>Giấy báo nợ<small className="dd-workspace-tab__meta">Nhắc nợ theo mẫu</small></> },
   ];
 
   const openPaymentModal = () => {
@@ -559,21 +565,14 @@ export default function DebtDetailPage() {
             <span className="dd-panel-eyebrow">Hồ sơ khách hàng</span>
             <h2>Chi tiết & chứng từ công nợ</h2>
           </div>
-          <div className="dd-workspace-tabs" role="tablist" aria-label="Chọn nghiệp vụ công nợ">
-            {workspaceTabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={workspaceTab === tab.key}
-                className={`dd-workspace-tab${workspaceTab === tab.key ? ' dd-workspace-tab--active' : ''}`}
-                onClick={() => setWorkspaceTab(tab.key)}
-              >
-                <span>{tab.label}</span>
-                <small>{tab.meta}</small>
-              </button>
-            ))}
-          </div>
+          <Tabs
+            className="dd-workspace-tabs"
+            variant="boxed"
+            tabs={workspaceTabs}
+            value={workspaceTab}
+            onChange={(id) => setWorkspaceTab(id as WorkspaceTab)}
+            ariaLabel="Chọn nghiệp vụ công nợ"
+          />
         </div>
 
         <div className="dd-workspace-body">
@@ -649,33 +648,40 @@ export default function DebtDetailPage() {
                   <p>Toàn bộ cước, phí chi hộ, khoản đã thu và điều chỉnh của khách hàng.</p>
                 </div>
                 <span className="dd-cnt">{filteredRows.length} giao dịch</span>
-                <div className="dd-filters">
-                  {FILTER_OPTIONS.map(f => (
-                    <button
-                      key={f.key}
-                      className={`dd-filter-chip${ledgerFilter === f.key ? ' dd-filter-chip--on' : ''}`}
-                      onClick={() => setLedgerFilter(f.key)}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
               </div>
 
-              {/* Period filter + period summary (số dư đầu kỳ / phát sinh / cuối kỳ) */}
-              <PeriodFilter
-                mode={period.mode}
-                onModeChange={(m) => setPeriod(p => applyModeSwitch(p, m))}
-                month={period.month}
-                year={period.year}
-                onMonthYearChange={({ month, year }) => setPeriod(p => ({ ...p, month, year }))}
-                dateFrom={period.dateFrom}
-                dateTo={period.dateTo}
-                onRangeChange={(next) => setPeriod(p => ({ ...p, ...next }))}
-                onApply={() => setAppliedPeriod(period)}
-                isApplying={isStatementFetching}
-                isApplyDisabled={!isPeriodDirty || isStatementFetching}
-              />
+              {/* ONE filter plane (card 20260927_152): the shared `FilterBar` band
+                  hosts the period control as its primary criterion and the
+                  ledger's txn-type chips ride `Bộ lọc` (the page's only
+                  secondary criterion). */}
+              <FilterBar>
+                <PeriodFilter
+                  mode={period.mode}
+                  onModeChange={(m) => setPeriod(p => applyModeSwitch(p, m))}
+                  month={period.month}
+                  year={period.year}
+                  onMonthYearChange={({ month, year }) => setPeriod(p => ({ ...p, month, year }))}
+                  dateFrom={period.dateFrom}
+                  dateTo={period.dateTo}
+                  onRangeChange={(next) => setPeriod(p => ({ ...p, ...next }))}
+                  onApply={() => setAppliedPeriod(period)}
+                  isApplying={isStatementFetching}
+                  isApplyDisabled={!isPeriodDirty || isStatementFetching}
+                />
+                {/* `Bộ lọc` rides LAST: the item that arrives and leaves as the width changes. */}
+                <FilterDropdown
+                  count={ledgerFilter === 'all' ? 0 : 1}
+                  ariaLabel="Bộ lọc"
+                  dialogLabel="Bộ lọc giao dịch"
+                  onReset={() => setLedgerFilter('all')}
+                >
+                  {FILTER_OPTIONS.map(f => (
+                    <button key={f.key} type="button" aria-pressed={ledgerFilter === f.key}
+                      className={`filter-chip${ledgerFilter === f.key ? ' is-active' : ''}`}
+                      onClick={() => setLedgerFilter(f.key)}>{f.label}</button>
+                  ))}
+                </FilterDropdown>
+              </FilterBar>
               <PeriodSummaryCards
                 summary={statement?.periodSummary}
                 isLoading={isStatementFetching}

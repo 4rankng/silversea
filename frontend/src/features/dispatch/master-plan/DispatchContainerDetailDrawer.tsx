@@ -6,6 +6,7 @@ import { dispatchStatusLabel } from '../../shipments/cus/cusUtils';
 import { formatDateTime24 } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { Drawer } from '../../../components/UI';
+import { billBookingReference } from '../../../lib/business-reference';
 import './DispatchContainerDetailDrawer.css';
 
 function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }) {
@@ -60,11 +61,9 @@ function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }
 export function DispatchContainerDetailDrawer({
   shipment,
   onClose,
-  returnFocusTarget,
 }: {
   shipment: ShipmentListItem | null;
   onClose: () => void;
-  returnFocusTarget?: HTMLElement | null;
 }) {
   const [detail, setDetail] = useState<ShipmentCusWorkspaceDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,8 +89,10 @@ export function DispatchContainerDetailDrawer({
   }, [shipment]);
 
   const close = () => {
+    // Focus return on close is Drawer-owned (useAnimatedOverlay captures the
+    // opener when the sheet opens) — the bespoke returnFocusTarget plumbing
+    // was a second implementation of the same contract (card 20261001_251).
     onClose();
-    window.requestAnimationFrame(() => returnFocusTarget?.focus());
   };
 
   const retry = () => {
@@ -111,12 +112,12 @@ export function DispatchContainerDetailDrawer({
       });
   };
 
-  const label = shipment?.shipmentCode?.trim() || shipment?.blNumber?.trim() || shipment?.bookingRef?.trim() || 'Lô hàng';
+  const label = billBookingReference(shipment?.blNumber, shipment?.bookingRef);
   return (
     <Drawer
       isOpen={shipment != null}
       onClose={close}
-      title="Chi tiết cont"
+      title="Chi tiết container"
       subtitle={shipment ? `${label}${shipment.customerName ? ` · ${shipment.customerName}` : ''}` : undefined}
       className="dispatch-container-detail-drawer"
     >

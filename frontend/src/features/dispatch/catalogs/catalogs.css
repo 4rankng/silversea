@@ -56,39 +56,22 @@
   }
 }
 
-/* The card chrome would trap the table's sticky thead (overflow: hidden
-   creates a clipping context). Catalogs are unbounded worksheets like the
-   shipments pair: strip the clip and keep the sheet edge-to-edge. */
+/* Preserve sticky-header reach without replacing the house Panel surface. */
 .dispatch-catalogs .panel {
   overflow: visible;
-  border: 0;
-  border-top: 1px solid var(--border-1);
-  border-radius: 0;
-  background: transparent;
 }
 
-.dispatch-catalogs__toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.dispatch-catalogs__search {
-  flex: 1;
-  min-width: 220px;
-  max-width: 360px;
-}
-
+/* The catalog toolbar is the shared `ListFilterBar` (card 20260927_152), so this
+   sheet declares NO filter layout and no control width: `.dispatch-catalogs__toolbar`,
+   `.dispatch-catalogs__search` (`flex:1; max-width:360px` — a page cap above the
+   300px search ceiling) and `.dispatch-catalogs__search-wrap` are gone with the
+   bespoke row they sized, and the carrier criterion is content-sized by
+   ListFilterBar.css (a page `min(160px, 100%)` is exactly how a short-value
+   control gets pinned to the wrong width). The counter keeps its typography
+   only — the bar's own spacer + action cluster own where it sits. */
 .dispatch-catalogs__count {
-  margin-left: auto;
   font-size: var(--text-data-size);
   color: var(--fg-3);
-}
-
-.dispatch-catalogs__carrier-filter {
-  width: min(240px, 100%);
-  min-width: 0;
 }
 
 .dispatch-catalogs__table {
@@ -97,6 +80,10 @@
      these lookup tables are narrow enough to fit the viewport, so keep them
      unbounded like the other worksheet pages. */
   min-width: 0;
+  /* Card 20260922_22: columns size to their real content — persistently
+     empty columns hide at the component level (colPresence), so fixed
+     equal-split layout would waste the freed width. */
+  table-layout: auto;
   /* separate (not collapse) bounded worksheets keep the sticky thead's
      border-bottom rendering with the pinned cells. */
   border-collapse: separate;
@@ -128,6 +115,38 @@
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Identifier numbers must never wrap mid-digit (PRD §3: "các mã quan trọng
+   không bị cắt hoặc ngắt"). The normal/anywhere wrap above is for prose
+   columns; these data-label cells carry fixed-length identifiers and keep one
+   line — the auto table layout takes their width from the prose columns
+   (name, bank), which stay wrappable or capped below. */
+.dispatch-catalogs__table td[data-label="Mã tài xế"],
+.dispatch-catalogs__table td[data-label="Số CCCD"],
+.dispatch-catalogs__table td[data-label="GPLX"],
+.dispatch-catalogs__table td[data-label="Số điện thoại"],
+.dispatch-catalogs__table td[data-label="Số TK nhận tiền"] {
+  white-space: nowrap;
+}
+
+.dispatch-catalogs__table td[data-label="Mã tài xế"] .dispatch-catalogs__desktop-driver-code {
+  white-space: nowrap;
+}
+
+/* Trailer plates are single tokens like tractor plates (card 20260922_22:
+   content-sized auto layout with conditionally-hidden empty columns). */
+.dispatch-catalogs__table td[data-label="Rơ-moóc đang nối"] {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+/* Bank names are prose ("Ngoại thương Việt Nam (VCB)") — wrap them (card
+   20260922_37 no-truncation doctrine); the cell's title tooltip is a courtesy,
+   never the only copy. */
+.dispatch-catalogs__table td[data-label="Ngân hàng nhận tiền"] {
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -175,20 +194,19 @@
   padding: 10px 14px;
   border-radius: 10px;
   background: var(--danger-bg, rgba(220, 38, 38, 0.08));
-  color: var(--danger, #dc2626);
+  color: var(--danger);
   font-size: var(--text-caption-size);
 }
 
-/* Suppliers catalog pages via the design-system Pagination component; pin
-   it to the table's bottom edge like the other worksheet footers. */
+/* Suppliers catalog pages via the design-system Pagination component. The
+   pager stays IN FLOW after the table (card 20260921_22 surface sweep): a
+   sticky bottom pin floated it mid-list at rest over the rows. */
 .dispatch-catalogs .ds-pagination {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
+  position: static;
   margin: 0;
   padding: 12px;
   border-top: 1px solid var(--border-1);
-  background: var(--bg-1, #fff);
+  background: var(--bg-1);
 }
 
 @media (max-width: 900px) {
@@ -196,22 +214,10 @@
     min-height: var(--control-mobile-h);
   }
 
-  .dispatch-catalogs__toolbar {
-    align-items: stretch;
-  }
-
-  .dispatch-catalogs__search {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    flex-basis: 100%;
-  }
-
-  .dispatch-catalogs__carrier-filter { flex: 1 1 180px; }
-
-  .dispatch-catalogs__count {
-    margin-left: 0;
-  }
+  /* The toolbar's phone shape is the bar's own business (ListFilterBar.css): the
+     search grows to the slack its line leaves, every other control stays
+     content-sized and the lines pack 2-3 deep, so no page band may stretch a
+     control across the row. */
 
   .dispatch-catalogs__table {
     display: block;
@@ -239,7 +245,7 @@
     min-height: 44px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px 12px;
-    padding: 10px 0;
+    padding: 10px 12px;
     border: 0;
     border-bottom: 1px solid var(--border-1);
     border-radius: 0;
@@ -305,3 +311,41 @@
     background: transparent;
   }
 }
+
+/* License-expiry risk flags (card _44): oxblood for overdue, the lighter
+   bronze for the ≤30-day window; icon + text label so the signal never
+   rides on color alone (design-system risk contract). */
+.dispatch-catalogs__license-date { display: block; }
+
+.dispatch-catalogs__license-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: var(--text-caption-size, 11px);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dispatch-catalogs__license-flag--overdue { color: var(--danger); }
+
+.dispatch-catalogs__license-flag--soon { color: var(--warning); }
+
+/* ── Card 20260926_57 (chief spec) — 80px two-row command strip ── */
+.dispatch-catalogs__strip-head {
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  min-height: 36px;
+  flex-wrap: wrap;
+}
+
+.dispatch-catalogs__strip-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.dispatch-catalogs__strip-actions { margin-left: auto; display: flex; align-items: center; }

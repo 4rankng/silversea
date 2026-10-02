@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  background: var(--surface, #f5f7f6);
+  background: var(--surface);
 }
 
 .driver-trip-pod-main {
@@ -30,10 +30,10 @@
   gap: 10px;
   align-items: flex-start;
   padding: 10px 12px;
-  border: 1px solid var(--line-2, #d6dad5);
+  border: 1px solid var(--line-2);
   border-radius: 8px;
-  background: var(--surface, #fff);
-  color: var(--fg-1, #101510);
+  background: var(--surface);
+  color: var(--fg-1);
 }
 
 /* Brand accent uses the sanctioned status-strip pattern (centered ::before
@@ -46,12 +46,12 @@
   width: var(--status-strip-width);
   height: var(--status-strip-height);
   border-radius: var(--status-strip-radius);
-  background: var(--brand, #005a2d);
+  background: var(--brand);
   transform: translateY(-50%);
 }
 
 .driver-trip-pod-note > svg {
-  color: var(--brand, #005a2d);
+  color: var(--brand);
   flex: 0 0 auto;
   margin-top: 2px;
 }
@@ -89,14 +89,14 @@
   margin: 0 auto 8px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--danger, #c0392b) 10%, var(--surface, #fff));
-  color: var(--ink, #101510);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  color: var(--ink);
   box-shadow: 0 1px 0 var(--line, rgba(15, 23, 42, 0.08));
 }
 .driver-task-footer__conflict > svg {
   flex: 0 0 auto;
   margin-top: 1px;
-  color: var(--danger, #c0392b);
+  color: var(--danger);
 }
 .driver-task-footer__conflict-body {
   flex: 1 1 auto;
@@ -106,26 +106,26 @@
   display: block;
   font-size: var(--text-body-size);
   font-weight: 700;
-  color: var(--danger, #c0392b);
+  color: var(--danger);
   margin-bottom: 2px;
 }
 .driver-task-footer__conflict-body p {
   margin: 0;
   font-size: var(--text-body-size);
   line-height: 1.45;
-  color: var(--ink-2, #475467);
+  color: var(--ink-2);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .driver-task-footer__conflict-reload {
   flex: 0 0 auto;
   align-self: center;
-  min-height: 44px;
+  min-height: var(--control-h);
   padding: 0 14px;
   border-radius: 10px;
-  border: 1px solid var(--danger, #c0392b);
-  background: var(--surface, #fff);
-  color: var(--danger, #c0392b);
+  border: 1px solid var(--danger);
+  background: var(--surface);
+  color: var(--danger);
   font-weight: 600;
   font-size: var(--text-body-size);
   cursor: pointer;
@@ -133,8 +133,8 @@
 }
 .driver-task-footer__conflict-reload:hover,
 .driver-task-footer__conflict-reload:focus-visible {
-  background: var(--danger, #c0392b);
-  color: var(--surface, #fff);
+  background: var(--danger);
+  color: var(--surface);
 }
 @media (max-width: 480px) {
   .driver-task-footer__conflict {
@@ -145,14 +145,8 @@
   }
 }
 
-/* Below 1024px the fixed driver bottom-nav (60px + safe-area) sits over the
-   page footer at max scroll: the shell clearance is dropped for full-bleed
-   task screens (bottom-nav.css `:has()` rule owns shell padding at every
-   width), so the screen must clear the nav itself. Two-class selector wins
-   the cascade over `.driver-task-screen`'s 32px base padding regardless of
-   CSS import order. */
-@media (max-width: 1023px) {
-  .driver-trip-pod-screen.driver-task-screen {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px));
-  }
-}
+/* QA-2026-09-27-01: no nav reserve here. The driver bottom-nav is a flex
+   sibling of .app-body inside .app-main — it never overlays the scroll area —
+   and this screen's own completion footer is in normal flow too, so the 76px
+   strip only produced blank page below the footer. The screen keeps
+   `.driver-task-screen`'s authored 32px bottom padding. */

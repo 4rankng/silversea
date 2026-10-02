@@ -30,19 +30,27 @@ interface SelectValueProps {
     size: "sm" | "md" | "lg";
     isFocused: boolean;
     isDisabled: boolean;
+    isInvalid?: boolean;
     placeholder?: string;
     icon?: FC | ReactNode;
     triggerClassName?: string;
 }
 
-const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon, triggerClassName }: SelectValueProps) => {
+const SelectValue = ({ isOpen, isFocused, isDisabled, isInvalid, size, placeholder, icon, triggerClassName }: SelectValueProps) => {
     return (
         <AriaButton
             data-uui-control="select"
             data-control-size={size}
             className={cx(
-                "relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
-                (isFocused || isOpen) && "border-brand outline-2 outline-offset-1",
+                "relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear",
+                // Error wins over focus: a focused invalid control outlines red;
+                // the brand-green focus ring never co-renders with errors.
+                isInvalid && (isFocused || isOpen)
+                    ? "border-error outline-2 outline-offset-1 outline-error"
+                    : cx(
+                          "outline-focus-ring",
+                          (isFocused || isOpen) && "border-brand outline-2 outline-offset-1",
+                      ),
                 isDisabled && "cursor-not-allowed opacity-50",
                 triggerClassName,
             )}
@@ -112,7 +120,9 @@ const Select = ({ placeholder = "Select", icon, size = "md", children, items, la
                             </Label>
                         )}
 
-                        <SelectValue {...state} {...{ size, placeholder }} icon={icon} triggerClassName={rest.triggerClassName} />
+                        {/* isInvalid threaded explicitly: the render-prop state
+                            spread is not guaranteed to carry it. */}
+                        <SelectValue {...state} isInvalid={rest.isInvalid} {...{ size, placeholder }} icon={icon} triggerClassName={rest.triggerClassName} />
 
                         <Popover size={size} triggerRef={triggerRef} className={rest.popoverClassName}>
                             <AriaListBox items={items} className="size-full outline-hidden">

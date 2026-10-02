@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { TruckStatus, DriverStatus } from '@tingting/shared';
 import type { Truck, Driver, Trailer } from '@tingting/shared';
@@ -149,6 +149,23 @@ describe('FleetVehiclesView (dispatcher read-only)', () => {
     expect(screen.getByRole('button', { name: /thêm xe đầu kéo/i })).toBeTruthy();
   });
 
+  it('UI-CD-08 searches driver names and punctuation-free vehicle plates', () => {
+    fleetState.data = {
+      trucks: [truck({ licensePlate: '15H-052.82' })],
+      drivers: [driver({ name: 'Đinh Thanh Thịnh' })],
+    };
+    renderView();
+    const input = screen.getByRole('textbox', { name: 'Tìm biển số hoặc tài xế…' });
+    for (const query of ['dinh thanh thinh', '  DINH  Thanh  thinh  ', 'thinh 15H', '15h05282']) {
+      fireEvent.change(input, { target: { value: query } });
+      expect(screen.getByText('15H-052.82')).toBeInTheDocument();
+    }
+    fireEvent.change(input, { target: { value: 'khong-co-xe' } });
+    expect(screen.queryByText('15H-052.82')).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.getByText('15H-052.82')).toBeInTheDocument();
+  });
+
   it('creates a tractor through the form modal and refreshes catalogs', async () => {
     apiPost.mockReset();
     apiPost.mockResolvedValueOnce({});
@@ -164,5 +181,42 @@ describe('FleetVehiclesView (dispatcher read-only)', () => {
       licensePlate: '51H-777.77',
     })));
     await waitFor(() => expect(invalidateAllCatalogs).toHaveBeenCalled());
+  });
+
+  it('renders the shared filter plane — counter and reset ride the bar, no page-local toolbar', () => {
+    fleetState.data = { trucks: [truck()], drivers: [driver()] };
+    const { container } = renderView();
+
+    const bar = container.querySelector<HTMLElement>('.filter-bar.filter-bar--card.list-filter-bar');
+    expect(bar).toBeTruthy();
+    expect(container.querySelector('.dispatch-catalogs__toolbar')).toBeNull();
+    expect(screen.getByText('1/1 xe')).toBeTruthy();
+
+    // The carrier criterion is the bar's own item, the reset is the bar's page
+    // action — the same writers, a new plane.
+    expect(within(bar!).getByRole('button', { name: /Lọc theo nhà xe/ })).toBeTruthy();
+    expect(within(bar!).queryByRole('button', { name: /Xóa lọc/ })).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm biển số hoặc tài xế…' }), { target: { value: '51H' } });
+    expect(within(bar!).getByRole('button', { name: /Xóa lọc/ })).toBeTruthy();
+  });
+
+  it('keeps filtering rows by the owning carrier', async () => {
+    apiGet.mockResolvedValue({ items: [{ id: 7, name: 'Nhà xe Bảy' }], nextCursor: null });
+    fleetState.data = {
+      trucks: [
+        truck({ id: 1, licensePlate: '51H-111.11', carrierId: 7 }),
+        truck({ id: 2, licensePlate: '51H-222.22', carrierId: null }),
+      ],
+      drivers: [],
+    };
+    renderView();
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('EXTERNAL_CARRIER')));
+    fireEvent.click(screen.getByRole('button', { name: /Lọc theo nhà xe/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Nhà xe Bảy' }));
+
+    await waitFor(() => expect(screen.queryByText('51H-222.22')).toBeNull());
+    expect(screen.getByText('51H-111.11')).toBeTruthy();
+    expect(screen.getByText('1/2 xe')).toBeTruthy();
   });
 });

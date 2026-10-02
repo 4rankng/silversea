@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Truck, Container, UserCheck, Download, CheckCircle } from "lucide-react";
 import { downloadCSV } from "../lib/csv";
+import { useToast } from "../components/shared/Toast";
 import { PageHeader, Btn, KPI } from "../components/UI";
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useCRUD } from "../hooks/useCRUD";
@@ -22,6 +23,7 @@ import { TruckCard } from '../features/fleet/truck-card';
 import { DriverCard } from '../features/fleet/driver-card';
 
 export default function FleetPage() {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const { rootRef } = usePageAnimations({ ready: true });
   const fleetQuery = useTrucksAndDrivers();
@@ -112,6 +114,7 @@ export default function FleetPage() {
                   columnTypes: ["text", "text", "text", "text"],
                   hideTotals: true,
                 });
+                toast({ kind: 'success', message: 'Đã xuất danh sách đội xe' });
               }}
             >
                 Xuất Excel

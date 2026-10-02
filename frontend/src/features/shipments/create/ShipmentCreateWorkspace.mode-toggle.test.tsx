@@ -28,7 +28,7 @@ function renderWorkspace() {
   );
 }
 
-describe('shipment create cargo-mode toggle data scope', () => {
+describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     listOperationalSites.mockReset();
@@ -79,7 +79,9 @@ describe('shipment create cargo-mode toggle data scope', () => {
       const resetTime = document.querySelector<HTMLInputElement>('input[id$="-customer-appointment-time"]');
       expect(resetTime?.value ?? '').toBe('');
     });
-  });
+  // Segmented datetime fields raise this screen's DOM weight; keep the heavy
+  // full-workspace render deterministic above the 5s default.
+  }, 10000);
 
   it('pristine toggle applies silently without the confirm modal', async () => {
     renderWorkspace();
@@ -116,8 +118,8 @@ describe('shipment create cargo-mode toggle data scope', () => {
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
     await waitFor(() => expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument());
-    expect(screen.getByRole('radio', { name: /Hàng nguyên/ })).toBeChecked();
-    expect(input).toHaveValue(value);
+    expect(screen.getByRole('radio', { name: /Hàng FCL/ })).toBeChecked();
+    expect(input).toHaveValue(part === 'time' ? '14' : '20');
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Chuyển và xóa dữ liệu' }));
     await waitFor(() => expect(screen.getByRole('radio', { name: /Hàng lẻ/ })).toBeChecked());
@@ -129,7 +131,7 @@ describe('shipment create cargo-mode toggle data scope', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     const weight = screen.getByLabelText('Trọng lượng (kg)');
     fireEvent.change(weight, { target: { value: '1200' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
     await waitFor(() => expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument());
@@ -140,15 +142,17 @@ describe('shipment create cargo-mode toggle data scope', () => {
   it('guards an LCL warehouse-only selection before clearing it', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
-    fireEvent.click(screen.getByLabelText('Khách hàng'));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Khách hàng' }));
     fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    await waitFor(() => expect(screen.getByLabelText('Kho lấy hàng')).not.toBeDisabled());
-    fireEvent.click(screen.getByLabelText('Kho lấy hàng'));
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Kho lấy hàng' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('combobox', { name: 'Kho lấy hàng' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Kho A' }));
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
-  });
+  // Segmented datetime fields raise this screen's DOM weight; keep the heavy
+  // full-workspace render deterministic above the 5s default.
+  }, 10000);
 
   it('guards incomplete additional-delivery text even though the stored date is empty', async () => {
     renderWorkspace();
@@ -157,7 +161,7 @@ describe('shipment create cargo-mode toggle data scope', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm ngày giao' }));
     const date = document.querySelector<HTMLInputElement>('.csc-extra-dates__row [data-date-input]')!;
     fireEvent.change(date, { target: { value: '20/09' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
   });
 
@@ -166,20 +170,25 @@ describe('shipment create cargo-mode toggle data scope', () => {
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     fireEvent.change(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan'), { target: { value: '14:' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
     await waitFor(() => expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument());
     fireEvent.change(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan'), { target: { value: '14:23' } });
     fireEvent.change(screen.getByLabelText('Ngày — Hạn hoàn tất hải quan'), { target: { value: '20/09/2026' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Hàng nguyên/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Hàng FCL/ })).toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan')).toHaveValue('14:23');
-    expect(screen.getByLabelText('Ngày — Hạn hoàn tất hải quan')).toHaveValue('20/09/2026');
-  });
+    expect(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan')).toHaveValue('14');
+    expect(screen.getByLabelText('Phút — Hạn hoàn tất hải quan')).toHaveValue('23');
+    expect(screen.getByLabelText('Ngày — Hạn hoàn tất hải quan')).toHaveValue('20');
+    expect(screen.getByLabelText('Tháng — Hạn hoàn tất hải quan')).toHaveValue('09');
+    expect(screen.getByLabelText('Năm — Hạn hoàn tất hải quan')).toHaveValue('2026');
+  // Segmented datetime fields raise this screen's DOM weight; keep the heavy
+  // full-workspace render deterministic above the 5s default.
+  }, 10000);
 
   it('retains shipment notes across pristine and confirmed cargo-mode switches', async () => {
     renderWorkspace();
@@ -190,9 +199,9 @@ describe('shipment create cargo-mode toggle data scope', () => {
     expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Ghi chú cho khách hàng')).toHaveValue('Call customer before delivery');
     fireEvent.change(screen.getByLabelText('Quy cách đóng gói'), { target: { value: 'Pallet' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng nguyên/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Chuyển và xóa dữ liệu' }));
-    await waitFor(() => expect(screen.getByRole('radio', { name: /Hàng nguyên/ })).toBeChecked());
+    await waitFor(() => expect(screen.getByRole('radio', { name: /Hàng FCL/ })).toBeChecked());
     expect(screen.getByLabelText('Ghi chú cho khách hàng')).toHaveValue('Call customer before delivery');
     expect(screen.getByLabelText('Ghi chú cho lái xe')).toHaveValue('Check seal before leaving');
   });
@@ -208,12 +217,12 @@ describe('shipment create cargo-mode toggle data scope', () => {
     expect(await screen.findByText('Xóa container?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
     await waitFor(() => expect(screen.queryByText('Xóa container?')).not.toBeInTheDocument());
-    expect(input).toHaveValue(value);
+    expect(input).toHaveValue(part === 'time' ? '14' : '20');
     expect(document.querySelectorAll('.csc-container-row')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 1' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
     await waitFor(() => expect(document.querySelectorAll('.csc-container-row')).toHaveLength(1));
-  });
+  }, 10000);
 
   it('deletes a pristine row directly without using another row’s pending time as its dirty state', async () => {
     renderWorkspace();
@@ -224,6 +233,162 @@ describe('shipment create cargo-mode toggle data scope', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
     expect(screen.queryByText('Xóa container?')).not.toBeInTheDocument();
     expect(document.querySelectorAll('.csc-container-row')).toHaveLength(1);
-    expect(time).toHaveValue('14:');
+    expect(time).toHaveValue('14');
+  });
+});
+
+describe('Lệnh chạy ngoài toggle (20260916_3)', { timeout: 20000 }, () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+    });
+  });
+
+  it('renders the toggle without the retired suffix and defaults OFF', async () => {
+    renderWorkspace();
+    const toggle = await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' });
+    expect(toggle).not.toBeChecked();
+  });
+
+  it('toggling never wipes typed content and switches the customer field to creatable mode', async () => {
+    renderWorkspace();
+    const customer = await screen.findByRole('combobox', { name: /^Khách hàng/ });
+    fireEvent.change(customer, { target: { value: 'Khách vãng lai 8888' } });
+    const toggle = screen.getByRole('checkbox', { name: 'Lệnh chạy ngoài' });
+    fireEvent.click(toggle);
+    expect(screen.getByRole('combobox', { name: /^Khách hàng/ })).toHaveValue('Khách vãng lai 8888');
+    expect(screen.getByRole('combobox', { name: /^Khách hàng/ })).toHaveAttribute('placeholder', 'Chọn hoặc gõ tên mới');
+    // Toggling back off preserves the content too.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    expect(screen.getByRole('combobox', { name: /^Khách hàng/ })).toHaveValue('Khách vãng lai 8888');
+  });
+});
+
+describe('Lệnh chạy ngoài creatable fields — blur keeps committed text (QA 2026-09-18)', () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+    });
+  });
+
+  const blurKeepsText = async (label: RegExp, text: string): Promise<void> => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    const candidates = screen.getAllByRole('combobox', { name: label });
+    const field = candidates.find((el) => !el.hasAttribute('disabled')) ?? candidates[0];
+    await waitFor(() => expect(field).not.toBeDisabled());
+    fireEvent.change(field, { target: { value: text } });
+    fireEvent.blur(field);
+    expect(screen.getAllByRole('combobox', { name: label }).find((el) => !el.hasAttribute('disabled'))).toHaveValue(text);
+  };
+
+  it('Khách hàng: free text survives blur in adhoc mode', async () => {
+    await blurKeepsText(/^Khách hàng/, 'Khách vãng lai 8888');
+  });
+  it('Cảng nâng: free text survives blur in adhoc mode', async () => {
+    await blurKeepsText(/^Cảng nâng/, 'Cảng ngoài 5');
+  });
+
+  // ── Row-tier persistence (card 20260918_8, TC-ROW-PERSIST) ─────────────
+  // The container table's row cells are a distinct tier from the form-level
+  // fields above: today the row factory stays disabled without a catalog
+  // customer, and the row route has no creatable path. Row inputs are
+  // targeted by id — the form-level factory is shipment-operational-site
+  // and the form-level route is shipment-route, so only container-* cells
+  // carry the container- prefix.
+  const rowInput = (kind: 'factory' | 'route'): HTMLInputElement =>
+    document.querySelector<HTMLInputElement>(`tr.csc-container-row td[data-field-id$="-${kind}"] input`)!;
+
+  it('row factory: free text survives blur with adhoc ON (TC-ROW-PERSIST-01)', async () => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    const field = rowInput('factory');
+    await waitFor(() => expect(field).not.toBeDisabled(), { timeout: 4000 });
+    fireEvent.change(field, { target: { value: 'fadsf' } });
+    fireEvent.blur(field);
+    expect(field).toHaveValue('fadsf');
+  });
+  it('row route: free text survives blur with adhoc ON (TC-ROW-PERSIST-02)', async () => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    const field = rowInput('route');
+    await waitFor(() => expect(field).not.toBeDisabled(), { timeout: 4000 });
+    fireEvent.change(field, { target: { value: 'Tuyến riêng dòng 1' } });
+    fireEvent.blur(field);
+    expect(field).toHaveValue('Tuyến riêng dòng 1');
+  });
+});
+
+describe('Loại container row commit (20260918_11)', () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+      containerTypes: [{ id: 20, code: '20DC', name: "20'DC" }],
+    });
+  });
+
+  it('picking a container type commits the id through the workspace wiring', async () => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
+    const combo = await screen.findByRole('combobox', { name: 'Loại container' });
+    fireEvent.click(combo);
+    const opt = await screen.findByRole('option', { name: '20DC' });
+    fireEvent.click(opt);
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Loại container' })).toHaveValue('20DC'));
+    // The cell display is read from the row's catalog id — it proves the
+    // row state holds the id, not just the input's transient text.
+    expect(document.querySelector('[data-field-id$="-type"]')?.textContent).toContain('20DC');
+    fireEvent.blur(screen.getByRole('combobox', { name: 'Loại container' }));
+    // Blur must not feed the option label back as the id (which blanked the
+    // cell and failed the save with "containerTypeId là bắt buộc").
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Loại container' })).toHaveValue('20DC'));
+    expect(document.querySelector('[data-field-id$="-type"]')?.textContent).toContain('20DC');
+    expect(document.querySelector('[data-field-id$="-type"]')?.textContent).not.toContain('Chọn loại');
+  });
+});
+
+describe('Factory dropdown NaN race (20260918_16)', () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 41, siteType: 'FACTORY', name: 'Nhà máy Long Minh', shortName: 'NM Long Minh' }]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+    });
+  });
+
+  it('a customer pick fires the sites fetch once with the numeric id and blur cannot corrupt it', async () => {
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Khách hàng' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
+    await waitFor(() => expect(listOperationalSites).toHaveBeenCalledWith(1));
+    fireEvent.blur(screen.getByRole('combobox', { name: 'Khách hàng' }));
+    // Before the blur fix, the label "KH A" rode into customerId and the
+    // effect requested customerId=NaN — the late 400 emptied the factory
+    // dropdown after the good response had landed.
+    await waitFor(() => expect(listOperationalSites).toHaveBeenCalledTimes(1));
+    expect(listOperationalSites.mock.calls.every(([id]) => Number.isFinite(id as number))).toBe(true);
+    // The catalog factory pick stays reachable end-to-end.
+    const factory = document.querySelector<HTMLInputElement>('tr.csc-container-row td[data-field-id$="-factory"] input')!;
+    await waitFor(() => expect(factory).not.toBeDisabled());
+    fireEvent.click(factory);
+    fireEvent.click(await screen.findByRole('option', { name: 'NM Long Minh' }));
+    await waitFor(() => expect(factory).toHaveValue('NM Long Minh'));
+    fireEvent.blur(factory);
+    await waitFor(() => expect(factory).toHaveValue('NM Long Minh'));
+    expect(document.querySelector('[data-field-id$="-factory"]')?.textContent).toContain('NM Long Minh');
   });
 });

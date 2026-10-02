@@ -25,7 +25,7 @@
 }
 
 /* Compact operational fields retain the mobile touch target below 641px. */
-.searchable-select__trigger--sm {
+.searchable-select .searchable-select__trigger--sm {
   min-height: var(--control-compact-h);
   height: var(--control-compact-h);
   padding: 0 10px;
@@ -42,6 +42,13 @@
 
 .searchable-select__placeholder {
   color: var(--ink-3);
+}
+
+/* Required mark (card 20260926_51 settlement toolbar): amber asterisk inside
+   the trigger, ahead of placeholder/value copy. */
+.searchable-select__req {
+  color: var(--color-warning-ink, #b45309);
+  font-weight: 700;
 }
 
 .searchable-select__chevron {
@@ -69,7 +76,14 @@
   background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: var(--r);
+  /* Card 20260927_152: anchored at every width, and invisible until the
+     positioning pass has written real coordinates. Before that the custom
+     properties above fall back to 0 and the panel would paint in the
+     top-left corner (the operator's 2026-09-27 complaint). */
+  visibility: hidden;
 }
+
+.searchable-select__popover[data-positioned='true'] { visibility: visible; }
 
 .searchable-select__backdrop { display: none; }
 
@@ -78,7 +92,8 @@
   align-items: center;
   gap: 8px;
   position: relative;
-  padding: 10px 12px;
+  min-height: var(--control-max-h);
+  padding: 0 12px;
   color: var(--ink-3);
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
@@ -102,6 +117,14 @@
   color: var(--ink-3);
 }
 
+/* Search chrome owns its bottom border. Its native input stays inside that
+   boundary, including the shell's coarse-pointer native input minimum. */
+:is(#root, body) .searchable-select__search-input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']) {
+  min-height: 0;
+  height: calc(var(--control-max-h) - 1px);
+  padding-block: 0;
+}
+
 .searchable-select__close {
   display: none;
 }
@@ -120,8 +143,8 @@
   display: flex;
   align-items: flex-start;
   width: 100%;
-  min-height: 42px;
-  padding: 10px 10px 10px 6px;
+  min-height: var(--control-max-h);
+  padding: 8px 10px 8px 6px;
   color: var(--ink-2);
   font: inherit;
   font-size: var(--control-field-font-size);
@@ -238,7 +261,7 @@
 }
 
 @media (max-width: 640px) {
-  .searchable-select__trigger--sm {
+  .searchable-select .searchable-select__trigger--sm {
     min-height: var(--control-mobile-h);
     height: var(--control-mobile-h);
     padding: 0 8px;
@@ -256,24 +279,14 @@
     cursor: default;
   }
 
-  .searchable-select__popover {
-    position: fixed;
-    z-index: var(--z-popover, 400);
-    top: max(72px, env(safe-area-inset-top));
-    right: 8px;
-    left: 8px;
-    width: auto;
-    min-width: 0;
-    max-width: calc(100vw - 16px);
-    max-height: min(70dvh, 560px, calc(100dvh - max(72px, env(safe-area-inset-top)) - 16px));
-    border-radius: 16px;
-    box-shadow: 0 20px 48px rgba(10, 31, 19, 0.22);
-    animation: searchableSelectSheetIn 180ms ease-out both;
-    transform: none;
-  }
+  /* 2026-09-27 (card 20260927_152): the ≤640px top-pinned sheet — a fixed
+     origin near the safe-area top with `right`/`left: 8px` — is DELETED, because
+     it painted the picker over the page header instead of under the trigger the
+     operator pressed. The panel is anchored to its trigger at every width now,
+     so this band keeps only the touch sizing of the shared chrome. */
 
   .searchable-select__search {
-    min-height: 48px;
+    min-height: var(--control-max-h);
     padding-right: 56px;
   }
 
@@ -283,8 +296,8 @@
     top: 50%;
     transform: translateY(-50%);
     display: inline-grid;
-    width: 44px;
-    height: 44px;
+    width: var(--control-max-h);
+    height: var(--control-max-h);
     place-items: center;
     margin: 0;
     padding: 0;
@@ -304,14 +317,15 @@
   .searchable-select__close:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
   .searchable-select__option {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     font-size: var(--text-input-touch-size);
   }
 }
 
 @media (pointer: coarse) {
-  .searchable-select__trigger,
-  .searchable-select__trigger--sm,
+  .searchable-select { --control-mobile-h: var(--control-touch-h); }
+  .searchable-select .searchable-select__trigger,
+  .searchable-select .searchable-select__trigger--sm,
   .searchable-select__clear-button,
   .searchable-select__load-more button,
   .searchable-select__multi-clear-all {
@@ -330,57 +344,18 @@
   }
 }
 
-@keyframes searchableSelectSheetIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+/* The `searchableSelectSheetIn` slide-up animation is deleted with the
+   ≤640px top-pinned sheet it belonged to (card 20260927_152): the panel is
+   anchored to its trigger at every width, so it has no sheet story to tell. */
 
-/* Multi-select trigger: chip row inside the picker button. */
-.searchable-select__trigger-chips {
-  display: flex;
+/* Multi-select names and removal controls live in the checked option list.
+   Its one trigger presents an atomic count, never nested interactive chips. */
+.searchable-select__selection-count {
   flex: 1;
-  flex-wrap: wrap;
-  gap: 4px;
   min-width: 0;
-  align-items: center;
-}
-
-.searchable-select__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 4px 2px 8px;
-  background: color-mix(in srgb, var(--brand) 12%, transparent);
-  color: var(--brand);
-  border-radius: 999px;
-  font-size: var(--text-caption-size);
+  color: var(--ink);
   font-weight: 600;
-  max-width: 100%;
-}
-
-.searchable-select__chip-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.searchable-select__chip-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  color: inherit;
-  background: transparent;
-  border: 0;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.searchable-select__chip-remove:hover {
-  background: color-mix(in srgb, var(--brand) 22%, transparent);
 }
 
 .searchable-select__multi-footer {

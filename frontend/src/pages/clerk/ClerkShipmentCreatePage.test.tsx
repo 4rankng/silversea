@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   createRoute: vi.fn(),
   createCustomer: vi.fn(),
   createContainerType: vi.fn(),
+  createSite: vi.fn(),
 }));
 
 vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
@@ -40,6 +41,7 @@ vi.mock('../../api/configClient', () => ({
 vi.mock('../../api/shipmentClient', () => ({
   quickCreateShipment: mocks.quickCreate,
   listOperationalSites: mocks.sites,
+  createOperationalSite: mocks.createSite,
   saveShipmentContainers: mocks.saveContainers,
   createShipmentDeclaration: mocks.createDeclaration,
   updateShipmentDeclaration: mocks.updateDeclaration,
@@ -62,6 +64,7 @@ vi.mock('../../components/UI', async () => {
 });
 
 import ClerkShipmentCreatePage from './ClerkShipmentCreatePage';
+import { configure } from '@testing-library/react';
 
 const longCustomerName = 'Công ty Cổ phần Vận tải và Logistics Biển Bắc';
 
@@ -120,7 +123,19 @@ async function choose(label: string, value: string) {
   await waitFor(() => expect(document.querySelector(`[role="option"][id$="-option-${value}"]`)).toBeNull());
 }
 
-describe('ClerkShipmentCreatePage', () => {
+// 2026-09-22 (FE item-6 audit, LEAD ruling): rotating ~5s-timeout flake at
+// fresh checkouts under machine load — 45 tests × heavy workspace imports.
+// Per-file timeout budget, NOT a suite-lightening: assertions unchanged.
+// Card 20260930_237: async queries (findBy*) ride the 1s Testing Library
+// default, which loses races across this file's combobox interaction chains
+// under ambient box load. Per-file async budget, same query contracts.
+configure({ asyncUtilTimeout: 15000 });
+
+// Card 20260930_237: the rotating-flake family re-measured — members cost
+// 5.0-9.3s solo (SEARCH-09 cases) and trip the 15s budget under ambient box
+// load. Budget raised to 30s, still per-file; the three heaviest chains
+// carry their own 60s contracts below.
+describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   beforeEach(() => {
     Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: vi.fn().mockImplementation(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })) });
     Object.values(mocks).forEach((mock) => mock.mockReset());
@@ -184,15 +199,49 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    expect(screen.getByText('Hàng nguyên container (Cont)')).toBeTruthy();
-    expect(screen.getByText('Hàng lẻ')).toBeTruthy();
-    // No customer-facing FCL/LCL jargon anywhere on the create form.
-    expect(screen.queryByText(/FCL|LCL/)).toBeNull();
+    // Card 20260930_237 async budget + card 20260930_241 rider (be86e189,
+    // user directive): the Loại hàng control reads 'Hàng FCL' — the lengthy
+    // 'Hàng nguyên container (Cont)' copy is retired, so the old no-FCL-jargon
+    // assertion is superseded by the approved short copy below. Wire values
+    // stay FCL/LCL (asserted via the payload below).
+    expect(await screen.findByText('Hàng FCL')).toBeTruthy();
+    expect(await screen.findByText('Hàng lẻ')).toBeTruthy();
 
     await choose('Khách hàng', '7');
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalled());
     expect(mocks.quickCreate.mock.calls[0][0].cargoMode).toBe('FCL');
+  });
+
+  it('renders one data-flag checkbox treatment and states why Bill/Booking is locked', async () => {
+    const { container } = renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+
+    // Card 20260922_31: every boolean data flag on the form — Lệnh chạy
+    // ngoài, Có cược container, Đóng kết hợp — wears the SAME plain inline
+    // checkbox treatment, and no other flag treatment survives in the DOM.
+    const flagLabels = Array.from(container.querySelectorAll('label.csc-flag-checkbox'));
+    expect(flagLabels.map((label) => label.textContent?.trim())).toEqual([
+      'Lệnh chạy ngoài',
+      'Có cược container',
+      'Đóng kết hợp',
+    ]);
+    expect(flagLabels.every((label) => label.querySelector('input[type="checkbox"]') !== null)).toBe(true);
+    expect(container.querySelectorAll('.csc-combined-toggle, .csc-adhoc-toggle, .csc-adhoc-toggle--chip')).toHaveLength(0);
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(flagLabels.length);
+
+    // The required Bill/Booking field is locked before a trade direction is
+    // picked — and says why, instead of sitting there silently disabled.
+    const booking = container.querySelector<HTMLInputElement>('[data-field-id="shipment-booking-ref"] input');
+    expect(booking?.disabled).toBe(true);
+    expect(container.querySelector('[data-field-id="shipment-booking-ref"]')?.textContent)
+      .toContain('Chọn Hình thức xuất nhập khẩu trước');
+
+    // Choosing the direction unlocks the field and retires the reason.
+    await choose('Hình thức xuất nhập khẩu', 'EXPORT');
+    await waitFor(() => expect(booking?.disabled).toBe(false));
+    expect(container.querySelector('[data-field-id="shipment-booking-ref"]')?.textContent)
+      .not.toContain('Chọn Hình thức xuất nhập khẩu trước');
   });
 
   it('labels notes by recipient and sends driver notes through the canonical API field', async () => {
@@ -470,7 +519,10 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Khách hàng', '7');
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ customerId: 7, cargoMode: 'FCL' }), expect.any(String)));
-    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+    // Card 20260930_237: the post-create shipment-list render rides the 1s
+    // default findBy budget and lost that race under parallel load; explicit
+    // 15s polling budget, same element contract.
+    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
   });
 
   it('VID-CUS-04: creates the initial declaration atomically without a second declaration write', async () => {
@@ -481,7 +533,10 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-ATOMIC' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ declarationNumber: 'TK-ATOMIC' }), expect.any(String)));
-    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+    // Card 20260930_237: the post-create shipment-list render rides the
+    // 1s default findBy budget and lost that race once under four-file
+    // parallel load; explicit 15s polling budget, same element contract.
+    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
     expect(mocks.createDeclaration).not.toHaveBeenCalled();
     expect(mocks.updateDeclaration).not.toHaveBeenCalled();
   });
@@ -500,8 +555,11 @@ describe('ClerkShipmentCreatePage', () => {
 
     expect(screen.getAllByLabelText('Số container').map((field) => (field as HTMLInputElement).value)).toEqual(['MSCU6639870', '']);
     expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000']);
-    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09:30', '09:30']);
-    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['20/08/2026', '20/08/2026']);
+    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09', '09']);
+    expect(screen.getAllByLabelText('Phút — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['30', '30']);
+    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['20', '20']);
+    expect(screen.getAllByLabelText('Tháng — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['08', '08']);
+    expect(screen.getAllByLabelText('Năm — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['2026', '2026']);
   });
 
   it('removes the FCL shipment-level factory/route section and keeps each container route independent', async () => {
@@ -523,12 +581,146 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.getByText('Cát Lái — Sóng Thần', { selector: '.csc-container-cell__display' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ routeId: null, operationalSiteId: null }),
+      expect.objectContaining({ routeId: null, operationalSiteId: null, containers: [expect.objectContaining({ routeId: 11, operationalSiteId: 41 })] }),
       expect.any(String),
     ));
-    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
-      containers: [expect.objectContaining({ routeId: 11, operationalSiteId: 41 })],
-    })));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
+  });
+
+  it('TC-CUS-FACTORY-SEARCH-02 searches the factory code and saves the selected factory ID', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    await choose('Khách hàng', '7');
+    const factory = screen.getByRole('combobox', { name: 'Nhà máy' });
+    fireEvent.focus(factory);
+    fireEvent.keyDown(factory, { key: 'ArrowDown' });
+    fireEvent.change(factory, { target: { value: '  nm01  ' } });
+    const option = await screen.findByRole('option', { name: /Nhà máy Long Minh/ });
+    // The code still MATCHES the query but is no longer rendered in the option:
+    // the search chain bloated every row of the dropdown (20260917_13).
+    expect(option).not.toHaveTextContent('NM01');
+    expect(factory).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(option);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })] }),
+      expect.any(String),
+    ));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
+  });
+
+  // Card 20260930_237: the customer-change → factory/route clear-down chain
+  // measured 18.0s in a full run, and this file's heavy combobox family
+  // reaches 25.0s solo (VID replace=true). Explicit 60s contract (~2.4x
+  // the solo peak, the house drawer-deadline ratio).
+  it('TC-CUS-FACTORY-SEARCH-05 clears each previous factory and its derived route when customer changes', { timeout: 60000 }, async () => {
+    mocks.bootstrap.mockResolvedValue({
+      ...bootstrap,
+      customers: [...bootstrap.customers, { id: 8, name: 'Khách hàng khác' }],
+    });
+    mocks.sites.mockImplementation((id: number) => Promise.resolve(id === 7 ? sites : []));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    await choose('Khách hàng', '7');
+    await choose('Nhà máy', '41');
+    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect(screen.getAllByRole('combobox', { name: 'Nhà máy' })).toHaveLength(2);
+    await choose('Khách hàng', '8');
+    for (const factory of screen.getAllByRole('combobox', { name: 'Nhà máy' })) {
+      expect(factory).toHaveValue('');
+    }
+    for (const route of screen.getAllByRole('combobox', { name: 'Tuyến đường' })) {
+      expect(route).toHaveValue('');
+      expect(route).not.toBeDisabled();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ containers: [
+        expect.objectContaining({ operationalSiteId: null, routeId: null }),
+        expect.objectContaining({ operationalSiteId: null, routeId: null }),
+      ] }),
+      expect.any(String),
+    ));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
+  });
+
+  it('TC-CUS-FACTORY-SEARCH-07 preserves the factory catalog and selection when the same customer is selected again', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    await choose('Khách hàng', '7');
+    await choose('Nhà máy', '41');
+    await choose('Khách hàng', '7');
+
+    const factory = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    expect(factory).toHaveValue('Nhà máy Long Minh');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toBeDisabled();
+    // Reopen and select again to prove the catalog still exists, rather
+    // than only asserting a stale selected label that survives an empty list.
+    await choose('Nhà máy', '41');
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })] }),
+      expect.any(String),
+    ));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
+  });
+
+  it('TC-CUS-FACTORY-SEARCH-08 clears the LCL factory-derived route when customer changes', async () => {
+    mocks.bootstrap.mockResolvedValue({
+      ...bootstrap,
+      customers: [...bootstrap.customers, { id: 8, name: 'Khách hàng khác' }],
+    });
+    mocks.sites.mockImplementation((id: number) => Promise.resolve(id === 7 ? sites : []));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await choose('Khách hàng', '7');
+    await choose('Nhà máy', '41');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cát Lái — Sóng Thần');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toBeDisabled();
+
+    await choose('Khách hàng', '8');
+    expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 8, cargoMode: 'LCL', operationalSiteId: null, routeId: null,
+    }), expect.any(String)));
+  });
+
+  it.each(['FCL', 'LCL'])('TC-CUS-FACTORY-SEARCH-08 preserves a manually selected %s route when customer changes', async (mode) => {
+    mocks.bootstrap.mockResolvedValue({
+      ...bootstrap,
+      customers: [...bootstrap.customers, { id: 8, name: 'Khách hàng khác' }],
+      routes: [...bootstrap.routes, { id: 12, name: 'Cái Mép — Mỹ Phước' }],
+    });
+    mocks.sites.mockImplementation((id: number) => Promise.resolve(id === 7
+      ? [{ ...sites[0], routeId: null }]
+      : []));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    if (mode === 'LCL') fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await choose('Khách hàng', '7');
+    await choose('Nhà máy', '41');
+    await choose('Tuyến đường', '12');
+
+    await choose('Khách hàng', '8');
+    expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cái Mép — Mỹ Phước');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    if (mode === 'LCL') {
+      await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
+        customerId: 8, operationalSiteId: null, routeId: 12,
+      }), expect.any(String)));
+    } else {
+      await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
+        containers: [expect.objectContaining({ operationalSiteId: null, routeId: 12 })],
+      }), expect.any(String)));
+    }
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
   });
 
   it('shows a resting container value as table text and activates its editor from the full cell', async () => {
@@ -611,8 +803,11 @@ describe('ClerkShipmentCreatePage', () => {
     expect(displayedValue('Cảng ICD Sóng Thần')).toBeTruthy();
     expect(displayedValue('Nhà máy Long Minh')).toBeTruthy();
     expect(displayedValue('12.000,5')).toBeTruthy();
-    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('09:30');
-    expect(screen.getByLabelText('Ngày — Ngày giờ đóng trả')).toHaveValue('20/08/2026');
+    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('09');
+    expect(screen.getByLabelText('Phút — Ngày giờ đóng trả')).toHaveValue('30');
+    expect(screen.getByLabelText('Ngày — Ngày giờ đóng trả')).toHaveValue('20');
+    expect(screen.getByLabelText('Tháng — Ngày giờ đóng trả')).toHaveValue('08');
+    expect(screen.getByLabelText('Năm — Ngày giờ đóng trả')).toHaveValue('2026');
     expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả').closest('td')).toHaveClass('csc-container-cell--persistent');
   });
 
@@ -651,8 +846,11 @@ describe('ClerkShipmentCreatePage', () => {
 
     expect(screen.getAllByLabelText('Số container')).toHaveLength(4);
     expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000', '12000', '12000']);
-    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09:30', '09:30', '09:30', '09:30']);
-    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('20/08/2026'));
+    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('09'));
+    expect(screen.getAllByLabelText('Phút — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('30'));
+    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('20'));
+    expect(screen.getAllByLabelText('Tháng — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('08'));
+    expect(screen.getAllByLabelText('Năm — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('2026'));
 
     fireEvent.change(addCount, { target: { value: '0' } });
     expect(screen.getByRole('button', { name: 'Thêm container' })).toBeDisabled();
@@ -687,27 +885,34 @@ describe('ClerkShipmentCreatePage', () => {
   // TC-CUS-CREATE-020: Loại container gets a "+ Thêm" sibling so CUS can
   // extend the container-type catalog inline from the create-shipment form
   // without bouncing out to /config/container-types.
-  it('creates a new container type from the FCL cell add button and selects it into the row', async () => {
+  it('creates a new container type from the FCL cell dropdown create option and selects it into the row', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
-    // Find the Loại container cell, then its sibling "Thêm" button.
+    // Type into the Loại container combobox: the create option lives at the
+    // end of the listbox (2026-09-20 card 20260920_26 — no row "+ Thêm").
     const typeCell = screen.getByRole('combobox', { name: /Loại container/ }).closest('td')!;
-    const addButton = within(typeCell as HTMLElement).getByRole('button', { name: 'Thêm loại container' });
-    fireEvent.click(addButton);
+    const combobox = within(typeCell as HTMLElement).getByRole('combobox', { name: /Loại container/ });
+    fireEvent.focus(combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+    fireEvent.change(combobox, { target: { value: '45HC' } });
+
+    const createOption = await screen.findByRole('option', { name: /Thêm loại/ }, { timeout: 3000 });
+    fireEvent.click(createOption);
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm loại container' });
 
     // react-aria in jsdom can produce label/input id mismatches that defeat
     // getByLabelText inside a custom Modal mock. Target the input by walking
-    // the label's `for` attribute instead — that path is stable. We match
-    // the label text by prefix because required fields append a "*" marker
-    // inside an aria-hidden span.
+    // the label's `for` attribute, but fall back to containment inside the
+    // CURRENT dialog node — the create-option flow re-mounts the dialog
+    // (initialCode effect) and react-aria rotates the generated ids, so a
+    // document-wide getElementById can land on an unrelated field.
     function setFieldByLabel(container: HTMLElement, labelText: string, value: string) {
       const label = Array.from(container.querySelectorAll('label')).find((el) => el.textContent?.trim().startsWith(labelText));
       if (!label) throw new Error(`Không tìm thấy label "${labelText}"`);
-      const id = label.getAttribute('for');
-      const input = id ? document.getElementById(id) : null;
+      const scoped = label.closest('div')?.querySelector('input');
+      const input = scoped ?? document.getElementById(label.getAttribute('for') ?? '');
       if (!input) throw new Error(`Không tìm thấy input cho label "${labelText}"`);
       fireEvent.change(input, { target: { value } });
     }
@@ -720,7 +925,12 @@ describe('ClerkShipmentCreatePage', () => {
       name: "Container 45' High Cube",
     });
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm loại container' }));
+    // Re-mount-safe submit: the initialCode effect re-renders the dialog, so
+    // find the submit button through a fresh query at click time. Query the
+    // button directly — with the row "+ Thêm" removed, the dialog's submit is
+    // the only element carrying this accessible name (the Modal mock can
+    // leave the dialog itself aria-hidden in jsdom).
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm loại container', hidden: true }));
 
     await waitFor(() => expect(mocks.createContainerType).toHaveBeenCalledWith({
       code: '45HC',
@@ -785,11 +995,16 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '13:3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     expect(mocks.quickCreate).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('13:3');
+    // The partial draft stays visible across the hour/minute segments.
+    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('13');
+    expect(screen.getByLabelText('Phút — Ngày giờ đóng trả')).toHaveValue('3');
     expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toBeInvalid();
   });
 
-  it('persists an FCL appointment as the shipment dispatch-date authority', async () => {
+  // Card 20260930_237: the FCL appointment persistence chain measured
+  // 15.8s in a full run; explicit 60s contract per the file's heavy
+  // interaction family (solo peak in that family: 25.0s).
+  it('persists an FCL appointment as the shipment dispatch-date authority', { timeout: 60000 }, async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
@@ -802,18 +1017,25 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
     fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '15/08/2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
-    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
-      containers: [expect.objectContaining({
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ containers: [expect.objectContaining({
         containerNumber: null,
         customerAppointmentAt: '2026-08-15T09:30:00+07:00',
-      })],
-    })));
+      })] }),
+      expect.any(String),
+    ));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ tradeDirection: 'IMPORT' });
     expect(mocks.quickCreate.mock.calls[0][0].expectedDeliveryDate).toBeUndefined();
-    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+    // Card 20260930_237: the post-create shipment-list render rides the 1s
+    // default findBy budget and lost that race under parallel load; explicit
+    // 15s polling budget, same element contract.
+    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
   });
 
-  it.each([false, true])('VID-CUS-SELECT-02 saves cleared or replacement IDs without stale selections (replace=%s)', async (replace) => {
+  // Card 20260930_237: replace=true measures 21.0-25.0s SOLO and both
+  // cases hit 15.4-18.2s in full runs — a 30s contract already missed once
+  // under ambient box load. Explicit 60s contract (~2.4x the solo peak).
+  it.each([false, true])('VID-CUS-SELECT-02 saves cleared or replacement IDs without stale selections (replace=%s)', { timeout: 60000 }, async (replace) => {
     mocks.bootstrap.mockResolvedValue({ ...bootstrap, routes: [...bootstrap.routes, { id: 12, name: 'Tuyến thay thế' }], ports: [...bootstrap.ports, { id: 23, name: 'Cảng nâng thay thế' }, { id: 24, name: 'Cảng hạ thay thế' }] });
     mocks.sites.mockResolvedValue([...sites, { ...sites[0], id: 43, name: 'Nhà máy thay thế', routeId: null }]);
     renderPage();
@@ -843,8 +1065,12 @@ describe('ClerkShipmentCreatePage', () => {
     const expected = replace
       ? { operationalSiteId: 43, routeId: 12, pickupPortId: 23, dropoffPortId: 24 }
       : { operationalSiteId: null, routeId: null, pickupPortId: null, dropoffPortId: null };
-    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({ containers: [expect.objectContaining(expected)] })));
-    expect(await screen.findByTestId('shipment-list')).toBeTruthy();
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ containers: [expect.objectContaining(expected)] }), expect.any(String)));
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
+    // Card 20260930_237: the post-create shipment-list render rides the 1s
+    // default findBy budget and lost that race under parallel load; explicit
+    // 15s polling budget, same element contract.
+    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
   });
 
   it('opens a confirmation before discarding entered data and creates nothing', async () => {
@@ -872,5 +1098,36 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Thêm nhà máy/ })[0]);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
     expect(within(dialog).getByLabelText('Mã điểm vận hành')).toBeTruthy();
+  });
+
+  it.each([
+    { mode: 'FCL', siteType: 'FACTORY', label: 'Nhà máy', action: 'Thêm nhà máy' },
+    { mode: 'LCL', siteType: 'FACTORY', label: 'Nhà máy', action: 'Thêm nhà máy' },
+    { mode: 'LCL', siteType: 'WAREHOUSE', label: 'Kho lấy hàng', action: 'Thêm kho' },
+  ])('TC-CUS-FACTORY-SEARCH-09 immediately selects a created $mode $siteType before catalog reload', async ({ mode, siteType, label, action }) => {
+    const created = { ...sites[0], id: 43, code: 'NEW43', name: 'Điểm vận hành mới', shortName: 'Điểm mới', siteType, routeId: siteType === 'FACTORY' ? 11 : null };
+    mocks.createSite.mockResolvedValue(created);
+    mocks.sites.mockResolvedValueOnce(sites).mockImplementation(() => new Promise(() => {}));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    if (mode === 'LCL') fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await choose('Khách hàng', '7');
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${action}`) }));
+    const dialog = await screen.findByRole('dialog', { name: new RegExp(`^${action}`) });
+    fireEvent.change(within(dialog).getByLabelText('Mã điểm vận hành'), { target: { value: created.code } });
+    fireEvent.change(within(dialog).getByLabelText('Tên đầy đủ'), { target: { value: created.name } });
+    fireEvent.change(within(dialog).getByLabelText('Tên ngắn'), { target: { value: created.shortName } });
+    fireEvent.change(within(dialog).getByLabelText('Địa chỉ'), { target: { value: created.address } });
+    if (siteType === 'FACTORY') {
+      fireEvent.click(within(dialog).getByRole('button', { name: /Tuyến đường/ }));
+      fireEvent.click(await screen.findByRole('option', { name: 'Cát Lái — Sóng Thần' }));
+    }
+    fireEvent.click(within(dialog).getByRole('button', { name: action }));
+    await waitFor(() => expect(mocks.createSite).toHaveBeenCalledWith(expect.objectContaining({ customerId: 7, siteType })));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('combobox', { name: new RegExp(`^${label}`) })).toHaveValue(created.shortName);
+    if (siteType === 'FACTORY') {
+      expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cát Lái — Sóng Thần');
+    }
   });
 });

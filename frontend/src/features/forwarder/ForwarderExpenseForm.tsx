@@ -10,6 +10,7 @@ import {
   isSyntheticLclContainer,
   type ForwarderContainer,
 } from './forwarder-trip-detail-sections';
+import { formatMoney } from '../../lib/format';
 
 export interface ForwarderExpenseFormProps {
   controller: ForwarderExpenseFormController;
@@ -105,8 +106,8 @@ export function ForwarderExpenseForm({
           )}
           {isLiftExpense && !liftPriceStatus.isFetching && suggestedLiftPrice > 0 && (
             <span className="fwd-price-hint">
-              Áp tự động {suggestedLiftPrice.toLocaleString('vi-VN')} VNĐ
-              {liftPriceDelta !== 0 ? ` · chênh ${liftPriceDelta > 0 ? '+' : ''}${liftPriceDelta.toLocaleString('vi-VN')} VNĐ` : ''}
+              Áp tự động {formatMoney(suggestedLiftPrice)} VNĐ
+              {liftPriceDelta !== 0 ? ` · chênh ${liftPriceDelta > 0 ? '+' : ''}${formatMoney(liftPriceDelta)} VNĐ` : ''}
             </span>
           )}
           {isLiftExpense && liftPriceStatus.manualSource && (
@@ -139,7 +140,7 @@ export function ForwarderExpenseForm({
               setSettlementMethod(v);
             }}
             options={[
-              { value: 'FORWARDER_ADVANCE', label: 'Chi hộ tạm ứng' },
+              { value: 'OPS_ADVANCE', label: 'Chi hộ tạm ứng' },
               { value: 'COMPANY_DIRECT', label: 'Công ty trả trực tiếp' },
             ]}
           />
@@ -359,8 +360,8 @@ export function ForwarderExpenseForm({
                 </div>
                 {expenseErrors.evidence && <div className="field-error">{expenseErrors.evidence}</div>}
                 <div className="fwd-evidence-hint">
-                  Ngưỡng hiện tại: {noInvoiceLimits.perItem.toLocaleString('vi-VN')} đ/khoản,
-                  {' '}{noInvoiceLimits.perDay.toLocaleString('vi-VN')} đ/người/ngày.
+                  Ngưỡng hiện tại: {formatMoney(noInvoiceLimits.perItem)} đ/khoản,
+                  {' '}{formatMoney(noInvoiceLimits.perDay)} đ/người/ngày.
                   Nếu chọn ảnh hiện trường, hãy lưu xong rồi tải ảnh lên ngay dưới dòng chi phí.
                 </div>
               </>

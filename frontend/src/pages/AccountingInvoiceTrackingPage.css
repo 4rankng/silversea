@@ -1,0 +1,157 @@
+/* Card 20260921_18 — invoice tracking page styles. House tokens, house density.
+ *
+ * Card 20260929_ivt (redesign) — the page-local presentation layer is
+ * retired:
+ *   · the whole `.invoice-tracking-table` skin (border/skin, the 14
+ *     `nth-child` column floors, `min-width: 1350px`, the token-nowrap and
+ *     text-wrap groups, the ≤640px floor) is DELETED — the board rides the
+ *     shared base (`styles/record-table.css` + `operational-table-typography.css`),
+ *     which owns cell padding, hairlines, thead skin, wrapping and the
+ *     container-query record cards;
+ *   · the private `@container (max-width: 900px)` collapse is DELETED — the
+ *     shared band (`@container (max-width: 1100px)`) is the one card
+ *     vocabulary;
+ *   · the hand-rolled `<header>` band (`.invoice-tracking-header*`) and its KPI
+ *     ribbon (`.invoice-tracking-kpi*`, `.ivt-money*`) are DELETED — the page
+ *     header is `PageHeader` and the Σ strip is `SummaryRail`;
+ *   · `.invoice-tracking-empty` is DELETED (a page-local `*empty*` class);
+ *     empty and loading render the shared `EmptyState` / `SkeletonTable`
+ *     outside the table.
+ * Nothing here restyles the table's shape — no skin, no column tracks, no
+ * breakpoint, no scroll wrapper. What remains is the stacked-cell furniture,
+ * two word-boundary wrap rules (headers, amount cells), the progress control's
+ * width and the modal form.
+ */
+
+.invoice-tracking-page {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 40px;
+}
+
+/* Column headers wrap at word boundaries only — "SỐ TIỀN / TRẢ", never
+   "SỐ TIỀ / N TRẢ". The board's long data tokens need the base's
+   break-anywhere, but a header is a short label that keeps its words whole
+   (the same rule the shipment ledger and the dispatch grids carry). */
+.invoice-tracking-page .record-table thead th {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+/* Amount cells keep their digits whole — "8.000.000" wrapped against its "₫"
+   (the shared Money sub-caption rhythm) rather than "8.000 / .000 / ₫".
+   Measured on the 1112px desktop canvas (1440 viewport): under the base's
+   break-anywhere the two amount columns land at 61/74px and the
+   thousand-separated digits split mid-number, which reads as a wrong figure
+   on an accounting board. Breaking only at word boundaries costs +15px of row
+   height (measured 111/142 → 126/157) and needs ~100px of min-content per
+   amount column, which the 1112px canvas has. Scoped by `data-label` to the
+   two amount cells — the shape the container ledger uses for its non-wrapping
+   container code — so no `nth-child` column floor comes back. */
+.invoice-tracking-page .record-table td[data-label="Số tiền trả"],
+.invoice-tracking-page .record-table td[data-label="Chênh lệch"] {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+.invoice-tracking-alert {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  color: var(--danger);
+}
+
+/* Stacked cell furniture: the lot cell (mã lô over khách hàng) and the
+   invoice cell (số hóa đơn over số tiền) stack two facts in one cell.
+   Wrapping is the shared base's business — no cell here may declare it. */
+.ivt-stack {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ivt-stack__primary {
+  font-weight: var(--fw-semibold, 600);
+}
+
+.ivt-stack__sub {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 12px);
+}
+
+/* Sizes the shared progress select inside its cell; the control's own skin is
+   the design system's (`ds-uui-select`). */
+.invoice-tracking-progress {
+  min-width: 96px;
+}
+
+/* Two 30px icon buttons stay on one line — a control pair cannot wrap. */
+.invoice-tracking-actions {
+  white-space: nowrap;
+}
+
+/* Modal form */
+
+.invoice-tracking-form {
+  display: grid;
+  gap: 12px;
+}
+
+.invoice-tracking-lot-picker {
+  display: grid;
+  gap: 6px;
+}
+
+.ivt-lot-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ivt-lot-results li + li {
+  border-top: 1px solid var(--line);
+}
+
+.ivt-lot-results button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ivt-lot-results button:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+}
+
+.invoice-tracking-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.ivt-hint {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 12px);
+}
+
+.ivt-hint--error {
+  color: var(--danger);
+}
+
+.invoice-tracking-form__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

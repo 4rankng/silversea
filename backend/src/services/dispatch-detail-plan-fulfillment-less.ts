@@ -25,6 +25,7 @@ import {
   CUSTOMER_OPERATIONAL_NAME,
   ROUTE_OPERATIONAL_NAME,
   buildPattern,
+  dispatchDetailDataStatusSql,
   shipmentQSearchPredicate,
 } from './dispatch-planning-utils.service';
 import * as s from '../db/schema';
@@ -36,6 +37,8 @@ import { runInTx } from '../lib/tx';
 export interface FulfillmentLessFilters {
   q?: string;
   date?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
   direction?: string | null;
   pickupIds?: number[] | null;
   dropoffIds?: number[] | null;
@@ -44,6 +47,18 @@ export interface FulfillmentLessFilters {
   hourTo?: number | null;
   zone?: string | null;
   assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED' | null;
+  /** Exact-match customer scope (card 20260926_50 ribbon combobox). */
+  customerId?: number | null;
+  /** COMPLETE/MISSING intake-data predicate (card 20260926_50 ribbon select). */
+  dataStatus?: 'COMPLETE' | 'MISSING' | null;
+  /** Card 20260927_61: assignment-scoped filters — this branch is inherently
+   *  unassigned, so any of them (other than the route) empties it. */
+  truckPlate?: string | null;
+  driverId?: number | null;
+  carrierClass?: 'OWN' | 'EXTERNAL' | null;
+  trailerType?: string | null;
+  /** Route of the LOT — this branch DOES carry route parity. */
+  routeId?: number | null;
 }
 
 const TRANSPORT_DATE_SQL = sql<string>`coalesce(
@@ -71,6 +86,8 @@ export function buildFulfillmentLessConditions(filters: FulfillmentLessFilters, 
     accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
     filters.direction ? eq(s.shipments.tradeDirection, filters.direction as 'IMPORT' | 'EXPORT') : undefined,
     filters.date ? sql`${TRANSPORT_DATE_SQL} = ${filters.date}` : undefined,
+    filters.dateFrom ? sql`${TRANSPORT_DATE_SQL} >= ${filters.dateFrom}` : undefined,
+    filters.dateTo ? sql`${TRANSPORT_DATE_SQL} <= ${filters.dateTo}` : undefined,
     filters.pickupIds ? inArray(s.shipmentContainers.pickupPortId, filters.pickupIds) : undefined,
     filters.dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, filters.dropoffIds) : undefined,
     filters.deliveryPointIds ? inArray(s.shipments.operationalSiteId, filters.deliveryPointIds) : undefined,
@@ -80,13 +97,28 @@ export function buildFulfillmentLessConditions(filters: FulfillmentLessFilters, 
       exists (select 1 from ${s.ports} pz where pz.id = ${s.shipmentContainers.pickupPortId} and pz.dispatch_zone = ${filters.zone} and pz.deleted_at is null)
       or exists (select 1 from ${s.ports} pz where pz.id = ${s.shipmentContainers.dropoffPortId} and pz.dispatch_zone = ${filters.zone} and pz.deleted_at is null)
     )` : undefined,
+    // Card 20260926_50 ribbon parity: exact customer scope and the shared
+    // COMPLETE/MISSING intake-data predicate.
+    filters.customerId ? eq(s.shipments.customerId, filters.customerId) : undefined,
+    filters.dataStatus ? dispatchDetailDataStatusSql(filters.dataStatus) : undefined,
+    // Card 20260927_61 route parity: the lot route (same FCL fallback as the
+    // rows join below), lot-first per ruling.
+    filters.routeId ? sql`exists (select 1 from ${s.routes} r where r.id = (case when ${s.shipments.cargoMode} = 'FCL'
+      then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
+      else ${s.shipments.routeId} end) and r.id = ${filters.routeId})` : undefined,
     shipmentQSearchPredicate(buildPattern(filters.q), { containerNumber: true }),
   ].filter((c): c is SQL => c != null);
 }
 
-/** The branch is inherently unassigned — an ASSIGNED filter empties it. */
+/** The branch is inherently unassigned — an ASSIGNED filter or any
+ *  assignment-scoped _61 filter (plate/driver/carrier class/trailer type)
+ *  empties it; the route filter keeps it (route parity is real here). */
 function branchActive(filters: FulfillmentLessFilters): boolean {
-  return filters.assignmentStatus !== 'ASSIGNED';
+  return filters.assignmentStatus !== 'ASSIGNED'
+    && filters.truckPlate == null
+    && filters.driverId == null
+    && filters.carrierClass == null
+    && filters.trailerType == null;
 }
 
 export async function listFulfillmentLessReadyRows(
@@ -111,6 +143,7 @@ export async function listFulfillmentLessReadyRows(
       plannedVehiclePlateNumber: sql<null>`null`,
       plannedRevenue: sql<null>`null`,
       plannedCarrierCost: sql<null>`null`,
+      plannedEndAt: sql<null>`null`,
       classification: sql<string>`'SINGLE'`,
       shipmentContainerId: s.shipmentContainers.id,
       siteSnapshot: sql<null>`null`,

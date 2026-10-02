@@ -23,7 +23,8 @@
  *   </div>
  *
  * Contract (see styles/selection-state-contract.styles.test.ts):
- *   - no fixed heights, no internal scroll wrappers — .app-body scrolls;
+ *   - no fixed heights; .app-body owns vertical scrolling;
+ *   - explicit wide-text adoption may use the shared horizontal scroll boundary;
  *   - hover is a neutral ink wash, gated to fine pointers;
  *   - selection is a structural edge (inset ink shadow), never an accent fill.
  */
@@ -36,6 +37,13 @@
      sticky thead can pin against the app-body scrollport. */
   overflow: visible;
   border-top: 1px solid var(--line);
+}
+
+/* Explicit wide-text adoption: one natural-height boundary, never a page
+   table floor or another nested wrapper. The usual record band still owns
+   narrow canvases; only genuine desktop width excess scrolls here. */
+.record-table-wrap--scroll {
+  overflow-x: auto;
 }
 
 .record-table {
@@ -66,7 +74,15 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-strong);
   white-space: normal;
-  overflow-wrap: anywhere;
+  /* A header label is a single token ("STT", "CONTAINER", "LỊCH TRÌNH") and
+     must never be chopped mid-word — the defect QA filed as the shattered
+     "CONTAINER" header (card 20260922_54), which three pages have been
+     patching locally ever since (.ppc-board, .shipment-debit-table,
+     .invoice-tracking-table). The inherited `anywhere` emergency break made
+     the header's min-content one CHARACTER, so a narrow column shredded it.
+     Law §4: single-token values EXPAND — the column sizes to the label. */
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .record-table tbody td {
@@ -82,12 +98,33 @@
   overflow-wrap: anywhere;
 }
 
+/* Semantic opt-ins: human text keeps a readable intrinsic column, while a
+   long business reference wraps completely instead of starving its neighbors. */
+.record-table tbody td.record-table__text {
+  min-width: 18ch;
+}
+
+.record-table__reference {
+  display: inline-block;
+  width: max-content;
+  min-inline-size: 12ch;
+  max-inline-size: 20ch;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* Numeric columns pair with the <Money>/formatCurrency conventions. The
    bundled Be Vietnam Pro carries proportional figures only — align by
    right edge, never force tabular-nums (font-family contract test). */
 .record-table .num {
   text-align: right;
   font-family: var(--font-data);
+}
+
+/* Row ordinals are atomic numeric values, including compact record headers. */
+.record-table tbody td[data-label='STT'] {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* A record is not itself an action. Restrict the quiet desktop scan aid to
@@ -153,8 +190,25 @@
   .record-table tbody td {
     display: block;
     min-width: 0;
-    padding: 10px 14px;
+    /* Desktop token cells may stay on one line. In a record card their label
+       shares the cell with the value, so the shared band must allow wrapping
+       before either crosses the paired fact's divider. Money owns its own
+       atomic inner boundary; ordinary date characters have no break spaces. */
+    white-space: normal;
+    /* Data-dense card (operator 2026-09-27: "redesign this to fit data dense UI
+       philosophy", the config catalogue cards in the screenshot): the label rides
+       the value's line and the rhythm is the control scale, not the table's. */
+    padding: 5px 12px;
     border: 0;
+  }
+
+  .record-table tbody td.record-table__text {
+    min-width: 0;
+  }
+
+  .record-table__reference {
+    min-inline-size: 0;
+    max-inline-size: 100%;
   }
 
   /* The primary identity cell and the action bar span the full card width.
@@ -191,9 +245,13 @@
     border-top: 1px solid var(--line);
   }
 
+  /* Dense fact row: `NGÀY HIỆU LỰC  16/01/2100` on ONE line. The label used to
+     own a block line above every value, which made a four-fact card 230px tall
+     for four short facts. It stays a caption (11px, uppercase, muted) but flows
+     inline before the value, so a fact costs one line instead of two. */
   .record-table tbody td::before {
-    display: block;
-    margin-bottom: 4px;
+    display: inline;
+    margin: 0 6px 0 0;
     color: var(--fg-3);
     content: attr(data-label);
     font-size: var(--text-label-size);

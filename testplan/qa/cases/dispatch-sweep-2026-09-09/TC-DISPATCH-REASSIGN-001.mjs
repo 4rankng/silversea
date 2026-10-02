@@ -7,6 +7,7 @@ export const role = 'DISPATCHER';
 
 export default async function (ctx) {
   const { page } = ctx;
+  const envTag = `[${ctx.env.env}]`;
   await ctx.goto('/dispatch-detail');
   await page.waitForSelector('.dispatch-assignment-cell__trigger', { timeout: 30000 });
   await new Promise((r) => setTimeout(r, 2000));
@@ -40,7 +41,7 @@ export default async function (ctx) {
   if (!trigger) {
     return {
       verdict: 'BLOCKED',
-      errors: ['Không tìm thấy ô điều phối nào có trạng thái Phân xe lại trước khi chuyến xuất phát'],
+      errors: [`${envTag} Không tìm thấy ô điều phối nào có trạng thái Phân xe lại trước khi chuyến xuất phát`],
     };
   }
 
@@ -56,7 +57,7 @@ export default async function (ctx) {
   });
 
   if (!isReassignDialog) {
-    return { verdict: 'FAIL', errors: ['Modal mở lên không phải là modal Phân xe lại'] };
+    return { verdict: 'FAIL', errors: [`${envTag} Modal mở lên không phải là modal Phân xe lại`] };
   }
 
   // Select "Xe ngoài" (EXTERNAL)
@@ -139,7 +140,7 @@ export default async function (ctx) {
   });
 
   if (!submitClicked) {
-    return { verdict: 'FAIL', errors: ['Nút "Xác nhận phân xe lại" bị disabled hoặc không tìm thấy'] };
+    return { verdict: 'FAIL', errors: [`${envTag} Nút "Xác nhận phân xe lại" bị disabled hoặc không tìm thấy`] };
   }
 
   // Wait for submission response
@@ -161,7 +162,7 @@ export default async function (ctx) {
   if (result.hasError && result.errorText?.includes('Không thể đổi nhà xe đã được CUS gán tại bước điều xe')) {
     return {
       verdict: 'FAIL',
-      errors: [`Vẫn bị lỗi CUS gán chặn: "${result.errorText}"`],
+      errors: [`${envTag} Vẫn bị lỗi CUS gán chặn: "${result.errorText}"`],
       result,
     };
   }
@@ -169,7 +170,7 @@ export default async function (ctx) {
   if (result.hasError) {
     return {
       verdict: 'FAIL',
-      errors: [`Có lỗi xuất hiện khi phân xe lại: "${result.errorText}"`],
+      errors: [`${envTag} Có lỗi xuất hiện khi phân xe lại: "${result.errorText}"`],
       result,
     };
   }

@@ -5,10 +5,11 @@ import { tripExpenseServiceLedgerCondition, tripExpenseServiceReceiptId } from '
  * through the advance.service facade.
  */
 import { db } from '../db';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { NotificationType, TxnType, round2dp } from '@tingting/shared';
+import { NotificationType, TxnType, round2dp, sumExcludingNegative } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { emitNotification } from './notification.service';
 import { AdvanceError } from './settlement-validation';
@@ -59,7 +60,7 @@ export async function adjustSettlementExpense(
     if (settlement.status !== 'RECORDED') {
       throw new AdvanceError(409, 'Chỉ được điều chỉnh phiếu đã ghi nhận');
     }
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+    await acquireAdvisoryLock(tx, lockKeys.expense(expenseId));
     const [linked] = await tx.select({
       linkId: s.settlementExpenses.id,
       expenseId: s.tripExpenses.id,
@@ -142,8 +143,16 @@ export async function adjustSettlementExpense(
     assertCanMakeGovernanceAction('ADVANCE_SETTLEMENT_CORRECTION', options.actorRole);
     const oldBuyAmount = Number(currentSnapshot.buyAmount ?? 0);
     const newBuyAmount = Number(values.buyAmount ?? oldBuyAmount);
+    // Card 20260928_181 — the stored total EXCLUDES a negative row, so both the
+    // refund compensation here and the stored-total delta at apply time must
+    // move with the row's CONTRIBUTION to that total (x if x >= 0 else 0), not
+    // with the raw difference. The contribution is the one shared rule applied
+    // to a single amount, so on data without negative rows nothing changes.
+    const contributionDelta = round2dp(
+      sumExcludingNegative([newBuyAmount], (n) => n) - sumExcludingNegative([oldBuyAmount], (n) => n),
+    );
     const correctedRefundAmount = round2dp(
-      Number(settlement.refundAmount) - (newBuyAmount - oldBuyAmount),
+      Number(settlement.refundAmount) - contributionDelta,
     );
     if (correctedRefundAmount < 0) {
       throw new AdvanceError(
@@ -324,7 +333,12 @@ async function applyApprovedSettlementCorrection(
   if (![newBuyAmount, newSellAmount, newRefundAmount].every(Number.isFinite) || newRefundAmount < 0) {
     throw new AdvanceError(400, 'Số tiền điều chỉnh không hợp lệ');
   }
-  const buyDelta = round2dp(newBuyAmount - oldBuyAmount);
+  // Card 20260928_181 — the delta is a change of CONTRIBUTION to a total that
+  // excludes negative rows (see adjustSettlementExpense), so a linked expense
+  // crossing zero can never corrupt the stored total.
+  const buyDelta = round2dp(
+    sumExcludingNegative([newBuyAmount], (n) => n) - sumExcludingNegative([oldBuyAmount], (n) => n),
+  );
   const now = action.approvedAt ?? new Date();
   const [latestAdjustment] = await tx.select({
     sequence: s.settlementExpenseAdjustments.sequence,

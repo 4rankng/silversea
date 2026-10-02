@@ -33,6 +33,7 @@ export const expenseCashAllocations = pgTable('expense_cash_allocations', {
 }, t => [uniqueIndex('expense_cash_allocations_pair_uniq').on(t.voucherId, t.expenseAccountingSourceId), index('expense_cash_allocations_source_idx').on(t.expenseAccountingSourceId)]);
 
 export const expenseReconciliations = pgTable('expense_reconciliations', {
+  voidedAt: timestamp('voided_at', { withTimezone: true }),
   id: serial('id').primaryKey(), code: text('code').notNull(), opsUserId: integer('ops_user_id').notNull(),
   from: date('from_date').notNull(), to: date('to_date').notNull(), amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
   advanceAmount: numeric('advance_amount', { precision: 15, scale: 0 }).notNull(), note: text('note'),

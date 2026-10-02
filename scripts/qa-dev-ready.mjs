@@ -6,13 +6,13 @@
  *   1. Docker containers: ss-prod-db + ss-prod-redis running
  *   2. Postgres reachable on 5441 + can read public schema
  *   3. Redis reachable on 6391 + responds to PING
- *   4. Backend health on 3001/api/health returns 200
- *   5. Frontend HTTP on 7174 returns 200 (not the login redirect)
+ *   4. Backend health on 3002/api/health returns 200
+ *   5. Frontend HTTP on 7175 returns 200 (not the login redirect)
  *   6. DB migrations are at the journal's HEAD (no pending migrations)
  *
  * Usage:
  *   node scripts/qa-dev-ready.mjs                     # auto-load .env, default ports
- *   BACKEND=http://localhost:3001/api node scripts/qa-dev-ready.mjs
+ *   BACKEND=http://localhost:3002/api node scripts/qa-dev-ready.mjs
  *   node scripts/qa-dev-ready.mjs --json              # machine-readable output
  *   node scripts/qa-dev-ready.mjs --quiet             # only print failures
  *
@@ -27,8 +27,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { health } from "./lib/http.mjs";
 
 const REPO_ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..");
-const FRONTEND = process.env.FRONTEND ?? "http://localhost:7174";
-const BACKEND = process.env.BACKEND ?? "http://localhost:3001/api";
+const FRONTEND = process.env.FRONTEND ?? "http://localhost:7175";
+const BACKEND = process.env.BACKEND ?? "http://localhost:3002/api";
 const DB_CONTAINER = process.env.DB_CONTAINER ?? "ss-prod-db";
 const REDIS_CONTAINER = process.env.REDIS_CONTAINER ?? "ss-prod-redis";
 const DB_USER = process.env.DB_USER ?? "postgres";

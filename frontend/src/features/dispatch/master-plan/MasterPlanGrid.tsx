@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
 import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
-import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import {
   displayNote,
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
-import { formatISODate } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate } from '../../../lib/format';
+import { billBookingReference } from '../../../lib/business-reference';
 import {
   isNoteLong,
   MasterPlanNoteModal,
@@ -27,33 +27,29 @@ interface MasterPlanGridProps {
   scheduleDate?: string | null;
   /** Called when dispatch staff saves an inline operational-notes edit. */
   onUpdateNotes?: OperationalNoteSave;
+  /** DISPATCHER scope: the backend accepts a dispatcher's write on intake-stage
+   *  lots only (`assertDispatcherCanMutateShipmentIntake`), so for that role the
+   *  note affordance is offered where the save can succeed and nowhere else. */
+  notesIntakeOnly?: boolean;
 }
 
-function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) return iso;
-  return new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
-}
-
-/** Time-of-day line for col 1 — derived from the cutoff timestamp when present. */
-function formatHour(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) return '—';
-  return `${new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', hour12: false }).format(date)}H`;
-}
-
-/** Schedule blocks: one per container appointment — the ICT "HH:mm d/m/yyyy"
- *  row leads and the "factory · containers" line indents beneath it. No
- *  per-container appointments → lot-level date + hour fallback. */
+/** Schedule blocks: one per container appointment — the ICT line leads in the
+ *  canonical padded shape and the "factory · containers" line indents beneath
+ *  it. No per-container appointments → ONE canonical lot-level datetime line
+ *  (card 20260921_23: no more dateless "15H" fragments). */
 type ScheduleBlock = { head: string | null; sub: string | null };
 
 function scheduleBlocks(item: ShipmentListItem, scheduleDate?: string | null): ScheduleBlock[] {
   if (!item.appointmentGroups?.length) {
-    const hour = formatHour(item.plannedReturnAt ?? item.closingAt);
+    // Lot-level fallback: the delivery date plus the close/return instant —
+    // both in canonical shapes, never an hour-only fragment (card 20260921_23).
+    const fallbackInstant = item.plannedReturnAt ?? item.closingAt;
+    const instantLine = fallbackInstant ? formatDateTimeShort(fallbackInstant) : null;
     const dateLine = item.expectedDeliveryDate ? formatISODate(item.expectedDeliveryDate) : null;
-    return dateLine || hour !== '—' ? [{ head: dateLine, sub: hour !== '—' ? hour : null }] : [];
+    const blocks: ScheduleBlock[] = [];
+    if (dateLine) blocks.push({ head: dateLine, sub: null });
+    if (instantLine && instantLine !== '—') blocks.push({ head: instantLine, sub: null });
+    return blocks;
   }
   const groups = scheduleDate
     ? item.appointmentGroups.filter((group) => group.localDate === scheduleDate)
@@ -89,7 +85,9 @@ function formatWeight(kg: number | null): string {
  * an older backend that still used `*` or `×` during a rolling deployment.
  */
 function formatContainerSummaryLines(summary: string | null): string[] {
-  if (!summary) return ['—'];
+  // Missing cargo demand names the missing fact instead of a bare '—'
+  // (design §1: empty values name the field).
+  if (!summary) return ['Chưa có cont'];
 
   return summary
     .split(/\s*\+\s*/)
@@ -163,14 +161,15 @@ function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?:
   if (containerPortGroups.length === 0) {
     if (allGroups.length === 0) {
       return [
-        { direction: 'lift', label: 'Nâng', portName: '—', containerSummary: null },
-        { direction: 'drop', label: 'Hạ', portName: '—', containerSummary: null },
+        { direction: 'lift', label: 'Nâng', portName: 'Chưa có cont', containerSummary: null },
+        { direction: 'drop', label: 'Hạ', portName: 'Chưa có cont', containerSummary: null },
       ];
     }
-    // Date filter active but no conts on that day — render placeholders
+    // Date filter active but no conts on that day — same named placeholder,
+    // never a bare '—' (design §1).
     return [
-      { direction: 'lift', label: 'Nâng', portName: '—', containerSummary: null },
-      { direction: 'drop', label: 'Hạ', portName: '—', containerSummary: null },
+      { direction: 'lift', label: 'Nâng', portName: 'Chưa có cont', containerSummary: null },
+      { direction: 'drop', label: 'Hạ', portName: 'Chưa có cont', containerSummary: null },
     ];
   }
 
@@ -210,18 +209,28 @@ function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?:
   });
 }
 
+/** The statuses a DISPATCHER may write (`assertDispatcherCanMutateShipmentIntake`). */
+const DISPATCHER_INTAKE_STATUSES: Record<string, true> = {
+  [ShipmentStatus.PENDING_DATE]: true,
+  [ShipmentStatus.READY_FOR_DISPATCH]: true,
+};
+
 /**
  * Multi-line dispatch master-plan grid (docx §3): 8 grouped columns with
  * distinct lift/drop port columns and no horizontal scroll. The allocation column exposes its
  * allocation values as the edit trigger, matching the full-cell editing
  * contract used by data grids.
  */
-export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes }: MasterPlanGridProps) {
+export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes, notesIntakeOnly = false }: MasterPlanGridProps) {
   const [activeNoteModal, setActiveNoteModal] = useState<ActiveNoteDetail | null>(null);
   const {
     editingNotesId, editingNotesValue, setEditingNotesValue, savingNotes,
     notesError, notesInputRef, startNotesEdit, cancelNotesEdit, saveNotesEdit,
   } = useMasterPlanNoteEditor(onUpdateNotes);
+  // The modal's "Sửa ghi chú" obeys the same dispatcher stage gate as the trigger.
+  const noteModalShipment = activeNoteModal?.shipment;
+  const noteModalEditable = Boolean(noteModalShipment && onUpdateNotes
+    && (!notesIntakeOnly || DISPATCHER_INTAKE_STATUSES[noteModalShipment.status]));
 
   return (
     <div className="master-plan-grid__wrapper">
@@ -252,13 +261,20 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
           {items.map((item) => {
             const urgency = cutoffUrgency(item.customsCutoffAt);
             const portGroupLines = aggregateContainerPortGroupLines(item, scheduleDate);
-            // A completed lot's allocation is history — the backend rejects
-            // carrier changes once the lot leaves READY_FOR_DISPATCH, so the
-            // button must not invite the attempt.
-            const allocationLocked = item.status === ShipmentStatus.COMPLETED;
+            // A lot's allocation is editable ONLY while it sits in
+            // READY_FOR_DISPATCH: `assignShipmentCarriers` 409s for every other
+            // status ("Chỉ được gán lại nhà xe khi lô đang sẵn sàng điều xe.")
+            // and again when the lot already has a live trip. Locking on
+            // COMPLETED alone left the trigger live on DISPATCHED / IN_TRANSIT
+            // rows, so the dispatcher's save came back as a bare conflict
+            // ("Lô hàng đã thay đổi") that hid the real reason.
+            const allocationLocked = item.status !== ShipmentStatus.READY_FOR_DISPATCH;
+            // Same stage rule for the note trigger: outside the intake window a
+            // dispatcher's save is a 403, so the affordance is not offered there.
+            const notesLocked = notesIntakeOnly && !DISPATCHER_INTAKE_STATUSES[item.status];
             return (
               <tr key={item.id} className="master-plan-grid__row">
-                <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">
+                <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
                   {scheduleBlocks(item, scheduleDate).map((block, blockIdx) => (
                     <div className="master-plan-grid__schedule-block" key={`${item.id}-${blockIdx}`}>
                       {block.head && <div className="master-plan-grid__line">{block.head}</div>}
@@ -271,7 +287,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   ))}
                   {(item.containersMissingAppointment ?? 0) > 0 && (item.containerTotal ?? 0) > 0 && (
                     <div
-                      className="master-plan-grid__line master-plan-grid__line--urgent"
+                      className="master-plan-grid__line master-plan-grid__line--warning"
                       role="status"
                     >
                       Cảnh báo: Còn {item.containersMissingAppointment}/{item.containerTotal} cont chưa chốt ngày đóng trả
@@ -279,34 +295,34 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   )}
                   {item.customsCutoffAt && (
                     <div className={`master-plan-grid__line${urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}>
-                      Hạn hoàn tất hải quan: {formatDateTime(item.customsCutoffAt)}
+                      Hạn hoàn tất hải quan: {formatDateTimeShort(item.customsCutoffAt)}
                     </div>
                   )}
                 </td>
-                <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">{item.customerName ?? '—'}</div>
-                  <div className="master-plan-grid__line">{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">
+                <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy" data-label-short="Khách">
+                  <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!item.customerName ? 'true' : undefined}>{item.customerName ?? '—'}</div>
+                  <div className="master-plan-grid__line" data-empty={!(item.factoryNames?.length || item.factoryName) ? 'true' : undefined}>{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!(item.blNumber || item.bookingRef || item.isAdHoc) ? 'true' : undefined}>
                     {item.blNumber || item.bookingRef || '—'}
                     {item.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
                   </div>
                 </td>
-                <td className="master-plan-grid__cell" data-label="Tuyến đường & hãng tàu">
+                <td className="master-plan-grid__cell" data-label="Tuyến đường & hãng tàu" data-label-short="Tuyến">
                   <div className="master-plan-grid__route-shipping">
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-route">
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-route" data-empty={!item.routeName ? 'true' : undefined}>
                       {item.routeName ?? '—'}
                     </div>
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction">
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction" data-empty={!item.tradeDirection ? 'true' : undefined}>
                       {item.tradeDirection === 'IMPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
+                        <span>Nhập</span>
                       ) : item.tradeDirection === 'EXPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
+                        <span>Xuất</span>
                       ) : '—'}
                     </div>
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier">{item.shippingLineName ?? '—'}</div>
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier" data-empty={!item.shippingLineName ? 'true' : undefined}>{item.shippingLineName ?? '—'}</div>
                   </div>
                 </td>
-                <td className="master-plan-grid__cell master-plan-grid__cell--lift-port" data-label="Cảng nâng">
+                <td className="master-plan-grid__cell master-plan-grid__cell--lift-port" data-label="Cảng nâng" data-label-short="Nâng">
                   {portGroupLines
                     .filter((line) => line.direction === 'lift')
                     .map((line, index) => (
@@ -318,7 +334,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       </div>
                     ))}
                 </td>
-                <td className="master-plan-grid__cell master-plan-grid__cell--drop-port" data-label="Cảng hạ">
+                <td className="master-plan-grid__cell master-plan-grid__cell--drop-port" data-label="Cảng hạ" data-label-short="Hạ">
                   {portGroupLines
                     .filter((line) => line.direction === 'drop')
                     .map((line, index) => (
@@ -330,7 +346,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       </div>
                     ))}
                 </td>
-                <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa">
+                <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa" data-label-short="Hàng">
                   <div className="master-plan-grid__cargo-content">
                     <div className="master-plan-grid__cargo-summary">
                       {(() => {
@@ -367,7 +383,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           </div>
                         ));
                       })()}
-                      <div className="master-plan-grid__line master-plan-grid__line--muted">
+                      <div className="master-plan-grid__line master-plan-grid__line--muted" data-empty={item.totalCargoWeightKg == null ? 'true' : undefined}>
                         {formatWeight(item.totalCargoWeightKg)}
                       </div>
                     </div>
@@ -375,7 +391,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       size="xs"
                       color="link-color"
                       className="master-plan-grid__container-detail-trigger"
-                      aria-label={`Xem chi tiết container của ${item.shipmentCode ?? item.blNumber ?? item.bookingRef ?? 'lô hàng'}`}
+                      aria-label={`Xem chi tiết container của ${billBookingReference(item.blNumber, item.bookingRef)}`}
                       onPress={(event) => onViewContainers(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
                     >
                       Chi tiết
@@ -385,6 +401,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 <td
                   className="master-plan-grid__cell master-plan-grid__cell--action"
                   data-label="Phân bổ nhà xe"
+                  data-label-short="Nhà xe"
                   onClick={(event) => {
                     if (allocationLocked) return;
                     if ((event.target as HTMLElement).closest('button')) return;
@@ -414,15 +431,12 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                             entry.count40 > 0 ? `${entry.count40}x40'` : null,
                           ].filter(Boolean).join(' · ');
                           return (
-                            <Badge
+                            <span
                               key={`${entry.carrierType}-${entry.externalCarrierId}`}
-                              type="pill-color"
-                              size="sm"
-                              color="gray"
                               className="master-plan-grid__chip"
                             >
                               {counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel}
-                            </Badge>
+                            </span>
                           );
                         })}
                       </span>
@@ -431,8 +445,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     )}
                   </UUIButton>
                 </td>
-                <td className="master-plan-grid__cell" data-label="Ghi chú">
-                  {editingNotesId === item.id ? (
+                <td className="master-plan-grid__cell" data-label="Ghi chú" data-label-short="Ghi chú">
+                  {editingNotesId === item.id && !notesLocked ? (
                     <div className="master-plan-grid__notes-editor">
                       <textarea
                         ref={notesInputRef}
@@ -476,9 +490,9 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     </div>
                   ) : (
                     <>
-                      {(item.operationalNotes || onUpdateNotes) && (
+                      {(item.operationalNotes || (onUpdateNotes && !notesLocked)) && (
                         <div className="master-plan-grid__line master-plan-grid__line--notes">
-                          {onUpdateNotes ? (
+                          {onUpdateNotes && !notesLocked ? (
                             <button
                               type="button"
                               className="master-plan-grid__notes-trigger"
@@ -516,6 +530,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           )}
                         </div>
                       )}
+                      {item.opsRecoveryNotes?.map(note => <p key={note} className="master-plan-grid__line master-plan-grid__line--notes" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><strong>OPS: </strong>{note}</p>)}
                       {item.factoryNotes && (
                         <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes" title={item.factoryNotes}>
                           {isNoteLong(item.factoryNotes) ? (
@@ -558,7 +573,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
       <MasterPlanNoteModal
         activeNote={activeNoteModal}
         onClose={() => setActiveNoteModal(null)}
-        onEditOperationalNote={onUpdateNotes ? startNotesEdit : undefined}
+        onEditOperationalNote={noteModalEditable ? startNotesEdit : undefined}
       />
     </div>
   );

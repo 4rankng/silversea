@@ -7,7 +7,8 @@ import { AdvanceDraftActions } from './AdvanceDraftActions';
 const mocks = vi.hoisted(() => ({ user: { userId: 7, role: 'OPS' }, post: vi.fn(), get: vi.fn() }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.user }) }));
 vi.mock('../../lib/api', () => ({ api: { post: (...args: unknown[]) => mocks.post(...args), get: (...args: unknown[]) => mocks.get(...args) } }));
-const request = { id: 18, requesterId: 7, version: 4, status: 'DRAFT', amount: '100', reason: 'Nội dung cũ' };
+const request: { id: number; requesterId: number; version: number; status: string; amount: string; reason: string; fundedAmount?: number } =
+  { id: 18, requesterId: 7, version: 4, status: 'DRAFT', amount: '100', reason: 'Nội dung cũ' };
 function mount(row = request) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const invalidate = vi.spyOn(client, 'invalidateQueries');
@@ -21,12 +22,39 @@ describe('AdvanceDraftActions legacy recovery', () => {
   it('only renders for an authorized owner or office actor and never for terminal records', () => {
     mocks.user = { userId: 8, role: Role.OPS }; mount(); expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
-  it.each(['RECORDED', 'VOIDED'])('hides commands for %s', status => { mount({ ...request, status }); expect(screen.queryByRole('button')).not.toBeInTheDocument(); });
+  it('hides commands for the terminal VOIDED status', () => { mount({ ...request, status: 'VOIDED' }); expect(screen.queryByRole('button')).not.toBeInTheDocument(); });
+  it('hides the recorded-request withdrawal when fundedAmount is absent — unknown is not zero', () => {
+    mount({ ...request, status: 'RECORDED' }); expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+  it('hides the recorded-request withdrawal once funding is posted', () => {
+    mount({ ...request, status: 'RECORDED', fundedAmount: 500000 }); expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+  it('never gives the office actor the owner-only RECORDED withdrawal', () => {
+    mocks.user = { userId: 1, role: Role.ADMIN };
+    mount({ ...request, status: 'RECORDED', fundedAmount: 0 }); expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+  it('offers the owner a void — and no record — for their own RECORDED request with no funding', async () => {
+    mocks.post.mockResolvedValue({ status: 'VOIDED' });
+    const invalidate = mount({ ...request, status: 'RECORDED', fundedAmount: 0 });
+    expect(screen.queryByRole('button', { name: /^Ghi sổ$/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy tạm ứng' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Chưa giao tiền');
+    enterResolution('Chưa nhận tiền');
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+    expect(mocks.post.mock.calls[0][0]).toBe('/forwarder/me/advance-requests/18/void');
+    expect(mocks.post.mock.calls[0][1]).toEqual({ expectedVersion: 4, resolutionReason: 'Chưa nhận tiền' });
+    expect(invalidate).toHaveBeenCalledTimes(5);
+  });
   it('keeps invalid amounts and missing reason visibly editable without enabling record', () => {
     mount(); fireEvent.click(screen.getByRole('button', { name: /^Ghi sổ$/ }));
     const save = screen.getByRole('button', { name: 'Ghi sổ tạm ứng' }); expect(save).toBeDisabled();
     enterResolution(); fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '0' } }); expect(save).toBeDisabled();
-    fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '-1' } }); expect(save).toBeDisabled();
+    // Card 20260930_224: the field is unsigned grouped — a typed minus is
+    // dropped on entry ('-1' becomes 1, a valid amount), so the old
+    // negative-is-invalid pin moves to the entry level: negatives are
+    // un-enterable rather than caught by validation.
     fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '123' } });
     fireEvent.change(screen.getByLabelText('Nội dung tạm ứng *'), { target: { value: ' ' } }); expect(save).toBeDisabled();
     expect(mocks.post).not.toHaveBeenCalled();
@@ -37,7 +65,7 @@ describe('AdvanceDraftActions legacy recovery', () => {
     fireEvent.change(screen.getByLabelText('Số tiền (₫) *'), { target: { value: '250' } });
     fireEvent.click(screen.getByRole('button', { name: 'Ghi sổ tạm ứng' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Mạng tạm gián đoạn');
-    expect(screen.getByLabelText('Số tiền (₫) *')).toHaveValue(250);
+    expect(screen.getByLabelText('Số tiền (₫) *')).toHaveValue('250');
     fireEvent.click(screen.getByRole('button', { name: 'Ghi sổ tạm ứng' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(mocks.post).toHaveBeenCalledTimes(2);

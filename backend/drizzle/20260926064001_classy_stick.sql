@@ -1,0 +1,1 @@
+ALTER TABLE "shipment_fulfillments" ADD COLUMN "planned_end_at" timestamp with time zone;

@@ -13,23 +13,26 @@ export {
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE, TRIP_POD_REQUIRED_FILE_TYPES,
   DriverIncidentalCostType, DRIVER_INCIDENTAL_COST_LABELS,
   DRIVER_EDITABLE_COST_TYPES, CHI_PHI_KHAC_SUBOPTIONS,
+  DRIVER_LOT_COST_EXPENSE_TYPES, driverLotCostIsInvoiced,
   SHIPMENT_STATUS_LABELS, SHIPMENT_DOCUMENT_TYPE_LABELS, canonicalShipmentStatus,
   SHIPMENT_CUS_BUCKET_LABELS, SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   OPS_EXPENSE_TYPE_DEFAULTS, ADVANCE_REQUEST_STATUS_LABELS, ADVANCE_SETTLEMENT_STATUS_LABELS,
-  NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_EVIDENCE_TYPE_LABELS, DEFAULT_NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_POLICY_DEFAULTS,
+  EXPENSE_FEE_GROUP_LABELS, expenseFeeGroupOf, opsInvoicedCostGroupOf,
+  NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_EVIDENCE_TYPE_LABELS, DEFAULT_NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_POLICY_DEFAULTS, ROAD_REPAIR_EVIDENCE_TYPE, RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES,
   NO_INVOICE_REQUIRED_SCOPE, NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
   NotificationType, NOTIFICATION_TYPE_LABELS, PUSH_RULES,
   CONFIG, FINANCIAL, REPORTS, DRIVER, SYSTEM, AUTH, TRIPS, SHIPMENTS, CATALOGS, FORWARDER, PORTAL, WORKSPACES, NOTIFICATIONS, SALARY, PRICING_ENGINE,
-  CarrierType, SettlementMethod, ApprovalStatus, DebitNoteMode,
+  CarrierType, SettlementMethod, DebitNoteMode,
   TruckCapRole,
-  CARRIER_TYPE_LABELS, SETTLEMENT_METHOD_LABELS, APPROVAL_STATUS_LABELS,
+  CARRIER_TYPE_LABELS, SETTLEMENT_METHOD_LABELS,
   TRUCK_CAP_ROLE_LABELS,
   FINANCIAL_ROLES, isFinancialRole,
   TIRES,
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
   DEFAULT_SHIPPING_LINES,
+  ExpenseTypeCategory,
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification } from './constants';
@@ -67,7 +70,6 @@ export type {
   AdvanceRequest, AdvanceRequestWithRefs, AdvanceSettlement, AdvanceSettlementWithRefs,
   ContainerType, Port, SealType,
   DebtOffset,
-  ApprovalItemType,
   VehicleAlertField, VehicleAlertStatus, VehicleAlert,
   Tire, TirePosition,
   BillingDocument, BillingDocumentOfficialIdentitySnapshot, BillingDocumentLine, BillingDocumentType, BillingDocumentEntityType,
@@ -147,13 +149,27 @@ export {
   geotagSchema, GEOTAG_ENTITY_TYPES, GEOTAG_SOURCES, GEOTAG_PATHS,
   customerVisibleEventContentSchema, createCustomerVisibleEventSchema,
   acknowledgeCustomerEventSchema, recoverableCostListQuerySchema,
-  recoverableCostRequestSchema, sendDebitNoteForConfirmationSchema,
+  sendDebitNoteForConfirmationSchema,
   portalDebitNoteDecisionSchema, directMoneyTreasurySchema,
   profitabilityReportQuerySchema, CUSTOMER_VISIBLE_EVENT_TYPES,
   PROFITABILITY_DIMENSIONS, accountingTransportRegisterQuerySchema,
   ACCOUNTING_TRANSPORT_SORT_KEYS, RECOVERABLE_COST_SORT_KEYS,
   accountingTransportRegisterRowSchema, accountingTransportRegisterResponseSchema,
   ACCOUNTING_TRANSPORT_OWNERSHIP, ACCOUNTING_TRANSPORT_READINESS,
+} from './schemas';
+
+export {
+  QUOTATION_GRID_COLUMNS, QUOTATION_CONTAINER_CLASS_CODES, QUOTATION_PATHS,
+  SURCHARGE_ROUNDING_MODES, FEE_ROUTING_MODES,
+  defaultFeeRouting, isQuotationContainerClass, quotationBaseClassCode,
+  quotationCellSchema, quotationCreateSchema, quotationUpdateSchema,
+  quotationFeeSchema,
+} from './schemas';
+
+export type {
+  QuotationColumnKey, QuotationCellInput, QuotationCreateInput,
+  QuotationUpdateInput, QuotationCellView, QuotationView, SurchargeRoundingMode,
+  QuotationFeeInput, QuotationFeeView, FeeRoutingMode,
 } from './schemas';
 
 export {
@@ -182,15 +198,27 @@ export {
   shipmentCusFinanceConfirmationCreateSchema,
   shipmentCusDocumentCustodyUpdateSchema,
   CUS_SEARCH_PATTERN,
+  SHIPMENT_CUS_PAGE_SIZES,
   shipmentCusLockSchema,
   shipmentCusReopenRequestSchema,
-  shipmentCusReopenDecisionSchema,
   shipmentCusContainerLineUpdateSchema,
   shipmentCusContainerLineUpdateResultSchema,
+  shipmentCusContainerAddSchema,
+  shipmentCusContainerAddResultSchema,
+  shipmentCusContainerRemoveSchema,
+  shipmentCusContainerRemoveResultSchema,
   shipmentRecoveryRecordSchema,
   shipmentRecoveryRecordResultSchema,
 } from './schemas/cus-shipment-workspace';
+export {
+  INVOICE_TRACKING_PROGRESS,
+  INVOICE_TRACKING_PROGRESS_LABELS,
+  invoiceTrackingCreateSchema,
+  invoiceTrackingPatchSchema,
+  invoiceTrackingRowSchema,
+} from './schemas/invoice-tracking';
 export type {
+  ShipmentCusPageSize,
   ShipmentCusWorkspaceQuery,
   ShipmentCusContainerQuery,
   ShipmentCusDispatchStatus,
@@ -217,12 +245,21 @@ export type {
   ShipmentCusDocumentCustodyUpdateInput,
   ShipmentCusLockInput,
   ShipmentCusReopenRequestInput,
-  ShipmentCusReopenDecisionInput,
   ShipmentCusContainerLineUpdateInput,
   ShipmentCusContainerLineUpdateResult,
+  ShipmentCusContainerAddInput,
+  ShipmentCusContainerAddResult,
+  ShipmentCusContainerRemoveInput,
+  ShipmentCusContainerRemoveResult,
   ShipmentRecoveryRecordInput,
   ShipmentRecoveryRecordResult,
 } from './schemas/cus-shipment-workspace';
+export type {
+  InvoiceTrackingProgress,
+  InvoiceTrackingCreateInput,
+  InvoiceTrackingPatchInput,
+  InvoiceTrackingRow,
+} from './schemas/invoice-tracking';
 export {
   shipmentChargeProposalFieldSchema,
   shipmentChargeProposalReviewSchema,
@@ -274,7 +311,7 @@ export type {
   CancelShipmentFulfillmentInput, TripPodFileMetadataInput,
   CustomerVisibleEventContent, CreateCustomerVisibleEventInput,
   AcknowledgeCustomerEventInput, RecoverableCostListQuery,
-  RecoverableCostRequestInput, SendDebitNoteForConfirmationInput,
+  SendDebitNoteForConfirmationInput,
   PortalDebitNoteDecisionInput, DirectMoneyTreasuryInput,
   ProfitabilityDimension, ProfitabilityReportQuery,
   AccountingTransportOwnership, AccountingTransportReadiness,
@@ -283,8 +320,20 @@ export type {
   AccountingTransportRegisterResponse,
 } from './schemas';
 
-export { round2dp, roundInt } from './calculations/round';
+export { round2dp, roundInt, roundHalfAwayFromZero } from './calculations/round';
+export { sumExcludingNegative } from './calculations/expenseTotals';
 export { computeFuelSurcharge, computeFreightRate } from './calculations/fuelSurcharge';
+export {
+  CONTAINER_PRICE_CLASS_LABELS,
+  CONTAINER_WEIGHT_BOUNDARY_TONS,
+  MISSING_WEIGHT_MESSAGE,
+  resolveContainerPriceClass,
+} from './calculations/container-price-class';
+export type {
+  ContainerBaseType,
+  ContainerPriceClassCode,
+  ContainerPriceClassResolution,
+} from './calculations/container-price-class';
 export type {
   ComputeFuelSurchargeInput,
   ComputeFuelSurchargeResult,
@@ -301,6 +350,8 @@ export {
   validateContainerNumber,
   suggestCorrections,
 } from './calculations/iso6346';
+export { applyCommittedLegacyFuelFreeze } from './calculations/committedLegacyFuel';
+export type { CommittedLegacyFuelInput } from './calculations/committedLegacyFuel';
 export { computeTripTotals, computeRoadAllowance } from './calculations/tripTotals';
 export type { ComputeTripTotalsInput, ComputeTripTotalsOutput } from './calculations/tripTotals';
 export { computeFifoAging } from './calculations/fifoAging';
@@ -334,22 +385,15 @@ export {
   isSourceAuthorityActionAllowed,
 } from './governance/source-authority';
 
-// ─── Q15 maker/checker/approver governance contracts ───────────────────────
+// ─── Direct financial action contracts and historical audit vocabulary ───
 export {
   GOVERNANCE_SUBJECT_TYPES,
   GOVERNANCE_ACTION_KINDS,
-  GOVERNANCE_ACTION_STATUSES,
-  GOVERNANCE_CAPABILITIES,
-  GOVERNANCE_ALLOWED_ACTIONS,
-  governanceActionDecisionSchema,
+  directFinancialActionSchema,
 } from './schemas/governance-action';
 export type {
   GovernanceSubjectType,
   GovernanceActionKind,
-  GovernanceActionStatus,
-  GovernanceCapability,
-  GovernanceAllowedAction,
-  GovernanceActionDecisionInput,
 } from './schemas/governance-action';
 export type {
   SourceAuthorityKind,
@@ -393,3 +437,6 @@ export * from './expense-accounting';
 export type { DriverIncidentalCostInput } from './schemas';
 
 export * from './schemas/treasury';
+export * from './schemas/shipment-debit-summary';
+export * from './schemas/shipment-debit-edits';
+export * from './schemas/shipment-debit-detail';

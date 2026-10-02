@@ -1,6 +1,7 @@
 
-import type { FC, FocusEventHandler, MouseEventHandler, PointerEventHandler, ReactNode, Ref, RefAttributes } from "react";
-import { isValidElement, useCallback, useContext, useRef, useState } from "react";
+import type { FC, FocusEventHandler, MouseEventHandler, PointerEventHandler, ReactNode, Ref, RefAttributes, RefObject } from "react";
+import { isValidElement, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { SearchLg, XClose } from "@untitledui/icons";
 import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps } from "react-aria-components";
 import { ComboBox as AriaComboBox, Group as AriaGroup, Input as AriaInput, ListBox as AriaListBox, ComboBoxStateContext } from "react-aria-components";
@@ -27,6 +28,16 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
     /** Called when the user clicks the clear (X) button. */
     onClear?: () => void;
     /**
+     * Bare-Enter commit for type-to-search fields (20260922_4). When the menu
+     * is open, the input is focused and NO option is highlighted (no
+     * aria-activedescendant), the owner may commit the unique filtered match:
+     * return the {id, label} to commit, or null when the text matches nothing
+     * or matches ambiguously — the event is then swallowed so react-aria's
+     * Enter settle (which re-fires the old selection and wipes the typed
+     * text) never runs. An option highlighted via ArrowDown is unaffected.
+     */
+    onEnterCommit?: (typedText: string) => { id: string; label: string } | null;
+    /**
      * Initial placement hint for the popover relative to the trigger. Useful
      * when the picker sits inside a column that has a sibling action button
      * (e.g. "+ Thêm") right below — request "top" so the popover opens
@@ -45,18 +56,24 @@ interface ComboBoxValueProps extends AriaGroupProps {
     shortcutClassName?: string;
     icon?: FC | ReactNode;
     openOnPress?: boolean;
+    allowsCustomValue?: boolean;
     triggerClassName?: string;
+    isInvalid?: boolean;
     onClear?: () => void;
     onFocus?: FocusEventHandler;
     onPointerEnter?: PointerEventHandler;
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, triggerClassName, onClear, ref, ...otherProps }: ComboBoxValueProps) => {
+const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassName: _shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, isInvalid, onClear, onEnterCommit, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null }) => {
     const state = useContext(ComboBoxStateContext);
+    // True from the last explicit option-navigation key until the next typing
+    // key or a consumed Enter — see the keydown-capture handler below.
+    const navigatedHighlightedRef = useRef(false);
 
     const value = state?.selectedItem?.value || (state?.selectedKey != null ? { id: state.selectedKey } : null);
     const inputValue = state?.inputValue || null;
+    const selectedLabel = state?.selectedItem?.value?.label ?? state?.selectedItem?.textValue ?? "";
     const hasClearableValue = Boolean(value || (state?.selectedKey != null && state.selectedKey !== '') || (inputValue && inputValue.trim().length > 0));
 
     const first = inputValue?.split(value?.supportingText)?.[0] || "";
@@ -78,9 +95,17 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
             data-default-search-icon={IconProp == null || (!isReactComponent(IconProp) && !isValidElement(IconProp)) ? true : undefined}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(
-                    "uui-combobox relative flex w-full items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
+                    "uui-combobox relative flex w-full items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear",
                     isDisabled && "cursor-not-allowed opacity-50",
-                    isFocusWithin && "border-brand outline-2 outline-offset-1",
+                    // Error wins over focus: a focused invalid control outlines
+                    // red; the brand-green focus ring never co-renders with the
+                    // error state.
+                    isInvalid && isFocusWithin
+                        ? "border-error outline-2 outline-offset-1 outline-error"
+                        : cx(
+                              "outline-focus-ring",
+                              isFocusWithin && "border-brand outline-2 outline-offset-1",
+                          ),
                     triggerClassName,
                 )
             }
@@ -97,7 +122,72 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
              * ~18px taller than the equivalent select trigger.)
              */}
             <div
+                ref={containerRef}
                 data-combobox-value
+                onKeyDownCapture={(event) => {
+                    // Track explicit option navigation. react-aria AUTO-focuses
+                    // the first filtered option when a type-to-search menu
+                    // reopens (via KeepSuggestionsOpen), so a present
+                    // aria-activedescendant alone does not mean the user chose
+                    // to highlight — only explicit navigation makes Enter's
+                    // highlighted-commit the user's own pick (20260922_4).
+                    if (["ArrowDown", "ArrowUp", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+                        navigatedHighlightedRef.current = true;
+                    } else if (event.key !== "Enter") {
+                        navigatedHighlightedRef.current = false;
+                    }
+                    // Bare-Enter commit for type-to-search fields. Capture phase
+                    // runs before the input's react-aria Enter shortcut, so a
+                    // decision here preempts its settle (re-fire old selection +
+                    // wipe typed text). A user-navigated highlight (ArrowDown…)
+                    // is left to react-aria's own commit.
+                    if (event.key === "Enter" && state?.isOpen && onEnterCommit) {
+                        const input = containerRef?.current?.querySelector<HTMLInputElement>("input");
+                        if (
+                            input
+                            && document.activeElement === input
+                            && state.inputValue.trim() !== ""
+                            && !(input.getAttribute("aria-activedescendant") && navigatedHighlightedRef.current)
+                        ) {
+                            const match = onEnterCommit(state.inputValue);
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (match) {
+                                // Same dance as Escape: flush the new text while
+                                // the menu is still open so react-aria's render
+                                // effect syncs `lastValue` — closing afterwards
+                                // then cannot trip its input-change reopen.
+                                flushSync(() => state.setInputValue(match.label));
+                                state.setOpen(false);
+                            } else if (input.getAttribute("aria-activedescendant")) {
+                                // Ambiguous text with react-aria's auto-focused
+                                // first match: drop the auto-highlight so a
+                                // repeated Enter cannot commit the guess.
+                                state.selectionManager?.setFocusedKey(null);
+                            }
+                        }
+                        navigatedHighlightedRef.current = false;
+                        return;
+                    }
+                    // Dismiss this list, not an enclosing editor. Synchronize
+                    // controlled text before closing: an ignored null selection
+                    // otherwise reopens a focus-triggered list with the old query.
+                    if (event.key === "Escape" && state?.isOpen) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        // Free text is already committed by custom-value callers.
+                        // Catalog metadata is searchable, not its display label.
+                        if (!allowsCustomValue && state.inputValue !== selectedLabel) {
+                            // Let React Aria observe the restored text while open,
+                            // before its input-change effect can reopen a closed list.
+                            flushSync(() => state.setInputValue(selectedLabel));
+                        }
+                        // close() commits textValue (including search metadata).
+                        // Escape only dismisses; it must not select or save again.
+                        state.setOpen(false);
+                        onEscapeClose?.();
+                    }
+                }}
                 className={cx(
                     "flex w-full items-center gap-2",
                     // Icon styles
@@ -123,6 +213,13 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
 
                     <AriaInput
                         placeholder={placeholder}
+                        onFocus={(event) => {
+                            // Clicking a committed value starts a replacement
+                            // search; do not append the query to its old label.
+                            if (state?.selectedKey != null && event.currentTarget.value === selectedLabel) {
+                                event.currentTarget.select();
+                            }
+                        }}
                         className={cx(
                             "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
                             sizes[size].text,
@@ -146,9 +243,6 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                         onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            onClear();
-                            state?.setSelectedKey(null);
-                            state?.setInputValue('');
                         }}
                         onClick={(e) => {
                             e.preventDefault();
@@ -162,23 +256,6 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
                     </button>
                 )}
             </div>
-
-            {shortcut && (
-                <div
-                    className={cx(
-                        "absolute inset-y-0.5 right-0.5 z-10 hidden items-center rounded-r-[inherit] bg-linear-to-r from-transparent to-bg-primary to-40% pl-8 md:flex",
-                        sizes[size].shortcut,
-                        shortcutClassName,
-                    )}
-                >
-                    <span
-                        className="pointer-events-none rounded px-1 py-px text-xs font-medium text-quaternary ring-1 ring-secondary select-none ring-inset"
-                        aria-hidden="true"
-                    >
-                        ⌘K
-                    </span>
-                </div>
-            )}
         </AriaGroup>
     );
 };
@@ -192,22 +269,77 @@ export function normalizeSearchText(value: string): string {
         .replace(/đ/g, "d")
         .replace(/Đ/g, "D")
         .toLocaleLowerCase("vi")
+        .replace(/\s+/g, " ")
         .trim();
 }
 
-/** ListBox that narrows `items` by the combobox's current input text
- *  (diacritic-insensitive). React-aria never filters for us; without this
- *  the option list shows the whole catalog no matter what the user types. */
-const FilteredListBox = ({ items, children, ...rest }: AriaListBoxProps<SelectItemType> & { items?: SelectItemType[] }) => {
-    const state = useContext(ComboBoxStateContext);
-    const query = normalizeSearchText(state?.inputValue ?? "");
-    const filtered = query && items
-        ? items.filter((item) => normalizeSearchText(
-            `${item.label ?? ""} ${(item as { supportingText?: string }).supportingText ?? ""}`,
-        ).includes(query))
-        : items;
-    return <AriaListBox {...rest} items={filtered}>{children}</AriaListBox>;
+/** One filter for React Aria's results, keyboard navigation and open state.
+ * Keep the complete collection mounted so filtering cannot remove a selected
+ * item or make a second, unnormalized filter close otherwise valid results. */
+export const matchesComboboxSearch = (text: string, inputValue: string): boolean => {
+    const query = normalizeSearchText(inputValue);
+    const searchableText = normalizeSearchText(text);
+    return !query || query.split(" ").every((term) => searchableText.includes(term));
 };
+
+/**
+ * 20260917_14: with allowsCustomValue, react-aria auto-selects an option whose
+ * textValue exactly equals the typed input and closes the menu — killing the
+ * suggestion list mid-word for free-text-plus-catalog fields. The controlled
+ * selectedKey (still null while the user types) disagrees with that internal
+ * auto-selection, which is how this watch tells them apart: it reopens the
+ * menu once per changed input while focus and text remain. Escape and
+ * click-away closes stay closed (flag + focus check).
+ */
+function KeepSuggestionsOpen({ enabled, controlledSelectedKey, containerRef, escapeClosedAtRef, selectionCommittedRef }: {
+  enabled: boolean;
+  controlledSelectedKey: string | number | null | undefined;
+  containerRef: RefObject<HTMLDivElement | null>;
+  escapeClosedAtRef: RefObject<number>;
+  selectionCommittedRef: RefObject<boolean>;
+}) {
+  const state = useContext(ComboBoxStateContext);
+  const wasOpen = useRef(false);
+  const reopenedForInput = useRef<string | null>(null);
+  useEffect(() => {
+    if (!state) return;
+    const committed = selectionCommittedRef.current;
+    selectionCommittedRef.current = false;
+    if (!enabled) {
+      // React Aria closes changed non-null keys; actual empty commits close here.
+      // Query/internal nulls are not commits and keep suggestions open.
+      if (committed && controlledSelectedKey === null && state.selectedKey === null && state.isOpen) {
+        state.setOpen(false);
+      }
+      return;
+    }
+    if (state.isOpen) {
+      wasOpen.current = true;
+      return;
+    }
+    if (!wasOpen.current) return;
+    wasOpen.current = false;
+    const input = containerRef.current?.querySelector("input");
+    const text = input?.value.trim() ?? "";
+    const inputFocused = document.activeElement != null
+      && (document.activeElement as HTMLElement).tagName === "INPUT";
+    if (!inputFocused || !text) {
+        // Clearing the field invalidates the per-text loop guard: a retype of
+        // the same text must reopen suggestions again (FE review line).
+        reopenedForInput.current = null;
+        return;
+    }
+    // Escape can fire more than one close render; suppress reopens briefly
+    // after any Escape so a dismissed menu stays dismissed.
+    if (Date.now() - escapeClosedAtRef.current < 250) return;
+    // A real user pick sets BOTH the internal key and the controlled prop.
+    if (state.selectedKey != null && String(state.selectedKey) === String(controlledSelectedKey ?? "")) return;
+    if (reopenedForInput.current === text) return;
+    reopenedForInput.current = text;
+    state.setOpen(true);
+  });
+  return null;
+}
 
 export const ComboBox = ({
     placeholder = "Search",
@@ -219,14 +351,19 @@ export const ComboBox = ({
     icon,
     openOnPress = false,
     hideRequiredIndicator,
+    isInvalid,
     triggerClassName,
     onClear,
+    onEnterCommit,
     className,
     popoverPlacement,
     ...otherProps
 }: ComboBoxProps) => {
     const placeholderRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [popoverWidth, setPopoverWidth] = useState("");
+    const escapeClosedAtRef = useRef(0);
+    const selectionCommittedRef = useRef(false);
 
     // Resize observer for popover width
     const onResize = useCallback(() => {
@@ -247,8 +384,15 @@ export const ComboBox = ({
         <SelectContext.Provider value={{ size }}>
             <AriaComboBox
                 menuTrigger="focus"
+                defaultFilter={matchesComboboxSearch}
+                allowsEmptyCollection
                 {...otherProps}
+                isInvalid={isInvalid}
                 selectedKey={otherProps.selectedKey}
+                onSelectionChange={(key) => {
+                    selectionCommittedRef.current = key != null;
+                    otherProps.onSelectionChange?.(key);
+                }}
             >
                 {(state) => (
                     <div
@@ -268,15 +412,27 @@ export const ComboBox = ({
                             </Label>
                         )}
 
+                        <KeepSuggestionsOpen
+                            enabled={Boolean(otherProps.allowsCustomValue)}
+                            controlledSelectedKey={otherProps.selectedKey}
+                            containerRef={containerRef}
+                            escapeClosedAtRef={escapeClosedAtRef}
+                            selectionCommittedRef={selectionCommittedRef}
+                        />
                         <ComboBoxValue
+                            containerRef={containerRef}
+                            onEscapeClose={() => { escapeClosedAtRef.current = Date.now(); }}
                             ref={placeholderRef}
                             placeholder={placeholder}
                             shortcut={shortcut}
                             shortcutClassName={shortcutClassName}
                             icon={icon}
                             openOnPress={openOnPress}
+                            allowsCustomValue={otherProps.allowsCustomValue}
                             triggerClassName={triggerClassName}
+                            isInvalid={isInvalid}
                             onClear={onClear}
+                            onEnterCommit={onEnterCommit}
                             size={size}
                             // This is a workaround to correctly calculating the trigger width
                             // while using ResizeObserver wasn't 100% reliable.
@@ -285,9 +441,17 @@ export const ComboBox = ({
                         />
 
                         <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName} placement={popoverPlacement}>
-                            <FilteredListBox items={items} className="size-full outline-hidden">
+                            <AriaListBox
+                                items={items}
+                                className="size-full outline-hidden"
+                                renderEmptyState={() => (
+                                    <div role="status" className="px-3 py-2 text-xs text-tertiary">
+                                        Không tìm thấy kết quả
+                                    </div>
+                                )}
+                            >
                                 {children}
-                            </FilteredListBox>
+                            </AriaListBox>
                         </Popover>
 
                         {otherProps.hint && (

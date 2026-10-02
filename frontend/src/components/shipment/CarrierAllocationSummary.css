@@ -44,5 +44,5 @@
 
 .carrier-allocation-summary__progress.is-warning,
 .carrier-allocation-summary__warning {
-  color: var(--warning, #b45309);
+  color: var(--warning);
 }

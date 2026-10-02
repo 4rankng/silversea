@@ -46,11 +46,13 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import { auditLogMiddleware } from '../middleware/audit';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
 import { disconnectRedis } from '../lib/redis';
+import { insertLockableBillingDocument } from './helpers/billing-document-fixture';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 // ── Scaffolding id buckets (cleaned up in reverse-FK order in `after`) ──────
 const createdShipmentIds: number[] = [];
+const lockDocIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdBusinessUnitIds: number[] = [];
@@ -225,6 +227,79 @@ before(async () => {
   );
 });
 
+
+describe('combined quick-create save (root + containers in one transaction)', () => {
+  test('containers ride the create: one call lands the root AND its containers', async () => {
+    const blNumber = `QC-COMBO-BL-${suffix}`;
+    const res = await quickFetch('/quick', {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey: `combo-ok-${suffix}`,
+      body: {
+        customerId,
+        blNumber,
+        tradeDirection: 'IMPORT',
+        cargoMode: 'FCL',
+        containers: [
+          { containerTypeId, containerNumber: 'AAAU1000001', customerAppointmentAt: '2026-10-01T03:00:00.000Z' },
+          { containerTypeId, containerNumber: 'BBHU2001007', customerAppointmentAt: '2026-10-01T03:00:00.000Z' },
+        ],
+      },
+    });
+    assert.equal(res.status, 201);
+    const [root] = await db.select().from(s.shipments).where(eq(s.shipments.blNumber, blNumber));
+    assert.ok(root, 'the root must exist after the combined create');
+    const rows = await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, root.id));
+    assert.equal(rows.length, 2);
+    createdShipmentIds.push(root.id);
+  });
+  test('a containers failure rolls the root back — no 0-cont orphan lot', async () => {
+    const blNumber = `QC-ORPHAN-BL-${suffix}`;
+    const res = await quickFetch('/quick', {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey: `combo-orphan-${suffix}`,
+      body: {
+        customerId,
+        blNumber,
+        tradeDirection: 'IMPORT',
+        cargoMode: 'FCL',
+        containers: [
+          { containerTypeId, containerNumber: 'AAAU1000009' },
+        ],
+      },
+    });
+    assert.ok(res.status >= 400, 'the invalid container must reject the whole save');
+    const [{ total }] = await db.select({ total: sql<number>`count(*)::int` })
+      .from(s.shipments).where(eq(s.shipments.blNumber, blNumber));
+    assert.equal(Number(total ?? 0), 0, 'no orphan root may survive a failed containers save');
+  });
+  test('an idempotent replay returns the original lot without duplicating containers', async () => {
+    const blNumber = `QC-REPLAY-BL-${suffix}`;
+    const key = `combo-replay-${suffix}`;
+    const first = await quickFetch('/quick', {
+      method: 'POST', token: clerkToken, idempotencyKey: key,
+      body: {
+        customerId, blNumber, tradeDirection: 'IMPORT', cargoMode: 'FCL',
+        containers: [{ containerTypeId, containerNumber: 'HHHU7007004' }],
+      },
+    });
+    assert.equal(first.status, 201);
+    const replay = await quickFetch('/quick', {
+      method: 'POST', token: clerkToken, idempotencyKey: key,
+      body: {
+        customerId, blNumber, tradeDirection: 'IMPORT', cargoMode: 'FCL',
+        containers: [{ containerTypeId, containerNumber: 'HHHU7007004' }],
+      },
+    });
+    assert.ok([200, 201].includes(replay.status), 'replay must succeed');
+    const [lot] = await db.select().from(s.shipments).where(eq(s.shipments.blNumber, blNumber));
+    createdShipmentIds.push(lot.id);
+    const rows = await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, lot.id));
+    assert.equal(rows.length, 1, 'the replay must not duplicate containers');
+  });
+});
+
 after(async () => {
   // Reverse-FK cleanup. Idempotency rows reference users and shipments, so
   // delete them before both. Shipments cascade to status_history / documents
@@ -238,6 +313,9 @@ after(async () => {
       if (createdShipmentIds.length > 0) {
         await tx.delete(s.shipmentAccountingLocks)
           .where(inArray(s.shipmentAccountingLocks.shipmentId, createdShipmentIds));
+        if (lockDocIds.length > 0) {
+          await tx.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, lockDocIds));
+        }
         await tx.delete(s.idempotencyKeys)
           .where(inArray(s.idempotencyKeys.entityId, createdShipmentIds));
         await tx.delete(s.shipmentStatusHistory)
@@ -444,20 +522,18 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
     assert.equal(res.status, 400);
   });
 
-  test('containers[] in the quick payload is rejected, not silently stripped', async () => {
-    // The quick contract is container-less and zod strips unknown keys, so a
-    // caller-supplied containers array used to vanish with a 201 — the lot
-    // landed with zero containers and no engine rate lock (no container type
-    // to derive a rate key from). Reject loudly and point at the reconcile
-    // endpoint, which does fire the FCL intake lock.
+  test('invalid container numbers inside the quick payload are rejected, never stored', async () => {
+    // The combined contract validates each row with the same ISO 6346 +
+    // duplicate checks the reconcile endpoint enforces — a bad check digit
+    // rejects the whole save instead of landing an invalid row.
     const res = await quickFetch('/quick', {
       method: 'POST',
       token: clerkToken,
       idempotencyKey: `qc-containers-${suffix}`,
-      body: clerkQuickBody({ containers: [{ containerNumber: `BAD${suffix.slice(-7)}` }] }),
+      body: clerkQuickBody({ containers: [{ containerTypeId, containerNumber: 'ZZZU1000001' }] }),
     });
     assert.equal(res.status, 400, JSON.stringify(res.data));
-    assert.match(String(res.data.error ?? ''), /containers/);
+    assert.match(String(res.data.error ?? ''), /không hợp lệ/);
   });
 
   test('pool-sized unique keyed quick-create requests all complete without nested-connection starvation', async () => {
@@ -695,9 +771,16 @@ describe('POST /api/shipments/quick — RBAC', () => {
       assert.match(String(attempt.data.error ?? ''), /giai đoạn tiếp nhận/);
     }
 
+    // Real debit note — the lock FK is live; sentinel 900_000+id only ever
+    // worked on the accumulated shared dev database (card _40).
+    const [lockShipment] = await db.select({ customerId: s.shipments.customerId })
+      .from(s.shipments).where(eq(s.shipments.id, created.data.id));
+    assert.ok(lockShipment?.customerId != null, 'fixture shipment carries a customer');
+    const lockDoc = await insertLockableBillingDocument(db, { entityId: lockShipment.customerId });
+    lockDocIds.push(lockDoc.id);
     await db.insert(s.shipmentAccountingLocks).values({
       shipmentId: created.data.id,
-      billingDocumentId: 900_000 + created.data.id,
+      billingDocumentId: lockDoc.id,
       billingDocumentVersion: 1,
       billingPeriodSnapshot: {
         rangeFrom: '2026-08-01',

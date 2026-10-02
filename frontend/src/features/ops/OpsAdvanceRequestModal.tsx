@@ -2,11 +2,12 @@ import { useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { useCreateOpsAdvanceRequest } from '../../hooks/useOpsQueries';
 import { useToast } from '../../components/shared/Toast';
-import { formatVnd } from './opsStatus';
+import { formatMoney } from '../../lib/format';
 import { NumberField } from '../../design-system/forms/NumberField';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
+import { formatDate } from '../../lib/format';
 /** Records a request only; the wallet changes when an actual funded advance is recorded. */
 export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
   const createAdvance = useCreateOpsAdvanceRequest();
@@ -47,7 +48,7 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
               min={1} max={999_999_999_999_999} step={1} required error={amountError} disabled={createAdvance.isPending} />
             <label>
               Ngày
-              <input readOnly value={new Date().toLocaleDateString('vi-VN')} />
+              <input readOnly value={formatDate(new Date().toISOString())} />
             </label>
           </div>
           <label className="ops-form-note">
@@ -62,10 +63,10 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
           </label>
         </div>
         <footer className="ops-modal__foot">
-          <div>{amountValid ? `${formatVnd(Number(amount))} ₫` : ''}</div>
+          <div>{amountValid ? `${formatMoney(Number(amount))} ₫` : ''}</div>
           <div className="ops-modal__actions">
-            <button type="button" className="btn-secondary" onClick={close} disabled={createAdvance.isPending}>Đóng</button>
-            <button type="submit" className="btn-primary" disabled={!canSubmit || createAdvance.isPending}>
+            <button type="button" className="btn btn--secondary" onClick={close} disabled={createAdvance.isPending}>Đóng</button>
+            <button type="submit" className="btn btn--primary" disabled={!canSubmit || createAdvance.isPending}>
               {createAdvance.isPending ? <Loader2 size={14} className="spin" /> : null} Lưu tạm ứng
             </button>
           </div>

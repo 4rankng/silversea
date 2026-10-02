@@ -1,13 +1,11 @@
-import { useRef, useEffect } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Loader2, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Loader2, Calendar, Minus } from 'lucide-react';
 import { formatCurrency, formatNumber, formatDate } from '../lib/format';
 import { PageHeader } from '../components/UI';
 import { useSalaryPeriod, useDriverEarnings, useDriverPenalties, useDriverVehicleAlerts } from '../hooks/useQueries';
 import { useDriverEarningsPeriod } from '../hooks/useDriverEarningsPeriod';
-import { usePageAnimations, useCounterAnimation } from '../hooks/animations';
-import type { CounterTarget } from '../hooks/animations';
+import { usePageAnimations } from '../hooks/animations';
 import './DriverEarningsPage.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import { EmptyState } from '../design-system';
 
 interface PenaltyEntry {
   id: number;
@@ -28,7 +26,7 @@ export default function DriverEarningsPage() {
     isFetching: earningsFetching,
   } = useDriverEarnings(month, year);
   const penaltyParams = period ? { dateFrom: period.start, dateTo: period.end } : undefined;
-  const { data: penaltiesData, isLoading: penaltiesLoading } = useDriverPenalties(penaltyParams);
+  const { data: penaltiesData, isLoading: penaltiesLoading, error: penaltiesError, refetch: refetchPenalties, isFetching: penaltiesFetching } = useDriverPenalties(penaltyParams);
   // N5 / B4: truck compliance/service reminders (overdue/due). Fetched
   // unconditionally; the section is only rendered when there's at least one
   // non-'ok' alert, so drivers with everything in order see nothing.
@@ -47,45 +45,6 @@ export default function DriverEarningsPage() {
   const loading = earningsLoading || penaltiesLoading;
   const error = earningsError ? 'Không thể tải dữ liệu thu nhập' : null;
   const { rootRef } = usePageAnimations({ ready: !loading });
-  const heroValueRef = useRef<HTMLSpanElement>(null);
-  const kpiRefs = useRef<{
-    baseSalary: HTMLSpanElement | null;
-    adjustment: HTMLSpanElement | null;
-    penalties: HTMLSpanElement | null;
-    productionSalary: HTMLSpanElement | null;
-    roadAllowance: HTMLSpanElement | null;
-    paidOrAdvanced: HTMLSpanElement | null;
-    payableBalance: HTMLSpanElement | null;
-  }>({ baseSalary: null, adjustment: null, penalties: null, productionSalary: null, roadAllowance: null, paidOrAdvanced: null, payableBalance: null });
-  const { animateCounters } = useCounterAnimation({ delay: 100 });
-
-  useEffect(() => {
-    if (!earnings) return;
-    const targets: CounterTarget[] = [];
-    const salaryNum = parseFloat(earnings.baseSalary);
-    const penaltyNum = parseFloat(earnings.penalties);
-
-    // The hero ("LƯƠNG CHƯA THANH TOÁN") and the summary tile
-    // ("CÒN CHƯA THANH TOÁN") show the same payableBalance value. Animating
-    // them separately in a single staggered list caused them to render
-    // different values mid-animation (hero at 500.000 while summary was
-    // still ticking up through 498.720). Render both as static so the
-    // headline number and its summary tile are always in lockstep, and
-    // keep the counter animation for the supporting breakdown KPIs only.
-    if (kpiRefs.current.baseSalary) targets.push({ el: kpiRefs.current.baseSalary, value: salaryNum, suffix: ' đ' });
-    // F2 / B2 — trip-income cards always animate (headline breakdown).
-    const productionNum = parseFloat(earnings.productionSalary);
-    const roadNum = parseFloat(earnings.roadAllowance);
-    const paidOrAdvancedNum = parseFloat(earnings.paidOrAdvanced ?? '0');
-    if (kpiRefs.current.productionSalary) targets.push({ el: kpiRefs.current.productionSalary, value: productionNum, suffix: ' đ' });
-    if (kpiRefs.current.roadAllowance) targets.push({ el: kpiRefs.current.roadAllowance, value: roadNum, suffix: ' đ' });
-    if (kpiRefs.current.paidOrAdvanced) targets.push({ el: kpiRefs.current.paidOrAdvanced, value: paidOrAdvancedNum, suffix: ' đ' });
-    if (penaltyNum > 0 && kpiRefs.current.penalties) targets.push({ el: kpiRefs.current.penalties, value: penaltyNum, prefix: '-', suffix: ' đ' });
-    if (earnings.adjustment !== undefined && earnings.adjustment !== 0 && kpiRefs.current.adjustment) {
-      targets.push({ el: kpiRefs.current.adjustment, value: Math.abs(earnings.adjustment), prefix: earnings.adjustment > 0 ? '+' : '-', suffix: ' đ' });
-    }
-    if (targets.length > 0) animateCounters(targets);
-  }, [earnings, animateCounters]);
 
   if (loading) return (
     <div className="driver-earnings-page">
@@ -100,18 +59,20 @@ export default function DriverEarningsPage() {
   if (error) return (
     <div className="driver-earnings-page">
       <PageHeader title="Thu nhập" description="Tổng hợp thu nhập và khấu trừ" />
-      <div className="empty-state" role="alert">
-        <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
-        <h3 className="empty-state-title">{error}</h3>
-        <button
+      <EmptyState
+        role="alert"
+        variant="compact"
+        context="earnings"
+        title={error}
+        action={<button
           type="button"
           className="btn btn--secondary btn--sm"
           onClick={() => void refetchEarnings()}
           disabled={earningsFetching}
         >
           Thử lại
-        </button>
-      </div>
+        </button>}
+      />
     </div>
   );
 
@@ -120,7 +81,9 @@ export default function DriverEarningsPage() {
   const netNum = parseFloat(earnings.netIncome);
   const payableNum = parseFloat(earnings.payableBalance);
   const adjustmentNum = earnings.adjustment ?? 0;
-  const isPositive = payableNum >= 0;
+  // Surface color encodes money state: green only for a truly positive
+  // balance, bronze for negative, neutral for zero or missing data.
+  const payableState = payableNum > 0 ? 'positive' : payableNum < 0 ? 'negative' : 'zero';
   const penaltyNum = parseFloat(earnings.penalties);
   const tripIncomeNum = parseFloat(earnings.productionSalary) + parseFloat(earnings.roadAllowance);
   const adjustmentLabel = adjustmentNum >= 0 ? 'Thưởng công' : 'Trừ công';
@@ -170,11 +133,11 @@ export default function DriverEarningsPage() {
       )}
 
       {/* ═══ Zone 1 — Salary answer card ═══ */}
-      <div className={`earnings-hero-bento fade-up ${isPositive ? 'earnings-hero-bento--positive' : 'earnings-hero-bento--negative'}`}>
+      <div className={`earnings-hero-bento fade-up earnings-hero-bento--${payableState}`}>
         <div className="earnings-hero-bento__content">
           <p className="earnings-hero-bento__eyebrow">{payableLabel}</p>
           <div className="earnings-hero-bento__amount">
-            <span ref={heroValueRef}>{formatNumber(earnings.payableBalance)}</span>
+            <span>{formatNumber(earnings.payableBalance)}</span>
             <span className="earnings-hero-bento__currency">đ</span>
           </div>
           <p className="earnings-hero-bento__note">
@@ -182,13 +145,12 @@ export default function DriverEarningsPage() {
           </p>
         </div>
         <div className="earnings-hero-bento__icon">
-          {isPositive
+          {payableState === 'positive'
             ? <TrendingUp size={24} />
-            : <TrendingDown size={24} />
+            : payableState === 'negative'
+              ? <TrendingDown size={24} />
+              : <Minus size={24} />
           }
-        </div>
-        <div className="earnings-hero-bento__watermark">
-          <DollarSign size={120} />
         </div>
       </div>
 
@@ -216,25 +178,26 @@ export default function DriverEarningsPage() {
           </div>
           <div className="earnings-equation__item">
             <span>Đã tạm ứng/đã thanh toán</span>
-            <strong ref={(el) => { kpiRefs.current.paidOrAdvanced = el; }}>{formatNumber(earnings.paidOrAdvanced ?? '0')} đ</strong>
+            <strong>{formatNumber(earnings.paidOrAdvanced ?? '0')} đ</strong>
           </div>
-          <div className={`earnings-equation__item earnings-equation__item--total ${payableNum < 0 ? 'earnings-equation__item--danger' : 'earnings-equation__item--success'}`}>
+          <div className={`earnings-equation__item earnings-equation__item--total ${payableState === 'negative' ? 'earnings-equation__item--danger' : payableState === 'positive' ? 'earnings-equation__item--success' : 'earnings-equation__item--zero'}`}>
             <span>Còn chưa thanh toán</span>
-            <strong ref={(el) => { kpiRefs.current.payableBalance = el; }}>{formatNumber(earnings.payableBalance)} đ</strong>
+            <strong>{formatNumber(earnings.payableBalance)} đ</strong>
           </div>
         </div>
       </div>
 
       <div className="earnings-ledger-grid fade-up-2">
         <section className="earnings-ledger-card">
+          {/* No total in the header: it restated the "Lương thực tế" row
+              inside this card. */}
           <div className="earnings-ledger-card__header">
             <span>Lương ngày công</span>
-            <strong>{formatNumber(netNum)} đ</strong>
           </div>
           <dl className="earnings-ledger-list">
             <div>
               <dt>Lương cơ bản</dt>
-              <dd ref={(el) => { kpiRefs.current.baseSalary = el; }}>{formatNumber(earnings.baseSalary)} đ</dd>
+              <dd>{formatNumber(earnings.baseSalary)} đ</dd>
             </div>
             {adjustmentNum !== 0 && (
               <div>
@@ -244,7 +207,7 @@ export default function DriverEarningsPage() {
             )}
             <div>
               <dt>Khấu trừ kỷ luật</dt>
-              <dd ref={(el) => { kpiRefs.current.penalties = el; }} className={penaltyNum > 0 ? 'is-danger' : ''}>{penaltyNum > 0 ? '-' : ''}{formatNumber(earnings.penalties)} đ</dd>
+              <dd className={penaltyNum > 0 ? 'is-danger' : ''}>{penaltyNum > 0 ? '-' : ''}{formatNumber(earnings.penalties)} đ</dd>
             </div>
             <div>
               <dt>Lương thực tế</dt>
@@ -254,18 +217,19 @@ export default function DriverEarningsPage() {
         </section>
 
         <section className="earnings-ledger-card">
+          {/* No total in the header: it restated the "Lương sản xuất +
+              tiền đi đường" pair already summed in "Tóm tắt kỳ này". */}
           <div className="earnings-ledger-card__header">
             <span>Lương chuyến & thanh toán</span>
-            <strong>{formatNumber(tripIncomeNum)} đ</strong>
           </div>
           <dl className="earnings-ledger-list">
             <div>
               <dt>Lương sản xuất</dt>
-              <dd ref={(el) => { kpiRefs.current.productionSalary = el; }}>{formatNumber(earnings.productionSalary)} đ</dd>
+              <dd>{formatNumber(earnings.productionSalary)} đ</dd>
             </div>
             <div>
               <dt>Tiền đi đường</dt>
-              <dd ref={(el) => { kpiRefs.current.roadAllowance = el; }}>{formatNumber(earnings.roadAllowance)} đ</dd>
+              <dd>{formatNumber(earnings.roadAllowance)} đ</dd>
             </div>
             <div>
               <dt>Đã tạm ứng/đã thanh toán</dt>
@@ -273,7 +237,7 @@ export default function DriverEarningsPage() {
             </div>
             <div className="earnings-ledger-list__note">
               <dt>Ghi chú</dt>
-              <dd>Số chưa thanh toán là số dư sổ lương hiện tại, không phải phép cộng trực tiếp của các dòng phía trên. "Đã tạm ứng/đã thanh toán" chỉ tính tiền mặt công ty đã thực chi cho lái xe (không bao gồm khấu trừ kỷ luật).</dd>
+              <dd>Số chưa thanh toán là số dư sổ lương, không phải tổng các dòng phía trên.</dd>
             </div>
           </dl>
         </section>
@@ -296,17 +260,23 @@ export default function DriverEarningsPage() {
       <div className="earnings-penalties-panel fade-up-3">
         <div className="earnings-penalties-panel__header">
           <span className="earnings-penalties-panel__title">Lịch sử khấu trừ</span>
-          <span className="earnings-penalties-panel__count">{penalties.length} khoản khấu trừ</span>
+          {!penaltiesError && <span className="earnings-penalties-panel__count">{penalties.length} khoản khấu trừ</span>}
         </div>
-        {penalties.length === 0 ? (
+        {penaltiesError ? (
           <div className="earnings-penalties-empty">
-            <img
-              src={resolveEmptyIllustration('empty-earnings')}
-              alt=""
-              aria-hidden="true"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            <EmptyState
+              role="alert"
+              variant="compact"
+              context="error"
+              title="Không thể tải lịch sử khấu trừ"
+              action={<button type="button" className="btn btn--secondary btn--sm" aria-label="Thử lại lịch sử khấu trừ" disabled={penaltiesFetching} onClick={() => void refetchPenalties()}>
+                Thử lại
+              </button>}
             />
-            <p>Chưa có khoản khấu trừ nào</p>
+          </div>
+        ) : penalties.length === 0 ? (
+          <div className="earnings-penalties-empty">
+            <EmptyState variant="compact" context="cleared" title="Chưa có khoản khấu trừ nào" />
           </div>
         ) : (
           penalties.map((p) => (

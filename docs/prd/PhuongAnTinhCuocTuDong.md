@@ -1,12 +1,9 @@
 # Phương án tính cước tự động — Yêu cầu sản phẩm
 
-> **Cập nhật 14/09/2026.** Mô tả trải nghiệm và quy tắc nghiệp vụ cần đạt. Người
-> có quyền lưu trực tiếp, không qua phê duyệt nội bộ. Giữ kiểm tra dữ liệu, quyền
-> sửa và kỳ đã khóa. Cần Internet để làm việc. Xem [mục lục PRD](README.md).
->
-> **Nguồn yêu cầu:** phương án tính cước khách hàng ngày 09/09, các trả lời về
-> cước Long Minh và bảng báo giá `18.7 - BG Long Minh T7.xlsx`. Các số tham chiếu
-> không phải thông báo giá hiện hành; đầu vào chưa chốt được nêu ở §8.
+Tài liệu mô tả trải nghiệm cấu hình giá và quy tắc tính cước tự động theo Ngày vận
+chuyển, cách xử lý khi thiếu giá và cách điều chỉnh giá trên bảng kê. Xem thêm:
+[mục lục PRD](README.md), [công thức cước](CuocPhiPhuPhiDau.md),
+[dữ liệu cước](CuocPhiThietKeDB.md).
 
 ## 1. Mục tiêu và phạm vi
 
@@ -27,7 +24,7 @@ tự áp biểu cước này cho khách khác khi chưa biết hợp đồng c�
 Vai trò không có quyền không được sửa giá; bỏ bước duyệt không đồng nghĩa mở
 quyền tài chính cho mọi người.
 
-## 2. Quy tắc tính cước đã chốt
+## 2. Quy tắc tính cước
 
 ```
 Số lít tính cước = Km một chiều × 2 × Định mức lít/km
@@ -46,11 +43,8 @@ Tổng cước K = J + H
 - **Ngày vận chuyển** là mốc chọn kỳ và khóa cước. NEWEB áp giá sau **1 ngày**;
   không suy ra số ngày trễ cho hai tuyến còn lại.
 
-Ba lựa chọn Câu 1=B, Câu 2=A, Câu 4=A được chốt ngày 09/09. Mốc Ngày vận chuyển
-được ghi trong phương án khách hàng ngày 09/09 và tổng hợp ngày 10/09, thay cho
-câu hỏi 2b trước đó. Xem [lịch sử trả lời](CauHoiKhachHang_CuocPhi_2026-09-08.md).
-
-Công thức chi tiết và các bảng giá tham chiếu giữ tại
+Các số tham chiếu trong tài liệu này không phải thông báo giá hiện hành; đầu vào chưa
+chốt được nêu ở §8. Quy tắc và công thức gốc giữ tại
 [Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.md).
 
 ## 3. Bốn nhóm điều khoản áp giá
@@ -74,10 +68,12 @@ Phương án khách hàng nêu hai cách theo hợp đồng:
 Chọn tối đa một cách cho cùng điều khoản; không đồng thời áp cả hai. Các mức ví
 dụ không tự thành ngưỡng của Long Minh.
 
-Cần làm rõ trước khi áp hợp đồng có ngưỡng: đúng bằng ngưỡng có đổi giá hay
-chưa; so với kỳ liền trước hay mốc đang được áp; nếu nhiều kỳ liên tiếp chưa
-đạt ngưỡng thì giữ mốc nào; kỳ đầu áp thế nào. Tài liệu nguồn có cả cách nói
-“vượt” và “đạt/vượt”, nên chưa thể tự chọn một cách.
+Đúng bằng ngưỡng được tính là **đạt** ngưỡng: thay đổi giá dầu đúng bằng ngưỡng
+đã đủ điều kiện mở kỳ giá mới.
+
+Cần làm rõ trước khi áp hợp đồng có ngưỡng: so với kỳ liền trước hay mốc đang
+được áp; nếu nhiều kỳ liên tiếp chưa đạt ngưỡng thì giữ mốc nào; kỳ đầu áp thế
+nào.
 
 Phân biệt **đã thỏa thuận không dùng ngưỡng** với **chưa điền thông tin**. Nếu
 không dùng ngưỡng, áp kỳ phù hợp theo ngày và độ trễ; nếu còn thiếu điều khoản,
@@ -138,6 +134,20 @@ Người dùng xem cước đã khóa, từng thành phần và ngày áp dụng
 Nếu còn quyền sửa ngày, sản phẩm cho thấy giá cũ/mới và lưu lịch sử. Nếu hồ sơ
 đã khóa, giải thích vì sao không được sửa và cách điều chỉnh hợp lệ theo quyền;
 không thêm bước xin duyệt.
+
+### 4.4. Nhập file cước của khách hàng
+
+1. Kế toán/CUS có quyền nhập file cước (Excel) của khách hàng. Sản phẩm đọc tuyến và giá từ
+   file, tạo một bản khung báo giá mới hiệu lực từ ngày nhập — không ghi đè bản khung cũ; bản
+   cũ giữ nguyên để đối soát.
+2. Danh mục phí của bản khung mới kế thừa nguyên vẹn danh mục phí của bản khung trước của cùng
+   khách hàng: tên phí, loại phụ, số tiền mặc định, gán cột riêng, ghi chú và thứ tự. File cước
+   chỉ mang số liệu cước; danh mục phí là cấu trúc quản lý mang theo giữa các hợp đồng, không
+   reset về rỗng mỗi lần nhập.
+3. Lần nhập đầu tiên (chưa có bản khung trước) bắt đầu không có phí trong danh mục; người có
+   quyền cấu hình phí sau đó như bình thường. Thiếu cấu hình không tự thay bằng giá minh họa.
+4. Phí kế thừa là phí bình thường: sửa được trên trang cấu hình, áp dụng và lưu lịch sử theo
+   quy tắc chung.
 
 ## 5. Đối soát và giá cuối trên Bảng kê / Debit Note
 
@@ -205,7 +215,7 @@ tạo tiền hoặc chứng từ trùng. Lịch sử và số đã phát hành k
 | Biểu cước khách ngoài Long Minh | Khách nào dùng cùng mô hình, khách nào có cách tính khác |
 | Lag ASKEY/SUNRISE+SJ | Số ngày thực tế theo từng hợp đồng/tuyến |
 | Giá gốc 15T | Ba mức giá thật, không phải số 0 hoặc giá ví dụ |
-| Ngưỡng điều chỉnh | % hoặc số tiền/lít và giá trị; đúng tại ngưỡng có áp không |
+| Ngưỡng điều chỉnh | % hoặc số tiền/lít và giá trị; đúng bằng ngưỡng đã tính là đạt, phần giá trị theo hợp đồng còn thiếu |
 | Mốc so sánh qua nhiều kỳ | So với giá kỳ liền trước hay giá đã áp; giữ mốc thế nào khi nhiều kỳ chưa đạt ngưỡng; áp kỳ đầu thế nào |
 | Không dùng ngưỡng | Xác nhận rõ là không dùng, không suy từ ô còn trống |
 | Nguồn giá dầu | Dùng chung hay riêng theo khách; lịch áp giá, nguồn công bố và cách quy đổi VAT |
@@ -214,5 +224,5 @@ Các lựa chọn chưa trả lời không được thay bằng giả định. V
 hoặc lag 0 chỉ để giải thích cách cấu hình, không phải giá trị đã được khách
 chấp nhận. Không cần hỏi lại ba câu đã chốt hoặc mốc Ngày vận chuyển.
 
-Xem [câu hỏi khách hàng](CauHoiKhachHang_CuocPhi_2026-09-08.md) và
+Xem [đầu vào nghiệp vụ còn mở](CuocPhiThietKeDB.md#8-đầu-vào-nghiệp-vụ-còn-mở) và
 [yêu cầu dữ liệu/lịch sử](CuocPhiThietKeDB.md).

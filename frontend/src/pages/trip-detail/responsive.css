@@ -43,7 +43,7 @@
 
   .map-wrap {
     border-right: none;
-    border-bottom: 1px solid var(--line-2, #EFF2F0);
+    border-bottom: 1px solid var(--line-2);
     min-height: 280px;
   }
 }
@@ -98,7 +98,7 @@
     width: auto;
     min-width: 0;
     justify-content: center;
-    min-height: 44px;
+    min-height: var(--control-max-h);
     padding: 8px 14px;
     font-size: var(--fs-xs);
     line-height: 1.35;
@@ -120,7 +120,7 @@
      it should be visually subordinate to the primary CTA, but it still needs
      the same comfortable tap target as the rest of the action cluster. */
   .td-page-head .header-actions .btn--danger {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     padding: 8px 14px;
     font-size: var(--fs-xs);
     line-height: 1.35;

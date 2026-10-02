@@ -40,15 +40,15 @@
   justify-content: center;
   min-height: 32px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
   white-space: nowrap;
 }
 
 .trip-pod__status--draft {
-  background: rgba(37, 99, 235, 0.1);
-  color: var(--accent);
+  background: var(--info-soft);
+  color: var(--info-text);
 }
 
 .trip-pod__status--submitted {
@@ -58,7 +58,7 @@
 
 .trip-pod__status--accepted {
   background: rgba(22, 163, 74, 0.12);
-  color: var(--ok, #166534);
+  color: var(--ok);
 }
 
 .trip-pod__status--rejected {
@@ -87,8 +87,8 @@
 }
 
 .trip-pod__banner--info {
-  background: rgba(37, 99, 235, 0.1);
-  color: var(--accent);
+  background: var(--info-soft);
+  color: var(--info-text);
 }
 
 .trip-pod__grid {
@@ -142,7 +142,7 @@
   align-items: center;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: rgba(220, 38, 38, 0.08);
   color: var(--danger);
   font-size: var(--text-caption-size);
@@ -167,14 +167,14 @@
   gap: 6px;
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
 }
 
 .trip-pod__state-ok {
   background: rgba(22, 163, 74, 0.1);
-  color: var(--ok, #166534);
+  color: var(--ok);
 }
 
 .trip-pod__state-missing {
@@ -195,8 +195,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  /* AC-NFR-003: e-POD Chụp / Tải tệp / HOÀN THÀNH CHUYẾN ≥48px touch target. */
-  min-height: 44px;
+  /* Current owner ceiling: ordinary e-POD actions use the house40px token. */
+  min-height: var(--control-h);
   padding: 0 14px;
   border-radius: 8px;
   border: 1px solid transparent;
@@ -206,18 +206,17 @@
   transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 
-/* ID-specificity opt-up over the global `#root button` 44px mobile floor
-   (responsive.css) — see the twin comment in DriverTripDetailPage.css. */
+/* Keep the phone action owner aligned with the shared control token. */
 @media (max-width: 640px) {
   #root .trip-pod__action,
   #root .trip-pod__submit {
-    min-height: 44px;
+    min-height: var(--control-h);
   }
 }
 
 .trip-pod__action {
   background: var(--accent);
-  color: #fff;
+  color: var(--fg-inverse);
 }
 
 .trip-pod__action--secondary {
@@ -314,7 +313,7 @@
  * button unlocks — both required photos uploaded. */
 .trip-pod__progress {
   height: 6px;
-  border-radius: 999px;
+  border-radius: 4px;
   background: var(--surface-3, rgba(0, 0, 0, 0.08));
   overflow: hidden;
   margin-top: 2px;
@@ -322,19 +321,19 @@
 
 .trip-pod__progress-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: 4px;
   background: var(--ink-3);
-  transition: width 0.25s ease;
+  transition: width var(--t-slow);
 }
 
 .trip-pod__progress-fill.is-complete {
-  background: var(--brand, #00b14f);
+  background: var(--brand);
 }
 
 .trip-pod__submit {
   width: 100%;
   background: var(--accent);
-  color: #fff;
+  color: var(--fg-inverse);
 }
 
 .trip-pod__history {
@@ -436,7 +435,7 @@
 .trip-pod__card-help { margin-top: 4px; font-size: var(--text-data-size); }
 .trip-pod__required { min-height: 20px; padding-inline: 6px; }
 .trip-pod__subtitle { margin-top: 4px; font-size: var(--text-caption-size); }
-.trip-pod__file-download { min-width: 0; min-height: 44px; max-width: 100%; padding: 4px 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.trip-pod__file-download { min-width: 0; min-height: var(--control-h); max-width: 100%; padding: 4px 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
 .trip-pod__file-download svg { flex: 0 0 15px; }
 .trip-pod__file-download .trip-pod__file-name { text-decoration: underline; text-underline-offset: 3px; }
 .trip-pod__file-download:disabled { cursor: wait; opacity: .7; }
@@ -463,3 +462,6 @@
   height: 72px;
   object-fit: contain;
 }
+
+.trip-pod__pending { margin-block: var(--space-2); overflow-wrap: anywhere; color: var(--text-secondary); }
+.trip-pod__pending .trip-pod__actions { margin-top: var(--space-2); }

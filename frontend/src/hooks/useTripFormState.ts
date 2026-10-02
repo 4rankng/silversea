@@ -54,8 +54,8 @@ export interface ContainerFormRow {
   seals: SealFormRow[];
   /** Server-persisted photo keys per type (bare storage keys from the
    *  containers API) PLUS in-flight `blob:` previews for create-mode / unsaved
-   *  rows. `photoSrc()` renders both. A `blob:` prefix marks a photo as
-   *  pending flush ("chưa lưu"). */
+   *  rows. The photo surfaces render both through `useAuthedPhotoUrls`. A
+   *  `blob:` prefix marks a photo as pending flush ("chưa lưu"). */
   photoKeys: { cont: string[]; seal: string[] };
 }
 

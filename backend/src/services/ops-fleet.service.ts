@@ -15,6 +15,7 @@ export interface OpsFleetTruckItem {
   tripId: number | null;
   tripCode: string | null;
   shipmentCode: string | null;
+  billRef: string | null;
   driverName: string | null;
   /** null = no current trip → "Đang rảnh" */
   status: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | null;
@@ -62,6 +63,9 @@ export async function getOpsFleet(userId: number): Promise<OpsFleetTruckItem[]> 
       completedAt: s.trips.completedAt,
       driverName: s.drivers.name,
       shipmentCode: s.shipments.shipmentCode,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+      tradeDirection: s.shipments.tradeDirection,
     })
     .from(s.trips)
     .leftJoin(s.drivers, eq(s.drivers.id, s.trips.driverId))
@@ -129,6 +133,7 @@ export async function getOpsFleet(userId: number): Promise<OpsFleetTruckItem[]> 
       tripId: trip?.id ?? null,
       tripCode: trip?.tripCode ?? null,
       shipmentCode: trip?.shipmentCode ?? null,
+      billRef: (trip?.tradeDirection === 'IMPORT' ? trip.blNumber : trip?.bookingRef)?.trim() || null,
       driverName: trip?.driverName ?? null,
       // The CANCELED member of the enum is filtered out above; narrow for the
       // response type.

@@ -189,6 +189,10 @@ export interface DriverTaskDetail {
     id: number;
     code: string | null;
     taskCode: string | null;
+    /** Driver-facing business document number (Số Bill on IMPORT, Số Booking
+     *  on EXPORT) — the header title. `code` is the internal SHP- key and is
+     *  never shown as the driver's title. */
+    documentNumber: string | null;
     type: string | null;
     modeLabel?: string | null;
     factoryName: string | null;
@@ -266,6 +270,7 @@ interface DriverFulfillmentDetailResponse {
   shipmentId: number;
   shipmentCode: string | null;
   bookingRef: string | null;
+  blNumber: string | null;
   cargoMode: 'FCL' | 'LCL' | null;
   tradeDirection?: string | null;
   fulfillmentType: string;
@@ -330,6 +335,14 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       id: wire.fulfillmentId,
       code: wire.shipmentCode,
       taskCode: wire.shipmentCode,
+      // Business document number for the driver-facing title: Số Bill (IMPORT)
+      // or Số Booking (EXPORT), resolved direction-first. The internal
+      // shipmentCode above stays the ops/system key and never titles the screen.
+      documentNumber: wire.tradeDirection === 'IMPORT'
+        ? (wire.blNumber ?? wire.bookingRef ?? null)
+        : wire.tradeDirection === 'EXPORT'
+          ? (wire.bookingRef ?? wire.blNumber ?? null)
+          : (wire.blNumber ?? wire.bookingRef ?? null),
       type: wire.fulfillmentType,
       modeLabel: wire.cargoMode,
       factoryName: wire.factoryName,
@@ -569,9 +582,11 @@ export const driverClient = {
     return api.getBlob(`/driver/me/fulfillments/${fulfillmentId}/pod-files/${fileId}`);
   },
 
+  getFeeNorms: () => api.get<{ items: Array<{ code: string; label: string; amount: string | number }> }>('/driver/me/fee-norms'),
+
   createIncidentalCost: async (
     tripId: number,
-    body: { payerKind?: 'USER' | 'COMPANY'; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },
+    body: { feeNormCode?: string; expenseTypeCode?: string; payerKind?: 'USER' | 'COMPANY'; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },
     idempotencyKey: string,
   ) => {
     return api.post<{

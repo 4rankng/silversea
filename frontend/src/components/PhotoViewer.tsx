@@ -1,8 +1,6 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
-import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
-import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Modal } from '../design-system/Modal';
 // The stylesheet must ride with the component: the overlay portals to
 // <body>, so it cannot inherit page-level styles, and consumers live in
 // separate lazy route chunks — without this import a fresh session on a
@@ -29,23 +27,15 @@ export function PhotoViewer({ urls, initialIndex = 0, onClose }: PhotoViewerProp
   const dragStart = useRef({ x: 0, y: 0 });
   const translateStart = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const activeIndex = Math.max(0, Math.min(index, urls.length - 1));
   const currentUrl = urls[activeIndex];
 
-  useLayoutEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      if (opener?.isConnected) opener.focus({ preventScroll: true });
-    };
-  }, []);
-  useFocusTrap(containerRef, true);
+  // Portal, scrim, Escape, scroll lock, focus trap + return and overlay
+  // registration are module-owned (design-system Modal bare mode, card
+  // 20261001_251); this component owns only the lightbox surface.
 
   const resetView = useCallback(() => {
     setScale(1);
@@ -65,14 +55,13 @@ export function PhotoViewer({ urls, initialIndex = 0, onClose }: PhotoViewerProp
     setScale(prev => Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta)));
   }, []);
 
-  // Keyboard
+  // Viewer keys (navigation/zoom). Escape is module-owned.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!['Escape', 'ArrowLeft', 'ArrowRight', '+', '=', '-', '_', '0'].includes(e.key)) return;
+      if (!['ArrowLeft', 'ArrowRight', '+', '=', '-', '_', '0'].includes(e.key)) return;
       e.preventDefault();
       e.stopPropagation();
       switch (e.key) {
-        case 'Escape': onClose(); break;
         case 'ArrowLeft': go(-1); break;
         case 'ArrowRight': go(1); break;
         case '+': case '=': zoom(ZOOM_STEP); break;
@@ -82,14 +71,7 @@ export function PhotoViewer({ urls, initialIndex = 0, onClose }: PhotoViewerProp
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [onClose, go, zoom, resetView]);
-
-  // Register as an open overlay so the ESC "go back" shortcut yields while open
-  useEffect(() => {
-    registerOverlay();
-    closeRef.current?.focus();
-    return () => unregisterOverlay();
-  }, []);
+  }, [go, zoom, resetView]);
 
   // Scroll-to-zoom
   useEffect(() => {
@@ -137,8 +119,9 @@ export function PhotoViewer({ urls, initialIndex = 0, onClose }: PhotoViewerProp
   const canPrev = activeIndex > 0;
   const canNext = activeIndex < urls.length - 1;
 
-  return createPortal(
-    <div className="pv-overlay" ref={containerRef} role="dialog" aria-modal="true" aria-label="Xem ảnh chứng từ">
+  return (
+    <Modal chrome="bare" isOpen title="Xem ảnh chứng từ" ariaLabel="Xem ảnh chứng từ" onClose={onClose}>
+      <div className="pv-overlay" ref={containerRef}>
       {/* Backdrop */}
       <div className="pv-backdrop" onClick={onClose} />
 
@@ -161,7 +144,7 @@ export function PhotoViewer({ urls, initialIndex = 0, onClose }: PhotoViewerProp
             <RotateCcw size={18} />
           </button>
           <div className="pv-divider" />
-          <button ref={closeRef} type="button" className="pv-btn pv-btn--close" aria-label="Đóng ảnh" onClick={onClose} title="Đóng (Esc)">
+          <button type="button" className="pv-btn pv-btn--close" aria-label="Đóng ảnh" onClick={onClose} title="Đóng">
             <X size={20} />
           </button>
         </div>
@@ -210,7 +193,7 @@ export function PhotoViewer({ urls, initialIndex = 0, onClose }: PhotoViewerProp
           <ChevronRight size={28} />
         </button>
       )}
-    </div>,
-    document.body,
+    </div>
+    </Modal>
   );
 }

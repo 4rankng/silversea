@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
 import { qk } from '../../api/keys';
+import { requiresLegacyCarrierSelection } from '../../hooks/tripSubmitReconcile';
+import { getExternalTripDisplayTotals } from '../trips/tripHelpers';
 import {
   useTripDetail,
   useTripAdjustments,
@@ -75,6 +77,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   const [reassignExternalPlateNumber, setReassignExternalPlateNumber] = useState('');
   const [reassignExternalDriverName, setReassignExternalDriverName] = useState('');
   const [reassignExternalDriverPhone, setReassignExternalDriverPhone] = useState('');
+  const [reassignReason, setReassignReason] = useState('');
   const [reassignLoading, setReassignLoading] = useState(false);
   const [reassignError, setReassignError] = useState('');
 
@@ -101,6 +104,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     reassignExternalPlateNumber,
     reassignExternalDriverName,
     reassignExternalDriverPhone,
+    reassignReason,
     reassignLoading,
     reassignError,
     showAdjust,
@@ -125,23 +129,14 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     }
 
     const isExternal = trip.carrierType === 'EXTERNAL';
-    const vatRate = Number(trip.vatRate ?? 0.08);
     const revenueRaw = Number(trip.revenue || 0);
-    const externalFreightInclVat = Number(trip.externalFreightCost || 0);
-
-    // For EXTERNAL trips, Pete B3 + the test guide require ex-VAT profit math:
-    //   profit = round(revenue / (1+vat)) − round(externalFreightCost / (1+vat))
-    // The persisted trip.totalCost / trip.grossProfit are 0 for these trips
-    // (no fleet operating costs apply), which previously made the KPI strip
-    // render "Lợi nhuận gộp = doanh thu" (100% margin). Override here so the
-    // single-trip KPI matches the /finance "Doanh thu điều xe ngoài" line.
-    const externalMargin = isExternal && revenueRaw && externalFreightInclVat
-      ? Math.round(revenueRaw / (1 + vatRate)) - Math.round(externalFreightInclVat / (1 + vatRate))
-      : null;
+    const externalTotals = isExternal ? getExternalTripDisplayTotals(trip) : null;
+    const externalMargin = externalTotals?.externalMargin ?? null;
     const revenue = revenueRaw;
-    const totalCost = isExternal ? externalFreightInclVat : Number(trip.totalCost || 0);
-    const grossProfit = isExternal && externalMargin != null ? externalMargin : Number(trip.grossProfit || 0);
-    const marginPct = revenue > 0 ? ((grossProfit / (isExternal ? Math.round(revenue / (1 + vatRate)) : revenue)) * 100).toFixed(1) : null;
+    const totalCost = externalTotals?.totalCost ?? Number(trip.totalCost || 0);
+    const grossProfit = externalTotals?.grossProfit ?? Number(trip.grossProfit || 0);
+    const marginRevenue = externalTotals?.recordedRevenue ?? revenue;
+    const marginPct = marginRevenue > 0 ? ((grossProfit / marginRevenue) * 100).toFixed(1) : null;
     const fuelCost = Number(trip.totalFuelCost || 0);
     const roadAllowance = Number(trip.totalRoadAllowance || 0);
     const tollCost = Number(trip.tollCost || 0);
@@ -157,9 +152,9 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     const fuelVarianceLiters = fuelLiters - computedLiters;
     const fuelVarianceOver = fuelVarianceLiters > 0;
 
-    const externalCarrierName = trip.externalCarrierId
+    const externalCarrierName = trip.externalCarrierName ?? (trip.externalCarrierId
       ? (catalogData?.customers.find(c => c.id === trip.externalCarrierId)?.name ?? 'Đơn vị vận chuyển không còn trong danh mục')
-      : '—';
+      : '—');
 
     return {
       revenue, totalCost, grossProfit, marginPct,
@@ -264,10 +259,18 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
 
   const handleReassign = async () => {
     if (!id) return;
+    if (requiresLegacyCarrierSelection(trip?.externalEntityType, reassignCarrierType, reassignExternalCarrierId)) {
+      setReassignError('Vui lòng chọn đối tác vận chuyển đã liên kết trước khi phân xe lại.');
+      return;
+    }
     if (reassignCarrierType === 'OWN') {
       if (!reassignTruckId || !reassignDriverId) return;
     } else {
       if (!reassignExternalCarrierId && !reassignExternalPlateNumber) return;
+    }
+    if (!reassignReason.trim()) {
+      setReassignError('Lý do điều chuyển là bắt buộc');
+      return;
     }
     setReassignLoading(true);
     setReassignError('');
@@ -281,6 +284,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
         externalPlateNumber: reassignExternalPlateNumber,
         externalDriverName: reassignExternalDriverName,
         externalDriverPhone: reassignExternalDriverPhone,
+        reason: reassignReason.trim(),
       });
       setShowReassign(false);
       await refetchTrip();
@@ -376,6 +380,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     setReassignExternalPlateNumber,
     setReassignExternalDriverName,
     setReassignExternalDriverPhone,
+    setReassignReason,
     cancelLoading,
     carrierCustomers: catalogData?.customers.filter(c => c.isCarrier).map(c => ({ id: c.id, label: c.name })) ?? [],
     setShowReassign,

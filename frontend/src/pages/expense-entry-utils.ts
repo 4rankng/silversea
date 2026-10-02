@@ -4,7 +4,8 @@ export type FormState = {
   categoryId: number | '';
   truckId: number | '';
   vehicleComponent: 'TRUCK' | 'TRAILER';
-  amount: string;
+  /** Money via NumberField — signed grouped (expense amounts may be negative). */
+  amount: number | '';
   paymentStatus: 'PAID' | 'UNPAID';
   validFrom: string;
   validTo: string;

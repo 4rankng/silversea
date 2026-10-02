@@ -56,6 +56,19 @@ describe('config catalog tables stay tabular below the shared card fold', () => 
     // narrowest band outright.
     expect(base).toContain('@container (max-width: 360px)');
   });
+
+  it('pins the catalogs to content-sized auto layout without width shares (card 20260922_22)', () => {
+    // Both config catalogs size columns to real content; persistently-empty
+    // columns hide at the component level (colPresence), so no equal-split
+    // nth-child width share may re-enter the routes block, and the customers
+    // table carries the same auto-layout contract.
+    expect(css).toContain('.cfg-customer-table { min-width: 0; table-layout: auto; width: 100%; }');
+    const routesBlock = css.slice(
+      css.indexOf('.routes-table { min-width: 0;'),
+      css.indexOf('/* When the shared record-table base collapses'),
+    );
+    expect(routesBlock).not.toMatch(/nth-child\(\d+\)\s*\{\s*width:/);
+  });
 });
 
 describe('customer catalog uses compact scoped summary and record layouts', () => {
@@ -77,7 +90,33 @@ describe('customer catalog uses compact scoped summary and record layouts', () =
     expect(responsiveRecords).toMatch(/\.cfg-customer-details dl\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
     expect(responsiveRecords).toMatch(/\.cfg-customer-details dd\s*\{[^}]*overflow-wrap: anywhere;/);
     expect(responsiveRecords).toMatch(/\.cfg-customer-details > summary:focus-visible\s*\{[^}]*outline: 2px solid var\(--focus\);/);
-    expect(responsiveRecords).toMatch(/@media \(pointer: coarse\)\s*\{\s*\.cfg-customer-details > summary\s*\{\s*min-height: 44px;/);
-    expect(responsiveRecords).toContain('min-width: 44px; min-height: 44px;');
+    expect(responsiveRecords).toMatch(/@media \(pointer: coarse\)\s*\{\s*\.cfg-customer-details > summary\s*\{\s*min-height: var\(--control-max-h\);/);
+    expect(responsiveRecords).toContain('min-width: var(--control-max-h); min-height: var(--control-max-h);');
+  });
+});
+
+// Card 20260930_222 — at 360/390 the stacked route cards inherited the DESKTOP
+// column budgets, so the "Tên tuyến rút gọn" cell stayed 200px inside a ~156px
+// grid track and pushed past the viewport: measured l=188 r=388 at 360 and
+// l=203 r=403 at 390. A plain `width: auto` is not enough — the budgets carry
+// one more class-level token and are declared later in the file — so the reset
+// has to go through a selector that outranks them.
+describe('route cards stop inheriting the desktop column budgets (card 20260930_222)', () => {
+  const routes = read('src/pages/config/RoutesConfigPage.css');
+
+  it('resets the fixed widths inside the stacked container, outranking the budgets', () => {
+    const container = routes.match(/@container \(max-width: 640px\)\s*\{([\s\S]*)\}/)?.[1] ?? '';
+    expect(container).not.toBe('');
+    // Scoped to `tbody tr` so it beats `.routes-config-page .routes-table
+    // td:nth-child(3)` on element count — the reason a bare td reset would lose.
+    const reset = container.match(
+      /\.routes-config-page \.routes-table tbody tr td:nth-child\(3\)[\s\S]*?\{([^}]*)\}/)?.[1] ?? '';
+    expect(reset).not.toBe('');
+    expect(reset).toMatch(/width:\s*auto/);
+  });
+
+  it('keeps the 200px budget for the wide layout — the reset is phone-band only', () => {
+    expect(routes).toMatch(
+      /\.routes-config-page \.routes-table td:nth-child\(3\)\s*\{[^}]*width:\s*200px/);
   });
 });

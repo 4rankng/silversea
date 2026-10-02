@@ -31,7 +31,6 @@ export default async function (ctx) {
     const items = cusWorkspace.body.items;
     // For any lot in PENDING_DATE / NEW bucket with multiple conts where not all are dated,
     // it MUST NOT jump to READY_FOR_DISPATCH; it must remain WAITING_DATE.
-    const pendingLots = items.filter((item) => item.status === 'PENDING_DATE');
     const invalidTransitions = items.filter((item) => {
       const totalConts = item.operational?.totalContainers || 0;
       const datedConts = (item.customerAppointmentAts || []).length;

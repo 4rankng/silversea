@@ -5,10 +5,10 @@ import { lockExpenseCashSources } from './expense-cash-lock.service';
 import { expenseVoucherCode } from './expense-cash-command.service';
 import type { GovernanceActionRow } from './governance-action-core.service';
 import * as s from '../db/schema';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from '../db';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
-import { assertTreasuryFundAssigned, resolveTreasuryPaymentContract, insertTreasuryMovement, appendTreasuryReversal } from './treasury.service';
+import { assertTreasuryFundAssigned, assertVoucherFundMatches, resolveTreasuryPaymentContract, insertTreasuryMovement, appendTreasuryReversal } from './treasury.service';
 import { getExpenseForCommand, requireExpenseFinance, type ExpenseActor } from './expense-accounting-write.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { recordPaymentReceiptTx } from './payment-allocation.service';
@@ -16,12 +16,34 @@ import { allocateExpenseReceipt, reverseExpenseReceipt } from './expense-receipt
 import { recordDriverPayoutTx, recordVendorPaymentTx, recordOpsReimbursementTx } from './financial.service';
 import { hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 
-export async function getExpenseCashTotals(tx: Tx, sourceId: number) {
-  const rows = await tx.select({ direction: s.treasuryMovements.direction, amount: s.expenseCashAllocations.amount })
+/** Card 20260927_147 — the per-source form is a 3-table join filtered by ONE source id,
+ *  so a selection that reads it per row pays one query per row. This is the same join with
+ *  `inArray`, grouped in memory: every requested id gets `{IN, OUT}`, zeroed when it has no
+ *  recorded allocation, which is exactly what `getExpenseCashTotals` returned for it. */
+export async function getExpenseCashTotalsBatch(executor: Executor, sourceIds: number[]): Promise<Map<number, { IN: number; OUT: number }>> {
+  const totalsBySourceId = new Map<number, { IN: number; OUT: number }>();
+  for (const sourceId of new Set(sourceIds)) totalsBySourceId.set(sourceId, { IN: 0, OUT: 0 });
+  if (totalsBySourceId.size === 0) return totalsBySourceId;
+  const rows = await executor.select({
+    sourceId: s.expenseCashAllocations.expenseAccountingSourceId,
+    direction: s.treasuryMovements.direction,
+    amount: s.expenseCashAllocations.amount,
+  })
     .from(s.expenseCashAllocations).innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
     .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
-    .where(and(eq(s.expenseCashAllocations.expenseAccountingSourceId, sourceId), eq(s.expenseCashVouchers.status, 'RECORDED')));
-  return rows.reduce((totals, row) => { totals[row.direction as 'IN' | 'OUT'] += Number(row.amount); return totals; }, { IN: 0, OUT: 0 });
+    .where(and(inArray(s.expenseCashAllocations.expenseAccountingSourceId, [...totalsBySourceId.keys()]),
+      eq(s.expenseCashVouchers.status, 'RECORDED')));
+  for (const row of rows) {
+    const totals = totalsBySourceId.get(row.sourceId);
+    if (totals) totals[row.direction as 'IN' | 'OUT'] += Number(row.amount);
+  }
+  return totalsBySourceId;
+}
+
+/** Single-source form keeps the shared domain name: three call sites read one source's cash
+ *  totals and must stay on the same join/filter as the batch form above. */
+export async function getExpenseCashTotals(executor: Executor, sourceId: number) {
+  return (await getExpenseCashTotalsBatch(executor, [sourceId])).get(sourceId)!;
 }
 
 export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: ExpenseVoucherInput, recordedAction?: GovernanceActionRow) {
@@ -39,22 +61,36 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
       return hydrateExpenseCashVoucher(tx, existing);
     }
   }
-  await lockExpenseCashSources(tx, input.entries);
+  // Card 20260929_211 — the per-source cash totals used to be read INSIDE the
+  // loop, one query per voucher line. lockExpenseCashSources has just resolved
+  // every source row (and locked it, in the order it always did), so the ids
+  // are already in hand: read every total in ONE query here, before the loop.
+  //
+  // This is deliberately a pure pre-read. The loop below keeps its exact shape,
+  // its exact order and its exact 409/400 sequence — nothing about WHEN a
+  // refusal fires moves, which is the one thing this refactor must not change.
+  const linkedIds = await lockExpenseCashSources(tx, input.entries);
+  const cashTotals = await getExpenseCashTotalsBatch(tx, [...linkedIds.values()]);
   const keys = input.entries.map(e => `${e.sourceKind}:${e.sourceId}`);
   if (new Set(keys).size !== keys.length) throw new ApiError(400, 'Không chọn trùng nguồn chi phí.');
   const items: Array<{ source: ExpenseAccountingSource; amount: number }> = [];
+  // Approval-precedes-payment (case QA-2026-09-24-01): every source in a cash
+  // voucher must be accountant-approved. Refusals list the offending rows by
+  // fee name — never a bare kind-id.
+  const unapproved: string[] = [];
   for (const ref of [...input.entries].sort((a, b) => `${a.sourceKind}:${a.sourceId}`.localeCompare(`${b.sourceKind}:${b.sourceId}`))) {
     const source = await getExpenseForCommand(tx, actor, ref);
     if (source.paymentHistoryUnattributed) throw new ApiError(409, 'Lịch sử thu/chi chưa được phân bổ cho khoản chi cũ; không được đoán số tiền còn lại.');
-    if (!source.confirmedAt) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} chưa hoàn thiện đối chiếu.`);
+    if (!source.confirmedAt) { unapproved.push(source.feeName || `khoản ${ref.sourceKind}`); continue; }
     if (input.direction === 'OUT' && (!source.payableEntityType || !source.payableEntityId)) throw new ApiError(409, 'Khoản công ty trả trực tiếp không phải tiền hoàn cho người khai báo.');
     if (input.direction === 'OUT' && source.payableEntityType === 'FORWARDER' && !source.reconciliationId) throw new ApiError(409, 'Lập bảng hoàn ứng trước để trừ đúng tiền ứng đã nhận.');
-    const cash = await getExpenseCashTotals(tx, source.id);
+    const cash = cashTotals.get(source.id) ?? await getExpenseCashTotals(tx, source.id);
     const remaining = input.direction === 'IN' ? Number(source.customerChargeAmount ?? 0) - cash.IN
       : Number(source.amount) - Number(source.allocatedAdvanceAmount) - cash.OUT;
     if (!Number.isSafeInteger(ref.amount) || ref.amount <= 0 || ref.amount > remaining) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} chỉ còn ${remaining}đ.`);
     items.push({ source, amount: ref.amount });
   }
+  if (unapproved.length > 0) throw new ApiError(409, `Các khoản chưa được duyệt: ${[...new Set(unapproved)].join(', ')}`);
   const first = items[0].source;
   const entityType = input.direction === 'IN' ? 'CUSTOMER' : first.payableEntityType!;
   const entityId = input.direction === 'IN' ? first.customerId : first.payableEntityId!;
@@ -63,6 +99,12 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
   const amount = items.reduce((total, item) => total + item.amount, 0);
   if (!Number.isSafeInteger(amount) || amount > 999_999_999_999_999) throw new ApiError(400, 'Tổng phiếu vượt giới hạn.');
   await assertTreasuryFundAssigned(tx, input.treasuryAccountId);
+  // Card 20260928_167 criterion 2 — a voucher must not mix funds, and the fund
+  // must be the one the cost lines actually require. Callers normally send one
+  // cost group per voucher, so this is usually a no-op; it earns its keep when
+  // a UI "select all" mixes an invoiced chi-hộ row with a driver road fee.
+  await assertVoucherFundMatches(tx, input.treasuryAccountId,
+    items.map((i) => ({ costGroup: i.source.costGroup, feeName: i.source.feeName })));
   const treasury = await resolveTreasuryPaymentContract(tx, input, new Date());
   if (!treasury.treasuryAccountId || !treasury.valueDate || !treasury.physicalReference) throw new ApiError(400, 'Chọn quỹ, ngày và mã giao dịch thực tế.');
   await lockApplicationOwnedUniqueness(tx, 'expense-voucher-physical', [treasury.treasuryAccountId, input.direction, treasury.physicalReference]);

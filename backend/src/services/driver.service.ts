@@ -532,6 +532,10 @@ export interface DriverFulfillmentDetail {
   shipmentId: number;
   shipmentCode: string | null;
   bookingRef: string | null;
+  /** Business document number (MDN §4.4): Số Bill on IMPORT, Số Booking on
+   *  EXPORT. The driver header leads with this — the internal shipmentCode
+   *  (SHP-YYMM-NNNNN) is the system/ops key and never the driver's title. */
+  blNumber: string | null;
   cargoMode: typeof s.shipments.$inferSelect.cargoMode;
   /** IMPORT (trả hàng) vs EXPORT (đóng hàng) — branches the driver-side
    *  container-photo OCR behavior (cross-check vs auto-fill; spec A6). */
@@ -601,6 +605,7 @@ export async function getDriverFulfillmentDetail(
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
     bookingRef: s.shipments.bookingRef,
+    blNumber: s.shipments.blNumber,
     cargoMode: s.shipments.cargoMode,
     tradeDirection: s.shipments.tradeDirection,
     fulfillmentType: s.shipmentFulfillments.fulfillmentType,
@@ -716,12 +721,14 @@ export async function getDriverFulfillmentDetail(
     deliverySiteName,
     shipmentRow.deliveryLocation,
     shipmentRow.containerDropoffPortName,
+    shipmentRow.tradeDirection,
   );
   return {
     fulfillmentId,
     shipmentId: shipmentRow.shipmentId,
     shipmentCode: shipmentRow.shipmentCode,
     bookingRef: shipmentRow.bookingRef,
+    blNumber: shipmentRow.blNumber,
     cargoMode: shipmentRow.cargoMode,
     tradeDirection: shipmentRow.tradeDirection,
     fulfillmentType: shipmentRow.fulfillmentType,
@@ -745,9 +752,9 @@ export async function getDriverFulfillmentDetail(
     plannedReturnAt: shipmentRow.plannedReturnAt?.toISOString() ?? null,
     pickupLocation: shipmentRow.pickupLocation ?? pickupWarehouseName ?? shipmentRow.containerPickupPortName,
     deliveryLocation: deliveryStage.deliveryName,
-    returnDepotName: shipmentRow.tradeDirection === 'IMPORT'
-      ? (shipmentRow.containerDropoffPortName?.trim() || null)
-      : deliveryStage.returnDepotName,
+    // Trả-rỗng row is dead (ruling 2026-09-18): HẠ is the port itself, so a
+    // second row naming the same place is the redundancy the user rejected.
+    returnDepotName: deliveryStage.returnDepotName,
     contactName: (shipmentRow.contactName?.trim() || null)
       ?? deliverySiteContact.name
       ?? (shipmentRow.siteContactName?.trim() || null)
@@ -990,6 +997,7 @@ export type { DriverPayslipPeriod } from './driver-payslip.service';
 export {
   completeOwnedFulfillmentTrip,
   getCompletionEvidenceStatus,
+  listActiveDriverFeeNorms,
   listIncidentalCosts,
   recordIncidentalCost,
   syncDriverFulfillmentStartSideEffects,

@@ -63,10 +63,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-max-h);
+  height: var(--control-max-h);
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   border: none;
   border-radius: var(--r-sm);
   background: transparent;
@@ -132,7 +132,7 @@
 
 .pv-btn:focus-visible,
 .pv-nav:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--surface);
   outline-offset: -3px;
 }
 
@@ -145,13 +145,14 @@
   justify-content: center;
   gap: 12px;
   padding: 72px 56px;
-  color: #fff;
+  color: var(--fg-inverse);
   text-align: center;
   pointer-events: none;
 }
 
-.pv-retry {
+.pv-btn.pv-retry {
   width: auto;
+  white-space: nowrap;
   padding-inline: 16px;
   border: 1px solid rgba(255, 255, 255, 0.5);
   pointer-events: auto;
@@ -163,8 +164,8 @@
   top: 50%;
   z-index: 2;
   transform: translateY(-50%);
-  width: 48px;
-  height: 80px;
+  width: var(--control-max-h);
+  height: var(--control-max-h);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -180,7 +181,7 @@
 .pv-nav:hover {
   background: rgba(0, 0, 0, 0.6);
   color: var(--fg-on-brand);
-  transform: translateY(-50%) scale(1.05);
+  transform: translateY(-50%);
 }
 
 .pv-nav:active {
@@ -209,11 +210,11 @@
   }
 
   .pv-btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    border-radius: 999px;
+    width: var(--control-max-h);
+    height: var(--control-max-h);
+    min-width: var(--control-max-h);
+    min-height: var(--control-max-h);
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255,255,255,0.9);
   }
@@ -242,9 +243,9 @@
   }
 
   .pv-nav {
-    width: 44px;
-    height: 56px;
-    border-radius: 999px;
+    width: var(--control-max-h);
+    height: var(--control-max-h);
+    border-radius: 8px;
     background: rgba(0, 0, 0, 0.38);
   }
 

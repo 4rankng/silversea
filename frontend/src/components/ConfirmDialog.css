@@ -20,7 +20,7 @@
 }
 .confirm-box {
   position: relative;
-  background: linear-gradient(160deg, var(--surface, #fff) 0%, var(--surface-2, #f8faf9) 55%);
+  background: var(--surface);
   border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line));
   border-radius: var(--r);
   width: 100%;
@@ -29,7 +29,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  box-shadow: 0 20px 50px -20px rgba(16, 23, 42, .18);
   /* anime.js handles opacity/scale animation */
   opacity: 1;
   transform: none;
@@ -72,9 +71,9 @@
   display: grid;
   place-items: center;
 }
-.confirm-icon--danger { background: var(--danger-soft, #FFEAEC); }
-.confirm-icon--warning { background: var(--warning-soft, #FFF4E0); }
-.confirm-icon--primary { background: var(--accent-soft, #E6F7EE); }
+.confirm-icon--danger { background: var(--danger-soft); }
+.confirm-icon--warning { background: var(--warning-soft); }
+.confirm-icon--primary { background: var(--accent-soft); }
 .confirm-message {
   margin: 0;
   font-size: var(--text-body-size);

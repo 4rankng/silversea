@@ -274,7 +274,7 @@ export default function ProfitPage() {
                     <span className="calc-row__op">-</span>
                     Chi phí biến đổi chuyến
                   </div>
-                  <div className="calc-row__value calc-row__value--neg"><Money value={variableTripCosts} sign="-" /></div>
+                  <div className={`calc-row__value ${(variableTripCosts) === 0 ? '' : 'calc-row__value--neg'}`}><Money value={variableTripCosts} sign={(variableTripCosts) === 0 ? undefined : "-"} /></div>
                 </div>
                 {maintenanceCosts > 0 && (
                   <div className="calc-row">
@@ -312,7 +312,7 @@ export default function ProfitPage() {
                     <span className="calc-row__op">-</span>
                     Chi phí chung công ty
                   </div>
-                  <div className="calc-row__value calc-row__value--neg"><Money value={report?.companyExpenses || 0} sign="-" /></div>
+                  <div className={`calc-row__value ${(report?.companyExpenses || 0) === 0 ? '' : 'calc-row__value--neg'}`}><Money value={report?.companyExpenses || 0} sign={(report?.companyExpenses || 0) === 0 ? undefined : "-"} /></div>
                 </div>
                 <div className="calc-row">
                   <div className="calc-row__label">
@@ -402,14 +402,12 @@ export default function ProfitPage() {
                     value={String(selectedQuarter)}
                     onChange={e => { setSelectedQuarter(Number(e.target.value)); setPreview(null); }}
                     options={[1, 2, 3, 4].map(q => ({ value: String(q), label: `Quý ${q}` }))}
-                    inline
                   />
                   <UuiSelectField
                     label="Năm quyết toán"
                     value={String(distQuarterYear)}
                     onChange={e => { setDistQuarterYear(Number(e.target.value)); setPreview(null); }}
                     options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: `Năm ${y}` }))}
-                    inline
                   />
                 </div>
                 <div className="profit-settlement__actions">
@@ -455,9 +453,9 @@ export default function ProfitPage() {
                             .map((t, idx, arr) => (
                               <span key={t.truckId}>
                                 {isAdmin ? (
-                                  <a href={`/config/trucks/${t.truckId}/owners`}>{t.licensePlate ?? `xe #${t.truckId}`}</a>
+                                  <a href={`/config/trucks/${t.truckId}/owners`}>{t.licensePlate ?? '—'}</a>
                                 ) : (
-                                  <span>{t.licensePlate ?? `xe #${t.truckId}`}</span>
+                                  <span>{t.licensePlate ?? '—'}</span>
                                 )}
                                 {idx < arr.length - 1 ? ', ' : ''}
                               </span>

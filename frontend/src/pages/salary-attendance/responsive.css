@@ -44,11 +44,6 @@
     height: 36px;
   }
 
-  /* --- Page header search: full width --- */
-  .salary-page .input-icon {
-    width: 100% !important;
-  }
-
   /* --- Driver selector: wrap instead of requiring a horizontal swipe --- */
   .driver-select-row {
     margin-bottom: 12px;
@@ -111,7 +106,7 @@
     padding: 0 14px 0 10px;
     border-bottom: 1px solid var(--line);
     gap: 10px;
-    transition: background 120ms ease, transform 120ms ease;
+    transition: background var(--t-fast), transform var(--t-fast);
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -145,7 +140,7 @@
   }
 
   .mobile-day-row.status-weekly_off::before {
-    background: var(--ink-4, #BABDC3);
+    background: var(--ink-4);
   }
 
   /* Tappable rows */
@@ -206,7 +201,7 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    border-radius: 9px;
+    border-radius: 10px;
     flex-shrink: 0;
     border: 1px solid rgba(255, 255, 255, 0.72);
   }
@@ -255,7 +250,7 @@
     flex-wrap: wrap;
     padding: 10px 14px;
     border-top: 1px solid var(--line);
-    background: var(--surface-2, #F7F8FA);
+    background: var(--surface-2);
   }
 
   .mobile-day-legend__item {
@@ -312,12 +307,12 @@
     position: sticky;
     bottom: 0;
     padding: 12px 0 0;
-    background: linear-gradient(to top, var(--bg, #F7F8FA) 60%, transparent);
+    background: linear-gradient(to top, var(--bg) 60%, transparent);
     z-index: 10;
   }
 
   .mobile-back-bar .btn {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     border-radius: 10px;
     font-size: var(--fs-sm);
     font-weight: 600;
@@ -375,7 +370,7 @@
     aspect-ratio: auto;
     min-height: 42px;
     padding: 4px 2px !important;
-    border-radius: 5px !important;
+    border-radius: 6px !important;
   }
   .cal-cell-day-num { font-size: var(--fs-xs) !important; line-height: 1.35; }
   .cal-cell-icon-wrap svg { width: 14px; height: 14px; }

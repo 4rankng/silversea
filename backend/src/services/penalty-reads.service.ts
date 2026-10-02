@@ -12,6 +12,7 @@ import { type PenaltyStatus, type PenaltyListSortKey } from '@tingting/shared';
 import { escapeLikeTerm } from '../lib/format';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { currentVietnamMonthStart } from './financial-reporting-policy.service';
+import { billBookingTitle } from '../lib/business-keys';
 
 /** Sort whitelist for the violation-log columns. Every expression rides the
  * joins the list already makes; `reason` mirrors the displayed fallback chain
@@ -20,7 +21,7 @@ const PENALTY_SORT_SQL: Record<PenaltyListSortKey, SQL | Column> = {
   driverName: s.drivers.name,
   reason: sql`coalesce(${s.penaltyReasons.reasonText}, ${s.penalties.customReason})`,
   date: s.penalties.date,
-  tripCode: s.trips.tripCode,
+  tripCode: sql`coalesce(nullif(btrim(${s.shipments.blNumber}), ''), nullif(btrim(${s.shipments.bookingRef}), ''))`,
   amount: s.penalties.amount,
 };
 
@@ -104,6 +105,8 @@ function buildPenaltyConditions(filters: {
     const matcher = or(
       ilike(s.drivers.name, like),
       ilike(s.trips.tripCode, like),
+      ilike(s.shipments.blNumber, like),
+      ilike(s.shipments.bookingRef, like),
       ilike(s.penaltyReasons.reasonText, like),
       ilike(s.penalties.customReason, like),
     );
@@ -134,10 +137,13 @@ export async function getPenalties(filters: PenaltyListFilters = {}) {
       driverName: s.drivers.name,
       reasonText: s.penaltyReasons.reasonText,
       tripCode: s.trips.tripCode,
+      billNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
     }).from(s.penalties)
       .leftJoin(s.drivers, eq(s.penalties.driverId, s.drivers.id))
       .leftJoin(s.penaltyReasons, eq(s.penalties.reasonId, s.penaltyReasons.id))
       .leftJoin(s.trips, eq(s.penalties.tripId, s.trips.id))
+      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
       .where(where)
       .orderBy(
         ...(filters.sortBy
@@ -152,11 +158,13 @@ export async function getPenalties(filters: PenaltyListFilters = {}) {
       .leftJoin(s.drivers, eq(s.penalties.driverId, s.drivers.id))
       .leftJoin(s.penaltyReasons, eq(s.penalties.reasonId, s.penaltyReasons.id))
       .leftJoin(s.trips, eq(s.penalties.tripId, s.trips.id))
+      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
       .where(where),
     db.select({ status: s.penalties.status, count: count() }).from(s.penalties)
       .leftJoin(s.drivers, eq(s.penalties.driverId, s.drivers.id))
       .leftJoin(s.penaltyReasons, eq(s.penalties.reasonId, s.penaltyReasons.id))
       .leftJoin(s.trips, eq(s.penalties.tripId, s.trips.id))
+      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
       .where(whereAll)
       .groupBy(s.penalties.status),
   ]);
@@ -169,7 +177,10 @@ export async function getPenalties(filters: PenaltyListFilters = {}) {
   }
   statusCounts.all = statusTotal;
 
-  return { items, total: Number(countRows[0]?.total ?? 0), page, pageSize: limit, statusCounts };
+  const visibleItems = items.map(({ billNumber, bookingRef, ...row }) => ({
+    ...row, tripCode: row.tripId ? billBookingTitle(billNumber, bookingRef) : null,
+  }));
+  return { items: visibleItems, total: Number(countRows[0]?.total ?? 0), page, pageSize: limit, statusCounts };
 }
 
 /** getViolationGrade transplant from frontend features/penalties/utils. */

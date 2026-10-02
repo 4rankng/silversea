@@ -22,49 +22,38 @@
   margin: 0;
 }
 
-.ops-wallet__cards {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
-  overflow: hidden;
-  border-block: 1px solid var(--line);
-  background: var(--surface);
+/* Card 20260930_218 — the three bespoke balance cards are gone: the shared
+   .summary-rail carries the figures now (labels left, values right, no card
+   chrome). Only the negative-balance warning stays page-local. */
+.ops-wallet__negative {
+  margin: 8px 16px 0;
+  color: var(--warning-text);
+  font-size: var(--text-caption-size);
 }
 
-.ops-wallet-card {
-  min-width: 0;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+@media (max-width: 640px) {
+
+  .ops-wallet__bar {
+    /* The app-shell topbar already prints the page title on phones; the H1
+       is hidden below, so keep the action on the trailing edge. */
+    justify-content: flex-end;
+  }
+
+  /* Same ruling as PageHeader (components/PageHeader.css): hide the in-page
+     H1 at ≤640px so the title never prints twice, keeping it for AT. */
+  .ops-wallet__bar h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
-.ops-wallet-card + .ops-wallet-card { border-inline-start: 1px solid var(--line); }
-.ops-wallet-card small { color: var(--ink-3); font-size: var(--text-caption-size); }
-.ops-wallet-card strong { overflow-wrap: anywhere; }
-
-@media (max-width: 560px) {
-  .ops-wallet__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ops-wallet-card { padding: 8px; }
-  .ops-wallet-card--balance { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
-  .ops-wallet-card--balance + .ops-wallet-card { border-inline-start: 0; }
-}
-
-.ops-wallet-card__label {
-  font-size: var(--text-label-size);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--fg-3, #6b7280);
-}
-
-.ops-wallet-card--balance .ops-wallet-card__label { color: var(--ink-2); }
-
-.ops-wallet-card strong {
-  font-size: var(--text-title-size);
-}
-
-.ops-wallet-card--balance strong {
-  font-size: var(--text-metric-size);
-}
 
 .ops-wallet__section {
   display: flex;
@@ -80,41 +69,29 @@
   flex-wrap: wrap;
 }
 
+/* Card 20260925_3 (CHIEF): the fund-book closing/outstanding figures group
+   into one solid, bordered block — right-aligned but never floating text on
+   the page canvas. (The TSX keeps its inline grid/alignment; this rule adds
+   the surface, border and padding around it.) */
+.ops-fund-book__summary {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
 .ops-wallet__section-head h2 {
   font-size: var(--text-section-size);
   margin: 0;
-}
-
-.ops-wallet__filters {
-  display: inline-flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.ops-wallet__filters button {
-  border: 1px solid var(--line, #d8d3cb);
-  background: var(--bg-1, #fff);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: var(--text-caption-size);
-  cursor: pointer;
-  color: var(--fg-2, #555);
-  min-height: 32px;
-}
-
-.ops-wallet__filters button.is-active {
-  background: var(--ink, #1c1c1c);
-  border-color: var(--ink, #1c1c1c);
-  color: #fff;
 }
 
 .ops-wallet__scroll {
   container-type: inline-size;
   min-width: 0;
   overflow-x: auto;
-  border: 1px solid var(--line, #e3ded5);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--bg-1, #fff);
+  background: var(--bg-1);
 }
 
 .ops-wallet__table {
@@ -142,7 +119,7 @@
   gap: 5px;
   border: none;
   background: transparent;
-  color: var(--ok, #16a34a);
+  color: var(--ok);
   font-size: var(--text-caption-size);
   font-weight: 600;
   cursor: pointer;
@@ -150,11 +127,11 @@
 }
 
 .ops-doc-state.is-debt {
-  color: var(--err, #dc2626);
+  color: var(--err);
 }
 
 .ops-reject-reason {
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
   font-size: var(--text-caption-size);
 }
 
@@ -165,36 +142,31 @@
   justify-content: flex-end;
 }
 
-.ops-row-actions .btn-secondary {
-  min-height: 32px;
-  padding: 0 10px;
-}
-
 .ops-danger {
-  color: var(--err, #dc2626);
+  color: var(--err);
 }
 
 .ops-ok {
-  color: var(--ok, #16a34a);
-}
-
-.ops-modal__head-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  color: var(--ok);
 }
 
 .ops-wallet__empty {
   text-align: center;
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
   padding: 24px 0 !important;
+  /* Card 20260925_3 (CHIEF): the empty-state box reads as solid white across
+     its full width — no half-transparent straddle against the page canvas.
+     It stays a normal table cell (its colSpan already spans the row on
+     desktop); the mobile block-table band below re-applies display:block so
+     the collapsed cell also fills the width. */
+  background: var(--surface);
 }
 
 .ops-wallet__loading {
   display: flex;
   justify-content: center;
   padding: 16px;
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
 }
 
 /* ── Photo grid (viewer modal) ──────────────────────────────────────────── */
@@ -213,7 +185,7 @@
 .ops-photo-grid__item > button {
   width: 100%;
   aspect-ratio: 4 / 3;
-  border: 1px solid var(--line, #e3ded5);
+  border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
   padding: 0;
@@ -236,7 +208,7 @@
   border-radius: 50%;
   border: none;
   background: rgba(20, 20, 20, 0.65);
-  color: #fff;
+  color: var(--fg-inverse);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -245,110 +217,18 @@
 
 .ops-photo-grid__loading,
 .ops-photo-grid__empty {
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
   font-size: var(--text-data-size);
 }
 
-/* ── Settlement sheet (screen + A4 print) ───────────────────────────────── */
-
-.ops-settlement-sheet h3 {
-  margin: 0 0 4px;
-  font-size: var(--text-section-size);
-}
-
-.ops-settlement-sheet > p {
-  margin: 0 0 10px;
-  font-size: var(--text-data-size);
-  color: var(--fg-2, #555);
-}
-
-.ops-settlement-sheet h4 {
-  margin: 12px 0 6px;
-  font-size: var(--text-data-size);
-}
-
-.ops-settlement-sheet__table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.ops-settlement-sheet__table th,
-.ops-settlement-sheet__table td {
-  border-bottom: 1px solid var(--line, #eee);
-  padding: 6px 8px;
-  font-size: var(--text-caption-size);
-  text-align: left;
-}
-
-.ops-settlement-sheet__subtotal td {
-  font-weight: 600;
-}
-
-.ops-settlement-sheet__group-total {
-  font-weight: 600;
-  font-size: var(--text-data-size);
-  margin: 4px 0 8px;
-}
-
-.ops-settlement-sheet__grand {
-  font-weight: 700;
-  font-size: var(--text-body-size);
-  margin: 10px 0;
-}
-
-.ops-settlement-sheet__signatures {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 24px;
-}
-
-.ops-settlement-sheet__signatures span {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  font-weight: 600;
-  font-size: var(--text-data-size);
-}
-
-.ops-settlement-sheet__signatures small {
-  font-weight: 400;
-  color: var(--fg-3, #6b7280);
-}
-
-/* A4 print: only the sheet survives. */
-@media print {
-  body * {
-    visibility: hidden;
-  }
-
-  .ops-settlement-sheet,
-  .ops-settlement-sheet * {
-    visibility: visible;
-  }
-
-  .ops-settlement-sheet {
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
-    padding: 24px;
-  }
-}
-
-.ops-wallet__filters button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (pointer: coarse) {
-  .ops-wallet__filters button, .ops-doc-state { min-height: var(--control-touch-h); }
+  .ops-doc-state { min-height: var(--control-touch-h); }
 }
 @container (max-width: 700px) {
-  .ops-wallet__table { display: block; width: 100%; }
-  .ops-wallet__table tbody {
-    /* Stack each tr as its own bordered card. Gap between cards lives on
-       tbody; the rows never bleed across their card boundary (card _2
-       mandate — matches OpsOrdersPage / trip-list mobile contract). */
-    display: grid;
-    gap: 8px;
-    padding: 8px;
-    width: 100%;
-  }
+  .ops-wallet__table, .ops-wallet__table tbody { display: block; width: 100%; }
+  /* Card 20260925_3: rows collapse to blocks too — without it an empty row's
+     tr shrink-wraps and the empty-state box renders half-width. */
+  .ops-wallet__table tr { display: block; width: 100%; }
   .ops-wallet__table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .ops-wallet__row {
     display: grid;

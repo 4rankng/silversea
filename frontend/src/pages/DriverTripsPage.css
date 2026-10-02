@@ -11,28 +11,25 @@
   box-sizing: border-box;
 }
 
-/* Below 1024px the driver bottom-nav is fixed over the viewport at
-   60px + safe-area. Without matching clearance the last card in the list can
-   never be scrolled clear of it. */
-@media (max-width: 1023px) {
-  .driver-journey {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px));
-  }
-}
+/* QA-2026-09-27-01: the ≤1023px nav reserve that used to live here assumed
+   the bottom-nav overlays the viewport. It does not — it is a flex sibling of
+   .app-body inside .app-main (bottom-nav.css owns that geometry), so this was
+   a second, dead strip under the page. The base rule's 24px bottom padding is
+   the only clearance the list needs. */
 
 /* Shared tabs own selection and keyboard behavior. Only the journey's
    equal-width layout and touch size are specific to this screen. */
 .driver-journey__tabs.ds-tabs {
   width: 100%;
-  gap: 4px;
 }
 
-.driver-journey__tabs .ds-tabs__btn {
+/* Journey categories retain their existing equal-share layout and use the
+   current house control budget at every width. */
+#root .driver-journey__tabs .ds-tabs__btn {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 44px;
+  min-height: var(--control-h);
   justify-content: center;
-  padding-inline: 4px;
 }
 
 .driver-journey__panel {
@@ -40,8 +37,7 @@
 }
 
 .driver-journey__loading,
-.driver-journey__error,
-.driver-journey__empty {
+.driver-journey__error {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,14 +47,81 @@
   text-align: center;
 }
 
+/* The day-view navigation shares the ordinary house control budget. */
+.driver-journey__day-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--control-h);
+  padding: 6px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-control-size);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+}
+
+.driver-journey__day-view > svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+.driver-journey__day-view-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (hover: hover) {
+  .driver-journey__day-view:hover {
+    background: var(--surface-accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--line-2));
+  }
+}
+
 .driver-journey__list {
   display: grid;
   gap: 10px;
 }
 
+/* Desktop: the phone's single full-bleed column left ~75% of a 1440px
+   viewport as blank canvas (card 20260922_30). The base rule's
+   --driver-measure already bounds the column at every width; desktop adds the
+   height model — one work surface that owns the leftover height — and keeps
+   the tab strip at label width instead of stretching three equal bands. */
 @media (min-width: 1024px) {
-  .driver-journey { max-width: 1120px; padding-inline: 16px; }
-  .driver-journey__list { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .driver-journey {
+    /* Column stays on the portal's documented measure so the page lines up
+       with the topbar band and the other driver screens; only the height
+       model is desktop-specific. */
+    display: flex;
+    flex-direction: column;
+  }
+  .driver-journey__tabs .ds-tabs__btn {
+    flex: 0 1 auto;
+  }
+  .driver-journey__panel {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    margin-top: 12px;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--surface-2);
+  }
+  /* The tab body owns the leftover height, so an empty tab centres its
+     message in the work surface instead of hugging the top of a blank page. */
+  .driver-journey__empty,
+  .driver-journey__loading,
+  .driver-journey__error {
+    flex: 1 1 auto;
+  }
+  .driver-journey__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
   .driver-journey-group { min-width: 0; }
 }
 
@@ -107,7 +170,7 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -255,7 +318,7 @@
 .driver-journey-card__cont-type,
 .driver-journey-card__seal {
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--surface);
   border: 1px solid var(--line);
   font-size: var(--text-caption-size);
@@ -299,7 +362,7 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 600;
   background: color-mix(in srgb, var(--brand) 10%, transparent);
@@ -357,14 +420,13 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  /* Driver primary-action touch floor (AC DRV-LIST-04); the ≤640px opt-up
-     below keeps it from being squashed by the global #root button floor. */
-  min-height: 48px;
+  /* The current user-approved ceiling supersedes the older driver opt-up. */
+  min-height: var(--control-h);
   margin-top: 4px;
   border: 1px solid var(--brand);
   border-radius: var(--r-sm);
   background: var(--brand);
-  color: #fff;
+  color: var(--fg-inverse);
   font-size: var(--text-body-size);
   font-weight: 600;
   cursor: pointer;
@@ -383,39 +445,36 @@
   background: var(--surface-2);
 }
 
-/* The app-wide mobile touch floor (responsive.css `#root button` at ≤640px)
-   carries ID specificity and squashes class-level min-heights. The card
-   footer is the card's primary action, so it opts back up to the 48px
-   driver primary-action floor with matching ID specificity — same idiom as
-   the trip detail accept bar (c9012bd0). */
-@media (max-width: 640px) {
-  #root .driver-journey-card__footer {
-    min-height: 48px;
-  }
-}
-
 /* KẾT HỢP sequencing lock (TC-GHEP-010): the second card explains why its
  * action is unavailable instead of failing on tap. */
 .driver-journey-card__locked {
   margin: 0;
   font-size: var(--text-data-size);
   font-weight: 600;
-  color: var(--warning, #b45309);
+  color: var(--warning);
 }
 
-/* TRP code chip (acceptance-blocker identity): same muted tone as the
-   classification tag, monospace for code scanning. */
-.driver-journey-card__trip-code {
+/* Bill/booking chip (CHIEF 26/09): the driver-facing identity — prominent,
+   bold, data-font for plate/bill scanning. Replaces the removed TRP chip. */
+.driver-journey-card__bill {
   font-family: var(--font-data, ui-monospace, monospace);
   font-size: var(--text-data-size);
-  font-weight: 600;
-  color: var(--text-secondary, #475467);
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--border-subtle, #eaecf0);
+  font-weight: 700;
+  color: var(--fg-1, var(--ink));
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: 6px;
   padding: 1px 6px;
   max-width: 100%;
   overflow-wrap: anywhere;
+}
+
+/* No bill/booking captured yet: the chip states the gap in plain prose
+   instead of titling the card with the internal shipment code. */
+.driver-journey-card__bill--pending {
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--fg-3, var(--ink-3));
 }
 
 @media (hover: hover) {
@@ -423,4 +482,14 @@
     background: var(--surface-2);
     border-color: var(--line-strong);
   }
+}
+
+/* Journey tab counts are plain text (QA-2026-09-26-24): the shared Badge's
+ * status dot reads as a black blob jammed against a tab label. No dot, no
+ * fill — label + count is the whole message. */
+.driver-journey__tab-count {
+  margin-left: 6px;
+  font-size: var(--text-body-size);
+  color: var(--fg-3);
+  font-weight: 500;
 }

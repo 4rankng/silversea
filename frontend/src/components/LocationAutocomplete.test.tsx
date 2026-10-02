@@ -1,9 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { fetchPlaceSuggestions } from '../lib/maps';
 import { LocationAutocomplete } from './LocationAutocomplete';
+import { useClickOutside } from '../hooks/useClickOutside';
+import { isOverlayOpen } from '../lib/overlayState';
 
 vi.mock('../lib/maps', () => ({
   fetchPlaceSuggestions: vi.fn(async () => []),
@@ -41,6 +43,58 @@ beforeEach(() => {
 });
 
 describe('LocationAutocomplete', () => {
+  it('does not claim an open overlay while its mounted input is closed', () => {
+    const { unmount } = renderAuto();
+    expect(screen.getByRole('textbox')).toBeTruthy();
+    expect(screen.queryByText('Cảng Hải Phòng')).toBeNull();
+    expect(isOverlayOpen()).toBe(false);
+    unmount();
+    expect(isOverlayOpen()).toBe(false);
+  });
+
+  it('activates above a later parent and releases only the topmost layer on Escape', async () => {
+    function LayerHarness() {
+      const [open, setOpen] = useState(false);
+      const [value, setValue] = useState('');
+      const parentRef = useRef<HTMLDivElement>(null);
+      useClickOutside(parentRef, () => setOpen(false), { enabled: open, escapeKey: true });
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>Mở hành trình</button>
+          <div ref={parentRef} hidden={!open}>
+            {open && <span>Hành trình đang mở</span>}
+            <LocationAutocomplete value={value} onChange={setValue} ariaLabel="Địa điểm hành trình" />
+          </div>
+        </>
+      );
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { unmount } = render(
+      <QueryClientProvider client={queryClient}>
+        <LayerHarness />
+      </QueryClientProvider>,
+    );
+
+    for (let opening = 0; opening < 2; opening += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Mở hành trình' }));
+      const input = screen.getByRole('textbox', { name: 'Địa điểm hành trình' });
+      act(() => input.focus());
+      await screen.findByText('Cảng Hải Phòng');
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByText('Cảng Hải Phòng')).toBeNull());
+      expect(screen.getByText('Hành trình đang mở')).toBeTruthy();
+      expect(document.activeElement).toBe(input);
+      expect(isOverlayOpen()).toBe(true);
+
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      expect(screen.queryByText('Hành trình đang mở')).toBeNull();
+      expect(isOverlayOpen()).toBe(false);
+      act(() => input.blur());
+    }
+    unmount();
+    expect(isOverlayOpen()).toBe(false);
+  });
+
   it('shows port suggestions with the CẢNG/BÃI badge and selects on click', async () => {
     renderAuto();
     const input = screen.getByRole('textbox');

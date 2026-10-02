@@ -21,7 +21,7 @@
 }
 .table-scroll::-webkit-scrollbar { height: 8px; }
 .table-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 90, 45, 0.22);
+  background: rgba(10, 10, 10, 0.15);
   border-radius: 999px;
 }
 
@@ -88,10 +88,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-h);
+  height: var(--control-h);
+  min-width: var(--control-h);
+  min-height: var(--control-h);
   border-radius: 6px;
   border: 1px solid var(--line);
   background: var(--surface);
@@ -112,13 +112,13 @@
 
 .fee-action-trigger.is-active {
   opacity: 1;
-  background: var(--bg-3);
+  background: var(--surface-3);
   border-color: var(--ink-3);
   color: var(--ink);
 }
 
 .fee-action-trigger:hover:not(:disabled) {
-  background: var(--bg-2);
+  background: var(--surface);
   color: var(--ink);
   border-color: var(--ink-3);
 }
@@ -144,7 +144,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-h);
   padding: 10px 12px;
   border: none;
   background: transparent;
@@ -158,7 +158,7 @@
 }
 
 .fee-action-dropdown__item:hover:not(:disabled) {
-  background: var(--bg-2);
+  background: var(--surface-2);
 }
 
 .fee-action-dropdown__item svg {
@@ -190,7 +190,7 @@
   font-size: var(--text-caption-size);
   cursor: pointer;
   text-align: center;
-  transition: border-color 120ms ease, color 120ms ease;
+  transition: border-color var(--t-fast), color var(--t-fast);
 }
 .ancillary-fees__add-row:hover td {
   border-color: var(--accent);
@@ -393,7 +393,7 @@
   font-size: var(--text-data-size);
   font-weight: 500;
   cursor: pointer;
-  transition: border-color 0.12s ease, color 0.12s ease;
+  transition: border-color var(--t-fast), color var(--t-fast);
 }
 .ancillary-fees__mobile-add:hover,
 .ancillary-fees__mobile-add:active {
@@ -448,13 +448,15 @@ tbody tr {
   transition: background 150ms ease;
 }
 tbody tr.is-clickable { cursor: pointer; }
-tbody tr:hover td {
-  background-color: var(--surface-accent);
-}
-/* Explicitly override sticky td cells on hover to ensure sync */
-tbody tr:hover td[style*="position: sticky"],
-tbody tr:hover td.sticky {
-  background-color: var(--surface-accent) !important;
+/* Hover is a quiet orientation aid for a mouse, never a latched touch state. */
+@media (hover: hover) and (pointer: fine) {
+  tbody tr:hover td {
+    background-color: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
+  tbody tr:hover td[style*="position: sticky"],
+  tbody tr:hover td.sticky {
+    background-color: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 tbody tr:last-child td { border-bottom: none; }
 
@@ -515,8 +517,8 @@ tbody tr:last-child td { border-bottom: none; }
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.tt-table tbody tr { cursor: pointer; transition: background 0.2s ease; }
-.tt-table tbody tr:hover { background: rgba(0, 177, 79, 0.04); }
+.tt-table tbody tr { cursor: pointer; transition: background var(--t-normal); }
+.tt-table tbody tr:hover { background: color-mix(in srgb, var(--fg-1) 2.5%, var(--surface)); }
 .tt-table tbody tr:last-child td { border-bottom: none; }
 .tt-table td.num {
   font-family: var(--font-data);
@@ -527,12 +529,47 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 /* Misc table helpers */
+/* Explicit metric-by-class matrices pin their row axis while values pan.
+   Only the first header-row axis joins it; grouped second-row headers and
+   generic rowspan tables retain their own layout. Opaque cells cover values
+   beneath them without changing the global table header stacking contract. */
+.table-matrix > tbody > tr > th[scope='row'] {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-base);
+  background: var(--surface);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: normal;
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+}
+.table-matrix > thead > tr > th {
+  z-index: calc(var(--z-base) + 1);
+  background: var(--surface-2);
+  font-family: var(--font-sans);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.table-matrix > thead > tr:first-child > th[rowspan][scope='col'],
+.table-matrix > thead > tr > th[data-row-header] {
+  position: sticky;
+  left: 0;
+  z-index: calc(var(--z-base) + 2);
+  background: var(--surface-2);
+}
+.table-matrix > thead > tr > th[data-align='end'],
+.table-matrix > tbody > tr > td[data-align='end'] { text-align: right; }
+.table-matrix > tbody > tr > td[data-align='end'] .ds-field { margin-inline-start: auto; }
+
 .row-strong { font-weight: 600; color: var(--ink); font-size: var(--text-data-size); }
 .row-meta { font-size: var(--text-caption-size); color: var(--ink-3); margin-top: 2px; line-height: 1.35; }
 
 .row-actions { display: flex; gap: 6px; justify-content: flex-end; }
-/* Compact desktop row actions; responsive.css restores the 44px touch
-   minimum on phones via the universal #root button rule. */
+/* Compact desktop row actions; responsive.css restores the house40px touch
+   geometry on phones via the universal #root button rule. */
 .row-action {
   width: var(--control-compact-h);
   min-width: var(--control-compact-h);
@@ -547,3 +584,7 @@ tbody tr:last-child td { border-bottom: none; }
   cursor: pointer;
 }
 .row-action:hover { background: var(--surface-3); color: var(--ink); }
+.row-action:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: -2px;
+}

@@ -68,10 +68,20 @@ describe('ForwarderAdvancesPage server pagination', () => {
 
     // Filter pills carry the server's full-set statusCounts (5+3=8), not the
     // page's 30-row filtered total.
+    const statusGroup = screen.getByRole('group', { name: 'Lọc theo trạng thái' });
     const allPill = screen.getByRole('button', { name: /Tất cả/ });
     expect(allPill.textContent).toContain('8');
     const pendingPill = screen.getByRole('button', { name: /Đã ghi nhận/ });
     expect(pendingPill.textContent).toContain('5');
+
+    // Card 20260927_152 — the chips ARE the shared bar's quick-filter group:
+    // one implementation of the status plane, the shared `.filter-chip` shape.
+    expect(statusGroup.classList.contains('list-filter-bar__quick')).toBe(true);
+    expect(statusGroup.parentElement?.classList.contains('filter-bar')).toBe(true);
+    expect([...statusGroup.querySelectorAll('button')].every((chip) => chip.classList.contains('filter-chip'))).toBe(true);
+    expect(Array.from(statusGroup.querySelectorAll('button')).map((chip) => chip.textContent)).toEqual([
+      'Tất cả8', 'Đã ghi nhận5', 'Đã hủy3',
+    ]);
 
     // Hero KPI subtitle is full-set too.
     expect(screen.getByText('8 phiếu tạm ứng')).toBeInTheDocument();

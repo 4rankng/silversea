@@ -6,10 +6,15 @@ import {
 } from '@tingting/shared';
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
-import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
+import {
+  addCusShipmentContainerRow,
+  removeCusShipmentContainerRow,
+  updateCusShipmentContainerLine,
+} from '../../../api/shipmentClient';
 import { completeDispatchExternalTrip } from '../../../api/dispatchPlanningClient';
 import { ConfirmDialog } from '../../../components/UI';
 import { useToast } from '../../../components/shared/Toast';
+import { CusContainerAddRow, EMPTY_ADD_FIELDS, type AddContainerFields } from './CusContainerAddRow';
 import {
   idempotencySignature,
   lineDraft,
@@ -106,7 +111,9 @@ export function ContainerLedger({
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
   actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
-  /** Detail refetch after a staff close — completion advances the shipment. */
+  /** Detail refetch after a container-set change — a staff close advances the
+   *  shipment, and a removed line is gone server-side, so the ledger re-reads
+   *  the detail rather than patching one row. */
   onExternalTripCompleted?: () => void;
   /** Fires once after an appointment commit settles successfully — the host
    *  closes the detail surface so Enter returns the user to the list, matching
@@ -121,6 +128,70 @@ export function ContainerLedger({
   const [completingLine, setCompletingLine] = useState<ShipmentCusWorkspaceContainerLine | null>(null);
   const [completing, setCompleting] = useState(false);
   const { toast } = useToast();
+
+  // ── Card 20260923_1: lot-level container ops in the drawer ──────────────
+  // Thêm container (form below the last row) and per-row Xóa ride the
+  // cus-workspace APIs (card 20260921_2 lineage). Adds apply the returned
+  // line through onLineSaved; removes refetch the detail (the line is gone,
+  // and the shipment version advances server-side).
+  const [addOpen, setAddOpen] = useState(false);
+  const [addFields, setAddFields] = useState<AddContainerFields>(EMPTY_ADD_FIELDS);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [removingId, setRemovingId] = useState<number | null>(null);
+
+  const closeAddRow = useCallback(() => {
+    setAddOpen(false);
+    setAddError(null);
+  }, []);
+
+  async function submitAddContainer() {
+    const containerNumber = addFields.containerNumber.trim().toUpperCase();
+    if (!containerNumber) {
+      setAddError('Số container là bắt buộc');
+      return;
+    }
+    setAdding(true);
+    setAddError(null);
+    const signature = idempotencySignature(`container-add:${detail.summary.id}:${containerNumber}`);
+    try {
+      const result = await addCusShipmentContainerRow(detail.summary.id, {
+        expectedShipmentVersion: detail.summary.version,
+        containerNumber,
+        ...(addFields.containerTypeId ? { containerTypeId: Number(addFields.containerTypeId) } : {}),
+        ...(addFields.cargoWeightKg.trim() ? { cargoWeightKg: addFields.cargoWeightKg.trim() } : {}),
+        ...(addFields.customerAppointmentAt ? { customerAppointmentAt: localDateTimeToIso(addFields.customerAppointmentAt) } : {}),
+      }, getIdempotencyKey(signature));
+      clearIdempotencyKey(signature);
+      await onLineSaved(result.line);
+      closeAddRow();
+      setAddFields(EMPTY_ADD_FIELDS);
+      toast({ kind: 'success', message: `Đã thêm container ${containerNumber}.` });
+    } catch (error) {
+      setAddError(safeError(error, 'Không thêm được container.'));
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function removeContainer(line: ShipmentCusWorkspaceContainerLine) {
+    if (removingId != null) return;
+    setRemovingId(line.id);
+    setAddError(null);
+    const signature = idempotencySignature(`container-remove:${detail.summary.id}:${line.id}`);
+    try {
+      await removeCusShipmentContainerRow(detail.summary.id, line.id, {
+        expectedShipmentVersion: detail.summary.version,
+      }, getIdempotencyKey(signature));
+      clearIdempotencyKey(signature);
+      toast({ kind: 'success', message: `Đã xóa container ${line.containerNumber || line.ordinal}.` });
+      onExternalTripCompleted?.();
+    } catch (error) {
+      toast({ kind: 'error', message: safeError(error, 'Không xóa được container.') });
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   // Re-sync drafts only for lines whose server-side operational truth actually
   // changed — a wholesale reset on every detail refresh wiped unsaved edits on
@@ -219,6 +290,29 @@ export function ContainerLedger({
       [lineId]: { ...(prev[lineId] || lineDraft(detail.containers.find((c) => c.id === lineId)!)), ...patch },
     }));
   }, [detail.containers]);
+
+  // Bulk appointment entry (20260917_1): multi-container lots that deliver
+  // together forced one-popover-per-container entry. A row that already has
+  // an appointment offers a copy affordance that fills every line whose
+  // appointment is still empty — never overwriting a set one.
+  const effectiveAppointment = useCallback((lineId: number) => (
+    drafts[lineId]?.customerAppointmentAt || detail.containers.find((c) => c.id === lineId)?.customerAppointmentAt || ''
+  ), [detail.containers, drafts]);
+  const emptyAppointmentCount = detail.containers.filter((c) => !effectiveAppointment(c.id)).length;
+  const copyAppointmentToEmpty = useCallback((fromLineId: number) => {
+    const source = effectiveAppointment(fromLineId);
+    if (!source) return;
+    const targets = detail.containers.filter((c) => c.id !== fromLineId && !effectiveAppointment(c.id));
+    if (targets.length === 0) return;
+    setDrafts((prev) => ({
+      ...prev,
+      ...Object.fromEntries(targets.map((c) => [c.id, {
+        ...(prev[c.id] || lineDraft(c)),
+        customerAppointmentAt: source,
+      }])),
+    }));
+    toast({ kind: 'success', message: `Đã copy giờ hẹn sang ${targets.length} cont chưa có lịch — nhớ lưu thay đổi` });
+  }, [detail.containers, effectiveAppointment, toast]);
 
   const discardAll = useCallback(() => {
     setDrafts(Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)])));
@@ -323,11 +417,17 @@ export function ContainerLedger({
           {onCollapse && <button type="button" className="cus-detail-collapse" onClick={onCollapse} disabled={saving} aria-label={saving ? 'Đang lưu dữ liệu container' : 'Thu gọn chi tiết container'}><X size={16} aria-hidden="true" /><span>{saving ? 'Đang lưu' : 'Thu gọn'}</span></button>}
         </div>
       </header>
-      {detail.containers.length === 0 ? <p className="cus-detail-empty">Lô hàng chưa có dữ liệu container.</p> : (
+      {/* Card 20260923_9: the add row lives inside the table, so an empty lot
+          still needs the grid when the operator opens the form — otherwise the
+          fields would have no columns to align to. */}
+      {detail.containers.length === 0 && !addOpen ? <p className="cus-detail-empty">Lô hàng chưa có dữ liệu container.</p> : (
         <div
           className="cus-container-table-scroll"
           onKeyDown={(event) => {
             if (event.nativeEvent.isComposing || saving || !isDirty) return;
+            // The add-container row owns its own Enter (submit) and Hủy — the
+            // ledger's save/discard shortcuts must not fire from inside it.
+            if ((event.target as HTMLElement).closest('.cus-container-ledger__add-row')) return;
             // _34: the appointment popover owns its own Enter (commit path);
             // table-level Enter only saves TABLE drafts.
             if ((event.target as HTMLElement).closest('.cus-appointment-popover, .cus-appointment-backdrop')) return;
@@ -355,7 +455,14 @@ export function ContainerLedger({
               <col className="cus-container-col__plate" />
               <col className="cus-container-col__site" />
               <col className="cus-container-col__site" />
+              {/* Card 20260923_9: Trọng lượng + Thao tác join the ledger grid
+                  so the add-container row below can sit under every column it
+                  owns (weight was already a per-line field the drawer never
+                  showed; the action cell hosts the row Xóa and the add row's
+                  Thêm/Hủy). */}
+              <col className="cus-container-col__weight" />
               <col className="cus-container-col__appointment" />
+              <col className="cus-container-col__actions" />
             </colgroup>
             <thead><tr>
               <th scope="col">Container</th>
@@ -366,7 +473,9 @@ export function ContainerLedger({
               <th scope="col">Biển số</th>
               <th scope="col">Nâng</th>
               <th scope="col">Hạ</th>
+              <th scope="col">Trọng lượng (kg)</th>
               <th scope="col">Giờ hẹn đóng/trả</th>
+              <th scope="col">Thao tác</th>
             </tr></thead>
             <tbody>
               {detail.containers.map((line) => (
@@ -383,12 +492,45 @@ export function ContainerLedger({
                   completing={completing}
                   onAppointmentCommit={(val) => commitAppointment(line.id, val)}
                   onAppointmentCancel={() => revertAppointmentDraft(line.id)}
+                  showCopyAppointment={Boolean(effectiveAppointment(line.id)) && emptyAppointmentCount >= 2}
+                  onCopyAppointmentToEmpty={() => copyAppointmentToEmpty(line.id)}
+                  onRemove={() => void removeContainer(line)}
+                  removing={removingId === line.id}
                 />
               ))}
             </tbody>
+            {addOpen && (
+              <tfoot>
+                <CusContainerAddRow
+                  fields={addFields}
+                  containerTypes={detail.selectors.containerTypes}
+                  adding={adding}
+                  onChange={(patch) => setAddFields((current) => ({ ...current, ...patch }))}
+                  onSubmit={() => void submitAddContainer()}
+                  onCancel={closeAddRow}
+                />
+              </tfoot>
+            )}
           </table>
         </div>
       )}
+      {/* Card 20260923_1: Thêm container — rides the ledger bottom (ruling:
+          the button sits right below the last container row). FCL and LCL
+          both manage containers here now. Card 20260923_9: the form itself is
+          the table's tfoot row (grid-aligned); this block keeps only the
+          trigger and the inline error. */}
+      <div className="cus-container-ledger__add">
+        {!addOpen && (
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => setAddOpen(true)}
+          >
+            Thêm container
+          </button>
+        )}
+        {addError && <p className="cus-container-ledger__add-error" role="alert">{addError}</p>}
+      </div>
       {/* Staff-close confirmation — closes the external driver's trip on their behalf */}
       <ConfirmDialog
         isOpen={completingLine != null}
@@ -411,7 +553,7 @@ export function ContainerLedger({
               className="btn btn--ghost btn--sm cus-container-revert"
               onClick={discardAll}
               disabled={saving}
-              title="Hủy thay đổi (Esc)"
+              title="Hủy thay đổi"
             >
               Hủy
             </button>
@@ -420,7 +562,7 @@ export function ContainerLedger({
               className="btn btn--primary btn--sm cus-container-confirm"
               onClick={() => void saveAll()}
               disabled={saving}
-              title="Lưu tất cả thay đổi (Enter)"
+              title="Lưu tất cả thay đổi"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

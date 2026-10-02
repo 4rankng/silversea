@@ -7,6 +7,7 @@ import { SectionDivider } from './SectionDivider';
 import { useTripFormContext } from '../../hooks/useTripFormContext';
 import { useCatalogs } from '../../hooks/useCatalogs';
 import { UuiSelectField } from '../../design-system';
+import { formatMoney } from '../../lib/format';
 
 interface FuelTollsRevenueCardProps {
   collapsible?: boolean;
@@ -151,7 +152,7 @@ export function FuelTollsRevenueCard({ collapsible, defaultCollapsed }: FuelToll
           onChange={form.setHasReturnCargo}
           label="Chuyến về có hàng"
           description={form.returnCargoBonusApplied != null
-            ? `Cộng ${form.returnCargoBonusApplied.toLocaleString('vi-VN')} đ vào tiền đi đường`
+            ? `Cộng ${formatMoney(form.returnCargoBonusApplied)} ₫ vào tiền đi đường`
             : 'Áp dụng định mức chuyến đôi'}
           id="cb-return"
         />
@@ -174,7 +175,7 @@ export function FuelTollsRevenueCard({ collapsible, defaultCollapsed }: FuelToll
           <InputWithPrefix value={form.revenueEmptyReturn} onChange={form.setRevenueEmptyReturn} placeholder="4.200.000" prefix="đ" mono type="money" />
           {form.suggestedPrice !== null && (
             <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', marginTop: 4 }}>
-              Gợi ý từ bảng giá: {form.suggestedPrice.toLocaleString('vi-VN')} đ{Number(form.containerCount) > 1 ? ` × ${form.containerCount} cont = ${(form.suggestedPrice * Number(form.containerCount)).toLocaleString('vi-VN')} đ` : ''}
+              Gợi ý từ bảng giá: {formatMoney(form.suggestedPrice)} ₫{Number(form.containerCount) > 1 ? ` × ${form.containerCount} cont = ${formatMoney(form.suggestedPrice * Number(form.containerCount))} ₫` : ''}
             </div>
           )}
         </div>

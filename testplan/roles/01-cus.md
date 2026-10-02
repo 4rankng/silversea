@@ -105,13 +105,12 @@ applies (silent redirect to `/shipments`).
      top of `/shipments` with status `Mới tạo`.
    - **Evidence**: network tab; final URL; toast text.
 
-6. **CUS-SHIP-06 — Maker-checker is bypassed for CUS / DISPATCHER**
+6. **CUS-SHIP-06 — Customer creation is direct**
    - **Given** a CUS user is creating a customer inline (Flow 1.3 above)
    - **When** the form is submitted
    - **Then** the customer is created immediately — no "pending approval"
-     queue, no second-actor gate. (The maker-checker path is reserved
-     for ADMIN/MANAGER; the `shouldGovernCreate` predicate returns
-     `false` for CUS/DISPATCHER per `6ef3b221`.)
+     queue or second-actor gate for any authorized role. Role-specific field
+     permissions still apply; no financial-role approval exception exists.
    - **Evidence**: timing of creation vs. UI; backend logs.
 
 7. **CUS-SHIP-07 — Field-level validation matches the contract**
@@ -146,31 +145,39 @@ applies (silent redirect to `/shipments`).
 10. **CUS-SHIP-10 — Ad-hoc order flag (`Lệnh chạy ngoài`)**
     - **Given** a CUS user on `/shipments/new`
     - **When** they inspect the top of the form without scrolling
-    - **Then** a checkbox labelled exactly
-      `Lệnh chạy ngoài (Tối ưu xe rỗng)` is present and **unchecked by
-      default**, on both desktop and mobile (tap target ≥ 44 px).
+    - **Then** a checkbox labelled exactly `Lệnh chạy ngoài` is present and
+      **unchecked by default**, on both desktop and mobile (tap target ≥ 44 px).
     - **When** it is checked
     - **Then** `Tuyến đường` and `Vị trí đóng/trả hàng` **unlock** for manual
-      entry, and cước-phí quota validation is bypassed so the shipment can
-      be saved and handed to Điều vận immediately.
+      entry, so a shipment SilverSea did not originate (taken from outside on
+      days short of orders or far from home) can be entered with its own
+      names. The flag **never switches off a validation**: an ad-hoc shipment
+      has no internal freight norm to apply — its revenue is the
+      **customer-reported freight plus disbursement (chi hộ) fees** — and that
+      is a property of the shipment type, not a bypass to save faster.
     - **When** it is unchecked again while free text is present
     - **Then** the user is warned (Vietnamese) that those fields must be
       re-picked from the catalogue — typed data is **not** silently wiped.
     - The flag persists on the shipment (`is_ad_hoc`) and is still checked
       when the shipment is reopened for editing.
-    - **Spec**: `docs/prd/MasterDataNhaMay.md` §4.1.
-    - **Cases**: `TC-CUS-CREATE-026`, `-027`, `-028`, `-036`.
+    - **Spec**: `docs/prd/MasterDataNhaMay.md` §4.1; `testplan/cycles/2026-09/2026-09-18-adhoc-definition.md`.
+    - **Cases**: `TC-CUS-CREATE-026`, `-027`, `-028`, `-036`, `TC-ADHOC-DEF-01`.
     - **Evidence**: screenshots of the flag off → on → off sequence.
 
-11. **CUS-SHIP-11 — Ad-hoc bypass is scoped to cước phí only**
+11. **CUS-SHIP-11 — Ad-hoc shipments carry no freight-norm bypass; revenue is customer-reported only**
     - **Given** the ad-hoc flag is **on**
     - **When** the user submits with an ISO-6346-invalid container number,
       an invalid/inverted date pair, a quantity ≤ 0, or an empty required
       field
     - **Then** **every one** of those is still rejected with a specific
       Vietnamese error. The flag never relaxes data-safety validation.
-    - **Cases**: `TC-CUS-CREATE-029`.
-    - **Evidence**: 4 error screenshots.
+    - **When** an ad-hoc shipment is priced
+    - **Then** no internal freight norm (bảng định mức cước) is applied —
+      revenue is the customer-reported freight plus chi hộ fees. There is
+      **no** flag-driven "skip the cước check" path, and no UI copy or docs
+      may describe one (see `TC-ADHOC-DEF-02`).
+    - **Cases**: `TC-CUS-CREATE-029`, `TC-ADHOC-DEF-02`.
+    - **Evidence**: 4 error screenshots + the pricing projection for the ad-hoc shipment.
 
 12. **CUS-SHIP-12 — Free text stores `Raw_*` with a null ID, and never
     touches master data**
@@ -237,7 +244,7 @@ applies (silent redirect to `/shipments`).
 ### Test steps (manual)
 
 1. `pnpm dev` is up; `pgrep -f vite` confirms.
-2. Open `http://localhost:7174`; log in with the `CUS` demo account
+2. Open `http://localhost:7175`; log in with the `CUS` demo account
    (credentials: [`../testaccounts.txt`](../testaccounts.txt)).
 3. Land on `/shipments`. Click `+ Tạo lô hàng` (or navigate to
    `/shipments/new`).

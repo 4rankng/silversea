@@ -6,6 +6,8 @@ import { BRAND } from '../../brand';
 import { routes, titleForPath } from '../../lib/routes';
 import { CustomerPortalScopeProvider, useCustomerPortalScope } from './CustomerPortalScope';
 import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { UuiSelectField } from '../../design-system';
 import './CustomerPortalLayout.css';
 
@@ -20,6 +22,7 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
   const {
     customers,
     selectedCustomerId,
+    ready: customerScopeReady,
     error: customerScopeError,
     retry: retryCustomerScope,
     setSelectedCustomerId,
@@ -30,6 +33,10 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const isMobile = useMediaQuery('(max-width: 1023px)');
+  const mobileMenuOpen = isMobile && menuOpen;
+  useFocusTrap(sidebarRef, mobileMenuOpen);
   // The account popover joins the global click-away / Escape dismissal layer
   // (the nav drawer keeps its own backdrop dismissal).
   useDropdownDismiss(accountOpen, () => setAccountOpen(false));
@@ -81,8 +88,8 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="customer-shell">
-      <a className="skip-link" href="#customer-main">Bỏ qua đến nội dung chính</a>
-      <header className="customer-shell__mobile-header">
+      <a className="skip-link" href="#customer-main" inert={mobileMenuOpen}>Bỏ qua đến nội dung chính</a>
+      <header className="customer-shell__mobile-header" inert={mobileMenuOpen}>
         <button
           ref={menuButtonRef}
           type="button"
@@ -110,9 +117,18 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
         </button>
       </header>
 
-      {menuOpen && <button className="customer-shell__backdrop" aria-label="Đóng menu" onClick={closeMenu} />}
+      {mobileMenuOpen && <button type="button" className="customer-shell__backdrop" aria-label="Đóng menu" tabIndex={-1} onClick={closeMenu} />}
 
-      <aside id="customer-navigation" className={`customer-shell__sidebar ${menuOpen ? 'is-open' : ''}`}>
+      <aside
+        ref={sidebarRef}
+        id="customer-navigation"
+        className={`customer-shell__sidebar ${menuOpen ? 'is-open' : ''}`}
+        inert={isMobile && !menuOpen}
+        aria-hidden={isMobile && !menuOpen ? true : undefined}
+        role={mobileMenuOpen ? 'dialog' : undefined}
+        aria-modal={mobileMenuOpen ? true : undefined}
+        aria-label={mobileMenuOpen ? 'Điều hướng khách hàng' : undefined}
+      >
         <div className="customer-shell__brand">
           <img src={BRAND.sidebarLogoPath} alt="" aria-hidden="true" />
           <div>
@@ -130,7 +146,7 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
             <NavLink
               key={to}
               to={to}
-              onClick={() => setMenuOpen(false)}
+              onClick={closeMenu}
               className={({ isActive }) => `customer-shell__nav-item ${isActive ? 'is-active' : ''}`}
             >
               <Icon size={18} aria-hidden="true" />
@@ -151,7 +167,7 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className="customer-shell__content">
+      <div className="customer-shell__content" inert={mobileMenuOpen}>
         <div className="customer-shell__desktop-topbar">
           <div>
             <span>Cổng thông tin khách hàng</span>
@@ -179,7 +195,15 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
             <button type="button" onClick={retryCustomerScope}>Thử lại</button>
           </div>
         )}
-        <main id="customer-main" className="customer-shell__main">{children}</main>
+        <main id="customer-main" className="customer-shell__main">
+          {customerScopeReady && !customerScopeError && customers.length === 0 ? (
+            <section className="customer-shell__unlinked" role="status">
+              <h1>Tài khoản chưa được liên kết khách hàng</h1>
+              <p>Vui lòng liên hệ nhân viên phụ trách để liên kết tài khoản với khách hàng cần theo dõi.</p>
+              <button type="button" className="btn btn--secondary" onClick={retryCustomerScope}>Kiểm tra lại liên kết</button>
+            </section>
+          ) : children}
+        </main>
       </div>
 
       {accountOpen && (
@@ -190,7 +214,7 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <nav className="customer-shell__bottom-nav" aria-label="Điều hướng nhanh">
+      <nav className="customer-shell__bottom-nav" aria-label="Điều hướng nhanh" inert={mobileMenuOpen}>
         {portalNav.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'is-active' : undefined}>
             <Icon size={20} aria-hidden="true" />

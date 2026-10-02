@@ -77,6 +77,8 @@ async function mkTerms(customerId: number, routeId: number, overrides: Partial<t
     billingKmMultiplier: overrides.billingKmMultiplier ?? '2',
     baseFuelPrice: overrides.baseFuelPrice ?? '17842.5926',
     fuelLagDays: overrides.fuelLagDays ?? 0,
+    fuelLagConfirmed: overrides.fuelLagConfirmed ?? false,
+    surchargeThresholdMode: overrides.surchargeThresholdMode ?? 'UNSET',
     surchargeThresholdPct: overrides.surchargeThresholdPct ?? null,
     surchargeThresholdAbs: overrides.surchargeThresholdAbs ?? null,
     effectiveDate: overrides.effectiveDate ?? '2026-01-01',
@@ -259,7 +261,9 @@ describe('persistFreightRateSnapshot — idempotency + immutability (TC-CUOC-009
   });
 
   test('persists with full trace ids (4 FK refs) and amount columns', async () => {
-    await mkTerms(customerId, routeId, { fuelLagDays: 0 });
+    // Confirmed surcharge terms are mandatory for AUTO since 20260917_11 —
+    // the fixture must grant the confirmation explicitly (card _40).
+    await mkTerms(customerId, routeId, { fuelLagDays: 0, surchargeThresholdMode: 'NONE', fuelLagConfirmed: true });
     await mkPricingTable(customerId, routeId, vehicleClass.code, '1500000');
     await mkNorm(vehicleClass.id, '0.3');
     await mkFuelPeriod('22000', SUITE_BASE_DATE);

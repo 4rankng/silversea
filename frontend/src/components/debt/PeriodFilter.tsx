@@ -1,18 +1,26 @@
 import { useCallback, useMemo } from 'react';
-import { DateInput } from '../../design-system/forms/DateInput';
-import { UuiSelectField } from '../../design-system';
+import { DateRangeFields, Tabs, UuiSelectField } from '../../design-system';
+import type { TabItem } from '../../design-system';
+import './PeriodFilter.css';
 
 /**
  * Period filter for the AR/AP detail ledger tab. Two modes:
  *   - "month": pick a month (T1–T12) and year; resolves to [first day, last day].
- *   - "range": two <input type="date"> (Từ ngày / Đến ngày).
+ *   - "range": the shared `DateRangeFields` group (Từ ngày / Đến ngày).
  *
  * Both modes emit a { dateFrom, dateTo } range via `onChange` so the parent can
  * feed it directly into `useCustomerStatement(id, range)` /
  * `useSupplierStatement(id, range)`.
  *
- * Uses daisyUI's `d-` prefixed classes (per tokens.css daisyUI config) so it
- * cannot collide with the project's existing `.btn`/`.input` BEM classes.
+ * Card 20260927_152: the group is ONE item of the shared filter strip, so its
+ * parts ride the ONE row discipline (`.filter-bar`, FilterBar.css): the boxed
+ * mode switch, the month/year selects or the shared from/to date group, and the
+ * Áp dụng action pack into as few lines as the width allows and every part
+ * keeps the width its value asks for. This component declares no filter layout,
+ * no control width and no control height of its own — the page-local
+ * `flex/grid` stack, the `fieldset` chrome and the full-width stretch that used
+ * to live here are deleted (law §4). Props/API are unchanged: both detail pages
+ * keep rendering it exactly as before.
  */
 
 export type PeriodMode = 'month' | 'range';
@@ -35,6 +43,14 @@ export interface PeriodFilterProps {
   isApplying?: boolean;
   isApplyDisabled?: boolean;
 }
+
+/** Mode switch — the shared boxed segmented group (one group shape app-wide,
+ *  operator ruling 2026-09-27). Ids match PeriodMode so the switch maps
+ *  straight through. */
+const MODE_TABS: TabItem[] = [
+  { id: 'month', label: 'Theo tháng' },
+  { id: 'range', label: 'Theo khoảng' },
+];
 
 const MONTH_LABELS = [
   'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
@@ -76,96 +92,65 @@ export function PeriodFilter(props: PeriodFilterProps) {
   }, [month, onMonthYearChange]);
 
   return (
-    <div
-      className="period-filter border-y border-base-300 py-4"
-      role="group"
-      aria-label="Bộ lọc thời gian"
-    >
-      <fieldset className="d-fieldset">
-        <legend className="d-fieldset-legend text-xs">Kỳ xem sổ</legend>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          {/* Mode switch — two segmented buttons inside a join */}
-          <div className="d-join d-join-vertical w-full shrink-0 lg:w-auto lg:d-join-horizontal" role="tablist" aria-label="Chế độ lọc">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'month'}
-              className={`d-btn d-btn-sm d-join-item w-full lg:w-auto ${mode === 'month' ? 'd-btn-primary' : 'd-btn-outline'}`}
-              onClick={() => onModeChange('month')}
-            >
-              Theo tháng
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'range'}
-              className={`d-btn d-btn-sm d-join-item w-full lg:w-auto ${mode === 'range' ? 'd-btn-primary' : 'd-btn-outline'}`}
-              onClick={() => onModeChange('range')}
-            >
-              Theo khoảng
-            </button>
-          </div>
+    <div className="filter-bar period-filter" role="group" aria-label="Bộ lọc thời gian">
+      {/* Mode switch — the shared boxed segmented group */}
+      <Tabs
+        variant="boxed"
+        tabs={MODE_TABS}
+        value={mode}
+        onChange={(id) => onModeChange(id as PeriodMode)}
+        ariaLabel="Chế độ lọc"
+      />
 
-          {mode === 'month' ? (
-            <div className="flex w-full shrink-0 gap-2 lg:w-auto">
-              <UuiSelectField
-                id="period-month-select"
-                label="Chọn tháng"
-                value={String(month)}
-                onChange={(e) => handleMonth(e.target.value)}
-                options={MONTH_LABELS.map((label, i) => ({
-                  value: String(i + 1),
-                  label,
-                }))}
-                hideLabel
-                inline
-              />
-              <UuiSelectField
-                id="period-year-select"
-                label="Chọn năm"
-                value={String(year)}
-                onChange={(e) => handleYear(e.target.value)}
-                options={yearOptions.map(y => ({
-                  value: String(y),
-                  label: String(y),
-                }))}
-                hideLabel
-                inline
-              />
-            </div>
-          ) : (
-            <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
-              <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
-                <span className="text-base-content">Từ ngày</span>
-                <DateInput
-                  className="d-input d-input-sm w-full"
-                  value={dateFrom}
-                  max={dateTo || undefined}
-                  onChange={(value) => onRangeChange({ dateFrom: value })}
-                />
-              </label>
-              <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
-                <span className="text-base-content">Đến ngày</span>
-                <DateInput
-                  className="d-input d-input-sm w-full"
-                  value={dateTo}
-                  min={dateFrom || undefined}
-                  onChange={(value) => onRangeChange({ dateTo: value })}
-                />
-              </label>
-            </div>
-          )}
-          <button
-            type="button"
-            className="d-btn d-btn-primary d-btn-sm w-full shrink-0 lg:w-auto"
-            onClick={onApply}
-            disabled={isApplyDisabled}
-          >
-            {isApplying && <span className="d-loading d-loading-spinner d-loading-xs" aria-hidden="true" />}
-            {isApplying ? 'Đang lọc…' : 'Lọc dữ liệu'}
-          </button>
-        </div>
-      </fieldset>
+      {mode === 'month' ? (
+        <>
+          <UuiSelectField
+            id="period-month-select"
+            label="Chọn tháng"
+            value={String(month)}
+            onChange={(e) => handleMonth(e.target.value)}
+            options={MONTH_LABELS.map((label, i) => ({
+              value: String(i + 1),
+              label,
+            }))}
+            hideLabel
+            inline
+          />
+          <UuiSelectField
+            id="period-year-select"
+            label="Chọn năm"
+            value={String(year)}
+            onChange={(e) => handleYear(e.target.value)}
+            options={yearOptions.map(y => ({
+              value: String(y),
+              label: String(y),
+            }))}
+            hideLabel
+            inline
+          />
+        </>
+      ) : (
+        // The shared from/to group: two independent fields, cross-clamped by
+        // each other's min/max, in ONE control group (CHIEF 2026-09-27:
+        // "choose from and to separately instead of one long control").
+        <DateRangeFields
+          id="period-range"
+          ariaLabel="Khoảng ngày"
+          from={dateFrom}
+          to={dateTo}
+          onChange={({ from, to }) => onRangeChange({ dateFrom: from, dateTo: to })}
+        />
+      )}
+
+      <button
+        type="button"
+        className="d-btn d-btn-primary d-btn-sm"
+        onClick={onApply}
+        disabled={isApplyDisabled}
+      >
+        {isApplying && <span className="d-loading d-loading-spinner d-loading-xs" aria-hidden="true" />}
+        {isApplying ? 'Đang lọc…' : 'Lọc dữ liệu'}
+      </button>
     </div>
   );
 }

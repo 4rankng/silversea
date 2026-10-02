@@ -1,10 +1,9 @@
 /**
  * Multi-select companion to `SearchableSelect`. Same portal + flip + scroll
  * positioning (via the shared `useSearchableSelectPosition` hook), different
- * trigger (chip row) and popover body (checkbox list). Selected items are
- * rendered as chips inside the trigger; removing a chip calls
- * `onMultiChange` with the reduced array; "Bỏ chọn tất cả" in the footer
- * empties the selection.
+ * trigger (compact count) and popover body (checkbox list). Complete selected
+ * names and individual deselection live in the checked option list;
+ * "Bỏ chọn tất cả" in the footer empties the selection.
  *
  * The component deliberately mirrors `SearchableSelect`'s UX (search input,
  * keyboard nav, mobile full-screen dialog) so dispatchers see one consistent
@@ -30,7 +29,7 @@ export interface SearchableMultiSelectOption {
   value: string;
   label: string;
   searchText?: string;
-  /** Render-only override for the trigger chip text. Defaults to `label`. */
+  /** Legacy short label accepted by callers; the list retains the complete label. */
   chipLabel?: string;
 }
 
@@ -50,7 +49,7 @@ export interface SearchableMultiSelectProps {
   size?: 'sm' | 'md';
   /** Localised label for the "clear all" action. */
   clearAllLabel?: string;
-  /** Suffix rendered in the trigger chip count, e.g. "đã chọn". */
+  /** Suffix rendered in the compact trigger count, e.g. "đã chọn". */
   countSuffix?: string;
   /** Label used in the accessibility names: trigger reads "Chọn X…" /
    *  "Đã chọn N X", the listbox reads "Danh sách X". Without it the trigger
@@ -164,7 +163,6 @@ export function SearchableMultiSelect({
 
   useSearchableSelectPosition({
     isOpen,
-    isMobile,
     triggerRef,
     popoverRef,
     onClose: close,
@@ -216,12 +214,6 @@ export function SearchableMultiSelect({
 
   const clearAll = () => {
     onChange([]);
-  };
-
-  const removeChip = (event: React.MouseEvent<HTMLButtonElement>, value: string) => {
-    event.stopPropagation();
-    onChange(values.filter((current) => current !== value));
-    window.requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
   };
 
   const open = () => {
@@ -393,27 +385,9 @@ export function SearchableMultiSelect({
         aria-label={selectionLabel
           ? (values.length === 0 ? `Chọn ${selectionLabel}…` : `Đã chọn ${values.length} ${selectionLabel}`)
           : (values.length === 0 ? placeholder : `${values.length} ${countSuffix}`)}
+        title={values.length > 0 ? selectedOptions.map((option) => option.label).join(', ') : undefined}
       >
-        {values.length === 0 ? (
-          <span className="searchable-select__placeholder">{triggerLabel}</span>
-        ) : (
-          <span className="searchable-select__trigger-chips">
-            {selectedOptions.map((option) => (
-              <span key={option.value} className="searchable-select__chip">
-                <span className="searchable-select__chip-label">{option.chipLabel ?? option.label}</span>
-                <button
-                  type="button"
-                  className="searchable-select__chip-remove"
-                  aria-label={`Xóa ${option.chipLabel ?? option.label}`}
-                  onClick={(event) => removeChip(event, option.value)}
-                  tabIndex={-1}
-                >
-                  <X size={12} aria-hidden="true" />
-                </button>
-              </span>
-            ))}
-          </span>
-        )}
+        <span className={values.length === 0 ? 'searchable-select__placeholder' : 'searchable-select__selection-count'}>{triggerLabel}</span>
         <ChevronDown
           size={16}
           className={`searchable-select__chevron${isOpen ? ' searchable-select__chevron--open' : ''}`}

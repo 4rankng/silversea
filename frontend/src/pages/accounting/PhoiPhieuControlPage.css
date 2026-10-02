@@ -1,0 +1,196 @@
+/* Card 20260922 stack item D — header collision at 1440: the 13-column
+   fixed-layout board gives each th ~94px, and tt-table's nowrap uppercase
+   headers paint over neighboring columns. Let this board's headers wrap
+   inside their cells instead (body cells keep their existing behavior). */
+.ppc-board thead th {
+  white-space: normal;
+  word-break: keep-all;   /* headers wrap at spaces only — no CONTAINE/R fracture (card 20260922_54, law §4) */
+  overflow-wrap: normal;  /* withdraw the mid-word emergency break; break-word would still allow it */
+  line-height: 1.3;
+}
+
+/* All-width workflow matrix: fixed percentage tracks compressed this board
+   at tablet/desktop widths. The approved debit-close pattern grows each track
+   to its content budget; the existing wrapper owns deliberate sideways reach. */
+.ppc-board { table-layout: auto; }
+.ppc-board th,
+.ppc-board td { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
+.ppc-board .ppc-col--lich-trinh { min-width: 188px; }
+.ppc-board .ppc-col--xe { min-width: 148px; }
+.ppc-board .ppc-col--customer-route { min-width: 188px; }
+.ppc-board .ppc-col--thongso { min-width: 164px; }
+.ppc-board .ppc-col--diadiem { min-width: 164px; }
+.ppc-board .ppc-col--chiho { min-width: 188px; }
+.ppc-board .ppc-col--money { min-width: 144px; }
+.ppc-board .ppc-col--status { min-width: 132px; }
+.ppc-board .ppc-col--date { min-width: 104px; }
+.ppc-board .ppc-col--ghichu,
+.ppc-board .ppc-col--ghichu-ops { min-width: 164px; }
+.ppc-board .ppc-identity { white-space: nowrap; }
+
+/* The trip/bill pair is the board's identity. It stays visible within the
+   scroll box while the remaining workflow columns move, below header chrome. */
+.ppc-board .ppc-col--lich-trinh { position: sticky; left: 0; }
+.ppc-board th.ppc-col--lich-trinh { z-index: calc(var(--z-base) + 3); background: var(--surface-2); }
+.ppc-board td.ppc-col--lich-trinh { z-index: var(--z-base); background: var(--surface); }
+
+/* Selection: a row IS the control now. The picked row wears the sanctioned
+   NEUTRAL INK selection treatment from `record-table.css` — a neutral surface
+   plus a 3px inset ink edge, so the state reads at a glance in a wide board
+   without impersonating a brand state — and a visible focus ring covers the
+   keyboard path. A row that cannot be issued is dimmed and never looks
+   pickable. The inset edge is a painted 1D rule, not depth, so this sheet's
+   flat-sheet ratchet still holds: no drop shadow, no gradient, no 3D. */
+.ppc-board tbody tr.ppc-row--pickable { cursor: pointer; }
+.ppc-board tbody tr.ppc-row--pickable:hover { background: var(--surface-2, var(--surface)); }
+.ppc-board tbody tr[data-selected="true"] {
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+.ppc-board tbody tr[data-selected="true"] td.ppc-col--lich-trinh {
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+.ppc-board tbody tr.ppc-row--pickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.ppc-board tbody tr.ppc-row--locked { color: var(--fg-3); cursor: default; }
+
+/* The toolbar now carries two actions, and the board states its selection
+   model once instead of per-row. Both are page-owned, not filter layout. */
+.ppc-actions { display: flex; gap: 8px; align-items: center; }
+.ppc-selection-hint {
+  margin: 8px 0 4px;
+  color: var(--fg-3);
+  font-size: var(--text-caption-size, 12px);
+}
+
+/* The note columns carry free text (a dispatch note can be a code, a phone
+   number, a sentence). They wrap at spaces, never mid-token — the same law the
+   headers follow, applied to the body. */
+.ppc-board td.ppc-col--ghichu {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+.ppc-board td.ppc-col--date { white-space: nowrap; }
+.ppc-board td.ppc-col--money .btn { margin-top: 4px; }
+.ppc-board .ppc-line { display: block; }
+.ppc-board .ppc-value { white-space: nowrap; }
+.ppc-board .ppc-cell-actions { display: block; margin-top: 4px; }
+/* The board's sideways scroll lives with the board. The wrapper used to borrow
+   `shipment-container-ledger` from /shipments-detail's sheet, which this page
+   never imports — so the div carried NO styles, the table overflowed it, and the
+   shell's `overflow-x: hidden` put every column past the fold out of reach. */
+.ppc-board-wrap { overflow-x: auto; }
+
+/* The existing matrix scroll cue is shown only where touch needs it. */
+.ppc-board-hint { display: none; margin: 4px 0 0; color: var(--ink-2); font-size: var(--text-caption-size); }
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .ppc-board-hint { display: block; }
+}
+/* A long business reference can occupy most of a phone canvas. Let that
+   identity scroll too so it cannot mask the money/actions and final notes. */
+@media (max-width: 640px) {
+  .ppc-board .ppc-col--lich-trinh { position: static; }
+}
+
+/* Monthly reports are money matrices (09-29 design law), like the debit-close
+   board: the table grows to its column budgets and the existing board wrapper
+   owns horizontal reach. Amounts stay atomic while headings wrap at spaces. */
+.ppc-report { table-layout: auto; }
+.ppc-report th,
+.ppc-report td { overflow-wrap: normal; word-break: keep-all; }
+.ppc-report__ordinal { min-width: 48px; }
+.ppc-report__party { min-width: 160px; }
+.ppc-report__note { min-width: 160px; }
+.ppc-report th.ppc-report__money,
+.ppc-report td.ppc-report__money { min-width: 104px; text-align: right; }
+.ppc-report td.ppc-report__money { white-space: nowrap; }
+.ppc-report thead th {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-height: 1.3;
+  border-right: 1px solid var(--line-2);
+}
+.ppc-report thead th:last-child {
+  border-right: none;
+}
+
+/* Card 20260927_152 — the whole filter region moved onto the ONE shared strip
+   (`ListFilterBar` + `FilterDropdown` + `DateRangeFields`), so its stylesheet
+   left with it: the page-owned auto-fit grid (banded 220–320px), the two
+   wrapper pairs around the date fields and the voucher selects, the fixed date
+   widths, the label stacks, the control-height overrides and the ≤480 phone
+   band are all deleted. The shared sheet owns filter layout and every control's
+   width (operator 2026-09-27: the strip holds ≤2 rows, and a control is exactly
+   as wide as the value it holds); a page rule that re-declares either is
+   precisely how this surface drifted four times between 2026-09-24 and
+   2026-09-27. Nothing below this comment styles a filter control. */
+
+/* Card 20260928_166 — the batch-assign strip. The unassigned bucket is a
+   working set (pick → one all-or-nothing call), not a list of names. */
+.ppc-assign-batch {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+/* Card 20260930_214 — the "xe đã phân công" table is the one thing here that
+   grows without bound: one <tr> per assigned truck, sitting directly ABOVE the
+   batch controls. So the "Chọn tất cả" / "Phân công" bar got pushed further and
+   further down the page as assignments accumulated, until it fell past the
+   bottom of the frame the user could scroll to. The unassigned checkbox list
+   beside it was already bounded (max-height 220px) — bounding the table that
+   sits above the controls is the same remedy for the same reason.
+   A capacity bound can only limit growth; it can never push a control out of
+   reach, which is the direction this defect needs. */
+.ppc-assign-existing {
+  /* No `display` here on purpose: this is a WRAPPER around the table, so the
+     table keeps its own display and its row layout. Setting display:block on
+     the <table> itself would flatten the rows and break the grid. */
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ppc-assign-batch__bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ppc-assign-batch__count {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+}
+.ppc-assign-batch__list {
+  /* Flex, not grid: this sheet carries a standing contract that a page must
+     not declare grid layout of its own (PhoiPhieuControlPage.styles.test), and
+     a wrapping row of fixed-basis items lays the plates out the same way. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  list-style: none;
+}
+.ppc-assign-batch__list li { flex: 0 0 150px; }
+.ppc-assign-batch__list li { margin: 0; }
+.ppc-assign-batch__list label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+@media (pointer: coarse), (max-width: 767px) {
+  .ppc-assign-batch__list label {
+    min-height: var(--control-touch-h);
+  }
+}

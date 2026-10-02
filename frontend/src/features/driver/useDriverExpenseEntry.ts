@@ -1,8 +1,10 @@
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
+import { qk } from '../../api/keys';
 import { businessDateISO } from '../../lib/format';
-import { driverExpenseOption } from './driver-expense-options';
+import { driverExpenseOption, driverExpenseOptionInvoiceClass, driverExpenseOptions } from './driver-expense-options';
 
 export interface DriverExpenseDraft {
   option: string; payerKind: 'USER' | 'COMPANY'; amount: number | ''; occurredAt: string; note: string;
@@ -13,6 +15,8 @@ const blankDraft = (): DriverExpenseDraft => ({ option: 'lift', payerKind: 'USER
 type Entry = Awaited<ReturnType<typeof driverClient.listIncidentalCosts>>[number];
 
 export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
+  const norms = useQuery({ queryKey: qk.driverFeeNorms, queryFn: driverClient.getFeeNorms, staleTime: 60_000, refetchOnWindowFocus: false });
+  const options = driverExpenseOptions(norms.data?.items ?? []);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -43,7 +47,7 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
 
   const patch = (next: Partial<DriverExpenseDraft>) => setDraft(current => ({ ...current, ...next }));
   function chooseOption(code: string) {
-    const option = driverExpenseOption(code);
+    const option = driverExpenseOption(code, options);
     setDraft(current => ({ ...current, option: code, feeName: option.label, amount: option.amount ?? '', invoiceNumber: '', invoiceDate: '' }));
   }
   function cancel() {
@@ -62,14 +66,27 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
     event.preventDefault();
     if (operation.current || readOnly) return;
     if (pendingFile) { setError('Ảnh chưa tải thành công. Thử tải lại hoặc bỏ ảnh trước khi lưu.'); return; }
-    if (draft.amount === '' || !Number.isSafeInteger(draft.amount) || draft.amount <= 0 || draft.amount > 999_999_999_999_999) {
-      setError('Nhập số tiền nguyên dương hợp lệ.'); return;
+    // Card 20260928_197 — the PM's "mọi màn hình nhập chi phí … cho phép nhập
+    // số DƯƠNG và số ÂM". Mirrors the backend `signedExpenseVndSchema` and the
+    // Ops modal exactly: a signed integer inside the money ceiling, with 0
+    // still rejected — 0 is an empty row, not a signed one. This guard said
+    // `<= 0`, so it refused every correction the card exists to allow, and
+    // the field's `min` could not help because grouped mode never forwards it.
+    if (draft.amount === '' || !Number.isSafeInteger(draft.amount) || draft.amount === 0 || Math.abs(draft.amount) > 999_999_999_999_999) {
+      setError('Nhập số tiền nguyên, tối đa 999.999.999.999.999đ (0 không dùng được).'); return;
     }
-    const option = driverExpenseOption(draft.option);
-    const body = { payerKind: draft.payerKind, costType: option.type, costGroup: option.group, feeName: draft.feeName.trim() || option.label,
+    const option = options.find(item => item.code === draft.option);
+    if (!option) { setError('Định mức đã thay đổi. Chọn lại loại chi phí trước khi lưu.'); return; }
+    // Card 20260928_163/164 — the CATALOG class decides, never "did the driver
+    // type a number": a no-invoice row never sends one (that is what pushed it
+    // into phải thu khách hàng). The invoiced side stays server-enforced —
+    // recordIncidentalCost refuses an invoiced type with no invoice number.
+    const invoiceClass = driverExpenseOptionInvoiceClass(option);
+    const body = { ...(option.expenseTypeCode ? { expenseTypeCode: option.expenseTypeCode } : {}),
+      ...(option.feeNormCode ? { feeNormCode: option.feeNormCode } : {}), payerKind: draft.payerKind, costType: option.type, costGroup: option.group, feeName: draft.feeName.trim() || option.label,
       amount: draft.amount, occurredAt: draft.occurredAt, note: draft.note.trim() || undefined,
-      invoiceNumber: option.group === 'DRIVER_SHIPMENT' ? draft.invoiceNumber.trim() || undefined : undefined,
-      invoiceDate: option.group === 'DRIVER_SHIPMENT' ? draft.invoiceDate || undefined : undefined,
+      invoiceNumber: invoiceClass === 'NO_INVOICE' ? undefined : option.group === 'DRIVER_SHIPMENT' ? draft.invoiceNumber.trim() || undefined : undefined,
+      invoiceDate: invoiceClass === 'NO_INVOICE' ? undefined : option.group === 'DRIVER_SHIPMENT' ? draft.invoiceDate || undefined : undefined,
       receiptStorageKey: draft.receiptStorageKey ?? undefined };
     const fingerprint = JSON.stringify([tripId, body]);
     if (request.current?.fingerprint !== fingerprint) request.current = { fingerprint, key: crypto.randomUUID() };
@@ -81,5 +98,5 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa xác định được kết quả lưu. Thử lại cùng nội dung để tra đúng yêu cầu.'); }
     finally { operation.current = false; setBusy(false); }
   }
-  return { entries, loading, loadError, refresh, draft, patch, chooseOption, open, setOpen, busy, uploading, pendingFile, discardPendingFile: () => setPendingFile(null), error, cancel, upload, save };
+  return { options, norms, entries, loading, loadError, refresh, draft, patch, chooseOption, open, setOpen, busy, uploading, pendingFile, discardPendingFile: () => setPendingFile(null), error, cancel, upload, save };
 }

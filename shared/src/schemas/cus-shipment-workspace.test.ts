@@ -373,3 +373,12 @@ test('CUS container-line update rejects inline external carrier for OWN carrier 
   assert.equal(result.success, false);
   assert.match(result.error.issues[0]?.message ?? '', /chỉ dùng khi loại nhà xe là EXTERNAL/i);
 });
+
+test('FCL factory update accepts the real site reference and rejects invalid ids', () => {
+  const input = { expectedShipmentVersion: 1, operationalSiteId: 42 };
+  assert.equal(shipmentCusContainerLineUpdateSchema.parse(input).operationalSiteId, 42);
+  assert.equal(shipmentCusContainerLineUpdateSchema.parse({ ...input, operationalSiteId: null }).operationalSiteId, null);
+  for (const operationalSiteId of [0, -1, 1.5, 'wrong']) {
+    assert.equal(shipmentCusContainerLineUpdateSchema.safeParse({ ...input, operationalSiteId }).success, false);
+  }
+});

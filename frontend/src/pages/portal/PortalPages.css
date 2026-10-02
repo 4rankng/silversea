@@ -367,8 +367,7 @@ a.portal-list__row:focus-visible {
   color: var(--ink);
 }
 
-.portal-button:focus-visible,
-.portal-filters input:focus-visible {
+.portal-button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 24%, transparent);
   outline-offset: 1px;
 }
@@ -469,7 +468,7 @@ a.portal-list__row:focus-visible {
 
 .portal-back {
   display: inline-flex;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   align-items: center;
   gap: 6px;
   margin-bottom: 12px;
@@ -519,38 +518,6 @@ a.portal-list__row:focus-visible {
   overflow-wrap: anywhere;
   font-size: var(--text-body-size);
   font-weight: var(--fw-semibold);
-}
-
-.portal-filters {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(150px, 220px)) minmax(0, 1fr);
-  align-items: end;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
-}
-
-.portal-filters label {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-  color: var(--ink-2);
-  font-size: var(--text-label-size);
-  font-weight: var(--fw-semibold);
-}
-
-.portal-filters input {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: var(--filter-control-h);
-  padding: 0 10px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--app-radius-sm);
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--text-control-size);
 }
 
 .portal-balance-equation {
@@ -689,17 +656,6 @@ a.portal-list__row:focus-visible {
   }
 }
 
-@media (max-width: 900px) {
-  .portal-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .portal-filters .portal-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
-}
-
 @media (max-width: 700px) {
   .portal-page__header {
     grid-template-columns: minmax(0, 1fr);
@@ -813,7 +769,7 @@ a.portal-list__row:focus-visible {
   }
 
   .portal-button {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   .portal-debit-row .portal-actions .portal-button {
@@ -825,19 +781,6 @@ a.portal-list__row:focus-visible {
 
   .portal-section {
     padding: 10px;
-  }
-
-  .portal-filters {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
-    padding: 12px;
-  }
-
-  .portal-filters .portal-actions {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   .portal-balance-equation {
@@ -894,22 +837,6 @@ a.portal-list__row:focus-visible {
   }
 }
 
-@media (max-width: 360px) {
-  .portal-filters {
-    grid-template-columns: 1fr;
-  }
-
-  .portal-filters .portal-actions {
-    grid-column: 1;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .portal-filters .portal-button--primary {
-    grid-column: 1 / -1;
-  }
-
-}
-
 @media (max-width: 390px) {
   .portal-panel__heading--split {
     display: grid;
@@ -930,7 +857,7 @@ a.portal-list__row:focus-visible {
     transition: none;
   }
 }
-.portal-section__description{margin:-4px 0 16px;color:var(--fg-3)}.portal-timeline{list-style:none;margin:0;padding:0;display:grid;gap:10px}.portal-timeline li{display:grid;min-width:0;gap:7px;padding:10px 0;border-bottom:1px solid var(--line)}.portal-timeline__meta{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--fg-3);font-size:var(--text-caption-size)}.portal-timeline__meta span{color:var(--brand);font-weight:700}.portal-timeline p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.portal-timeline small{color:var(--fg-3)}.portal-timeline .portal-button{justify-self:start;min-height:var(--control-default-h)}.portal-coordination .portal-status{display:inline-flex;align-items:center;gap:6px;justify-self:start}
+.portal-section__description{margin: -4px 0 16px;color:var(--fg-3)}.portal-timeline{list-style: none;margin: 0;padding: 0;display: grid;gap:10px}.portal-timeline li{display: grid;min-width: 0;gap: 7px;padding: 10px 0;border-bottom:1px solid var(--line)}.portal-timeline__meta{display: flex;align-items: center;justify-content: space-between;gap: 12px;color:var(--fg-3);font-size:var(--text-caption-size)}.portal-timeline__meta span{color:var(--brand);font-weight:700}.portal-timeline p{margin: 0;white-space: pre-wrap;overflow-wrap:anywhere}.portal-timeline small{color:var(--fg-3)}.portal-timeline .portal-button{justify-self: start;min-height:var(--control-default-h)}.portal-coordination .portal-status{display: inline-flex;align-items: center;gap: 6px;justify-self:start}
 
 .portal-history-row {
   padding: 7px 0;
@@ -939,4 +866,7 @@ a.portal-list__row:focus-visible {
 .portal-history-label {
   font-weight: var(--fw-semibold);
 }
-@media(max-width:639px){.portal-timeline__meta{align-items:flex-start;flex-direction:column;gap:2px}.portal-timeline .portal-button{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));width:100%;min-height:48px}}
+@media(max-width:639px){.portal-timeline__meta{align-items: flex-start;flex-direction: column;gap:2px}.portal-timeline .portal-button{position: sticky;bottom: calc(12px + env(safe-area-inset-bottom));width: 100%;min-height:var(--control-max-h)}}
+
+/* The statement's filter controls take their height from the shared bar
+   (`--filter-control-h`, touch floor on coarse pointers) — see FilterBar.css. */

@@ -5,6 +5,14 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(resolve(process.cwd(), 'src', path), 'utf8');
 
 describe('configuration and administration responsive contracts', () => {
+  it('keeps legacy customer inputs aligned with shared select touch sizing in a portal', () => {
+    const css = read('pages/config/customer-form.css');
+    expect(css).toMatch(/\.customer-form\s*\{[^}]*--customer-control-h:\s*var\(--control-compact-h\);[^}]*--control-mobile-h:\s*var\(--control-touch-h\);/);
+    expect(css).toMatch(/\.customer-form \.field input\.input\s*\{[^}]*height:\s*var\(--customer-control-h\);[^}]*min-height:\s*var\(--customer-control-h\);/);
+    expect(css).toMatch(/@media \(pointer: coarse\), \(max-width: 767px\)\s*\{\s*\.customer-form\s*\{\s*--customer-control-h:\s*var\(--control-touch-h\);/);
+    expect(css).toMatch(/\.customer-form \.field > label\s*\{[^}]*display:\s*grid;[^}]*gap:\s*8px;/);
+  });
+
   it('lets portalled catalog forms collapse without leaving implicit extra columns', () => {
     const css = read('pages/config/config-page.css');
     expect(css).toMatch(/\.cfg-form-columns\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
@@ -66,7 +74,7 @@ describe('configuration and administration responsive contracts', () => {
     expect(actions).not.toContain('position: absolute');
     expect(actions).not.toContain('opacity: 0');
     expect(source).toContain('.pr-act:focus-visible');
-    expect(source).toContain('.pr-act { width: 44px; height: 44px; }');
+    expect(source).toContain('.pr-act { width: var(--control-max-h); height: var(--control-max-h); }');
   });
 
   it('uses shell gutters in the document editor and flat issuer fields', () => {

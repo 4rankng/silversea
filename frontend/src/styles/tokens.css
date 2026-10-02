@@ -59,6 +59,18 @@
   --noise: 0;
 }
 
+/* Design law §1 (docs/design-guidelines.md): buttons/badges are small-radius
+   rectangles, never pills. The daisyUI `d-badge` primitive ships a
+   fully-round stock radius (computed 20px on a 20px-tall d-badge-sm), which
+   made every consumer read as a pill — the dashboard trend chips (dashboard-
+   presenters) and the severity badges (DashboardPage wf-severity). The
+   primitive itself now wears the house badge radius fixed for
+   `.kpi__trend-badge` (a729f139): 6px. Sweep 2026-09-24 found no other
+   d-badge consumers; the rule covers future ones too. */
+.d-badge.d-badge {
+  border-radius: 6px;
+}
+
 /* ============================================================================
  * TransTing -- Wireframe Design System
  * Be Vietnam Pro is the single Vietnamese-aware UI family.
@@ -66,23 +78,45 @@
  * ========================================================================== */
 
 :root {
-  /* --- Wireframe canonical tokens --- */
-  --bg: #F5F7F6;
-  --bg-2-wire: #E9EDEB;
+  /* --- Wireframe canonical tokens ---
+   * Card 20260922_33 — the ladder is CALIBRATED: every surface/border rung
+   * carries a measured minimum contrast ratio against #FFFFFF (the nepocorp
+   * sibling-project contract, adopted verbatim). The ramp is monotonic —
+   * surface < surface-2 < surface-3 < border-1 < line < line-2 < line-3 <
+   * line-strong — and styles/surface-ladder.test.ts enforces both the ratios
+   * and the order, so a rung can never silently lighten again. Re-measure
+   * before lightening any rung.
+   *
+   *   --surface-2 (inset: chips, fields, heads) ... 1.14
+   *   --bg (page canvas) ......................... 1.24
+   *   --surface-3 (walked-away, deep inset) ...... 1.30
+   *   --border-1 (card/control outline) .......... 1.44
+   *   --line (panel border, divider) ............. 1.55
+   *   --line-2 (hover outline) ................... 1.90
+   *   --line-3 (emphasis) ........................ 2.80
+   *   --line-strong (strongest outline) .......... 3.65
+   *   --control-border (WCAG 1.4.11 non-text) .... 3.05
+   *   --ink-4 (placeholder, decorative glyph) .... 4.85
+   */
+  --bg: #E3E8E5;
+  --bg-2-wire: #D3DAD6;
   --surface: #FFFFFF;
-  --surface-2: #F8FAF9;
-  --surface-3: #EEF3F0;
+  --surface-2: #EDF1EE;
+  --surface-3: #DCE3DF;
+  --surface-hover: #E7F8EE;
   --surface-accent: #ECF8F1;
 
   --ink: #101513;
   --ink-2: #4D5852;
   --ink-3: #5F6872;
-  --ink-4: #BABDC3;
+  --ink-4: #66756D;
 
-  --line: #E2E7E4;
-  --line-2: #CBD3CE;
-  --line-3: #AEB8B2;
-  --line-strong: #BAC5BE;
+  --line: #C8D2CC;
+  --line-2: #ADB9B3;
+  --line-3: #8F9E97;
+  --line-strong: #788A80;
+
+  --control-border: #89978F;
 
   --accent: #4A9E7D;
   --accent-2: #2D6B54;
@@ -90,9 +124,14 @@
   --accent-ink: #00361B;
 
   /* --- Backward-compat aliases (existing code uses these var names) --- */
-  --bg-1: #F5F7F6;
+  --bg-1: #E3E8E5;
+  /* --bg-2: white fill alias for NON-overlay fills only (control/field fills,
+     hover tints, table-head/notice fills). Card 20260922_36 (nepocorp F4) is
+     EXECUTED: every floating overlay surface rides --surface — never this
+     alias, never raw white — enforced by styles/overlay-surface.styles.test.ts.
+     Call sites audited 2026-09-22: none remain on floating overlay surfaces. */
   --bg-2: #FFFFFF;
-  --bg-3: #EEF3F0;
+  --bg-3: var(--surface-3);
   --bg-glass: rgba(255, 255, 255, 0.82);
 
   --brand: #005A2D;
@@ -109,18 +148,35 @@
   --fg-on-accent: #00381A;
   --fg-inverse: #FFFFFF;
 
-  --border-1: #EAECEF;
-  --border-2: #D6D9DE;
+  --border-1: #D1D9D4;
+  --border-2: #ADB9B3;
   --border-glass: rgba(255, 255, 255, 0.4);
 
   /* --- Semantic status --- */
   --success: #177448;
   --success-soft: #EAF4EE;
   --success-text: #155B39;
+  /* Card 20260922_25: `--ok` had no declaration, so every var(--ok, #16a34a)
+     site rendered the LIGHT fallback at 3.3:1. Alias it to the dark
+     success-text token (7.0:1 on white) — one definition heals all
+     badge siblings app-wide. */
+  --ok: var(--success-text);
+  /* Card 20260922_35: same heal as --ok — pages falling back to
+     #dc2626 (~4:1) now inherit the 4.5:1-engineered danger text. */
+  --err: var(--danger-text);
   --warning: #A45D1C;
   --warning-soft: #FFF3E8;
   --warning-text: #6F3C10;
   --warning-deep: #914A16;
+  /* Card 20260927_67: `--warn` had no declaration either, so its 7 call sites
+     each fell back to a DIFFERENT raw hex — #a15c00 (ShipmentsPage, 3 sites),
+     #b45309 (DriverTripDetailPage, ClerkShipmentCreatePage) and #d97706
+     (OpsOrdersPage, 2 sites). One meaning, three colours, decided by which
+     file you landed in. The same heal as `--ok` and `--err` above, and it is
+     worth more here than either of those: #d97706 renders warning text at
+     3.19:1 on white and 2.92:1 on --warning-soft, which is under the 4.5:1
+     floor for body text, while --warning-text gives 9.01:1 and 8.26:1. */
+  --warn: var(--warning-text);
   --danger: #A0444E;
   --danger-soft: #F9ECEE;
   --danger-text: #7F2D37;
@@ -208,10 +264,18 @@
      a touch-safe minimum. Keep --control-h as the shell-compatible alias. */
   --control-compact-h: 30px;
   --control-default-h: 34px;
-  --control-touch-h: 44px;
+  /* Operator ruling 2026-09-27: "text 11px 12px component size max 40px" —
+     one ceiling for every form component, on every pointer. Touch devices used
+     to inflate a 30px filter field to 44px around 12px text (measured on
+     /shipments with a coarse pointer: search, date fields, `Bộ lọc` and the
+     quick-range chips all 44px), which read as an oversized box per the
+     operator's screenshot. The touch floor is now the same ceiling, so a
+     `var(--control-touch-h)` consumer inherits 40px everywhere. */
+  --control-max-h: 40px;
+  --control-touch-h: var(--control-max-h);
   /* Compact geometry is independent from readable typography. Phone text
      uses the same role scale; field text follows the same compact scale on every device. */
-  --control-mobile-h: 32px;
+  --control-mobile-h: var(--control-touch-h);
   --control-mobile-font-size: var(--text-input-touch-size);
   --control-mobile-line-height: 20px;
   --control-compact-font-size: var(--text-control-compact-size);
@@ -220,7 +284,7 @@
   --control-compact-touch-font-size: var(--text-input-touch-size);
   --control-compact-touch-line-height: 20px;
   --control-field-font-size: var(--text-control-size);
-  --control-h: 44px;
+  --control-h: var(--control-max-h);
 
   /* Filter density is intentionally independent from general form controls.
      CUS and Điều vận use this compact desktop contract for high-frequency
@@ -244,6 +308,27 @@
   --status-strip-width: 3px;
   --status-strip-height: 20px;
   --status-strip-radius: 0 999px 999px 0;
+
+  /* --- Canonical status text+dot (card 20260924_21, batch A, §1 purge) ---
+   * The shared Badge / StatusText rendering contract: plain text in the
+   * house compact style, preceded by a single house color-dot. NO pill
+   * bubble, NO rounded background fill, NO border. Color comes from the
+   * existing semantic triad (success-text/warning-text/danger-text/info-text)
+   * and the dot color from the matching fill (--success/--warning/etc.).
+   * Card 20260922_27 (operator): status cells are TEXT ONLY in data cells.
+   * Card 20260924_21: the legacy pill-shaped .pill / .badge bubble is the
+   * anti-pattern this treatment replaces app-wide.
+   *
+   * Re-renders an inline span; layout: `dot text` (gap = --status-text-gap),
+   * dot is a 7px circle (status tabs' reference size), text matches the
+   * compact caption scale already used by the status strip headers. The
+   * neutral variant uses --ink-2 + --ink-3 so it never reads as a pill. */
+  --status-text-font-size: var(--text-caption-size);
+  --status-text-line-height: 1.35;
+  --status-text-gap: 6px;
+  --status-text-dot-size: 7px;
+  --status-text-weight: 700;
+  --status-text-letter-spacing: 0.02em;
 
   /* --- Motion --- */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -366,7 +451,13 @@
    sizing rather than touch-44px. */
 @media (max-width: 640px) {
   :root {
-    --filter-control-h: var(--control-mobile-h);
+    /* The filter strip keeps the COMPACT control height on phones too
+       (operator 2026-09-27, two crops side by side: "these two oversize […]
+       please follow same height as [the tab row]"). Raising it to the mobile
+       touch height made every bar control 40px while the tab chips right above
+       stayed at the compact 30/32px, so the strip read as the oversized block.
+       The bar's own width packing rules are unaffected by the 2px. */
+    --filter-control-h: var(--control-compact-h);
     --filter-control-font-size: var(--control-mobile-font-size);
     --filter-control-line-height: var(--control-mobile-line-height);
   }

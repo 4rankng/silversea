@@ -23,7 +23,7 @@ export function getDisplayRole(role: string): string {
     case 'CLERK':
       return 'CUS';
     case 'FORWARDER':
-      return 'OPS (Nhân viên vận hành)';
+      return 'OPS (Vận hành)';
     default:
       return role;
   }

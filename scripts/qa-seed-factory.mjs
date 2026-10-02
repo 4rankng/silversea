@@ -23,29 +23,162 @@
  * Exit 0 on success, 1 if any required reference data is missing.
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { api, DEFAULT_BACKEND, login, ROLES, role as getRole } from "./lib/http.mjs";
 
 const BACKEND = process.env.BACKEND ?? DEFAULT_BACKEND;
+
+// CARD 20260928_197 follow-up. This module read BACKEND from the environment
+// and then never used it: every `login()` and `api()` call omitted
+// `opts.backend`, so both helpers fell back to DEFAULT_BACKEND
+// (http://localhost:3001/api). The factory was therefore hardwired to local dev
+// and could not target staging at all — which is why staging has no QA scenario
+// and the cost-entry screens could not be driven there.
+//
+// `apiAt` / `loginAt` inject the resolved origin as the DEFAULT, so an explicit
+// `opts.backend` at a call site still wins.
+const apiAt = (token, method, path, body, opts = {}) =>
+  api(token, method, path, body, { backend: BACKEND, ...opts });
+const loginAt = (who, opts = {}) => login(who, { backend: BACKEND, ...opts });
+
+/**
+ * Append the correct ISO 6346 check digit to a 10-char container prefix,
+ * matching shared/src/calculations/iso6346.ts: the app's format is
+ * XXXXNNNNNNN = 4 owner letters + 6 serial digits + 1 check digit = 11
+ * characters in TOTAL (no separate category character), and the check digit
+ * is computed over the first 10. Remainder 10 maps to 0.
+ */
+function withCheckDigit(prefix10) {
+  const LETTER_MAP = {
+    A: 10, B: 12, C: 13, D: 14, E: 15, F: 16, G: 17, H: 18, I: 19, J: 20,
+    K: 21, L: 23, M: 24, N: 25, O: 26, P: 27, Q: 28, R: 29, S: 30, T: 31,
+    U: 32, V: 34, W: 35, X: 36, Y: 37, Z: 38,
+  };
+  const POWERS_2 = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
+  const body = prefix10.toUpperCase().slice(0, 10);
+  let sum = 0;
+  for (let i = 0; i < 10; i += 1) {
+    const ch = body[i];
+    const val = /[0-9]/.test(ch) ? Number(ch) : LETTER_MAP[ch];
+    sum += val * POWERS_2[i];
+  }
+  return `${prefix10.toUpperCase()}${(sum % 11) % 10}`;             // +1 check digit = 11 chars
+}
 const ARTIFACTS = process.env.ARTIFACTS ?? `qa/${new Date().toISOString().slice(0, 10)}_seed-factory`;
 
 const args = process.argv.slice(2);
 const JSON_OUT = args.includes("--json");
 const NO_CREATE = args.includes("--no-create");
-const roleArg = args.find((a) => a.startsWith("--role="));
-const roleKey = roleArg?.slice("--role=".length) ?? "cus";
+// Accept BOTH `--role=<value>` and `--role <value>`. Only the equals form used
+// to work, so `--role OPS` was silently ignored and everything fell back to
+// "cus" — a wrong-account fixture that looks like it worked.
+const roleEq = args.find((a) => a.startsWith("--role="));
+const roleSpaceIdx = args.indexOf("--role");
+const roleSpace = roleSpaceIdx >= 0 ? args[roleSpaceIdx + 1] : undefined;
+const roleKey = roleEq?.slice("--role=".length) ?? roleSpace ?? "cus";
 
-const roleDef = getRole(roleKey);
-const token = await login(roleKey);
+const roleDef = getRole(roleKey);   // fallback only; the resolved account is what actually logs in
+
+/**
+ * Resolve the account the SAME way the QA harness does: walk the role's
+ * candidate list in testaccounts.txt and take the first that authenticates.
+ *
+ * This matters because the roster is per-environment and the two differ:
+ *   local   OPS: giaonhan, hoangnh, …
+ *   staging OPS: hoangnh, hungld, …
+ * The factory used to take ROLES[role].username unconditionally — i.e. always
+ * `giaonhan` — so on staging it created the scenario as an account the harness
+ * never logs in as. The harness then drove the app as `hoangnh`, who owns
+ * nothing in the scenario, and every write was refused with
+ * "Lô này không thuộc xe bạn phụ trách". Seeding under a DIFFERENT account
+ * than the one that will drive the page is the single cause behind the blocked
+ * rungs on cards 197, 157 and 173.
+ *
+ * Mirrors createSession in testplan/qa/lib/harness.mjs: same list, same
+ * walk, same env-tagged block.
+ */
+/**
+ * The role's candidate usernames for the environment `BACKEND` points at,
+ * parsed from testplan/testaccounts.txt — the same roster the harness reads.
+ * The block is chosen by host: localhost => `local`, anything else => `staging`.
+ */
+function roleCandidates(roleName, backend) {
+  try {
+    const text = readFileSync(
+      resolve(process.cwd(), 'testplan', 'testaccounts.txt'), 'utf8');
+    const host = (new URL(backend).hostname || '').toLowerCase();
+    const env = host === 'localhost' || host === '127.0.0.1' ? 'local' : 'staging';
+    const block = text.split(/\n(?=[a-z]+:\s*$)/m).find((b) => b.startsWith(`${env}:`));
+    if (!block) return [];
+    const m = block.match(new RegExp(`^\\s*${roleName}:\\s*(.*)$`, 'm'));
+    if (!m) return [];
+    return m[1]
+      .replace(/\([^)]*\)/g, ' ')          // drop (NV003) provenance notes
+      .split(',')
+      .map((n) => n.trim())
+      .filter((n) => /^[a-z][a-z0-9-]*$/i.test(n));
+  } catch {
+    return [];
+  }
+}
+
+/** Persona key (ROLES keys) -> the ROLE name used by testaccounts.txt. */
+const PERSONA_ROLE = {
+  admin: 'ADMIN', giamdoc: 'MANAGER', ketoan: 'ACCOUNTANT', cus: 'CUS',
+  dieuvan: 'DISPATCHER', giaonhan: 'OPS', laixe: 'DRIVER', customer: 'CUSTOMER',
+};
+
+async function resolveLogin(roleName) {
+  const override = process.env[`QA_USER_${String(roleName).toUpperCase()}`];
+  // The factory's `--role` keys are PERSONA names (ROLES keys: cus, giaonhan,
+  // laixe, …), while testaccounts.txt is keyed by ROLE (OPS, CUS, DRIVER, …).
+  // Bridge the two, or the roster lookup finds nothing and silently falls back.
+  // ROLES entries carry username/home/api but NO `role` field, so
+  // `getRole(x).role` is undefined, the roster regex matches nothing, and the
+  // walk silently falls through to the persona's own account. Map it explicitly.
+  const rosterRole = PERSONA_ROLE[String(roleName).toLowerCase()] ?? roleName;
+  const candidates = override ? [override] : roleCandidates(rosterRole, BACKEND);
+  if (candidates.length === 0) {
+    // No roster list for this role — fall back to the persona's own account.
+    return { token: null, username: getRole(roleName)?.username ?? null, tried: [] };
+  }
+  const tried = [];
+  for (const username of candidates) {
+    tried.push(username);
+    const tok = await tryLogin(username);
+    if (tok) return { token: tok, username, tried };
+  }
+  return { token: null, username: candidates[0], tried };
+}
+
+async function tryLogin(username) {
+  try {
+    // `login()` resolves to body.token — a STRING, not the body object. Reading
+    // `.token` off it is always undefined, so this could never succeed and the
+    // roster walk silently reported "no account authenticates" for every
+    // candidate, including ones that log in perfectly well.
+    const token = await loginAt(username, { password: process.env.PASSWORD ?? 'Abc123' });
+    return typeof token === 'string' && token ? token : null;
+  } catch {
+    return null;
+  }
+}
+// The CREATING account is the persona's own account, NOT the first candidate
+// in its role's roster. On staging the OPS roster starts at `hoangnh`, which is
+// correctly refused 403 on shipment CREATE — SHIPMENT_INTAKE_MUTATION_ROLES is
+// ADMIN/MANAGER/CUS/DISPATCHER. The roster walk is reserved for the one place
+// that genuinely needs "whichever account will drive the page".
+const token = await loginAt(roleKey);
+const account = roleDef.username;
 // Reference data (routes, container-types, ports) is gated behind the
 // `config` Casbin resource which cus / dieuvan / driver do not have. Use
 // an admin token for the lookups; the cus token still owns the shipment
 // create (CUS must own its own shipments).
-const adminToken = await login("admin");
+const adminToken = await loginAt("admin");
 
 const log = [];
-const scenario = { createdAt: new Date().toISOString(), role: roleKey, username: roleDef.username };
+const scenario = { createdAt: new Date().toISOString(), role: roleKey, username: account };
 
 // 1) Look up an active, non-carrier customer (skip test/E2E entries with
 //    auto-generated names like "Q23 direct edit customer ..." or
@@ -54,7 +187,7 @@ const scenario = { createdAt: new Date().toISOString(), role: roleKey, username:
 //    has a taxCode. Falls back to the first non-carrier if no real company
 //    matches.
 {
-  const res = await api(adminToken, "GET", "/customers", undefined, { query: { limit: 100 } });
+  const res = await apiAt(adminToken, "GET", "/customers", undefined, { query: { limit: 100 } });
   if (!res.ok) throw new Error(`/customers: status=${res.status} body=${JSON.stringify(res.data).slice(0, 200)}`);
   const items = res.data?.items ?? [];
   const nonCarrier = items.filter((c) => c.status === "ACTIVE" && !c.isCarrier);
@@ -70,9 +203,9 @@ const scenario = { createdAt: new Date().toISOString(), role: roleKey, username:
 // 2) Look up a route, container type, and ports (reference data — admin only)
 {
   const [routes, ctypes, ports] = await Promise.all([
-    api(adminToken, "GET", "/routes",           undefined, { query: { limit: 50 } }),
-    api(adminToken, "GET", "/container-types",  undefined, { query: { limit: 50 } }),
-    api(adminToken, "GET", "/ports",            undefined, { query: { limit: 50 } }),
+    apiAt(adminToken, "GET", "/routes",           undefined, { query: { limit: 50 } }),
+    apiAt(adminToken, "GET", "/container-types",  undefined, { query: { limit: 50 } }),
+    apiAt(adminToken, "GET", "/ports",            undefined, { query: { limit: 50 } }),
   ]);
   if (routes.ok) {
     const all = routes.data?.items ?? routes.data ?? [];
@@ -99,26 +232,40 @@ if (NO_CREATE) {
 } else {
   // 3) Create a fresh FCL shipment for the customer
   const code = `BK-QA-${Date.now()}`;
-  const containerNo = `MSCU${String(Date.now()).slice(-7)}`;
-  const tomorrow = new Date(Date.now() + 24 * 3600 * 1000);
-  const pickup = tomorrow.toISOString();
+  // A container number must satisfy ISO 6346, and the deployed API enforces it
+  // ("Sai số kiểm tra — định dạng đúng nhưng mã kiểm tra không khớp"). The old
+  // `MSCU<7 digits>` had a structurally valid but arithmetically wrong check
+  // digit, so every run was rejected. Derive the real one.
+  const containerPrefix = `MSCU${String(Date.now()).slice(-6)}`;   // 4 owner + 6 serial = 10
+  const containerNo = withCheckDigit(containerPrefix);
+  const today = new Date().toISOString().slice(0, 10);
 
+  // Containers are NO LONGER accepted on create: the deployed API answers
+  // "Tạo lô hàng không nhập kèm danh sách container — tạo lô rồi dùng
+  // PUT /api/shipments/{id}/containers". This factory still sent them inline,
+  // so every run against a current API failed at step 3. Create the shipment,
+  // then declare the container on its own endpoint.
+  // Field names must match `createShipmentBaseSchema` (shared/src/schemas/
+  // index.ts:1625). This factory had drifted from it, and zod strips unknown
+  // keys SILENTLY — the shipment was created every time with those columns null
+  // and nothing ever reported an error:
+  //   direction         -> tradeDirection
+  //   billBookingNumber -> blNumber
+  //   expectedPickupAt  -> not a create field at all
+  // cargoMode was never sent, though several surfaces read it.
   const body = {
     customerId: scenario.customer.id,
-    direction: "IMPORT",
-    billBookingNumber: code,
-    expectedPickupAt: pickup,
-    containers: [{
-      containerNumber: containerNo,
-      containerTypeId: scenario.containerType?.id,
-      routeId: scenario.route?.id,
-      liftPortId: scenario.ports?.up?.id,
-      dischargePortId: scenario.ports?.down?.id,
-      weightKg: 25_000,
-    }],
+    tradeDirection: "IMPORT",
+    cargoMode: "FCL",
+    // IMPORT carries a Bill number only; EXPORT a Booking number only.
+    // Sending both is refused: "Một lô hàng chỉ có Số Bill (hàng Nhập) hoặc
+    // Số Booking (hàng Xuất)".
+    blNumber: code,
+    expectedDeliveryDate: today,
   };
-  const res = await api(token, "POST", "/shipments", body, {
-    headers: { "Idempotency-Key": `qa-seed-factory-${Date.now()}` },
+  const idem = `qa-seed-factory-${Date.now()}`;
+  const res = await apiAt(token, "POST", "/shipments", body, {
+    headers: { "Idempotency-Key": idem },
   });
   if (!res.ok) {
     log.push(`shipment create FAILED: ${res.status} ${JSON.stringify(res.data).slice(0, 300)}`);
@@ -132,6 +279,129 @@ if (NO_CREATE) {
       status: s.status,
     };
     log.push(`shipment: ${scenario.shipment.id} (${code}) status=${scenario.shipment.status}`);
+
+    // 3b) Declare the container on its own endpoint, now that create no longer takes it.
+    // The endpoint is optimistic-concurrency gated: it refuses without
+    // `expectedVersion` ("expectedVersion là bắt buộc để kiểm soát đồng thời"), so
+    // read the shipment's current version first rather than assuming 0.
+    const cur = await apiAt(token, "GET", `/shipments/${scenario.shipment.id}`);
+    const currentVersion = cur?.data?.version ?? cur?.data?.shipment?.version ?? 0;
+    const cont = await apiAt(token, "PUT", `/shipments/${scenario.shipment.id}/containers`, {
+      expectedVersion: currentVersion,
+      containers: [{
+        containerNumber: containerNo,
+        containerTypeId: scenario.containerType?.id,
+        routeId: scenario.route?.id,
+        liftPortId: scenario.ports?.up?.id,
+        dischargePortId: scenario.ports?.down?.id,
+        weightKg: 25_000,
+      }],
+    }, { headers: { "Idempotency-Key": `${idem}-container` } });
+    if (!cont.ok) {
+      log.push(`container create FAILED: ${cont.status} ${JSON.stringify(cont.data).slice(0, 300)}`);
+      scenario.containerError = { status: cont.status, body: cont.data };
+    } else {
+      scenario.container = { number: containerNo };
+      log.push(`container: ${containerNo}`);
+
+      // Card 20260929_203: PUT /shipments/:id/containers RE-DERIVES
+      // expectedDeliveryDate and overwrites the value create had stored, leaving
+      // it NULL when no container carries a customerAppointmentAt. So the date
+      // has to be re-asserted AFTER the container, not before it — otherwise the
+      // scenario is invisible in the OPS work queue, which filters on exactly
+      // this column.
+      const after = await apiAt(token, "GET", `/shipments/${scenario.shipment.id}`);
+      const v = after?.data?.version ?? after?.data?.shipment?.version ?? currentVersion;
+      // Use the ADMIN token: the forwarder/ops role that owns the scenario cannot
+      // PATCH a shipment (403 "Không có quyền truy cập"), and the date is
+      // account-independent reference data the fixture legitimately needs set.
+      const fix = await apiAt(adminToken, "PUT", `/shipments/${scenario.shipment.id}`, {
+        expectedVersion: v,
+        expectedDeliveryDate: today,
+      }, { headers: { "Idempotency-Key": `${idem}-delivery-date` } });
+      if (!fix.ok) {
+        log.push(`expectedDeliveryDate re-assert FAILED: ${fix.status} ${JSON.stringify(fix.data).slice(0, 200)}`);
+        scenario.dateError = { status: fix.status, body: fix.data };
+      } else {
+        scenario.expectedDeliveryDate = today;
+        log.push(`expectedDeliveryDate re-asserted to ${today} (container write had cleared it)`);
+      }
+    }
+
+    // ── Step 4: a TRIP on a truck, plus that truck assigned to the driving OPS
+    // account. Without both, every write by the OPS user is refused by
+    // assertOpsExpenseAssignment (expense-owner-scope.service.ts:20-46) with
+    // "Lô này không thuộc xe bạn phụ trách".
+    //
+    // That guard grants on three alternatives:
+    //   (1) user_shipment_links — NO route writes that table, unreachable;
+    //   (2) truck_ops_assignments (active) + a trip of this shipment on that
+    //       truck — the only branch reachable through the API;
+    //   (3) an opsExpenseEntries row already written by that user — the thing
+    //       we are trying to create.
+    //
+    // Note the asymmetry: the account that CREATES a shipment must be
+    // ADMIN/MANAGER/CUS/DISPATCHER (SHIPMENT_INTAKE_MUTATION_ROLES) — an OPS
+    // account is refused 403. So the scenario is created by the caller and the
+    // DRIVING OPS account is attached afterwards. They are never the same user,
+    // and the driver-side account is whatever the QA harness resolves for OPS.
+    const cargoRes = await apiAt(adminToken, "GET", "/cargo-types", undefined, { query: { limit: 20 } });
+    const cargoTypeId = cargoRes?.data?.items?.[0]?.id ?? null;
+    const truckRes = await apiAt(adminToken, "GET", "/trucks", undefined, { query: { limit: 20 } });
+    const truckId = (truckRes?.data?.items ?? []).find((t) => t.status === 'ACTIVE')?.id ?? null;
+    // An in-house trip REQUIRES a driver ("Lái xe là bắt buộc cho chuyến xe nội bộ").
+    const driversRes = await apiAt(adminToken, "GET", "/drivers", undefined, { query: { limit: 20 } });
+    const driverId = (driversRes?.data?.items ?? [])
+      .find((d) => d.status === 'ACTIVE' && d.userId != null)?.userId ?? null;
+    if (!cargoTypeId || !truckId || !driverId) {
+      log.push(`trip SKIPPED: cargoType=${cargoTypeId} truck=${truckId} driver=${driverId}`);
+    } else {
+      const tripRes = await apiAt(adminToken, "POST", "/trips", {
+        customerId: scenario.customer.id,
+        routeId: scenario.route.id,
+        cargoTypeId,
+        containerTypeId: scenario.containerType.id,
+        containerCount: 1,
+        truckId,
+        driverId,
+        shipmentId: scenario.shipment.id,
+        departureDate: today,
+      }, { headers: { "Idempotency-Key": `${idem}-trip` } });
+      if (!tripRes.ok) {
+        log.push(`trip FAILED: ${tripRes.status} ${JSON.stringify(tripRes.data).slice(0, 180)}`);
+        scenario.tripError = { status: tripRes.status, body: tripRes.data };
+      } else {
+        const trip = tripRes.data?.trip ?? tripRes.data;
+        scenario.trip = { id: trip.id, truckId, driverId };
+        log.push(`trip: ${trip.id} on truck ${truckId} (driver user ${driverId})`);
+
+        // Attach the OPS account the harness will actually drive. Resolve it
+        // defensively: if no roster account authenticates, SKIP the assignment
+        // and say so — a missing assignment is a data gap, not a reason to
+        // abort the whole scenario.
+        const ops = await resolveLogin('giaonhan');
+        if (!ops.token || !ops.username) {
+          log.push(`ops-assignment SKIPPED: no OPS account authenticates (tried ${JSON.stringify(ops.tried)} username=${ops.username})`);
+          scenario.opsAssignmentError = 'no OPS account authenticates';
+        } else {
+          const usersRes = await apiAt(adminToken, "GET", "/auth/users", undefined, { query: { limit: 200 } });
+          const opsUserId = (usersRes?.data?.items ?? []).find((u) => u.username === ops.username)?.id ?? null;
+          if (!opsUserId) {
+            log.push(`ops-assignment SKIPPED: ${ops.username} not in /auth/users`);
+            scenario.opsAssignmentError = 'OPS user id not resolvable';
+          } else {
+            const assign = await apiAt(adminToken, "PUT", `/ops/trucks/${truckId}/ops-assignment`, { opsUserId });
+            if (!assign.ok) {
+              log.push(`ops-assignment FAILED: ${assign.status} ${JSON.stringify(assign.data).slice(0, 180)}`);
+              scenario.opsAssignmentError = { status: assign.status, body: assign.data };
+            } else {
+              scenario.opsAssignment = { truckId, opsUserId, username: ops.username };
+              log.push(`ops-assignment: truck ${truckId} -> ${ops.username} (#${opsUserId})`);
+            }
+          }
+        }
+      }
+    }
   }
 }
 

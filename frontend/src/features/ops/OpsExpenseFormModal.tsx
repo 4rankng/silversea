@@ -1,11 +1,13 @@
+import { PhotoImage } from '../../components/shared/PhotoImage';
 import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2, X } from 'lucide-react';
 import { useOpsExpenseTypes, useCreateOpsExpense } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsOrderItem } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
-import { getAuthenticatedPhotoUrl } from '../../lib/api';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
-import { formatVnd, localDateInputValue } from './opsStatus';
+import { localDateInputValue } from './opsStatus';
+import { formatMoney } from '../../lib/format';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { NumberField } from '../../design-system/forms/NumberField';
@@ -13,6 +15,7 @@ import { NumberField } from '../../design-system/forms/NumberField';
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
 import { OpsExpenseFinancialFields, opsFinancialPayload, opsGroupForType, useOpsExpenseFinancialDraft } from './OpsExpenseFinancialFields';
+import { opsCustomerCharge } from './opsCustomerCharge';
 interface Props {
   order: OpsOrderItem;
   onClose: () => void;
@@ -23,6 +26,16 @@ interface PendingPhoto {
   name: string;
 }
 
+/** Số Cont choice → payload container id. The shared-lot choice and an empty
+ *  choice both mean "no container row" — an empty string must never reach
+ *  `Number()` and serialize as container 0 (audit c12 A2: the backend zod
+ *  schema `shipmentContainerId: z.number().int().positive()` rejects 0 with
+ *  the default message the UI translates to "Giá trị phải lớn hơn 0"). */
+export function opsContainerId(containerChoice: string): number | null {
+  if (containerChoice === 'LOT' || containerChoice === '') return null;
+  return Number(containerChoice);
+}
+
 /**
  * "Khai báo chi phí" (OpsVanHanh §3.3): context-first form — mã lô + số bill
  * tự điền readonly, số cont chọn từ vỏ của lô, loại phí nhóm theo
@@ -30,7 +43,8 @@ interface PendingPhoto {
  * bổ sung ảnh sau (tạo "nợ chứng từ").
  */
 export function OpsExpenseFormModal({ order, onClose }: Props) {
-  const { data: typesData } = useOpsExpenseTypes();
+  const typesQuery = useOpsExpenseTypes();
+  const typesData = typesQuery.data;
   const createExpense = useCreateOpsExpense();
   const { toast } = useToast();
 
@@ -42,6 +56,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const [financial, setFinancial] = useOpsExpenseFinancialDraft();
   const savingRef = useRef(false);
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
+  // DRV-DET-08: receipt evidence loads with the Authorization header (blob),
+  // never a ?token= query string. Index-aligned with `photos`.
+  const photoUrls = useAuthedPhotoUrls(photos.map((photo) => photo.storageKey));
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -71,10 +88,26 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     return options;
   }, [groupedTypes]);
 
-  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
+  // Card 20260928_197 — mirrors the backend `signedExpenseVndSchema` exactly:
+  // a signed integer inside the money ceiling, with 0 rejected (0 is an empty
+  // row, not a signed row). A negative entry is the PM's "tương đương xóa
+  // dòng" — every total drops it via `sumExcludingNegative`.
+  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount !== 0 && Math.abs(amount) <= 999_999_999_999_999;
   const amountError = amount === '' || amountValid ? undefined
-    : amount <= 0 ? 'Số tiền phải là số dương' : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
-  const canSubmit = Boolean(typeCode) && amountValid && !createExpense.isPending && !uploading && pendingFiles.length === 0;
+    : amount === 0 ? 'Số tiền không được bằng 0 — nhập (+) chi phí hoặc (−) chi phí để bỏ dòng'
+    : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
+  const typesReady = typesQuery.isSuccess && Boolean(typesData?.items.length);
+  // Card 20260928_162 — the server refuses a save whose row does not charge the
+  // customer and carries no note (`createOpsExpense`). The form already knows
+  // that answer through `opsCustomerCharge`, the client mirror of the server's
+  // `receivableForCost`, so it blocks the submit instead of letting the
+  // operator walk into the red toast. Invoice groups charge the amount; a
+  // no-invoice row charges only its "Thực thu (thu khách)" override, so blank
+  // means uncharged — as does going negative.
+  const customerCharge = opsCustomerCharge(financial, amountValid ? Number(amount) : 0);
+  const noteRequired = customerCharge <= 0;
+  const canSubmit = typesReady && Boolean(typeCode) && amountValid && (!noteRequired || note.trim() !== '')
+    && !createExpense.isPending && !uploading && pendingFiles.length === 0;
 
   async function handleFiles(files: FileList | File[] | null) {
     if (!files?.length || uploading || savingRef.current) return;
@@ -101,7 +134,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     event.preventDefault();
     if (!canSubmit || savingRef.current) return;
     savingRef.current = true;
-    const containerId = containerChoice === 'LOT' ? null : Number(containerChoice);
+    const containerId = opsContainerId(containerChoice);
     try {
       await createExpense.mutateAsync({
         shipmentId: order.id,
@@ -133,14 +166,18 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         </header>
 
         <div className="ops-modal__body">
+          {typesQuery.isPending && <p role="status">Đang tải danh mục loại phí…</p>}
+          {typesQuery.isError && <div role="alert">
+            <p>Không tải được danh mục loại phí. Nội dung đang nhập vẫn được giữ.</p>
+            <button type="button" className="btn btn--secondary" disabled={typesQuery.isFetching} onClick={() => void typesQuery.refetch()}>
+              {typesQuery.isFetching ? 'Đang tải…' : 'Thử tải lại loại phí'}
+            </button>
+          </div>}
+          {typesQuery.isSuccess && !typesData?.items.length && <p role="status">Chưa có loại phí đang sử dụng. Liên hệ người quản lý danh mục để bổ sung.</p>}
           <div className="ops-form-grid">
             <label>
-              Mã lô
-              <input value={order.shipmentCode ?? '—'} readOnly />
-            </label>
-            <label>
               Số {order.tradeDirection === 'EXPORT' ? 'Booking' : 'Bill'}
-              <input value={order.billRef ?? '—'} readOnly />
+              <input value={order.billRef?.trim() || 'Chưa có số Bill/Booking'} readOnly />
             </label>
             <UuiSelectField
               label="Số Cont"
@@ -156,16 +193,17 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             <UuiSelectField
               label="Loại phí"
               required
+              disabled={!typesReady || busy}
               value={typeCode}
               onChange={(event) => {
                 const type = typesData?.items.find((item) => item.code === event.target.value);
                 setTypeCode(event.target.value);
-                setFinancial((current) => ({ ...current, costGroup: opsGroupForType(event.target.value, type?.requiresInvoice === true) }));
+                setFinancial((current) => ({ ...current, costGroup: opsGroupForType(type) }));
               }}
               options={expenseTypeOptions}
             />
-            <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} onChange={setAmount}
-              min={1} max={999_999_999_999_999} step={1} required error={amountError} />
+            <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={amount} onChange={setAmount}
+              min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required error={amountError} />
             <label>
               Ngày chi *
               <DateInput value={paidAt} onChange={setPaidAt} required />
@@ -178,13 +216,14 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             Ghi chú
             <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} />
           </label>
+          {noteRequired && <p className="ops-modal-hint">Dòng chi này không thu khách hàng — ghi chú bắt buộc, ghi rõ lý do để kế toán / CUS đọc được.</p>}
 
           <div className="ops-form-photos">
             <div className="ops-form-photos__head">
               <span>Ảnh biên lai ({photos.length})</span>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn--secondary"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading || busy}
               >
@@ -204,9 +243,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             {pendingFiles.length > 0 && !uploading && <div className="expense-accounting-file" role="status"><span>{pendingFiles.length} ảnh chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => void handleFiles(pendingFiles)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" onClick={() => setPendingFiles([])}>Bỏ ảnh chưa tải</button></div>}
             {photos.length > 0 && (
               <ul className="ops-form-photos__list">
-                {photos.map((photo) => (
+                {photos.map((photo, photoIndex) => (
                   <li key={photo.storageKey}>
-                    <img src={getAuthenticatedPhotoUrl(`/api/photos/${encodeURIComponent(photo.storageKey)}`)} alt={photo.name} />
+                    <PhotoImage src={photoUrls[photoIndex]} alt={photo.name} />
                     <button
                       type="button"
                       aria-label={`Xóa ${photo.name}`}
@@ -218,15 +257,14 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
                 ))}
               </ul>
             )}
-            <p className="ops-form-photos__hint">Có thể lưu trước và bổ sung ảnh sau — khoản chi sẽ bị đánh dấu “Nợ chứng từ” cho tới khi đủ ảnh.</p>
           </div>
         </div>
 
         <footer className="ops-modal__foot">
-          <div>{`Tổng: ${amountValid ? formatVnd(String(amount)) : '—'} ₫`}</div>
+          <div>{`Tổng: ${amountValid ? formatMoney(String(amount)) : '—'} ₫`}</div>
           <div className="ops-modal__actions">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={busy || uploading}>Đóng</button>
-            <button type="submit" className="btn-primary" disabled={!canSubmit}>
+            <button type="button" className="btn btn--secondary" onClick={onClose} disabled={busy || uploading}>Đóng</button>
+            <button type="submit" className="btn btn--primary" disabled={!canSubmit}>
               {busy ? <Loader2 size={14} className="spin" /> : null} Lưu
             </button>
           </div>

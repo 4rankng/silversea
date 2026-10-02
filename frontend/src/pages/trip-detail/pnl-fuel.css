@@ -70,7 +70,7 @@
 /* FuelCard: supplier name + action row. Replaces inline styles. */
 .fuel-supplier-name {
   font-weight: 600;
-  color: var(--brand, #005A2D);
+  color: var(--brand);
 }
 
 .fuel-actions {
@@ -82,7 +82,7 @@
 
 .pl-divider {
   height: 1px;
-  background: var(--line-2, #EFF2F0);
+  background: var(--line-2);
   margin: 4px 0;
 }
 
@@ -101,28 +101,39 @@
 }
 
 .pl-total {
+  --profit-tone: var(--ink);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #E8F7EE;
-  border: 1px solid #CFEBDD;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: var(--r-md, 14px);
   padding: 14px 15px;
   margin-top: 8px;
 }
 
+.pl-total--profit {
+  --profit-tone: var(--success-text);
+  background: var(--success-soft);
+}
+
+.pl-total--loss {
+  --profit-tone: var(--danger);
+  background: var(--danger-soft);
+}
+
 .pl-total .k {
   font-size: var(--fs-sm);
   font-weight: 700;
-  color: var(--brand, #005A2D);
+  color: var(--profit-tone);
 }
 
 .pl-total .v {
   font-family: var(--font-data);
   font-size: var(--fs-lg);
   font-weight: 700;
-  color: var(--accent-2, #00984A);
+  color: var(--profit-tone);
   letter-spacing: 0;
 }
 
@@ -134,7 +145,7 @@
 /* ── Fuel ──────────────────────────────────────────────────────────────── */
 .fuel-list .pl-row {
   padding: 8px 0;
-  border-bottom: 1px solid var(--line-2, #EFF2F0);
+  border-bottom: 1px solid var(--line-2);
 }
 
 .fuel-list .pl-row:last-of-type {
@@ -213,9 +224,9 @@
   gap: 7px;
   margin-top: 12px;
   padding: 8px 11px;
-  background: var(--danger-soft, #FCEAEA);
-  border-radius: 9px;
-  color: var(--danger, #E32434);
+  background: var(--danger-soft);
+  border-radius: 10px;
+  color: var(--danger);
   font-size: var(--fs-xs);
   font-weight: 700;
 }

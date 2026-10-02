@@ -16,33 +16,22 @@ function getInitialMonth(): { month: number; year: number } {
 }
 
 export function MonthProvider({ children }: { children: ReactNode }) {
-  const initial = getInitialMonth();
-  const [month, setMonth] = useState(initial.month);
-  const [year, setYear] = useState(initial.year);
+  const [{ month, year }, setPeriod] = useState(getInitialMonth);
 
   const goPrev = useCallback(() => {
-    setMonth(prev => {
-      if (prev === 1) {
-        setYear(y => y - 1);
-        return 12;
-      }
-      return prev - 1;
-    });
+    setPeriod(({ month, year }) => month === 1
+      ? { month: 12, year: year - 1 }
+      : { month: month - 1, year });
   }, []);
 
   const goNext = useCallback(() => {
-    setMonth(prev => {
-      if (prev === 12) {
-        setYear(y => y + 1);
-        return 1;
-      }
-      return prev + 1;
-    });
+    setPeriod(({ month, year }) => month === 12
+      ? { month: 1, year: year + 1 }
+      : { month: month + 1, year });
   }, []);
 
   const setMonthYear = useCallback((m: number, y: number) => {
-    setMonth(m);
-    setYear(y);
+    setPeriod({ month: m, year: y });
   }, []);
 
   return (

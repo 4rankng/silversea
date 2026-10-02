@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SummaryRail } from './SummaryRail';
+import { readFileSync } from 'node:fs';
 
 const items = [
   { label: 'Lô phù hợp', value: 1234 },
@@ -30,6 +31,13 @@ describe('SummaryRail', () => {
   it('passes string values through untouched', () => {
     render(<SummaryRail items={[{ label: 'Ghi chú', value: '—' }]} ariaLabel="Tóm tắt" />);
     expect(screen.getByText('—')).not.toBeNull();
+  });
+
+  it('reserves a separate line for tablet values instead of squeezing money beside labels', () => {
+    const css = readFileSync('src/design-system/SummaryRail.css', 'utf8');
+    expect(css).toMatch(/@media \(min-width: 641px\) and \(max-width: 1100px\)[\s\S]*?flex-direction: column/);
+    render(<SummaryRail items={[{ label: 'Lợi nhuận gộp', value: '25.580.000 ₫' }]} ariaLabel="Lợi nhuận" />);
+    expect(screen.getByText('25.580.000 ₫').tagName).toBe('DD');
   });
 
   it('applies a tone class only to toned items', () => {

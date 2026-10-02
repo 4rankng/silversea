@@ -122,10 +122,13 @@ describe('PortsConfigPage zone taxonomy block', () => {
     const addButtons = screen.getAllByRole('button', { name: /thêm mới/i });
     fireEvent.click(addButtons[addButtons.length - 1]);
 
-    fireEvent.change(screen.getByPlaceholderText('Ví dụ: LACH_HUYEN'), { target: { value: 'hai_duong' } });
-    fireEvent.change(screen.getByPlaceholderText('Lạch Huyện'), { target: { value: 'Hải Dương' } });
+    fireEvent.change(screen.getByPlaceholderText('Ví dụ: ZONE_A'), { target: { value: 'hai_duong' } });
+    fireEvent.change(screen.getByPlaceholderText('Tên khu vực điều phối'), { target: { value: 'Hải Dương' } });
     const orderInput = document.querySelector('input[type="number"]') as HTMLInputElement;
     fireEvent.change(orderInput, { target: { value: '40' } });
+
+    expect(screen.getByRole('checkbox', { name: 'Hiện bộ lọc cảng ở kế hoạch tổng quát' })).toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Hiện bộ lọc cảng ở kế hoạch tổng quát' }));
 
     // FormActions' create button is labelled "Thêm"; submit the zone form's.
     const submitButtons = screen.getAllByRole('button', { name: /^thêm$/i });
@@ -134,7 +137,7 @@ describe('PortsConfigPage zone taxonomy block', () => {
     await waitFor(() => {
       const call = apiPostMock.mock.calls.find(([path]) => path === '/dispatch-zones');
       expect(call).toBeTruthy();
-      expect(call?.[1]).toMatchObject({ code: 'HAI_DUONG', label: 'Hải Dương', sortOrder: 40, isActive: true });
+      expect(call?.[1]).toMatchObject({ code: 'HAI_DUONG', label: 'Hải Dương', sortOrder: 40, isActive: true, showPortFacet: false });
     });
   });
 

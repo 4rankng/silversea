@@ -2,7 +2,7 @@
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
 import {
-  boolean, date, index, integer, jsonb, numeric, pgTable, serial, text, timestamp, uniqueIndex, varchar,
+  boolean, date, index, integer, jsonb, numeric, pgTable, primaryKey, serial, text, timestamp, uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { BillingDocumentOfficialIdentitySnapshot, DebitNoteTemplateSnapshot } from '@tingting/shared';
@@ -177,9 +177,6 @@ export const billingDocuments = pgTable('billing_documents', {
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
   index('billing_documents_entity_idx').on(table.entityType, table.entityId),
-  uniqueIndex('billing_documents_active_period_unique')
-    .on(table.type, table.entityType, table.entityId, table.rangeFrom, table.rangeTo)
-    .where(sql`${table.deletedAt} IS NULL AND ${table.type} = 'DEBIT_NOTE'`),
 ]);
 
 
@@ -308,6 +305,27 @@ export const billingDocumentTripClaims = pgTable('billing_document_trip_claims',
     .where(sql`${table.releasedAt} is null`),
   index('billing_document_trip_claims_document_idx').on(table.documentId),
   index('billing_document_trip_claims_trip_idx').on(table.tripId),
+]);
+
+// Active lot claims enforce the 2026-09-19 lot-level uniqueness ruling: a
+// locked lot may appear in at most ONE issued Debit Note (uniqueness lives at
+// the lot, not at customer+period — the old billing_documents key blocked
+// disjoint multi-period exports). Release happens through the billing-document
+// lifecycle: the CANCELED transition releases the claim instead of erasing
+// history.
+export const debitNoteLots = pgTable('debit_note_lots', {
+  id: serial('id').primaryKey(),
+  documentId: integer('document_id').notNull(),
+  shipmentId: integer('shipment_id').notNull(),
+  createdBy: integer('created_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+  releasedBy: integer('released_by'),
+  releaseReason: varchar('release_reason', { length: 32 }),
+}, (table) => [
+  uniqueIndex('debit_note_lots_shipment_active_uniq').on(table.shipmentId)
+    .where(sql`${table.releasedAt} is null`),
+  index('debit_note_lots_document_idx').on(table.documentId),
 ]);
 
 export const billingDocumentLines = pgTable('billing_document_lines', {
@@ -694,17 +712,13 @@ export const fuelPeriodAdjustments = pgTable('fuel_period_adjustments', {
 ]);
 
 
-// M6.1 slice 2: fuel-reconciliation explanations. When the fuel-AP recon
-// report flags a supplier as 'VARIANCE' for a period, accountants must
-// record an explanation before any of that supplier's fuel expenses in the
-// same period can be approved (approval guard in fuel-recon-guard.service).
-// Unique on (supplierId, periodFrom, periodTo) so the same period can be
-// explained once and re-explained via upsert.
+// Legacy fuel-reconciliation explanations are retained as historical records.
+// No active workflow requires or edits these rows; variance reporting does not
+// block direct fuel expense recording. Keep existing data and uniqueness intact.
 export const fuelReconExplanations = pgTable('fuel_recon_explanations', {
   id: serial('id').primaryKey(),
   supplierId: integer('supplier_id').notNull(),
-  // ISO date range (YYYY-MM-DD). The guard uses calendar-month boundaries
-  // [first-of-month, last-of-month] derived from the expense's invoiceDate.
+  // Historical ISO date range (YYYY-MM-DD) captured with the explanation.
   periodFrom: date('period_from').notNull(),
   periodTo: date('period_to').notNull(),
   // Free-text accountant explanation (e.g. "price changed mid-month",
@@ -754,4 +768,107 @@ export const profitabilitySnapshotDimensions = pgTable('profitability_snapshot_d
 }, (table) => [
   uniqueIndex('profitability_snapshot_dimensions_uniq').on(table.snapshotId, table.dimension),
   index('profitability_snapshot_dimensions_lookup_idx').on(table.dimension, table.dimensionKey),
+]);
+
+// ─── Card 20260918_19 — lot cost lock (Khóa lô) + adjust history ───────────
+// A LOT lock, independent of the kỳ kế toán lock (shipment_accounting_locks):
+// the accounting lock is billing-document-tied with a period snapshot; the
+// cost lock has no period or document. They co-exist; guards chain.
+export const shipmentCostLocks = pgTable('shipment_cost_locks', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  shipmentVersionAtLock: integer('shipment_version_at_lock').notNull(),
+  // Frozen Lớp-1 totals + Lớp-2 lines assembled SERVER-side from engine
+  // values (never client amounts). Stored numbers are never recomputed —
+  // "mở kỳ mới không đổi số đã khóa".
+  costSnapshot: jsonb('cost_snapshot').$type<Record<string, unknown>>().notNull(),
+  lockedBy: integer('locked_by').notNull(),
+  lockedAt: timestamp('locked_at', { withTimezone: true }).notNull().defaultNow(),
+  lockNote: text('lock_note'),
+  unlockedBy: integer('unlocked_by'),
+  unlockedAt: timestamp('unlocked_at', { withTimezone: true }),
+  unlockReason: text('unlock_reason'),
+}, (table) => [
+  // One ACTIVE lock per shipment — the backstop behind the Idempotency-Key.
+  uniqueIndex('shipment_cost_locks_active_uniq').on(table.shipmentId).where(sql`unlocked_at is null`),
+]);
+
+export const shipmentCostAdjustments = pgTable('shipment_cost_adjustments', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  costLockId: integer('cost_lock_id').notNull(),
+  beforeJson: jsonb('before_json').$type<Record<string, unknown>>().notNull(),
+  afterJson: jsonb('after_json').$type<Record<string, unknown>>().notNull(),
+  reason: text('reason').notNull(),
+  adjustedBy: integer('adjusted_by').notNull(),
+  adjustedAt: timestamp('adjusted_at', { withTimezone: true }).notNull().defaultNow(),
+  idempotencyKey: varchar('idempotency_key', { length: 120 }).notNull().unique(),
+});
+
+// ─── Card 20260921_21 — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP: rate-adjustment requests ──
+// Kế toán ticks a lot row and sends "gửi yêu cầu điều chỉnh cước": while a
+// PENDING request exists the lot cannot be exported to debit (per-lot
+// issuance and the consolidated run both 409 naming the lot). Per the card's
+// 2026-09-21 user ruling "duyệt" is a CONFIRMATION column, not an approval
+// queue: kế toán confirms per row or tick-all; the requester can withdraw
+// before confirmation; after confirmation the lot may be re-requested until
+// its cost lock freezes it.
+export const shipmentRateAdjustmentRequests = pgTable('shipment_rate_adjustment_requests', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('PENDING'),
+  ghiChu: text('ghi_chu'),
+  requestedBy: integer('requested_by').notNull(),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+  confirmedBy: integer('confirmed_by'),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
+}, (table) => [
+  // Lookup index for the debit-export guard. At-most-one-PENDING-per-lot is
+  // enforced TRANSACTIONALLY inside the chốt transaction (drizzle-kit mangles
+  // partial-index predicates when applying; 2026-09-19 _32 war story).
+  index('shipment_rate_adjustment_requests_shipment_idx').on(table.shipmentId),
+]);
+
+// ─── Card 20260923_12 — Chọn Debit: settlement rounds (đợt chốt debit) ──────
+// Kế toán ticks rows on the chot-debit board and opens "Chọn Debit": one
+// settlement act persists one đợt per (customer, lần, tháng, chiều) with the
+// direction (phải thu from the customer / phải trả to the nhà xe), the
+// server-derived amount (THU = Σ Tổng thu, TRA = Σ Tổng 1 — Phí RU excluded,
+// board P1 arithmetic), VAT 0/5/8/10 chosen at chốt time, and ghi chú. The
+// TỔNG HỢP CÔNG NỢ KHÁCH HÀNG table reads these rows back. Append-only
+// ledger: no edit/reopen in scope.
+export const debitSettlementRounds = pgTable('debit_settlement_rounds', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull(),
+  direction: varchar('direction', { length: 3 }).notNull(), // 'THU' (phải thu) | 'TRA' (phải trả)
+  // Informational identity of the nhà xe side, derived from the selection's
+  // active trips ('OWN' own fleet | 'CUST:<id>' carrier customer |
+  // 'PLATE:<plate>' external plate-only | 'MIXED'). Not part of the unique
+  // key: THU rounds may legitimately span carriers.
+  carrierKey: varchar('carrier_key', { length: 60 }).notNull(),
+  periodKey: varchar('period_key', { length: 7 }).notNull(), // 'YYYY-MM'
+  roundNo: integer('round_no').notNull(),
+  dateFrom: date('date_from').notNull(),
+  dateTo: date('date_to').notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  vatRate: integer('vat_rate').notNull(), // percent, one of 0/5/8/10
+  ghiChu: text('ghi_chu'),
+  createdBy: integer('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  // One lần per (customer, month, direction): a second chốt reusing the lần → 400.
+  uniqueIndex('debit_settlement_rounds_pair_unq').on(table.customerId, table.periodKey, table.roundNo, table.direction),
+  index('debit_settlement_rounds_period_idx').on(table.periodKey),
+]);
+
+export const debitSettlementRoundLots = pgTable('debit_settlement_round_lots', {
+  roundId: integer('round_id').notNull(),
+  shipmentId: integer('shipment_id').notNull(),
+}, (table) => [
+  // The lot-overlap guard's DB backstop: a lot belongs to at most one
+  // settlement round — a second chốt containing it → 400 naming the round.
+  primaryKey({ columns: [table.roundId, table.shipmentId] }),
+  uniqueIndex('debit_settlement_round_lots_shipment_unq').on(table.shipmentId),
 ]);

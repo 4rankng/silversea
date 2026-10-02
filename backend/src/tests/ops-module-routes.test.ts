@@ -142,6 +142,7 @@ after(async () => {
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   } finally {
     try {
+      await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, createdUserIds.length ? createdUserIds : [-1]));
       await db.delete(s.userShipmentPins).where(inArray(s.userShipmentPins.userId, createdUserIds.length ? createdUserIds : [-1]));
       if (createdExpenseIds.length) {
         await db.delete(s.auditLogs).where(and(
@@ -164,7 +165,12 @@ after(async () => {
       }
       if (createdDriverIds.length) await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
       if (createdContainerIds.length) await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.id, createdContainerIds));
-      if (createdShipmentIds.length) await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+      if (createdShipmentIds.length) {
+        // RESTRICT child rows block shipment deletes — clear the expense
+        // accounting sources created through the ops routes first (card _40).
+        await db.delete(s.expenseAccountingSources).where(inArray(s.expenseAccountingSources.shipmentId, createdShipmentIds));
+        await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+      }
       if (createdTruckIds.length) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
       if (createdRouteIds.length) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
       if (createdExpenseTypeCodes.length) await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.code, createdExpenseTypeCodes));
@@ -294,6 +300,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     }).returning();
     createdShipmentIds.push(shipment.id);
     shipmentId = shipment.id;
+    await db.insert(s.userShipmentLinks).values({ userId: opsUser.id, shipmentId });
 
     const [container] = await db.insert(s.shipmentContainers).values({
       shipmentId,
@@ -332,6 +339,16 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     // Unknown container id → 404 (resource semantics); a container from
     // another shipment would be the 400 case.
     assert.equal(badContainer.status, 404);
+
+    // Audit c12 A2: a non-positive container id trips the schema's
+    // positive() — the message must name the container field, not the
+    // generic "Giá trị phải lớn hơn 0".
+    const zeroContainer = await api('/expenses', {
+      method: 'POST', token: opsToken,
+      body: { shipmentId, shipmentContainerId: 0, expenseTypeCode: noInvoiceCode, amount: '1000', paidAt: isoDate },
+    });
+    assert.equal(zeroContainer.status, 400);
+    assert.match(String(zeroContainer.body.error), /Dòng cont không hợp lệ/);
   });
 
   test('recorded expenses retain receipt visibility and are editable by the owner until settled', async () => {
@@ -384,19 +401,19 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     // Direct records stay editable until included in a settlement.
     const missingVersion = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '350000' },
+      method: 'PATCH', token: opsToken, body: { amount: '350000', reason: 'Đối chiếu biên lai' },
     });
     assert.equal(missingVersion.status, 409, 'a refreshed source version is required for monetary edits');
     const edit = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '350000', expectedVersion: created.body.version },
+      method: 'PATCH', token: opsToken, body: { amount: '350000', reason: 'Đối chiếu biên lai', expectedVersion: created.body.version },
     });
     assert.equal(edit.status, 200);
     assert.equal(edit.body.amount, '350000');
     const stale = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '999999', expectedVersion: created.body.version },
+      method: 'PATCH', token: opsToken, body: { amount: '999999', reason: 'Sửa biên lai cũ', expectedVersion: created.body.version },
     });
     assert.equal(stale.status, 409, 'stale edits cannot overwrite a newer source');
-    const forbiddenEdit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: ops2Token, body: { amount: '1' } });
+    const forbiddenEdit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: ops2Token, body: { amount: '1', reason: 'Kiểm tra quyền' } });
     assert.equal(forbiddenEdit.status, 404);
   });
 
@@ -417,7 +434,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     // Author correction does not require an approver.
     const edited = await api(`/expenses/${created.body.id}`, {
-      method: 'PATCH', token: opsToken, body: { amount: '90000', expectedVersion: created.body.version },
+      method: 'PATCH', token: opsToken, body: { amount: '90000', reason: 'Đối chiếu biên lai', expectedVersion: created.body.version },
     });
     assert.equal(edited.status, 200);
 
@@ -429,8 +446,8 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(attached.status, 201);
   });
 
-  test('wallet summary counts recorded advances and recorded expenses', async () => {
-    // 2,000,000 recorded advance − (350,000 + 90,000 recorded expenses) = 1,560,000
+  test('wallet counts actual expenses but excludes unfunded recorded advance requests', async () => {
+    // A request has no treasury evidence: 0 cash − (350,000 + 90,000 spent).
     const [advance] = await db.insert(s.advanceRequests).values({
       requesterId: opsUser.id,
       amount: '2000000',
@@ -441,10 +458,10 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     const summary = await api('/wallet/summary', { token: opsToken });
     assert.equal(summary.status, 200);
-    assert.equal(summary.body.totalAdvance, '2000000');
+    assert.equal(summary.body.totalAdvance, '0');
     assert.equal(summary.body.approved, '440000');
     assert.equal(summary.body.pending, '0');
-    assert.equal(summary.body.balance, '1560000');
+    assert.equal(summary.body.balance, '-440000');
   });
 
   test('expense history flags missing photos (nợ chứng từ)', async () => {
@@ -461,7 +478,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
       body: { amount: 500000, reason: `xin ứng ${suffix}` },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.status, 'RECORDED', 'creation posts status + ledger in-tx');
+    assert.equal(created.body.status, 'RECORDED', 'creation records the request without an approval handoff');
     createdAdvanceIds.push(created.body.id);
   });
 
@@ -470,9 +487,10 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     // both payers' rows under one shipment code (PRD §5.3 micro-ledger).
     const [ops2] = await db.select({ id: s.users.id }).from(s.users)
       .where(eq(s.users.username, `ops-portal-b-${suffix}`)).limit(1);
+    await db.insert(s.userShipmentLinks).values({ userId: ops2.id, shipmentId });
     const shared = await api('/expenses', {
       method: 'POST', token: ops2Token,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '70000', paidAt: isoDate },
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '70000', paidAt: isoDate, note: 'Chi nội bộ' },
     });
     assert.equal(shared.status, 201);
     createdExpenseIds.push(shared.body.id);
@@ -496,7 +514,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
   test('settlement freeze; later entries stay open (KP-149: batch decisions removed)', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '150000', paidAt: isoDate },
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '150000', paidAt: isoDate, note: 'Chi nội bộ' },
     });
     createdExpenseIds.push(created.body.id);
 
@@ -513,7 +531,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(settlement.body.totalAmount, '590000'); // 350k + 90k + 150k
 
     // Frozen entries are locked for the author.
-    const edit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: opsToken, body: { amount: '1' } });
+    const edit = await api(`/expenses/${created.body.id}`, { method: 'PATCH', token: opsToken, body: { amount: '1', reason: 'Kiểm tra quyền' } });
     assert.equal(edit.status, 400);
 
     // Batch decision endpoints no longer exist (removed with the arc).
@@ -530,7 +548,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     const after = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '10000', paidAt: isoDate },
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '10000', paidAt: isoDate, note: 'Chi nội bộ' },
     });
     createdExpenseIds.push(after.body.id);
     assert.equal(after.body.opsSettlementId, null);
@@ -657,4 +675,37 @@ describe('legacy incomplete Ops settlement recovery', () => {
     assert.equal(released.approvalStatus, 'DRAFT', 'release must not silently post incomplete expense');
     assert.equal((await api(`/settlements/${batch.id}/reopen-draft`, { method: 'POST', token: opsToken })).status, 409);
   });
+});
+
+test('settlement export rejects unsupported formats instead of silently serving xlsx', async () => {
+  const [batch] = await db.insert(s.opsSettlements).values({ code: `EX-${Date.now().toString(36)}`, opsUserId: opsUser.id, status: 'RECORDED', totalAmount: '1000' }).returning();
+  createdSettlementIds.push(batch.id);
+
+  async function exportResponse(path: string, token: string) {
+    const response = await fetch(`${baseUrl}/api/ops${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    return { status: response.status, contentType: response.headers.get('content-type') ?? '', body: await response.text() };
+  }
+
+  // The contract lie: an explicit unsupported format must not receive the xlsx.
+  const pdf = await exportResponse(`/settlements/${batch.id}/export?format=pdf`, opsToken);
+  assert.equal(pdf.status, 400);
+  assert.match(pdf.body, /Định dạng xuất không hỗ trợ/);
+
+  const upper = await exportResponse(`/settlements/${batch.id}/export?format=PDF`, opsToken);
+  assert.equal(upper.status, 400, 'format is case-sensitive');
+
+  const repeated = await exportResponse(`/settlements/${batch.id}/export?format=pdf&format=xlsx`, opsToken);
+  assert.equal(repeated.status, 400, 'repeated format params are rejected, not first-wins');
+
+  // Excel keeps working: no param, xlsx and the casual xls alias.
+  for (const qs of ['', '?format=xlsx', '?format=xls']) {
+    const ok = await exportResponse(`/settlements/${batch.id}/export${qs}`, opsToken);
+    assert.equal(ok.status, 200, `expected 200 for "${qs || 'no param'}"`);
+    assert.match(ok.contentType, /spreadsheetml/);
+  }
+
+  // The accountant mirror route keeps the same contract.
+  const adminPdf = await exportResponse(`/admin/settlements/${batch.id}/export?format=pdf`, accountantToken);
+  assert.equal(adminPdf.status, 400);
+  assert.match(adminPdf.body, /Định dạng xuất không hỗ trợ/);
 });

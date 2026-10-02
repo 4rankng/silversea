@@ -1,9 +1,8 @@
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
 
 function formatPlate(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, ' ');
@@ -13,8 +12,7 @@ function normalizePlate(value: string): string {
   return formatPlate(value).replace(/[^A-Z0-9]/g, '');
 }
 
-async function assertActiveCarrier(carrierId: number, tx?: Tx) {
-  const executor = tx ?? db;
+async function assertActiveCarrier(carrierId: number, executor: Executor = db) {
   const [carrier] = await executor.select({
     id: s.customers.id,
     status: s.customers.status,
@@ -98,9 +96,8 @@ export async function createCarrierFleetVehicle(input: {
   licensePlate: string;
   isActive: boolean;
   actorUserId: number;
-}, tx?: Tx) {
-  const executor = tx ?? db;
-  await assertActiveCarrier(input.carrierId, tx);
+}, executor: Executor = db) {
+  await assertActiveCarrier(input.carrierId, executor);
   const licensePlate = formatPlate(input.licensePlate);
   const normalizedPlate = normalizePlate(input.licensePlate);
   if (normalizedPlate.length < 5) throw new ApiError(400, 'Biển số xe không hợp lệ.');
@@ -128,8 +125,7 @@ export async function updateCarrierFleetVehicle(id: number, input: {
   licensePlate?: string;
   isActive?: boolean;
   actorUserId: number;
-}, tx?: Tx) {
-  const executor = tx ?? db;
+}, executor: Executor = db) {
   const [existing] = await executor.select().from(s.carrierFleetVehicles).where(and(
     eq(s.carrierFleetVehicles.id, id),
     isNull(s.carrierFleetVehicles.deletedAt),
@@ -159,3 +155,44 @@ export async function updateCarrierFleetVehicle(id: number, input: {
   return vehicle;
 }
 
+
+/**
+ * Union read for the external-fleet management page (/fleet/external):
+ * the dispatch catalog (carrier_fleet_vehicles — the plates the dispatch
+ * picker offers) plus supplier-linked internal trucks (trucks.carrier_id)
+ * as read-only context rows. Tombstoned trucks ride along so the page can
+ * point at the suppliers-side restore remedy instead of hiding them.
+ */
+export async function listAllExternalFleet() {
+  const catalog = await db.select({
+    id: s.carrierFleetVehicles.id,
+    licensePlate: s.carrierFleetVehicles.licensePlate,
+    isActive: s.carrierFleetVehicles.isActive,
+    carrierId: s.carrierFleetVehicles.carrierId,
+    carrierName: s.customers.name,
+    carrierStatus: s.customers.status,
+    updatedAt: s.carrierFleetVehicles.updatedAt,
+  })
+    .from(s.carrierFleetVehicles)
+    .innerJoin(s.customers, eq(s.carrierFleetVehicles.carrierId, s.customers.id))
+    .where(isNull(s.carrierFleetVehicles.deletedAt))
+    .orderBy(asc(s.carrierFleetVehicles.licensePlate), asc(s.carrierFleetVehicles.id));
+
+  const linkedTrucks = await db.select({
+    id: s.trucks.id,
+    licensePlate: s.trucks.licensePlate,
+    status: s.trucks.status,
+    carrierId: s.trucks.carrierId,
+    carrierName: s.customers.name,
+    tombstonedAt: s.trucks.deletedAt,
+  })
+    .from(s.trucks)
+    .innerJoin(s.customers, eq(s.customers.id, s.trucks.carrierId))
+    .where(and(
+      isNotNull(s.trucks.carrierId),
+      isNull(s.customers.deletedAt),
+    ))
+    .orderBy(asc(s.trucks.licensePlate), asc(s.trucks.id));
+
+  return { catalog, linkedTrucks };
+}

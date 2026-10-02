@@ -9,22 +9,27 @@
  * Source: `Phương án tính cước tự động.docx` + PRD `CuocPhiThietKeDB.md`.
  */
 
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, notInArray } from 'drizzle-orm';
 import { computeFreightRate } from '@tingting/shared';
+import { quotationBaseClassCode } from '@tingting/shared';
+import { roundHalfAwayFromZero } from '@tingting/shared';
 import type { ComputeFreightRateResult } from '@tingting/shared';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
 
-type DbOrTx = typeof db | Tx;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface ResolveFreightRateInput {
   customerId: number;
   routeId: number;
+  /** Norms class — liters NEVER change with weight (card 20260922_58). */
   vehicleSizeClassCode: string;
+  /** Card 20260922_58: the class whose PRICING row applies when the catalog
+   *  splits container classes by cargo weight (CONT20.LIGHT/…). Absent ⇒
+   *  identical behavior (the pricing row is looked up on this same code). */
+  priceVehicleSizeClassCode?: string;
   /** Transport date (Trigger_Type) — the date freight is locked to. */
   transportDate: string;
 }
@@ -44,13 +49,85 @@ export interface ResolvedFreightRate extends ComputeFreightRateResult {
   liters: number;
   /** Share percentage used. */
   sharePct: number;
+  /** Per-cell fuel-surcharge multiplier applied (card 20260922_59; 1 = none).
+   * Optional: MANUAL fallbacks elsewhere may omit it; persist defaults to 1. */
+  heSo?: number;
+  /** Pre-rounding surcharge (card 20260922_60): the value AFTER the heSo
+   * multiplication but BEFORE the customer's rounding rule. Equals `surcharge`
+   * when no rounding mode is configured. Absent on MANUAL fallbacks. */
+  surchargeRaw?: number;
   /** Whether the result should be treated as MANUAL (missing data). */
   source: 'AUTO' | 'MANUAL';
   /** Human-readable formula for the UI. */
   formula: string;
+  /** Frozen prose for states the id-based rebuild cannot express (e.g. the
+   *  surcharge-pending path). Persisted on the snapshot; the read side
+   *  prefers it over the rebuilt hint. Absent elsewhere. */
+  formulaText?: string;
 }
 
 // ─── Resolve freight rate (3-step engine) ───────────────────────────────────
+
+/**
+ * Per-cell Hệ số + the quotation frame's rounding mode (cards _59/_60): the
+ * customer's latest active quotation at the transport date. Cell candidates
+ * in order: the exact class code, the base class's LIGHT split (the price-
+ * carrying column when callers address the base code), the base code itself.
+ * No quotation / no cell ⇒ { heSo: 1, roundingMode: 'NONE' } (ruling 5/7
+ * deterministic defaults — pre-card behavior intact).
+ */
+async function resolveQuotationHints(
+  customerId: number,
+  routeId: number,
+  vehicleSizeClassCode: string,
+  transportDate: string,
+): Promise<{ heSo: number; roundingMode: string }> {
+  const [quotation] = await db
+    .select({ id: s.quotations.id, roundingMode: s.quotations.surchargeRoundingMode })
+    .from(s.quotations)
+    .where(and(
+      eq(s.quotations.customerId, customerId),
+      lte(s.quotations.effectiveDate, transportDate),
+      isNull(s.quotations.deletedAt),
+    ))
+    .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
+    .limit(1);
+  if (!quotation) return { heSo: 1, roundingMode: 'NONE' };
+
+  const base = quotationBaseClassCode(vehicleSizeClassCode);
+  const candidates = [vehicleSizeClassCode, `${base}.LIGHT`, base]
+    .filter((code, index, all) => all.indexOf(code) === index);
+  const rows = await db
+    .select({ code: s.vehicleSizeClasses.code, heSo: s.quotationCells.heSo })
+    .from(s.quotationCells)
+    .innerJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.quotationCells.vehicleSizeClassId))
+    .where(and(
+      eq(s.quotationCells.quotationId, quotation.id),
+      eq(s.quotationCells.routeId, routeId),
+      inArray(s.vehicleSizeClasses.code, candidates),
+    ));
+  let heSo = 1;
+  for (const candidate of candidates) {
+    const hit = rows.find((r) => r.code === candidate);
+    if (hit) {
+      heSo = Number(hit.heSo);
+      break;
+    }
+  }
+  return { heSo, roundingMode: quotation.roundingMode };
+}
+
+/**
+ * Card 20260922_60: apply the customer's surcharge rounding rule — Excel
+ * ROUND(x; -n) half-away-from-zero (ruling 7). 'NONE' = unconfigured ⇒ the
+ * value passes through unchanged (deterministic default). Surcharge is
+ * always ≥ 0 (MAX(0, …) clamp upstream), but the helper stays sign-safe.
+ */
+function applySurchargeRounding(mode: string, value: number): number {
+  if (mode === 'THOUSAND') return roundHalfAwayFromZero(value, -3);
+  if (mode === 'TEN_THOUSAND') return roundHalfAwayFromZero(value, -4);
+  return value;
+}
 
 /**
  * Resolve the freight rate for a trip/shipment per the automatic pricing engine.
@@ -68,6 +145,7 @@ export async function resolveFreightRate(
   input: ResolveFreightRateInput,
 ): Promise<ResolvedFreightRate> {
   const { customerId, routeId, vehicleSizeClassCode, transportDate } = input;
+  const priceClassCode = input.priceVehicleSizeClassCode ?? vehicleSizeClassCode;
 
   // ── Step 1: freight_rate_terms ──
   const terms = await db
@@ -92,6 +170,13 @@ export async function resolveFreightRate(
     );
   }
 
+  // ── Card 20260922_59/_60: per-cell Hệ số + the frame's rounding mode ──
+  // Both live on the customer's active quotation (quotation frame + cells,
+  // _66). Defaults keep pre-card behavior intact: multiplier 1, no rounding.
+  const { heSo, roundingMode } = await resolveQuotationHints(
+    customerId, routeId, vehicleSizeClassCode, transportDate,
+  );
+
   // ── Step 2: pricing_tables (base price) ──
   const vehicleClass = await db
     .select()
@@ -104,14 +189,14 @@ export async function resolveFreightRate(
     throw new ApiError(404, `Không tìm thấy loại xe: ${vehicleSizeClassCode}`);
   }
 
-  const basePriceRow = await db
+  let basePriceRow = await db
     .select()
     .from(s.pricingTables)
     .where(
       and(
         eq(s.pricingTables.customerId, customerId),
         eq(s.pricingTables.routeId, routeId),
-        eq(s.pricingTables.rateKey, vehicleSizeClassCode),
+        eq(s.pricingTables.rateKey, priceClassCode),
         lte(s.pricingTables.effectiveDate, transportDate),
         isNull(s.pricingTables.deletedAt),
       ),
@@ -119,6 +204,35 @@ export async function resolveFreightRate(
     .orderBy(desc(s.pricingTables.effectiveDate))
     .limit(1)
     .then((rows) => rows[0]);
+
+  // Card 20260922_58 (PM đợt-2 doctrine): a customer whose catalog predates
+  // the 4-class split (or whose weight-class row is blank) inherits the BASE
+  // class row instead of dropping to MANUAL — the formula records the
+  // inheritance so the giá-tạm marking has its ground truth.
+  let priceClassInherited = false;
+  let effectivePriceClass = priceClassCode;
+  if (!basePriceRow && priceClassCode !== vehicleSizeClassCode) {
+    const inheritedRow = await db
+      .select()
+      .from(s.pricingTables)
+      .where(
+        and(
+          eq(s.pricingTables.customerId, customerId),
+          eq(s.pricingTables.routeId, routeId),
+          eq(s.pricingTables.rateKey, vehicleSizeClassCode),
+          lte(s.pricingTables.effectiveDate, transportDate),
+          isNull(s.pricingTables.deletedAt),
+        ),
+      )
+      .orderBy(desc(s.pricingTables.effectiveDate))
+      .limit(1)
+      .then((rows) => rows[0]);
+    if (inheritedRow) {
+      basePriceRow = inheritedRow;
+      priceClassInherited = true;
+      effectivePriceClass = vehicleSizeClassCode;
+    }
+  }
 
   // No base price ⇒ MANUAL mode (e.g. 15T with no data)
   if (!basePriceRow || Number(basePriceRow.price) === 0) {
@@ -134,18 +248,25 @@ export async function resolveFreightRate(
       billedKm: 0,
       liters: 0,
       sharePct: Number(terms.sharePct),
+      heSo: 1,
       source: 'MANUAL',
-      formula: `Thiếu giá gốc cho ${vehicleSizeClassCode} — cần nhập tay`,
+      formula: `Thiếu giá gốc cho ${effectivePriceClass} — cần nhập tay`,
     };
   }
 
   // ── Step 3: fuel_consumption_norms ──
+  // Norms are keyed on the BASE class (weight never splits consumption —
+  // _58), but staging data seeded on the weight-split rows must still
+  // resolve: the family lookup covers base + LIGHT/HEAVY members.
+  const normFamilyCodes = [vehicleSizeClassCode, `${vehicleSizeClassCode}.LIGHT`, `${vehicleSizeClassCode}.HEAVY`]
+    .filter((code, index, all) => all.indexOf(code) === index);
   const norm = await db
-    .select()
+    .select({ id: s.fuelConsumptionNorms.id, litersPerKm: s.fuelConsumptionNorms.litersPerKm })
     .from(s.fuelConsumptionNorms)
+    .innerJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.fuelConsumptionNorms.vehicleSizeClassId))
     .where(
       and(
-        eq(s.fuelConsumptionNorms.vehicleSizeClassId, vehicleClass.id),
+        inArray(s.vehicleSizeClasses.code, normFamilyCodes),
         lte(s.fuelConsumptionNorms.effectiveDate, transportDate),
         isNull(s.fuelConsumptionNorms.deletedAt),
       ),
@@ -161,9 +282,72 @@ export async function resolveFreightRate(
     );
   }
 
+  // ── Surcharge-pending path (freight-grounds vs surcharge-grounds split).
+  // PRD CuocPhiThietKeDB.md §8 (via 20260917_11): unconfirmed surcharge
+  // grounds must NEVER auto-apply a fuel-period price — so surcharge stays 0
+  // and no period is consumed. But freight grounds (rate terms + base price)
+  // are COMPLETE here, so the freight itself computes from its own grounds
+  // and the fuel-norm trace id is recorded (card _58: the norm lookup must
+  // run at issue). The pending reasons ride `formulaText` so the read side
+  // states the truth instead of a wrong missing-norm message. Billing km /
+  // liters mirror the AUTO trace columns.
+  if (
+    terms.surchargeThresholdMode === 'UNSET'
+    || !terms.fuelLagConfirmed
+  ) {
+    const missing: string[] = [];
+    if (terms.surchargeThresholdMode === 'UNSET') missing.push('ngưỡng biến động giá dầu chưa được khách chốt');
+    if (!terms.fuelLagConfirmed) missing.push('độ trễ giá dầu chưa được xác nhận');
+    // Zero fuel delta ⇒ surcharge 0 through the shared rounding — freight
+    // identical in rounding to the AUTO path.
+    const pending = computeFreightRate({
+      basePrice: Number(basePriceRow.price),
+      sharePct: Number(terms.sharePct),
+      fuelPrice: Number(terms.baseFuelPrice),
+      baseFuelPrice: Number(terms.baseFuelPrice),
+      liters: 0,
+    });
+    const billedKm = Number(terms.billingKmOneWay) * Number(terms.billingKmMultiplier);
+    const liters = billedKm * Number(norm.litersPerKm);
+    const pendingFormula = [
+      `${basePriceRow.price} × (1 + ${terms.sharePct}%) = ${pending.freight}`,
+      `— phụ phí dầu chờ xác nhận (${missing.join('; ')})`,
+    ].join(' ');
+    return {
+      freight: pending.freight,
+      surcharge: 0,
+      total: pending.freight,
+      fuelDelta: 0,
+      fuelPricePeriodId: 0,
+      rateTermsId: terms.id,
+      pricingTableId: basePriceRow.id,
+      fuelNormId: norm.id,
+      billedKm,
+      liters,
+      sharePct: Number(terms.sharePct),
+      heSo: 1,
+      source: 'AUTO',
+      formula: pendingFormula,
+      formulaText: pendingFormula,
+    };
+  }
+
   // ── Step 4: fuel_price_periods (with lag + threshold) ──
   const lagDays = terms.fuelLagDays ?? 0;
   const targetDate = subtractDays(transportDate, lagDays);
+
+  // ── Card 20260922_61 (ruling 8): the approval gate ──
+  // The engine may not use a fuel period this customer has NOT agreed to.
+  // Any PENDING/DECLINED approval row for the customer blocks its period;
+  // Đồng ý clears the block so trips priced after approval use the new
+  // period. In-flight shipments are already frozen in their snapshots.
+  const blockedPeriods = (await db
+    .select({ periodId: s.quotationFuelApprovals.fuelPricePeriodId })
+    .from(s.quotationFuelApprovals)
+    .where(and(
+      eq(s.quotationFuelApprovals.customerId, customerId),
+      inArray(s.quotationFuelApprovals.status, ['PENDING', 'DECLINED']),
+    ))).map((row) => row.periodId);
 
   let fuel = await db
     .select()
@@ -172,6 +356,7 @@ export async function resolveFreightRate(
       and(
         lte(s.fuelPricePeriods.effectiveFrom, targetDate),
         isNull(s.fuelPricePeriods.deletedAt),
+        blockedPeriods.length > 0 ? notInArray(s.fuelPricePeriods.id, blockedPeriods) : undefined,
       ),
     )
     .orderBy(desc(s.fuelPricePeriods.effectiveFrom))
@@ -244,14 +429,35 @@ export async function resolveFreightRate(
     liters,
   });
 
-  const formula = [
+  // Cards _59/_60: the cell Hệ số multiplies the fuel surcharge ONLY; the
+  // customer's rounding rule then rounds that product (Excel ROUND, half
+  // away from zero — ruling 7). Giá cos (freight J) never sees either.
+  // At heSo=1 + mode NONE this is byte-identical to the pre-card engine
+  // (regression-pinned by test).
+  const surchargeAfterHeSo = Math.round(result.surcharge * heSo);
+  const surchargeRaw = surchargeAfterHeSo;
+  const surcharge = applySurchargeRounding(roundingMode, surchargeAfterHeSo);
+  const total = result.freight + surcharge;
+
+  const priceClassNote = priceClassInherited
+    ? `[${effectivePriceClass} kế thừa giá gốc của ${priceClassCode} — giá tạm] `
+    : (priceClassCode !== vehicleSizeClassCode ? `[giá theo hạng ${priceClassCode}] ` : '');
+
+  const formula = priceClassNote + [
     `${basePriceRow.price} × (1 + ${terms.sharePct}%) = ${result.freight}`,
     `+ MAX(0, (${fuel.unitPrice} − ${terms.baseFuelPrice}) × ${liters.toFixed(3)})`,
-    `= ${result.total}`,
+    ...(heSo !== 1 ? [`× hệ số ${heSo}`] : []),
+    ...(roundingMode !== 'NONE'
+      ? [`→ làm tròn ${roundingMode === 'THOUSAND' ? '3 số' : '4 số'} = ${surcharge}`]
+      : []),
+    `= ${total}`,
   ].join(' ');
 
   return {
     ...result,
+    surcharge,
+    surchargeRaw,
+    total,
     fuelPricePeriodId: fuel.id,
     rateTermsId: terms.id,
     pricingTableId: basePriceRow.id,
@@ -259,6 +465,7 @@ export async function resolveFreightRate(
     billedKm,
     liters,
     sharePct: Number(terms.sharePct),
+    heSo,
     source: 'AUTO',
     formula,
   };
@@ -274,7 +481,7 @@ export async function resolveFreightRate(
  */
 export async function persistFreightRateSnapshot(
   result: ResolvedFreightRate,
-  opts: { shipmentId?: number | null; tripId?: number | null; executor?: DbOrTx },
+  opts: { shipmentId?: number | null; tripId?: number | null; executor?: Executor },
 ): Promise<number> {
   const [row] = await (opts.executor ?? db)
     .insert(s.freightRateSnapshots)
@@ -292,6 +499,9 @@ export async function persistFreightRateSnapshot(
       liters: String(result.liters),
       fuelDelta: String(result.fuelDelta),
       sharePct: String(result.sharePct),
+      heSo: String(result.heSo ?? 1),
+      surchargeRaw: String(result.surchargeRaw ?? result.surcharge),
+      formulaText: result.formulaText ?? null,
     })
     .returning({ id: s.freightRateSnapshots.id });
 
@@ -307,7 +517,7 @@ export interface CreateDebitNoteOverrideInput {
   overrideReason?: string;
   overrideBy?: number;
   /** Participate in the caller's transaction (idempotency wrapper); defaults to the pool. */
-  executor?: DbOrTx;
+  executor?: Executor;
 }
 
 /**

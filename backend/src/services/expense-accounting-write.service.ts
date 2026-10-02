@@ -2,13 +2,14 @@ import { and, eq, isNull, inArray, notInArray, or } from 'drizzle-orm';
 import { Role, TxnType, type ExpenseSourceRef, type ExpenseAccountingUpdate, type ExpenseSourceKind } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertExpenseSourceMutable, ensureLegacyExpenseSource, assertActiveExpensePayer, hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
-import { propagateExpenseApproval } from './source-change.service';
+import { propagateRecordedExpense } from './source-change.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import { assertExpenseOwnerWriteScope } from './expense-owner-scope.service';
 import { assertExpenseEvidenceAttachments } from './expense-accounting-evidence.service';
 import { refreshExpenseTripCosts } from './expense-trip-cost.service';
 import { LedgerService } from './ledger.service';
@@ -24,20 +25,21 @@ export function assertExpenseActorScope(actor: ExpenseActor, row: ExpenseAccount
   if ([Role.OPS, Role.DRIVER].includes(actor.role) && (row.payerUserId === actor.userId || row.recordedById === actor.userId)) return;
   throw new ApiError(404, 'Không tìm thấy khoản chi trong phạm vi của bạn.');
 }
-export async function getExpenseForCommand(tx: Tx, actor: ExpenseActor, ref: ExpenseSourceRef) {
-  const [link] = await tx.select({ tripId: s.expenseAccountingSources.tripId }).from(s.expenseAccountingSources)
+export async function getExpenseForCommand(executor: Executor, actor: ExpenseActor, ref: ExpenseSourceRef) {
+  const [link] = await executor.select({ tripId: s.expenseAccountingSources.tripId }).from(s.expenseAccountingSources)
     .where(and(eq(s.expenseAccountingSources.sourceKind, ref.sourceKind), eq(s.expenseAccountingSources.sourceId, ref.sourceId)));
-  const [native] = !link?.tripId && ref.sourceKind === 'TRIP' ? await tx.select({ tripId: s.tripExpenses.tripId }).from(s.tripExpenses).where(eq(s.tripExpenses.id, ref.sourceId))
-    : !link?.tripId && ref.sourceKind === 'DRIVER' ? await tx.select({ tripId: s.driverIncidentalCosts.tripId }).from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, ref.sourceId)) : [];
+  const [native] = !link?.tripId && ref.sourceKind === 'TRIP' ? await executor.select({ tripId: s.tripExpenses.tripId }).from(s.tripExpenses).where(eq(s.tripExpenses.id, ref.sourceId))
+    : !link?.tripId && ref.sourceKind === 'DRIVER' ? await executor.select({ tripId: s.driverIncidentalCosts.tripId }).from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, ref.sourceId)) : [];
   const tripId = link?.tripId ?? native?.tripId;
   if (tripId) {
-    const [trip] = await tx.select({ pairId: s.trips.activeTripPairId }).from(s.trips).where(eq(s.trips.id, tripId));
-    const [pair] = trip?.pairId ? await tx.select().from(s.tripPairs).where(eq(s.tripPairs.id, trip.pairId)) : [];
-    await lockTripFinancialAuthority(tx, pair?.status === 'ACTIVE' ? [pair.firstTripId, pair.secondTripId] : [tripId]);
+    const [trip] = await executor.select({ pairId: s.trips.activeTripPairId }).from(s.trips).where(eq(s.trips.id, tripId));
+    const [pair] = trip?.pairId ? await executor.select().from(s.tripPairs).where(eq(s.tripPairs.id, trip.pairId)) : [];
+    await lockTripFinancialAuthority(executor, pair?.status === 'ACTIVE' ? [pair.firstTripId, pair.secondTripId] : [tripId]);
   }
-  const row = await ensureLegacyExpenseSource(tx, ref.sourceKind, ref.sourceId, actor.userId);
+  const row = await ensureLegacyExpenseSource(executor, ref.sourceKind, ref.sourceId, actor.userId);
   assertExpenseActorScope(actor, row);
-  if (actor.role === Role.CUS) await assertActorCanAccessShipment(tx, row.shipmentId, { ...actor, username: null, email: null, fullName: null });
+  await assertExpenseOwnerWriteScope(executor, actor, row);
+  if (actor.role === Role.CUS) await assertActorCanAccessShipment(executor, row.shipmentId, { ...actor, username: null, email: null, fullName: null });
   if (row.version !== ref.expectedVersion) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} đã thay đổi. Vui lòng tải lại.`);
   if (row.status !== 'RECORDED') throw new ApiError(409, 'Khoản chi đã hủy.');
   return row;
@@ -51,6 +53,7 @@ export async function auditExpenseChange(tx: Tx, actor: ExpenseActor, before: Ex
 export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind: ExpenseSourceKind, id: number, input: ExpenseAccountingUpdate) {
   if (input.tripId) await lockTripFinancialAuthority(tx, [input.tripId]);
   const before = await getExpenseForCommand(tx, actor, { sourceKind: kind, sourceId: id, expectedVersion: input.expectedVersion });
+  if (before.sourceKind !== kind || before.sourceId !== id) throw new ApiError(409, 'Điều chỉnh từ nguồn chi phí gốc; không sửa bản liên kết chuyến.');
   if (input.tripId && Object.keys(input).every(key => ['tripId', 'expectedVersion', 'reason'].includes(key))) {
     requireExpenseFinance(actor);
     await assertShipmentAccountingUnlocked(tx, before.shipmentId);
@@ -106,6 +109,15 @@ export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
   const note = input.note === undefined ? before.note : input.note;
   if (kind === 'OPS') await tx.update(s.opsExpenseEntries).set({ ...metadata, amount, paidAt: expenseDate, note,
     ...(payerId ? { paidById: payerId } : {}), updatedAt: new Date() }).where(eq(s.opsExpenseEntries.id, id));
+  if (kind === 'OPS' && input.photoStorageKeys) {
+    const photos = await tx.select().from(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, id));
+    const removed = photos.filter(photo => !input.photoStorageKeys!.includes(photo.storageKey));
+    if (removed.length) await tx.delete(s.opsExpensePhotos).where(inArray(s.opsExpensePhotos.id, removed.map(photo => photo.id)));
+    const added = input.photoStorageKeys.filter(key => !photos.some(photo => photo.storageKey === key));
+    if (added.length) await tx.insert(s.opsExpensePhotos).values(added.map(storageKey => ({ opsExpenseId: id, storageKey, uploadedById: actor.userId }))).onConflictDoNothing();
+    if (input.photoStorageKeys.length) await tx.delete(s.expenseAccountingEvidence).where(and(eq(s.expenseAccountingEvidence.expenseAccountingSourceId, before.id), notInArray(s.expenseAccountingEvidence.storageKey, input.photoStorageKeys)));
+    else await tx.delete(s.expenseAccountingEvidence).where(eq(s.expenseAccountingEvidence.expenseAccountingSourceId, before.id));
+  }
   if (kind === 'DRIVER') await tx.update(s.driverIncidentalCosts).set({ ...metadata, ...(input.driverCostType ? { costType: input.driverCostType } : {}), amount, occurredAt: expenseDate, note,
     ...(payableEntityId ? { driverId: payableEntityId } : {}), receiptStorageKey: metadata.photoStorageKeys[0] ?? null }).where(eq(s.driverIncidentalCosts.id, id));
   if (kind === 'TRIP') {
@@ -133,7 +145,7 @@ export async function syncExpenseBillingSource(tx: Tx, source: ExpenseAccounting
   const principal = Math.min(Number(source.amount), charge);
   const fields = { buyAmount: source.amount, sellAmount: source.customerChargeAmount,
     recoverablePrincipalAmount: String(principal), serviceFeeAmount: String(charge - principal), expenseDate: source.expenseDate,
-    invoiceNumber: source.invoiceNumber, invoiceDate: source.invoiceDate, note: source.note,
+    invoiceNumber: source.invoiceNumber, invoiceDate: source.invoiceDate, note: source.note, costGroup: source.costGroup, feeName: source.feeName,
     updatedAt: new Date() };
   let expenseId = source.linkedTripExpenseId;
   if (expenseId) {
@@ -150,7 +162,7 @@ export async function syncExpenseBillingSource(tx: Tx, source: ExpenseAccounting
     const [linked] = await tx.update(s.expenseAccountingSources).set({ linkedTripExpenseId: expenseId }).where(eq(s.expenseAccountingSources.id, source.id)).returning();
     source = await hydrateExpenseAccountingSource(tx, linked);
   }
-  if (expenseId) await propagateExpenseApproval(tx, { expenseId });
+  if (expenseId) await propagateRecordedExpense(tx, { expenseId });
   return source;
 }
 
@@ -162,7 +174,7 @@ export async function syncShipmentExpenseSources(tx: Tx, shipmentId: number, act
     const before = await hydrateExpenseAccountingSource(tx, link);
     let after = await linkExpenseToRealTrip(tx, before);
     if (!after.tripId) continue;
-    if (after.confirmedAt) after = await syncExpenseBillingSource(tx, after, actorId);
+    if (after.confirmedAt || after.sourceKind === 'INVOICE') after = await syncExpenseBillingSource(tx, after, actorId);
     const [updated] = await tx.update(s.expenseAccountingSources).set({ version: after.version + 1 }).where(eq(s.expenseAccountingSources.id, after.id)).returning();
     await auditExpenseChange(tx, { userId: actorId, role: Role.ACCOUNTANT }, before, await hydrateExpenseAccountingSource(tx, updated), 'Liên kết công việc thực tế khi phát lệnh');
   }
@@ -228,4 +240,48 @@ export async function assignTruckAccountant(tx: Tx, actor: ExpenseActor, truckId
   const [after] = await tx.insert(s.truckAccountantAssignments).values({ truckId, accountantId, version: expectedVersion + 1, assignedById: actor.userId }).returning();
   await tx.insert(s.auditLogs).values({ userId: actor.userId, message: 'TRUCK_ACCOUNTANT_ASSIGNED', entityType: 'truck_accountant_assignment', entityId: after.id, payload: { before: before ?? null, after } });
   return after;
+}
+
+/**
+ * Card 20260928_166 AC1 — the split PM describes (2 accountants, 39 trucks,
+ * 13/26) done in one action instead of 39 round trips.
+ *
+ * Each truck goes through `assignTruckAccountant`, so the single-assign rules
+ * (active accountant of the ACCOUNTANT role, open-row version check, `endedAt`
+ * history, audit row) are never duplicated here — this function only decides
+ * WHICH trucks to touch.
+ *
+ * All-or-nothing: the caller runs it inside one transaction, so the first
+ * failing truck aborts the batch and no truck is written. A half-applied split
+ * is worse than a retry — the operator cannot tell which trucks landed, and the
+ * board would hold a mixture that matches neither the old nor the new split.
+ *
+ * Idempotent for an already-correct pair: a truck whose open row already names
+ * the requested accountant (including both being unassigned) is left untouched,
+ * so re-sending the same batch after a timeout writes no history.
+ */
+export async function assignTruckAccountantsBatch(
+  tx: Tx,
+  actor: ExpenseActor,
+  input: { accountantId: number | null; truckIds: number[] },
+): Promise<Array<{ truckId: number; accountantId: number | null; assignmentId: number; version: number; changed: boolean }>> {
+  requireExpenseFinance(actor);
+  // A repeated truck id would otherwise be processed twice and burn a version.
+  const truckIds = [...new Set(input.truckIds)];
+  const results: Array<{ truckId: number; accountantId: number | null; assignmentId: number; version: number; changed: boolean }> = [];
+  for (const truckId of truckIds) {
+    const [open] = await tx.select({
+      id: s.truckAccountantAssignments.id,
+      accountantId: s.truckAccountantAssignments.accountantId,
+      version: s.truckAccountantAssignments.version,
+    }).from(s.truckAccountantAssignments)
+      .where(and(eq(s.truckAccountantAssignments.truckId, truckId), isNull(s.truckAccountantAssignments.endedAt)));
+    if (open && (open.accountantId ?? null) === (input.accountantId ?? null)) {
+      results.push({ truckId, accountantId: input.accountantId, assignmentId: open.id, version: open.version, changed: false });
+      continue;
+    }
+    const after = await assignTruckAccountant(tx, actor, truckId, input.accountantId, open?.version ?? 0);
+    results.push({ truckId, accountantId: input.accountantId, assignmentId: after.id, version: after.version, changed: true });
+  }
+  return results;
 }

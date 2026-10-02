@@ -23,6 +23,11 @@ export interface ShipmentCreateFormState {
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   cargoMode: CargoMode;
   isCombined: boolean;
+  /** Card 20260922_6 — "có cược" intake tick + expected amount (string input
+   *  state; payload coerces digits). Intake intent only — the persisted
+   *  outcome is the deposit_refund_trackers row from the create tx. */
+  hasDeposit: boolean;
+  depositAmount: string;
   operationalSiteId: string;
   pickupWarehouseSiteId: string;
   customsCutoffAt: string;
@@ -49,6 +54,8 @@ export interface ShipmentContainerDraft {
   containerTypeId: string;
   /** Selected independently for this container. */
   routeId: string;
+  /** Ad-hoc free-text row route (Lệnh chạy ngoài §4.2) — XOR with routeId. */
+  rawRouteName: string;
   pickupPortId: string;
   dropoffPortId: string;
   /** Ad-hoc free-text cảng nâng/hạ (Lệnh chạy ngoài) — XOR with the ids. */
@@ -61,6 +68,8 @@ export interface ShipmentContainerDraft {
   /** Per-container factory authority (SILVER L1): empty inherits nothing —
    *  the shipment factory pre-fills new rows as a suggestion only. */
   operationalSiteId: string;
+  /** Ad-hoc free-text row factory (Lệnh chạy ngoài §4.2) — XOR with the id. */
+  rawFactoryName: string;
 }
 
 export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule';
@@ -102,6 +111,8 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   tradeDirection: '',
   cargoMode: 'FCL',
   isCombined: false,
+  hasDeposit: false,
+  depositAmount: '',
   operationalSiteId: '',
   pickupWarehouseSiteId: '',
   customsCutoffAt: '',
@@ -116,12 +127,21 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   operationalNotes: '',
 };
 
+/** VN đồng formatting for the deposit-amount input: digits in, dotted
+ *  thousands out ("5000000" → "5.000.000"). Payload strips non-digits. */
+export function formatVnMoney(raw: string): string {
+  const digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 export function createEmptyContainer(): ShipmentContainerDraft {
   return {
     key: crypto.randomUUID(),
     containerNumber: '',
     containerTypeId: '',
     routeId: '',
+    rawRouteName: '',
     pickupPortId: '',
     dropoffPortId: '',
     rawPickupPortName: '',
@@ -130,6 +150,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     cargoVolumeCbm: '',
     customerAppointmentAt: '',
     operationalSiteId: '',
+    rawFactoryName: '',
   };
 }
 
@@ -249,6 +270,19 @@ interface OperationalSiteName {
   shortName?: string;
 }
 
+/** A different customer's factories cannot remain on a draft. Preserve an
+ * independently chosen route, including a manual ad-hoc route override. */
+export function resetCustomerSite(
+  selection: { operationalSiteId: string; routeId: string },
+  sites: ReadonlyArray<{ id: number; routeId: number | null }>,
+) {
+  const factoryRoute = sites.find((site) => String(site.id) === selection.operationalSiteId)?.routeId;
+  return {
+    operationalSiteId: '',
+    routeId: factoryRoute != null && String(factoryRoute) === selection.routeId ? '' : selection.routeId,
+  };
+}
+
 export function buildShipmentRootPayload(
   form: ShipmentCreateFormState,
   containers: ShipmentContainerDraft[],
@@ -270,6 +304,8 @@ export function buildShipmentRootPayload(
     tradeDirection: form.tradeDirection || null,
     cargoMode: form.cargoMode,
     isCombined: form.isCombined,
+    hasDeposit: form.hasDeposit,
+    depositAmount: form.hasDeposit ? Number(form.depositAmount.replace(/\D/g, '')) || null : null,
     operationalSiteId: form.cargoMode === 'LCL' && form.operationalSiteId ? Number(form.operationalSiteId) : null,
     pickupWarehouseSiteId: form.cargoMode === 'LCL' && form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
     factoryName: (() => {
@@ -310,11 +346,13 @@ export function buildShipmentContainerPayload(
     containerTypeId: row.containerTypeId ? Number(row.containerTypeId) : null,
     shippingLineName: form.shippingLineName || null,
     routeId: row.routeId ? Number(row.routeId) : null,
+    rawRouteName: !row.routeId && form.isAdHoc ? row.rawRouteName.trim() || null : null,
     pickupPortId: row.pickupPortId ? Number(row.pickupPortId) : null,
     dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
     rawPickupPortName: !row.pickupPortId && form.isAdHoc ? row.rawPickupPortName.trim() || null : null,
     rawDropoffPortName: !row.dropoffPortId && form.isAdHoc ? row.rawDropoffPortName.trim() || null : null,
     operationalSiteId: row.operationalSiteId ? Number(row.operationalSiteId) : null,
+    rawFactoryName: !row.operationalSiteId && form.isAdHoc ? row.rawFactoryName.trim() || null : null,
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
     customerAppointmentAt: localDateTimeToIso(row.customerAppointmentAt),

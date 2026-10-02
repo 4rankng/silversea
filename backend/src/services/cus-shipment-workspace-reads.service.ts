@@ -11,13 +11,12 @@ import { Role, ShipmentCusBucket, ShipmentStatus, localDateInBusinessZone, type 
 import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 
 
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
 
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
-import type { Tx } from './trip-shared';
 import {
   getShipmentFinanceConfirmationSummaries,
   getShipmentFinanceConfirmationSummary,
@@ -32,7 +31,7 @@ export * from './cus-workspace-mapping.service';
 
 import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess } from './cus-workspace-builders.service';
 
-type Executor = typeof db | Tx;
+// Executor comes from ../db (the one Executor seam).
 export type ShipmentRow = typeof s.shipments.$inferSelect;
 export type ShipmentFulfillmentRow = typeof s.shipmentFulfillments.$inferSelect;
 
@@ -213,6 +212,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     return {
       containersByShipment: new Map<number, ContainerRow[]>(),
       declarationByShipment: new Map<number, DeclarationRow>(),
+      declarationsByShipment: new Map<number, DeclarationRow[]>(),
       locksByShipment: new Map<number, LockRow>(),
       debitNotesByShipment: new Map<number, DebitNoteRow>(),
       custodyByShipment: new Map<number, CustodyRow>(),
@@ -453,6 +453,19 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     }
   }
 
+  // Card 20260921_3: every declaration row of the lot, id-asc, so the
+  // documents quick-edit and the Chứng từ column see the FULL list (the
+  // primary map above keeps its newest-numbered pick for existing fields).
+  const declarationsByShipment = new Map<number, DeclarationRow[]>();
+  for (const row of declarationRows) {
+    const bucket = declarationsByShipment.get(row.shipmentId) ?? [];
+    bucket.push(row as DeclarationRow);
+    declarationsByShipment.set(row.shipmentId, bucket);
+  }
+  for (const bucket of declarationsByShipment.values()) {
+    bucket.sort((a, b) => a.id - b.id);
+  }
+
   const locksByShipment = new Map<number, LockRow>();
   for (const row of lockRows) locksByShipment.set(row.shipmentId, row);
 
@@ -557,6 +570,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
   return {
     containersByShipment,
     declarationByShipment,
+    declarationsByShipment,
     locksByShipment,
     debitNotesByShipment,
     custodyByShipment,
@@ -595,6 +609,7 @@ async function loadSelectors(customerId: number | null, executor: Executor = db)
     }).from(s.operationalSites)
       .where(and(
         ...(customerId != null ? [eq(s.operationalSites.customerId, customerId)] : []),
+        eq(s.operationalSites.siteType, 'FACTORY'),
         eq(s.operationalSites.isActive, true),
         isNull(s.operationalSites.deletedAt),
       ))
@@ -686,7 +701,7 @@ export async function buildWorkspaceDetail(
   executor: Executor = db,
 ): Promise<ShipmentCusWorkspaceDetail> {
   const support = await loadSupportRows([row.shipment.id], executor);
-  const confirmation = await getShipmentFinanceConfirmationSummary(row.shipment.id, executor as Tx);
+  const confirmation = await getShipmentFinanceConfirmationSummary(row.shipment.id, executor);
   const summary = buildListItem(row, support, actor, confirmation);
   const selectors = await loadSelectors(row.shipment.customerId, executor);
   const containers = (support.containersByShipment.get(row.shipment.id) ?? [])
@@ -750,27 +765,35 @@ async function buildShipmentPageConditions(
   if (query.customerId) {
     conditions.push(eq(s.shipments.customerId, query.customerId));
   }
+  // 20260917_12: the ad-hoc list filter — 'true'/'false' narrows to lệnh
+  // chạy ngoài / catalog-flow rows; absent means no filtering.
+  if (query.isAdHoc !== undefined) {
+    conditions.push(eq(s.shipments.isAdHoc, query.isAdHoc === 'true'));
+  }
   if (query.direction) {
     conditions.push(eq(s.shipments.tradeDirection, query.direction));
   }
   if (query.searchSuffix) {
-    const suffix = `%${query.searchSuffix.trim().replace(/[\\%_]/g, '\\$&')}`;
+    // Substring, not suffix (2026-09-18): pasting a Bill/Book from the top
+    // returned nothing because the filter only matched the tail. The URL param
+    // keeps its `searchSuffix` name so existing links and saved filters work.
+    const pattern = `%${query.searchSuffix.trim().replace(/[\\%_]/g, '\\$&')}%`;
     conditions.push(or(
-      sql`btrim(${s.shipments.blNumber}) ilike ${suffix}`,
-      sql`btrim(${s.shipments.bookingRef}) ilike ${suffix}`,
+      sql`btrim(${s.shipments.blNumber}) ilike ${pattern}`,
+      sql`btrim(${s.shipments.bookingRef}) ilike ${pattern}`,
       searchMode === 'container'
-        ? sql`btrim(${s.shipmentContainers.containerNumber}) ilike ${suffix}`
+        ? sql`btrim(${s.shipmentContainers.containerNumber}) ilike ${pattern}`
         : sql`exists (
             select 1
             from ${s.shipmentContainers}
             where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-              and btrim(${s.shipmentContainers.containerNumber}) ilike ${suffix}
+              and btrim(${s.shipmentContainers.containerNumber}) ilike ${pattern}
           )`,
       sql`exists (
         select 1
         from ${s.shipmentDeclarations}
         where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
-          and btrim(${s.shipmentDeclarations.declarationNumber}) ilike ${suffix}
+          and btrim(${s.shipmentDeclarations.declarationNumber}) ilike ${pattern}
       )`,
     )!);
   }
@@ -1023,6 +1046,16 @@ export async function listCusShipmentContainers(
       container,
       support.assignmentsByContainer.get(container.id) ?? null,
     );
+    // Container-level factory takes precedence over shipment-level (SILVER L1).
+    // Resolved as locals — the same shape cus-workspace-builders uses — because
+    // nesting both lookups inline made the compiler read the whole chain as
+    // always nullish.
+    const containerFactoryName = container.operationalSiteId != null
+      ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
+      : null;
+    const shipmentFactoryName = row.shipment.operationalSiteId != null
+      ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
+      : null;
     flatRows.push({
       id: line.id,
       shipmentId: row.shipment.id,
@@ -1031,12 +1064,7 @@ export async function listCusShipmentContainers(
       customerId: row.shipment.customerId,
       isAdHoc: row.shipment.isAdHoc,
       customerName: row.customerName,
-      // Container-level factory takes precedence over shipment-level (SILVER L1).
-      factoryName: (container.operationalSiteId != null
-        ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
-        : null) ?? (row.shipment.operationalSiteId != null
-          ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
-          : null) ?? trimOrNull(row.shipment.factoryName),
+      factoryName: containerFactoryName ?? shipmentFactoryName ?? trimOrNull(row.shipment.factoryName),
       routeName: line.routeName,
       billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
       declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
@@ -1062,6 +1090,7 @@ export async function listCusShipmentContainers(
       operationalNotes: trimOrNull(row.shipment.operationalNotes),
       raw: line.raw,
       fieldAccess: {
+        operationalSiteId: line.fieldAccess.operationalSiteId,
         containerNumber: line.fieldAccess.containerNumber,
         containerTypeId: line.fieldAccess.containerTypeId,
         cargoWeightKg: line.fieldAccess.cargoWeightKg,

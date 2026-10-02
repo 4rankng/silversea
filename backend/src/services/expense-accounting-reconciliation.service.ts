@@ -1,9 +1,11 @@
 import { hydrateExpenseCashVoucher } from './expense-cash-voucher-source.service';
 import { and, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
-import { TxnType, Role, type ExpenseReconciliationInput } from '@tingting/shared';
+import { TxnType, Role, sumExcludingNegative, type ExpenseReconciliationInput } from '@tingting/shared';
 import * as s from '../db/schema';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { getExpenseForCommand, requireExpenseFinance, type ExpenseActor } from './expense-accounting-write.service';
@@ -21,16 +23,15 @@ export async function createExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
   if (payer.role !== Role.OPS) throw new ApiError(400, 'Chọn nhân viên Ops.');
   await lockApplicationOwnedUniqueness(tx, 'expense-reconciliation-user', [input.opsUserId]);
   // Existing PT settlement takes the same advance locks before source locks.
-  for (const id of input.advances.map(a => a.advanceRequestId).sort((a, b) => a - b)) await tx.execute(sql`select pg_advisory_xact_lock(6101, ${id})`);
+  await acquireAdvisoryLocks(tx, input.advances.map(a => lockKeys.advance(a.advanceRequestId)));
   let advanceAmount = 0;
   for (const allocation of input.advances) {
     const [advance] = await tx.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, allocation.advanceRequestId)).for('update');
     if (!advance || advance.requesterId !== input.opsUserId || advance.status !== 'RECORDED') throw new ApiError(409, 'Khoản ứng không còn hợp lệ hoặc khác nhân viên.');
-    const [cash] = await tx.select({ id: s.treasuryMovements.id }).from(s.ledger).innerJoin(s.treasuryMovements, eq(s.treasuryMovements.ledgerEntryId, s.ledger.id))
-      .where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, advance.id), eq(s.treasuryMovements.direction, 'OUT'), eq(s.treasuryMovements.status, 'POSTED'))).limit(1);
-    if (!cash) throw new ApiError(409, 'Khoản ứng chưa có giao dịch quỹ xác nhận tiền thực giao. Ghi nhận chi ứng trước.');
+    const fundedAmount = (await getAdvanceFundedAmounts(tx, [advance.id])).get(advance.id) ?? 0;
+    if (fundedAmount <= 0) throw new ApiError(409, 'Khoản ứng chưa có giao dịch quỹ xác nhận tiền thực giao. Ghi nhận chi ứng trước.');
     const used = (await getAdvanceConsumedAmounts(tx, [advance.id])).get(advance.id) ?? 0;
-    if (allocation.amount > Number(advance.amount) - used) throw new ApiError(409, 'Số tiền ứng đã được phân bổ cho đợt khác.');
+    if (allocation.amount > Math.min(Number(advance.amount), fundedAmount) - used) throw new ApiError(409, 'Số tiền ứng đã được phân bổ cho đợt khác.');
     advanceAmount += allocation.amount;
   }
   const sources = [];
@@ -40,7 +41,7 @@ export async function createExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
     if (row.payableEntityType !== 'FORWARDER' || row.payableEntityId !== input.opsUserId || !row.confirmedAt || row.reconciliationId
       || row.expenseDate < input.from || row.expenseDate > input.to) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} không thuộc phạm vi đợt hoặc đã quyết toán.`);
     if (row.linkedTripExpenseId) {
-      await tx.execute(sql`select pg_advisory_xact_lock(6102, ${row.linkedTripExpenseId})`);
+      await acquireAdvisoryLock(tx, lockKeys.expense(row.linkedTripExpenseId));
       const [legacyClaim] = await tx.select({ id: s.settlementExpenses.id }).from(s.settlementExpenses)
         .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
         .where(and(eq(s.settlementExpenses.tripExpenseId, row.linkedTripExpenseId),
@@ -49,14 +50,20 @@ export async function createExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
     }
     sources.push(row);
   }
-  const amount = sources.reduce((sum, row) => sum + Number(row.amount), 0);
+  // Card 20260928_181 — a negative expense row behaves as if it did not exist,
+  // so the đợt total excludes it (single rule: sumExcludingNegative).
+  const amount = sumExcludingNegative(sources, (row) => row.amount);
   if (![amount, advanceAmount].every(Number.isSafeInteger)) throw new ApiError(400, 'Tổng tiền vượt giới hạn.');
   const [batch] = await tx.insert(s.expenseReconciliations).values({ code: `HU-${randomUUID()}`, opsUserId: input.opsUserId,
     from: input.from, to: input.to, amount: String(amount), advanceAmount: String(advanceAmount), createdById: actor.userId, note: input.note }).returning();
   if (input.advances.length) await tx.insert(s.expenseReconciliationAdvances).values(input.advances.map(a => ({ reconciliationId: batch.id, advanceRequestId: a.advanceRequestId, amount: String(a.amount) })));
   let remainingAdvance = advanceAmount;
   for (const row of sources) {
-    const allocated = Math.min(Number(row.amount), remainingAdvance);
+    // Card 20260928_181 — a negative expense row behaves as if it did not
+    // exist: it consumes no advance, and it must not INCREASE what is left for
+    // the rows after it (Math.min with a negative amount would do exactly that).
+    const rowAmount = Number(row.amount);
+    const allocated = rowAmount < 0 ? 0 : Math.min(rowAmount, remainingAdvance);
     remainingAdvance -= allocated;
     await tx.update(s.expenseAccountingSources).set({ reconciliationId: batch.id, allocatedAdvanceAmount: String(allocated), version: row.version + 1, updatedAt: new Date() }).where(eq(s.expenseAccountingSources.id, row.id));
   }
@@ -75,12 +82,16 @@ export async function recordFundedOpsAdvance(tx: Tx, actor: ExpenseActor, input:
   const treasury = await resolveTreasuryPaymentContract(tx, input, new Date());
   let advance;
   if (input.advanceRequestId) {
-    await tx.execute(sql`select pg_advisory_xact_lock(6101, ${input.advanceRequestId})`);
+    await acquireAdvisoryLock(tx, lockKeys.advance(input.advanceRequestId));
     [advance] = await tx.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, input.advanceRequestId)).for('update');
     if (!advance || advance.status !== 'RECORDED' || advance.requesterId !== input.opsUserId || Number(advance.amount) !== input.amount) throw new ApiError(409, 'Khoản ứng thay đổi hoặc không đúng đối tượng/số tiền.');
   } else advance = await createAdvanceRequest(input.opsUserId, { amount: input.amount, reason: input.reason }, tx);
-  const [ledger] = await tx.select().from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, advance.id), eq(s.ledger.entityType, 'FORWARDER'), eq(s.ledger.entityId, input.opsUserId)));
-  if (!ledger || !treasury.treasuryAccountId || !treasury.valueDate || !treasury.physicalReference) throw new ApiError(409, 'Khoản ứng chưa có nguồn tiền hợp lệ.');
+  let [ledger] = await tx.select().from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, advance.id), eq(s.ledger.entityType, 'FORWARDER'), eq(s.ledger.entityId, input.opsUserId)));
+  if (ledger && (Number(ledger.credit) !== input.amount || Number(ledger.debit) !== 0)) throw new ApiError(409, 'Bút toán ứng cũ không khớp số tiền; cần đối chiếu trước khi ghi tiền.');
+  if (!ledger) ledger = await LedgerService.postEntry(tx, { txnType: TxnType.OPS_ADVANCE, txnId: advance.id,
+    entityType: 'FORWARDER', entityId: input.opsUserId, debit: 0, credit: input.amount,
+    note: `Tiền ứng thực giao: ${input.reason}`, timestamp: new Date(`${input.valueDate}T00:00:00+07:00`) });
+  if (!treasury.treasuryAccountId || !treasury.valueDate || !treasury.physicalReference) throw new ApiError(409, 'Khoản ứng chưa có nguồn tiền hợp lệ.');
   await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'OUT', amount: input.amount,
     valueDate: treasury.valueDate, physicalReference: treasury.physicalReference, ledgerEntryId: ledger.id, sourceVersion: advance.version, paymentContractVersion: 2, createdBy: actor.userId });
   return advance;
@@ -91,6 +102,7 @@ export async function refundExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
   await lockApplicationOwnedUniqueness(tx, 'expense-reconciliation', [id]);
   const [batch] = await tx.select().from(s.expenseReconciliations).where(eq(s.expenseReconciliations.id, id)).for('update');
   if (!batch) throw new ApiError(404, 'Không tìm thấy đợt hoàn ứng.');
+  if (batch.voidedAt) throw new ApiError(409, 'Bảng hoàn ứng đã được hủy đối chiếu.');
   const existing = await tx.select({ amount: s.treasuryMovements.amount }).from(s.expenseCashVouchers)
     .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
     .where(and(eq(s.expenseCashVouchers.reconciliationId, id), eq(s.treasuryMovements.direction, 'IN'), eq(s.expenseCashVouchers.status, 'RECORDED')));

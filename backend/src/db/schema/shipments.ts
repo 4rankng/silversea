@@ -166,6 +166,12 @@ export const shipmentContainers = pgTable('shipment_containers', {
   containerTypeId: integer('container_type_id'),
   containerNumber: varchar('container_number', { length: 50 }),
   sealNumber: varchar('seal_number', { length: 50 }),
+  // Freight-side "PS thực tế" (Bảng 2.1, debit wave REWORK): the actual
+  // surcharge/extra recorded per container, persisted at lock-time bookkeeping
+  // and rolled into the lot totals on the debit screen. Nullable — null =
+  // Chưa xác định.
+  psActualAmount: numeric('ps_actual_amount', { precision: 15, scale: 0 }),
+  psActualNote: text('ps_actual_note'),
   cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
   // Per-container CBM. CUS dashboard Col4 cargo totals aggregate this across
   // containers (sum), falling back to the shipment-level figure when unset.
@@ -181,6 +187,11 @@ export const shipmentContainers = pgTable('shipment_containers', {
   // port was picked. XOR with the port ids above by intake convention.
   rawPickupPortName: varchar('raw_pickup_port_name', { length: 255 }),
   rawDropoffPortName: varchar('raw_dropoff_port_name', { length: 255 }),
+  // Ad-hoc row-tier factory/route (§4.2): free text when this container has
+  // no catalog factory/route picked. XOR with operationalSiteId/routeId by
+  // the same intake convention; normalized in the reconcile service.
+  rawFactoryName: varchar('raw_factory_name', { length: 255 }),
+  rawRouteName: varchar('raw_route_name', { length: 255 }),
   // Per-container factory authority (SILVER L1): nullable, indexed, no DB FK
   // by repo convention — customer scope + FACTORY type are enforced at the
   // persistence choke point (reconcileShipmentContainersInTx).
@@ -235,6 +246,9 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   // closes them through the existing governed workflows.
   plannedRevenue: numeric('planned_revenue', { precision: 15, scale: 0 }),
   plannedCarrierCost: numeric('planned_carrier_cost', { precision: 15, scale: 0 }),
+  // Giờ trả hàng staged per-container before dispatch issuance. The atomic
+  // plan edit owns it; the trip's planned_end_at is created at issuance.
+  plannedEndAt: timestamp('planned_end_at', { withTimezone: true }),
   dispatchClassification: dispatchClassificationEnum('dispatch_classification').notNull().default('SINGLE'),
   version: integer('version').notNull().default(1),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),

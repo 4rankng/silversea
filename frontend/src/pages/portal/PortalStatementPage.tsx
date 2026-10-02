@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Landmark, Printer } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import type { CustomerStatement } from '@tingting/shared';
 import { api } from '../../lib/api';
-import { EmptyState, DateInput } from '../../design-system';
+import { DateRangeFields, EmptyState, FilterBar } from '../../design-system';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import { useCustomerPortalScope } from './CustomerPortalScope';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './PortalPages.css';
+import { formatMoney, formatDate } from '../../lib/format';
 
 function queryFor(dateFrom: string, dateTo: string, format?: 'xlsx' | 'pdf', customerId?: number | null) {
   const query = new URLSearchParams();
@@ -44,12 +45,15 @@ export default function PortalStatementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!customerScopeReady) return;
     let active = true;
     setLoading(true);
     setError(null);
+    setExportError(null);
     api.get<CustomerStatement>(
       `/portal/statement${queryFor(appliedRange.dateFrom, appliedRange.dateTo, undefined, selectedCustomerId)}`,
     )
@@ -57,11 +61,11 @@ export default function PortalStatementPage() {
       .catch(() => { if (active) setError('Không thể tải sao kê công nợ. Vui lòng thử lại.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [appliedRange, customerScopeReady, selectedCustomerId]);
+  }, [appliedRange, customerScopeReady, retryKey, selectedCustomerId]);
 
   const exportStatement = async (format: 'xlsx' | 'pdf') => {
     setExporting(true);
-    setError(null);
+    setExportError(null);
     try {
       const path = `/portal/statement/export${queryFor(
         appliedRange.dateFrom,
@@ -75,7 +79,7 @@ export default function PortalStatementPage() {
         triggerDownload(await api.getBlob(path), 'sao-ke-cong-no.pdf');
       }
     } catch {
-      setError('Không thể xuất sao kê. Vui lòng thử lại.');
+      setExportError('Không thể xuất sao kê. Vui lòng thử lại.');
     } finally {
       setExporting(false);
     }
@@ -100,9 +104,9 @@ export default function PortalStatementPage() {
   const closingBalance = Number(summary?.closingBalance ?? data?.totalOutstanding ?? 0);
   const activityOperator = periodActivity < 0 ? '−' : '+';
   const balanceEquationLabel = [
-    `Số dư đầu kỳ ${openingBalance.toLocaleString('vi-VN')} đồng`,
-    `${periodActivity < 0 ? 'trừ' : 'cộng'} ${Math.abs(periodActivity).toLocaleString('vi-VN')} đồng`,
-    `bằng số dư cuối kỳ ${closingBalance.toLocaleString('vi-VN')} đồng`,
+    `Số dư đầu kỳ ${formatMoney(openingBalance)} đồng`,
+    `${periodActivity < 0 ? 'trừ' : 'cộng'} ${formatMoney(Math.abs(periodActivity))} đồng`,
+    `bằng số dư cuối kỳ ${formatMoney(closingBalance)} đồng`,
   ].join(', ');
 
   return (
@@ -115,8 +119,8 @@ export default function PortalStatementPage() {
         </div>
         <div className="portal-page__headline-stat" aria-label="Số dư công nợ hiện tại">
           <span>Số dư hiện tại</span>
-          <strong>{loading ? '—' : `${Number(data?.totalOutstanding ?? 0).toLocaleString('vi-VN')} ₫`}</strong>
-          <small>{data?.customer.name ?? 'Tài khoản đang xem'}</small>
+          <strong>{loading || error || !data ? '—' : `${formatMoney(Number(data.totalOutstanding))} ₫`}</strong>
+          <small>{loading || error ? 'Tài khoản đang xem' : data?.customer.name ?? 'Tài khoản đang xem'}</small>
         </div>
       </header>
 
@@ -125,36 +129,58 @@ export default function PortalStatementPage() {
           <div><span>Khoảng thời gian</span><h2>Lọc và xuất sao kê</h2></div>
           <strong>{appliedRange.dateFrom || appliedRange.dateTo ? 'Đang lọc theo kỳ' : 'Toàn bộ lịch sử'}</strong>
         </div>
+        {/* One bar, app-wide (card 20260927_152): the from/to group is the
+            shared `DateRangeFields` and `Áp dụng kỳ` + the exports ride the
+            bar's actions slot. The form stays the submit boundary: Enter in
+            either date field still applies the period. */}
         <form
-          className="portal-filters"
           onSubmit={(event) => {
             event.preventDefault();
             setAppliedRange({ dateFrom, dateTo });
           }}
         >
-          <label>Từ ngày<DateInput value={dateFrom} max={dateTo || undefined} onChange={setDateFrom} /></label>
-          <label>Đến ngày<DateInput value={dateTo} min={dateFrom || undefined} onChange={setDateTo} /></label>
-          <div className="portal-actions">
-            <button type="submit" className="portal-button portal-button--primary" disabled={loading}>Áp dụng kỳ</button>
-            <button type="button" className="portal-button" disabled={exporting || !data} onClick={() => void exportStatement('xlsx')}><Download size={16} /> XLSX</button>
-            <button type="button" className="portal-button" disabled={exporting || !data} onClick={() => void exportStatement('pdf')}><Printer size={16} /> PDF</button>
-          </div>
+          <FilterBar
+            actions={(
+              <>
+                <button type="submit" className="portal-button portal-button--primary" disabled={loading}>Áp dụng kỳ</button>
+                <button type="button" className="portal-button" disabled={exporting || loading || Boolean(error) || !data} onClick={() => void exportStatement('xlsx')}><Download size={16} /> XLSX</button>
+                <button type="button" className="portal-button" disabled={exporting || loading || Boolean(error) || !data} onClick={() => void exportStatement('pdf')}><Printer size={16} /> PDF</button>
+              </>
+            )}
+          >
+            <DateRangeFields
+              id="portal-statement-date-range"
+              ariaLabel="Khoảng ngày sao kê"
+              from={dateFrom}
+              to={dateTo}
+              onChange={(next) => {
+                setDateFrom(next.from);
+                setDateTo(next.to);
+              }}
+            />
+          </FilterBar>
         </form>
 
+        {exportError && <div className="portal-notice portal-notice--error" role="alert">{exportError}</div>}
         {loading ? (
           <div className="portal-state" role="status">Đang tải sao kê…</div>
         ) : error ? (
-          <div className="portal-state portal-state--error" role="alert">{error}</div>
+          <div className="portal-state portal-state--error" role="alert">
+            <div>
+              <p>{error}</p>
+              <button type="button" className="portal-button" aria-label="Thử lại sao kê" onClick={() => setRetryKey(value => value + 1)}>Thử lại</button>
+            </div>
+          </div>
         ) : !data ? (
-          <EmptyState icon={Landmark} title="Chưa có dữ liệu sao kê" />
+          <EmptyState context="finance" title="Chưa có dữ liệu sao kê" />
         ) : (
           <>
             <div className="portal-balance-equation" aria-label={balanceEquationLabel}>
-              <div><span>Số dư đầu kỳ</span><strong>{openingBalance.toLocaleString('vi-VN')} ₫</strong></div>
+              <div><span>Số dư đầu kỳ</span><strong>{formatMoney(openingBalance)} ₫</strong></div>
               <span className="portal-balance-equation__operator" aria-hidden="true">{activityOperator}</span>
-              <div><span>Phát sinh trong kỳ</span><strong>{Math.abs(periodActivity).toLocaleString('vi-VN')} ₫</strong></div>
+              <div><span>Phát sinh trong kỳ</span><strong>{formatMoney(Math.abs(periodActivity))} ₫</strong></div>
               <span className="portal-balance-equation__operator" aria-hidden="true">=</span>
-              <div className="portal-balance-equation__result"><span>Số dư cuối kỳ</span><strong>{closingBalance.toLocaleString('vi-VN')} ₫</strong></div>
+              <div className="portal-balance-equation__result"><span>Số dư cuối kỳ</span><strong>{formatMoney(closingBalance)} ₫</strong></div>
             </div>
             {data.unpaidTrips.length > 0 && (
               <section className="portal-due-list" aria-labelledby="portal-due-list-title">
@@ -169,7 +195,7 @@ export default function PortalStatementPage() {
                   <article key={trip.tripId} className="portal-due-row">
                     <div>
                       <strong>{trip.note || 'Chuyến chưa có mã'}</strong>
-                      <span>{trip.outstanding.toLocaleString('vi-VN')} ₫ còn phải thanh toán</span>
+                      <span>{formatMoney(trip.outstanding)} ₫ còn phải thanh toán</span>
                     </div>
                     <div>
                       <span>Ngày theo hợp đồng</span>
@@ -185,7 +211,7 @@ export default function PortalStatementPage() {
               </section>
             )}
             {rows.length === 0 ? (
-              <EmptyState icon={Landmark} title="Không có phát sinh trong khoảng thời gian này" />
+              <EmptyState context="finance" title="Không có phát sinh trong khoảng thời gian này" />
             ) : (
               <section className="portal-ledger" aria-labelledby="portal-ledger-title">
                 <div className="portal-ledger__heading">
@@ -198,11 +224,11 @@ export default function PortalStatementPage() {
                     <tbody>
                       {rows.map((row) => (
                         <tr key={row.id}>
-                          <td data-label="Ngày">{new Date(row.timestamp).toLocaleDateString('vi-VN')}</td>
+                          <td data-label="Ngày">{formatDate(row.timestamp)}</td>
                           <td data-label="Nội dung">{row.note || row.tripCode || row.txnType}</td>
-                          <td data-label="Ghi nợ" className="portal-table__number">{Number(row.debit ?? 0).toLocaleString('vi-VN')} ₫</td>
-                          <td data-label="Thanh toán" className="portal-table__number">{Number(row.credit ?? 0).toLocaleString('vi-VN')} ₫</td>
-                          <td data-label="Số dư" className="portal-table__number portal-table__balance">{Number(row.balance ?? 0).toLocaleString('vi-VN')} ₫</td>
+                          <td data-label="Ghi nợ" className="portal-table__number">{formatMoney(Number(row.debit ?? 0))} ₫</td>
+                          <td data-label="Thanh toán" className="portal-table__number">{formatMoney(Number(row.credit ?? 0))} ₫</td>
+                          <td data-label="Số dư" className="portal-table__number portal-table__balance">{formatMoney(Number(row.balance ?? 0))} ₫</td>
                         </tr>
                       ))}
                     </tbody>

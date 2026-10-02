@@ -1,6 +1,6 @@
 .ops-bill-page {
   min-width: 0;
-  --ops-control-height: 46px;
+  --ops-control-height: var(--control-max-h);
   --ops-surface: var(--surface);
   --ops-surface-muted: var(--surface-2);
 }
@@ -40,10 +40,10 @@
   min-height: var(--ops-control-height);
   padding: 0 13px;
   border: 1px solid var(--border-2);
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--ops-surface-muted);
   color: var(--fg-3);
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .ops-bill-search:focus-within {
@@ -183,10 +183,9 @@
 .ops-bill-table td small { margin-top: 2px; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.35; }
 
 .ops-bill-table td button {
-  display: -webkit-box;
+  display: block;
   width: 100%;
   padding: 0;
-  overflow: hidden;
   border: 0;
   background: transparent;
   color: var(--brand);
@@ -196,14 +195,13 @@
   text-align: left;
   cursor: pointer;
   overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: normal;
 }
 
 .ops-bill-row {
   cursor: pointer;
   box-shadow: inset 3px 0 0 transparent;
-  transition: background-color 120ms ease, box-shadow 120ms ease;
+  transition: background-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .ops-bill-row:hover { background: var(--ops-surface-muted); }
@@ -228,7 +226,7 @@
   min-height: 24px;
   padding: 3px 8px;
   border: 1px solid color-mix(in srgb, var(--brand) 20%, var(--border-2));
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--brand-subtle);
   color: var(--fg-2);
   font-size: var(--text-caption-size);
@@ -271,7 +269,7 @@
   flex: none;
   padding: 4px 8px;
   border: 1px solid var(--border-2);
-  border-radius: 999px;
+  border-radius: 6px;
   color: var(--fg-2);
   font-size: var(--text-caption-size);
   font-weight: 800;
@@ -362,7 +360,7 @@
 }
 
 @media (max-width: 767px) {
-  .ops-bill-page { --ops-control-height: 48px; }
+  .ops-bill-page { --ops-control-height: var(--control-max-h); }
   .ops-bill-page .page-header { gap: 10px; margin-bottom: 16px; }
   .ops-bill-page .page-title { font-size: var(--text-title-size); line-height: 1.2; }
   .ops-bill-page .page-subtitle { max-width: 34ch; font-size: var(--text-caption-size); }
@@ -435,14 +433,12 @@
   .ops-bill-mobile-list__identity small { display: block; margin-bottom: 2px; color: var(--fg-3); font-size: var(--text-caption-size); font-weight: 700; }
 
   .ops-bill-mobile-list__identity strong {
-    display: -webkit-box;
-    overflow: hidden;
+    display: block;
     color: var(--brand);
     font-size: var(--fs-sm);
     line-height: 1.35;
     overflow-wrap: anywhere;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    white-space: normal;
   }
 
   .ops-bill-mobile-list__meta {
@@ -462,7 +458,7 @@
     align-items: center;
     min-height: 24px;
     padding: 3px 8px;
-    border-radius: 999px;
+    border-radius: 6px;
     background: var(--ops-surface-muted);
     color: var(--fg-2);
     font-size: var(--text-caption-size);

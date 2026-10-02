@@ -73,7 +73,7 @@
     gap: 3px 10px; padding: 10px 12px;
     border-radius: 12px; min-height: 58px;
   }
-  .setting-card__icon { width: 34px; height: 34px; border-radius: 9px; grid-row: 1 / span 2; }
+  .setting-card__icon { width: 34px; height: 34px; border-radius: 10px; grid-row: 1 / span 2; }
   .setting-card__icon img { width: 38px; height: 38px; }
   .setting-card__icon svg { width: 18px; height: 18px; }
   .setting-card__title {
@@ -111,21 +111,11 @@
 
 } /* end PHONE ≤ 640px */
 
-.config-search-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-block: 0 12px;
-}
-.config-search-field { position: relative; flex: 1 1 230px; max-width: 480px; min-width: 0; }
-.config-search-field > svg { position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
-.config-search-field .input { padding-inline-start: 36px; width: 100%; }
+/* The search toolbar (`.config-search-toolbar` / `.config-search-field`) is
+   retired with card 20260927_152: the strip is the shared `ListFilterBar`, so
+   the page declares no toolbar box, no field shell and no field width. Only
+   the count's own type style survives (it rides the bar's status slot). */
 .config-search-count { color: var(--ink-3); font-size: var(--text-caption-size); white-space: nowrap; }
 .config-read-error { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 8px 0; margin-bottom: 8px; border-block-end: 1px solid var(--line); color: var(--danger); }
 .config-search-empty { text-align: center; padding: 28px 8px; color: var(--ink-3); }
 .config-search-empty .btn { margin-top: 12px; }
-@media (max-width: 640px) {
-  .config-search-field { max-width: none; }
-  .config-search-toolbar { gap: 6px; margin-bottom: 8px; }
-}

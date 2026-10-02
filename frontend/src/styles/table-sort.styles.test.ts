@@ -20,6 +20,15 @@ describe('shared sort-header button styling', () => {
 
   it('quiets the idle direction icon until the column is the active sort', () => {
     const idle = css.match(/\.table-sort-button__icon--idle\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(idle).toMatch(/opacity:\s*0\.4;/);
+    // Card 20260922_26: 0.4 rendered the 13px indicator as a stray mark next to
+    // the label ("TRẠNG THÁI !"); 0.65 keeps it secondary but legible.
+    expect(idle).toMatch(/opacity:\s*0\.65;/);
+  });
+
+  it('card 20260922_26: the sort button keeps a 24x24 hit area without changing header density', () => {
+    const base = css.match(/\.table-sort-button\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(base).toMatch(/min-height:\s*24px;/);
+    // The matching negative block margin keeps the th's layout height intact.
+    expect(base).toMatch(/margin-block:\s*-5px;/);
   });
 });

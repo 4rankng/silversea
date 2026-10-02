@@ -26,7 +26,24 @@ export const SEL = {
 
   /** Submit button on the form. */
   submitButtonText: 'Tạo lô hàng',
+
+  /**
+   * The workboard text search, by ACCESSIBLE NAME. `ListFilterBar` renders the
+   * field with `aria-label` (ShipmentsPage.tsx:490 'Tìm lô hàng',
+   * ShipmentContainersPage.tsx:251 'Container, Bill/Booking hoặc tờ khai'); the
+   * placeholder is copy that changes with the wording of the field, so a
+   * placeholder selector rots the moment the label is reworded.
+   */
+  searchInput: (ariaLabel) => `input[aria-label="${ariaLabel}"]`,
+
+  /** Per-shipment detail button inside a workboard row (CusShipmentRow.tsx:235
+   * renders `cus-dashboard-detail-<id>`), so a case can open a NAMED lot. */
+  rowDetailButton: (shipmentId) => `#cus-dashboard-detail-${shipmentId}`,
+
+  /** The empty-ledger line a container-less lot renders in its drawer. */
+  containerLedgerEmpty: '.cus-detail-empty',
 };
+
 
 /** Async `evaluate` helpers that mirror the selectors for runtime use. */
 export const QE = {
@@ -133,6 +150,50 @@ export const QE = {
       })()
     `;
   },
+
+  /**
+   * First Bill/Booking reference actually RENDERED in a workboard row, or null.
+   * Cases that need a "known ref" read it from the page instead of hardcoding
+   * one: a hardcoded ref is either missing from the env under test (a false
+   * FAIL) or, worse, present in one env only.
+   */
+  firstRenderedBillOrBookRef: `
+    (() => {
+      const rows = Array.from(document.querySelectorAll('.cus-dashboard-table tbody tr'));
+      for (const tr of rows) {
+        const ref = (tr.querySelector("td[data-label='Chứng từ'] strong")?.innerText || '').trim();
+        if (ref && !ref.startsWith('Chưa có')) return ref;
+      }
+      return null;
+    })()
+  `,
+
+  /**
+   * The per-shipment detail button for `id`, scrolled into view. Returns the
+   * row's aria-label so the evidence records WHICH lot was opened.
+   */
+  clickRowDetailButton: (id) => `
+    (() => {
+      const btn = document.getElementById('cus-dashboard-detail-' + ${JSON.stringify(String(id))});
+      if (!btn) return null;
+      btn.scrollIntoView({ block: 'center' });
+      btn.click();
+      return btn.getAttribute('aria-label');
+    })()
+  `,
+
+  /** Container-ledger table + the empty-ledger line, as one read. */
+  containerLedgerState: `
+    (() => {
+      const table = document.querySelector('.shipment-container-ledger table, .cus-container-ledger table');
+      const empty = document.querySelector('.cus-detail-empty');
+      return {
+        hasTable: Boolean(table),
+        rowCount: table ? table.querySelectorAll('tbody tr').length : 0,
+        emptyText: empty ? (empty.innerText || '').trim() : null,
+      };
+    })()
+  `,
 
   /** The Hình thức xuất nhập khẩu field is a UUI-styled native <select>
    * wrapped in a label. Set the underlying <select> value + dispatch change. */

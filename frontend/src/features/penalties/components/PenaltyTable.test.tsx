@@ -91,6 +91,12 @@ function renderTable(props: Partial<PenaltyTableProps> = {}) {
 }
 
 describe('PenaltyTable', () => {
+  it('ID03 preserves the exact trip link when the business reference is missing', () => {
+    renderTable({ rows: [row({ tripCode: null })], total: 1 });
+    expect(screen.getByRole('link', { name: 'Chưa có số Bill/Booking' })).toHaveAttribute('href', '/trips/7');
+    expect(document.querySelector('td[data-label="Số tiền"]')).toHaveTextContent('500.000');
+    expect(screen.getByRole('button', { name: 'Hủy kỷ luật' })).toBeEnabled();
+  });
   it('marks every violation-log header sortable and reports the active sort', () => {
     const onSortChange = vi.fn();
     const { rerender } = renderTable({ rows: [row()], total: 1, sort: null, onSortChange });
@@ -220,6 +226,37 @@ describe('PenaltyTable', () => {
     expect(within(pager).getByText('120')).toBeTruthy();
     fireEvent.click(within(pager).getByRole('button', { name: '3' }));
     expect(onPageChange).toHaveBeenCalledWith(3);
+  });
+
+  it('drives the shared filter bar: search writes through, reset clears the filters', () => {
+    const onSearchChange = vi.fn();
+    const onResetFilters = vi.fn();
+    renderTable({
+      rows: [row()],
+      total: 1,
+      search: 'an',
+      onSearchChange,
+      hasActiveFilters: true,
+      onResetFilters,
+    });
+
+    const bar = document.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+    expect(bar).not.toBeNull();
+
+    const input = within(bar).getByRole('textbox', { name: 'Tìm biên bản' }) as HTMLInputElement;
+    expect(input.value).toBe('an');
+    expect(input.getAttribute('placeholder')).toBe('Tìm lái xe, mã chuyến, lý do...');
+    fireEvent.change(input, { target: { value: 'an 2' } });
+    expect(onSearchChange).toHaveBeenCalledWith('an 2');
+
+    // With room on the strip the `Lái xe` criterion stays inline — one copy,
+    // inside the bar; it folds into `Bộ lọc` only when the width demands it.
+    expect(within(bar).getByText('Lái xe')).toBeTruthy();
+    expect(bar.querySelector('#penalty-driver-filter')).not.toBeNull();
+    expect(within(bar).queryByRole('button', { name: /^Bộ lọc/ })).toBeNull();
+
+    fireEvent.click(within(bar).getByRole('button', { name: 'Xóa bộ lọc' }));
+    expect(onResetFilters).toHaveBeenCalledTimes(1);
   });
 
   it('shows the empty state with server YTD figures when the page has no rows', () => {

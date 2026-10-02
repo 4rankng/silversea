@@ -8,8 +8,7 @@ import {
   AdvanceSettlementStatus,
 } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
-import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
-import { AssetIcon, type AssetIconName } from '../components/AssetIcon';
+import { PageHeader, StatusPill, FilterPill } from '../components/UI';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { Money } from '../components/shared/Money';
 import {
@@ -24,7 +23,7 @@ import {
 } from './admin-advance-settlement-summary';
 import './AdminAdvanceSettlementsPage.css';
 import '../styles/operational-table-typography.css';
-import { Pagination, UuiSelectField } from '../design-system';
+import { FilterBar, Pagination } from '../design-system';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -74,7 +73,7 @@ function statusFilterParam(filter: StatusFilter): string | undefined {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  RECORDED: 'var(--success, #059669)',
+  RECORDED: 'var(--success, #177448)',
   REVERSED: '#64748B',
   VOIDED: '#DC2626',
   DRAFT: 'var(--warning)',
@@ -91,7 +90,6 @@ interface AsKPIProps {
   value: number;
   meta: string;
   variant: 'warn' | 'info' | 'success' | 'danger';
-  iconName: AssetIconName;
   active?: boolean;
   hasItems?: boolean;
   // Omit onClick for a summary-only stat (no filter to toggle). Renders as a
@@ -99,14 +97,13 @@ interface AsKPIProps {
   onClick?: () => void;
 }
 
-function AsKPI({ label, value, meta, variant, iconName, active = false, hasItems = false, onClick }: AsKPIProps) {
+function AsKPI({ label, value, meta, variant, active = false, hasItems = false, onClick }: AsKPIProps) {
   const interactive = typeof onClick === 'function';
   const content = (
     <>
       <div className="as-kpi__label">{label}</div>
       <div className="as-kpi__value">{value}</div>
       <div className="as-kpi__meta">{meta}</div>
-      <AssetIcon name={iconName} size={58} className="as-kpi__asset" />
     </>
   );
   const className = `as-kpi as-kpi--${variant}${active ? ' is-active' : ''}${hasItems ? ' has-items' : ''}${interactive ? '' : ' as-kpi--static'}`;
@@ -390,7 +387,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
       {!embedded && (
         <PageHeader
           title="Tạm ứng & hoàn ứng"
-          iconName="settlement"
           description="Kiểm tra và xử lý phiếu hoàn ứng của giao nhận theo thẩm quyền."
         />
       )}
@@ -402,7 +398,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
           value={statusCounts[AdvanceSettlementStatus.RECORDED] ?? 0}
           meta={`${formatNumber(statusAmounts[AdvanceSettlementStatus.RECORDED] ?? 0)} ₫`}
           variant="success"
-          iconName="paid"
           active={statusFilter === AdvanceSettlementStatus.RECORDED}
           onClick={() => applyFilter(statusFilter === AdvanceSettlementStatus.RECORDED ? '' : AdvanceSettlementStatus.RECORDED)}
         />
@@ -411,16 +406,18 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
           value={balancesData?.items.length ?? 0}
           meta={`${formatNumber(balancesData ? Number(balancesData.totalOutstanding) : 0)} ₫`}
           variant="warn"
-          iconName="advances"
           hasItems={(balancesData?.items.length ?? 0) > 0}
         />
       </div>
 
       {/* ── Card wrapper ──────────────────────────────────────────────── */}
       <div className="as-panel">
-        {/* Filter tabs */}
-        <Toolbar>
-          {TABS.map((tab) => (
+        {/* Card 20260927_152 — one shared bar replaces the desktop toolbar +
+            the phone-only status select (one implementation per datum); the
+            full-set tab counts ride the quick-filter slot. */}
+        <FilterBar
+          quickFiltersLabel="Lọc theo trạng thái"
+          quickFilters={TABS.map((tab) => (
             <FilterPill
               key={tab.key}
               active={statusFilter === tab.key}
@@ -430,21 +427,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
               {tab.label}
             </FilterPill>
           ))}
-        </Toolbar>
-        <label className="as-mobile-filter">
-          <span>Lọc theo trạng thái</span>
-          <UuiSelectField
-            id="as-status-filter"
-            label="Lọc theo trạng thái"
-            hideLabel
-            value={statusFilter}
-            onChange={(event) => applyFilter(event.target.value === 'all' ? '' : event.target.value as StatusFilter)}
-            options={TABS.map((tab) => ({
-              value: tab.key,
-              label: `${tab.label} (${tabCounts[tab.key]})`,
-            }))}
-          />
-        </label>
+        />
 
         {isLoading ? (
           <div className="as-loading">

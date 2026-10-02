@@ -2,7 +2,9 @@ import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
 import './TextField.css';
 
 export interface BaseFieldProps {
-  label: string;
+  /** Visible field label. Omitted for dense table-cell fields, where the
+   * column header is the label and the input carries its own aria-label. */
+  label?: string;
   required?: boolean;
   error?: string;
   helpText?: string;
@@ -15,6 +17,8 @@ export interface TextFieldProps extends BaseFieldProps, Omit<InputHTMLAttributes
   className?: string;
   /** Compact operational geometry; coarse pointers retain the shared touch floor. */
   controlSize?: 'sm' | 'md';
+  /** Content-sized editor for coefficients and other short numeric values. */
+  controlWidth?: 'short-number';
 }
 
 export function TextField({
@@ -26,20 +30,24 @@ export function TextField({
   suffix,
   className,
   controlSize = 'md',
+  controlWidth,
   ...input
 }: TextFieldProps) {
   const generatedId = useId();
   const id = input.id ?? generatedId;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [input['aria-describedby'], errorId].filter(Boolean).join(' ') || undefined;
-  const cls = ['ds-field', `ds-field--${controlSize}`, error ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
+  const invalid = Boolean(error) || input['aria-invalid'] === true || input['aria-invalid'] === 'true';
+  const cls = ['ds-field', `ds-field--${controlSize}`, controlWidth ? `ds-field--${controlWidth}` : '', invalid ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
 
   return (
     <div className={cls}>
-      <label htmlFor={id} className="ds-field__label">
-        {label}
-        {required && <span className="ds-field__required" aria-hidden="true"> *</span>}
-      </label>
+      {label ? (
+        <label htmlFor={id} className="ds-field__label">
+          {label}
+          {required && <span className="ds-field__required" aria-hidden="true"> *</span>}
+        </label>
+      ) : null}
       {prefix || suffix ? (
         <div className="ds-field__input-group">
           {prefix && <span className="ds-field__affix">{prefix}</span>}

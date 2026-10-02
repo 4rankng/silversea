@@ -7,37 +7,46 @@ export const caseId = 'TC-CUS-CREATE-028';
 export const role = 'CUS';
 
 export default async function (ctx) {
-  // /api/shipments?page=1 returns summary items WITHOUT containers.
-  // The detail endpoint returns { shipment, containers, ... }.
-  // Pick the first shipment that has a BL AND at least one container with
-  // customerAppointmentAt. (NEW shipments without BL can't be matched on the
-  // overview row.)
-  const list = await ctx.apiGet('/shipments?page=1&limit=20');
-  const items = list.body.items || list.body.data || [];
+  const envTag = `[${ctx.env.env}]`;
+  // /api/shipments returns summary items WITHOUT containers; the detail
+  // endpoint returns { shipment, containers, ... }. The fixture is a lot that
+  // has a BL AND whose containers ALL carry customerAppointmentAt — found by
+  // PROPERTY across pages, because page 1 is whatever lot ran last and a
+  // page-1-only scan reported "no such lot" on a DB that holds them
+  // (card 20260928_159 — run order must not decide the verdict).
   let target = null;
-  for (const s of items) {
-    const sBL = s.blNumber || s.bl_number;
-    if (!sBL) continue;
-    const detail = await ctx.apiGet(`/shipments/${s.id}`);
-    const containers = detail.body.containers || [];
-    const hasAppt = containers.some((c) => c.customerAppointmentAt || c.customer_appointment_at);
-    if (hasAppt) {
-      target = {
-        id: s.id,
-        blNumber: detail.body.shipment?.blNumber || sBL,
-        containerCount: containers.length,
-        containersWithAppt: containers.filter((c) => c.customerAppointmentAt || c.customer_appointment_at).length,
-      };
-      break;
+  for (let page = 1; page <= 4 && target == null; page += 1) {
+    const list = await ctx.apiGet(`/shipments?limit=100&page=${page}`);
+    const items = list.body.items || list.body.data || [];
+    if (items.length === 0) break;
+    for (const s of items) {
+      const sBL = s.blNumber || s.bl_number;
+      if (!sBL) continue;
+      const detail = await ctx.apiGet(`/shipments/${s.id}`);
+      const containers = detail.body.containers || [];
+      // A partially scheduled lot correctly retains its waiting-for-date state.
+      const hasAppt = containers.length > 0 && containers.every((c) => c.customerAppointmentAt || c.customer_appointment_at);
+      if (hasAppt) {
+        target = {
+          id: s.id,
+          blNumber: detail.body.shipment?.blNumber || sBL,
+          containerCount: containers.length,
+          containersWithAppt: containers.filter((c) => c.customerAppointmentAt || c.customer_appointment_at).length,
+        };
+        break;
+      }
     }
+    if (items.length < 100) break;
   }
-  if (!target) return { verdict: 'BLOCKED', errors: ['no BL-bearing shipment with container appointment on staging'] };
+  if (!target) return { verdict: 'BLOCKED', errors: [`${envTag} no BL-bearing shipment with a container appointment on this env (scanned 4 pages)`] };
 
   // Visit overview, find this shipment's row
-  await ctx.goto('/shipments');
+  // The overview is paginated. Search for the selected fixture instead of
+  // assuming an API page1 item is also on the default overview page.
+  await ctx.goto(`/shipments?searchSuffix=${encodeURIComponent(target.blNumber)}`);
   await ctx.screenshot('a_overview');
   const rowText = await ctx.rowContaining(target.blNumber);
-  if (!rowText) return { verdict: 'INCONCLUSIVE', errors: [`row for ${target.blNumber} not found in overview`] };
+  if (!rowText) return { verdict: 'INCONCLUSIVE', errors: [`${envTag} row for ${target.blNumber} not found in overview`] };
 
   const rowHasDate = /\d{1,2}\/\d{1,2}\/\d{4}/.test(rowText);
   const rowHasWaiting = /Chưa chốt ngày|Chờ chốt lịch|WAITING_DATE/i.test(rowText);

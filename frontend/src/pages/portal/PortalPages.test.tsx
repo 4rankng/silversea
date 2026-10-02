@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render as renderView, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render as renderView, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -413,6 +413,25 @@ describe('customer portal pages', () => {
     expect(screen.getByText('Đã chuyển sang ngày làm việc tiếp theo')).toBeTruthy();
   });
 
+  it('applies the period from the shared from/to group on the filter bar', async () => {
+    apiGet.mockResolvedValue({ customer: { id: 3, name: 'Khách A' }, totalOutstanding: 0, ledgerRows: [], unpaidTrips: [], agingBuckets: [] });
+    const { container } = render(<MemoryRouter><PortalStatementPage /></MemoryRouter>);
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/statement'));
+
+    // The filters ARE the shared bar (card 20260927_152): one `DateRangeFields`
+    // group — no page-local label+input pair, and still two independent fields.
+    const groups = container.querySelectorAll('[role="group"][aria-label="Khoảng ngày sao kê"]');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].querySelectorAll('[data-input-wrapper]')).toHaveLength(2);
+
+    // Typing both fields and submitting still applies the period through the
+    // page's own draft/applied split.
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/08/2026' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '31/08/2026' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng kỳ' }));
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/portal/statement?dateFrom=2026-08-01&dateTo=2026-08-31'));
+  });
+
   it('downloads statement PDF bytes and shows a visible export error on failure', async () => {
     apiGet.mockResolvedValue({
       customer: { id: 3, name: 'Khách hàng A', contactInfo: null },
@@ -430,5 +449,55 @@ describe('customer portal pages', () => {
 
     await waitFor(() => expect(apiGetBlob).toHaveBeenCalledWith('/portal/statement/export?format=pdf'));
     expect(await screen.findByText('Không thể xuất sao kê. Vui lòng thử lại.')).toBeTruthy();
+    expect(screen.getByLabelText(/Số dư đầu kỳ 0 đồng/)).toBeTruthy();
   });
+  it('does not present failed statement reads as zero debt and provides an explicit retry', async () => {
+    apiGet.mockRejectedValueOnce(new Error('Unavailable'));
+    render(<MemoryRouter><PortalStatementPage /></MemoryRouter>);
+    await screen.findByRole('alert');
+    expect(screen.getByLabelText('Số dư công nợ hiện tại').textContent).toContain('—');
+    expect(screen.getByRole('button', { name: 'XLSX' })).toBeDisabled();
+    apiGet.mockResolvedValue({ customer: { id: 3, name: 'Khách A' }, totalOutstanding: 1250000, ledgerRows: [], unpaidTrips: [], agingBuckets: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại sao kê' }));
+    await waitFor(() => expect(screen.getByLabelText('Số dư công nợ hiện tại').textContent).toContain('1.250.000'));
+    expect(apiGet).toHaveBeenLastCalledWith('/portal/statement');
+  });
+
+  it('disables export while a new applied statement period is still loading', async () => {
+    apiGet.mockResolvedValueOnce({ customer: { id: 3, name: 'Khách A' }, totalOutstanding: 1250000, ledgerRows: [], unpaidTrips: [], agingBuckets: [] });
+    render(<MemoryRouter><PortalStatementPage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'XLSX' })).toBeEnabled());
+    apiGet.mockReturnValue(new Promise(() => undefined));
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng kỳ' }));
+    await screen.findByText('Đang tải sao kê…');
+    expect(screen.getByRole('button', { name: 'XLSX' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'PDF' })).toBeDisabled();
+    expect(screen.getByLabelText('Số dư công nợ hiện tại').textContent).toContain('—');
+  });
+
+  it('clears a canceled debit dispute before opening another document', async () => {
+    apiGet.mockResolvedValue({ items: [1, 2].map(id => ({ id, version: 1, entityName: 'Khách A', rangeFrom: '2026-09-01', rangeTo: '2026-09-30', totalInclVat: 1500000, debitNoteStatus: 'PENDING_CONFIRM' })), total: 2 });
+    render(<MemoryRouter><PortalDebitNotesPage /></MemoryRouter>);
+    const actions = await screen.findAllByRole('button', { name: 'Phản hồi' });
+    fireEvent.click(actions[0]);
+    fireEvent.change(screen.getByLabelText('Lý do phản hồi'), { target: { value: 'Dành riêng cho tài liệu đầu tiên' } });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(actions[1]);
+    expect(screen.getByLabelText('Lý do phản hồi')).toHaveValue('');
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Gửi phản hồi' })).toBeDisabled();
+  });
+
+  it('shows a debit mutation failure inside the active dialog while retaining its reason', async () => {
+    apiGet.mockResolvedValue({ items: [{ id: 1, version: 1, entityName: 'Khách A', rangeFrom: '2026-09-01', rangeTo: '2026-09-30', totalInclVat: 1500000, debitNoteStatus: 'PENDING_CONFIRM' }], total: 1 });
+    apiPost.mockRejectedValue(new Error('Máy chủ không nhận được phản hồi'));
+    render(<MemoryRouter><PortalDebitNotesPage /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Phản hồi' }));
+    fireEvent.change(screen.getByLabelText('Lý do phản hồi'), { target: { value: 'Kiểm tra lại số tiền' } });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Gửi phản hồi' }));
+    expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent('Máy chủ không nhận được phản hồi');
+    expect(screen.getByLabelText('Lý do phản hồi')).toHaveValue('Kiểm tra lại số tiền');
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Gửi phản hồi' })).toBeEnabled();
+  });
+
 });

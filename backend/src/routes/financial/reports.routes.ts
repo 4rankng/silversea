@@ -27,8 +27,10 @@ import { exportProfitabilityReport, getProfitabilityReport, PROFITABILITY_DIMENS
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import { applyDirectMoneyGovernanceAction } from '../../services/governance-transition.service';
 import { AuditEvent } from '../../services/audit-types';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
@@ -169,7 +171,7 @@ router.get('/reports/distribution-history', requireRoles(Role.ADMIN, Role.MANAGE
   res.json(await getDistributionHistory());
 }));
 
-router.post('/reports/distribute-profit/preview', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/reports/distribute-profit/preview', declareNonMaterialWrite('Read-only calculation preview.'), requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const { quarter, year } = req.body;
   if (!quarter || !year) throw new ApiError(400, 'Cần nhập quý và năm');
   if (quarter < 1 || quarter > 4) throw new ApiError(400, 'Quý phải từ 1 đến 4');
@@ -177,7 +179,7 @@ router.post('/reports/distribute-profit/preview', requireRoles(Role.ADMIN, Role.
 }));
 
 // Execute distribution — ADMIN/MANAGER only. ACCOUNTANT can preview but not execute per spec.
-router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/reports/distribute-profit', declareMaterialWrite('profit-distribute.execute', { method: 'POST', path: '/api/reports/distribute-profit' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const { quarter, year, reason } = req.body;
   if (!quarter || !year) throw new ApiError(400, 'Cần nhập quý và năm');
   if (quarter < 1 || quarter > 4) throw new ApiError(400, 'Quý phải từ 1 đến 4');

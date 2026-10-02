@@ -23,57 +23,9 @@
   color: var(--ink-2);
 }
 
-/* ═══ ZONE 1 — Status Banner ═══ */
-.penalty-status-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-.penalty-status-banner--safe {
-  background: var(--success-soft);
-  border: 1px solid var(--success);
-}
-.penalty-status-banner--violation {
-  background: var(--danger-soft);
-  border: 1px solid var(--danger);
-}
-.penalty-status-banner__icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-}
-.penalty-status-banner--safe .penalty-status-banner__icon {
-  background: var(--success);
-}
-.penalty-status-banner--violation .penalty-status-banner__icon {
-  background: var(--danger);
-}
-.penalty-status-banner__title {
-  font-size: var(--text-section-size);
-  font-weight: 700;
-  line-height: var(--lh-snug);
-  letter-spacing: 0;
-}
-.penalty-status-banner__subtitle {
-  font-size: var(--text-body-size);
-  color: var(--ink-2);
-  margin-top: 2px;
-  line-height: var(--lh-normal);
-}
-.penalty-status-banner--safe .penalty-status-banner__title {
-  color: var(--success-text);
-}
-.penalty-status-banner--violation .penalty-status-banner__title {
-  color: var(--danger-text);
-}
+/* ═══ ZONE 1 — Period summary state ═══ */
+/* The safe/violation status banner was removed (2026-09-27): it restated the
+   month-scoped KPI cards. Only the loading + period-error states remain. */
 
 /* Loading banner */
 .penalty-loading-banner {
@@ -231,7 +183,7 @@
   gap: 10px;
   padding: 10px 12px;
   border-top: 1px solid var(--line);
-  transition: background 120ms ease;
+  transition: background var(--t-fast);
 }
 .penalty-violation-row:hover {
   background: var(--surface-2);
@@ -300,24 +252,11 @@
   color: var(--ink-3);
   border-top: 1px solid var(--line);
 }
-.penalty-empty-state__icon {
-  color: var(--success);
-  margin-bottom: 12px;
+.penalty-empty-state > svg {
+  margin-inline: auto;
 }
 .penalty-empty-state__loading-text {
   margin-top: 12px;
-}
-.penalty-empty-state__title {
-  font-size: var(--text-section-size);
-  font-weight: 600;
-  color: var(--ink);
-  margin: 0;
-  line-height: var(--lh-snug);
-}
-.penalty-empty-state__desc {
-  margin: 6px 0 0;
-  font-size: var(--text-caption-size);
-  line-height: var(--lh-normal);
 }
 
 /* ═══ ZONE 4 — Footer Note ═══ */
@@ -345,20 +284,12 @@
   .penalty-data-card {
     border-radius: 8px;
   }
-  .penalty-status-banner {
-    padding: 10px;
-    border-radius: 8px;
-    gap: 10px;
-  }
-  .penalty-status-banner__icon {
-    width: 38px;
-    height: 38px;
-  }
-  .penalty-status-banner__title {
-    font-size: var(--text-section-size);
-  }
-  .penalty-status-banner__subtitle {
-    font-size: var(--text-body-size);
+  /* Even phone layout: three KPI cards stack full-width instead of the
+     generic 2-col `.kpi-grid.cols-3` override at ≤480px, which left two
+     half-width cards over one full-width card (2+1). Three classes so this
+     out-specifies that (0,2,0) override regardless of stylesheet order. */
+  .penalty-kpi-grid.kpi-grid.cols-3 {
+    grid-template-columns: 1fr;
   }
   .penalty-kpi-grid .kpi {
     min-height: 80px;
@@ -383,7 +314,7 @@
   /* Month select = UuiSelectField trigger (class lands on the button);
      touch floor per docs/design-guidelines.md. */
   .penalty-month-select {
-    min-height: 44px;
+    min-height: var(--control-touch-h);
   }
 }
 
@@ -419,23 +350,9 @@
     white-space: normal;
   }
 
-  /* Financial values retain their type size; the narrow layout supplies
-     a full row instead of shrinking a deduction to fit a count card. */
-  .penalty-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .penalty-kpi-grid .kpi:nth-child(2) {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  /* Override the generic three-KPI phone layout: counts stay together. */
-  .penalty-kpi-grid.kpi-grid > .kpi:nth-child(3):last-child {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
+  /* Financial values retain their type size; the single-column phone layout
+     (≤640px) supplies a full row per KPI instead of shrinking a deduction to
+     fit a count card. */
   .penalty-kpi-grid .money {
     flex-wrap: wrap;
     max-width: 100%;

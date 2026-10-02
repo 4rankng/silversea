@@ -1,0 +1,1 @@
+ALTER TABLE "freight_rate_snapshots" ADD COLUMN "he_so" numeric(8, 4) DEFAULT '1' NOT NULL;

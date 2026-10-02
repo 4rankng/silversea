@@ -8,7 +8,7 @@ const read = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
  * close-status chip are new chrome on the driver mobile surface. Per the
  * size-consistency scale (design-system contract): chips are pills with
  * 4/8–10px padding and the shared caption role; the collapse toggle is a real control
- * and carries the 44px coarse-pointer floor (control-density contract — the
+ * and carries the current coarse-pointer budget (control-density contract — the
  * compact base and the coarse override ship together). @media behavior isn't
  * reliably testable through jsdom rendering, so this asserts on the raw CSS
  * text — same pattern as driver-mobile-full-bleed.styles.test.ts.
@@ -24,13 +24,16 @@ describe('driver trip-detail chips style contract (36d0183d)', () => {
   });
 
   it('close-status chip uses the shared compact header type', () => {
+    // 2026-09-17 pill-button sweep: the close control is a BUTTON — the
+    // app-wide ruling replaces its pill radius with 8px (the ops-chip above
+    // stays a pill: chips/badges keep their shape).
     const block = css.slice(css.indexOf('.driver-task-close-chip'));
-    expect(block).toMatch(/border-radius:\s*999px/);
+    expect(block).toMatch(/border-radius:\s*8px/);
     expect(block).toMatch(/font-size:\s*var\(--text-caption-size\)/);
   });
 
-  it('collapse toggle keeps the 44px coarse-pointer floor', () => {
+  it('collapse toggle keeps the current coarse-pointer budget', () => {
     expect(css).toMatch(/\.driver-task-ops-toggle \{[^}]*\}/);
-    expect(css).toMatch(/@media \(pointer: coarse\) \{\s*\.driver-task-ops-toggle \{\s*min-height:\s*var\(--control-touch-h, 44px\);\s*\}\s*\}/);
+    expect(css).toMatch(/@media \(pointer: coarse\) \{\s*\.driver-task-ops-toggle \{\s*min-height:\s*var\(--control-touch-h\);\s*\}\s*\}/);
   });
 });

@@ -31,6 +31,17 @@ export type { SparklineProps, SparklineVariant } from './Sparkline';
 export { Tabs } from './Tabs';
 export type { TabsProps, TabsVariant, TabItem } from './Tabs';
 
+// The filter band (card 20260930_229): the measured two-row budget and the
+// `Bộ lọc` fold are the band's own, so a surface that hands it criteria cannot
+// build a bar that exceeds the budget with nothing to fold into.
+export { FilterBar } from './FilterBar';
+export type {
+  FilterBarProps,
+  FilterBarSearchProps,
+  FilterBarFoldProps,
+  FilterBarColumns,
+} from './FilterBar';
+
 export { TextField } from './forms/TextField';
 export type { TextFieldProps, BaseFieldProps } from './forms/TextField';
 export { SelectField } from './forms/SelectField';
@@ -39,6 +50,10 @@ export { UuiSelectField } from './forms/UuiSelectField';
 export type { UuiSelectFieldProps } from './forms/UuiSelectField';
 export { SearchableSelect } from './forms/SearchableSelect';
 export type { SearchableSelectOption, SearchableSelectProps } from './forms/SearchableSelect';
+export { DateRangeFields, DateRangePresetSelect, DateRangePresets } from './forms/DateRangeFields';
+export type { DateRangeValue, DateRangePreset, DateRangeFieldsProps, DateRangePresetsProps } from './forms/DateRangeFields';
+export { InlineLabelSelect } from './forms/InlineLabelSelect';
+export type { InlineLabelSelectItem } from './forms/InlineLabelSelect';
 export { SearchableMultiSelect } from './forms/SearchableMultiSelect';
 export type {
   SearchableMultiSelectOption,
@@ -58,3 +73,11 @@ export { BufferedUuiDateInput } from './forms/BufferedUuiDateInput';
 export type { BufferedUuiDateInputProps } from './forms/BufferedUuiDateInput';
 export { BufferedUuiDateTimeInput } from './forms/BufferedUuiDateTimeInput';
 export type { BufferedUuiDateTimeInputProps } from './forms/BufferedUuiDateTimeInput';
+
+// The one modal module (card 20260930_227): owns portal-to-body, scroll lock,
+// Escape (picker-deferent), focus trap + return, scrim dismissal, chrome and
+// size for every dialog surface in the app.
+export { Modal, ModalChip, ModalChipLive, ModalChipGhost, ModalCompactContext, useConfirmShortcuts } from './Modal';
+export type { ModalProps } from './Modal';
+export { usePortalTarget } from './hooks/usePortalTarget';
+export { useScrollLock } from './hooks/useScrollLock';

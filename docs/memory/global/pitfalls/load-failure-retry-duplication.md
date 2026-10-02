@@ -68,6 +68,6 @@ Then `useFleetFetch` / `useDetailQuery` wrappers surface the error state + retry
 
 ## Linked artifacts
 
-- Spec: `testplan/qa/2026-09-10_dispatch-detailed-plan.md` (8afc13a9 — the carrier-less scope)
+- Spec: `testplan/cycles/2026-09/2026-09-10_dispatch-detailed-plan.md` (8afc13a9 — the carrier-less scope)
 - Source files: see `grep -rln 'Không tải được' frontend/src/` (≈12 files)
 - Related note: [[frontend-architecture]] (primitive-creation rule)

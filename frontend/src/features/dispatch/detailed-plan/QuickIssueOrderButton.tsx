@@ -2,6 +2,7 @@ import { Loader2, Send } from 'lucide-react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { useIssueOrder } from './useIssueOrder';
+import { billBookingReference } from '../../../lib/business-reference';
 
 interface QuickIssueOrderButtonProps {
   row: DispatchDetailPlanRow;
@@ -16,7 +17,7 @@ export function QuickIssueOrderButton({ row, onIssueOrder }: QuickIssueOrderButt
   const { issue, issuing, issueError } = useIssueOrder({
     row, open: false, canIssue: true, onIssueOrder, onIssued: () => undefined,
   });
-  const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
+  const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
   return (
     <div>
       <button

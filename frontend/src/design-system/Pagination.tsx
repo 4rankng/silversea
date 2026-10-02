@@ -1,5 +1,6 @@
 import { useMemo, type FormEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { UuiSelectField } from './forms/UuiSelectField';
 import './Pagination.css';
 
 export interface PaginationProps {
@@ -11,6 +12,12 @@ export interface PaginationProps {
   summary?: ReactNode;
   siblingCount?: number;
   disabled?: boolean;
+  /** Rows-per-page choices. Rendered as a selector only when paired with
+   *  `onPageSizeChange` — tables that do not expose the choice stay unchanged. */
+  pageSizeOptions?: readonly number[];
+  onPageSizeChange?: (pageSize: number) => void;
+  /** Accessible name for the selector; defaults to a generic Vietnamese label. */
+  pageSizeLabel?: string;
 }
 
 function buildPageWindow(current: number, total: number, sibling: number): (number | '…')[] {
@@ -27,9 +34,15 @@ function buildPageWindow(current: number, total: number, sibling: number): (numb
 
 export function Pagination({
   page, totalPages, totalItems, pageSize, onChange, summary, siblingCount = 1, disabled = false,
+  pageSizeOptions, onPageSizeChange, pageSizeLabel = 'Số dòng mỗi trang',
 }: PaginationProps) {
+  const sizeOptions = pageSizeOptions && onPageSizeChange ? pageSizeOptions : null;
   const pages = useMemo(() => buildPageWindow(page, totalPages, siblingCount), [page, totalPages, siblingCount]);
-  if (totalPages <= 1 && !summary) return null;
+  // A one-page result set still renders when it carries a summary or the
+  // rows-per-page selector — otherwise choosing 200 rows would hide the very
+  // control that changes it back (staging, 2026-09-18).
+  const showControls = totalPages > 1;
+  if (!showControls && !summary && !sizeOptions) return null;
 
   const jumpToPage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,8 +60,24 @@ export function Pagination({
 
   return (
     <nav className="ds-pagination" aria-label="Phân trang">
-      <div className="ds-pagination__summary-slot">{summary ?? defaultSummary}</div>
-      <div className="ds-pagination__controls">
+      <div className="ds-pagination__summary-slot">
+        {sizeOptions && (
+          <div className="ds-pagination__size">
+            <span>{pageSizeLabel}</span>
+            <UuiSelectField
+              label={pageSizeLabel}
+              hideLabel
+              value={String(pageSize)}
+              onChange={(event) => onPageSizeChange?.(Number(event.target.value))}
+              options={sizeOptions.map((option) => ({ value: String(option), label: String(option) }))}
+              disabled={disabled}
+              width="content"
+            />
+          </div>
+        )}
+        {summary ?? defaultSummary}
+      </div>
+      {showControls && <div className="ds-pagination__controls">
         <button
           className="ds-pagination__btn"
           disabled={disabled || page <= 1}
@@ -101,7 +130,7 @@ export function Pagination({
         >
           <ChevronRight size={14} />
         </button>
-      </div>
+      </div>}
     </nav>
   );
 }

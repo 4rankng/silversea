@@ -4,12 +4,14 @@
  * re-exported through the advance.service facade.
  */
 import { db } from '../db';
+import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 'drizzle-orm';
-import { NotificationType, TxnType, round2dp } from '@tingting/shared';
+import { NotificationType, TxnType, round2dp, sumExcludingNegative } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
+import { filterWholeSettlementAdvances } from './advance-consumption.service';
 import { emitNotification } from './notification.service';
 import {
   AdvanceError,
@@ -17,7 +19,7 @@ import {
   validateSettlementInputs,
 } from './settlement-validation';
 import type { Tx } from './trip-shared';
-import { propagateExpenseApprovals } from './source-change.service';
+import { propagateRecordedExpenses } from './source-change.service';
 import {
   assertExpectedVersion,
   clampPageLimit,
@@ -40,13 +42,11 @@ export async function createAdvanceSettlement(
   const execute = async (tx: Tx) => {
     // Serialize claims before validation. After a concurrent creator commits,
     // READ COMMITTED makes the subsequent validation see its new links.
-    for (const requestId of [...data.advanceRequestIds].sort((a, b) => a - b)) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
-    }
-    const requestedExpenseIds = [...(data.tripExpenseIds ?? [])].sort((a, b) => a - b);
-    for (const expenseId of requestedExpenseIds) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
-    }
+    const requestedExpenseIds = [...(data.tripExpenseIds ?? [])];
+    await acquireAdvisoryLocks(tx, [
+      ...data.advanceRequestIds.map(lockKeys.advance),
+      ...requestedExpenseIds.map(lockKeys.expense),
+    ]);
     if (requestedExpenseIds.length > 0) {
       // Match forwarder expense mutation lock order:
       // expense resource → assignment row → completion scope.
@@ -60,10 +60,9 @@ export async function createAdvanceSettlement(
         tripId: s.tripExpenses.tripId,
         tripContainerId: s.tripExpenses.tripContainerId,
       }).from(s.tripExpenses).where(inArray(s.tripExpenses.id, requestedExpenseIds));
-      const scopeKeys = [...new Set(scopes.map(scope => scope.tripContainerId ?? -scope.tripId))].sort((a, b) => a - b);
-      for (const scopeKey of scopeKeys) {
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-      }
+      await acquireAdvisoryLocks(tx, scopes.map(scope =>
+        scope.tripContainerId != null ? lockKeys.containerScope(scope.tripContainerId) : lockKeys.tripScope(scope.tripId),
+      ));
     }
     // Shared validation: existence, ownership, status, and already-linked checks
     const { advanceRequests: advanceRequestRows, tripExpenses: tripExpenseRows } =
@@ -78,10 +77,12 @@ export async function createAdvanceSettlement(
         requireCurrentAssignment: false,
       });
 
-    // Auto-calculate total from selected expenses
+    // Auto-calculate total from selected expenses. Card 20260928_181 — a
+    // negative expense row behaves as if it did not exist (single rule lives
+    // in sumExcludingNegative).
     let totalExpenseAmount = data.totalExpenseAmount ?? 0;
     if (tripExpenseRows.length > 0) {
-      totalExpenseAmount = tripExpenseRows.reduce((sum, exp: typeof s.tripExpenses.$inferSelect) => sum + Number(exp.buyAmount), 0);
+      totalExpenseAmount = sumExcludingNegative(tripExpenseRows, (exp: typeof s.tripExpenses.$inferSelect) => exp.buyAmount);
     }
 
     const code = await generateSettlementCode(tx);
@@ -192,15 +193,17 @@ export async function listAdvanceSettlements(filters?: { forwarderId?: number; s
       for (const settlement of enriched) {
         const settlementLinks = linksBySettlement.get(settlement.id) || [];
         (settlement as typeof s.advanceSettlements.$inferSelect & {
-          linkedRequests?: typeof s.advanceRequests.$inferSelect[];
+          linkedRequests?: Array<typeof s.advanceRequests.$inferSelect & { allocatedAmount: string }>;
         }).linkedRequests = settlementLinks
-          .map(l => requestMap.get(l.advanceRequestId))
-          .filter((r): r is typeof s.advanceRequests.$inferSelect => Boolean(r));
+          .flatMap(link => {
+            const request = requestMap.get(link.advanceRequestId);
+            return request ? [{ ...request, allocatedAmount: link.allocatedAmount ?? request.amount }] : [];
+          });
       }
     }
 
-    // Attach linked trip expenses plus transport-plan context so the approval
-    // list can render one decision row per trip. Batched across all settlements.
+    // Attach recorded expense snapshots and transport context to the settlement
+    // list. Batched across all settlements.
     const expenseLinks = await db.select()
       .from(s.settlementExpenses)
       .where(inArray(s.settlementExpenses.settlementId, settlementIds));
@@ -328,11 +331,7 @@ export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
   if (!row) return null;
   const [enriched] = await enrichWithNames([row], executor);
   const detail = await enrichSettlementWithRequests(enriched, executor);
-  const [blockedRequests, blockedExpenses, requestCandidates, expenseCandidates] = await Promise.all([
-    executor.select({ id: s.advanceSettlementRequests.advanceRequestId })
-      .from(s.advanceSettlementRequests)
-      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
-      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))),
+  const [blockedExpenses, requestCandidates, expenseCandidates] = await Promise.all([
     executor.select({ id: s.settlementExpenses.tripExpenseId })
       .from(s.settlementExpenses)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
@@ -379,11 +378,11 @@ export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
         inArray(s.tripExpenses.approvalStatus, ['RECORDED', 'APPROVED']),
       )).orderBy(desc(s.tripExpenses.createdAt)),
   ]);
-  const blockedRequestIds = new Set(blockedRequests.map(item => item.id));
+  const eligibleAdvanceRequests = await filterWholeSettlementAdvances(executor, requestCandidates, id);
   const blockedExpenseIds = new Set(blockedExpenses.map(item => item.id));
   return {
     ...detail,
-    eligibleAdvanceRequests: requestCandidates.filter(item => !blockedRequestIds.has(item.id)),
+    eligibleAdvanceRequests,
     eligibleExpenses: expenseCandidates.filter(item =>
       !blockedExpenseIds.has(item.id) && item.completionStatus === 'COMPLETED',
     ),
@@ -396,7 +395,8 @@ function assertSettlementBalanced(input: {
   refundAmount: number;
 }) {
   const advanceTotal = round2dp(input.advanceRequests.reduce((sum, item) => sum + Number(item.amount), 0));
-  const expenseTotal = round2dp(input.tripExpenses.reduce((sum, item) => sum + Number(item.buyAmount), 0));
+  // Card 20260928_181 — negative expense rows behave as if absent.
+  const expenseTotal = sumExcludingNegative(input.tripExpenses, (item) => item.buyAmount);
   const difference = round2dp(advanceTotal - expenseTotal - input.refundAmount);
   if (Math.abs(difference) > 1) {
     throw new AdvanceError(400, `Phiếu chưa cân đối: tạm ứng ${advanceTotal}, chi phí ${expenseTotal}, hoàn lại ${input.refundAmount}`);
@@ -418,20 +418,17 @@ export async function updateAdvanceSettlement(
     if (settlement.status !== 'DRAFT') {
       throw new AdvanceError(409, 'Phiếu đã ghi nhận không thể sửa danh sách trực tiếp; dùng điều chỉnh khoản chi hoặc hoàn tác.');
     }
-    for (const requestId of [...data.advanceRequestIds].sort((a, b) => a - b)) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
-    }
-    const expenseIds = [...data.tripExpenseIds].sort((a, b) => a - b);
-    for (const expenseId of expenseIds) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
-    }
+    const expenseIds = [...data.tripExpenseIds];
+    await acquireAdvisoryLocks(tx, [
+      ...data.advanceRequestIds.map(lockKeys.advance),
+      ...expenseIds.map(lockKeys.expense),
+    ]);
     if (expenseIds.length > 0) {
       const scopes = await tx.select({ tripId: s.tripExpenses.tripId, tripContainerId: s.tripExpenses.tripContainerId })
         .from(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
-      const scopeKeys = [...new Set(scopes.map(scope => scope.tripContainerId ?? -scope.tripId))].sort((a, b) => a - b);
-      for (const scopeKey of scopeKeys) {
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-      }
+      await acquireAdvisoryLocks(tx, scopes.map(scope =>
+        scope.tripContainerId != null ? lockKeys.containerScope(scope.tripContainerId) : lockKeys.tripScope(scope.tripId),
+      ));
     }
     const validated = await validateSettlementInputs({
       dbOrTx: tx,
@@ -519,7 +516,7 @@ export async function updateAdvanceSettlement(
   } else {
     await db.transaction(execute);
   }
-  const detail = await getAdvanceSettlement(settlementId, options.transaction ?? db);
+  const detail = await getAdvanceSettlement(settlementId, options.transaction);
   if (!detail) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng sau khi cập nhật');
   if (options.emitNotification !== false) {
     emitNotification({
@@ -551,21 +548,16 @@ async function applyNewSettlementEffects(
     const linkedExpenseIds = expenseLinkIds.map(link => link.id);
     // Keep the exact completion scopes stable from eligibility validation until
     // approval commits. This uses the same lock namespace/order as Ops updates.
-    for (const expenseId of [...new Set(linkedExpenseIds)].sort((a, b) => a - b)) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
-    }
+    await acquireAdvisoryLocks(tx, [...new Set(linkedExpenseIds)].map(lockKeys.expense));
     const approvalScopes = linkedExpenseIds.length === 0
       ? []
       : await tx.select({
         tripId: s.tripExpenses.tripId,
         tripContainerId: s.tripExpenses.tripContainerId,
       }).from(s.tripExpenses).where(inArray(s.tripExpenses.id, linkedExpenseIds));
-    const scopeKeys = [...new Set(approvalScopes.map(expense =>
-      expense.tripContainerId ?? -expense.tripId,
-    ))].sort((a, b) => a - b);
-    for (const scopeKey of scopeKeys) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-    }
+    await acquireAdvisoryLocks(tx, approvalScopes.map(expense =>
+      expense.tripContainerId != null ? lockKeys.containerScope(expense.tripContainerId) : lockKeys.tripScope(expense.tripId),
+    ));
     const validated = await validateSettlementInputs({
       dbOrTx: tx,
       forwarderId: settlement.forwarderId,
@@ -613,7 +605,8 @@ async function applyNewSettlementEffects(
     // gone — the settlement applies at creation with the forwarder (whose own
     // expenses are in it) as the approver.
 
-    const totalExpenseAmount = round2dp(links.reduce((sum, link) => sum + Number(link.buyAmount), 0));
+    // Card 20260928_181 — negative expense rows behave as if absent.
+    const totalExpenseAmount = sumExcludingNegative(links, (link) => link.buyAmount);
     const [updated] = await tx.update(s.advanceSettlements)
       .set({
         totalExpenseAmount: String(totalExpenseAmount),
@@ -634,7 +627,7 @@ async function applyNewSettlementEffects(
     // Expense readiness was validated above; settlement never promotes an incomplete cost.
 
     // The shared source hook posts only any remaining fee delta.
-    await propagateExpenseApprovals(tx, linkedExpenseIds);
+    await propagateRecordedExpenses(tx, linkedExpenseIds);
 
     const totalAmount = totalExpenseAmount + Number(settlement.refundAmount);
     await LedgerService.postEntry(tx, {
@@ -652,4 +645,3 @@ async function applyNewSettlementEffects(
       adjustmentCount: links.filter(link => Boolean(link.adjustmentReason)).length,
     };
   }
-

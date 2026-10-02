@@ -330,6 +330,12 @@ export const containerTypes = pgTable('container_types', {
   id: serial('id').primaryKey(),
   code: varchar('code', { length: 20 }).notNull().unique(), // e.g. "20DC", "40HC"
   name: varchar('name', { length: 50 }).notNull(),          // e.g. "20'DC", "40'HC"
+  // Card 20260928_172 — rated payload capacity in kg, by ISO container
+  // category (20'DC/HC/OT 28 200 · 20'RF 27 700 · 40'DC/HC/RF 26 500 · 45'HC
+  // 27 900). NULL = no rating known for this type and the UI shows "—" rather
+  // than a guess. NOT the same thing as a shipment's cargo weight, which the
+  // board shows beside it.
+  payloadKg: integer('payload_kg'),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -349,12 +355,36 @@ export const sealTypes = pgTable('seal_types', {
 // Port-cluster taxonomy lives in the DB (not code constants): adding a
 // cluster is a seed row + port classification, no deploy. Codes are stable
 // cross-environment keys; labels are operator-facing.
+// Zone-surcharge configuration is DATA (card _2 / ruling 2026-09-19): one
+// row per port + structural kind slug. The display label rides the row, so
+// renaming a zone or adding a port is a data operation — never a migration.
+export const portZoneSurcharges = pgTable('port_zone_surcharges', {
+  id: serial('id').primaryKey(),
+  portId: integer('port_id')
+    .notNull()
+    .references(() => ports.id, { onDelete: 'cascade' }),
+  kindSlug: varchar('kind_slug', { length: 64 }).notNull(),
+  label: varchar('label', { length: 128 }).notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  uniqueIndex('port_zone_surcharges_port_kind_uniq')
+    .on(table.portId, table.kindSlug)
+    .where(sql`deleted_at is null`),
+]);
+
 export const dispatchZones = pgTable('dispatch_zones', {
   id: serial('id').primaryKey(),
   code: varchar('code', { length: 32 }).notNull().unique(),
   label: varchar('label', { length: 100 }).notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
   isActive: boolean('is_active').notNull().default(true),
+  showPortFacet: boolean('show_port_facet').notNull().default(true),
+  // Config flag for "which zone do new lots default to" — the FE must read
+  // this, never a hardcoded zone code. Exactly one row may carry it.
+  isDefault: boolean('is_default').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -383,7 +413,7 @@ export const ports = pgTable('ports', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),   // e.g. "Cảng Hải Phòng"
   shortName: varchar('short_name', { length: 255 }).notNull().default(''),
-  code: varchar('code', { length: 20 }).unique(),     // e.g. "HPH"
+  code: varchar('code', { length: 20 }),             // e.g. "HPH" — unique among live rows that carry one (partial index)
   address: text('address'),
   city: varchar('city', { length: 100 }).default('Hải Phòng'),
   notes: text('notes'),
@@ -393,19 +423,26 @@ export const ports = pgTable('ports', {
   // Fields from the customer's port/yard master-data sheet (Cảng & Bãi).
   classification: varchar('classification', { length: 20 }), // Cảng | Bãi
   legalEntity: varchar('legal_entity', { length: 255 }), // Pháp nhân
-  isLachHuyen: boolean('is_lach_huyen').default(false).notNull(), // Thuộc Lạch Huyện
   opsPortalUrl: text('ops_portal_url'), // Web tác nghiệp
   position: varchar('position', { length: 255 }), // Vị trí
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
-});
+}, (table) => [
+  // Unique only real codes on live rows: NULLs and '' never collide, and
+  // soft-deleted rows don't block reuse.
+  uniqueIndex('ports_code_unique').on(table.code).where(sql`code IS NOT NULL AND code <> '' AND deleted_at IS NULL`),
+]);
 
 export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
   id: serial('id').primaryKey(),
   code: varchar('code', { length: 50 }).notNull().unique(),
   name: varchar('name', { length: 100 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  // Card 20260919_3: explicit settlement category read by the per-lot
+  // payables split (never name matching — a tenant rename must not rewrite
+  // categorized history). null = chưa phân loại → on-screen catch-all.
+  category: varchar('category', { length: 30 }),
   // Wave 2 M3.7: when true, trip expenses of this type MUST have an invoice
   // number before approval. When false (default), substitute evidence is OK.
   requiresInvoice: boolean('requires_invoice').default(false),

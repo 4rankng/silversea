@@ -37,7 +37,7 @@ describe('useCreateOpsExpense optimistic wallet patch (OpsVanHanh §5.2)', () =>
     apiPost.mockReset();
   });
 
-  it('drops SỐ DƯ and raises Chờ duyệt the moment save is pressed', async () => {
+  it('drops SỐ DƯ and raises Chưa quyết toán the moment save is pressed', async () => {
     apiPost.mockReturnValue(new Promise(() => {})); // server answer still pending
     const { client, result } = setup();
 

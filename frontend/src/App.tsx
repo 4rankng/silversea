@@ -9,9 +9,11 @@ import Layout from './components/Layout';
 import CustomerPortalLayout from './pages/portal/CustomerPortalLayout';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/Toast';
+import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
 import { homeForRole, routes } from './lib/routes';
-import { canReadShipmentRoutes } from './lib/role-access';
+import { canReadShipmentDebitRoutes, canReadShipmentRoutes } from './lib/role-access';
 import { getModernRole } from './lib/role-helpers';
+import { canViewInvoiceTracking } from './lib/app-access';
 
 export function legacyAdvanceSettlementsTarget(search: string): string {
   const params = new URLSearchParams(search);
@@ -47,6 +49,7 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const ShipmentsPage = lazy(() => import('./pages/ShipmentsPage'));
 const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
 const ShipmentContainersPage = lazy(() => import('./pages/ShipmentContainersPage'));
+const ShipmentDebitPage = lazy(() => import('./pages/ShipmentDebitPage'));
 // Wave 2: Customer portal pages.
 const PortalShipmentsPage = lazy(() => import('./pages/portal/PortalShipmentsPage'));
 const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmentDetailPage'));
@@ -78,6 +81,7 @@ const DispatchDetailPlanPage = lazy(() => import('./pages/DispatchDetailPlanPage
 // Dispatcher resource-catalog lookups (read-only views over /api/trucks,
 // /api/drivers, /api/suppliers).
 const FleetVehiclesPage = lazy(() => import('./pages/FleetVehiclesPage'));
+const ExternalFleetPage = lazy(() => import('./pages/ExternalFleetPage'));
 const FleetDriversPage = lazy(() => import('./pages/FleetDriversPage'));
 const DispatchSuppliersPage = lazy(() => import('./pages/DispatchSuppliersPage'));
 const ProfitPage = lazy(() => import('./pages/ProfitPage'));
@@ -98,6 +102,7 @@ const WeightPricingTiersConfigPage = lazy(() => import('./pages/config/WeightPri
 const LiftPricingConfigPage = lazy(() => import('./pages/config/LiftPricingConfigPage'));
 const FuelPricePeriodsConfigPage = lazy(() => import('./pages/config/FuelPricePeriodsConfigPage'));
 const FreightRateTermsConfigPage = lazy(() => import('./pages/config/FreightRateTermsConfigPage'));
+const QuotationConfigPage = lazy(() => import('./pages/config/QuotationConfigPage'));
 const AncillaryRevenueConfigPage = lazy(() => import('./pages/config/AncillaryRevenueConfigPage'));
 const AppSettingsConfigPage = lazy(() => import('./pages/config/AppSettingsConfigPage'));
 const MasterDataImportPage = lazy(() => import('./pages/config/MasterDataImportPage'));
@@ -119,6 +124,11 @@ const SalaryAttendancePage = lazy(() => import('./pages/SalaryAttendancePage'));
 
 const ExpenseCategoriesConfigPage = lazy(() => import('./pages/config/ExpenseCategoriesConfigPage'));
 const ForwarderExpenseTypesConfigPage = lazy(() => import('./pages/config/ForwarderExpenseTypesConfigPage'));
+const PhoiPhieuControlPage = lazy(() => import('./pages/accounting/PhoiPhieuControlPage'));
+const AccountingDebitClosePage = lazy(() => import('./pages/accounting/AccountingDebitClosePage'));
+const AccountingInvoiceTrackingPage = lazy(() => import('./pages/AccountingInvoiceTrackingPage'));
+const DepositRefundTrackerPage = lazy(() => import('./pages/accounting/DepositRefundTrackerPage'));
+const OpsReconciliationReportPage = lazy(() => import('./pages/accounting/OpsReconciliationReportPage'));
 const TirePositionsConfigPage = lazy(() => import('./pages/config/TirePositionsConfigPage'));
 const DebitNoteTemplatesConfigPage = lazy(() => import('./pages/config/DebitNoteTemplatesConfigPage'));
 const DebitNoteTemplateEditorPage = lazy(() => import('./pages/config/DebitNoteTemplateEditorPage'));
@@ -211,6 +221,9 @@ export function AppRoutes() {
       ? el
       : <Navigate to={homeRedirect} replace />
   );
+  const shipmentDebitReaderOnly = (el: ReactElement) => (
+    canReadShipmentDebitRoutes(currentRole) ? el : <Navigate to={homeRedirect} replace />
+  );
   const financeReaderOnly = (el: ReactElement) => (
     isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT
       ? el
@@ -266,6 +279,7 @@ export function AppRoutes() {
           {/* Dispatcher resource catalogs — read-only lookups for staffing
               dispatch plans. ADMIN/MANAGER keep their full /fleet workspace. */}
           <Route path="/fleet/vehicles" element={dispatchOnly(page(<FleetVehiclesPage />))} />
+          <Route path="/fleet/external" element={dispatchOnly(page(<ExternalFleetPage />))} />
           <Route path="/fleet/drivers" element={dispatchOnly(page(<FleetDriversPage />))} />
           <Route path="/fleet" element={officeStaffOnly(page(<FleetPage />))} />
 <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
@@ -277,7 +291,27 @@ export function AppRoutes() {
           <Route path="/finance" element={financeReaderOnly(page(<FinancePage />))} />
           <Route path="/accounting" element={officeStaffOnly(page(<AccountingWorkspacePage />))} />
           <Route path="/accounting/expenses" element={financeReaderOnly(page(<ExpenseAccountingPage />))} />
+          <Route path="/accounting/phoi-phieu" element={financeReaderOnly(page(<PhoiPhieuControlPage />))} />
+          <Route path="/accounting/chot-debit" element={officeStaffOnly(page(<AccountingDebitClosePage />))} />
           <Route path="/accounting/fuel-evidence" element={accountantOnly(page(<FuelEvidenceReviewPage />))} />
+          {/* Invoice tracking (card 20260921_18): kế toán full CRUD, CUS reaches
+              the page read-only — the page-internal canWrite mirrors the server's
+              requireRoles gate on writes. The admitted set lives in
+              INVOICE_TRACKING_ROLES (app-access.ts) so the policy is one source
+              of truth and can be pinned by role, not only by hiding a menu —
+              which is what card 20260928_178 asks to be verified. */}
+          <Route
+            path="/accounting/invoice-tracking"
+            element={canViewInvoiceTracking(currentRole) ? page(<AccountingInvoiceTrackingPage />) : <Navigate to={homeRedirect} replace />}
+          />
+          <Route
+            path="/accounting/deposit-tracker"
+            element={isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? page(<DepositRefundTrackerPage />) : <Navigate to={homeRedirect} replace />}
+          />
+          {/* Card 20260928_169 — Báo cáo tổng hợp hoàn ứng (per staff / per
+              đợt). Same finance-only gate as the expense-accounting surface it
+              reports on (requireExpenseFinance on the API). */}
+          <Route path="/accounting/hoan-ung" element={financeReaderOnly(page(<OpsReconciliationReportPage />))} />
           <Route path="/finance/treasury" element={capabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
           <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />
@@ -300,6 +334,7 @@ export function AppRoutes() {
           <Route path="/shipments" element={shipmentReaderOnly(page(<ShipmentsPage />))} />
           <Route path="/shipments/new" element={shipmentCreatorOnly(page(<ClerkShipmentCreatePage />))} />
           <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentContainersPage />))} />
+          <Route path="/shipments-debit" element={shipmentDebitReaderOnly(page(<ShipmentDebitPage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
@@ -323,6 +358,7 @@ export function AppRoutes() {
           <Route path="/config/fuel-norms" element={adminOnly(page(<FuelNormsConfigPage />))} />
           <Route path="/config/fuel-price-periods" element={fuelPriceConfigOnly(page(<FuelPricePeriodsConfigPage />))} />
           <Route path="/config/freight-rate-terms" element={officeStaffOnly(page(<FreightRateTermsConfigPage />))} />
+          <Route path="/config/quotations" element={officeStaffOnly(page(<QuotationConfigPage />))} />
           <Route path="/config/weight-pricing-tiers" element={adminOnly(page(<WeightPricingTiersConfigPage />))} />
           <Route path="/config/lift-pricing" element={adminOnly(page(<LiftPricingConfigPage />))} />
           <Route path="/config/ancillary-revenue" element={adminOnly(page(<AncillaryRevenueConfigPage />))} />
@@ -406,6 +442,7 @@ export default function App() {
         <ToastProvider>
           <MonthProvider>
             <SearchProvider>
+              <StaleBuildBanner />
               <AppRoutes />
             </SearchProvider>
           </MonthProvider>

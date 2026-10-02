@@ -1,5 +1,5 @@
 import type { ReactNode, ComponentType } from 'react';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import { resolveEmptyIllustration, type EmptyContext } from '../lib/emptyIllustrations';
 import './EmptyState.css';
 
 /**
@@ -9,6 +9,9 @@ import './EmptyState.css';
  *   - default: icon/illustration + title + description + action (original behavior).
  *   - `preview="cards"|"rows"|"list"`: shows faded placeholder shapes behind the
  *     message so users can visualise what content will look like once added.
+ *
+ * Illustration art always routes through the single typed resolver
+ * (lib/emptyIllustrations): pass a `context` key and this component resolves it.
  *
  * The preview variant is the T1 adoption from the Tailkit MCP audit
  * (a-c-empty-states-05 retokenized to NEPO tokens). See
@@ -20,44 +23,71 @@ export type EmptyStatePreview = 'cards' | 'rows' | 'list';
 export interface EmptyStateProps {
   title: string;
   description?: ReactNode;
-  /** Branded illustration key resolved via lib/emptyIllustrations. */
+  /** Typed empty-state context key resolved via lib/emptyIllustrations (preferred). */
+  context?: EmptyContext;
+  /** Legacy illustration key/path resolved via lib/emptyIllustrations. Prefer `context`. */
   illustration?: string;
-  /** Optional leading icon (lucide-react component). Ignored when `illustration` is set. */
+  /** Optional leading icon (lucide-react component). Ignored when `context`/`illustration` is set. */
   icon?: ComponentType<{ size?: number; className?: string }>;
   action?: ReactNode;
   /** When set, renders faded placeholder previews of upcoming content. */
   preview?: EmptyStatePreview;
   /** Number of placeholder items. Defaults to 3 (cards) or 4 (rows/list). */
   previewCount?: number;
+  /**
+   * `compact` = the operational list face (card _41): smaller illustration,
+   * tighter padding, ≤160px tall on phones — replaces the retired
+   * .empty-state chrome from components/UI.css.
+   */
+  variant?: 'default' | 'compact';
+  /** Forwarded to the root (e.g. role="alert" for error faces). */
+  role?: 'alert' | 'status';
   className?: string;
 }
 
 export function EmptyState({
   title,
   description,
+  context,
   illustration,
   icon: Icon,
   action,
   preview,
   previewCount,
+  variant,
+  role,
   className,
 }: EmptyStateProps) {
+  const art = context ?? illustration;
   const showPreview = Boolean(preview);
   const count = previewCount ?? (preview === 'cards' ? 3 : 4);
-  const cls = ['ds-empty-state', showPreview ? `ds-empty-state--with-preview ds-empty-state--preview-${preview}` : '', className]
+  const cls = ['ds-empty-state', showPreview ? `ds-empty-state--with-preview ds-empty-state--preview-${preview}` : '', variant === 'compact' ? 'ds-empty-state--compact' : '', className]
     .filter(Boolean)
     .join(' ');
 
   return (
-    <div className={cls}>
+    <div className={cls} role={role}>
       <div className="ds-empty-state__message">
-        {illustration ? (
+        {art ? (
           <img
-            src={resolveEmptyIllustration(illustration)}
+            src={resolveEmptyIllustration(art)}
             alt=""
             aria-hidden="true"
             className="ds-empty-state__illustration"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            onError={(e) => {
+              // A missing/unreadable art file used to vanish without a trace
+              // (the deployed 403 on empty-fuel.webp made two empty states
+              // render text-only and nothing said so). Keep the art hidden —
+              // a broken-image glyph is worse — but leave machine- and
+              // human-visible evidence: `data-art-missing` is asserted by the
+              // role sweep and design-lock, and DEV logs the URL.
+              const img = e.currentTarget as HTMLImageElement;
+              img.style.display = 'none';
+              img.dataset.artMissing = 'true';
+              if (import.meta.env.DEV) {
+                console.warn(`[EmptyState] illustration not loadable: ${img.src}`);
+              }
+            }}
           />
         ) : Icon ? (
           <div className="ds-empty-state__icon" aria-hidden="true">

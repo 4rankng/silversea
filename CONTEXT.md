@@ -6,18 +6,10 @@ replace product requirements, code, plans, or the current handoff.
 
 ## Authority order
 
-When sources disagree, use this order:
-
-1. Explicit user decisions and accepted scope for the current task.
-2. `AGENTS.md` workflow, safety, and Definition of Done.
-3. Accepted/modified SilverSea decisions in
-   `docs/prd/business-logic-qa-proposals.md`.
-4. Current code, schemas, tests, and migrations for implemented behavior.
-5. `ROADMAP.md` and active phase plans for intended future work.
-6. `HANDOFF.md` for continuity only; verify drift-prone claims before acting.
-
-PRD proposals with `pending` status are not approved requirements. Plans
-describe intent, while code and green QA establish implemented behavior.
+Owned by `AGENTS.md` §1. When sources disagree: user decisions → this repo's
+agent contract → accepted PRD decisions (`pending` proposals are not approved
+requirements) → current code, schemas, tests, migrations → roadmap/plans →
+`HANDOFF.md` for continuity only.
 
 ## Repository shape
 
@@ -88,7 +80,7 @@ pnpm context:test
 
 `HANDOFF.md` is the single bounded state snapshot for the next agent. It is
 intentionally git-ignored so transient task state does not make every checkout
-dirty. Start from tracked `HANDOFF.example.md`, keep the local file short, and
+dirty. Keep the local file short, and
 overwrite stale task details. It must include:
 
 - controller/session owner and last-updated time;
@@ -111,8 +103,8 @@ status index, architecture docs, or an accepted plan.
 
 ## Development endpoints
 
-- Frontend: `http://localhost:7174`
-- Backend health: `http://localhost:3001/api/health`
+- Frontend: `http://localhost:7175`
+- Backend health: `http://localhost:3002/api/health`
 - Postgres: `localhost:5441`
 - Redis: `localhost:6391`
 - Adminer: `http://localhost:8083`

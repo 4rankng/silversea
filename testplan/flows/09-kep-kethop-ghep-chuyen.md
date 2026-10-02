@@ -231,7 +231,7 @@
 - **Vai trò:** `cus` (chứng từ)
 - **Mức độ:** P0
 - **Các bước:**
-  1. Mở Form Khởi tạo lô. Kiểm tra checkbox `Lệnh chạy ngoài (Tối ưu xe rỗng)`.
+  1. Mở Form Khởi tạo lô. Kiểm tra checkbox `Lệnh chạy ngoài`.
   2. Tích cờ, gõ dở dữ liệu, tắt cờ lại.
 - **Kết quả mong đợi (Pass):**
   - Checkbox nằm **trước mọi trường khác**, nhìn thấy không cần cuộn, mặc định không tích.
@@ -300,6 +300,8 @@
 ---
 
 ## Bảng nghiệm thu — Luồng Ghép chuyến Kẹp / Kết hợp
+
+> Historical execution below is unchanged. Its OPS approval/optimistic-cash PASS is superseded by the current OPS flow and NO-APP cases; it is not proof of current behavior.
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
 |-----------|-------|-----------|---------|---------|------------|

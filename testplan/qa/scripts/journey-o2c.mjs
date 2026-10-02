@@ -373,7 +373,6 @@ async function journey() {
     { expectedVersion: fulfillmentVersion }, { idempotency: crypto.randomUUID() });
   assert('H7', [200, 201].includes(pod.status), `POD submission created: ${pod.status} id=${pod.body?.id ?? '?'}`);
   const podId = pod.body?.id;
-  const podVersion = () => pod.body?.submissionVersion ?? pod.body?.version ?? 1;
 
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   let podVer = pod.body?.submissionVersion ?? pod.body?.version ?? 1;

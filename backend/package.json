@@ -17,7 +17,9 @@
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "npx tsx --test 'src/tests/unit/*.test.ts'",
     "test:integration": "npx tsx --test --test-concurrency=1 'src/tests/*.test.ts'",
-    "seed:prod": "tsx src/seed/seed-prod.ts"
+    "seed:prod": "tsx src/seed/seed-prod.ts",
+    "db:sweep-fixtures": "tsx scripts/sweep-test-fixture-shipments.ts",
+    "db:sweep-fixtures:apply": "tsx scripts/sweep-test-fixture-shipments.ts --apply"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

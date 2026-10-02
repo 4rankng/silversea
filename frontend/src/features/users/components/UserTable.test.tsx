@@ -71,3 +71,46 @@ describe('UserTable username display', () => {
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 });
+
+describe('UserTable role filter strip (card 20260927_152)', () => {
+  it('keeps all nine role choices and their counts in the shared category dropdown', async () => {
+    renderTable({
+      filter: Role.DRIVER,
+      total: 12,
+      staffCount: 5,
+      driverCount: 6,
+      roleCounts: { [Role.ADMIN]: 2, [Role.DRIVER]: 6 },
+    });
+
+    const filter = screen.getByRole('button', { name: /Lọc tài khoản theo vai trò/ });
+    expect(filter).toHaveTextContent('Lái xe (6)');
+    expect(screen.queryByRole('tablist', { name: 'Lọc tài khoản theo vai trò' })).toBeNull();
+    fireEvent.click(filter);
+    const options = await screen.findAllByRole('option');
+    expect(options).toHaveLength(9);
+    for (const label of ['Tất cả', 'Quản trị viên', 'Quản lý', 'Kế toán', 'Lái xe', 'Vận hành', 'Khách hàng', 'Chứng từ', 'Điều vận']) {
+      expect(screen.getByRole('option', { name: new RegExp(label) })).toBeVisible();
+    }
+    // Every tab prints a count: the account total on `Tất cả`, the per-role
+    // count on the rest (a role the server did not count reads 0).
+    expect(screen.getByRole('option', { name: 'Tất cả (12)' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Lái xe (6)' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Quản trị viên (2)' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Kế toán (0)' })).toBeVisible();
+  });
+
+  it('keeps the shared dropdown and search writers wired to the page state', async () => {
+    const onFilterChange = vi.fn();
+    const onSearchChange = vi.fn();
+    renderTable({ onFilterChange, onSearchChange });
+
+    const filter = screen.getByRole('button', { name: /Lọc tài khoản theo vai trò/ });
+    fireEvent.click(filter);
+    fireEvent.click(await screen.findByRole('option', { name: /^Lái xe/ }));
+    expect(onFilterChange).toHaveBeenCalledWith('DRIVER');
+    fireEvent.keyDown(filter, { key: 'Escape' });
+
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Tìm tài khoản' }), { target: { value: 'phuong' } });
+    expect(onSearchChange).toHaveBeenCalledWith('phuong');
+  });
+});

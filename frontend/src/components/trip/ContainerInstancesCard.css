@@ -126,15 +126,6 @@
   font-weight: 500;
 }
 
-.input.ci-input-sm {
-  width: 100%;
-  min-height: 45px;
-  height: 45px;
-  padding: 0 12px;
-  border-radius: 8px;
-  font-size: var(--text-control-size);
-}
-
 .ci-field-warning {
   display: flex;
   flex-wrap: wrap;
@@ -294,11 +285,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: var(--control-h);
+  height: var(--control-h);
   padding: 0;
   border: 1px solid var(--line-2);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--danger);
   cursor: pointer;
@@ -322,7 +313,7 @@
   max-width: calc(100% - 8px);
   padding: 2px 5px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--warning);
   color: var(--warning-text);
   font-size: var(--text-caption-size);
@@ -338,7 +329,7 @@
   justify-content: center;
   gap: 7px;
   min-width: 104px;
-  min-height: 45px;
+  min-height: var(--control-h);
   padding: 9px 12px;
   border: 1px solid var(--line-2);
   border-radius: 8px;
@@ -490,10 +481,6 @@
 
   .ci-photo-lane__capture {
     min-width: 96px;
-  }
-
-  .input.ci-input-sm {
-    font-size: var(--text-input-touch-size);
   }
 
   .ci-editor__footer {

@@ -3,13 +3,16 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DriverJourneyCard } from '../api/driverClient';
 
-const { useDriverJourneyBoardMock, navigateMock } = vi.hoisted(() => ({
+const { useDriverJourneyBoardMock, useDriverTwoOrdersMock, navigateMock, refetchMock } = vi.hoisted(() => ({
   useDriverJourneyBoardMock: vi.fn(),
+  useDriverTwoOrdersMock: vi.fn(),
   navigateMock: vi.fn(),
+  refetchMock: vi.fn(),
 }));
 
 vi.mock('../hooks/useDriverQueries', () => ({
   useDriverJourneyBoard: useDriverJourneyBoardMock,
+  useDriverTwoOrders: useDriverTwoOrdersMock,
 }));
 
 vi.mock('../hooks/useMonth', () => ({
@@ -25,7 +28,18 @@ import DriverTripsPage from './DriverTripsPage';
 
 /** The board wire shape: cards + the embedded tag pool (ticket 53a536f9). */
 function board(cards: DriverJourneyCard[], knownTagLabels: string[] = []) {
-  return { data: { items: cards, knownTagLabels }, isLoading: false, error: null };
+  return {
+    data: { items: cards, knownTagLabels },
+    isLoading: false,
+    error: null,
+    refetch: refetchMock,
+    isFetching: false,
+  };
+}
+
+/** M8.3 day view — the journey header only reads today's order count. */
+function dayView(todayOrderCount: number) {
+  return { data: { allToday: Array.from({ length: todayOrderCount }, (_, i) => ({ id: i + 1 })) } };
 }
 
 function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
@@ -35,6 +49,8 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     shipmentId: 1,
     tripCode: 'TRIP-55',
     shipmentCode: 'SHP-1',
+    blNumber: null,
+    bookingRef: null,
     isAdHoc: false,
     bucket: 'NEW',
     classification: 'SINGLE',
@@ -76,8 +92,37 @@ function renderPage() {
 }
 
 describe('DriverTripsPage', () => {
+  it('journey card leads with the bill/booking code and never shows the internal TRP code (CHIEF 26/09)', () => {
+    // The document number rides blNumber/bookingRef; shipmentCode is our
+    // internal SHP-/QADRV- key and must never surface on a driver screen.
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ tripCode: 'TRP-202609-0019', blNumber: 'BILL-2026-0777', shipmentCode: 'QADRV-SHP-9999' }),
+    ]));
+    renderPage();
+    expect(screen.getByText('BILL-2026-0777')).toBeTruthy();
+    expect(screen.queryByText(/TRP-/)).toBeNull();
+    expect(screen.queryByText('TRIP-55')).toBeNull();
+    expect(screen.queryByText('QADRV-SHP-9999')).toBeNull();
+  });
+
+  it('journey card never titles itself with the internal shipment code when no bill/booking was captured', () => {
+    // The chip used to fall through to shipmentCode (SHP-YYMM-NNNNN) whenever
+    // blNumber and bookingRef were empty, putting a system key where the driver
+    // scans for their document number. The card now states the gap instead,
+    // mirroring DriverTripHeader's rule and the app-wide pending copy.
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ blNumber: null, bookingRef: null, shipmentCode: 'SHP-2609-00042' }),
+    ]));
+    renderPage();
+    expect(screen.getByText('Chưa có Bill/Booking')).toBeTruthy();
+    expect(screen.queryByText('SHP-2609-00042')).toBeNull();
+  });
+
   beforeEach(() => {
     navigateMock.mockReset();
+    refetchMock.mockReset();
+    useDriverTwoOrdersMock.mockReset();
+    useDriverTwoOrdersMock.mockReturnValue(dayView(0));
   });
 
   it('POLISH-DRV-02 keeps journey tabs keyboard reachable and labels the visible panel', () => {
@@ -100,11 +145,25 @@ describe('DriverTripsPage', () => {
     expect(screen.getByRole('tabpanel', { name: 'Lịch sử' })).toBeVisible();
   });
 
+  it('QA-2026-09-26-24 renders journey tab counts as plain text — no badge dot', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, bucket: 'NEW' }),
+      card({ fulfillmentId: 2, bucket: 'NEW' }),
+      card({ fulfillmentId: 3, bucket: 'HISTORY' }),
+    ]));
+    renderPage();
+    const newTab = screen.getByRole('tab', { name: /Lệnh mới/ });
+    expect(newTab.textContent).toContain('2');
+    expect(newTab.querySelector('[class*="badge" i], [class*="dot" i]')).toBeNull();
+    const history = screen.getByRole('tab', { name: /Lịch sử/ });
+    expect(history.querySelector('[class*="badge" i], [class*="dot" i]')).toBeNull();
+  });
+
   it('renders the card time VN-pinned — a 17:30Z trip reads 00:30 on the NEXT day', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ scheduledAt: '2026-09-06T17:30:00.000Z' })]));
     renderPage();
 
-    expect(await screen.findByText('00:30 - 07/09')).toBeTruthy();
+    expect(await screen.findByText('00:30 07/09/2026')).toBeTruthy();
   });
 
   it('filters history by the completion month rather than the planned departure month', () => {
@@ -171,7 +230,7 @@ describe('DriverTripsPage', () => {
     // Card time is pinned to Vietnam wall-clock (Asia/Ho_Chi_Minh) — the
     // assertion is a fixed string, NOT device-local, so a runner in any
     // timezone proves the pin: 07:30Z = 14:30 VN on 01/08.
-    const expectedTime = '14:30 - 01/08';
+    const expectedTime = '14:30 01/08/2026';
 
     expect(await screen.findByText('ĐƠN')).toBeTruthy();
     expect(screen.getByText('Giờ đóng / trả:')).toBeTruthy();
@@ -419,5 +478,71 @@ describe('DriverTripsPage', () => {
     expect(lift.closest('.driver-journey-card__port')!.textContent).toContain('Cát Lái');
     const drop = screen.getByText('Hạ');
     expect(drop.closest('.driver-journey-card__port')!.textContent).toContain('Sóng Thần');
+  });
+
+  // Card 20260922_30(b): /my-trips/two-orders (M8.3) had no inbound link
+  // anywhere in the app — only tests reached it. The journey header owns the
+  // entry, so the route is reachable from the driver's primary screen.
+  it('links the two-orders day view from the journey header', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card()]));
+    renderPage();
+
+    const entry = screen.getByRole('link', { name: /Lệnh trong ngày/ });
+    expect(entry.getAttribute('href')).toBe('/my-trips/two-orders');
+    // Page chrome, not tab content: the entry survives every bucket.
+    fireEvent.click(screen.getByRole('tab', { name: /Đã nhận/ }));
+    expect(screen.getByRole('link', { name: /Lệnh trong ngày/ })).toBeVisible();
+  });
+
+  // The count is the promotion: it appears exactly on the 2+ orders/day the
+  // screen exists for (PRD M08-03-03).
+  it('promotes the day-view entry with the count when the day carries 2+ orders', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([]));
+    useDriverTwoOrdersMock.mockReturnValue(dayView(2));
+    renderPage();
+
+    expect(screen.getByRole('link', { name: /Lệnh trong ngày/ }).textContent).toContain('2 lệnh');
+  });
+
+  it('keeps the day-view entry count-free on a single-order day', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([]));
+    useDriverTwoOrdersMock.mockReturnValue(dayView(1));
+    renderPage();
+
+    expect(screen.getByRole('link', { name: /Lệnh trong ngày/ }).textContent).toBe('Lệnh trong ngày');
+  });
+
+  // Card 20260922_30: the primitive's own count chip floated above the label
+  // baseline and read as a superscript. The count now rides the shared Badge
+  // inside the label.
+  it('renders tab counts as plain text riding the label — no badge chrome', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, bucket: 'NEW' }),
+      card({ fulfillmentId: 2, bucket: 'RUNNING' }),
+    ]));
+    renderPage();
+
+    const running = screen.getByRole('tab', { name: /Đã nhận/ });
+    // The count is a plain span, secondary color, no status dot and no badge
+    // chrome — a tab count is a number, not a status (Chief 26/09).
+    const count = running.querySelector('.driver-journey__tab-count') as HTMLElement;
+    expect(count).not.toBeNull();
+    expect(count.textContent).toBe('1');
+    expect(running.querySelector('[class*="badge" i], [class*="dot" i]')).toBeNull();
+  });
+
+  // Card 20260922_30(a): one small line on a blank page gave the driver no
+  // illustration and no way to recover a stale board.
+  it('renders the shared illustrated empty state with a working refresh', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([]));
+    const { container } = renderPage();
+
+    const empty = container.querySelector('.ds-empty-state')!;
+    expect(empty).toBeTruthy();
+    expect(empty.querySelector('.ds-empty-state__illustration')).toBeTruthy();
+    expect(screen.getByText('Chưa có lệnh mới nào được giao.')).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(refetchMock).toHaveBeenCalledTimes(1);
   });
 });

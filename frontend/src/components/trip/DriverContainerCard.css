@@ -153,20 +153,22 @@
   gap: 6px;
 }
 
+/* Capture actions use one intrinsic row within the current40px control
+   ceiling; media previews below retain their independent dimensions. */
 .dcc-capture-group {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto auto;
   min-width: 0;
   gap: 4px;
 }
 
 .dcc-capture-btn {
   display: inline-flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 72px;
+  min-height: var(--control-h);
   border: 1px dashed var(--line-strong, var(--line));
   border-radius: 12px;
   background: var(--surface-2);
@@ -181,18 +183,15 @@
   cursor: default;
 }
 
-/* Phần 4 ticket 2026-08-28: the camera-only button was hard to use when the
-   device denied the camera or the file picker was hidden inside the scanner
-   overlay. The primary capture button is now a <label> wrapping a hidden
-   <input type="file"> (no capture attribute — one tap opens the OS picker
-   with camera AND gallery, so a denied camera is never a dead end). The
-   secondary "Mở camera" button still opens the fullscreen scanner overlay. */
+/* The primary action opens the existing camera/gallery sheet. Camera
+   denial retains the gallery route; file inputs and upload handlers are
+   unchanged by the shared control geometry. */
 /* Capture targets stay compact while filling their equal grid columns. */
 .dcc-capture-btn--primary {
   width: 100%;
   min-width: 0;
-  min-height: 72px;
-  padding: 6px;
+  height: var(--control-h);
+  padding: 4px 6px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-2);
@@ -201,27 +200,29 @@
 }
 
 .dcc-capture-btn--primary svg {
+  flex-shrink: 0;
   width: 15px;
   height: 15px;
 }
 
 .dcc-capture-btn--primary span {
+  min-width: 0;
   font-size: var(--text-caption-size);
   font-weight: 400;
   line-height: 1.3;
 }
 
 .dcc-capture-btn--primary:hover {
-  background: color-mix(in srgb, var(--brand, #005a2d) 12%, var(--surface-2, #f8faf9));
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface-2));
 }
 
-/* Scanner triggers demote to ghost actions UNDER the slot row (32px, 44px
-   coarse-pointer floor). */
+/* Scanner triggers demote to ghost actions UNDER the slot row (32px,40px
+   coarse-pointer token). */
 .dcc-capture-btn--secondary {
   min-height: 32px;
   font-size: var(--text-control-compact-size);
   font-weight: 500;
-  color: var(--brand, #005a2d);
+  color: var(--brand);
   border: none;
   background: transparent;
   padding: 4px 8px;
@@ -229,12 +230,12 @@
 
 @media (pointer: coarse) {
   .dcc-capture-btn--secondary {
-    min-height: 44px;
+    min-height: var(--control-h);
   }
 }
 
 .dcc-capture-btn--secondary:hover {
-  color: var(--brand, #005a2d);
+  color: var(--brand);
   text-decoration: underline;
 }
 
@@ -277,7 +278,7 @@
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--ink);
   color: var(--surface);
   cursor: pointer;
@@ -374,8 +375,8 @@
 @media (pointer: coarse) {
   .dcc-bento__edit-btn,
   .dcc-photo-remove {
-    min-height: var(--control-touch-h, 44px);
-    min-width: var(--control-touch-h, 44px);
+    min-height: var(--control-touch-h);
+    min-width: var(--control-touch-h);
   }
 }
 
@@ -405,4 +406,53 @@
    style (design spec photo block). */
 .dcc-capture--note {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+
+/* Card 20260926_28 item 9: copy button rides the code rows (bento plate and
+   seal); the row wrapper keeps plate + copy on one line. */
+.dcc-bento__plate-row,
+.dcc-bento__seal-value-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* The shared Modal owns the photo menu's surface, corners and dismissal. */
+.dcc-sheet__actions {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.dcc-sheet__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-h);
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dcc-sheet__action:hover {
+  background: var(--surface-2);
+}
+
+.dcc-sheet__action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dcc-sheet__action--cancel {
+  margin-top: 4px;
+  justify-content: center;
+  color: var(--ink-3);
+  font-weight: 500;
 }

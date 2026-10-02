@@ -1,4 +1,6 @@
 import { expenseQueryKeys } from './expenseQueryKeys';
+import { shipmentDebitQueryKeys } from './shipmentDebitQueryKeys';
+import { pageQueryKeys } from './pageQueryKeys';
 
 /**
  * Centralized TanStack Query key factory.
@@ -27,6 +29,8 @@ import { expenseQueryKeys } from './expenseQueryKeys';
 
 export const qk = {
   ...expenseQueryKeys,
+  ...shipmentDebitQueryKeys,
+  ...pageQueryKeys,
   support: {
     serverBuild: ['support', 'server-build'] as const,
   },
@@ -77,6 +81,11 @@ export const qk = {
     // Freight pricing engine (docx "Phương án tính cước tự động").
     fuelPricePeriods: ['fuel-price-periods'],
     freightRateTerms: ['freight-rate-terms'],
+    // Quotation live-view frames (card 20260922_66) — the Báo giá screen.
+    quotations: ['quotations'],
+    quotation: (id: number) => ['quotations', id] as const,
+    quotationVersions: (id: number, from?: string, to?: string) =>
+      [...qk.catalogs.quotations, id, 'versions', from, to] as const,
     debitNoteOverride: (snapshotId: number | string | null | undefined) =>
       ['debit-note-override', snapshotId] as const,
     allSuppliers: ['all-suppliers'],
@@ -136,6 +145,7 @@ export const qk = {
     'all-expense-categories',
     'salary-period',
     'tires',
+    'quotations',
   ] as const,
 
   /* ── CUS shipments workboard (/shipments) ─────────────────────────── */
@@ -145,11 +155,14 @@ export const qk = {
     /** One workboard page per filter/sort combination. */
     list: (filters: {
       page: number;
+      /** Rows per page — part of the identity: two sizes are two result sets. */
+      pageSize: number;
       searchSuffix?: string;
       transportDateFrom?: string;
       transportDateTo?: string;
       direction?: string;
       bucket?: string;
+      isAdHoc?: boolean;
       sortBy?: string;
       sortDir?: string;
     }) => ['shipments-cus', 'list', filters] as const,
@@ -173,6 +186,8 @@ export const qk = {
     /** List view — invalidates any paged/filtered list. */
     list: (...args: unknown[]) => ['trips', ...args] as const,
     monthly: (year: number, month: number, salaryStart: string | undefined) => ['trips', 'monthly', year, month, salaryStart] as const,
+    customerCatalogStats: (userId: number | undefined, role: string | undefined, month: string) =>
+      ['trips', 'customer-catalog-stats', userId, role, month] as const,
     created: ['trips', 'created'],
     costs: (month: number, year: number, salaryStart: string | undefined) =>
       ['trip-costs', month, year, salaryStart] as const,
@@ -375,6 +390,51 @@ export const qk = {
       sortDir: string;
     }) =>
       ['accounting', 'transport-register', params] as const,
+    /** Debit-close board — one page per date range. */
+    debitBoard: (from: string, to: string) =>
+      ['accounting-debit-board', from, to] as const,
+    /** Broad prefix — matches all accounting-debit-board queries. */
+    debitBoardAll: ['accounting-debit-board'] as const,
+  },
+
+  /* ── Phơi phiếu (accounting control page + vehicle assignments) ─────── */
+
+  phoiPhieu: {
+    /** Vehicle → accountant assignment board. */
+    truckAssignments: ['phoi-phieu-truck-assignments'] as const,
+    /** Control-table rows — one entry per filter combination. */
+    rows: (filters: { dateFrom: string; dateTo: string; status: string; search: string; sortBy: string; confirmation?: string }) =>
+      ['phoi-phieu-rows', filters] as const,
+    /** Broad prefix — matches all phoi-phieu-rows queries regardless of filters. */
+    rowsAll: ['phoi-phieu-rows'] as const,
+    /** Treasury-account (STK quỹ) dropdown options. */
+    stk: ['phoi-phieu-stk'] as const,
+    /** Per-trip road-money dialog detail. */
+    tienDuong: (tripId: number) => ['phoi-phieu-tien-duong', tripId] as const,
+    /** Monthly receivable/payable report, per kind + range + scope. */
+    report: (kind: 'THU' | 'TRA', dateFrom: string, dateTo: string, scope?: 'SELF' | 'ALL' | 'UNASSIGNED') =>
+      ['phoi-phieu-report', kind, dateFrom, dateTo, scope] as const,
+    /** Chi-ho fee detail dialog, per trip. */
+    chiHo: (tripId: number, confirmation?: 'CONFIRMED' | 'UNCONFIRMED') => confirmation ? ['phoi-phieu-chi-ho', tripId, confirmation] as const : ['phoi-phieu-chi-ho', tripId] as const,
+  },
+
+  /* ── Container deposit tracking (Theo dõi hoàn cược) ────────────────── */
+
+  depositTracker: {
+    /** Broad prefix — matches every deposit-tracker query. */
+    all: ['deposit-refund'] as const,
+    /** Filtered list — from/to/status ride the key. */
+    list: (from: string, to: string, status: string) =>
+      ['deposit-refund', from, to, status] as const,
+  },
+
+  /* ── Combined-invoice tracking (theo dõi hóa đơn kết hợp) ───────────── */
+
+  invoiceTracking: {
+    /** Broad prefix — matches every invoice-tracking query. */
+    all: ['invoice-tracking'] as const,
+    /** Rows for one period. */
+    list: (from: string, to: string) => ['invoice-tracking', from, to] as const,
   },
 
   /* ── Penalties ──────────────────────────────────────────────────────── */
@@ -457,19 +517,6 @@ export const qk = {
     financialReportingPolicy: ['app-settings', 'financial-reporting-policy'] as const,
     truckFinancialProfiles: (truckId: number | null) =>
       ['app-settings', 'truck-financial-profiles', truckId ?? 'auto'] as const,
-  },
-
-  creditOverrides: {
-    all: ['credit-overrides'] as const,
-    list: (filters?: { status?: string; customerId?: number; shipmentId?: number; cursor?: string; limit?: number }) =>
-      [
-        'credit-overrides',
-        filters?.status ?? null,
-        filters?.customerId ?? null,
-        filters?.shipmentId ?? null,
-        filters?.cursor ?? null,
-        filters?.limit ?? 25,
-      ] as const,
   },
 
   /* ── Trip-form catalogs (loaded on demand by the create/edit form) ── */

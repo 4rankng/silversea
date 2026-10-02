@@ -19,6 +19,8 @@ export interface DateTimeFieldProps
   disabled?: boolean;
   /** Optional class on the outer wrapper. */
   className?: string;
+  /** Completeness signal forwarded from the underlying split field. */
+  onCompletenessChange?: (state: 'complete' | 'empty' | 'incomplete') => void;
   /** Optional helper text node rendered below the input. */
   hint?: ReactNode;
 }
@@ -29,6 +31,7 @@ export function DateTimeField({
   label,
   value,
   onChange,
+  onCompletenessChange,
   required,
   error,
   helpText,
@@ -55,6 +58,7 @@ export function DateTimeField({
         label={label}
         value={value}
         onChange={onChange}
+        onCompletenessChange={onCompletenessChange}
         required={required}
         error={error}
         disabled={disabled}

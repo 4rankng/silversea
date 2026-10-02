@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
-const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:3001';
+// Card 20260928_192: default to the port the backend actually binds
+// (the Makefile explicitly passes PORT=3002), matching `vite.nowatch.config.mjs`.
+// This said 3001, which is the STAGING import tool's port — so a plain
+// `pnpm dev` proxied every /api call at a server that is not running.
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:3002';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -43,8 +47,18 @@ export default defineConfig({
     },
   },
   server: {
-    port: 7174,
-    // Fail loudly if 7174 is taken instead of silently moving to 7174/7175,
+    // Card 20260928_192: this file was the odd one out. `pnpm dev` here came up
+    // on 7174 proxying to 3001, while the Makefile serves 7175 proxying to
+    // 3002, and every QA harness defaults to 7175. Nothing listens on 3001
+    // except the separate staging-import
+    // tool, so the short command produced a server whose /api calls went
+    // nowhere — and the resulting 401/403 pointed at auth, not at the port.
+    //
+    // 7175 + 3002 are the contract, and they now match everything else. A test
+    // (`src/tests/dev-port-contract.test.ts`) reads the versioned Makefile commands
+    // and fails if this drifts apart again, because the failure mode is silent.
+    port: 7175,
+    // Fail loudly if 7175 is taken instead of silently moving to another port,
     // which would desync the browser from the /api + /socket.io proxy.
     strictPort: true,
     proxy: {

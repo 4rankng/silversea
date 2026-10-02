@@ -19,7 +19,7 @@ interface TooltipProps {
   label?: React.ReactNode;
   /** Which side the tip pops on. Default 'top'. */
   side?: TooltipSide;
-  /** Force the tip open (e.g. for onboarding). Default: hover/focus driven. */
+  /** Force the tip open regardless of hover/focus. Default: hover/focus driven. */
   open?: boolean;
   /** Optional className passthrough on the wrapper. */
   className?: string;

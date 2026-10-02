@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, isNotNull, isNull, inArray, lt, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNotNull, isNull, inArray, lt, notInArray, or, sql } from 'drizzle-orm';
 import type {
   AccountantWorkInboxItem,
   AdminHealthInboxItem,
@@ -9,6 +9,7 @@ import type {
   WorkInboxItemBase,
   WorkInboxResponseOf,
 } from '@tingting/shared';
+import { billBookingTitle } from '../lib/business-keys';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { getForwarderTrips } from './forwarder-trip-query.service';
@@ -88,14 +89,18 @@ export function pageWorkInboxItems<T extends WorkInboxItemBase>(items: T[], quer
   return { asOf: new Date().toISOString(), timezone: 'Asia/Ho_Chi_Minh', counts, page: query.page, limit: query.limit, total: filtered.length, totalPages: Math.ceil(filtered.length / query.limit), items: filtered.slice((query.page - 1) * query.limit, query.page * query.limit) };
 }
 
+export { businessTitleOrDash } from '../lib/business-keys';
+
 export async function customerWorkInbox(customerId: number, query: InboxQuery) {
   const shipments = await db.select({
     id: s.shipments.id,
     code: s.shipments.shipmentCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
     status: s.shipments.status,
     due: s.shipments.expectedDeliveryDate,
     updatedAt: s.shipments.updatedAt,
-  }).from(s.shipments).where(and(eq(s.shipments.customerId, customerId), isNull(s.shipments.deletedAt), notInArray(s.shipments.status, ['NEW', 'PENDING_DATE', 'CANCELED']), query.search?.trim() ? ilike(s.shipments.shipmentCode, `%${query.search.trim()}%`) : undefined)).orderBy(desc(s.shipments.updatedAt)).limit(MAX_INBOX_CANDIDATES + 1);
+  }).from(s.shipments).where(and(eq(s.shipments.customerId, customerId), isNull(s.shipments.deletedAt), notInArray(s.shipments.status, ['NEW', 'PENDING_DATE', 'CANCELED']), query.search?.trim() ? or(ilike(s.shipments.blNumber, `%${query.search.trim()}%`), ilike(s.shipments.bookingRef, `%${query.search.trim()}%`)) : undefined)).orderBy(desc(s.shipments.updatedAt)).limit(MAX_INBOX_CANDIDATES + 1);
   assertCompleteCandidateScan(shipments);
   // Resolve container numbers in a single in-clause query and bucket them
   // per shipment. The previous correlated subquery on `shipment_containers`
@@ -134,7 +139,7 @@ export async function customerWorkInbox(customerId: number, query: InboxQuery) {
     const needsResponse = Boolean(delivery && !hasResponse);
     const done = shipment.status === 'COMPLETED' && hasResponse;
     const acceptedPod = delivery?.tripId != null && latestPodByTrip.get(delivery.tripId)?.status === 'ACCEPTED';
-    items.push({ id: `shipment:${shipment.id}`, entityType: 'shipment', entityId: shipment.id, title: shipment.code ?? `Lô hàng #${shipment.id}`, subtitle: done ? 'Đã hoàn tất và đã phản hồi giao hàng' : needsResponse ? 'Tài xế đã báo giao; đang chờ phản hồi của khách hàng' : 'Đang theo dõi', state: done ? 'DONE' : needsResponse ? 'ACTION' : 'WAITING', priority: needsResponse ? 100 : done ? 0 : 30, dueAt: shipment.due ? new Date(`${shipment.due}T00:00:00.000Z`).toISOString() : null, freshnessAt: (delivery?.occurredAt ?? shipment.updatedAt).toISOString(), blockers: emptyParty, advisories: emptyParty, nextAction: needsResponse && delivery?.eventId ? { label: 'Phản hồi giao hàng', targetRoute: `/portal/shipments/${shipment.id}` } : null, targetRoute: `/portal/shipments/${shipment.id}`, shipmentId: shipment.id, containerSummary: containerSummaryByShipment.get(shipment.id) ?? null,
+    items.push({ id: `shipment:${shipment.id}`, entityType: 'shipment', entityId: shipment.id, title: billBookingTitle(shipment.blNumber, shipment.bookingRef), subtitle: done ? 'Đã hoàn tất và đã phản hồi giao hàng' : needsResponse ? 'Tài xế đã báo giao; đang chờ phản hồi của khách hàng' : 'Đang theo dõi', state: done ? 'DONE' : needsResponse ? 'ACTION' : 'WAITING', priority: needsResponse ? 100 : done ? 0 : 30, dueAt: shipment.due ? new Date(`${shipment.due}T00:00:00.000Z`).toISOString() : null, freshnessAt: (delivery?.occurredAt ?? shipment.updatedAt).toISOString(), blockers: emptyParty, advisories: emptyParty, nextAction: needsResponse && delivery?.eventId ? { label: 'Phản hồi giao hàng', targetRoute: `/portal/shipments/${shipment.id}` } : null, targetRoute: `/portal/shipments/${shipment.id}`, shipmentId: shipment.id, containerSummary: containerSummaryByShipment.get(shipment.id) ?? null,
       // Delivery truth is EVENT-derived: a driver report or accepted POD is
       // evidence; only a genuinely IN_TRANSIT shipment may claim transport.
       // An assigned-but-not-departed lot reads NO_REPORT — the portal list
@@ -148,7 +153,8 @@ export async function driverWorkInbox(driverId: number, query: InboxQuery) {
   const rows = await db.select({
     tripId: s.trips.id,
     fulfillmentId: s.trips.fulfillmentId,
-    code: s.trips.tripCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
     shipmentCode: s.shipments.shipmentCode,
     status: s.trips.status,
     start: s.trips.plannedStartAt,
@@ -188,7 +194,7 @@ export async function driverWorkInbox(driverId: number, query: InboxQuery) {
     const milestone = done ? null : delivered ? acceptedPod ? 'Hoàn tất chuyến' : latestPod?.status === 'REJECTED' ? 'Bổ sung POD giao hàng' : 'Nộp POD giao hàng' : latestProgress?.eventType === 'LOADING_OR_RETURNING' ? 'Báo đã giao hàng' : latestProgress?.eventType === 'PICKED_UP' ? 'Báo đang trả hoặc xếp hàng' : latestProgress?.eventType === 'ORDER_RECEIVED' ? 'Báo đã lấy hàng' : 'Xác nhận đã nhận lệnh gốc';
     const state = done ? 'DONE' : waiting ? 'WAITING' : 'ACTION';
     const blockers = waiting ? [{ code: 'PAPER_ORDER', label: 'Chưa giao lệnh gốc', ownerRole: 'OPS', ownerLabel: 'Điều hành' }] : emptyParty;
-    return { id: `trip:${row.tripId}`, entityType: 'trip', entityId: row.tripId, title: row.code ?? `Chuyến #${row.tripId}`, subtitle: waiting ? 'Đang chờ Vận hành giao lệnh gốc' : done ? 'Đã hoàn thành' : milestone, state, priority: waiting ? 60 : done ? 0 : 80, dueAt: iso(row.start), freshnessAt: (latestPod?.updatedAt ?? latestProgress?.occurredAt ?? row.updatedAt).toISOString(), blockers, advisories: emptyParty, nextAction: done || !row.fulfillmentId || nextLabel == null ? null : { label: nextLabel, targetRoute: `/my-trips/${row.tripId}` }, targetRoute: `/my-trips/${row.tripId}`, fulfillmentId: row.fulfillmentId, tripId: row.tripId, shipmentCode: row.shipmentCode, containerSummary: row.containerSummary, origin: row.origin ?? row.pickupLocation, destination: row.destination ?? row.deliveryLocation, contactName: row.contactName, contactPhone: row.contactPhone, milestone, paperOrderReady: Boolean(row.paperAt), podState: latestPod?.status ?? 'MISSING' };
+    return { id: `trip:${row.tripId}`, entityType: 'trip', entityId: row.tripId, title: billBookingTitle(row.blNumber, row.bookingRef), subtitle: waiting ? 'Đang chờ Vận hành giao lệnh gốc' : done ? 'Đã hoàn thành' : milestone, state, priority: waiting ? 60 : done ? 0 : 80, dueAt: iso(row.start), freshnessAt: (latestPod?.updatedAt ?? latestProgress?.occurredAt ?? row.updatedAt).toISOString(), blockers, advisories: emptyParty, nextAction: done || !row.fulfillmentId || nextLabel == null ? null : { label: nextLabel, targetRoute: `/my-trips/${row.tripId}` }, targetRoute: `/my-trips/${row.tripId}`, fulfillmentId: row.fulfillmentId, tripId: row.tripId, shipmentCode: row.shipmentCode, containerSummary: row.containerSummary, origin: row.origin ?? row.pickupLocation, destination: row.destination ?? row.deliveryLocation, contactName: row.contactName, contactPhone: row.contactPhone, milestone, paperOrderReady: Boolean(row.paperAt), podState: latestPod?.status ?? 'MISSING' };
   });
   return pageWorkInboxItems(items, query);
 }
@@ -223,13 +229,13 @@ export async function operationsWorkInbox(userId: number, query: InboxQuery) {
     const blockers = exchangeIncomplete ? [{ code: 'ORDER_EXCHANGE', label: 'Chưa hoàn tất đổi lệnh', ownerRole: 'OPS', ownerLabel: 'Vận hành' }] : terminalHandoffUnresolved ? [{ code: 'PAPER_ORDER_TERMINAL', label: 'Chuyến đã kết thúc — bàn giao lệnh giấy cần điều vận xử lý', ownerRole: 'DISPATCHER', ownerLabel: 'Điều vận' }] : handoff ? [{ code: 'PAPER_ORDER', label: 'Chưa hoàn tất bàn giao lệnh giấy', ownerRole: 'OPS', ownerLabel: 'Vận hành' }] : incompleteExpenses ? [{ code: 'EXPENSE_EVIDENCE', label: 'Chi phí hoặc chứng từ chưa hoàn thiện', ownerRole: 'OPS', ownerLabel: 'Vận hành' }] : emptyParty;
     const targetRoute = tripId == null ? '/my-orders' : `/my-forwarder-trips/${tripId}`;
     const exchangeActionLabel = row.orderExchangeStatus === 'PENDING' ? 'Bắt đầu đổi lệnh' : 'Xác nhận đã đổi lệnh';
-    return { id: tripId == null ? `shipment:${row.shipmentId}:pretrip` : `shipment:${row.shipmentId}:trip:${tripId}`, entityType: tripId == null ? 'shipment_order_exchange' : 'fulfillment_trip', entityId: tripId ?? row.shipmentId, title: row.shipmentCode ?? row.tripCode ?? (tripId == null ? `Lô hàng #${row.shipmentId}` : `Chuyến #${tripId}`), subtitle: `${row.containerNumbers ?? 'Chưa có container'} · ${row.customerName ?? 'Khách hàng'} · ${fact?.driverName ?? row.truckPlate ?? 'Chưa phân tài xế'}`, state: done ? 'DONE' : blockers.length ? 'ACTION' : 'WAITING', priority: blockers.length ? 90 : done ? 0 : 40, dueAt: row.departureDate ? new Date(`${row.departureDate}T00:00:00.000Z`).toISOString() : null, freshnessAt: fact?.updatedAt.toISOString() ?? row.orderExchangeCompletedAt?.toISOString() ?? row.orderExchangeStartedAt?.toISOString() ?? new Date().toISOString(), blockers, advisories: emptyParty, nextAction: exchangeIncomplete ? { label: exchangeActionLabel, targetRoute } : terminalHandoffUnresolved ? { label: 'Chuyến đã kết thúc — liên hệ điều vận', targetRoute: '/my-orders' } : handoff ? { label: 'Bàn giao lệnh gốc', targetRoute } : incompleteExpenses ? { label: 'Hoàn thiện chi phí', targetRoute } : null, targetRoute, shipmentId: row.shipmentId, shipmentVersion: row.shipmentVersion, tripId, containerSummary: row.containerNumbers ?? row.containerTypeSummary, driverName: fact?.driverName ?? null, truckPlate: row.truckPlate, paperOrderState: fact?.paperAt ? 'COMPLETED' : exchangeIncomplete ? 'PENDING' : 'IN_PROGRESS', orderExchangeState: row.orderExchangeStatus, expenseEvidenceComplete: !incompleteExpenses };
+    return { id: tripId == null ? `shipment:${row.shipmentId}:pretrip` : `shipment:${row.shipmentId}:trip:${tripId}`, entityType: tripId == null ? 'shipment_order_exchange' : 'fulfillment_trip', entityId: tripId ?? row.shipmentId, title: billBookingTitle(row.billNumber, row.bookingNumber), subtitle: `${row.containerNumbers ?? 'Chưa có container'} · ${row.customerName ?? 'Khách hàng'} · ${row.driverName ?? row.truckPlate ?? 'Chưa phân tài xế'}`, state: done ? 'DONE' : blockers.length ? 'ACTION' : 'WAITING', priority: blockers.length ? 90 : done ? 0 : 40, dueAt: row.departureDate ? new Date(`${row.departureDate}T00:00:00.000Z`).toISOString() : null, freshnessAt: fact?.updatedAt.toISOString() ?? row.orderExchangeCompletedAt?.toISOString() ?? row.orderExchangeStartedAt?.toISOString() ?? new Date().toISOString(), blockers, advisories: emptyParty, nextAction: exchangeIncomplete ? { label: exchangeActionLabel, targetRoute } : terminalHandoffUnresolved ? { label: 'Chuyến đã kết thúc — liên hệ điều vận', targetRoute: '/my-orders' } : handoff ? { label: 'Bàn giao lệnh gốc', targetRoute } : incompleteExpenses ? { label: 'Hoàn thiện chi phí', targetRoute } : null, targetRoute, shipmentId: row.shipmentId, shipmentVersion: row.shipmentVersion, tripId, containerSummary: row.containerNumbers ?? row.containerTypeSummary, driverName: row.driverName, truckPlate: row.truckPlate, paperOrderState: fact?.paperAt ? 'COMPLETED' : exchangeIncomplete ? 'PENDING' : 'IN_PROGRESS', orderExchangeState: row.orderExchangeStatus, expenseEvidenceComplete: !incompleteExpenses };
   });
   return pageWorkInboxItems(items, query);
 }
 
 export async function financialWorkInbox(query: InboxQuery) {
-  const rows = await db.select({ id: s.tripsComposite.id, code: s.tripsComposite.tripCode, pod: s.tripsComposite.podRecoveredAt, status: s.tripsComposite.status, dirty: s.tripsComposite.arSnapshotDirty, updatedAt: s.tripsComposite.updatedAt }).from(s.tripsComposite).where(and(eq(s.tripsComposite.status, 'COMPLETED'), isNull(s.tripsComposite.deletedAt), query.search?.trim() ? ilike(s.tripsComposite.tripCode, `%${query.search.trim()}%`) : undefined)).orderBy(desc(s.tripsComposite.updatedAt)).limit(MAX_INBOX_CANDIDATES + 1);
+  const rows = await db.select({ id: s.tripsComposite.id, code: s.tripsComposite.tripCode, customerReference: s.tripsComposite.customerReference, pod: s.tripsComposite.podRecoveredAt, status: s.tripsComposite.status, dirty: s.tripsComposite.arSnapshotDirty, updatedAt: s.tripsComposite.updatedAt }).from(s.tripsComposite).where(and(eq(s.tripsComposite.status, 'COMPLETED'), isNull(s.tripsComposite.deletedAt), query.search?.trim() ? ilike(s.tripsComposite.customerReference, `%${query.search.trim()}%`) : undefined)).orderBy(desc(s.tripsComposite.updatedAt)).limit(MAX_INBOX_CANDIDATES + 1);
   assertCompleteCandidateScan(rows);
   const tripIds = rows.map((row) => row.id);
   const [podRows, pendingExpenseRows, settlementRows, snapshotRows, attemptRows, responseRows] = tripIds.length === 0 ? [[], [], [], [], [], []] as const : await Promise.all([
@@ -266,7 +272,7 @@ export async function financialWorkInbox(query: InboxQuery) {
     const unanswered = attempts.length > 0 && responses.some((response) => response.decision == null);
     const advisories = disputed ? [{ code: 'CUSTOMER_DISPUTE', label: 'Khách hàng báo sai lệch giao hàng (không chặn tài chính)', ownerRole: 'MANAGER', ownerLabel: 'Quản lý' }] : unanswered ? [{ code: 'CUSTOMER_NO_RESPONSE', label: 'Khách hàng chưa phản hồi giao hàng (không chặn tài chính)', ownerRole: 'CUSTOMER', ownerLabel: 'Khách hàng' }] : emptyParty;
     const targetRoute = `/accounting?view=transport&search=${encodeURIComponent(row.code ?? String(row.id))}`;
-    items.push({ id: `trip:${row.id}`, entityType: 'trip', entityId: row.id, title: row.code ?? `Chuyến #${row.id}`, subtitle: blockers.length ? 'Cần hoàn thiện điều kiện tài chính' : 'Sẵn sàng đối soát', state: blockers.length ? 'WAITING' : 'ACTION', priority: blockers.length ? 70 : 90, dueAt: null, freshnessAt: row.updatedAt.toISOString(), blockers, advisories, nextAction: { label: 'Mở hồ sơ vận tải', targetRoute }, targetRoute, tripId: row.id, acceptedPod: acceptedPodReady, expenseApprovalPending: pendingExpenseTripIds.has(row.id), settlementComplete, profitabilitySnapshotReady });
+    items.push({ id: `trip:${row.id}`, entityType: 'trip', entityId: row.id, title: billBookingTitle(row.customerReference), subtitle: blockers.length ? 'Cần hoàn thiện điều kiện tài chính' : 'Sẵn sàng đối soát', state: blockers.length ? 'WAITING' : 'ACTION', priority: blockers.length ? 70 : 90, dueAt: null, freshnessAt: row.updatedAt.toISOString(), blockers, advisories, nextAction: { label: 'Mở hồ sơ vận tải', targetRoute }, targetRoute, tripId: row.id, acceptedPod: acceptedPodReady, expenseApprovalPending: pendingExpenseTripIds.has(row.id), settlementComplete, profitabilitySnapshotReady });
   }
   return pageWorkInboxItems(items, query);
 }
@@ -283,7 +289,8 @@ export async function managerDecisionInbox(userId: number, query: InboxQuery) {
       .where(eq(s.customerDeliveryResponses.decision, 'DISPUTED')),
     db.select({
       id: s.trips.id,
-      code: s.trips.tripCode,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
       plannedStartAt: s.trips.plannedStartAt,
       orderExchangeCompletedAt: s.shipments.orderExchangeCompletedAt,
     }).from(s.trips)
@@ -297,7 +304,8 @@ export async function managerDecisionInbox(userId: number, query: InboxQuery) {
       )),
     db.select({
       id: s.shipments.id,
-      code: s.shipments.shipmentCode,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
       cutoffAt: s.shipments.customsCutoffAt,
       updatedAt: s.shipments.updatedAt,
     }).from(s.shipments)
@@ -324,7 +332,7 @@ export async function managerDecisionInbox(userId: number, query: InboxQuery) {
     const startedAt = row.plannedStartAt ?? row.orderExchangeCompletedAt!;
     items.push({
       id: `paper-handoff:${row.id}`, entityType: 'trip', entityId: row.id,
-      title: `${row.code ?? `Chuyến #${row.id}`} quá hạn bàn giao lệnh gốc`,
+      title: `${billBookingTitle(row.blNumber, row.bookingRef)} quá hạn bàn giao lệnh gốc`,
       subtitle: 'Đổi lệnh đã hoàn tất nhưng tài xế chưa nhận lệnh gốc', state: 'ACTION', priority: 96,
       dueAt: row.plannedStartAt?.toISOString() ?? null, freshnessAt: row.orderExchangeCompletedAt!.toISOString(),
       blockers: [{ code: 'PAPER_HANDOFF_OVERDUE', label: 'Bàn giao lệnh gốc quá hạn', ownerRole: 'OPS', ownerLabel: 'Vận hành' }], advisories: emptyParty,
@@ -336,7 +344,7 @@ export async function managerDecisionInbox(userId: number, query: InboxQuery) {
   for (const row of slaExceptions) {
     items.push({
       id: `shipment-sla:${row.id}`, entityType: 'shipment', entityId: row.id,
-      title: `${row.code ?? `Lô hàng #${row.id}`} quá hạn cut-off`, subtitle: 'Lô hàng chưa hoàn tất sau thời điểm cut-off hải quan',
+      title: `${billBookingTitle(row.blNumber, row.bookingRef)} quá hạn cut-off`, subtitle: 'Lô hàng chưa hoàn tất sau thời điểm cut-off hải quan',
       state: 'ACTION', priority: 94, dueAt: row.cutoffAt!.toISOString(), freshnessAt: row.updatedAt.toISOString(),
       blockers: [{ code: 'CUSTOMS_CUTOFF_OVERDUE', label: 'Quá hạn cut-off hải quan', ownerRole: 'DISPATCHER', ownerLabel: 'Điều vận' }], advisories: emptyParty,
       nextAction: { label: 'Xem chi tiết lô hàng', targetRoute: `/shipments-detail?shipmentId=${row.id}` }, targetRoute: `/shipments-detail?shipmentId=${row.id}`,

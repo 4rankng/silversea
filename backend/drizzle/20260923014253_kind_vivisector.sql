@@ -1,0 +1,2 @@
+ALTER TABLE "freight_rate_snapshots" ADD COLUMN "surcharge_raw" numeric(15, 0);--> statement-breakpoint
+ALTER TABLE "quotations" ADD COLUMN "surcharge_rounding_mode" varchar(20) DEFAULT 'NONE' NOT NULL;

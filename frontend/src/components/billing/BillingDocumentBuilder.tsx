@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Filter, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { useToast } from '../shared/Toast';
@@ -11,7 +10,7 @@ import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { documentFileName, filterAuthoritativeDebitNoteLines, groupLinesByContainer, lineTotal, normalizeLine, selectedTripIdsFromSearch, splitRouteName, thisMonthRange, displayDate, TITLE, type BillingRouteGroup } from './billing-document-builder-utils';
 import { DateInput } from '../../design-system/forms/DateInput';
-import { UuiSelectField } from '../../design-system';
+import { Modal, UuiSelectField } from '../../design-system';
 import './BillingDocumentBuilder.css';
 import type {
   BillingDocument,
@@ -60,8 +59,6 @@ export default function BillingDocumentBuilder({
   }, [selectedTripIds]);
   const requestedFrom = initialRangeFrom ?? new URLSearchParams(window.location.search).get('from') ?? month.from;
   const requestedTo = initialRangeTo ?? new URLSearchParams(window.location.search).get('to') ?? month.to;
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-
   const [rangeFrom, setRangeFrom] = useState(initialDoc?.rangeFrom ?? requestedFrom);
   const [rangeTo, setRangeTo] = useState(initialDoc?.rangeTo ?? requestedTo);
   const [lines, setLines] = useState<BillingDocumentLine[]>((initialDoc?.lines as BillingDocumentLine[]) ?? []);
@@ -72,6 +69,9 @@ export default function BillingDocumentBuilder({
   const [exporting, setExporting] = useState(false);
   const [eligibilitySummary, setEligibilitySummary] = useState<BillingDraftEligibilitySummary | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [issueReasonInput, setIssueReasonInput] = useState('');
+  const [issuing, setIssuing] = useState(false);
+  const [issueBlockers, setIssueBlockers] = useState<string[]>([]);
   // Selected export template. null = auto (customer/default for debit notes,
   // document-type default for payment statements), resolved + snapshotted server-side.
   const [templateId, setTemplateId] = useState<number | null>(initialDoc?.debitNoteTemplateId ?? null);
@@ -332,26 +332,43 @@ export default function BillingDocumentBuilder({
   };
 
   const busy = loading || saving || exporting;
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) onClose();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [busy, isOpen, onClose]);
-
-  useEffect(() => {
-    setPortalTarget(document.body);
-  }, []);
+  // §7.2 issue request — a 409 carries `details: [{message}]` with EVERY
+  // missing readiness condition (goods, price, original document received,
+  // period). Each reason renders on its own line in the builder footer.
+  const issueDocument = async () => {
+    if (!savedId || issuing) return;
+    const reason = issueReasonInput.trim();
+    if (!reason) {
+      showToast({ kind: 'error', message: 'Lý do phát hành là bắt buộc.' });
+      return;
+    }
+    setIssuing(true);
+    setIssueBlockers([]);
+    try {
+      await financialClient.issueBillingDocument(savedId, {
+        expectedVersion: initialDoc?.version ?? 1,
+        reason,
+      });
+      showToast({ kind: 'success', message: 'Đã phát hành bảng kê.' });
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      const details = (err as { raw?: { details?: unknown } }).raw?.details;
+      const list = Array.isArray(details)
+        ? details.map((item) => typeof item === 'string' ? item : (item as { message?: string })?.message ?? '').filter(Boolean)
+        : [];
+      const blockers = list.length > 0 ? list : [(err as Error).message || 'Lỗi phát hành bảng kê.'];
+      setIssueBlockers(blockers);
+      showToast({ kind: 'error', message: 'Phát hành bị chặn — xem các lý do trong biểu mẫu.' });
+    } finally {
+      setIssuing(false);
+    }
+  };
 
   if (!isOpen) return null;
 
-  if (!portalTarget) return null;
-
   const content = (
-    <section className="billing-builder" role="dialog" aria-modal="true" aria-labelledby="billing-builder-title">
+    <section className="billing-builder">
       <header className="billing-builder__topbar">
         <div className="billing-builder__title-block">
           <div className="billing-builder__icon">
@@ -700,6 +717,39 @@ export default function BillingDocumentBuilder({
         </section>
       </main>
 
+        {type === 'DEBIT_NOTE' && savedId != null && ((initialDoc?.debitNoteStatus ?? 'DRAFT') === 'DRAFT') && (
+          <section className="billing-builder__issue">
+            {issueBlockers.length > 0 && (
+              <div role="alert" className="billing-builder__issue-blockers">
+                <strong>Bảng kê chưa đủ điều kiện phát hành — bổ sung rồi lưu nháp:</strong>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {issueBlockers.map((reason, index) => (
+                    <span key={index}>{reason}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <label className="billing-builder__issue-row">
+              <input
+                className="input"
+                value={issueReasonInput}
+                onChange={(e) => setIssueReasonInput(e.target.value)}
+                placeholder="Lý do phát hành (bắt buộc)"
+                disabled={issuing || busy}
+              />
+              <button
+                className="btn btn--primary"
+                type="button"
+                onClick={issueDocument}
+                disabled={issuing || busy || !issueReasonInput.trim()}
+              >
+                {issuing ? <Loader2 size={15} className="spin" /> : null}
+                Phát hành
+              </button>
+            </label>
+          </section>
+        )}
+
       <footer className="billing-builder__footer">
         <button className="btn btn--secondary" type="button" onClick={onClose} disabled={busy}>
           Đóng
@@ -712,5 +762,15 @@ export default function BillingDocumentBuilder({
     </section>
   );
 
-  return createPortal(content, portalTarget);
+  return (
+    <Modal
+      chrome="bare"
+      isOpen={isOpen}
+      title={TITLE[type]}
+      ariaLabel={TITLE[type]}
+      onClose={() => { if (!busy) onClose(); }}
+    >
+      {content}
+    </Modal>
+  );
 }

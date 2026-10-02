@@ -33,6 +33,15 @@ describe('shipment create empty submit feedback', () => {
     });
   });
 
+  it('opts out of native constraint validation so the app summary owns empty submits', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    // The workspace carries its own zod-driven summary + per-field errors;
+    // native bubbles must never intercept the submit (same contract as the
+    // treasury drawer).
+    expect(document.querySelector('form.csc-workspace')).toHaveAttribute('novalidate');
+  });
+
   it('empty submit shows the validation summary and moves focus to the first missing field', async () => {
     renderWorkspace();
     const createButton = await screen.findByRole('button', { name: 'Tạo lô hàng' });

@@ -13,8 +13,10 @@
 
 /* Dispatch planning is a high-volume operational surface. Both planning
    routes deliberately opt out of the shell's reading-width reading cap. */
+/* Card 20260930_246 (§8 density): 12 → 8 between the advisory strips so
+   the first record meets its chrome budget at every width. */
 .dispatch-plan-page--wide {
-  gap: 12px;
+  gap: 8px;
   max-width: none;
   margin: 0;
   padding: 0 0 24px;
@@ -28,6 +30,13 @@
 
 .dispatch-plan-page > .page-header {
   margin-bottom: 4px;
+}
+
+.dispatch-plan-page__toolbar {
+  /* Filter-bar law §5: page primary action lives top-right above the bar. */
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
 }
 
 .dispatch-plan-page__workspace {
@@ -71,17 +80,14 @@
   color: var(--fg-3);
 }
 
-/* Same pinned-footer contract as the shipments worksheets: the bounded grid
-   owns its navigation, so the pager stays visible at the table's bottom edge
-   instead of scrolling below the app-body fold. */
+/* The pager stays IN FLOW after the table (card 20260921_22): a sticky
+   bottom pin on this unbounded workspace floats the bar mid-list at rest,
+   covering 13-14 of 20 rows. List-end flow leaves every row visible. */
 .dispatch-plan-page__workspace > .ds-pagination {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
+  position: static;
   margin: 0;
-  padding: 12px;
-  border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
-  background: var(--surface, #fff);
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border-color-secondary, var(--line));
 }
 
 @media (max-width: 1100px) {
@@ -96,10 +102,6 @@
   .dispatch-plan-page--wide {
     padding-inline: 0;
     padding-top: 0;
-  }
-
-  .dispatch-plan-page__workspace > .ds-pagination {
-    position: static;
   }
 
   .dispatch-plan-page__workspace {

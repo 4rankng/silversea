@@ -27,11 +27,40 @@ describe('accounting workspace list-screen contract', () => {
     );
   });
 
+  it('keeps phone date and party filters in equal columns with shared control styling', () => {
+    expect(pageCss).toMatch(/accounting-period__fields[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(pageCss).not.toMatch(/accounting-period__fields[^}]*grid-template-columns: 1fr/);
+    expect(registerTsx).not.toMatch(/\sinline\s*\n/);
+    expect(registerTsx).not.toContain('controlClassName="accounting-register__select"');
+  });
+
+  it('renders the transport strip on the shared bar and declares no filter layout of its own', () => {
+    // Card 20260927_152 (L1/L2/L4): ONE wrapping row owns the strip; the four
+    // criteria live in `Bộ lọc`, whose Đặt lại clears exactly them. The page
+    // rules that laid the strip out (flex row + gap, the search cell, the
+    // `flex: 1 1 150px` select stretch and the two toolbar grid bands) are
+    // deleted, not re-pinned — a page rule may not size or stretch a control.
+    expect(registerTsx).toContain('<FilterBar');
+    expect(registerTsx).toContain('<FilterDropdown');
+    expect(registerTsx).toContain('onReset={onResetSecondary}');
+    expect(pageCss).not.toMatch(/\.accounting-register__(toolbar|search)\s*[,{]/);
+    const resetRule = pageCss.match(/\.accounting-register__reset\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(resetRule).toContain('var(--filter-control-h)');
+    expect(resetRule).not.toMatch(/width|flex:|grid|display/);
+  });
+
   it('never caps or inner-scrolls a master table — the app-body owns the scroll', () => {
     expect(pageCss).not.toMatch(/table-wrap[\s\S]{0,200}max-height/);
     expect(pageCss).not.toMatch(
       /accounting-register__wrap[\s\S]{0,160}(overflow\s*:\s*auto|overflow\s*:\s*scroll)/,
     );
+  });
+
+  it('keeps responsive record actions inset and touchable without nested card chrome', () => {
+    expect(pageCss).toMatch(/td\.record-table__action\s*\{\s*padding-inline: 14px/);
+    expect(pageCss).toMatch(/record-table__action a\s*\{\s*min-height: var\(--control-touch-h\)/);
+    expect(pageCss).not.toMatch(/accounting-register__wrap[^}]*border-radius/);
+    expect(pageCss).toMatch(/tbody td\.num\s*\{\s*text-align: left/);
   });
 
   it('emits data-labels on every register table cell so container-query cards stay labelled', () => {
@@ -43,15 +72,19 @@ describe('accounting workspace list-screen contract', () => {
     }
   });
 
-  it('marks selected rows structurally (is-selected), never with an accent fill', () => {
-    expect(registerTsx).toContain("className={selected ? 'is-selected' : undefined}");
-    expect(pageCss).not.toMatch(/is-selected[\s\S]{0,160}background/);
-  });
-
-  it('keeps nested controls independent of the whole-row toggle', () => {
-    // The checkbox label and the debt link stop propagation so one click is
-    // one action, not a row toggle plus a control toggle.
-    expect(registerTsx).toContain('event.stopPropagation()');
-    expect(registerTsx.match(/onClick=\{stop\}/g)?.length).toBeGreaterThanOrEqual(2);
+  // Card 20260929_207: the checkbox column is gone; the row carries the state
+  // on `data-selected` / `aria-selected`. The selection-state contract then
+  // decides how that state is DRAWN: neutral ink structure (a neutral surface
+  // plus a 3px inset ink edge), never a brand/semantic tint and never an
+  // accent-filled row — the accent `border-left` this test used to pin is the
+  // superseded recipe, so the pins below name the sanctioned one.
+  it('marks the picked row structurally (data-selected) and draws it in neutral ink, never an accent', () => {
+    expect(registerTsx).toContain('data-selected={selected || undefined}');
+    expect(registerTsx).toContain('aria-selected={pickable ? selected : undefined}');
+    const selected = pageCss.match(/tr\[data-selected\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(selected).toContain('background: var(--surface)');
+    expect(selected).toContain('box-shadow: inset 3px 0 0 var(--ink)');
+    expect(pageCss).not.toMatch(/border-left:\s*[2-6]px solid/);
+    expect(pageCss).not.toMatch(/tr\[data-selected\][^{]*\{[^}]*(var\(--accent\)|var\(--brand\))/);
   });
 });

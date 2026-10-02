@@ -4,18 +4,30 @@
  * the journey-board card, the driver fulfillment detail, and the CUS
  * container ledger cell.
  *
- * Stage 1 (delivery point, "Hạ" / "Cảng hạ") fallback chain:
- *   1. shipments.deliveryLocation — the dispatcher's deliberate free-text
- *      override for THIS shipment (highest trust; manual intent).
- *   2. the fulfillment site-snapshot's deliverySite name — the structured
- *      per-container record captured when CUS created the shipment.
- *   3. the container's dropoff port name — last resort.
+ * Ruling 2026-09-18 (MasterDataNhaMay 2.2): the HẠ label is ALWAYS a
+ * port/drop point, in EVERY direction — the factory has its own card block
+ * and never takes this label. The site snapshot carries the factory, so it
+ * is excluded from the drop chain everywhere; the dispatcher's free-text
+ * drop override still carries when no port is recorded. The distinct-place
+ * Trả-rỗng row is dead: once HẠ is the port, a second row naming the same
+ * place is the redundancy the user already rejected.
  *
- * Stage 2 (empty-container return depot, "Trả cont rỗng"): the dropoff port
- * resurfaces as its own row ONLY when it names a DIFFERENT place than the
- * stage-1 result — two rows must never both read as "the drop". When the
- * port IS the stage-1 fallback (or they agree) there is nothing new to show.
+ * Stage 1 (drop point, "Hạ" / "Cảng hạ"):
+ *   1. the container's dropoff port name — canonical cảng hạ / trả-vỏ point.
+ *   2. shipments.deliveryLocation — the dispatcher's deliberate free-text
+ *      override for THIS shipment, when no port is recorded.
+ *   The site snapshot is deliberately EXCLUDED in all directions: borrowing
+ *   it is what made cards read "Hạ NEWEB-1" (a factory).
+ *
+ * Stage 2 (empty-container return depot, "Trả cont rỗng"): dead by the same
+ * ruling — always null. The interface field stays because callers still read
+ * it; a future removal is a contract change across the three surfaces.
+ *
+ * Callers pass the shipment's tradeDirection. EXPORT keeps its dedicated
+ * branch (same output, kept for the documented history); other directions
+ * share the port-first chain.
  */
+
 
 export interface DeliveryStage {
   /** Stage 1 — where the laden container comes down (Hạ / Cảng hạ). */
@@ -35,14 +47,26 @@ export function readSnapshotDeliverySiteName(snapshot: Record<string, unknown> |
   return typeof name === 'string' && name.trim() ? name.trim() : null;
 }
 
-/** Resolve the two delivery-stage labels from the three raw sources. The
- *  chain order is the contract — callers must NOT re-chain locally. */
+/** Resolve the delivery-stage labels from the three raw sources. The chain
+ *  order is the contract — callers must NOT re-chain locally. */
 export function resolveDeliveryStage(
   snapshotSiteName: string | null,
   freeText: string | null,
   portName: string | null,
+  tradeDirection?: string | null,
 ): DeliveryStage {
-  const deliveryName = freeText ?? snapshotSiteName ?? portName ?? null;
+  if (tradeDirection === 'EXPORT') {
+    // cites the original export rule; unchanged
+    const exportDrop = portName?.trim() || freeText?.trim() || null;
+    return { deliveryName: exportDrop, returnDepotName: null };
+  }
+  // IMPORT and unknown directions follow the same port-only rule (ruling
+  // 2026-09-18, MasterDataNhaMay 2.2): the HA label is ALWAYS a port/drop
+  // point - the factory has its own card block, so the site snapshot never
+  // takes this label. The dispatcher free-text drop override still carries
+  // when no port is recorded.
+  void snapshotSiteName;
+  const deliveryName = portName?.trim() || freeText?.trim() || null;
   const returnDepotName = portName != null && portName !== deliveryName ? portName : null;
   return { deliveryName, returnDepotName };
 }

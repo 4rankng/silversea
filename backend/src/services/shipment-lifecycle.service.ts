@@ -346,7 +346,7 @@ export async function cancelShipmentFulfillment(args: {
           ))
           .limit(1);
         if (acceptedPod) {
-          throw new ApiError(409, 'e-POD đã được duyệt. Vui lòng xử lý yêu cầu điều chỉnh trước khi hủy tác vụ.');
+          throw new ApiError(409, 'e-POD đã được xác nhận. Vui lòng ghi nhận điều chỉnh trước khi hủy tác vụ.');
         }
       }
       if (linkedTrip != null) {

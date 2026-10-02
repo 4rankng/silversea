@@ -2,10 +2,6 @@
 
 **Dự án:** TTransport — Silver Sea
 
-**Cập nhật:** 16/09/2026
-
-**Nguồn bổ sung:** `các chi phí.docx` — chi phí Ops, bảng phơi phiếu và hoàn ứng. Hình minh họa từ phần mềm cũ xác định thông tin cần quản lý, không bắt buộc sao chép bố cục cũ.
-
 Tài liệu mô tả nhu cầu và hành vi sản phẩm cần đáp ứng cho nhân viên hiện trường, gọi tắt là **Ops**, trong [Quy trình O2C](QuyTrinhO2C.md).
 
 ## 1. Vấn đề cần giải quyết
@@ -63,9 +59,13 @@ Khi mở **Khai báo chi phí**, sản phẩm giữ ngữ cảnh lô và không 
 | Số tiền | Số nguyên dương bằng đồng Việt Nam. Số âm hoặc sai định dạng được giải thích, không tự biến thành giá trị khác. |
 | Ngày và người chi | Phản ánh thực tế. Khi được nhập thay, vẫn phân biệt người chi với người ghi thông tin. |
 | Biên lai | Cho chụp hoặc chọn ảnh; có thể ghi khoản đã thực chi rồi bổ sung ảnh sau. |
-| Ghi chú | Có thể thêm khi cần; sửa/hủy khoản ảnh hưởng tiền phải có lý do. |
+| Ghi chú | Có thể thêm khi cần, **trừ khoản không thu khách hàng**: dòng chi mà khách không phải trả (thu khách 0đ) bắt buộc có ghi chú nêu lý do, hệ thống chặn lưu khi thiếu — lý do này để kế toán/CUS đọc được chứ không phải thủ tục hình thức. Sửa/hủy khoản ảnh hưởng tiền phải có lý do. |
 
 Lưu hợp lệ thì khoản chi được ghi nhận trực tiếp và phản ánh vào quỹ liên quan. Không chuyển sang chờ duyệt. Nội dung còn đang nhập chưa được tính là khoản đã ghi.
+
+Phạm vi khai chi phí của Ops là các lô do xe Ops phụ trách chở theo phân công xe, cộng các lô được gán trực tiếp; thu hồi phân công xe chỉ thu hồi quyền trên những lô Ops chưa có khoản chi nào đã lưu tại đó.
+
+Ghi chú của CUS/quản trị/điều vận được tách khỏi khóa kế toán để sửa được trên lô đã khóa; việc này KHÔNG mở guard giai đoạn tiếp nhận của điều vận — điều vận vẫn chỉ sửa được lô ở giai đoạn tiếp nhận kể cả khi chỉ sửa ghi chú.
 
 Chi phí nâng/hạ do Ops khai dùng số tiền thực chi, không tự áp giá từ bảng định mức nâng/hạ. Quy tắc này không thay đổi cách tính cước hoặc chi phí lái xe ở phân hệ khác.
 
@@ -105,6 +105,8 @@ Một yêu cầu ứng cũ chưa có chứng cứ giao tiền không được t�
 - Thiếu hoặc khó đọc biên lai không làm tiền tự quay lại ví. Sửa sai số tiền hoặc hủy một khoản ghi nhầm phải có lý do và lịch sử trước/sau.
 - Số dư âm hiển thị đúng số và các khoản tạo ra nó. Không tự kết luận Ops nhận quá nhiều tiền ứng hoặc tự bỏ tiền túi khi không có thông tin chứng minh.
 - Người dùng phân biệt được số đã ghi với khoản đang lưu. Khi chưa biết thao tác đã thành công hay chưa, sản phẩm nói rõ và giúp xác định kết quả trước khi người dùng nhập lại.
+- **Sổ quỹ tách hai nguồn** (chốt 21/09, ship 22/09): mỗi phiếu thu/chi gắn đúng một nguồn quỹ — TK công ty (ACB) hoặc Tiền mặt; sổ của từng nguồn đọc được riêng (số dư đầu, thu, chi, tồn), tài khoản chưa gắn nguồn được đếm riêng và không lẫn vào sổ nguồn nào. **Lồng ghép lịch sử (chốt 22/09):** sổ đơn nguồn cũ nhập vào dòng tiền TK công ty (ACB) bằng một lần phân loại tài khoản cũ — các bút toán cũ giữ nguyên vẹn (sổ chỉ thêm), hiện ngay trong sổ ACB với số dư chạy liên tục; nguồn Tiền mặt bắt đầu trống từ thời điểm bật.
+- **Sổ quỹ cho tài khoản Ops — chỉ-đọc, đúng phạm vi của mình** (chốt 24/09): Ops thấy một mục sổ quỹ chỉ-đọc trên trang Quỹ tạm ứng, chỉ gồm các dòng tiền của chính mình (tạm ứng đã nhận, chi đã ghi, hoàn trả, phiếu thu/chi liên quan) — không mở quyền sổ quỹ công ty; máy chủ tự thu hẹp phạm vi theo người đăng nhập, không nhận tham số định danh từ client. (ADR 2026-09-24-ops-fund-book-scoped-read)
 
 Các thông tin **Số dư**, **Tiền nhận**, **Đã chi**, **Đã hoàn trả** phải dễ đọc, nhưng không chiếm gần hết màn hình. Lịch sử giao dịch và hành động thường dùng xuất hiện sớm trên điện thoại và máy tính bảng.
 
@@ -124,6 +126,11 @@ Ops bổ sung biên lai ngay từ khoản đã lưu hoặc danh sách nợ chứ
 4. Quyết toán không tự tạo thanh toán hay hoàn ứng. Nếu thực tế có tiền bổ sung, ghi riêng và liên kết để đối chiếu.
 
 Khoản mới phát sinh không tự chen vào bảng kê đã chốt. Hồ sơ đã khóa không được sửa đè hoặc mất lịch sử; sai sót được xử lý theo quyền điều chỉnh và quy tắc kỳ kế toán. Không có gửi duyệt, duyệt cả phiếu hay từ chối của người thứ hai.
+
+Khi kế toán sửa khoản đã đối chiếu, lưu khoản thay thế có liên kết với khoản gốc, lý do, người sửa và thời điểm; khoản gốc giữ nguyên số tiền và chứng từ trong lịch sử. Các nghĩa vụ cũ được đảo bằng bút toán, không xóa lịch sử hoặc giả định tiền đã hoàn. Nếu khoản còn thuộc phiếu thu/chi, chứng từ khách hàng hoặc đợt hoàn ứng, người dùng được hướng dẫn hoàn tác liên kết trước. Hoàn tác đợt hoàn ứng đã hết giao dịch tiền hiệu lực trả lại quyền phân bổ khoản chi/tiền ứng, giữ bảng kê cũ để tra cứu.
+
+Phân công hiện tại phải được kiểm tra lại lúc lưu hoặc bổ sung/xóa ảnh, kể cả màn hình đã mở trước khi thu hồi phân công. Kế toán nhập thay vẫn giữ riêng người nhập và người chi. Khoản đã đối chiếu hiển thị chỉ đọc đối với Ops; vẫn có thể bổ sung chứng từ khi còn quyền. Ops và kế toán cùng xem một bộ ảnh hiện hành, không giữ ảnh đã xóa ở màn hình còn lại.
+
 
 Xuất Excel và in A4 giữ mã phiếu, người lập, ngày, lô, nhóm hóa đơn, khoản chi và tổng đúng như màn hình. Một lô có nhiều người chi không tạo khoản trùng. Chữ ký trên bản giấy nếu cần không trở thành cấp duyệt trong ứng dụng.
 
@@ -206,7 +213,11 @@ Một khoản chi giữ riêng **Thực chi** (tiền Ops đã trả khi làm h�
 
 Khoản chi lưu ngay, không qua gửi duyệt. Ops ghi thực tế chi và chứng từ; CUS/kế toán có quyền xác định số thu khách và lý do công ty chịu hoặc thu khác thực chi. Khoản đã nằm trong đơn giá trọn gói vẫn là chi phí nhưng không tự thu thêm lần nữa. Không tự lấy màu luồng hải quan làm mức tiền nếu chưa có bảng giá được xác định.
 
-Mỗi dòng có lô, container/phí chung, ngày chi, nhóm/tên phí, người thực trả tiền, người nhập, thực chi, số thu khách, số hóa đơn khi có, biên lai và ghi chú. “Người thanh toán” là người thực hiện khoản chi; nhập thay không đổi người này thành người đang đăng nhập. Ghi chú cần trao đổi thu thêm với khách phải đọc được tại kế hoạch điều vận và nơi CUS/kế toán xử lý khoản thu.
+Mỗi **loại chi phí** trong danh mục có một **Nhóm quyết toán** do người có quyền đặt (Hải quan giám sát, Phát sinh, Khác, Nâng, Hạ, CSHT — sửa chữa hạ tầng, ...). Bảng quyết toán của lô nhóm tiền theo Nhóm quyết toán này; loại nào chưa được phân nhóm hiển thị trong nhóm **Chưa phân loại** trên bảng và **tổng các nhóm luôn khớp tổng chi phí của lô** — không để mất một đồng nào khỏi bảng. Đổi Nhóm quyết toán của một loại chỉ ảnh hưởng quyết toán sau đó; chứng từ đã phát hành giữ nguyên cấu trúc tại thời điểm phát hành. Phí cân hàng mặc định thuộc nhóm **Phát sinh**.
+
+Về chứng từ: **nâng, hạ, cân hàng, cơ sở hạ tầng, kiểm hóa, hải quan (phí làm tờ khai) và toàn bộ nhóm chi hộ có hóa đơn** (nâng vỏ / nâng hàng / lưu bãi, hạ vỏ / hạ hàng / lưu vỏ / lưu bãi và các phí chi hộ khác như gia hạn, vệ sinh, soi chiếu, bốc xếp, công nhân, lưu kho) **là nhóm "yêu cầu hóa đơn"** — đường phê duyệt/quyết toán đòi số hóa đơn thật, không chấp nhận bằng chứng thay thế cho nhóm này; chỉ Phí khác (không hóa đơn), dịch vụ kiểm hóa (kiểm dịch vụ), phụ phí vùng và phí sửa chữa dọc đường mới được cân nhắc bằng chứng thay thế khi phê duyệt. Hai nhóm **"Giao nhận Ops"** và **"Phát sinh Ops"** ở bảng trên là nhóm **không hóa đơn** — tên phí gõ trong hai nhóm này không làm khoản chi trở thành có hóa đơn, dù tên đó trùng với một loại phí có hóa đơn. Dòng chi phí đã gắn số hóa đơn bị khóa trên màn quyết toán (xem quy trình lô §7.9). Cờ này là cờ **đường phê duyệt** — không phải khóa sửa theo loại trên màn hình nhập chi phí.
+
+Mỗi dòng có lô, container/phí chung, ngày chi, nhóm/tên phí, người thực trả tiền, người nhập, thực chi, số thu khách, số hóa đơn khi có, biên lai và ghi chú. “Người thanh toán” là người thực hiện khoản chi; nhập thay không đổi người này thành người đang đăng nhập. Ghi chú cần trao đổi thu thêm với khách, **và lý do của khoản không thu khách**, phải đọc được tại kế hoạch điều vận (kế toán) và nơi CUS/kế toán xử lý khoản thu (danh sách phơi phiếu) — chỉ nội dung lý do, không kèm số tiền hay thông tin quỹ.
 
 ### 9.2 Xác nhận chi phí và bảng hoàn ứng
 
@@ -216,7 +227,21 @@ Bảng hỗ trợ lọc ngày/đợt đề nghị, nhân viên, lô và khách h
 
 Báo cáo hoàn ứng theo nhân viên/đợt cho biết **chi phí thuộc đợt**, **tiền ứng thực nhận được phân bổ**, **công ty cần trả thêm**, **Ops cần hoàn lại**, **đã quyết toán bằng tiền** và **còn lại**. Một khoản ứng hay chi không được tính toàn bộ vào nhiều đợt.
 
-**Chênh lệch ban đầu = Chi phí thuộc đợt − Tiền ứng thực nhận được phân bổ.** Dương là công ty cần trả thêm; âm là Ops cần hoàn lại. Số dư quỹ dùng chiều ngược lại, vì vậy đối chiếu cùng giao dịch và ý nghĩa thu/chi, không ép hai số có cùng dấu. Thanh toán bổ sung và hoàn ứng thực tế giảm nghĩa vụ còn lại đúng một lần.
+Yêu cầu tạm ứng chỉ ghi nhu cầu, hiển thị “Chưa giao tiền”; không tăng số dư quỹ hoặc khoản ứng được phân bổ. Khi thực tế giao tiền, kế toán chọn đúng yêu cầu đã có để ghi chi, không phải tạo một yêu cầu khác. Yêu cầu cũ chỉ có bút toán nhưng chưa có chứng từ giao tiền không được coi là đã nhận. Đảo giao dịch giao tiền cập nhật số thực nhận, giữ nguyên lịch sử.
+
+Kế toán nhập chi thay Ops phải xuất hiện ngay trong lịch sử và số thực chi của đúng Ops, kể cả phí thuộc công việc vận chuyển đã có. Người chi và người nhập hiển thị riêng; phí lịch sử vẫn xem được, không sao chép thành một chi phí mới.
+
+**Chênh lệch ban đầu = Chi phí thuộc đợt − Tiền ứng thực nhận được phân bổ.** Dương là công ty cần trả thêm; âm là Ops cần hoàn lại. Số dư quỹ dùng chiều ngược lại, vì vậy đối chiếu cùng giao dịch và ý nghĩa thu/chi, không ép hai số có cùng dấu. Thanh toán bổ sung và hoàn ứng thực tế giảm nghĩa vụ còn lại đúng một lần. Giới hạn trả thêm dựa trên chi phí và khoản ứng đã chọn trong đúng đợt. Tiền ứng chưa phân bổ hoặc dư tiền của đợt khác không tự bù trừ hoặc làm mất khả năng thanh toán đợt này; cùng khoản ứng không được sử dụng lần hai.
+
+**Bảng kiểm chi phí Ops (ship 22/09):** kế toán xem các khoản Ops đã nhập trên một bảng duy nhất, lọc theo khoảng ngày, nhân viên thanh toán và tiến độ; tích xác nhận từng dòng hoặc tích tất cả — ngày và người xác nhận được ghi lại; chỉ khoản đã xác nhận mới được tính về sau. **Báo cáo tổng hợp hoàn ứng tháng** theo nhân viên: tiền ĐNTT (chỉ đếm khoản đã xác nhận) − tạm ứng còn giữ = **còn phải hoàn ứng**, kèm nhãn chiều số rõ ràng — dương "Công ty thanh toán hoàn ứng", âm "Công ty yêu cầu nhân viên hoàn trả tạm ứng", không hiện số âm trần trụi. Phiếu chi/thu tạm ứng lập từ đúng báo cáo này qua engine phiếu quỹ hiện có; sau khi phiếu post, sổ quỹ và báo cáo hội tụ về một số. **Bảng điều khiển phôi phiếu** gom phiếu thu/chi theo chuyến (gom dòng cùng xe liền nhau);
+lập phiếu từ bảng này tuân theo hai quy tắc: **(1) Đối chiếu trước, thanh toán sau** — chỉ
+khoản đã tích xác nhận (đối chiếu) mới được đưa vào phiếu; còn khoản chưa đối chiếu thì phiếu
+không lập được và màn hình nêu tên từng khoản chưa đối chiếu theo tên phí, không nêu mã nội
+bộ; **(2) Mỗi nguồn một đường thanh toán** — bảng phôi phiếu chỉ lập phiếu từ các khoản chi
+hộ; các khoản tiền đường (tiền đi đường của lái xe) được thanh toán qua phiếu thu/chi trên
+màn chi phí Ops, không qua bảng phôi phiếu; hai đường không nhận phần của nhau nên không thể
+trả hai lần cùng một khoản. Bộ đếm trên bảng cho biết đúng tập nguồn đủ điều kiện lập phiếu
+theo chiều thu/chi — nút nói đúng những gì bấm nút sẽ phát hành. **Theo dõi hóa đơn kết hợp** quản lý số hóa đơn, số tiền hóa đơn và tiền trả nhà cung cấp theo lô — CUS xem chỉ-đọc.
 
 ### 9.3 Tiêu chí nghiệm thu bổ sung
 
@@ -233,11 +258,31 @@ Báo cáo hoàn ứng theo nhân viên/đợt cho biết **chi phí thuộc đ�
 | AC-CP-OPS-09 | Hai đợt cùng nhân viên không dùng trùng một khoản chi hoặc toàn bộ một lần ứng; lọc ngày/đợt/nhân viên và xuất báo cáo cho cùng tổng. |
 | AC-CP-OPS-10 | Sửa thực chi/thu khách khi được phép cần lý do và giữ lịch sử; khoản đã phát hành, thanh toán hoặc khóa kỳ được điều chỉnh có liên kết, không sửa đè số cũ. |
 
+### 9.4 Chi phí lái xe vào lô hàng
+
+Lái xe nhập chi phí vào lô hàng theo **loại phí** chọn từ danh mục dùng chung (cùng danh mục với chi phí Ops); thêm loại phí mới là dữ liệu, không cần sửa phần mềm. Loại **có hóa đơn** (nâng, hạ, vệ sinh, lưu bãi, lưu kho) phải kèm số hóa đơn ngay khi nhập; sau khi kế toán tích xác nhận trên phôi phiếu (đối chiếu) thì khoản tự động vào phải thu khách hàng kèm số hóa đơn — trước khi đối chiếu, khoản chưa vào phải thu. Loại **không hóa đơn** (chi công nhân tại kho, hàn cont, cân lốp, đảo vỏ, đóng/trả 2 điểm, đảo hàng, phí xe nâng hạ đăng khoa) không bao giờ vào phải thu khách hàng; sau khi kế toán đối chiếu, khoản vào mục phí khác dùng tính doanh thu xe và được thanh toán cho lái xe. Mỗi khoản là một dòng riêng có thể thêm/xóa.
+
+### 9.5 Tiền đi đường và định mức phí lái xe
+
+Tiền đi đường của lái xe không bao giờ vào phải thu khách hàng; khoản chỉ nằm trong danh mục tiền đi đường để kế toán thanh toán với lái xe **qua phiếu thu/chi trên màn chi phí Ops** (không qua bảng phôi phiếu) và tính doanh thu xe theo tháng. Các định mức được cấu hình sẵn dạng **dữ liệu cấu hình** và tự điền khi lái xe chọn đúng loại phí: nâng/hạ tại Lạch Huyện, TIL, Hateco 50.000đ; trả đêm 100.000đ; quay đầu 100.000đ; quá tải 200.000đ; đảo chuyển ICD/Đăng Khoa 200.000đ; chạy hàng chủ nhật 200.000đ; lưu ca 200.000đ; cont 45'HC/cont lạnh 200.000đ. Định mức sửa được, không hard-code; lái xe vẫn sửa được số tiền khi thực tế khác định mức. Tiền vé cầu đường: lái xe nhập được, kế toán **trên màn chi phí Ops** sửa được số tiền trước khi thanh toán. Phí sửa chữa dọc đường (sửa đèn, vá lốp…) nhập được kèm ghi nhận có phiếu thu viết tay. Định mức tiền đường theo từng tuyến đường để trống — khách hàng sẽ bổ sung sau. Đường thanh toán tách theo nguồn tiền: bảng phôi phiếu chỉ lập phiếu từ các khoản chi hộ; tiền đường được thanh toán qua phiếu thu/chi — chi tiết tại §9.2 và docs/adr/2026-09-24-expense-payer-scope-split.md.
+
+### 9.6 Theo dõi hoàn cược container
+
+Lô nào khách khai "có cược" (kèm số tiền dự kiến, có thể bỏ trống) thì tự vào **bảng theo dõi hoàn cược**: khách hàng, hãng tàu, số Bill, số tiền cược — kế toán tự điền tay được khi khách bỏ trống. Ngày nộp công văn do kế toán điền (lịch hoặc gõ tay dd/mm/yy); **ngày dự kiến hoàn cược mặc định = ngày nộp CV + 14 ngày**, vẫn sửa được cho hãng tàu hoàn lâu hơn. Trạng thái mặc định "chưa hoàn cược"; tick "đã hoàn cược" ghi nhận đã thu và đổ tiền về quỹ công ty (ACB) qua engine kho quỹ hiện có — mỗi dòng post đúng một bút toán, tick lại bị chặn. Mặc định sắp xếp: lô chưa hoàn cược lên đầu, theo ngày xa nhất → gần nhất; lọc theo khoảng ngày và trạng thái; **Tổng** thể hiện tổng tiền cược theo bộ lọc. Hai cảnh báo chạy song song: lô quá 7 ngày chưa có ngày nộp công văn (kèm số lượng lô) và tổng "Chưa hoàn cược số tiền: … — Vui lòng kiểm tra lại!". Mọi dòng hiển thị theo Số Bill + tên khách/hãng tàu, không bao giờ hiện mã nội bộ.
+
 ## 10. Tài liệu liên quan
 
 - [Quy trình O2C](QuyTrinhO2C.md).
 - [Màn hình lái xe](ManHinhLaiXe.md).
 
-### Kết nối và thử lại
+## 11. Kết nối và thử lại
 
 Ứng dụng gửi yêu cầu nghiệp vụ bình thường; nếu backend không khả dụng thì báo lỗi API và giữ nội dung chưa lưu trong màn hình để người dùng thử lại. Không heartbeat, kiểm tra sức khỏe trước thao tác hoặc tự gửi lại mutation khi mạng phục hồi.
+
+## 12. Tra cứu đối chiếu và chỉ dẫn vận hành
+
+OPS xem được các đợt hoàn ứng của mình, lọc theo kỳ hoặc nội dung, mở từng khoản nguồn và xuất đúng các dòng đang lọc. Kế toán xem lịch sử phiếu gồm phân bổ, quỹ, tham chiếu, ngày tiền và ngày/lý do đảo. Giá trị phân bổ lịch sử tách khỏi số tiền hiện tại của khoản nguồn.
+
+Khi cần sửa một đợt đã đối chiếu, kế toán hoàn tác đợt với lý do sau khi đảo các phiếu tiền liên quan. Đợt cũ và nguồn gốc vẫn tra cứu được; không còn nút trả/thu tiền trên đợt đã hoàn tác. Nguồn đã trả lại có thể được điều chỉnh và đối chiếu lại theo quy tắc hiện hành, không tự tạo thêm tiền.
+
+Ghi chú thu hồi/chứng từ của OPS được hiển thị riêng trong cả kế hoạch tổng quát và chi tiết của điều vận, giữ xuống dòng và không trộn vào ghi chú cho lái xe. Khoản đã hủy không còn góp ghi chú vào kế hoạch hiện hành.

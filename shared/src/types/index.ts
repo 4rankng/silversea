@@ -3,7 +3,9 @@ import type {
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType,
-  DispatchClassification,
+  // DispatchClassification is intentionally NOT imported here: it is re-exported
+  // straight from '../constants' further down, so an import only shadowed that
+  // re-export (flagged unused by @typescript-eslint).
 } from '../constants';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -33,18 +35,6 @@ export type UserPublic = Omit<User, 'passwordHash' | 'deletedAt'>;
  * /users page can render salary/truck inline. baseSalary/socialInsurance are
  * string|null because the numeric(15,0) columns serialize as strings (see Driver).
  */
-export interface UserWithDriver extends UserPublic {
-  customerId?: number | null;
-  customerIds?: number[];
-  customerAccountType?: CustomerAccountType;
-  driverId: number | null;
-  driverName: string | null;
-  driverPhone: string | null;
-  assignedTruckId: number | null;
-  baseSalary: string | null;
-  socialInsurance: string | null;
-  driverStatus: DriverStatus | null;
-}
 
 export interface Driver {
   id: number;
@@ -384,6 +374,7 @@ export interface PenaltyReason {
 
 export interface Trip {
   id: number;
+  shipmentId?: number | null;
   customerId: number;
   customerReference: string | null;
   truckId: number;
@@ -432,6 +423,8 @@ export interface Trip {
   tollCost: string | null;
   reconciledTollCost?: string | null;
   reconciledExtraCost?: string | null;
+  /** System-managed backhaul toll deduction returned by trip reads. */
+  tollDeduction?: string | null;
   revenueOriginal: string | null;
   revenueOverriddenBy: number | null;
   revenueOverriddenAt: string | null;
@@ -450,6 +443,8 @@ export interface Trip {
   vatRate: string;
   carrierType: 'OWN' | 'EXTERNAL';
   externalCarrierId: number | null;
+  externalEntityType?: 'CUSTOMER' | 'SUPPLIER' | null;
+  externalCarrierName?: string | null;
   externalFreightCost: string | null;
   externalPlateNumber: string | null;
   externalDriverName: string | null;
@@ -790,7 +785,6 @@ export interface Port {
   dispatchZone: string | null;
   classification: string | null;
   legalEntity: string | null;
-  isLachHuyen: boolean;
   opsPortalUrl: string | null;
   position: string | null;
   createdAt: string;
@@ -838,9 +832,6 @@ export interface TruckSuggestion {
 }
 
 /** `GET /api/shipments/dispatch-detail-plan-rows/:id/plan` row extension. */
-export interface DispatchDetailPlanRowClassification {
-  classification: DispatchClassification | null;
-}
 
 // ─── Forwarder ────────────────────────────────────────────────────────────────────
 
@@ -955,6 +946,8 @@ export interface AdvanceRequest {
 export interface AdvanceRequestWithRefs extends AdvanceRequest {
   requesterName?: string | null;
   approverName?: string | null;
+  /** Posted funding, net of reversals. Absent means unknown, not funded. */
+  fundedAmount?: number;
 }
 
 export interface AdvanceSettlement {
@@ -1124,6 +1117,10 @@ export interface ForwarderTripDetail {
     invoiceDate: string | null;
     declarationNumber: string | null;
     approvalStatus: string;
+    /** Q10 soft-void trail — present only when the row was voided. */
+    deletionReason?: string | null;
+    deletedAt?: string | null;
+    deletedByName?: string | null;
     note: string | null;
     noInvoiceEvidenceTypes: NoInvoiceEvidenceType[];
     noInvoicePolicySnapshot: NoInvoicePolicySnapshot | null;
@@ -2233,15 +2230,6 @@ export interface SalaryPeriod {
   updatedAt: string;
   deletedAt: string | null;
 }
-
-// ─── Approval Queue ────────────────────────────────────────────────────────────
-
-export type ApprovalItemType =
-  | 'ancillaryFees'
-  | 'debtOffsets'
-  | 'advances'
-  | 'advanceSettlementsCheck'
-  | 'advanceSettlementsApprove';
 
 /** Resolved salary period date range returned by the resolve endpoint */
 export interface SalaryPeriodRange {

@@ -27,7 +27,7 @@ import {
   listDispatchHandoffs,
   listDispatchQueue,
 } from '../../services/dispatch-planning.service';
-import {
+import { listAllExternalFleet, 
   createCarrierFleetVehicle,
   listCarrierFleetVehicles,
   resolveCarrierByPlate,
@@ -50,6 +50,8 @@ import { cacheInvalidate } from '../../lib/redis';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
 import { decomposeFulfillmentLessContainer } from '../../services/dispatch-detail-plan-fulfillment-less';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
   .pick({ licensePlate: true, isActive: true })
@@ -58,7 +60,7 @@ const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
     message: 'Cần có ít nhất một nội dung thay đổi.',
   });
 
-const dispatchPlanningRoutes = Router();
+const dispatchPlanningRoutes = Router()
 
 dispatchPlanningRoutes.get(
   '/dispatch-handoffs',
@@ -133,7 +135,7 @@ const truckDriverAssignmentSchema = z.object({
   driverId: z.number().int().positive().nullable(),
 });
 dispatchPlanningRoutes.patch(
-  '/dispatch-fleet/trucks/:truckId/assigned-driver',
+  '/dispatch-fleet/trucks/:truckId/assigned-driver', declareMaterialWrite('fleet.truck-driver.reassign', { method: 'PATCH', path: '/api/shipments/dispatch-fleet/trucks/:truckId/assigned-driver' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const truckId = parseInt(req.params.truckId as string, 10);
@@ -198,6 +200,56 @@ dispatchPlanningRoutes.get(
       if (value.length > 32) throw new ApiError(400, 'Khu vực điều phối không hợp lệ.');
       return value;
     })();
+    const customerId = (() => {
+      const raw = req.query.customerId;
+      if (raw == null || raw === '') return undefined;
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value <= 0) throw new ApiError(400, 'customerId không hợp lệ.');
+      return value;
+    })();
+    const dataStatus = (() => {
+      const raw = req.query.dataStatus;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim().toUpperCase();
+      if (value !== 'COMPLETE' && value !== 'MISSING') throw new ApiError(400, 'dataStatus không hợp lệ.');
+      return value as 'COMPLETE' | 'MISSING';
+    })();
+    // Card 20260927_61 advanced filters (CHIEF rulings 27/09).
+    const truckPlate = (() => {
+      const raw = req.query.truckPlate;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim();
+      if (value.length < 4 || value.length > 20) throw new ApiError(400, 'truckPlate không hợp lệ.');
+      return value;
+    })();
+    const driverId = (() => {
+      const raw = req.query.driverId;
+      if (raw == null || raw === '') return undefined;
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value <= 0) throw new ApiError(400, 'driverId không hợp lệ.');
+      return value;
+    })();
+    const carrierClass = (() => {
+      const raw = req.query.carrierClass;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim().toUpperCase();
+      if (value !== 'OWN' && value !== 'EXTERNAL') throw new ApiError(400, 'carrierClass không hợp lệ.');
+      return value as 'OWN' | 'EXTERNAL';
+    })();
+    const trailerType = (() => {
+      const raw = req.query.trailerType;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim().toUpperCase();
+      if (value !== '20FT' && value !== '40FT') throw new ApiError(400, 'trailerType không hợp lệ.');
+      return value;
+    })();
+    const routeId = (() => {
+      const raw = req.query.routeId;
+      if (raw == null || raw === '') return undefined;
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value <= 0) throw new ApiError(400, 'routeId không hợp lệ.');
+      return value;
+    })();
     res.json(await listDispatchDetailPlanRows({
       actor: getUser(req),
       page: typeof req.query.page === 'string' && Number.isInteger(Number(req.query.page)) && Number(req.query.page) > 0
@@ -206,6 +258,8 @@ dispatchPlanningRoutes.get(
       limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
       q: typeof req.query.q === 'string' ? req.query.q : undefined,
       date: typeof req.query.date === 'string' ? req.query.date : undefined,
+      dateFrom: typeof req.query.dateFrom === 'string' ? req.query.dateFrom : undefined,
+      dateTo: typeof req.query.dateTo === 'string' ? req.query.dateTo : undefined,
       direction: directionRaw ? directionRaw as 'IMPORT' | 'EXPORT' : undefined,
       assignmentStatus: assignmentStatusRaw ? assignmentStatusRaw as 'UNASSIGNED' | 'ASSIGNED' : undefined,
       pickupIds: idList('pickupIds'),
@@ -214,6 +268,13 @@ dispatchPlanningRoutes.get(
       hourFrom: time('hourFrom'),
       hourTo: time('hourTo'),
       zone,
+      customerId,
+      dataStatus,
+      truckPlate,
+      driverId,
+      carrierClass,
+      trailerType,
+      routeId,
     }));
   }),
 );
@@ -320,7 +381,7 @@ const updateFulfillmentEstimatesSchema = z.object({
 const updateDispatchDetailPlanSchema = atomicDispatchPlanEditSchema;
 
 dispatchPlanningRoutes.patch(
-  '/dispatch-detail-plan-rows/:fulfillmentId/carrier',
+  '/dispatch-detail-plan-rows/:fulfillmentId/carrier', declareMaterialWrite('shipments.fulfillments.carrier.assign', { method: 'PATCH', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/carrier' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -342,7 +403,7 @@ dispatchPlanningRoutes.patch(
 );
 
 dispatchPlanningRoutes.patch(
-  '/dispatch-detail-plan-rows/:fulfillmentId/plate',
+  '/dispatch-detail-plan-rows/:fulfillmentId/plate', declareMaterialWrite('shipments.fulfillments.plate.assign', { method: 'PATCH', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/plate' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -366,7 +427,7 @@ dispatchPlanningRoutes.patch(
 );
 
 dispatchPlanningRoutes.patch(
-  '/dispatch-detail-plan-rows/:fulfillmentId/estimates',
+  '/dispatch-detail-plan-rows/:fulfillmentId/estimates', declareMaterialWrite('shipments.fulfillments.estimates.update', { method: 'PATCH', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/estimates' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -391,7 +452,7 @@ dispatchPlanningRoutes.patch(
 // carrier → plate → estimates PATCHes with one fulfillment+shipment
 // transaction. Legacy endpoints remain for existing callers.
 dispatchPlanningRoutes.patch(
-  '/dispatch-detail-plan-rows/:fulfillmentId/plan',
+  '/dispatch-detail-plan-rows/:fulfillmentId/plan', declareMaterialWrite('shipments.fulfillments.plan.update', { method: 'PATCH', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/plan' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -419,6 +480,7 @@ dispatchPlanningRoutes.patch(
       clearVehicle: parsed.data.clearVehicle === true,
       plannedRevenue: parsed.data.plannedRevenue,
       plannedCarrierCost: parsed.data.plannedCarrierCost,
+      plannedEndAt: parsed.data.plannedEndAt,
       classification: parsed.data.classification,
       isCombined: parsed.data.isCombined,
       operationalNotes: parsed.data.operationalNotes,
@@ -429,7 +491,7 @@ dispatchPlanningRoutes.patch(
 );
 
 dispatchPlanningRoutes.post(
-  '/dispatch-detail-plan-rows/:fulfillmentId/complete-external',
+  '/dispatch-detail-plan-rows/:fulfillmentId/complete-external', declareMaterialWrite('dispatch.external-fulfillment.complete', { method: 'POST', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/complete-external' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -450,6 +512,14 @@ dispatchPlanningRoutes.post(
 );
 
 dispatchPlanningRoutes.get(
+  '/carrier-fleet-vehicles/all',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await listAllExternalFleet());
+  }),
+);
+
+dispatchPlanningRoutes.get(
   '/carrier-fleet-vehicles',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
@@ -460,8 +530,8 @@ dispatchPlanningRoutes.get(
 );
 
 dispatchPlanningRoutes.post(
-  '/carrier-fleet-vehicles',
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  '/carrier-fleet-vehicles', declareMaterialWrite('shipments.carrier-fleet-vehicles.create', { method: 'POST', path: '/api/shipments/carrier-fleet-vehicles' }), 
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = carrierFleetVehicleSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -485,8 +555,8 @@ dispatchPlanningRoutes.post(
 );
 
 dispatchPlanningRoutes.patch(
-  '/carrier-fleet-vehicles/:vehicleId',
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  '/carrier-fleet-vehicles/:vehicleId', declareMaterialWrite('shipments.carrier-fleet-vehicles.update', { method: 'PATCH', path: '/api/shipments/carrier-fleet-vehicles/:vehicleId' }), 
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const vehicleId = Number(req.params.vehicleId);
     if (!Number.isInteger(vehicleId) || vehicleId <= 0) throw new ApiError(400, 'vehicleId không hợp lệ.');
@@ -546,7 +616,7 @@ dispatchPlanningRoutes.get(
 );
 
 dispatchPlanningRoutes.post(
-  '/dispatch-task-tags',
+  '/dispatch-task-tags', declareNonMaterialWrite('Reference-data CRUD (dispatch note-composer tag pool). Replay-safe by the normalized_label unique constraint — a duplicate POST returns 409 instead of duplicating; no financial or shipment-lifecycle mutation.'),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = createDispatchTaskTagSchema.safeParse(req.body);
@@ -559,6 +629,7 @@ dispatchPlanningRoutes.post(
 
 dispatchPlanningRoutes.patch(
   '/dispatch-task-tags/:id',
+  declareNonMaterialWrite('Reference-data CRUD (dispatch note-composer tag pool). Full-overwrite rename — replaying the same payload rewrites the identical label; a rename onto a key another row holds 409s through the normalized_label uniqueness check, so no durable command boundary is needed.'),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const tagId = parseDispatchTaskTagId(req.params.id as string);
@@ -573,6 +644,7 @@ dispatchPlanningRoutes.patch(
 
 dispatchPlanningRoutes.delete(
   '/dispatch-task-tags/:id',
+  declareNonMaterialWrite('Reference-data CRUD (dispatch note-composer tag pool). Soft-delete (isActive=false) keeping the unique normalized_label key — idempotent on replay (deactivating an inactive row still reports success); no financial or shipment-lifecycle mutation.'),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const tagId = parseDispatchTaskTagId(req.params.id as string);
@@ -587,7 +659,7 @@ dispatchPlanningRoutes.delete(
 // decomposed; the editor cannot target them (no fulfillmentId), so this
 // governed write decomposes the lot and hands back the fresh fulfillment.
 dispatchPlanningRoutes.post(
-  '/dispatch-detail-plan-rows/decompose',
+  '/dispatch-detail-plan-rows/decompose', declareMaterialWrite('shipments.fulfillments.decompose', { method: 'POST', path: '/api/shipments/dispatch-detail-plan-rows/decompose' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = z.object({

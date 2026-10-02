@@ -2,11 +2,9 @@
 
 **Dự án:** TTransport — Silver Sea
 
-**Cập nhật:** 16/09/2026
-
-**Nguồn bổ sung:** `các chi phí.docx` — phân loại chi phí, phơi phiếu, quỹ, báo cáo thu/trả và theo dõi hóa đơn/cược container.
-
 Tài liệu xác định trải nghiệm từ khi tiếp nhận nhu cầu vận chuyển đến khi hoàn thành công việc, đủ hồ sơ và thu tiền. Mỗi bên cần biết phần việc của mình, thông tin còn thiếu và bước tiếp theo, không phải nhập lại dữ liệu đã có hoặc dò qua nhiều màn hình để biết một lô đang ở đâu.
+
+Xem thêm: [mục lục PRD](README.md), [danh mục khách hàng/nhà máy](MasterDataNhaMay.md), [vận hành hiện trường](OpsVanHanh.md), [màn hình lái xe](ManHinhLaiXe.md).
 
 ## 1. Mục tiêu, người sử dụng và phạm vi
 
@@ -134,7 +132,7 @@ Không áp mô hình này cho hợp đồng khác khi chưa có căn cứ. Các 
 
 **Lệnh chạy ngoài** cho chọn dữ liệu danh mục hoặc nhập thông tin tự do được phép. Ban đầu tùy chọn này tắt; bật/tắt không làm mất nội dung đang nhập. Tên nhập cho một lệnh không tự trở thành danh mục mới. Các màn liên quan hiển thị đúng tên đã lưu. Danh sách và chi tiết có nhãn **Chạy ngoài** gọn tại vị trí nhận diện lô, cùng cách lọc riêng các lệnh này; không lặp nhãn cạnh từng trường.
 
-Bản chất: lệnh chạy ngoài là hàng **không do SilverSea tạo ra**, đi xin từ bên ngoài cho ngày thiếu lệnh hoặc đoạn chạy xa nhà — chỉ có **cước do khách báo** và **phí chi hộ**, không áp định mức nội bộ; là dạng lô đặc biệt được bỏ qua nhiều thao tác/chi phí không áp dụng (danh sách bỏ qua cụ thể chốt khi triển khai).
+Bản chất của loại lô này — nguồn hàng, cước do khách báo và phí chi hộ, các thao tác/chi phí được bỏ qua — định nghĩa tại [MasterDataNhaMay.md](MasterDataNhaMay.md) §4; công thức cước tại [Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.md). Mục này chỉ quy định cách lô chạy ngoài đi qua quy trình O2C.
 
 Chạy ngoài không bỏ qua tải trọng, lịch, quyền hoặc hạn mức tín dụng. Nếu có ngoại lệ tín dụng được phép, người có thẩm quyền ghi trực tiếp đúng hạn mức, lý do và thời gian hiệu lực; không tạo yêu cầu chờ duyệt.
 
@@ -238,7 +236,7 @@ CUS bổ sung thông tin được phép sau phát lệnh. Khi một thay đổi 
 
 ### 7.2 Lập bảng kê và phản hồi khách hàng
 
-Kế toán lập và phát hành bảng kê/debit note trực tiếp khi đủ dữ liệu hàng hóa, giá, chứng từ và điều kiện kỳ. Một phần việc không được tính lặp trên các dòng nguồn đang có hiệu lực. Nếu chưa đủ, hiển thị đầy đủ từng lý do và cách bổ sung; các lý do không che nhau hay tràn ra ngoài vùng thông báo.
+Kế toán lập và phát hành bảng kê/debit note trực tiếp khi đủ dữ liệu hàng hóa, giá, chứng từ và điều kiện kỳ (chứng từ đúng nghĩa §7.1: đã nhận chứng từ gốc với người và ngày nhận thực tế). Một phần việc không được tính lặp trên các dòng nguồn đang có hiệu lực. Nếu chưa đủ, hiển thị đầy đủ từng lý do và cách bổ sung; các lý do không che nhau hay tràn ra ngoài vùng thông báo.
 
 Khách hàng xác nhận giao hàng hoặc phản hồi bảng kê theo phạm vi của mình, có người phản hồi và thời điểm. Đây là phản hồi bên ngoài, không phải cấp phê duyệt nội bộ. Xác nhận giao nhận không tự có nghĩa đã thanh toán.
 
@@ -259,6 +257,10 @@ Nơi làm việc kế toán có hai bảng liên kết nguồn:
 1. **Chi phí Ops và hoàn ứng:** theo lô/nhân viên, xem khoản thực chi, giấy tờ, người/ngày đối chiếu và nghĩa vụ hoàn ứng theo [Vận hành Ops](OpsVanHanh.md).
 2. **Phơi phiếu và tiền đường:** mỗi dòng nhận diện công việc/lô/container, lịch, khách hàng/nhà máy/tuyến, nơi nâng/hạ, nhà vận tải, biển số/tài xế, số chi hộ phải thu/phải trả, tiền đường, trạng thái chứng từ/thanh toán và ngày liên quan. Các dòng cùng biển số đứng liền nhau khi dùng chế độ nhóm xe, kể cả kẹp/kết hợp; vẫn truy được từng nguồn, không nhân đôi tiền dùng chung. Ghi chú CUS/điều vận và ghi chú lái xe là hai nội dung riêng.
 
+Bộ lọc lịch của phơi phiếu sử dụng đúng ngày hẹn đang hiển thị, theo giờ Việt Nam; không âm thầm lọc theo ngày xuất phát khác. Tìm kiếm nhận cả tên phí và số hóa đơn. Khi lọc đã/chưa đối chiếu, chỉ các khoản phù hợp xuất hiện trong chi tiết thu/trả và tổng tương ứng. Khách hàng, nhà máy và tuyến là ba thông tin riêng, không dùng tên khách thay nhà máy.
+
+Tiền đường lấy theo chi phí công việc đã ghi nhận: phụ cấp tiền đường, phụ cấp ca, cầu đường và phát sinh riêng. Bấm tổng thấy từng thành phần, phân biệt vé thực tế đã đối chiếu với ước tính. Vé thực tế thay ước tính, không cộng thêm lần nữa; giữ các phụ cấp đã thỏa thuận. Phí chung kẹp/kết hợp chỉ tính một lần tại công việc sở hữu. Thiếu định mức hiển thị chưa xác định. Bộ lọc chứng từ không làm thay đổi tổng tiền đường đã thỏa thuận của công việc.
+
 Mỗi số tổng mở được các dòng phí: tên, số hóa đơn, số thu khách, số phải trả, người thực chi và giấy tờ. Có thể nhập thêm hoặc điều chỉnh theo quyền. Tùy chọn **Thu bằng trả** chỉ là hỗ trợ nhập: bật thì hai giá trị đi cùng nhau, tắt thì sửa độc lập; không áp ngầm lên mọi khoản.
 
 Đối chiếu/xác nhận chỉ ghi nhận sự kiện đã kiểm tra bởi người có quyền. Không có hàng đợi gửi duyệt, cấp duyệt hay từ chối. Không đổi điều kiện hoàn thành vận chuyển và không giả định tiền đã chuyển.
@@ -269,12 +271,37 @@ Hai nguồn theo dõi là **Quỹ công ty** và **Quỹ TM**. Mỗi tài khoả
 
 - Quỹ công ty, tài khoản ACB được nêu trong yêu cầu: cược container với hãng tàu, ứng Ops và tiền đường lái xe.
 - Quỹ TM: các khoản có hóa đơn như nâng/hạ/lưu bãi; thu các khoản của khách không theo dõi chi hộ riêng và trả chi hộ cho vendor/xe nhà.
+- Nguồn quỹ của phiếu phải khớp với các dòng chi phí trên phiếu: dòng chi hộ có hóa đơn (kể cả chi phí hóa đơn) thuộc Quỹ TM; ứng Ops, chi phí lô hàng không hóa đơn, phát sinh Ops, tiền đường và cược container thuộc Quỹ công ty. Chọn sai nguồn thì phiếu bị từ chối và nêu đúng dòng sai quỹ; phiếu trộn dòng của hai nguồn cũng bị từ chối kèm yêu cầu tách phiếu, không tự chọn một tài khoản thay người lập.
 - Chọn nguồn/tài khoản trước khi ghi thu/chi; hiển thị số tiền, đối tượng, nguồn được phân bổ và chiều tăng/giảm quỹ. Số tài khoản chưa cấu hình phải được bổ sung đúng quyền, không dùng số minh họa.
 - Chọn một, nhiều hoặc toàn bộ kết quả trong phạm vi được chỉ rõ để lập phiếu tổng hợp. Không gộp dòng thu và dòng chi thành một số ròng khiến mất nghĩa vụ; không trộn các đối tượng không thể cùng một phiếu.
 - Phiếu chỉ được ghi khi mọi dòng còn hợp lệ, cùng kỳ cho phép và không vượt số còn lại. Khóa nghiệp vụ áp theo thao tác; thanh toán công nợ đã chốt không sửa lại chi phí hay chứng từ kỳ cũ. Nếu một dòng đã đổi/đã thanh toán/không còn quyền thì giải thích dòng đó và không ghi một phần rồi báo cả phiếu thành công.
 - Sau ghi, phiếu, phân bổ và số dư quỹ cùng được cập nhật một lần. Số đã thu/đã trả bằng tổng phân bổ tiền; không ghi đè Thực thu (thu khách) hoặc Thực chi. Thanh toán một phần giữ phần còn lại. Hủy/đảo phiếu có quyền, lý do và dấu vết, không xóa lịch sử.
 
 Quỹ phản ánh tiền đã giao/nhận thực tế. Nhập chi phí, đối chiếu, xuất Excel, phát hành debit hoặc ghi ngày nộp hồ sơ hoàn cược không tự tạo thêm tiền thu/chi.
+
+### 7.9 Khóa lô và bảng quyết toán theo lô (Chi phí — Quyết toán)
+
+**Khóa lô** (khóa chi phí) là mốc đóng băng hồ sơ tài chính của lô: tổng phải thu, tổng phải trả, các nhóm chi phí, **luồng hải quan** (đỏ/vàng/xanh) và **nhãn cảng nâng/hạ** được giữ đúng **tại thời điểm khóa**. Sửa chi phí bị chặn khi lô đã khóa; các trường theo dõi thực tế (ngày nộp hồ sơ hoàn cược, ngày tiền về, số đã hoàn) vẫn bổ sung được theo thực tế. Khi lô chưa khóa, các số này theo dõi hiện hành; đã khóa rồi thì hồ sơ đã phát hành không tự viết lại khi danh mục (tên cảng, nhóm chi phí) thay đổi sau đó.
+
+**Bảng quyết toán theo lô** có hai lớp. Lớp tổng (Tổng phải thu khách, Tổng phải trả, chênh lệch) tính từ cả hai bảng của lô; dòng chi hộ có hóa đơn tự tính lại số thu khách theo quy tắc của loại chi phí (hiện nay: tính lại đúng thực chi — chi phí qua lại); chỉ dòng **Phí khác (không hóa đơn)** do CUS tự nhập số thu khách, và chỉ các dòng này nhận số gõ tay. Dòng chi phí **đã có số hóa đơn thì giữ nguyên khóa** — không sửa số trên màn quyết toán; muốn đổi phải sửa tại nguồn chi phí theo quy trình, không gõ đè trên dòng đã có hóa đơn. Lớp chi tiết hiện mỗi container một dòng trên cả hai bảng, kể cả container chưa có phần việc.
+
+**Cước chính theo lô** chỉ tính các **chân vận chuyển còn hiệu lực**; chân đã hủy không được tính cước — chân không chạy thì không tính tiền khách, lớp tổng và lớp chi tiết luôn khớp nhau. Cước đã đóng băng ngay khi **phát hành lô** (chưa gắn chân nào) vẫn tính vào lớp tổng dù lớp chi tiết chưa hiển thị được khoản này — ngoại lệ đã ghi nhận, không tự suy thành 0.
+
+**Cột phụ phí vùng** (Bảng 2.3, cột riêng đối xứng với cột thu ở Bảng 2.1) lấy số theo bậc nguồn: điều vận nhập/chỉnh trực tiếp (khoản chi ops loại phụ phí vùng) › tổng chi phí lái xe ứng trước cho chuyến trong lô › cấu hình phụ thu theo cảng; không có nguồn nào thì hiển thị "—", **không bao giờ tự điền 0**. Nhãn cột đọc từ cấu hình danh mục (cảng/vùng là dữ liệu — xem tài liệu Nhà máy §8); lô đã khóa giữ đúng số trong snapshot khóa, đổi cấu hình sau khóa không đổi chứng từ. Dòng **Phí khác (không hóa đơn)** mang **hai số tách biệt** — số chi hộ (thực chi) và số thu khách — nhập riêng từng bên, phục vụ đối soát thu-vs-trả theo từng thành phần; bên chưa nhập hiển thị "—".
+
+**Chuyến ngoài chốt** (chưa gắn công việc vận chuyển): chuyến chưa gắn công việc vận chuyển
+không được tính vào tổng của các bảng quyết toán; thay vào đó hiển thị thành mục riêng chỉ đọc
+dưới Bảng 2.3 — mỗi chuyến gồm mã chuyến, ngày, trạng thái, từng khoản phí (thiếu hiển thị
+"—") và tổng tiền chuyến, kèm nhãn **Ngoài chốt**. Mục này để đối soát; không vào bất kỳ tổng
+phải trả nào và không được dùng để chốt. Ẩn khi lô không có chuyến nào như vậy. Bảng theo lô
+(màn chốt debit) áp cùng quy tắc loại trừ khỏi tổng và hiển thị dòng tổng tiền bị loại — xem
+mục Kế toán chốt debit.
+
+Các con số chưa xác định hiển thị **Chưa xác định**, không tự thành 0. Loại chi phí chưa được phân nhóm quyết toán hiển thị trong nhóm **Chưa phân loại** và tổng các nhóm luôn khớp tổng chi phí lô — không mất đồng nào khỏi bảng. Luồng hải quan là thuộc tính tờ khai của **lô**, hiển thị thống nhất trên bảng quyết toán; chưa khai báo hiển thị "—". Khoảng ngày trên bảng kê theo **ngày giao của các lô được chọn** vào đợt phát hành, không phải ngày xử lý; một lô chỉ nằm trong một bảng kê đang hiệu lực — chọn lại lô đã thuộc bảng kê khác bị chặn và nêu rõ số lô.
+
+**Khóa hiển thị trên mọi màn hình**: hồ sơ lô, chuyến, tạm ứng và chứng từ được nhận diện bằng khóa nghiệp vụ — **Số Bill/Số Booking** trước hết, số tờ khai thứ hai, rồi tên khách + ngày chi khi không có chứng từ nào; vắng hết thì hiển thị "—". Mã nội bộ của hệ thống (mã lô dạng SHP-*, mã chuyến TRP-*, mã chứng từ, số # thứ tự) chỉ là khóa kỹ thuật phục vụ liên kết và lưu trữ, **không bao giờ hiển thị** cho người dùng; thiếu khóa nghiệp vụ là thiếu thông tin, không tự chế số thay thế. Tiêu đề và thông báo sinh lại theo khóa nghiệp vụ của hồ sơ được tham chiếu bằng một bộ sinh dùng chung.
+
+Chi tiết mỗi đợt đối chiếu hoàn ứng phải cho biết từng khoản ứng đã sử dụng (mã yêu cầu, số tiền phân bổ và lý do), kể cả đợt đã hoàn tác. Khi dữ liệu cũ chỉ có tổng tiền mà không có phân bổ chi tiết, hiển thị rõ thiếu thông tin; không suy đoán hoặc tạo phân bổ mới.
 
 ### 7.6 Báo cáo chi hộ phải thu và phải trả
 
@@ -287,13 +314,13 @@ Hai báo cáo theo tháng/khoảng ngày dùng cùng cách đọc:
 
 Xe nội bộ có mã đối chiếu SilverSea để xem như một nhóm nhà vận tải, nhưng vẫn mang loại xe nội bộ; không vì nhóm báo cáo mà biến xe nhà thành nhà xe ngoài hoặc tạo thêm nghĩa vụ trả vendor. Người nhận tiền thực tế vẫn được chỉ rõ.
 
-Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. Báo cáo ghi rõ loại ngày lọc và ngày chốt số liệu; không dùng tháng đang mở trên máy người dùng để âm thầm đổi kỳ chứng từ. Ngày chi, ngày vận chuyển, ngày đối chiếu và ngày thu/chi tiền không được tráo nhau. Khoản đã hủy loại khỏi số hiện hành nhưng còn lịch sử. Không cộng lại khoản chi hộ đã có trong debit/phân bổ khác.
+Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. Các ô nâng, hạ, khác, tổng, đã thanh toán và còn lại mở đúng nguồn cấu thành số đang xem, giữ nguyên ngày chốt thanh toán. Loại báo cáo và ngày chốt được giữ khi đổi tab, quay lại hoặc tải lại trang; không tự trở về loại báo cáo khác. Báo cáo ghi rõ loại ngày lọc và ngày chốt số liệu; không dùng tháng đang mở trên máy người dùng để âm thầm đổi kỳ chứng từ. Ngày chi, ngày vận chuyển, ngày đối chiếu và ngày thu/chi tiền không được tráo nhau. Khoản đã hủy loại khỏi số hiện hành nhưng còn lịch sử. Phiếu thu/chi bị đảo sau ngày chốt vẫn được tính tại thời điểm trước ngày đảo: thu 100.000đ ngày 10, đảo ngày 20 thì báo cáo chốt ngày 15 giữ đã thu 100.000đ; chốt ngày 20 trở đi đã thu bằng 0đ. Màn hình, chi tiết và bản xuất sử dụng cùng ngày hiệu lực. Khoản ứng chỉ giảm phải trả khi đã giao tiền và đã được phân bổ vào khoản chi tính đến ngày chốt. Hoàn tác phân bổ sau ngày chốt không xóa phân bổ tại kỳ trước. Thiếu căn cứ phân bổ theo thời điểm phải hiển thị chưa xác định. Ngày chốt là ngày thanh toán tính đến trên phạm vi chi phí hiện hành; không phải chức năng phục dựng toàn bộ hồ sơ chi phí trước các lần điều chỉnh. Không cộng lại khoản chi hộ đã có trong debit/phân bổ khác.
 
 ### 7.7 Hóa đơn kết hợp và cược container
 
-**Hóa đơn kết hợp:** người có quyền theo dõi lô, số hóa đơn, giá trị hóa đơn, nhà cung cấp và số phải trả nhà cung cấp. CUS xem được thông tin trong phạm vi lô của mình. Khoản trả nhà cung cấp cho việc lấy hóa đơn là **chi phí hóa đơn** riêng của lô; không nhầm với toàn bộ giá trị hóa đơn hoặc tạo thêm tiền chi chỉ vì lưu hồ sơ. Nếu đã có khoản phí nguồn, liên kết thay vì ghi lại phí nâng/hạ lần nữa.
+**Hóa đơn kết hợp:** người có quyền theo dõi lô, số hóa đơn, giá trị hóa đơn, nhà cung cấp và số phải trả nhà cung cấp. CUS xem được thông tin trong phạm vi lô của mình. Khoản trả nhà cung cấp cho việc lấy hóa đơn là **chi phí hóa đơn** riêng của lô; không nhầm với toàn bộ giá trị hóa đơn hoặc tạo thêm tiền chi chỉ vì lưu hồ sơ. Nếu đã có khoản phí nguồn, liên kết thay vì ghi lại phí nâng/hạ lần nữa. Khi có đúng một công việc vận chuyển thực tế, phí hóa đơn gắn với công việc đó; khi có nhiều công việc, người nhập chọn rõ công việc chịu phí. Phí trước điều xe vẫn thuộc lô và không tạo chuyến giả. Hồ sơ hóa đơn giữ quyền sở hữu khoản phải trả nhà cung cấp; việc liên kết vào công việc chỉ để truy nguồn, không tạo nghĩa vụ thanh toán thứ hai.
 
-**Cược container:** lưu Bill, khách hàng, hãng tàu, số tiền cược, ngày cược, ngày nộp chứng từ hoàn cược, ngày tiền cược về và ghi chú. Chưa nộp/chưa về hiển thị đúng tình trạng, tìm/lọc được; tiền cược hoàn lại không phải doanh thu vận tải. Các ngày phản ánh thực tế, đúng định dạng, số tiền dương; sửa có quyền và lịch sử. Khi các ngày có trình tự bất thường, chỉ rõ để người dùng kiểm tra; quy tắc bắt buộc nộp chứng từ trước khi nhận tiền hoàn cần được khách hàng xác nhận, không tự chặn theo giả định này. Không tự tạo phiếu hoàn tiền từ việc điền ngày tiền về. Theo dõi riêng số tiền đã hoàn và số còn cược: đã hoàn không âm, không vượt số cược; đã hoàn lớn hơn 0 phải có ngày nhận thực tế. Cược 2.000.000đ đã hoàn 500.000đ thì còn 1.500.000đ; chỉ có ngày nhận không đủ để kết luận đã hoàn toàn bộ. Đây là theo dõi hồ sơ, không tự tạo giao dịch tiền từ số đã hoàn. Sau khi khóa chi phí lô, kế toán vẫn bổ sung ngày nộp hồ sơ, ngày nhận, số đã hoàn và ghi chú cược theo thực tế; giữ lịch sử và không sửa số cược gốc hoặc định danh hồ sơ trong thao tác này.
+**Cược container:** lưu Bill, khách hàng, hãng tàu, số tiền cược, ngày cược, ngày nộp chứng từ hoàn cược, ngày tiền cược về và ghi chú. Chưa nộp/chưa về hiển thị đúng tình trạng, tìm/lọc được; tiền cược hoàn lại không phải doanh thu vận tải. Các ngày phản ánh thực tế, đúng định dạng, số tiền dương; sửa có quyền và lịch sử. Khi các ngày có trình tự bất thường, chỉ rõ để người dùng kiểm tra; quy tắc bắt buộc nộp chứng từ trước khi nhận tiền hoàn cần được khách hàng xác nhận, không tự chặn theo giả định này. Không tự tạo phiếu hoàn tiền từ việc điền ngày tiền về. Theo dõi riêng số tiền đã hoàn và số còn cược: đã hoàn không âm, không vượt số cược; đã hoàn lớn hơn 0 phải có ngày nhận thực tế. Cược 2.000.000đ đã hoàn 500.000đ thì còn 1.500.000đ; chỉ có ngày nhận không đủ để kết luận đã hoàn toàn bộ. Đây là theo dõi hồ sơ, không tự tạo giao dịch tiền từ số đã hoàn. Sau khi khóa chi phí lô, kế toán vẫn bổ sung ngày nộp hồ sơ, ngày nhận, số đã hoàn và ghi chú cược theo thực tế; giữ lịch sử và không sửa số cược gốc hoặc định danh hồ sơ trong thao tác này. Nút cập nhật hồ sơ cược vẫn xuất hiện ngay tại lô đã chốt; các trường số cược gốc, Bill, hãng tàu và ngày cược được khóa, còn trường bổ sung chứng từ/hoàn tiền vẫn dùng được.
 
 Điều kiện cảnh báo quá hạn cược chưa đủ nội dung trong tài liệu nguồn và cần khách hàng xác định mốc bắt đầu, số ngày và cách nhắc. Khi chưa có quy tắc, sản phẩm chỉ nêu số ngày/tình trạng thực tế; không tự gắn “quá hạn” theo ngưỡng tự đặt.
 
@@ -319,12 +346,49 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. B
 | AC-CP-KT-16 | Hóa đơn kết hợp giá trị 1.000.000đ, phí nhà cung cấp 50.000đ: chi phí hóa đơn của lô là 50.000đ; lưu hồ sơ không tự xuất tiền hoặc nhân đôi phí nâng/hạ. CUS xem đúng phạm vi. |
 | AC-CP-KT-17 | Cược 2.000.000đ giữ Bill/hãng tàu/khách và các ngày thực tế; ghi đã hoàn 500.000đ thì còn 1.500.000đ. Hoàn vượt số cược hoặc đã hoàn dương nhưng thiếu ngày nhận bị chặn. Ngày sai định dạng có lỗi rõ, ngày có trình tự bất thường được nêu để kiểm tra; không chặn chỉ vì tiền về trước ngày nộp khi chưa có quy tắc được xác nhận. |
 | AC-CP-KT-18 | Cược 2.000.000đ đã hoàn 500.000đ vẫn còn 1.500.000đ, không báo đã hoàn đủ chỉ vì có ngày nhận. Theo dõi số đã hoàn/ngày nhận tách khỏi doanh thu vận tải và không tự tạo phiếu tiền; hồ sơ chưa về hoặc hoàn một phần tìm được, không tự đặt ngưỡng quá hạn. |
-| AC-CP-KT-19 | Tiền âm, không hữu hạn, sai định dạng hoặc vượt giới hạn lưu trữ bị chặn ở nhập liệu và khi lưu; 0đ thu khách được giữ có chủ ý, số tiền chi không được rỗng/0 khi khai thực chi. |
+| AC-CP-KT-19 | Không hữu hạn, sai định dạng hoặc vượt giới hạn lưu trữ bị chặn ở nhập liệu và khi lưu; 0đ thu khách được giữ có chủ ý, số tiền chi không được rỗng/0 khi khai thực chi. Riêng **số tiền của một dòng chi phí** được phép là số âm và khi đó dòng đó không được cộng vào bất kỳ tổng nào — mọi tổng xử sự như thể dòng đó không tồn tại, không lấy số dương trừ đi số âm; màn hình nhập của Ops/lái xe/kế toán vẫn yêu cầu số dương cho tới khi có quyết định riêng. |
 | AC-CP-KT-20 | Khóa kỳ, đổi quyền, đồng thời sửa và hủy/đảo phiếu không làm thay hồ sơ đã chốt hoặc mất lịch sử; quỹ/công nợ/chi phí luôn đối chiếu theo nguồn. Nhật ký ghi đúng nghiệp vụ tiền đã thực hiện (thu khách, trả nhà cung cấp, trả lái xe hoặc hoàn ứng OPS), kể cả khi dùng chung màn hình hoặc thử lại; không gọi mọi phiếu là hoàn ứng OPS. Thiếu khai báo nghiệp vụ hoặc không ghi được nhật ký phải hủy toàn bộ thay đổi trong giao dịch. |
 | AC-CP-KT-21 | 390px/820px/desktop: bộ lọc và trường tiền cùng cỡ điều khiển, tổng/hành động dễ thấy, không tràn ngang toàn trang; chi tiết mở gọn, thao tác bàn phím được, không thẻ lồng thẻ. |
 | AC-CP-KT-22 | Mất mạng giữ nội dung chưa lưu trong màn hình khi còn có thể; không báo thành công giả, không xếp hàng hoặc tự gửi lại khi mạng về/đổi tài khoản. |
 
-**Thực thu (thu khách)** là khoản tính cho khách và ghi công nợ, chưa phải tiền vào quỹ. **Đã thu** lấy từ phiếu thu và phân bổ thực tế. Thực chi 500.000đ, thực thu 300.000đ, chưa trả: công nợ 300.000đ, đã thu 0đ; sau thu 100.000đ thì còn nợ 200.000đ. Chênh lệch khoản phí −200.000đ không bị đổi thành phí dịch vụ âm. Cho phép thực thu 0đ, thấp hơn hoặc cao hơn thực chi. Phần **chốt debit vendor** được khách ghi rõ chưa hoàn thiện: giữ quy tắc hiện hành cho tới khi phạm vi mới được xác nhận, không tự áp các mô tả VAT/thời điểm ghi AP còn tạm thời.
+**Thực thu (thu khách)** là khoản tính cho khách và ghi công nợ, chưa phải tiền vào quỹ. **Đã thu** lấy từ phiếu thu và phân bổ thực tế. Thực chi 500.000đ, thực thu 300.000đ, chưa trả: công nợ 300.000đ, đã thu 0đ; sau thu 100.000đ thì còn nợ 200.000đ. Chênh lệch khoản phí −200.000đ không bị đổi thành phí dịch vụ âm. Cho phép thực thu 0đ, thấp hơn hoặc cao hơn thực chi. VAT trên chốt debit đã có quy tắc hiệu lực (chốt PM 24/09): VAT 0/5/8/10% gắn với từng đợt chốt qua popup Chọn Debit — xem mục Kế toán chốt debit bên dưới. Riêng **thời điểm ghi công nợ phải trả (AP) trên chuỗi debit vendor** vẫn chưa có đặc tả: giữ quy tắc hiện hành cho tới khi khách xác nhận, không tự áp mô tả còn tạm thời.
+
+### 7.10 Công nợ khách hàng theo khách (bổ sung 28/09)
+
+Màn hình khách hàng tổng hợp **cước/công nợ theo từng khách** — số chuyến, cước thu, cước trả — trên dữ liệu chuyến thật. Mỗi dòng chuyến mang sẵn nhận diện **xe nhà hay xe ngoài**, đúng trục mà bảng đối chiếu vận tải và báo cáo lãi lỗ đang dùng (trường `carrier_type` của thông tin nhà vận tải theo chuyến, giá trị Xe nhà / Xe ngoài, mặc định Xe nhà; cùng bộ khóa nhận diện với Chọn Debit). Không suy ra xe nhà/xe ngoài từ tên xe, biển số hay nhà vận tải gõ tay.
+
+Tick **"Bỏ xe công ty"** trả lời câu hỏi "nếu chỉ tính xe ngoài thì công nợ của khách này là bao nhiêu": bật tick thì **máy chủ tính lại** số liệu của từng khách, loại các chuyến chạy bằng xe công ty; phép trừ không chạy ở trình duyệt, và **tệp xuất ra dùng đúng bộ lọc đang bật** nên số trên màn hình và số trong tệp luôn khớp nhau. Bật tick cũng được ghi rõ trên tiêu đề tệp xuất để người nhận biết số liệu đã bỏ xe công ty.
+
+Giới hạn có chủ ý: tick **không ẩn khách hàng nào khỏi danh sách** — nó chỉ đổi số liệu cước của từng khách (và tệp xuất), để người xem vẫn đối chiếu được với danh sách đầy đủ. Vì vậy không mô tả tick này như một bộ lọc ẩn dòng, và không thêm phép trừ ở trình duyệt cho khớp màn hình. (card 20260928_177)
+
+### Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (bổ sung 22/09)
+
+- Màn hình kế toán mới: bảng theo lô với đầy đủ cột thu/trả cước vận chuyển (cước thu tự động, Lạch
+  Huyện, phụ phí, phát sinh bên thu; cước trả điều vận, Lạch Huyện điều vận, phát sinh điều vận, tổng 1,
+  phí RU bên trả), cột lợi nhuận = tổng thu − tổng 1 − phí RU; số thiếu hiển thị **"Chưa xác định"**,
+  không bao giờ gán 0. Bộ lọc kiểu excel chỉ ở hai cột: tên khách hàng (Thông tin lô hàng) và tên nhà xe (Phân xe).
+- **"Duyệt" là đối soát, không phải phê duyệt** (quyết định của người dùng 21/09): kế toán tích dòng và
+  gửi **yêu cầu điều chỉnh cước**; trong lúc yêu cầu còn chờ, lô đó **không xuất được debit** (hệ thống
+  từ chối nêu rõ mã lô). Kế toán xác nhận từng dòng hoặc tích tất cả để mở khóa; rút yêu cầu thì lô mở lại
+  và trạng thái đã xác nhận trước đó hiện ra; lô đã khóa số liệu không nhận yêu cầu mới. Xác nhận/rút
+  không bao giờ làm thay đơn giá.
+- Phí RU tự động từ bảng giá (bảng giá RU) — chưa có dữ liệu giá thì hiển thị "Chưa xác định".
+  Phần **Chọn Debit** là popup chốt đợt: lần 1,2,3…, tháng, chiều phải thu/phải trả, VAT 0/5/8/10%
+  với tiền VAT và tổng tiền tự tính, ghi chú. Popup là hành động chốt chứ không phải bộ lọc; một lô
+  chỉ thuộc một đợt chốt. Một đợt chốt theo một khách hàng, một tháng, một chiều (thu/trả) và một
+  số lần. Các lô trong đợt phải cùng khách hàng và có ngày giao trong khoảng đã chọn. Tổng đợt tự
+  tính theo bảng theo lô: phải thu = tổng cột Tổng thu; phải trả = tổng cột Tổng 1 (không gồm
+  Phí RU). Chiều phải trả yêu cầu các lô cùng một nhà xe; chiều phải thu không đòi nhà xe (bên
+  chốt là khách hàng). Chốt bị chặn và nêu rõ lô khi: lô chưa có ngày giao; chưa xác định được số
+  tiền thu/trả của lô; còn yêu cầu điều chỉnh cước đang chờ; số lần đã dùng trong cùng tháng và
+  chiều của khách hàng; hoặc lô đã thuộc một đợt chốt khác. Sau khi chốt, bảng
+  **TỔNG HỢP CÔNG NỢ KHÁCH HÀNG** tự liệt kê lại các đợt đã chốt (kỳ theo dõi = lần + tháng).
+  Phần chốt debit chi tiết còn lại (Debit tab, xuất biểu mẫu) vẫn **ĐỂ LẠI** chờ bản đặc tả
+  hoàn chỉnh của khách hàng.
+- **Chuyến ngoài chốt:** chuyến chưa gắn công việc vận chuyển không vào tổng của bảng theo lô —
+  tổng các cột chỉ tính chuyến đã gắn công việc. Số chuyến và tổng tiền bị loại hiển thị thành
+  một dòng riêng trên bảng; dòng ẩn khi không còn chuyến nào bị loại. Trên bảng quyết toán của
+  lô, các chuyến này hiển thị thành mục chỉ đọc dưới Bảng 2.3 — quy tắc định nghĩa tại §7.9.
 
 ## 8. Trải nghiệm chung và độ tin cậy
 
@@ -339,9 +403,13 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. B
 
 ### 8.2 Internet, quyền và thao tác quan trọng
 
+- Không có ngoại lệ phê duyệt nội bộ cho nghiệp vụ tài chính, khách hàng, tín dụng, nhiên liệu, chấm công hoặc lương. Không cần một người khác kiểm tra rồi duyệt, không có hàng đợi hoặc bước tự động duyệt ẩn. Hành động hợp lệ hoàn tất trực tiếp trong phạm vi được cấp; lý do, chứng từ, phiên bản và khóa kỳ vẫn được kiểm tra.
+- Lịch sử quyết định cũ còn đọc được để đối chiếu, không biến thành nút duyệt hiện hành và không bị xóa để làm sạch giao diện. Không tự chuyển yêu cầu ứng cũ thành đã trả, không sinh giao dịch hoặc đổi tổng tiền vì bỏ luồng duyệt.
+
 - Tất cả vai trò cần Internet để làm việc với thông tin hiện hành. Mất mạng phải ngừng thao tác ghi và nói rõ thông tin đang xem có thể chưa mới.
 - Nội dung đang nhập nếu còn giữ trên màn hình phải được ghi rõ chưa lưu; cảnh báo khi rời hoặc tải lại có thể làm mất nội dung. Không cho nhập nghiệp vụ ngoại tuyến với lời hứa sẽ tự gửi.
 - Khi có mạng, mở lại trang hoặc đổi tài khoản, không tự thực hiện các thao tác cũ. Người dùng chủ động tiếp tục sau khi biết kết quả lần trước.
+- Tab mở qua một đợt cập nhật hệ thống: ứng dụng báo có phiên bản mới và cho phép làm mới trang ở thời điểm người dùng chọn; không tự tải lại giữa chừng làm mất nội dung đang nhập.
 - Lỗi dịch vụ tạm thời không bị gọi là hết phiên đăng nhập nếu phiên vẫn hợp lệ. Người dùng có cách thử lại mà không mất nội dung đang làm.
 - Quyền luôn theo vai trò, tổ chức, phân công và đối tượng hiện hành; biết mã hay từng mở liên kết không tự cấp quyền. Khách hàng không xem dữ liệu khách hàng khác; lái xe/Ops không giữ quyền cũ sau khi phân công đổi.
 - Xóa/hủy dựa vào quyền, công việc đã phát sinh, dữ liệu liên quan và kỳ đã khóa. Người đủ điều kiện xác nhận rồi thực hiện trực tiếp; không bị đưa vào hàng đợi phê duyệt. Tình huống không được xóa phải giải thích và hướng tới cách xử lý hợp lệ.
@@ -373,6 +441,7 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. B
 | Công việc và lương | Đúng tổng hợp lô, ngày công qua ngày và nhiều chuyến; hủy một chuyến không xóa công khác; chấm thủ công có căn cứ được giữ; mức lương đúng hiệu lực, kỳ chốt không tự đổi. |
 | Kỷ luật và khấu trừ | Khoản hủy rời khấu trừ/tổng vi phạm hiện hành nhưng còn lịch sử; số phải trả, đã trả và còn lại giải thích được. |
 | Hồ sơ và bảng kê | Đủ/thiếu bằng chứng, chứng từ gốc và xác nhận khách hàng tách biệt; đủ dữ liệu lập bảng kê trực tiếp, không chờ duyệt. |
+| Thao tác trực tiếp toàn ứng dụng | Mọi vai trò có quyền lưu/ghi nhận/điều chỉnh trực tiếp; không có màn hình, thông báo hoặc bước duyệt ẩn. Vai trò thiếu quyền vẫn bị chặn; lịch sử và khóa kỳ được giữ. |
 | Thanh toán và công nợ | Thu/chi một phần còn dư đúng; danh sách, chi tiết và sổ nợ thống nhất; thử lại hoặc bổ sung ảnh không tạo tiền trùng. |
 | Lưu một phần hoặc chưa rõ kết quả | Biết phần đã xong, đọc lại được kết quả thực tế, tiếp tục đúng bản ghi; không mất nội dung đang nhập hay ghi đè người khác. |
 | Mất mạng hoặc đổi tài khoản | Không nhận thêm thao tác để gửi sau, không báo thành công giả hoặc tự gửi lại; người dùng chủ động tiếp tục khi có mạng. |
@@ -386,6 +455,8 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. B
 
 Bộ chứng từ bắt buộc cho LCL thay phiếu hạ container cần được chốt với người phụ trách nghiệp vụ. Điều kiện hợp đồng hoặc nguồn thông tin còn chưa rõ cần được xác định trước khi áp dụng; không tự đặt giá, giấy tờ mới hoặc thêm phê duyệt để thay thế câu trả lời.
 
-### Kết nối và thử lại
+## 11. Kết nối và thử lại
+
+Khi mở một trang đã đăng nhập mà máy chủ tạm lỗi, giữ phiên và địa chỉ trang, hiện nút thử lại; không chuyển người dùng về đăng nhập như thể mật khẩu đã hết hiệu lực. Chỉ yêu cầu đăng nhập lại khi phiên thực sự không còn hợp lệ.
 
 Ứng dụng gửi yêu cầu nghiệp vụ bình thường; nếu backend không khả dụng thì báo lỗi API và giữ nội dung chưa lưu trong màn hình để người dùng thử lại. Không heartbeat, kiểm tra sức khỏe trước thao tác hoặc tự gửi lại mutation khi mạng phục hồi.

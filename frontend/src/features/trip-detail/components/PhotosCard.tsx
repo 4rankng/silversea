@@ -1,6 +1,7 @@
+import { PhotoImage } from '../../../components/shared/PhotoImage';
 import React, { useState } from 'react';
 import { Image as ImageIcon, ImageOff } from 'lucide-react';
-import { getAuthenticatedPhotoUrl } from '../../../lib/api';
+import { useAuthedPhotoUrls } from '../../../lib/api/photo';
 import { PhotoViewer } from '../../../components/PhotoViewer';
 import '../../../components/PhotoViewer.css';
 
@@ -10,14 +11,15 @@ interface PhotosCardProps {
 
 export function PhotosCard({ photoUrls }: PhotosCardProps) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  // Track which photos failed to load so we can swap in an elegant
-  // placeholder instead of the browser's default broken-image glyph
-  // (which is just a tiny "?" icon — looks broken on mobile).
-  const [brokenSet, setBrokenSet] = useState<Set<number>>(new Set());
+  // Failed reads and decode errors use the same unavailable placeholder.
+  // URL keys keep a replaced photo from inheriting an old index's error.
+  const [brokenSet, setBrokenSet] = useState<Set<string>>(new Set());
+  // DRV-DET-08: trip photos load with the Authorization header (blob), never a
+  // ?token= query string. Called before the empty-state early return so the
+  // hook order stays stable.
+  const authUrls = useAuthedPhotoUrls(photoUrls ?? []);
 
   if (!photoUrls || photoUrls.length === 0) return null;
-
-  const authUrls = photoUrls.map(u => getAuthenticatedPhotoUrl(u));
 
   return (
     <section className="card anim d6" style={{ marginBottom: 20 }}>
@@ -31,11 +33,12 @@ export function PhotosCard({ photoUrls }: PhotosCardProps) {
           gap: 10,
         }}>
           {authUrls.map((url, i) => {
-            const isBroken = brokenSet.has(i);
+            const isBroken = !url || brokenSet.has(url);
             return (
               <button
                 key={i}
                 type="button"
+                disabled={isBroken}
                 onClick={() => { if (!isBroken) setViewerIndex(i); }}
                 aria-label={isBroken ? `Ảnh ${i + 1} (không tải được)` : `Mở ảnh ${i + 1}`}
                 style={{
@@ -64,10 +67,10 @@ export function PhotosCard({ photoUrls }: PhotosCardProps) {
                     <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-4)' }}>Không tải được</span>
                   </>
                 ) : (
-                  <img
+                  <PhotoImage
                     src={url}
                     alt={`Ảnh ${i + 1}`}
-                    onError={() => setBrokenSet(prev => new Set(prev).add(i))}
+                    onError={() => setBrokenSet(prev => new Set(prev).add(url))}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     loading="lazy"
                   />

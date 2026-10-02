@@ -8,9 +8,11 @@ interface PortCreateDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: (port: Port) => void;
+  /** Typed text carried in from the combobox create option. */
+  initialName?: string;
 }
 
-export function PortCreateDialog({ isOpen, onClose, onCreated }: PortCreateDialogProps) {
+export function PortCreateDialog({ isOpen, onClose, onCreated, initialName }: PortCreateDialogProps) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [address, setAddress] = useState('');
@@ -19,11 +21,11 @@ export function PortCreateDialog({ isOpen, onClose, onCreated }: PortCreateDialo
 
   useEffect(() => {
     if (!isOpen) return;
-    setName('');
+    setName(initialName ?? '');
     setCode('');
     setAddress('');
     setError(null);
-  }, [isOpen]);
+  }, [isOpen, initialName]);
 
   function close() {
     if (saving) return;

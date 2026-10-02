@@ -1,11 +1,13 @@
+import { PhotoImage } from '../components/shared/PhotoImage';
 import { Check, Loader2, Plus, Upload, X } from 'lucide-react';
 import { formatDate } from '../lib/format';
 import type { ExpenseWithRefs } from '@tingting/shared';
 import type { FormState } from './expense-entry-utils';
 import { DateInput } from '../design-system/forms/DateInput';
 import { UuiSelectField } from '../design-system';
+import { Btn } from '../components/UI';
 import { useState } from 'react';
-import { getAuthenticatedPhotoUrl } from '../lib/api/photo';
+import { useAuthedPhotoUrls } from '../lib/api/photo';
 import { PhotoViewer } from '../components/PhotoViewer';
 
 interface BasicFieldsProps { form: FormState; errors: Record<string, string>; isEdit: boolean; existingExpense?: ExpenseWithRefs; set: <K extends keyof FormState>(key: K, value: FormState[K]) => void }
@@ -57,9 +59,9 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                       </>
                     ) : (
                       <UuiSelectField
+                        size="md"
                         id="paymentStatus"
                         label="Trạng thái thanh toán"
-                        required
                         value="UNPAID"
                         onChange={() => { /* ledger-backed: stays Ghi nợ until settled */ }}
                         options={[{ value: 'UNPAID', label: 'Ghi nợ' }]}
@@ -72,39 +74,36 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
   </>;
 }
 
-interface PhotoAsideProps { photos: { id: number; url: string }[]; uploading: boolean; isEdit: boolean; submitting: boolean; handleBack: () => void; removePhoto: (index: number) => void; handlePhotoUpload: (files: FileList) => void }
-export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handleBack, removePhoto, handlePhotoUpload }: PhotoAsideProps) {
-  // Receipt thumbnails sit behind the JWT: the raw URL 401s in an <img>, so
-  // every src goes through the token-append helper (fresh blob: previews
-  // pass through unchanged). A failed load gets a retryable hint — retry
-  // re-reads the current token and reloads the image, never re-uploads.
-  const [failedIds, setFailedIds] = useState<Set<number>>(new Set());
+interface PhotoAsideProps { photos: { id: number; url: string }[]; uploading: boolean; isEdit: boolean; submitting: boolean; saveDisabled?: boolean; handleBack: () => void; removePhoto: (index: number) => void; handlePhotoUpload: (files: FileList) => void }
+export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveDisabled, handleBack, removePhoto, handlePhotoUpload }: PhotoAsideProps) {
+  // Receipt thumbnails sit behind the JWT, so every src is an Authorization-
+  // header blob fetch (DRV-DET-08 — never a `?token=` URL; a fresh `blob:`
+  // preview passes through unchanged). A read that fails resolves to '', which
+  // shows the same retryable hint an <PhotoImage> error used to: Thử lại refetches,
+  // it never re-uploads.
   const [reloadKey, setReloadKey] = useState(0);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const clearFailure = (id: number) => setFailedIds((prev) => {
-    if (!prev.has(id)) return prev;
-    const next = new Set(prev);
-    next.delete(id);
-    return next;
-  });
+  const receiptUrls = useAuthedPhotoUrls(photos.map((p) => p.url), reloadKey);
+  // The hook returns an index-aligned array only once every read has settled,
+  // so a length match is what separates "đang tải" from "tải không được".
+  const settled = receiptUrls.length === photos.length;
   return <>
                 <div className="expense-layout__aside">
-                  <div className="expense-panel expense-panel--photo">
-                    <div className="expense-panel__header">
-                      <h3 className="expense-panel__title">Ảnh hóa đơn</h3>
-                      <p className="expense-panel__subtitle">Đính kèm biên lai / chứng từ nếu có</p>
+                  <div className="panel expense-panel expense-panel--photo">
+                    <div className="panel__head">
+                      <h3 className="panel__title">Ảnh hóa đơn</h3>
                     </div>
-                    <div className="expense-panel__body expense-photo-body">
+                    <div className="panel__body expense-photo-body">
                       {photos.length > 0 && (
                         <div className="expense-photo-grid">
                           {photos.map((p, idx) => (
                             <div key={p.id} className="expense-photo-thumb">
-                              {failedIds.has(p.id) ? (
+                              {settled && !receiptUrls[idx] ? (
                                 <div className="expense-photo-thumb__error" role="alert">
                                   <span>Không tải được ảnh</span>
                                   <button
                                     type="button"
-                                    onClick={() => { clearFailure(p.id); setReloadKey((k) => k + 1); }}
+                                    onClick={() => setReloadKey((k) => k + 1)}
                                   >
                                     Thử lại
                                   </button>
@@ -113,15 +112,13 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                                 <button
                                   type="button"
                                   className="expense-photo-thumb__open"
+                                  disabled={!receiptUrls[idx]}
                                   aria-label={`Xem ảnh hóa đơn ${idx + 1}`}
-                                  onClick={() => setViewerIndex(idx)}
+                                  onClick={() => { if (receiptUrls[idx]) setViewerIndex(idx); }}
                                 >
-                                  <img
-                                    key={`${p.id}-${reloadKey}`}
-                                    src={getAuthenticatedPhotoUrl(p.url)}
+                                  <PhotoImage
+                                    src={receiptUrls[idx]}
                                     alt={`Ảnh ${idx + 1}`}
-                                    onLoad={() => clearFailure(p.id)}
-                                    onError={() => setFailedIds((prev) => new Set(prev).add(p.id))}
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                   />
                                 </button>
@@ -129,7 +126,7 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                               <button
                                 type="button"
                                 aria-label={`Xóa ảnh hóa đơn ${idx + 1}`}
-                                onClick={() => { removePhoto(idx); clearFailure(p.id); }}
+                                onClick={() => removePhoto(idx)}
                                 className="expense-photo-remove"
                               >
                                 <X size={16} />
@@ -161,31 +158,30 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                   </div>
 
                   <div className="expense-actions">
-                    <button
+                    <Btn
                       type="button"
-                      className="btn btn--secondary expense-btn-cancel"
+                      variant="secondary"
+                      size="md"
+                      className="expense-btn-cancel"
                       onClick={handleBack}
                     >
                       Hủy
-                    </button>
-                    <button
+                    </Btn>
+                    <Btn
                       type="submit"
-                      className="btn btn--primary expense-btn-submit"
-                      disabled={submitting || uploading}
+                      variant="primary"
+                      size="md"
+                      className="expense-btn-submit"
+                      disabled={submitting || uploading || saveDisabled}
+                      icon={submitting ? <Loader2 size={18} className="spin" /> : isEdit ? <Check size={18} /> : <Plus size={18} />}
                     >
-                      {submitting ? (
-                        <><Loader2 size={18} className="spin" /> Đang lưu…</>
-                      ) : isEdit ? (
-                        <><Check size={18} /> Cập nhật</>
-                      ) : (
-                        <><Plus size={18} /> Lưu chi phí</>
-                      )}
-                    </button>
+                      {submitting ? 'Đang lưu…' : isEdit ? 'Cập nhật' : 'Lưu chi phí'}
+                    </Btn>
                   </div>
                 </div>
       {viewerIndex != null && (
         <PhotoViewer
-          urls={photos.map((p) => getAuthenticatedPhotoUrl(p.url))}
+          urls={receiptUrls}
           initialIndex={viewerIndex}
           onClose={() => setViewerIndex(null)}
         />

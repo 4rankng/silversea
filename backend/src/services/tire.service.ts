@@ -1,6 +1,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, ne, sql } from 'drizzle-orm';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
+import { and, eq, isNull, ne } from 'drizzle-orm';
 import { TIRE_STATUS_LABELS, type TireStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
 import {
@@ -145,9 +146,7 @@ async function assertPositionFree(
   // Competing tire rows are different records, so row locks alone cannot
   // protect the shared vehicle-position invariant. Serialize that logical
   // slot before checking it; hash collisions only add harmless contention.
-  await tx.execute(sql`
-    SELECT pg_advisory_xact_lock(hashtext(${vehicleLockKey}), hashtext(${position}))
-  `);
+  await acquireAdvisoryLock(tx, lockKeys.tireVehicleSlot(vehicleLockKey, position));
 
   // Callers guarantee exactly one of truckId/trailerId is set; narrow for eq().
   const onVehicle = target.truckId != null

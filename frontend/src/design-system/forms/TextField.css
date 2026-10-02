@@ -1,4 +1,5 @@
 .ds-field {
+  --field-control-h: var(--control-h);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -22,25 +23,40 @@
 .ds-field textarea.ds-field__input {
   width: 100%;
   min-width: 0;
-  min-height: 44px;
+  min-height: var(--field-control-h);
   padding: 9px 12px;
   font-size: var(--control-field-font-size);
   line-height: 1.35;
   font-family: inherit;
   color: var(--ink, var(--fg));
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 249, 0.94));
+  background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: 10px;
   transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease), background 140ms var(--ease);
   box-sizing: border-box;
-  box-shadow: inset 0 1px 2px rgba(16, 24, 20, 0.025), 0 1px 0 rgba(255, 255, 255, 0.72);
+  box-shadow: none;
 }
 
 .ds-field__input:focus {
   outline: none;
   border-color: var(--brand);
-  box-shadow: inset 0 1px 2px rgba(16,24,20,0.015), 0 0 0 4px color-mix(in srgb, var(--brand) 16%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 16%, transparent);
+}
+
+/* Visible keyboard focus survives the shell's flat shadow reset. */
+.ds-field__input:focus-visible,
+.ds-field__input-group:has(.ds-field__input:focus-visible) {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.ds-field__input-group .ds-field__input:focus-visible {
+  outline: none;
+}
+
+.ds-field--error .ds-field__input:focus-visible,
+.ds-field--error .ds-field__input-group:has(.ds-field__input:focus-visible) {
+  outline-color: var(--danger);
 }
 
 .ds-field__input:disabled {
@@ -53,9 +69,10 @@
   display: flex;
   align-items: stretch;
   min-width: 0;
+  min-height: var(--field-control-h);
   border: 1px solid var(--line-2);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 249, 0.94));
+  background: var(--surface);
   overflow: hidden;
   transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
 }
@@ -72,6 +89,13 @@
   background: transparent;
 }
 
+/* The group owns both border pixels in root content and body-portalled forms.
+   Native input and affix interiors share its available minimum budget. */
+:is(#root, body) .ds-field .ds-field__input-group > input.ds-field__input:not([type='checkbox']):not([type='radio']),
+:is(#root, body) .ds-field .ds-field__input-group > .ds-field__affix {
+  min-height: calc(var(--field-control-h) - 2px);
+}
+
 .ds-field__input-group .ds-field__input:focus {
   box-shadow: none;
 }
@@ -85,6 +109,21 @@
   font-size: var(--text-control-compact-size);
   font-weight: 500;
   white-space: nowrap;
+}
+
+/* An embedded action fits inside the field's existing two border pixels. */
+.ds-field__affix:has(> [data-uui-control='button']) {
+  padding: 0;
+}
+
+:is(#root, body) .ds-field__affix > [data-uui-control='button'] {
+  --uui-control-h: calc(var(--field-control-h) - 2px);
+  min-height: calc(var(--field-control-h) - 2px);
+}
+
+:is(#root, body) .ds-field__affix > [data-uui-control='button'][data-icon-only] {
+  min-width: calc(var(--field-control-h) - 2px);
+  width: calc(var(--field-control-h) - 2px);
 }
 
 .ds-field__msg {
@@ -108,15 +147,20 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
 }
 
-@media (max-width: 640px) {
-  .ds-field__input,
-  .ds-field select.ds-field__input,
-  .ds-field textarea.ds-field__input {
-    min-height: 44px;
-  }
-}
-
 /* The same compact rhythm as shared select and button size sm. */
+.ds-field--sm { --field-control-h: var(--control-compact-h); }
+.ds-field.ds-field--short-number { --field-control-h: var(--control-compact-h); width: 72px; max-width: 100%; }
+.ds-field--short-number .ds-field__input { text-align: right; font-family: var(--font-data); }
+.ds-field--short-number .ds-field__input-group { border-radius: 8px; }
+/* The owner explicitly chose a compact numeric exception to the generic
+   phone/coarse floor. The group retains its own two border pixels above. */
+:is(#root, body) .ds-field.ds-field--short-number input.ds-field__input:not([type='checkbox']):not([type='radio']) {
+  min-height: var(--control-compact-h);
+  padding-block: 5px;
+}
+:is(#root, body) .ds-field.ds-field--short-number .ds-field__input-group > input.ds-field__input:not([type='checkbox']):not([type='radio']) {
+  min-height: calc(var(--control-compact-h) - 2px);
+}
 .ds-field--sm .ds-field__input {
   min-height: var(--control-compact-h);
   padding-block: 5px;
@@ -124,5 +168,6 @@
   border-radius: 8px;
 }
 @media (pointer: coarse), (max-width: 767px) {
+  .ds-field--sm { --field-control-h: var(--control-touch-h); }
   .ds-field--sm .ds-field__input { min-height: var(--control-touch-h); }
 }

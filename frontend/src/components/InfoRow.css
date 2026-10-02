@@ -87,5 +87,5 @@
   line-height: 1.25;
   color: var(--ink);
 }
-.info-row--hero .info-row__value--success { color: var(--accent); }
+.info-row--hero .info-row__value--success { color: var(--success-text); }
 .info-row--hero .info-row__value--danger  { color: var(--danger); }

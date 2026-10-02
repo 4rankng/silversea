@@ -8,6 +8,7 @@ import { InputWithPrefix } from "./InputWithPrefix";
 import './FuelSection.css';
 import { labelStyle } from '../../utils/formStyles';
 import { UuiSelectField } from '../../design-system';
+import { formatMoney } from '../../lib/format';
 
 export function FuelSection() {
   const form = useTripFormContext();
@@ -27,9 +28,9 @@ export function FuelSection() {
   // Guard against NaN: fuelConfig?.unitPrice may be null/undefined on the first
   // render before the query resolves (Number(undefined) === NaN, then
   // toLocaleString renders the literal "NaN" in the helper text).
-  const configPrice = (
-    fuelConfig && fuelConfig.unitPrice != null ? Number(fuelConfig.unitPrice) : 0
-  ).toLocaleString('vi-VN');
+  const configPrice = formatMoney(
+    fuelConfig && fuelConfig.unitPrice != null ? Number(fuelConfig.unitPrice) : 0,
+  );
 
   const unitPriceField = (
     <div className="field">

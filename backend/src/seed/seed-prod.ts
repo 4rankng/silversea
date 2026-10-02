@@ -351,8 +351,7 @@ export async function seedProdPorts(): Promise<void> {
       address: p.address,
       classification: p.classification,
       legalEntity: p.legalEntity,
-      isLachHuyen: p.isLachHuyen,
-      opsPortalUrl: p.opsPortalUrl,
+            opsPortalUrl: p.opsPortalUrl,
       position: p.position,
     } as const;
     const matched = existingPorts.find((row) => (p.code != null && row.code === p.code)

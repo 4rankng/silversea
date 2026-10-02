@@ -53,6 +53,28 @@ beforeEach(() => {
 });
 
 describe('DispatchAllocationPopover', () => {
+  it.each([
+    { bill: ' BL-2026-001 ', booking: 'BOOK-2026-002', expected: 'BL-2026-001' },
+    { bill: null, booking: ' BOOK-2026-002 ', expected: 'BOOK-2026-002' },
+    { bill: ' ', booking: ' BOOK-2026-002 ', expected: 'BOOK-2026-002' },
+    { bill: null, booking: null, expected: 'Chưa có số Bill/Booking' },
+    { bill: ' ', booking: ' ', expected: 'Chưa có số Bill/Booking' },
+  ])('UI52-B header shows $expected and closing never saves the unchanged shipment', async ({ bill, booking, expected }) => {
+    const original = shipment({ blNumber: bill, bookingRef: booking });
+    const onClose = vi.fn();
+    const onSaved = vi.fn();
+    render(<DispatchAllocationPopover shipment={original} onClose={onClose} onSaved={onSaved} />);
+    await screen.findByLabelText(/Nhà xe dòng 1/);
+    const identity = document.querySelector('.dispatch-allocation-popover__shipment strong');
+    expect(identity).toHaveTextContent(expected);
+    expect(identity?.textContent).toBe(expected);
+    expect(identity?.textContent).not.toContain(original.shipmentCode);
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(saveShipmentCarrierAllocations).not.toHaveBeenCalled();
+  });
+
   it('does not flag an untouched 0/0 row as an error', async () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
@@ -188,15 +210,18 @@ describe('DispatchAllocationPopover', () => {
     expect(screen.queryByText('10/09')).toBeNull();
   });
 
-  it('focuses its close control then restores focus to the allocation trigger', async () => {
+  it('focuses its close control then restores focus to the opener on unmount', async () => {
+    // The design-system modal module owns focus return (card 20260930_227):
+    // it captures the focused opener when the overlay opens — the module
+    // replaced this dialog's bespoke returnFocusTarget plumbing.
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);
+    trigger.focus();
     const rendered = render(
       <DispatchAllocationPopover
         shipment={shipment()}
         onClose={vi.fn()}
         onSaved={vi.fn()}
-        returnFocusTarget={trigger}
       />,
     );
 
@@ -223,7 +248,7 @@ describe('DispatchAllocationPopover', () => {
   });
 
   it('labels every decision field and distinguishes a valid partial allocation from an error', async () => {
-    const { container } = render(
+    render(
       <DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />,
     );
 
@@ -245,8 +270,10 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '1' } });
 
     expect(await screen.findByText(/Có thể lưu phân bổ hiện tại và bổ sung sau/)).toBeTruthy();
-    expect(container.querySelector('.dispatch-allocation-popover__summary.is-partial')).toBeTruthy();
-    expect(container.querySelector('.dispatch-allocation-popover__summary.is-error')).toBeNull();
+    // The dialog portals to document.body (design-system modal module), so the
+    // class probes query the document, not the render container.
+    expect(document.querySelector('.dispatch-allocation-popover__summary.is-partial')).toBeTruthy();
+    expect(document.querySelector('.dispatch-allocation-popover__summary.is-error')).toBeNull();
     expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(false);
   });
 

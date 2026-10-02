@@ -1,0 +1,1 @@
+ALTER TABLE "quotation_version_snapshots" ADD COLUMN "trigger_kind" varchar(30);

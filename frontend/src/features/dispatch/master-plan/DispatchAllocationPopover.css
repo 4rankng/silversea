@@ -1,16 +1,7 @@
-/* Decision-first carrier allocation dialog for the dispatch master plan. */
-
-.dispatch-allocation-popover__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal, 300);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.48);
-  backdrop-filter: blur(2px);
-}
+/* Decision-first carrier allocation dialog for the dispatch master plan.
+ * The overlay mechanics (scrim, z-index, dismissal, focus, scroll lock) are
+ * module-owned (design-system/Modal.css, card 20260930_227); only the
+ * allocation surface is styled here. */
 
 .dispatch-allocation-popover {
   width: min(760px, calc(100vw - 32px));
@@ -19,8 +10,7 @@
   padding: 16px;
   border: 1px solid var(--border-1);
   border-radius: 16px;
-  background: var(--bg-2);
-  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+  background: var(--surface);
   color: var(--fg-1);
   overscroll-behavior: contain;
 }
@@ -91,7 +81,7 @@
   overflow: hidden;
   border: 1px solid var(--border-1);
   border-radius: 10px;
-  background: var(--bg-1);
+  background: var(--surface-2);
 }
 
 .dispatch-allocation-popover__summary-heading {
@@ -112,7 +102,7 @@
 .dispatch-allocation-popover__state {
   flex: 0 0 auto;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--warning-soft);
   color: var(--warning-text);
   font-size: var(--text-caption-size);
@@ -213,7 +203,7 @@
 .dispatch-allocation-popover__summary-day-state {
   flex: 0 0 auto;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
   line-height: 1.4;
@@ -295,7 +285,7 @@
   position: relative;
   margin-top: 12px;
   padding: 10px 12px;
-  background: var(--bg-1);
+  background: var(--surface-2);
   color: var(--fg-2);
   font-size: var(--text-data-size);
   line-height: 1.5;
@@ -433,7 +423,7 @@
 .dispatch-allocation-popover__day-factory { color: var(--fg-2); font-size: var(--text-data-size); }
 
 .dispatch-allocation-popover__day-demand-chip {
-  padding: 2px 8px; border-radius: 999px; background: var(--bg-2);
+  padding: 2px 8px; border-radius: 6px; background: var(--surface-2);
   border: 1px solid var(--border-1); color: var(--fg-2);
   font-size: var(--text-caption-size); font-weight: 600;
 }
@@ -463,12 +453,11 @@
 .dispatch-allocation-popover__add { margin-top: 0; }
 
 @media (max-width: 680px) {
-  .dispatch-allocation-popover__overlay {
-    align-items: flex-end;
-    padding: max(8px, env(safe-area-inset-top)) 8px 0;
-  }
-
+  /* Phone bottom sheet: the panel docks itself to the foot of the centered
+   * bare overlay (the house .modal--bare keeps centering; align-self wins
+   * for this surface only). */
   .dispatch-allocation-popover {
+    align-self: flex-end;
     width: 100%;
     max-height: calc(100dvh - max(8px, env(safe-area-inset-top)));
     padding: 12px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
@@ -492,13 +481,13 @@
   }
 
   .dispatch-allocation-popover__remove {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
+    width: var(--control-max-h);
+    min-width: var(--control-max-h);
+    min-height: var(--control-max-h);
   }
 
   .dispatch-allocation-popover__add {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   .dispatch-allocation-popover__notice.is-warning {
@@ -512,7 +501,7 @@
   }
 
   .dispatch-allocation-popover__actions > * {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 }
 

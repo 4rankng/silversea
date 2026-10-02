@@ -116,7 +116,7 @@ describe('mobile ledger cards', () => {
   ])('shows the complete fuel purchase detail on $layout', ({ component }) => {
     render(component);
 
-    expect(screen.getByText('24/7/2026')).toBeTruthy();
+    expect(screen.getByText('24/07/2026')).toBeTruthy();
     expect(screen.getByText('15C-136.31')).toBeTruthy();
     expect(screen.getByText('Hải Phòng – Hà Nội')).toBeTruthy();
     expect(screen.getByText('160 lít')).toBeTruthy();
@@ -167,7 +167,7 @@ describe('mobile ledger cards', () => {
   ])('shows the repair vehicle plate on $layout', ({ component }) => {
     render(component);
 
-    expect(screen.getByText('6/7/2026')).toBeTruthy();
+    expect(screen.getByText('06/07/2026')).toBeTruthy();
     expect(screen.getByText('15C-136.31')).toBeTruthy();
     expect(screen.getByText('Sửa chữa nhỏ')).toBeTruthy();
     expect(screen.getAllByText(/8\.586\.000/).length).toBeGreaterThan(0);

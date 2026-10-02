@@ -1,11 +1,13 @@
+import { PhotoImage } from '../../../components/shared/PhotoImage';
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Package, Loader2, Camera, ImageOff } from 'lucide-react';
 import { api } from '../../../lib/api';
-import { photoSrc } from '../../../lib/api/photo';
+import { useAuthedPhotoUrls } from '../../../lib/api/photo';
 import { qk } from '../../../api/keys';
 import { PhotoViewer } from '../../../components/PhotoViewer';
 import '../../../components/PhotoViewer.css';
+import { formatNumber } from '../../../lib/format';
 
 /** Shape returned by GET /api/trips/:id/containers (listTripContainers). */
 export interface ServerContainer {
@@ -77,8 +79,10 @@ export function ContainersCard({ tripId }: Props) {
   // Prefer the new plural arrays; fall back to singular for older clients.
   const contKeys = data?.contPhotoKeys ?? (data?.contPhotoKey ? [data.contPhotoKey] : []);
   const sealKeys = data?.sealPhotoKeys ?? (data?.sealPhotoKey ? [data.sealPhotoKey] : []);
-  const contUrls = contKeys.map(photoSrc);
-  const sealUrls = sealKeys.map(photoSrc);
+  // DRV-DET-08: container/seal photos load with the Authorization header
+  // (blob), never a ?token= query string.
+  const contUrls = useAuthedPhotoUrls(contKeys);
+  const sealUrls = useAuthedPhotoUrls(sealKeys);
 
   const openGallery = (kind: 'cont' | 'seal', idx: number) => {
     const offset = kind === 'cont' ? 0 : contUrls.length;
@@ -163,7 +167,7 @@ export function ContainersCard({ tripId }: Props) {
                           <div className="cf">
                             <span className="cf-label">Trọng lượng</span>
                             <span className="cf-value mono">
-                              {c.cargoWeightKg ? `${Number(c.cargoWeightKg).toLocaleString('vi-VN')} kg` : '—'}
+                              {c.cargoWeightKg ? `${formatNumber(Number(c.cargoWeightKg))} kg` : '—'}
                             </span>
                           </div>
                         </>
@@ -225,7 +229,7 @@ function PhotoGallery({ label, kind, urls, broken, onOpen, onBroken }: PhotoGall
       <div className="cs-gallery__label">{label}</div>
       <div className="cs-thumbs">
         {urls.map((url, i) => {
-          const isBroken = broken.has(url);
+          const isBroken = !url || broken.has(url);
           return (
             <button
               key={`${url}-${i}`}
@@ -241,7 +245,7 @@ function PhotoGallery({ label, kind, urls, broken, onOpen, onBroken }: PhotoGall
                   <span>Lỗi tải</span>
                 </span>
               ) : (
-                <img
+                <PhotoImage
                   src={url}
                   alt={`${label} ${i + 1}`}
                   onError={() => onBroken(url)}

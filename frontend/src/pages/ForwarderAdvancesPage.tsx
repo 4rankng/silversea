@@ -1,22 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { Wallet, Loader2, Plus, X, User, AlertCircle, Clock, FileText, CheckCircle2 } from 'lucide-react';
-import { formatCurrency, formatDate } from '../lib/format';
+import { formatMoney, formatCurrency, formatDate } from '../lib/format';
 import { ADVANCE_REQUEST_STATUS_LABELS, AdvanceSettlementStatus, type AdvanceRequestStatus } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
-import { PageHeader, FormGroup } from '../components/UI';
-import { Pagination } from '../design-system';
+import { PageHeader, FormGroup, FilterPill } from '../components/UI';
+import { FilterBar, Pagination } from '../design-system';
 import { useForwarderAdvanceRequestsTable, useCreateAdvanceRequest, useForwarderAdvanceBalance, useForwarderSettlements } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations, useCounterAnimation } from '../hooks/animations';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import './ForwarderAdvancesPage.css';
 import '../components/shared/HeroKpiRow.css';
 import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
-
-const STATUS_COLORS: Record<string, string> = {
-  RECORDED: 'var(--success, #059669)',
-  VOIDED: 'var(--danger)',
-  DRAFT: 'var(--ink-muted)',
-};
 
 type StatusFilter = '' | AdvanceRequestStatus;
 
@@ -39,7 +33,7 @@ export default function ForwarderAdvancesPage() {
   const settledPaid = recordedSettlements.reduce((sum, s) => sum + Number(s.totalExpenseAmount), 0);
   const { rootRef } = usePageAnimations({
     ready: !loading,
-    selectors: ['.page-header', '.hero-kpi-row', '.fadv-form-panel', '.fwd-filter-pills', '.fadv-card-trip'],
+    selectors: ['.page-header', '.hero-kpi-row', '.fadv-form-panel', '.filter-bar', '.fadv-card-trip'],
   });
   const createAdvanceRequest = useCreateAdvanceRequest();
   const requests = table.rows;
@@ -72,10 +66,10 @@ export default function ForwarderAdvancesPage() {
   useEffect(() => {
     if (loading || totalRequests === 0 || prefersReduced) return;
     animateCounters([
-      { el: heroAmountRef.current, value: totalAmount, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+      { el: heroAmountRef.current, value: totalAmount, format: (v: number) => formatMoney(v) },
       { el: heroTotalRef.current, value: totalRequests, suffix: ' phiếu' },
       { el: heroPendingRef.current, value: recordedCount },
-      { el: heroOutstandingRef.current, value: outstanding, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+      { el: heroOutstandingRef.current, value: outstanding, format: (v: number) => formatMoney(v) },
     ]);
   }, [loading, totalRequests, totalAmount, recordedCount, outstanding, animateCounters, prefersReduced]);
 
@@ -145,15 +139,15 @@ export default function ForwarderAdvancesPage() {
         <div className="hero-kpi-row">
           <div className="hero-kpi-card">
             <span className="hero-kpi-card__eyebrow">Tổng tạm ứng</span>
-            <span className="hero-kpi-card__amount"><span ref={heroAmountRef}>{Math.round(totalAmount).toLocaleString('vi-VN')}</span><span className="hero-kpi-card__currency">₫</span></span>
+            <span className="hero-kpi-card__amount"><span ref={heroAmountRef}>{formatMoney(totalAmount)}</span><span className="hero-kpi-card__currency">₫</span></span>
             <span className="hero-kpi-card__subtitle">{totalRequests} phiếu tạm ứng</span>
             <Wallet size={72} className="hero-kpi-card__watermark" aria-hidden />
           </div>
           <div className="hero-kpi-stack">
-            <div className="hero-kpi-mini hero-kpi-mini--accent">
+            <div className={`hero-kpi-mini ${outstanding < 0 ? 'hero-kpi-mini--danger' : 'hero-kpi-mini--accent'}`}>
               <div className="hero-kpi-mini__body">
-                <span className="hero-kpi-mini__value" ref={heroOutstandingRef}>{Math.round(outstanding).toLocaleString('vi-VN')}</span>
-                <span className="hero-kpi-mini__label">tồn tạm ứng (₫)</span>
+                <span className="hero-kpi-mini__value" ref={heroOutstandingRef} style={outstanding < 0 ? { color: 'var(--danger)' } : undefined}>{formatMoney(outstanding)}</span>
+                <span className="hero-kpi-mini__label">{outstanding < 0 ? 'chi vượt tạm ứng (₫)' : 'tồn tạm ứng (₫)'}</span>
               </div>
               <Wallet size={40} className="hero-kpi-mini__watermark" aria-hidden="true" />
             </div>
@@ -250,32 +244,38 @@ export default function ForwarderAdvancesPage() {
         </div>
       )}
 
-      {/* Filter pills */}
+      {/* Card 20260927_152 — the shared bar owns the strip's layout and every
+          control width; the full-set status counts ride the quick-filter slot
+          as the shared `.filter-chip`. */}
       {totalRequests > 0 && (
-        <div className="fwd-filter-pills">
-          <button
-            className={`fwd-filter-pill ${activeFilter === '' ? 'fwd-filter-pill--active' : ''}`}
-            onClick={() => table.setFilter('status', undefined)}
-          >
-            Tất cả
-            <span className="fwd-filter-pill__count">{totalRequests}</span>
-          </button>
-          {(Object.entries(ADVANCE_REQUEST_STATUS_LABELS) as [AdvanceRequestStatus, string][]).map(([status, label]) => {
-            const count = counts[status] ?? 0;
-            if (count === 0) return null;
-            return (
-              <button
-                key={status}
-                className={`fwd-filter-pill ${activeFilter === status ? 'fwd-filter-pill--active' : ''}`}
-                onClick={() => table.setFilter('status', activeFilter === status ? undefined : status)}
+        <FilterBar
+          quickFiltersLabel="Lọc theo trạng thái"
+          quickFilters={(
+            <>
+              <FilterPill
+                active={activeFilter === ''}
+                onClick={() => table.setFilter('status', undefined)}
+                count={totalRequests}
               >
-                <span className="fwd-filter-pill__dot" style={{ background: STATUS_COLORS[status] }} />
-                {label}
-                <span className="fwd-filter-pill__count">{count}</span>
-              </button>
-            );
-          })}
-        </div>
+                Tất cả
+              </FilterPill>
+              {(Object.entries(ADVANCE_REQUEST_STATUS_LABELS) as [AdvanceRequestStatus, string][]).map(([status, label]) => {
+                const count = counts[status] ?? 0;
+                if (count === 0) return null;
+                return (
+                  <FilterPill
+                    key={status}
+                    active={activeFilter === status}
+                    onClick={() => table.setFilter('status', activeFilter === status ? undefined : status)}
+                    count={count}
+                  >
+                    {label}
+                  </FilterPill>
+                );
+              })}
+            </>
+          )}
+        />
       )}
 
       {/* Empty state */}
@@ -285,9 +285,6 @@ export default function ForwarderAdvancesPage() {
             <Wallet size={64} />
           </div>
           <h3 className="fadv-empty__title">Chưa có phiếu tạm ứng</h3>
-          <p className="fadv-empty__desc">
-            Nhấn "Ghi nhận tạm ứng" để gửi phiếu tạm ứng mới.
-          </p>
         </div>
       ) : (
         <>

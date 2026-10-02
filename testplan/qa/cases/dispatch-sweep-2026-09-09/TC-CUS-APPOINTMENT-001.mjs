@@ -1,36 +1,49 @@
 // testplan/qa/cases/dispatch-sweep-2026-09-09/TC-CUS-APPOINTMENT-001.mjs
 // TC-CUS-APPOINTMENT-001 — Popover chỉnh sửa lịch hẹn: Giờ trước, Ngày sau khớp bảng ngoài
 // Source: Báo cáo khách hàng 2026-09-08 / Image 2 Bottom
+//
+// Row selection is by PROPERTY, not by position. The case used to open the FIRST
+// `.cus-dashboard-detail` button of /shipments and then fall back to a row whose
+// text happened to contain "cont"/"20DC"/"40HC" — both guesses pick whatever
+// lot the run created most recently, and a container-less lot has no
+// `.cus-appointment-trigger` to open at all. `pickContainerBearingShipment`
+// (lib/fixtures.mjs) asks the API for a lot that actually has containers; when
+// the env has none the case is BLOCKED naming the env, never FAIL.
+
+import { pickContainerBearingShipment } from '../../lib/fixtures.mjs';
+import { QE, SEL } from '../../lib/selectors.mjs';
 
 export const caseId = 'TC-CUS-APPOINTMENT-001';
 export const role = 'ADMIN';
 
 export default async function (ctx) {
   const { page } = ctx;
-  await ctx.goto('/shipments');
-  await page.waitForSelector('.cus-dashboard-detail', { timeout: 15000 });
+  const envTag = `[${ctx.env.env}]`;
 
-  // Pick a shipment row that has containers
-  const detailButtons = await page.$$('.cus-dashboard-detail');
-  if (detailButtons.length === 0) {
-    return { verdict: 'BLOCKED', errors: ['Không tìm thấy nút Chi tiết trên /shipments'] };
+  const lot = await pickContainerBearingShipment(ctx);
+  if (!lot) {
+    return {
+      verdict: 'BLOCKED',
+      errors: [`${envTag} no lot with containers to open — the appointment popover rung needs one`],
+    };
   }
 
-  let targetBtn = detailButtons[0];
-  for (const btn of detailButtons) {
-    const hasContainers = await page.evaluate((el) => {
-      const row = el.closest('tr');
-      const text = row ? row.innerText : '';
-      return text.includes('cont') || text.includes('20DC') || text.includes('40HC');
-    }, btn);
-    if (hasContainers) {
-      targetBtn = btn;
-      break;
-    }
-  }
+  // Narrow the workboard to the chosen lot through the app's own search, then
+  // open THAT lot's row (CusShipmentRow.tsx:235 → `cus-dashboard-detail-<id>`).
+  const board = `/shipments?limit=200&searchSuffix=${encodeURIComponent(lot.ref)}`;
+  await ctx.goto(board);
 
-  const detailId = await page.evaluate((el) => el.id, targetBtn);
-  await page.click('#' + detailId);
+  const rowPresent = await page.waitForSelector(SEL.rowDetailButton(lot.id), { timeout: 15000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!rowPresent) {
+    return {
+      verdict: 'FAIL',
+      lot,
+      errors: [`${envTag} lot #${lot.id} (${lot.ref}, ${lot.containerCount} cont) is in the API but its row never rendered on ${board}`],
+    };
+  }
+  const detailLabel = await page.evaluate(QE.clickRowDetailButton(lot.id));
   await page.waitForSelector('.cus-shipment-drawer', { timeout: 8000 });
   await new Promise((r) => setTimeout(r, 1200));
 
@@ -47,7 +60,12 @@ export default async function (ctx) {
   }
 
   if (!aptTrigger) {
-    return { verdict: 'BLOCKED', errors: ['Không tìm thấy nút chỉnh sửa lịch cont (.cus-appointment-trigger) trong drawer'] };
+    return {
+      verdict: 'BLOCKED',
+      lot,
+      detailLabel,
+      errors: [`${envTag} lot #${lot.id} (${lot.containerCount} cont) rendered no appointment trigger (.cus-appointment-trigger) in the drawer, in view or in edit mode`],
+    };
   }
 
   await aptTrigger.evaluate((el) => {
@@ -60,13 +78,16 @@ export default async function (ctx) {
   await ctx.screenshot('02_appointment_popover_open');
 
   const fields = await page.evaluate(() => {
-    const wraps = Array.from(document.querySelectorAll('.cus-appointment-popover .cus-appointment-input-wrap'));
-    return wraps.map((w) => ({
-      label: w.querySelector('label')?.innerText.trim(),
-      type: w.querySelector('input')?.type,
-      value: w.querySelector('input')?.value,
-      lang: w.querySelector('input')?.getAttribute('lang'),
-    }));
+    // Current control: design-system 24h split-datetime (segments HH/mm then
+    // DD/MM/YYYY; design-system.md forbids native time/date inputs).
+    const pop = document.querySelector('.cus-appointment-popover');
+    const dt = pop?.querySelector('[data-split-datetime]');
+    const segs = dt ? Array.from(dt.querySelectorAll('input')) : [];
+    const segPh = segs.map((i) => i.placeholder || i.getAttribute('aria-label') || '');
+    const ph = segPh.join(' ');
+    const label = dt?.getAttribute('aria-label') || segs[0]?.getAttribute('aria-label') || '';
+    const native = pop ? pop.querySelectorAll('input[type="time"], input[type="date"]').length : 0;
+    return [{ label, placeholder: ph, segmentCount: segs.length, nativeInputs: native }];
   });
 
   // Close popover
@@ -79,15 +100,21 @@ export default async function (ctx) {
   if (closeDrawer) await closeDrawer.click();
   await new Promise((r) => setTimeout(r, 400));
 
-  const isGioFirst = fields.length >= 2
-    && fields[0].label.toUpperCase().includes('GIỜ')
-    && fields[0].type === 'time'
-    && fields[1].label.toUpperCase().includes('NGÀY')
-    && fields[1].type === 'date';
+  // Spec: hour-before-date order lives in the 24h input's placeholder
+  // ("HH:mm DD/MM/YYYY") — HH:mm precedes DD/MM/YYYY; no native inputs.
+  const f = fields[0] || {};
+  const ph = f.placeholder || '';
+  const isGioFirst = fields.length >= 1
+    && f.segmentCount >= 3
+    && ph.indexOf('HH') !== -1 && ph.indexOf('HH') < ph.indexOf('DD')
+    && f.nativeInputs === 0;
 
   return {
     verdict: isGioFirst ? 'PASS' : 'FAIL',
+    lot,
+    detailLabel,
     fields,
     isGioFirst,
+    errors: isGioFirst ? [] : [`${envTag} the appointment popover on lot #${lot.id} did not render an HH:mm-before-DD/MM/YYYY 24h split control with zero native inputs: ${JSON.stringify(fields[0] ?? null)}`],
   };
 }

@@ -1,11 +1,37 @@
 /* Customer catalogs contain twelve facts per record. Keep their summary and
    labelled layout compact without changing the shared config-page patterns. */
+/* Card 20260926_9 (CHIEF 8-item overhaul): the KPI strip becomes ONE card —
+   radius 12 + 1px border on the container replaces the vertical dividers on
+   the gray canvas; numbers go primary semibold with a muted unit; every
+   sub-label reads the same neutral color. */
 .cfg-page--customers .cfg-customer-summary {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   margin-bottom: 12px;
-  padding-block: 8px;
-  border-block: 1px solid var(--line);
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.cfg-page--customers .cfg-customer-summary > .kpi + .kpi {
+  border-inline-start: 0;
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__value {
+  font-size: var(--text-metric-size);
+  font-weight: var(--fw-semibold, 600);
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__value-unit {
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-regular, 400);
+  color: var(--ink-3);
+}
+
+.cfg-page--customers .cfg-customer-summary .kpi__meta--up {
+  color: var(--ink-3);
+  font-weight: var(--fw-regular, 400);
 }
 
 .cfg-page--customers .cfg-customer-summary > .kpi {
@@ -74,19 +100,8 @@
 
 /* Compact records keep additional fields in an explicit disclosure. */
 .cfg-customer-short-name, .cfg-customer-compact-meta, .cfg-customer-details { display: none; }
-.cfg-page--customers .cfg-customer-toolbar { display: flex; gap: 8px; padding: 8px 0; background: transparent; min-height: 0; }
-.cfg-customer-filter-pills { display: flex; gap: 4px; flex-wrap: wrap; }
-.cfg-customer-search { flex: 1 1 220px; max-width: 340px; min-width: 0; margin-left: auto; }
-.cfg-page--customers .cfg-customer-filter-select { display: none; }
 .cfg-page--customers > .table-wrap { background: transparent; border: 0; box-shadow: none; }
 .cfg-customer-fetch-status { min-height: 20px; display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
-
-@media (max-width: 760px) {
-  .cfg-page--customers .cfg-customer-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 130px; align-items: end; gap: 6px; }
-  .cfg-customer-filter-pills { display: none; }
-  .cfg-customer-search { width: 100%; max-width: none; margin: 0; }
-  .cfg-page--customers .cfg-customer-filter-select { display: block; min-width: 0; }
-}
 
 @container (max-width: 1100px) {
   .cfg-page--customers .cfg-customer-table tbody { gap: 0; }
@@ -96,9 +111,9 @@
   .cfg-page--customers .cfg-customer-table tbody tr > td:first-child { grid-column: 1; min-width: 0; }
   .cfg-page--customers .cfg-customer-table tbody tr > td::before { display: none; }
   .cfg-page--customers .cfg-customer-table tbody tr > td.record-table__action { grid-column: 2; grid-row: 1; align-self: start; padding: 0; }
-  .cfg-page--customers .cfg-customer-table .row-action { min-width: 44px; min-height: 44px; }
+  .cfg-page--customers .cfg-customer-table .row-action { min-width: var(--control-max-h); min-height: var(--control-max-h); }
   .cfg-customer-short-name { display: block; font-size: var(--text-data-size); line-height: 1.4; }
-  .cfg-customer-full-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+  .cfg-customer-full-name { display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
   .cfg-customer-short-name + .cfg-customer-full-name { color: var(--ink-3); font-weight: var(--fw-regular, 400); font-size: var(--text-caption-size); }
   .cfg-customer-compact-meta { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 3px; font-size: var(--text-caption-size); line-height: 1.4; color: var(--ink-3); }
   .cfg-customer-details { display: block; }
@@ -109,4 +124,27 @@
   .cfg-customer-details dt { color: var(--ink-3); font-size: var(--text-caption-size); font-weight: var(--fw-regular, 400); }
   .cfg-customer-details dd { margin: 2px 0 0; overflow-wrap: anywhere; line-height: 1.4; font-size: var(--text-data-size); }
 }
-@media (pointer: coarse) { .cfg-customer-details > summary { min-height: 44px; } }
+@media (pointer: coarse) { .cfg-customer-details > summary { min-height: var(--control-max-h); } }
+
+/* Card 20260925_47 (audit, header-wrap band): the two Hạn Thanh Toán headers
+   read 'HẠN THANH / TOÁN CHI HỘ / (NGÀY)' — three ragged lines at tight
+   column widths (the table hosts up to 12 columns; seeded chi-hộ data
+   narrows them). A 132px floor lets 'HẠN THANH TOÁN' hold line 1, so the
+   header settles at an even 2-line wrap next to its neighbours. */
+.cfg-page--customers .cfg-customer-table thead th.num { min-width: 132px; }
+
+/* Card 20260926_9 (CHIEF overhaul): one toolbar rhythm — filter pills and
+   the search shell share the 36px control height; table rows breathe at
+   12px vertical / 16px horizontal (desktop table; the phone card list keeps
+   its own padding). */
+.cfg-page--customers .filter-tab,
+.cfg-page--customers .filter-bar .filter-tab,
+.cfg-page--customers .filter-bar__search {
+  height: 36px;
+}
+
+@media (min-width: 641px) {
+  .cfg-page--customers .cfg-customer-table tbody td {
+    padding: 12px 16px;
+  }
+}

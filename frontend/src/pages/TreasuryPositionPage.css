@@ -1,100 +1,16 @@
 /*
- * Treasury book-balance surface (Sổ quỹ / ngân hàng).
+ * Treasury book-balance surface (Sổ quỹ / Ngân hàng).
  *
  * Sizing follows the app-wide operational contract (docs/design-guidelines.md):
- * table type from the --ops-table-* tokens, controls from --control-*, KPI
- * numbers at --fs-xl with 12px labels, numerics in --font-data aligned by
- * right edge. No per-route font scale lives in this file.
+ * table type from the --ops-table-* tokens, numerics in --font-data aligned by
+ * right edge. The summary strip, the loading state and every notice are the
+ * shared primitives (SummaryRail / Skeleton / Alert) — no per-route font scale,
+ * KPI rail, notice strip or loader lives in this file.
  */
 
 .treasury-page {
   padding-bottom: 40px;
   min-width: 0;
-}
-
-/* Coverage notice — one quiet meta line on the operational type scale. */
-.treasury-notice {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 2px 10px;
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--app-radius-sm);
-  background: var(--surface-2);
-  font-size: var(--ops-table-supporting-size);
-  line-height: var(--ops-table-supporting-line-height);
-  color: var(--fg-2);
-}
-
-.treasury-notice strong {
-  font-weight: var(--ops-table-primary-weight);
-  color: var(--fg-1);
-}
-
-.treasury-notice--complete strong {
-  color: var(--success-text);
-}
-
-.treasury-notice--partial strong {
-  color: var(--warning-text);
-}
-
-.treasury-notice--error {
-  align-items: center;
-  color: var(--danger-text);
-  border-color: var(--danger);
-}
-
-/* In-card actions ride the compact control scale (34px desktop). */
-.treasury-notice--error .btn {
-  margin-left: auto;
-  min-height: var(--control-compact-h);
-  font-size: var(--control-compact-font-size);
-}
-
-/* KPI rail — numbers 20px bold with 12px labels (design guidelines). */
-.treasury-rail {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.treasury-rail__item {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  column-gap: 8px;
-  row-gap: 2px;
-  padding: 12px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--app-radius-sm);
-  background: var(--surface);
-}
-
-.treasury-rail__item > svg {
-  grid-row: 1;
-  color: var(--fg-3);
-}
-
-.treasury-rail__item > span {
-  grid-row: 1;
-  color: var(--fg-3);
-  font-size: var(--ops-table-supporting-size);
-  font-weight: var(--ops-table-primary-weight);
-  line-height: var(--ops-table-supporting-line-height);
-}
-
-.treasury-rail__item > strong {
-  grid-column: 1 / -1;
-  color: var(--fg-1);
-  font-family: var(--font-data);
-  font-size: var(--fs-xl);
-  font-weight: 700;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
 }
 
 /* Account records — the record-table base owns chrome, stickiness, hover,
@@ -126,29 +42,19 @@
   color: var(--fg-3);
 }
 
-.treasury-table td.num {
-  white-space: nowrap;
-}
-
 .treasury-table__balance strong {
   font-size: var(--ops-table-primary-size);
   font-weight: var(--ops-table-primary-weight);
   color: var(--fg-1);
 }
 
-@media (max-width: 639px) {
-  .treasury-rail {
-    grid-template-columns: 1fr;
-  }
-
-  .treasury-notice--error .btn {
-    width: 100%;
-    margin-left: 0;
-  }
+.treasury-table__account > button {
+  justify-self: start;
 }
 
+/* Treasury account drawer (features/treasury) — field pairs ride one row and
+   fold to a single column on phones. */
 .treasury-account-form { display: grid; gap: 12px; min-width: 0; }
 .treasury-account-form > p { margin: 0; color: var(--fg-2); }
 .treasury-account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.treasury-table__account > button { justify-self: start; }
 @media (max-width: 480px) { .treasury-account-fields { grid-template-columns: minmax(0, 1fr); } }

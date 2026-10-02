@@ -1,9 +1,11 @@
+import { PhotoImage } from '../../components/shared/PhotoImage';
+import { opsBillReference } from './opsStatus';
 import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, X, Trash2 } from 'lucide-react';
 import { useOpsExpenseTypes, useUpdateOpsExpense, useAttachOpsExpensePhoto, useOpsExpensePhotos, useDeleteOpsExpensePhoto } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsExpenseRow } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
-import { getAuthenticatedPhotoUrl } from '../../lib/api';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { DateInput } from '../../design-system/forms/DateInput';
@@ -17,7 +19,8 @@ import { OpsExpenseFinancialFields, opsFinancialPayload, opsGroupForType, useOps
  * checks remain authoritative; the container scope stays fixed after create.
  */
 export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; onClose: () => void }) {
-  const { data: typesData } = useOpsExpenseTypes();
+  const typesQuery = useOpsExpenseTypes();
+  const typesData = typesQuery.data;
   const updateExpense = useUpdateOpsExpense();
   const { toast } = useToast();
 
@@ -28,9 +31,17 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const [typeCode, setTypeCode] = useState(entry.expenseTypeCode);
   const [amount, setAmount] = useState<number | ''>(Number(entry.amount));
   const [paidAt, setPaidAt] = useState(entry.paidAt);
+  const locked = Boolean(entry.confirmedAt || entry.opsSettlementId || ['VOIDED', 'REJECTED'].includes(entry.approvalStatus));
+  const [reason, setReason] = useState('');
   const [note, setNote] = useState(entry.note ?? '');
+  // The stored source group wins (it is what accounting/reporting read); the
+  // fallback derives from the catalog row's `category` — never the code. A row
+  // whose fee is no longer ACTIVE (absent from the fetched catalog) keeps the
+  // Phí khác catch-all, and the operator can pick the group in the select.
   const [financial, setFinancial] = useOpsExpenseFinancialDraft({
-    costGroup: (entry.costGroup as OpsCostGroup | null) ?? opsGroupForType(entry.expenseTypeCode, entry.requiresInvoice === true),
+    costGroup: (entry.costGroup as OpsCostGroup | null)
+      ?? opsGroupForType(typesData?.items.find((item) => item.code === entry.expenseTypeCode)
+        ?? { requiresInvoice: entry.requiresInvoice, category: null }),
     feeName: entry.feeName ?? '', invoiceNumber: entry.invoiceNumber ?? '',
     invoiceDate: entry.invoiceDate ?? '', recoveryNote: entry.recoveryNote ?? '',
   });
@@ -64,14 +75,23 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
     return options;
   }, [groupedTypes]);
 
-  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
+  // Card 20260928_197 — mirrors the backend `signedExpenseVndSchema`: a signed
+  // integer inside the money ceiling, 0 rejected. A negative edit removes the
+  // line from every total (PM: "(-) chi phí tương đương xóa dòng").
+  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount !== 0 && Math.abs(amount) <= 999_999_999_999_999;
   const amountError = amount === '' || amountValid ? undefined
-    : amount <= 0 ? 'Số tiền phải là số dương' : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
-  const canSubmit = Boolean(typeCode) && amountValid && !updateExpense.isPending && !uploadingPhoto && pendingFiles.length === 0;
+    : amount === 0 ? 'Số tiền không được bằng 0 — nhập (+) chi phí hoặc (−) chi phí để bỏ dòng'
+    : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
+  const typesReady = typesQuery.isSuccess && Boolean(typesData?.items.length);
+  const canSubmit = typesReady && !locked && Boolean(reason.trim()) && Boolean(typeCode) && amountValid && !updateExpense.isPending && !uploadingPhoto && pendingFiles.length === 0;
 
   // Server-side photo count via readback (reactively updates through cache
   // invalidation from useAttachOpsExpensePhoto → useOpsExpensePhotos).
-  const serverPhotoCount = existingPhotosData?.items.length ?? 0;
+  const serverPhotos = existingPhotosData?.items ?? [];
+  // DRV-DET-08: receipt evidence loads with the Authorization header (blob),
+  // never a ?token= query string. Index-aligned with `serverPhotos`.
+  const serverPhotoUrls = useAuthedPhotoUrls(serverPhotos.map((photo) => photo.storageKey));
+  const serverPhotoCount = serverPhotos.length;
   const missingReceipt = serverPhotoCount === 0 && entry.requiresInvoice === true;
 
   async function handlePhotoUpload(files: FileList | File[] | null) {
@@ -108,6 +128,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
           paidAt,
           note: note.trim() || null,
           expectedVersion: entry.version,
+          reason: reason.trim(),
           ...opsFinancialPayload(financial),
         },
       });
@@ -121,23 +142,40 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   }
 
   return (
-    <OpsModalBackdrop onClose={() => { if (!savingRef.current && !uploadingPhoto) onClose(); }} ariaLabel={`Sửa khoản chi ${entry.shipmentCode ?? ''}`}>
+    <OpsModalBackdrop onClose={() => { if (!savingRef.current && !uploadingPhoto) onClose(); }} ariaLabel={`Sửa khoản chi ${opsBillReference(entry.billRef)}`}>
       <form className="ops-modal" onSubmit={handleSubmit}>
         <header className="ops-modal__head">
-          <h2>Sửa khoản chi · {entry.shipmentCode ?? entry.shipmentId}{entry.containerNumber ? ` · ${entry.containerNumber}` : ''}</h2>
+          <h2>Sửa khoản chi · {opsBillReference(entry.billRef)}{entry.containerNumber ? ` · ${entry.containerNumber}` : ''}</h2>
           <button type="button" aria-label="Đóng" disabled={updateExpense.isPending || uploadingPhoto} onClick={onClose}><X size={18} /></button>
         </header>
         <div className="ops-modal__body">
+          {locked && <p role="status">Khoản đã đối chiếu — bạn vẫn có thể bổ sung chứng từ.</p>}
+          {typesQuery.isPending && <p role="status">Đang tải danh mục loại phí…</p>}
+          {typesQuery.isError && <div role="alert">
+            <p>Không tải được danh mục loại phí. Nội dung đang nhập vẫn được giữ.</p>
+            <button type="button" className="btn btn--secondary" disabled={typesQuery.isFetching} onClick={() => void typesQuery.refetch()}>
+              {typesQuery.isFetching ? 'Đang tải…' : 'Thử tải lại loại phí'}
+            </button>
+          </div>}
+          {typesQuery.isSuccess && !typesData?.items.length && <p role="status">Chưa có loại phí đang sử dụng. Liên hệ người quản lý danh mục để bổ sung.</p>}
+          <fieldset disabled={locked || updateExpense.isPending} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div className="ops-form-grid">
             <UuiSelectField
               label="Loại phí"
               required
+              disabled={!typesReady}
               value={typeCode}
-              onChange={(event) => setTypeCode(event.target.value)}
+              onChange={(event) => {
+                // Card 20260928_161 — the group follows the catalog row, so a
+                // fee-type change re-derives it (same rule as the create form).
+                const type = typesData?.items.find((item) => item.code === event.target.value);
+                setTypeCode(event.target.value);
+                setFinancial((current) => ({ ...current, costGroup: opsGroupForType(type) }));
+              }}
               options={expenseTypeOptions}
             />
-            <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} onChange={setAmount}
-              min={1} max={999_999_999_999_999} step={1} required error={amountError} />
+            <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={amount} onChange={setAmount}
+              min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required error={amountError} />
             <label>
               Ngày chi *
               <DateInput value={paidAt} onChange={setPaidAt} required />
@@ -149,6 +187,8 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
             <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} />
           </label>
 
+          {!locked && <label className="ops-form-note">Lý do điều chỉnh *<textarea value={reason} onChange={event => setReason(event.target.value)} required maxLength={1000} rows={2} /></label>}
+          </fieldset>
           <div className="ops-form-photos">
             <div className="ops-form-photos__head">
               <span>
@@ -157,7 +197,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
               </span>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn--secondary"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploadingPhoto || attachPhoto.isPending}
               >
@@ -177,10 +217,11 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
             {pendingFiles.length > 0 && !uploadingPhoto && <div className="expense-accounting-file" role="status"><span>{pendingFiles.length} ảnh chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => void handlePhotoUpload(pendingFiles)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" onClick={() => setPendingFiles([])}>Bỏ ảnh chưa tải</button></div>}
             {serverPhotoCount > 0 && (
               <ul className="ops-form-photos__list">
-                {(existingPhotosData?.items ?? []).map((photo) => (
+                {serverPhotos.map((photo, photoIndex) => (
                   <li key={photo.storageKey}>
-                    <img src={getAuthenticatedPhotoUrl(`/api/photos/${encodeURIComponent(photo.storageKey)}`)} alt="Biên lai khoản chi" />
-                    <button type="button" aria-label={`Xóa ảnh biên lai ${photo.id}`} disabled={deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được ảnh.' }))}><Trash2 size={14} /></button>
+                    <PhotoImage src={serverPhotoUrls[photoIndex]} alt="Biên lai khoản chi" />
+                    {/* Business key + position — never the DB row id (internal-ids law). */}
+                    <button type="button" aria-label={`Xóa ảnh biên lai ${opsBillReference(entry.billRef)} · ảnh ${photoIndex + 1}`} disabled={locked || deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được ảnh.' }))}><Trash2 size={14} /></button>
                   </li>
                 ))}
               </ul>
@@ -190,10 +231,10 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
         <footer className="ops-modal__foot">
           <div>{entry.rejectionReason ? `Lý do bị từ chối: ${entry.rejectionReason}` : ''}</div>
           <div className="ops-modal__actions">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={updateExpense.isPending || uploadingPhoto}>Đóng</button>
-            <button type="submit" className="btn-primary" disabled={!canSubmit}>
+            <button type="button" className="btn btn--secondary" onClick={onClose} disabled={updateExpense.isPending || uploadingPhoto}>Đóng</button>
+            {!locked && <button type="submit" className="btn btn--primary" disabled={!canSubmit}>
               {updateExpense.isPending ? <Loader2 size={14} className="spin" /> : null} Lưu
-            </button>
+            </button>}
           </div>
         </footer>
       </form>

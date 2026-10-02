@@ -89,13 +89,12 @@ function scaledSize(width: number, height: number, maxDimension: number): { widt
 
 /** YYYY-MM-DD HH:mm:ss — the timestamp burned into driver photo pixels (spec AC-OCR-001). */
 export function formatPhotoTimestamp(date: Date): string {
-  const yyyy = date.getFullYear();
-  const mo = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  const ss = String(date.getSeconds()).padStart(2, '0');
-  return `${yyyy}-${mo}-${dd} ${hh}:${mm}:${ss}`;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((value) => value.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')} ${part('hour')}:${part('minute')}:${part('second')}`;
 }
 
 /**

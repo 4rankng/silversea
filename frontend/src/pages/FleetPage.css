@@ -7,7 +7,7 @@
 
   /* Fleet-scoped color tokens — keeps gradient/border stops themeable
      without polluting the global token sheet. */
-  --fleet-glow: #00B14F;
+  --fleet-glow: var(--brand);
   --fleet-green-end: #DDF7E8;
   --fleet-blue-start: #EFF6FF;
   --fleet-blue-mid: #E6F0FF;
@@ -181,7 +181,7 @@
   font-size: var(--text-caption-size);
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--surface-3);
   color: var(--ink-2);
 }
@@ -271,8 +271,8 @@
 }
 
 .fleet-page .fleet-type-chip.unknown {
-  background: var(--bg-3, #f1f5f9);
-  color: var(--fg-3, #64748b);
+  background: var(--bg-3);
+  color: var(--fg-3);
 }
 .fleet-page .fleet-type-chip.ft20 {
   background: linear-gradient(180deg, var(--accent-soft), var(--fleet-green-end));
@@ -376,39 +376,6 @@
   font-weight: 500;
 }
 
-/* Mini search in drivers card */
-.fleet-page .fleet-mini-search {
-  position: relative;
-  width: 220px;
-}
-
-.fleet-page .fleet-mini-search input {
-  width: 100%;
-  min-height: var(--filter-control-h);
-  padding: 10px 10px 10px 32px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: var(--text-control-size);
-  line-height: 1.35;
-  color: var(--ink);
-}
-
-.fleet-page .fleet-mini-search input:focus {
-  outline: none;
-  border-color: var(--accent);
-  background: var(--surface);
-}
-
-.fleet-page .fleet-mini-search svg {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--ink-3);
-}
-
 /* Table footer legend */
 .fleet-page .fleet-legend {
   display: flex;
@@ -505,7 +472,7 @@
 .fleet-page .fleet-driver-card .fleet-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 11px;
+  border-radius: 12px;
   color: var(--accent-2);
 }
 
@@ -599,7 +566,7 @@
   gap: 14px;
 
   /* Mirror fleet-scoped tokens for portaled detail modal */
-  --fleet-glow: #00B14F;
+  --fleet-glow: var(--brand);
   --fleet-green-end: #DDF7E8;
   --fleet-blue-start: #EFF6FF;
   --fleet-blue-mid: #E6F0FF;
@@ -1058,7 +1025,7 @@
   }
 
   .fleet-page .page-actions .btn {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     padding-inline: 14px;
     border-radius: 12px;
   }
@@ -1076,9 +1043,6 @@
     height: 42px;
   }
 
-  .fleet-page .fleet-mini-search {
-    width: 140px;
-  }
   .fleet-page .fleet-card-head {
     flex-direction: column;
     align-items: flex-start;
@@ -1087,10 +1051,6 @@
   .fleet-page .fleet-card-tools {
     width: 100%;
     flex-wrap: wrap;
-  }
-  .fleet-page .fleet-mini-search {
-    width: 100%;
-    flex: 1;
   }
 
   /* ── Pass 13 mobile tweaks (2026-06-02) ── */
@@ -1175,7 +1135,7 @@
   font-size: var(--text-caption-size);
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   line-height: 1.4;
   white-space: nowrap;
 }

@@ -5,6 +5,7 @@ import { Save, Loader2 } from 'lucide-react';
 import { useRoadConfig, useSaveRoadConfig } from '../../hooks/useCatalogQueries';
 import { PageHeader, Panel } from '../../components/UI';
 import './config-page.css';
+import { formatNumber } from '../../lib/format';
 
 export default function TripExpenseConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
@@ -91,7 +92,7 @@ export default function TripExpenseConfigPage() {
 
   const fmt = (v: string) => {
     const n = Number(v);
-    return isNaN(n) ? '' : n.toLocaleString('vi-VN');
+    return isNaN(n) ? '' : formatNumber(n);
   };
 
   return (
@@ -107,7 +108,7 @@ export default function TripExpenseConfigPage() {
                 {fieldErrors.defaultDriverSalary}
               </p>
             )}
-            <div className="cfg-field-hint">Áp dụng khi tuyến chưa thiết lập lương riêng. Hiện tại: <strong>{fmt(form.defaultDriverSalary)} đ</strong></div>
+            <div className="cfg-field-hint">Áp dụng khi tuyến chưa thiết lập lương riêng. Hiện tại: <strong className="data-token">{fmt(form.defaultDriverSalary)} đ</strong></div>
           </div>
           <div className="field">
             <label htmlFor="two-point-delivery-bonus">Trả hàng 2 điểm mặc định (đ)</label>
@@ -117,7 +118,7 @@ export default function TripExpenseConfigPage() {
                 {fieldErrors.twoPointDeliveryBonus}
               </p>
             )}
-            <div className="cfg-field-hint">Gợi ý khi nhập trả hàng 2 điểm trên phiếu chuyến. Hiện tại: <strong>{fmt(form.twoPointDeliveryBonus)} đ</strong></div>
+            <div className="cfg-field-hint">Gợi ý khi nhập trả hàng 2 điểm trên phiếu chuyến. Hiện tại: <strong className="data-token">{fmt(form.twoPointDeliveryBonus)} đ</strong></div>
           </div>
         </div>
 
@@ -130,7 +131,7 @@ export default function TripExpenseConfigPage() {
                 {fieldErrors.vehicleShiftDefault}
               </p>
             )}
-            <div className="cfg-field-hint">Thường 200k–400k/ngày. Hiện tại: <strong>{fmt(form.vehicleShiftDefault)} đ</strong></div>
+            <div className="cfg-field-hint">Thường 200k–400k/ngày. Hiện tại: <strong className="data-token">{fmt(form.vehicleShiftDefault)} đ</strong></div>
           </div>
           <div className="field">
             <label htmlFor="toll-per-station">Tiền trạm thu phí (đ/trạm)</label>
@@ -140,7 +141,7 @@ export default function TripExpenseConfigPage() {
                 {fieldErrors.tollPerStation}
               </p>
             )}
-            <div className="cfg-field-hint">Trừ cho mỗi trạm BOT đi qua. Hiện tại: <strong>{fmt(form.tollPerStation)} đ</strong></div>
+            <div className="cfg-field-hint">Trừ cho mỗi trạm BOT đi qua. Hiện tại: <strong className="data-token">{fmt(form.tollPerStation)} đ</strong></div>
           </div>
         </div>
 
@@ -153,7 +154,7 @@ export default function TripExpenseConfigPage() {
                 {fieldErrors.returnCargoBonus}
               </p>
             )}
-            <div className="cfg-field-hint">Cộng khi chọn "chuyến về có hàng". Hiện tại: <strong>{fmt(form.returnCargoBonus)} đ</strong></div>
+            <div className="cfg-field-hint">Cộng khi chọn "chuyến về có hàng". Hiện tại: <strong className="data-token">{fmt(form.returnCargoBonus)} đ</strong></div>
           </div>
         </div>
 

@@ -52,4 +52,21 @@ describe('Toast announcements', () => {
     fireEvent.click(save);
     expect(within(region).getByText('Đã lưu lô hàng.')).toBeInTheDocument();
   });
+
+  it('portals the container to document.body — toasts must not paint under body-level overlays (20260923_5)', () => {
+    render(
+      <div id="root">
+        <ToastProvider>
+          <Controls />
+        </ToastProvider>
+      </div>,
+    );
+    // The live region escapes the #root stacking context: a body-level child
+    // lets the toast z token compete with drawer/modal overlays at the same
+    // level instead of being capped by #root's position:fixed context.
+    const region = screen.getByRole('log', { name: 'Thông báo' });
+    expect(region.parentElement).toBe(document.body);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    expect(within(region).getByText('Đã lưu lô hàng.')).toBeInTheDocument();
+  });
 });

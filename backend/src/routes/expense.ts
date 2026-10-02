@@ -41,6 +41,7 @@ import {
 } from '../services/audit.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { autoApplyGovernanceAction } from '../services/adjustment-governance.service';
+import { declareMaterialWrite } from '../middleware/material-write';
 import {
   armStorageCleanupGuard,
   cancelStorageCleanupGuard,
@@ -54,7 +55,7 @@ registerAuditEvent('POST', '/api/expenses', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PUT', '/api/expenses/', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('DELETE', '/api/expenses/', AuditEvent.ENTITY_DELETED);
 
-const router = Router();
+const router = Router()
 
 // B1: receipt-photo upload for company expenses. Mirrors the forwarder
 // expense-photo pipeline but writes to expense_photos (FK→expenses.id) and
@@ -215,7 +216,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(expense);
 }));
 
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
+router.post('/', declareMaterialWrite('expenses.submit', { method: 'POST', path: '/api/expenses/' }),  asyncHandler(async (req: Request, res: Response) => {
   const idempotencyKey = requireIdempotencyKey(req);
   const validatedData = expenseSchema.parse(req.body);
   const actor = getUser(req);
@@ -239,7 +240,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
 
 // KP-150: check/approve/reject endpoints removed — expenses post directly.
 
-router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', declareMaterialWrite('expenses.governed-update', { method: 'PUT', path: '/api/expenses/:id', canonicalAliases: ['expenses.update'] }),  asyncHandler(async (req: Request, res: Response) => {
   const validatedData = expenseSchema.partial().parse(req.body);
   const userId = getUser(req).userId;
   const userRole = getUser(req).role;
@@ -301,7 +302,7 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(result);
 }));
 
-router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', declareMaterialWrite('expenses.governed-delete', { method: 'DELETE', path: '/api/expenses/:id', canonicalAliases: ['expenses.delete'] }),  asyncHandler(async (req: Request, res: Response) => {
   const userId = getUser(req).userId;
   const userRole = getUser(req).role;
   const id = Number(req.params.id);
@@ -391,7 +392,7 @@ router.get('/:id/photos', asyncHandler(async (req: Request, res: Response) => {
   res.json({ items: rows.map(r => ({ ...r, url: `/api/photos/${encodeURIComponent(r.storageKey)}` })) });
 }));
 
-router.post('/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/photos', declareMaterialWrite('expenses.photo.create', { method: 'POST', path: '/api/expenses/:id/photos' }),  expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) throw new ApiError(400, 'ID không hợp lệ');
   const file = req.file;
@@ -486,7 +487,7 @@ router.post('/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async
   });
 }));
 
-router.delete('/:id/photos/:photoId', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id/photos/:photoId', declareMaterialWrite('expenses.photo.delete', { method: 'DELETE', path: '/api/expenses/:id/photos/:photoId' }),  asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const photoId = Number(req.params.photoId);
   if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(photoId) || photoId <= 0) throw new ApiError(400, 'ID không hợp lệ');

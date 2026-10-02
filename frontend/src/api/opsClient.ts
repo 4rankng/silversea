@@ -34,12 +34,54 @@ export interface OpsWalletSummary {
   balance: string;
 }
 
+export interface OpsFundBookEntry {
+  key: string;
+  date: string;
+  kind: 'ADVANCE' | 'EXPENSE' | 'REFUND' | 'REFUND_REVERSAL' | 'REIMBURSEMENT';
+  label: string;
+  /** Mã chứng từ hiển thị (phiếu quyết toán / phiếu thu chi) hoặc null. */
+  reference: string | null;
+  /** Số tiền có dấu góc nhìn quỹ nhân viên: + nhận, − chi/hoàn. */
+  amount: string;
+}
+
+export interface OpsFundBookPeriod {
+  from?: string;
+  to?: string;
+}
+
+export interface OpsFundBook {
+  items: OpsFundBookEntry[];
+  /** Σ toàn thời gian — luôn là con số này, không đổi theo khoảng lọc. */
+  closing: string;
+  walletBalance: string;
+  /** "Còn phải hoàn ứng" của kế toán, cũng toàn thời gian. */
+  outstandingAdvanceBalance: string;
+  matches: boolean;
+  /**
+   * Card 20260928_168 (ruling PM 2026-09-29 câu 2): các con số theo khoảng
+   * ngày đang chọn. `periodOpening` là số dư lũy kế TRƯỚC `from` (0 khi không
+   * lọc) và `periodClosing` = periodOpening + net trong kỳ, tức số dư cuối
+   * `to`; do đó periodOpening + (net trong kỳ) luôn bằng periodClosing — lát
+   * cắt không bao giờ lệch với sổ mà nó cắt ra. from/to null = không lọc, và
+   * khi đó `periodClosing` trùng đúng `closing` toàn thời gian.
+   */
+  period: { from: string | null; to: string | null };
+  periodOpening: string;
+  periodIn: string;
+  periodOut: string;
+  periodClosing: string;
+}
+
 export type OpsExpenseStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface OpsExpenseRow {
+  sourceKind?: 'OPS' | 'TRIP';
+  sourceId?: number;
   id: number;
   shipmentId: number;
   shipmentCode: string | null;
+  billRef: string | null;
   containerNumber: string | null;
   expenseTypeCode: string;
   expenseTypeName: string | null;
@@ -55,6 +97,7 @@ export interface OpsExpenseRow {
   paidByName: string | null;
   createdAt: string;
   version?: number;
+  confirmedAt?: string | null;
   costGroup?: ExpenseCostGroup | null;
   feeName?: string | null;
   customerChargeAmount?: number | null;
@@ -77,6 +120,7 @@ export interface OpsFleetTruck {
   tripId: number | null;
   tripCode: string | null;
   shipmentCode: string | null;
+  billRef: string | null;
   driverName: string | null;
   status: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | null;
   lastEventType: string | null;
@@ -132,6 +176,11 @@ export interface OpsExpenseTypeOption {
   code: string;
   name: string;
   requiresInvoice: boolean | null;
+  /** Card 20260928_161 — the catalog's settlement category (LIFT / DROP /
+   *  HQGS / CSHT / KHAC / PHAT_SINH, null = chưa phân loại). Always sent by
+   *  `/ops/expense-types`; the Ops form derives its Nâng / Hạ / Phí khác group
+   *  from it. Optional only so hand-written fixtures stay valid. */
+  category?: string | null;
 }
 
 function qs(params: Record<string, string | number | undefined>): string {
@@ -154,12 +203,17 @@ export const opsClient = {
 
   // ── Ví ──
   getWalletSummary: () => api.get<OpsWalletSummary>('/ops/wallet/summary'),
+  // Card 20260928_168 — the sổ quỹ reads over a period (ruling PM câu 2). The
+  // window is part of the REQUEST, not a client-side filter, so the rows and
+  // the summary figures always come from one read of one window.
+  getFundBook: (period?: OpsFundBookPeriod) =>
+    api.get<OpsFundBook>(`/ops/wallet/fund-book${qs({ from: period?.from, to: period?.to })}`),
   getWalletExpenses: (status?: OpsExpenseStatus) =>
     api.get<{ items: OpsExpenseRow[] }>(`/ops/wallet/expenses${qs({ status })}`),
   createAdvanceRequest: (body: { amount: number; reason: string }) =>
     api.post<unknown>('/ops/wallet/advance-requests', body),
   getWalletAdvanceRequests: (params?: { status?: string; page?: number; limit?: number }) =>
-    api.get<{ items: Array<{ id: number; version: number; requesterId: number; amount: string; reason: string; status: string; createdAt: string; approverName?: string | null; approvedAt?: string | null }>; total: number; page: number; limit: number }>(
+    api.get<{ items: Array<{ id: number; version: number; requesterId: number; amount: string; fundedAmount?: number; reason: string; status: string; createdAt: string; approverName?: string | null; approvedAt?: string | null }>; total: number; page: number; limit: number }>(
       `/ops/wallet/advance-requests${qs({ status: params?.status, page: params?.page, limit: params?.limit })}`,
     ),
 
@@ -182,7 +236,7 @@ export const opsClient = {
   }) => api.post<OpsExpenseRow & { id: number }>('/ops/expenses', body),
   updateExpense: (id: number, body: Record<string, unknown>) =>
     api.patch<OpsExpenseRow>(`/ops/expenses/${id}`, body),
-  deleteExpense: (id: number) => api.delete<{ success: boolean }>(`/ops/expenses/${id}`),
+  deleteExpense: (id: number, reason: string) => api.delete<{ success: boolean }>(`/ops/expenses/${id}`, { body: JSON.stringify({ reason }) }),
   uploadExpensePhoto: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

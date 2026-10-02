@@ -232,11 +232,11 @@ Same as `04-ketoan.md` Flow 9.
 
 ## Flow 7 — Tạm ứng & Hoàn ứng
 
-Same as `04-ketoan.md` Flow 4. MANAGER can approve.
+Same as `04-ketoan.md` Flow 4. Existing financial permissions apply to direct funding, reconciliation and correction; no approval step.
 
 ---
 
-## Flow 8 — Duyệt vượt hạn mức & Trung tâm phê duyệt
+## Flow 8 — Hạn mức tín dụng & thao tác tài chính trực tiếp
 
 Same as `04-ketoan.md` Flows 6 & 7.
 
@@ -297,12 +297,10 @@ Same as `04-ketoan.md` Flows 6 & 7.
      `billingAddress`, `billingEmail`, `bankAccount`,
      `bankName`) that the CUS intake strips out. This is the
      canonical "office creates the customer" path.
-4. **MGR-CUST-04 — Maker-checker for new customers**
-   - **Then** a customer created by MANAGER enters a
-     `pending` state until a second financial-role user
-     approves it (the maker-checker path). ADMIN's creations
-     are auto-approved. CUS/DISPATCHER creations bypass the
-     queue (per `6ef3b221`).
+4. **MGR-CUST-04 — Direct creation for every authorized role**
+   - **Then** a valid customer is created immediately by any role already
+     permitted to create it. Role-specific field restrictions remain enforced;
+     no second actor, pending state, auto-approval or role-specific exception.
 5. **MGR-CUST-05 — Lock a customer**
    - **When** the user clicks `Khóa`
    - **Then** the customer's status flips to `LOCKED`; the
@@ -314,7 +312,8 @@ Same as `04-ketoan.md` Flows 6 & 7.
 1. Log in as `MANAGER`. Open `/customers`.
 2. Create a customer (full intake, with financial fields).
    Capture.
-3. Log in as `ACCOUNTANT`. Approve the pending customer. Capture.
+3. Verify the customer is usable immediately; read back its fields and audit.
+   Attempt creation with an unauthorized role and confirm access remains denied.
 4. Lock the customer; try to create a shipment as `CUS`.
    Confirm rejection with a Vietnamese toast.
 
@@ -361,8 +360,8 @@ Same as `04-ketoan.md` Flows 6 & 7.
      periods; the data re-fetches.
 2. **MGR-SAL-02 — Attendance grid**
    - **Then** the grid is `Tài xế` × `Ngày` with cells
-     marked `Có mặt` / `Nghỉ` / `Phép`. The OPS can fill
-     attendance; the manager approves.
+     marked `Có mặt` / `Nghỉ` / `Phép`. An actor with existing attendance
+     permissions records or corrects attendance directly; no manager approval.
 3. **MGR-SAL-03 — Lock a period**
    - **When** the user clicks `Chốt kỳ`
    - **Then** the period becomes read-only; an audit row is
@@ -372,7 +371,8 @@ Same as `04-ketoan.md` Flows 6 & 7.
 
 1. Log in as `MANAGER`. Open `/salary`.
 2. Switch periods; capture.
-3. Approve a cell edited by OPS. Capture.
+3. Save/correct attendance as an authorized role. Capture the value and audit;
+   verify unauthorized edits remain denied and no second actor is needed.
 4. Lock the period; capture the audit row.
 
 ---
@@ -580,10 +580,9 @@ Same as `04-ketoan.md` Flow 12.
 
 ## Known open items (carry-over)
 
-- **Maker-checker for customer creation** is on the MANAGER path
-  but bypassed for CUS/DISPATCHER (per `6ef3b221`). The second
-  approver must be a different user with the same financial
-  role. Tests must use two distinct users.
+- **Direct customer creation:** verify all existing authorized creation paths
+  use the same no-approval behavior, while preserving role-specific fields and scope.
+  Two different actors must not be required to make a valid customer usable.
 - **Strict-admin pages**: only `ADMIN` can reach. The
   `strictAdminOnly` guard is at `App.tsx:218`. The redirect
   target is the role-specific home, **not** the dashboard

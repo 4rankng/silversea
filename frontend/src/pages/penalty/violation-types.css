@@ -30,7 +30,7 @@
   content: '';
   position: absolute;
   inset: -12px;
-  border-radius: 32px;
+  border-radius: 24px;
   border: 1px dashed color-mix(in srgb, var(--accent) 25%, transparent);
   animation: penalty-spin 10s linear infinite;
 }
@@ -100,7 +100,7 @@
 }
 
 .penalty-empty-stat .val.pos {
-  color: var(--accent);
+  color: var(--success-text);
 }
 
 .penalty-empty-divider {
@@ -126,25 +126,7 @@
   padding: 28px 16px;
 }
 
-.penalty-empty-reasons__img {
-  width: 160px;
-  height: auto;
-  margin-bottom: 4px;
-}
 
-.penalty-empty-reasons__title {
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--ink);
-  letter-spacing: 0;
-}
-
-.penalty-empty-reasons__desc {
-  font-size: var(--fs-sm);
-  color: var(--ink-3);
-  max-width: 320px;
-  line-height: 1.6;
-}
 
 /* ─── Violation type rows ─── */
 
@@ -170,7 +152,7 @@
 .penalty-vio-type-icon {
   width: 36px;
   height: 36px;
-  border-radius: 9px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   flex-shrink: 0;

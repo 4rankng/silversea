@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Building2, Loader2, Package2, Route } from 'lucide-react';
-import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Building2, ChevronRight, Loader2, Package2, Route, Truck } from 'lucide-react';
+import { useDriverJourneyBoard, useDriverTwoOrders } from '../hooks/useDriverQueries';
 import { useMonth } from '../hooks/useMonth';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
-import { formatCardTimeShort } from '../lib/format';
+import { formatDateTimeShort } from '../lib/format';
+import { PageHeader } from '../components/UI';
+import { EmptyState } from '../design-system';
 import { Tabs } from '../design-system/Tabs';
 import { driverLocationLabels } from '../features/driver/driver-display';
 import './DriverTripsPage.css';
@@ -23,6 +25,16 @@ const EMPTY_MESSAGE: Record<JourneyTabKey, string> = {
   NEW: 'Chưa có lệnh mới nào được giao.',
   RUNNING: 'Không có chuyến nào đang chạy.',
   HISTORY: 'Chưa có chuyến nào trong lịch sử.',
+};
+
+/**
+ * Second line of the illustrated empty state — names what will fill the tab,
+ * so the face carries information and not only the absence of it.
+ */
+const EMPTY_HINT: Record<JourneyTabKey, string> = {
+  NEW: 'Điều vận đẩy lệnh mới xuống ngay khi phân công xong.',
+  RUNNING: 'Chuyến bạn đã nhận nằm ở đây cho tới khi hoàn thành.',
+  HISTORY: 'Chuyến đã hoàn thành trong tháng được lưu ở đây.',
 };
 
 /**
@@ -92,6 +104,13 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   const locations = driverLocationLabels(card.tradeDirection, card.dropPortName, card.returnDepotName);
   const hasPorts = isPresent(card.loadingPortName) || isPresent(locations.drop) || isPresent(locations.delivery) || isPresent(locations.returnDepot) || card.tradeDirection === 'IMPORT';
   const tradeLabel = tradeDirectionLabel(card);
+  // Bill/booking is the driver-facing document identity (CHIEF 26/09). When no
+  // document was captured the chip says so: the internal SHP-YYMM-NNNNN
+  // shipment code is a system key and never titles a driver screen — the same
+  // rule DriverTripHeader already applies on the detail screen (card
+  // 20260927_1). Mirrors the app-wide "Chưa có Bill/Booking" pending copy.
+  const billLabel = card.blNumber || card.bookingRef || 'Chưa có Bill/Booking';
+  const billPending = !card.blNumber && !card.bookingRef;
   const { selectedLabels: operationTags, manualText: operationManualText } = parseDriverTaskNote(card.operationalNotes, tagLabels);
 
   /* Ticket 365943ea field order: Nhà máy (top) → Tuyến đường → Cont →
@@ -102,18 +121,21 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   return (
     <article className={`driver-journey-card${isPaired ? ' driver-journey-card--clamp' : ''}`}>
       <div className="driver-journey-card__header">
-        {/* TRP chip: the blocker identity drivers are told to look for —
-            without it a busy-trip rejection names a trip no card shows. */}
-        {card.tripCode && (
-          <span className="driver-journey-card__trip-code">{card.tripCode}</span>
-        )}
+        {/* CHIEF 26/09: drivers match shipments by SỐ BILL/BOOKING — the bill
+            leads the card; the internal TRP code never renders (internal-ids
+            law). One card rides one fulfillment, so one bill per card. The
+            shipment code is a system key too, so a card whose documents were
+            never filled in states the gap instead of leaking it. */}
+        <span className={`driver-journey-card__bill${billPending ? ' driver-journey-card__bill--pending' : ''}`}>
+          {billLabel}
+        </span>
         <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
           {tag}
         </span>
         {card.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
         <span className="driver-journey-card__time">
           <span className="driver-journey-card__time-label">Giờ đóng / trả:</span>
-          {card.scheduledAt ? formatCardTimeShort(card.scheduledAt) : 'Chưa chốt lịch'}
+          {card.scheduledAt ? formatDateTimeShort(card.scheduledAt) : 'Chưa chốt lịch'}
         </span>
       </div>
 
@@ -228,6 +250,16 @@ export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
   const { month, year } = useMonth();
   const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
+  // Card 20260922_30(b): the M8.3 day-view screen (/my-trips/two-orders) had
+  // no inbound link anywhere in the app — only tests reached it. It reads the
+  // same query key, so tapping through renders from cache. The entry names the
+  // day view state-free ("Lệnh trong ngày"): the old "Hai lệnh hôm nay" label
+  // asserted a count the tab counters beside it contradicted on a 0/1-order
+  // day. The count chip carries the real number only when the day actually
+  // holds 2+ orders; the entry itself stays put, because a driver checks the
+  // day's sequence before dispatch pushes anything.
+  const { data: dayView } = useDriverTwoOrders();
+  const todayOrders = dayView?.allToday.length ?? 0;
   // Tag labels ride on the board response — the driver portal fetches nothing
   // from the dispatcher-only tag pool (ticket 53a536f9).
   const cards = useMemo(() => {
@@ -250,11 +282,36 @@ export default function DriverTripsPage() {
 
   return (
     <div className="driver-journey">
+      <PageHeader
+        title="Hành trình của tôi"
+        action={
+          <Link className="driver-journey__day-view" to="/my-trips/two-orders">
+            <Truck size={16} aria-hidden="true" />
+            <span className="driver-journey__day-view-label">Lệnh trong ngày</span>
+            {todayOrders >= 2 && <span className="driver-journey__tab-count">{todayOrders} lệnh</span>}
+            <ChevronRight size={16} aria-hidden="true" />
+          </Link>
+        }
+      />
+
       <Tabs
         className="driver-journey__tabs"
         ariaLabel="Trạng thái hành trình"
         variant="bordered"
-        tabs={TABS.map((tab) => ({ id: tab.key, label: tab.label, count: countsByBucket[tab.key] }))}
+        tabs={TABS.map((tab) => ({
+          id: tab.key,
+          // The shared Badge carries the count: the primitive's own count chip
+          // floated above the label baseline and read as a superscript
+          // (card 20260922_30).
+          label: (
+            <>
+              {tab.label}
+              {/* Plain count text — the shared Badge's status dot reads as a
+                  black blob jammed against a tab label (Chief 26/09). */}
+              <span className="driver-journey__tab-count">{countsByBucket[tab.key]}</span>
+            </>
+          ),
+        }))}
         value={activeTab}
         onChange={(key) => setActiveTab(key as JourneyTabKey)}
       />
@@ -277,7 +334,22 @@ export default function DriverTripsPage() {
             </button>
           </div>
         ) : groupedCardsForTab.length === 0 ? (
-          <p className="driver-journey__empty">{activeTab === 'HISTORY' ? `Chưa có chuyến trong tháng ${month}/${year}.` : EMPTY_MESSAGE[activeTab]}</p>
+          <EmptyState
+            className="driver-journey__empty"
+            context="trips"
+            title={activeTab === 'HISTORY' ? `Chưa có chuyến trong tháng ${month}/${year}.` : EMPTY_MESSAGE[activeTab]}
+            description={EMPTY_HINT[activeTab]}
+            action={
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+              >
+                {isFetching ? 'Đang tải…' : 'Tải lại'}
+              </button>
+            }
+          />
         ) : (
           <div className="driver-journey__list">
             {groupedCardsForTab.map((group) => (

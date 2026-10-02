@@ -8,6 +8,7 @@ import { asyncHandler } from '../../middleware/asyncHandler';
 import { ApiError } from '../../errors';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runIdempotent } from '../../services/idempotency.service';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   createCreditOverrideRequest,
   getCreditOverrideRequest,
@@ -64,7 +65,7 @@ function requireIdempotencyKey(req: Request): string {
   return idempotencyKey;
 }
 
-const router = Router();
+const router = Router()
 
 router.get(
   '/finance/credit-overrides',
@@ -84,7 +85,7 @@ router.get(
 );
 
 router.post(
-  '/finance/credit-overrides',
+  '/finance/credit-overrides', declareMaterialWrite('credit-overrides.create', { method: 'POST', path: '/api/finance/credit-overrides' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req, res) => {
     const payload = createCreditOverrideSchema.parse(req.body);

@@ -68,7 +68,7 @@ export const trips = pgTable('trips', {
     .references(() => shipmentFulfillments.id, { onDelete: 'restrict' }),
   sourceShipmentVersion: integer('source_shipment_version'),
   completedAt: timestamp('completed_at'),
-  // O2C POD-recovery gate (docs/prd/O2C dev.md). Distinct from digital e-POD
+  // O2C POD-recovery gate (docs/prd/QuyTrinhO2C.md). Distinct from digital e-POD
   // acceptance (TripPodStatus.ACCEPTED): this records "Đã thu hồi chứng từ gốc
   // (POD mộc đỏ)" — the physical paper return. The IN_TRANSIT → COMPLETED
   // transition throws if null; shipment closure requires it set.
@@ -141,6 +141,9 @@ export const tripFinancialState = pgTable('trip_financial_state', {
   fuelSurchargeSnapshot: jsonb('fuel_surcharge_snapshot').$type<Record<string, unknown>>(),
   fuelSurchargeSnapshotDirty: boolean('fuel_surcharge_snapshot_dirty').notNull().default(false),
   totalRoadAllowance: numeric('total_road_allowance', { precision: 15, scale: 0 }),
+  // Card 20260921_13 — accountant chi-ho dialog: phôi take-over metadata.
+  phoiTakenDate: date('phoi_taken_date'),
+  phoiTakeStatus: varchar('phoi_take_status', { length: 30 }),
   tollCost: numeric('toll_cost', { precision: 15, scale: 0 }),
   reconciledTollCost: numeric('reconciled_toll_cost', { precision: 15, scale: 0 }),
   reconciledExtraCost: numeric('reconciled_extra_cost', { precision: 15, scale: 0 }).default('0'),
@@ -455,6 +458,13 @@ export const tripContainerSeals = pgTable('trip_container_seals', {
 // ─── Trip instructions (N2 / B1.3) ─────────────────────────────────────────
 
 export const tripCodeCounters = pgTable('trip_code_counters', {
+  yearMonth: varchar('year_month', { length: 10 }).primaryKey(),
+  counter: integer('counter').notNull(),
+});
+
+// Independent per-month shipment code counter — shipment codes never
+// derive from the row id (user ruling 2026-09-19 4b).
+export const shipmentCodeCounters = pgTable('shipment_code_counters', {
   yearMonth: varchar('year_month', { length: 10 }).primaryKey(),
   counter: integer('counter').notNull(),
 });

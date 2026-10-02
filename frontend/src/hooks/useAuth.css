@@ -1,0 +1,8 @@
+.auth-retry {
+  width: min(100%, 36rem);
+  margin: 12vh auto 0;
+  padding: 16px;
+  color: var(--text-primary);
+}
+.auth-retry h1 { font-size: var(--text-heading-size, 20px); margin: 0 0 12px; }
+.auth-retry p { margin: 0 0 16px; line-height: 1.5; }

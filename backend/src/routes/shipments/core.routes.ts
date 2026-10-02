@@ -20,6 +20,7 @@ import {
   operationalSiteSchema,
   operationalSiteUpdateSchema,
   shipmentRecoveryRecordSchema,
+  shipmentDebitSummaryQuerySchema,
 } from '@tingting/shared';
 import type { Request, Response } from 'express';
 import {
@@ -41,6 +42,11 @@ import {
   normalizeDocumentReference,
 } from '../../services/shipment-lifecycle-shared.service';
 import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
+import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
+import * as billingDocService from '../../services/billing-document.service';
+import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
+import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listShipmentCostAdjustments, lockShipmentCost } from '../../services/shipment-cost-lock.service';
+import { assertNoPendingRateAdjustment } from '../../services/accounting-debit-close.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
 import { recordShipmentRecovery } from '../../services/shipment-recovery.service';
@@ -51,7 +57,10 @@ import { parsePagination } from '../utils/pagination';
 import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
+import { getShipmentDebitDetail, saveDebitEdits } from '../../services/shipment-debit-detail.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   SHIPMENT_INTAKE_MUTATION_ROLES,
   parseId,
@@ -113,7 +122,7 @@ const shipmentPricingPreviewSchema = z.object({
   containerTypeIds: z.array(z.number().int().positive()).optional(),
 });
 
-const coreRoutes = Router();
+const coreRoutes = Router()
 
 function resolveDriverNotes(input: { driverNotes?: string | null; operationalNotes?: string | null }) {
   return input.driverNotes !== undefined ? input.driverNotes : input.operationalNotes;
@@ -148,7 +157,7 @@ function toShipmentRecoveryFactPayload(fact: {
 }
 
 coreRoutes.post(
-  '/:id/recovery-facts',
+  '/:id/recovery-facts', declareMaterialWrite('shipments.recovery.record', { method: 'POST', path: '/api/shipments/:id/recovery-facts' }), 
   requireRoles(Role.OPS, Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -339,7 +348,7 @@ coreRoutes.get('/duplicate-check', asyncHandler(async (req: Request, res: Respon
   res.json({ conflicts });
 }));
 coreRoutes.post(
-  '/:id/submit-for-dispatch',
+  '/:id/submit-for-dispatch', declareMaterialWrite('shipments.submit-for-dispatch', { method: 'POST', path: '/api/shipments/:id/submit-for-dispatch' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -362,7 +371,7 @@ coreRoutes.post(
 );
 
 coreRoutes.post(
-  '/:id/carrier-allocations',
+  '/:id/carrier-allocations', declareMaterialWrite('shipments.carrier-allocations.assign', { method: 'POST', path: '/api/shipments/:id/carrier-allocations' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -413,7 +422,7 @@ coreRoutes.get(
 // user is never blocked by an empty "Nhà máy" dropdown. Matches the GET
 // guard; the service additionally enforces CLERK customer-scope.
 coreRoutes.post(
-  '/operational-sites',
+  '/operational-sites', declareNonMaterialWrite('Reference-data CRUD (factory/warehouse master). Upsert keyed by the (customerId, code) partial unique index — replaying the same payload updates the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'),
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = operationalSiteSchema.safeParse(req.body);
@@ -436,6 +445,7 @@ coreRoutes.get(
 
 coreRoutes.patch(
   '/operational-sites/:id',
+  declareNonMaterialWrite('Reference-data CRUD (factory/warehouse master). Version-checked partial update — a replay hits the stale-version 409 guard instead of applying twice, and identity fields (customer, code, site type) are immutable. No financial or shipment-lifecycle mutation.'),
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const siteId = Number.parseInt(req.params.id as string, 10);
@@ -449,7 +459,7 @@ coreRoutes.patch(
 );
 
 coreRoutes.post(
-  '/pricing-preview',
+  '/pricing-preview', declareNonMaterialWrite('Read-only shipment pricing calculation preview.'),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = shipmentPricingPreviewSchema.safeParse(req.body);
@@ -469,7 +479,7 @@ coreRoutes.post(
 
 // ─── POST / — create draft shipment ────────────────────────────────────────
 coreRoutes.post(
-  '/',
+  '/', declareMaterialWrite('shipments.create', { method: 'POST', path: '/api/shipments/' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     // Same contract guard as POST /quick: `containers` is not part of the
@@ -527,23 +537,14 @@ coreRoutes.post(
 // while ACCOUNTANT remains limited to its separate review/close commands.
 // CUSTOMER/DRIVER/OPS remain denied at the mount.
 coreRoutes.post(
-  '/quick',
+  '/quick', declareMaterialWrite('shipments.quick-create', { method: 'POST', path: '/api/shipments/quick' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
-    // `containers` is not part of the quick contract: the zod schema strips
-    // unknown keys, so a caller-supplied array would be silently dropped and
-    // the lot would land with zero containers (and therefore no engine rate
-    // lock — there is no container type to derive a rate key from). Reject
-    // non-empty arrays loudly and point at the reconcile endpoint instead
-    // (which fires the FCL intake lock). An explicit empty array carries no
-    // data and stays accepted.
-    const containersPayload = (req.body as Record<string, unknown> | null | undefined)?.containers;
-    if (Array.isArray(containersPayload) && containersPayload.length > 0) {
-      throw new ApiError(
-        400,
-        'Tạo nhanh không nhận kèm danh sách container — tạo lô rồi dùng PUT /api/shipments/{id}/containers để khai báo container.',
-      );
-    }
+    // `containers` IS part of the quick contract now (create-workspace
+    // combined save): root + containers land in one transaction, so a
+    // containers failure rolls the root back — no 0-cont orphan lots. The
+    // schema validates each row with the same contract the reconcile
+    // endpoint enforces.
     const parsed = quickCreateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     // Header wins; fall back to body channel for the offline-queue lib.
@@ -586,7 +587,12 @@ coreRoutes.post(
         deliveryLocation: parsed.data.deliveryLocation,
         contactName: parsed.data.contactName,
         contactPhone: parsed.data.contactPhone,
+        // Card 20260922_6 — cược-container intake tick must survive the
+        // quick-create field mapping or the tracker row never fires.
+        hasDeposit: parsed.data.hasDeposit,
+        depositAmount: parsed.data.depositAmount,
         createdBy: getUser(req).userId,
+        containers: parsed.data.containers,
       },
       idempotencyKey,
       getUser(req),
@@ -611,6 +617,34 @@ coreRoutes.post(
 );
 
 // ─── GET /:id — detail (shipment + containers + documents + declarations + history)
+// ─── POST /shipments/debit-notes — GỘP THEO KỲ consolidated export ─────────
+coreRoutes.post(
+  '/debit-notes', declareMaterialWrite('shipments.debit-note-consolidated', { method: 'POST', path: '/api/shipments/debit-notes' }), 
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = z.object({
+      shipmentIds: z.array(z.number().int().positive()).min(1, 'Vui lòng chọn ít nhất một lô đã khóa.').max(200),
+    }).safeParse(req.body ?? {});
+    if (!parsed.success) throwValidation(parsed.error);
+    // Card 20260921_21: a lot with a live PENDING rate-adjustment request
+    // cannot be exported to debit — 409 naming the lot (business language).
+    await assertNoPendingRateAdjustment(parsed.data.shipmentIds);
+    const doc = await createConsolidatedDebitNote({ shipmentIds: parsed.data.shipmentIds, actor: getUser(req) });
+    res.status(201).json({ id: doc.id });
+  }),
+);
+
+// ─── GET /debit-summary — Chi phí - Quyết toán L1 per-lot rollup ───────────
+coreRoutes.get(
+  '/debit-summary',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = shipmentDebitSummaryQuerySchema.safeParse(req.query);
+    if (!parsed.success) throwValidation(parsed.error);
+    res.json(await getShipmentDebitSummary(parsed.data));
+  }),
+);
+
 coreRoutes.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseId(req, res);
   if (id === null) return;
@@ -619,7 +653,7 @@ coreRoutes.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 
 // ─── PUT /:id — update with optimistic-lock version ────────────────────────
 coreRoutes.put(
-  '/:id',
+  '/:id', declareMaterialWrite('shipments.update', { method: 'PUT', path: '/api/shipments/:id' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -676,7 +710,7 @@ coreRoutes.put(
 
 // ─── POST /:id/transition — status transition ──────────────────────────────
 coreRoutes.post(
-  '/:id/transition',
+  '/:id/transition', declareMaterialWrite('shipments.transition', { method: 'POST', path: '/api/shipments/:id/transition' }), 
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -707,7 +741,7 @@ coreRoutes.post(
 
 // ─── POST /:id/dispatch — fulfillment → linked trip ────────────────────────
 coreRoutes.post(
-  '/:id/dispatch',
+  '/:id/dispatch', declareMaterialWrite('shipments.dispatch', { method: 'POST', path: '/api/shipments/:id/dispatch' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -745,7 +779,7 @@ coreRoutes.post(
 );
 
 coreRoutes.post(
-  '/:id/complete',
+  '/:id/complete', declareMaterialWrite('shipments.complete', { method: 'POST', path: '/api/shipments/:id/complete' }), 
   requireRoles(Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -774,7 +808,7 @@ coreRoutes.post(
 );
 
 coreRoutes.post(
-  '/:id/fulfillments/:fulfillmentId/cancellation-disposition',
+  '/:id/fulfillments/:fulfillmentId/cancellation-disposition', declareMaterialWrite('shipments.fulfillments.cancel', { method: 'POST', path: '/api/shipments/:id/fulfillments/:fulfillmentId/cancellation-disposition' }), 
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -807,7 +841,7 @@ coreRoutes.post(
 
 // ─── DELETE /:id — soft-delete (DRAFT/CANCELED only, version-gated) ─────────
 coreRoutes.delete(
-  '/:id',
+  '/:id', declareMaterialWrite('shipments.delete', { method: 'DELETE', path: '/api/shipments/:id' }), 
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -843,3 +877,138 @@ coreRoutes.delete(
 );
 
 export { coreRoutes };
+
+// ─── POST /:id/lock — Khóa lô (lot cost lock, card 20260918_19) ────────────
+coreRoutes.post(
+  '/:id/lock', declareMaterialWrite('shipments.cost-lock', { method: 'POST', path: '/api/shipments/:id/lock' }), 
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi khóa lô.');
+    const parsed = z.object({
+      expectedShipmentVersion: z.number().int().positive().optional(),
+      lockNote: z.string().trim().max(2000).optional().nullable(),
+    }).safeParse(req.body ?? {});
+    if (!parsed.success) throwValidation(parsed.error);
+    const lock = await lockShipmentCost({
+      shipmentId,
+      expectedShipmentVersion: parsed.data.expectedShipmentVersion ?? null,
+      lockNote: parsed.data.lockNote ?? null,
+      actor: getUser(req),
+      idempotencyKey,
+    });
+    res.status(201).json({ id: lock.id });
+  }),
+);
+
+// ─── POST/GET /:id/cost-adjustments — điều chỉnh sau khóa (card _19) ────────
+coreRoutes.post(
+  '/:id/cost-adjustments', declareMaterialWrite('shipments.cost-adjust', { method: 'POST', path: '/api/shipments/:id/cost-adjustments' }), 
+  requireRoles(Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi điều chỉnh chi phí.');
+    const parsed = z.object({
+      reason: z.string().trim().min(1, 'Vui lòng nhập lý do điều chỉnh.').max(2000),
+      changes: z.record(z.unknown()).optional().nullable(),
+    }).safeParse(req.body ?? {});
+    if (!parsed.success) throwValidation(parsed.error);
+    const adjustment = await adjustShipmentCost({
+      shipmentId,
+      reason: parsed.data.reason,
+      changes: parsed.data.changes ?? null,
+      actor: getUser(req),
+      idempotencyKey,
+    });
+    res.status(201).json({ id: adjustment.id });
+  }),
+);
+
+coreRoutes.get(
+  '/:id/cost-adjustments',
+  requireRoles(Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    res.json(await listShipmentCostAdjustments(shipmentId));
+  }),
+);
+
+// ─── Debit wave detail endpoints (BE1 lane, FE _18 contract) ───────────────
+// GET /:id/debit-detail — the Lớp-2 drill-down: freight snapshots, per-trip
+// chi-hộ bundles (otherFees bucket + O2C evidence status), payables and the
+// customer-receivable total. Money nullable — null = "chưa xác định".
+coreRoutes.get(
+  '/:id/debit-detail',
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    res.json(await getShipmentDebitDetail(shipmentId));
+  }),
+);
+
+// PUT /:id/debit-edits — the ONLY editable debit cells (PS thực tế, thu khách,
+// note on chi-hộ rows; Phí khác add/remove). Strict payload guard keeps every
+// other cell read-only; the debit lock rejects edits while active.
+coreRoutes.put(
+  '/:id/debit-edits', declareMaterialWrite('shipments.debit-edits', { method: 'PUT', path: '/api/shipments/:id/debit-edits' }), 
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này.');
+    const result = await saveDebitEdits({
+      shipmentId,
+      actorId: getUser(req).userId,
+      idempotencyKey,
+      payload: req.body ?? {},
+    });
+    res.status(200).json(result);
+  }),
+);
+
+// ─── POST /:id/debit-note — Xuất Debit Note từ snapshot khóa lô ─────────────
+// GET /:id/debit-note/export — the issuing CUS downloads the issued file
+// (shipments mount: CUS has access here; the financial router's casbin
+// mount blocks CUS regardless of requireRoles).
+coreRoutes.get(
+  '/:id/debit-note/export',
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const documentId = Number(req.query.documentId);
+    if (!Number.isInteger(documentId) || documentId < 1) {
+      throw new ApiError(400, 'documentId là bắt buộc để tải Debit Note.');
+    }
+    const doc = await billingDocService.getDocument(documentId);
+    if (doc.type !== 'DEBIT_NOTE') throw new ApiError(404, 'Không tìm thấy Debit Note.');
+    const snap = await billingDocService.resolveDebitNoteTemplateForDoc(doc, {});
+    const buffer = snap
+      ? await renderTemplatedXlsx(doc, snap)
+      : await buildLegacyXlsx(doc);
+    const name = doc.entityName ?? String(doc.entityId);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="giay-bao-no-${name}.xlsx"`);
+    res.send(buffer);
+  }),
+);
+
+coreRoutes.post(
+  '/:id/debit-note', declareMaterialWrite('shipments.debit-note-from-lock', { method: 'POST', path: '/api/shipments/:id/debit-note' }), 
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi xuất Debit Note.');
+    // Card 20260921_21: a lot with a live PENDING rate-adjustment request
+    // cannot be exported to debit — 409 naming the lot (business language).
+    await assertNoPendingRateAdjustment([shipmentId]);
+    const doc = await createDebitNoteFromCostLock({ shipmentId, actor: getUser(req), idempotencyKey });
+    res.status(201).json({ id: doc.id });
+  }),
+);

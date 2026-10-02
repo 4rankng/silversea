@@ -18,6 +18,7 @@ import {
   getShipmentDetail,
   attachShipmentDocument,
   upsertShipmentDeclaration,
+  deleteShipmentDeclaration,
   replaceShipmentDocument,
   batchUpsertShipmentContainers,
 } from '../../services/shipment.service';
@@ -30,6 +31,7 @@ import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { throwValidation } from '../../lib/validation';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   SHIPMENT_INTAKE_MUTATION_ROLES,
   parseId,
@@ -50,7 +52,7 @@ const replaceShipmentDocumentSchema = z.object({
   expiresAt: z.string().trim().min(1).optional().nullable(),
 });
 
-const documentsRoutes = Router();
+const documentsRoutes = Router()
 
 // ─── POST /:id/documents — record an uploaded document's metadata ──────────
 //
@@ -58,7 +60,7 @@ const documentsRoutes = Router();
 // records the resulting `storageKey` against the shipment. A future Wave 2
 // portal variant may accept multipart directly.
 documentsRoutes.post(
-  '/:id/documents',
+  '/:id/documents', declareMaterialWrite('shipments.documents.attach', { method: 'POST', path: '/api/shipments/:id/documents' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
@@ -90,7 +92,7 @@ documentsRoutes.post(
 );
 
 documentsRoutes.post(
-  '/:id/documents/:documentId/replace',
+  '/:id/documents/:documentId/replace', declareMaterialWrite('shipments.documents.replace', { method: 'POST', path: '/api/shipments/:id/documents/:documentId/replace' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -128,7 +130,7 @@ documentsRoutes.post(
 );
 
 documentsRoutes.post(
-  '/:id/declarations',
+  '/:id/declarations', declareMaterialWrite('shipments.declarations.create', { method: 'POST', path: '/api/shipments/:id/declarations' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -175,7 +177,7 @@ documentsRoutes.post(
 );
 
 documentsRoutes.put(
-  '/:id/declarations/:declarationId',
+  '/:id/declarations/:declarationId', declareMaterialWrite('shipments.declarations.update', { method: 'PUT', path: '/api/shipments/:id/declarations/:declarationId' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -225,6 +227,38 @@ documentsRoutes.put(
   }),
 );
 
+// ─── DELETE /:id/declarations/:declarationId — remove one tờ khai (card 20260921_3) ──
+documentsRoutes.delete(
+  '/:id/declarations/:declarationId', declareMaterialWrite('shipments.declarations.delete', { method: 'DELETE', path: '/api/shipments/:id/declarations/:declarationId' }), 
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const declarationId = parseInt(req.params.declarationId as string, 10);
+    if (!Number.isInteger(declarationId) || declarationId <= 0) {
+      res.status(400).json({ error: 'ID tờ khai không hợp lệ' });
+      return;
+    }
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_DELETE,
+      { shipmentId, declarationId },
+      async (tx) => {
+        const shipment = await getShipment(shipmentId, tx);
+        const deleted = await deleteShipmentDeclaration(shipmentId, declarationId, user, tx);
+        return {
+          body: deleted,
+          status: 200,
+          auditEntityId: shipment.id,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
 // ─── GET /:id/containers — list shipment containers ────────────────────────
 documentsRoutes.get('/:id/containers', asyncHandler(async (req: Request, res: Response) => {
   const id = parseId(req, res);
@@ -237,7 +271,7 @@ documentsRoutes.get('/:id/containers', asyncHandler(async (req: Request, res: Re
 
 // ─── PUT /:id/containers — full reconcile of shipment containers ───────────
 documentsRoutes.put(
-  '/:id/containers',
+  '/:id/containers', declareMaterialWrite('shipments.containers.reconcile', { method: 'PUT', path: '/api/shipments/:id/containers' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);

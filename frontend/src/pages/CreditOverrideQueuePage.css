@@ -15,7 +15,7 @@
   gap: 8px;
   border: 1px solid var(--line-2, var(--border-2));
   border-radius: 8px;
-  background: var(--surface, var(--surface-1));
+  background: var(--surface);
   color: var(--ink, var(--fg-1));
   font: inherit;
   font-size: var(--filter-control-font-size);
@@ -50,7 +50,7 @@
 .credit-override-queue__button.is-primary {
   border-color: var(--brand);
   background: var(--brand);
-  color: var(--fg-on-brand, #fff);
+  color: var(--fg-on-brand);
 }
 
 .credit-override-queue__button.is-primary:hover {
@@ -80,7 +80,7 @@
   padding: 14px 18px;
   border-top: 1px solid var(--line, var(--border-2));
   border-bottom: 1px solid var(--line, var(--border-2));
-  background: var(--surface, var(--surface-1));
+  background: var(--surface);
 }
 
 .credit-override-queue__toolbar-title {
@@ -103,20 +103,12 @@
   height: 24px;
   place-items: center;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--surface-3, var(--bg-3));
   color: var(--ink-2, var(--fg-2));
   font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 800;
-}
-
-.credit-override-queue__filters {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 .credit-override-queue__field {
@@ -148,7 +140,7 @@
   min-width: 0;
   border: 1px solid var(--line-2, var(--border-2));
   border-radius: 8px;
-  background: var(--surface, var(--surface-1));
+  background: var(--surface);
   color: var(--ink, var(--fg-1));
   font: inherit;
   font-size: var(--fs-sm);
@@ -264,7 +256,7 @@
   align-items: center;
   gap: 5px;
   padding: 4px 9px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--surface-3, var(--bg-3));
   color: var(--ink-2, var(--fg-2));
   font-size: var(--fs-2xs);
@@ -273,14 +265,14 @@
 
 .credit-override-queue__status.is-approved,
 .credit-override-queue__decision-summary.is-approved {
-  background: color-mix(in srgb, var(--success, #21855d) 11%, transparent);
-  color: var(--success-text, #0f6d4b);
+  background: color-mix(in srgb, var(--success) 11%, transparent);
+  color: var(--success-text);
 }
 
 .credit-override-queue__status.is-rejected,
 .credit-override-queue__decision-summary.is-rejected {
-  background: color-mix(in srgb, var(--danger, #b91c1c) 10%, transparent);
-  color: var(--danger-text, #b91c1c);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger-text);
 }
 
 .credit-override-queue__status.is-canceled,
@@ -294,8 +286,8 @@
 .credit-override-queue__read-only,
 .credit-override-queue__action-error,
 .credit-override-queue__state.is-error {
-  background: color-mix(in srgb, var(--warning, #d97706) 10%, transparent);
-  color: var(--warning-text, #9a4b08);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning-text);
 }
 
 .credit-override-queue__actions,
@@ -329,7 +321,7 @@
   padding: 16px;
   border: 1px solid var(--line, var(--border-2));
   border-radius: 10px;
-  background: var(--surface, var(--surface-1));
+  background: var(--surface);
 }
 
 /* Record-card mode: the base zeroes the action cell's padding for bare action
@@ -379,11 +371,6 @@
     flex-direction: column;
   }
 
-  .credit-override-queue__filters {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
   .credit-override-queue__field.is-search {
     width: min(360px, 100%);
   }
@@ -411,11 +398,6 @@
 
   .credit-override-queue__toolbar {
     padding: 14px;
-  }
-
-  .credit-override-queue__filters {
-    display: grid;
-    grid-template-columns: 1fr;
   }
 
   .credit-override-queue__field.is-status,

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import '../../../design-system/forms/TextField.css';
 import { Pencil } from 'lucide-react';
 import { composeNote, parseNote, normalizeNote } from '../../../lib/dispatchTaskTags';
 import { useCreateDispatchTaskTag, useDispatchTaskTags } from './useDispatchTaskTags';
@@ -174,7 +175,7 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
               <label className="dispatch-assignment-dialog__notes-label" htmlFor="dispatch-task-note-text">Ghi chú thêm</label>
               <textarea
                 id="dispatch-task-note-text"
-                className="dispatch-assignment-dialog__notes-text"
+                className="ds-field__input dispatch-assignment-dialog__notes-text"
                 placeholder="Nhập ghi chú cho lái xe…"
                 value={manualDraft ?? manualText}
                 onChange={(event) => { setManualDraft(event.target.value); setManual(event.target.value); }}

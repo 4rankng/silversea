@@ -11,7 +11,8 @@ import { Modal, useConfirm, Btn, FormGroup, PageHeader } from '../../components/
 import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/penalties/penalty-reason-severity';
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
 import type { PenaltyReason } from '@tingting/shared';
-import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import { EmptyState, FilterBar } from '../../design-system';
+import { formatMoney } from '../../lib/format';
 
 /* ─── Page-scoped styles ─── */
 const pageStyles = `
@@ -159,7 +160,7 @@ const pageStyles = `
     .pr-grid { grid-template-columns: 1fr; }
   }
   @media (pointer: coarse) {
-    .pr-act { width: 44px; height: 44px; }
+    .pr-act { width: var(--control-max-h); height: var(--control-max-h); }
   }
   @media (prefers-reduced-motion: reduce) {
     .pr-card, .pr-spinner { animation: none; }
@@ -336,7 +337,7 @@ export default function PenaltyReasonsConfigPage() {
     }
   };
 
-  const fmt = (n: number) => n.toLocaleString('vi-VN');
+  const fmt = (n: number) => formatMoney(n);
 
   /* ─── Derived stats ─── */
   const totalTypes = items.length;
@@ -416,39 +417,44 @@ export default function PenaltyReasonsConfigPage() {
       </div>
 
       {/* ── Filter Bar ──────────────────────────────────────────── */}
-      <div className="filter-bar">
-        <div className="filter-bar__search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            name="penaltyReasonSearch"
-            aria-label="Tìm kiếm lỗi vi phạm"
-            placeholder="Tìm kiếm lỗi vi phạm…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <button className={`filter-tab ${activeSev === 'all' ? 'is-active' : ''}`} onClick={() => setActiveSev('all')}>
-          Tất cả
-        </button>
-        <button className={`filter-tab ${activeSev === 'high' ? 'is-active' : ''}`} onClick={() => setActiveSev('high')}>
-          <span className="dot" style={{ background: 'var(--danger)' }} />Nghiêm trọng
-        </button>
-        <button className={`filter-tab ${activeSev === 'mid' ? 'is-active' : ''}`} onClick={() => setActiveSev('mid')}>
-          <span className="dot" style={{ background: 'var(--warning)' }} />Trung bình
-        </button>
-        <button className={`filter-tab ${activeSev === 'low' ? 'is-active' : ''}`} onClick={() => setActiveSev('low')}>
-          <span className="dot" style={{ background: 'var(--ink-3)' }} />Nhẹ
-        </button>
-        <div className="filter-bar__spacer" />
-        <button className="btn btn--secondary btn--sm" onClick={() => setSortDesc(!sortDesc)}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4" />
-          </svg>
-          {sortDesc ? 'Cao → thấp' : 'Thấp → cao'}
-        </button>
-      </div>
+      {/* The strip IS the shared `FilterBar` (card 20260927_152): the page
+          declares no bar markup, no search shell and no spacer. The four
+          severity toggles are quick filters (one axis, mutually exclusive), and
+          the sort toggle is the strip's action. */}
+      <FilterBar
+        search={{
+          value: searchTerm,
+          onChange: setSearchTerm,
+          placeholder: 'Tìm kiếm lỗi vi phạm…',
+          ariaLabel: 'Tìm kiếm lỗi vi phạm',
+          inputProps: { name: 'penaltyReasonSearch' },
+        }}
+        quickFiltersLabel="Lọc theo mức độ"
+        quickFilters={(
+          <>
+            <button type="button" aria-pressed={activeSev === 'all'} className={`filter-chip ${activeSev === 'all' ? 'is-active' : ''}`} onClick={() => setActiveSev('all')}>
+              Tất cả
+            </button>
+            <button type="button" aria-pressed={activeSev === 'high'} className={`filter-chip ${activeSev === 'high' ? 'is-active' : ''}`} onClick={() => setActiveSev('high')}>
+              <span className="dot" style={{ background: 'var(--danger)' }} />Nghiêm trọng
+            </button>
+            <button type="button" aria-pressed={activeSev === 'mid'} className={`filter-chip ${activeSev === 'mid' ? 'is-active' : ''}`} onClick={() => setActiveSev('mid')}>
+              <span className="dot" style={{ background: 'var(--warning)' }} />Trung bình
+            </button>
+            <button type="button" aria-pressed={activeSev === 'low'} className={`filter-chip ${activeSev === 'low' ? 'is-active' : ''}`} onClick={() => setActiveSev('low')}>
+              <span className="dot" style={{ background: 'var(--ink-3)' }} />Nhẹ
+            </button>
+          </>
+        )}
+        actions={(
+          <button className="btn btn--secondary btn--sm" onClick={() => setSortDesc(!sortDesc)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4" />
+            </svg>
+            {sortDesc ? 'Cao → thấp' : 'Thấp → cao'}
+          </button>
+        )}
+      />
 
       {/* ── Content ─────────────────────────────────────────────── */}
       {isLoading ? (
@@ -457,17 +463,12 @@ export default function PenaltyReasonsConfigPage() {
           <div>Đang tải dữ liệu...</div>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="empty-state">
-          <img
-            src={resolveEmptyIllustration('empty-penalties')}
-            alt=""
-            aria-hidden="true"
-            style={{ width: 160, height: 132, objectFit: 'contain' }}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
-          <p className="empty-state-title">Không tìm thấy lỗi vi phạm</p>
-          <p className="empty-state-desc">Thử từ khóa khác hoặc thay đổi bộ lọc.</p>
-        </div>
+        <EmptyState
+          variant="compact"
+          context="penalty-reasons"
+          title="Không tìm thấy lỗi vi phạm"
+          description="Thử từ khóa khác hoặc thay đổi bộ lọc."
+        />
       ) : (
         <div className="pr-grid">
           {filteredItems.map((d, i) => {

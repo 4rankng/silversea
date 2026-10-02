@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -78,6 +78,18 @@ vi.mock('../hooks/animations', () => ({
 
 import ProfitPage from './ProfitPage';
 
+// The settlement quarter follows the real clock (ProfitPage initializes
+// selectedQuarter/distQuarterYear from `new Date()`), so a hard-pinned Q
+// label in the assertions breaks on every quarter rollover (card
+// 20261001_250: it broke exactly on Oct 1). Derive the expectations with
+// the page's own formula instead — the test pins BEHAVIOUR, not the
+// calendar. (Year note: the page's year options are a fixed 2024–2027
+// list, so the derived year must land inside it; horizon is a product
+// gap, recorded in the card.)
+const clockNow = new Date();
+const quarterNow = Math.ceil((clockNow.getMonth() + 1) / 3);
+const yearNow = clockNow.getFullYear();
+
 describe('ProfitPage governance request UX', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,8 +97,8 @@ describe('ProfitPage governance request UX', () => {
     apiPostMock.mockImplementation(async (path: string) => {
       if (path.endsWith('/preview')) {
         return {
-          quarter: 3,
-          year: 2026,
+          quarter: quarterNow,
+          year: yearNow,
           netProfit: 1_000_000,
           tripCount: 1,
           distributions: [],
@@ -103,8 +115,8 @@ describe('ProfitPage governance request UX', () => {
         status: 'APPLIED',
         version: 1,
         afterSnapshot: {
-          quarter: 3,
-          year: 2026,
+          quarter: quarterNow,
+          year: yearNow,
         },
       };
     });
@@ -122,21 +134,30 @@ describe('ProfitPage governance request UX', () => {
 
     await waitFor(() => {
       expect(apiPostMock).toHaveBeenCalledWith('/reports/distribute-profit', {
-        quarter: 3,
-        year: 2026,
+        quarter: quarterNow,
+        year: yearNow,
       });
     });
     expect(confirmMock).toHaveBeenCalledWith(
-      'Phân bổ lợi nhuận Quý 3/2026 ngay?',
+      `Phân bổ lợi nhuận Quý ${quarterNow}/${yearNow} ngay?`,
     );
     expect(toastMock).toHaveBeenCalledWith({
       kind: 'success',
       message: 'Đã phân bổ lợi nhuận.',
     });
-    expect(await screen.findByText('Đã phân bổ Quý 3 / 2026')).toBeTruthy();
+    expect(await screen.findByText(`Đã phân bổ Quý ${quarterNow} / ${yearNow}`)).toBeTruthy();
     expect(screen.getByText(/không ghi nhận chuyển tiền/)).toBeTruthy();
     expect(screen.queryByText(/đang chờ kiểm tra/)).toBeNull();
     expect(refetchHistoryMock).toHaveBeenCalledOnce();
+  });
+
+  it('renders its existing zero company-cost report without a subtraction sign or danger tone', () => {
+    render(<MemoryRouter><ProfitPage /></MemoryRouter>);
+    const row = screen.getByText('Chi phí chung công ty').closest('.calc-row')!;
+    const amount = row.querySelector('.calc-row__value')!;
+    expect(within(amount as HTMLElement).getByText('0')).toBeVisible();
+    expect(amount.querySelector('.money__sign')).toBeNull();
+    expect(amount).not.toHaveClass('calc-row__value--neg');
   });
 
   // Ownership-blocked warning (QA-069): the blocked truck's plate links

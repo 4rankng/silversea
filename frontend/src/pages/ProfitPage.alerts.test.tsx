@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -103,6 +103,15 @@ vi.mock('../hooks/useAuth', () => ({
 import ProfitPage from './ProfitPage';
 
 describe('ProfitPage inspection reminders', () => {
+  it('preserves the existing nonzero company expense sign, amount and cost tone', () => {
+    render(<MemoryRouter><ProfitPage /></MemoryRouter>);
+    const row = screen.getByText('Chi phí chung công ty').closest('.calc-row')!;
+    const amount = row.querySelector('.calc-row__value')!;
+    expect(within(amount as HTMLElement).getByText('100.000')).toBeVisible();
+    expect(within(amount as HTMLElement).getByText('-')).toBeVisible();
+    expect(amount).toHaveClass('calc-row__value--neg');
+  });
+
   it('shows the shared inspection reminder for management/accounting readers', async () => {
     render(
       <MemoryRouter>

@@ -14,7 +14,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex min-h-9 [@media(pointer:coarse)]:min-h-11 w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-1.5",
+      "flex min-h-9 [@media(pointer:coarse)]:min-h-[var(--control-max-h)] w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-1.5",
       "text-[length:var(--text-control-size)] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)] tracking-normal leading-[1.35]",
       "border-[var(--line)] bg-[var(--surface)] text-[var(--ink)]",
       "ring-offset-[var(--bg)]",
@@ -77,7 +77,7 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex w-full cursor-default select-none items-center rounded-md",
-      "min-h-9 [@media(pointer:coarse)]:min-h-11 py-2 pl-8 pr-3 break-words",
+      "min-h-9 [@media(pointer:coarse)]:min-h-[var(--control-max-h)] py-2 pl-8 pr-3 break-words",
       "text-[length:var(--text-control-size)] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)] leading-[1.35] tracking-normal text-[var(--ink-2)]",
       "outline-none transition-colors duration-100",
       "focus:bg-[var(--surface-2)] focus:text-[var(--ink)]",

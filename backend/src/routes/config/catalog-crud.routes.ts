@@ -2,8 +2,9 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, isNotNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../../errors';
+import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
@@ -25,13 +26,57 @@ import { assertTireSerialAvailable } from '../../services/tire.service';
 import debitNoteTemplatesRouter from './debit-note-templates.routes';
 import masterDataImportRouter from './master-data-import.routes';
 import driverUserBindingRouter from './driver-user-binding.routes';
+import customersScreenRouter from './customers.routes';
+// Card 20260922_61: static import ONLY — the extensionless dynamic import
+// broke the dist build (ERR_MODULE_NOT_FOUND at runtime; the ESM rewrite
+// covers static imports, not dynamic specifiers — dist trap pinned by
+// shipment-debit-summary.test.ts and dist-safe-dynamic-imports.test.ts).
+import { spawnQuotationFuelApprovals } from '../../services/quotation.service';
 import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema, fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema } from '@tingting/shared';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 // Catalog CRUD routes (T3c split) — the 26 crud-factory mounts plus the
 // bootstrap/pricing endpoints, moved verbatim from routes/config.ts.
 // Helper predicates/guards come from ./config-helpers (H. prefix).
 
-const router = Router();
+const router = Router()
+
+/**
+ * Three-state surcharge threshold confirmation (20260917_11, PRD
+ * CuocPhiThietKeDB.md §8): the stored mode and the stored values must agree.
+ *   UNSET → both values null (nothing customer-confirmed yet);
+ *   NONE  → both values null (customer confirmed "no threshold");
+ *   PCT   → pct set, abs null;
+ *   ABS   → abs set, pct null.
+ * The ENGINE refuses UNSET rows; this route only guards mode/value shape.
+ */
+function requireThresholdModeConsistency(
+  mode: string,
+  pct: unknown,
+  abs: unknown,
+): void {
+  if (pct != null && abs != null) {
+    throw new ApiError(400, 'Chỉ chọn một dạng ngưỡng biến động giá dầu: phần trăm (%) HOẶC tuyệt đối (VND/lít).');
+  }
+  switch (mode) {
+    case 'PCT':
+      if (pct == null) throw new ApiError(400, 'Chọn dạng ngưỡng phần trăm thì phải nhập giá trị ngưỡng (%).');
+      if (abs != null) throw new ApiError(400, 'Dạng ngưỡng phần trăm không được kèm giá trị ngưỡng tuyệt đối.');
+      break;
+    case 'ABS':
+      if (abs == null) throw new ApiError(400, 'Chọn dạng ngưỡng tuyệt đối thì phải nhập giá trị ngưỡng (VND/lít).');
+      if (pct != null) throw new ApiError(400, 'Dạng ngưỡng tuyệt đối không được kèm giá trị ngưỡng phần trăm.');
+      break;
+    case 'NONE':
+      if (pct != null || abs != null) throw new ApiError(400, 'Xác nhận không áp dụng ngưỡng thì không được nhập giá trị ngưỡng.');
+      break;
+    case 'UNSET':
+      if (pct != null || abs != null) throw new ApiError(400, 'Chưa chốt ngưỡng thì không được nhập giá trị ngưỡng — hãy chốt một dạng ngưỡng hoặc xác nhận không áp dụng.');
+      break;
+    default:
+      throw new ApiError(400, 'Dạng ngưỡng không hợp lệ.');
+  }
+}
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
@@ -77,6 +122,8 @@ router.get('/dispatch-zones/active', asyncHandler(async (_req: Request, res: Res
     code: s.dispatchZones.code,
     label: s.dispatchZones.label,
     sortOrder: s.dispatchZones.sortOrder,
+    isDefault: s.dispatchZones.isDefault,
+    showPortFacet: s.dispatchZones.showPortFacet,
   }).from(s.dispatchZones)
     .where(eq(s.dispatchZones.isActive, true))
     .orderBy(s.dispatchZones.sortOrder, s.dispatchZones.code);
@@ -86,7 +133,7 @@ router.get('/dispatch-zones/active', asyncHandler(async (_req: Request, res: Res
 router.use(
   '/dispatch-zones',
   requireRoles(Role.ADMIN),
-  createCrudRouter(s.dispatchZones, dispatchZoneSchema, {
+  createCrudRouter(s.dispatchZones, dispatchZoneSchema, { materialWritePath: '/api/dispatch-zones',
     disableDelete: true,
     orderByField: 'sortOrder',
     updateSchema: dispatchZoneUpdateSchema,
@@ -188,7 +235,10 @@ const supplierLinkedCustomerNameSortSql = sql`(
   where ${s.customers.id} = ${s.suppliers.linkedCustomerId}
 )`;
 
-router.use('/customers', createCrudRouter(s.customers, customerSchema, {
+// Card _37 customers screen: drawer history + bulk ops resolve BEFORE the
+// CRUD sub-router; unhandled paths fall through via next().
+router.use('/customers', customersScreenRouter);
+router.use('/customers', createCrudRouter(s.customers, customerSchema, { materialWritePath: '/api/customers',
   // 2026-09-10 customer report: lookup by tax code or phone tail found
   // nothing — the catalog search only matched name fields. Identifiers are
   // now searchable too; the factory's contains-ILIKE covers full values
@@ -276,7 +326,7 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
 router.use(
   '/business-calendar',
   requireRoles(Role.ADMIN),
-  createCrudRouter(s.businessCalendarDays, businessCalendarDaySchema, {
+  createCrudRouter(s.businessCalendarDays, businessCalendarDaySchema, { materialWritePath: '/api/business-calendar',
     searchableField: 'name',
     deleteMode: 'hard',
     maxLimit: 500,
@@ -336,14 +386,64 @@ async function assertActiveCarrier(tx: H.CrudTx, carrierId: number | null | unde
   }
 }
 
-router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
+// Tombstone restore (card 20260926_18, R1): retiring a truck keeps the row as
+// a soft-deleted tombstone so the plate stays reserved — the re-add 409's
+// business message promises "khôi phục"; this endpoint IS that promise.
+// ADMIN/MANAGER only (symmetric with retire: dispatchers add but never retire
+// or restore). Restore is PLATE-based: the operator hits the tombstone 409
+// right after typing the plate, so the remedy takes the plate directly. The
+// plate's UNIQUE column means the tombstone still owns the plate, so no
+// live-conflict check is possible or needed.
+router.post(
+  '/trucks/restore',
+  declareMaterialWrite(IDEMPOTENCY_ENDPOINTS.TRUCK_RESTORE, { method: 'POST', path: '/api/trucks/restore' }),
+  requireRoles(Role.ADMIN, Role.MANAGER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawPlate = typeof req.body?.licensePlate === 'string' ? req.body.licensePlate.trim() : '';
+    if (!rawPlate) throw new ApiError(400, 'Biển số xe là bắt buộc.');
+    const user = getUser(req);
+    const idempotencyKey = req.get('Idempotency-Key');
+    if (!idempotencyKey) {
+      throw new ApiError(400, 'Idempotency-Key là bắt buộc khi khôi phục xe.');
+    }
+    const { result, replayed } = await runIdempotent<Record<string, unknown>>({
+      endpoint: IDEMPOTENCY_ENDPOINTS.TRUCK_RESTORE,
+      idempotencyKey,
+      payload: { licensePlate: rawPlate },
+      createdBy: user.userId,
+      entityType: 'trucks',
+      responseStatusCode: 200,
+      getEntityId: (truck) => (truck as { id?: number } | null)?.id ?? null,
+      getEntityKey: (truck) => (truck as { licensePlate?: string } | null)?.licensePlate ?? null,
+      create: async (tx) => {
+        const key = rawPlate.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const [tombstoned] = await tx.select().from(s.trucks)
+          .where(and(
+            sql`regexp_replace(upper(${s.trucks.licensePlate}), '[^A-Z0-9]', '', 'g') = ${key}`,
+            isNotNull(s.trucks.deletedAt),
+          ))
+          .limit(1);
+        if (!tombstoned) throw new ApiError(404, 'Không tìm thấy xe đã xóa nào giữ biển số này.');
+        const [restored] = await tx.update(s.trucks)
+          .set({ deletedAt: null, updatedAt: new Date() })
+          .where(and(eq(s.trucks.id, tombstoned.id), isNotNull(s.trucks.deletedAt)))
+          .returning();
+        return restored;
+      },
+    });
+    res.status(200).json({ ...result, replayed });
+  }),
+);
+
+router.use('/trucks', createCrudRouter(s.trucks, truckSchema, { materialWritePath: '/api/trucks',
   searchableField: 'licensePlate',
   // "Chọn nhà xe → thấy biển số của nó" list filter (integer equality).
   filterFields: ['carrierId'],
   // Dispatchers may add new tractors (casbin route-scoped POST allowance) but
   // not edit or retire existing ones.
   beforeCreate: async (data, _req, tx) => {
-    await H.assertUniqueCatalogString({ tx, scope: 'truck.license-plate', value: data.licensePlate, table: s.trucks, column: s.trucks.licensePlate, message: 'Biển số xe đầu kéo đã tồn tại' });
+    await H.assertUniqueCatalogString({ tx, scope: 'truck.license-plate', value: data.licensePlate, table: s.trucks, column: s.trucks.licensePlate, message: 'Biển số xe đầu kéo đã tồn tại',
+      tombstoneMessage: (key) => `Biển số ${key} đã tồn tại trong thùng rác (xe đã xóa). Vui lòng khôi phục xe hoặc chọn biển số khác.` });
     await H.requireActiveCatalogRow(tx, 'trailer', s.trailers, data.currentTrailerId, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
     // Same transfer semantics as the update hook — a NEW truck claiming a
     // held trailer clears the holder.
@@ -381,7 +481,7 @@ router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
   },
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'truck', id),
 }));
-router.use('/trailers', createCrudRouter(s.trailers, trailerSchema, {
+router.use('/trailers', createCrudRouter(s.trailers, trailerSchema, { materialWritePath: '/api/trailers',
   searchableField: 'licensePlate',
   beforeCreate: async (data, _req, tx) => {
     await H.assertUniqueCatalogString({ tx, scope: 'trailer.license-plate', value: data.licensePlate, table: s.trailers, column: s.trailers.licensePlate, message: 'Biển số rơ-moóc đã tồn tại' });
@@ -395,7 +495,7 @@ router.use('/trailers', createCrudRouter(s.trailers, trailerSchema, {
   },
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'trailer', id),
 }));
-router.use('/routes', createCrudRouter(s.routes, routeSchema, {
+router.use('/routes', createCrudRouter(s.routes, routeSchema, { materialWritePath: '/api/routes',
   searchableFields: ['shortName', 'name'],
   // Keep the definition registered so legacy pending actions remain
   // reviewable/applicable, while all new route changes take effect directly.
@@ -433,10 +533,10 @@ router.use('/routes', createCrudRouter(s.routes, routeSchema, {
     await H.lockCatalogDelete(tx, 'route', id);
   },
 }));
-router.use('/cargo-types', createCrudRouter(s.cargoTypes, cargoTypeSchema, {
+router.use('/cargo-types', createCrudRouter(s.cargoTypes, cargoTypeSchema, { materialWritePath: '/api/cargo-types',
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'cargo-type', id),
 }));
-router.use('/container-types', createCrudRouter(s.containerTypes, containerTypeSchema, {
+router.use('/container-types', createCrudRouter(s.containerTypes, containerTypeSchema, { materialWritePath: '/api/container-types',
   searchableField: 'name',
   beforeCreate: async (data, _req, tx) => {
     await H.assertUniqueCatalogString({ tx, scope: 'container-type.code', value: data.code, table: s.containerTypes, column: s.containerTypes.code, message: 'Mã loại container đã tồn tại' });
@@ -450,8 +550,8 @@ router.use('/container-types', createCrudRouter(s.containerTypes, containerTypeS
   },
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'container-type', id),
 }));
-router.use('/seal-types', createCrudRouter(s.sealTypes, sealTypeSchema, { searchableField: 'name' }));
-router.use('/ports', createCrudRouter(s.ports, portSchema, {
+router.use('/seal-types', createCrudRouter(s.sealTypes, sealTypeSchema, { materialWritePath: '/api/seal-types', searchableField: 'name' }));
+router.use('/ports', createCrudRouter(s.ports, portSchema, { materialWritePath: '/api/ports',
   searchableField: 'name',
   beforeCreate: async (data, _req, tx) => {
     await H.assertUniqueCatalogString({ tx, scope: 'port.code', value: data.code, table: s.ports, column: s.ports.code, message: 'Mã cảng đã tồn tại' });
@@ -467,7 +567,7 @@ router.use('/ports', createCrudRouter(s.ports, portSchema, {
   },
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'port', id),
 }));
-router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes, forwarderExpenseTypeSchema, {
+router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes, forwarderExpenseTypeSchema, { materialWritePath: '/api/forwarder-expense-types',
   searchableField: 'name',
   governance: {
     reasonLabel: 'chính sách chứng từ và hạn mức chi hộ',
@@ -486,7 +586,7 @@ router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes,
     return H.withForwarderExpenseTypePolicyDefaults(id, data, tx);
   },
 }));
-router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema, {
+router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema, { materialWritePath: '/api/pricing-tables',
   beforeCreate: async (data, _req, tx) => {
     validatePricingSelector(data);
     await H.requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
@@ -534,7 +634,7 @@ router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSche
     reasonLabel: 'bảng giá cước',
   },
 }));
-router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceSchema, {
+router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceSchema, { materialWritePath: '/api/road-allowances',
   beforeCreate: async (data, _req, tx) => {
     await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
     await lockApplicationOwnedUniqueness(tx, 'catalog.road-allowance.route-type', [data.routeId, data.trailerType]);
@@ -563,7 +663,7 @@ router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceS
 
 // Wave 1: pricing & fuel catalog CRUD routes. All behind the existing
 // config RBAC (office staff: ADMIN/MANAGER/ACCOUNTANT).
-router.use('/fuel-norms', createCrudRouter(s.fuelNorms, fuelNormSchema, {
+router.use('/fuel-norms', createCrudRouter(s.fuelNorms, fuelNormSchema, { materialWritePath: '/api/fuel-norms',
   beforeCreate: async (data, _req, tx) => {
     await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
     await H.requireActiveCatalogRow(tx, 'truck', s.trucks, data.truckId, 'Xe đầu kéo không tồn tại hoặc đã ngưng dùng');
@@ -578,7 +678,7 @@ router.use('/fuel-norms', createCrudRouter(s.fuelNorms, fuelNormSchema, {
     reasonLabel: 'định mức nhiên liệu',
   },
 }));
-router.use('/weight-pricing-tiers', createCrudRouter(s.weightPricingTiers, weightPricingTierSchema, {
+router.use('/weight-pricing-tiers', createCrudRouter(s.weightPricingTiers, weightPricingTierSchema, { materialWritePath: '/api/weight-pricing-tiers',
   beforeCreate: async (data, _req, tx) => {
     await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
     await H.requireActiveCatalogRow(tx, 'cargo-type', s.cargoTypes, data.cargoTypeId, 'Loại hàng không tồn tại hoặc đã ngưng dùng');
@@ -593,7 +693,7 @@ router.use('/weight-pricing-tiers', createCrudRouter(s.weightPricingTiers, weigh
     reasonLabel: 'bậc giá theo trọng lượng',
   },
 }));
-router.use('/lift-pricing', createCrudRouter(s.liftPricing, liftPricingSchema, {
+router.use('/lift-pricing', createCrudRouter(s.liftPricing, liftPricingSchema, { materialWritePath: '/api/lift-pricing',
   beforeCreate: async (data, _req, tx) => {
     await H.requireActiveCatalogRow(tx, 'port', s.ports, data.portId, 'Cảng không tồn tại hoặc đã ngưng dùng');
     await H.requireActiveCatalogRow(tx, 'container-type', s.containerTypes, data.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
@@ -641,8 +741,42 @@ router.use('/lift-pricing', createCrudRouter(s.liftPricing, liftPricingSchema, {
 // market-data entry by "Kế toán/CUS" (a governed flow would reject the CUS
 // maker — GOVERNANCE_CREATE is financial-trio only); the heavier contract
 // surfaces (rate terms, norms) below stay governed.
-router.use('/fuel-price-periods', createCrudRouter(s.fuelPricePeriods, fuelPricePeriodSchema, {
+// Fuel-price list enrichment: the audit contract ("ai nhập 28.000đ từ 19/9?")
+// needs the entrant's NAME on the wire — raw ids never render as UI text.
+// Mounted before the factory so the GET serves the joined name while the
+// factory keeps handling writes.
+router.get('/fuel-price-periods', asyncHandler(async (_req: Request, res: Response) => {
+  const rows = await db.select({
+    id: s.fuelPricePeriods.id,
+    unitPrice: s.fuelPricePeriods.unitPrice,
+    effectiveFrom: s.fuelPricePeriods.effectiveFrom,
+    effectiveTo: s.fuelPricePeriods.effectiveTo,
+    sourceNote: s.fuelPricePeriods.sourceNote,
+    createdBy: s.fuelPricePeriods.createdBy,
+    createdByName: sql<string | null>`coalesce(${s.users.fullName}, ${s.users.username})`,
+  })
+    .from(s.fuelPricePeriods)
+    .leftJoin(s.users, eq(s.users.id, s.fuelPricePeriods.createdBy))
+    .orderBy(s.fuelPricePeriods.effectiveFrom);
+  res.json({ items: rows, total: rows.length, page: 1, pageSize: Math.max(rows.length, 1) });
+}));
+
+// Card 20260922_61 (ruling 8): kế toán owns the fuel-period catalog. CUS
+// stays an entrant per the Phương án tính cước docx §5-1 (the casbin
+// route-scoped CUS bridge below the config mount encodes the same contract)
+// — dropping CUS here regressed the config-routes suite's §5-1 pin.
+router.use('/fuel-price-periods', requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role.CUS), createCrudRouter(s.fuelPricePeriods, fuelPricePeriodSchema, { materialWritePath: '/api/fuel-price-periods',
   orderByField: 'effectiveFrom',
+  // The factory stamps the idempotency record, not the entity row — the fuel
+  // entry must remember WHO entered it (audit attribution, card _57).
+  beforeCreate: async (data, req) => ({ ...data, createdBy: getUser(req).userId }),
+  // Card 20260922_61 (ruling 8): a new fuel period opens the "ĐỒNG Ý CẬP
+  // NHẬT BÁO GIÁ" workflow — every customer with an active quotation gets a
+  // PENDING approval row; the engine prices the OLD period until kế toán
+  // ticks Đồng ý.
+  afterCreate: async (item, _data, _req, tx) => {
+    await spawnQuotationFuelApprovals(item.id, tx);
+  },
 }));
 
 // Freight rate terms — one contract block per customer × route. The pct/abs
@@ -651,12 +785,18 @@ router.use('/fuel-price-periods', createCrudRouter(s.fuelPricePeriods, fuelPrice
 // ApiError-throwing hooks. Updates must merge the patch against the current
 // row because an edit form may send only one threshold while the stored row
 // carries the other.
-router.use('/freight-rate-terms', createCrudRouter(s.freightRateTerms, freightRateTermSchema, {
+router.use('/freight-rate-terms', createCrudRouter(s.freightRateTerms, freightRateTermSchema, { materialWritePath: '/api/freight-rate-terms',
   orderByField: 'effectiveDate',
   beforeCreate: async (data, _req, tx) => {
-    if (data.surchargeThresholdPct != null && data.surchargeThresholdAbs != null) {
-      throw new ApiError(400, 'Chỉ chọn một dạng ngưỡng biến động giá dầu: phần trăm (%) HOẶC tuyệt đối (VND/lít).');
-    }
+    // Three-state threshold confirmation (20260917_11): mode and values must
+    // agree. 'UNSET' (nothing customer-confirmed yet) is a legal creation
+    // state — the ENGINE refuses to auto-apply fuel prices to it (PRD §8:
+    // never read an empty cell as "always adjust"), not this route.
+    requireThresholdModeConsistency(
+      data.surchargeThresholdMode ?? 'UNSET',
+      data.surchargeThresholdPct ?? null,
+      data.surchargeThresholdAbs ?? null,
+    );
     await H.requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
     await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
     return data;
@@ -665,11 +805,11 @@ router.use('/freight-rate-terms', createCrudRouter(s.freightRateTerms, freightRa
     const [current] = await tx.select().from(s.freightRateTerms)
       .where(eq(s.freightRateTerms.id, id)).limit(1);
     if (!current) throw new ApiError(404, 'Không tìm thấy điều khoản cước');
-    const mergedPct = data.surchargeThresholdPct !== undefined ? data.surchargeThresholdPct : current.surchargeThresholdPct;
-    const mergedAbs = data.surchargeThresholdAbs !== undefined ? data.surchargeThresholdAbs : current.surchargeThresholdAbs;
-    if (mergedPct != null && mergedAbs != null) {
-      throw new ApiError(400, 'Chỉ chọn một dạng ngưỡng biến động giá dầu: phần trăm (%) HOẶC tuyệt đối (VND/lít).');
-    }
+    requireThresholdModeConsistency(
+      data.surchargeThresholdMode ?? current.surchargeThresholdMode,
+      data.surchargeThresholdPct !== undefined ? data.surchargeThresholdPct : current.surchargeThresholdPct,
+      data.surchargeThresholdAbs !== undefined ? data.surchargeThresholdAbs : current.surchargeThresholdAbs,
+    );
     if (data.customerId !== undefined) await H.requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
     if (data.routeId !== undefined) await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
     return data;
@@ -680,7 +820,7 @@ router.use('/freight-rate-terms', createCrudRouter(s.freightRateTerms, freightRa
 }));
 
 // Fuel consumption norms — revenue-side liters/km per vehicle size class.
-router.use('/fuel-consumption-norms', createCrudRouter(s.fuelConsumptionNorms, fuelConsumptionNormSchema, {
+router.use('/fuel-consumption-norms', createCrudRouter(s.fuelConsumptionNorms, fuelConsumptionNormSchema, { materialWritePath: '/api/fuel-consumption-norms',
   orderByField: 'effectiveDate',
   beforeCreate: async (data, _req, tx) => {
     await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, data.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
@@ -699,7 +839,7 @@ router.use('/fuel-consumption-norms', createCrudRouter(s.fuelConsumptionNorms, f
 
 // Vehicle size class catalog — the FK-able taxonomy behind pricing rate keys.
 // Codes are immutable: pricing_tables.rate_key and engine lookups key on them.
-router.use('/vehicle-size-classes', createCrudRouter(s.vehicleSizeClasses, vehicleSizeClassSchema, {
+router.use('/vehicle-size-classes', createCrudRouter(s.vehicleSizeClasses, vehicleSizeClassSchema, { materialWritePath: '/api/vehicle-size-classes',
   orderByField: 'sortOrder',
   beforeUpdate: async (id, data, req, tx) => {
     const [current] = await tx.select({ code: s.vehicleSizeClasses.code })
@@ -718,7 +858,7 @@ router.use('/vehicle-size-classes', createCrudRouter(s.vehicleSizeClasses, vehic
 // require a non-empty note. The createCrudRouter doesn't support superRefine
 // (its type expects AnyZodObject), so we validate the refund rule as a
 // beforeCreate/beforeUpdate hook that throws ApiError when the rule is violated.
-const ancillaryRevenueRouter = createCrudRouter(s.ancillaryRevenue, ancillaryRevenueSchema, {
+const ancillaryRevenueRouter = createCrudRouter(s.ancillaryRevenue, ancillaryRevenueSchema, { materialWritePath: '/api/ancillary-revenue',
   governance: {
     reasonLabel: 'doanh thu bổ sung',
   },
@@ -746,7 +886,7 @@ router.use('/ancillary-revenue', ancillaryRevenueRouter);
 router.get('/penalty-reasons/stats', asyncHandler(async (req: Request, res: Response) => {
   res.json(await getPenaltyStats());
 }));
-router.use('/penalty-reasons', createCrudRouter(s.penaltyReasons, penaltyReasonSchema, {
+router.use('/penalty-reasons', createCrudRouter(s.penaltyReasons, penaltyReasonSchema, { materialWritePath: '/api/penalty-reasons',
   governance: {
     reasonLabel: 'mức phạt mặc định',
     shouldGovernCreate: (data) => H.hasMaterialPenaltyReasonChange(data as PenaltyReasonPayload),
@@ -754,7 +894,7 @@ router.use('/penalty-reasons', createCrudRouter(s.penaltyReasons, penaltyReasonS
     shouldGovernDelete: () => true,
   },
 }));
-router.use('/management-fees', createCrudRouter(s.managementFees, managementFeeSchema, {
+router.use('/management-fees', createCrudRouter(s.managementFees, managementFeeSchema, { materialWritePath: '/api/management-fees',
   deleteMode: 'hard',
   governance: {
     reasonLabel: 'phí quản lý',
@@ -766,7 +906,7 @@ router.use('/management-fees', createCrudRouter(s.managementFees, managementFeeS
 // Cap-table is amount-based: percentages are derived as
 // contribution_amount / sum(contribution_amount) per snapshot, so totals are
 // always 100% by construction and there's no separate over-allocation check.
-router.use('/cap-table', createCrudRouter(s.capTableHistory, capTableSchema, {
+router.use('/cap-table', createCrudRouter(s.capTableHistory, capTableSchema, { materialWritePath: '/api/cap-table',
   deleteMode: 'hard',
   governance: {
     reasonLabel: 'tỷ lệ phân chia vốn',
@@ -775,13 +915,46 @@ router.use('/cap-table', createCrudRouter(s.capTableHistory, capTableSchema, {
 // F3 — per-vehicle cap table. Same CRUD pattern; clients filter by truckId via
 // the `search`-style list query (the factory's GET passes through query
 // params, and the per-truck editor fetches `/config/truck-cap?truckId=X`).
-router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, {
+router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, { materialWritePath: '/api/truck-cap',
   deleteMode: 'hard',
   governance: {
     reasonLabel: 'tỷ lệ phân chia theo xe',
   },
 }));
-router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
+// Card 20260926_58 (CHIEF): the subcontractor directory's status pills must
+// count the WHOLE filtered dataset, never the current pagination chunk
+// ('ĐANG HOẠT ĐỘNG (TRANG NÀY)' was the reported anti-pattern). One grouped
+// census + per-carrier assigned-vehicle counts (trucks.carrier_id = the
+// supplier's linked customer), both scoped to live rows.
+router.get(
+  '/suppliers/status-counts',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const [statusRows, vehicleRows] = await Promise.all([
+      db.select({ status: s.suppliers.status, count: sql<number>`count(*)::int` })
+        .from(s.suppliers)
+        .where(isNull(s.suppliers.deletedAt))
+        .groupBy(s.suppliers.status),
+      db.select({ carrierId: s.trucks.carrierId, count: sql<number>`count(*)::int` })
+        .from(s.trucks)
+        .where(and(isNull(s.trucks.deletedAt), isNotNull(s.trucks.carrierId)))
+        .groupBy(s.trucks.carrierId),
+    ]);
+    const byStatus: Record<string, number> = {};
+    let all = 0;
+    for (const row of statusRows) {
+      byStatus[row.status] = row.count;
+      all += row.count;
+    }
+    const vehicles: Record<string, number> = {};
+    for (const row of vehicleRows) {
+      if (row.carrierId != null) vehicles[String(row.carrierId)] = row.count;
+    }
+    res.json({ all, active: byStatus['ACTIVE'] ?? 0, inactive: (byStatus['INACTIVE'] ?? 0) + (byStatus['SUSPENDED'] ?? 0), vehicles });
+  }),
+);
+
+router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, { materialWritePath: '/api/suppliers',
   // Same identifier-search gap as /customers (taxCode/phone were sortable
   // but not searchable) — see the 2026-09-10 customer report.
   searchableFields: ['shortName', 'name', 'taxCode', 'phone', 'contactPerson'],
@@ -825,13 +998,13 @@ router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
   },
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'supplier', id),
 }));
-router.use('/expense-categories', createCrudRouter(s.expenseCategories, expenseCategorySchema, {
+router.use('/expense-categories', createCrudRouter(s.expenseCategories, expenseCategorySchema, { materialWritePath: '/api/expense-categories',
   searchableField: 'name',
   governance: {
     reasonLabel: 'nhóm chi phí',
     shouldGovernCreate: () => true,
-    // Name-only renames apply directly; policy fields (isRenewable,
-    // reminderLeadDays, status) still queue for maker→checker→approver.
+    // Policy fields use the direct versioned command for audit and invariants;
+    // name-only changes use the ordinary update path.
     shouldGovernUpdate: (_id, data, _req, current) => H.hasMaterialExpenseCategoryUpdate(data as ExpenseCategoryPayload, current),
     shouldGovernDelete: () => true,
   },
@@ -840,7 +1013,7 @@ router.use('/expense-categories', createCrudRouter(s.expenseCategories, expenseC
 // Debit-note templates — dedicated transactional router (NOT crud-factory) so the
 // single-default invariant is enforced atomically. See the route file's header.
 router.use('/debit-note-templates', debitNoteTemplatesRouter);
-router.use('/tire-positions', createCrudRouter(s.tirePositions, tirePositionSchema, {
+router.use('/tire-positions', createCrudRouter(s.tirePositions, tirePositionSchema, { materialWritePath: '/api/tire-positions',
   searchableField: 'name',
   beforeCreate: async (data, _req, tx) => {
     await H.assertUniqueCatalogString({ tx, scope: 'tire-position.name', value: data.name, table: s.tirePositions, column: s.tirePositions.name, message: 'Vị trí lốp đã tồn tại' });
@@ -855,7 +1028,7 @@ router.use('/tire-positions', createCrudRouter(s.tirePositions, tirePositionSche
 }));
 
 // Drivers — special handling (includes user_id, no delete per spec §4.2)
-router.use('/drivers', createCrudRouter(s.drivers, driverSchema, {
+router.use('/drivers', createCrudRouter(s.drivers, driverSchema, { materialWritePath: '/api/drivers',
   searchableField: 'name',
   disableDelete: true,
   // Dispatchers may add drivers to staff dispatch plans (casbin route-scoped
@@ -872,7 +1045,7 @@ router.use('/drivers', createCrudRouter(s.drivers, driverSchema, {
 // Generic CRUD for the catalog (list/create/update/delete). The lifecycle
 // transitions (install/remove) are dedicated endpoints below because they touch
 // multiple fields atomically and validate the target truck exists.
-router.use('/fleet/tires', createCrudRouter(s.tires, tireSchema, {
+router.use('/fleet/tires', createCrudRouter(s.tires, tireSchema, { materialWritePath: '/api/fleet/tires',
   searchableField: 'serial',
   maxLimit: 2000,
   deleteMode: 'hard',

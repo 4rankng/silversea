@@ -18,7 +18,7 @@ export function ShipmentDetailContent({
   onDirtyChange,
   onSavingChange,
   actionsRef,
-  onExternalTripCompleted: _onExternalTripCompleted,
+  onExternalTripCompleted,
   onAppointmentSavedAndExit,
 }: {
   detail?: ShipmentCusWorkspaceDetail;
@@ -58,6 +58,7 @@ export function ShipmentDetailContent({
           onSavingChange={onSavingChange}
           actionsRef={actionsRef}
           onAppointmentSavedAndExit={onAppointmentSavedAndExit}
+          onExternalTripCompleted={onExternalTripCompleted}
         />
       ) : null}
     </div>

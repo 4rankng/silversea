@@ -2,21 +2,87 @@
  * FilterBar — TingTing
  * Extracted from UI.css during architecture refactoring (Phase 4)
  * ========================================================================== */
+/* THE filter-bar layout (card 20260927_152).
+ *
+ * ONE wrapping flex line inside ONE card (operator 2026-09-27 reference: a
+ * bordered toolbar holding the whole strip), and the line packs to as few rows
+ * as the width allows — two is the rule of thumb at every device size.
+ *
+ * Order is the reading order: search → criteria → quick ranges → reset. The
+ * search takes the slack the others leave, so a row never has a ragged tail;
+ * every other control keeps the width its value asks for.
+ *
+ * Which criteria are VISIBLE is a measured decision, not a breakpoint
+ * (`filter-bar-mode.ts`): while the strip still fits two rows every criterion
+ * renders inline, and only when the width leaves no other choice do they
+ * collapse into `Bộ lọc` (operator 2026-09-27: "when there is enough space we
+ * try our best to display all filters, not group inside bo loc"; "group inside
+ * bo loc is only when we have no other choice due to screensize limitation").
+ *
+ * `.filter-bar` alone (a hand-rolled bar on a surface this cutover has not
+ * reached) keeps its transparent chrome; `.filter-bar--card` is the shared
+ * toolbar card. Flat law §3: a hairline border on the surface token, never a
+ * shadow.
+ *
+ * Why no measured grid: `repeat(auto-fit, minmax(200px, 1fr))` stretched the
+ * first row to equal tracks and left the wrapped row 7-33% full (measured at
+ * 1187/1402 on /shipments, /shipments-detail and /accounting/invoice-tracking)
+ * — the ragged tail the operator rejected twice. Flex packs each line to its
+ * own content, so no line has a hole. */
 .filter-bar {
   background: transparent;
-  border-block: 1px solid var(--line);
-  padding: 12px 0;
-  margin-bottom: 20px;
+  border: 0;
+  padding: 0;
+  /* Card 20260930_246 (§8 density): 16 → 8 — the band's own breathing room
+     was a full control row; half of it keeps the separation every locked
+     page still shows while returning the rest to the record surface. */
+  margin: 0 0 8px;
   display: flex;
-  align-items: end;
-  gap: 8px;
-  min-width: 0;
   flex-wrap: wrap;
-  transition: border-color 0.2s ease;
+  align-items: flex-end;
+  gap: 12px 16px;
+  min-width: 0;
 }
-.filter-bar:focus-within {
-  border-color: var(--line-2);
+
+/* Direct prefix-date/search feedback follows the control in normal flow.
+ * Align that state at the control's top so the helper cannot drag sibling
+ * controls down to its last line. Normal labelled stacks keep flex-end. */
+.filter-bar:has(> .date-range-fields .uui-date-hint--error),
+.filter-bar:has(> [data-input-wrapper] > .date-seg-group ~ .uui-date-hint--error),
+.filter-bar:has(> .filter-bar__search-cell > .filter-bar__search-error) {
+  align-items: flex-start;
 }
+
+/* The shared toolbar surface: one card around the whole strip. */
+.filter-bar--card {
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 14px);
+}
+
+/* One control height per bar context (card 20260920_19): the bar passes
+   --filter-control-h to every control it hosts, and the coarse-pointer band
+   raises it to the touch floor. Declared on `.filter-bar` (not only on the
+   ListFilterBar component) so a bare host cannot drift — and so no page has to
+   declare a UUI field dimension of its own (control-density contract). */
+.filter-bar {
+  --uui-control-h: var(--filter-control-h);
+}
+.filter-bar [data-uui-control],
+.filter-bar [data-uui-control][data-control-size] {
+  --uui-control-h: var(--filter-control-h);
+}
+@media (pointer: coarse) {
+  .filter-bar { --filter-control-h: var(--control-touch-h); }
+}
+
+/* The spacer is not a box — it is the pin. The actions that follow it take
+   `margin-left: auto`, so the reset/export cluster sits at the right end of
+   whichever line it lands on and never mid-row. Kept in the DOM because region
+   order is the component contract. */
+.filter-bar__spacer { display: none; }
+.filter-bar__spacer + * { margin-left: auto; }
 
 /* Generic filter tabs — clean, pill-like toggle buttons. Some pages render
    these outside .filter-bar, so the base selector carries the tap target. */
@@ -28,7 +94,7 @@
   height: var(--filter-control-h);
   min-height: var(--filter-control-h);
   padding: 0 14px;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: var(--text-control-compact-size);
   font-weight: 600;
   color: var(--ink-2);
@@ -52,8 +118,171 @@
   border-color: var(--ink);
 }
 
-/* Spacer pushes subsequent items to the right */
-.filter-bar__spacer { flex: 1; min-width: 0; }
+/* The spacer's flex role is retired with the flex bar (see the grid rule at the
+   top of this file): `.filter-bar__spacer` is hidden and the item after it pins
+   to the row end. */
+
+/* A filter control is as wide as the value it holds (card 20260927_152,
+   operator 2026-09-27: "some control the value very short but why the fuck it
+   takes full row? the width of control should relative to value it holds").
+ *
+ * `width: 100%` is a FORM default — the searchable select, the bare combobox
+ * trigger and the date wrapper all set it — and inside a wrapping row it means
+ * "take the whole line", which is how a two-word "Kế hoạch" grew to 1480px.
+ * These selectors are (0,2,0) against the families' (0,1,0), so the reset wins
+ * regardless of import order. DESCENDANT scope, not `>`: a page wrapper around
+ * a control (`.shipments-detail-filters > div > .ds-uui-select`) is exactly how
+ * the family default came back twice on 2026-09-27.
+ *
+ * `.filter-dropdown__body` is the SECOND scope for the same contract: the
+ * dialog is portalled to <body>, so the criteria in it leave the bar's subtree
+ * entirely — without this the two-word "Kế hoạch" took a full row of the
+ * dialog too (operator 2026-09-27: "Ke hoach values are very short why the
+ * fuck full width"). */
+:is(.filter-bar, .filter-dropdown__body) .searchable-select,
+:is(.filter-bar, .filter-dropdown__body) .inline-label-select,
+:is(.filter-bar, .filter-dropdown__body) .ds-uui-select,
+:is(.filter-bar, .filter-dropdown__body) .csc-searchable-field,
+:is(.filter-bar, .filter-dropdown__body) [data-input-wrapper],
+:is(.filter-bar, .filter-dropdown__body) [data-uui-control] {
+  width: auto;
+}
+/* `BufferedUuiDateInput` stacks label-over-control with `align-items:
+   flex-start`, so its `.date-seg-group` — the ONE bordered box — sizes to
+   `fit-content` and stops at its own `DD / MM / YYYY` (~105px). Inside a bar
+   cell that is a 63px hole to the right of every date field: measured on
+   /shipments at 1169px, `Từ ngày` 105px in a 168px track with the `Đến ngày`
+   box 75px away. Stretching the wrapper lets the group's own `width: 100%`
+   fill the cell, so a grouped field fills its track and a standalone field
+   hugs its value (its wrapper is `width: auto` above). */
+:is(.filter-bar, .filter-dropdown__body) [data-input-wrapper] { align-items: stretch; }
+
+/* One control height in a filter context, including the families whose own
+   sheets raise themselves on phones: `SearchableSelect.css` sets the trigger to
+   `--control-mobile-h` (40px) at ≤640px, so the Kế hoạch dropdown stood taller
+   than the InlineLabelSelect chips beside it — operator 2026-09-27: "the height
+   of component ke hoach dropdown too high, please reduce to be same as other
+   dropdown". (0,3,0) out-ranks that (0,2,0) band, so the outcome does not
+   depend on stylesheet import order. */
+:is(.filter-bar, .filter-dropdown__body) .searchable-select .searchable-select__trigger,
+:is(.filter-bar, .filter-dropdown__body) .searchable-select .searchable-select__trigger--sm,
+:is(.filter-bar, .filter-dropdown__body) .inline-label-select .inline-label-select__trigger {
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+}
+/* …except a member of a control group that owns its own track. Ordered after
+   the reset inside this one file, so the outcome is decided here and not by
+   stylesheet import order. */
+.filter-bar .date-range-fields > [data-input-wrapper] {
+  width: 100%;
+}
+
+/* The shared from/to group is ONE bar item: two date fields and the seam
+   between them, and never a stretched track.
+ *
+ * Its FLEX BASIS is the width the two prefix fields actually need (2 x 149px +
+ * the 6px seam and the `→` ≈ 322px), not the 348px cap: flex breaks a line by
+ * each item's hypothetical size and wrapping is decided BEFORE any shrinking,
+ * so an over-large basis pushed the group onto a line of its own on a 460-600px
+ * bar. From the 322px basis the group shares its line and grows to the 348px
+ * cap when the bar has room; `max-width` is what keeps that growth bounded, so
+ * the group is never wider than its own value. */
+.filter-bar .date-range-fields {
+  width: auto;
+  flex: 1 1 322px;
+  min-width: 0;
+  max-width: 348px;
+}
+
+/* L2: no bar item grows on its own except the search cell (its `flex: 1 1
+   auto` block below re-enables growth after this reset) and the from/to group
+   (bounded by its own 348px cap). Both are declared AFTER this rule inside
+   this file, so the outcome is decided here, not by stylesheet import order —
+   and neither can ever stretch across a line. */
+.filter-bar > * { flex-grow: 0; }
+
+/* Quick ranges ride the line beside the date group they set, at every width:
+   the measured mode folds the CRITERIA, never the ranges — a range is a
+   one-click lens and the operator ruled it stays a visible chip ("if need more
+   than 2 rows then group into bo loc button" applies to that button's own
+   contents, not to the ranges). */
+.filter-bar__presets {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 0;
+}
+
+/* A segmented group INSIDE the bar is a control, not a second tab bar: its
+   chips take the strip's own height token and the boxed group drops its 2px
+   inset, so the group measures exactly what the search, the date fields and
+   `Bộ lọc` measure (operator 2026-09-27: "component height are inconsistent
+   [...] please follow same height as [the tab row]"). Scoped to the whole bar,
+   not just the quick-ranges slot: a status/role/category `Tabs variant="boxed"`
+   placed as a bar child otherwise stands 36px (50px on phones) beside 30px
+   siblings. Without this the shared `Tabs` phone floor (40px) left the range
+   group ~1.5x the height of the field beside it. */
+.filter-bar .ds-tabs__btn,
+.filter-bar .filter-tab {
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.filter-bar .ds-tabs--boxed {
+  /* The chips already carry their own boundary; the group's inset would add
+     2px on every side and break the single-height row. */
+  padding: 0;
+  align-items: center;
+}
+
+/* Search cell: the shell plus an optional validation line under it, so the
+   message never becomes a bar item of its own. The search is the item that
+   fills the primary row (operator 2026-09-27 reference: it takes everything the
+   `Bộ lọc` trigger leaves, and the two ALWAYS share the row — "in small screen
+   size we have put bo loc button there same row with search bar, where search
+   bar still take most of the space"). The 240px floor is measured: at 240 the
+   search still fits beside the 322px from/to group on a 566px bar (594px
+   viewport), so the strip holds TWO rows there instead of pushing the search
+   onto a line of its own at full width. Capped at 300px (the family ceiling —
+   "search bar will never need to occupy full row width"): a 484px phone bar
+   then packs `search + Bộ lọc` on one line and the from/to group on the next
+   instead of the search owning a line of its own. */
+.filter-bar > .filter-bar__search,
+.filter-bar__search-cell {
+  flex: 1 1 240px;
+  min-width: 240px;
+  max-width: 300px;
+}
+/* The rule above states the intent: the search and `Bộ lọc` ALWAYS share the
+   primary row. The 240px floor is measured for a 566px bar — but on a phone the
+   bar's inner width is ~350px, and 240 (search) + 104 (`Bộ lọc`) + 16 (gap) =
+   360 does not fit, so the search took a line of its own and `Bộ lọc` was
+   orphaned below it. That is the exact layout the law forbids, and it is what
+   the operator's phone screenshot shows.
+
+   So the FLOOR yields, not the intent: on a phone the search gives up enough
+   width for the pair to share one line. Desktop keeps 240 — there the search
+   still fits beside the from/to group and the strip holds two rows. */
+@media (max-width: 767px) {
+  .filter-bar > .filter-bar__search,
+  .filter-bar__search-cell {
+    flex-basis: 200px;
+    min-width: 200px;
+  }
+}
+.filter-bar__search-cell {
+  display: grid;
+  align-content: end;
+  gap: 4px;
+}
+.filter-bar__search-error {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
+}
 
 /* Search input inside the filter bar */
 .filter-bar__search {
@@ -62,18 +291,20 @@
   align-items: center;
   height: var(--filter-control-h);
   min-height: var(--filter-control-h);
-  background: var(--surface-2);
-  border: 1px solid transparent;
-  border-radius: 10px;
+  /* Card 20260926_7 (Director law): search shells follow the control-surface
+     law — opaque surface token, never a tint fallback (QA cut #10 evidence). */
+  background: var(--surface);
+  border: 1px solid var(--control-border, var(--line));
+  border-radius: 8px;
+  width: 100%;
   min-width: min(180px, 100%);
-  max-width: 260px;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .filter-bar__search:focus-within {
   background: var(--surface);
   border-color: var(--accent);
-  outline: 2px solid var(--accent-soft);
-  outline-offset: 2px;
+  outline: 2px solid var(--focus, var(--accent));
+  outline-offset: 1px;
 }
 .filter-bar__search svg {
   position: absolute;
@@ -100,8 +331,8 @@
 }
 .filter-bar__search input::placeholder { color: var(--ink-3); }
 
-/* filter-pill — generic filter pill component */
-.filter-pill {
+/* filter-chip — generic filter pill component */
+.filter-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -110,7 +341,7 @@
   padding: 0 13px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: var(--text-control-compact-size);
   color: var(--ink-2);
   font-weight: 500;
@@ -118,53 +349,64 @@
   white-space: nowrap;
   transition: background 200ms var(--ease), border-color 200ms var(--ease), color 200ms var(--ease);
 }
-.filter-pill:hover {
+.filter-chip:hover {
   border-color: var(--line-2);
   background: var(--surface-2);
   color: var(--ink);
 }
-.filter-pill.is-active {
+.filter-chip.is-active {
   background: var(--ink);
   color: var(--fg-on-brand);
   border-color: var(--ink);
 }
-.filter-pill svg { width: 14px; height: 14px; }
-.filter-pill__count {
+.filter-chip svg { width: 14px; height: 14px; }
+.filter-chip__count {
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
   font-weight: 700;
   padding: 2px 7px;
   background: rgba(0, 0, 0, 0.06);
-  border-radius: 999px;
+  border-radius: 4px;
   margin-left: 2px;
 }
-.filter-pill.is-active .filter-pill__count {
+.filter-chip.is-active .filter-chip__count {
   background: rgba(255, 255, 255, 0.18);
   color: var(--fg-on-brand);
 }
 
-/* Expense list filter toolbar — desktop defaults */
-.expense-filters {
-  flex-wrap: nowrap;
-  gap: 8px;
-  overflow: auto;
-}
-.expense-filters__select { font-size: var(--control-field-font-size); min-width: 120px; }
-.expense-filters__date { font-size: var(--control-field-font-size); width: auto; min-width: 130px; }
+/* The `.expense-filters` toolbar block is deleted (card 20260927_152): it had
+   no TSX consumer left after `/expenses` moved onto the shared bar, and a dead
+   rule that names a family (min-width: 120px on a select) is how a later
+   session re-derives a width contract that no longer exists. */
 
 @media (max-width: 640px), (pointer: coarse) {
   .filter-tab,
   .filter-bar .filter-tab,
-  .filter-pill {
+  .filter-chip {
     font-size: var(--text-control-size);
   }
 }
-/* Responsive: tighten on mobile */
+/* Phone (cards 20260924_6 / 20260925_1 / 20260927_151 / 20260927_152): the
+   wrapping row already handles every narrow width, so there is no phone band
+   for the BAR itself. The full-width one-column stack that used to live here
+   was the defect the operator photographed at ~647px CSS (2026-09-27): six
+   full-bleed rows, a 1200px-wide "Kế hoạch" dropdown among them. Only the
+   search grows to absorb a line's slack; every other control stays
+   content-sized, so a narrow bar wraps into 2-3 packed lines instead of a
+   tower of stretched controls. */
+
+/* Responsive: tighten on mobile. The column gap stays (a narrow bar still
+   packs 2-3 controls per line — a 0 column gap would butt them together). */
 @media (max-width: 640px) {
   .filter-bar {
     padding: 10px 0;
-    gap: 6px;
+    gap: 12px 12px;
     margin-bottom: 14px;
+  }
+  /* …but the toolbar card keeps its own gutter: the controls sit INSIDE its
+     border, so a zero side padding would press them against the hairline. */
+  .filter-bar--card {
+    padding: 10px 12px;
   }
   .filter-tab,
   .filter-bar .filter-tab {
@@ -177,11 +419,10 @@
     min-width: 0;
     height: var(--filter-control-h);
     min-height: var(--filter-control-h);
-    /* Full-width row of its own below the chip wrap — a right-stranded
-       search clipped past the viewport on /suppliers (user-reported
-       2026-09-09) and the flex spacer strands it mid-row otherwise. */
-    flex: 1 1 100%;
-    max-width: none;
+    /* Never wider than its cell — the growth cap lives on the cell/standalone
+       flex item (a right-stranded search clipped past the viewport on
+       /suppliers, user-reported 2026-09-09). */
+    max-width: 100%;
   }
 }
 
@@ -194,10 +435,6 @@
 @media (pointer: coarse) {
   .filter-tab,
   .filter-bar .filter-tab,
-  .filter-pill,
+  .filter-chip,
   .filter-bar__search { --filter-control-h: var(--control-touch-h); }
-}
-
-@media (max-width: 640px) {
-  .filter-bar__spacer { display: none; }
 }

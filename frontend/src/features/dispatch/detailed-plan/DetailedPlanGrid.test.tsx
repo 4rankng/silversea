@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
+import { MonthProvider } from '../../../hooks/useMonth';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
 // The editor dialog mounts the note composer, which pulls the tag pool via
@@ -49,31 +52,38 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
 } as DispatchDetailPlanRow);
 
 function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, unknown> = {}) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <DetailedPlanGrid
-      filters={EMPTY_DETAILED_PLAN_FILTERS}
-      onFilterChange={vi.fn()}
-      loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-      loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-      loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-      items={items}
-      loading={false}
-      error={null}
-      onRetry={vi.fn()}
-      assignmentError={null}
-      lotBanner={null}
-      onClearLotBanner={vi.fn()}
-      presence={null}
-      zones={[]}
-      sortKey={null}
-      sortDirection="asc"
-      onToggleSort={vi.fn()}
-      onAtomicSave={vi.fn()}
-      onOpenTripReassign={vi.fn()}
-      onCompleteExternalTrip={vi.fn()}
-      onIssueOrder={vi.fn()}
-      {...extraProps}
-    />,
+    <MemoryRouter>
+      <QueryClientProvider client={client}>
+        <MonthProvider>
+          <DetailedPlanGrid
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onFilterChange={vi.fn()}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        items={items}
+        loading={false}
+        error={null}
+        onRetry={vi.fn()}
+        assignmentError={null}
+        lotBanner={null}
+        onClearLotBanner={vi.fn()}
+        presence={null}
+        zones={[]}
+        sortKey={null}
+        sortDirection="asc"
+        onToggleSort={vi.fn()}
+        onAtomicSave={vi.fn()}
+        onOpenTripReassign={vi.fn()}
+        onCompleteExternalTrip={vi.fn()}
+        onIssueOrder={vi.fn()}
+        {...extraProps}
+      />
+        </MonthProvider>
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -128,7 +138,7 @@ describe('DetailedPlanGrid', () => {
       'Thời gian & lịch trình ↕',
       'Khách hàng & lộ trình ↕',
       'Nâng hàng',
-      'Trả hàng',
+      'Trả hàng ↕',
       'Tuyến đường',
       'Container',
       'Điều phối',
@@ -146,14 +156,12 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Nhà máy XYZ')).toBeTruthy();
     expect(screen.getByText('LH — Biên Hòa')).toBeTruthy();
     expect(screen.queryByText('Lộ trình: LH — Biên Hòa')).toBeNull();
-    // Column 3: bill + badge
+    // Column 3: bill + direction. The direction is plain text in the data
+    // cell (design law §1 — no pill bubble, no rounded fill, no border); the
+    // rendered no-pill promise is held by the design-lock entry
+    // `dispatch-detail/*/no-pill-in-grid` (card 20260930_215).
     expect(screen.getByText('Bill: BL-2026-010')).toBeTruthy();
-    const directionBadge = screen.getByText('Xuất');
-    expect(directionBadge.classList.contains('rounded-full')).toBe(true);
-    // Status chips are text-only (2026-09-08 de-blob): tone via text color.
-    expect(directionBadge.classList.contains('bg-transparent')).toBe(true);
-    expect(directionBadge.classList.contains('text-utility-neutral-700')).toBe(true);
-    expect(directionBadge.classList.contains('text-xs')).toBe(true);
+    expect(screen.getByText('Xuất')).toBeTruthy();
     // Column 4: container stack
     expect(screen.getByText('MSCU1234567')).toBeTruthy();
     expect(screen.getByText('40HC')).toBeTruthy();
@@ -174,7 +182,7 @@ describe('DetailedPlanGrid', () => {
     ]);
   });
 
-  it('anchors the direction pill and quiet combined note on one document footer line', () => {
+  it('anchors the direction marker and quiet combined note on one document footer line', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     expect(css).toContain('.detailed-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }');
     expect(css).toContain('"combined direction"');
@@ -231,7 +239,7 @@ describe('DetailedPlanGrid', () => {
 
   it('shows "Chưa có số" for a missing container number', () => {
     renderGrid([row({ container: { containerNumber: null, containerTypeLabel: '20DC', cargoWeightKg: null } })]);
-    expect(screen.getByText('Chưa có số')).toBeTruthy();
+    expect(screen.getByText('Chưa có số cont')).toBeTruthy();
   });
 
   it('shows the NHẬP badge for import rows', () => {
@@ -376,7 +384,7 @@ describe('DetailedPlanGrid', () => {
     expect(container.querySelectorAll('.detailed-plan-grid__classification')).toHaveLength(4);
   });
 
-  it('opens one atomic edit dialog from the full Điều phối cell', async () => {
+  it('opens one atomic edit dialog from the compact Điều phối action', async () => {
     const { container } = renderGrid([row({ classification: 'SINGLE' })]);
     const dispatchCell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
     expect(dispatchCell).toBeTruthy();
@@ -400,28 +408,24 @@ describe('DetailedPlanGrid', () => {
     expect(within(dialog).queryByLabelText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
   });
 
-  it('keeps the dispatcher column read-like until its one full-cell trigger is clicked', () => {
+  it('keeps assignment facts as read content beside one independently named edit action', () => {
+    const item = row();
+    const { container } = renderGrid([item]);
+    const cell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
+    if (!cell) throw new Error('Missing actual assignment cell');
+    const trigger = within(cell).getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
+    expect(cell.querySelectorAll('button')).toHaveLength(1);
+    expect(trigger).toHaveTextContent(/^Sửa$/);
+    for (const text of [item.dispatch.carrierName ?? 'Chưa phân nhà xe', 'Chưa phân xe']) {
+      const fact = within(cell).getByText(text);
+      expect(trigger).not.toContainElement(fact);
+    }
+    expect(cell).toHaveAttribute('data-label-short', 'Điều phối');
+    expect(within(cell).queryByRole('textbox')).toBeNull();
     const editorCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
     const gridCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
-
-    expect(editorCss).toContain('.dispatch-assignment-cell__trigger {');
-    expect(editorCss).toContain('height: 100%;');
-    expect(editorCss).toContain('cursor: pointer;');
-    // Single-column trigger since the driver row joined the cell — every
-    // child (carrier, plate, driver) spans the full trigger width.
-    expect(editorCss).toMatch(/__trigger\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
-    expect(editorCss).toMatch(/\.detailed-plan-grid td\.detailed-plan-grid__cell--editable::after\s*\{[^}]*min-height:\s*72px;/);
-    expect(editorCss).toMatch(/\.dispatch-assignment-cell__carrier,[\s\S]*?\.dispatch-assignment-cell__driver\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
-    expect(editorCss).toMatch(/@container \(max-width:\s*900px\)[\s\S]*?td\.detailed-plan-grid__cell--editable::after\s*\{[^}]*display:\s*none;/);
     expect(editorCss).toContain('.dispatch-assignment-dialog__fields {');
     expect(editorCss).toMatch(/\.dispatch-assignment-dialog__fields > \.dispatch-assignment-dialog__check\s*\{[^}]*display:\s*flex;/);
-    // The grid's mobile `.detailed-plan-grid__cell::before` label rule has
-    // equal class specificity; the editable cell must win on `td` so its
-    // trigger covers the whole cell — not just below a stray label strip.
-    expect(editorCss).toMatch(/td\.detailed-plan-grid__cell--editable::before\s*\{\s*display:\s*none/);
-    // Keyboard focus must never switch the trigger to relative positioning:
-    // that shrink wraps it and un-clicks the bottom of the cell.
-    expect(editorCss).not.toMatch(/:focus-visible\s*\{[^}]*position:\s*relative/);
     expect(gridCss).not.toContain('.fulfillment-estimate-cell__value {');
   });
 
@@ -459,107 +463,115 @@ describe('DetailedPlanGrid', () => {
     expect(notesCell!.textContent).not.toContain('—');
   });
 
-  it('renders an error state without the table', () => {
+  it('renders an error state without the table on a cold load (nothing fetched yet)', () => {
     const onRetry = vi.fn();
-    renderGrid([row()], { error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.', onRetry });
+    renderGrid([], { error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.', onRetry });
     expect(screen.getByRole('alert').textContent).toContain('Không thể tải');
     expect(screen.queryByRole('table')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  it('keeps search and date scope visible while moving secondary filters into a drawer', () => {
+  it('rides the shared filter strip — search and date scope on the bar, every other criterion behind Bộ lọc', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/DispatchDetailPlanPage.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    const filtersSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx'), 'utf8');
 
     expect(page).toContain('dispatch-plan-page--wide');
     expect(page).toContain('<Pagination');
     expect(page).not.toContain('Tải thêm');
-    expect(css).toContain('.detailed-plan-filters {\n  display: grid;\n  grid-template-columns: minmax(180px, 1fr) auto auto;\n  align-items: end;');
-    expect(css).toContain('.detailed-plan-filters__field--search {\n  width: 100%;\n  min-width: 0;');
-    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n  display: grid;\n  grid-template-columns: 140px auto auto;\n  align-items: center;');
-    expect(css).toContain('.detailed-plan-filters__date-scope .detailed-plan-filters__date {\n  flex: 0 1 140px;\n  width: 140px;');
-    expect(css).toContain('.detailed-plan-filters__date-mode {\n  display: grid;\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n  min-width: 234px;\n  gap: 4px;');
-    expect(css).not.toContain('repeat(2, minmax(0, 1fr));\n  flex: 0 1 248px');
-    const activeDateShortcut = css.match(/\.detailed-plan-filters__date-shortcut\.is-active\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(activeDateShortcut).toContain('background: var(--background-color-primary, #fff);');
-    expect(activeDateShortcut).toContain('border-color: var(--color-fg-primary, var(--text-primary, #101828));');
-    expect(activeDateShortcut).toContain('box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);');
-    expect(activeDateShortcut).not.toContain('background-color-brand-primary');
-    expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface, #fff);');
-    expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n    grid-template-columns: minmax(0, 1fr) auto;');
-    expect(css).toContain('.drawer.detailed-plan-filter-drawer { max-width: 430px; }');
-    expect(css).toContain('.detailed-plan-filter-panel__fields {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);');
+    // Card 20260927_152: the strip IS the shared bar. The page-local two-tier
+    // header and its ribbon are deleted, so neither may come back through this
+    // file — only the page's own title row survives.
+    expect(filtersSource).toContain('detailed-plan-header');
+    expect(filtersSource).toContain('<FilterBar');
+    expect(filtersSource).toContain('fold={{');
+    expect(filtersSource).not.toContain('detailed-plan-ribbon');
+    expect(filtersSource).not.toContain('<Drawer');
+    // …and the page declares no strip layout: no ribbon rules, no header row
+    // slot, no per-control width, no drawer sizing.
+    expect(css).not.toMatch(/^\.detailed-plan-ribbon/m);
+    expect(css).not.toMatch(/^\.detailed-plan-header__(?:row|date|range|assign)/m);
+    expect(css).not.toMatch(/^\.(?:drawer\.)?detailed-plan-filter-drawer/m);
+    expect(css).not.toContain('detailed-plan-filters__date-scope-controls');
+    expect(css).not.toContain('detailed-plan-filters__date-mode');
+    expect(css).not.toContain('detailed-plan-filters__date-shortcut');
+    // A plated row stays on the plain surface tint — never a brand/semantic
+    // wash. `--surface` is defined app-wide (tokens.css), so the `, #fff`
+    // defensive fallback was dropped from the sheet.
+    expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface);');
+    // The dialog body is the panel the drawer used to hold: the design-lock
+    // selection `[role="dialog"]:has(.detailed-plan-filter-panel)` and the
+    // visible `.detailed-plan-filter-panel__quick` must keep resolving.
+    expect(css).toContain('.detailed-plan-filter-panel__fields,\n.detailed-plan-filter-panel__quick {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);');
+    expect(css).not.toContain('detailed-plan-ribbon__quick');
+    expect(css).not.toContain('detailed-plan-ribbon__customer');
     expect(css).not.toContain('detailed-plan-filters__advanced');
     expect(css).not.toContain('detailed-plan-filters__primary-row');
     expect(css).not.toContain('detailed-plan-filters__secondary-row');
     expect(css).toContain('.detailed-plan-filters__points {\n  position: relative;');
     expect(css).toContain('.detailed-plan-grid__cell::before');
-    expect(css).toContain('content: attr(data-label)');
+    // The record bands print the SHORT label name; the desktop table pins
+    // headers instead (2026-09-27 record rework).
+    expect(css).toContain('content: attr(data-label-short)');
   });
 
   it('condenses phone records into a two-column decision layout without shrinking the dispatch target', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
     expect(css).toContain('@container (max-width: 640px)');
-    expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(css).toContain('.detailed-plan-grid__cell--schedule,\n  .detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--ports,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
-    expect(css).toContain('.detailed-plan-grid__cell--classification {\n    position: absolute;');
-    // SCHEDULE-LAYOUT-08: labels and long identity fields stack without
-    // inherited inline separators; short cargo metadata still shares a line.
+    expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\) minmax\(0, max-content\);/);
+    expect(css).toContain('.detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--ports,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
+    expect(css).toMatch(/td\.detailed-plan-grid__cell--classification\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*grid-row:\s*1;[^}]*grid-column:\s*3;/);
+    // 2026-09-27 phone rework ("messy and wasted lots of space"): the label
+    // rides the record line it names (short, sentence case) instead of owning
+    // an uppercase row, and the values keep the `·` separator. Pinned so the
+    // nine-stacked-label card cannot come back.
     const phoneCss = css.slice(css.indexOf('@container (max-width: 640px)'));
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell::before\s*\{[^}]*display:\s*block;[^}]*margin:\s*0 0 2px;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell \.detailed-plan-grid__line\s*\{[^}]*display:\s*block;[^}]*margin-right:\s*0;[^}]*overflow-wrap:\s*break-word;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__line \+ \.detailed-plan-grid__line::before\s*\{[^}]*content:\s*none;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--container \.detailed-plan-grid__line:not\(\.detailed-plan-grid__line--strong\)\s*\{[^}]*display:\s*inline-block;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__documents-direction\s*\{[^}]*align-self:\s*start;[^}]*justify-self:\s*start;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell::before\s*\{[^}]*display:\s*inline;[^}]*content:\s*attr\(data-label-short\);[^}]*text-transform:\s*none;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell \.detailed-plan-grid__line\s*\{[^}]*display:\s*inline;[^}]*margin-right:\s*8px;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__line \+ \.detailed-plan-grid__line::before\s*\{[^}]*content:\s*'·';/);
+    // The two values that need the whole record width stack full-row.
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--documents\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--container\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    // The direction chip is un-blocked in the tablet record band (phones are a
+    // subset), so it rides the route line at every card width.
+    expect(css).toMatch(/\.detailed-plan-grid__documents-direction\s*\{[^}]*align-self:\s*start;[^}]*justify-self:\s*start;/);
     // SCHEDULE-LAYOUT-09: match td.cell specificity so the empty notes tail
     // actually beats the responsive display:block declaration.
     expect(css).toContain('td.detailed-plan-grid__cell--blank {\n    display: none;\n  }');
   });
 
-  it('keeps the detailed filters flat instead of nesting another card surface', () => {
+  it('rides the frozen design-system controls and carries zero self-made filter chrome (card 20260926_50)', () => {
+    const filtersSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
-    const toolbar = css.match(/\.detailed-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(toolbar).not.toMatch(/\bpadding\s*:/);
-    expect(toolbar).not.toMatch(/\bborder(?:-radius)?\s*:/);
-    expect(toolbar).not.toMatch(/\bbackground\s*:/);
+    // Card _50: ribbon controls ride the shared design-system family
+    // (SearchableSelect combobox, InlineLabelSelect chips, the from/to
+    // DateRangeFields group) — no self-made chrome.
+    expect(filtersSource).toContain('DateRangeFields');
+    expect(filtersSource).toContain('InlineLabelSelect');
+    expect(filtersSource).toContain('SearchableSelect');
+    // Self-made bar chrome and the dead legacy picker family are deleted clean.
+    for (const dead of ['__toolbar-actions', '__status', '__field--search', 'filters__search {', '__drawer-trigger',
+      '__multi-trigger', '__point-picker', '__multi-search', '__point-list', '__point-option',
+      '__point-feedback', '__point-footer', '__point-search', '__zone-toggle']) {
+      expect(css).not.toContain(dead);
+    }
+    // Dialog-interior arrangement helpers survive the cutover (label-above-
+    // control stacks and the group that owns its own pair of tracks).
+    expect(css).toContain('.detailed-plan-filters__label');
+    expect(css).toContain('.detailed-plan-filters__hour-control');
   });
 
   it('keeps point suggestions out of the filter-row layout and gives time inputs equal width', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
-    const toolbar = css.match(/\.detailed-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
     const points = css.match(/\.detailed-plan-filters__points \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    const picker = css.match(/\.detailed-plan-filters__point-picker \{([\s\S]*?)\n\}/)?.[1] ?? '';
     const hourControl = css.match(/\.detailed-plan-filters__hour-control \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(toolbar).toContain('align-items: end');
     expect(points).toContain('position: relative');
     expect(points).toContain('min-width: 0');
-    expect(picker).toContain('position: absolute');
-    expect(picker).toContain('z-index: 20');
     expect(hourControl).toContain('flex: 1 1 0');
-  });
-
-  it('lets shared compact controls own dropdown typography', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
-    const multiTrigger = css.match(/\.detailed-plan-filters__multi-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
-
-    expect(css).not.toContain('.detailed-plan-filters__select button p');
-    expect(multiTrigger).toContain('font-size: var(--text-control-compact-size)');
-    expect(css).toContain('detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { font-size: var(--text-control-compact-size); }');
-  });
-
-  it('keeps filter actions beside search without creating another toolbar band', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
-    const actions = css.match(/\.detailed-plan-filters__toolbar-actions \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    const clear = css.match(/\.detailed-plan-filters__clear \{([\s\S]*?)\n\}/)?.[1] ?? '';
-
-    expect(actions).toContain('display: flex');
-    expect(actions).toContain('align-items: center');
-    expect(actions).not.toMatch(/\bbackground\s*:/);
-    expect(clear).toContain('flex: 0 0 auto');
   });
 
   it('clicks a branch row through the grid wiring: decompose fires and the editor opens', async () => {
@@ -601,15 +613,27 @@ describe('DetailedPlanGrid', () => {
     expect(screen.queryByText(/Chọn nhanh ngày|KHUNG GIỜ/)).toBeNull();
   });
 
-  it('renders the Hoàn thành action inside the Ghi chú cell for in-flight external rows', () => {
+  it.each([
+    ['container', 'MSCU1234567', 'BL-2026-010', 'SS-000200', 'MSCU1234567'],
+    ['Bill/Booking projection', null, 'BL-2026-010', 'SS-000200', 'BL-2026-010'],
+    ['missing business reference', null, null, 'SS-000200', 'Chưa có số Bill/Booking'],
+    ['missing business reference and internal code', null, null, '', 'Chưa có số Bill/Booking'],
+  ] as const)('renders the Hoàn thành action with %s identity and preserves its existing row callback', (_case, containerNumber, billNumber, shipmentCode, reference) => {
     const onCompleteExternalTrip = vi.fn();
-    const { container } = renderGrid([row({
+    const item = row({
       taskStatus: 'DISPATCHED',
+      shipmentCode,
+      container: { ...row().container, containerNumber },
+      docs: { ...row().docs, billNumber },
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'CREATED' },
-    })], { onCompleteExternalTrip });
+    });
+    const { container } = renderGrid([item], { onCompleteExternalTrip });
     const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
-    fireEvent.click(within(notesCell).getByRole('button', { name: /Hoàn thành/ }));
+    const action = within(notesCell).getByRole('button', { name: `Hoàn thành · ${reference}` });
+    expect(action).not.toHaveAccessibleName(/SS-000200|dòng 101/);
+    fireEvent.click(action);
     expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1);
+    expect(onCompleteExternalTrip).toHaveBeenCalledWith(item);
   });
 
   it('renders no row action for an already-issued own row', () => {
@@ -682,6 +706,26 @@ describe('DetailedPlanGrid — header sort direction', () => {
     expect(sortedHeaders).toHaveLength(1);
     expect(sortedHeaders[0]).toHaveAttribute('aria-sort', 'descending');
   });
+
+  // Grouping runs by customer is one of the three orderings the dispatch spec
+  // calls out, and it needs its own control: the customer header used to fire
+  // the delivery-point sort, so there was no way to bundle a customer's runs.
+  it('sorts by customer from the customer header', () => {
+    const onToggleSort = vi.fn();
+    renderGrid([row()], { sortKey: 'customer', sortDirection: 'asc', onToggleSort });
+    const button = screen.getByRole('button', { name: 'Sắp xếp theo khách hàng' });
+    expect(button).toHaveTextContent('▲');
+    fireEvent.click(button);
+    expect(onToggleSort).toHaveBeenCalledWith('customer');
+  });
+
+  // The delivery-point control belongs on the column that shows the drop, not
+  // on the customer column.
+  it('puts the delivery-point sort on the Trả hàng header', () => {
+    const { container } = renderGrid([row()], { sortKey: 'deliveryPoint', sortDirection: 'asc' });
+    const sortedHeader = container.querySelector('th[aria-sort]')!;
+    expect(sortedHeader).toHaveTextContent('Trả hàng');
+  });
 });
 
 // Duplicate-key regression (20260914_1): branch rows ride the wire with a
@@ -699,7 +743,7 @@ describe('DetailedPlanGrid — unique row keys', () => {
 
       // Header row + both branch rows render — nothing dropped.
       expect(screen.getAllByRole('row')).toHaveLength(3);
-      expect(screen.getAllByText('Chưa có số')).toHaveLength(2);
+      expect(screen.getAllByText('Chưa có số cont')).toHaveLength(2);
       const duplicateKeyWarnings = errorSpy.mock.calls
         .filter((call) => String(call[0]).includes('same key'));
       expect(duplicateKeyWarnings).toEqual([]);
@@ -751,17 +795,31 @@ describe('DetailedPlanGrid — blank notes cell collapse', () => {
   });
 });
 
-// Secondary-info contrast (QA-007): --text-secondary/--text-tertiary are
-// undefined app-wide, so each rule's FALLBACK is the computed color. Muted
-// operational lines (Giờ times, weights, customer notes) and the editor's
-// placeholder copy must resolve to the WCAG-passing slate-500 (4.76:1 on
-// white, 4.55:1 on the hover tint) — never back to the 2.5:1 pale grays.
+// Secondary-info contrast (QA-007): muted operational lines (Giờ times,
+// weights, customer notes) and the editor's placeholder copy must read as
+// secondary TEXT, never as disabled UI. These rules originally pinned the
+// FALLBACK of `--text-secondary`/`--text-tertiary`, which were undefined
+// app-wide, so the fallback was the computed color (WCAG-passing slate-500,
+// 4.76:1). The text ramp has since migrated to the app-wide `--fg-*` tokens,
+// which ARE defined in src/styles/tokens.css — so the rules now resolve to a
+// real token and the old `, #64748b` fallbacks are gone from the sheets.
+// Contrast intent is unchanged and in fact stronger: --fg-2 = 7.05:1 on
+// white, --fg-3 = 5.66:1, both above the 4.5:1 AA floor, and far above the
+// 2.56:1 pale #94a3b8 these pins exist to keep out.
 // Decorative middot separators stay lighter by design (exempt).
 describe('DetailedPlanGrid — secondary text contrast pins', () => {
   it('resolves muted operational lines to the contrast-passing fallback', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const muted = css.match(/\.detailed-plan-grid__line--muted \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(muted.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--text-secondary, #64748b)');
+    // CONTRAST INTENT (QA-007): muted operational lines — Giờ times, weights,
+    // customer notes — must read as secondary text, never as disabled UI.
+    // This rule used to pin the *fallback* of the undefined `--text-secondary`
+    // (slate-500, 4.76:1). The text ramp migrated to the app-wide `--fg-*`
+    // tokens, which ARE defined in src/styles/tokens.css, so there is no
+    // fallback left to resolve: `--fg-2` (#535963) computes 7.05:1 on white
+    // and 6.69:1 on the fine-pointer hover tint — above the 4.5:1 AA floor and
+    // far stronger than the pale #94a3b8 (2.56:1) this pin keeps out.
+    expect(muted.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--fg-2)');
   });
 
   it('Tuyến cell shows the route, then the destination, then an explicit missing label — never a silent dash', () => {
@@ -792,7 +850,12 @@ describe('DetailedPlanGrid — secondary text contrast pins', () => {
   it('resolves the editor placeholder copy to the contrast-passing fallback', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
     const placeholder = css.match(/\.dispatch-assignment-cell__plate\.is-placeholder,[\s\S]*?\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(placeholder.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--text-tertiary, #64748b)');
+    // CONTRAST INTENT (QA-007): placeholder copy ("CUS sẽ bổ sung", "Chưa phân
+    // xe") is operational guidance, not disabled UI. `--text-tertiary` was
+    // undefined app-wide and resolved to its slate-500 fallback (4.76:1);
+    // the migrated `--fg-3` token (#5F6872) computes 5.66:1 on white — still
+    // comfortably WCAG-passing, so the contrast guarantee is preserved.
+    expect(placeholder.match(/color:\s*([^;]+);/)?.[1]).toBe('var(--fg-3)');
   });
 });
 
@@ -808,32 +871,38 @@ describe('allocation editor mounts on every press (20260916_9)', () => {
       return fresh;
     });
     return (
-      <DetailedPlanGrid
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onFilterChange={vi.fn()}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        items={items}
-        loading={false}
-        error={null}
-        onRetry={vi.fn()}
-        assignmentError={null}
-        lotBanner={null}
-        onClearLotBanner={vi.fn()}
-        presence={null}
-        zones={[]}
-        sortKey={null}
-        sortDirection="asc"
-        onToggleSort={vi.fn()}
-        onAtomicSave={vi.fn()}
-        onOpenTripReassign={vi.fn()}
-        onCompleteExternalTrip={vi.fn()}
-        onIssueOrder={vi.fn()}
-        onEnsureFulfillment={ensure}
-        autoOpenFulfillmentId={autoOpen}
-        onAutoOpenConsumed={consume}
-      />
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <MonthProvider>
+            <DetailedPlanGrid
+          filters={EMPTY_DETAILED_PLAN_FILTERS}
+          onFilterChange={vi.fn()}
+          loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+          loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+          loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+          items={items}
+          loading={false}
+          error={null}
+          onRetry={vi.fn()}
+          assignmentError={null}
+          lotBanner={null}
+          onClearLotBanner={vi.fn()}
+          presence={null}
+          zones={[]}
+          sortKey={null}
+          sortDirection="asc"
+          onToggleSort={vi.fn()}
+          onAtomicSave={vi.fn()}
+          onOpenTripReassign={vi.fn()}
+          onCompleteExternalTrip={vi.fn()}
+          onIssueOrder={vi.fn()}
+          onEnsureFulfillment={ensure}
+          autoOpenFulfillmentId={autoOpen}
+          onAutoOpenConsumed={consume}
+        />
+          </MonthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
     );
   }
 
@@ -858,5 +927,55 @@ describe('allocation editor mounts on every press (20260916_9)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
       await waitFor(() => expect(screen.queryByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeNull());
     }
+  });
+});
+
+it('opens OPS recovery instructions without editing the driver note', () => {
+  renderGrid([row({ notes: { vehicleNote: null, customerNote: null, opsRecoveryNotes: ['Khách trả theo chứng từ\nGiữ bản gốc'] } })]);
+  fireEvent.click(screen.getByRole('button', { name: /OPS:\s*Khách trả theo chứng từ/ }));
+  expect(screen.getByRole('dialog')).toHaveTextContent('Giữ bản gốc');
+});
+
+describe('DetailedPlanGrid — background-refresh resilience (P1 dispatch-detail mount regression)', () => {
+  it('keeps the table and its inline editors mounted when a background refresh fails (items already loaded)', async () => {
+    // Post-cut#4 repro (QA _58 block): a transient failure on the 30s
+    // auto-refresh tick collapsed the whole grid to the error branch —
+    // rows vanished and the open inline editor died with them. Stale data
+    // must stay on screen with a non-blocking banner instead.
+    const onRetry = vi.fn();
+    renderGrid([row(), row({ fulfillmentId: 102 })], {
+      error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.',
+      onRetry,
+    });
+    // Both rows survive (identified by container number — the row identity
+    // the dispatchers read).
+    expect(screen.getAllByText('MSCU1234567').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole('row').length).toBeGreaterThan(2);
+    // The failure is announced but never as a table replacement…
+    expect(screen.getByRole('alert')).toBeTruthy();
+    // …and the retry affordance rides the banner, not a full-surface swap.
+    fireEvent.click(screen.getByRole('button', { name: /Thử lại/ }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    // The editor-affordance column (assignment) stays interactive: the first
+    // row still exposes its plate control.
+    expect(screen.queryAllByRole('row').length).toBeGreaterThan(2);
+  });
+
+  it('keeps the filter bar mounted in every state so the drive can always find Tìm nhanh', () => {
+    const filters = { ...EMPTY_DETAILED_PLAN_FILTERS, q: 'MSCU' };
+    // Error state…
+    const errorRender = renderGrid([row()], {
+      filters,
+      error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.',
+    });
+    expect(screen.getByLabelText('Tìm nhanh')).toBeTruthy();
+    errorRender.unmount();
+    // …loading state…
+    const loadingRender = renderGrid([], { filters, loading: true });
+    expect(screen.getByLabelText('Tìm nhanh')).toBeTruthy();
+    loadingRender.unmount();
+    // …and the data state.
+    renderGrid([row()], { filters });
+    expect(screen.getByLabelText('Tìm nhanh')).toBeTruthy();
   });
 });

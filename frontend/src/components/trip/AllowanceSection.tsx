@@ -4,6 +4,7 @@ import { useTripFormContext } from "../../hooks/useTripFormContext";
 import { CheckboxCard } from "./CheckboxCard";
 import { InputWithPrefix } from "./InputWithPrefix";
 import "./AllowanceSection.css";
+import { formatMoney } from '../../lib/format';
 
 export function AllowanceSection() {
   const form = useTripFormContext();
@@ -270,10 +271,10 @@ export function AllowanceSection() {
                   className="btn"
                   style={{
                     padding: 0,
-                    width: 44,
-                    height: 44,
-                    minWidth: 44,
-                    minHeight: 44,
+                    width: 'var(--control-touch-h)',
+                    height: 'var(--control-touch-h)',
+                    minWidth: 'var(--control-touch-h)',
+                    minHeight: 'var(--control-touch-h)',
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -297,8 +298,8 @@ export function AllowanceSection() {
             <div className="as-helper">
               {driverBaseSalary > 0
                 ? tripWageDays && Number(tripWageDays) > 0
-                  ? `${tripWageDays} ngày = ${computeTripDriverSalary(driverBaseSalary, Number(tripWageDays)).toLocaleString('vi-VN')} đ`
-                  : `1 ngày = ${computeTripDriverSalary(driverBaseSalary, 1).toLocaleString('vi-VN')} đ`
+                  ? `${tripWageDays} ngày = ${formatMoney(computeTripDriverSalary(driverBaseSalary, Number(tripWageDays)))} ₫`
+                  : `1 ngày = ${formatMoney(computeTripDriverSalary(driverBaseSalary, 1))} ₫`
                 : 'Chưa cấu hình lương cơ bản cho lái xe'}
             </div>
           </div>

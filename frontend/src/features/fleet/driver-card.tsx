@@ -1,5 +1,6 @@
 import { useState, memo } from "react";
-import { UserRoundCheck, Plus, Search, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { UserRoundCheck, Plus, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { ListFilterBar } from "../../components/ListFilterBar";
 import { Panel, StatusPill, Modal } from "../../components/UI";
 import { StatusStrip } from "../../components/shared/StatusStrip";
 import { useCRUD } from "../../hooks/useCRUD";
@@ -40,9 +41,9 @@ const StatusDot = memo(function StatusDot({ status }: { status: string }) {
 });
 
 function fleetStatusColor(status: string): string {
-  if (status === "ACTIVE") return "#059669";
-  if (status === "MAINTENANCE") return "#D97706";
-  return "#6B7280";
+  if (status === "ACTIVE") return "var(--success)";
+  if (status === "MAINTENANCE") return "var(--warning)";
+  return "var(--ink-3)";
 }
 
 function FleetStatusLegend({ maintenance = true }: { maintenance?: boolean }) {
@@ -147,22 +148,22 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
           </div>
         </div>
         <div className="fleet-card-tools">
-          <div className="fleet-mini-search">
-            <Search size={14} />
-            <input
-              type="text"
-              name="driverSearch"
-              aria-label="Tìm lái xe theo tên hoặc số điện thoại"
-              placeholder="Tìm tên hoặc SĐT…"
-              value={driverSearch}
-              onChange={(e) => setDriverSearch(e.target.value)}
-            />
-          </div>
           <button className="btn btn--primary btn--sm" onClick={() => crud.setShowAddForm(true)}>
             <Plus size={13} /> Thêm lái xe
           </button>
         </div>
       </div>
+      {/* Shared filter-bar contract: the driver view's hand-rolled mini-search
+          cuts over to the one shared bar; filter behavior is unchanged
+          (case-insensitive name/phone substring on the trimmed query). */}
+      <ListFilterBar
+        search={{
+          value: driverSearch,
+          onChange: setDriverSearch,
+          placeholder: "Tìm tên hoặc SĐT…",
+          ariaLabel: "Tìm lái xe theo tên hoặc số điện thoại",
+        }}
+      />
       <div className="desktop-only">
         <div className="table-scroll">
           <table className="tt-table">
@@ -208,7 +209,7 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
                     </span>
                   </td>
                   <td>
-                    <span className="fleet-phone">{d.phone || "—"}</span>
+                    <span className="fleet-phone data-token">{d.phone || "—"}</span>
                   </td>
                   <td>{d.assignedTruckId && truckMap.has(d.assignedTruckId) ? <span className="fleet-pair">{truckMap.get(d.assignedTruckId)!.licensePlate}</span> : <span className="fleet-unassigned">— Chưa phân —</span>}</td>
                   <td>
@@ -270,7 +271,7 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
                   <div className="fleet-driver-card__identity-copy">
                     <div className="fleet-driver-card__name">{d.name}</div>
                     {d.phone && (
-                      <div className="fleet-driver-card__phone">{d.phone}</div>
+                      <div className="fleet-driver-card__phone"><span className="data-token">{d.phone}</span></div>
                     )}
                   </div>
                 </div>
@@ -333,7 +334,7 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
                 </span>
               ),
             },
-            { label: "Số điện thoại", value: d.phone || "—" },
+            { label: "Số điện thoại", value: <span className="data-token">{d.phone || "—"}</span> },
             { label: "Xe phân công", value: truck ? <Plate plate={truck.licensePlate} tag="VN" /> : <span className="fleet-unassigned">— Chưa phân —</span> },
             {
               label: "Lương cơ bản",

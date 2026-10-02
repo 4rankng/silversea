@@ -1,5 +1,9 @@
 .shipment-cost-entry { --control-mobile-h: var(--control-touch-h); }
-.shipment-cost-entry { display: grid; gap: 12px; padding: 12px; background: var(--surface); border-block: 1px solid var(--line); }
+/* Card 20260926_21: proper rounded section card matching .driver-task-section
+   chrome (border + radius 10 + the shared 10px top rhythm) — never the old
+   squared border-block band that collided with the rounded cards above. One
+   pattern for both surfaces: ShipmentCostEntryForm AND FuelRefillReportForm. */
+.shipment-cost-entry { display: grid; gap: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; }
 .shipment-cost-entry__head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .shipment-cost-entry__title { margin: 0; font-size: var(--text-dialog-title-size); }
 .shipment-cost-entry__subtitle, .shipment-cost-entry__empty { margin: 4px 0 0; color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.5; }
@@ -21,9 +25,36 @@
 .shipment-cost-entry__receipt-preview { display: flex; gap: 8px; align-items: center; font-size: var(--text-caption-size); }
 .shipment-cost-entry__section-note { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
 .shipment-cost-entry__section-note > button { justify-self: end; }
+
+/* Card 20260926_29 item 14: the collapsed accountant-note row — a ghost
+   "+ Thêm ghi chú cho kế toán" affordance or a one-line saved-note preview;
+   it expands to the editor with Lưu while editing. */
+.shipment-cost-entry__note-collapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control-h);
+  padding: 0 10px;
+  border: 1px dashed var(--line-strong, var(--line));
+  border-radius: 10px;
+  background: none;
+  color: var(--ink-3);
+  font-size: var(--text-data-size);
+  text-align: left;
+  cursor: pointer;
+}
+
+.shipment-cost-entry__note-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink);
+  font-weight: 500;
+}
 @media (max-width: 600px) {
   .shipment-cost-entry { padding: 10px 8px; }
   .shipment-cost-entry__head { flex-wrap: wrap; }
   .shipment-cost-entry__head > div { flex: 1 1 200px; }
-  .shipment-cost-entry__fields > :nth-child(-n + 2) { grid-column: 1 / -1; }
+  .shipment-cost-entry__fields { grid-template-columns: 1fr; gap: 12px; }
 }

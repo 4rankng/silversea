@@ -86,15 +86,18 @@ export interface CreateData {
   shipmentIds?: number[];
 }
 
+// Card 20260921_25: pill labels DERIVE from the shared ROLE_LABELS registry —
+// one business name per role everywhere (the CUS pill used to sit next to a
+// "CUS" filter chip for the same role).
 export const ROLE_PILL: Record<Role, { cls: string; label: string }> = {
-  [Role.ADMIN]:      { cls: 'pill pill--danger',  label: 'Quản trị' },
-  [Role.MANAGER]:    { cls: 'pill pill--warn',    label: 'Quản lý' },
-  [Role.ACCOUNTANT]: { cls: 'pill pill--neutral', label: 'Kế toán' },
-  [Role.DRIVER]:     { cls: 'pill pill--success', label: 'Lái xe' },
-  [Role.OPS]:  { cls: 'pill pill--info',    label: 'Giao nhận' },
-  [Role.CUSTOMER]:   { cls: 'pill pill--info',    label: 'Khách hàng' },
-  [Role.CUS]:      { cls: 'pill pill--neutral', label: 'Chứng từ' },
-  [Role.DISPATCHER]: { cls: 'pill pill--info',    label: 'Điều vận' },
+  [Role.ADMIN]:      { cls: 'pill pill--danger',  label: ROLE_LABELS[Role.ADMIN] },
+  [Role.MANAGER]:    { cls: 'pill pill--warn',    label: ROLE_LABELS[Role.MANAGER] },
+  [Role.ACCOUNTANT]: { cls: 'pill pill--neutral', label: ROLE_LABELS[Role.ACCOUNTANT] },
+  [Role.DRIVER]:     { cls: 'pill pill--success', label: ROLE_LABELS[Role.DRIVER] },
+  [Role.OPS]:        { cls: 'pill pill--info',    label: ROLE_LABELS[Role.OPS] },
+  [Role.CUSTOMER]:   { cls: 'pill pill--info',    label: ROLE_LABELS[Role.CUSTOMER] },
+  [Role.CUS]:        { cls: 'pill pill--neutral', label: ROLE_LABELS[Role.CUS] },
+  [Role.DISPATCHER]: { cls: 'pill pill--info',    label: ROLE_LABELS[Role.DISPATCHER] },
 };
 
 export type FilterKey = 'all' | Role;

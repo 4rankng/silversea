@@ -21,8 +21,8 @@
 // MANUAL row flags the shipment for accountant manual entry.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
-import { localDateInBusinessZone } from '@tingting/shared';
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { localDateInBusinessZone, resolveContainerPriceClass } from '@tingting/shared';
 import { ApiError } from '../errors';
 import {
   persistFreightRateSnapshot,
@@ -113,12 +113,20 @@ export interface LockShipmentFreightRateArgs {
    * after the container appointment and the shipment's expected delivery date.
    */
   fallbackTransportDate?: string | null;
+  /**
+   * Card _58 ruling 4c (QA rework): DISPATCH calls set this — a weightless
+   * container lot then 409s ("Thiếu trọng tải") instead of silently skipping,
+   * because a silently unpriced dispatch is the exact failure the ruling
+   * forbids. Intake calls leave it unset: edits keep skipping pricing.
+   */
+  requirePrice?: boolean;
 }
 
 /**
  * Insert one freight-rate snapshot for the shipment. Skips (returns null)
  * without writing when auto pricing is not applicable YET:
- *   - ad-hoc shipments (Lệnh chạy ngoài bypass the engine entirely), or
+ *   - ad-hoc shipments (Lệnh chạy ngoài: no internal freight norm applies —
+ *     revenue is the customer-reported freight plus chi hộ fees), or
  *   - no catalog customer/route, or
  *   - no derivable rate key (no typed container and no override) — LCL
  *     shipments without a dispatcher rate key lock at dispatch instead.
@@ -141,10 +149,41 @@ export async function lockShipmentFreightRate(
     .where(and(eq(s.shipments.id, args.shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) return null;
-  // Lệnh chạy ngoài bypasses the pricing engine by design (free-text cuốc,
-  // no catalog customer/route contract).
+  // Lệnh chạy ngoài: bảng định mức cước nội bộ không áp dụng — doanh thu chỉ
+  // gồm cước do khách báo và phí chi hộ (spec §4). Đây là bản chất của loại
+  // lô, không phải cơ chế bỏ qua kiểm tra cước phí.
   if (shipment.isAdHoc) return null;
-  if (shipment.customerId == null || shipment.routeId == null) return null;
+  if (shipment.customerId == null) return null;
+
+  // Route source: FCL lots carry the route on containers (the CUS create form
+  // keeps shipments.route_id null for FCL), LCL keeps it on the shipment. The
+  // lock resolves the route from the anchor container (dispatch passes the
+  // fulfillment's container) or the first routed container, so container-level
+  // routing freezes exactly like lot-level routing. A lot with no route
+  // anywhere still stays silent.
+  let routeId = shipment.routeId;
+  if (routeId == null && args.shipmentContainerId != null) {
+    const [anchored] = await tx.select({ routeId: s.shipmentContainers.routeId })
+      .from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+        eq(s.shipmentContainers.id, args.shipmentContainerId),
+      ))
+      .limit(1);
+    routeId = anchored?.routeId ?? null;
+  }
+  if (routeId == null) {
+    const [routed] = await tx.select({ routeId: s.shipmentContainers.routeId })
+      .from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+        isNotNull(s.shipmentContainers.routeId),
+      ))
+      .orderBy(s.shipmentContainers.id)
+      .limit(1);
+    routeId = routed?.routeId ?? null;
+  }
+  if (routeId == null) return null;
 
   // Derive the rate key: explicit override (dispatch) beats the anchor
   // container's class, which beats the shipment's first typed container.
@@ -181,10 +220,50 @@ export async function lockShipmentFreightRate(
     ?? null;
   if (!rateKey || !transportDate) return null;
 
+  // Card 20260922_58 selection half: container base classes pick their PRICE
+  // column from the anchor container's cargo weight (operator ruling: ≥20,0t
+  // nặng; weight = cargo weight; missing weight BLOCKS — never a default).
+  // Norms stay keyed on the base class, so liters never change. A dispatch
+  // override that is already a 4-class code is dispatch precision and is
+  // respected verbatim.
+  let priceVehicleSizeClassCode: string | undefined;
+  if (/^(CONT20|CONT40)$/.test(rateKey)) {
+    const [anchorContainer] = await tx.select({ cargoWeightKg: s.shipmentContainers.cargoWeightKg })
+      .from(s.shipmentContainers)
+      .where(args.shipmentContainerId != null
+        ? and(
+          eq(s.shipmentContainers.shipmentId, args.shipmentId),
+          eq(s.shipmentContainers.id, args.shipmentContainerId),
+        )
+        : and(
+          eq(s.shipmentContainers.shipmentId, args.shipmentId),
+          isNotNull(s.shipmentContainers.containerTypeId),
+        ))
+      .orderBy(s.shipmentContainers.id)
+      .limit(1);
+    const weightKg = anchorContainer?.cargoWeightKg == null ? null : Number(anchorContainer.cargoWeightKg);
+    // Ruling (c): missing weight = NO PRICE, deterministically — the freeze is
+    // SKIPPED (no invented number, no stale column) rather than throwing:
+    // a hard 409 here would also block plain intake edits (dates, etc.) on
+    // weightless lots, which never asked for a price. Dispatch surfaces the
+    // missing price through the absent freeze; the shared resolver's
+    // MISSING_WEIGHT message carries the reason for price-preview surfaces.
+    if (weightKg == null || !Number.isFinite(weightKg) || weightKg <= 0) {
+      if (args.requirePrice) {
+        throw new ApiError(409, 'Thiếu trọng tải — không thể tính giá container. Nhập trọng tải hàng theo booking rồi thử lại.');
+      }
+      return null;
+    }
+    const baseType = rateKey === 'CONT40' ? 'CONT40' as const : 'CONT20' as const;
+    const resolution = resolveContainerPriceClass(baseType, weightKg / 1000);
+    if (resolution.ok) priceVehicleSizeClassCode = resolution.code;
+  }
+
   const resolved = await resolveFreightRateWithManualFallback({
     customerId: shipment.customerId,
-    routeId: shipment.routeId,
+    routeId,
     vehicleSizeClassCode: rateKey,
+    priceVehicleSizeClassCode,
     transportDate,
   });
 
@@ -288,7 +367,7 @@ function toSnapshotView(row: SnapshotJoinRow): ShipmentFreightRateSnapshotView {
     id: snap.id,
     shipmentId: snap.shipmentId,
     tripId: snap.tripId,
-    source: isManual ? 'MANUAL' : 'AUTO',
+    source: snap.formulaText ? 'AUTO' : (isManual ? 'MANUAL' : 'AUTO'),
     freightAmount: Number(snap.freightAmount),
     surchargeAmount: Number(snap.surchargeAmount),
     totalAmount: Number(snap.totalAmount),
@@ -296,7 +375,7 @@ function toSnapshotView(row: SnapshotJoinRow): ShipmentFreightRateSnapshotView {
     liters: Number(snap.liters),
     fuelDelta: Number(snap.fuelDelta),
     sharePct: Number(snap.sharePct),
-    formula: buildFormulaHint(row),
+    formula: snap.formulaText ?? buildFormulaHint(row),
     computedAt: snap.computedAt.toISOString(),
     rateTermsId: snap.rateTermsId,
     pricingTableId: snap.pricingTableId,

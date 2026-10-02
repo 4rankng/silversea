@@ -65,7 +65,7 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     SELECT 1
     FROM ${s.tripExpenses} period_expense
     WHERE period_expense.trip_id = ${s.tripsComposite.id}
-      AND period_expense.approval_status = 'APPROVED'
+      AND period_expense.approval_status IN ('RECORDED', 'APPROVED')
       AND period_expense.sell_amount > 0
       AND period_expense.expense_date BETWEEN ${from} AND ${to}
   )`;
@@ -276,7 +276,7 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
           SELECT 1
           FROM ${s.tripExpenses} period_expense
           WHERE period_expense.trip_id = ${s.tripsComposite.id}
-            AND period_expense.approval_status = 'APPROVED'
+            AND period_expense.approval_status IN ('RECORDED', 'APPROVED')
             AND period_expense.sell_amount > 0
             AND period_expense.expense_date BETWEEN ${from} AND ${to}
         )`,

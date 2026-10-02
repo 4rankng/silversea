@@ -12,6 +12,8 @@ interface ContainerTypeCreateDialogProps {
    * the catalog and selects the new row into the originating cell.
    */
   onCreated: (containerType: ContainerType) => void;
+  /** Typed text carried in from the combobox create option (seeds the code). */
+  initialCode?: string;
 }
 
 const MAX_CODE = 20;
@@ -28,7 +30,7 @@ const MAX_NAME = 50;
  * dropdown" — the Loại container column was the only catalog dropdown in
  * the form without a "+ Thêm" sibling. This dialog closes that gap.
  */
-export function ContainerTypeCreateDialog({ isOpen, onClose, onCreated }: ContainerTypeCreateDialogProps) {
+export function ContainerTypeCreateDialog({ isOpen, onClose, onCreated, initialCode }: ContainerTypeCreateDialogProps) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
@@ -37,11 +39,11 @@ export function ContainerTypeCreateDialog({ isOpen, onClose, onCreated }: Contai
 
   useEffect(() => {
     if (!isOpen) return;
-    setCode('');
+    setCode(initialCode ?? '');
     setName('');
     setNotes('');
     setError(null);
-  }, [isOpen]);
+  }, [isOpen, initialCode]);
 
   function close() {
     if (saving) return;

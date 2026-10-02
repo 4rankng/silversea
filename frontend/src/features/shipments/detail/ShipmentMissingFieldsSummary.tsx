@@ -58,6 +58,13 @@ export function ShipmentMissingFieldsSummary({
 }) {
   const [open, setOpen] = useState(false);
   const listId = `shipment-detail-missing-fields-${row.id}`;
+  // Card 20260922_24: a bare "Thiếu dữ liệu" contradicted the row's own status
+  // ("Đã điều xe" + "Thiếu dữ liệu") and never said WHAT is missing. Name the
+  // single missing field; fall back to the count (the expanded list names each)
+  // when there are several, so the narrow status column stays one line.
+  const summaryLabel = missingFields.length === 1
+    ? `Thiếu ${missingFields[0].label}`
+    : `Thiếu ${missingFields.length} thông tin`;
   return (
     <span className="shipment-container-ledger__row-warning shipment-container-ledger__missing-fields">
       <AlertTriangle aria-hidden="true" />
@@ -68,7 +75,7 @@ export function ShipmentMissingFieldsSummary({
         aria-controls={listId}
         onClick={() => setOpen((value) => !value)}
       >
-        Thiếu dữ liệu{open ? ' ▴' : ' ▾'}
+        {summaryLabel}{open ? ' ▴' : ' ▾'}
       </button>
       {open && (
         <span className="shipment-container-ledger__missing-fields-list" id={listId} role="group" aria-label="Thông tin còn thiếu">

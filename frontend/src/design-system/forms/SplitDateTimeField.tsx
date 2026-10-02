@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef, useState, type InputHTMLAttributes, type Ref } from 'react';
-import { InputBase } from '../../components/untitled-ui/base/input/input';
+import { useEffect, useId, useRef, useState, type ComponentProps, type InputHTMLAttributes, type Ref } from 'react';
 import { formatDateTime24, parseDateTime24 } from '../../lib/format';
 import { DatePickerSurface } from './DatePickerSurface';
+import { DateTimeSegments } from './DateTimeSegments';
 import { TimePickerSurface, TIME_PICKER_MOBILE_QUERY } from './TimePickerSurface';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import './SplitDateTimeField.css';
@@ -14,9 +14,13 @@ function splitValue(value: string) {
 /** Independent, editable 24h time/date controls with one complete datetime
  * contract. Partial drafts stay visible and invalidate their form inputs;
  * they never silently preserve an older complete timestamp for submission. */
-export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onCommit, disabled, readOnly, required, error, hideLabel, className, min, max, name, groupRef: externalGroupRef, inputProps, inputClassName, wrapperClassName, size = 'sm' }: {
+export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onCommit, onCompletenessChange, disabled, readOnly, required, error, hideLabel, className, min, max, name, groupRef: externalGroupRef, inputProps, inputClassName, wrapperClassName, size = 'sm' }: {
   id?: string; label: string; value: string; onChange: (value: string) => void;
   onCommit?: (value: string) => void;
+  /** 'complete' = parsed datetime; 'empty' = all segments cleared;
+   *  'incomplete' = some content but not parseable. Lets a form block the
+   *  incomplete state instead of reading '' as an intentional clear. */
+  onCompletenessChange?: (state: 'complete' | 'empty' | 'incomplete') => void;
   disabled?: boolean; readOnly?: boolean; required?: boolean; error?: string; hideLabel?: boolean; className?: string;
   min?: string; max?: string; name?: string; groupRef?: Ref<HTMLDivElement>; size?: 'sm' | 'md' | 'lg';
   inputClassName?: string; wrapperClassName?: string;
@@ -31,6 +35,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
   const [keyboardPicker, setKeyboardPicker] = useState(false);
   const [touched, setTouched] = useState(false);
   const timeRef = useRef<HTMLInputElement>(null);
+  const lastTimeRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const groupRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -71,6 +76,12 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
 
   const parsed = draft.time && draft.date ? parseDateTime24(`${draft.time} ${draft.date}`) : null;
   const incomplete = Boolean(draft.time || draft.date) && parsed == null;
+  const completeness: 'complete' | 'empty' | 'incomplete' = parsed != null
+    ? 'complete'
+    : (draft.time || draft.date) ? 'incomplete' : 'empty';
+  useEffect(() => {
+    onCompletenessChange?.(completeness);
+  }, [completeness, onCompletenessChange]);
   const validation = incomplete ? 'Nhập đủ giờ và ngày hợp lệ.'
     : required && !parsed ? 'Vui lòng nhập ngày và giờ.'
     : parsed && min && parsed < min.slice(0, 16) ? `Chọn từ ${formatDateTime24(min)}.`
@@ -114,15 +125,19 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
       }
     }}
     onKeyDown={(event) => {
-      if (event.defaultPrevented || event.nativeEvent.isComposing || !(event.target instanceof HTMLInputElement)) return;
+      if (event.defaultPrevented || event.nativeEvent.isComposing) return;
+      // Escape dismisses the open panel from ANY surface in the group
+      // (segments, trigger button), not just text inputs; the revert and
+      // commit paths stay input-scoped so plain buttons keep their keys.
       if (event.key === 'Escape') {
         event.preventDefault(); event.stopPropagation();
         if (active) { close(); return; }
+        if (!(event.target instanceof HTMLInputElement)) return;
         const restored = valueAtFocus.current;
         lastValue.current = restored;
         setDraft(splitValue(restored)); setTouched(false); onChange(restored);
         event.target.blur();
-      } else if (event.key === 'Enter') {
+      } else if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
         event.preventDefault(); event.stopPropagation();
         setOpen(null);
         setTouched(true);
@@ -132,18 +147,27 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
     {!hideLabel && <span className="split-datetime__label">{label}</span>}
     <div className="split-datetime__fields">
       {(['time', 'date'] as const).map((part) => {
-        const fieldLabel = part === 'time' ? 'Giờ' : 'Ngày';
+        const invalid = Boolean(error) || (touched && Boolean(validation));
         return <div className="split-datetime__field" key={part}>
           <div className="split-datetime__control">
-            <InputBase {...inputProps} id={`${id}-${part}`} ref={part === 'time' ? timeRef : dateRef} type="text" size={size} inputClassName={inputClassName} wrapperClassName={wrapperClassName}
-              aria-label={`${fieldLabel} — ${label}`} aria-invalid={Boolean(error) || (touched && Boolean(validation)) || inputProps?.['aria-invalid']}
-              aria-describedby={[inputProps?.['aria-describedby'], message ? `${id}-error` : undefined].filter(Boolean).join(' ') || undefined}
-              aria-haspopup="dialog" aria-expanded={active && open === part} aria-controls={active && open === part ? `${id}-picker` : undefined}
-              value={draft[part]} onChange={(event) => update(part, event.target.value)}
-              onClick={() => openPanel(part)} onInvalid={() => setTouched(true)}
-              onKeyDown={(event) => { inputProps?.onKeyDown?.(event); if (!event.defaultPrevented && event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); openPanel(part, true); } }}
-              placeholder={part === 'time' ? 'HH:mm' : 'DD/MM/YYYY'} maxLength={part === 'time' ? 5 : 10}
-              autoComplete="off" isDisabled={disabled} disabled={disabled} readOnly={readOnly} isRequired={required} />
+            <DateTimeSegments id={`${id}-${part}-segments`} part={part} groupAriaLabel={label}
+              value={draft[part]} onValueChange={(text) => update(part, text)}
+              disabled={disabled} readOnly={readOnly} size={size} error={invalid}
+              anchorRef={part === 'time' ? timeRef : dateRef}
+              lastSegmentRef={part === 'time' ? lastTimeRef : undefined}
+              onOpenPicker={() => openPanel(part)}
+              onBackFromStart={part === 'date' ? () => lastTimeRef.current?.focus() : undefined}
+              onForwardFromEnd={part === 'time' ? () => dateRef.current?.focus() : undefined}
+              popupExpanded={active && open === part} popupControls={active && open === part ? `${id}-picker` : undefined}
+              firstSegmentId={`${id}-${part}`} className={wrapperClassName} required={required}
+              inputProps={{
+                ...inputProps,
+                className: inputClassName,
+                'aria-invalid': invalid || inputProps?.['aria-invalid'],
+                'aria-describedby': [inputProps?.['aria-describedby'], message ? `${id}-error` : undefined].filter(Boolean).join(' ') || undefined,
+                onInvalid: () => setTouched(true),
+                onKeyDown: (event) => { inputProps?.onKeyDown?.(event); if (!event.defaultPrevented && event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); openPanel(part, true); } },
+              } as ComponentProps<typeof DateTimeSegments>['inputProps']} />
           </div>
         </div>;
       })}

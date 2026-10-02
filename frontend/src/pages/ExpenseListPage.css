@@ -5,106 +5,22 @@
 
 /* ── Filter Bar ─────────────────────────────────────────────────────────── */
 
-.expense-filter-bar {
-  background: var(--surface);
-  border-block: 1px solid var(--line);
-  padding: 12px 0;
-  margin-bottom: 12px;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  align-items: end;
-  gap: 12px;
-  transition: box-shadow 0.2s ease;
-}
+/* Card 20260927_152 — the filter strip is the shared `ListFilterBar`
+   (FilterBar.css L1-L4 owns the row packing and every control width). The
+   page-local bar and its control widths are gone: the bar container (flex row
+   + gap + its own chrome), the field wrapper and the direct-child select
+   wrapper (`flex: 1 1 220px; max-width: 320px`), the `width: 100%`
+   re-assertions on the select/date chips, their chip skin, the divider, the
+   whole date-pair family (label + 2-col row + arrow), the ≤1023px phone stack
+   and the ≤640px full-row / `grid-column: 1 / -1` bands. */
 
-.expense-filter-bar__field { display: grid; gap: 4px; min-width: 0; }
-.expense-filter-bar__field > span { color: var(--ink-2); font-size: var(--text-label-size); font-weight: 600; }
-.expense-filter-bar__reset { justify-self: start; }
-
-.expense-filter-bar__select,
-.expense-filter-bar__date {
+/* The reset action rides the bar's own counter/action cluster; it keeps the
+   shared compact density tokens (`filter-density.test.ts`) and nothing else —
+   the shared bar owns its position on the line. */
+.expense-list-page__reset {
   min-height: var(--filter-control-h);
-  background: var(--surface-2);
-  border: 1px solid transparent;
-  border-radius: 10px;
-  color: var(--ink);
-  font-family: var(--font-body);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%238B919B' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 10px center;
-  background-repeat: no-repeat;
-  background-size: 16px 16px;
-  min-width: 0;
-  width: 100%;
-}
-
-/* controlClassName lands on the UUI trigger button itself — wear the chip
-   skin directly, and keep the grouped native-chevron image off it (the UUI
-   trigger draws its own chevron; __date likewise nulls it further down). */
-.expense-filter-bar__select {
-  padding: 0 32px 0 12px;
-  background-image: none;
   font-size: var(--filter-control-font-size);
   line-height: var(--filter-control-line-height);
-}
-.expense-filter-bar__date {
-  padding: 0 12px;
-  font-size: var(--filter-control-font-size);
-  line-height: var(--filter-control-line-height);
-}
-
-.expense-filter-bar__select:hover,
-.expense-filter-bar__date:hover {
-  background: var(--surface);
-  border-color: var(--line-2);
-}
-
-.expense-filter-bar__select:focus,
-.expense-filter-bar__date:focus {
-  outline: none;
-  border-color: var(--accent);
-  background: var(--surface);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.expense-filter-bar__date {
-  min-width: 140px;
-  padding-right: 12px;
-  background-image: none;
-}
-
-.expense-filter-bar__divider {
-  width: 1px;
-  height: 24px;
-  background: var(--line-2);
-  flex-shrink: 0;
-}
-
-.expense-filter-bar__reset {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: var(--filter-control-h);
-  padding: 0 14px;
-  border-radius: 10px;
-  font-size: var(--filter-control-font-size);
-  line-height: var(--filter-control-line-height);
-  font-weight: 600;
-  color: var(--ink-3);
-  background: transparent;
-  border: 1px dashed var(--line-2);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-
-.expense-filter-bar__reset:hover {
-  color: var(--danger);
-  border-color: var(--danger);
-  background: var(--danger-soft);
 }
 
 /* ── Data Table ─────────────────────────────────────────────────────────── */
@@ -154,7 +70,7 @@
   vertical-align: middle;
   color: var(--ink);
   white-space: nowrap;
-  transition: background 0.12s ease;
+  transition: background var(--t-fast);
 }
 
 .expense-table tbody td.num {
@@ -200,39 +116,47 @@
 }
 
 .expense-amount--unpaid {
-  color: var(--danger);
+  /* §2 color law: unpaid = owed/pending → amber, not danger red (red is for
+     errors/blocked). Paid keeps success green. */
+  color: var(--warning-text);
 }
 
 .expense-amount--paid {
   color: var(--accent);
 }
 
-/* ── Status Badge ───────────────────────────────────────────────────────── */
+/* ── Status Badge (text + color-dot per §1) ────────────────────────────── */
 
 .expense-status {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  gap: 6px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
   font-size: var(--fs-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 600;
   white-space: nowrap;
   line-height: 1.35;
 }
 
 .expense-status--unpaid {
-  background: var(--warning-soft);
+  background: transparent;
   color: var(--warning-text);
-  border: 1px solid rgba(245, 166, 35, 0.15);
+  border: none;
 }
 
 .expense-status--paid {
-  background: var(--accent-soft);
+  background: transparent;
   color: var(--accent-ink);
-  border: 1px solid rgba(0, 177, 79, 0.15);
+  border: none;
+}
+
+.expense-status--neutral {
+  background: transparent;
+  color: var(--ink-3);
+  border: none;
 }
 
 .expense-status__dot {
@@ -244,12 +168,14 @@
 
 .expense-status--unpaid .expense-status__dot {
   background: var(--warning);
-  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.2);
 }
 
 .expense-status--paid .expense-status__dot {
   background: var(--accent);
-  box-shadow: 0 0 0 2px rgba(0, 177, 79, 0.2);
+}
+
+.expense-status--neutral .expense-status__dot {
+  background: var(--ink-4);
 }
 
 /* ── Plate Tag ──────────────────────────────────────────────────────────── */
@@ -286,28 +212,9 @@
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
-@media (max-width: 1023px) {
-  .expense-filter-bar {
-    padding: 10px 0;
-    gap: 10px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .expense-filter-bar__select,
-  .expense-filter-bar__date {
-    min-width: 0;
-  }
-
-  .expense-filter-bar__divider {
-    display: none;
-  }
-
-  .expense-filter-bar > .ds-uui-select:first-child { grid-column: 1 / -1; }
-
-  .expense-filter-bar__reset {
-    justify-content: center;
-  }
-}
+/* The ≤1023px one-column filter stack is deleted (card 20260927_152): the
+   shared bar packs its own lines, and `flex: 1 1 100%` on every field is the
+   full-row stretch the operator rejected. */
 
 /* ── Status Strip ──────────────────────────────────────────────────────── */
 
@@ -320,10 +227,10 @@
 }
 
 /* ── Pass 15 mobile tweaks (2026-06-02) ──
-   The 3-select + date + reset filter bar was 150px tall on phone with
-   3 wrap rows of 36px controls. Tighten to ~110px by shrinking the
-   controls and padding. Page-scoped so it doesn't affect any other page
-   that reuses .expense-filter-bar styles. */
+   Page-scoped phone tightening for the header, the record table and the
+   summary rail. The filter-bar half of this pass is deleted with the
+   page-local bar (card 20260927_152): the shared `ListFilterBar` owns the
+   strip at every width. */
 @media (max-width: 640px) {
   .expense-list-page .page-header {
     margin-bottom: 12px;
@@ -349,43 +256,12 @@
   }
 
   .expense-list-page .page-actions .btn {
-    min-height: 40px;
-    border-radius: 13px;
+    /* Height belongs to the shared .btn phone floor (44px, design-guidelines
+       §5); this page rule shrank primary actions to 40px — removed 2026-09-26. */
+    border-radius: 14px;
     padding-inline: 18px;
     flex: 0 0 auto;
     justify-content: center;
-  }
-
-  .expense-list-page .expense-filter-bar {
-    padding: 8px 0;
-    gap: 8px;
-    border-radius: 0;
-    margin-bottom: 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .expense-list-page .expense-filter-bar__select,
-  .expense-list-page .expense-filter-bar__date {
-    min-height: var(--filter-control-h);
-    font-size: var(--filter-control-font-size);
-    padding: 0 11px;
-    background-size: 14px 14px;
-    background-position: right 8px center;
-    border-radius: 10px;
-    border-color: rgba(16, 24, 20, 0.05);
-  }
-  .expense-list-page .expense-filter-bar__date {
-    padding-right: 10px;
-  }
-  /* Trigger button needs chevron clearance; the shared padding above is
-     date-input geometry. */
-  .expense-list-page .expense-filter-bar__select {
-    padding: 0 28px 0 11px;
-  }
-  .expense-list-page .expense-filter-bar__reset {
-    min-height: var(--filter-control-h);
-    padding: 0 11px;
-    font-size: var(--filter-control-font-size);
-    grid-column: 1 / -1;
   }
 
   .expense-list-page .mobile-table-wrap {
@@ -486,10 +362,9 @@
   }
 
   .expense-list-page .expense-status {
-    padding: 5px 9px;
+    padding: 0;
     font-size: var(--fs-xs);
     line-height: 1.35;
-    letter-spacing: 0.035em;
   }
 
   .expense-list-page .expense-plate {

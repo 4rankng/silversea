@@ -31,6 +31,7 @@ let baseUrl = '';
 async function post(path: string, body: unknown, idempotencyKey?: string) {
   if (idempotencyKey) idempotencyKeys.push(idempotencyKey);
   const response = await fetch(`${baseUrl}${path}`, {
+    signal: AbortSignal.timeout(15_000),
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -96,7 +97,7 @@ before(async () => {
   app.use('/api', authMiddleware, casbinAuthz('financial'), financialRoutes);
   app.use(globalErrorHandler);
   server = http.createServer(app);
-  await new Promise<void>(resolve => server.listen(0, resolve));
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 

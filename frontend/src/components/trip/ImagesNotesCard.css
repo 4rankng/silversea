@@ -29,8 +29,8 @@
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 44px;
-  height: 44px;
+  width: var(--control-h);
+  height: var(--control-h);
   background: rgba(0, 0, 0, 0.5);
   color: white;
   border: none;

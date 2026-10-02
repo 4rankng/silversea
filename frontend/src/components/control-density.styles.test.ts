@@ -17,7 +17,12 @@ describe('shared control density', () => {
 
     expect(tokens).toMatch(/--control-compact-h:\s*30px;/);
     expect(tokens).toMatch(/--control-default-h:\s*34px;/);
-    expect(tokens).toMatch(/--control-touch-h:\s*44px;/);
+    // Operator ruling 2026-09-27: "text 11px 12px component size max 40px".
+    // The touch floor IS the ceiling now — a coarse pointer used to inflate a
+    // 12px field to 44px.
+    expect(tokens).toMatch(/--control-max-h:\s*40px;/);
+    expect(tokens).toMatch(/--control-touch-h:\s*var\(--control-max-h\);/);
+    expect(tokens).toMatch(/--control-mobile-h:\s*var\(--control-touch-h\);/);
     expect(tokens).toMatch(/--control-compact-font-size:\s*var\(--text-control-compact-size\);/);
     expect(tokens).toMatch(/--control-compact-line-height:\s*18px;/);
     // Touch values resolve through the chosen product typography scale.
@@ -73,7 +78,7 @@ describe('shared control density', () => {
     const geometry = read('src/components/untitled-ui/base/control-geometry.css');
     expect(geometry).toMatch(/\[data-uui-control\]\[data-control-size='sm'\]\s*\{[^}]*--uui-control-h:\s*var\(--control-compact-h\)/);
     expect(geometry).toMatch(/@media \(pointer: coarse\)[\s\S]*--uui-control-h:\s*var\(--control-touch-h\)/);
-    expect(nativeSelect).toContain('max-md:min-h-11');
+    expect(nativeSelect).toContain('max-md:min-h-[var(--control-max-h)]');
     expect(bufferedDate).toContain('size={size}');
   });
 
@@ -95,12 +100,22 @@ describe('shared control density', () => {
       '.cus-worksheet-toolbar .ds-uui-select',
       '.penalty-filter-bar .ds-uui-select',
       '.dispatch-allocation-popover__row .ds-uui-select',
-      '.trip-list-page .filter-pill .ds-uui-select',
       // CUS /shipments/new local conformance skin — the shared UUI label
       // defaults vary per component (combobox vs text vs date), so the
       // form aligns them to the dense 12/18 semibold cadence. Scope is
       // the CUS form's own `.csc-uui-field` wrapper, not a bare `ds-uui-*`.
       '.csc-uui-field label',
+      // Card 20260925_1 (CHIEF 25/09 09:46, 390px screenshot): the mobile
+      // filter surfaces pin every UUI field to the chosen 44px height token
+      // so search/date/select all read the same row height. Each scope is a
+      // named filter surface (not a bare `ds-uui-*`), confined to the
+      // page-owned filter skin that ships with the mobile pair layout.
+      '.deposit-tracker-filters [data-input-wrapper]',
+      '.deposit-tracker-filters [data-uui-control]',
+      '.deposit-tracker-filters .ds-uui-select',
+      '.ppc-filters input',
+      '.ppc-filters [data-uui-control]',
+      '.ppc-filter-actions [data-uui-control]',
     ];
     const isSanctioned = (selector: string) => sanctionedConformanceScopes.some((scope) => selector.includes(scope));
 

@@ -18,8 +18,7 @@ import { auditLogs } from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import {
-  assertCanApproveGovernanceAction,
-  assertCanCheckGovernanceAction,
+  assertCanApplyGovernanceAction,
   getMissingGovernanceEvidence,
 } from './governance-policy';
 import { enqueueDurableEffects, type DurableEffectInput } from './durable-effect.service';
@@ -30,7 +29,7 @@ export interface GovernanceActionRecord {
   version: number;
   createdAt: Date;
   updatedAt: Date;
-  status: 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'APPROVED' | 'RETURNED_FOR_EVIDENCE' | 'REJECTED' | 'CANCELED';
+  status: 'READY' | 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'APPROVED' | 'RETURNED_FOR_EVIDENCE' | 'REJECTED' | 'CANCELED';
   actionKind: string;
   subjectType: string;
   subjectId: number | null;
@@ -80,16 +79,16 @@ export type GovernanceApplyAdapter = (
   action: GovernanceActionRow,
 ) => Promise<GovernanceApplyResult | void>;
 
-const activeApprovalApplications = new WeakMap<object, Set<number>>();
+const activeDirectApplications = new WeakMap<object, Set<number>>();
 let afterGovernanceApplyHookForTest: null | ((action: GovernanceActionRow) => void | Promise<void>) = null;
 
-export function assertActiveApprovalApplication(
+export function assertActiveDirectApplication(
   tx: Tx,
   actionId: number | undefined,
 ): void {
   if (
     !Number.isInteger(actionId)
-    || !activeApprovalApplications.get(tx as object)?.has(actionId!)
+    || !activeDirectApplications.get(tx as object)?.has(actionId!)
   ) {
     throw new ApiError(
       409,
@@ -98,22 +97,22 @@ export function assertActiveApprovalApplication(
   }
 }
 
-export function setGovernanceApprovalAfterApplyHookForTest(
+export function setDirectActionAfterApplyHookForTest(
   hook: null | ((action: GovernanceActionRow) => void | Promise<void>),
 ) {
   afterGovernanceApplyHookForTest = hook;
 }
 
-async function applyWithinActiveApproval(
+async function applyWithinActiveDirectAction(
   tx: Tx,
   action: GovernanceActionRow,
   apply: GovernanceApplyAdapter,
 ): Promise<GovernanceApplyResult | void> {
   const txKey = tx as object;
-  let actionIds = activeApprovalApplications.get(txKey);
+  let actionIds = activeDirectApplications.get(txKey);
   if (!actionIds) {
     actionIds = new Set<number>();
-    activeApprovalApplications.set(txKey, actionIds);
+    activeDirectApplications.set(txKey, actionIds);
   }
   if (actionIds.has(action.id)) {
     throw new ApiError(409, 'Yêu cầu quản trị đang được áp dụng');
@@ -124,7 +123,7 @@ async function applyWithinActiveApproval(
   } finally {
     actionIds.delete(action.id);
     if (actionIds.size === 0) {
-      activeApprovalApplications.delete(txKey);
+      activeDirectApplications.delete(txKey);
     }
   }
 }
@@ -146,7 +145,7 @@ export function buildGovernanceAction(
     version: 1,
     createdAt: now,
     updatedAt: now,
-    status: 'PENDING_CHECK',
+    status: 'READY',
     subjectId: null,
     subjectKey: null,
     reason: null,
@@ -181,12 +180,9 @@ export function buildGovernanceAction(
 }
 
 /**
- * Run the full governed lifecycle for a transient action in one request:
- * check stage (policy + evidence completeness), approve stage (policy), then
- * the domain apply adapter — all inside the caller's transaction. This is the
- * direct-apply replacement for the old make→check→approve row machine; the
- * requesting actor performs every stage, exactly like the auto-apply chain
- * that preceded the table drop.
+ * Authorize and apply a direct command in one transaction. Evidence validation,
+ * domain locks, durable effects and the audit trail remain; no checker,
+ * approver or intermediate approval state participates in this operation.
  */
 export async function applyGovernanceActionDirect(input: {
   action: GovernanceActionRow;
@@ -199,8 +195,7 @@ export async function applyGovernanceActionDirect(input: {
   result: GovernanceApplyResult | void;
 }> {
   const execute = async (tx: Tx) => {
-    const actor = { actorId: input.actorId, actorRole: input.actorRole };
-    assertCanCheckGovernanceAction(input.action, actor);
+    assertCanApplyGovernanceAction(input.action.actionKind, input.actorRole);
     const missingEvidence = getMissingGovernanceEvidence(
       input.action.actionKind,
       input.action.deltaSnapshot as Record<string, unknown> | null,
@@ -211,25 +206,19 @@ export async function applyGovernanceActionDirect(input: {
       throw new ApiError(422, `Thiếu bằng chứng bắt buộc: ${missingEvidence.join(', ')}`);
     }
     const now = new Date();
-    const checked: GovernanceActionRow = {
-      ...input.action,
-      status: 'PENDING_APPROVAL',
-      checkerId: input.actorId,
-      checkerRole: input.actorRole,
-      checkedAt: now,
-      version: input.action.version + 1,
-      updatedAt: now,
-    };
-    assertCanApproveGovernanceAction(checked, actor);
-    // Adapters get the authoritative decision actor so immutable domain rows
-    // record the actual approver.
+    // Legacy adapters/response contracts use approver* for the applying actor.
+    // Populate those compatibility fields directly, never a second decision stage.
     const forApply: GovernanceActionRow = {
-      ...checked,
+      ...input.action,
+      checkerId: null,
+      checkerRole: null,
+      checkedAt: null,
       approverId: input.actorId,
       approverRole: input.actorRole,
       approvedAt: now,
+      updatedAt: now,
     };
-    const result = await applyWithinActiveApproval(tx, forApply, input.apply);
+    const result = await applyWithinActiveDirectAction(tx, forApply, input.apply);
     if (result?.durableEffects?.length) {
       await enqueueDurableEffects(tx, result.durableEffects);
     }
@@ -242,7 +231,7 @@ export async function applyGovernanceActionDirect(input: {
       appliedAt: now,
       ledgerEntryId: result?.ledgerEntryId ?? null,
       applicationResult: result?.applicationResult ?? null,
-      version: checked.version + 1,
+      version: input.action.version + 1,
       updatedAt: now,
     };
     // Persist the evidence with the domain write. The former approval table

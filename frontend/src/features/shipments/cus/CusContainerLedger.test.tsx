@@ -2,15 +2,18 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
+import { ApiError } from '../../../lib/api';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ContainerLedger } from './CusContainerLedger';
 
-const { updateCusShipmentContainerLine } = vi.hoisted(() => ({
+const { updateCusShipmentContainerLine, removeCusShipmentContainerRow } = vi.hoisted(() => ({
   updateCusShipmentContainerLine: vi.fn(),
+  removeCusShipmentContainerRow: vi.fn(),
 }));
 vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../api/shipmentClient')>()),
   updateCusShipmentContainerLine,
+  removeCusShipmentContainerRow,
 }));
 const { completeDispatchExternalTrip } = vi.hoisted(() => ({
   completeDispatchExternalTrip: vi.fn(),
@@ -36,6 +39,14 @@ const detail = {
     carrierType: 'EXTERNAL',
     externalCarrierId: 9,
     shipmentVersion: 4,
+    // Card 20260923_9: the ledger renders the line's own cargo weight.
+    raw: {
+      containerNumber: 'MSKU1234567',
+      containerTypeId: 5,
+      cargoWeightKg: '12500',
+      cargoVolumeCbm: '26.25',
+      routeId: 7,
+    },
     permissions: {
       carrierEditable: true,
       plateEditable: true,
@@ -72,12 +83,17 @@ function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyCha
   return { ...utils, rerenderWithSavedLine, confirmButtons: () => utils.container.querySelectorAll('.cus-container-confirm, .cus-container-revert') };
 }
 
-// The unified datetime batch replaced the combined appointment input with the
-// shared SplitDateTimeField pair inside the popover; drive both parts.
+// The segmented datetime rework split each part into per-digit inputs
+// ([data-seg]); the first segment of each part still accepts full strings
+// (paste distribution fills the following segments).
 function appointmentInputs(): { time: HTMLInputElement; date: HTMLInputElement } {
-  const inputs = document.querySelectorAll<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"])');
-  expect(inputs.length).toBe(2);
-  return { time: inputs[0], date: inputs[1] };
+  const root = document.querySelector('[data-split-datetime]');
+  expect(root).toBeTruthy();
+  const time = root!.querySelector<HTMLInputElement>('input[data-seg="hh"]');
+  const date = root!.querySelector<HTMLInputElement>('input[data-seg="dd"]');
+  expect(time).toBeTruthy();
+  expect(date).toBeTruthy();
+  return { time: time!, date: date! };
 }
 function setAppointment(time: string, date: string) {
   const { time: timeInput, date: dateInput } = appointmentInputs();
@@ -125,15 +141,91 @@ describe('ContainerLedger confirm affordances', () => {
     // No inline Save/Cancel inside the popover itself
     expect(document.querySelector('.cus-appointment-popover .cus-container-confirm')).toBeNull();
 
-    // Close via backdrop
-    const backdrop = document.querySelector('.cus-appointment-backdrop')!;
-    fireEvent.click(backdrop);
+    // Close via the house outside-press layer (no private backdrop — card 20261001_251)
+    fireEvent.pointerDown(document.body);
     expect(document.querySelector('.cus-appointment-popover')).toBeNull();
   });
 
-  it('has no separate Thao tác column — in-table actions are self-contained', () => {
+  // Card 20260923_9 (Chief 23/09): the add-container row must ride the SAME
+  // column grid as the container rows — each control inside the cell of the
+  // column it belongs to, every input-less column keeping an empty cell, and
+  // the action column holding the row actions and the add row's Thêm/Hủy.
+  //
+  // jsdom has no layout engine (offsetLeft/getBoundingClientRect are 0 for
+  // everything), so the ≤2px edge measurement the Chief asked for is a rung-3
+  // browser check (testplan case QA-2026-09-23-09). What jsdom CAN prove — and
+  // what the browser measurement depends on — is that every control sits in
+  // the same table, in the cell whose column index matches its column, with a
+  // cell for every track. RED before this card: the form was a flex row
+  // OUTSIDE the table (no tfoot, no cellIndex), so every index assertion below
+  // failed.
+  it('rides the ledger column grid: one cell per column, every control in its own column', () => {
     renderLedger();
-    expect(screen.queryByRole('columnheader', { name: 'Thao tác dòng' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+
+    const table = screen.getByRole('table');
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
+    expect(headers).toEqual([
+      'Container', 'Loại cont', 'Tuyến', 'Điều vận', 'Nhà xe', 'Biển số',
+      'Nâng', 'Hạ', 'Trọng lượng (kg)', 'Giờ hẹn đóng/trả', 'Thao tác',
+    ]);
+
+    const addRow = table.querySelector<HTMLTableRowElement>('tfoot tr');
+    expect(addRow).toBeTruthy();
+    const cellOf = (selector: string) => {
+      const node = selector.startsWith('#')
+        ? document.querySelector(selector)
+        : addRow!.querySelector(selector);
+      expect(node, selector).toBeTruthy();
+      return (node as HTMLElement).closest('th, td') as HTMLTableCellElement;
+    };
+
+    // The add row covers every track, so no column upstream can shift.
+    expect(addRow!.children).toHaveLength(headers.length);
+    expect(cellOf('input[aria-label="Số container"]').cellIndex).toBe(0);
+    expect(cellOf('.cus-container-ledger__add-select').cellIndex).toBe(1);
+    expect(cellOf('input[aria-label="Trọng lượng (kg)"]').cellIndex).toBe(8);
+    expect(cellOf('input[aria-label="Giờ hẹn đóng/trả"]').cellIndex).toBe(9);
+    expect(cellOf('.cus-container-ledger__add-actions').cellIndex).toBe(10);
+
+    // Columns the add API does not fill keep an EMPTY cell (never merged away).
+    for (const index of [2, 3, 4, 5, 6, 7]) {
+      const cell = addRow!.children[index] as HTMLElement;
+      expect(cell.className).toContain('cus-container-ledger__add-blank');
+      expect(cell.textContent).toBe('');
+    }
+
+    // The data row rides the same tracks, and its action lives in the same
+    // column as the add row's buttons.
+    const dataRow = table.querySelector<HTMLTableRowElement>('tbody tr')!;
+    expect(dataRow.children).toHaveLength(headers.length);
+    const cellByLabel = (label: string) => dataRow.querySelector(`[data-label="${label}"]`) as HTMLTableCellElement;
+    expect(cellByLabel('Trọng lượng (kg)').cellIndex).toBe(8);
+    expect(cellByLabel('Giờ hẹn đóng/trả').cellIndex).toBe(9);
+    expect(cellByLabel('Thao tác').cellIndex).toBe(10);
+    expect(cellByLabel('Thao tác').querySelector('.cus-container-row__remove')).toBeTruthy();
+  });
+
+  it('renders the line weight in the Trọng lượng column, em dash when missing', () => {
+    const { unmount } = render(
+      <ToastProvider>
+        <ContainerLedger detail={detail} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="weight" />
+      </ToastProvider>,
+    );
+    const weightCell = document.querySelector('tbody [data-label="Trọng lượng (kg)"]') as HTMLElement;
+    expect(weightCell.textContent).toBe('12.500');
+    unmount();
+
+    const lineWithoutWeight = {
+      ...detail,
+      containers: [{ ...detail.containers[0], raw: { ...detail.containers[0].raw, cargoWeightKg: null } }],
+    } as unknown as ShipmentCusWorkspaceDetail;
+    render(
+      <ToastProvider>
+        <ContainerLedger detail={lineWithoutWeight} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="weight-empty" />
+      </ToastProvider>,
+    );
+    expect((document.querySelector('tbody [data-label="Trọng lượng (kg)"]') as HTMLElement).textContent).toBe('—');
   });
 
   it('saves appointment date and time and plate on save — sends modified fields', async () => {
@@ -144,8 +236,8 @@ describe('ContainerLedger confirm affordances', () => {
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
     setAppointment('09:00', '11/09/2026');
 
-    // Close popover
-    fireEvent.click(document.querySelector('.cus-appointment-backdrop')!);
+    // Close popover via the house outside-press layer
+    fireEvent.pointerDown(document.body);
 
     // Also change plate
     fireEvent.change(screen.getByLabelText(/Biển số xe/), { target: { value: '15C-999.99' } });
@@ -214,8 +306,8 @@ describe('ContainerLedger confirm affordances', () => {
     // Reopen shows the base value, not the abandoned draft.
     fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
     const reopened = appointmentInputs();
-    expect(reopened.time.value).not.toBe('11:00');
-    expect(reopened.date.value).not.toBe('19/09/2026');
+    expect(reopened.time.value).not.toBe('11');
+    expect(reopened.date.value).not.toBe('19');
   });
 
   it('_34 invalid-entry: out-of-range typing blocks commit with a visible error', async () => {
@@ -407,5 +499,79 @@ describe('drawer plate clear affordance (20260916_6 addendum)', () => {
     fireEvent.click(button);
     const plate = document.querySelector('#drawer-clear-plate-10') as HTMLInputElement;
     expect(plate.value).toBe('');
+  });
+});
+
+describe('silent-409 surfacing on last-container delete (20260923_5)', () => {
+  it('surfaces the 409 business message as a visible error toast when the lot keeps zero containers', async () => {
+    removeCusShipmentContainerRow.mockRejectedValueOnce(
+      new ApiError(409, { error: 'Lô hàng phải có ít nhất một container.' }, 'Lô hàng phải có ít nhất một container.'),
+    );
+    render(
+      <ToastProvider>
+        <ContainerLedger detail={detail} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="silent-409" />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    await screen.findByText('Lô hàng phải có ít nhất một container.');
+  });
+
+  it('stays silent when the row delete succeeds — no error toast', async () => {
+    removeCusShipmentContainerRow.mockResolvedValueOnce({ removed: true } as never);
+    render(
+      <ToastProvider>
+        <ContainerLedger detail={detail} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="silent-409-success" />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    await screen.findByText(/Đã xóa container/);
+    expect(screen.queryByText('Lô hàng phải có ít nhất một container.')).toBeNull();
+  });
+});
+
+describe('vendor-scoped plate datalist (card 20260925_6 sweep)', () => {
+  const vendorDetail = {
+    ...detail,
+    selectors: {
+      externalCarriers: [{ id: 9, label: 'Nhà xe Năm Troc', name: 'Nhà xe Năm Troc', shortName: null }],
+      ports: [], containerTypes: [], routes: [],
+      carrierVehicles: [
+        { id: 1, carrierId: 9, licensePlate: '15C-184.62', label: '15C-184.62' },
+        { id: 2, carrierId: 77, licensePlate: '30F-999.99', label: '30F-999.99' },
+      ],
+    },
+    containers: [{ ...detail.containers[0] }],
+  } as unknown as ShipmentCusWorkspaceDetail;
+
+  function renderVendors() {
+    return render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={vendorDetail}
+          onLineSaved={vi.fn()}
+          getIdempotencyKey={() => 'test-key'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="test"
+        />
+      </ToastProvider>,
+    );
+  }
+
+  it('an existing external carrier offers only that vendor\'s plates', () => {
+    const { container } = renderVendors();
+    const datalist = container.querySelector('datalist[id$="-plates-10"]');
+    expect(datalist).toBeTruthy();
+    expect(Array.from(datalist!.querySelectorAll('option')).map((option) => option.value))
+      .toEqual(['15C-184.62']);
+  });
+
+  it('NEW_EXTERNAL: typing the vendor name scopes the datalist to that vendor', () => {
+    const { container } = renderVendors();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm nhà xe' }));
+    const name = screen.getByLabelText('Tên nhà xe mới');
+    fireEvent.change(name, { target: { value: 'Nhà xe Năm Troc' } });
+    const datalist = container.querySelector('datalist[id$="-plates-10"]');
+    expect(Array.from(datalist!.querySelectorAll('option')).map((option) => option.value))
+      .toEqual(['15C-184.62']);
   });
 });

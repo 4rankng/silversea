@@ -2,8 +2,10 @@
  * Config sub-page scoped polish — shared elegance pass (2026-06-03)
  *
  * All rules under .cfg-page so changes only affect /config/* surfaces.
- * Tightens table density (sparse single-line rows) and unifies the toolbar,
- * empty state, and inline meta pill treatment across CrudTable-based pages.
+ * Tightens table density (sparse single-line rows) and unifies the empty
+ * state and inline meta pill treatment across CrudTable-based pages. The
+ * catalogue toolbar is NOT here: the strip is the shared `ListFilterBar`
+ * (card 20260927_152), so this sheet declares no filter layout or width.
  * ========================================================================== */
 
 /* Two-word numeric headers ("Chuyến 09/26", "Doanh thu 09/26") are narrower
@@ -39,16 +41,14 @@
 }
 
 /* Subtle row hover — keep readable density */
-.cfg-page .tt-table tbody tr:hover { background: rgba(0, 177, 79, 0.035); }
+.cfg-page .tt-table tbody tr:hover { background: color-mix(in srgb, var(--fg-1) 2.5%, var(--surface)); }
 
 /* ── Toolbar refinement: tighter, no border separation under it ── */
-.cfg-page .toolbar {
-  padding: 14px 20px 6px;
-  align-items: center;
-  gap: 12px;
-  min-height: 52px;
-}
-.cfg-page .toolbar > div:first-child:empty { display: none; }
+/* Card 20260927_152: the `.cfg-page .toolbar` block is deleted with the shell's
+   hand-rolled row — the catalogue strip is the shared `ListFilterBar` card
+   above the table panel now, and the bar owns its own padding, gap and row
+   budget. `.cfg-page .toolbar` had exactly one renderer (CrudTable), so no
+   surface is left unskinned. */
 
 /* Touch-target extension for the shared sort-header buttons: the visual
    stays at the header's density contract, but the hit area meets the 44px
@@ -63,7 +63,8 @@
   inset: -7px 0;
 }
 
-/* Inline meta summary that lives in the toolbar (replaces ad-hoc inline styles) */
+/* Inline meta summary that rides the filter bar's `status` slot (replaces
+   ad-hoc inline styles) */
 .cfg-page__summary {
   font-size: var(--text-caption-size);
   color: var(--ink-3);
@@ -89,7 +90,7 @@
   min-height: 26px;
   padding: 4px 9px;
   margin-left: 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
   font-weight: var(--fw-bold);
@@ -109,8 +110,8 @@
 /* ── Header back arrow — soften & match dashboard back affordance ── */
 .cfg-page .page-header__back-btn,
 .cfg-page .page-header [aria-label*="quay" i] {
-  width: 44px;
-  height: 44px;
+  width: var(--control-max-h);
+  height: var(--control-max-h);
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
@@ -194,7 +195,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--accent-soft);
   color: var(--accent);
 }
@@ -254,7 +255,7 @@
 .cfg-page--company-info .company-info-form .field { margin-bottom: 0; }
 .cfg-page--company-info .cfg-form-actions { margin-top: 12px; }
 .company-info-comparison { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
-.company-info-comparison > summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; font-size: var(--text-control-size); font-weight: 600; }
+.company-info-comparison > summary { cursor: pointer; min-height: var(--control-max-h); display: list-item; align-content: center; font-size: var(--text-control-size); font-weight: 600; }
 .company-info-comparison > p { font-size: var(--text-caption-size); color: var(--ink-3); margin: 0 0 8px; }
 
 .cfg-page--company-info .company-info-preview {
@@ -326,7 +327,7 @@
   padding: 12px 14px 12px 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   overflow: hidden;
 }
 
@@ -357,7 +358,7 @@
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #fff;
+  background: var(--surface);
 }
 
 .debit-template-card__main {
@@ -401,7 +402,7 @@
   height: 4px;
   margin: 0 8px 2px 0;
   border-radius: 999px;
-  background: var(--line-strong, #cfd8d3);
+  background: var(--line-strong);
 }
 
 .debit-template-card__actions {
@@ -430,30 +431,10 @@
   gap: 12px;
 }
 
-.debit-template-list-empty__image {
-  width: clamp(150px, 18vw, 230px);
-  aspect-ratio: 1;
-  object-fit: contain;
-  margin-bottom: 2px;
-}
-
-.debit-template-list-empty__copy {
-  display: grid;
-  gap: 5px;
-  max-width: 340px;
-}
-
-.debit-template-list-empty__copy strong,
 .debit-template-list-empty > strong {
   font-size: var(--text-section-size);
   line-height: 1.35;
   color: var(--ink);
-}
-
-.debit-template-list-empty__copy span {
-  font-size: var(--text-data-size);
-  line-height: 1.5;
-  color: var(--ink-3);
 }
 
 @media (max-width: 720px) {
@@ -478,10 +459,6 @@
     min-height: 340px;
     padding: 32px 18px;
   }
-
-  .debit-template-list-empty__image {
-    width: clamp(142px, 42vw, 190px);
-  }
 }
 
 /* The desktop shell leaves ~352px of sidebar/panel chrome outside the table
@@ -494,7 +471,6 @@
 @media (max-width: 1400px) {
   .cfg-page .tt-table thead th { padding: 11px 12px; }
   .cfg-page .tt-table tbody td { padding: 12px 12px; }
-  .cfg-page .toolbar { padding: 12px 14px 4px; gap: 8px; }
   .cfg-page__summary { font-size: var(--text-caption-size); }
   .cfg-page .table-scroll { overflow: visible; }
 
@@ -590,7 +566,7 @@
 .factories-table thead th:nth-child(7) { width: 150px; }
 .factories-table thead th:nth-child(8) { width: 90px; }
 .factories-table thead th:nth-child(9) { width: 44px; }
-.factory-record-details summary { cursor: pointer; min-height: 44px; align-content: center; font-size: var(--text-control-size); }
+.factory-record-details summary { cursor: pointer; min-height: var(--control-max-h); align-content: center; font-size: var(--text-control-size); }
 .factory-record-details dl { display: grid; gap: 6px; margin: 4px 0; }
 .factory-record-details dt { color: var(--ink-3); font-size: var(--text-label-size); }
 .factory-record-details dd { margin: 0; overflow-wrap: anywhere; }
@@ -607,26 +583,49 @@
 }
 
 /* ── Desktop: routes-table layout ────────────────────────────────────
-   Uses table-layout: fixed + explicit widths so columns distribute
-   evenly across the 7-column layout (Mã tuyến, Tên tuyến, Tên rút gọn,
-   Điểm đóng trả, Khoảng cách, Ghi chú, actions). */
-.routes-table { min-width: 980px; table-layout: fixed; width: 100%; }
-.routes-table thead th:nth-child(1) { width: 12%; }   /* Mã tuyến */
-.routes-table thead th:nth-child(2) { width: 20%; }   /* Tên tuyến */
-.routes-table thead th:nth-child(3) { width: 16%; }   /* Tên rút gọn */
-.routes-table thead th:nth-child(4) { width: 18%; }   /* Điểm đóng trả */
-.routes-table thead th:nth-child(5) { width: 10%; }   /* Khoảng cách */
-.routes-table thead th:nth-child(6) { width: 16%; }   /* Ghi chú */
-.routes-table thead th:nth-child(7) { width: 8%;  }   /* actions */
+   Card 20260922_22: columns size to their real content (table-layout: auto)
+   instead of equal-split fixed shares — persistently-empty columns are
+   hidden at the component level (colPresence), so the width budget goes to
+   data. Code/distance/toll cells keep their tokens on one line (nowrap);
+   name and note wrap freely. */
+.routes-table { min-width: 0; table-layout: auto; width: 100%; }
 /* Allow text to wrap inside cells so long content stays readable. The action
-   cell is excluded — it hosts the row's absolutely-positioned kebab dropdown. */
+   cell is excluded — it hosts the row's absolutely-positioned kebab dropdown.
+   Code/num cells keep tokens on one line (card 20260922_22: no token break).
+   */
 .routes-table tbody td:not(.record-table__action) {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.routes-table tbody td:nth-child(1) .row-strong {
+.routes-table td.routes-table__code,
+.routes-table td.num {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.routes-table tbody td.routes-table__name .row-strong {
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* ── Desktop: customers-table layout ────────────────────────────────
+   Card 20260922_22: columns size to their real content (table-layout:
+   auto) and persistently-empty columns hide at the component level
+   (colPresence), so the width budget goes to data. Customer codes, tax
+   codes, phones and payment terms keep their tokens on one line; the
+   identity cell and prose columns wrap freely. */
+.cfg-customer-table { min-width: 0; table-layout: auto; width: 100%; }
+.cfg-customer-table tbody td:not(.record-table__action) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* Identifiers scan as single tokens: Mã KH, MST, SĐT and payment terms. */
+.cfg-customer-table td[data-label='Mã KH'],
+.cfg-customer-table td[data-label='Mã Số Thuế'],
+.cfg-customer-table td[data-label='SĐT liên hệ'],
+.cfg-customer-table td[data-label='SĐT Kế toán'],
+.cfg-customer-table td.num {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* When the shared record-table base collapses rows to labelled cards
@@ -665,7 +664,7 @@
     display: table-row;
     border: 0;
     border-radius: 0;
-    /* Outranks the shared tr:hover wash and tr.is-selected edge for the
+    /* Outranks the shared tr: hover wash and tr.is-selected edge for the
        window — both re-armed below (hover) or must be re-armed here first
        if selection ever lands on these tables. */
     background: transparent;
@@ -756,7 +755,7 @@
   background: #cbd5e1;
   cursor: inherit;
   padding: 0;
-  transition: background 0.2s ease;
+  transition: background var(--t-normal);
   flex-shrink: 0;
 }
 .cfg-toggle.is-on {
@@ -769,9 +768,9 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid rgba(16, 24, 20, 0.18);
-  transition: transform 0.2s ease;
+  transition: transform var(--t-normal);
 }
 .cfg-toggle.is-on .cfg-toggle-knob {
   transform: translateX(20px);
@@ -1158,8 +1157,8 @@
   right: 8px;
   display: inline-grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: var(--control-max-h);
+  height: var(--control-max-h);
   padding: 0;
   color: var(--ink-3);
   background: transparent;
@@ -1298,19 +1297,26 @@
   .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Tuyến'] { grid-row: 4; grid-column: 1 / -1; }
   .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Chi tiết'] { grid-row: 5; grid-column: 1 / -1; }
   .factories-table tbody tr td.record-table__action { position: absolute; top: 0; right: 0; width: 44px; padding: 0; }
-  .factories-table .row-action { min-height: 44px; min-width: 44px; }
+  .factories-table .row-action { min-height: var(--control-max-h); min-width: var(--control-max-h); }
   .factories-table td[data-label='Chi tiết']::before { display: none; }
   .factories-table tbody tr td::before { text-transform: none; letter-spacing: 0; font-size: var(--text-label-size); }
 }
-.cfg-page .cfg-catalogue-search { flex: 1 1 180px; min-width: 0; max-width: 360px; }
-.cfg-page .cfg-catalogue-search .input { width: 100%; }
-.cfg-page .cfg-catalogue-summary { flex: 1 1 auto; min-width: 0; }
+/* Card 20260927_152: the shell's `.cfg-catalogue-search` cell, its 360px cap
+   and the `.cfg-catalogue-summary` growth are deleted — the search is the bar's
+   own `search` slot (its 300px ceiling) and the counter is the bar's `status`
+   node, so no page rule sizes either one. */
 .cfg-page .cfg-catalogue-feedback { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 8px; color: var(--ink-2); }
 @media (max-width: 640px) {
-  .cfg-page .toolbar:has(.cfg-catalogue-search) { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 8px; gap: 6px 8px; }
-  .cfg-page .cfg-catalogue-search { max-width: none; flex-basis: calc(100% - 96px); }
-  .cfg-page .cfg-catalogue-summary { order: 3; grid-column: 1 / -1; }
   .cfg-page--fuel-price-periods .record-table tbody td[data-label='STT'] { display: none; }
   .cfg-page--fuel-price-periods .record-table tbody td { text-align: left; }
   .cfg-page--fuel-price-periods .record-table tbody td[data-label='Ghi chú'] { grid-column: 1 / -1; }
+}
+
+/* Status pills DISPLAY state — they are not toggles; the status changes ride
+   the edit form's optimistic lock. Flattened so nothing reads clickable. */
+.cfg-status-tag {
+  cursor: default;
+  border-radius: 6px;
+  min-height: 0;
+  margin-left: 0;
 }

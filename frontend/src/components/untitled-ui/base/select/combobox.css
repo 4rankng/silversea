@@ -9,6 +9,20 @@
   min-width: 0;
 }
 
+/* The input IS the interaction surface: stretch it across the whole field
+   (the wrapper is a stretched flex child; the input fills the wrapper).
+   Previously it was a 16px-tall strip centred in the 44px box — tapping
+   above/below the strip opened the list WITHOUT focusing the input, so the
+   next keystrokes went nowhere (2026-09-26 mobile sweep: 16-20px input
+   strips across every filter surface). The visible value span stays
+   centred because it positions against this wrapper. */
+.uui-combobox__input {
+  align-self: stretch;
+}
+.uui-combobox__input input[role='combobox'] {
+  height: 100%;
+}
+
 @container uui-combobox (max-width: 192px) {
   [data-combobox-search] {
     display: none;
@@ -25,12 +39,20 @@
 }
 
 /* A combobox has one field boundary. Native-input touch rules must not add
-   another height floor or vertical padding inside its value wrapper. */
+   another height floor or vertical padding inside its value wrapper.
+   `height: 100%` (not `auto`) keeps the input covering the full field on
+   touch — `auto` collapsed it back to the 16px text strip. */
 @media (max-width: 640px), (pointer: coarse) {
   .uui-combobox [data-combobox-value] input[role='combobox'],
   #root .uui-combobox [data-combobox-value] input[role='combobox'] {
     min-height: 0;
-    height: auto;
+    height: 100%;
+    padding-block: 0;
+  }
+  /* The root's 4px vertical padding left a 5px dead rim above/below the
+     stretched input — taps there fell through to main content. Zero it so
+     the input fills the whole 44px field (min-height keeps the boundary). */
+  #root .uui-combobox [data-combobox-value] {
     padding-block: 0;
   }
 

@@ -5,14 +5,19 @@ interface ShipmentCreateSectionProps {
   id: ShipmentCreateSectionId;
   title: string;
   description?: string;
+  /** Right-aligned compact control on the heading row (e.g. the ad-hoc lot toggle). */
+  actions?: ReactNode;
   children: ReactNode;
 }
 
 /** Semantic, focusable form section shared by the shipment-create workspace. */
-export function ShipmentCreateSection({ id, title, description, children }: ShipmentCreateSectionProps) {
+export function ShipmentCreateSection({ id, title, description, actions, children }: ShipmentCreateSectionProps) {
   return (
     <section id={`shipment-section-${id}`} tabIndex={-1} className="csc-section" style={sectionStyle}>
-      <div className="csc-section__heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div></div>
+      <div className="csc-section__heading">
+        <div><h2>{title}</h2>{description && <p>{description}</p>}</div>
+        {actions && <div className="csc-section__actions">{actions}</div>}
+      </div>
       {children}
     </section>
   );
@@ -24,5 +29,5 @@ export const shipmentCreateGridStyle: CSSProperties = {
 
 const sectionStyle: CSSProperties = {
   borderRadius: 12, padding: 16,
-  display: 'grid', gap: 12, background: 'var(--surface-1)', minWidth: 0,
+  display: 'grid', gap: 12, background: 'var(--surface)', minWidth: 0,
 };

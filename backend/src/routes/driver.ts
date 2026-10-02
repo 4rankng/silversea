@@ -5,6 +5,7 @@ import type { Request, Response } from 'express';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { getUser } from '../middleware/auth';
+import { requireRoles } from '../middleware/casbin';
 import {
   assertTripOwnedByDriver,
   completeOwnedFulfillmentTrip,
@@ -23,11 +24,13 @@ import {
   syncDriverFulfillmentStartSideEffects,
   listDriverProgress,
   recordIncidentalCost,
+  listActiveDriverFeeNorms,
   listIncidentalCosts,
   updateDriverTripCostSubmissionNote,
   getDriverPayslipPeriods,
   getCompletionEvidenceStatus,
 } from '../services/driver.service';
+import { tripTruckHasActiveAccountant } from '../services/expense-accounting-reads.service';
 import {
   extractFuelEvidencePumpValues,
   persistFuelEvidenceReviewForDriver,
@@ -53,6 +56,7 @@ import {
   driverCostSubmissionNoteSchema,
   driverProgressSchema,
   DriverProgressEventType,
+  Role,
   TripPodFileType,
   tripContainerSealBatchSchema,
   validatedTripContainerSchema, validatedTripContainerPatchSchema, normalizeContainerNumber,
@@ -81,8 +85,10 @@ import {
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
 import { storageService } from '../services/storage.service';
+import { declareNonMaterialWrite } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
-const router = Router();
+const router = Router()
 
 const DRIVER_IDEMPOTENCY_ENDPOINTS = {
   CONTAINER_CREATE: 'driver.containers.create',
@@ -374,7 +380,7 @@ router.get('/fulfillments/:fulfillmentId/progress', asyncHandler(async (req: Req
   res.json({ items });
 }));
 
-router.post('/fulfillments/:fulfillmentId/progress', asyncHandler(async (req: Request, res: Response) => {
+router.post('/fulfillments/:fulfillmentId/progress', declareMaterialWrite('driver.progress', { method: 'POST', path: '/api/driver/me/fulfillments/:fulfillmentId/progress' }),  asyncHandler(async (req: Request, res: Response) => {
   const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
   if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
     throw new ApiError(400, 'ID tác vụ không hợp lệ');
@@ -427,7 +433,7 @@ router.get('/fulfillments/:fulfillmentId/pod', asyncHandler(async (req: Request,
   res.json({ items });
 }));
 
-router.post('/fulfillments/:fulfillmentId/pod', asyncHandler(async (req: Request, res: Response) => {
+router.post('/fulfillments/:fulfillmentId/pod', declareMaterialWrite('trips.pod.create', { method: 'POST', path: '/api/driver/me/fulfillments/:fulfillmentId/pod' }),  asyncHandler(async (req: Request, res: Response) => {
   const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
   if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
     throw new ApiError(400, 'ID tác vụ không hợp lệ');
@@ -452,7 +458,7 @@ router.post('/fulfillments/:fulfillmentId/pod', asyncHandler(async (req: Request
   res.status(submission.replayed ? 200 : 201).json(submission.submission);
 }));
 
-router.post('/fulfillments/:fulfillmentId/pod/:submissionId/files', podUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/fulfillments/:fulfillmentId/pod/:submissionId/files', declareMaterialWrite('trips.pod.files.attach', { method: 'POST', path: '/api/driver/me/fulfillments/:fulfillmentId/pod/:submissionId/files' }),  podUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
   const submissionId = parseInt(req.params.submissionId as string, 10);
   if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
@@ -488,7 +494,7 @@ router.post('/fulfillments/:fulfillmentId/pod/:submissionId/files', podUpload.si
   res.json(submission.submission);
 }));
 
-router.post('/fulfillments/:fulfillmentId/pod/:submissionId/submit', asyncHandler(async (req: Request, res: Response) => {
+router.post('/fulfillments/:fulfillmentId/pod/:submissionId/submit', declareMaterialWrite('trips.pod.submit', { method: 'POST', path: '/api/driver/me/fulfillments/:fulfillmentId/pod/:submissionId/submit' }),  asyncHandler(async (req: Request, res: Response) => {
   const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
   const submissionId = parseInt(req.params.submissionId as string, 10);
   if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
@@ -538,7 +544,7 @@ router.get('/fulfillments/:fulfillmentId/pod-files/:fileId', asyncHandler(async 
   res.send(file.buffer);
 }));
 
-router.post('/fulfillments/:fulfillmentId/complete', asyncHandler(async (req: Request, res: Response) => {
+router.post('/fulfillments/:fulfillmentId/complete', declareMaterialWrite('driver.fulfillment.complete', { method: 'POST', path: '/api/driver/me/fulfillments/:fulfillmentId/complete' }),  asyncHandler(async (req: Request, res: Response) => {
   const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
   if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
     throw new ApiError(400, 'ID tác vụ không hợp lệ');
@@ -567,7 +573,7 @@ router.post('/fulfillments/:fulfillmentId/complete', asyncHandler(async (req: Re
 // server-side idempotent (Idempotency-Key header) so an offline-queue replay
 // (slice 2 frontend) does not duplicate events (PRD M08-04-03). Ownership is
 // enforced inside the service (trip.driverId must match the caller).
-router.post('/trips/:tripId/progress', asyncHandler(async (req: Request, res: Response) => {
+router.post('/trips/:tripId/progress', declareMaterialWrite('driver.progress', { method: 'POST', path: '/api/driver/me/trips/:tripId/progress' }),  asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const parsed = driverProgressSchema.safeParse(req.body);
@@ -594,13 +600,24 @@ router.get('/trips/:tripId/progress', asyncHandler(async (req: Request, res: Res
   res.json({ items });
 }));
 
+// Card 20260921_7 — fee norms (định mức) for the driver cost-form auto-fill.
+// CONFIG DATA: amounts are defaults, the driver may override the actual.
+router.get('/fee-norms', requireRoles(Role.DRIVER, Role.OPS, Role.ADMIN, Role.MANAGER), asyncHandler(async (_req: Request, res: Response) => {
+  res.json({ items: await listActiveDriverFeeNorms() });
+}));
+
 // M8.4 slice 3 — driver incidental costs (per-diem, lift fee, parking, toll,
 // fuel, other). Idempotent create (Idempotency-Key header) so the offline-
 // queue replay doesn't duplicate. COMPLETED trips reject (costs affect financials).
-router.post('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, res: Response) => {
+router.post('/trips/:tripId/incidental-costs', declareMaterialWrite('driver.incidental-cost', { method: 'POST', path: '/api/driver/me/trips/:tripId/incidental-costs' }),  asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
-  const parsed = driverIncidentalCostSchema.safeParse(req.body);
+  // Card 20260921_6: the catalog ref rides the same payload; extending the
+  // shared schema keeps the offline-driver-app contract intact.
+  const parsed = driverIncidentalCostSchema.extend({
+    expenseTypeCode: z.string().trim().max(50).nullable().optional(),
+    feeNormCode: z.string().trim().max(50).nullable().optional(),
+  }).safeParse(req.body);
   if (!parsed.success) {
     throw new ApiError(400, parsed.error.issues.map((i: { message: string }) => i.message).join('; '));
   }
@@ -621,12 +638,17 @@ router.get('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, 
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const driver = await getDriverByUserId(getUser(req).userId);
   const items = await listIncidentalCosts(tripId, driver.id);
-  res.json({ items });
+  // Card 20260928_166 AC2 — warn, never block. A truck with no live phơi-phiếu
+  // accountant must not stop a driver from recording a real cost: measured on
+  // local, 32 of 40 trucks are unassigned, so a hard gate would block most of
+  // the driver's work. The flag lets the form say so plainly instead.
+  const hasAccountant = await tripTruckHasActiveAccountant(tripId);
+  res.json({ items, hasAccountant });
 }));
 
 // 27.8 cost-section Ghi chú — driver-written note for accounting to re-check
 // auto-recorded costs (Tiền đường, Phí Lạch Huyện). Idempotent upsert.
-router.put('/trips/:tripId/cost-submission-note', asyncHandler(async (req: Request, res: Response) => {
+router.put('/trips/:tripId/cost-submission-note', declareNonMaterialWrite('Driver cost-submission Ghi chú autosave (27.8 §2): replaceable per-trip note column written by full overwrite, replay-safe without a durable boundary; no financial figure mutation.'), asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const parsed = driverCostSubmissionNoteSchema.safeParse(req.body);
@@ -638,7 +660,7 @@ router.put('/trips/:tripId/cost-submission-note', asyncHandler(async (req: Reque
   res.json(result);
 }));
 
-router.post('/trips/:tripId/fuel-evidence', fuelEvidenceUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/trips/:tripId/fuel-evidence', declareMaterialWrite('driver.fuel-evidence.create', { method: 'POST', path: '/api/driver/me/trips/:tripId/fuel-evidence' }),  fuelEvidenceUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
   if (!Number.isInteger(tripId) || tripId <= 0) {
     throw new ApiError(400, 'ID chuyến đi không hợp lệ');
@@ -835,7 +857,7 @@ router.get('/trips/:id/containers', asyncHandler(async (req: Request, res: Respo
 
 // Create one container for the driver's own trip — driver confirms/edits the OCR
 // result, then saves through this endpoint (numbers are never auto-committed).
-router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: Response) => {
+router.post('/trips/:tripId/containers', declareMaterialWrite('driver.containers.create', { method: 'POST', path: '/api/driver/me/trips/:tripId/containers' }),  asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const tripId = parseInt(req.params.tripId as string, 10);
   const trip = await getDriverTripDetail(driver.id, tripId);
@@ -872,7 +894,7 @@ router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: 
 // PATCH one of the driver's own containers (Sửa / change number / change seal /
 // change type). Ownership is enforced via getDriverTripDetail. The trip must
 // not be COMPLETED — updateTripContainer enforces that.
-router.patch('/trips/:tripId/containers/:containerId', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/trips/:tripId/containers/:containerId', declareMaterialWrite('driver.containers.update', { method: 'PATCH', path: '/api/driver/me/trips/:tripId/containers/:containerId' }),  asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const tripId = parseInt(req.params.tripId as string, 10);
   const containerId = parseInt(req.params.containerId as string, 10);
@@ -927,7 +949,7 @@ router.patch('/trips/:tripId/containers/:containerId', asyncHandler(async (req: 
 // Phase 2: full reconcile of one container's seals. Driver UI sends the
 // desired full list; backend matches by id (insert new, update existing,
 // delete the rest). Refuses on a COMPLETED trip — same guard as PATCH above.
-router.put('/trips/:tripId/containers/:containerId/seals', asyncHandler(async (req: Request, res: Response) => {
+router.put('/trips/:tripId/containers/:containerId/seals', declareMaterialWrite('driver.containers.seals.replace', { method: 'PUT', path: '/api/driver/me/trips/:tripId/containers/:containerId/seals' }),  asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const tripId = parseInt(req.params.tripId as string, 10);
   const containerId = parseInt(req.params.containerId as string, 10);
@@ -976,7 +998,7 @@ router.put('/trips/:tripId/containers/:containerId/seals', asyncHandler(async (r
 // immutable. Casbin maps DELETE → a distinct `delete` action, granted to DRIVER
 // on driver_portal in policy.csv (separate from `write` so destructive ops are
 // never implicitly permitted alongside create/mutate).
-router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/trips/:tripId/photos/:type', declareMaterialWrite('driver.trip-photos.delete', { method: 'DELETE', path: '/api/driver/me/trips/:tripId/photos/:type' }),  asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const tripId = parseInt(req.params.tripId as string, 10);
 

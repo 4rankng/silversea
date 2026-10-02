@@ -1,2 +1,80 @@
 .uui-date-hint { margin: 0; font-size: var(--text-caption-size); line-height: 1.4; color: var(--ink-3); }
 .uui-date-hint--error { color: var(--danger); }
+
+/* Direct toolbar dates share one label/control row. Keep their helper as a
+   separate normal-flow line; ordinary forms and portalled folded filters
+   retain the default stacked field anatomy. Segment glyphs remain intrinsic. */
+.filter-bar > [data-input-wrapper]:not([data-has-prefix]):has(> .date-seg-group) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.filter-bar > [data-input-wrapper]:not([data-has-prefix]):has(> .date-seg-group) > label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.filter-bar > [data-input-wrapper]:not([data-has-prefix]):has(> .date-seg-group) > .date-seg-group {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: max-content;
+}
+
+.filter-bar > [data-input-wrapper]:not([data-has-prefix]):has(> .date-seg-group) > .uui-date-hint {
+  flex-basis: 100%;
+}
+
+/* The prefix variant keeps labels/helpers in the outer column. Only this
+   inner boundary contains the cue and the existing segmented date control. */
+[data-date-boundary] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: var(--uui-control-h, var(--control-default-h));
+  padding: 0 10px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px solid var(--control-border, var(--line));
+  border-radius: var(--r-sm);
+}
+
+[data-date-boundary]:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus, var(--accent));
+  outline-offset: 1px;
+}
+
+[data-date-boundary]:has(.date-seg-group--error) {
+  border-color: var(--danger);
+}
+
+[data-date-boundary]:has(.date-seg-group--error):focus-within {
+  outline-color: var(--danger);
+}
+
+[data-date-boundary] .uui-date-prefix {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+[data-date-boundary] .date-seg-group {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+[data-date-boundary] .date-seg-group:focus-within {
+  outline: none;
+}

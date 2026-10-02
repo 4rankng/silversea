@@ -10,8 +10,7 @@
   color: var(--sb-text);
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   border-right: 1px solid var(--sb-line);
   position: relative;
@@ -44,7 +43,7 @@
   color: var(--sb-text-muted);
   cursor: pointer;
   border-radius: 6px;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background var(--t-normal), color var(--t-normal);
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
@@ -130,7 +129,7 @@
   width: 100%;
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   background: none;
   border: none;
   border-radius: 10px;
@@ -145,7 +144,7 @@
   margin-left: auto;
   opacity: 0.6;
   flex-shrink: 0;
-  transition: transform 200ms ease, opacity 150ms ease;
+  transition: transform var(--t-normal), opacity 150ms ease;
 }
 .sidebar-section-toggle:hover .sidebar-section-chevron {
   opacity: 0.8;
@@ -171,7 +170,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px 10px 14px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   border-radius: 10px;
   color: var(--sb-text);
   font-size: var(--text-control-size);
@@ -267,7 +266,7 @@
   color: var(--accent);
   min-width: 22px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: 4px;
   padding: 0 7px;
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
@@ -369,14 +368,14 @@
   font-size: var(--text-body-size);
   font-weight: var(--fw-semibold);
   line-height: 1.35;
-  color: var(--ink, #1a1a2e);
+  color: var(--ink);
   overflow-wrap: anywhere;
 }
 
 .sidebar-user-dropdown-header .role {
   font-size: var(--text-caption-size);
   line-height: 1.35;
-  color: var(--ink-3, #888);
+  color: var(--ink-3);
   font-family: var(--font-body, inherit);
   font-weight: var(--fw-semibold);
   overflow-wrap: anywhere;
@@ -384,7 +383,7 @@
 
 .sidebar-user-dropdown-divider {
   height: 1px;
-  background: var(--line, #e5e5e5);
+  background: var(--line);
   margin: 4px 8px;
 }
 
@@ -392,19 +391,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   padding: 10px 12px;
   border-radius: 8px;
   font-size: var(--text-control-size);
   line-height: 1.35;
   font-weight: var(--fw-medium);
-  color: var(--danger, #dc2626);
+  color: var(--danger);
   cursor: pointer;
   border: none;
   background: transparent;
   width: 100%;
   text-align: left;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--t-fast), color var(--t-fast);
 }
 
 .sidebar-user-dropdown-item:hover {
@@ -417,7 +416,7 @@
 }
 
 .sidebar-user-dropdown-item--neutral {
-  color: var(--ink, #1a1a2e);
+  color: var(--ink);
 }
 
 .sidebar-user-dropdown-item--neutral:hover {
@@ -433,8 +432,8 @@
   position: fixed;
   transform: translateY(-50%);
   z-index: var(--z-tooltip);
-  background: var(--surface, #ffffff);
-  color: var(--ink, #1a1a2e);
+  background: var(--surface);
+  color: var(--ink);
   padding: 6px 10px;
   border-radius: 8px;
   font-family: var(--font-body, inherit);

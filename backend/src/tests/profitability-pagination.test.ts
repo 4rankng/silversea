@@ -17,6 +17,7 @@ let routeId = 0;
 let cargoTypeId = 0;
 let firstCustomerShortName = '';
 let sourceBillPrefix = '';
+let sourceBookingPrefix = '';
 
 before(async () => {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -50,10 +51,17 @@ before(async () => {
     cargoMode: 'FCL',
   }).returning({ id: s.shipments.id });
   shipmentIds.push(sourceShipment.id);
+  sourceBookingPrefix = `BOOK-PROFIT-${suffix}`;
+  const [exportShipment] = await db.insert(s.shipments).values({
+    customerId: customers[1].id, routeId, cargoTypeId,
+    bookingRef: sourceBookingPrefix.slice(0, 100),
+    tradeDirection: 'EXPORT', cargoMode: 'FCL',
+  }).returning({ id: s.shipments.id });
+  shipmentIds.push(exportShipment.id);
 
   const trips = await Promise.all(customers.map((customer, index) => insertTripComposite(db, {
     tripCode: `PAG-${suffix}-${index}`.slice(0, 50),
-    shipmentId: index === 0 ? sourceShipment.id : null,
+    shipmentId: index === 0 ? sourceShipment.id : index === 1 ? exportShipment.id : null,
     customerId: customer.id,
     routeId,
     cargoTypeId,
@@ -162,6 +170,18 @@ after(async () => {
 });
 
 describe('profitability pagination authority', () => {
+  test('QA-AUDIT-UI-33 preserves Bill/Booking and honest missing labels with exact source trip IDs', async () => {
+    const first = await getProfitabilityReport({ month: 1, year: 2040, dimension: 'CUSTOMER', page: 1, limit: 50 });
+    const second = await getProfitabilityReport({ month: 1, year: 2040, dimension: 'CUSTOMER', page: 2, limit: 50 });
+    const references = [...first.items, ...second.items].flatMap(item => item.sourceTripReferences);
+    const byTrip = new Map(references.map(source => [source.tripId, source.reference]));
+    assert.equal(byTrip.get(tripIds[0]), sourceBillPrefix);
+    assert.equal(byTrip.get(tripIds[1]), sourceBookingPrefix);
+    for (const tripId of tripIds.slice(2)) assert.equal(byTrip.get(tripId), 'Chưa có Bill/Booking');
+    assert.deepEqual([...byTrip.keys()].sort((a,b)=>a-b), [...tripIds].sort((a,b)=>a-b));
+    assert.equal(first.totals.revenue, 52_000_000);
+    assert.equal(first.totals.profit, 31_200_000);
+  });
   test('keeps full-period totals and coverage stable across more than 50 groups', async () => {
     const first = await getProfitabilityReport({ month: 1, year: 2040, dimension: 'CUSTOMER', page: 1, limit: 50 });
     const second = await getProfitabilityReport({ month: 1, year: 2040, dimension: 'CUSTOMER', page: 2, limit: 50 });

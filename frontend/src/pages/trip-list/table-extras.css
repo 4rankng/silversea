@@ -26,11 +26,6 @@
   gap: 8px;
   padding: 32px 16px;
 }
-.trip-list-page .mobile-empty-state__img {
-  width: 160px;
-  height: 132px;
-  object-fit: contain;
-}
 
 /* ── Footer pagination ────────────────────────────────────────────────── */
 .trip-list-page .table-foot {
@@ -45,7 +40,7 @@
 .trip-list-page .page-info b { color: var(--ink); font-weight: 700; }
 .trip-list-page .pagination { display: flex; align-items: center; gap: 6px; }
 .trip-list-page .page-btn {
-  min-width: 44px; min-height: 44px;
+  min-width: var(--control-max-h); min-height: var(--control-max-h);
   padding: 0 8px;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--surface);
@@ -55,7 +50,7 @@
   color: var(--ink-2);
   cursor: pointer;
   font-family: var(--font-body);
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
 }
 .trip-list-page .page-btn:hover:not(:disabled):not(.active) { border-color: var(--ink-2); color: var(--ink); }
 .trip-list-page .page-btn.active { background: var(--ink); color: var(--fg-on-brand); border-color: var(--ink); font-weight: 600; }

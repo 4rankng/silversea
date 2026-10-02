@@ -20,6 +20,13 @@ describe('operational table typography contract', () => {
     expect(read('src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx')).toContain('detailed-plan-grid ops-table');
   });
 
+  it('floors a supporting <small> inside a data cell at the metadata scale', () => {
+    // A `<small>` beside 12px data renders at the browser's 0.8em default
+    // (9.6px) unless the shared base floors it — law §5 puts supporting text
+    // at 11px, and `role-ui-sweep.mjs` counts sub-11px text as a defect.
+    expect(typography).toMatch(/:where\(table tbody small\)\s*\{[^}]*font-size:\s*var\(--ops-table-meta-size\)/);
+  });
+
   it('maps each grid to the shared role tokens instead of local font literals', () => {
     const shipmentCss = read('src/pages/ShipmentsPage.css');
     const masterCss = read('src/features/dispatch/master-plan/MasterPlanGrid.css');

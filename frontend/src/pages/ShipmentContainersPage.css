@@ -27,36 +27,34 @@
   background: transparent;
 }
 .shipments-detail-filters {
-  display: grid;
-  /* Keep one field row while its actual minimum fits the workspace. */
-  grid-template-columns: minmax(220px, 1.1fr) minmax(280px, 1.5fr) minmax(430px, 2.1fr);
-  gap: 8px 12px;
-  align-items: end;
+  /* Card 20260922_42: the self-made 12-col filter grid (owner spec 2026-09-20,
+     card _36) is superseded by the shared ListFilterBar adoption — the shared
+     bar owns row layout and wrap; this container just hosts it. Card
+     20260927_152 extends that to every width and height: this sheet declares no
+     filter layout, no filter width and no page-local control geometry, so the
+     whole strip resolves through `.filter-bar`'s own contract. */
   min-width: 0;
 }
-.shipments-detail-filters .cus-advanced-toggle { display: none; }
-.shipments-detail-filters__advanced { display: contents; }
-.shipments-detail-filters__group { display: grid; min-width: 0; gap: 6px; align-items: end; }
-.shipments-detail-filters__group--dates { grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr); }
-.shipments-detail-filters__group--selects { grid-template-columns: minmax(170px, 1.25fr) minmax(110px, .65fr) minmax(140px, .85fr); }
-.shipments-detail-filter { width: 100%; min-width: 0; gap: 4px; }
-.shipments-detail-filter > *,
-.shipments-detail-filter input { width: 100%; min-width: 0; }
-.shipments-detail-filter [data-label] { margin-bottom: 0; color: var(--ink-2); font-weight: var(--fw-semibold); }
-.shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
+/* Card 20260927_152 (operator 2026-09-27: "some control the value very short but
+   why the fuck it does take full row"): `.filter-bar` owns the wrapping row, the
+   per-family width caps and the ONE control height per context, and its
+   descendant reset is what stops a page wrapper from re-introducing a family's
+   full-width default. The page rules that used to fight it are deleted — the
+   page-local criterion wrapper (a flexible basis plus a 320px ceiling, measured
+   320px against the 280px UUI select cap, plus its own row gap), the child and
+   input stretches that cancelled the shared width floors, the two page-local gap
+   declarations on control internals, and the 36px control-height override that
+   made the criteria taller than the search and the date fields on the same line
+   (the operator's 2026-09-27 mixed-height report). The bar's --filter-control-h
+   is the one height token now. */
+/* The stacked/hidden-label criteria retain the family280px cap in either
+   scope. A visible inline bar label claims additional space through the shared
+   UuiSelectField owner, which applies this budget to the trigger instead of
+   squeezing the combined label/control field. The declaration stays unchanged. */
+:is(.filter-bar, .filter-dropdown__body) .shipments-detail-criterion.ds-uui-select { max-width: 280px; }
+/* The from/to fields' own input stays flat inside the bar (the wrapper owns the
+   border; nothing in the pair paints a shadow). */
 .shipments-detail-filter input { box-shadow: none; background: transparent; }
-
-.shipments-detail-filter--search input { padding-left: 30px; }
-.shipments-detail-filter--search input { text-transform: uppercase; }
-.shipments-detail-filters__footer { display: flex; grid-column: 1 / -1; min-width: 0; align-items: end; justify-content: flex-end; }
-.shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
-.shipments-detail-filters__date-actions button,
-.shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
-.shipments-detail-filters__date-actions button:hover,
-.shipments-detail-filters__date-actions button[data-hovered],
-.shipments-detail-filters__reset:hover,
-.shipments-detail-filters__reset[data-hovered] { border-color: var(--ink-4); background: var(--surface-2); color: var(--ink); }
-.shipments-detail-filters__reset { flex: 0 0 auto; }
 
 .shipments-detail-error { margin: 12px 14px 0; border-radius: 8px; }
 
@@ -68,12 +66,12 @@
 .shipment-container-ledger > .ds-pagination { position: static; z-index: var(--z-sticky, 100); margin: 0; padding: 12px; border-top: 1px solid var(--line); background: var(--surface); }
 .shipments-detail-workspace > .ds-empty-state .ds-empty-state__illustration { width: min(220px, 80vw); height: 150px; opacity: 1; }
 
-/* A bottom-sticky footer can cover the only row when the app scrollport is
-   short. Keep single-row and touch layouts in normal flow; pin pagination only
-   for longer desktop ledgers where it materially improves navigation. */
-@media (min-width: 1101px) {
-  .shipment-container-ledger:has(tbody > tr:nth-child(2)) > .ds-pagination { position: sticky; bottom: 0; }
-}
+/* Card 20260922_20: the desktop-only sticky pagination (b6eda31c) pinned to
+   a scrollport that is not the app's real scroller (main.app-body), so the
+   bar floated mid-table covering rows — and its -32px margin hack to seal
+   the app frame's bottom strip is banned by the card. The pagination stays
+   static, in flow at the table's end, at every width; a future sticky must
+   bind to the true scrollport or live outside the table flow. */
 .shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 /* All eight columns pin an explicit share (sums to 100%) instead of mixing
@@ -81,22 +79,21 @@
    first row, so a later row's longer content (e.g. a full container number)
    silently wraps mid-token instead of claiming its fair share. Shares below
    are sized to each column's real content, not split evenly — documents and
-   container each carry two stacked code lines, route needs room for long
-   place names (see note below), and status only ever holds a short one/two
-   -word badge so it gets the smallest share instead of matching its wide
-   sr-only-adjacent siblings. */
+   container each carry two stacked code lines, route holds long place names,
+   and status only ever holds a short one/two-word badge plus the
+   missing-fields warning. Card 20260922_41 removed the Thao tác column
+   (lot-level add/remove moved to the /shipments "Quản lý container" dialog);
+   its 7% redistributed across the eight business columns below. */
 .shipment-container-ledger__col--customer { width: 11%; }
-.shipment-container-ledger__col--documents { width: 15%; }
+.shipment-container-ledger__col--documents { width: 14%; }
 .shipment-container-ledger__col--container { width: 12%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
-   (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
-   table-layout: fixed, the column shrinks below the longest unbreakable
-   token and the cell's overflow:hidden clips the trailing characters — keep
-   this share generous even though sample data rarely fills it. */
-.shipment-container-ledger__col--route { width: 16%; }
+   (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ") — the
+   widest place-name column, so it keeps the largest share. */
+.shipment-container-ledger__col--route { width: 17%; }
 .shipment-container-ledger__col--schedule { width: 12%; }
-.shipment-container-ledger__col--vehicle { width: 11%; }
-.shipment-container-ledger__col--notes { width: 12%; }
+.shipment-container-ledger__col--vehicle { width: 12%; }
+.shipment-container-ledger__col--notes { width: 11%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
    from the customer cell so "needs attention" reads next to the status it
    blocks) — wider than a bare label needs. */
@@ -109,9 +106,9 @@
    summary rail"): --ink-2 header text on surface-2 with a 1px --line-strong
    underline, 10×12 padding — computed-identical to the /shipments table
    (header case/tracking come from the shared table base, as on /shipments). */
-.shipment-container-ledger thead th { position: sticky; top: var(--sticky-thead-top, -24px); z-index: 3; padding: 10px 12px; border-bottom: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink-2); font-size: var(--ops-table-header-size); font-weight: var(--ops-table-header-weight); line-height: var(--ops-table-header-line-height); text-align: left; overflow-wrap: anywhere; white-space: normal; }
+.shipment-container-ledger thead th { position: sticky; top: var(--sticky-thead-top, -24px); z-index: 3; padding: 10px 12px; border-bottom: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink-2); font-size: var(--ops-table-header-size); font-weight: var(--ops-table-header-weight); line-height: var(--ops-table-header-line-height); text-align: left; word-break: keep-all; overflow-wrap: normal; white-space: normal; }
 .shipment-container-ledger tbody > tr > th,
-.shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; overflow: hidden; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. Card-collapse modes below MUST reset it to auto (with the workboard's 76px min-height floor) — grid-display cells treat a definite height as a cap and clip. The floor also intentionally outranks __editable-cell's 1px height (workboard parity: rows keep their rhythm; the trigger fills the cell). */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
+.shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. Card-collapse modes below MUST reset it to auto (with the workboard's 76px min-height floor) — grid-display cells treat a definite height as a cap and clip. The floor also intentionally outranks __editable-cell's 1px height (workboard parity: rows keep their rhythm; the trigger fills the cell). */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger tbody > tr > :last-child { border-right: 0; }
 .shipment-container-ledger tbody > tr:last-child > * { border-bottom: 0; }
 .shipment-container-ledger tbody > tr:hover > * { background: var(--surface-2); }
@@ -124,7 +121,7 @@
 .shipment-container-ledger__multiline { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: flex-start; gap: 4px; }
 .shipment-container-ledger__multiline > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .shipment-container-ledger__multiline > strong,
-.shipment-container-ledger__multiline:not(.shipment-container-ledger__notes) > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__vehicle-state):not(.shipment-container-ledger__plate--missing):not(.shipment-container-ledger__schedule-gap):not(.shipment-container-ledger__row-warning),
+.shipment-container-ledger__multiline:not(.shipment-container-ledger__notes) > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__plate--missing):not(.shipment-container-ledger__schedule-gap):not(.shipment-container-ledger__row-warning),
 .shipment-container-ledger__multiline > em,
 .shipment-container-ledger__multiline > small { display: block; width: 100%; white-space: normal; word-break: break-word; }
 .shipment-container-ledger__multiline > strong { font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
@@ -158,7 +155,7 @@
 /* Direction is structural classification, not a status: neutral token chip
    (surface-3/ink-2) matching the frozen overview's treatment — accent fills
    stay reserved for state signals. */
-.shipment-container-ledger__direction { display: inline-flex; width: fit-content; padding: 2px 7px; border-radius: 999px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); letter-spacing: .04em; text-transform: uppercase; }
+.shipment-container-ledger__direction { display: inline-flex; width: fit-content; padding: 2px 7px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); letter-spacing: .04em; text-transform: uppercase; }
 .shipment-container-ledger__direction--unknown { color: var(--ink-3); }
 .shipment-container-ledger__container-classification { color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-medium); }
 .shipment-container-ledger__combined { display: inline-flex; width: fit-content; padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-bold); }
@@ -213,8 +210,6 @@
    can never read as a button. The explicit color is required: Tailwind's
    layered text utilities lose to the unlayered `__multiline > span` ink-2
    rule above (CSS Cascade 5), which would leave amber fills with gray text. */
-.shipment-container-ledger__vehicle-state { width: fit-content; max-width: 100%; color: var(--warning-text); font-size: var(--text-caption-size); line-height: 1.4; white-space: normal; }
-.shipment-container-ledger__vehicle-state svg { width: 12px; height: 12px; margin-right: 4px; }
 .shipment-container-ledger__plate--missing { width: fit-content; max-width: 100%; color: var(--warning-text); font-size: var(--text-caption-size); line-height: 1.4; white-space: normal; }
 
 .shipment-container-ledger__cell-stack { display: grid; min-width: 0; gap: 3px; }
@@ -228,6 +223,16 @@
   min-height: 100%;
   margin: 0;
   padding: 10px;
+}
+/* An open editor shares the cell with its trigger. The full-height click target
+   above must yield or it inflates to the whole cell and pushes the editor past
+   the bottom edge — off-screen wherever the editor sits in flow instead of
+   floating, as it does in the stacked card layout. Keyed on the trigger's own
+   expanded state so the invariant holds at every breakpoint, including ones
+   added later. */
+.shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger--expanded {
+  height: auto;
+  min-height: 0;
 }
 .shipment-container-ledger__cell-trigger {
   display: block;
@@ -284,24 +289,24 @@
 .shipment-container-ledger__editor-grid > label { display: grid; min-width: 0; gap: 5px; }
 .shipment-container-ledger__editor-grid > label > span,
 .shipment-container-ledger__editor-grid [data-label] { color: var(--ink-3); font-size: var(--text-label-size); font-weight: var(--fw-bold); line-height: 1.3; }
-.shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
+.shipment-container-ledger__editor-grid input:not([data-uui-control] input),
 .shipment-container-ledger__editor-grid select,
 .shipment-container-ledger__editor-grid textarea,
-.shipment-container-ledger__editor-grid .searchable-select__trigger { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; min-height: 36px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: none; color: var(--ink); font-size: var(--control-field-font-size); line-height: 1.35; }
-.shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
+.shipment-container-ledger__editor-grid .searchable-select__trigger { box-sizing: border-box; width: 100%; min-width: 0; height: var(--control-default-h); min-height: var(--control-default-h); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: none; color: var(--ink); font-size: var(--control-field-font-size); line-height: 1.35; }
+.shipment-container-ledger__editor-grid input:not([data-uui-control] input),
 .shipment-container-ledger__editor-grid select,
 .shipment-container-ledger__editor-grid .searchable-select__trigger { padding: 5px 9px; }
 .shipment-container-ledger__editor-grid textarea { height: auto; min-height: 72px; padding: 7px 9px; resize: vertical; }
-.shipment-container-ledger__editor-grid input:not([data-uui-control] > input):focus-visible,
+.shipment-container-ledger__editor-grid input:not([data-uui-control] input):focus-visible,
 .shipment-container-ledger__editor-grid select:focus-visible,
 .shipment-container-ledger__editor-grid textarea:focus-visible,
 .shipment-container-ledger__editor-grid .searchable-select__trigger:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 1px; }
 .shipment-container-ledger__editor-grid > small { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
 .shipment-container-ledger__field--request > input,
-.shipment-container-ledger__field--request > .searchable-select__trigger { border-color: var(--warning, #f59e0b); }
+.shipment-container-ledger__field--request > .searchable-select__trigger { border-color: var(--warning); }
 .shipment-container-ledger__field--request > input:focus-visible,
-.shipment-container-ledger__field--request > .searchable-select__trigger:focus-visible { border-color: var(--warning, #f59e0b); outline-color: color-mix(in srgb, var(--warning, #f59e0b) 22%, transparent); }
-.shipment-container-ledger__request-notice { color: var(--warning-text, #92400e); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.4; }
+.shipment-container-ledger__field--request > .searchable-select__trigger:focus-visible { border-color: var(--warning); outline-color: color-mix(in srgb, var(--warning) 22%, transparent); }
+.shipment-container-ledger__request-notice { color: var(--warning-text); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.4; }
 .shipment-container-ledger__request-reason { grid-column: 1 / -1; }
 .shipment-container-ledger__request-reason textarea { min-height: 60px; }
 .shipment-container-ledger__editor-footer { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--line-2); }
@@ -313,10 +318,11 @@
    the primary Save sits disabled at rest (dirty-gated); the secondary cancel
    disables mid-save only. Unlayered declarations override Tailwind's layered
    disabled/hover utilities, so reset opacity and flatten the shadow. */
-.shipment-container-ledger__edit-action:disabled { background: var(--surface-2); color: var(--ink-4); box-shadow: none; opacity: 1; }
+.shipment-container-ledger__edit-action:disabled { background: var(--surface-2); color: var(--ink-3); box-shadow: none; opacity: 1; }
+.shipment-container-ledger__edit-action:disabled [data-icon] { color: inherit; }
 .shipment-container-ledger__keyboard-hint { min-width: 0; color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.35; white-space: nowrap; }
 .shipment-container-ledger__edit-error { display: block; max-width: 100%; margin-top: 5px; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
-.shipment-container-ledger__request-success { display: block; max-width: 100%; margin-top: 5px; color: var(--success-text, #166534); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.shipment-container-ledger__request-success { display: block; max-width: 100%; margin-top: 5px; color: var(--success-text); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger__recovery { display: block; max-width: 100%; margin-top: 5px; color: var(--warning-text); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 
 /* Schedule editor adopts the customer appointment popover's design language
@@ -333,9 +339,9 @@
 .shipment-container-ledger__schedule-section { display: flex; align-items: center; gap: 4px; color: var(--ink-3); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: 0.03em; }
 .shipment-container-ledger__schedule-pills,
 .shipment-container-ledger__schedule-times { display: flex; gap: 4px; }
-.shipment-container-ledger__schedule-pill { flex: 1; padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-2); color: var(--ink-2); font-family: inherit; font-size: var(--text-control-compact-size); font-weight: 500; text-align: center; cursor: pointer; transition: all 100ms; }
+.shipment-container-ledger__schedule-pill { flex: 1; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--ink-2); font-family: inherit; font-size: var(--text-control-compact-size); font-weight: 500; text-align: center; cursor: pointer; transition: all 100ms; }
 .shipment-container-ledger__schedule-pill:hover { background: var(--surface); border-color: var(--brand); color: var(--brand); }
-.shipment-container-ledger__schedule-pill.is-active { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+.shipment-container-ledger__schedule-pill.is-active { background: var(--brand); border-color: var(--brand); color: var(--fg-inverse); font-weight: 600; }
 .shipment-container-ledger__schedule-pill:focus-visible,
 .shipment-container-ledger__schedule-time-pill:focus-visible,
 .shipment-container-ledger__schedule-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -361,14 +367,6 @@
 .shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }
 
 @container shipments-detail (max-width: 1000px) {
-  .shipments-detail-filters { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-  .shipments-detail-filters .cus-advanced-toggle { display: inline-flex; }
-  .shipments-detail-filters__advanced { display: none; grid-column: 1 / -1; min-width: 0; gap: 8px; align-items: end; }
-  .shipments-detail-filters__advanced[data-open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .shipments-detail-filters__group--dates,
-  .shipments-detail-filters__group--selects { display: contents; }
-  .shipments-detail-filters__group--selects > .shipments-detail-filter:first-child { grid-column: 1 / -1; }
-  .shipment-container-ledger table,
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }
   .shipment-container-ledger thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
@@ -377,7 +375,7 @@
   .shipment-container-ledger tbody > tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; min-width: 0; border-bottom: 1px solid var(--line-2); }
   .shipment-container-ledger tbody > tr:last-child { border-bottom: 0; }
   .shipment-container-ledger tbody > tr > th,
-  .shipment-container-ledger tbody > tr > td { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .shipment-container-ledger tbody > tr > td { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; height: auto; min-height: 76px; overflow-wrap: anywhere; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 0; }
   .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1; border-right: 0; }
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
@@ -422,9 +420,6 @@
   .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
   .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor,
   .shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor { right: auto; left: auto; }
-  .shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
-  .shipment-container-ledger__editor-grid select,
-  .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 40px; min-height: 40px; }
   .shipment-container-ledger__cell-trigger,
   .shipment-container-ledger__edit-action { min-height: 40px; }
   .shipment-container-ledger__edit-action { min-width: 40px; height: 40px; }
@@ -448,23 +443,20 @@
   .shipments-detail-workspace .summary-rail { margin: 10px 0 0; }
   .shipment-container-ledger tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 6px solid var(--surface-2); }
   .shipment-container-ledger tbody > tr > th,
-  .shipment-container-ledger tbody > tr > td { grid-column: auto; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .shipment-container-ledger tbody > tr > td { grid-column: auto; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow-wrap: anywhere; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1 !important; }
   .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
   .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1 !important; border-right: 0; }
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
   .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .shipment-container-ledger__route i { transform: rotate(90deg); justify-self: start; }
-  .shipment-container-ledger__editor-grid input:not([data-uui-control] > input),
-  .shipment-container-ledger__editor-grid select,
-  .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 44px; min-height: 44px; }
   .shipment-container-ledger__cell-trigger { min-height: 44px; }
-  .shipment-container-ledger__edit-action { min-width: 44px; height: 44px; min-height: 44px; }
+  .shipment-container-ledger__edit-action { min-width: var(--control-max-h); height: var(--control-max-h); min-height: var(--control-max-h); }
   .shipment-container-ledger__keyboard-hint { display: none; }
   .shipment-container-ledger__schedule-pill,
-  .shipment-container-ledger__schedule-time-pill { min-height: 44px; }
-  .shipment-container-ledger__schedule-clear { display: inline-flex; align-items: center; min-height: 44px; }
-  .shipment-container-ledger__plate-clear button { display: inline-flex; align-items: center; min-height: 44px; }
+  .shipment-container-ledger__schedule-time-pill { min-height: var(--control-max-h); }
+  .shipment-container-ledger__schedule-clear { display: inline-flex; align-items: center; min-height: var(--control-max-h); }
+  .shipment-container-ledger__plate-clear button { display: inline-flex; align-items: center; min-height: var(--control-max-h); }
   .shipment-container-ledger__editor-footer { justify-content: flex-end; }
   .shipments-detail-error { margin-inline: 10px; }
   .shipments-detail-workspace > .ds-pagination { padding-inline: 12px; }
@@ -517,15 +509,6 @@
   .shipment-container-ledger__cell--status > .shipment-container-ledger__multiline { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 }
 
-/* Tablet has enough room for all five secondary fields without borrowing the
-   phone's three-row disclosure. Keep dates adjacent in keyboard order. */
-@container shipments-detail (min-width: 700px) and (max-width: 1000px) {
-  .shipments-detail-filters__advanced[data-open] {
-    grid-template-columns: repeat(2, minmax(130px, 1fr)) minmax(170px, 1.3fr) minmax(100px, .75fr) minmax(130px, 1fr);
-  }
-  .shipments-detail-filters__group--selects > .shipments-detail-filter:first-child { grid-column: auto; }
-}
-
 /* Stack labels above values inside tablet record blocks. A fixed 96px label
    column otherwise leaves too little room for container and document codes. */
 @container shipments-detail (min-width: 641px) and (max-width: 1000px) {
@@ -559,3 +542,17 @@
     gap: 6px 12px;
   }
 }
+
+/* Native controls share the same boundary token as the md shared selector. */
+@media (pointer: coarse) {
+  .shipment-container-ledger__editor-grid input:not([data-uui-control] input),
+  .shipment-container-ledger__editor-grid select,
+  .shipment-container-ledger__editor-grid .searchable-select__trigger { height: var(--control-touch-h); min-height: var(--control-touch-h); }
+}
+
+/* Card 20260927_152: the "Cột hiển thị" filter-footer row (20260917_4) is
+   deleted with the rest of the page-local filter layout. It had no consumer left
+   in the TSX, and its declarations are exactly the family the card bans on a
+   filter container (a flex row with its own wrap, alignment, gap and a
+   `grid-column` span) — dead weight the next session would have read as a live
+   width contract. */

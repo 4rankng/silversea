@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 
 import { MasterPlanGrid } from './MasterPlanGrid';
@@ -27,6 +28,10 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   containerTypeSummary: '2 x 40HC + 1 x 20DC',
   totalCargoWeightKg: 41000.75,
   allocationStatus: 'NOT_ALLOCATED',
+  // The master plan's allocation trigger is gated on READY_FOR_DISPATCH, which
+  // is the only status the backend accepts a carrier assignment for. The
+  // fixture models a dispatchable lot, so the trigger is live in these tests.
+  status: ShipmentStatus.READY_FOR_DISPATCH,
   carrierAllocationSummary: [],
   appointmentGroups: [],
   containerPortGroups: [
@@ -36,6 +41,32 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
 } as ShipmentListItem);
 
 describe('MasterPlanGrid', () => {
+  it.each([
+    { bill: ' BL-2026-001 ', booking: 'BOOK-2026-002', expected: 'BL-2026-001' },
+    { bill: null, booking: ' BOOK-2026-002 ', expected: 'BOOK-2026-002' },
+    { bill: ' ', booking: ' BOOK-2026-002 ', expected: 'BOOK-2026-002' },
+    { bill: null, booking: null, expected: 'Chưa có số Bill/Booking' },
+    { bill: ' ', booking: ' ', expected: 'Chưa có số Bill/Booking' },
+  ])('UI52-B note dialog uses $expected without leaking the internal shipment code', ({ bill, booking, expected }) => {
+    const original = item({ blNumber: bill, bookingRef: booking, operationalNotes: 'Điều vận liên hệ thủ kho trước giờ giao hàng để kiểm tra kế hoạch bốc dỡ và chuẩn bị chứng từ.' });
+    const onUpdateNotes = vi.fn();
+    render(<MasterPlanGrid items={[original]} onAllocate={vi.fn()} onUpdateNotes={onUpdateNotes} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent(expected);
+    expect(dialog).not.toHaveTextContent(original.shipmentCode!);
+    expect(dialog).toHaveTextContent(original.operationalNotes!);
+    fireEvent.click(within(dialog).getAllByRole('button', { name: 'Đóng' })[0]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onUpdateNotes).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeInTheDocument();
+  });
+
+  it('shows OPS recovery instructions separately from driver notes', () => {
+    render(<MasterPlanGrid items={[item({ opsRecoveryNotes: ['Khách trả theo chứng từ\nGiữ bản gốc'] })]} onAllocate={vi.fn()} />);
+    expect(screen.getByText(/Khách trả theo chứng từ/)).toHaveTextContent('Giữ bản gốc');
+    expect(screen.getByText('Giao giờ hành chính')).toBeInTheDocument();
+  });
   it('retains a failed note draft and prevents duplicate save requests while pending (DSP-FU-004)', async () => {
     let rejectSave!: (reason: Error) => void;
     const onUpdateNotes = vi.fn(() => new Promise<void>((_resolve, reject) => { rejectSave = reject; }));
@@ -69,6 +100,51 @@ describe('MasterPlanGrid', () => {
     fireEvent.keyDown(notesArea, { key: 'Enter', ctrlKey: true });
     expect(onUpdateNotes).toHaveBeenCalledWith(item(), 'Dòng một\nDòng hai');
   });
+  it('locks the note trigger for a DISPATCHER outside the intake window only', () => {
+    const dispatched = item({ id: 1, status: ShipmentStatus.DISPATCHED, operationalNotes: 'Giao giờ hành chính' });
+    const intake = item({ id: 2, status: ShipmentStatus.READY_FOR_DISPATCH });
+    const { rerender } = render(
+      <MasterPlanGrid items={[dispatched]} onAllocate={vi.fn()} onUpdateNotes={vi.fn()} />,
+    );
+    // Every other role keeps the affordance on any status — the gate is
+    // role-scope, not a blanket removal.
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeTruthy();
+
+    rerender(<MasterPlanGrid items={[dispatched]} onAllocate={vi.fn()} onUpdateNotes={vi.fn()} notesIntakeOnly />);
+    // The note itself still reads; only the edit trigger the backend would 403 is gone.
+    expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeNull();
+
+    rerender(<MasterPlanGrid items={[intake]} onAllocate={vi.fn()} onUpdateNotes={vi.fn()} notesIntakeOnly />);
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeTruthy();
+  });
+
+  it('hides the note modal "Sửa ghi chú" affordance on a locked DISPATCHER row', () => {
+    const longNote = 'Lái xe chú ý liên hệ thủ kho trước 30 phút để chuẩn bị bốc xếp hàng hóa cẩn thận, không làm rách bao bì.';
+    const locked = render(
+      <MasterPlanGrid
+        items={[item({ status: ShipmentStatus.DISPATCHED, operationalNotes: longNote })]}
+        onAllocate={vi.fn()}
+        onUpdateNotes={vi.fn()}
+        notesIntakeOnly
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
+    expect(screen.getByText(longNote)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Sửa ghi chú' })).toBeNull();
+    locked.unmount();
+
+    render(
+      <MasterPlanGrid
+        items={[item({ status: ShipmentStatus.DISPATCHED, operationalNotes: longNote })]}
+        onAllocate={vi.fn()}
+        onUpdateNotes={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
+    expect(screen.getByRole('button', { name: 'Sửa ghi chú' })).toBeTruthy();
+  });
+
   it('renders lift and drop locations from each container group instead of the legacy lot fields', () => {
     const fixture = {
       ...item({ pickupLocation: null, deliveryLocation: null, containerTypeSummary: null }),
@@ -174,7 +250,8 @@ describe('MasterPlanGrid', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Cảng nâng' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Cảng hạ' })).toBeTruthy();
-    expect(screen.getAllByText('—')).toHaveLength(2);
+    // Missing cargo/port data names the fact (§1) instead of printing '—'.
+    expect(screen.getAllByText('Chưa có cont').length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText('Địa điểm nâng cũ theo lô')).toBeNull();
     expect(screen.queryByText('Địa điểm hạ cũ theo lô')).toBeNull();
   });
@@ -199,13 +276,13 @@ describe('MasterPlanGrid', () => {
     // The API carries a Vietnam business date and the formatter fixes the
     // time to ICT, so this remains stable in a UTC CI runner and in a browser
     // opened from another timezone.
-    // Each container appointment is a two-row block: "HH:mm d/m/yyyy" leads
-    // and the "factory · containers" line indents beneath it.
-    expect(screen.getByText('11:00 24/8/2026')).toBeTruthy();
-    expect(screen.getByText('11:00 25/8/2026')).toBeTruthy();
+    // Each container appointment is a two-row block: the canonical padded
+    // "HH:mm DD/MM/YYYY" leads and "factory · containers" indents beneath.
+    expect(screen.getByText('11:00 24/08/2026')).toBeTruthy();
+    expect(screen.getByText('11:00 25/08/2026')).toBeTruthy();
     expect(screen.getAllByText('Sunrise · 1 x 40DC')).toHaveLength(2);
     // The "Giờ:" label is gone; only the HH:mm value leads each block.
-    const scheduleCell = screen.getByText('11:00 24/8/2026').closest('td');
+    const scheduleCell = screen.getByText('11:00 24/08/2026').closest('td');
     expect(scheduleCell).toBeTruthy();
     expect(within(scheduleCell!).queryAllByText(/Giờ:/).length).toBe(0);
     expect(within(scheduleCell!).getAllByText('Sunrise · 1 x 40DC').length).toBe(2);
@@ -219,11 +296,11 @@ describe('MasterPlanGrid', () => {
       plannedReturnAt: null,
     });
     render(<MasterPlanGrid items={[fixture]} onAllocate={onAllocate} />);
-    // Host-TZ-independent: the seed 08:00 UTC maps to 8H, 15H (ICT), or 16H
-    // in the repository's Asia/Singapore agent environment.
-    const cell = screen.getByText('20/08/2026').closest('td');
-    const hourLine = within(cell!).getByText(/^\d{1,2}H$/);
-    expect(hourLine.textContent).toMatch(/^(8H|15H|16H)$/);
+    // Host-TZ-independent: 08:00 UTC is 15:00 on the Vietnam calendar. The
+    // cell shows the delivery date line plus the full canonical instant —
+    // no hour-only fragments.
+    expect(screen.getByText('20/08/2026')).toBeTruthy();
+    expect(screen.getByText('15:00 23/08/2026')).toBeTruthy();
   });
 
   it('renders all 8 dispatch columns for a READY_FOR_DISPATCH row', () => {
@@ -352,6 +429,30 @@ describe('MasterPlanGrid', () => {
     expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
   });
 
+  it('locks the allocation trigger for every status the backend refuses (READY_FOR_DISPATCH is the only assignable one)', () => {
+    // assignShipmentCarriers 409s for any status ≠ READY_FOR_DISPATCH, and again
+    // when the lot already carries a live trip. The trigger used to stay live on
+    // DISPATCHED / IN_TRANSIT rows, so the dispatcher's save came back as a bare
+    // "Lô hàng đã thay đổi" conflict that hid the real reason.
+    const onAllocate = vi.fn();
+    render(<MasterPlanGrid
+      items={[
+        item({ status: ShipmentStatus.DISPATCHED }),
+        item({ id: 2, status: ShipmentStatus.IN_TRANSIT }),
+        item({ id: 3, status: ShipmentStatus.COMPLETED }),
+      ]}
+      onAllocate={onAllocate}
+    />);
+
+    const triggers = screen.getAllByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
+    expect(triggers).toHaveLength(3);
+    for (const trigger of triggers) {
+      expect(trigger).toBeDisabled();
+      fireEvent.click(trigger);
+    }
+    expect(onAllocate).not.toHaveBeenCalled();
+  });
+
   it('hides the "Ghi chú" column when both operationalNotes and factoryNotes are empty', () => {
     render(
       <MasterPlanGrid
@@ -470,7 +571,7 @@ describe('MasterPlanGrid', () => {
     const onViewContainers = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} onViewContainers={onViewContainers} />);
 
-    const trigger = screen.getByRole('button', { name: 'Xem chi tiết container của SS-000100' });
+    const trigger = screen.getByRole('button', { name: 'Xem chi tiết container của BL-2026-001' });
     fireEvent.click(trigger);
 
     expect(onViewContainers).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
@@ -496,14 +597,14 @@ describe('MasterPlanGrid', () => {
     expect(triggerRule).toContain('width: 100%');
     expect(triggerRule).toContain('text-align: left');
     expect(css).toContain('.master-plan-grid__allocation-trigger:focus-visible');
-    expect(css).toContain('min-height: 44px');
+    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__allocation-trigger\s*\{[^}]*min-height:\s*var\(--control-max-h\);/);
   });
 
   it('keeps the per-row container detail action compact on desktop and touch-safe on narrow screens', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('.master-plan-grid__container-detail-trigger');
     expect(css).toContain('min-height: max(28px, var(--uui-control-h))');
-    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__container-detail-trigger,\s*\.master-plan-grid__note-detail-trigger\s*\{[\s\S]*?min-height:\s*44px;/);
+    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__container-detail-trigger,\s*\.master-plan-grid__note-detail-trigger\s*\{[\s\S]*?min-height:\s*var\(--control-max-h\);/);
   });
 
   it('labels every shipment field group for the stacked narrow-screen layout', () => {
@@ -558,7 +659,10 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('@media (hover: hover) and (pointer: fine)');
     expect(css).toContain('.master-plan-grid__row:hover');
     expect(css).toContain('background: color-mix(in srgb, var(--fg-1) 2%, var(--surface))');
-    expect(css).toContain('@media (prefers-reduced-motion: no-preference)');
+    // Card 20260926_63: NO background transition on rows — the grid refetch
+    // replaces hovered nodes mid-hover and a transition lets the painted tint
+    // stick after the pointer leaves.
+    expect(css).not.toMatch(/\.master-plan-grid__row\s*{[^}]*transition/);
     expect(css).toContain('@container (max-width: 599px)');
     expect(css).toContain('.master-plan-grid__cell--lift-port { grid-area: lift; }');
     expect(css).toContain('.master-plan-grid__cell--drop-port { grid-area: drop;');
@@ -581,20 +685,20 @@ describe('MasterPlanGrid', () => {
     expect(record).toContain('"cargo allocation"');
     expect(record).toContain('"notes notes"');
     expect(record).toContain('overflow-wrap: anywhere');
-    expect(css.slice(phoneStart)).toContain('padding: 8px 10px');
+    // 2026-09-27 record rework: the SHORT label rides the value line across the
+    // whole record range (tablet band), and the phone band only tightens the
+    // inset. Placeholder lines collapse rather than printing a bare '—'.
+    expect(record).toContain('content: attr(data-label-short)');
+    expect(record).toContain(".master-plan-grid__line[data-empty='true']");
+    expect(css.slice(phoneStart)).toContain('padding: 6px 10px');
   });
 
-  // Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell
-  // holds a 44px trigger (action + notes footer pair landed at 5324b1ad),
-  // so without a matching floor the notes cell below would render at its
-  // natural text height (40-50px) — a 14-24px rhythm pop. The
-  // notes-trigger must hit the same 44px touch target inside the
-  // ≤900px card view so empty/short notes ground to the action cell.
-  it('grounds the notes-trigger to the 44px touch floor inside the ≤900px card view', () => {
+  // Empty/short notes and the action cell share the canonical 40px ceiling.
+  it('grounds the notes-trigger to the canonical control budget inside the ≤900px card view', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
 
     expect(css).toMatch(
-      /@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__notes-trigger\s*\{[\s\S]*?min-height:\s*44px/,
+      /@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__notes-trigger\s*\{[\s\S]*?min-height:\s*var\(--control-max-h\)/,
     );
 
     // Desktop table view stays untouched — only the card view pins the floor.
@@ -611,56 +715,65 @@ describe('MasterPlanFilters', () => {
     fireEvent.change(screen.getByLabelText('Tìm kiếm lô hàng'), { target: { value: 'BL-9' } });
     expect(onChange).toHaveBeenLastCalledWith({ q: 'BL-9' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả Chiều hàng' }));
+    // Dates: two INDEPENDENT fields (CHIEF 2026-09-27 — no range picker) in the
+    // bar itself; the dialog stays closed while they are edited.
+    const [fromField] = screen.getAllByLabelText('Từ ngày') as HTMLInputElement[];
+    fireEvent.change(fromField, { target: { value: '15/09/2026' } });
+    expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '2026-09-15', deliveryDateTo: '' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // The categorical criteria live behind `Bộ lọc` (card 20260927_152).
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
+    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tất cả Xuất / Nhập' }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả trạng thái Phân xe' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tất cả trạng thái Phân xe' }));
     fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
-
-    fireEvent.change(screen.getByLabelText('Từ ngày giao'), { target: { value: '01/08/2026' } });
-    fireEvent.blur(screen.getByLabelText('Từ ngày giao'));
-    expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '2026-08-01' });
-
-    fireEvent.change(screen.getByLabelText('Đến ngày giao'), { target: { value: '31/08/2026' } });
-    fireEvent.blur(screen.getByLabelText('Đến ngày giao'));
-    expect(onChange).toHaveBeenLastCalledWith({ deliveryDateTo: '2026-08-31' });
   });
 
-  it('keeps the complete delivery-date range and create action in one responsive control group', () => {
+  it('keeps the complete delivery-date pair as one control group in the bar', () => {
     const { container } = render(
       <MasterPlanFilters
         filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }}
         onChange={vi.fn()}
-        action={<button type="button">Tạo lô hàng</button>}
       />,
     );
-    expect(container.querySelector('[role="group"][aria-label="Khoảng ngày giao"]')).toBeTruthy();
-    expect(container.querySelector('.master-plan-filters__actions')?.textContent).toBe('Tạo lô hàng');
+    // CHIEF 2026-09-27 (card 20260927_150): the delivery date is two
+    // independent fields in one group — no merged trigger, no dual calendar.
+    const groups = container.querySelectorAll('[role="group"][aria-label="Khoảng ngày giao"]');
+    expect(groups.length).toBe(1);
+    expect(groups[0].querySelectorAll('[data-input-wrapper]').length).toBe(2);
 
+    // The pair rides the shared bar sheet; the page declares no width, no
+    // surface and no layout for it (card 20260927_152).
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(toolbar).toContain('display: grid');
-    expect(toolbar).toContain('grid-template-columns: repeat(12, minmax(0, 1fr))');
-    expect(toolbar).toContain('align-items: end');
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
-    expect(css).toContain('grid-template-columns: minmax(0, 320px) max-content');
-    expect(css).toContain('.master-plan-filters__date-action');
-    expect(css).toContain('.master-plan-filters__actions');
-    expect(css).toContain('.drawer.master-plan-filters__drawer');
-    expect(css).toContain('max-width: 100%');
-    expect(css).toContain('padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 10px;');
-    expect(css).toContain('padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));');
+    expect(css).not.toContain('.master-plan-filters__date-action');
+    expect(css).not.toMatch(/^\.master-plan-filters__date-range\s*[{>]/m);
   });
 
-  it('keeps filters as a flat toolbar instead of nesting them in another surface', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  it('leaves the strip to the shared bar instead of nesting it in a page-local surface', () => {
+    const { container } = render(
+      <MasterPlanFilters
+        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }}
+        onChange={vi.fn()}
+      />,
+    );
+    // The strip IS the shared ListFilterBar card — no second surface, no
+    // page-local filter container around it (card 20260927_152).
+    expect(container.querySelector('.filter-bar.filter-bar--card.list-filter-bar')).toBeTruthy();
+    expect(container.querySelector('.master-plan-filters')).toBeNull();
 
-    expect(toolbar).not.toMatch(/\bpadding\s*:/);
-    expect(toolbar).not.toMatch(/\bborder(?:-radius)?\s*:/);
-    expect(toolbar).not.toMatch(/\bbackground\s*:/);
+    // And the page sheet owns no rule for the strip's chrome or for any of the
+    // page-local filter families the shared bar replaced.
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    expect(css).not.toMatch(/^\.master-plan-filters\s*\{/m);
+    expect(css).not.toMatch(
+      /^\.master-plan-filters__(search|actions|count|field|select|direction|allocation|advanced-fields|advanced-trigger|drawer|facet-trigger|facet-picker)\s*[{>]/m,
+    );
   });
 
   it('keeps the master plan edge-to-edge on wide application screens without a manual reload control', () => {
@@ -668,12 +781,14 @@ describe('MasterPlanFilters', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/DispatchPlanPage.css'), 'utf8');
 
     expect(page).not.toContain('Tải lại');
+    // The standalone toolbar row above the filter row is gone — the primary
+    // action is now passed as `action={…}` directly into MasterPlanFilters.
     expect(page).not.toContain('dispatch-plan-page__toolbar');
     expect(page).not.toContain('<PageHeader');
     expect(page).toContain('action={(');
     expect(page).toContain('dispatch-plan-page--wide');
     expect(css).toContain('max-width: 1400px');
-    expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 12px;\n  max-width: none;');
+    // Card 20260930_246: 12 → 8 — the advisory strips tighten so the first\n    // record meets its chrome budget at every width.\n    expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 8px;\n  max-width: none;');
     expect(css).toContain('.app-main:not(.driver-mode) .app-body > .dispatch-plan-page--wide');
   });
 });

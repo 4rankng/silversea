@@ -43,6 +43,9 @@ vi.mock('./pages/ShipmentContainersPage', () => ({
   default: () => <div>Shipment containers test page</div>,
 }));
 
+vi.mock('./pages/ShipmentDebitPage', () => ({ default: () => <div>Shipment settlement test page</div> }));
+vi.mock('./pages/MasterPlanPage', () => ({ default: () => <div>Dispatch home test page</div> }));
+
 vi.mock('./pages/ShipmentsPage', () => ({
   default: () => <div>Shipment overview test page</div>,
 }));
@@ -73,6 +76,19 @@ function renderRoute(path: string) {
 describe('AppRoutes shipment operations reachability', () => {
   beforeEach(() => {
     authState.role = Role.MANAGER;
+  });
+
+  it('redirects dispatcher away from settlement data that its API rejects', async () => {
+    authState.role = Role.DISPATCHER;
+    renderRoute('/shipments-debit');
+    await vi.waitFor(() => expect(screen.getByTestId('route-location').textContent).toBe('/dispatch'));
+    expect(screen.queryByText('Shipment settlement test page')).toBeNull();
+  });
+
+  it.each([Role.ADMIN, Role.ACCOUNTANT, Role.CUS, Role.MANAGER])('admits %s to settlement summaries', async (role) => {
+    authState.role = role;
+    renderRoute('/shipments-debit');
+    expect(await screen.findByText('Shipment settlement test page')).toBeTruthy();
   });
 
   it('admits MANAGER to the shipment create route', async () => {

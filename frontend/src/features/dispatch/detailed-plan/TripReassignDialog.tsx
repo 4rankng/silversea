@@ -40,6 +40,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
   const [externalPlateNumber, setExternalPlateNumber] = useState('');
   const [externalDriverName, setExternalDriverName] = useState('');
   const [externalDriverPhone, setExternalDriverPhone] = useState('');
+  const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -66,6 +67,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     setExternalPlateNumber(trip.externalPlateNumber ?? '');
     setExternalDriverName(trip.externalDriverName ?? '');
     setExternalDriverPhone(trip.externalDriverPhone ?? '');
+    setReason('');
     setError('');
   }, [trip, tripId]);
 
@@ -85,6 +87,10 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
       setError('Vui lòng chọn đối tác hoặc nhập biển số');
       return;
     }
+    if (!reason.trim()) {
+      setError('Lý do điều chuyển là bắt buộc');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -96,6 +102,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
         externalPlateNumber,
         externalDriverName,
         externalDriverPhone,
+        reason: reason.trim(),
         expectedVersion: trip.version,
       });
       // Prime the trip-detail cache with the reassign response: with the
@@ -250,6 +257,13 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
               />
             </>
           )}
+          <TextField
+            label="Lý do điều chuyển *"
+            placeholder="Bắt buộc — ghi vào nhật ký nghiệp vụ cùng người thực hiện và thời gian"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            disabled={saving}
+          />
         </div>
       )}
     </Modal>

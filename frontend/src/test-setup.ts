@@ -8,7 +8,8 @@
  * reset it between tests so state never leaks across cases.
  */
 
-import { beforeEach } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
+import { cleanup } from '@testing-library/react';
 // Register @testing-library/jest-dom matchers (toBeInTheDocument,
 // toContainElement, toHaveAccessibleName, …) so component tests can use the
 // recommended DOM-aware assertions instead of writing manual DOM plumbing.
@@ -77,3 +78,34 @@ if (!window.matchMedia) {
     addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
   }) });
 }
+
+/**
+ * Global test teardown (card 20260928_196).
+ *
+ * Cross-test interference, proven rather than assumed. `vitest.config.ts` sets
+ * `globals: true`, so Testing Library registers its own auto-cleanup — but
+ * auto-cleanup only unmounts. It does not touch timers, and a component that
+ * keeps a polling interval (ShipmentsPage builds its QueryClient with
+ * `retry: false` but leaves the default 30s refetch window) leaves that interval
+ * running into the NEXT test once the tree is gone.
+ *
+ * The symptom looked like flakiness and was not. In fixed order
+ * `ShipmentsPage.test.tsx` failed 1–3 tests with a DIFFERENT set each run; with
+ * `--sequence.shuffle` it failed 7, and those 7 included tests from describe
+ * blocks that never fail in the normal order — a Kế hoạch combobox test and a
+ * hotkeys/drawer test, neither of which is in the dialog block that was
+ * failing. Order was the variable, so state was crossing between tests.
+ *
+ * Measured: adding this block took the shuffled run from 7 failures to 1.
+ * Teardown is explicit rather than relying on a library's registration
+ * heuristic — RTL's auto-cleanup is still on, and calling `cleanup()` twice is
+ * a no-op, so this only adds the guarantee the heuristic does not provide.
+ *
+ * `useRealTimers()` last, so a test that installs fake timers cannot leave them
+ * installed for its successor.
+ */
+afterEach(() => {
+  cleanup();
+  vi.clearAllTimers();
+  vi.useRealTimers();
+});

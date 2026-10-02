@@ -54,11 +54,29 @@ export function valueOrDash(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : '—';
 }
 
-// The completion CTA must not read as an actionable "HOÀN THÀNH CHUYẾN" while
-// disabled: only IN_TRANSIT trips can complete, COMPLETED is already done, and
-// every other status gets a neutral not-yet label.
+/**
+ * Trip-DETAIL completion CTA (DRV-DET-06, PRD §4.3). This button only
+ * NAVIGATES to the e-POD screen — completion itself happens there, under the
+ * uppercase literal (`podCompleteCtaLabel`). It must not read as an actionable
+ * "HOÀN THÀNH CHUYẾN" while disabled: only IN_TRANSIT trips can proceed,
+ * COMPLETED is already done, and every other status gets a neutral not-yet
+ * label.
+ */
 export function completeCtaLabel(status: DriverTaskDetail['status']): string {
-  if (status === 'IN_TRANSIT') return 'Hoàn thành chuyến';
+  if (status === 'IN_TRANSIT') return 'Hoàn tất lệnh vận chuyển';
+  if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
+  return 'Chưa thể hoàn thành chuyến';
+}
+
+/**
+ * e-POD footer completion CTA (DRV-DET-06, PRD §4.3): the ONE surface allowed
+ * to render the uppercase `HOÀN THÀNH CHUYẾN` literal. It submits the e-POD
+ * and closes the trip in a single action, so every other state keeps the
+ * neutral/affirmative labels — the uppercase command is never shown while the
+ * action cannot run.
+ */
+export function podCompleteCtaLabel(status: DriverTaskDetail['status']): string {
+  if (status === 'IN_TRANSIT') return 'HOÀN THÀNH CHUYẾN';
   if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
   return 'Chưa thể hoàn thành chuyến';
 }

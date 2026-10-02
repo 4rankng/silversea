@@ -163,7 +163,7 @@ export function BusinessUnitsManager({
       </div>
 
       <div className="business-units__actions">
-        <button type="button" onClick={handleSaveBusinessUnit} disabled={savingUnit} className="btn btn-primary">
+        <button type="button" onClick={handleSaveBusinessUnit} disabled={savingUnit} className="btn btn--primary">
           {editingUnitId != null ? 'Lưu đơn vị' : 'Tạo đơn vị'}
         </button>
         {editingUnitId != null && (
@@ -175,7 +175,7 @@ export function BusinessUnitsManager({
               setUnitError(null);
             }}
             disabled={savingUnit}
-            className="btn btn-ghost"
+            className="btn btn--ghost"
           >
             Hủy sửa
           </button>
@@ -199,7 +199,7 @@ export function BusinessUnitsManager({
             <div className="business-units__card-actions">
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="btn btn--ghost"
                 onClick={() => {
                   setEditingUnitId(unit.id);
                   setUnitDraft({ code: unit.code ?? '', name: unit.name });
@@ -212,7 +212,7 @@ export function BusinessUnitsManager({
               {unit.status === 'ACTIVE' ? (
                 <button
                   type="button"
-                  className="btn btn-danger"
+                  className="btn btn--danger"
                   onClick={() => handleDeactivateBusinessUnit(unit)}
                   disabled={savingUnit}
                 >
@@ -221,7 +221,7 @@ export function BusinessUnitsManager({
               ) : (
                 <button
                   type="button"
-                  className="btn btn-ghost"
+                  className="btn btn--ghost"
                   onClick={() => handleReactivateBusinessUnit(unit)}
                   disabled={savingUnit}
                 >

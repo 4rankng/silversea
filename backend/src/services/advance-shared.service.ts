@@ -1,3 +1,4 @@
+import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 /**
  * Advance domain shared helpers — version guard, expense snapshots, name
@@ -6,6 +7,7 @@ import { getAdvanceConsumedAmounts } from './advance-consumption.service';
  * advance.service facade that re-exports them.
  */
 import { db } from '../db';
+import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { eq, and, desc, inArray, notInArray, sql } from 'drizzle-orm';
 import { TxnType, round2dp } from '@tingting/shared';
@@ -46,7 +48,7 @@ export async function generateSettlementCode(tx: Tx, now: Date = new Date()): Pr
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const prefix = `PT-${yy}${mm}`;
 
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6001, hashtext(${prefix}))`);
+  await acquireAdvisoryLock(tx, lockKeys.advanceSettlementCodePrefix(prefix));
 
   const [row] = await tx.select({ maxCode: sql<string | null>`max(${s.advanceSettlements.code})` })
     .from(s.advanceSettlements)
@@ -107,19 +109,24 @@ export async function enrichWithNames<T extends EnrichableRow>(
   }));
 }
 
-export async function enrichSettlementWithRequests(
-  settlement: typeof s.advanceSettlements.$inferSelect & Record<string, unknown>,
+export async function enrichSettlementWithRequests<T extends typeof s.advanceSettlements.$inferSelect & Record<string, unknown>>(
+  settlement: T,
   executor: DbLike = db,
 ) {
   const links = await executor.select()
     .from(s.advanceSettlementRequests)
     .where(eq(s.advanceSettlementRequests.settlementId, settlement.id));
   const requestIds = links.map(l => l.advanceRequestId);
-  let linkedRequests: typeof s.advanceRequests.$inferSelect[] = [];
+  let linkedRequests: Array<typeof s.advanceRequests.$inferSelect & { allocatedAmount: string }> = [];
   if (requestIds.length > 0) {
-    linkedRequests = await executor.select()
+    const requests = await executor.select()
       .from(s.advanceRequests)
       .where(inArray(s.advanceRequests.id, requestIds));
+    const linkByRequest = new Map(links.map(link => [link.advanceRequestId, link]));
+    linkedRequests = requests.map(request => ({
+      ...request,
+      allocatedAmount: linkByRequest.get(request.id)?.allocatedAmount ?? request.amount,
+    }));
   }
 
   // Also fetch linked trip expenses with breakdown by type + print form fields
@@ -187,20 +194,14 @@ export function clampPageLimit(page: number | undefined, limit: number | undefin
 }
 
 /**
- * O2C "Ranh giới Tạm ứng" (PRD Bước 4, O2C Flow.md:72 / O2C dev-rev1.md:87):
- * "Ngay khi phí chi hộ được Kế toán duyệt, hệ thống tự động sinh bút toán cấn
- * trừ vào dư nợ tạm ứng của cá nhân Ops/Lái xe."
- *
- * Fires on every trip-expense approval (called from propagateExpenseApproval in
- * source-change.service.ts). Auto-creates an APPROVED settlement that FIFO-links
- * the forwarder's outstanding advances and posts the OPS_SETTLEMENT offset
- * — no second human approval (PRD: "tự động sinh"). The four required pieces for
- * getOutstandingAdvanceBalance to drop are created: APPROVED settlement +
- * advance-request link + expense link + ledger debit.
+ * Compatibility for recorded trip expenses explicitly paid from OPS_ADVANCE.
+ * Reconcile only funded, unconsumed advances against the existing expense;
+ * this offset does not create a cash movement. Accounting-source expenses use
+ * the explicit reconciliation command instead and are excluded here.
  *
  * Guarded so it never double-posts:
  *  - skips when the expense is already linked to a non-dead settlement (the
- *    manual batch flow approves expenses via the same hook);
+ *    manual batch flow records expenses via the same hook);
  *  - skips unless settlementMethod = OPS_ADVANCE with a forwarderId
  *    (COMPANY_DIRECT expenses were never fronted by Ops; drivers have no
  *    advances today — PRD's "Lái xe" is forwarder-scoped here);
@@ -209,7 +210,7 @@ export function clampPageLimit(page: number | undefined, limit: number | undefin
  * Idempotent: re-running on an already-offset expense finds the existing link
  * and returns early.
  */
-export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Promise<void> {
+export async function autoOffsetRecordedExpense(tx: Tx, expenseId: number): Promise<void> {
   const [initialExpense] = await tx.select()
     .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
 
@@ -221,7 +222,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
 
   // Different expenses for the same Ops balance must allocate serially so they
   // cannot both consume the same residual advance snapshot.
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6202, ${initialForwarderId})`);
+  await acquireAdvisoryLock(tx, lockKeys.forwarderAccount(initialForwarderId));
 
   // Share the established manual-settlement lock order: advance requests first,
   // then expense. This closes races between automatic and governed settlement
@@ -232,10 +233,10 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
       eq(s.advanceRequests.requesterId, initialForwarderId),
       eq(s.advanceRequests.status, 'RECORDED'),
     ));
-  for (const requestId of candidateRequestIds.map((row) => row.id).sort((a, b) => a - b)) {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
-  }
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+  await acquireAdvisoryLocks(tx, [
+    ...candidateRequestIds.map((row) => lockKeys.advance(row.id)),
+    lockKeys.expense(expenseId),
+  ]);
 
   // Re-read every eligibility field and link only after all shared locks are
   // held. A stale pre-lock snapshot must never authorize a financial posting.
@@ -266,7 +267,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.linkedTripExpenseId, expenseId)).limit(1);
   if (accountingSource) return;
 
-  // FIFO-select approved advances and lock them before calculating residuals.
+  // Lock recorded requests before calculating their cash-backed residuals.
   const candidates = await tx.select({
     id: s.advanceRequests.id,
     amount: s.advanceRequests.amount,
@@ -280,14 +281,15 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     .for('update');
 
   const allocatedByRequest = await getAdvanceConsumedAmounts(tx, candidates.map(candidate => candidate.id));
+  const fundedByRequest = await getAdvanceFundedAmounts(tx, candidates.map(candidate => candidate.id));
 
-  // FIFO by earliest approvedAt: sort ascending (DESC fetch then reverse, or
-  // use asc). Use ascending order to consume oldest advances first.
+  // approvedAt is the retained legacy timestamp for direct recording.
+  // Consume the oldest funded requests first.
   const available = candidates
     .map((candidate) => ({
       ...candidate,
       remainingAmount: round2dp(
-        Number(candidate.amount) - (allocatedByRequest.get(candidate.id) ?? 0),
+        Math.min(Number(candidate.amount), fundedByRequest.get(candidate.id) ?? 0) - (allocatedByRequest.get(candidate.id) ?? 0),
       ),
     }))
     .filter((candidate) => candidate.remainingAmount > 0)
@@ -308,11 +310,11 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     remainingExpenseAmount = round2dp(remainingExpenseAmount - allocatedAmount);
   }
 
-  // An automatic settlement is atomic: if approved advances cannot fully cover
-  // the expense, leave it for the governed manual flow instead of overdrawing.
+  // If funded advances cannot cover the expense, leave it for explicit
+  // reconciliation instead of overdrawing the available principal.
   if (remainingExpenseAmount > 0) return;
 
-  // Create the APPROVED auto-settlement (PRD: "tự động sinh" — no maker-checker).
+  // Record the allocation with its expense link and ledger effect atomically.
   const code = await generateSettlementCode(tx);
   const [trip] = await tx.select({ tripCode: s.trips.tripCode })
     .from(s.trips).where(eq(s.trips.id, expense.tripId)).limit(1);
@@ -323,7 +325,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     refundAmount: '0',
     status: 'RECORDED',
     autoOffsetExpenseId: expense.id,
-    note: `Tự quyết toán khi duyệt chi hộ chuyến ${trip?.tripCode ?? expense.tripId} (O2C Bước 4)`,
+    note: `Tự đối trừ tạm ứng chi hộ chuyến ${trip?.tripCode ?? expense.tripId} (O2C Bước 4)`,
     approvedAt: new Date(),
     updatedAt: new Date(),
   }).returning();
@@ -356,69 +358,57 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     entityId: forwarderId,
     debit: amount,
     credit: 0,
-    note: `Tự quyết toán chi hộ chuyến ${trip?.tripCode ?? expense.tripId}`,
+    note: `Đối trừ tạm ứng khi ghi nhận chi hộ chuyến ${trip?.tripCode ?? expense.tripId}`,
   });
 }
 
-// ── Outstanding advance balance (F1) ─────────────────────────────────────────
+// Cash-backed remaining principal, shared by the wallet, catalog and legacy
+// settlement entry points. A RECORDED request without money is not an advance.
 //
-// Locked formula (partial-allocation authority):
-//   outstanding = Σ max(APPROVED advance amount - APPROVED allocations, 0)
-// Pending/checked allocations reserve a request from concurrent auto-use but do
-// not reduce the reported balance until approval. LedgerService is intentionally
-// not used because unrelated forwarder debits share that ledger.
-const approvedAllocatedAmount = sql<string>`coalesce((
-  select sum(allocation.allocated_amount::numeric)
-  from advance_settlement_requests allocation
-  inner join advance_settlements settlement
-    on settlement.id = allocation.settlement_id
-  where allocation.advance_request_id = ${s.advanceRequests.id}
-    and settlement.status = 'RECORDED'
-), 0)`;
-
-/**
- * Sum the unallocated residual of every APPROVED advance request.
- * Pass `forwarderUserId` to scope to one forwarder; omit for the cross-forwarder total.
- */
-export async function getOutstandingAdvanceBalance(forwarderUserId?: number): Promise<number> {
-  const conditions = [
-    eq(s.advanceRequests.status, 'RECORDED'),
-  ];
-  if (forwarderUserId) {
-    conditions.push(eq(s.advanceRequests.requesterId, forwarderUserId));
-  }
-
-  const [row] = await db.select({
-    total: sql<string>`coalesce(sum(greatest(${s.advanceRequests.amount}::numeric - ${approvedAllocatedAmount}, 0)), 0)`,
-  }).from(s.advanceRequests)
-    .where(and(...conditions));
-
-  return round2dp(Number(row?.total ?? 0));
-}
-
-/**
- * Per-forwarder breakdown of outstanding advance balances across ALL forwarders.
- * Drops zero-outstanding rows. `totalOutstanding` is the sum of all items.
- */
-export async function getOutstandingAdvanceBalances(): Promise<{
+// Card 20260928_168 (PM ruling 2026-09-29 + PRD OpsVanHanh §9.2: "hoàn ứng
+// thực tế giảm nghĩa vụ còn lại đúng một lần", "sau khi phiếu post, sổ quỹ và
+// báo cáo hội tụ về một số"): money the staff has actually RETURNED — a
+// phiếu THU hoàn ứng, i.e. a RECORDED expense-cash IN voucher with FORWARDER
+// counterparty — is no longer in their hands, so it reduces the outstanding
+// exactly once, floored at 0 per staff. A reversed THU drops out via status;
+// a phiếu CHI bù (OUT) pays owed costs and never touches this number. The
+// same voucher class the wallet and the OPS fund book already book as
+// "Nộp lại tiền mặt".
+export async function getOutstandingAdvanceBalances(forwarderUserId?: number): Promise<{
   totalOutstanding: number;
   items: Array<{ forwarderId: number; name: string | null; outstanding: number }>;
 }> {
-  const rows = await db.select({
-    forwarderId: s.advanceRequests.requesterId,
-    name: s.users.fullName,
-    outstanding: sql<string>`sum(greatest(${s.advanceRequests.amount}::numeric - ${approvedAllocatedAmount}, 0))`,
-  }).from(s.advanceRequests)
-    .innerJoin(s.users, eq(s.advanceRequests.requesterId, s.users.id))
-    .where(and(
-      eq(s.advanceRequests.status, 'RECORDED'),
-    ))
-    .groupBy(s.advanceRequests.requesterId, s.users.fullName);
-
-  const items = rows
-    .map(r => ({ forwarderId: r.forwarderId, name: r.name, outstanding: round2dp(Number(r.outstanding)) }))
-    .filter(r => r.outstanding > 0);
-
-  const totalOutstanding = round2dp(items.reduce((sum, r) => sum + r.outstanding, 0));
-  return { totalOutstanding, items };
+  const rows = await db.select({ request: s.advanceRequests, name: s.users.fullName }).from(s.advanceRequests)
+    .innerJoin(s.users, eq(s.users.id, s.advanceRequests.requesterId))
+    .where(and(eq(s.advanceRequests.status, 'RECORDED'), forwarderUserId ? eq(s.advanceRequests.requesterId, forwarderUserId) : undefined));
+  const ids = rows.map(row => row.request.id);
+  const [funded, consumed, returned] = await Promise.all([
+    getAdvanceFundedAmounts(db, ids),
+    getAdvanceConsumedAmounts(db, ids),
+    db.select({ staffId: s.expenseCashVouchers.counterpartyId, amount: s.treasuryMovements.amount })
+      .from(s.expenseCashVouchers)
+      .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
+      .where(and(
+        eq(s.expenseCashVouchers.counterpartyType, 'FORWARDER'),
+        forwarderUserId ? eq(s.expenseCashVouchers.counterpartyId, forwarderUserId) : undefined,
+        eq(s.treasuryMovements.direction, 'IN'),
+        eq(s.expenseCashVouchers.status, 'RECORDED'),
+      )),
+  ]);
+  const returnedByStaff = new Map<number, number>();
+  for (const row of returned) returnedByStaff.set(row.staffId, (returnedByStaff.get(row.staffId) ?? 0) + Number(row.amount));
+  const grouped = new Map<number, { forwarderId: number; name: string | null; outstanding: number }>();
+  for (const { request, name } of rows) {
+    const amount = Math.max(0, Math.min(Number(request.amount), funded.get(request.id) ?? 0) - (consumed.get(request.id) ?? 0));
+    if (!amount) continue;
+    const row = grouped.get(request.requesterId) ?? { forwarderId: request.requesterId, name, outstanding: 0 };
+    row.outstanding = round2dp(row.outstanding + amount); grouped.set(request.requesterId, row);
+  }
+  const items = [...grouped.values()]
+    .map(row => ({ ...row, outstanding: round2dp(Math.max(0, row.outstanding - (returnedByStaff.get(row.forwarderId) ?? 0))) }))
+    .filter(row => row.outstanding > 0);
+  return { items, totalOutstanding: round2dp(items.reduce((total, row) => total + row.outstanding, 0)) };
+}
+export async function getOutstandingAdvanceBalance(forwarderUserId?: number): Promise<number> {
+  return (await getOutstandingAdvanceBalances(forwarderUserId)).totalOutstanding;
 }

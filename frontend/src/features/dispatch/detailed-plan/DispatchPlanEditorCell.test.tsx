@@ -79,6 +79,7 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
   classification: 'SINGLE' as DispatchDetailPlanRow['classification'],
   ports: { pickupPortId: null, pickupPortName: null, dropoffPortId: null, dropoffPortName: null },
   lotFullyPlated: false,
+  plannedEndAt: null,
   ...overrides,
 } as DispatchDetailPlanRow);
 
@@ -148,6 +149,60 @@ async function openDialog() {
   await waitFor(() => expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy());
 }
 
+describe('UI52-B editor business identity', () => {
+  it.each([
+    { container: ' MSCU1234567 ', bill: 'BL-2026-010', expected: 'MSCU1234567' },
+    { container: null, bill: ' BL-2026-010 ', expected: 'BL-2026-010' },
+    { container: ' ', bill: ' BOOK-2026-010 ', expected: 'BOOK-2026-010' },
+    { container: null, bill: null, expected: 'Chưa có số Bill/Booking' },
+    { container: ' ', bill: ' ', expected: 'Chưa có số Bill/Booking' },
+  ])('keeps $expected in the editor trigger/title and Cancel preserves the exact row', async ({ container, bill, expected }) => {
+    mockFleetResources();
+    const original = row();
+    original.container = { ...original.container, containerNumber: container };
+    original.docs = { ...original.docs, billNumber: bill };
+    const onAtomicSave = vi.fn();
+    renderCell(original, { onAtomicSave });
+    const name = `Sửa ô điều phối ${expected}`;
+    const trigger = screen.getByRole('button', { name });
+    expect(trigger).toHaveAttribute('title', `Chỉnh sửa điều phối · ${expected}`);
+    expect(trigger.getAttribute('aria-label')).not.toContain(original.shipmentCode);
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('heading', { name: `Chỉnh sửa điều phối · ${expected}` })).toBeInTheDocument();
+    expect(screen.getByLabelText('Nhà xe').id).toBe(`dispatch-carrier-${original.fulfillmentId}`);
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name })).toBe(trigger);
+    expect(onAtomicSave).not.toHaveBeenCalled();
+  });
+});
+
+describe('QA-AUDIT-UI-92 complete assignment facts', () => {
+  it('keeps full facts outside one compact edit action and Cancel preserves the row', async () => {
+    mockFleetResources();
+    const original = row();
+    original.dispatch = { ...original.dispatch, assignedDriverName: PAIRED_TRUCK.assignedDriverName };
+    const saved = structuredClone(original);
+    const onAtomicSave = vi.fn();
+    const { container } = renderCell(original, { onAtomicSave });
+    const trigger = screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
+    expect(trigger).toHaveTextContent(/^Sửa$/);
+    for (const text of [original.dispatch.carrierName ?? 'Chưa phân nhà xe', PAIRED_TRUCK.licensePlate, PAIRED_TRUCK.assignedDriverName, 'Đã điều xe']) {
+      const fact = screen.getByText(text);
+      expect(container.querySelector('.dispatch-assignment-cell')).toContainElement(fact);
+      expect(trigger).not.toContainElement(fact);
+    }
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' })).toBe(trigger);
+    expect(trigger).toHaveFocus();
+    expect(onAtomicSave).not.toHaveBeenCalled();
+    expect(original).toEqual(saved);
+  });
+});
+
 function issueButton(): HTMLButtonElement {
   // The row now carries its own labeled "Phát lệnh" action, so the dialog's
   // issue button is matched by its dedicated class, not by its text.
@@ -155,6 +210,83 @@ function issueButton(): HTMLButtonElement {
     .find((b) => b.classList.contains('dispatch-assignment-dialog__issue-btn')) as HTMLButtonElement;
 }
 
+
+describe('DispatchPlanEditorCell — assignment dialog validation', () => {
+  beforeEach(() => { mockFleetResources(); });
+
+  it('dialog form opts out of native constraint validation — app errors own empty submits', async () => {
+    renderCell(row({ plannedEndAt: null }), {});
+    await openDialog();
+    expect(document.querySelector('form.dispatch-assignment-dialog')).toHaveAttribute('novalidate');
+  });
+});
+
+describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)', () => {
+  const endField = () => screen.getByRole('group', { name: 'Giờ trả hàng' });
+  const daySeg = () => screen.getByLabelText('Ngày — Giờ trả hàng') as HTMLInputElement;
+  const hourSeg = () => screen.getByLabelText('Giờ — Giờ trả hàng') as HTMLInputElement;
+
+  it('prefills the Giờ trả hàng field in Vietnam wall-clock', async () => {
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), {});
+    await openDialog();
+    expect(endField()).toBeTruthy();
+    expect(daySeg().value).toBe('05');
+    expect(hourSeg().value).toBe('15');
+  });
+
+  it('sends zone-aware ISO on save (15:30 +07:00 → 08:30Z)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+    });
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: null }), { onAtomicSave });
+    await openDialog();
+    fireEvent.change(screen.getByLabelText('Ngày — Giờ trả hàng'), { target: { value: '05/10/2026' } });
+    fireEvent.change(hourSeg(), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText('Phút — Giờ trả hàng'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ plannedEndAt: '2026-10-05T08:30:00.000Z' });
+  });
+
+  it('omits plannedEndAt from the save body when untouched — omit = untouched contract', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.83' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+    });
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect('plannedEndAt' in onAtomicSave.mock.calls[0]![1]).toBe(false);
+  });
+
+  it('QA-2026-09-26-23 blocks the save while the Giờ trả hàng edit is incomplete — no silent clear', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+    });
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    // Partial edit: EMPTY the day segment — the field reports incomplete, so
+    // Lưu must be BLOCKED, never write a silent clear of the stored instant.
+    fireEvent.change(screen.getByLabelText('Ngày — Giờ trả hàng'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    await waitFor(() => expect(onAtomicSave).not.toHaveBeenCalled());
+    expect(screen.getByText('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.')).toBeTruthy();
+    expect((document.querySelector('[role=dialog]'))).toBeTruthy();
+  });
+});
 
 describe('DispatchPlanEditorCell — driver note composer', () => {
   it('composes chips + manual text into the atomic save body and re-anchors', async () => {
@@ -687,6 +819,8 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
   // a container code starting with 20 needs a 20FT trailer, anything else a
   // 40FT one — a provable mismatch 409s at Phát lệnh ("Rơ-moóc không phù hợp
   // với loại container").
+  // The capacity advisory (AC DISP-MP-02) shares the ⚠ glyph, so the
+  // trailer tests assert on the 'rơ-moóc' copy instead of the glyph alone.
   const FIT_TRUCK = PAIRED_TRUCK; // 20FT, plate 15H-052.82
   const MISMATCH_TRUCK = { ...OTHER_TRUCK, id: 156, licensePlate: '60C-123.45', trailerType: '40FT' };
   const UNKNOWN_TRUCK = { ...PAIRED_TRUCK, id: 157, licensePlate: '70H-000.01', trailerType: null };
@@ -715,7 +849,7 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
 
     const fitLabel = options.find((label) => label.includes('15H-052.82'))!;
     const mismatchLabel = options.find((label) => label.includes('60C-123.45'))!;
-    expect(fitLabel).not.toContain('⚠');
+    expect(fitLabel).not.toContain('rơ-moóc');
     expect(mismatchLabel).toContain('⚠ rơ-moóc 40FT, cần 20FT');
     expect(options.indexOf(mismatchLabel)).toBe(options.length - 1);
   });
@@ -724,7 +858,7 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
     mockTruckPage([FIT_TRUCK, MISMATCH_TRUCK]);
     renderCell(row({ classification: 'DOUBLE' }));
     const options = await openVehicleDropdown();
-    expect(options.find((label) => label.includes('60C-123.45'))).not.toContain('⚠');
+    expect(options.find((label) => label.includes('60C-123.45'))).not.toContain('rơ-moóc');
     expect(options.find((label) => label.includes('15H-052.82'))).toContain('cần 40FT');
   });
 
@@ -734,7 +868,7 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
     const options = await openVehicleDropdown();
 
     // No provable mismatch → no warning; the fit still outranks "unknown".
-    expect(options.every((label) => !label.includes('⚠'))).toBe(true);
+    expect(options.every((label) => !label.includes('rơ-moóc'))).toBe(true);
     expect(options.findIndex((label) => label.includes('15H-052.82'))).toBeLessThan(options.findIndex((label) => label.includes('70H-000.01')));
   });
 
@@ -751,7 +885,7 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
 
     const fitLabel = options.find((label) => label.includes('60C-123.45'))!;
     const mismatchLabel = options.find((label) => label.includes('15H-052.82'))!;
-    expect(fitLabel).not.toContain('⚠');
+    expect(fitLabel).not.toContain('rơ-moóc');
     expect(mismatchLabel).toContain('⚠ rơ-moóc 20FT, cần 40FT');
     expect(options.indexOf(mismatchLabel)).toBe(options.length - 1);
   });
@@ -765,7 +899,20 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
 
     expect(options[0]).toContain('15H-052.82');
     expect(options[0]).toContain('⚠ rơ-moóc 20FT, cần 40FT');
-    expect(options[options.length - 1]).not.toContain('⚠');
+    expect(options[options.length - 1]).not.toContain('rơ-moóc');
+  });
+
+  it('marks an option whose capacity is below the row cargo weight and leaves a fitting one unmarked (AC DISP-MP-02)', async () => {
+    // Same 20FT trailer in both cases — only the inferred capacity differs
+    // (backend TRAILER_CAPACITY_KG: 20FT → 18000, 40FT → 30000).
+    const overloaded = { ...FIT_TRUCK, id: 158, licensePlate: '51C-111.11', capacityKg: '18000' };
+    const fitting = { ...FIT_TRUCK, id: 159, licensePlate: '51C-222.22', capacityKg: '30000' };
+    mockTruckPage([overloaded, fitting]);
+    renderCell(row());
+    const options = await openVehicleDropdown();
+
+    expect(options.find((label) => label.includes('51C-111.11'))).toContain('⚠ Vượt tải trọng khả dụng');
+    expect(options.find((label) => label.includes('51C-222.22'))).not.toContain('⚠');
   });
 
   it('carries the mismatch warning on pinned D±1 suggestion labels too', async () => {

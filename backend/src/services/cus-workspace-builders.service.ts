@@ -160,7 +160,13 @@ function buildOperationalSummary(
     : bucket === ShipmentCusBucket.NEW && effectiveScheduleDate < businessDateNow()
       ? 'OVERDUE' as const
       : 'SCHEDULED' as const;
-  const transportDateEditable = actor.role === Role.CUS
+  // Quick-edit of schedule + notes opens to CUS, ADMIN and DISPATCHER
+  // (product ruling 2026-09-20); an active accounting lock still closes both
+  // for every role. The workboard triggers gate on this flag and the inline
+  // editor re-checks the four matching fieldAccess keys.
+  const transportDateEditable = (actor.role === Role.CUS
+    || actor.role === Role.ADMIN
+    || actor.role === Role.DISPATCHER)
     && support.locksByShipment.get(row.shipment.id) == null;
 
   // Some trips link to a shipment directly (`trips.shipmentId`, e.g. a
@@ -214,6 +220,8 @@ function buildListItem(
   const trips = support.tripsByShipment.get(row.shipment.id) ?? [];
   const recoveryFacts = support.recoveryFactsByShipment.get(row.shipment.id) ?? [];
   const declaration = support.declarationByShipment.get(row.shipment.id) ?? null;
+  // Card 20260921_3: the full id-asc declaration list rides each row.
+  const declarations = support.declarationsByShipment.get(row.shipment.id) ?? [];
   const totalCost = sumMoney(trips.map((trip) => trip.totalCost));
   const bucket = deriveCusBucket(row.shipment.status, activeLock != null);
   const hasPendingRecovery = recoveryFacts.some((fact) => toNumber(fact.outstandingAmount) > 0);
@@ -325,6 +333,11 @@ function buildListItem(
     effectiveFactoryNames,
     billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
     declarationNumber: declaration?.declarationNumber ?? null,
+    // Card 20260921_3: every non-empty number, id-asc — the Chứng từ column
+    // joins these exactly like the XLSX debit export does.
+    declarationNumbers: declarations
+      .map((item) => trimOrNull(item.declarationNumber))
+      .filter((value): value is string => value != null),
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
     // A lot overview may summarize multiple FCL routes, but individual
     // container rows retain the exact route that drives dispatch.
@@ -382,6 +395,14 @@ function buildListItem(
       declarationIssuedAt: declaration?.issuedAt?.toISOString() ?? null,
       declarationScope: declaration?.scope ?? null,
       declarationNote: trimOrNull(declaration?.note),
+      // Full id-asc list for the documents quick-edit (card 20260921_3).
+      declarations: declarations.map((item) => ({
+        id: item.id,
+        declarationNumber: trimOrNull(item.declarationNumber),
+        issuedAt: item.issuedAt?.toISOString() ?? null,
+        scope: item.scope,
+        note: trimOrNull(item.note),
+      })),
     },
     fieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, containers.length > 0),
     operational,
@@ -518,6 +539,7 @@ function buildContainerLine(
   return {
     id: container.id,
     ordinal,
+    operationalSiteId: container.operationalSiteId ?? row.shipment.operationalSiteId ?? null,
     containerNumber: container.containerNumber,
     containerTypeId: container.containerTypeId,
     containerTypeLabel: container.containerTypeCode ?? container.containerTypeName,
@@ -651,6 +673,11 @@ function shipmentFieldAccess(
 ): ShipmentCusWorkspaceListItem['fieldAccess'] {
   const access = {} as ShipmentCusWorkspaceListItem['fieldAccess'];
   const canWriteShipment = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.MANAGER;
+  // Schedule + notes quick-edit opens to dispatchers as well: the workboard
+  // triggers gate on transportDateEditable, and the inline editor re-checks
+  // these four keys before opening — they must read DIRECT here for the
+  // dispatcher or the modal refuses despite the enabled trigger.
+  const scheduleNotesKeys = new Set(['closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes']);
   for (const field of allShipmentFieldKeys) {
     if (field === 'declarationNumber') {
       access[field] = !canWriteShipment
@@ -660,9 +687,25 @@ function shipmentFieldAccess(
           : { mode: 'DIRECT', reason: 'Cập nhật tờ khai trực tiếp theo lô hàng.' };
       continue;
     }
+    // Product ruling 2026-09-20 ("both notes can be edit"): the two note
+    // fields decouple from the accounting lock for the three quick-edit
+    // roles (CUS/ADMIN/DISPATCHER). The lock clause and every other field
+    // stay closed exactly as before — MANAGER keeps its existing notes
+    // authority (direct unlocked, read-only under lock).
+    if (field === 'customerNotes' || field === 'operationalNotes') {
+      const notesWriter = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.DISPATCHER;
+      access[field] = notesWriter
+        ? { mode: 'DIRECT', reason: 'Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán.' }
+        : !canWriteShipment
+          ? readOnly('Vai trò hiện tại chỉ được xem trường này.')
+          : hasActiveLock
+            ? readOnly('Lô hàng đã khóa kế toán; không thể thay đổi dữ liệu vận hành.')
+            : { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trường này.' };
+      continue;
+    }
     if (hasActiveLock) {
       access[field] = readOnly('Lô hàng đã khóa kế toán; không thể thay đổi dữ liệu vận hành.');
-    } else if (!canWriteShipment) {
+    } else if (!canWriteShipment && !(actor.role === Role.DISPATCHER && scheduleNotesKeys.has(field))) {
       access[field] = readOnly('Vai trò hiện tại chỉ được xem trường này.');
     } else if (hasContainers && (field === 'cargoWeightKg' || field === 'cargoVolumeCbm')) {
       access[field] = readOnly('Số liệu hiển thị là tổng theo container; hãy cập nhật từng container.');
@@ -692,33 +735,25 @@ function containerFieldAccess(
         ? 'Vai trò hiện tại chỉ được xem dữ liệu container.'
         : 'Bạn có thể cập nhật trực tiếp trước khi điều xe.';
   const mode = editable ? 'DIRECT' as const : 'READ_ONLY' as const;
-  // 2026-09-10 user directive: all phê duyệt (approval) flows are removed.
-  // Route/container-number/pickup-drop-off used to flip CUS from DIRECT to a
-  // dispatcher-reviewed REQUEST once the container had a trip or its run date
-  // passed; these fields now save directly for CUS at any point before the
-  // accounting lock. The generic trip-based DIRECT/READ_ONLY split stays for
-  // DISPATCHER and other roles.
-  const dateGatedFields = new Set(['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId']);
   const access = (key: keyof ShipmentCusWorkspaceContainerLine['fieldAccess']): ShipmentCusWorkspaceFieldAccess => {
     // plateNumber intentionally has no OWN special case: since the internal
     // fleet became plan-able (Cap_nhat_UI_va_logic 1.3) the field follows the
     // generic editable/READ_ONLY mode, mirroring permissions.plateEditable —
     // the plate is a plan; the official dispatch trip confirms it.
-    if (dateGatedFields.has(key) && actor.role === Role.CUS && !hasActiveLock) {
-      return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' };
-    }
     // Container number is identity, not an operational parameter — the write
     // path has allowed number edits on tripped containers since the
     // value-aware guard landed, and dispatch routinely fills numbers left
-    // blank at intake once the lot is already assigned. DISPATCHER gets the
-    // same direct-write flag CUS has (pre-lock, trip or not); route/ports
-    // stay on the generic split for dispatch.
-    if (key === 'containerNumber' && actor.role === Role.DISPATCHER && !hasActiveLock) {
+    // blank at intake once the lot is already assigned. CUS and DISPATCHER
+    // keep that identity correction pre-lock, trip or not. Route/ports use
+    // the operational gate above because their writer rejects linked-trip
+    // changes. Removing approval flows does not bypass that trip restriction.
+    if (key === 'containerNumber' && (actor.role === Role.CUS || actor.role === Role.DISPATCHER) && !hasActiveLock) {
       return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' };
     }
     return { mode, reason };
   };
   return {
+    operationalSiteId: access('operationalSiteId'),
     containerNumber: access('containerNumber'), containerTypeId: access('containerTypeId'),
     cargoWeightKg: access('cargoWeightKg'), cargoVolumeCbm: access('cargoVolumeCbm'),
     routeId: access('routeId'),

@@ -1,0 +1,74 @@
+/* InlineLabelSelect (card 20260926_50) — label-in-trigger select. Flat
+   chrome, 32px sm height, trailing chevron. */
+
+.inline-label-select { position: relative; display: inline-flex; min-width: 0; }
+
+.inline-label-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 110px;
+  height: 32px;
+  padding: 0 10px;
+  /* Card 20260926_65: the integrated label never wraps — a wrapped label
+     inflates the 32px trigger and breaks the ribbon baseline. */
+  white-space: nowrap;
+  border: 1px solid var(--line, #d1d5db);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--ink, #1f2937);
+  font-size: var(--text-control-compact-size, 13px);
+  cursor: pointer;
+}
+
+.inline-label-select__trigger--open { border-color: var(--color-fg-brand-primary, #005a2d); }
+
+.inline-label-select__chevron { margin-left: auto; color: var(--ink-3, #6b7280); }
+
+.inline-label-select__popover {
+  position: fixed;
+  z-index: var(--z-nested-popover, 410);
+  display: grid;
+  gap: 2px;
+  min-width: 180px;
+  max-width: calc(100vw - 16px);
+  max-height: 320px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--line, #d1d5db);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  /* Card 20260927_152: unmeasured means invisible. The panel is portalled and
+     positioned one layout pass after it mounts; before that its coordinates
+     are unknown, and painting it at (0,0) put it over the page header. */
+  visibility: hidden;
+}
+
+.inline-label-select__popover[data-positioned='true'] { visibility: visible; }
+
+.inline-label-select__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink, #1f2937);
+  font-size: var(--text-control-compact-size, 13px);
+  cursor: pointer;
+  text-align: left;
+}
+
+.inline-label-select__option[aria-selected='true'] {
+  background: var(--background-color-brand-primary, #e6f6ec);
+  color: var(--color-fg-brand-primary, #005a2d);
+  font-weight: 600;
+}
+
+/* Ordinary touch controls share the current 40px ceiling. */
+@media (pointer: coarse) {
+  .inline-label-select__trigger { height: var(--control-max-h); }
+  .inline-label-select__option { min-height: var(--control-max-h); }
+}

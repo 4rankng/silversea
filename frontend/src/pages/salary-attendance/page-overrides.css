@@ -3,12 +3,6 @@
  * BEM-style classes replacing style={{…}} objects in the TSX.
  * ========================================================================== */
 
-/* ── Search input wrapper ─────────────────────────────────────────────── */
-.salary-attendance__search-input {
-  width: 100%;
-  max-width: 340px;
-}
-
 /* ── Icon spacer (Wallet icon in hero actions) ────────────────────────── */
 .salary-attendance__icon-spacer {
   margin-right: 6px;
@@ -29,12 +23,6 @@
 .salary-attendance__driver-loading-text {
   font-size: var(--text-data-size);
   color: var(--fg-3);
-}
-
-/* ── Empty panel text ─────────────────────────────────────────────────── */
-.salary-attendance__empty-panel-text {
-  margin: 0;
-  font-size: var(--text-body-size);
 }
 
 /* ── Calendar updating loader (absolute positioned inside container) ─── */
@@ -139,19 +127,12 @@
 }
 
 /* ── Reopen reason textarea ───────────────────────────────────────────── */
-.salary-attendance__reopen-textarea {
+textarea.salary-attendance__reopen-textarea {
   width: 100%;
   min-height: 88px;
   resize: vertical;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  color: var(--fg-1);
-  padding: 10px 12px;
-}
 
-.salary-attendance__reopen-textarea--error {
-  border-color: var(--danger);
+  padding: 10px 12px;
 }
 
 /* ── Full-width flex button ───────────────────────────────────────────── */
@@ -176,7 +157,7 @@
 }
 
 .salary-attendance__salary-loading-spinner {
-  color: var(--fg-inverse, #fff);
+  color: var(--fg-inverse);
 }
 
 /* ── Confirm section wrapper ──────────────────────────────────────────── */
@@ -216,7 +197,7 @@
   text-align: center;
   padding: 24px;
   font-size: var(--text-data-size);
-  color: color-mix(in srgb, var(--fg-inverse, #fff) 60%, transparent);
+  color: color-mix(in srgb, var(--fg-inverse) 60%, transparent);
 }
 
 /* ── Lock notice bar ──────────────────────────────────────────────────── */

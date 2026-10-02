@@ -6,6 +6,8 @@ import { api, fileCommandFingerprint } from '../lib/api';
 import { ExpenseEntryStatus } from '@tingting/shared';
 import { TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
 import { StatusPill, useConfirm } from '../components/UI';
+import { EmptyState } from '../design-system';
+import { useReasonPrompt } from '../components/reason-prompt';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { qk } from '../api/keys';
 import { useForwarderTripDetail, useDeleteForwarderExpense } from '../hooks/useQueries';
@@ -33,6 +35,7 @@ import {
   type ForwarderContainer,
 } from '../features/forwarder/forwarder-trip-detail-sections';
 import { tripStatusVariant } from '../lib/tripStatus';
+import { billBookingReference } from '../lib/business-reference';
 import './ForwarderTripDetailPage.css';
 
 interface ForwarderTripWorkspaceProps {
@@ -70,6 +73,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   const [uploadingExpenseId, setUploadingExpenseId] = useState<number | null>(null);
   const [paperOrderSubmitting, setPaperOrderSubmitting] = useState(false);
   const { confirm, dialog } = useConfirm();
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const { toast } = useToast();
 
   const handleBack = () => embedded ? onClose?.() : navigate('/my-forwarder-trips');
@@ -145,12 +149,13 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   const handleDeleteExpense = async (expenseId: number) => {
     const expense = trip.expenses.find(item => item.id === expenseId);
     if (!expense) return;
-    const accepted = await confirm('Xóa khoản chi này? Dữ liệu và ảnh chứng từ liên quan sẽ không còn trong danh sách Ops.', {
-      variant: 'danger',
+    // Q10 (card 20260922_78): the void asks for a mandatory free-text reason;
+    // cancel aborts without any request.
+    const reason = await prompt('Xóa khoản chi này? Dòng phí được giữ lại ở trạng thái đã hủy kèm lý do để đối chiếu.', {
       confirmLabel: 'Xóa khoản chi',
     });
-    if (!accepted) return;
-    deleteExpenseMut.mutate({ id: expenseId, tripId, expectedUpdatedAt: expense.updatedAt });
+    if (reason == null) return;
+    deleteExpenseMut.mutate({ id: expenseId, tripId, expectedUpdatedAt: expense.updatedAt, reason });
   };
 
   const containers = (trip.containers || []) as ForwarderContainer[];
@@ -199,6 +204,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       style={{ maxWidth: embedded ? 'none' : 700, margin: '0 auto', paddingBottom: embedded ? 8 : 40 }}
     >
       {dialog}
+      {reasonDialog}
       {/* Back button + Header */}
       <div className="fwd-detail-hero">
         {!embedded && (
@@ -214,14 +220,11 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
           <span className="fwd-detail-hero__eyebrow">Chi tiết chuyến xe</span>
           <div className="fwd-detail-hero__title-row">
             <h1 className="fwd-detail-hero__title">
-              {trip.billNumber || trip.bookingNumber || trip.shipmentCode || trip.routeName || 'Chuyến đi'}
+              {billBookingReference(trip.billNumber, trip.bookingNumber)}
             </h1>
             <StatusPill variant={tripStatusVariant(trip.status)}>
               {TRIP_STATUS_LABELS[trip.status as TripStatus] || trip.status}
             </StatusPill>
-            {trip.tripCode && (
-              <span className="fwd-detail-hero__trip-code">{trip.tripCode}</span>
-            )}
           </div>
           <p className="fwd-detail-hero__subtitle">
             {[trip.customerName, trip.factoryName, trip.routeName].filter(Boolean).join(' · ')}
@@ -354,9 +357,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
         />
 
         {expenses.length === 0 ? (
-          <div className="fwd-expenses-empty">
-            Chưa có chi phí phát sinh nào
-          </div>
+          <EmptyState variant="compact" context="expenses" title="Chưa có chi phí phát sinh nào" />
         ) : (
           <div className="fwd-expenses-list">
             {expenseGroups.map(group => {
@@ -377,7 +378,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                     {completed ? <><RotateCcw size={15} /> Mở lại</> : <><CheckCircle2 size={15} /> Đã kê xong</>}
                   </button>
                 </div>
-                {group.expenses.length === 0 && <div className="fwd-expense-group__empty">Chưa có khoản chi nào trong nhóm này</div>}
+                {group.expenses.length === 0 && <EmptyState variant="compact" context="expenses" title="Chưa có khoản chi nào trong nhóm này" />}
                 {group.expenses.map((exp) => {
                   return (
                     <div key={exp.id}>

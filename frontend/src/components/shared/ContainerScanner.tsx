@@ -18,8 +18,8 @@ import { registerOverlay, unregisterOverlay } from '../../lib/overlayState';
  */
 
 interface ContainerScannerProps {
-  /** Called with a downsized JPEG data URL once a photo is captured or picked. */
-  onCapture: (dataUrl: string) => void;
+  /** Gallery input has unknown capture time; only the live shutter supplies capturedAt. */
+  onCapture: (dataUrl: string, capturedAt?: Date) => void;
   onClose: () => void;
 }
 
@@ -157,17 +157,17 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
   }, [flashOn]);
 
   /** Common "I have an image, downsize it, fire onCapture" path. */
-  const finishWith = useCallback(async (rawDataUrl: string, allowRawFallback: boolean) => {
+  const finishWith = useCallback(async (rawDataUrl: string, allowRawFallback: boolean, capturedAt?: Date) => {
     if (busy) return;
     setBusy(true);
     try {
       const finalUrl = await downsizeImageToDataUrl(rawDataUrl);
-      onCapture(finalUrl);
+      onCapture(finalUrl, capturedAt);
     } catch {
       if (allowRawFallback) {
         // Camera frames are canvas-drawn JPEGs (always decodable); a failure
         // here can only be a tainted canvas — the raw frame is still valid JPEG.
-        onCapture(rawDataUrl);
+        onCapture(rawDataUrl, capturedAt);
       } else {
         // A gallery file the browser cannot decode (HEIC outside Safari) would
         // be stored as broken bytes under a .jpg name — reject it instead.
@@ -180,12 +180,13 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
   const handleCapture = useCallback(() => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
+    const capturedAt = new Date();
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d')!.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    void finishWith(dataUrl, true);
+    void finishWith(dataUrl, true, capturedAt);
   }, [finishWith]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,7 +263,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
           type="button"
           onClick={onClose}
           aria-label="Đóng"
-          style={roundBtn(44, 'rgba(0,0,0,0.5)')}
+          style={roundBtn('rgba(0,0,0,0.5)')}
         >
           <X size={20} color="#fff" />
         </button>
@@ -271,7 +272,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
             type="button"
             onClick={handleFlashToggle}
             aria-label={flashOn ? 'Tắt đèn flash' : 'Bật đèn flash'}
-            style={roundBtn(44, flashOn ? 'var(--brand)' : 'rgba(0,0,0,0.5)')}
+            style={roundBtn(flashOn ? 'var(--brand)' : 'rgba(0,0,0,0.5)')}
           >
             <Zap size={20} color="#fff" fill={flashOn ? '#fff' : 'none'} />
           </button>
@@ -290,7 +291,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
             disabled={busy}
             onClick={() => galleryRef.current?.click()}
             style={{
-              ...roundBtn(44, 'rgba(0,0,0,0.5)'),
+              ...roundBtn('rgba(0,0,0,0.5)'),
               position: 'absolute', left: 0, bottom: 4, cursor: 'pointer',
             }}
             aria-label="Chọn ảnh từ thư viện"
@@ -308,7 +309,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
             disabled={busy || status !== 'ready'}
             aria-label="Chụp ảnh"
             style={{
-              width: 72, height: 72, borderRadius: '50%',
+              width: 'var(--control-h)', height: 'var(--control-h)', borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: '4px solid rgba(255,255,255,0.95)',
               background: 'var(--brand)',
@@ -317,7 +318,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
               transition: 'transform 0.1s ease, opacity 0.15s ease',
             }}
           >
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--brand)' }} />
+            <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'var(--brand)' }} />
           </button>
         </div>
       </div>
@@ -326,10 +327,10 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
   );
 }
 
-function roundBtn(size: number, background: string): React.CSSProperties {
+function roundBtn(background: string): React.CSSProperties {
   return {
-    width: size,
-    height: size,
+    width: 'var(--control-h)',
+    height: 'var(--control-h)',
     borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',

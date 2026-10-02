@@ -167,3 +167,37 @@
   /* Decorative preview records must not push the recovery action off-screen. */
   .ds-empty-state .ds-empty-state__preview { display: none; }
 }
+
+/* ─── Compact variant (card _41) ────────────────────────────────────────────
+   The operational-list face that replaces the retired .empty-state chrome:
+   no dashed decorative card, small illustration, ≤160px tall on phones. */
+.ds-empty-state--compact {
+  padding: 20px 16px;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+}
+.ds-empty-state--compact .ds-empty-state__illustration {
+  width: 64px;
+  height: 52px;
+  margin: 0;
+}
+.ds-empty-state--compact .ds-empty-state__title {
+  font-size: var(--text-body-size, 14px);
+}
+.ds-empty-state--compact .ds-empty-state__description {
+  font-size: var(--text-caption-size, 12px);
+}
+.ds-empty-state--compact .ds-empty-state__action {
+  margin-top: 4px;
+}
+
+/* ─── Reduced motion (docs/prd/README.md §3): any decorative motion in this
+   primitive stops when the user asks for less movement. */
+@media (prefers-reduced-motion: reduce) {
+  .ds-empty-state *,
+  .ds-empty-state__illustration {
+    animation: none !important;
+    transition: none !important;
+  }
+}

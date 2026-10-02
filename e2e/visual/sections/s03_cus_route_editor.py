@@ -31,7 +31,7 @@ from typing import Optional
 from visual.lib.runner import tc, VisualTestContext
 from visual.lib.accounts import ACCOUNTS, DEFAULT_PASSWORD
 
-API_URL = os.environ.get("VISUAL_API", "http://localhost:3001").rstrip("/")
+API_URL = os.environ.get("VISUAL_API", "http://localhost:3002").rstrip("/")
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────

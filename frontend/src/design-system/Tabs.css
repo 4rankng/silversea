@@ -13,10 +13,41 @@
   max-width: 100%;
 }
 
+/* The same house category picker owns the phone presentation and explicit
+   all-width role filters. Field geometry and paint remain shared controls. */
+.ds-tabs-category {
+  min-width: 0;
+  max-width: 100%;
+  width: fit-content;
+}
+
+@media (max-width: 767px) {
+  .ds-tabs-category { width: 100%; }
+}
+
+/* Canonical button group (operator ruling 2026-09-27 — the fleet-vehicle
+   status group is the reference): hairline container on the recessed surface,
+   2px inset, and a FLAT white pill for the selected cell (1px outline, no
+   shadow — the flat-surface law). One group shape for every segmented control
+   in the app. */
 .ds-tabs--boxed {
-  padding: 4px;
-  background: var(--surface-3);
-  border-radius: var(--r);
+  /* Preserve one control row without squeezing labels/counts into equal
+     tracks. The primitive reveals selected tabs on resize and keyboard use. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* A segmented control is a content-sized object: inside a grid/flex cell it
+     must hug its cells instead of stretching into an empty box (operator
+     reference shows the group ending after the last cell). */
+  width: fit-content;
+  /* `justify-self: start` pins it in a grid cell: without it the grid's
+     default `stretch` inflates the container past its last cell (measured on
+     /shipments-detail: 350px box around 195px of cells). */
+  justify-self: start;
+  padding: 2px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--line);
+  border-radius: 8px;
   gap: 2px;
 }
 
@@ -33,8 +64,17 @@
 
 /* Tab button — daisyUI .d-tab provides base typography + active color;
  * we add NEPO-specific shape + transition. */
+.ds-tabs--boxed .ds-tabs__btn {
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: var(--text-caption-size, 12px);
+  font-weight: var(--fw-semibold);
+  gap: 6px;
+}
+
 .ds-tabs__btn {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
   border: 1px solid transparent;
@@ -64,6 +104,10 @@
   outline-offset: 2px;
 }
 
+.ds-tabs--boxed .ds-tabs__btn:focus-visible {
+  outline-offset: -2px;
+}
+
 .ds-tabs__btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -78,12 +122,13 @@
 .ds-tabs--boxed .ds-tabs__btn--active {
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--sh-sm);
+  box-shadow: none;
+  outline: 1px solid var(--line-2, var(--line));
 }
 
 .ds-tabs--bordered .ds-tabs__btn {
   border-radius: 0;
-  padding: 10px 14px 12px;
+  padding: 8px 14px;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
 }
@@ -103,40 +148,47 @@
 
 .ds-tabs__label {
   display: inline-block;
+  min-width: 0;
+  white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.35;
 }
 
-/* Count badge — small, low-contrast by default; inverted on active for plain/boxed. */
+/* Count — the numeral is plain text in the tone's ink (operator reference
+   2026-09-27: "Tất cả 45 · Hoạt động 44 · Bảo trì / Ngưng 1"). No pill, no
+   background: a tone rides the tab's MEANING, the selection rides the cell. */
 .ds-tabs__count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: var(--app-radius-full);
-  background: var(--surface-3);
-  color: var(--ink-3);
-  font-size: var(--text-caption-size);
+  display: inline-block;
+  color: var(--fg-3, var(--ink-3));
+  font-family: var(--font-data, inherit);
+  font-size: var(--text-label-size, 11px);
   font-weight: var(--fw-semibold);
-
   line-height: 1.35;
   flex-shrink: 0;
 }
 
 .ds-tabs__count--active {
-  background: var(--surface-3);
-  color: var(--ink-2);
+  color: var(--ink);
 }
 
-.ds-tabs--boxed .ds-tabs__btn--active .ds-tabs__count,
-.ds-tabs--bordered .ds-tabs__btn--active .ds-tabs__count {
-  background: var(--surface-3);
-  color: var(--ink-2);
+/* Semantic tones (20260926_47, recolored 2026-09-27 to the reference): amber
+ * for the downtime bucket, accent-green for the healthy bucket, info for a
+ * neutral "waiting" bucket. */
+.ds-tabs__count--accent {
+  color: var(--accent, #177448);
 }
 
-@media (pointer: coarse) {
+.ds-tabs__count--warning {
+  color: var(--warning, #A45D1C);
+}
+
+.ds-tabs__count--info {
+  color: var(--info-text, var(--info, #0E7090));
+}
+
+/* Touch floor on any touch device OR any narrow window — a 390px windowed
+   browser reports `pointer: fine` but is still a phone-width layout. */
+@media (pointer: coarse), (max-width: 767px) {
   .ds-tabs__btn {
     min-height: var(--control-touch-h);
   }

@@ -190,10 +190,13 @@ describe('useDispatchMasterPlan zone truck presence', () => {
   });
 
   it('pins the presence query to Lạch Huyện even when taxonomy order changes', async () => {
+    // Card _6pt2 sanctioned re-point (same class as the characterization pin):
+    // mechanism-coupled to the legacy slug; gains isDefault:true, observable
+    // unchanged — the advisory still pins Lạch Huyện against taxonomy order.
     getDispatchZonesMock.mockResolvedValue({
       items: [
-        { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 5 },
-        { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 20 },
+        { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 5, isDefault: false },
+        { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 20, isDefault: true },
       ],
     });
 
@@ -212,5 +215,59 @@ describe('useDispatchMasterPlan zone truck presence', () => {
 
     await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenCalled());
     expect(result.current.presence).toBeNull();
+  });
+
+  // Characterization pins (2026-09-19, director order): these two tests pin
+  // the CURRENT default-zone behavior before the is_default migration —
+  // which zone the presence advisory queries on first load, and the
+  // zones[0] fallback when the deep-sea-cluster zone is absent from the
+  // taxonomy. Behavioral by design: they assert the observable presence
+  // query, not the selection mechanism, so the is_default work must keep
+  // them green without editing them.
+  describe('default presence zone (characterization pin)', () => {
+    it('defaults the presence advisory to the deep-sea-cluster zone on first load', async () => {
+      // Card _6pt2 sanctioned re-point: mechanism-coupled pin moved to flag
+      // semantics under the isDefault contract change; the observable (which
+      // zone the advisory selects on first load) is unchanged.
+      getDispatchZonesMock.mockResolvedValue({
+        items: [
+          { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 5, isDefault: false },
+          { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10, isDefault: true },
+        ],
+      });
+      renderHook(() => useDispatchMasterPlan());
+      await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenCalled());
+      expect(listZoneTruckPresenceMock).toHaveBeenCalledWith(expect.objectContaining({ zone: 'LACH_HUYEN' }));
+    });
+
+    it('selects the default-flagged zone wherever it sits in the taxonomy (card _6pt2 wave-2)', async () => {
+      // The flagged zone is neither first nor carrying the legacy slug —
+      // selection must ride the isDefault flag, not the code or the order.
+      getDispatchZonesMock.mockResolvedValue({
+        items: [
+          { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 5, isDefault: false },
+          { code: 'CANH_DUONG', label: 'Khu vực Cánh Dương', sortOrder: 10, isDefault: true },
+        ],
+      });
+      renderHook(() => useDispatchMasterPlan());
+      await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenCalled());
+      expect(listZoneTruckPresenceMock).toHaveBeenCalledWith(expect.objectContaining({ zone: 'CANH_DUONG' }));
+    });
+
+    it('falls back to the first zone when the deep-sea-cluster zone is absent', async () => {
+      getDispatchZonesMock.mockResolvedValue({
+        items: [{ code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 5 }],
+      });
+      listZoneTruckPresenceMock.mockResolvedValue({
+        date: '2026-08-24',
+        zone: 'HAI_PHONG',
+        zoneLabel: 'Cảng Hải Phòng',
+        items: [],
+      });
+      const { result } = renderHook(() => useDispatchMasterPlan());
+      await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenCalled());
+      expect(listZoneTruckPresenceMock).toHaveBeenCalledWith(expect.objectContaining({ zone: 'HAI_PHONG' }));
+      await waitFor(() => expect(result.current.presence?.zone).toBe('HAI_PHONG'));
+    });
   });
 });

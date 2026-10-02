@@ -10,6 +10,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { UuiSelectField } from '../design-system';
+import { billBookingReference } from '../lib/business-reference';
 
 // Feature: logic (.ts) + UI (.tsx)
 import { useTripDetailPage } from '../features/trip-detail';
@@ -47,7 +48,7 @@ export default function TripDetailPage() {
   /* ── Loading / Error / Empty guards ────────────────────────────────── */
   if (page.loading) {
     return (
-      <div className="tdp-loading">
+      <div className="tdp-loading" role="status" aria-live="polite">
         <Spinner size={20} />
         <span>Đang tải dữ liệu…</span>
       </div>
@@ -96,7 +97,7 @@ export default function TripDetailPage() {
         items={[
           { label: 'Tổng quan', to: '/dashboard' },
           { label: 'Sổ chuyến đi', to: '/trips' },
-          { label: trip.tripCode || 'Chuyến chưa có mã' },
+          { label: billBookingReference(trip.customerReference) },
         ]}
         renderLink={(to, children) => (
           <a onClick={() => navigate(to)} className="tdp-crumb-link">{children}</a>
@@ -240,11 +241,11 @@ export default function TripDetailPage() {
           </div>
 
           <div className="anim d3 tdp-card tdp-r2">
-            <FinancialCard derived={derived} customerCommission={Number(trip.customerCommission) || 0} />
+            <FinancialCard derived={derived} trip={trip} customerCommission={Number(trip.customerCommission) || 0} />
           </div>
 
           <div className="anim d4 tdp-card tdp-r3">
-            <FuelCard trip={trip} derived={derived} fuelPriceConfig={fuelPriceConfig} />
+            {trip.carrierType !== 'EXTERNAL' && <FuelCard trip={trip} derived={derived} fuelPriceConfig={fuelPriceConfig} />}
           </div>
 
           {trip.carrierType === 'EXTERNAL' && (
@@ -358,6 +359,19 @@ export default function TripDetailPage() {
             </div>
           </>
         )}
+
+        <div className="field">
+          <label htmlFor="reassignReason">Lý do điều chuyển *</label>
+          <textarea
+            id="reassignReason"
+            name="reassignReason"
+            rows={2}
+            className="input"
+            placeholder="Bắt buộc — ghi vào nhật ký nghiệp vụ cùng người thực hiện và thời gian"
+            value={ui.reassignReason}
+            onChange={e => page.setReassignReason(e.target.value)}
+          />
+        </div>
       </Modal>
 
       {/* ── Adjustment Drawer ───────────────────────────────────────────── */}

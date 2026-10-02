@@ -6,6 +6,7 @@ import {
   type OcrSettingsResponse,
 } from '@tingting/shared';
 import { getAppSettingsUpdatedAt } from '../services/config.service';
+import { acquireAdvisoryLock, lockKeys } from '../services/advisory-lock.service';
 import * as s from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
@@ -19,8 +20,9 @@ import {
   type OcrSettings,
 } from '../services/ocr-settings.service';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
+import { declareMaterialWrite } from '../middleware/material-write';
 
-const router = Router();
+const router = Router()
 const OCR_SETTINGS_COMMAND = 'admin.ocr-settings.update';
 const OCR_UPDATED_AT_KEYS = [OCR_SETTING_KEYS.enabled, OCR_SETTING_KEYS.openrouterApiKey] as const;
 
@@ -73,7 +75,7 @@ router.get(
 );
 
 router.put(
-  '/',
+  '/', declareMaterialWrite('admin.ocr-settings.update', { method: 'PUT', path: '/api/admin/ocr-settings/' }), 
   asyncHandler(async (req: Request, res: Response) => {
     const data = ocrSettingsUpdateSchema.parse(req.body);
     const idempotencyKey = requireIdempotencyKey(req);
@@ -90,9 +92,7 @@ router.put(
         // The idempotency service already locks per request key; this second
         // lock prevents two different keys with the same version from merging
         // stale provider values and silently overwriting each other.
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtextextended(${OCR_SETTINGS_COMMAND}, 0))`,
-        );
+        await acquireAdvisoryLock(tx, lockKeys.ocrSettingsCommand());
         const currentUpdatedAt = await getAppSettingsUpdatedAt(OCR_UPDATED_AT_KEYS, tx);
         assertOptionalVersion(
           currentUpdatedAt,

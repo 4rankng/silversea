@@ -8,7 +8,7 @@
  * puppeteer-driven smoke tests, API smoke, and the staging visual matrix).
  *
  * Conventions (shared across scripts/):
- *   - dev:    FRONTEND = http://localhost:7174   BACKEND = http://localhost:3001/api
+ *   - dev:    FRONTEND = http://localhost:7175   BACKEND = http://localhost:3002/api
  *   - staging: pass { frontend, backend } explicitly
  *   - demo password: "Abc123" (matches the demo accounts table in AGENTS.md)
  *
@@ -17,8 +17,8 @@
  * If you need a role that's not here, add it — never fork the table.
  */
 
-export const DEFAULT_FRONTEND = "http://localhost:7174";
-export const DEFAULT_BACKEND = "http://localhost:3001/api";
+export const DEFAULT_FRONTEND = "http://localhost:7175";
+export const DEFAULT_BACKEND = "http://localhost:3002/api";
 export const DEFAULT_PASSWORD = "Abc123";
 
 /**
@@ -32,7 +32,7 @@ export const DEFAULT_PASSWORD = "Abc123";
  * because the page is empty" from a "blank because the role can't see it".
  */
 export const ROLES = Object.freeze({
-  admin:    { username: "admin",    home: "/dashboard",              api: "/auth/users?limit=1" },
+  admin:    { username: "admin",    home: "/config",                 api: "/auth/users?limit=1" },
   giamdoc:  { username: "giamdoc",  home: "/dashboard",              api: "/trips?limit=1" },
   ketoan:   { username: "ketoan",   home: "/accounting",             api: "/recoverable-costs?limit=1" },
   cus:      { username: "cus",      home: "/shipments",              api: "/customers?limit=1" },

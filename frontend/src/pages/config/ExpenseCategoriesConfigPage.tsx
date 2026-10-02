@@ -5,6 +5,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { StatusText } from '../../components/shared/StatusText';
 import type { ExpenseCategory } from '@tingting/shared';
 
 function ExpenseCategoryForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
@@ -20,7 +21,7 @@ function ExpenseCategoryForm({ saving, item, onsave, oncancel, onDelete, deletin
     <InlineForm colSpan={5}>
       <div style={{ flex: 2, minWidth: 180 }}>
         <Field label="Tên hạng mục">
-          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Bảo hiểm, Đăng kiểm…" />
+          <input className="input" required pattern={'.*\\S.*'} value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Bảo hiểm, Đăng kiểm…" />
         </Field>
       </div>
       <div style={{ flex: 1, minWidth: 100, display: 'flex', alignItems: 'flex-end', paddingBottom: 18 }}>
@@ -78,7 +79,7 @@ export default function ExpenseCategoriesConfigPage() {
       colSpan={5}
       pageSlug="expense-categories"
       iconName="expense-category"
-      emptyIllustration="empty-expenses.svg"
+      emptyContext="expenses"
       emptyTitle="Chưa có hạng mục"
       emptyHint="Thêm hạng mục để phân loại chi phí khi ghi nhận."
       columns={[
@@ -90,20 +91,9 @@ export default function ExpenseCategoriesConfigPage() {
           header: 'Định kỳ',
           className: 'center',
           render: (cat) => (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: 26,
-              padding: '4px 10px',
-              borderRadius: 10,
-              fontSize: 'var(--text-caption-size)',
-              lineHeight: 1.3,
-              fontWeight: 600,
-              background: cat.isRenewable ? 'var(--success-soft, #ecfdf5)' : 'var(--bg-2)',
-              color: cat.isRenewable ? 'var(--success-text)' : 'var(--fg-2)',
-            }}>
+            <StatusText variant={cat.isRenewable ? 'success' : 'neutral'} dot={cat.isRenewable}>
               {cat.isRenewable ? 'Có' : 'Không'}
-            </span>
+            </StatusText>
           ),
         },
         {
@@ -114,20 +104,9 @@ export default function ExpenseCategoriesConfigPage() {
         {
           header: 'Trạng thái',
           render: (cat) => (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: 26,
-              padding: '4px 10px',
-              borderRadius: 10,
-              fontSize: 'var(--text-caption-size)',
-              lineHeight: 1.3,
-              fontWeight: 600,
-              background: cat.status === 'ACTIVE' ? 'var(--success-soft, #ecfdf5)' : 'var(--bg-2)',
-              color: cat.status === 'ACTIVE' ? 'var(--success-text)' : 'var(--fg-2)',
-            }}>
+            <StatusText variant={cat.status === 'ACTIVE' ? 'success' : 'neutral'} dot={cat.status === 'ACTIVE'}>
               {cat.status === 'ACTIVE' ? 'Hoạt động' : 'Ngừng'}
-            </span>
+            </StatusText>
           ),
         },
       ]}

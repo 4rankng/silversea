@@ -8,8 +8,8 @@ const source = readFileSync(resolve(process.cwd(), 'src/pages/DashboardPage.tsx'
 describe('dashboard introduction wrapping — DASH-POLISH-001', () => {
   it('keeps highlighted comparisons in the prose flow with an explicit visual gap', () => {
     expect(css).toMatch(/\.dash-wf \.wf-sum__change\s*\{[^}]*display:\s*inline;[^}]*padding-inline-start:\s*0\.15em;[^}]*line-height:\s*inherit;/);
-    expect(source).toContain('className="wf-sum__change wf-sum__change--positive"');
-    expect(source).toContain('className="wf-sum__change wf-sum__change--negative"');
+    expect(source).toContain("revenueMoM.direction === 'up' ? ' wf-sum__change--positive'");
+    expect(source).toContain("revenueMoM.direction === 'down' ? ' wf-sum__change--negative' : ''");
   });
 
   it('allows the summary column and long account names to wrap beside the actions', () => {
@@ -18,8 +18,10 @@ describe('dashboard introduction wrapping — DASH-POLISH-001', () => {
   });
 
   it('shows the actual revenue and describes a zero comparison baseline explicitly', () => {
-    expect(source).toContain('<b>{formatNumber(revenue)} ₫</b>');
-    expect(source).toContain("revenueMoM === 'Mới' ? 'Tháng trước chưa có doanh thu'");
+    expect(source).toContain("const revenue = d?.revenue ?? null;");
+    expect(source).toContain("<b>{revenue === null ? '—' : formatNumber(revenue)} ₫</b>");
+    expect(source).toContain("revenueMoM.label === 'Mới' && revenue > 0 ? 'Tháng trước chưa có doanh thu'");
+    expect(source).toContain('revenue !== null && prevPnlReport && prevRevenue != null');
     expect(source).not.toContain("có doanh thu{' '}");
   });
 });

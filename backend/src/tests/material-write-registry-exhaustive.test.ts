@@ -15,6 +15,9 @@ import {
   listDeclaredMaterialWriteEndpoints,
   matchDeclaredMaterialWrite,
 } from '../middleware/material-write';
+// Migrated route families self-declare their registry rows at import time
+// (card 20260930_230); importing the registration module registers them here.
+import '../routes/material-write-registration';
 
 const routesRoot = path.resolve(process.cwd(), 'src/routes');
 const catalogCrudRoutePath = path.join(routesRoot, 'config/catalog-crud.routes.ts');
@@ -26,6 +29,7 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['auth.ts|POST|/login', 'Authentication session creation; no business entity mutation.'],
   ['auth.ts|POST|/logout', 'Authentication session revocation; independently token-bound and replay-safe.'],
   ['financial/reports.routes.ts|POST|/reports/distribute-profit/preview', 'Read-only calculation preview.'],
+  ['config/quotations.routes.ts|POST|/import', 'Read-only xlsx parse/validate preview — "Preview never writes" (landed contract, card 20260922_57); no DB write.'],
   ['financial/billing-documents.routes.ts|POST|/finance/billing-documents/generate', 'Read-only draft generation preview.'],
   ['forwarder/advances.ts|POST|/advance-settlements/preview', 'Read-only settlement calculation preview.'],
   ['shipments/core.routes.ts|POST|/pricing-preview', 'Read-only shipment pricing calculation preview.'],
@@ -48,9 +52,8 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['ops.ts|POST|/expenses/:id/photos', 'Attach keyed by the unique (ops_expense_id, storage_key) pair with onConflictDoNothing — a replay converges instead of duplicating evidence.'],
   ['ops.ts|DELETE|/expense-photos/:id', 'Idempotent single-row photo deletion; the storage object is removed only when no other row references it.'],
   ['ops.ts|PUT|/trucks/:truckId/ops-assignment', 'Replaceable ops-oversight config: deactivate-then-insert converges to one active row per truck; a replay lands the same end state.'],
-  ['expense.ts|POST|/:id/check', 'Dual-control review state transition (CHECK); idempotent by status guard — re-checking a CHECKED expense is a no-op. No financial mutation.'],
-  ['expense.ts|POST|/:id/approve', 'Dual-control review state transition (APPROVE); idempotent by status guard — re-approving an APPROVED expense is a no-op. No financial mutation.'],
-  ['expense.ts|POST|/:id/reject', 'Dual-control review state transition (REJECT); idempotent by status guard — re-rejecting a REJECTED expense is a no-op. No financial mutation.'],
+  // The three expense.ts dual-control entries (check/approve/reject) were dead
+  // rows — KP-150 removed those endpoints while the map kept them.
 ]);
 
 // Explicitly retired endpoints must remain response-only. Unlike an unscoped
@@ -69,10 +72,10 @@ function assertRetiredResponseOnly(route: { sourceKey: string; sourceBody: strin
   const statement = parsed.statements[0];
   assert.ok(statement && ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression));
   const declaration = statement.expression;
-  assert.ok(declaration.arguments.length === 2 || declaration.arguments.length === 3, `${route.sourceKey}: unexpected middleware or handler`);
-  if (declaration.arguments.length === 3) {
-    assert.match(declaration.arguments[1].getText(parsed), /^requireRoles\(Role\.[A-Z_]+(?:, Role\.[A-Z_]+)*\)$/,
-      `${route.sourceKey}: only static role authorization may precede the retired handler`);
+  assert.ok(declaration.arguments.length >= 2 && declaration.arguments.length <= 4, `${route.sourceKey}: unexpected middleware or handler`);
+  for (const argument of declaration.arguments.slice(1, -1)) {
+    assert.match(argument.getText(parsed), /^(?:requireRoles\(Role\.[A-Z_]+(?:, Role\.[A-Z_]+)*\)|declareNonMaterialWrite\('[^']+'\))$/,
+      `${route.sourceKey}: only static role authorization or the non-material declaration may precede the retired handler`);
   }
   const handler = declaration.arguments[declaration.arguments.length - 1];
   assert.ok(ts.isArrowFunction(handler) && ts.isBlock(handler.body));
@@ -87,6 +90,14 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
   serviceFile: string;
   marker: string;
 }>([
+  ['config/customers.routes.ts|POST|/bulk-notify', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/customers-screen.service.ts'),
+    marker: "endpoint: 'customers.bulk-notify'",
+  }],
+  ['config/customers.routes.ts|POST|/bulk-status', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/customers-screen.service.ts'),
+    marker: "endpoint: 'customers.bulk-status'",
+  }],
   ['config/master-data-import.routes.ts|POST|/:id/apply', {
     serviceFile: path.resolve(process.cwd(), 'src/services/master-data-import.service.ts'),
     marker: 'endpoint: MASTER_IMPORT_APPLY_ENDPOINT',
@@ -207,6 +218,26 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-commands.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH',
   }],
+  ['shipments/core.routes.ts|POST|/debit-notes', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_CONSOLIDATED',
+  }],
+  ['shipments/core.routes.ts|POST|/:id/lock', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_LOCK',
+  }],
+  ['shipments/core.routes.ts|POST|/:id/cost-adjustments', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
+    marker: 'eq(s.shipmentCostAdjustments.idempotencyKey, input.idempotencyKey)',
+  }],
+  ['shipments/core.routes.ts|PUT|/:id/debit-edits', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-debit-detail.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_EDITS',
+  }],
+  ['shipments/core.routes.ts|POST|/:id/debit-note', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_FROM_LOCK',
+  }],
   ['shipments/dispatch-planning.routes.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/plate', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-detail-plan.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLATE_ASSIGN',
@@ -227,10 +258,7 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/trip-external-close.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DISPATCH_EXTERNAL_FULFILLMENT_COMPLETE',
   }],
-  ['shipments/pod.routes.ts|POST|/:id/pod-reviews/:submissionId/review', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-review.service.ts'),
-    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW',
-  }],
+  
   ['shipments/core.routes.ts|POST|/:id/complete', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-lifecycle.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COMPLETE',
@@ -243,10 +271,7 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-governance.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST',
   }],
-  ['shipments/cus-workspace.routes.ts|POST|/cus-workspace/:id/delete-requests/:actionId/decision', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-governance.service.ts'),
-    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST_DECISION',
-  }],
+  
   ['shipments/cus-workspace.routes.ts|POST|/cus-workspace/:id/container-edit-request', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-governance.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.CONTAINER_EDIT_REQUEST',
@@ -680,8 +705,11 @@ function extractGeneratedCrudEndpoints(): string[] {
   addCrudEndpoints('/business-calendar', 'businessCalendarDays');
   addCrudEndpoints('/ancillary-revenue', 'ancillaryRevenue');
 
-  for (const match of source.matchAll(/router\.use\('([^']+)',\s*createCrudRouter\(s\.([A-Za-z0-9]+),/g)) {
-    addCrudEndpoints(match[1], match[2], match[2] === 'drivers');
+  // [\s\S] spans newlines and inline middleware args are skipped, so a
+  // multi-line router.use( mount (path, gate, then factory) still counts as
+  // a factory mount — it must not evade this registry.
+  for (const match of source.matchAll(/router\.use\(\s*'([^']+)',(?:(?!router\.use\()[\s\S])*?createCrudRouter\(s\.([A-Za-z0-9]+),/g)) {
+    addCrudEndpoints(match[1], match[2], match[2] === 'drivers' || match[2] === 'dispatchZones');
   }
 
   return [...endpoints];
@@ -706,6 +734,11 @@ describe('material-write registry coverage', () => {
     const uncovered: string[] = [];
     for (const route of extractMountedMutationRoutes()) {
       if (REVIEWED_NON_MATERIAL_MUTATIONS.has(route.sourceKey)) continue;
+      // Mount-site declaration (card 20260930_230): a non-material marker at
+      // the mount replaces this map's exemption; a material marker's rule is
+      // generated by the boot install.
+      if (route.sourceBody.includes('declareNonMaterialWrite(')) continue;
+      if (route.sourceBody.includes('declareMaterialWrite(')) continue;
       if (assertRetiredResponseOnly(route)) continue;
       if (!matchDeclaredMaterialWrite(route.method, route.routePath)) {
         uncovered.push(`${route.sourceKey} => ${route.method} ${route.routePath}`);
@@ -717,6 +750,7 @@ describe('material-write registry coverage', () => {
   test('every inventoried material mutation reaches a reviewed durable command boundary', () => {
     for (const route of extractMountedMutationRoutes()) {
       if (REVIEWED_NON_MATERIAL_MUTATIONS.has(route.sourceKey)) continue;
+      if (route.sourceBody.includes('declareNonMaterialWrite(')) continue;
       if (assertRetiredResponseOnly(route)) continue;
       const delegated = REVIEWED_SERVICE_DURABLE_BOUNDARIES.get(route.sourceKey);
       if (delegated) {
@@ -779,6 +813,8 @@ describe('material-write registry coverage', () => {
       ['POST', '/api/expense-categories', 'config.expense_categories.create'],
       ['PUT', '/api/expense-categories/11', 'config.expense_categories.update'],
       ['DELETE', '/api/expense-categories/11', 'config.expense_categories.delete'],
+      ['POST', '/api/customers/bulk-notify', 'customers.bulk-notify'],
+      ['POST', '/api/customers/bulk-status', 'customers.bulk-status'],
       ['POST', '/api/debit-note-templates', 'config.debit-note-templates.create'],
       ['PUT', '/api/debit-note-templates/5', 'config.debit-note-templates.update'],
       ['DELETE', '/api/debit-note-templates/5', 'config.debit-note-templates.delete'],
@@ -787,25 +823,21 @@ describe('material-write registry coverage', () => {
       ['PUT', '/api/salary-periods/2026-07', 'config.salary-periods.override.update'],
       ['DELETE', '/api/salary-periods/2026-07', 'config.salary-periods.override.delete'],
       ['POST', '/api/salary-periods/2026-07/exclusions', 'config.salary-periods.exclusion.create'],
-      ['POST', '/api/salary-periods/2026-07/exclusions/9/check', 'config.salary-periods.exclusion.check'],
-      ['POST', '/api/salary-periods/2026-07/exclusions/9/approve', 'config.salary-periods.exclusion.approve'],
+      // The six governance-action cases (exclusions/close/reopen -actions
+      // check|approve) were removed with the action routes themselves — no
+      // `-actions` mount exists anywhere in src (approval-workflow removal;
+      // registry rows pruned with them, card 20260930_230).
       ['POST', '/api/salary-periods/2026-07/exclusions/9/complete-followup', 'config.salary-periods.exclusion.followup.complete'],
       ['POST', '/api/salary-periods/2026-07/close', 'config.salary-periods.close.request'],
-      ['POST', '/api/salary-periods/2026-07/close-actions/9/check', 'config.salary-periods.close.check'],
-      ['POST', '/api/salary-periods/2026-07/close-actions/9/approve', 'config.salary-periods.close.approve'],
       ['POST', '/api/salary-periods/2026-07/reopen', 'config.salary-periods.reopen.request'],
-      ['POST', '/api/salary-periods/2026-07/reopen-actions/9/check', 'config.salary-periods.reopen.check'],
-      ['POST', '/api/salary-periods/2026-07/reopen-actions/9/approve', 'config.salary-periods.reopen.approve'],
-      ['POST', '/api/salary/periods/2026-07/issue-actions/9/check', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK],
-      ['POST', '/api/salary/periods/2026-07/issue-actions/9/approve', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE],
-      ['POST', '/api/salary/periods/2026-07/post-actions/9/check', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK],
-      ['POST', '/api/salary/periods/2026-07/post-actions/9/approve', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE],
       ['POST', '/api/business-calendar', 'config.business_calendar_days.create'],
       ['PUT', '/api/business-calendar/3', 'config.business_calendar_days.update'],
       ['DELETE', '/api/business-calendar/3', 'config.business_calendar_days.delete'],
       ['POST', '/api/ancillary-revenue', 'config.ancillary_revenue.create'],
       ['PUT', '/api/ancillary-revenue/3', 'config.ancillary_revenue.update'],
       ['DELETE', '/api/ancillary-revenue/3', 'config.ancillary_revenue.delete'],
+      // The salary issue/post-actions cases were removed with their mounts
+      // (approval-workflow relics; registry rows pruned, card 20260930_230).
       ['POST', '/api/finance/fuel-invoices/123/corrections', 'fuel-invoices.correction.create'],
       ['POST', '/api/shipments/123/complete', IDEMPOTENCY_ENDPOINTS.SHIPMENT_COMPLETE],
     ] as const;
@@ -825,4 +857,10 @@ describe('material-write registry coverage', () => {
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CREATE,
     );
   });
+});
+
+
+test('confirmed correction and reconciliation release declare their material audit boundaries', () => {
+  assert.equal(matchDeclaredMaterialWrite('POST', '/api/expense-accounting/entries/OPS/1/correct')?.endpoint, 'expense-accounting.correct');
+  assert.equal(matchDeclaredMaterialWrite('POST', '/api/expense-accounting/reconciliations/1/release')?.endpoint, 'expense-reconciliation.release');
 });

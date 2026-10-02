@@ -8,6 +8,14 @@ import { getOpsSettlementDetail } from './ops-settlements.service';
 import { formatVND } from '../lib/format';
 
 const MONEY_FORMAT = '#,##0';
+const EXPENSE_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Nháp',
+  RECORDED: 'Đã ghi nhận',
+  VOIDED: 'Đã hủy',
+  APPROVED: 'Đã ghi nhận',
+  PENDING: 'Chưa ghi nhận (dữ liệu cũ)',
+  REJECTED: 'Đã từ chối (dữ liệu cũ)',
+};
 
 export async function exportOpsSettlementXlsx(
   settlementId: number,
@@ -26,16 +34,15 @@ export async function exportOpsSettlementXlsx(
 
   const title = sheet.addRow([`ĐỀ NGHỊ THANH TOÁN ${settlement.code}`]);
   title.font = { bold: true, size: 13 };
-  sheet.addRow([`Người lập: ${settlement.opsUserName ?? settlement.opsUserId}`]);
+  sheet.addRow([`Người lập: ${settlement.opsUserName ?? '—'}`]);
   sheet.addRow([`Ngày lập: ${new Date(settlement.createdAt).toLocaleDateString('vi-VN')}`]);
   if (settlement.note) sheet.addRow([`Ghi chú: ${settlement.note}`]);
   sheet.addRow([]);
 
   for (const group of grouping.groups) {
     const header = sheet.addRow([
-      `Lô ${group.shipmentCode ?? group.shipmentId}`,
+      `Lô ${group.billRef?.trim() || 'Chưa có số Bill/Booking'}`,
       group.customerName ?? '',
-      `Bill/Booking: ${group.billRef ?? '—'}`,
     ]);
     header.font = { bold: true };
 
@@ -51,7 +58,7 @@ export async function exportOpsSettlementXlsx(
           item.containerNumber ?? 'Phí chung lô',
           item.expenseTypeName ?? '',
           Number(item.amount),
-          item.approvalStatus === 'APPROVED' ? 'Đã duyệt' : 'Chờ duyệt',
+          EXPENSE_STATUS_LABELS[item.approvalStatus] ?? item.approvalStatus,
         ]);
         row.getCell(3).numFmt = MONEY_FORMAT;
       }
@@ -60,7 +67,7 @@ export async function exportOpsSettlementXlsx(
       subtotal.getCell(3).numFmt = MONEY_FORMAT;
     }
 
-    const groupTotal = sheet.addRow(['', `Tổng lô ${group.shipmentCode ?? ''}`, Number(group.total), '']);
+    const groupTotal = sheet.addRow(['', `Tổng lô ${group.billRef?.trim() || 'Chưa có số Bill/Booking'}`, Number(group.total), '']);
     groupTotal.font = { bold: true };
     groupTotal.getCell(3).numFmt = MONEY_FORMAT;
     sheet.addRow([]);
@@ -78,7 +85,7 @@ export async function exportOpsSettlementXlsx(
   sheet.addRow([]);
   sheet.addRow([]);
   const signatures = sheet.addRow([
-    'Người lập (Ops)', '', '', '', 'Kế toán duyệt',
+    'Người lập (Ops)', '', '', '', 'Kế toán',
   ]);
   signatures.font = { bold: true };
   sheet.addRow(['(Ký, ghi rõ họ tên)', '', '', '', '(Ký, ghi rõ họ tên)']);

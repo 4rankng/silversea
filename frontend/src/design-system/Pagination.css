@@ -17,6 +17,20 @@
   color: var(--fg-3, var(--ink-3));
 }
 
+.ds-pagination__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+  white-space: nowrap;
+}
+
+.ds-pagination__size .ds-uui-select__control { --field-font-size: var(--text-control-compact-size, var(--text-caption-size)); }
+
+@media (max-width: 640px), (pointer: coarse) {
+  .ds-pagination__size .ds-uui-select__control { min-height: var(--control-touch-h); }
+}
+
 .ds-pagination__summary b {
   color: var(--ink, var(--fg));
   font-weight: 600;
@@ -41,7 +55,7 @@
 .ds-pagination__jump input {
   width: 54px;
   min-width: 0;
-  min-height: 44px;
+  min-height: var(--control-touch-h);
   padding: 4px;
   border: 1px solid var(--line-2);
   border-radius: var(--r-sm);
@@ -81,8 +95,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-touch-h);
+  min-height: var(--control-touch-h);
   padding: 0 8px;
   border-radius: 9px;
   border: 1px solid var(--line);
@@ -128,7 +142,7 @@
   align-items: center;
   justify-content: center;
   min-width: 24px;
-  min-height: 44px;
+  min-height: var(--control-touch-h);
   color: var(--fg-3, var(--ink-3));
   font-size: var(--text-control-size);
   line-height: 1.35;
@@ -154,8 +168,8 @@
   }
 
   .ds-pagination__btn {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--control-touch-h);
+    min-height: var(--control-touch-h);
   }
 }
 

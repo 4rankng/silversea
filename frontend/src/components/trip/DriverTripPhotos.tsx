@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
-import { getAuthenticatedPhotoUrl } from '../../lib/api';
+import { useAuthedPhotoUrl } from '../../lib/api/photo';
 
 /**
  * Shared photo primitives for the driver trip surfaces (structure-guard
@@ -9,47 +8,29 @@ import { getAuthenticatedPhotoUrl } from '../../lib/api';
  * `/api/photos/…` URL.
  */
 
-/** Normalize a stored photo reference to an authenticated `/api/photos/` URL.
- *  Bare keys are encoded so the slashes survive as a single path segment that
- *  the wildcard photo route decodes. */
-export function photoSrc(value: string | null | undefined): string {
-  if (!value) return '';
-  const url = value.startsWith('/api/photos/') ? value : `/api/photos/${encodeURIComponent(value)}`;
-  return getAuthenticatedPhotoUrl(url);
-}
-
 function EmptyThumb({ label }: { label: string }) {
   return <div className="dcc-bento__thumb-empty"><ImageOff size={15} /><span>{label}</span></div>;
 }
 
-/** One bento thumbnail: preflight the protected photo URL so missing files render
- *  as a calm placeholder instead of a broken browser image on the driver phone. */
+/** One bento thumbnail. The protected photo loads through an Authorization-
+ *  header blob fetch (DRV-DET-08 — never a `?token=` URL), so a missing or
+ *  denied file renders as a calm placeholder instead of a broken browser image
+ *  on the driver phone. */
 export function BentoThumb({ photoKey, label }: { photoKey: string | null; label: string }) {
-  const [src, setSrc] = useState('');
-
-  useEffect(() => {
-    if (!photoKey) {
-      setSrc('');
-      return;
-    }
-
-    const nextSrc = photoSrc(photoKey);
-    const controller = new AbortController();
-
-    fetch(nextSrc, { method: 'HEAD', signal: controller.signal })
-      .then(response => {
-        setSrc(response.ok ? nextSrc : '');
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setSrc('');
-      });
-
-    return () => controller.abort();
-  }, [photoKey]);
+  const src = useAuthedPhotoUrl(photoKey);
 
   return src
-    ? <img className="dcc-bento__thumb" src={src} alt={`Ảnh ${label.toLowerCase()}`} onError={() => setSrc('')} />
+    ? <img className="dcc-bento__thumb" src={src} alt={`Ảnh ${label.toLowerCase()}`} />
     : <EmptyThumb label={label} />;
+}
+
+/** An authenticated `<img>` for a protected photo reference: same blob-fetch
+ *  contract as `BentoThumb` without the bento frame, and nothing at all while
+ *  the read is pending or denied. */
+export function AuthedPhotoImg({ photoKey, className, alt }: { photoKey: string | null; className?: string; alt: string }) {
+  const src = useAuthedPhotoUrl(photoKey);
+
+  return src ? <img className={className} src={src} alt={alt} /> : null;
 }
 
 /** One bento thumbnail: the photo if `key` is present and valid, else a labelled

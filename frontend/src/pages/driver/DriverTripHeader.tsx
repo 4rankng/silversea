@@ -1,33 +1,38 @@
-import { useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../../components/UI';
 import { tripStatusVariant } from '../../lib/tripStatus';
 import type { DriverTaskDetail } from '../../api/driverClient';
 
 /**
- * 2a618442: collapsible TÁC VỤ TÀI XẾ header, extracted from
- * DriverTripDetailPage (structure-guard split). DEFAULT EXPANDED — the
- * mockup renders the section open; collapsing is the driver's on-demand
- * space-saving opt-out (customer: "có thể thu nhỏ… đỡ chiếm diện tích").
+ * Card 20260926_26 item 4: the title block is two lines (~120px, was ~250px).
  *
- * Factory identity leads the heading in BOTH states (short name, full-name
- * fallback), with the route line subordinate beneath it. The route line
- * carries ROUTE TEXT ONLY — never the factory address, which has its
- * dedicated row in the info grid. It renders whenever it differs from the
- * title; without a factory name the title falls back to the route and the
- * line hides (it would duplicate the title). Collapsing only hides the
- * customer name; the status pill and the Đóng/Trả chip stay visible in
- * both states.
+ * Line 1 — back + số chứng từ (Số Bill / Số Booking — the carrier's business
+ * number; fallback chain: document number → factory → route → generic label).
+ * Card 20260927_1: the internal shipment code (SHP-YYMM-NNNNN) never titles
+ * this line — it means nothing to the driver.
+ * Line 2 — location (factory short name, full-name fallback) + status pill,
+ * plus the Đóng/Trả chip and customer name inline. The eyebrow ("Tác vụ tài
+ * xế") and the standalone route line are gone: the eyebrow is shell chrome
+ * the bottom nav already states, and the ports in the info grid carry the
+ * route, so route text no longer earns a line of its own.
  */
 export function DriverTripHeader({ trip, onBack }: { trip: DriverTaskDetail; onBack: () => void }) {
-  // Per-session persistence, same mechanism as the chips toggle.
-  const [expanded, setExpanded] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   // Route text only — the factory site address never rides this line.
   const routeLine = fulfillment?.routeSummary ?? trip.routeName ?? null;
-  const title = fulfillment?.factoryShortName || fulfillment?.factoryName || trip.routeName || 'Lệnh vận chuyển';
-  const headerHasFactoryTitle = Boolean(fulfillment?.factoryShortName || fulfillment?.factoryName);
+  const factoryTitle = fulfillment?.factoryShortName || fulfillment?.factoryName || null;
+  // Card 20260927_1: the driver reads the CARRIER'S document
+  // number, never our system key. `fulfillment.code` is the internal
+  // SHP-YYMM-NNNNN shipment code (ops/dispatch bookkeeping) — the business key
+  // is Số Bill (IMPORT) / Số Booking (EXPORT), resolved direction-first by the
+  // API client. Factory/route remain the honest fallback for records whose
+  // documents were never filled in.
+  const title = fulfillment?.documentNumber || factoryTitle || routeLine || 'Lệnh vận chuyển';
+  // Line-2 location: the destination the driver scans for first. Hidden when
+  // it would duplicate the title (no-code trips render the location as it).
+  const location = factoryTitle || routeLine;
+  const locationShown = Boolean(location) && location !== title;
 
   return (
     <header className="driver-task-header">
@@ -35,12 +40,11 @@ export function DriverTripHeader({ trip, onBack }: { trip: DriverTaskDetail; onB
         <ArrowLeft size={18} />
       </button>
       <div className="driver-task-header__body">
-        <p className="driver-task-header__eyebrow">Tác vụ tài xế</p>
         <h1 className="driver-task-header__title">{title}</h1>
-        {Boolean(routeLine) && title !== routeLine && headerHasFactoryTitle && (
-          <p className="driver-task-header__route">{routeLine}</p>
-        )}
         <div className="driver-task-header__meta">
+          {locationShown && (
+            <span className="driver-task-header__location">{location}</span>
+          )}
           <StatusPill variant={tripStatusVariant(trip.status)}>
             {TRIP_STATUS_LABELS[trip.status] || trip.status}
           </StatusPill>
@@ -52,20 +56,11 @@ export function DriverTripHeader({ trip, onBack }: { trip: DriverTaskDetail; onB
               {trip.tradeDirection === 'EXPORT' ? 'Đóng' : trip.tradeDirection === 'IMPORT' ? 'Trả' : '—'}
             </span>
           ) : null}
-          {expanded && trip.customerName && (
+          {trip.customerName && (
             <span className="driver-task-header__customer">{trip.customerName}</span>
           )}
         </div>
       </div>
-      <button
-        type="button"
-        className="driver-task-header__toggle"
-        aria-expanded={expanded}
-        aria-label={expanded ? 'Thu gọn thông tin tác vụ' : 'Mở rộng thông tin tác vụ'}
-        onClick={() => setExpanded((v) => !v)}
-      >
-        {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
     </header>
   );
 }

@@ -1,4 +1,6 @@
 {
+  "version": "7",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
@@ -129,21 +131,21 @@
     {
       "idx": 18,
       "version": "7",
-      "when": 1786980104882,
+      "when": 1786980105881,
       "tag": "0018_add-supplier-short-name",
       "breakpoints": true
     },
     {
       "idx": 19,
       "version": "7",
-      "when": 1786980104883,
+      "when": 1786980106881,
       "tag": "0019_backfill-supplier-short-name",
       "breakpoints": true
     },
     {
       "idx": 20,
       "version": "7",
-      "when": 1786980104884,
+      "when": 1786980107881,
       "tag": "0020_require-supplier-short-name",
       "breakpoints": true
     },
@@ -157,21 +159,21 @@
     {
       "idx": 22,
       "version": "7",
-      "when": 1787108514056,
+      "when": 1787108515055,
       "tag": "0022_backfill-dispatch-zone-classification",
       "breakpoints": true
     },
     {
       "idx": 23,
       "version": "7",
-      "when": 1787108514057,
+      "when": 1787108516055,
       "tag": "0023_merge-duplicate-lach-huyen-hict-port",
       "breakpoints": true
     },
     {
       "idx": 24,
       "version": "7",
-      "when": 1787108514058,
+      "when": 1787108517055,
       "tag": "0024_create-dispatch-zones",
       "breakpoints": true
     },
@@ -276,7 +278,7 @@
     {
       "idx": 39,
       "version": "7",
-      "when": 1787498798677,
+      "when": 1787498799677,
       "tag": "0039_adorable_hairball",
       "breakpoints": true
     },
@@ -416,14 +418,14 @@
     {
       "idx": 59,
       "version": "7",
-      "when": 1788778751582,
+      "when": 1788778752581,
       "tag": "0059_add-missing-dispatch-task-tags",
       "breakpoints": false
     },
     {
       "idx": 60,
       "version": "7",
-      "when": 1788778751583,
+      "when": 1788778753581,
       "tag": "0060_unique-bl-declaration-indexes",
       "breakpoints": false
     },
@@ -493,28 +495,28 @@
     {
       "idx": 70,
       "version": "7",
-      "when": 1789269610891,
+      "when": 1789269611890,
       "tag": "0074_gorgeous_tinkerer",
       "breakpoints": true
     },
     {
       "idx": 71,
       "version": "7",
-      "when": 1789269610892,
+      "when": 1789269612890,
       "tag": "0075_brief_firestar",
       "breakpoints": true
     },
     {
       "idx": 72,
       "version": "7",
-      "when": 1789269610893,
+      "when": 1789269613890,
       "tag": "0076_broken_la_nuit",
       "breakpoints": true
     },
     {
       "idx": 73,
       "version": "7",
-      "when": 1789269610894,
+      "when": 1789269614890,
       "tag": "0077_trip_factory_site_snapshot",
       "breakpoints": true
     },
@@ -563,7 +565,7 @@
     {
       "idx": 80,
       "version": "7",
-      "when": 1789400000001,
+      "when": 1789400001000,
       "tag": "0084_advance_direct_effect_statuses",
       "breakpoints": true
     },
@@ -577,7 +579,7 @@
     {
       "idx": 82,
       "version": "7",
-      "when": 1789402879843,
+      "when": 1789402880842,
       "tag": "0086_restore_missing_pricing_schema",
       "breakpoints": true
     },
@@ -619,15 +621,325 @@
     {
       "idx": 88,
       "version": "7",
-      "when": 1789570029711,
+      "when": 1789570029000,
       "tag": "20260916144709_expense_accounting",
       "breakpoints": true
     },
     {
       "idx": 89,
       "version": "7",
-      "when": 1789572048120,
+      "when": 1789572048000,
       "tag": "20260916152048_treasury_fund_classification",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1789614472000,
+      "tag": "20260917030752_release_expense_reconciliation",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1789659166000,
+      "tag": "20260917153246_surcharge_terms_confirmation",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1789744800000,
+      "tag": "20260918152000_shipment_container_raw_factory_route",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1789765200000,
+      "tag": "20260918210000_shipment_cost_locks",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1789765201000,
+      "tag": "20260918144811_shipment_container_ps_actual",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1789787053000,
+      "tag": "20260919030413_slow_star_brand",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1789823400000,
+      "tag": "20260919131000_expense_type_category",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1789826400000,
+      "tag": "20260919140000_declaration_customs_channel",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1789839000000,
+      "tag": "20260919173000_trip_children_trip_fks",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1789844400000,
+      "tag": "20260919190000_port_identity_out_of_code",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1789848000000,
+      "tag": "20260919200000_debit_trip_scope_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1789849800000,
+      "tag": "20260919203000_shipment_children_fks",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1789851600000,
+      "tag": "20260919210000_ports_code_partial_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1789853400000,
+      "tag": "20260919213000_align_expense_type_invoice_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "when": 1789853401000,
+      "tag": "20260919161608_shipment_code_counter"
+    },
+    {
+      "idx": 105,
+      "when": 1789853402000,
+      "tag": "20260919163645_port_zone_surcharges"
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1790004094143,
+      "tag": "20260921231000_card6_driver_fee_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1790006609767,
+      "tag": "20260922001000_card7_driver_fee_norms",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1790006751286,
+      "tag": "20260922001500_card7_fee_norm_code_column",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1790015092322,
+      "tag": "20260922030000_card18_invoice_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1790016906041,
+      "tag": "20260922033500_card13_phoi_meta",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1790019351751,
+      "tag": "20260922034000_card14_driver_entered_amount",
+      "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1790022965741,
+      "tag": "20260922043000_card19_deposit_refund_trackers",
+      "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1790041113449,
+      "tag": "20260922013200_card21_shipment_debit_adjustments",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1790052092585,
+      "tag": "20260922124500_card9_merge_legacy_fund_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1790063366879,
+      "tag": "20260922074926_dispatch-zone-port-facet",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1790089200000,
+      "tag": "20260922230000_card63_sitc_lach_huyen_port",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1790089514000,
+      "tag": "20260922231200_card58_container_price_classes",
+      "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1790090007655,
+      "tag": "20260922151327_eminent_guardsmen",
+      "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1790097600000,
+      "tag": "20260923001500_card78_q10_deletion_trail",
+      "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1790098500000,
+      "tag": "20260923010000_card78_ops_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1790125395590,
+      "tag": "20260923010315_polite_rafael_vega",
+      "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1790127773936,
+      "tag": "20260923014253_kind_vivisector",
+      "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1790130280192,
+      "tag": "20260923090000_card61_fuel_approvals",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1790159846888,
+      "tag": "20260923103726_chubby_morph",
+      "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1790161443744,
+      "tag": "20260923110403_neat_namora",
+      "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1790174057282,
+      "tag": "20260923143417_quick_human_fly",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1790219709224,
+      "tag": "20260924035509_seed_name_suffix_strip",
+      "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1790220798228,
+      "tag": "20260924113318_dedicated_depot_routing_rename",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1790221951063,
+      "tag": "20260924115231_strip_residual_disambiguate",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1790227656074,
+      "tag": "20260924021509_high_valkyrie",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1790404801327,
+      "tag": "20260926064001_classy_stick",
+      "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1790598363290,
+      "tag": "20260928202603_retire_duplicate_fee_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1790685752224,
+      "tag": "20260929204221_container_payload_iso"
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1790929014278,
+      "tag": "20261002161654_drop_declaration_customs_channel",
       "breakpoints": true
     }
   ]

@@ -3,6 +3,23 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from urllib.parse import urlparse
+
+
+def wait_for_login_home(page, path):
+    """Wait for the real login result instead of sampling a pending request."""
+    try:
+        page.wait_for_url(lambda url: urlparse(url).path == path, timeout=15000)
+    except PlaywrightTimeoutError:
+        return False
+    return urlparse(page.url).path == path
+
+
+def login_failure_detail(page, expected_path):
+    error = page.locator('#login-error')
+    detail = error.inner_text() if error.count() else 'No rendered credential error'
+    return f'Expected {expected_path}, got {page.url}; {detail}'
 
 def test_auth(ctx: SilverseaTestContext, results: TestResults):
     # ── 5.1 Happy Path ──
@@ -13,12 +30,10 @@ def test_auth(ctx: SilverseaTestContext, results: TestResults):
     page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', 'giamdoc')
     page.fill('input[type="password"]', 'Abc123')
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
-    page.wait_for_load_state('networkidle')
-    page.wait_for_timeout(1000)
-    if '/dashboard' in page.url:
+    if wait_for_login_home(page, '/dashboard'):
         results.pass_('TC-0001', 'Login by username → /dashboard')
     else:
-        results.fail('TC-0001', 'Login by username', f'Expected /dashboard, got {page.url}')
+        results.fail('TC-0001', 'Login by username', login_failure_detail(page, '/dashboard'))
     ctx.screenshot(page, 'TC-0001_login_username')
     page.close()
 
@@ -29,12 +44,10 @@ def test_auth(ctx: SilverseaTestContext, results: TestResults):
     page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', 'laixe')
     page.fill('input[type="password"]', 'Abc123')
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
-    page.wait_for_load_state('networkidle')
-    page.wait_for_timeout(1000)
-    if '/my-trips' in page.url:
+    if wait_for_login_home(page, '/my-trips'):
         results.pass_('TC-0004', 'Login DRIVER → /my-trips')
     else:
-        results.fail('TC-0004', 'Login DRIVER', f'Expected /my-trips, got {page.url}')
+        results.fail('TC-0004', 'Login DRIVER', login_failure_detail(page, '/my-trips'))
     page.close()
 
     # TC-0004b: Login as OPS → /my-orders
@@ -44,12 +57,10 @@ def test_auth(ctx: SilverseaTestContext, results: TestResults):
     page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', 'giaonhan')
     page.fill('input[type="password"]', 'Abc123')
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
-    page.wait_for_load_state('networkidle')
-    page.wait_for_timeout(1000)
-    if '/my-orders' in page.url:
+    if wait_for_login_home(page, '/my-orders'):
         results.pass_('TC-0004b', 'Login OPS → /my-orders')
     else:
-        results.fail('TC-0004b', 'Login OPS', f'Expected /my-orders, got {page.url}')
+        results.fail('TC-0004b', 'Login OPS', login_failure_detail(page, '/my-orders'))
     page.close()
 
     # TC-0006: Logout
@@ -99,10 +110,8 @@ def test_auth(ctx: SilverseaTestContext, results: TestResults):
     resp = api.login('giamdoc', 'wrongpassword')
     if resp.get('error') and resp.get('status') == 401:
         results.pass_('TC-0011', 'Wrong password → 401')
-    elif resp.get('error'):
-        results.pass_('TC-0011', 'Wrong password → auth error')
     else:
-        results.fail('TC-0011', 'Wrong password', f'Expected auth error, got {resp}')
+        results.fail('TC-0011', 'Wrong password', f'Expected HTTP 401, got {resp}')
 
     # TC-0009: Empty identifier → validation
     page = ctx.new_page()

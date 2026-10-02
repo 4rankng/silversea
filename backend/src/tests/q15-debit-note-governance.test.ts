@@ -119,6 +119,14 @@ async function createTripFixture(status: 'COMPLETED' = 'COMPLETED', revenue = 1_
   });
   tripIds.push(trip.id);
 
+  // §7.2 issue readiness (card _30): the original document counts as received
+  // only with BOTH the receiver and the actual received date on the trip —
+  // mirror the POD-recovery step the real flow performs after acceptance.
+  await db.update(s.trips).set({
+    podRecoveredAt: new Date('2026-07-15T10:00:00.000Z'),
+    podRecoveredBy: actors[0]?.id ?? null,
+  }).where(eq(s.trips.id, trip.id));
+
   const [posting] = await db.insert(s.tripFinancialPostings).values({
     tripId: trip.id,
     version: 1,
@@ -262,6 +270,10 @@ after(async () => {
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, tripFinancialPostingIds));
   }
   if (tripIds.length > 0) {
+    // The postings and trip-claim FKs are RESTRICT: children minted by the
+    // issue flow (not just tracked ids) must go before their trips.
+    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, tripIds));
+    await db.delete(s.billingDocumentTripClaims).where(inArray(s.billingDocumentTripClaims.tripId, tripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
   if (fulfillmentIds.length > 0) {

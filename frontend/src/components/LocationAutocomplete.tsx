@@ -58,7 +58,7 @@ export function LocationAutocomplete({
   // (Declared after allSuggestions below; the hook needs its length to
   // re-measure when the list grows or shrinks.)
 
-  useClickOutside(wrapperRef, closeDropdown, { escapeKey: true, additionalRefs: portaledRefs });
+  useClickOutside(wrapperRef, closeDropdown, { escapeKey: true, enabled: isOpen, additionalRefs: portaledRefs });
 
   // Cached location suggestions; fires once per session for all autocomplete inputs.
   const { data: ports = [] } = useQuery<Port[]>({
@@ -140,7 +140,6 @@ export function LocationAutocomplete({
 
   useSearchableSelectPosition({
     isOpen,
-    isMobile: false,
     triggerRef: inputRef,
     popoverRef: listRef,
     onClose: closeDropdown,
@@ -229,9 +228,9 @@ export function LocationAutocomplete({
                     style={{
                       fontSize: 'var(--text-body-size)',
                       padding: '2px 6px',
-                      borderRadius: 999,
-                      background: 'rgba(16,185,129,0.15)',
-                      color: '#059669',
+                      borderRadius: 6,
+                      background: 'var(--success-soft)',
+                      color: 'var(--success-text)',
                       fontWeight: 700,
                       letterSpacing: 0.3,
                       flexShrink: 0,

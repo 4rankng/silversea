@@ -41,7 +41,7 @@ export interface DerivedData {
   fuelCost: number;
   roadCost: number;
   driverCost: number;
-  slicesWithPct: Array<{ label: string; value: number; color: string; pct: number }>;
+  slicesWithPct: Array<{ label: string; value: number; color: string; pct: number | null }>;
   conicGradient: string;
   totalPie: number;
   prevRevenue: number;

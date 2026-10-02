@@ -1,9 +1,12 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Truck } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { Role } from '@tingting/shared';
 import { EmptyState, Pagination } from '../design-system';
 import type { ShipmentListItem } from '../api/shipmentClient';
 import { updateShipment } from '../api/shipmentClient';
+import { ApiError } from '../lib/api';
+import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/shared/Toast';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import { useDispatchMasterPlan } from '../features/dispatch/master-plan/useDispatchMasterPlan';
@@ -22,6 +25,7 @@ import './DispatchPlanPage.css';
  */
 export default function MasterPlanPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const masterPlan = useDispatchMasterPlan();
   const { toast } = useToast();
   const [allocating, setAllocating] = useState<ShipmentListItem | null>(null);
@@ -48,7 +52,16 @@ export default function MasterPlanPage() {
       masterPlan.replaceItem({ ...shipment, operationalNotes: notes, version: response.version } as ShipmentListItem);
       toast({ kind: 'success', message: 'Đã lưu ghi chú điều phối.' });
     } catch (error) {
-      toast({ kind: 'error', message: 'Không lưu được ghi chú điều phối. Vui lòng thử lại.' });
+      // Keep the server's own reason (the dispatcher intake-stage gate, a
+      // version conflict, …): ApiError.message is already the output of the
+      // shared Vietnamese formatter (lib/api/errors.ts), so surface it as-is
+      // and fall back only when the failure carries no message.
+      toast({
+        kind: 'error',
+        message: error instanceof ApiError && error.message
+          ? error.message
+          : 'Không lưu được ghi chú điều phối. Vui lòng thử lại.',
+      });
       // The editor awaits this rejection to retain its draft for a retry.
       throw error;
     }
@@ -140,8 +153,7 @@ export default function MasterPlanPage() {
           </div>
         ) : masterPlan.items.length === 0 && !masterPlan.error ? (
           <EmptyState
-            illustration="/assets/illustrations/empty-clients.svg"
-            icon={Truck}
+            context="trucks"
             title="Không có lô hàng nào cần phân xe"
             description="Lô hàng có ngày giao sẽ xuất hiện ở đây."
           />
@@ -152,6 +164,9 @@ export default function MasterPlanPage() {
               onAllocate={handleAllocate}
               onViewContainers={handleViewContainers}
               onUpdateNotes={handleUpdateNotes}
+              // `assertDispatcherCanMutateShipmentIntake` scopes a dispatcher's
+              // write to intake-stage lots; offer the note affordance there only.
+              notesIntakeOnly={user?.role === Role.DISPATCHER}
               scheduleDate={
                 masterPlan.filters.deliveryDateFrom
                 && masterPlan.filters.deliveryDateFrom === masterPlan.filters.deliveryDateTo
@@ -177,13 +192,11 @@ export default function MasterPlanPage() {
           shipment={allocating}
           onClose={() => setAllocating(null)}
           onSaved={(updated) => masterPlan.replaceItem(updated)}
-          returnFocusTarget={allocationTriggerRef.current}
         />
       )}
       <DispatchContainerDetailDrawer
         shipment={containerDetailShipment}
         onClose={() => setContainerDetailShipment(null)}
-        returnFocusTarget={containerDetailTriggerRef.current}
       />
     </div>
   );

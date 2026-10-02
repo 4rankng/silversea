@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest';
 const sourceRoot = resolve(process.cwd(), 'src');
 const staticPlaceholderPattern = /\b(?:searchPlaceholder|placeholder)\s*=\s*(?:\{\s*)?["'`]([^"'`]+)["'`]/g;
 const isAllCapsCopy = (value: string) => value !== 'DD/MM/YYYY'
+  // Date MASKS are not copy — the dual-calendar range trigger's empty-state
+  // mask rides the same exemption (card 20260926_50).
+  && value !== 'DD/MM/YYYY - DD/MM/YYYY'
   && /\p{L}/u.test(value) && value === value.toLocaleUpperCase('vi-VN');
 
 function sourceFiles(directory: string): string[] {

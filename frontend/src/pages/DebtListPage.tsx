@@ -6,7 +6,6 @@ import { api } from '../lib/api';
 import { useToast } from '../components/shared/Toast';
 import { SortHeader } from '../components/shared/SortHeader';
 import {
-  Search,
   Users,
   Clock,
   CalendarCheck2,
@@ -17,7 +16,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { PageHeader } from '../components/UI';
-import { Pagination, SummaryRail } from '../design-system';
+import { FilterBar, Pagination, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { Badge } from '../components/shared/Badge';
@@ -36,7 +35,7 @@ import './DebtListPage.css';
 import '../styles/table-sort.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import { EmptyState } from '../design-system';
 
 interface CustomerDebtInfo {
   customerId: number;
@@ -92,7 +91,7 @@ const AGING_BUCKETS: AgingBucket[] = [
   // lanes — "Trong hạn" / "Quá hạn 31–60" / "Quá hạn 61–90" / "Quá hạn >90" —
   // so the accountant sees the AR workflow state (current vs overdue) at a
   // glance instead of having to translate day ranges into a status.
-  { key: 'current', label: 'Trong hạn (0–30)', shortLabel: 'Trong hạn', subLabel: '0–30 ngày', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: 'var(--success, #00B14F)', filterMode: 'current' },
+  { key: 'current', label: 'Trong hạn (0–30)', shortLabel: 'Trong hạn', subLabel: '0–30 ngày', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: 'var(--success, #177448)', filterMode: 'current' },
   { key: 'd30', label: 'Quá hạn 31–60', shortLabel: 'Quá hạn', subLabel: '31–60 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
   { key: 'd60', label: 'Quá hạn 61–90', shortLabel: 'Quá hạn', subLabel: '61–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
   { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', dotClass: 'debt-aging__dot--danger', color: 'var(--danger, #E32434)', filterMode: 'over90' },
@@ -351,36 +350,32 @@ export default function DebtListPage() {
         *  ZONE 3 — Data Section (full-width card with filters + table/cards)
         * ══════════════════════════════════════════════════════════════════════ */}
       <div className="debt-data-card" data-tour-id="debt-customer-list">
-        {/* Filter pill bar */}
-        <div className="debt-filter-bar">
-          <div className="debt-filter-pills">
+        {/* Card 20260927_152 — the shared bar owns the strip's layout, the
+            search chrome and every control width; this surface has no secondary
+            criterion, so the one status chip rides the quick-filter slot.
+            Cross-bucket "Quá hạn" / "Rủi ro cao" pills stay removed: per-bucket
+            filtering lives on the aging cards above, and mixing the two models
+            grouped d30+d60 against an amount-based criterion. */}
+        <FilterBar
+          search={{
+            value: searchInput,
+            onChange: setSearchInput,
+            placeholder: 'Tìm khách hàng...',
+            ariaLabel: 'Tìm công nợ theo khách hàng',
+            inputProps: { name: 'customerDebtSearch' },
+          }}
+          quickFilters={(
             <button
               type="button"
-              className={`filter-pill${filterMode === 'all' ? ' is-active' : ''}`}
+              className={`filter-chip${filterMode === 'all' ? ' is-active' : ''}`}
               onClick={() => table.setFilter('bucket', undefined)}
             >
               <Users size={14} />
               <span>Tất cả</span>
-              <span className="filter-pill__count">{customerDebts.length}</span>
+              <span className="filter-chip__count">{customerDebts.length}</span>
             </button>
-            {/* Cross-bucket "Quá hạn" / "Rủi ro cao" pills removed — per-bucket
-                filtering now lives on the 4 aging cards above, and mixing the
-                two models caused the bug where 'overdue' grouped d30+d60 and
-                'high-risk' used an amount-based criterion unrelated to aging. */}
-          </div>
-          <div className="debt-filter-spacer" />
-          <div className="debt-filter-search">
-            <Search size={14} />
-            <input
-              type="text"
-              name="customerDebtSearch"
-              aria-label="Tìm công nợ theo khách hàng"
-              placeholder="Tìm khách hàng..."
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-            />
-          </div>
-        </div>
+          )}
+        />
 
         {error && (
           <div style={{ padding: 16, color: 'var(--danger)', marginBottom: 20 }}>
@@ -400,8 +395,7 @@ export default function DebtListPage() {
               <div className="m-card-list">
                 {debts.length === 0 ? (
                   <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--ink-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <img src={resolveEmptyIllustration('empty-debts')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    Không tìm thấy dữ liệu.
+                    <EmptyState variant="compact" context="debts" title="Không tìm thấy dữ liệu." />
                   </div>
                 ) : (
                   debts.map(d => {
@@ -416,7 +410,7 @@ export default function DebtListPage() {
                               <Badge variant="success" style={{ marginLeft: 6 }}>2 chiều</Badge>
                             )}
                           </span>
-                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--danger' : '--success'} m-card__row-value debt-list-page__amount`}>
+                          <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--warning' : '--success'} m-card__row-value debt-list-page__amount`}>
                             {formatCurrency(d.totalOutstanding)}
                           </span>
                         </div>
@@ -495,7 +489,7 @@ export default function DebtListPage() {
 
                           <td data-label="Tổng nợ" className="num typo-mono" style={{
                             fontWeight: 700,
-                            color: d.totalOutstanding > 0 ? 'var(--danger)' : 'var(--success)'
+                            color: d.totalOutstanding > 0 ? 'var(--warning-text)' : 'var(--success)'
                           }}>
                             {formatCurrency(d.totalOutstanding)}
                           </td>
@@ -504,7 +498,7 @@ export default function DebtListPage() {
                             fontWeight: 600,
                             color: d.linkedSupplierId == null
                               ? 'var(--fg-3)'
-                              : (d.netBalance > 0 ? 'var(--danger)' : d.netBalance < 0 ? 'var(--success)' : 'var(--fg-3)')
+                              : (d.netBalance > 0 ? 'var(--warning-text)' : d.netBalance < 0 ? 'var(--success)' : 'var(--fg-3)')
                           }}>
                             {d.linkedSupplierId == null
                               ? <span style={{ color: 'var(--fg-3)' }}>&mdash;</span>
@@ -529,8 +523,7 @@ export default function DebtListPage() {
                       <tr>
                         <td colSpan={4} data-label="" style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                            <img src={resolveEmptyIllustration('empty-debts')} alt="" aria-hidden="true" style={{ width: 130, height: 108, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                            Không tìm thấy dữ liệu công nợ thỏa mãn bộ lọc.
+                            <EmptyState variant="compact" context="debts" title="Không tìm thấy dữ liệu công nợ thỏa mãn bộ lọc." />
                           </div>
                         </td>
                       </tr>

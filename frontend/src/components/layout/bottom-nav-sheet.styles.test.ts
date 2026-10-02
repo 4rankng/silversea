@@ -40,8 +40,8 @@ describe('mobile user-sheet entrance keeps tap targets static', () => {
   it('keeps account controls reachable in a short viewport and honors reduced motion', () => {
     expect(css).toMatch(/\.mobile-user-sheet\s*\{[^}]*max-height:\s*calc\(100dvh/);
     expect(css).toMatch(/\.mobile-user-sheet-scroll\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/);
-    expect(css).toMatch(/\.mobile-user-sheet-close\s*\{[^}]*min-height:\s*44px;/);
-    expect(css).toMatch(/\.mobile-user-sheet-btn\s*\{[^}]*min-height:\s*48px;/);
+    expect(css).toMatch(/\.mobile-user-sheet-close\s*\{[^}]*min-height:\s*var\(--control-max-h\);/);
+    expect(css).toMatch(/\.mobile-user-sheet-btn\s*\{[^}]*min-height:\s*var\(--control-max-h\);/);
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*animation:\s*none;/);
     expect(css).not.toContain('profile-bento');
   });

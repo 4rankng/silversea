@@ -13,8 +13,9 @@
 import puppeteer from 'puppeteer';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { QE } from './selectors.mjs';
-import { loadEnv } from './env.mjs';
+import { missingRoleError } from './env.mjs';
 
 const SETTLE_DEFAULT_MS = 500;
 const NAV_TIMEOUT_MS = 30000;
@@ -36,28 +37,48 @@ async function shot(page, evidenceDir, name) {
  * pre-injected into localStorage (puppeteer-spa-auth pattern).
  */
 export async function createSession({ env, role, evidenceDir, runId }) {
-  if (!env.accounts[env.env]?.[role]?.[0]) {
-    throw new Error(`no username for role ${role} in env ${env.env}; check testplan/testaccounts.txt`);
+  // Resolve the login by walking the role's candidate list: the local DB may
+  // be in either mode (dev-seed demo users or make stgdb prod-mirror), so the
+  // first testaccounts entry is not always present. QA_USER_<ROLE> override
+  // still wins and is tried alone.
+  const override = process.env[`QA_USER_${role}`];
+  const candidates = override ? [override] : env.candidatesFor(role).filter((u) => /^[a-z][a-z0-9-]+$/i.test(u));
+  if (candidates.length === 0) {
+    throw missingRoleError(role, env.env);
   }
-  const username = env.accounts[env.env][role][0];
 
   // Get token via API (fast, no DOM interaction)
-  const r = await fetch(`${env.api}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier: username, password: env.password }),
-  });
-  if (!r.ok) throw new Error(`login ${username} failed: ${r.status} ${await r.text()}`);
-  const { token, user } = await r.json();
+  let token; let user; let username = null;
+  for (const candidate of candidates) {
+    const r = await fetch(`${env.api}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: candidate, password: env.password }),
+    });
+    if (r.ok) {
+      ({ token, user } = await r.json());
+      username = candidate;
+      break;
+    }
+  }
+  if (!username) {
+    throw new Error(`login for role ${role} failed: all ${candidates.length} candidate(s) refused (${candidates.join(', ')})`);
+  }
 
   const browser = await puppeteer.launch({
     headless: 'shell',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    ...(process.env.BROWSER_EXECUTABLE_PATH ? { executablePath: process.env.BROWSER_EXECUTABLE_PATH } : {}),
+    args: [
+      '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+      ...(process.env.QA_DISABLE_BACK_FORWARD_CACHE === '1' ? ['--disable-features=BackForwardCache'] : []),
+    ],
   });
   const browserContext = await browser.createBrowserContext();
   const page = await browserContext.newPage();
   await page.setViewport({ width: 1440, height: 900 });
-  await page.evaluateOnNewDocument((t) => localStorage.setItem('token', t), token);
+  await page.evaluateOnNewDocument((t, appOrigin) => {
+    if (location.origin === appOrigin) localStorage.setItem('token', t);
+  }, token, new URL(env.baseUrl).origin);
 
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
@@ -110,6 +131,53 @@ export async function createSession({ env, role, evidenceDir, runId }) {
       });
       const text = await r.text();
       return { status: r.status, body: (() => { try { return JSON.parse(text); } catch { return text; } })() };
+    },
+
+    // Write-capable API client for cases that create or mutate fixtures
+    // (ctx.apiGet stays read-only). Returns the fetch-like shape cases
+    // expect ({ok, status, data}). Paths may carry a leading "/api" —
+    // env.api already ends in /api, so it is stripped to avoid doubling.
+    //
+    // `Idempotency-Key` on every write (card 20260928_196). The backend
+    // rejects a material write without one:
+    //
+    //   POST /api/trips  ->  400 "Idempotency-Key là bắt buộc cho thao tác
+    //   ghi dữ liệu này."
+    //
+    // and this client never sent it, so EVERY case that created or mutated
+    // through ctx.api failed at the first write — reported as a bare
+    // "Trip creation failed: 400", which reads like a product defect and sent
+    // the investigation after the data instead of the client. Two cases had
+    // quietly hand-rolled their own fetch with the header (see
+    // chungtu-regression/TC-CUS-API-MASTERREF-001.mjs), which is why the gap
+    // survived: the workaround was in the file, not in the shared client.
+    //
+    // A fresh key per call, not a per-case constant: each call is a distinct
+    // operation and a shared key would make the second write look like a
+    // replay of the first. GETs are left alone — the backend only requires it
+    // on declared material writes.
+    api: {
+      async _call(method, path, body) {
+        const clean = path.startsWith('/api/') ? path.slice(4) : path;
+        const isWrite = method !== 'GET' && method !== 'HEAD';
+        const r = await fetch(`${env.api.replace(/\/$/, '')}/${clean.replace(/^\//, '')}`, {
+          method,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+            ...(isWrite ? { 'Idempotency-Key': randomUUID() } : {}),
+          },
+          body: body !== undefined ? JSON.stringify(body) : undefined,
+        });
+        const text = await r.text();
+        const data = (() => { try { return JSON.parse(text); } catch { return text; } })();
+        return { ok: r.ok, status: r.status, data };
+      },
+      get(path) { return this._call('GET', path); },
+      post(path, body) { return this._call('POST', path, body); },
+      put(path, body) { return this._call('PUT', path, body); },
+      patch(path, body) { return this._call('PATCH', path, body); },
+      delete(path) { return this._call('DELETE', path); },
     },
 
     async snapshotShipment(id) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Package, FileText, FileCheck2, Container, History,
+  ArrowLeft, FileText, FileCheck2, Container, History,
 } from 'lucide-react';
 import { ApiError } from '../lib/api';
 import { PageHeader } from '../components/UI';
@@ -25,8 +25,8 @@ import { useDebitNoteOverride, useSaveDebitNoteOverride } from '../hooks/usePric
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
 import { ShipmentExpensePanel } from '../features/expense-accounting/ShipmentExpensePanel';
 import { ShipmentFinancePanel } from '../features/shipment-finance/ShipmentFinancePanel';
-import { formatDate, formatDateTimeVN as formatDateTime } from '../lib/format';
-import { formatVnd, allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
+import { formatCurrency, formatDate, formatDateTimeShort as formatDateTime } from '../lib/format';
+import { allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
 import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';
 
@@ -114,7 +114,7 @@ export default function ShipmentDetailPage() {
       <div className="shipment-detail" ref={rootRef}>
         <Breadcrumbs items={[{ label: 'Lô hàng', to: '/shipments' }, { label: 'Chi tiết' }]} />
         <EmptyState
-          icon={Package}
+          context="search"
           title={error ?? 'Không có dữ liệu'}
           description={error?.includes('Không tìm thấy')
             ? 'Lô hàng có thể đã bị xóa hoặc không tồn tại.'
@@ -166,7 +166,7 @@ export default function ShipmentDetailPage() {
             <div><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
             <div><dt>Liên hệ</dt><dd>{shipment.contactName ?? '—'}{shipment.contactPhone ? ` · ${shipment.contactPhone}` : ''}</dd></div>
             <div><dt>Ngày tạo</dt><dd>{formatDateTime(shipment.createdAt)}</dd></div>
-            <div><dt>Chiều hàng</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập khẩu' : shipment.tradeDirection === 'EXPORT' ? 'Xuất khẩu' : '—'}</dd></div>
+            <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>
             <div><dt>Loại lô</dt><dd>{shipment.cargoMode === 'FCL' ? 'Container (FCL)' : shipment.cargoMode === 'LCL' ? 'Hàng lẻ (LCL)' : '—'}</dd></div>
             <div><dt>Nhà máy / công trường</dt><dd>{shipment.effectiveFactoryName ?? shipment.factoryName ?? '—'}</dd></div>
             <div><dt>Hãng tàu</dt><dd>{shipment.shippingLineName ?? '—'}</dd></div>
@@ -180,8 +180,8 @@ export default function ShipmentDetailPage() {
                 <div><dt>Kiện hàng</dt><dd>{shipment.packageCount != null ? `${shipment.packageCount}${shipment.packageType ? ` ${shipment.packageType}` : ' kiện'}` : '—'}</dd></div>
               </>
             )}
-            <div><dt>Cước dự kiến</dt><dd>{formatVnd(shipment.pricingProjection?.freightPrice)}</dd></div>
-            <div><dt>Phụ phí nhiên liệu dự kiến</dt><dd>{formatVnd(shipment.pricingProjection?.expectedFuelSurcharge)}</dd></div>
+            <div><dt>Cước dự kiến</dt><dd>{formatCurrency(shipment.pricingProjection?.freightPrice)}</dd></div>
+            <div><dt>Phụ phí nhiên liệu dự kiến</dt><dd>{formatCurrency(shipment.pricingProjection?.expectedFuelSurcharge)}</dd></div>
             {accountingLock && (
               <div className="shipment-detail__field--wide">
                 <dt>Khóa lô</dt>
@@ -253,7 +253,7 @@ export default function ShipmentDetailPage() {
             <Container size={16} /> Containers ({containers.length})
           </h3>
           {containers.length === 0 ? (
-            <p className="shipment-detail__empty">Chưa có container nào.</p>
+            <EmptyState variant="compact" context="shipments" title="Chưa có container nào." />
           ) : (
             <table className="shipment-detail__table">
               <thead>
@@ -301,7 +301,7 @@ export default function ShipmentDetailPage() {
 
         {/* Documents */}
         {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS].includes(user?.role as Role) && (
-          <><ShipmentExpensePanel shipmentId={shipment.id} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS} /><ShipmentFinancePanel shipmentId={shipment.id} readOnly={Boolean(accountingLock)} /></>
+          <><ShipmentExpensePanel shipmentId={shipment.id} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS} /><ShipmentFinancePanel shipmentId={shipment.id} accountingLocked={Boolean(accountingLock)} /></>
         )}
 
         <section className="shipment-detail__card">
@@ -309,7 +309,7 @@ export default function ShipmentDetailPage() {
             <FileText size={16} /> Tài liệu ({documents.length})
           </h3>
           {documents.length === 0 ? (
-            <p className="shipment-detail__empty">Chưa có tài liệu nào.</p>
+            <EmptyState variant="compact" context="documents" title="Chưa có tài liệu nào." />
           ) : (
             <ul className="shipment-detail__docs">
               {documents.map((d) => (
@@ -330,7 +330,7 @@ export default function ShipmentDetailPage() {
             <FileCheck2 size={16} /> Tờ khai hải quan ({declarations.length})
           </h3>
           {declarations.length === 0 ? (
-            <p className="shipment-detail__empty">Chưa có tờ khai nào.</p>
+            <EmptyState variant="compact" context="documents" title="Chưa có tờ khai nào." />
           ) : (
             <ul className="shipment-detail__decls">
               {declarations.map((d) => (
@@ -352,7 +352,7 @@ export default function ShipmentDetailPage() {
             <History size={16} /> Lịch sử trạng thái ({statusHistory.length})
           </h3>
           {statusHistory.length === 0 ? (
-            <p className="shipment-detail__empty">Chưa có lịch sử trạng thái.</p>
+            <EmptyState variant="compact" context="documents" title="Chưa có lịch sử trạng thái." />
           ) : (
             <ol className="shipment-detail__timeline">
               {statusHistory.map((h) => (

@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Loader2, Search, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
-import { formatCurrency } from '../lib/format';
+import '../design-system/forms/TextField.css';
+import { ChevronLeft, ChevronRight, Loader2, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
+import { formatDateTimeVN, formatCurrency } from '../lib/format';
 import { Panel } from '../components/UI';
-import { SummaryRail } from '../design-system';
+import { EmptyState, FilterBar, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyIllustration } from '../components/shared';
 import {
   CalCell,
   DriverPayoutModal,
@@ -47,26 +47,12 @@ export default function SalaryAttendancePage() {
           { label: 'Lương & Chấm công' },
         ]}
       />
-      {/* ── Period actions + summary rail ── */}
+      {/* ── Period summary rail ── */}
       <section className="hero">
         <div className="hero-top fade-up-2">
           <div className="hero-title-block">
             <h1 className="sr-only">Lương &amp; Chấm công</h1>
             <div className="hero-sub">Tháng {month} · {year} · {aggregates.total} lái xe</div>
-          </div>
-          <div className="hero-actions">
-            {canPostPayout && (
-              <button
-                className="btn btn--primary btn--sm"
-                onClick={() => setPayoutOpen(true)}
-              >
-                <Wallet size={14} className="salary-attendance__icon-spacer" />
-                Ghi thanh toán
-              </button>
-            )}
-            <button className="btn btn--secondary btn--icon" onClick={goPrev} aria-label="Tháng trước"><ChevronLeft size={15} /></button>
-            <span className="hero-month-label">Tháng {month}</span>
-            <button className="btn btn--secondary btn--icon" onClick={goNext} aria-label="Tháng sau"><ChevronRight size={15} /></button>
           </div>
         </div>
         <SummaryRail
@@ -81,22 +67,39 @@ export default function SalaryAttendancePage() {
         />
       </section>
 
+      {/* Card 20260927_152 — the page's ONE filter strip: the driver search is
+          the bar's search slot, and the month period plus the payout action
+          ride the bar's action cluster, so this page declares no filter layout,
+          no control width and no control height of its own. The roster below is
+          page content (a driver picker list), not a control plane. */}
+      <FilterBar
+        search={{
+          value: searchTerm,
+          onChange: setSearchTerm,
+          placeholder: 'Tìm lái xe...',
+          ariaLabel: 'Tìm lái xe trong bảng lương',
+          inputProps: { name: 'salaryDriverSearch' },
+        }}
+        actions={(
+          <>
+            {canPostPayout && (
+              <button
+                className="btn btn--primary btn--sm"
+                onClick={() => setPayoutOpen(true)}
+              >
+                <Wallet size={14} className="salary-attendance__icon-spacer" />
+                Ghi thanh toán
+              </button>
+            )}
+            <button className="btn btn--secondary btn--icon" onClick={goPrev} aria-label="Tháng trước"><ChevronLeft size={15} /></button>
+            <span className="hero-month-label">Tháng {month}</span>
+            <button className="btn btn--secondary btn--icon" onClick={goNext} aria-label="Tháng sau"><ChevronRight size={15} /></button>
+          </>
+        )}
+      />
+
       {/* ── Driver selector grid ── */}
       <div className="driver-select-row">
-        <div className="driver-select-row__search">
-          <div className="input-icon salary-attendance__search-input">
-            <Search size={14} />
-            <input
-              type="text"
-              name="salaryDriverSearch"
-              className="input"
-              aria-label="Tìm lái xe trong bảng lương"
-              placeholder="Tìm lái xe..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
         {listLoading ? (
           <div className="salary-attendance__driver-loading">
             <Loader2 size={20} className="spin salary-attendance__driver-loading-icon" />
@@ -142,10 +145,7 @@ export default function SalaryAttendancePage() {
               );
             })}
             {filteredDrivers.length === 0 && (
-              <div className="salary-empty-inline">
-                <EmptyIllustration name="empty-salary" />
-                <span>Không tìm thấy lái xe</span>
-              </div>
+              <EmptyState variant="compact" context="salary" title="Không tìm thấy lái xe" className="salary-empty-inline" />
             )}
           </div>
         )}
@@ -183,7 +183,7 @@ export default function SalaryAttendancePage() {
                         <CheckCircle2 size={16} className="payslip-callout-icon" />
                         <div className="payslip-callout-text">
                           <strong>Đã phát hành phiếu lương</strong>
-                          <div>{new Date(lifecycle.payslipIssuedAt).toLocaleString('vi-VN')}</div>
+                          <div>{formatDateTimeVN(lifecycle.payslipIssuedAt)}</div>
                         </div>
                       </div>
                     )}
@@ -192,7 +192,7 @@ export default function SalaryAttendancePage() {
                         <Lock size={16} className="payslip-callout-icon" />
                         <div className="payslip-callout-text">
                           <strong>Đã hạch toán chính thức</strong>
-                          <div>{new Date(lifecycle.officialPostedAt).toLocaleString('vi-VN')}</div>
+                          <div>{formatDateTimeVN(lifecycle.officialPostedAt)}</div>
                         </div>
                       </div>
                     )}
@@ -292,7 +292,7 @@ export default function SalaryAttendancePage() {
                       )}
                       {lifecycle?.status === 'CLOSED' && lifecycle.canReopen && canReopenCompanyPeriod && (
                         <>
-                          <div className="salary-attendance__form-group">
+                          <div className={`salary-attendance__form-group${reopenReasonError ? ' ds-field--error' : ''}`}>
                             <label htmlFor="salary-period-reopen-reason" className="salary-attendance__form-label">
                               Lý do mở lại kỳ
                             </label>
@@ -307,7 +307,7 @@ export default function SalaryAttendancePage() {
                                 }
                               }}
                               placeholder="Nêu rõ vì sao cần mở lại kỳ đã chốt"
-                              className={`salary-attendance__reopen-textarea ${reopenReasonError ? 'salary-attendance__reopen-textarea--error' : ''}`}
+                              className={`ds-field__input salary-attendance__reopen-textarea ${reopenReasonError ? 'salary-attendance__reopen-textarea--error' : ''}`}
                             />
                             {reopenReasonError && (
                               <div role="alert" className="salary-attendance__error-text">
@@ -534,8 +534,7 @@ export default function SalaryAttendancePage() {
           {!selectedDriverId ? (
             <Panel>
               <div className="salary-empty-panel">
-                <EmptyIllustration name="empty-salary" />
-                <p className="salary-attendance__empty-panel-text">Chọn lái xe ở trên để xem lịch chấm công</p>
+                <EmptyState variant="compact" context="salary" title="Chọn lái xe ở trên để xem lịch chấm công" />
               </div>
             </Panel>
           ) : (

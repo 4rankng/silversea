@@ -35,62 +35,73 @@ def test_system_admin(ctx: SilverseaTestContext, results: TestResults):
     ctx.screenshot(page, 'TC-1001_users_page')
     page.close()
 
-    # TC-1002: KPI cards accurate
+    # TC-1002: KPI cards accurate (card 20260930_243 refresh). The count is
+    # API-derived (/api/auth/users total) and compared against the summary
+    # rail's "Tổng tài khoản" cell — the rail renders the number vi-VN
+    # formatted (1.881, not 1881), so the assertion formats the API count the
+    # same way instead of hardcoding either form.
     resp = api.get('/api/auth/users')
     if resp.get('status') == 200:
         user_count = resp['data'].get('total', 0)
+        formatted = f'{user_count:,}'.replace(',', '.')
         page = ctx.new_page()
         ctx.login_as('admin', page)
         page.goto(f'{BASE_URL}/users')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
         kpi_text = page.locator('.summary-rail').first.inner_text()
-        if str(user_count) in kpi_text:
-            results.pass_('TC-1002', f'KPI cards match API count ({user_count})')
+        if formatted in kpi_text:
+            results.pass_('TC-1002', f'KPI cards match API count ({formatted})')
         else:
-            results.fail('TC-1002', 'KPI cards', f'API total={user_count}, KPI text missing count')
+            results.fail('TC-1002', 'KPI cards', f'API total={user_count} (rendered {formatted}) missing from rail')
         page.close()
     else:
         results.fail('TC-1002', 'KPI cards', f'API status: {resp.get("status")}')
 
-    # TC-1003: Role pill filters visible
+    # TC-1003: The shared category dropdown retains every role and count,
+    # and selecting a role still reaches the existing page filter.
     page = ctx.new_page()
     ctx.login_as('admin', page)
     page.goto(f'{BASE_URL}/users')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    pills = page.locator('.filter-pill').all()
-    pill_labels = []
-    for p in pills:
-        try:
-            pill_labels.append(p.inner_text().strip())
-        except:
-            pass
+    role_filter = page.get_by_role('button', name=re.compile(r'Lọc tài khoản theo vai trò'))
+    role_filter.click()
+    options = page.get_by_role('option')
+    options.first.wait_for(state='visible')
+    option_labels = options.all_text_contents()
     expected_roles = [
         'Quản trị viên',
         'Quản lý',
         'Kế toán',
         'Lái xe',
-        'Nhân viên vận hành',
+        'Vận hành',
         'Khách hàng',
-        'Nhân viên Chứng từ',
+        'Chứng từ',  # Canonical ROLE_LABELS[Role.CUS]; still assert every role.
         'Điều vận',
     ]
-    found = all(any(role in label for label in pill_labels) for role in expected_roles)
+    found = len(option_labels) == 9 and all(any(role in label for label in option_labels) for role in ['Tất cả', *expected_roles])
+    ctx.screenshot(page, 'TC-1003_role_filter_options')
+    page.get_by_role('option', name=re.compile(r'^Lái xe')).click()
+    page.wait_for_load_state('networkidle')
+    found = found and role_filter.inner_text().strip().startswith('Lái xe (')
     if found:
-        results.pass_('TC-1003', f'Role filter pills visible ({len(pill_labels)} pills)')
+        results.pass_('TC-1003', f'All 9 role choices/counts visible and DRIVER selected ({len(option_labels)} options)')
     else:
-        results.fail('TC-1003', 'Role filter pills', f'Found labels: {pill_labels}')
-    ctx.screenshot(page, 'TC-1003_role_pills')
+        results.fail('TC-1003', 'Role category filter', f'Found labels: {option_labels}; selected={role_filter.inner_text()}')
+    ctx.screenshot(page, 'TC-1003_role_filter')
     page.close()
 
-    # TC-1004: User search input exists
+    # TC-1004: User search input exists (card 20260930_243 refresh). The
+    # retired `.toolbar__search` chrome became the FilterBar band's search
+    # shell — the input is `.filter-bar__search input`, accessible name
+    # "Tìm tài khoản" (the page's own aria-label).
     page = ctx.new_page()
     ctx.login_as('admin', page)
     page.goto(f'{BASE_URL}/users')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if assert_element_visible(page, '.toolbar__search input', timeout=3000):
+    if assert_element_visible(page, '.filter-bar__search input[aria-label="Tìm tài khoản"]', timeout=3000):
         results.pass_('TC-1004', 'User search input exists')
     else:
         results.fail('TC-1004', 'User search input', 'Search input not found')

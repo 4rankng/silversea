@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { NumberField } from '../../../design-system';
 
 const DEFAULT_ADD_COUNT = 1;
 const MAX_ADD_COUNT = 50;
@@ -12,11 +13,11 @@ interface ShipmentContainerEditorProps {
 
 /** Feature-local FCL editor shell for repeatable container records. */
 export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContainerEditorProps) {
-  const [addCount, setAddCount] = useState(String(DEFAULT_ADD_COUNT));
-  const parsedAddCount = Number(addCount);
-  const addCountIsValid = Number.isInteger(parsedAddCount)
-    && parsedAddCount >= 1
-    && parsedAddCount <= MAX_ADD_COUNT;
+  const [addCount, setAddCount] = useState<number | ''>(DEFAULT_ADD_COUNT);
+  const addCountIsValid = typeof addCount === 'number'
+    && Number.isInteger(addCount)
+    && addCount >= 1
+    && addCount <= MAX_ADD_COUNT;
 
   return (
     <div className="csc-container-editor">
@@ -54,18 +55,16 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
       </div>
       <div className="csc-container-actions">
         <div className="csc-container-add-control">
-          <input
+          <NumberField
             id="container-add-count"
-            type="number"
-            min="1"
+            min={1}
             max={MAX_ADD_COUNT}
-            step="1"
-            inputMode="numeric"
+            step={1}
             value={addCount}
             aria-label="Số container cần thêm"
             aria-invalid={!addCountIsValid}
             aria-describedby="container-add-count-hint"
-            onChange={(event) => setAddCount(event.target.value)}
+            onChange={setAddCount}
             disabled={saving}
           />
           <span id="container-add-count-hint" className="sr-only">
@@ -74,7 +73,7 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
           <button
             type="button"
             className="csc-add-container"
-            onClick={() => onAdd(parsedAddCount)}
+            onClick={() => { if (addCountIsValid && typeof addCount === 'number') onAdd(addCount); }}
             disabled={saving || !addCountIsValid}
           >
             <Plus size={16} aria-hidden="true" />

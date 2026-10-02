@@ -11,8 +11,11 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     if (!active || !ref.current) return;
 
     const container = ref.current;
+    const ownsFallbackTabIndex = !container.hasAttribute('tabindex');
+    if (ownsFallbackTabIndex) container.tabIndex = -1;
+    const focusContainer = () => container.focus({ preventScroll: true });
     const getFocusable = () => Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((element) => {
-      if (element.tabIndex < 0 || element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+      if (element.tabIndex < 0 || element.matches(':disabled') || element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
       const style = getComputedStyle(element);
       return style.display !== 'none' && style.visibility !== 'hidden';
     });
@@ -20,14 +23,25 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     // Focus the first focusable element when trap activates
     const focusable = getFocusable();
     if (focusable.length) focusable[0].focus();
+    else focusContainer();
 
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
+      if (e.key !== 'Tab' || e.defaultPrevented) return;
       const items = getFocusable();
-      if (items.length === 0) return;
+      if (items.length === 0) {
+        e.preventDefault();
+        focusContainer();
+        return;
+      }
 
       const first = items[0];
       const last = items[items.length - 1];
+
+      if (document.activeElement === container) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+        return;
+      }
 
       if (e.shiftKey) {
         if (document.activeElement === first) {
@@ -43,6 +57,9 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     };
 
     container.addEventListener('keydown', handler);
-    return () => container.removeEventListener('keydown', handler);
+    return () => {
+      container.removeEventListener('keydown', handler);
+      if (ownsFallbackTabIndex && container.getAttribute('tabindex') === '-1') container.removeAttribute('tabindex');
+    };
   }, [ref, active]);
 }

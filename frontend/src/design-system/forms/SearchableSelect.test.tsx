@@ -427,3 +427,22 @@ describe('SearchableSelect', () => {
     expect(screen.queryByTestId('suffix')).toBeNull();
   });
 });
+
+describe('SearchableSelect required mark (card 20260926_51)', () => {
+  it('renders the required asterisk inside the trigger when asked', () => {
+    render(
+      <SearchableSelect
+        id="req-mark"
+        value=""
+        onChange={() => {}}
+        options={[{ value: '1', label: 'Một' }]}
+        placeholder="Khách hàng"
+        requiredMark
+      />,
+    );
+    const trigger = screen.getByRole('button');
+    expect(trigger.querySelector('.searchable-select__req')).not.toBeNull();
+    expect(trigger.textContent).toContain('*');
+    expect(trigger.textContent).toContain('Khách hàng');
+  });
+});

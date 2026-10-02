@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Check, Copy, Edit3 } from 'lucide-react';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
+import { billBookingReference } from '../../../lib/business-reference';
 
 export const MAX_NOTE_LENGTH = 60;
 
@@ -70,6 +71,8 @@ export function MasterPlanNoteModal({ activeNote, onClose, onEditOperationalNote
   }, [activeNote]);
 
   if (!activeNote) return null;
+  const bill = activeNote.blNumber?.trim() || activeNote.shipment?.blNumber?.trim();
+  const reference = billBookingReference(bill, activeNote.shipment?.bookingRef);
 
   return (
     <Modal
@@ -77,7 +80,7 @@ export function MasterPlanNoteModal({ activeNote, onClose, onEditOperationalNote
       title={activeNote.title}
       subtitle={[
         activeNote.customerName,
-        activeNote.blNumber ? `BL: ${activeNote.blNumber}` : activeNote.shipmentCode,
+        bill ? `BL: ${reference}` : reference,
       ].filter(Boolean).join(' · ')}
       onClose={() => {
         setCopied(false);

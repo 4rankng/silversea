@@ -2,7 +2,7 @@
 //
 // Assembles billing_document_lines from three sources for a debit note:
 //   1. Freight revenue: from each trip's revenue snapshot (pricingSource/formula).
-//   2. Approved disbursements: from trip_expenses with approvalStatus=APPROVED
+//   2. Recorded disbursements: from trip_expenses (including legacy APPROVED rows)
 //      (using assembleDisbursementsForPeriod from the prior slice).
 //   3. Ancillary revenue: from the ancillary_revenue table within the date range.
 //
@@ -14,6 +14,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, gte, lte, sql, isNull } from 'drizzle-orm';
 import { assembleDisbursementsForPeriod } from './disbursement-assembly.service';
+import { businessTitleOrDash } from '../lib/business-keys';
 
 export interface AssembledBillingLine {
   sourceType: 'TRIP' | 'EXPENSE' | 'ANCILLARY';
@@ -73,7 +74,7 @@ export async function assembleBillingLines(
         sourceId: trip.id,
         lineType: 'FREIGHT',
         typeLabel: 'Cước vận chuyển',
-        description: `Chuyến ${trip.tripCode} — ${trip.routeName ?? ''} (${trip.departureDate})`,
+        description: `Chuyến ${businessTitleOrDash(trip.tripCode)} — ${trip.routeName ?? ''} (${trip.departureDate})`,
         baseAmount: freight,
         routeName: trip.routeName,
       });

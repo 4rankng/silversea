@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { renderAuditMessage } from './audit-templates';
-import { db } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import * as s from '../db/schema';
 import { auditLogs } from '../db/schema';
 import { eq, inArray } from 'drizzle-orm';
@@ -16,8 +16,7 @@ export interface AuditEntry extends AuditPayload {
 }
 
 type AuditEnrichmentHandler = (rowId: number, payload: AuditEntry) => Promise<void>;
-type AuditTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type AuditPersistHandler = (payload: AuditEntry, tx?: AuditTx) => Promise<number>;
+type AuditPersistHandler = (payload: AuditEntry, executor?: Executor) => Promise<number>;
 
 interface AuditRequestContext {
   req: Request;
@@ -239,7 +238,7 @@ export function extractAuditEntityKey(
 }
 
 export async function persistMaterialWriteSuccessAuditInTransaction(args: {
-  tx: AuditTx;
+  tx: Tx;
   statusCode: number;
   responseBody: Record<string, unknown> | null;
   entityId?: number | null;
@@ -299,7 +298,7 @@ export async function persistMaterialWriteSuccessAuditInTransaction(args: {
  * accepted and identifies its material-write endpoint.
  */
 export async function persistMaterialWriteAttemptAuditInTransaction(args: {
-  tx: AuditTx;
+  tx: Tx;
   statusCode: number;
   responseBody: Record<string, unknown> | null;
   entityId?: number | null;
@@ -351,7 +350,7 @@ export async function persistMaterialWriteAttemptAuditInTransaction(args: {
  * lock that proves which actor/payload already claimed the key.
  */
 export async function persistMaterialWriteConflictAuditInTransaction(args: {
-  tx: AuditTx;
+  tx: Tx;
   responseBody: Record<string, unknown> | null;
   entityId?: number | null;
   entityKey?: string;
@@ -639,7 +638,7 @@ function scheduleAuditEnrichment(rowId: number, payload: AuditEntry) {
   });
 }
 
-async function insertAuditRow(executor: AuditTx | typeof db, payload: AuditEntry): Promise<number> {
+async function insertAuditRow(executor: Executor, payload: AuditEntry): Promise<number> {
   const [created] = await executor.insert(auditLogs).values({
     userId: payload.userId ?? null,
     actorName: payload.actorName ?? null,
@@ -653,14 +652,13 @@ async function insertAuditRow(executor: AuditTx | typeof db, payload: AuditEntry
 }
 
 let auditEnrichmentHandler: AuditEnrichmentHandler = defaultAuditEnrichment;
-const defaultAuditPersistHandler: AuditPersistHandler = async (payload: AuditEntry, tx?: AuditTx) => {
-  const executor = tx ?? db;
+const defaultAuditPersistHandler: AuditPersistHandler = async (payload: AuditEntry, executor: Executor = db) => {
   const rowId = await insertAuditRow(executor, payload);
   scheduleAuditEnrichment(rowId, payload);
   return rowId;
 };
-let auditPersistHandler: AuditPersistHandler = async (payload: AuditEntry, tx?: AuditTx) => {
-  return defaultAuditPersistHandler(payload, tx);
+let auditPersistHandler: AuditPersistHandler = async (payload: AuditEntry, executor?: Executor) => {
+  return defaultAuditPersistHandler(payload, executor);
 };
 
 export function setAuditEnrichmentHandlerForTest(
@@ -680,7 +678,7 @@ export async function persistAudit(payload: AuditEntry): Promise<number> {
 }
 
 export async function persistAuditInTransaction(
-  tx: AuditTx,
+  tx: Tx,
   payload: AuditEntry,
 ): Promise<number> {
   return auditPersistHandler(payload, tx);

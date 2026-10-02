@@ -1,0 +1,393 @@
+/* L2 workspace tables for the settlement screen. Compact, no pills. */
+
+.csc-debit-workspace {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.csc-debit-workspace[data-locked] {
+  background: color-mix(in srgb, var(--ink-1) 4%, var(--surface));
+}
+
+.csc-debit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-caption-size);
+  /* The workspace renders INSIDE the L1 lot row's <td>, and that cell carries
+     the global unscoped `tbody td` rule's `overflow-wrap: anywhere`
+     (components/Table.css). overflow-wrap is inherited, so every nested
+     header and business key inherited the emergency break and auto layout
+     crushed the Bảng 2.2 columns to character width: "PHÍ NÂNG" stacked as
+     PH/Í/NÃ/NG, the container code broke as QATU092100/8 (card 20260924_11,
+     Hình 02.3). Withdraw it at the table root: Vietnamese wraps at WORD
+     boundaries (law §4), while fee names keep their explicit anywhere rule
+     on .csc-debit-item__name — a direct declaration beats inheritance. */
+  overflow-wrap: normal;
+}
+
+.csc-debit-table caption {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding-bottom: 6px;
+}
+
+.csc-debit-table th,
+.csc-debit-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-1);
+  text-align: left;
+  vertical-align: top;
+  min-width: 80px;
+}
+
+.csc-debit-table thead th {
+  color: var(--ink-2);
+  /* Headers may wrap to a second line so the auto-layout table compresses
+     into narrow panels (1280 sidebar-open) instead of clipping its last
+     columns at first paint — but at WORD boundaries only (card 20260924_11:
+     "PHÍ CƠ SỞ HẠ TẦNG" reads as words over two lines, never the
+     PH/Í/NÃ/NG char-stack). keep-all + overflow-wrap normal restate the
+     table-root reset right where the headers live; house pattern =
+     ppc-board / invoice-tracking thead (card 20260922_54, law §4). */
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+/* Container codes and their header are business keys: the first column
+   keeps a floor so codes never wrap mid-word when the panel narrows. */
+.csc-debit-table th:first-child,
+.csc-debit-table td:first-child {
+  min-width: 120px;
+}
+
+/* Fee columns keep sensible min-widths to prevent 1-2 character crushing */
+.csc-debit-table--chiho th,
+.csc-debit-table--chiho td {
+  min-width: 90px;
+}
+
+.csc-debit-table--chiho th:nth-child(4),
+.csc-debit-table--chiho td:nth-child(4) {
+  min-width: 115px; /* Phí cơ sở hạ tầng */
+}
+
+/* Two-line container cells: number on top, type label beneath. */
+.csc-debit-table td > small {
+  display: block;
+  color: var(--ink-3);
+}
+
+/* The L1 table keeps its deliberate 1064px floor and scrolls sideways — that
+   floor is what stops the code chip shattering into a per-character sliver, so
+   it stays. But this workspace lives inside one of the L1 table's CELLS, so it
+   inherited that 1064px width and its own `overflow-x: auto` never engaged:
+   on a phone the accountant saw roughly the left third of every L2 table, the
+   section headings were sliced mid-word, and the right-hand columns were
+   unreachable. Bound the workspace to its actual parent at narrow widths. Phone records
+   must stay inside their Panel; tablet matrices keep the existing local rail. */
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .csc-debit-workspace {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+  }
+}
+
+.csc-debit-input {
+  width: 100%;
+  min-width: 72px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.csc-debit-input:disabled {
+  opacity: 0.6;
+}
+
+.csc-debit-input--amount {
+  font-weight: 600;
+}
+
+/* Read-only Ops item lines: plain, muted — data, not a control. */
+.csc-debit-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin-bottom: 2px;
+}
+
+.csc-debit-item--ro {
+  color: var(--ink-2);
+}
+
+.csc-debit-item__name {
+  color: var(--ink-2);
+  /* Card 20260924_1 (image7): long fee names clipped at the edge of the
+     narrow Phí khác column — wrap instead; law book §4 no-truncation. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.csc-debit-item__amount {
+  white-space: nowrap;
+}
+
+.csc-debit-item__hd {
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+/* Inline fee editor (card 20260924_11 — CHIEF Hình 02.3): each fee is a
+   stack of full-width rows — name, Thu khách readout, then ONE control row
+   (input | × in a 2-column grid), then the read-only source note. Draft fees
+   lay out as a 2-column field grid, label above control. The old per-child
+   flex wrapping dropped the × onto its own line under the input ("nút × nhỏ
+   lệch") and ran the fee name into the Thu khách readout ("label wrap lạ"). */
+.csc-debit-otherfee {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+/* Name and source note each own a full-width line above the controls.
+   Scoped to the block so unattached-trip item lines keep their inline flow. */
+.csc-debit-otherfee .csc-debit-item__name,
+.csc-debit-otherfee__source {
+  flex: 0 0 100%;
+  white-space: normal;
+}
+
+/* The control row: amount input and remove button side by side on ONE row —
+   the × can no longer wrap below the input. Equal stretch keeps both boxes
+   the same height; the row floor is the house control geometry (34px ≥ the
+   32px desktop target, law §5). */
+.csc-debit-otherfee__control {
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: stretch;
+  min-height: var(--control-default-h);
+}
+
+/* Draft fee: two fields side by side, label above control, equal widths. */
+.csc-debit-otherfee__grid {
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.csc-debit-otherfee__field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.csc-debit-otherfee__label {
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+/* The sell side reads from the wire — a muted readout on its own line above
+   the amount input so the two numbers never blur into one. Wraps at the
+   space instead of overflowing the narrow cell (law §4). */
+.csc-debit-otherfee__sell {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.csc-debit-otherfee__remove {
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  /* Square with the 34px control row — the old 24px sliver was under the
+     WCAG-plus house target. */
+  min-width: var(--control-default-h);
+  cursor: pointer;
+}
+
+.csc-debit-otherfee__remove:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.csc-debit-addfee {
+  border: 1px dashed var(--border-1);
+  border-radius: 8px;
+  background: transparent;
+  padding: 3px 8px;
+  min-height: var(--control-default-h);
+  cursor: pointer;
+}
+
+/* Touch floor (card 20260924_11; law §5): editor controls rise to the
+   shared 44px target on coarse pointers and phone widths. */
+@media (max-width: 640px), (pointer: coarse) {
+  .csc-debit-otherfee__control,
+  .csc-debit-otherfee__grid .csc-debit-input,
+  .csc-debit-otherfee__remove,
+  .csc-debit-addfee {
+    min-height: var(--control-touch-h);
+  }
+
+  .csc-debit-otherfee__remove {
+    min-width: var(--control-touch-h);
+  }
+}
+
+.csc-debit-addfee:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Bracketed hold amounts: armed = above zero, the drawing's orange state. */
+.csc-debit-warn-cell {
+  white-space: nowrap;
+}
+
+.csc-debit-warn-cell--armed {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
+
+.csc-debit-warn-cell--armed svg {
+  color: var(--warning);
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+
+.csc-debit-docs {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.csc-debit-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.csc-debit-actions > button {
+  padding: 6px 12px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.csc-debit-actions > button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* The lock is the terminal action — solid dark, not a pill. */
+.csc-debit-actions > button.csc-debit-actions__lock {
+  padding: 8px 16px;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.csc-debit-savebar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.csc-debit-savebar > button {
+  padding: 6px 14px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.csc-debit-savebar > button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.csc-debit-saved {
+  color: #15803d;
+}
+
+.csc-debit-save-error {
+  color: #b91c1c;
+}
+
+.csc-debit-thukhach {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-right: auto;
+}
+
+.csc-debit-adjust {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.csc-debit-adjust__title {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.csc-debit-adjust__reason {
+  display: grid;
+  gap: 4px;
+}
+
+.csc-debit-adjust__reason textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.csc-debit-adjust__history {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+.csc-debit-adjust__history li {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--border-1);
+  padding-bottom: 4px;
+}
+
+/* Caption line under a table cell (lift/drop site labels, card _35). */
+.csc-debit-channel { display: block; font-size: var(--text-caption-size); color: var(--fg-3); }

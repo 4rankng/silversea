@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { expenseInputFields, expenseDateSchema, expenseVndSchema } from '../expense-accounting';
+import { expenseInputFields, expenseDateSchema, expenseVndSchema, signedExpenseVndSchema } from '../expense-accounting';
 import { normalizeContainerNumber, validateCheckDigit, validateContainerFormat } from '../calculations/iso6346';
 import {
   CustomerAccountType, FuelMode, LoadingType, Role, SupplierType,
@@ -8,6 +8,7 @@ import {
   OperationalSiteType, FulfillmentCancellationDisposition, TripPodFileType,
   DriverProgressEventType,
   DriverIncidentalCostType,
+  ExpenseTypeCategory,
   NO_INVOICE_EVIDENCE_TYPES,
   TIRE_STATUSES,
   DISPATCH_CLASSIFICATIONS,
@@ -718,7 +719,7 @@ export const customerSchema = z.object({
   // everywhere via `shortName || name`, so '' is the representable "unset".
   shortName: z.string().trim().max(255).optional(),
   code: z.string().trim().max(80).optional(),
-  taxCode: z.string().optional(),
+  taxCode: z.string().trim().max(20, 'Mã số thuế tối đa 20 ký tự').optional(),
   address: z.string().trim().optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
@@ -954,7 +955,15 @@ export const freightRateTermSchema = z.object({
   billingKmOneWay: z.coerce.number().int().positive('Km tính cước (một chiều) phải là số nguyên dương'),
   billingKmMultiplier: nonNegNumeric.default(2),
   baseFuelPrice: positiveNumeric,
-  fuelLagDays: z.coerce.number().int().min(0).default(0),
+  // An unknown contractual lag is not a same-day agreement. Require an
+  // explicit value, accepting the numeric strings sent by existing forms.
+  fuelLagDays: z.union([z.number(), z.string().trim().min(1, 'Nhập độ trễ giá dầu đã thỏa thuận')])
+    .pipe(z.coerce.number().int().min(0)),
+  // Three-state threshold confirmation (20260917_11): 'UNSET' = customer has
+  // not confirmed yet (never invent "always adjust"), 'NONE' = customer
+  // confirmed no threshold, 'PCT'/'ABS' = confirmed threshold form.
+  surchargeThresholdMode: z.enum(['UNSET', 'NONE', 'PCT', 'ABS']).default('UNSET'),
+  fuelLagConfirmed: z.boolean().default(false),
   surchargeThresholdPct: positiveNumeric.optional().nullable(),
   surchargeThresholdAbs: positiveNumeric.optional().nullable(),
   effectiveDate: isoDateOnlySchema.default(() => new Date().toISOString().slice(0, 10)),
@@ -1112,7 +1121,7 @@ export const supplierSchema = z.object({
   shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
-  taxCode: z.string().optional(),
+  taxCode: z.string().trim().max(20, 'Mã số thuế tối đa 20 ký tự').optional(),
   note: z.string().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional().default('ACTIVE'),
   linkedCustomerId: z.number().int().positive().optional().nullable(),
@@ -1188,10 +1197,12 @@ export const sealTypeSchema = z.object({
  *  create; only label/sortOrder/isActive are editable. */
 export const dispatchZoneSchema = z.object({
   code: z.string().trim()
-    .regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Mã khu vực phải là chữ hoa/snake (VD: LACH_HUYEN)'),
+    .regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Mã khu vực phải là chữ hoa/snake (VD: ZONE_A)'),
   label: z.string().trim().min(1, 'Tên khu vực không được để trống').max(100),
   sortOrder: z.number().int().min(0).max(9999).default(0),
   isActive: z.boolean().default(true),
+  isDefault: z.boolean().default(false),
+  showPortFacet: z.boolean().default(true),
 });
 
 /** Update payload: `code` is stripped (immutable after create — the route
@@ -1234,6 +1245,11 @@ export const atomicDispatchPlanEditSchema = z.object({
   clearVehicle: z.boolean().optional(),
   plannedRevenue: z.number().int().nonnegative().nullable(),
   plannedCarrierCost: z.number().int().nonnegative().nullable(),
+  /** Giờ trả hàng (cargo-handover time) staged per-container pre-issuance.
+   *  Optional: an editor save that omits it leaves the stored value untouched;
+   *  null/'' clears it. No after-start rule here — the FE owns the
+   *  'Giờ trả hàng phải sau giờ chạy' check (card _15, 2026-09-26). */
+  plannedEndAt: z.string().nullish(),
   /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ). The dispatcher's call for cont
    *  rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake and LCL
    *  rows keep Lẻ. Undefined = unchanged. */
@@ -1431,7 +1447,11 @@ export const baseTripExpenseSchema = z.object({
   // codes) is asserted at the route against forwarder_expense_types; the
   // old fixed enum rejected configured categories at save time.
   expenseType: z.string().trim().min(1).max(50),
-  buyAmount: z.number().positive(),
+  // Card 20260928_181 — signed expense amount: the PM rule lets an expense
+  // line be negative, and a negative line is excluded from every total (see
+  // `sumExcludingNegative`). Integer VND inside the money ceiling; 0 rejected
+  // (0 is an empty row, not a signed row).
+  buyAmount: signedExpenseVndSchema,
   sellAmount: z.number().min(0).optional().default(0),
   settlementMethod: z.enum(['COMPANY_DIRECT', 'OPS_ADVANCE']).default('OPS_ADVANCE'),
   supplierId: z.number().int().positive().optional(),
@@ -1493,6 +1513,10 @@ export const forwarderExpenseTypeSchema = z.object({
   code: z.string().min(1).max(50),
   name: z.string().min(1, 'Tên loại chi phí không được để trống').max(100),
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
+  // Card 20260919_3: explicit settlement category — the classification READS
+  // this column (never name matching, which breaks retroactively on rename).
+  // null = chưa phân loại → renders in the on-screen catch-all bucket.
+  category: z.nativeEnum(ExpenseTypeCategory).nullable().optional(),
   requiresInvoice: z.boolean().optional(),
   substituteEvidenceAllowed: z.boolean().optional(),
   noInvoiceEvidenceTypes: noInvoiceEvidenceTypesSchema.optional(),
@@ -1632,6 +1656,12 @@ const createShipmentBaseSchema = z.object({
   deliveryLocation: z.string().max(255).optional().nullable(),
   contactName: z.string().max(100).optional().nullable(),
   contactPhone: z.string().max(20).optional().nullable(),
+  /** Card 20260922_6 — container-deposit intake tick ("có cược"): intent
+   *  only; the persisted outcome is the deposit_refund_trackers row created
+   *  by recordDepositFromIntake inside the create tx (no shipment columns). */
+  hasDeposit: z.boolean().optional().default(false),
+  depositAmount: z.coerce.number().int('Tiền cược dự kiến phải là số nguyên (đồng)')
+    .min(0, 'Tiền cược dự kiến không được âm').pipe(expenseVndSchema).optional().nullable(),
 });
 
 function validateShipmentAdHocIdentity(
@@ -1661,9 +1691,50 @@ export const createShipmentSchema = createShipmentBaseSchema.superRefine((data, 
 // by the offline-queue client lib can carry its dedupe token in the body
 // when headers are not convenient (e.g. multipart). The header wins when
 // both are present; see `routes/shipments.ts` POST /quick.
+export const shipmentContainerItemSchema = z.object({
+    id: z.coerce.number().int().positive().optional(),
+    // DEF-20260804-003: containerTypeId is required (not nullable) for any
+    // shipment container reconciliation. Carrier-allocation downstream needs
+    // the size bucket (20/40/45) — null causes "20' 0/0, 40' 0/0" mismatch
+    // even when containerNumber + ISO check digit are valid.
+    containerTypeId: z.coerce.number().int().positive('Loại container là bắt buộc'),
+    containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable()
+      .transform(v => (v === '' ? null : v)),
+    sealNumber: z.string().max(50).optional().nullable().transform(v => (v === '' ? null : v)),
+    cargoWeightKg: shipmentWeightKg.optional().nullable(),
+    cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
+    shippingLineName: z.string().trim().max(255).optional().nullable()
+      .transform(v => (v === '' ? null : v)),
+    // FCL route authority belongs to this container, not the shipment.
+    routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
+    pickupPortId: z.coerce.number().int().positive().optional().nullable(),
+    dropoffPortId: z.coerce.number().int().positive().optional().nullable(),
+    // Ad-hoc orders (Lệnh chạy ngoài): free-text cảng nâng/hạ when no catalog
+    // port was picked — XOR with the ids above, normalized server-side.
+    rawPickupPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    rawDropoffPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    // Ad-hoc row-tier factory/route (§4.2): free text when no catalog
+    // factory/route was picked on this container — XOR with operationalSiteId
+    // and routeId above, normalized server-side the same way.
+    rawFactoryName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    rawRouteName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
+    // Per-container factory authority (SILVER L1): nullable, application-
+    // validated at the persistence choke point — no DB FK by repo convention.
+    operationalSiteId: z.coerce.number().int().positive().optional().nullable(),
+    // Ngày đóng/trả container (doc: Create Shipment Block 2, per-container date).
+    customerAppointmentAt: shipmentTimestamp.optional().nullable(),
+    notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
+  });
+
+// Create-workspace combined contract: root + containers in ONE idempotent
+// call - a containers failure rolls back the whole create.
 export const quickCreateShipmentSchema = createShipmentBaseSchema.extend({
   declarationNumber: z.string().trim().max(50).optional().nullable(),
   _requestId: z.string().min(1).max(100).optional(),
+  // Create-workspace combined save: containers ride the idempotent create
+  // call so a containers failure rolls back the root with it (no 0-cont
+  // orphan lots).
+  containers: z.array(shipmentContainerItemSchema).optional(),
 }).superRefine((data, ctx) => {
   validateShipmentDocumentReferences(data, ctx);
   validateShipmentAdHocIdentity(data, ctx);
@@ -1740,35 +1811,7 @@ export const attachShipmentDocumentSchema = z.object({
 export const shipmentContainerBatchSchema = z.object({
   expectedVersion: z.number().int().nonnegative('expectedVersion là bắt buộc để kiểm soát đồng thời').optional(),
   version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời').optional(),
-  containers: z.array(z.object({
-    id: z.coerce.number().int().positive().optional(),
-    // DEF-20260804-003: containerTypeId is required (not nullable) for any
-    // shipment container reconciliation. Carrier-allocation downstream needs
-    // the size bucket (20/40/45) — null causes "20' 0/0, 40' 0/0" mismatch
-    // even when containerNumber + ISO check digit are valid.
-    containerTypeId: z.coerce.number().int().positive('Loại container là bắt buộc'),
-    containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable()
-      .transform(v => (v === '' ? null : v)),
-    sealNumber: z.string().max(50).optional().nullable().transform(v => (v === '' ? null : v)),
-    cargoWeightKg: shipmentWeightKg.optional().nullable(),
-    cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
-    shippingLineName: z.string().trim().max(255).optional().nullable()
-      .transform(v => (v === '' ? null : v)),
-    // FCL route authority belongs to this container, not the shipment.
-    routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
-    pickupPortId: z.coerce.number().int().positive().optional().nullable(),
-    dropoffPortId: z.coerce.number().int().positive().optional().nullable(),
-    // Ad-hoc orders (Lệnh chạy ngoài): free-text cảng nâng/hạ when no catalog
-    // port was picked — XOR with the ids above, normalized server-side.
-    rawPickupPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
-    rawDropoffPortName: z.string().max(255).optional().nullable().transform(v => (v === '' ? null : v)),
-    // Per-container factory authority (SILVER L1): nullable, application-
-    // validated at the persistence choke point — no DB FK by repo convention.
-    operationalSiteId: z.coerce.number().int().positive().optional().nullable(),
-    // Ngày đóng/trả container (doc: Create Shipment Block 2, per-container date).
-    customerAppointmentAt: shipmentTimestamp.optional().nullable(),
-    notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
-  })),
+  containers: z.array(shipmentContainerItemSchema),
 }).superRefine((data, ctx) => {
   if (data.expectedVersion == null && data.version == null) {
     ctx.addIssue({
@@ -1988,7 +2031,12 @@ export const driverIncidentalCostSchema = z.object({
   payerKind: z.enum(['USER', 'COMPANY']).optional(),
   ...expenseInputFields,
   costType: z.nativeEnum(DriverIncidentalCostType),
-  amount: expenseVndSchema.refine(v => v > 0, 'Số tiền phải lớn hơn 0'),
+  // Card 20260928_197 — O/D (Ops expense, driver incidental) amounts are now
+  // SIGNED, the same contract trip_expenses.buy_amount got in card
+  // 20260928_181. The 27 aggregates that read this column were fixed to
+  // `sumExcludingNegative` first, so a negative row leaves every total exactly
+  // as if the row did not exist.
+  amount: signedExpenseVndSchema,
   occurredAt: expenseDateSchema,
   note: z.string().max(1000).optional(),
   receiptStorageKey: z.string().max(255).optional(),
@@ -2092,9 +2140,10 @@ export type SaveBillingDocumentInput = {
 };
 export type BillingDocumentAdjustmentRequestInput = z.infer<typeof billingDocumentAdjustmentRequestSchema>;
 export type BillingDocumentIssueRequestInput = z.infer<typeof billingDocumentIssueRequestSchema>;
-
 export type BillingDocumentLineInput = z.infer<typeof billingDocumentLineSchema>;
 
 export * from './governance-action';
 export * from './customer-service-finance';
 export * from './work-inbox';
+export * from './quotation';
+

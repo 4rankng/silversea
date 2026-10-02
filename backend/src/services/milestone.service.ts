@@ -17,7 +17,7 @@
 // — the scopedByCustomer helper (Wave 0) is used when a CUSTOMER-role user
 // requests milestones through the portal.
 
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, desc, eq, inArray } from 'drizzle-orm';
@@ -129,16 +129,15 @@ export async function deriveMilestoneFromTripStatus(
 /**
  * Add a manual milestone (CUS staff entry). Append-only — no update or delete.
  */
-export async function addManualMilestone(input: AddMilestoneInput, transaction?: Tx) {
-  const client = transaction ?? db;
+export async function addManualMilestone(input: AddMilestoneInput, executor: Executor = db) {
   // Verify the shipment exists.
-  const [shipment] = await client.select({ id: s.shipments.id })
+  const [shipment] = await executor.select({ id: s.shipments.id })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, input.shipmentId)))
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
 
-  const [milestone] = await client.insert(s.shipmentMilestones).values({
+  const [milestone] = await executor.insert(s.shipmentMilestones).values({
     shipmentId: input.shipmentId,
     type: input.type,
     note: input.note ?? null,

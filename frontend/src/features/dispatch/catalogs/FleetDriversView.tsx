@@ -6,21 +6,43 @@
  * to keep mutations direct.
  */
 import { useMemo, useState } from 'react';
-import { Users } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
-import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
+import { Tabs } from '../../../design-system';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
-import { formatISODate } from '../../../lib/format';
+import { formatISODate, businessDateISO } from '../../../lib/format';
 import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
+import { matchesCatalogSearch } from './catalog-search';
 import { useCatalogCreate } from './useCatalogCreate';
 import './catalogs.css';
+
+// License-expiry risk states (card _44): a driver's license is the compliance
+// field that gates whether they may drive at all. Overdue reads in oxblood
+// with an icon and day-count label; ≤30 days reads in the lighter bronze;
+// longer or missing dates stay neutral so the table carries no extra color.
+export const LICENSE_SOON_WINDOW_DAYS = 30;
+
+export function licenseExpiryState(
+  licenseExpiryDate: string,
+  todayIso: string,
+): { level: 'overdue' | 'soon'; days: number } | null {
+  const parse = (iso: string) => {
+    const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  const days = Math.round((parse(licenseExpiryDate) - parse(todayIso)) / 86_400_000);
+  if (Number.isNaN(days)) return null;
+  if (days < 0) return { level: 'overdue', days: Math.abs(days) };
+  if (days <= LICENSE_SOON_WINDOW_DAYS) return { level: 'soon', days };
+  return null;
+}
 
 
 
@@ -40,15 +62,13 @@ export function FleetDriversView() {
   }, [trucks]);
 
   const needle = search.trim().toLowerCase();
+  const todayIso = businessDateISO();
   const filtered = useMemo(() => {
     if (!needle) return drivers;
-    return drivers.filter(
-      (d) =>
-        d.name.toLowerCase().includes(needle) ||
-        (d.code ?? '').toLowerCase().includes(needle) ||
-        (d.phone ?? '').toLowerCase().includes(needle) ||
-        (d.assignedTruckId ? plateByTruck.get(d.assignedTruckId) ?? '' : '').toLowerCase().includes(needle),
-    );
+    return drivers.filter((driver) => {
+      const plate = driver.assignedTruckId ? plateByTruck.get(driver.assignedTruckId) : undefined;
+      return matchesCatalogSearch(needle, [driver.name, driver.code, driver.phone, plate], [driver.code, driver.phone, plate]);
+    });
   }, [drivers, needle, plateByTruck]);
 
   const rows = useMemo(
@@ -67,30 +87,51 @@ export function FleetDriversView() {
   );
   const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
 
+  // Card 20260922_22 — a column no row in the current result fills hides
+  // itself, so the width budget goes to data instead of "—" placeholders.
+  // The Mã tài xế column stays mandatory: it hosts the row's edit button.
+  const colPresence = useMemo(() => {
+    const present: Record<string, boolean> = {};
+    for (const d of rows) {
+      if (d.idNumber?.trim()) present.idNumber = true;
+      if (d.licenseNumber?.trim()) present.licenseNumber = true;
+      if (d.licenseExpiryDate) present.licenseExpiryDate = true;
+      if (d.phone?.trim()) present.phone = true;
+      if (d.bankName?.trim()) present.bankName = true;
+      if (d.bankAccount?.trim()) present.bankAccount = true;
+      if (d.salaryType?.trim()) present.salaryType = true;
+    }
+    return present;
+  }, [rows]);
+
+  const hasActiveFilters = search.trim() !== '';
   return (
     <div ref={rootRef}>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Tài xế' }]} />
-      <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
-        <div className="dispatch-catalogs__page-heading">
-          <h1 style={{ fontSize: 'var(--text-title-size)', fontWeight: 700 }}>Danh mục Tài xế</h1>
-          <p style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>
-            Tra cứu tài xế nội bộ để gán chuyến trong kế hoạch điều độ
-          </p>
-        </div>
-        <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
-          Thêm tài xế
-        </Button>
-      </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
-      <div className="kpi-grid dispatch-catalogs__summary" style={{ marginBottom: 16 }}>
-        <KPI label="Tổng tài xế" value={drivers.length} unit="người" icon={Users} />
-      </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
       <CatalogTableShell
+        title="Danh mục Tài xế"
+        tabs={(
+          <Tabs
+            tabs={[{ id: 'total', label: 'Tổng', count: drivers.length }]}
+            value="total"
+            onChange={() => {}}
+            variant="boxed"
+            ariaLabel="Số tài xế"
+          />
+        )}
+        actions={(
+          <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
+            Thêm tài xế
+          </Button>
+        )}
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Tìm mã, tên, SĐT hoặc biển số xe…"
         totalLabel={`${filtered.length}/${drivers.length} tài xế`}
+        hasActiveFilters={hasActiveFilters}
+        onReset={() => setSearch('')}
       >
         {loading ? (
           <div role="status">
@@ -107,13 +148,13 @@ export function FleetDriversView() {
               <tr>
                 <SortHeader label="Mã tài xế" sortKey="code" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Họ tên" sortKey="name" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Số CCCD" sortKey="idNumber" sort={sort} onSortChange={applySort} />
-                <SortHeader label="GPLX" sortKey="licenseNumber" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Hạn bằng lái" sortKey="licenseExpiryDate" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Số điện thoại" sortKey="phone" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Ngân hàng nhận tiền" sortKey="bankName" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Số TK nhận tiền" sortKey="bankAccount" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Hình thức lương" sortKey="salaryType" sort={sort} onSortChange={applySort} />
+                {colPresence.idNumber && <SortHeader label="Số CCCD" sortKey="idNumber" sort={sort} onSortChange={applySort} />}
+                {colPresence.licenseNumber && <SortHeader label="GPLX" sortKey="licenseNumber" sort={sort} onSortChange={applySort} />}
+                {colPresence.licenseExpiryDate && <SortHeader label="Hạn bằng lái" sortKey="licenseExpiryDate" sort={sort} onSortChange={applySort} />}
+                {colPresence.phone && <SortHeader label="Số điện thoại" sortKey="phone" sort={sort} onSortChange={applySort} />}
+                {colPresence.bankName && <SortHeader label="Ngân hàng nhận tiền" sortKey="bankName" sort={sort} onSortChange={applySort} />}
+                {colPresence.bankAccount && <SortHeader label="Số TK nhận tiền" sortKey="bankAccount" sort={sort} onSortChange={applySort} />}
+                {colPresence.salaryType && <SortHeader label="Hình thức lương" sortKey="salaryType" sort={sort} onSortChange={applySort} />}
               </tr>
             </thead>
             <tbody>
@@ -131,13 +172,29 @@ export function FleetDriversView() {
                     {d.code?.trim() && <span className="dispatch-catalogs__compact-driver-code">Mã: {d.code}</span>}
                   </td>
                   <td data-label="Họ tên" className="dispatch-catalogs__desktop-driver-name">{d.name}</td>
-                  <td data-label="Số CCCD" data-empty={!d.idNumber?.trim() || undefined}>{d.idNumber || '—'}</td>
-                  <td data-label="GPLX" data-empty={!d.licenseNumber?.trim() || undefined}>{d.licenseNumber || '—'}</td>
-                  <td data-label="Hạn bằng lái" data-empty={!d.licenseExpiryDate || undefined}>{d.licenseExpiryDate ? formatISODate(d.licenseExpiryDate) : '—'}</td>
-                  <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}>{d.phone || '—'}</td>
-                  <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined}>{d.bankName || '—'}</td>
-                  <td data-label="Số TK nhận tiền" data-empty={!d.bankAccount?.trim() || undefined}>{d.bankAccount || '—'}</td>
-                  <td data-label="Hình thức lương" data-empty={!d.salaryType?.trim() || undefined}>{d.salaryType || '—'}</td>
+                  {colPresence.idNumber && <td data-label="Số CCCD" data-empty={!d.idNumber?.trim() || undefined}>{d.idNumber || '—'}</td>}
+                  {colPresence.licenseNumber && <td data-label="GPLX" data-empty={!d.licenseNumber?.trim() || undefined}>{d.licenseNumber || '—'}</td>}
+                  {colPresence.licenseExpiryDate && <td data-label="Hạn bằng lái" data-empty={!d.licenseExpiryDate || undefined}>
+                    {d.licenseExpiryDate ? (
+                      <>
+                        <span className="dispatch-catalogs__license-date">{formatISODate(d.licenseExpiryDate)}</span>
+                        {(() => {
+                          const flag = licenseExpiryState(d.licenseExpiryDate, todayIso);
+                          if (!flag) return null;
+                          return (
+                            <span className={`dispatch-catalogs__license-flag dispatch-catalogs__license-flag--${flag.level}`}>
+                              <AlertTriangle size={12} aria-hidden="true" />
+                              {flag.level === 'overdue' ? `Quá hạn ${flag.days} ngày` : `Còn ${flag.days} ngày`}
+                            </span>
+                          );
+                        })()}
+                      </>
+                    ) : '—'}
+                  </td>}
+                  {colPresence.phone && <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}><span className="data-token">{d.phone || '—'}</span></td>}
+                  {colPresence.bankName && <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined} title={d.bankName || undefined}>{d.bankName || '—'}</td>}
+                  {colPresence.bankAccount && <td data-label="Số TK nhận tiền" data-empty={!d.bankAccount?.trim() || undefined}>{d.bankAccount || '—'}</td>}
+                  {colPresence.salaryType && <td data-label="Hình thức lương" data-empty={!d.salaryType?.trim() || undefined}>{d.salaryType || '—'}</td>}
                 </tr>
               ))}
             </tbody>

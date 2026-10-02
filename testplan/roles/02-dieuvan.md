@@ -268,15 +268,14 @@ containers (so the auto-split is meaningful).
     - **And** chỉ khi đủ cả 3 dòng có biển số → lô mới chuyển `Đã phân xe`
     - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-025](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-025).
 
-11. **DISP-DP-12 — Phân loại chuyến: Đơn (1 chiều), Kẹp (2 chiều khép kín), Kết hợp (ghép chuyến)**
-    - **Given** dispatcher đang ở `/dispatch-detail` sau khi pre-fill nhà xe
-    - **When** đánh dấu phân loại cho từng dòng:
-      - Đơn: 1 trip 1 chiều, không liên kết kẹp, phí đường × 1 bình thường
-      - Kẹp: 2 trip cùng xe + cùng tài xế + cùng tuyến 2 chiều + thời gian không chồng lấn → liên kết cặp, phí VETC/đường chỉ tính 1 lần cho lộ trình khép kín
-      - Kết hợp: ≥ 2 dòng container (cùng lô hoặc khác lô) gộp vào 1 xe, cùng tuyến, khung giờ overlap → 1 trip link N fulfillments
-    - **Then** mỗi dòng hiển thị phân loại đúng; trip tạo ra khớp mô hình; phí đường / VETC tính đúng theo bảng so sánh tại `docs/prd/QuyTrinhO2C.md` §2b
-    - **And** Kẹp không hợp lệ (khác tài xế, khác tuyến, thời gian chồng lấn, hoặc khác biển số) → không cho kẹp, cảnh báo "Không đủ điều kiện kẹp hàng", phí đường không được hưởng ưu đãi
-    - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-007](../flows/02-dieuvan-dispatch.md), TC-DV-DISPATCH-008 (kẹp invalid), TC-DV-DISPATCH-029 (ghép cùng lô), TC-DV-DISPATCH-030 (ghép khác lô), TC-DV-DISPATCH-031 (kẹp invalid vì đổi tài xế), TC-DV-DISPATCH-032 (Đơn happy path).
+11. **DISP-DP-12 — Đơn, Kẹp đồng thời và Kết hợp nối tiếp**
+    - **Given** các công việc còn cho phép phân công trên `/dispatch-detail`.
+    - **When** Điều vận chọn phân loại và ghép hai công việc phù hợp.
+    - **Then** Đơn là một công việc; Kẹp là đúng hai container20FT chạy đồng thời trên cùng đầu kéo/moóc/tài xế đủ tổng tải; Kết hợp là hai công việc nối tiếp tái dùng cùng vỏ, trả xong lệnh trước mới đóng lệnh sau.
+    - Cặp giữ hai công việc nhận diện riêng, cùng quan hệ ghép; không gộp mất lô/chứng từ/doanh thu. Phí của cùng hành trình dùng chung tính một lần; phí riêng giữ riêng, không tự đặt cách chia đều.
+    - Chặn thành viên40FT trong cặp Kẹp, thành viên thứ ba, quá tổng tải, khác phân công hoặc xung đột ngoài cặp. Lịch đồng thời trong chính cặp Kẹp hợp lệ không phải lý do chặn.
+    - **Nguồn hiện hành:** `docs/prd/QuyTrinhO2C.md` §5.4; `docs/prd/LoHangKepKetHop.md` §1–7. Thay mô tả đảo nghĩa cũ, giữ mã AC.
+    - **Reference:** TC-DV-DISPATCH-007/008/029/030/031/032. Chỉ ghi PASS khi đã thực thi từng trường hợp; cập nhật thuật ngữ không phải bằng chứng kiểm thử.
 
 ### Test steps
 
@@ -505,7 +504,7 @@ The dispatcher has the same `shipments/new` permission as CUS (per
 
 ## Out of scope (DISPATCHER)
 
-- Deciding or overriding the transportation classification (Đơn `SINGLE`, Kẹp `DOUBLE`, Kết hợp `COMBINED`, Lẻ `LCL`) or the lot-level combined flag (`shipments.is_combined`). These are **CUS's call** at intake. DISPATCHER executes vehicle/trailer assignment adhering to CUS's classification and 20ft combination constraints.
+- Editing the lot-level combined flag (`shipments.is_combined`), which belongs to CUS intake. DISPATCHER may choose Đơn/Kẹp/Kết hợp for an eligible container work item; LCL remains Lẻ. Selecting a label alone does not create a valid paired relationship or bypass resource constraints (PRD O2C §5.2–5.4).
 - Editing config master data **other than** customers/routes/trucks/drivers/suppliers (pricing tables, cargo types, ports writes, etc.).
 - Posting to the ledger.
 - Editing customer **financial** fields (credit limit, payment terms beyond identity) — stripped server-side for CUS/DISPATCHER.

@@ -20,11 +20,18 @@
 }
 
 [data-uui-control][data-control-size='xl'] {
-  --uui-control-h: 44px;
+  --uui-control-h: var(--control-max-h);
 }
 
 [data-uui-control='button'][data-icon-only] {
   min-width: var(--uui-control-h);
+}
+
+/* Supported large actions keep their existing text/icon size, with padding
+   inside the same 40px budget rather than enlarging the visible boundary. */
+[data-uui-control='button'][data-control-size='lg'],
+[data-uui-control='button'][data-control-size='xl'] {
+  padding-block: 4px;
 }
 
 [data-uui-control='input'] > input,
@@ -34,6 +41,13 @@
   min-height: 0;
   height: calc(var(--uui-control-h) - 2px);
   padding-block: 4px;
+}
+
+/* Long placeholders end with an ellipsis, never a mid-word clip (QA ruling
+   2026-09-20): the browser's clip default cut '…hoặc tờ' at the box edge. */
+[data-uui-control='input'] > input::placeholder,
+#root [data-uui-control='input'] > input::placeholder {
+  text-overflow: ellipsis;
 }
 
 [data-uui-control='select'] > [data-uui-select-value],
@@ -49,6 +63,28 @@
   min-width: 0;
   min-height: 0;
   padding-block: 0;
+}
+
+/* The universal shell touch floor applies to bare inputs. Wrapper-owned
+   controls reserve their two border pixels instead of growing to42px. */
+:is(#root, body) [data-uui-control='input'] > input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']) {
+  min-height: 0;
+  height: calc(var(--uui-control-h) - 2px);
+}
+
+/* A prefix date's dedicated boundary owns both border pixels. Nested licensed
+   groups and digit wrappers occupy its interior, including folded filters
+   whose shared control floor would otherwise extend through the border. */
+:is(#root, body) [data-date-boundary] :is(.date-seg-group, .date-seg-wrapper) {
+  min-height: 0;
+  height: calc(var(--uui-control-h) - 2px);
+}
+
+/* Combobox value wrappers already own their content floor and vertical
+   padding. A fixed inner height would add that padding to the control. */
+:is(#root, body) [data-uui-control='combobox'] input[role='combobox']:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']) {
+  min-height: 0;
+  height: auto;
 }
 
 [data-uui-select-value] > p {
@@ -76,4 +112,13 @@
   [data-uui-control][data-control-size] {
     --uui-control-h: var(--control-touch-h);
   }
+}
+
+/* A compact segmented group owns one bordered control boundary. Its children
+   reserve that shell's inset instead of inheriting a second40px touch floor.
+   Intrinsic wrapped content may grow; this is not a clipping height cap. */
+:is(#root, body) [data-control-group='compact'] > button {
+  min-height: var(--control-compact-h);
+  height: auto;
+  padding-block: 0;
 }

@@ -67,7 +67,7 @@ export async function completeExternalCarrierTrip(args: {
         true,
         true,
         {
-          expectedVersion: trip.version,
+          expectedVersion: args.expectedVersion ?? trip.version,
           transaction: tx,
           externalCarrierStaffClose: { fulfillmentId: trip.fulfillmentId ?? 0 },
         },

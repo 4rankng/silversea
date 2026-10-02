@@ -11,6 +11,38 @@
    opened at desktop width still renders these same components (the sidebar
    + generic topbar only toggle off below 1023px), so the shell must never
    add a second inset + a second background tone around them at any width. */
+/* CHIEF 26/09: the shell itself fills the phone screen and carries the page
+   tone, so nothing gray ever shows below the fixed bottom nav — not on short
+   content, not on scroll-extended captures, not in the safe-area strip. */
+.app.is-driver {
+  background: var(--surface);
+  min-height: 100%;
+}
+
+.app.is-driver:has(.driver-task-screen) {
+  background: var(--surface-2);
+}
+
+/* The iOS visual viewport can extend past the app's 100dvh (toolbar
+   collapse) — paint the body to match so the strip below the fixed nav is
+   the page tone, never a foreign gray band. */
+body:has(.app.is-driver .driver-task-screen) {
+  background: var(--surface-2);
+}
+
+body:has(.app.is-driver) {
+  background: var(--surface);
+}
+
+/* Card 20260927_1: the ROOT canvas is what paints any strip the browser
+   reveals beyond the layout viewport (the same collapsed-toolbar slack the
+   .bottom-nav: :after band covers). Body keeps the page tone for the visible
+   box; the canvas takes the tab bar's surface so nothing foreign shows at the
+   physical bottom edge. */
+html:has(body .app.is-driver) {
+  background: var(--surface);
+}
+
 .app.is-driver .app-body {
   background: var(--surface);
 }
@@ -40,8 +72,24 @@
     display: none !important;
   }
 
-  .driver-mode .app-body {
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 12px));
+  /* Card QA-2026-09-27-01 residual (driver task screens still ended in a
+     ~200px blank): the tab bar is a flex SIBLING of .app-body inside
+     .app-main (`position: relative`, `flex-shrink: 0`) — it is never an
+     overlay, so it already owns its own space in the layout column. The
+     nav-sized reserve that used to live here was therefore a SECOND, dead
+     strip stacked under each screen's own sticky-bar clearance (measured
+     390x844: 70px here + 140px on `.driver-task-screen--has-complete-bar`
+     = 210px of blank after the last section). Removed; the screen's own
+     reserve still clears the fixed action bar it was authored for.
+     The bar's geometry now lives in one place — `--bottom-nav-h`, consumed
+     by `.bottom-nav` below AND by the fixed accept/complete bars
+     (DriverTripDetailPage.css) — so the two can never drift by the 5px the
+     old hard-coded `bottom: 60px` was off by. */
+  :root {
+    /* Tab row: 4px top pad + 32px icon wrap + 2px gap + ~15px label. */
+    --bottom-nav-tab-h: 53px;
+    /* Real bar height: hairline + tab row + the home-indicator strip. */
+    --bottom-nav-h: calc(1px + var(--bottom-nav-tab-h) + max(12px, env(safe-area-inset-bottom, 0px)));
   }
 
   /* Driver full-bleed: strip the app-main gradient so driver pages own their bg */
@@ -51,11 +99,17 @@
 
   .bottom-nav {
     display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(60px + env(safe-area-inset-bottom, 12px));
+    position: relative;
+    flex-shrink: 0;
+    /* Card 20260927_149 (CHIEF research fix #1): env() applies ONCE — as the
+       home-indicator padding below. The old height calc() added the same
+       inset a second time, inflating the bar and misplacing it on iOS.
+       QA-2026-09-27-01: the bar now consumes the same `--bottom-nav-h`
+       token the sticky action bars offset by (declared above), so the bar's
+       real height IS the offset — no second, drifting source of truth. */
+    height: auto;
+    min-height: var(--bottom-nav-h);
+    box-sizing: border-box;
     /* Fully opaque — list/detail content scrolls underneath this fixed bar at
        every scroll position (not just the bottom), so any transparency lets
        scrolled-past content bleed through. Was rgba(...,0.95) relying on
@@ -63,7 +117,7 @@
        it silently never applied on Safari/iOS — the exact browser real
        drivers use — leaving only 95% opacity to hide a solid button behind
        it. */
-    background: var(--surface, #fff);
+    background: var(--surface);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border-top: 1px solid var(--line);
@@ -75,10 +129,10 @@
        tabs from being flung to the far corners while the content column
        sits at 720px. Same inset idiom as .topbar--driver. */
     padding-inline: max(0px, calc((100% - var(--driver-measure)) / 2));
-    padding-bottom: env(safe-area-inset-bottom, 12px);
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -4px 16px rgba(0,0,0,0.03);
   }
-  
+
   .bottom-nav-item {
     position: relative;
     display: flex;
@@ -90,10 +144,10 @@
     border: none;
     flex: 1;
     min-width: 0;
-    min-height: 48px;
+    min-height: var(--control-max-h);
     cursor: pointer;
     transition: color 140ms ease, background-color 140ms ease;
-    padding-top: 4px; /* Space for the indicator */
+    padding-block: 0;
     opacity: 1; /* navigation remains usable if the optional entrance animation cannot start */
     overflow: hidden;
   }
@@ -109,7 +163,7 @@
     border-radius: 0 0 999px 999px;
     box-shadow: none;
     opacity: 0;
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition: opacity var(--t-slow), transform var(--t-slow);
   }
   
   .bottom-nav-item.active .bottom-nav-indicator {
@@ -117,7 +171,7 @@
   }
   
   .bottom-nav-icon-wrap {
-    padding: 6px;
+    padding: 0;
     border-radius: 999px;
     transition: color 140ms ease, background-color 140ms ease;
     color: var(--ink-3);
@@ -182,7 +236,7 @@
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
     overflow: hidden;
-    animation: sheetUp 160ms ease;
+    animation: sheetUp var(--t-normal);
   }
 
   .mobile-user-sheet-header {
@@ -209,8 +263,8 @@
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 44px;
-    min-height: 44px;
+    width: var(--control-max-h);
+    min-height: var(--control-max-h);
     border: 0;
     border-radius: var(--r-sm);
     background: transparent;
@@ -300,7 +354,7 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    min-height: 48px;
+    min-height: var(--control-max-h);
     padding: 10px 4px;
     background: transparent;
     border: 0;

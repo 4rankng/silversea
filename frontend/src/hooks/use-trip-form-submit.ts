@@ -11,6 +11,7 @@ import { resolveContainerCount } from './tripFormDispatchUtils';
 import type { PhotoUploadedHandler } from './useTripFormPhotos';
 import {
   FIELD_LABELS,
+  externalCarrierEditValue,
   moneyOrNull,
   moneyOrUndefined,
   moneyOrZero,
@@ -367,7 +368,7 @@ const handleSubmit = useCallback(
           customerCommission: moneyOrZero(s.customerCommission),
           tripWageDays: s.tripWageDays ? Number(s.tripWageDays) : undefined,
           carrierType: s.carrierType,
-          externalCarrierId: s.carrierType === 'EXTERNAL' ? (s.externalCarrierId ?? null) : null,
+          externalCarrierId: externalCarrierEditValue(original, s.carrierType, s.externalCarrierId ?? null),
           externalFreightCost: s.carrierType === 'EXTERNAL' ? moneyOrNull(s.externalFreightCost) : null,
           externalPlateNumber: s.carrierType === 'EXTERNAL' ? (s.externalPlateNumber.trim() || null) : null,
           externalDriverName: s.carrierType === 'EXTERNAL' ? (s.externalDriverName.trim() || null) : null,
@@ -599,7 +600,8 @@ const handleSubmit = useCallback(
         msg = err.message;
       }
       if (!isEditMode && createdTripRef.current) {
-        msg = `Đã tạo chuyến #${createdTripRef.current.id}, nhưng chưa lưu xong dữ liệu kèm theo. ${msg} Bấm Lưu để tiếp tục trên chuyến này.`;
+        // business key render; id never user-facing — the create response type carries only { id } (no tripCode)
+        msg = `Đã tạo chuyến, nhưng chưa lưu xong dữ liệu kèm theo. ${msg} Bấm Lưu để tiếp tục trên chuyến này.`;
       }
       s.setError(msg);
       showToast({ kind: 'error', message: msg });

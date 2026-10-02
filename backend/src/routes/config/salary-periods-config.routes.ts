@@ -23,6 +23,7 @@ import {
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
 import { salaryPeriodSchema, salaryPeriodDefaultSchema } from '@tingting/shared';
 import { requestOrApplyGovernedConfigAction } from '../../services/price-config-governance.service';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 // Salary period config routes (T3c split) — the public resolve router and
 // the admin defaults/overrides router, moved verbatim from routes/config.ts.
@@ -45,13 +46,13 @@ salaryPeriodsRouter.get('/resolve', asyncHandler(async (req: Request, res: Respo
   res.json(await resolveSalaryPeriodDateRange(month, year));
 }));
 
-export const salaryPeriodsAdminRouter = Router();
+export const salaryPeriodsAdminRouter = Router()
 
 salaryPeriodsAdminRouter.get('/default', asyncHandler(async (_req: Request, res: Response) => {
   res.json(await getSalaryPeriodDefault());
 }));
 
-salaryPeriodsAdminRouter.put('/default', asyncHandler(async (req: Request, res: Response) => {
+salaryPeriodsAdminRouter.put('/default', declareMaterialWrite('config.salary-periods.default.update', { method: 'PUT', path: '/api/salary-periods/default' }),  asyncHandler(async (req: Request, res: Response) => {
   const data = salaryPeriodDefaultSchema.parse(req.body);
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật mặc định kỳ lương.');
   const expectedUpdatedAt = H.readExpectedUpdatedAt(req);
@@ -92,7 +93,7 @@ salaryPeriodsAdminRouter.get('/', asyncHandler(async (_req: Request, res: Respon
   res.json({ items, total: items.length });
 }));
 
-salaryPeriodsAdminRouter.post('/', asyncHandler(async (req: Request, res: Response) => {
+salaryPeriodsAdminRouter.post('/', declareMaterialWrite('config.salary-periods.override.create', { method: 'POST', path: '/api/salary-periods/' }),  asyncHandler(async (req: Request, res: Response) => {
   const data = salaryPeriodSchema.parse(req.body);
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi tạo kỳ lương.');
   const expectedUpdatedAt = H.readExpectedUpdatedAt(req);
@@ -137,7 +138,7 @@ salaryPeriodsAdminRouter.post('/', asyncHandler(async (req: Request, res: Respon
   res.status(replayed ? 200 : 201).json({ ...result, replayed });
 }));
 
-salaryPeriodsAdminRouter.put('/:id', asyncHandler(async (req: Request, res: Response) => {
+salaryPeriodsAdminRouter.put('/:id', declareMaterialWrite('config.salary-periods.override.update', { method: 'PUT', path: '/api/salary-periods/:id' }),  asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (!id || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const data = salaryPeriodSchema.parse(req.body);
@@ -183,7 +184,7 @@ salaryPeriodsAdminRouter.put('/:id', asyncHandler(async (req: Request, res: Resp
   res.status(replayed ? 200 : 201).json({ ...result, replayed });
 }));
 
-salaryPeriodsAdminRouter.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+salaryPeriodsAdminRouter.delete('/:id', declareMaterialWrite('config.salary-periods.override.delete', { method: 'DELETE', path: '/api/salary-periods/:id' }),  asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi xóa kỳ lương.');
   const expectedUpdatedAt = H.requireExpectedUpdatedAt(
@@ -251,7 +252,7 @@ salaryPeriodsAdminRouter.get('/:period/exclusions', asyncHandler(async (req: Req
   res.json({ items: await listSalaryPeriodExclusions(req.params.period as string) });
 }));
 
-salaryPeriodsAdminRouter.post('/:period/exclusions', asyncHandler(async (req: Request, res: Response) => {
+salaryPeriodsAdminRouter.post('/:period/exclusions', declareMaterialWrite('config.salary-periods.exclusion.create', { method: 'POST', path: '/api/salary-periods/:period/exclusions' }),  asyncHandler(async (req: Request, res: Response) => {
   const u = getUser(req);
   const body = req.body ?? {};
   if (!body || typeof body !== 'object') {
@@ -305,7 +306,7 @@ salaryPeriodsAdminRouter.post('/:period/exclusions', asyncHandler(async (req: Re
   res.status(outcome.statusCode).json({ ...outcome.result, replayed: outcome.replayed });
 }));
 
-salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/complete-followup', asyncHandler(async (req: Request, res: Response) => {
+salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/complete-followup', declareMaterialWrite('config.salary-periods.exclusion.followup.complete', { method: 'POST', path: '/api/salary-periods/:period/exclusions/:actionId/complete-followup' }),  asyncHandler(async (req: Request, res: Response) => {
   const actionId = Number(req.params.actionId);
   if (!Number.isInteger(actionId) || actionId < 1) {
     throw new ApiError(400, 'actionId không hợp lệ');
@@ -329,7 +330,7 @@ salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/complete-followup',
   res.json({ ...outcome.result, replayed: outcome.replayed });
 }));
 
-salaryPeriodsAdminRouter.post('/:period/close', asyncHandler(async (req: Request, res: Response) => {
+salaryPeriodsAdminRouter.post('/:period/close', declareMaterialWrite('config.salary-periods.close.request', { method: 'POST', path: '/api/salary-periods/:period/close' }),  asyncHandler(async (req: Request, res: Response) => {
   const u = getUser(req);
   const period = req.params.period as string;
   const note = typeof req.body?.note === 'string' ? req.body.note : null;
@@ -358,7 +359,7 @@ salaryPeriodsAdminRouter.post('/:period/close', asyncHandler(async (req: Request
   res.status(outcome.statusCode).json({ ...outcome.result, replayed: outcome.replayed });
 }));
 
-salaryPeriodsAdminRouter.post('/:period/reopen', asyncHandler(async (req: Request, res: Response) => {
+salaryPeriodsAdminRouter.post('/:period/reopen', declareMaterialWrite('config.salary-periods.reopen.request', { method: 'POST', path: '/api/salary-periods/:period/reopen' }),  asyncHandler(async (req: Request, res: Response) => {
   const u = getUser(req);
   const expectedVersion = Number((req.body as { expectedVersion?: unknown } | undefined)?.expectedVersion);
   const reason = typeof req.body?.reason === 'string' ? req.body.reason : null;

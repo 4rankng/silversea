@@ -91,9 +91,6 @@
   .trip-list-page .hero-actions .btn { flex: 1; justify-content: center; }
   .trip-list-page .metrics { grid-template-columns: 1fr 1fr; }
   .trip-list-page .metric.featured { grid-column: 1 / -1; grid-row: auto; }
-  .trip-list-page .filters-row-top { flex-direction: column; align-items: stretch; }
-  .trip-list-page .filters-search { width: 100%; }
-  .trip-list-page .filters-row-bottom { flex-wrap: wrap; }
   .trip-list-page .trip-mobile-list {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -105,7 +102,7 @@
     grid-template-columns: 1fr;
   }
   .trip-list-page .quick-edit-toolbar__main .btn {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
   .trip-list-page .table-foot {
     align-items: stretch;
@@ -138,7 +135,7 @@
   .trip-list-page .hero-top { flex-direction: column; gap: 10px; align-items: flex-start; }
   .trip-list-page .hero-sub { font-size: var(--fs-xs); }
   .trip-list-page .hero-actions { width: 100%; flex-wrap: wrap; }
-  .trip-list-page .hero-actions .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
+  .trip-list-page .hero-actions .btn { flex: 1 1 auto; justify-content: center; min-height: var(--control-max-h); }
 
   .trip-list-page .metrics {
     display: grid;
@@ -182,44 +179,6 @@
   .trip-list-page .stats-strip { grid-template-columns: 1fr 1fr; gap: 10px; }
   .trip-list-page .section-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 16px; }
 
-  /* Five visible choices fit two compact rows, preserving44px tap targets. */
-  .trip-list-page .status-tabs {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    overflow: visible;
-    padding: 0;
-    gap: 6px;
-    background: transparent;
-    border: 0;
-  }
-  .trip-list-page .status-tabs .stab-pill {
-    justify-content: center;
-    min-width: 0;
-    padding: 4px;
-    min-height: 44px;
-    font-size: var(--fs-xs);
-    gap: 4px;
-  }
-  /* :not(.active) — equal-specificity tie with `.stab-pill.active` in
-     filters.css would otherwise let this override win by source order,
-     painting the active tab's dark fill light and its text invisible. */
-  .trip-list-page .status-tabs .stab-pill:not(.active) {
-    border: 1px solid var(--line);
-    background: var(--surface);
-  }
-  .trip-list-page .status-tabs .stab-pill .stab-count {
-    font-size: var(--fs-xs);
-    padding: 1px 6px;
-  }
-  /* Right-edge fade — sits inside the scroll container so it pins to the
-     visible right edge regardless of scroll position. */
-  .trip-list-page .filters-row-top {
-    position: relative;
-    padding-right: 0;
-  }
-  .trip-list-page .filters-row-top::after {
-    content: none;
-  }
   .trip-list-page .hero-actions {
     display: grid;
     grid-template-columns: 44px 44px minmax(0, 1fr);
@@ -236,45 +195,14 @@
   .trip-list-page .hero-action--export .hero-action-label {
     display: none;
   }
-  .trip-list-page .filters-card {
-    padding: 12px;
-  }
-  .trip-list-page .filters-divider {
-    margin: 10px 0;
-  }
-  .trip-list-page .filters-row-bottom {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .trip-list-page .filters-row-bottom .filters-search,
-  .trip-list-page .filters-search-hint {
-    grid-column: 1 / -1;
-  }
 } /* end 640px */
 
 /* ── Responsive overrides (from responsive.css decomposition) ── */
 @media (max-width: 640px) {
-  /* ── TripListPage: larger filter pill tap targets, breakdown bar fix ── */
-  .trip-list-page .filter-pill {
-    height: auto;
-    min-height: 48px;
-    padding: 8px 12px;
-    font-size: var(--fs-xs);
-    align-items: center;
-  }
-  .trip-list-page .filter-pill .filter-lbl-wrap {
-    gap: 3px;
-    line-height: 1.35;
-  }
-  .trip-list-page .filter-pill .filter-lbl-cap {
-    line-height: 1.35;
-  }
-  .trip-list-page .filter-pill select {
-    min-height: 44px;
-    line-height: 1.35;
-  }
+  /* ── TripListPage: breakdown bar fix ── */
   .trip-list-page .breakdown-bar {
     height: 6px;
-    border-radius: 99px;
+    border-radius: 24px;
   }
   .trip-list-page .breakdown-legend {
     gap: 4px 8px;
@@ -307,13 +235,4 @@
   .trip-list-page .metrics {
     gap: 8px;
   }
-
-  .trip-list-page .filters-card {
-    padding: 10px;
-    margin-bottom: 10px;
-  }
-}
-
-@media (max-width: 359px) {
-  .trip-list-page .status-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

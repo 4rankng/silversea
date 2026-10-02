@@ -27,22 +27,19 @@
 .salary-page .hero-sub {
   font-size: var(--fs-sm); color: var(--ink-2);
 }
-.salary-page .hero-actions {
-  display: flex; align-items: center; gap: 8px;
-  flex-shrink: 0;
-}
+/* The month prev/label/next cluster and the payout action are bar items now
+   (card 20260927_152): the bar's own action cluster owns their layout, so the
+   page's `.hero-actions` flex/gap rule is deleted (law §4) along with it. */
 .salary-page .hero-month-label {
   color: var(--ink-2);
   font-weight: 600;
   font-size: var(--fs-sm);
   padding: 0 4px;
-  min-width: 72px;
-  text-align: center;
 }
 
-/* Hero month-nav buttons use the Global .btn / .btn--secondary / .btn--icon
-   system (components/Button.css). The page-scoped .btn-d* recipes were
-   retired during CTA unification. */
+/* The month-nav buttons ride the bar's action cluster and use the Global .btn /
+   .btn--secondary / .btn--icon system (components/Button.css). The page-scoped
+   .btn-d* recipes were retired during CTA unification. */
 
 /* ── Metric strip (bento grid) ──────────────────────────────────────── */
 .salary-page .metrics {
@@ -100,19 +97,16 @@
   margin-top: 12px;
   height: 5px;
   background: var(--surface-3);
-  border-radius: 99px;
+  border-radius: 24px;
   position: relative; overflow: hidden;
 }
 .salary-page .utilization-fill {
   position: absolute; left: 0; top: 0; bottom: 0;
   background: linear-gradient(90deg, #16A34A, #5EE99B);
-  border-radius: 99px;
+  border-radius: 24px;
 }
 
 /* ── Driver selector grid ───────────────────────────────────────────── */
-.salary-page .driver-select-row__search {
-  margin-bottom: 12px;
-}
 .salary-page .driver-select-row {
   padding: 10px 0;
   border-block: 1px solid var(--line);
@@ -131,7 +125,6 @@
 @media (max-width: 1023px) {
   .salary-page .hero { padding: 0; }
   .salary-page .hero-top { flex-direction: column; gap: 14px; }
-  .salary-page .hero-actions { width: 100%; justify-content: center; }
   .salary-page .driver-select-row__list {
     flex-wrap: wrap;
     overflow: visible;
@@ -147,36 +140,6 @@
   }
   .salary-page .hero-top { flex-direction: column; gap: 10px; align-items: stretch; }
   .salary-page .hero-sub { font-size: var(--fs-xs); }
-  .salary-page .hero-actions {
-    width: 100%;
-    margin-left: 0;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .salary-page .hero-actions .btn {
-    height: 34px;
-    border-radius: 9px;
-  }
-  .salary-page .hero-actions .btn--primary {
-    width: auto;
-    max-width: 100%;
-    padding: 0 10px;
-    flex: 0 1 auto;
-  }
-  .salary-page .hero-actions .btn--icon {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
-    padding: 0;
-    flex: 0 0 44px;
-  }
-  .salary-page .hero-month-label {
-    min-width: 54px;
-    font-size: var(--fs-xs);
-    padding: 0;
-  }
   .salary-page .metrics {
     grid-template-columns: 1fr 1fr;
     gap: 6px;
@@ -204,7 +167,6 @@
     padding: 8px 0;
     margin-bottom: 10px;
   }
-  .salary-page .driver-select-row__search { margin-bottom: 8px; }
   .salary-page .driver-select-row__list {
     display: flex;
     flex-wrap: wrap;

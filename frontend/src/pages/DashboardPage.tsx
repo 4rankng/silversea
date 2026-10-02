@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronRight, ChevronUp, Download, Truck } from 'lucide-react';
-import { formatNumber } from '../lib/format';
+import { formatMoney, formatNumber } from '../lib/format';
 import { useAuth } from '../hooks/useAuth';
 import type { DashboardDecisionItem, Role, TripDetail } from '@tingting/shared';
 import { ROLE_LABELS } from '@tingting/shared';
@@ -20,7 +20,7 @@ import { CompanyInfoSetupBanner } from '../features/dashboard/components/Company
 import './DashboardPage.css';
 import './WorkflowFinance.css';
 import { ExecutiveFinancialStrip } from '../components/dashboard/ExecutiveFinancialStrip';
-import { CostBreakdown, DeltaPill, decisionIcon, fmtVN, greeting, runningSum, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
+import { CostBreakdown, DeltaPill, decisionIcon, greeting, runningSum, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
 
 type DashboardStatTone = 'revenue' | 'cost' | 'gross' | 'net' | 'debt';
 
@@ -208,7 +208,7 @@ export default function DashboardPage() {
         pct: slice.pct,
         color: slice.color,
       }))
-      .filter(item => item.value > 0 && item.pct > 0)
+      .filter(item => item.value !== null && item.value > 0 && item.pct !== null && item.pct > 0)
       .sort((a, b) => b.value - a.value);
   }, [d]);
 
@@ -376,7 +376,7 @@ export default function DashboardPage() {
           icon={<AssetIcon name="analytics" size={15} />}
           label={`Doanh thu · ${String(currentMonth).padStart(2, '0')}/${currentYear}`}
           delta={<DeltaPill mom={revenueMoM} />}
-          value={fmtVN(revenue)}
+          value={formatMoney(revenue)}
           valueRef={element => { kpiRefs.current.revenue = element; }}
           description={<>Tháng trước · {formatNumber(prevRevenue)} ₫</>}
         />
@@ -385,7 +385,7 @@ export default function DashboardPage() {
           icon={<AssetIcon name="expense" size={15} />}
           label="Tổng chi phí"
           delta={<DeltaPill mom={costsMoM} />}
-          value={fmtVN(costs)}
+          value={formatMoney(costs)}
           valueRef={element => { kpiRefs.current.costs = element; }}
           description={<>{costRatio.toFixed(1)}% doanh thu</>}
         />
@@ -394,7 +394,7 @@ export default function DashboardPage() {
           icon={<AssetIcon name="gross-margin" size={15} />}
           label="Lợi nhuận gộp"
           delta={<DeltaPill mom={grossMoM} />}
-          value={fmtVN(grossProfit)}
+          value={formatMoney(grossProfit)}
           valueRef={element => { kpiRefs.current.gross = element; }}
           description={<>Biên gộp · {grossMargin.toFixed(1)}%</>}
         />
@@ -403,7 +403,7 @@ export default function DashboardPage() {
           icon={<AssetIcon name="profit" size={15} />}
           label="Lợi nhuận ròng"
           delta={<DeltaPill mom={netMoM} />}
-          value={fmtVN(netProfit)}
+          value={formatMoney(netProfit)}
           valueRef={element => { kpiRefs.current.net = element; }}
           description={<>Sau phí quản lý · <button className="d-btn d-btn-link d-btn-xs wf-link" onClick={() => navigate('/profit')}>Phân chia →</button></>}
         />
@@ -411,7 +411,7 @@ export default function DashboardPage() {
           tone="debt"
           icon={<AssetIcon name="receivables" size={15} />}
           label="Công nợ phải thu"
-          value={fmtVN(receivablesSummary?.totalOutstanding ?? 0)}
+          value={formatMoney(receivablesSummary?.totalOutstanding ?? 0)}
           description={<>{receivablesSummary?.overdueCustomers ?? 0} khách quá hạn</>}
         />
       </div>
@@ -526,7 +526,7 @@ export default function DashboardPage() {
                       <DsEmptyState
                         title="Chưa có dữ liệu trong kỳ"
                         description="Biểu đồ sẽ xuất hiện khi kỳ này ghi nhận doanh thu hoặc lợi nhuận gộp dương."
-                        illustration="/assets/illustrations/empty-revenue-period.webp"
+                        context="revenue-period"
                         className="wf-chart-empty"
                       />
                     </div>
@@ -540,7 +540,7 @@ export default function DashboardPage() {
                       <DsEmptyState
                         title="Chưa đủ dữ liệu lịch sử"
                         description="Biểu đồ doanh thu & lợi nhuận gộp sẽ xuất hiện tại đây sau khi có chuyến đầu tiên trong kỳ."
-                        illustration="/assets/illustrations/empty-revenue-period.webp"
+                        context="revenue-period"
                         className="wf-chart-empty"
                       />
                     </div>
@@ -590,7 +590,7 @@ export default function DashboardPage() {
                 <DsEmptyState
                   title="Chưa có chi phí trong tháng"
                   description="Cơ cấu chi phí sẽ xuất hiện sau khi có khoản chi được ghi nhận."
-                  illustration="/assets/illustrations/empty-cost-composition.webp"
+                  context="cost-composition"
                   className="wf-dashboard-empty wf-dashboard-empty--cost"
                 />
               ) : (
@@ -612,7 +612,7 @@ export default function DashboardPage() {
                   <DsEmptyState
                     title="Chưa có dữ liệu xe"
                     description="Biên lợi nhuận sẽ xuất hiện khi có chuyến hoàn tất trong tháng."
-                    illustration="/assets/illustrations/empty-vehicle-profit.webp"
+                    context="vehicle-profit"
                     className="wf-dashboard-empty wf-dashboard-empty--inline"
                   />
                 ) : topTrucks.map((t, i) => (
@@ -639,7 +639,7 @@ export default function DashboardPage() {
                   <DsEmptyState
                     title="Chưa có dữ liệu tuyến"
                     description="Xếp hạng sẽ xuất hiện khi tuyến có lợi nhuận gộp."
-                    illustration="/assets/illustrations/empty-profitable-routes.webp"
+                    context="profitable-routes"
                     className="wf-dashboard-empty wf-dashboard-empty--inline"
                   />
                 ) : topRoutes.map((r, i) => (

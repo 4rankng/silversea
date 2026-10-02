@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { opsInvoicedCostGroupOf } from '@tingting/shared';
 import { DateField, TextField, UuiSelectField } from '../../design-system';
 import { formatCurrency } from '../../lib/format';
 import { ExpenseNameSuggestions } from '../expense-accounting/ExpenseNameSuggestions';
@@ -11,6 +12,9 @@ export interface OpsExpenseFinancialDraft {
   invoiceNumber: string;
   invoiceDate: string;
   recoveryNote: string;
+  /** Card 20260921_5 — Thực-thu side of the no-invoice pair (display text;
+   *  parsed server-side). Empty = not collected from the customer. */
+  customerChargeAmount: string;
 }
 
 export const OPS_COST_GROUP_OPTIONS = [
@@ -21,11 +25,18 @@ export const OPS_COST_GROUP_OPTIONS = [
   { value: 'OPS_INCIDENTAL', label: 'Không hóa đơn · Phát sinh' },
 ];
 
-export function opsGroupForType(code: string, invoiced: boolean): OpsCostGroup {
-  if (!invoiced) return 'OPS_REGULAR';
-  if (code === 'LIFTING') return 'INVOICED_LIFT';
-  if (code === 'LOWERING') return 'INVOICED_DROP';
-  return 'INVOICED_OTHER';
+/** Card 20260928_161 — the initial "Nhóm chi phí" of a CATALOG row. Derived
+ *  from the row's settlement `category` through the shared rule the server
+ *  uses too (`opsInvoicedCostGroupOf`): LIFT → Nâng, DROP → Hạ, the rest →
+ *  Phí khác, so `LIFT_EMPTY` / `LIFT_CARGO` / `YARD_STORAGE_LIFT` and the
+ *  DROP equivalents no longer land in the Phí khác catch-all. Codes are never
+ *  matched — an admin can rename or re-categorise them. Non-invoice rows keep
+ *  the OPS_REGULAR default; "Không hóa đơn · Phát sinh" stays a manual pick. */
+export function opsGroupForType(
+  type: { requiresInvoice?: boolean | null; category?: string | null } | null | undefined,
+): OpsCostGroup {
+  if (type?.requiresInvoice !== true) return 'OPS_REGULAR';
+  return opsInvoicedCostGroupOf(type.category);
 }
 
 export function useOpsExpenseFinancialDraft(initial?: Partial<OpsExpenseFinancialDraft>) {
@@ -35,6 +46,7 @@ export function useOpsExpenseFinancialDraft(initial?: Partial<OpsExpenseFinancia
     invoiceNumber: initial?.invoiceNumber ?? '',
     invoiceDate: initial?.invoiceDate ?? '',
     recoveryNote: initial?.recoveryNote ?? '',
+    customerChargeAmount: initial?.customerChargeAmount ?? '',
   });
 }
 
@@ -46,6 +58,7 @@ export function opsFinancialPayload(draft: OpsExpenseFinancialDraft) {
     invoiceNumber: invoiced ? draft.invoiceNumber.trim() || null : null,
     invoiceDate: invoiced ? draft.invoiceDate || null : null,
     recoveryNote: draft.recoveryNote.trim() || null,
+    customerChargeAmount: invoiced ? undefined : (draft.customerChargeAmount.trim() === '' ? undefined : draft.customerChargeAmount.trim()),
   };
 }
 
@@ -72,12 +85,16 @@ export function OpsExpenseFinancialFields({ value, onChange, amount, disabled = 
         <DateField controlSize="sm" label="Ngày hóa đơn" value={value.invoiceDate} disabled={disabled}
           onChange={(invoiceDate) => patch({ invoiceDate })} />
       </>}
+      {!invoiced && <TextField controlSize="sm" label="Thực thu (thu khách)" value={value.customerChargeAmount} disabled={disabled}
+        onChange={(event) => patch({ customerChargeAmount: event.target.value })} inputMode="decimal"
+        placeholder="Để trống nếu chưa thu khách" />}
     </div>
     <ExpenseNameSuggestions group={value.costGroup} disabled={disabled} onChoose={feeName => patch({ feeName })} />
-    <p className="ops-form-photos__hint">
-      {invoiced ? `Thu khách dự kiến: ${formatCurrency(Number.isFinite(amount) ? amount : 0)}.` : 'Khoản không hóa đơn: CUS / kế toán xác định số thu khách theo thỏa thuận.'}
-      {' '}Ghi chi phí không có nghĩa khách đã trả tiền.
-    </p>
+    {invoiced && (
+      <p className="ops-form-photos__hint">
+        {`Thu khách dự kiến: ${formatCurrency(Number.isFinite(amount) ? amount : 0)}.`}
+      </p>
+    )}
     <TextField controlSize="sm" label="Ghi chú thu khách" value={value.recoveryNote} disabled={disabled}
       onChange={(event) => patch({ recoveryNote: event.target.value })} maxLength={1000}
       placeholder="Đã gồm trong giá trọn gói / đề nghị thu thêm…" />

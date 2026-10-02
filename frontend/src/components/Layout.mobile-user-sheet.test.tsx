@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Role } from '@tingting/shared';
 
@@ -47,6 +47,11 @@ beforeAll(() => {
   });
 });
 
+function CurrentRoute() {
+  const location = useLocation();
+  return <output aria-label="Đường dẫn hiện tại">{location.pathname}</output>;
+}
+
 function renderDriverShell() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -57,7 +62,7 @@ function renderDriverShell() {
         <MonthProvider>
           <SearchProvider>
             <Routes>
-              <Route path="*" element={<Layout><div>Nội dung trang</div></Layout>} />
+              <Route path="*" element={<Layout><div>Nội dung trang</div><CurrentRoute /></Layout>} />
             </Routes>
           </SearchProvider>
         </MonthProvider>
@@ -90,6 +95,27 @@ describe('Layout — driver mobile account sheet vs the global dropdown-dismiss 
       loading: false,
       sessionExpired: false,
     });
+  });
+
+  it('keeps four primary tabs and opens notifications from the account sheet', async () => {
+    renderDriverShell();
+    const navigation = screen.getByRole('navigation', { name: 'Điều hướng chính' });
+    expect(within(navigation).getAllByRole('button').map(button => button.textContent)).toEqual([
+      'Hành trình', 'Thu nhập', 'Kỷ luật', 'Tài khoản',
+    ]);
+    openAccountSheet();
+    const dialog = screen.getByRole('dialog', { name: 'Tài khoản' });
+    const notifications = within(dialog).getByRole('button', { name: 'Thông báo' });
+    fireEvent.pointerDown(notifications);
+    fireEvent.mouseDown(notifications);
+    expect(screen.getByRole('dialog', { name: 'Tài khoản' })).toBeTruthy();
+    fireEvent.mouseUp(notifications);
+    fireEvent.click(notifications);
+    await waitFor(() => expect(screen.getByLabelText('Đường dẫn hiện tại').textContent).toBe('/notifications'));
+    expect(screen.queryByRole('dialog', { name: 'Tài khoản' })).toBeNull();
+    expect(document.querySelector('.app-main')?.hasAttribute('inert')).toBe(false);
+    expect(within(navigation).getAllByRole('button')).toHaveLength(4);
+    expect(within(navigation).getByRole('button', { name: 'Tài khoản' }).getAttribute('aria-expanded')).toBe('false');
   });
 
   it('logs out when the sheet Đăng xuất button receives a full press sequence', () => {
@@ -188,6 +214,9 @@ describe('Layout — driver mobile account sheet vs the global dropdown-dismiss 
       dispatchEvent: () => false,
     }));
     renderDriverShell();
+    const sidebar = document.querySelector('.sidebar') as HTMLElement;
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Thông báo' }));
+    expect(screen.getByLabelText('Đường dẫn hiện tại').textContent).toBe('/notifications');
     fireEvent.click(screen.getByRole('button', { name: 'Menu người dùng' }));
     expect(document.querySelector('.sidebar-user-dropdown')).toBeTruthy();
     expect(document.querySelector('.mobile-user-sheet-overlay')).toBeNull();

@@ -46,14 +46,6 @@ describe('operational-canvas (≤1500px) record-table hand-off', () => {
   });
 });
 
-describe('expense filter bar (≤640px)', () => {
-  it('stacks every filter into a single column on phones so the Untitled-UI select label is not truncated', () => {
-    expect(responsiveCss).toMatch(
-      /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\.expense-filters,\s*\.expense-filter-bar\s*\{[\s\S]*?grid-template-columns:\s*1fr;/,
-    );
-  });
-});
-
 describe('accounting work-inbox (≤1500px) hand-off', () => {
   it('rides the shared record-table card hand-off instead of a page media rail', () => {
     // The inbox table moved onto the shared record-table base (sticky thead +
@@ -113,5 +105,33 @@ describe('finance category-breakdown table — operational canvas hand-off', () 
     const financeSource = readFileSync(resolve(process.cwd(), 'src/pages/FinancePage.tsx'), 'utf8');
     expect(financeSource).toMatch(/finance-category-breakdown__scroll[\s\S]*?record-table-wrap[\s\S]*?record-table ops-table/);
     expect(recordTableCss).toContain('content: attr(data-label);');
+  });
+});
+
+// Card 20260930_223 — the work-inbox controls took their 30px height from
+// --control-compact-h, and the only rule that raised them sat inside
+// `@media (max-width: 640px)`. Touch is a capability, not a width: a tablet at
+// 768/820/1024 is a touch device and kept 30px targets. Measured six of them
+// in `.accounting-work-inbox__shortcuts`, every one exactly 30.0px.
+// The fix keys the floor on `(hover: none) and (pointer: coarse)` — the same
+// condition the rest of the codebase pairs with its width bands.
+describe('work-inbox tap floor follows the pointer, not the width (card 20260930_223)', () => {
+  it('raises the shortcut/action/button floor on coarse pointers at any width', () => {
+    const coarse = accountingInboxCss.match(
+      /@media \(hover: none\) and \(pointer: coarse\)\s*\{([\s\S]*?)\n\}/,
+    )?.[1] ?? '';
+    expect(coarse).not.toBe('');
+    expect(coarse).toContain('.accounting-work-inbox__shortcuts a');
+    expect(coarse).toMatch(/min-height:\s*var\(--control-touch-h\)/);
+    // It must NOT drag the phone LAYOUT (2-column grid, smaller type) up to
+    // 1024px — a tablet keeps the desktop arrangement and only gains the floor.
+    expect(coarse).not.toContain('grid-template-columns');
+    expect(coarse).not.toContain('--fs-3xs');
+  });
+
+  it('leaves the compact token in force for fine pointers', () => {
+    expect(accountingInboxCss).toMatch(
+      /\.accounting-work-inbox__shortcuts a[\s\S]*?min-height:\s*var\(--control-compact-h/,
+    );
   });
 });

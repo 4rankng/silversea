@@ -12,7 +12,8 @@ import {
 import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
-import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
+import { billBookingReference } from '../../../lib/business-reference';
+import { DateTimeField, NumberField, SearchableSelect, type SearchableSelectOption } from '../../../design-system';
 import {
   CURRENT_PLATE_PREFIX,
   EXTERNAL_VEHICLE_PREFIX,
@@ -30,10 +31,9 @@ import {
 } from './DispatchPlanCellValues';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
-import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import { IssueOrderFields } from './IssueOrderFields';
 import { useIssueOrder } from './useIssueOrder';
-import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, trailerMismatchSuffix } from './trailerFit';
+import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, vehicleWarningSuffix, type VehicleFit } from './trailerFit';
 import './DispatchPlanEditorCell.css';
 
 export type IssueOrderResult = DispatchShipmentResponse;
@@ -101,20 +101,47 @@ interface DispatchPlanEditorCellProps {
 interface PlanEditorDraft {
   carrierValue: string;
   vehicleValue: string;
-  plannedRevenue: string;
-  plannedCarrierCost: string;
+  /** Money via NumberField — number | '' (the field's contract; '' = unset). */
+  plannedRevenue: number | '';
+  plannedCarrierCost: number | '';
+  /** Giờ trả hàng — local 'YYYY-MM-DDTHH:mm' in Vietnam wall-clock; '' = unset. */
+  plannedEndAt: string;
   classification: DispatchClassification;
   /** Composed driver note (tags + manual text) — see DispatchTaskTagEditor. */
   operationalNotes: string | null;
 }
 
+/** ISO instant → Vietnam wall-clock 'YYYY-MM-DDTHH:mm' for datetime-local inputs. */
+function isoToVietnamLocalInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  const hour = get('hour') === '24' ? '00' : get('hour');
+  return `${get('year')}-${get('month')}-${get('day')}T${hour}:${get('minute')}`;
+}
+
+/** Local 'YYYY-MM-DDTHH:mm' → zone-aware ISO (+07:00). Null when incomplete. */
+function vietnamLocalInputToIso(local: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local)) return null;
+  return new Date(`${local}:00+07:00`).toISOString();
+}
+
+
+/** Stored estimates are digit strings; NumberField drafts hold number | ''. */
+const estimateToDraft = (value: string | null): number | '' => (value && value.trim() ? Number(value) : '');
 
 function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
   return {
     carrierValue: carrierValueForRow(row),
     vehicleValue: vehicleValueForRow(row),
-    plannedRevenue: row.estimates.plannedRevenue ?? '',
-    plannedCarrierCost: row.estimates.plannedCarrierCost ?? '',
+    plannedRevenue: estimateToDraft(row.estimates.plannedRevenue),
+    plannedCarrierCost: estimateToDraft(row.estimates.plannedCarrierCost),
+    plannedEndAt: isoToVietnamLocalInput(row.plannedEndAt),
     classification: row.classification,
     operationalNotes: row.notes.vehicleNote,
   };
@@ -149,7 +176,7 @@ function vehicleBody(value: string): VehicleBody | null {
 }
 
 /**
- * One full-cell trigger and one atomic editor for the whole detailed-plan row:
+ * One compact assignment action and one atomic editor for the whole detailed-plan row:
  * carrier, vehicle, estimates and Phân loại (Đơn/Kẹp/Kết hợp — the dispatcher's
  * call since 2026-09-08) save together through PATCH
  * /dispatch-detail-plan-rows/:id/plan or not at all. The lot-level Đóng kết
@@ -161,6 +188,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const restoreFocusRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlanEditorDraft>(() => draftForRow(row));
+  // Live completeness of the Giờ trả hàng segments ('complete' | 'empty' |
+  // 'incomplete') — 'incomplete' must BLOCK the save; '' from the field alone
+  // can't distinguish an intentional clear from a half-typed edit.
+  const endCompletenessRef = useRef<'complete' | 'empty' | 'incomplete'>('empty');
   const [carrierOptions, setCarrierOptions] = useState<SearchableSelectOption[]>([]);
   const [carrierSearch, setCarrierSearch] = useState('');
   const [carrierCursor, setCarrierCursor] = useState<string | null>(null);
@@ -170,9 +201,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [vehicleCursor, setVehicleCursor] = useState<string | null>(null);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [suggestions, setSuggestions] = useState<Array<{ truckId: number; plateNumber: string; reasons: Array<'D-1_DROP' | 'D+1_PICKUP'> }>>([]);
-  // Trailer type per loaded truck id — lets the pinned D±1 suggestion labels
-  // carry the same mismatch warning as the page list without re-fetching.
-  const truckTrailerTypesRef = useRef(new Map<number, string | null>());
+  // Trailer type + capacity per loaded truck id — lets the pinned D±1
+  // suggestion labels carry the same advisories as the page list, no refetch.
+  const truckFitRef = useRef(new Map<number, VehicleFit>());
   // Truck fleet-page carrier links (id → link) from the loaded pages — the
   // own-truck promotion reads this so an explicit link wins over the generic
   // internal default.
@@ -205,16 +236,18 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const vehicleChanged = carrierSwitched
     ? draft.vehicleValue !== ''
     : vehiclePlateKey(draft.vehicleValue, vehicleOptions) !== vehiclePlateKey(vehicleValueForRow(row), vehicleOptions);
-  const revenue = parseVnd(draft.plannedRevenue);
-  const carrierCost = parseVnd(draft.plannedCarrierCost);
+  // NumberField guarantees a finite number or '' — the invalid-state branches
+  // of the old parseVnd flow are structurally gone for the draft values.
+  const draftRevenue = draft.plannedRevenue === '' ? null : draft.plannedRevenue;
+  const draftCarrierCost = draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost;
   const storedRevenue = parseVnd(row.estimates.plannedRevenue ?? '');
   const storedCarrierCost = parseVnd(row.estimates.plannedCarrierCost ?? '');
   const planDirty = carrierSwitched || vehicleChanged
     || draft.classification !== row.classification
     || (draft.operationalNotes ?? '') !== (row.notes.vehicleNote ?? '')
-    || !revenue.valid || !carrierCost.valid
-    || revenue.value !== storedRevenue.value
-    || carrierCost.value !== storedCarrierCost.value;
+    || !storedRevenue.valid || !storedCarrierCost.valid
+    || draftRevenue !== storedRevenue.value
+    || draftCarrierCost !== storedCarrierCost.value;
   const canIssue = issueStatus === 'PLATED_NOT_ISSUED' && !planDirty;
 
   const {
@@ -246,7 +279,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     setDraft(draftForRow(row));
     setOpen(true);
     onAutoOpenConsumed?.(autoOpenFulfillmentId);
-  }, [autoOpenFulfillmentId, row, open]);
+  }, [autoOpenFulfillmentId, row, open, onAutoOpenConsumed]);
 
   useEffect(() => {
     if (open || !restoreFocusRef.current) return;
@@ -310,7 +343,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       let mapped: SearchableSelectOption[];
       if (isOwnFleet) {
         const trucks = response.items as DispatchTruck[];
-        truckTrailerTypesRef.current = new Map(trucks.map((truck) => [truck.id, truck.trailerType]));
+        truckFitRef.current = new Map(trucks.map((truck) => [truck.id, { trailerType: truck.trailerType, capacityKg: truck.capacityKg }]));
         truckCarrierLinksRef.current = new Map(trucks
           .filter((truck) => truck.carrierId != null)
           .map((truck) => [truck.id, { plate: truck.licensePlate, carrierId: truck.carrierId!, carrierName: truck.carrierName ?? '' }]));
@@ -319,7 +352,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         const ranked = requiredTrailerType != null
           ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
           : trucks;
-        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType) }));
+        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType, row.container.cargoWeightKg) }));
       } else {
         mapped = (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       }
@@ -377,7 +410,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       .filter((suggestion) => vehicleOptions.some((option) => option.value === `${OWN_TRUCK_PREFIX}${suggestion.truckId}`))
       .map((suggestion) => {
         const tags = suggestion.reasons.map((reason) => SUGGESTION_LABELS[reason]).join(' · ');
-        const warning = trailerMismatchSuffix(truckTrailerTypesRef.current.get(suggestion.truckId) ?? null, requiredTrailerType);
+        const warning = vehicleWarningSuffix(truckFitRef.current.get(suggestion.truckId), requiredTrailerType, row.container.cargoWeightKg);
         return {
           value: `${OWN_TRUCK_PREFIX}${suggestion.truckId}`,
           label: `${suggestion.plateNumber} — ${tags}${warning}`,
@@ -400,7 +433,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         : row.dispatch.assignedPlate ?? 'Biển số hiện tại');
     const withoutDuplicate = matchIndex !== -1 ? merged.filter((_, index) => index !== matchIndex) : merged;
     return [{ value: draft.vehicleValue, label }, ...withoutDuplicate];
-  }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.container.containerTypeLabel, suggestions, vehicleOptions]);
+  }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.container.containerTypeLabel, row.container.cargoWeightKg, suggestions, vehicleOptions]);
 
   async function openEditor() {
     if (disabled) return;
@@ -489,7 +522,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       if (isOwnFleet) {
         const trucks = response.items as DispatchTruck[];
         for (const truck of trucks) {
-          truckTrailerTypesRef.current.set(truck.id, truck.trailerType);
+          truckFitRef.current.set(truck.id, { trailerType: truck.trailerType, capacityKg: truck.capacityKg });
           if (truck.carrierId != null) {
             truckCarrierLinksRef.current.set(truck.id, { plate: truck.licensePlate, carrierId: truck.carrierId, carrierName: truck.carrierName ?? '' });
           }
@@ -498,7 +531,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         const ranked = requiredTrailerType != null
           ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
           : trucks;
-        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType) }));
+        mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType, row.container.cargoWeightKg) }));
       } else {
         mapped = (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       }
@@ -510,19 +543,29 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   async function save() {
     if (saving) return;
     const carrier = parseCarrier(draft.carrierValue);
-    const revenue = parseVnd(draft.plannedRevenue);
-    const carrierCost = parseVnd(draft.plannedCarrierCost);
     if (!carrier) {
       setError('Chọn nhà xe trước khi lưu.');
-      return;
-    }
-    if (!revenue.valid || !carrierCost.valid) {
-      setError('Cước dự kiến phải là số nguyên không âm.');
       return;
     }
     const body = vehicleBody(draft.vehicleValue);
     if (body == null) {
       setError('Biển số đã chọn không hợp lệ.');
+      return;
+    }
+    // Giờ trả hàng: omit = untouched, null = clear, zone-aware ISO = set —
+    // mirroring the backend's atomic-save contract exactly. The completeness
+    // ref distinguishes an intentional clear (all segments emptied) from a
+    // half-typed edit, which must never reach the wire as a clear.
+    const storedEnd = row.plannedEndAt ?? null;
+    if (endCompletenessRef.current === 'incomplete') {
+      setError('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.');
+      return;
+    }
+    const draftEndIso = endCompletenessRef.current === 'complete'
+      ? vietnamLocalInputToIso(draft.plannedEndAt)
+      : null;
+    if (endCompletenessRef.current === 'complete' && draftEndIso == null) {
+      setError('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.');
       return;
     }
     setSaving(true);
@@ -534,8 +577,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         // Send the vehicle block only when the editor actually touches it —
         // an estimates/classification-only save must not disturb stored columns.
         ...(vehicleChanged ? body : {}),
-        plannedRevenue: revenue.value,
-        plannedCarrierCost: carrierCost.value,
+        plannedRevenue: draft.plannedRevenue === '' ? null : draft.plannedRevenue,
+        plannedCarrierCost: draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost,
+        // Same touch-gating as the vehicle block: an untouched field must
+        // never reach the wire and clobber a value another editor saved.
+        ...(draftEndIso !== storedEnd ? { plannedEndAt: draftEndIso } : {}),
         classification: draft.classification,
         operationalNotes: draft.operationalNotes,
       });
@@ -554,7 +600,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     }
   }
 
-  const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
+  const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
   const currentPlate = row.dispatch.assignedPlate;
   // Completed rows are frozen history (the backend rejects plan saves), so the
   // trigger locks with an explanation instead of opening a doomed editor.
@@ -564,12 +610,26 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT');
 
   return (
-    <div className="dispatch-assignment-cell">
+    <div className="dispatch-assignment-cell" data-cell-label="Điều phối">
+      <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
+      <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
+        {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
+      </span>
+      {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
+        <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
+          {row.dispatch.assignedDriverName || 'Chưa có tài xế'}
+        </span>
+      )}
+      <DispatchIssueStatusChip status={issueStatus} />
+      {/* Cước thu/trả temporarily hidden from the grid cell per customer
+          request (docx T2.3); the editor dialog still shows and saves both. */}
+      {row.lotFullyPlated && !currentPlate && (
+        <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
+      )}
       <button
         ref={triggerRef}
         type="button"
-        className="dispatch-assignment-cell__trigger"
-        data-cell-label="Điều phối"
+        className="btn btn--secondary btn--sm dispatch-assignment-cell__trigger"
         onClick={openEditor}
         disabled={disabled || planFrozen || ensuring}
         aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
@@ -580,21 +640,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
             ? 'Phân xe lại trước khi chuyến xuất phát'
             : `Chỉnh sửa điều phối · ${identity}`}
       >
-        <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
-        <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
-          {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
-        </span>
-        {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
-          <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
-            {row.dispatch.assignedDriverName || 'Chưa có tài xế'}
-          </span>
-        )}
-        <DispatchIssueStatusChip status={issueStatus} />
-        {/* Cước thu/trả temporarily hidden from the grid cell per customer
-            request (docx T2.3); the editor dialog still shows and saves both. */}
-        {row.lotFullyPlated && !currentPlate && (
-          <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
-        )}
+        {canReassignIssuedTrip ? 'Phân xe lại' : 'Sửa'}
       </button>
 
       <Modal
@@ -636,7 +682,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           </>
         )}
       >
-        <form className="dispatch-assignment-dialog" aria-busy={saving} onSubmit={(event) => { event.preventDefault(); void save(); }}>
+        <form className="dispatch-assignment-dialog" noValidate aria-busy={saving} onSubmit={(event) => { event.preventDefault(); void save(); }}>
           <div className="dispatch-assignment-dialog__fields">
             <label htmlFor={`dispatch-carrier-${row.fulfillmentId}`} className="dispatch-assignment-dialog__carrier">
               <span>Nhà xe</span>
@@ -762,26 +808,34 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               disabled={saving || row.classification === 'LCL'}
               hint={row.classification === 'LCL' ? 'Hàng lẻ giữ phân loại Lẻ — gắn với hình thức lô hàng' : undefined}
             />
-            <TextField
+            <NumberField
               id={`dispatch-revenue-${row.fulfillmentId}`}
               className="dispatch-assignment-dialog__money dispatch-assignment-dialog__revenue"
               label="Cước thu dự kiến"
-              inputMode="numeric"
+              grouped
               autoComplete="off"
-              value={formatMoneyInput(draft.plannedRevenue)}
+              value={draft.plannedRevenue}
               suffix="đ"
-              onChange={(event) => { setDraft((current) => ({ ...current, plannedRevenue: normalizeMoneyInput(event.target.value) })); setError(null); }}
+              onChange={(n) => { setDraft((current) => ({ ...current, plannedRevenue: n })); setError(null); }}
               disabled={saving}
             />
-            <TextField
+            <NumberField
               id={`dispatch-cost-${row.fulfillmentId}`}
               className="dispatch-assignment-dialog__money dispatch-assignment-dialog__cost"
               label="Cước trả dự kiến"
-              inputMode="numeric"
-              autoComplete="off"
-              value={formatMoneyInput(draft.plannedCarrierCost)}
+              grouped
               suffix="đ"
-              onChange={(event) => { setDraft((current) => ({ ...current, plannedCarrierCost: normalizeMoneyInput(event.target.value) })); setError(null); }}
+              value={draft.plannedCarrierCost}
+              onChange={(n) => { setDraft((current) => ({ ...current, plannedCarrierCost: n })); setError(null); }}
+              disabled={saving}
+            />
+            <DateTimeField
+              id={`dispatch-plan-end-${row.fulfillmentId}`}
+              className="dispatch-assignment-dialog__end-field"
+              label="Giờ trả hàng"
+              value={draft.plannedEndAt}
+              onChange={(next) => { setDraft((current) => ({ ...current, plannedEndAt: next })); setError(null); }}
+              onCompletenessChange={(state) => { endCompletenessRef.current = state; }}
               disabled={saving}
             />
           </div>

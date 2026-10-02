@@ -123,5 +123,12 @@ export function useAccountingWorkspaceUrlState() {
       setTransportSearch('');
       applyUrlState({ search: null, page: null });
     },
+    // Card 20260927_152: `Bộ lọc`'s `Đặt lại` clears exactly the four criteria
+    // the dialog owns. All four keys are written in ONE pass — the strip used to
+    // clear them one `onFilterChange` call at a time, and every write but the
+    // last was dropped because each handler reads the same `searchParams`
+    // closure from the current render.
+    resetTransportSecondary: () =>
+      applyUrlState({ customerId: null, carrierId: null, ownership: null, readiness: null, page: null }),
   };
 }

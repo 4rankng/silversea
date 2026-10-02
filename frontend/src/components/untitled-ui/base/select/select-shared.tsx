@@ -15,6 +15,13 @@ export type SelectItemType = {
     isDisabled?: boolean;
     /** Secondary text displayed alongside the label. */
     supportingText?: string;
+    /**
+     * Search-only text: matched by the combobox filter (fed into the item's
+     * textValue) but NEVER rendered in the option list — callers pass the
+     * long match chain here (code + full name + address) without it bloating
+     * the dropdown (20260917_13).
+     */
+    searchText?: string;
     /** Leading icon component or element. */
     icon?: FC | ReactNode;
 };

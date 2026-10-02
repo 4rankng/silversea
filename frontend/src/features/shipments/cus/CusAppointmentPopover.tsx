@@ -209,40 +209,29 @@ export function CusAppointmentPopover({
 
   const shouldPortal = portal ?? Boolean(triggerRef);
 
+  // House popover idiom (card 20261001_251, the tag-manager/DatePickerSurface
+  // contract): no private backdrop — useClickOutside owns outside-press
+  // dismissal, keeping the partial-draft semantics (outside-click keeps the
+  // draft part; only Escape reverts, see dismissWithoutCommit).
   const popoverElement = (
-    <>
-      <div
-        className="cus-appointment-backdrop"
-        data-escape-boundary="true"
-        onClick={(e) => {
-          e.stopPropagation();
-          // Outside-click KEEPS the draft part (the explicit save commits it);
-          // only the Escape key reverts (see dismissWithoutCommit).
-          onClose();
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        aria-hidden="true"
-      />
-      <div
-        ref={popoverRef}
-        data-escape-boundary="true"
-        className="cus-appointment-popover"
-        style={coords ? {
-          position: 'fixed',
-          top: `${coords.top}px`,
-          left: `${coords.left}px`,
-          right: 'auto',
-          bottom: 'auto',
-        } : undefined}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Chọn giờ hẹn đóng/trả cho container ${containerLabel}`}
-        onKeyDown={handleKeyDown}
-        aria-busy={saving}
-      >
+    <div
+      ref={popoverRef}
+      data-escape-boundary="true"
+      className="cus-appointment-popover"
+      style={coords ? {
+        position: 'fixed',
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
+        maxHeight: coords.maxHeight ? `${coords.maxHeight}px` : undefined,
+        right: 'auto',
+        bottom: 'auto',
+      } : undefined}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Chọn giờ hẹn đóng/trả cho container ${containerLabel}`}
+      onKeyDown={handleKeyDown}
+      aria-busy={saving}
+    >
         <div className="cus-appointment-popover__header">
           <div className="cus-appointment-popover__title">
             <Calendar size={14} aria-hidden="true" />
@@ -343,8 +332,7 @@ export function CusAppointmentPopover({
             {saving ? 'Đang lưu…' : 'Xác nhận'}
           </button>
         </div>
-      </div>
-    </>
+    </div>
   );
 
   if (shouldPortal && typeof document !== 'undefined') {

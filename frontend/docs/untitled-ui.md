@@ -17,6 +17,42 @@ The browser login is stored in the developer's local Untitled UI CLI
 configuration. Never pass a license key on the command line, put one in an
 environment file, or commit authentication material to this repository.
 
+The MCP takes the key as a `key` argument instead. Both are valid; the same
+rule applies — authentication material must not land in this repository.
+
+## Discovery via the Untitled UI MCP (preferred)
+
+**The MCP is the discovery path. The pinned CLI is the install path.** They
+compose: `get_component` and `get_component_bundle` return the *exact CLI install
+command* as their payload, so the MCP answers "what exists and how do I get it"
+and the already-pinned scripts perform the write.
+
+Use this first. The CLI's own `uui:search` is rate-limited (HTTP 429) and the
+browser fallback below is slower still — neither is the normal route.
+
+1. **Check what is already vendored** — read `src/components/untitled-ui/installed.json`.
+   It lists every vendored file. A path listed there is **locally adapted**: edit it,
+   do **not** re-run `add` over it (see the overwrite-prompt failure mode below).
+2. **Search the catalog** — `mcp__untitledui__search_components` with a natural-language
+   description, `version: 8`, and optionally `category_filter` (`base`, `application`,
+   `marketing`, `foundations`, `shared-assets`, `examples`). It ranks semantically, so
+   describe the need ("compact table with inline edit actions"), not the slug.
+3. **For a whole page shape** — `mcp__untitledui__get_page_templates` (`page_type`:
+   `dashboard` | `marketing` | `application` | `all`; `category` such as `dashboards`,
+   `settings`, `login`, `pricing-pages`), then `get_page_template_files` for the command.
+4. **Get the install command** — `mcp__untitledui__get_component` for one, or
+   `mcp__untitledui__get_component_bundle` for several at once. Run the returned
+   `pnpm uui:add:*` command from `frontend/`.
+5. **Icons** — `mcp__untitledui__search_icons` returns exact `@untitledui/icons`
+   PascalCase names. Use it rather than guessing an import name. Prefer
+   `@untitledui/icons` over `lucide-react` in new Untitled-UI-family code so the
+   vendored components stay internally consistent; `lucide-react` remains correct
+   for the existing files that already use it.
+
+Without an API key only free components are returned. A PRO component requested
+without access returns `agent_instructions` — follow them, do not rebuild the
+component from scratch.
+
 ## Search and add components
 
 Search the version-8 catalog before adding source:
@@ -62,8 +98,10 @@ component and overwrite existing source.
   root `package.json`/`package-lock.json` and `components/` instead of
   `frontend/`. Always run from `frontend/` or pass `--dir`.
 - **Search is rate-limited (HTTP 429)** on the shared anonymous index. When
-  `uui:search` fails (429 or an HTML-error-page JSON parse failure), use the
-  public website as the discovery fallback — see
+  `uui:search` fails (429 or an HTML-error-page JSON parse failure), go back to
+  `mcp__untitledui__search_components` — that is the preferred discovery path and
+  it is not subject to this limit. Only if the MCP is unavailable, use the public
+  website as the last-resort fallback — see
   [Website discovery fallback](#website-discovery-fallback) below.
 
 ## Website discovery fallback (verified 2026-08-15)
@@ -97,6 +135,16 @@ with `tsc -b` clean.
 
 - `src/styles/theme.css` and `src/styles/globals.css` are the canonical
   Untitled-compatible theme and Tailwind integration.
+- `src/styles/theme.css` is upstream-derived **and hand-edited** — the brand
+  re-colouring (`--color-brand-600: #005A2D`, `--color-brand-500: #4A9E7D`) is
+  ours, not Untitled's. Never regenerate it wholesale: re-fetch the upstream
+  theme and re-apply the brand diff. `pnpm check:brand` fails if the re-colouring
+  or the `components.json` library version is lost, so a silent revert to the
+  stock palette cannot land.
+- `src/components/untitled-ui/installed.json` lists every vendored file.
+  It is derived from the filesystem and enforced by
+  `src/tests/structure.guard.test.ts` — add or remove a vendored file and the
+  suite fails until the manifest is regenerated in the same commit.
 - `@/*` resolves to `src/*` through both TypeScript and Vite.
 - Installed source and the repository's current React Aria/TypeScript versions
   are authoritative. Adapt a retrieved component when upstream types have

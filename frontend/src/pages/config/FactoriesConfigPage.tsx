@@ -8,6 +8,8 @@ import { Alert } from '../../components/shared/Alert';
 import { useToast } from '../../components/shared/Toast';
 import { Field } from '../../components/config/Field';
 import { FormActions } from '../../components/config/FormActions';
+import { FilterBar } from '../../design-system';
+import { FilterDropdown } from '../../components/FilterDropdown';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
@@ -22,6 +24,7 @@ import {
   type AdminOperationalSite,
 } from '../../api/shipmentClient';
 import type { Route } from '@tingting/shared';
+import { removeDiacritics } from '../../lib/format';
 import './config-page.css';
 
 type SiteDraft = {
@@ -96,12 +99,11 @@ export default function FactoriesConfigPage() {
   }, [sites]);
 
   const filtered = useMemo(() => {
-    const needle = search.trim().toLowerCase();
+    const terms = removeDiacritics(search).toLocaleLowerCase('vi').trim().split(/\s+/).filter(Boolean);
     const matched = sites.filter((site) => {
       if (customerFilter && String(site.customerId) !== customerFilter) return false;
-      if (!needle) return true;
-      return [site.code, site.name, site.shortName, site.address, site.customerName]
-        .some((value) => (value || '').toLowerCase().includes(needle));
+      const text = removeDiacritics([site.code, site.name, site.shortName, site.address, site.customerName].filter(Boolean).join(' ')).toLocaleLowerCase('vi');
+      return terms.every(term => text.includes(term));
     });
     return sortClientSide(matched, sort, {
       customerName: s => s.customerName,
@@ -160,35 +162,41 @@ export default function FactoriesConfigPage() {
         iconName="company-profile"
       />
       <div className="table-wrap">
-        <div className="toolbar">
-          <input
-            className="input"
-            style={{ maxWidth: 280 }}
-            placeholder="Tìm theo mã, tên, địa chỉ…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Tìm nhà máy / kho"
-          />
-          <div style={{ maxWidth: 240 }}>
+        <FilterBar
+          search={{
+            value: search,
+            onChange: setSearch,
+            placeholder: 'Tìm theo mã, tên, địa chỉ…',
+            ariaLabel: 'Tìm nhà máy / kho',
+          }}
+          actions={(
+            <>
+              <button className="btn btn--primary" onClick={() => setCreateOpen(true)} disabled={customersQuery.isLoading}>
+                <Plus size={14} /> Tạo mới
+              </button>
+              <span className="cfg-page__summary">
+                <strong>{filtered.length}</strong> mục
+                {sites.length !== filtered.length && ` / ${sites.length}`}
+              </span>
+            </>
+          )}
+        >
+          {/* Khách hàng is the search's only blind spot, so it is this surface's
+              one secondary criterion: `Bộ lọc` owns it and reports it. */}
+          <FilterDropdown
+            count={customerFilter ? 1 : 0}
+            ariaLabel="Bộ lọc"
+            dialogLabel="Bộ lọc nhà máy / kho"
+            onReset={() => setCustomerFilter('')}
+          >
             <UuiSelectField
               label="Khách hàng"
               value={customerFilter}
               onChange={(e) => setCustomerFilter(e.target.value)}
-              options={[
-                { value: '', label: 'Tất cả khách hàng' },
-                ...customers.map((customer) => ({ value: customer.id, label: customer.name })),
-              ]}
+              options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: customer.id, label: customer.name }))]}
             />
-          </div>
-          <div style={{ flex: 1 }} />
-          <button className="btn btn--primary" onClick={() => setCreateOpen(true)} disabled={customersQuery.isLoading}>
-            <Plus size={14} /> Tạo mới
-          </button>
-          <span className="cfg-page__summary">
-            <strong>{filtered.length}</strong> mục
-            {sites.length !== filtered.length && ` / ${sites.length}`}
-          </span>
-        </div>
+          </FilterDropdown>
+        </FilterBar>
         <div className="table-scroll">
           <div className="record-table-wrap">
           <table className="record-table ops-table factories-table">
@@ -212,6 +220,7 @@ export default function FactoriesConfigPage() {
                   <td colSpan={9} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
                     {sitesQuery.isLoading
                       ? 'Đang tải…'
+                      : sites.length ? 'Không tìm thấy nhà máy / kho phù hợp. Thử từ khóa khác hoặc xóa bộ lọc.'
                       : 'Chưa có nhà máy / kho nào. Dùng nút "Tạo mới" hoặc form nhận lô của CUS.'}
                   </td>
                 </tr>

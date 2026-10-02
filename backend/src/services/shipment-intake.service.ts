@@ -70,8 +70,27 @@ async function persistCarrierAllocations(
     allowClerkIntake: true,
   });
   if (shipment.cargoMode === CARGO_MODE.LCL) {
-    if (allocations.length > 0) {
-      throw new ApiError(409, 'Gán nhà xe theo số lượng 20/40 chỉ áp dụng cho lô FCL.');
+    // 20260916_5 ruling (a): an LCL lô is ONE allocation unit — one carrier
+    // covers the whole lô (per-carrier groups still apply); container-bucket
+    // arithmetic does not apply to a lô without its own container demand.
+    const totalUnits = allocations.reduce((sum, row) => sum + row.count20 + row.count40, 0);
+    if (totalUnits > 1) {
+      throw new ApiError(409, `Lô LCL chỉ nhận đúng 1 nhà xe (đang gán ${totalUnits}).`);
+    }
+    if (!allowPartial && totalUnits !== 1) {
+      throw new ApiError(409, 'Lô LCL cần đúng 1 phân bổ nhà xe.');
+    }
+    const lclFulfillment = fulfillmentRows.find((row) => row.shipmentContainerId == null)
+      ?? fulfillmentRows[0];
+    if (!lclFulfillment) throw new ApiError(409, 'Không tìm thấy phân bổ nhà xe cho lô LCL.');
+    const lclAlloc = allocations[0];
+    if (lclAlloc) {
+      await tx.update(s.shipmentFulfillments).set({
+        plannedCarrierType: lclAlloc.carrierType,
+        plannedExternalCarrierId: lclAlloc.carrierType === 'EXTERNAL' ? lclAlloc.externalCarrierId ?? null : null,
+        version: sql`${s.shipmentFulfillments.version} + 1`,
+        updatedAt: new Date(),
+      }).where(eq(s.shipmentFulfillments.id, lclFulfillment.id));
     }
     return fulfillmentRows;
   }
@@ -525,12 +544,19 @@ async function assertReferenceIsActive(
   // LCL owns one route on the shipment. FCL routes are validated per
   // container below so a multi-container lot can legitimately use routes A/B.
   if (shipment.cargoMode === CARGO_MODE.LCL) {
-    if (shipment.routeId == null) {
+    // Lệnh chạy ngoài carries the entered free route instead of a catalog
+    // routeId (MasterDataNhaMay §4.2/§4.4): raw route info satisfies the
+    // route prerequisite exactly as a catalog route would — but a genuinely
+    // route-less lô (neither id nor raw name) still cannot dispatch.
+    const hasRawRoute = shipment.isAdHoc === true && !!shipment.rawRouteName?.trim();
+    if (shipment.routeId == null && !hasRawRoute) {
       throw new ApiError(409, 'Vui lòng chọn tuyến đường trước khi gửi điều phối.');
     }
-    const [route] = await tx.select({ id: s.routes.id }).from(s.routes)
-      .where(and(eq(s.routes.id, shipment.routeId), isNull(s.routes.deletedAt))).limit(1);
-    if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
+    if (shipment.routeId != null) {
+      const [route] = await tx.select({ id: s.routes.id }).from(s.routes)
+        .where(and(eq(s.routes.id, shipment.routeId), isNull(s.routes.deletedAt))).limit(1);
+      if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
+    }
   }
 
   // A factory is common optional intake detail for both cargo modes. Validate it
@@ -593,7 +619,7 @@ async function assertIntakeReady(
     return;
   }
 
-  if (containers.length === 0) throw new ApiError(409, 'Hàng nguyên container cần ít nhất một container.');
+  if (containers.length === 0) throw new ApiError(409, 'Hàng FCL cần ít nhất một container.');
   const incomplete = containers.find((container) => (
     container.containerTypeId == null
     || container.operationalSiteId == null

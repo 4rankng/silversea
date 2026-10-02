@@ -88,8 +88,8 @@ declare global {
 
 /**
  * Shared verify/blacklist/current-user/scope-check core behind both auth
- * middlewares. Sends the 401 itself and resolves null when authentication
- * fails; resolves the verified payload when it succeeds. The two middlewares
+ * middlewares. Denies rejected credentials with 401, unavailable dependencies
+ * with 503; resolves the verified payload when it succeeds. The two middlewares
  * differ ONLY in where they source the token (header vs ?token= query).
  */
 async function authenticateToken(token: string | undefined, res: Response): Promise<AuthUser | null> {
@@ -120,8 +120,15 @@ async function authenticateToken(token: string | undefined, res: Response): Prom
       return null;
     }
     return payload;
-  } catch {
-    res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
+      return null;
+    }
+    // A failed dependency check must deny access without invalidating an
+    // otherwise valid session. The frontend clears credentials on a real 401.
+    console.error('[Auth] session validation unavailable:', error);
+    res.status(503).json({ error: 'Tạm thời không thể xác thực phiên đăng nhập. Vui lòng thử lại.' });
     return null;
   }
 }

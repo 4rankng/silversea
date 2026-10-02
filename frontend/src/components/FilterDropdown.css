@@ -1,0 +1,228 @@
+/* ============================================================================
+ * FilterDropdown — the ONE home for secondary filter criteria (card 20260927_152)
+ *
+ * Trigger chrome is the bar's own control chrome (same height token, border,
+ * radius and type scale as every other control in `.filter-bar`), so it reads as
+ * one row with the search and the date fields. Flat law (docs/design-guidelines
+ * §3): opaque surface token, no shadow, no gradient — the popover separates with
+ * a hairline, not with elevation. Untitled UI PRO's own `FilterDropdown` is the
+ * design reference for the SHAPE (secondary trigger + count + dialog with
+ * reset/apply); its skin is deliberately not copied, because it carries
+ * `shadow-xs-skeuomorphic` and a shadow on a filter surface is what cut #10
+ * banned.
+ * ========================================================================== */
+
+.filter-dropdown {
+  position: relative;
+  display: inline-flex;
+  /* Never squeezed by the wrapping row: the trigger is already content-sized
+     and its label must stay readable at every width. */
+  flex-shrink: 0;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.filter-dropdown__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  height: var(--filter-control-h);
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--control-border, var(--line));
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: var(--text-control-compact-size);
+  font-weight: 600;
+  font-family: inherit;
+  line-height: var(--filter-control-line-height);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+
+.filter-dropdown__trigger:hover {
+  background: var(--surface-2);
+  border-color: var(--line-2);
+  color: var(--ink);
+}
+
+.filter-dropdown__trigger:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus, var(--accent));
+  outline-offset: 1px;
+}
+
+.filter-dropdown__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Applied state: the trigger itself reports that the list is narrowed, so a
+   closed popover never hides an active criterion. */
+.filter-dropdown.is-applied .filter-dropdown__trigger {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.filter-dropdown__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--fg-on-brand);
+  font-family: var(--font-data);
+  font-size: var(--text-caption-size);
+  font-weight: 700;
+}
+
+.filter-dropdown__chevron {
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+/* --- Popover -------------------------------------------------------------
+ * Portalled to <body>; `usePopoverPosition` sets top/left and the caller keeps
+ * it `visibility: hidden` until those coordinates exist. Width is the dialog's
+ * own (never the bar's), so a criterion can never stretch the row. */
+.filter-dropdown__popover {
+  position: fixed;
+  z-index: var(--z-popover, 400);
+  /* Wide enough for the whole criterion set on two rows (operator 2026-09-27:
+     "we can increse width of dialog so that all filters and buttons fit 2 rows,
+     instead of 3") — the panel is the dialog's own measure, never the bar's. */
+  width: min(520px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  /* Unmeasured means invisible: the gate is flipped on only after
+     `usePopoverPosition` has real coordinates. */
+  visibility: hidden;
+}
+
+.filter-dropdown__popover[data-positioned='true'] { visibility: visible; }
+
+/* The dialog is portalled OUT of the bar, so it inherits neither the bar's
+   height token nor its per-control override. Without this, every criterion in
+   the dialog fell back to the 34px form-control default while the bar's own
+   controls sat on the compact 30px token — the taller "Kế hoạch" box the
+   operator flagged ("the height of component ke hoach dropdown too high,
+   please reduce to be same as other dropdown"). One token, both scopes. */
+.filter-dropdown__popover {
+  --uui-control-h: var(--filter-control-h);
+}
+
+.filter-dropdown__popover [data-uui-control],
+.filter-dropdown__popover [data-uui-control][data-control-size],
+.filter-dropdown__popover [data-input-wrapper] {
+  --uui-control-h: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+}
+
+.filter-dropdown__popover[data-open='true'] {
+  opacity: 1;
+}
+
+.filter-dropdown__body {
+  /* The criteria pack into as few rows as the 320px dialog allows (operator
+     2026-09-27: "can be two rows (Ke hoach values are very short why the fuck
+     full width)"). One wrapping line, same packing rules as the bar itself —
+     the two short selects share row 1, the multi-select takes row 2 only
+     because it does not fit beside them. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  padding: 14px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Dialog-scoped floors: the bar's 200px floor is the bar's rule — inside the
+   320px dialog a 200px criterion is what left the Kế hoạch dropdown owning a
+   full row (operator 2026-09-27: "reduce the width of Ke hoach dropdown and
+   then move the buttons same row with ke hoach dropdown"). 120px holds the
+   placeholder + chevron and still leaves room for the action pair beside it. */
+.filter-dropdown__body .csc-searchable-field,
+.filter-dropdown__body [data-uui-control='combobox'],
+.filter-dropdown__body .searchable-select,
+.filter-dropdown__body .ds-uui-select {
+  min-width: 120px;
+  max-width: 100%;
+}
+
+.filter-dropdown__body > [data-input-wrapper] {
+  width: 168px;
+  min-width: 149px;
+}
+
+/* Folded quick ranges: the dropdown form (one content-sized control) rides the
+   dialog line like any other criterion, so nothing has to wrap. */
+.filter-dropdown__presets {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 0;
+}
+
+/* The actions ride the last criteria line, right-aligned: `margin-left: auto`
+   pushes them to the end of whichever line they land on. */
+.filter-dropdown__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.filter-dropdown__reset,
+.filter-dropdown__apply {
+  height: calc(var(--filter-control-h) - 2px);
+  padding: 0 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: var(--text-control-compact-size);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+
+.filter-dropdown__reset {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink-3);
+}
+
+.filter-dropdown__reset:hover {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.filter-dropdown__apply {
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  color: var(--fg-on-brand);
+}
+
+.filter-dropdown__apply:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+@media (pointer: coarse) {
+  .filter-dropdown__trigger {
+    --filter-control-h: var(--control-touch-h);
+  }
+}

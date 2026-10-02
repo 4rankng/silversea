@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverProgressEventType, TripPodStatus, TripStatus } from '@tingting/shared';
 import { setToken } from '../lib/token';
+import { api } from '../lib/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const getDriverTripMock = vi.hoisted(() => vi.fn());
@@ -130,6 +131,9 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
       id: 88,
       code: 'FUL-88',
       taskCode: 'TASK-88',
+      // Card 20260927_1: the header leads with the carrier document number
+      // (Số Bill) — the internal FUL-/SHP- shipment code never titles it.
+      documentNumber: 'BL-2026-001',
       type: 'FCL_CONTAINER',
       modeLabel: 'FCL',
       factoryName: 'Nhà máy Bình Dương',
@@ -248,7 +252,7 @@ describe('DriverTripDetailPage', () => {
       data: makeTaskDetail({ status }), isLoading: false, error: null, refetch: vi.fn(),
     });
     renderPage();
-    await screen.findByText('Tác vụ tài xế');
+    await screen.findByText('BL-2026-001');
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
     expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
@@ -259,7 +263,7 @@ describe('DriverTripDetailPage', () => {
       data: makeTaskDetail({ status: TripStatus.CANCELED }), isLoading: false, error: null, refetch: vi.fn(),
     });
     renderPage();
-    await screen.findByText('Tác vụ tài xế');
+    await screen.findByText('BL-2026-001');
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Sửa số cont' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Chụp.*nhiên liệu|Chụp lại ảnh mới/ })).toBeNull();
@@ -300,13 +304,18 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Chụp ảnh nhiên liệu')).toBeTruthy();
   });
 
-  // Regression: the fuel-evidence <img> consumed the raw /api/photos/ URL.
-  // <img> cannot send the Authorization header, so assetAuthMiddleware 401'd
-  // and the browser rendered a broken image; OCR was unaffected (the backend
-  // reads the stored bytes directly). The src must go through
-  // getAuthenticatedPhotoUrl so the JWT rides along as ?token=.
-  it('renders the fuel evidence photo through the token-authenticated URL', async () => {
+  // DRV-DET-08 regression: evidence photos load through an authenticated blob
+  // fetch (`useAuthedPhotoUrls`). The JWT rides in the Authorization header —
+  // never in a `?token=` query string, where browser history, Referer headers
+  // and proxy logs can capture it. The <img> renders the object URL, so the raw
+  // protected path never reaches the DOM.
+  it('loads the fuel evidence photo through an authenticated blob fetch (no ?token= URL)', async () => {
     setToken('jwt-for-img-test');
+    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['fuel'], { type: 'image/jpeg' }));
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:fuel-evidence'),
+      revokeObjectURL: vi.fn(),
+    }));
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fuelEvidenceReviews: [{
@@ -334,10 +343,17 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    const img = await screen.findByAltText('Ảnh nhiên liệu TRIP-55');
-    expect(img.getAttribute('src')).toContain('token=jwt-for-img-test');
+    // The alt no longer carries the trip code: internal ids never render on
+    // a user surface (dc1b1cba), so the code-leading variant would fail here.
+    const img = await screen.findByAltText('Ảnh nhiên liệu');
+    await waitFor(() => expect(img.getAttribute('src')).toBe('blob:fuel-evidence'));
+    expect(getBlob).toHaveBeenCalledWith('/photos/fuel-evidence%2F55%2F3%2Fhash-rand.jpg');
+    expect(document.querySelector('img[src*="token="]')).toBeNull();
     expect(screen.getByText(/OCR chưa xác minh/)).toBeTruthy();
     expect(screen.queryByText(/Chờ kế toán xác nhận/)).toBeNull();
+
+    getBlob.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   it('renders the sticky accept bar and the Hoàn tất lệnh vận chuyển footer button (e-POD lives on its own page now)', async () => {
@@ -365,8 +381,9 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    // Accept recorded → acceptState 'done' → no sticky bar at all.
-    await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
+    // Accept recorded → acceptState 'done' → the completion bar owns the
+    // sticky slot (card _28 item 10).
+    await screen.findByTestId('complete-sticky-bar');
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
     expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
   });
@@ -376,19 +393,26 @@ describe('DriverTripDetailPage', () => {
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
-    // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn thành" CTA is now a
-    // "Hoàn tất lệnh vận chuyển" link that navigates to /my-trips/:id/pod. The
-    // actual complete action lives on the e-POD page.
-    const cta = screen.getByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
-    expect(cta.hasAttribute('disabled')).toBe(false);
-    // 27.8 "BỐN MỐC THỰC HIỆN: BỎ" — the footer lists only the two e-POD photo
-    // gaps, not the evidence endpoint's milestone/label echo (old code echoed
-    // the backend label "Thiếu biên bản giao nhận có ký nhận" here).
+    // Card _28 item 10: before acceptance the completion action has no sticky
+    // slot — the accept bar owns it; the Chứng từ card still lists the two
+    // e-POD photo gaps.
+    expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
+    // 27.8 "BỐN MỐC THỰC HIỆN: BỎ" — the Chứng từ card lists only the two
+    // e-POD photo gaps, not the evidence endpoint's milestone/label echo.
+    expect(screen.getByText('Thiếu Phiếu bãi / phiếu hạ')).toBeTruthy();
     expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
     expect(screen.queryByText(/có ký nhận/)).toBeNull();
   });
 
-  it('navigates to the e-POD page when the driver taps Hoàn tất lệnh vận chuyển (the trip detail no longer completes the trip inline)', async () => {
+  it('navigates to the e-POD page when the driver taps the sticky completion action (the trip detail no longer completes the trip inline)', async () => {
+    // Card _28 item 10: the action lives in the sticky bar, which owns the
+    // slot only once the order is accepted.
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -419,9 +443,10 @@ describe('DriverTripDetailPage', () => {
 
     renderPageWithBoard();
 
-    // Clicking "Hoàn tất lệnh vận chuyển" navigates to the pod page; we don't fire
-    // any completion command from the trip detail anymore.
-    const cta = await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
+    // Tapping the sticky "Hoàn tất lệnh vận chuyển" action navigates to the
+    // pod page; we don't fire any completion command from the trip detail
+    // anymore (DRV-DET-06: completion lives on the e-POD screen).
+    const cta = await screen.findByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     fireEvent.click(cta);
 
     // The driver lands on THIS trip's pod screen — the route param is the
@@ -461,23 +486,33 @@ describe('DriverTripDetailPage', () => {
       refetch: vi.fn().mockResolvedValue(undefined),
     });
 
+    // Card _28 item 10: the completion action is the sticky bar's button
+    // (owning the slot once the order is accepted).
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
     renderPageWithBoard();
 
-    const cta = await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
+    await screen.findByTestId('complete-sticky-bar');
+    const cta = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     fireEvent.click(cta);
 
-    // The trip detail doesn't navigate away on the CTA (a real router would
-    // change the URL, but the click is wired through react-router's
-    // <Link> and we don't have a Router assertion here). The point is: the
-    // driver is NOT shown a queued complete or a journey-board jump.
+    // The trip detail doesn't fire a completion command from the sticky
+    // action — the driver is NOT shown a queued complete or a journey-board
+    // jump; the action navigates to the e-POD screen instead.
     expect(screen.queryByTestId('driver-journey-board')).toBeNull();
     expect(toastMock).not.toHaveBeenCalled();
   });
 
-  // 20260911_3 BUG 5 (supersedes the 365943ea order): the fact grid leads
-  // with the factory (short name), then the working facts (container, ports)
-  // — the Tuyến address line is demoted below them — and container number +
-  // type + seal still share one line.
+  // 20260911_3 BUG 5 (supersedes the 365943ea order), restated 26/09 after
+  // 1af13d12 + dc1b1cba; amended 26/09 card _26: the bill/booking code moved
+  // into the header title (item 4), so the grid leads with the factory block
+  // + kho phone, then the working facts (container, ports) — the Tuyến
+  // address line is demoted below them.
   it('renders the customer field order: factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
     renderPage();
 
@@ -485,38 +520,27 @@ describe('DriverTripDetailPage', () => {
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
       'Ngày giờ kế hoạch',
-      'Nhà máy',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'Số điện thoại liên hệ',
+      'SĐT kho',
+      'SĐT liên hệ',
       'Container / lô hàng',
-      'Seal',
       'Cảng nâng',
       'Cảng hạ',
     ]);
-    // BUG 5: the fixture has no short name → the grid falls back to the
-    // full factory name.
-    const factoryRow = Array.from(document.querySelectorAll('.driver-task-fact'))
-      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Nhà máy');
-    expect(factoryRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('Nhà máy Bình Dương');
-    // Sparse fixture: full name / address / warehouse phone all absent → the
-    // rows stay visible with the em-dash placeholder, and Tuyến falls back to
-    // the route summary (no address on this row anymore).
+    // Card _27 item 5: the abbrev row is gone — the fixture's factory name
+    // ('Nhà máy Bình Dương') renders as the header line-2 location instead.
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Nhà máy Bình Dương');
+    // Sparse fixture: full name falls back to the free-text name; the address
+    // row dashes; the Tuyến row no longer exists at all.
     const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
       ?.querySelector('.driver-task-fact__value')?.textContent;
-    expect(valueOf('Tên nhà máy')).toBe('—');
+    expect(valueOf('Tên nhà máy')).toBe('Nhà máy Bình Dương');
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
     expect(valueOf('Tuyến')).toBeUndefined();
-    // KP-191: container number paired with type code; seal on own row.
-    expect(screen.getByText('MSCU1234561 · 40G1')).toBeTruthy();
-    expect(screen.getByText('Seal SEAL-9')).toBeTruthy();
   });
-
-  // KẾT HỢP / paired trips carry multiple containers — the one-line fact must
-  // KP-191: each container number paired with its own type code; seals on
-  // their own row.
-  it('separates multiple containers with number · type pairs and seals on a separate row', async () => {
+  it('card _27 + operator ruling 2026-09-27: container reads in the info grid, seal lives in Số cont & seal card', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         containers: [
@@ -530,8 +554,13 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByText('MSCU1234561 · 40G1 · MSCU7654321 · 40G1')).toBeTruthy();
-    expect(screen.getByText('Seal SEAL-9 · Seal SEAL-8')).toBeTruthy();
+    await screen.findByText(/Số cont & seal/);
+    // The container row reads in the fact grid.
+    expect(screen.getByText('Container / lô hàng')).toBeTruthy();
+    expect(screen.queryByText(/Seal SEAL-9/)).toBeNull();
+    // The single home still carries both containers — the saved bento leads
+    // with the first container's number.
+    expect(document.querySelector('.dcc-bento__plate')?.textContent).toContain('MSCU1234561');
   });
 
   it('renders the container card and identifies missing factory invoice configuration', async () => {
@@ -591,7 +620,7 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByText(/Đã khóa kế toán · Debit Note #91/)).toBeTruthy();
+    expect(await screen.findByText(/Đã khóa kế toán · Debit Note —/)).toBeTruthy();
     const acceptStickyBar = screen.getByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ }).matches(':disabled')).toBe(true);
     // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn tất lệnh vận chuyển" CTA is
@@ -655,8 +684,10 @@ describe('DriverTripDetailPage', () => {
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('Địa chỉ nhà máy')).toBe('123 Nguyễn Văn A, Bình Dương');
     expect(valueOf('Tuyến')).toBeUndefined();
-    expect(screen.getAllByText('Cát Lái → Bình Dương')).toHaveLength(1);
-    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
+    // Card _26: the route line retired from the header — the ports in the
+    // grid carry the route; the header shows location, not route text.
+    expect(screen.queryByText('Cát Lái → Bình Dương')).toBeNull();
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Nhà máy Bình Dương');
   });
 
   it('VID-DRV-02 places task and note instructions before invoice details and keeps them visible through disclosures', async () => {
@@ -669,20 +700,187 @@ describe('DriverTripDetailPage', () => {
     expect(info.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(notes.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
+    // Card _30 item 15: the section spine follows driver priority — Chứng từ
+    // giao hàng (checklist card) leads, back-office hóa đơn trails last.
+    const podCard = document.querySelector('.driver-task-footer');
+    const contCard = document.querySelector('.dcc-section');
+    const costForm = screen.getByTestId('shipment-cost-entry-form');
+    expect(podCard!.compareDocumentPosition(info) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(contCard!.compareDocumentPosition(costForm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(costForm.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // Card _30 item 17: hóa đơn is back-office — default-collapsed.
+    expect(screen.getByTestId('task-section-toggle-driver-task-invoice-grid').getAttribute('aria-expanded')).toBe('false');
+
     fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-info-grid'));
+    // Invoice starts collapsed; one click expands it.
     fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
     expect(info.hidden).toBe(true);
-    expect(invoice.hidden).toBe(true);
+    expect(invoice.hidden).toBe(false);
     expect(notes).toBeVisible();
+    // Invoice collapses back on demand.
+    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
+    expect(invoice.hidden).toBe(true);
+  });
+
+  // Card _30 item 16: compact progress summary at the top — the driver sees
+  // what is missing without scrolling.
+  it('card _30: progress summary leads the screen with doc/photo/cost counts', async () => {
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const strip = screen.getByTestId('driver-task-progress');
+    // Fixture: no POD files, no cont/seal/biên-bản photos, no costs.
+    expect(strip.textContent).toContain('Chứng từ 0/2');
+    expect(strip.textContent).toContain('Ảnh 0/3');
+    expect(strip.textContent).toContain('Chi phí 0');
+  });
+
+  it('card _28: copy affordances ride the header code and the MST rows', async () => {
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // Card _62: the header copy button is REMOVED — copy affordances live on
+    // the grid rows only.
+    expect(screen.queryByRole('button', { name: 'Copy Số Bill / Booking' })).toBeNull();
+    // Invoice MST rows (collapsed by default): expand, then check both copy
+    // buttons. Base fixture has factory MST absent — expand shows the empty
+    // note, so assert on the header copy + the invoice section's MST when
+    // master data exists.
+    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        invoiceMaster: { taxCode: '3701234567', companyName: 'Công ty TNHH ABC', address: null },
+      }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+  });
+
+  it('card _28: sticky completion bar shows the live missing count', async () => {
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // Trip IN_TRANSIT, 0/2 POD files → the bar shows the missing count and
+    // the completion action navigates to the e-POD screen.
+    expect(screen.getByTestId('complete-sticky-bar')).toBeTruthy();
+    expect(screen.getByTestId('complete-sticky-status').textContent).toBe('Còn thiếu 2 chứng từ');
+    const btn = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
+    expect(btn).toBeEnabled();
+  });
+
+  it('card _28: the sticky bar never stacks with the accept bar', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: 'CREATED' }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // CREATED trip: the accept bar owns the sticky slot; the complete bar
+    // stays hidden until the order is accepted.
+    expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
+    expect(screen.getByTestId('accept-sticky-bar')).toBeTruthy();
+  });
+
+  it('card _28: sticky bar hides on a closed trip (link takes over in the Chứng từ card)', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: 'COMPLETED' }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Xem chứng từ giao hàng' })).toBeTruthy();
+  });
+
+  it('card _28: Thêm ảnh opens one action sheet with camera + gallery + Hủy', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ containers: [] }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    // No container saved → the form renders with the merged capture zones.
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm ảnh cont' }));
+    expect(await screen.findByRole('dialog', { name: 'Thêm ảnh cont' })).toBeTruthy();
+    expect(screen.getAllByText('Thêm ảnh cont').length).toBeGreaterThan(0);
+    // One camera entry + one gallery entry inside the sheet.
+    expect(screen.getAllByRole('button', { name: 'Chụp ảnh' }).length).toBe(1);
+    expect(screen.getAllByRole('button', { name: 'Chọn từ thư viện' }).length).toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByRole('dialog', { name: 'Thêm ảnh cont' })).toBeNull();
+  });
+
+  it('card _30: progress summary counts saved POD files, photos and reported cost entries', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          ...makeTaskDetail().currentPod!,
+          files: [
+            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', storageKey: 'k1' } as never,
+            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', storageKey: 'k2' } as never,
+          ],
+        },
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          containerSealPhotos: [
+            { id: 1, type: 'CONTAINER', storageKey: 'c1', uploadedAt: '2026-08-01T00:00:00.000Z' },
+            { id: 2, type: 'SEAL', storageKey: 's1', uploadedAt: '2026-08-01T00:00:00.000Z' },
+            { id: 3, type: 'DELIVERY_NOTE', storageKey: 'd1', uploadedAt: '2026-08-01T00:00:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const strip = screen.getByTestId('driver-task-progress');
+    expect(strip.textContent).toContain('Chứng từ 2/2');
+    expect(strip.textContent).toContain('Ảnh 3/3');
+    expect(strip.textContent).toContain('Chi phí 0');
   });
 
   // _30: the standalone warehouse-phone row is removed at the source — the
   // combined contact row carries the callable number.
-  it('renders no standalone SĐT liên hệ row', async () => {
+  it('card _27: renders the SĐT liên hệ row when the contact number differs from the kho number', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
+    // Page fixture: contactPhone 0909000001, khoPhone absent → one kho row
+    // (dashed) + one contact row. Identical numbers would render one row.
+    const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
+      ?.querySelector('.driver-task-fact__value')?.textContent;
+    expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+  });
+
+  it('card _27: identical kho and contact numbers render ONE phone row', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: { ...makeTaskDetail().fulfillment!, khoPhone: '0909000001', contactPhone: '0909000001' },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
+      ?.querySelector('.driver-task-fact__value')?.textContent;
+    expect(valueOf('SĐT kho')).toBe('0909000001');
     expect(screen.queryByText('SĐT liên hệ')).toBeNull();
+    expect(screen.getByRole('link', { name: /Gọi kho/ })).toBeTruthy();
   });
 
   // TC-DA-005: customer master-data invoice rows render with the exact
@@ -755,10 +953,9 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText('Thông tin lệnh');
-    // BUG 5: with a short name present, the expanded grid leads with it.
-    const factoryRow = Array.from(document.querySelectorAll('.driver-task-fact'))
-      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Nhà máy');
-    expect(factoryRow?.querySelector('.driver-task-fact__value')?.textContent).toBe('ASKEY');
+    // Card _27 item 5: the abbrev row is gone from the grid — the factory
+    // short name renders as the header line-2 location instead.
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('ASKEY');
     const toggle = screen.getByTestId('task-section-toggle-driver-task-info-grid');
     const grid = document.getElementById('driver-task-info-grid') as HTMLElement;
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -793,9 +990,14 @@ describe('DriverTripDetailPage', () => {
     const invoiceToggle = screen.getByTestId('task-section-toggle-driver-task-invoice-grid');
     const invoiceGrid = document.getElementById('driver-task-invoice-grid') as HTMLElement;
     const infoGrid = document.getElementById('driver-task-info-grid') as HTMLElement;
-    fireEvent.click(invoiceToggle);
+    // Card _30 item 17: invoice starts collapsed (back-office off the
+    // critical path) and expands on demand — collapsing/expanding it never
+    // touches the info section.
     expect(invoiceToggle.getAttribute('aria-expanded')).toBe('false');
     expect(invoiceGrid.hidden).toBe(true);
+    fireEvent.click(invoiceToggle);
+    expect(invoiceToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(invoiceGrid.hidden).toBe(false);
     expect(infoGrid.hidden).toBe(false);
   });
 
@@ -858,8 +1060,8 @@ describe('DriverTripDetailPage', () => {
     await screen.findByTestId('operation-chips');
     let chips = screen.getAllByTestId('operation-chip');
     expect(chips).toHaveLength(4);
-    // Scope to the chips region: the 2a618442 header toggle's accessible name
-    // also contains "Mở rộng", so a page-wide query would be ambiguous.
+    // Scope to the chips region — page-wide role queries stay scoped to the
+    // surface under test even after the 20260926_20 header-toggle removal.
     const chipsRegion = screen.getByTestId('operation-chips');
     const toggle = within(chipsRegion).getByRole('button', { name: /Mở rộng/ });
     fireEvent.click(toggle);
@@ -888,8 +1090,8 @@ describe('DriverTripDetailPage', () => {
 
     await screen.findByTestId('operation-chips');
     expect(screen.getAllByTestId('operation-chip')).toHaveLength(3);
-    // No chips toggle here — and the header toggle (also matching "Mở rộng")
-    // lives OUTSIDE the chips region, so scoping keeps this assertion honest.
+    // No chips toggle for short lists — scoped to the chips region so the
+    // assertion reads only that surface.
     expect(within(screen.getByTestId('operation-chips')).queryByRole('button', { name: /Mở rộng|Thu gọn/ })).toBeNull();
   });
 
@@ -941,10 +1143,10 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getAllByTestId('operation-chip').map((chip) => chip.textContent)).toEqual(['KIỂM HÓA', 'QUAY ĐẦU']);
   });
 
-  // 2a618442: the TÁC VỤ TÀI XẾ header is DEFAULT EXPANDED — factory title +
-  // subordinate route line + customer; collapsing only hides the customer
-  // name. Status pill + Đóng/Trả chip stay visible in both states.
-  it('2a618442: collapses to factory short name + route line on toggle, expanding restores route + customer', async () => {
+  // 20260926_20: the TÁC VỤ TÀI XẾ header ALWAYS shows fully — the collapse
+  // chevron is removed (it hid only the customer name: no real space saving).
+  // Status pill + Đóng/Trả chip + customer render unconditionally.
+  it('20260926_20: header renders fully — collapse toggle gone, customer always visible', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -960,28 +1162,23 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // Default EXPANDED: factory title + route-line text (route summary — the
-    // factory address never rides this line) + customer.
-    const toggle = screen.getByRole('button', { name: 'Thu gọn thông tin tác vụ' });
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
-    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
+    // No expand/collapse affordance exists on the header — neither by
+    // accessible name nor by the old class hook.
+    expect(screen.queryByRole('button', { name: 'Thu gọn thông tin tác vụ' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeNull();
+    expect(document.querySelector('.driver-task-header__toggle')).toBeNull();
+    // Full header content renders without any toggle interaction.
+    // Card _26 + _63: the carrier document number leads the title; the
+    // factory short name renders as the line-2 location.
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('BL-2026-001');
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('ASKEY');
     expect(screen.getByText('SilverSea')).toBeTruthy();
-
-    fireEvent.click(toggle);
-    // Collapsed: same factory title + route line; only the customer hides.
-    // (BUG 5: the expanded grid below also shows the short name, so scope the
-    // assertion to the header title element.)
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
-    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Bình Dương');
-    expect(screen.queryByText('SilverSea')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeTruthy();
   });
 
-  // 2a618442: without factory data the title falls back to the route name in
-  // both states and the redundant route line stays hidden (it belongs under a
-  // factory title only).
-  it('2a618442: falls back to the route title and hides the route line without factory name', async () => {
+  // 20260926_20 + card _26: without factory data the line-2 location falls
+  // back to the route name; the title keeps leading with the document
+  // number. No collapse toggle — the header is static.
+  it('20260926_20: falls back to the route location while the document number still leads', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -997,12 +1194,11 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // No factory → route title in BOTH states, route line hidden.
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
-    expect(document.querySelector('.driver-task-header__route')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thông tin tác vụ' }));
-    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
-    expect(document.querySelector('.driver-task-header__route')).toBeNull();
+    // No factory → the route summary becomes the location; no toggle exists.
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('BL-2026-001');
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Cát Lái → Bình Dương');
+    expect(screen.queryByRole('button', { name: 'Thu gọn thông tin tác vụ' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở rộng thông tin tác vụ' })).toBeNull();
   });
 
   // 40f3ae15 + photo-block unification: biên bản giao hàng capture lives in
@@ -1012,8 +1208,9 @@ describe('DriverTripDetailPage', () => {
   it('shows the unified biên bản affordances and no standalone section', async () => {
     renderPage();
 
-    expect(screen.getByText('Chụp / chọn ảnh biên bản')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Mở camera biên bản' })).toBeTruthy();
+    // Card _28 item 11: ONE merged Thêm-ảnh entry per zone.
+    expect(screen.getByRole('button', { name: 'Thêm ảnh biên bản' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Mở camera biên bản' })).toBeNull();
     expect(screen.queryByTestId('delivery-note-block')).toBeNull();
     expect(screen.queryByText('Biên bản giao hàng')).toBeNull();
     expect(screen.queryByAltText('Ảnh biên bản')).toBeNull();
@@ -1033,17 +1230,24 @@ describe('DriverTripDetailPage', () => {
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
-    // BentoThumb HEAD-preflights the authenticated photo URL inside its mount
-    // effect — the stub must be in place BEFORE renderPage() paints the tile,
-    // or the failed preflight permanently falls back to the placeholder.
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true }) as Response));
+    // Both biên bản tiles (the bento thumb and the preview strip) resolve the
+    // photo through the Authorization-header blob fetch — never the protected
+    // path itself, and never a `?token=` URL.
+    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['note'], { type: 'image/jpeg' }));
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:delivery-note'),
+      revokeObjectURL: vi.fn(),
+    }));
     renderPage();
 
     try {
       const img = await screen.findByAltText('Ảnh biên bản');
-      expect(img.getAttribute('src')).toContain(encodeURIComponent('trips/55/delivery-note.jpg'));
+      await waitFor(() => expect(img.getAttribute('src')).toBe('blob:delivery-note'));
+      expect(getBlob).toHaveBeenCalledWith('/photos/trips%2F55%2Fdelivery-note.jpg');
+      expect(document.querySelector('img[src*="token="]')).toBeNull();
       expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
     } finally {
+      getBlob.mockRestore();
       vi.unstubAllGlobals();
     }
   });
@@ -1123,6 +1327,9 @@ describe('20260915_1: trip → fulfillmentId resolution', () => {
     bareRender('/my-trips/23', client);
     // Lean fulfillment-less detail instead of the hard 404 error.
     expect(await screen.findByText(/chưa có đầu việc vận chuyển/)).toBeTruthy();
+    // The ad-hoc title leads with a business descriptor — the internal TRP
+    // code never renders as the title.
+    expect(screen.queryByText(/TRP-23-ADHOC/)).toBeNull();
     expect(getDriverTripMock).toHaveBeenCalledWith(23);
   });
 
@@ -1135,7 +1342,7 @@ describe('20260915_1: trip → fulfillmentId resolution', () => {
     });
     renderPage();
     expect(await screen.findByText('Tác vụ')).toBeTruthy();
-    expect(screen.getByText('Không có tác vụ.')).toBeTruthy();
+    expect(screen.getByText('Không có tác vụ')).toBeTruthy();
     expect(screen.getByText('Ghi chú')).toBeTruthy();
     expect(screen.getByText('Không có ghi chú.')).toBeTruthy();
     expect(screen.queryByTestId('operation-chips')).toBeNull();

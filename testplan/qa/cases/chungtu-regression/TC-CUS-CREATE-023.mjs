@@ -5,17 +5,18 @@ export const caseId = 'TC-CUS-CREATE-023';
 export const role = 'CUS';
 
 export default async function (ctx) {
+  const envTag = `[${ctx.env.env}]`;
   await ctx.goto('/shipments/new');
 
   const cust = await ctx.pickComboboxByPlaceholder('Gõ để tìm kiếm', 'Long Minh');
-  if (!cust.ok) return { verdict: 'BLOCKED', errors: [`kh: ${cust.error}`] };
+  if (!cust.ok) return { verdict: 'BLOCKED', errors: [`${envTag} kh: ${cust.error}`] };
   const hinhThuc = await ctx.pickHinhThucNhapKhau();
-  if (!hinhThuc.ok) return { verdict: 'BLOCKED', errors: [`hình thức: ${hinhThuc.error}`] };
+  if (!hinhThuc.ok) return { verdict: 'BLOCKED', errors: [`${envTag} hình thức: ${hinhThuc.error}`] };
 
   const cn = await ctx.pickCombobox('Cảng nâng', '');
   const ch = await ctx.pickCombobox('Cảng hạ', '');
   if (!cn.ok || !ch.ok) {
-    return { verdict: 'BLOCKED', errors: [`cảng nâng: ${cn.error}`, `cảng hạ: ${ch.error}`] };
+    return { verdict: 'BLOCKED', errors: [`${envTag} cảng nâng: ${cn.error}`, `${envTag} cảng hạ: ${ch.error}`] };
   }
   await ctx.screenshot('a_cang_picked');
 

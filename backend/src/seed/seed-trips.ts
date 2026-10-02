@@ -177,6 +177,8 @@ async function ensureExternalCarrier(createdBy: number): Promise<number> {
     const [inserted] = await db.insert(s.customers).values({
       name: 'Công ty TNHH Vận tải Gaya Container Lines',
       shortName: 'Gaya Container Lines',
+      // Card 20260922_70: KH-3xxx for seed-trips' carrier row — disjoint range.
+      code: 'KH-3001',
       taxCode: CARRIER_TAX_CODE,
       contactPerson: 'Đỗ Thị Gaya',
       phone: '02253866778',
@@ -451,9 +453,8 @@ export async function seedTrips(seedActors: SeedActors & {
       // completion scope, so they must land before the scope rows below.
       const expensePlan = OPS_EXPENSE_PLANS.find(expense => expense.ref === plan.ref);
       if (seedActors.ops && expensePlan) {
-        const { ref: _ref, ...expenseData } = expensePlan;
         await createTripExpense(db, {
-          ...expenseData,
+          ...expensePlan,
           tripId: order.trip.id,
           forwarderId: seedActors.ops.id,
           createdBy: seedActors.ops.id,

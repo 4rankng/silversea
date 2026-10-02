@@ -11,6 +11,7 @@ import { qk } from '../../../api/keys';
 import { SearchableSelect } from '../../../design-system/forms/SearchableSelect';
 import { DateInput } from '../../../design-system/forms/DateInput';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
+import { billBookingReference } from '../../../lib/business-reference';
 
 interface PenaltyFormDrawerProps {
   isOpen: boolean;
@@ -55,12 +56,12 @@ export function PenaltyFormDrawer({
     .map((trip) => ({
       value: String(trip.id),
       label: [
-        trip.tripCode || 'Chuyến chưa có mã',
+        billBookingReference(trip.customerReference),
         trip.customer?.name || 'Khách hàng chưa xác định',
         trip.route?.name || 'Tuyến chưa xác định',
         trip.departureDate || 'Chưa có ngày khởi hành',
       ].join(' · '),
-      searchText: `${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
+      searchText: `${trip.customerReference ?? ''} ${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
     }));
 
   useEffect(() => {

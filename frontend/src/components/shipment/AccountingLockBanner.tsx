@@ -1,9 +1,10 @@
 import type { ShipmentAccountingLockSummary } from '@tingting/shared';
+import { formatDateTimeVN } from '../../lib/format';
 
 export function AccountingLockBanner({ lock }: { lock: ShipmentAccountingLockSummary }) {
-  const documentLabel = lock.billingDocumentNumber?.trim() || `#${lock.billingDocumentId}`;
+  const documentLabel = lock.billingDocumentNumber?.trim() || '—';
   const actor = lock.activatedByName?.trim() || 'Kế toán';
-  const activatedAt = lock.activatedAt ? new Date(lock.activatedAt).toLocaleString('vi-VN') : null;
+  const activatedAt = lock.activatedAt ? formatDateTimeVN(lock.activatedAt) : null;
 
   return (
     <section

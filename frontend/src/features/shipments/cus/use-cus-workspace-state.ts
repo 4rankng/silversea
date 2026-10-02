@@ -25,6 +25,7 @@ import type {
   ShipmentCusWorkspaceListResponse,
   ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
+import { SHIPMENT_CUS_PAGE_SIZES } from '@tingting/shared';
 import { qk } from '../../../api/keys';
 import {
   getCusShipmentWorkspaceDetail,
@@ -32,22 +33,37 @@ import {
 } from '../../../api/shipmentClient';
 import { safeError } from './cusUtils';
 
+/** Rows-per-page vocabulary for the CUS workboards: the offered sizes and the
+ *  URL reader. A hand-edited `limit=37` falls back to the default rather than
+ *  asking the API for an arbitrary page. Re-exported here so the pages import
+ *  the selector options and the reader from the one module they already use. */
+export { SHIPMENT_CUS_PAGE_SIZES } from '@tingting/shared';
+
+export function readCusPageSize(value: string | null): number {
+  const parsed = Number(value);
+  return (SHIPMENT_CUS_PAGE_SIZES as readonly number[]).includes(parsed) ? parsed : CUS_PAGE_SIZE;
+}
+
 export const CUS_PAGE_SIZE = 20;
 const CUS_LIST_POLL_MS = 30_000;
 
 export interface CusWorkspaceListParams {
   page: number;
+  /** Rows per page — one of SHIPMENT_CUS_PAGE_SIZES (20 by default). */
+  pageSize: number;
   searchSuffix: string;
   transportDateFrom: string;
   transportDateTo: string;
   direction: '' | 'IMPORT' | 'EXPORT';
   bucket: '' | ShipmentCusBucket;
+  /** 20260917_12: 'true' = chỉ lệnh chạy ngoài, 'false' = chỉ luồng danh mục. */
+  adHoc: '' | 'true' | 'false';
   sortKey: ShipmentCusWorkspaceSortKey | null;
   sortDir: 'asc' | 'desc';
 }
 
 export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetailId: number | null = null) {
-  const { page, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, sortKey, sortDir } = params;
+  const { page, pageSize, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, adHoc = '', sortKey, sortDir } = params;
   const [notice, setNotice] = useState<string | null>(null);
   // Non-list errors (mutations, guards) still write imperatively; list-load
   // errors come from the query. Old code cleared the shared error state at
@@ -64,22 +80,25 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
   const listQuery = useQuery({
     queryKey: qk.shipmentsCus.list({
       page,
+      pageSize,
       searchSuffix,
       transportDateFrom,
       transportDateTo,
       direction,
       bucket,
+      isAdHoc: adHoc === '' ? undefined : adHoc === 'true',
       sortBy: sortKey ?? undefined,
       sortDir: sortKey ? sortDir : undefined,
     }),
     queryFn: () => listCusShipmentWorkspace({
       page,
-      limit: CUS_PAGE_SIZE,
+      limit: pageSize,
       searchSuffix: searchSuffix || undefined,
       transportDateFrom: transportDateFrom || undefined,
       transportDateTo: transportDateTo || undefined,
       direction: direction || undefined,
       bucket: bucket || undefined,
+      isAdHoc: adHoc === '' ? undefined : adHoc === 'true',
       sortBy: sortKey ?? undefined,
       sortDir: sortKey ? sortDir : undefined,
     }),
@@ -187,17 +206,23 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
       const carrierVehicles = line.externalCarrierId && line.externalCarrierVehicleId && line.plateNumber && !detail.selectors.carrierVehicles.some((vehicle) => vehicle.id === line.externalCarrierVehicleId)
         ? [...detail.selectors.carrierVehicles, { id: line.externalCarrierVehicleId, carrierId: line.externalCarrierId, licensePlate: line.plateNumber, label: line.plateNumber }]
         : detail.selectors.carrierVehicles;
+      // Case QA-2026-09-23-01 D3: a map alone replaces a matching id and
+      // otherwise keeps the same set — a brand-new line (container ADD) would
+      // never reach the open ledger. Append when the id is not present yet.
+      const matched = detail.containers.some((currentLine) => currentLine.id === line.id);
+      const containers = detail.containers.map((currentLine) => (
+        currentLine.id === line.id
+          ? line
+          : { ...currentLine, shipmentVersion: line.shipmentVersion }
+      ));
+      if (!matched) containers.push(line);
       return {
         ...current,
         [shipmentId]: {
           ...detail,
           summary: { ...detail.summary, version: line.shipmentVersion },
           selectors: { ...detail.selectors, externalCarriers, carrierVehicles },
-          containers: detail.containers.map((currentLine) => (
-            currentLine.id === line.id
-              ? line
-              : { ...currentLine, shipmentVersion: line.shipmentVersion }
-          )),
+          containers,
         },
       };
     });

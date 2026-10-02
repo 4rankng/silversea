@@ -10,6 +10,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { ApiError } from '../../errors';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runIdempotent } from '../../services/idempotency.service';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   createFuelInvoice,
   getFuelInvoice,
@@ -90,7 +91,7 @@ function requireIdempotencyKey(req: Request): string {
   return idempotencyKey;
 }
 
-const router = Router();
+const router = Router()
 
 router.get(
   '/finance/fuel-invoices',
@@ -126,7 +127,7 @@ router.get(
 );
 
 router.post(
-  '/finance/fuel-invoices',
+  '/finance/fuel-invoices', declareMaterialWrite('fuel-invoices.create', { method: 'POST', path: '/api/finance/fuel-invoices' }), 
   requireRoles(Role.ADMIN, Role.ACCOUNTANT),
   asyncHandler(async (req, res) => {
     const actor = getUser(req);
@@ -148,7 +149,7 @@ router.post(
 );
 
 router.put(
-  '/finance/fuel-invoices/:id',
+  '/finance/fuel-invoices/:id', declareMaterialWrite('fuel-invoices.update', { method: 'PUT', path: '/api/finance/fuel-invoices/:id' }), 
   requireRoles(Role.ADMIN, Role.ACCOUNTANT),
   asyncHandler(async (req, res) => {
     const actor = getUser(req);
@@ -172,7 +173,7 @@ router.put(
 );
 
 router.post(
-  '/finance/fuel-invoices/:id/corrections',
+  '/finance/fuel-invoices/:id/corrections', declareMaterialWrite('fuel-invoices.correction.create', { method: 'POST', path: '/api/finance/fuel-invoices/:id/corrections' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req, res) => {
     const actor = getUser(req);
@@ -215,6 +216,6 @@ router.post(
   }),
 );
 
-// KP-152: approve endpoint removed — fuel invoices are APPROVED at creation.
+// KP-152: approve endpoint removed — fuel invoices are recorded directly at creation.
 
 export default router;

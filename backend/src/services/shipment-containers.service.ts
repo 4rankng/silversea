@@ -7,13 +7,12 @@
 // services (intake guards, accounting lock, edit boundary) — never
 // shipment.service itself, which keeps the dependency direction one-way.
 
-import { db } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
-import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import {
   canonicalShipmentStatus,
@@ -35,9 +34,13 @@ import type {
   UpdateShipmentInput,
 } from './shipment-types';
 
-export async function listShipmentContainers(shipmentId: number, tx?: Tx) {
-  const client = tx ?? db;
-  return await client.select().from(s.shipmentContainers)
+export async function listShipmentContainers(shipmentId: number, executor: Executor = db) {
+  return await executor.select({
+    ...getTableColumns(s.shipmentContainers),
+    containerTypeName: s.containerTypes.name,
+    containerTypeCode: s.containerTypes.code,
+  }).from(s.shipmentContainers)
+    .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
     .where(eq(s.shipmentContainers.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentContainers.createdAt));
 }
@@ -106,16 +109,15 @@ export async function snapshotContainersIntoTrip(
   shipmentId: number,
   tripId: number,
   createdBy?: number | null,
-  tx?: Tx,
+  executor: Executor = db,
 ): Promise<{ copied: number; skipped: boolean }> {
-  // Allow callers to pass an outer transaction (e.g. the dispatch flow) or rely
-  // on the top-level client. Matches the `listTripContainers(tripId, tx?: Tx)`
-  // convention in forwarder-container.service.ts.
-  const client = tx ?? db;
+  // Allow callers to pass an outer transaction (e.g. the dispatch flow) or
+  // default to the pool — the same optional-executor convention as
+  // forwarder-container.service.ts's listTripContainers.
 
   // 1. Idempotency: if any trip_container for this trip already carries the
   //    shipment-snapshot marker, treat the snapshot as already done.
-  const [existing] = await client.select({ id: s.tripContainers.id })
+  const [existing] = await executor.select({ id: s.tripContainers.id })
     .from(s.tripContainers)
     .where(
       and(
@@ -129,7 +131,7 @@ export async function snapshotContainersIntoTrip(
     .limit(1);
   if (existing) return { copied: 0, skipped: true };
 
-  const [shipment] = await client.select({
+  const [shipment] = await executor.select({
     id: s.shipments.id,
     version: s.shipments.version,
   })
@@ -141,7 +143,7 @@ export async function snapshotContainersIntoTrip(
   }
 
   // 2. Pull the shipment's containers (only non-deleted shipment).
-  const containers = await client.select().from(s.shipmentContainers)
+  const containers = await executor.select().from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipmentId));
 
   if (containers.length === 0) return { copied: 0, skipped: false };
@@ -163,7 +165,7 @@ export async function snapshotContainersIntoTrip(
     createdBy: createdBy ?? null,
   }));
 
-  const inserted = await client.insert(s.tripContainers).values(rows).returning({ id: s.tripContainers.id });
+  const inserted = await executor.insert(s.tripContainers).values(rows).returning({ id: s.tripContainers.id });
   return { copied: inserted.length, skipped: false };
 }
 
@@ -287,6 +289,14 @@ export async function reconcileShipmentContainersInTx(
     const rawDropoffPortName = resolvedDropoffPortId != null
       ? null
       : container.rawDropoffPortName?.trim() || null;
+    // Ad-hoc row-tier factory/route (§4.2): the same XOR — a catalog id wins
+    // and clears its raw mirror; with no id the typed text stands.
+    const rawFactoryName = resolvedSiteId != null
+      ? null
+      : container.rawFactoryName?.trim() || null;
+    const rawRouteName = resolvedRouteId != null
+      ? null
+      : container.rawRouteName?.trim() || null;
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -301,6 +311,8 @@ export async function reconcileShipmentContainersInTx(
       rawPickupPortName,
       rawDropoffPortName,
       operationalSiteId: resolvedSiteId,
+      rawFactoryName,
+      rawRouteName,
       customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
       notes: container.notes ?? null,
       updatedAt: new Date(),
@@ -333,7 +345,15 @@ export async function reconcileShipmentContainersInTx(
   ) {
     throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
   }
-  if (derivedDate !== shipment.expectedDeliveryDate) {
+  // Card 20260929_203: the projection REPRODUCES a date, it does not own the
+  // column. Writing a derived `null` over a stored value destroyed the date
+  // the create call had just written (no container had an appointment yet, so
+  // derivedDate was null), and /ops/orders — which filters on this exact
+  // column — went empty for every newly created shipment, with no error
+  // anywhere. The 409 above already covers the one case where dropping the
+  // last appointment really is a mistake, so here the rule is simply: update
+  // the projection when it knows a date, never erase one it cannot reproduce.
+  if (derivedDate != null && derivedDate !== shipment.expectedDeliveryDate) {
     const allContainersDated = synchronizedContainers.length > 0
       && synchronizedContainers.every((container) => container.customerAppointmentAt != null);
     const becomesReady = shipment.cargoMode === CARGO_MODE.FCL

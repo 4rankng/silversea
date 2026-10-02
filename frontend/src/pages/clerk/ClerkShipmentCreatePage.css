@@ -6,12 +6,12 @@
    shell canvas, while the app shell remains the single safe outer gutter. */
 .app-main:not(.driver-mode) .app-body > .csc-page { width: 100%; max-width: none; margin-inline: 0; }
 .csc-page { width: 100%; margin: 0; padding: 12px 0 28px; min-width: 0; }
-.csc-page__title { margin: 0 0 14px; font-size: var(--text-title-size); line-height: 1.2; color: var(--fg-1, #101510); font-weight: 700; }
+.csc-page__title { margin: 0 0 14px; font-size: var(--text-title-size); line-height: 1.2; color: var(--fg-1); font-weight: 700; }
 /* LCL split-lot extra delivery dates (Create Shipment doc Block 2B "[+]" repeater). */
 .csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 .csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .csc-extra-dates__row > div:first-child { flex: 1 1 220px; min-width: 0; }
-.csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
+.csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: var(--control-max-h); padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
 .csc-workspace { display: grid; gap: 12px; min-width: 0; }
 .csc-form { display: grid; gap: 12px; min-width: 0; }
 .csc-section { padding: 18px !important; gap: 14px !important; border: 0 !important; border-radius: 14px !important; background: var(--surface) !important; scroll-margin-top: 16px; }
@@ -20,6 +20,11 @@
 .csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -18px -18px 0; padding: 16px 18px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
 .csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--text-section-size); font-weight: 700; line-height: 1.3; }
 .csc-section__heading p { margin: 2px 0 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.4; }
+/* Section-header action slot (Lệnh chạy ngoài): right-aligned on the heading
+   row. The control itself is the form's single data-flag treatment below —
+   the old bordered chip is retired (card 20260922_31). */
+.csc-section__actions { margin-left: auto; flex: 0 0 auto; }
+@media (max-width: 640px) { .csc-section__heading { flex-wrap: wrap; } }
 /* Single visible boundary per control: the `csc-control-boundary` class on
    each field adapter owns the wrapper border/focus ring (and gives headless
    QA a solid, screenshot-visible control edge). Inputs nested inside an
@@ -56,7 +61,7 @@
 .csc-route-dialog__distance-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
 .csc-route-dialog__distance-field { flex: 0 1 184px; width: min(100%, 184px); min-width: 0; }
 .csc-route-dialog__submit { flex: 0 0 auto; min-height: 38px; }
-.csc-customer-popover { z-index: 50; min-width: min(32rem, calc(100vw - 32px)); max-width: calc(100vw - 32px); border: 1px solid var(--border-1); background: var(--surface, #fff); box-shadow: 0 12px 28px rgb(15 23 42 / 14%); }
+.csc-customer-popover { z-index: 50; min-width: min(32rem, calc(100vw - 32px)); max-width: calc(100vw - 32px); border: 1px solid var(--border-1); background: var(--surface); }
 .csc-customer-popover .csc-customer-option [slot='label'] { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
 .csc-customer-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .csc-customer-picker__add { width: fit-content; white-space: nowrap; }
@@ -68,29 +73,34 @@
 .csc-customer-dialog__submit { justify-self: end; min-height: var(--control-default-h); }
 .csc-field-hint, .csc-field-error { font-size: var(--text-caption-size); font-weight: 400; line-height: 1.45; }
 .csc-field-hint { color: var(--fg-3); }.csc-field-error { color: var(--danger); }
-.csc-site-guidance { position: relative; display: grid; gap: 4px; margin: -4px 0 0; padding: 11px 13px; border-radius: 7px; background: var(--warning-bg, #fff7ed); color: var(--fg-1); }
-.csc-site-guidance::before { position: absolute; top: 50%; left: 0; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--warning, #d97706); transform: translateY(-50%); content: ''; pointer-events: none; }
+.csc-site-guidance { position: relative; display: grid; gap: 4px; margin: -4px 0 0; padding: 11px 13px; border-radius: 8px; background: var(--warning-soft); color: var(--fg-1); }
+.csc-site-guidance::before { position: absolute; top: 50%; left: 0; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--warning); transform: translateY(-50%); content: ''; pointer-events: none; }
 .csc-site-guidance strong { font-size: var(--text-data-size); }.csc-site-guidance p { margin: 0; line-height: 1.5; }
 .csc-mode { margin: 0; padding: 0; border: 0; min-width: 0; }
 .csc-mode legend { margin-bottom: 6px; font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); }
-.csc-mode > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.csc-mode label { cursor: pointer; }.csc-mode input { position: absolute; opacity: 0; pointer-events: none; }
-.csc-mode__option { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease; }
-.csc-mode__option::before { width: 16px; height: 16px; flex: 0 0 auto; border: 1.5px solid var(--line-2); border-radius: 50%; background: var(--surface); content: ''; }
-.csc-mode label:hover .csc-mode__option { border-color: var(--line-2); background: var(--surface-2); }
-.csc-mode input:checked + span { border-color: var(--ink); background: var(--surface); color: var(--fg-1); box-shadow: inset 3px 0 0 var(--ink); }
-.csc-mode input:checked + span::before { border-color: var(--ink); background: var(--ink); box-shadow: inset 0 0 0 4px var(--surface); }
-.csc-mode input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 2px; }
+/* Loại hàng is a GROUPED OPTION SET, not a data flag, so it wears the app's
+   normal segmented treatment — the same connected-group recipe as the
+   /shipments-detail date presets (one shared border, compact control height,
+   selected segment filled with ink). The old full-width rounded option blocks
+   are retired (card 20260922_31). */
+.csc-mode > div { display: inline-flex; align-items: stretch; overflow: hidden; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); }
+.csc-mode label { display: inline-flex; min-width: 0; cursor: pointer; }
+.csc-mode label + label { border-left: 1px solid var(--line-2); }
+.csc-mode input { position: absolute; opacity: 0; pointer-events: none; }
+.csc-mode__option { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); white-space: nowrap; transition: background-color var(--t-fast), color var(--t-fast); }
+.csc-mode label:hover .csc-mode__option { background: var(--surface-2); color: var(--fg-1); }
+.csc-mode input:checked + span { background: var(--ink); color: var(--surface); }
+.csc-mode input:focus-visible + span { outline: 2px solid var(--accent-2); outline-offset: -2px; }
 .csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: end; gap: 12px; min-width: 0; }
 .csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
 .csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 12px; }
-.csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
+.csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
 .csc-container-table { width: 100%; min-width: 1038px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
 .csc-container-col__index { width: 40px; }
 .csc-container-col__number { width: 128px; }
 .csc-container-col__type { width: 104px; }
 .csc-container-col__route { width: 180px; }
-.csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory, .csc-container-col__appointment { width: auto; }
+.csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
 .csc-container-col__weight { width: 96px; }
 .csc-container-col__actions { width: 44px; }
 .csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -105,10 +115,15 @@
 .csc-container-table select { width: 100%; min-width: 0; max-width: 100%; }
 .csc-container-row__mobile-index { display: none; }
 .csc-container-row__actions { text-align: center; }
-.csc-combined-toggle { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface-2); cursor: pointer; }
-.csc-combined-toggle input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent-2); }
-.csc-combined-toggle span { display: grid; gap: 2px; color: var(--fg-2); font-size: var(--control-compact-font-size); line-height: var(--control-compact-line-height); }
-.csc-combined-toggle strong { color: var(--fg-1); }
+/* ONE data-flag treatment for the whole intake form (card 20260922_31): every
+   boolean flag — Lệnh chạy ngoài, Có cược container, Đóng kết hợp — is a plain
+   inline checkbox (native box + label, zero box chrome: no border, no fill, no
+   chip), at the form's compact control height. */
+.csc-flag-checkbox { display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 34px; padding: 0; border: 0; background: none; color: var(--fg-1); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); cursor: pointer; justify-self: start; }
+.csc-flag-checkbox input { width: 16px; height: 16px; flex: 0 0 auto; margin: 0; accent-color: var(--accent-2); }
+.csc-flag-checkbox span { display: inline; color: inherit; }
+.csc-flag-checkbox strong { color: var(--fg-1); }
+.csc-flag-checkbox:has(input:disabled) { cursor: not-allowed; opacity: .65; }
 .csc-container-editor__allocation { display: flex; width: 100%; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .csc-allocation-summary { display: grid; gap: 8px; min-width: 0; flex: 1 1 320px; }
 .csc-container-actions { display: flex; width: 100%; align-items: center; justify-content: flex-end; }
@@ -126,15 +141,16 @@
 .csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--control-compact-h, 34px); padding: 5px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: var(--text-control-size); font-weight: 650; cursor: pointer; }
 /* The `--dashed` name survives as the JSX/test marker, but the accent action
    is borderless — plus icon + label only (user request 2026-08-30). */
-.csc-utility-button--dashed { border: 0; background: transparent; color: var(--accent, #2563eb); font-weight: 700; }
+.csc-utility-button--dashed { border: 0; background: transparent; color: var(--accent); font-weight: 700; }
 .csc-utility-button:disabled { cursor: not-allowed; opacity: .65; }
 .csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
 .csc-icon-button--danger { color: var(--danger); }
-.csc-section textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--border-2); border-radius: 9px; padding: 8px 10px; color: var(--fg-1); background: var(--surface-2); }
-/* Retired with the shared adapter promotion: control boundary + popover skin
- * now live in design-system/forms/UuiSelectField.css (`ds-uui-boundary`). The
- * csc-control-boundary rules below remain for the clerk page's input/textarea
- * fields (UTextField/UDateField), which still use the marker. */
+.csc-section textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--border-2); border-radius: 10px; padding: 8px 10px; color: var(--fg-1); background: var(--surface-2); }
+/* The retired `ds-uui-boundary` control-boundary block was removed from
+ * design-system/forms/UuiSelectField.css (no component applied the class;
+ * the app-wide box-shadow reset made it unrendered). The
+ * csc-control-boundary rules below remain for the clerk page's
+ * input/textarea fields (UTextField/UDateField), which still use the marker. */
 
 .csc-control-boundary > [role='presentation'],
 .csc-control-boundary [data-input-wrapper='true'],
@@ -143,9 +159,9 @@
 .csc-control-boundary textarea {
   border: 1px solid color-mix(in srgb, var(--fg-1) 22%, transparent);
   border-radius: 8px;
-  background: var(--surface, #fff);
+  background: var(--surface);
   box-shadow: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background-color var(--t-fast);
 }
 .csc-control-boundary :where(input, select, textarea):focus-visible {
   outline: none;
@@ -163,15 +179,25 @@
 .csc-control-boundary:focus-within [role='group'],
 .csc-control-boundary:focus-within select,
 .csc-control-boundary:focus-within textarea {
-  border-color: var(--accent, #2563eb);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .csc-control-boundary:has([aria-invalid='true']) > [role='presentation'],
 .csc-control-boundary:has([aria-invalid='true']) [data-input-wrapper='true'],
 .csc-control-boundary:has([aria-invalid='true']) [role='group'],
 .csc-control-boundary:has([aria-invalid='true']) select,
 .csc-control-boundary:has([aria-invalid='true']) textarea {
-  border-color: var(--danger, #dc2626);
+  border-color: var(--danger);
+}
+/* A focused invalid field shows the red ring — the green focus glow must
+   never co-render with the error state (error styling wins over focus). */
+.csc-control-boundary:has([aria-invalid='true']):focus-within > [role='presentation'],
+.csc-control-boundary:has([aria-invalid='true']):focus-within [data-input-wrapper='true'],
+.csc-control-boundary:has([aria-invalid='true']):focus-within [role='group'],
+.csc-control-boundary:has([aria-invalid='true']):focus-within select,
+.csc-control-boundary:has([aria-invalid='true']):focus-within textarea {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
 }
 .csc-control-boundary:has(:disabled) > [role='presentation'],
 .csc-control-boundary:has(:disabled) [data-input-wrapper='true'],
@@ -179,16 +205,16 @@
 .csc-control-boundary:has(:disabled) select,
 .csc-control-boundary:has(:disabled) textarea {
   border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
-  background: var(--surface-2, #f8fafc);
+  background: var(--surface-2);
 }
 .csc-summary { display: grid; gap: 12px; min-width: 0; }
 .csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
-.csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p, .csc-summary__muted, .csc-summary__error { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }.csc-summary__muted { color: var(--fg-3); }.csc-summary__error { color: var(--danger); }.csc-summary__warning { color: var(--warn, #b45309); }
+.csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p, .csc-summary__muted, .csc-summary__error { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }.csc-summary__muted { color: var(--fg-3); }.csc-summary__error { color: var(--danger); }.csc-summary__warning { color: var(--warn); }
 .csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
 .csc-pricing__explain { padding-top: 8px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__explain p { margin: 3px 0; }
 .csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
-.csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-bg, #fff7f7); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: 44px; border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
-.csc-submit-error { color: var(--danger); background: var(--danger-bg, #fff7f7); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-soft); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: var(--control-max-h); border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
+.csc-submit-error { color: var(--danger); background: var(--danger-soft); font-size: var(--text-data-size); line-height: 1.5; }
 .csc-summary__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; }
 @media (min-width: 1101px) and (min-height: 721px) {
   .csc-section__heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
@@ -206,14 +232,14 @@
   .csc-container-table, .csc-container-table tbody { display: block; width: 100%; min-width: 0; background: transparent; }
   .csc-container-table thead, .csc-container-table colgroup { display: none; }
   .csc-container-table tbody { display: grid; gap: 10px; }
-  .csc-container-row { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; padding: 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); }
+  .csc-container-row { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; padding: 10px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); }
   .csc-container-table .csc-container-row > * { display: block; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; }
   .csc-container-table .csc-container-row__index { grid-column: 1 / -1; min-height: 26px; padding: 0 44px 5px 0; border-bottom: 1px solid var(--line); color: var(--fg-1); font-size: var(--text-data-size); font-weight: 750; }
   .csc-container-row__desktop-index { display: none; }
   .csc-container-row__mobile-index { display: inline; }
   .csc-container-row td[data-label]::before { display: block; margin-bottom: 3px; color: var(--fg-2); content: attr(data-label); font-size: var(--text-label-size); font-weight: 700; line-height: 1.35; }
   .csc-container-table .csc-container-row__actions { position: absolute; top: 6px; right: 6px; }
-  .csc-container-row__actions .csc-icon-button { min-width: 44px; min-height: 44px; }
+  .csc-container-row__actions .csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }
 }
 @media (max-width: 1100px) {
   /* The app shell owns the tablet/phone canvas gutter. The continuous CUS
@@ -224,7 +250,7 @@
   .csc-identity-grid__customer { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 7px 7px 0 0; }.csc-mode legend, .csc-mode__option, .csc-combined-toggle span { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 /* Keep the normal-flow action row above the iPhone home indicator at the end
    of the long create form. It is deliberately not sticky. */
@@ -238,7 +264,7 @@
     /* The trailing safe-area padding must read as part of the worksheet, not
        as a bare app-main canvas strip at the end of the scroll (user report
        2026-09-16: grey gap below the last section on mobile). */
-    background: var(--surface, #fff);
+    background: var(--surface);
   }
   /* The shell's own 28px bottom padding sits BELOW the page and shows the
      canvas after the worksheet ends — the page's safe-area padding replaces
@@ -248,7 +274,7 @@
   }
 }
 
-@media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: 44px; } }
+@media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: var(--control-max-h); } }
 @media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-validation-summary, .csc-submit-error { padding: 8px !important; } }
 @media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
@@ -269,7 +295,7 @@
 }
 
 .csc-cargo-route-picker__label span {
-  color: var(--danger, #dc2626);
+  color: var(--danger);
 }
 
 @media (max-width: 640px) {
@@ -291,21 +317,26 @@
   gap: 6px;
   font-size: var(--text-caption-size);
   line-height: 1.4;
-  color: #b45309;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
+  color: var(--warning-text);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
   border-radius: 6px;
   padding: 6px 10px;
 }
 .csc-field-warning__link {
-  color: #b45309;
+  color: var(--warning-text);
   font-weight: 600;
   text-decoration: underline;
 }
-.csc-field-warning__link:hover { color: #92400e; }
+.csc-field-warning__link:hover { color: var(--warning-text); }
 
-/* Separate time/date controls remain usable in the repeatable desktop grid. */
-.csc-container-col__appointment { width: 170px; }
+/* Separate time/date controls remain usable in the repeatable desktop grid.
+ * 176px is the control's measured floor: the two segment groups carry
+ * min-width:max-content (a cramped segment clips its digits), so the pair
+ * cannot render below ~171px. At 170px the date half spilled out of the cell
+ * and the container table's scroll box sheared it off, leaving only "HH :".
+ * The other three auto columns absorb the 6px. */
+.csc-container-col__appointment { width: 176px; }
 
 /* Stacked records are forms, not spreadsheet previews. Show their controls
  * continuously and keep catalog creation beside its selector so invisible
@@ -314,5 +345,59 @@
   .csc-container-cell .csc-container-cell__display { display: none; }
   .csc-container-cell .csc-container-cell__editor > * { opacity: 1; }
   .csc-container-cell .csc-route-picker { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; }
-  .csc-container-cell .csc-route-picker__add { width: auto; min-height: 44px; padding-inline: 8px; }
+  .csc-container-cell .csc-route-picker__add { width: auto; min-height: var(--control-max-h); padding-inline: 8px; }
 }
+
+/* Bulk appointment copy (user ruling 2026-09-18): the affordance lives in the
+   STT cell as a hover-revealed icon button shaped like the row's inputs —
+   a rounded rectangle, never an overlay on top of the time/date fields. */
+.csc-container-row__index { position: relative; }
+.csc-container-row__copy {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  visibility: hidden;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+.csc-container-row__copy:hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); }
+.csc-container-row__copy:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
+.csc-container-row:hover .csc-container-row__copy,
+.csc-container-row:focus-within .csc-container-row__copy { visibility: visible; }
+/* The icon takes the ordinal's slot while the pointer is on the row; the swap
+   is hover-only so the row number survives a touch tap (coarse pointers). */
+@media (hover: hover) {
+  .csc-container-row:hover .csc-container-row__desktop-index,
+  .csc-container-row:focus-within .csc-container-row__desktop-index { visibility: hidden; }
+}
+@media (max-width: 640px), (pointer: coarse) {
+  .csc-container-row__copy { visibility: visible; }
+}
+
+/* Lệnh chạy ngoài keeps its data-field-id; its control chrome is now the
+   single `.csc-flag-checkbox` treatment defined above (card 20260922_31). */
+
+/* 20260918_3 requirement C: the in-row remove button (38px) is the tallest
+   element in the container row — one step down on desktop keeps the row
+   compact; the shared40px coarse-pointer budget stays in the ≤640px block. */
+@media (min-width: 641px) {
+  .csc-container-row .csc-icon-button { min-width: 30px; min-height: 30px; }
+}
+
+/* CƯỢC CONTAINER row (card 20260922_6): compact flex row under the identity
+   grid — checkbox + conditional amount field on one line, wrapping on narrow
+   screens. */
+.csc-deposit-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; min-width: 0; flex-wrap: wrap; }
+.csc-deposit-row .csc-flag-checkbox { flex: 0 0 auto; }
+.csc-deposit-amount { flex: 0 1 260px; min-width: 180px; }

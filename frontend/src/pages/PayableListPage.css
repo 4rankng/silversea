@@ -1,41 +1,26 @@
 /* ============================================================================
- * PayableListPage — Bento Grid Layout (Vantai Design System)
+ * PayableListPage — one aging comparison rail over a flat record surface.
  *
- * Zone 1: Hero KPI Row (4-column grid: hero span-3 + mini-KPI stack span-1)
- * Zone 2: Aging Distribution (4 equal cards with progress bars)
- * Zone 3: Data Card (full-width card wrapping toolbar + table/mobile cards)
+ * Zone 1: SummaryRail (the shared workboard strip).
+ * Zone 2: Aging distribution rail — four cells divided by rules, not cards.
+ * Zone 3: Data surface — the shared `ListFilterBar`, the record table and the
+ *         phone card list, with no page-local card chrome around them.
+ *
+ * The Bento generation this sheet opened with — the hero KPI row, the
+ * translucent `backdrop-filter` aging cards and their hover lift — is deleted.
+ * It was already invisible (the flat generation at the foot of the sheet
+ * re-declared every one of its properties at equal or higher specificity) and
+ * it is exactly what docs/design-guidelines.md §3 bans: no box-shadow, no 3D
+ * surfaces.
  * ========================================================================== */
 
-/* ── Page wrapper ──────────────────────────────────────────────────────────── */
-.payables-page {
-  /* Ensures animation selectors are scoped */
-}
-
 /* ============================================================================
- * Zone 2 — Aging Distribution (4 equal cards)
+ * Zone 2 — Aging distribution rail (four equal cells)
  * ========================================================================== */
 .payables-aging-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
   margin-bottom: 16px;
-}
-
-.aging-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: var(--r-lg, 18px);
-  padding: 16px 18px 14px;
-  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
-  transition: transform 0.2s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
-              box-shadow 0.2s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
-}
-
-.aging-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(9, 9, 11, 0.07);
 }
 
 .aging-card__header {
@@ -52,16 +37,16 @@
   flex-shrink: 0;
 }
 
-.aging-card__dot--ok     { background: var(--accent, #00B14F); }
-.aging-card__dot--warn   { background: var(--warning, #F5A623); }
-.aging-card__dot--deep   { background: var(--warning-deep, #DD5A1F); }
-.aging-card__dot--danger { background: var(--danger, #E32434); }
+.aging-card__dot--ok     { background: var(--success); }
+.aging-card__dot--warn   { background: var(--warning); }
+.aging-card__dot--deep   { background: var(--warning-deep); }
+.aging-card__dot--danger { background: var(--danger); }
 
 .aging-card__label {
   display: inline-flex;
   flex-direction: column;
   gap: 1px;
-  color: var(--ink-3, #8B919B);
+  color: var(--ink-3);
 }
 .aging-card__label strong {
   font-family: var(--font-data);
@@ -70,14 +55,14 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   text-transform: none;
-  color: var(--ink-1, #1F2937);
+  color: var(--ink);
 }
 .aging-card__label small {
   font-size: var(--text-label-size);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--ink-3, #8B919B);
+  color: var(--ink-3);
 }
 
 .aging-card__value {
@@ -85,11 +70,10 @@
   align-items: baseline;
   gap: 3px;
   font-family: var(--font-display);
-  font-size: var(--fs-xl);
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1.35;
-  color: var(--ink, #0A0A0A);
+  color: var(--ink);
   margin-bottom: 4px;
 }
 
@@ -98,7 +82,7 @@
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
   font-weight: 500;
-  color: var(--ink-3, #8B919B);
+  color: var(--ink-3);
   white-space: nowrap;
 }
 
@@ -107,7 +91,7 @@
   font-family: var(--font-data);
   font-size: var(--fs-xs);
   line-height: 1.35;
-  color: var(--ink-3, #8B919B);
+  color: var(--ink-3);
   margin-bottom: 10px;
 }
 
@@ -115,7 +99,7 @@
 .aging-card__bar-track {
   width: 100%;
   height: 4px;
-  background: var(--line, #EAECEF);
+  background: var(--line);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -126,68 +110,31 @@
   transition: width 0.6s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
 }
 
-.aging-card__bar--ok     { background: var(--accent, #00B14F); }
-.aging-card__bar--warn   { background: var(--warning, #F5A623); }
-.aging-card__bar--deep   { background: var(--warning-deep, #DD5A1F); }
-.aging-card__bar--danger { background: var(--danger, #E32434); }
+.aging-card__bar--ok     { background: var(--success); }
+.aging-card__bar--warn   { background: var(--warning); }
+.aging-card__bar--deep   { background: var(--warning-deep); }
+.aging-card__bar--danger { background: var(--danger); }
 
 /* ============================================================================
- * Zone 3 — Data Card
+ * Zone 3 — Data surface
+ * ----------------------------------------------------------------------------
+ * The card chrome the page used to paint here (surface fill, 1px line, --r-lg
+ * radius, 20/24 padding, box-shadow) is deleted: the flat rule at the foot of
+ * this sheet re-declares all of it for the same selector, later in the sheet
+ * and at equal specificity, so the flat rule always won and none of the
+ * declarations above ever reached a pixel.
  * ========================================================================== */
-.payables-data-card {
-  background: var(--surface, #FFFFFF);
-  border: 1px solid var(--line, #EAECEF);
-  border-radius: var(--r-lg, 18px);
-  padding: 20px 24px;
-  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
-}
 
-/* ── Toolbar inside data card ────────────────────────────────────────────── */
-.payables-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.payables-toolbar__spacer {
-  flex: 1;
-}
-
-.payables-toolbar__search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-1, #F7F8FA);
-  border: 1px solid var(--line, #EAECEF);
-  border-radius: var(--r-sm, 8px);
-  padding: 8px 14px;
-  min-height: var(--filter-control-h);
-  width: 300px;
-  transition: border-color 0.15s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
-              box-shadow 0.15s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
-}
-
-.payables-toolbar__search:focus-within {
-  border-color: var(--accent, #00B14F);
-  box-shadow: 0 0 0 3px rgba(0, 177, 79, 0.1);
-}
-
-.payables-toolbar__search input {
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: var(--control-field-font-size);
-  line-height: 1.35;
-  min-height: 32px;
-  color: var(--ink, #0A0A0A);
-  width: 100%;
-  font-family: inherit;
-}
-
-.payables-toolbar__search input::placeholder {
-  color: var(--ink-3, #8B919B);
-}
+/* ── Filter strip ───────────────────────────────────────────────────────────
+ * Card 20260927_152 — the strip is the shared `ListFilterBar` and the category
+ * group rides its quick-filter slot, so this sheet declares no filter layout
+ * and no control width of its own. What the page used to declare here — the
+ * `.payables-toolbar` flex row, its `.payables-toolbar__spacer`, and the
+ * `.payables-toolbar__search` shell with its 300px width, its `min-height` and
+ * its `width: 100%` input — is deleted: FilterBar.css owns the row packing, the
+ * growing search cell and every control width, and a page rule with higher
+ * specificity is exactly how the operator's 2026-09-27 "why the fuck it does
+ * take full row" regression returned twice. */
 
 /* ============================================================================
  * Operational canvas (<=1500px) — the desktop shell leaves less than the
@@ -205,26 +152,6 @@
   .payables-page .m-card-list { gap: 8px; }
 }
 
-
-/* ============================================================================
- * Responsive — Tablet (<=1023px)
- * ========================================================================== */
-@media (max-width: 1023px) {
-
-  .payables-aging-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-
-  .payables-data-card {
-    padding: 16px;
-  }
-
-  .payables-toolbar__search {
-    width: 240px;
-  }
-}
-
 /* ============================================================================
  * Responsive — Phone (<=640px)
  * ========================================================================== */
@@ -233,71 +160,28 @@
     margin-bottom: 14px;
   }
 
+  /* Sizing only — the phone band at the foot of this sheet owns the grid
+     columns and the gap for `.page-actions`. */
   .payables-page .page-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
     width: 100%;
   }
 
   .payables-page .page-actions .btn {
     width: 100%;
     justify-content: center;
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   .payables-aging-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
     margin-bottom: 14px;
-  }
-
-  .aging-card {
-    padding: 13px 16px 12px;
-    border-radius: var(--r, 12px);
   }
 
   .aging-card__header {
     margin-bottom: 8px;
   }
 
-  .aging-card__value {
-    font-size: var(--fs-lg);
-  }
-
   .aging-card__count {
     margin-bottom: 8px;
-  }
-
-  .payables-data-card {
-    padding: 12px;
-    border-radius: var(--r, 12px);
-  }
-
-  .payables-toolbar {
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
-
-  .payables-toolbar__search {
-    width: 100%;
-    order: -1;
-    min-height: 44px;
-  }
-
-  .payables-page .payables-category-chips {
-    gap: 8px;
-    margin-bottom: 12px;
-    scrollbar-width: none;
-  }
-
-  .payables-page .payables-category-chips::-webkit-scrollbar {
-    display: none;
-  }
-
-  .payables-page .payables-category-chip {
-    min-height: 44px;
-    padding: 9px 14px;
   }
 
   /* Mobile amount text in card list */
@@ -310,59 +194,16 @@
 }
 
 /* ============================================================================
- * Responsive — Narrow phone (<=420px)
- * ========================================================================== */
-@media (max-width: 420px) {
-  .payables-page .page-actions {
-    grid-template-columns: 1fr;
-  }
-
-}
-
-/* ============================================================================
- * V2 — Category filter chips + commission posting form
+ * V2 — Category filter group + commission posting form
  * ========================================================================== */
 
-/* Category chip row above the table (inside data card). */
-.payables-page .payables-category-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.payables-page .payables-category-chip {
-  appearance: none;
-  -webkit-appearance: none;
-  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
-  background: var(--surface-2, #fff);
-  color: var(--fg-2, #475569);
-  font-size: var(--text-data-size);
-  font-weight: 600;
-  line-height: 1.35;
-  min-height: var(--filter-control-h);
-  padding: 9px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  white-space: nowrap;
-}
-
-.payables-page .payables-category-chip:hover {
-  background: var(--surface-3, #f1f5f9);
-  color: var(--fg-1, #1e293b);
-}
-
-.payables-page .payables-category-chip.is-active {
-  background: var(--ink, #101828);
-  border-color: var(--ink, #101828);
-  color: #fff;
-}
-
-.payables-page .payables-category-chip:focus-visible {
-  outline: 2px solid var(--primary, #0f766e);
-  outline-offset: 2px;
-}
+/* The category filter group is the shared boxed Tabs primitive (operator
+   ruling 2026-09-27) and rides the shared bar's quick-filter slot (card
+   20260927_152), so it needs no page-local spacing hook: the bar's own gap and
+   card chrome space it. `.payables-category-chips` is deleted with its
+   `margin-bottom` rules (base + the ≤640 band) — a page rule that re-spaces a
+   control the bar already lays out is the same specificity trap the filter law
+   bans. */
 
 /* Commission posting form (inside Modal).
    NOTE: the Modal is rendered through a portal at document.body, OUTSIDE the
@@ -395,7 +236,7 @@
 
 .commission-form__error {
   background: rgba(220, 38, 38, 0.08);
-  color: var(--danger, #dc2626);
+  color: var(--danger);
   border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: 8px;
   padding: 10px 12px;
@@ -403,7 +244,7 @@
 }
 
 .commission-form .req {
-  color: var(--danger, #dc2626);
+  color: var(--danger);
   margin-left: 2px;
 }
 
@@ -413,17 +254,8 @@
   }
 
   .commission-form .input {
-    height: 46px;
+    height: var(--control-max-h);
     font-size: var(--control-field-font-size);
-  }
-}
-
-@media (max-width: 420px) {
-  /* Category chips wrap instead of a masked swipe strip: every filter
-     stays reachable on touch. */
-  .payables-page .payables-category-chips {
-    gap: 6px;
-    flex-wrap: wrap;
   }
 }
 
@@ -450,7 +282,6 @@
   backdrop-filter: none;
   box-shadow: none;
   transform: none;
-  gap: 4px;
 }
 .payables-aging-grid > .aging-card:last-child { border-inline-end: 0; }
 .payables-aging-grid > .aging-card:hover { background: var(--surface-2); box-shadow: none; transform: none; }

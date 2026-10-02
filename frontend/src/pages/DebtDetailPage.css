@@ -30,8 +30,8 @@
 }
 
 .dd-back {
-  width: 44px;
-  height: 44px;
+  width: var(--control-max-h);
+  height: var(--control-max-h);
   border-radius: var(--r);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -49,7 +49,7 @@
   height: 44px;
   border-radius: 12px;
   flex-shrink: 0;
-  background: var(--surface, #fff);
+  background: var(--surface);
   border: 1px solid var(--line, rgba(17, 24, 39, 0.08));
   display: grid;
   place-items: center;
@@ -272,9 +272,9 @@
   color: var(--danger);
 }
 .dd-sum-total--clear {
-  color: var(--accent);
+  color: var(--success-text);
 }
-.dd-sum-total--clear .dd-cur { color: var(--accent); }
+.dd-sum-total--clear .dd-cur { color: var(--success-text); }
 
 .dd-sum-note {
   display: flex;
@@ -317,7 +317,7 @@
 }
 .dd-seg-0 { background: var(--accent); }
 .dd-seg-1 { background: var(--warning); }
-.dd-seg-2 { background: var(--warning-deep, #D97706); }
+.dd-seg-2 { background: var(--warning-deep); }
 .dd-seg-3 { background: var(--danger); }
 
 /* ─── Aging Grid ────────────────────────────────────────────────────────────── */
@@ -415,7 +415,7 @@
   gap: 18px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--surface, #FFFFFF) 0%, var(--surface-2, #F8FAF9) 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 
 .dd-workspace-head h2 {
@@ -426,58 +426,23 @@
   line-height: 1.2;
 }
 
+/* Workspace navigation is the shared boxed Tabs primitive (operator ruling
+   2026-09-27); this class is a layout-only hook hugging the group to the
+   right edge of the head grid. */
 .dd-workspace-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(118px, 1fr));
-  gap: 6px;
+  justify-self: end;
+  max-width: 100%;
 }
 
-.dd-workspace-tab {
-  min-width: 0;
-  min-height: 56px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--ink-2);
-  text-align: left;
-  cursor: pointer;
-  transition: var(--t-fast);
-}
-
-.dd-workspace-tab:hover {
-  background: var(--surface);
-  border-color: var(--line);
-}
-
-.dd-workspace-tab--active {
-  background: var(--surface);
-  border-color: var(--ink);
-  box-shadow: inset 0 -2px 0 var(--ink);
-  color: var(--ink);
-}
-
-.dd-workspace-tab span {
+/* Second line of a workspace cell — a real class (not an inline style) so a
+   band can adjust it; the shared boxed group owns the cell shape. */
+.dd-workspace-tab__meta {
   display: block;
-  overflow: hidden;
-  color: inherit;
-  font-size: var(--fs-sm);
-  font-weight: 800;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dd-workspace-tab small {
-  display: block;
-  overflow: hidden;
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--ink-3);
   font-size: var(--fs-2xs);
   font-weight: 650;
   line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dd-workspace-body {
@@ -615,7 +580,11 @@
   margin-bottom: 12px;
   padding: 0 0 12px;
 }
+/* The chips that used to pin themselves to this row's right end are gone with
+   the retired ledger filter row; the count takes over that role so the header
+   row keeps its right-hand anchor. */
 .dd-ledger-head .dd-cnt {
+  margin-left: auto;
   font-size: var(--fs-xs);
   color: var(--ink-3);
   font-weight: 600;
@@ -663,42 +632,11 @@
   box-shadow: none;
 }
 
-.dd-ledger-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 0 0 10px;
-  border-bottom: 0;
-  background: transparent;
-}
-
-.dd-filters {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
-.dd-filter-chip {
-  min-height: var(--filter-control-h);
-  padding: 8px 14px;
-  border-radius: 9px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  font-family: var(--font-display);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--ink-2);
-  cursor: pointer;
-  transition: var(--t-fast);
-  white-space: nowrap;
-}
-.dd-filter-chip:hover { border-color: var(--ink-2); }
-.dd-filter-chip--on {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--fg-on-brand);
-}
+/* The ledger's filter plane is the shared `ListFilterBar` (card 20260927_152):
+   the ledger toolbar, the chip row and the chip skin are deleted — the page
+   declares no filter layout, no filter width and no control height. The chips
+   ride `filter-chip` and the period control rides `PeriodFilter` inside the
+   bar; both read FilterBar.css. */
 
 /* ─── Grouped Ledger Layout ───────────────────────────────────────────────── */
 
@@ -733,7 +671,7 @@
   align-items: start;
   padding: 18px 20px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--surface, #FFFFFF) 0%, var(--surface-2, #F8FAF9) 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 
 .dd-route-card-head h3 {
@@ -789,7 +727,7 @@
   min-height: 24px;
   padding: 3px 8px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--surface);
   font-size: var(--fs-xs);
   color: var(--ink-3);
@@ -822,7 +760,7 @@
   font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
-  color: var(--success, #00803a);
+  color: var(--success);
 }
 
 .dd-route-containers {
@@ -852,7 +790,7 @@
 
 .dd-accounting-row--head {
   min-height: 34px;
-  background: var(--surface-2, #F6F8F7);
+  background: var(--surface-2);
   color: var(--ink-3);
   font-size: var(--fs-xs);
   font-weight: 850;
@@ -860,9 +798,9 @@
 }
 
 .dd-accounting-row--container {
-  background: var(--success-soft, #F0FAF4);
+  background: var(--success-soft);
   border-top: 1px solid var(--line);
-  box-shadow: inset 3px 0 0 var(--success, #12A150);
+  box-shadow: inset 3px 0 0 var(--success);
 }
 
 .dd-accounting-row--head + .dd-accounting-row--container {
@@ -886,7 +824,7 @@
 }
 
 .dd-accounting-row--container span:nth-child(3) {
-  color: var(--success-text, #087F3B);
+  color: var(--success-text);
   font-size: var(--fs-xs);
   font-weight: 800;
 }
@@ -941,7 +879,7 @@
 }
 
 .dd-accounting-row--container strong {
-  color: var(--accent-2, #064E2A);
+  color: var(--accent-2);
   font-weight: 900;
 }
 
@@ -958,7 +896,7 @@
   gap: 12px;
   align-items: start;
   padding: 10px 12px;
-  background: var(--surface-2, #FCFDFD);
+  background: var(--surface-2);
   border-bottom: 1px solid var(--line);
 }
 
@@ -991,14 +929,12 @@
   gap: 0;
 }
 
-.dd-trip-card,
-.dd-single-card {
+.dd-trip-card {
   border-bottom: 1px solid var(--bg-3);
   background: var(--surface);
 }
 
-.dd-trip-card:last-child,
-.dd-single-card:last-child {
+.dd-trip-card:last-child {
   border-bottom: 0;
 }
 
@@ -1013,8 +949,7 @@
   align-items: center;
 }
 
-.dd-trip-date,
-.dd-single-date {
+.dd-trip-date {
   font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: 700;
@@ -1026,20 +961,7 @@
   min-width: 0;
 }
 
-.dd-single-route {
-  font-size: var(--fs-sm);
-  font-weight: 750;
-  color: var(--ink);
-  line-height: 1.45;
-  min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.dd-trip-subline,
-.dd-single-meta {
+.dd-trip-subline {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1050,13 +972,12 @@
   font-weight: 650;
 }
 
-.dd-trip-subline span,
-.dd-single-meta span {
+.dd-trip-subline span {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
   padding: 3px 8px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--surface-2);
   border: 1px solid var(--line);
 }
@@ -1079,7 +1000,7 @@
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--success) 22%, transparent);
   border-radius: 8px;
-  background: var(--success-soft, #FBFFFC);
+  background: var(--success-soft);
 }
 
 .dd-fee-line {
@@ -1098,12 +1019,12 @@
 
 .dd-fee-line--head {
   min-height: 28px;
-  background: var(--success-soft, #F1FAF4);
+  background: var(--success-soft);
 }
 
 .dd-fee-line span {
   font-size: var(--fs-xs);
-  color: var(--success-text, #24613E);
+  color: var(--success-text);
   font-weight: 750;
   min-width: 0;
 }
@@ -1125,59 +1046,12 @@
   text-transform: uppercase;
 }
 
-.dd-single-card {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) auto;
-  gap: 12px;
-  padding: 12px;
-  align-items: center;
-}
-
-.dd-single-body {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.dd-single-card > strong {
-  font-family: var(--font-data);
-  font-size: var(--fs-sm);
-  white-space: nowrap;
-}
-
-.dd-single-container {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 24px;
-  padding: 3px 8px;
-  border-radius: 7px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  font-family: var(--font-data);
-  font-size: var(--fs-xs);
-  color: var(--ink-3);
-  font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dd-single-debit {
-  color: var(--ink);
-}
-
-.dd-single-credit {
-  color: var(--success, #00803a);
-}
-
 .dd-breakdown-section--service-fees .dd-breakdown-head {
-  background: var(--success-soft, #F3FBF6);
+  background: var(--success-soft);
 }
 
 .dd-breakdown-section--freight .dd-breakdown-head {
-  background: var(--info-soft, #F6FAFF);
+  background: var(--info-soft);
 }
 
 @media (max-width: 900px) {
@@ -1188,8 +1062,7 @@
     grid-template-columns: 86px minmax(190px, 1.5fr) minmax(110px, 0.7fr) minmax(104px, max-content) minmax(82px, max-content);
     min-width: 700px;
   }
-  .dd-trip-main,
-  .dd-single-card {
+  .dd-trip-main {
     grid-template-columns: 1fr;
     gap: 8px;
   }
@@ -1200,19 +1073,12 @@
   .dd-fee-breakdown {
     margin-left: 0;
   }
-  .dd-single-route {
-    white-space: normal;
-  }
 }
 
 @media (max-width: 640px) {
   .debt-detail-page .dd-ledger-groups {
     padding: 10px;
     gap: 10px;
-  }
-  .debt-detail-page .dd-ledger-toolbar {
-    justify-content: flex-start;
-    padding: 0 0 8px;
   }
   .debt-detail-page .dd-route-card-head {
     grid-template-columns: minmax(0, 1fr);
@@ -1238,17 +1104,11 @@
     gap: 6px;
     padding: 12px;
   }
-  .debt-detail-page .dd-trip-card,
-  .debt-detail-page .dd-single-card {
+  .debt-detail-page .dd-trip-card {
     padding: 12px;
   }
   .debt-detail-page .dd-fee-breakdown {
     grid-template-columns: 1fr;
-  }
-  .debt-detail-page .dd-single-top {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
   }
 }
 
@@ -1286,7 +1146,6 @@
 .debt-detail-page h2,
 .debt-detail-page strong,
 .debt-detail-page small,
-.debt-detail-page .dd-workspace-tab span,
 .debt-detail-page .dd-sub span {
   line-height: 1.35;
 }
@@ -1517,13 +1376,13 @@
   text-align: center;
 }
 .dd-ledger-group-row {
-  background: var(--success-soft, #F8FFFB);
+  background: var(--success-soft);
 }
 .dd-ledger-group-row td {
   font-weight: 650;
 }
 .dd-ledger-detail-row {
-  background: var(--surface-2, #FAFBFA);
+  background: var(--surface-2);
 }
 .dd-ledger-detail-row td {
   color: var(--ink-2);
@@ -1539,26 +1398,6 @@
   color: var(--ink-2);
   font-size: var(--ops-table-supporting-size);
   white-space: nowrap;
-}
-
-.dd-group-toggle {
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--surface);
-  color: var(--ink-2);
-  cursor: pointer;
-  flex: 0 0 auto;
-  margin-right: 8px;
-  vertical-align: middle;
-}
-.dd-group-toggle:hover {
-  border-color: var(--accent);
-  color: var(--accent);
 }
 
 /* ─── Transaction Type Pill ─────────────────────────────────────────────────── */
@@ -1586,7 +1425,7 @@
 /* Text-only txn chips (2026-09-08): tinted blob backgrounds removed app-wide. */
 .dd-txn-pill--pay {
   background: transparent;
-  color: var(--success, #00803a);
+  color: var(--success);
 }
 .dd-txn-pill--adj {
   background: transparent;
@@ -1598,7 +1437,7 @@
 }
 .dd-txn-pill--fee {
   background: transparent;
-  color: var(--success-text, #00702F);
+  color: var(--success-text);
 }
 .dd-txn-pill--pen {
   background: transparent;
@@ -1624,8 +1463,8 @@
   min-height: 26px;
   padding: 4px 9px;
   border-radius: 8px;
-  background: var(--success-soft, #EEF7F1);
-  color: var(--success-text, #0B6B38);
+  background: var(--success-soft);
+  color: var(--success-text);
   border: 1px solid color-mix(in srgb, var(--success) 22%, transparent);
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -1647,7 +1486,7 @@
   font-size: var(--fs-sm);
 }
 .dd-num--debit { color: var(--ink); }
-.dd-num--credit { color: var(--success, #00803a); }
+.dd-num--credit { color: var(--success); }
 .dd-num--bal { color: var(--danger); font-weight: 700; }
 .dd-num--dash { color: var(--ink-3); font-weight: 400; }
 
@@ -1655,24 +1494,6 @@
   color: var(--ink-2);
   font-size: var(--ops-table-supporting-size);
   white-space: nowrap;
-}
-.dd-group-detail-btn {
-  border: 0;
-  background: transparent;
-  color: var(--ink-2);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: 650;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dd-group-detail-btn:hover {
-  color: var(--accent);
 }
 .dd-td-note .dd-code {
   font-family: var(--font-data);
@@ -1703,17 +1524,6 @@
     flex-wrap: wrap;
     align-items: flex-start;
   }
-  .debt-detail-page .dd-filters {
-    flex-basis: 100%;
-    margin-left: 0;
-    /* Chips wrap instead of a hidden-scrollbar swipe strip: every filter
-       stays reachable on touch. */
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .debt-detail-page .dd-filters > * {
-    flex-shrink: 0;
-  }
 }
 
 /* ─── Animation ─────────────────────────────────────────────────────────────── */
@@ -1737,8 +1547,8 @@
     margin-bottom: 14px;
   }
   .debt-detail-page .dd-back {
-    width: 44px;
-    height: 44px;
+    width: var(--control-max-h);
+    height: var(--control-max-h);
     margin-top: 2px;
   }
   .debt-detail-page .dd-avatar {
@@ -1767,7 +1577,7 @@
   .debt-detail-page .dd-actions .btn {
     flex: 1 1 auto;
     justify-content: center;
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
   .debt-detail-page .dd-account-strip {
     grid-template-columns: 1fr;
@@ -1784,13 +1594,6 @@
   .debt-detail-page .dd-workspace-head {
     gap: 12px;
     padding: 12px;
-  }
-  .debt-detail-page .dd-workspace-tabs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .debt-detail-page .dd-workspace-tab {
-    min-height: 52px;
-    padding: 8px;
   }
   .debt-detail-page .dd-workspace-body {
     padding: 10px;
@@ -1877,18 +1680,6 @@
   .debt-detail-page .dd-ledger-head h2 {
     font-size: var(--text-section-size);
   }
-  .debt-detail-page .dd-filters {
-    margin-left: 0;
-    flex-basis: 100%;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .debt-detail-page .dd-filter-chip {
-    min-height: 44px;
-    padding: 8px 12px;
-    font-size: var(--fs-xs);
-    flex-shrink: 0;
-  }
 }
 
 /* ── Responsive overrides (from responsive.css decomposition) ── */
@@ -1902,8 +1693,6 @@
   .dd-actions .btn { width: 100%; justify-content: center; }
   .dd-ledger-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 16px; }
   .dd-ledger-head h2 { font-size: var(--text-section-size); }
-  .dd-filters { width: 100%; flex-wrap: wrap; gap: 8px; }
-  .dd-filters > * { flex-shrink: 0; }
   .dd-aging-grid { grid-template-columns: 1fr; gap: 10px; }
   /* Accounting ledger: stack the 5-column debit/credit rows instead of the
      700px swipe grid. The column head row loses meaning once rows stack, so
@@ -1940,19 +1729,19 @@
   padding: 12px 16px;
   margin: 12px 0 4px;
   border-radius: 10px;
-  border: 1px solid var(--border-2, #e5e7eb);
-  background: var(--bg-1, #f9fafb);
+  border: 1px solid var(--border-2);
+  background: var(--bg-1);
 }
 .dd-credit-strip.dd-credit--ok {
-  background: var(--success-soft, #f0fdf4);
+  background: var(--success-soft);
   border-color: color-mix(in srgb, var(--success) 35%, transparent);
 }
 .dd-credit-strip.dd-credit--warning {
-  background: var(--warning-soft, #fffbeb);
+  background: var(--warning-soft);
   border-color: color-mix(in srgb, var(--warning) 40%, transparent);
 }
 .dd-credit-strip.dd-credit--exceeded {
-  background: var(--danger-soft, #fef2f2);
+  background: var(--danger-soft);
   border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .dd-credit__info {
@@ -1966,17 +1755,17 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
 }
 .dd-credit__info strong {
   font-size: var(--text-section-size);
   font-weight: 700;
-  color: var(--fg-1, #111827);
+  color: var(--fg-1);
   line-height: 1.2;
 }
 .dd-credit__pct {
   font-size: var(--text-caption-size);
-  color: var(--fg-3, #6b7280);
+  color: var(--fg-3);
 }
 .dd-credit__badge {
   margin-left: auto;
@@ -1984,23 +1773,23 @@
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
 .dd-credit__badge--ok {
-  background: var(--success-soft, #dcfce7);
-  color: var(--success-text, #166534);
+  background: var(--success-soft);
+  color: var(--success-text);
 }
 .dd-credit__badge--warning {
-  background: var(--warning-soft, #fef3c7);
-  color: var(--warning-text, #92400e);
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 .dd-credit__badge--exceeded {
-  background: var(--danger-soft, #fee2e2);
-  color: var(--danger-text, #991b1b);
+  background: var(--danger-soft);
+  color: var(--danger-text);
 }
 @media (max-width: 640px) {
   .dd-credit-strip { gap: 12px; }

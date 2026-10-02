@@ -72,7 +72,7 @@ export const CONFIG_ITEMS: SearchItem[] = [
   { id: 'trailers',               type: 'config', label: 'Rơ-moóc',                      description: 'Danh sách rơ-moóc, loại rơ-moóc và thông tin đăng kiểm.',                                          path: '/config/trailers',            iconName: 'semi-trailer', action: 'Sửa' },
   { id: 'cargo-types',            type: 'config', label: 'Loại hàng hóa',                description: 'Bảng quy chuẩn loại hàng hóa vận chuyển ảnh hưởng đến việc phân xe chặng.',                       path: '/config/cargo-types',         iconName: 'cargo',        action: 'Sửa' },
   { id: 'pricing-tables',         type: 'config', label: 'Bảng giá cước',                 description: 'Bảng giá cước chi tiết thỏa thuận với từng đối tác khách hàng trên mỗi tuyến.',                  path: '/config/pricing-tables',      iconName: 'pricing-rate', action: 'Sửa' },
-  { id: 'fuel-price-periods',     type: 'config', label: 'Giá dầu DO theo kỳ',            description: 'Giá dầu DO Petrolimex công bố theo kỳ — đầu vào cho động cơ tính cước tự động.',                 path: '/config/fuel-price-periods',  iconName: 'fuel',         action: 'Sửa' },
+  { id: 'fuel-price-periods',     type: 'config', label: 'Giá dầu theo kỳ',               description: 'Giá dầu Petrolimex công bố theo kỳ — đầu vào cho động cơ tính cước tự động.',                    path: '/config/fuel-price-periods',  iconName: 'fuel',         action: 'Sửa' },
   { id: 'freight-rate-terms',     type: 'config', label: 'Điều khoản cước theo tuyến',    description: 'Hệ số chia sẻ, km tính cước, giá gốc dầu và ngưỡng điều chỉnh giá dầu cho từng khách hàng × tuyến.', path: '/config/freight-rate-terms',  iconName: 'pricing-rate', action: 'Sửa' },
   { id: 'salary-periods',         type: 'config', label: 'Kỳ lương',                      description: 'Cấu hình kỳ lương hàng tháng. Mặc định: ngày 1 đến cuối tháng.',               path: '/config/salary-periods',      iconName: 'salary-period', action: 'Sửa' },
   { id: 'business-calendar',      type: 'config', label: 'Lịch ngày làm việc',             description: 'Ngày nghỉ lễ và ngày làm việc bù dùng để điều chỉnh hạn thanh toán, quá hạn và lịch nhắc.',        path: '/config/business-calendar',   iconName: 'salary-period', action: 'Sửa', adminOnly: true },
@@ -102,6 +102,7 @@ const DISPATCHER_ITEMS: SearchItem[] = [
   { id: 'dispatch-master-plan',  type: 'page', label: 'Kế hoạch tổng quát',  path: '/dispatch',        iconName: 'dispatch' },
   { id: 'dispatch-detail-plan',  type: 'page', label: 'Kế hoạch chi tiết',   path: '/dispatch-detail', iconName: 'route' },
   { id: 'fleet-vehicles',        type: 'page', label: 'Xe nội bộ',  path: '/fleet/vehicles',  iconName: 'tractor-head' },
+  { id: 'fleet-external',        type: 'page', label: 'Xe ngoài',    path: '/fleet/external',  iconName: 'tractor-head' },
   { id: 'fleet-drivers',         type: 'page', label: 'Tài xế',     path: '/fleet/drivers',   iconName: 'driver' },
   { id: 'suppliers',             type: 'page', label: 'Nhà thầu',        path: '/suppliers',       iconName: 'supplier' },
 ];
@@ -110,6 +111,7 @@ const DISPATCHER_ITEMS: SearchItem[] = [
 const CUS_ITEMS: SearchItem[] = [
   { id: 'shipments',           type: 'page', label: 'Tổng quan lô hàng', path: '/shipments',        iconName: 'cargo' },
   { id: 'shipment-containers', type: 'page', label: 'Chi tiết lô hàng',  path: '/shipments-detail', iconName: 'cargo' },
+  { id: 'shipment-debit',     type: 'page', label: 'Chi phí - Quyết toán', path: '/shipments-debit',   iconName: 'cargo' },
 ];
 
 const FORWARDER_ITEMS: SearchItem[] = [

@@ -5,6 +5,7 @@ import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { clearTokenIfCurrent, getToken, isCurrentToken, onStoredTokenChange } from '../lib/token';
 import { onSessionExpired } from '../lib/api/session';
+import './useAuth.css';
 
 export interface AuthUser {
   userId: number;
@@ -94,11 +95,14 @@ export function isTokenExpired(token: string): boolean {
 
 async function fetchAuthUser(signal?: AbortSignal): Promise<AuthUser | null> {
   const token = getToken();
-  if (!token || isTokenExpired(token)) {
-    if (token) clearTokenIfCurrent(token);
-    return null;
-  }
+  if (!token) return null;
   try {
+    // Full-load bootstrap trusts the SERVER verdict, never a local decode:
+    // a client clock ahead of the server (or any decode hiccup) must not
+    // evict a token the server still honors (card 20260922_82 — cold-boot
+    // logout deleted a server-valid token before any network call). Real
+    // expiry stays enforced by the server's 401/403 below, at every API
+    // boundary.
     return normalizeAuthUser(await api.get<AuthUserWire>('/auth/me', { signal }));
   } catch (err) {
     // Only clear credentials on genuine auth failures (401/403 = invalid,
@@ -247,7 +251,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {error && !user ? <main className="auth-retry" aria-labelledby="auth-retry-title">
+        <h1 id="auth-retry-title">Chưa tải được tài khoản</h1>
+        <p role="alert">Máy chủ tạm thời không khả dụng. Phiên đăng nhập của bạn vẫn được giữ.</p>
+        <button type="button" className="btn btn--primary" disabled={isFetching} onClick={() => void refetch()}>{isFetching ? 'Đang thử lại…' : 'Thử lại'}</button>
+      </main> : children}
     </AuthContext.Provider>
   );
 }

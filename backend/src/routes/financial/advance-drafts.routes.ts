@@ -9,8 +9,9 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { resolveAdvanceDraft } from '../../services/advance-draft.service';
 import { AuditEvent } from '../../services/audit-types';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
 const schema = z.object({
   expectedVersion: z.number().int().positive(), resolutionReason: z.string().trim().min(1).max(1000),
   amount: z.number().int().positive().max(999_999_999_999_999).optional(),
@@ -36,6 +37,6 @@ function advanceDraftWriteCommand(action: 'record' | 'void') {
   });
 }
 const access = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.OPS);
-router.post('/advance-requests/:id/record', access, advanceDraftWriteCommand('record'));
-router.post('/advance-requests/:id/void', access, advanceDraftWriteCommand('void'));
+router.post('/advance-requests/:id/record', declareMaterialWrite('advance-requests.draft.record', { method: 'POST', path: '/api/advance-requests/:id/record' }), declareMaterialWrite('advance-requests.draft.record', { method: 'POST', path: '/api/forwarder/me/advance-requests/:id/record' }),  access, advanceDraftWriteCommand('record'));
+router.post('/advance-requests/:id/void', declareMaterialWrite('advance-requests.draft.void', { method: 'POST', path: '/api/advance-requests/:id/void' }), declareMaterialWrite('advance-requests.draft.void', { method: 'POST', path: '/api/forwarder/me/advance-requests/:id/void' }),  access, advanceDraftWriteCommand('void'));
 export default router;

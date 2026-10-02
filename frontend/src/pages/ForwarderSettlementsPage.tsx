@@ -2,11 +2,11 @@ import type { LinkedExpense, LinkedRequest } from '../api/forwarderClient';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Loader2, Plus, ArrowRight, Clock } from 'lucide-react';
-import { EmptyState, Pagination } from '../design-system';
-import { formatCurrency, formatDate } from '../lib/format';
+import { EmptyState, FilterBar, Pagination } from '../design-system';
+import { formatMoney, formatCurrency, formatDate } from '../lib/format';
 import { groupExpensesByContainer } from '../lib/expense-breakdown';
 import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '@tingting/shared';
-import { PageHeader } from '../components/UI';
+import { PageHeader, FilterPill } from '../components/UI';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { useForwarderSettlements } from '../hooks/useForwarderQueries';
@@ -24,7 +24,7 @@ function advanceRequestCode(id: number): string {
 /** Status strip colors matching ForwarderTripsPage pattern */
 const STATUS_STRIP: Record<AdvanceSettlementStatus, string> = {
   DRAFT: 'var(--warning)',
-  RECORDED: 'var(--success, #059669)',
+  RECORDED: 'var(--success, #177448)',
   VOIDED: '#DC2626',
   REVERSED: '#64748B',
 };
@@ -62,7 +62,7 @@ export default function ForwarderSettlementsPage() {
   });
   const { rootRef } = usePageAnimations({
     ready: !loadingSettlements,
-    selectors: ['.page-header', '.hero-kpi-row', '.fwd-filter-pills', '.fset-card'],
+    selectors: ['.page-header', '.hero-kpi-row', '.filter-bar', '.fset-card'],
   });
   const { data: catalogs } = useCatalogs();
   const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 400 });
@@ -86,7 +86,7 @@ export default function ForwarderSettlementsPage() {
   useEffect(() => {
     if (loadingSettlements || settlements.length === 0 || prefersReduced) return;
     animateCounters([
-      { el: heroExpenseRef.current, value: totalExpenseAll, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+      { el: heroExpenseRef.current, value: totalExpenseAll, format: (v: number) => formatMoney(v) },
       { el: heroTotalRef.current, value: totalCount, suffix: ' phiếu' },
       { el: heroPendingRef.current, value: pending, suffix: ' chờ xử lý' },
     ]);
@@ -115,7 +115,7 @@ export default function ForwarderSettlementsPage() {
     <div className="fset-page">
       <PageHeader title="Phiếu thanh toán" description="Thanh toán tạm ứng" iconName="settlement" />
       <div className="empty-state">
-        <p style={{ color: 'var(--danger)' }}>{error}</p>
+        <EmptyState variant="compact" context="forwarder" title={error} />
       </div>
     </div>
   );
@@ -161,42 +161,47 @@ export default function ForwarderSettlementsPage() {
         </div>
       )}
 
-      {/* Status filter pills — matching ForwarderTripsPage design */}
+      {/* Card 20260927_152 — the shared bar owns the strip's layout; the
+          full-set status counts ride the quick-filter slot as the shared
+          `.filter-chip`. */}
       {totalCount > 0 && (
-        <div className="fwd-filter-pills">
-          <button
-            className={`fwd-filter-pill ${activeFilter === '' ? 'fwd-filter-pill--active' : ''}`}
-            onClick={() => setActiveFilter('')}
-          >
-            Tất cả
-            <span className="fwd-filter-pill__count">{settlements.length}</span>
-          </button>
-          {(Object.entries(ADVANCE_SETTLEMENT_STATUS_LABELS) as [AdvanceSettlementStatus, string][]).map(([status, label]) => {
-            const count = statusCounts[status] ?? 0;
-            if (count === 0) return null;
-            return (
-              <button
-                key={status}
-                className={`fwd-filter-pill ${activeFilter === status ? 'fwd-filter-pill--active' : ''}`}
-                data-status={status}
-                onClick={() => setActiveFilter(prev => prev === status ? '' : status)}
+        <FilterBar
+          quickFiltersLabel="Lọc theo trạng thái"
+          quickFilters={(
+            <>
+              <FilterPill
+                active={activeFilter === ''}
+                onClick={() => setActiveFilter('')}
+                count={settlements.length}
               >
-                <span className="fwd-filter-pill__dot" style={{ background: STATUS_STRIP[status] }} />
-                {label}
-                <span className="fwd-filter-pill__count">{count}</span>
-              </button>
-            );
-          })}
-        </div>
+                Tất cả
+              </FilterPill>
+              {(Object.entries(ADVANCE_SETTLEMENT_STATUS_LABELS) as [AdvanceSettlementStatus, string][]).map(([status, label]) => {
+                const count = statusCounts[status] ?? 0;
+                if (count === 0) return null;
+                return (
+                  <FilterPill
+                    key={status}
+                    active={activeFilter === status}
+                    onClick={() => setActiveFilter(prev => (prev === status ? '' : status))}
+                    count={count}
+                  >
+                    {label}
+                  </FilterPill>
+                );
+              })}
+            </>
+          )}
+        />
       )}
 
       {/* Empty state */}
       {settlements.length === 0 ? (
         <EmptyState
           className="fset-empty-state fade-up"
-          icon={FileText}
+          context="forwarder"
           title="Chưa có phiếu thanh toán"
-          description="Tạo phiếu đầu tiên bằng nút Thêm phiếu ở trên."
+          description="Chưa có phiếu nào trong kỳ này."
         />
       ) : (
         <div ref={listRef} className="fset-list">
@@ -268,7 +273,7 @@ export default function ForwarderSettlementsPage() {
                       <div className="fset-card__chips">
                         {s.linkedRequests.map(r => (
                           <span key={r.id} className="fset-chip fset-chip--linked">
-                            {advanceRequestCode(r.id)} — {formatCurrency(Number(r.amount))}
+                            {advanceRequestCode(r.id)} — {formatCurrency(Number(r.allocatedAmount ?? r.amount))}
                           </span>
                         ))}
                       </div>

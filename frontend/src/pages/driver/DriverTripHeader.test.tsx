@@ -44,3 +44,71 @@ describe('DriverTripHeader — Đóng/Trả chip', () => {
     expect(screen.queryByTestId('close-status-chip')).toBeNull();
   });
 });
+
+/* Card 20260926_26 item 4: compressed two-line title block — line 1 = back
+ * + mã (Số Bill / Booking, the display key), line 2 = location + status
+ * pill. The eyebrow and the standalone route line are gone. */
+describe('DriverTripHeader — 20260926_26 two-line title block', () => {
+  const codedTrip = (fulfillment: Partial<NonNullable<DriverTaskDetail['fulfillment']>>) => ({
+    id: 55,
+    version: 3,
+    tripCode: 'TRIP-55',
+    status: 'IN_TRANSIT',
+    routeName: 'Cảng Cát Lái → Nhà máy Bình Dương',
+    customerName: 'SilverSea',
+    notes: null,
+    legs: [],
+    containers: [],
+    tradeDirection: 'EXPORT',
+    fulfillment: {
+      factoryName: null,
+      factoryShortName: null,
+      routeSummary: null,
+      code: null,
+      documentNumber: null,
+      ...fulfillment,
+    },
+  } as unknown as DriverTaskDetail);
+
+  it('titles the screen with the carrier document number; location, status pill and customer follow on line 2', () => {
+    render(<DriverTripHeader
+      trip={codedTrip({ documentNumber: 'BL-2026-001', code: 'SHP-2609-00208', factoryShortName: 'ASKEY', routeSummary: 'Cát Lái → Thuận An' })}
+      onBack={() => {}}
+    />);
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('BL-2026-001');
+    // Card 20260926_62 (CHIEF): the header copy button is REMOVED — the
+    // orphaned glyph broke the title baseline at 390px. Copy affordances
+    // live on the grid rows only.
+    expect(screen.queryByRole('button', { name: 'Copy Số Bill / Booking' })).toBeNull();
+    expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('ASKEY');
+    expect(screen.getByTestId('close-status-chip').textContent).toBe('Đóng');
+    expect(screen.getByText('SilverSea')).toBeTruthy();
+    // The eyebrow and the standalone route line are retired.
+    expect(document.querySelector('.driver-task-header__eyebrow')).toBeNull();
+    expect(document.querySelector('.driver-task-header__route')).toBeNull();
+  });
+
+  // Card 20260927_1 (user report): the internal shipmentCode (SHP-YYMM-NNNNN)
+  // is an ops key — it must never be the driver's title, not even as a
+  // fallback.
+  it('never renders the internal SHP- shipment code as the title', () => {
+    render(<DriverTripHeader
+      trip={codedTrip({ documentNumber: null, code: 'SHP-2609-00208', factoryShortName: 'ASKEY' })}
+      onBack={() => {}}
+    />);
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
+    expect(document.querySelector('.driver-task-header__title')?.textContent).not.toContain('SHP-');
+  });
+
+  it('falls back to the factory title and hides the duplicating location when no document number exists', () => {
+    render(<DriverTripHeader trip={codedTrip({ factoryShortName: 'ASKEY', factoryName: 'Nhà máy Askey' })} onBack={() => {}} />);
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('ASKEY');
+    expect(document.querySelector('.driver-task-header__location')).toBeNull();
+  });
+
+  it('falls back to the route as title, location hidden, without factory or code', () => {
+    render(<DriverTripHeader trip={codedTrip({})} onBack={() => {}} />);
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
+    expect(document.querySelector('.driver-task-header__location')).toBeNull();
+  });
+});

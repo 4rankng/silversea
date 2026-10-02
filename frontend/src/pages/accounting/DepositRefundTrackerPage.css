@@ -1,0 +1,41 @@
+.deposit-tracker-page { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
+/* Card 20260927_152 — the filter region moved onto the ONE shared strip
+   (`ListFilterBar` + `FilterDropdown` + `DateRangeFields`): the bar's own
+   content-sizing rules (`flex: 0 1 auto`), the 168/149px date floors, the
+   240–280px select slot and the ≤900 full-width band are all deleted with it.
+   The shared sheet owns filter layout and every control's width (operator
+   2026-09-27: the strip holds ≤2 rows, and the width of a control follows the
+   value it holds — the audit measured four rows and a 366px date field at
+   768px here). A page rule that re-declares either is exactly how this surface
+   drifted on 2026-09-24 and 2026-09-25. Nothing below styles a filter
+   control. */
+.deposit-tracker-warnings { position: relative; border: 1px solid var(--color-warning); background: var(--warning-soft); border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.deposit-tracker-warnings__item { margin: 0; color: var(--warning-text); overflow-wrap: anywhere; }
+.deposit-tracker-warnings__item--danger { color: var(--danger-text); }
+.deposit-tracker-warnings__item svg { vertical-align: text-bottom; margin-right: 6px; }
+/* Card 20260923_14 dismiss control: clears §5 hit-area law (24px desktop,
+   44px coarse pointer); icon-only with aria-label per §4. */
+.deposit-tracker-warnings__dismiss { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; padding: 0; border: none; background: transparent; color: var(--danger-text); border-radius: 8px; cursor: pointer; }
+.deposit-tracker-warnings__dismiss:hover { background: rgba(127, 45, 55, 0.08); }
+@media (pointer: coarse) { .deposit-tracker-warnings__dismiss { min-width: var(--control-max-h); min-height: var(--control-max-h); } }
+/* The summary strip is the shared `SummaryRail` (recipe #4) — the hand-rolled
+   totals tile (border/background/radius/type ramp of its own) is deleted with
+   it. See DepositRefundTrackerPage.styles.test.ts. */
+/* The table is the shared record-table base now (recipe #1): `record-table
+   ops-table` inside `.record-table-wrap`, `data-label` on every cell. The
+   private skin that used to sit here — the 1220px min-width, the page
+   `.table-wrap` overflow override (card 20260922_53), the cell padding, the
+   `.num/.bill/.date-cell/.note/.actions` cell shapes (including the hard-coded
+   250px action column), the `.is-refunded` row dimming and the bespoke
+   `deposit-status` pill — is deleted with it. The shared base owns cell padding,
+   numeric alignment, the ≤1100px labelled-record-card band and the action-cell
+   slot; record-table.css is imported by the page. See
+   DepositRefundTrackerPage.styles.test.ts. */
+.deposit-tracker-form { display: flex; flex-direction: column; gap: 10px; min-width: 0; width: 100%; }
+
+/* A single-token cell (a date, a bill number, the ordinal) EXPANDS instead of
+   wrapping mid-token — law §4. The global `tbody td { overflow-wrap: anywhere }`
+   emergency break would otherwise split "28/09/26" after the slash in a narrow
+   column, which is how the board read before this rule. */
+.deposit-col--token { white-space: nowrap; }
+.deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--fg-3); }

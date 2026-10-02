@@ -5,6 +5,7 @@ import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useMonth } from '../../hooks/useMonth';
+import { useLocation } from 'react-router-dom';
 import { useDriverVehicle } from '../../hooks/useDriverQueries';
 import { useSearch } from '../../context/SearchContext';
 import { getSearchItems, filterItems } from '../../data/searchRegistry';
@@ -54,13 +55,16 @@ function MonthNavigator() {
         onClick={() => setOpen(v => !v)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label="Chọn tháng"
+        aria-label={`Chọn tháng · Tháng ${month}/${year}${periodLabel ? `, ${periodLabel}` : ''}`}
       >
         <Calendar size={14} className="topbar-date__icon" />
-        <div className="topbar-date__body">
-          <span className="topbar-date__label">Tháng {month}/{year}</span>
-          {periodLabel && <span className="topbar-date__period">{periodLabel}</span>}
-        </div>
+        <span className="topbar-date__label">Tháng {month}/{year}</span>
+        {periodLabel && (
+          <>
+            <span className="topbar-date__sep" aria-hidden="true">·</span>
+            <span className="topbar-date__period">{periodLabel}</span>
+          </>
+        )}
         <ChevronDown size={12} className="topbar-date__caret" />
       </button>
 
@@ -147,7 +151,7 @@ function DriverIdentity({ name }: { name: string | null }) {
   return (
     <div className="topbar__welcome">
       <div className="topbar__welcome-idline">
-        <span className="name">{name}</span>
+        <span className="name" title={name ?? undefined}>{name}</span>
         {vehicle?.truckPlate && (
           <span className="topbar__plate" title="Biển số xe đang điều phối">
             <Truck size={12} aria-hidden="true" />
@@ -167,6 +171,11 @@ function Topbar({
   menuButtonRef,
   onToggleSidebar,
 }: TopbarProps) {
+  const location = useLocation();
+  // CHIEF ruling (27/09): config and master-data catalog views are
+  // period-independent asset inventories — the global month navigator is
+  // noise there and is hidden (config/*, fleet/*, dispatch/catalogs/*).
+  const isPeriodIndependentView = /^\/(config|fleet)(\/|$)|^\/dispatch\/catalogs/.test(location.pathname);
   const topbarRef = useTopbarEntrance();
   const navigate = useNavigate();
   const { searchQuery, setSearchQuery } = useSearch();
@@ -271,7 +280,7 @@ function Topbar({
       )}
 
       <div className="topbar__actions">
-        {!isDriver && <MonthNavigator />}
+        {!isDriver && !isPeriodIndependentView && <MonthNavigator />}
         {canUseNotifications && <NotificationBell />}
       </div>
     </header>

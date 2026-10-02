@@ -19,7 +19,7 @@ import { SnapshotServices } from './snapshot-services';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { getPairSalarySettingsFrom, pairSurchargeFor } from './pair-salary-settings.service';
 import type { Tx } from './trip-shared';
-import { assertActiveApprovalApplication } from './governance-action-core.service';
+import { assertActiveDirectApplication } from './governance-action-core.service';
 import { LedgerService } from './ledger.service';
 import {
   getTripCompositeInTx, splitTripPatch, tripCompositeSelect, upsertTripCarrierInfo, upsertTripFinancialState,
@@ -130,7 +130,7 @@ export async function updateTripFigures(
       // 2026-09-11 maker-checker removal: persisted authorization went with
       // governance_actions; the in-memory approval-application guard carries
       // the apply-time authorization.
-      assertActiveApprovalApplication(tx, governanceActionId);
+      assertActiveDirectApplication(tx, governanceActionId);
       governanceAuthorized = true;
     }
     // 1. Fetch trip and check lock status
@@ -155,7 +155,7 @@ export async function updateTripFigures(
     if (trip.status === TripStatus.COMPLETED && !governanceAuthorized) {
       throw new ApiError(
         409,
-        'Số liệu tài chính của chuyến đã hoàn thành chỉ được thay đổi sau khi kiểm tra và phê duyệt',
+        'Số liệu tài chính của chuyến đã hoàn thành phải được thay đổi bằng thao tác điều chỉnh có quyền và lý do hợp lệ',
       );
     }
 

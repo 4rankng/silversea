@@ -6,7 +6,7 @@
   75% { transform: translateX(5px); }
 }
 .animate-shake {
-  animation: shake 0.3s ease-in-out;
+  animation: shake var(--t-slow);
 }
 
 /* Page wrapper */
@@ -59,24 +59,9 @@
   gap: 16px;
 }
 
-/* Panel card */
-.expense-panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
+/* Shared Panel owns the section surface, boundary and inner spacing. */
 .expense-panel--photo {
   flex: 1;
-}
-
-.expense-panel__header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line-3);
-}
-.expense-panel__body {
-  padding: 16px;
 }
 
 .expense-photo-body {
@@ -87,15 +72,22 @@
 
 /* Inputs */
 .expense-input {
+  box-sizing: border-box;
   width: 100%;
+  min-height: var(--control-default-h);
   background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 7px 10px;
   color: var(--ink);
   font-family: inherit;
   font-size: var(--control-field-font-size);
+  line-height: 18px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (pointer: coarse) {
+  .expense-input { min-height: var(--control-touch-h); }
 }
 .expense-input:focus {
   outline: none;
@@ -163,7 +155,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--t-normal);
   backdrop-filter: blur(4px);
 }
 
@@ -197,42 +189,17 @@
   gap: 10px;
 }
 
-.expense-btn-cancel {
-  padding: 12px 20px;
-  font-size: var(--fs-sm);
-  border-radius: 10px;
-  border: 1px solid var(--line-3);
-  background: transparent;
-  font-weight: 600;
-  color: var(--ink-2);
-  cursor: pointer;
-  text-align: center;
-  width: 100%;
-}
-.expense-btn-cancel:hover {
-  background: var(--bg-2);
-}
-
-/* Save button — uses Global .btn--primary (components/Button.css). Only the
-   full-width layout modifier (.expense-btn-submit) is defined here. */
-
+.expense-btn-cancel,
 .expense-btn-submit {
   width: 100%;
   justify-content: center;
-  padding: 13px 24px;
 }
 
-/* ── Panel header typography ── */
-.expense-panel__title {
-  font-size: var(--text-section-size);
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.expense-panel__subtitle {
-  font-size: var(--text-caption-size);
-  color: var(--ink-3);
-  margin-top: 4px;
+.expense-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 /* ── Label row (flex container for label + action) ── */
@@ -252,24 +219,7 @@
   color: var(--danger);
 }
 
-/* ── "Thêm mới" inline action button ── */
-.expense-add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--text-control-size);
-  color: var(--accent);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 6px;
-  font-weight: 600;
-  min-height: 32px;
-  min-width: 44px;
-  border-radius: 6px;
-}
-
-/* ── Quick-create inline form row ── */
+/* Catalog actions use the shared compact ghost button. */
 .expense-quick-create-row {
   display: flex;
   gap: 6px;
@@ -278,18 +228,6 @@
 
 .expense-quick-create-row .expense-input {
   flex: 1;
-}
-
-/* ── Quick-create action buttons ── */
-.expense-quick-create-save {
-  padding: 12px;
-  border-radius: 12px;
-}
-
-.expense-quick-create-cancel {
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.05);
 }
 
 /* ── Field error message ── */
@@ -338,20 +276,6 @@
   .expense-page-wrap {
     padding: 0 0 20px;
   }
-  .expense-panel__header {
-    padding: 10px;
-  }
-  .expense-panel__body {
-    padding: 10px;
-  }
-  .expense-input {
-    font-size: var(--control-field-font-size);
-    min-height: 44px;
-  }
-  .expense-btn-submit,
-  .expense-btn-cancel {
-    min-height: 44px;
-  }
   .expense-upload-zone {
     min-height: 100px;
   }
@@ -379,8 +303,8 @@
   height: 100%;
   min-height: 64px;
   font-size: var(--text-caption-size);
-  color: var(--danger, #dc2626);
-  background: var(--surface-2, #f8fafc);
+  color: var(--danger);
+  background: var(--surface-2);
 }
 .expense-photo-thumb__error button {
   border: 1px solid currentColor;
@@ -400,20 +324,14 @@
 .expense-quick-create-row .expense-input { min-width: 0; }
 .expense-page-wrap .expense-select > span { padding-inline: 10px; }
 .expense-page-wrap .expense-select [data-combobox-value] { padding-block: 0; }
-@media (max-width: 640px) {
-  .expense-panel__subtitle { font-size: var(--text-caption-size); }
-}
 @media (prefers-reduced-motion: reduce) {
   .expense-page-wrap .animate-shake { animation: none; }
   .expense-page-wrap button, .expense-upload-zone { transition: none; }
 }
 
 /* Phone fields pair where their content is short. Catalog names retain a full
-   line; sections share the page surface instead of adding another inset card. */
+   line; shared Panel keeps the same section hierarchy across device sizes. */
 @media (max-width: 640px) {
-  .expense-panel { border: 0; border-radius: 0; background: transparent; }
-  .expense-panel__header { padding: 8px 0; }
-  .expense-panel__body { padding: 10px 0; }
   .expense-grid { gap: 10px 8px; }
   .expense-group--catalog { grid-column: 1 / -1; }
   .expense-actions { flex-direction: row; }
@@ -437,4 +355,8 @@
     top: 16px;
     align-self: start;
   }
+}
+
+.expense-input[aria-invalid="true"] {
+  border-color: var(--danger);
 }

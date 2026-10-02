@@ -68,6 +68,17 @@
   font-size: var(--ops-table-header-size);
   font-weight: var(--ops-table-header-weight);
   line-height: var(--ops-table-header-line-height);
+  /* Wrapped headers read as one even band (audit 20260925_47): greedy fill
+     left 'HẠN THANH / TOÁN CHI HỘ / (NGÀY)' ragged next to neighbours'
+     single lines. balance re-distributes the SAME line count evenly —
+     one-line headers are untouched, nowrap systems are no-ops. */
+  text-wrap: balance;
+  /* A header label wraps at SPACES, never inside a word (the shattered
+     "CONTAINER" header, card 20260922_54): the column sizes to its longest
+     word instead of shredding it. Same rule the record-table base declares
+     for its own head. */
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 :where(table tbody td) {
@@ -79,4 +90,14 @@
    rhythm (e.g. the frozen CUS dashboard cells) are untouched. */
 :where(table tbody strong) {
   font-size: var(--ops-table-primary-size);
+}
+
+/* A `<small>` inside a data cell is the cell's SUPPORTING line (bill number,
+   customer, container type). Left alone it renders at the browser's 0.8em
+   default — 9.6px beside 12px data — and the house supporting floor is 11px
+   (law §5; `role-ui-sweep.mjs` counts sub-11px text as a defect). Promoted to
+   the shared base so no table and no page has to remember it. */
+:where(table tbody small) {
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
 }

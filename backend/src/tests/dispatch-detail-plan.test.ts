@@ -176,6 +176,7 @@ async function createAllocatedLot(args: {
       routeId: route.id,
       pickupPortId: pickupPort.id,
       dropoffPortId: dropoffPort.id,
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     }).returning();
@@ -245,7 +246,7 @@ type DetailPlanRow = {
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName: string | null };
   docs: { billNumber: string | null; tradeDirection: string | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
-  notes: { vehicleNote: string | null; customerNote: string | null };
+  notes: { vehicleNote: string | null; customerNote: string | null; opsRecoveryNotes?: string[] };
   dispatch: {
     // Carrier-less planned rows surface as null — the editor auto-loads the
     // own-fleet truck list for them and promotes via the atomic plan save.
@@ -262,6 +263,7 @@ type DetailPlanRow = {
   classification: 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | null;
   ports: { pickupPortId: number | null; pickupPortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null };
   lotFullyPlated: boolean;
+  plannedEndAt: string | null;
 };
 
 type PlateResponse = {
@@ -447,6 +449,7 @@ describe('dispatch detail plan rows', () => {
       containerTypeId: containerType.id,
       containerNumber: `MSCU${String(310000 + shipment.id).slice(-6)}`,
       // Deliberately NO container routeId — the lot-level route must surface.
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     }).returning();
@@ -618,6 +621,58 @@ describe('dispatch detail plan rows', () => {
     assert.equal(assigned.data.items[0]!.dispatch.assignedPlate, truck.licensePlate);
   });
 
+  test('customerId filter narrows rows server-side', async () => {
+    const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: other } = await createAllocatedLot({ carrierType: 'OWN' });
+    assert.ok(shipment.customerId, 'fixture lot carries a customer');
+
+    const mine = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&customerId=${shipment.customerId}`);
+    assert.equal(mine.status, 200, JSON.stringify(mine.data));
+    assert.equal(mine.data.items.length, 1);
+    const theirs = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&customerId=${other.customerId}`);
+    assert.equal(theirs.data.items.length, 0);
+
+    // Route validation: non-integer / non-positive ids are rejected outright.
+    const malformed = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&customerId=abc`);
+    assert.equal(malformed.status, 400, JSON.stringify(malformed.data));
+    const zero = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&customerId=0`);
+    assert.equal(zero.status, 400, JSON.stringify(zero.data));
+  });
+
+  test('dataStatus filter separates complete vs missing intake data', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    assert.ok(fulfillmentIds[0]);
+    // Fixture: bookingRef + container number set, no declaration row yet —
+    // missing-ANY signal ⇒ the row reads MISSING before the declaration lands.
+    const missingBefore = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=MISSING`);
+    assert.equal(missingBefore.status, 200, JSON.stringify(missingBefore.data));
+    assert.equal(missingBefore.data.items.length, 1);
+    const completeBefore = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=COMPLETE`);
+    assert.equal(completeBefore.data.items.length, 0);
+
+    await db.insert(s.shipmentDeclarations).values({
+      shipmentId: shipment.id,
+      declarationNumber: `DEC-${suffix}-${shipment.id}`,
+      createdBy: adminUserId,
+    });
+    const completeAfter = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=COMPLETE`);
+    assert.equal(completeAfter.data.items.length, 1);
+    const missingAfter = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=MISSING`);
+    assert.equal(missingAfter.data.items.length, 0);
+
+    // Strip bill/booking + container → a missing signal flips the row back.
+    await db.update(s.shipments).set({ bookingRef: null }).where(eq(s.shipments.id, shipment.id));
+    await db.update(s.shipmentContainers).set({ containerNumber: null }).where(eq(s.shipmentContainers.shipmentId, shipment.id));
+    const missingStripped = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=MISSING`);
+    assert.equal(missingStripped.data.items.length, 1);
+    const completeStripped = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=COMPLETE`);
+    assert.equal(completeStripped.data.items.length, 0);
+
+    // Route validation: unknown values are rejected.
+    const junk = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&dataStatus=junk`);
+    assert.equal(junk.status, 400, JSON.stringify(junk.data));
+  });
+
   test('hour range and direction filters apply', async () => {
     const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
     // Fixture closes at 08:00Z = 15:00 Asia/Ho_Chi_Minh — filters and display
@@ -715,6 +770,51 @@ describe('dispatch detail plan rows', () => {
       token: signToken(unscoped),
     });
     assert.equal(unscopedResponse.status, 403);
+  });
+
+  // Card 20260928_162 criterion 3. This route already ADMITTED accountant
+  // (requireRoles at dispatch-planning.routes.ts:165, and assertDispatchReadActor
+  // lists it), yet the note map was blanked for exactly that role — so the reason
+  // an uncharged Ops cost is REQUIRED to carry reached nobody on the board kế
+  // toán triage. CUS is NOT assertable here: this route 403s CUS, and its read
+  // path is pinned in declaration-customs-channel.test.ts.
+  test('ACCOUNTANT receives the uncharged Ops reason on the detail plan', async () => {
+    const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
+    assert.ok(shipment.customerId != null, 'allocated fixture must carry a catalog customer');
+    const accountant = await mkUser(Role.ACCOUNTANT, 'accountant-notes');
+    await db.insert(s.userCustomerLinks).values({ userId: accountant.id, customerId: shipment.customerId });
+    const token = jwt.sign({
+      userId: accountant.id,
+      username: accountant.username,
+      email: null,
+      fullName: null,
+      role: Role.ACCOUNTANT,
+      customerId: shipment.customerId,
+      customerIds: [shipment.customerId],
+    }, config.jwtSecret);
+
+    const reason = 'Chi nội bộ, không thu khách';
+    const [ops] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: shipment.id, expenseTypeCode: 'OTHER', amount: '20000',
+      customerChargeAmount: '0', paidById: accountant.id, paidAt: '2026-09-19', note: reason,
+    }).returning();
+
+    try {
+      const res = await apiFetch<{ items: DetailPlanRow[] }>(
+        `/dispatch-detail-plan-rows?q=${shipment.shipmentCode}`,
+        { token },
+      );
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      const notes = res.data.items[0]?.notes.opsRecoveryNotes ?? [];
+      assert.ok(
+        notes.includes(reason),
+        `kế toán must read the mandatory reason on this board; got ${JSON.stringify(notes)}`,
+      );
+      // Standing ruling of the shared projection: the amount never rides along.
+      assert.ok(!JSON.stringify(notes).includes('20000'), 'no amount in the notes');
+    } finally {
+      await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, ops.id));
+    }
   });
 
   test('delivery point facet endpoint lists distinct sites', async () => {
@@ -1254,6 +1354,7 @@ describe('atomic dispatch detail plan save', () => {
     shipmentVersion: number;
     classification: 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
     isCombined: boolean;
+    error?: string;
     dispatch: {
       carrierType: 'OWN' | 'EXTERNAL';
       carrierName: string | null;
@@ -1262,6 +1363,7 @@ describe('atomic dispatch detail plan save', () => {
       assignedPlate: string | null;
     };
     estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
+    plannedEndAt: string | null;
     lotFullyPlated: boolean;
     driverNotified: boolean;
     driverHint: string | null;
@@ -1316,6 +1418,96 @@ describe('atomic dispatch detail plan save', () => {
     const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
     assert.equal(after.dispatchClassification, 'DOUBLE');
     void truck; void driver;
+  });
+
+  test('atomic save stages Giờ trả hàng (plannedEndAt) — omitted = untouched, null clears', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    // Twin-types law: zod-accept is not handler-forward. Assert the stored
+    // instant on the row, not just a 200.
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: 1_200_000,
+        plannedCarrierCost: 900_000,
+        plannedEndAt: '2026-10-05T15:30:00+07:00',
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.plannedEndAt, '2026-10-05T08:30:00.000Z');
+    assert.equal(response.data.fulfillmentVersion, fulfillment.version + 1);
+    const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.plannedEndAt instanceof Date, true, 'plannedEndAt must reach the row');
+    assert.equal(after.plannedEndAt?.toISOString(), '2026-10-05T08:30:00.000Z');
+
+    // A save that omits the field means "not part of this save": the stored
+    // instant stays and only the version bumps.
+    const omittedSave = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: response.data.fulfillmentVersion,
+        expectedShipmentVersion: response.data.shipmentVersion,
+        carrierType: 'OWN',
+        plannedRevenue: 1_200_000,
+        plannedCarrierCost: 900_000,
+      },
+    });
+    assert.equal(omittedSave.status, 200, JSON.stringify(omittedSave.data));
+    const { fulfillment: afterOmitted } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(afterOmitted.plannedEndAt?.toISOString(), '2026-10-05T08:30:00.000Z', 'omitted plannedEndAt must not clear the stored value');
+
+    // null (or '') clears the staged handover time.
+    const clearSave = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: omittedSave.data.fulfillmentVersion,
+        expectedShipmentVersion: omittedSave.data.shipmentVersion,
+        carrierType: 'OWN',
+        plannedRevenue: 1_200_000,
+        plannedCarrierCost: 900_000,
+        plannedEndAt: null,
+      },
+    });
+    assert.equal(clearSave.status, 200, JSON.stringify(clearSave.data));
+    const { fulfillment: afterClear } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(afterClear.plannedEndAt, null, 'null must clear the stored instant');
+
+    // The rows read echoes the stored instant so the modal can prefill.
+    const rows = await fetchRows(dispatcherToken, `?q=${freshShipment.shipmentCode}`);
+    assert.equal(rows.status, 200, JSON.stringify(rows.data));
+    const row = rows.data.items.find((item: { fulfillmentId: number }) => item.fulfillmentId === fulfillment.id)!;
+    assert.equal(row.plannedEndAt, null);
+  });
+
+  test('plannedEndAt without a timezone offset is rejected with 400 and no version bump', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: 500_000,
+        plannedCarrierCost: 400_000,
+        plannedEndAt: '2026-10-05T15:30:00',
+      },
+    });
+    assert.equal(response.status, 400, JSON.stringify(response.data));
+    // Pin the FORMAT rejection (zone required), not an unrelated validation
+    // failure — the guard is parseIsoWithZone's 'phải kèm múi giờ'.
+    assert.match(String(response.data.error), /phải kèm múi giờ/);
+    const { fulfillment: after } = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.version, fulfillment.version, 'a rejected save must not bump the version');
   });
 
   test('omitting classification and isCombined leaves both stored values untouched', async () => {
@@ -2174,7 +2366,7 @@ describe('review fixes: carrier switch + explicit plate clear', () => {
   });
 });
 
-describe('driver notification timing (xếp xe stays silent, issuance notifies)', () => {
+describe('driver notification timing (điều xe stays silent, issuance notifies)', () => {
   type IssueResponse = { trip: { id: number } };
 
   test('legacy plate assignment alone: no driver notification, tap-through 404', async () => {
@@ -2234,7 +2426,7 @@ test('issuing the dispatch order notifies the driver exactly once and the job op
     const { truck, driver } = await createOwnedTruckWithDriver();
     const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
 
-    // Step 1 — xếp xe via the legacy endpoint: silent.
+    // Step 1 — điều xe via the legacy endpoint: silent.
     const plated = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
       method: 'PATCH',
       token: dispatcherToken,
@@ -2849,6 +3041,7 @@ describe('planning remaining containers after partial dispatch', () => {
     await db.insert(s.shipmentContainers).values({
       shipmentId: shipmentB.id, containerTypeId: containerType.id,
       containerNumber: (() => { const p = `MSKU${String(500000 + shipmentB.id).slice(-6)}`; return `${p}${calculateCheckDigit(p)}`; })(),
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     });
@@ -2948,6 +3141,7 @@ describe('planning remaining containers after partial dispatch', () => {
     await db.insert(s.shipmentContainers).values({
       shipmentId: shipment.id, containerTypeId: ct.id,
       containerNumber: `UNION${String(800000 + shipment.id).slice(-6)}`,
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     });
@@ -2979,6 +3173,7 @@ describe('planning remaining containers after partial dispatch', () => {
       // Deliberately NO container routeId — the lot-level route must surface
       // on the branch row exactly as CUS shows it.
       containerNumber: `UNIONR${String(810000 + shipment.id).slice(-6)}`,
+      cargoWeightKg: '1000',
       customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     });

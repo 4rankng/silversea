@@ -82,10 +82,16 @@ async function ensureFixturePayrollUnit() {
     status: 'ACTIVE',
   }).returning();
   fixturePayrollUnitId = unit.id;
-  await db.update(s.appSettings).set({
-    value: String(unit.id),
-    updatedAt: new Date(),
-  }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+  // Upsert - the fresh template has no payroll-unit row yet; a bare UPDATE
+  // would match zero rows and the close would silently run COMPANY scope.
+  if (prior == null) {
+    await db.insert(s.appSettings).values({ key: 'salary.payroll_business_unit_id', value: String(unit.id) });
+  } else {
+    await db.update(s.appSettings).set({
+      value: String(unit.id),
+      updatedAt: new Date(),
+    }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+  }
 }
 
 async function mkDriver(tag: string) {
@@ -167,11 +173,16 @@ async function postDriverSalary(tripId: number, driverId: number, amount: number
 
 after(async () => {
   try {
-    if (fixturePayrollUnitId > 0 && savedPayrollUnitValue !== null) {
-      await db.update(s.appSettings).set({
-        value: savedPayrollUnitValue,
-        updatedAt: new Date(),
-      }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+    if (fixturePayrollUnitId > 0) {
+      if (savedPayrollUnitValue !== null) {
+        await db.update(s.appSettings).set({
+          value: savedPayrollUnitValue,
+          updatedAt: new Date(),
+        }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      } else {
+        // We inserted the row on a database that had none — remove it.
+        await db.delete(s.appSettings).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      }
       await db.delete(s.userBusinessUnitLinks)
         .where(eq(s.userBusinessUnitLinks.businessUnitId, fixturePayrollUnitId));
       await db.delete(s.businessUnits).where(eq(s.businessUnits.id, fixturePayrollUnitId));

@@ -1,14 +1,16 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Camera, Loader2, Save, Package, AlertCircle, Pencil, X, Check } from 'lucide-react';
 import { api, fileCommandFingerprint } from '../../lib/api';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useToast } from '../shared/Toast';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import { PhotoViewer } from '../PhotoViewer';
-import { photoSrc, renderThumb } from './DriverTripPhotos';
+import { AuthedPhotoImg, renderThumb } from './DriverTripPhotos';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { normalizeContainerNumber } from '@tingting/shared';
 import { checkContainerNumber } from './container-instance-helpers';
-import { TextField } from '../../design-system';
+import { Modal, TextField } from '../../design-system';
+import { CopyCodeButton } from './CopyCodeButton';
 import './DriverContainerCard.css';
 
 /** Driver container/seal/evidence editor. OCR fills a draft; only explicit
@@ -53,7 +55,7 @@ interface Props {
   onSaved: () => void;
 }
 
-// photoSrc + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
+// AuthedPhotoImg + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
 // (structure-guard split shared across the driver photo surfaces).
 export function DriverContainerCard({ tripId, readOnly = false, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
   const { toast } = useToast();
@@ -65,6 +67,9 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
   const [containerError, setContainerError] = useState<string | null>(null);
   const containerFieldRef = useRef<HTMLDivElement>(null);
   const [scannerType, setScannerType] = useState<'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE' | null>(null);
+  // One photo menu per zone; refs keep the gallery input reachable after close.
+  const [sheetType, setSheetType] = useState<'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE' | null>(null);
+  const fileInputs = useRef<Record<'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE', HTMLInputElement | null>>({ CONTAINER: null, SEAL: null, DELIVERY_NOTE: null });
   const [editing, setEditing] = useState(false);
   const [removingPhoto, setRemovingPhoto] = useState<'CONTAINER' | 'SEAL' | null>(null);
   // Biên bản giao hàng upload/delete — independent of the form lifecycle
@@ -111,7 +116,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
     setError(null);
   };
 
-  const onPick = async (rawFile: File | undefined, _type: 'CONTAINER' | 'SEAL') => {
+  const onPick = async (rawFile: File | undefined, _type: 'CONTAINER' | 'SEAL', capturedAt?: Date) => {
     if (!rawFile) return;
     const key = _type === 'CONTAINER' ? 'cont' : 'seal';
     setUploading(prev => ({ ...prev, [key]: true }));
@@ -121,9 +126,8 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
     // suppress the generic "recognized" toast in that case to avoid a double.
     let crossCheckToasted = false;
     try {
-      // Spec A6/Phần 2 Khối 2: every driver photo carries a burned-in upload
-      // timestamp — same contract as the e-POD and fuel paths.
-      const file = await compressImageFile(rawFile, { timestamp: new Date() });
+      // Only a live shutter supplies capture time; gallery selection does not.
+      const file = await compressImageFile(rawFile, { timestamp: capturedAt });
       const formData = new FormData();
       formData.append('file', file);
       // The backend now uses type-specific extraction: CONTAINER photos only
@@ -208,11 +212,11 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
 
   // Biên bản giao hàng photo — no OCR path (the /ocr route is CONTAINER/SEAL
   // specific), stored as trip_photos type DELIVERY_NOTE through POST /upload.
-  const onPickNote = async (rawFile: File | undefined) => {
+  const onPickNote = async (rawFile: File | undefined, capturedAt?: Date) => {
     if (!rawFile) return;
     setUploadingNote(true);
     try {
-      const file = await compressImageFile(rawFile, { timestamp: new Date() });
+      const file = await compressImageFile(rawFile, { timestamp: capturedAt });
       const formData = new FormData();
       formData.append('file', file);
       formData.append('trip_id', String(tripId));
@@ -251,30 +255,20 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
     }
   };
 
-  const noteFileInput = (
-    <input
-      type="file"
-      accept="image/*"
-      hidden
-      disabled={uploadingNote}
-      onChange={e => {
-        const file = e.target.files?.[0];
-        void onPickNote(file);
-        e.target.value = '';
-      }}
-    />
-  );
+  const noteInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    void onPickNote(file);
+    e.target.value = '';
+  };
 
   // Populated slots only — gallery order follows the tile strip (cont, seal,
   // biên bản). Empty slots never imply an openable image.
-  const viewerPhotos = useMemo(() => [
-    contPhotoKey ? { label: 'Cont', url: photoSrc(contPhotoKey) } : null,
-    sealPhotoKey ? { label: 'Seal', url: photoSrc(sealPhotoKey) } : null,
-    deliveryNotePhotoKey ? { label: 'Biên bản', url: photoSrc(deliveryNotePhotoKey) } : null,
-  ].filter((entry): entry is { label: string; url: string } => entry != null), [contPhotoKey, sealPhotoKey, deliveryNotePhotoKey]);
+  const viewerKeys = [contPhotoKey, sealPhotoKey, deliveryNotePhotoKey].filter((key): key is string => key != null);
+  const viewerUrls = useAuthedPhotoUrls(viewerKeys);
 
   const openViewer = (label: string, opener: HTMLButtonElement) => {
-    const index = viewerPhotos.findIndex((entry) => entry.label === label);
+    const slot = label === 'Cont' ? contPhotoKey : label === 'Seal' ? sealPhotoKey : deliveryNotePhotoKey;
+    const index = viewerKeys.indexOf(slot ?? '');
     if (index < 0) return;
     viewerOpenerRef.current = opener;
     setViewerIndex(index);
@@ -371,7 +365,11 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             <div className="dcc-bento__hero">
               <div className="dcc-bento__hero-content">
                 <div className="dcc-bento__eyebrow">Số cont</div>
-                <div className="dcc-bento__plate">{containers[0]?.containerNumber || 'Chưa có số cont'}</div>
+                {/* Card _28 item 9: cont + seal codes are copyable (bento view). */}
+                <div className="dcc-bento__plate-row">
+                  <div className="dcc-bento__plate">{containers[0]?.containerNumber || 'Chưa có số cont'}</div>
+                  {containers[0]?.containerNumber && <CopyCodeButton value={containers[0].containerNumber} label="Số container" />}
+                </div>
                 {containers[0]?.containerTypeName && (
                   <div className="dcc-bento__hero-meta">
                     {containers[0].containerTypeName}
@@ -390,8 +388,11 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
 
             <div className="dcc-bento__seal">
               <div className="dcc-bento__eyebrow">Seal</div>
-              <div className="dcc-bento__seal-value">
-                {containers[0]?.sealNumber || <span className="dcc-bento__dash">—</span>}
+              <div className="dcc-bento__seal-value-row">
+                <div className="dcc-bento__seal-value">
+                  {containers[0]?.sealNumber || <span className="dcc-bento__dash">—</span>}
+                </div>
+                {containers[0]?.sealNumber && <CopyCodeButton value={containers[0].sealNumber} label="Số seal" />}
               </div>
             </div>
 
@@ -419,22 +420,17 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
               </div>
               {/* Ghost retake affordances under the saved slots — one style,
                   ≥44px touch on coarse pointers (design spec photo block). */}
-              {!readOnly && <div className="dcc-capture dcc-capture--note">
-                <label className="dcc-capture-btn dcc-capture-btn--secondary">
-                  {uploadingNote ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                  <span>Chụp / chọn ảnh biên bản</span>
-                  {noteFileInput}
-                </label>
+              {!readOnly && (
                 <button
                   type="button"
-                  className="dcc-capture-btn dcc-capture-btn--secondary"
+                  className="dcc-capture-btn dcc-capture-btn--primary dcc-capture-btn--note"
                   disabled={uploadingNote}
-                  onClick={() => setScannerType('DELIVERY_NOTE')}
-                  title="Mở camera overlay (chế độ chụp nâng cao)"
+                  onClick={() => setSheetType('DELIVERY_NOTE')}
                 >
-                  <span>Mở camera biên bản</span>
+                  {uploadingNote ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                  <span>Thêm ảnh biên bản</span>
                 </button>
-              </div>}
+              )}
             </div>
           </div>
         )}
@@ -460,79 +456,66 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
               </div>
             )}
 
-            {/* Capture zones — primary action is a direct file picker (always
-                available, works on every browser), the camera icon is the
-                secondary action that opens the fullscreen scanner overlay.
-                Phần 4 ticket 2026-08-28: customer reported the camera-only
-                button was unusable on some devices; the file picker is now
-                one tap away. */}
+            {/* Card 20260926_28 item 11: ONE 'Thêm ảnh' button per capture
+                zone opens a bottom action sheet (camera via the fullscreen
+                scanner overlay / gallery via the hidden file input) — the
+                Chụp-picker + Mở-camera pair is merged into one entry. */}
             <div className="dcc-capture">
               <div className="dcc-capture-group">
-                <label className="dcc-capture-btn dcc-capture-btn--primary">
-                  {uploading.cont ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                  <span>Chụp / chọn ảnh cont</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    disabled={uploading.cont}
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      void onPick(file, 'CONTAINER');
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
                 <button
                   type="button"
-                  className="dcc-capture-btn dcc-capture-btn--secondary"
+                  className="dcc-capture-btn dcc-capture-btn--primary"
                   disabled={uploading.cont}
-                  onClick={() => setScannerType('CONTAINER')}
-                  title="Mở camera overlay (chế độ chụp nâng cao)"
+                  onClick={() => setSheetType('CONTAINER')}
                 >
-                  <span>Mở camera cont</span>
+                  {uploading.cont ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                  <span>Thêm ảnh cont</span>
                 </button>
+                <input
+                  ref={(el) => { fileInputs.current.CONTAINER = el; }}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  disabled={uploading.cont}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    void onPick(file, 'CONTAINER');
+                    e.target.value = '';
+                  }}
+                />
               </div>
               <div className="dcc-capture-group">
-                <label className="dcc-capture-btn dcc-capture-btn--primary">
-                  {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                  <span>Chụp / chọn ảnh seal</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    disabled={uploading.seal}
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      void onPick(file, 'SEAL');
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
                 <button
                   type="button"
-                  className="dcc-capture-btn dcc-capture-btn--secondary"
+                  className="dcc-capture-btn dcc-capture-btn--primary"
                   disabled={uploading.seal}
-                  onClick={() => setScannerType('SEAL')}
-                  title="Mở camera overlay (chế độ chụp nâng cao)"
+                  onClick={() => setSheetType('SEAL')}
                 >
-                  <span>Mở camera seal</span>
+                  {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                  <span>Thêm ảnh seal</span>
                 </button>
+                <input
+                  ref={(el) => { fileInputs.current.SEAL = el; }}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  disabled={uploading.seal}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    void onPick(file, 'SEAL');
+                    e.target.value = '';
+                  }}
+                />
               </div>
               <div className="dcc-capture-group">
-                <label className="dcc-capture-btn dcc-capture-btn--primary">
-                  {uploadingNote ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                  <span>Chụp / chọn ảnh biên bản</span>
-                  {noteFileInput}
-                </label>
                 <button
                   type="button"
-                  className="dcc-capture-btn dcc-capture-btn--secondary"
+                  className="dcc-capture-btn dcc-capture-btn--primary"
                   disabled={uploadingNote}
-                  onClick={() => setScannerType('DELIVERY_NOTE')}
-                  title="Mở camera overlay (chế độ chụp nâng cao)"
+                  onClick={() => setSheetType('DELIVERY_NOTE')}
                 >
-                  <span>Mở camera biên bản</span>
+                  {uploadingNote ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                  <span>Thêm ảnh biên bản</span>
                 </button>
               </div>
             </div>
@@ -555,7 +538,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                     >
                       {removingPhoto === 'CONTAINER' ? <Loader2 size={12} className="spin" /> : <X size={12} />}
                     </button>
-                    <img className="dcc-photo" src={photoSrc(lastPhotos.cont)} alt="Ảnh cont" />
+                    <AuthedPhotoImg photoKey={lastPhotos.cont} className="dcc-photo" alt="Ảnh cont" />
                     <figcaption>Ảnh cont</figcaption>
                   </figure>
                 )}
@@ -570,7 +553,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                     >
                       {removingPhoto === 'SEAL' ? <Loader2 size={12} className="spin" /> : <X size={12} />}
                     </button>
-                    <img className="dcc-photo" src={photoSrc(lastPhotos.seal)} alt="Ảnh seal" />
+                    <AuthedPhotoImg photoKey={lastPhotos.seal} className="dcc-photo" alt="Ảnh seal" />
                     <figcaption>Ảnh seal</figcaption>
                   </figure>
                 )}
@@ -587,7 +570,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                     >
                       {removingNote ? <Loader2 size={12} className="spin" /> : <X size={12} />}
                     </button>
-                    <img className="dcc-photo" src={photoSrc(deliveryNotePhotoKey)} alt="Ảnh biên bản giao hàng" />
+                    <AuthedPhotoImg photoKey={deliveryNotePhotoKey} className="dcc-photo" alt="Ảnh biên bản giao hàng" />
                     <figcaption>Ảnh biên bản</figcaption>
                   </figure>
                 )}
@@ -676,11 +659,11 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             biên bản (form or saved bento) all funnel through it. */}
         {scannerType && (
           <ContainerScanner
-            onCapture={dataUrl => {
+            onCapture={(dataUrl, capturedAt) => {
               if (scannerType === 'DELIVERY_NOTE') {
-                void onPickNote(dataUrlToFile(dataUrl, 'delivery-note.jpg'));
+                void onPickNote(dataUrlToFile(dataUrl, 'delivery-note.jpg'), capturedAt);
               } else {
-                void onPick(dataUrlToFile(dataUrl), scannerType);
+                void onPick(dataUrlToFile(dataUrl), scannerType, capturedAt);
               }
               setScannerType(null);
             }}
@@ -692,9 +675,9 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             gallery across the populated slots. The fixed overlay never
             scrolls the page behind it; closing restores focus to the opener
             tile so keyboard/AT users land exactly where they left. */}
-        {viewerIndex != null && viewerPhotos[viewerIndex] && (
+        {viewerIndex != null && viewerUrls[viewerIndex] && (
           <PhotoViewer
-            urls={viewerPhotos.map((entry) => entry.url)}
+            urls={viewerUrls}
             initialIndex={viewerIndex}
             onClose={() => {
               setViewerIndex(null);
@@ -703,6 +686,53 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
           />
         )}
       </div>
+
+      {/* Biên bản gallery input (card _28: reachable from the action sheet). */}
+      <input
+        ref={(el) => { fileInputs.current.DELIVERY_NOTE = el; }}
+        type="file"
+        accept="image/*"
+        hidden
+        aria-label="Chọn ảnh biên bản"
+        disabled={uploadingNote}
+        onChange={noteInputChange}
+      />
+
+      {/* Shared photo menu: scanner capture or the existing gallery input. */}
+      {sheetType && (
+        <Modal
+          isOpen
+          title={`Thêm ảnh ${sheetType === 'CONTAINER' ? 'cont' : sheetType === 'SEAL' ? 'seal' : 'biên bản'}`}
+          onClose={() => setSheetType(null)}
+          maxWidth={480}
+        >
+          <div className="dcc-sheet__actions">
+            <button
+              type="button"
+              className="dcc-sheet__action"
+              onClick={() => {
+                const zone = sheetType;
+                setSheetType(null);
+                setScannerType(zone);
+              }}
+            >
+              <Camera size={18} aria-hidden="true" /> Chụp ảnh
+            </button>
+            <button
+              type="button"
+              className="dcc-sheet__action"
+              onClick={() => {
+                const input = fileInputs.current[sheetType];
+                setSheetType(null);
+                input?.click();
+              }}
+            >
+              <Camera size={18} aria-hidden="true" /> Chọn từ thư viện
+            </button>
+            <button type="button" className="dcc-sheet__action dcc-sheet__action--cancel" onClick={() => setSheetType(null)}>Hủy</button>
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }

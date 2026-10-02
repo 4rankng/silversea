@@ -8,15 +8,16 @@ import * as notifService from '../services/notification.service';
 import * as pushService from '../services/push.service';
 import { config } from '../config';
 import type { Request, Response } from 'express';
+import { declareNonMaterialWrite } from '../middleware/material-write';
 
-const router = Router();
+const router = Router()
 
 router.get('/unread-count', asyncHandler(async (req: Request, res: Response) => {
   const count = await notifService.getUnreadCount(getUser(req).userId);
   res.json({ count });
 }));
 
-router.post('/read-all', asyncHandler(async (req: Request, res: Response) => {
+router.post('/read-all', declareNonMaterialWrite('Per-user notification read markers.'), asyncHandler(async (req: Request, res: Response) => {
   await notifService.markAllAsRead(getUser(req).userId);
   res.json({ ok: true });
 }));
@@ -27,7 +28,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(await notifService.getNotifications(actor.userId, page, limit, actor.role));
 }));
 
-router.post('/:id/read', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/read', declareNonMaterialWrite('Per-user notification read marker.'), asyncHandler(async (req: Request, res: Response) => {
   const rawId = req.params.id as string;
   const id = Number(rawId);
   if (!/^\d+$/.test(rawId) || !Number.isSafeInteger(id) || id <= 0 || id > 2_147_483_647) {
@@ -53,13 +54,13 @@ const subscribeSchema = z.object({
   deviceType: z.enum(['ios', 'android', 'web']).optional(),
 });
 
-router.post('/subscribe', asyncHandler(async (req: Request, res: Response) => {
+router.post('/subscribe', declareNonMaterialWrite('Replaceable per-user browser push subscription.'), asyncHandler(async (req: Request, res: Response) => {
   const parsed = subscribeSchema.parse(req.body);
   await pushService.subscribe(getUser(req).userId, parsed);
   res.json({ ok: true });
 }));
 
-router.post('/unsubscribe', asyncHandler(async (req: Request, res: Response) => {
+router.post('/unsubscribe', declareNonMaterialWrite('Idempotent deletion of a browser push subscription.'), asyncHandler(async (req: Request, res: Response) => {
   const endpoint = z.string().min(1).parse(req.body?.endpoint);
   await pushService.unsubscribe(getUser(req).userId, endpoint);
   res.json({ ok: true });

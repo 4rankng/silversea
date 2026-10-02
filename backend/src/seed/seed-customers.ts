@@ -31,7 +31,7 @@ const LONG_MINH_DEBIT_TEMPLATE_COLUMNS: DebitNoteTemplateColumn[] = [
   { id: 'tuyen_duong', label: 'TUYẾN ĐƯỜNG MỚI', variable: 'routeName', headerGroup: null, width: 20, align: 'left', format: 'text', total: false },
   { id: 'phi_giao_hang', label: 'PHÍ GIAO HÀNG', variable: 'deliveryFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
   { id: 'cuoc_van_chuyen', label: 'CƯỚC VẬN CHUYỂN', variable: 'freightAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 14, align: 'right', format: 'currency', total: true },
-  { id: 'lach_huyen', label: 'LẠCH HUYỆN', variable: 'portFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
+  { id: 'zone_surcharge', label: 'LẠCH HUYỆN', variable: 'portFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
   { id: 'chi_phi_khac', label: 'CHI PHÍ KHÁC', variable: 'otherServiceFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
   { id: 'phu_phi_xang_dau', label: 'PHỤ PHÍ XĂNG DẦU', variable: 'fuelSurchargeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
   { id: 'ncc', label: 'TÊN ĐƠN VỊ', variable: 'recoverableSupplierName', headerGroup: 'PHÍ CHI HỘ', width: 18, align: 'left', format: 'text', total: false },
@@ -53,7 +53,12 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
   const customerByCode = new Map<string, number>();
   if (customers.length === 0) return { customerByCode };
 
-  for (const c of customers) {
+  for (const [customerIndex, c] of customers.entries()) {
+    // Card 20260922_70: dev-seed customers must carry a non-empty Mã KH —
+    // the config/customers identifier column hides on empty codes (colPresence).
+    // Deterministic per data-array order (the sheet file is auto-generated
+    // and stable); fits customers.code varchar(80).
+    const customerCode = `KH-${String(customerIndex + 1).padStart(4, '0')}`;
     const normalized = normTax(c.taxCode);
     const partnerValues = {
       normalizedTaxCode: normalized,
@@ -107,6 +112,7 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
     const customerValues = {
       name: c.name,
       shortName: c.internalCode,
+      code: customerCode,
       taxCode: c.taxCode,
       partnerId,
       contactPerson: c.manager || null,

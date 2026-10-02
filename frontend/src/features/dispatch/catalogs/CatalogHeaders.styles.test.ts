@@ -7,12 +7,21 @@ const css = readFileSync(resolve(catalogDirectory, 'catalogs.css'), 'utf8');
 
 describe('dispatcher catalogue headers', () => {
   it.each(['FleetVehiclesView.tsx', 'FleetDriversView.tsx', 'SuppliersView.tsx'])(
-    '%s opts into the shared action rail',
+    '%s keeps its primary create action in the header',
     (view) => {
       const source = readFileSync(resolve(catalogDirectory, view), 'utf8');
-      expect(source).toContain('dispatch-catalogs__page-header');
-      expect(source).toContain('dispatch-catalogs__page-heading');
       expect(source).toContain('<Button size="sm" color="primary"');
+    },
+  );
+
+  it.each(['FleetVehiclesView.tsx', 'FleetDriversView.tsx'])(
+    '%s hosts row 1 through the shared command-strip shell',
+    (view) => {
+      const source = readFileSync(resolve(catalogDirectory, view), 'utf8');
+      expect(source).toContain('title="Danh mục');
+      // Row-1 segmented group is the shared Tabs primitive (operator ruling
+      // 2026-09-27: the fleet-vehicle status group is the app-wide reference).
+      expect(source).toContain("variant=\"boxed\"");
     },
   );
 
@@ -28,5 +37,83 @@ describe('dispatcher catalogue headers', () => {
     for (const view of ['FleetVehiclesView.tsx', 'FleetDriversView.tsx', 'SuppliersView.tsx']) {
       expect(readFileSync(resolve(catalogDirectory, view), 'utf8')).toContain('data-label=');
     }
+  });
+});
+
+describe('fleet catalog command strips (card 20260926_57 — chief spec)', () => {
+  const vehicles = readFileSync(resolve(catalogDirectory, 'FleetVehiclesView.tsx'), 'utf8');
+  const drivers = readFileSync(resolve(catalogDirectory, 'FleetDriversView.tsx'), 'utf8');
+  const shell = readFileSync(resolve(catalogDirectory, 'CatalogTableShell.tsx'), 'utf8');
+
+  it('cuts the header block: tutorial subtitles and KPI tiles are gone from both fleet views', () => {
+    expect(vehicles).not.toContain('Tra cứu xe đầu kéo nội bộ');
+    expect(drivers).not.toContain('Tra cứu tài xế nội bộ');
+    expect(vehicles).not.toContain('dispatch-catalogs__summary');
+    expect(drivers).not.toContain('dispatch-catalogs__summary');
+    expect(vehicles).not.toMatch(/<KPI\b/);
+    expect(drivers).not.toMatch(/<KPI\b/);
+  });
+
+  it('vehicles row 1 carries clickable segmented status tabs that filter', () => {
+    expect(vehicles).toContain('<Tabs');
+    expect(vehicles).toContain('statusFilter');
+    expect(vehicles).toContain('Bảo trì / Ngưng');
+  });
+
+  it('row 2 shell carries the docked counter and conditional reset (no kbd badge)', () => {
+    expect(shell).not.toContain('dispatch-catalogs__kbd');
+    expect(shell).toMatch(/onReset/);
+    expect(shell).toMatch(/hasActiveFilters/);
+    expect(shell).toMatch(/metaKey|ctrlKey/);
+  });
+
+  it('row 2 IS the shared filter plane — no page-local toolbar anywhere (card 20260927_152)', () => {
+    expect(shell).toContain("import { FilterBar } from '../../../design-system';");
+    expect(shell).toContain('<FilterBar');
+    // The bespoke toolbar, its search wrapper and the page-owned widths are gone
+    // from BOTH the shell's markup and the sheet's rules: a page rule may not
+    // size or lay out a filter control, and the search cap belongs to
+    // ListFilterBar.css (300px). The deleted selectors survive only inside the
+    // explanatory comments, so the assertions read rule headers.
+    expect(shell).not.toMatch(/className="dispatch-catalogs__toolbar"/);
+    expect(css).not.toMatch(/^\.dispatch-catalogs__toolbar\s*,?\s*\{/m);
+    expect(css).not.toMatch(/^\.dispatch-catalogs__search(?:-wrap)?\s*\{/m);
+    expect(css).not.toMatch(/^\.dispatch-catalogs__carrier-filter\s*\{/m);
+    // Every catalog view renders through that ONE shell, so no route keeps a
+    // second filter plane.
+    for (const view of ['FleetVehiclesView.tsx', 'FleetDriversView.tsx', 'SuppliersView.tsx', 'ExternalFleetView.tsx']) {
+      expect(readFileSync(resolve(catalogDirectory, view), 'utf8')).toContain('<CatalogTableShell');
+    }
+  });
+
+  it('puts the one secondary criterion behind the shared Bộ lọc trigger', () => {
+    expect(vehicles).toContain('<FilterDropdown');
+    expect(vehicles).toContain('ariaLabel="Bộ lọc"');
+    expect(vehicles).not.toContain('wrapperClassName="dispatch-catalogs__carrier-filter"');
+  });
+
+  it('carrier select reads "Nhà xe: Tất cả" as a chevron select', () => {
+    expect(vehicles).toContain('Nhà xe: Tất cả');
+  });
+});
+
+// UI34: shared Panel owns surface/corners; catalogs own only sticky reach.
+describe('resource catalogue house surface', () => {
+  it('retains shared white Panel and inherited flush-table top corners', () => {
+    const panel = readFileSync(resolve(catalogDirectory, '../../../components/Panel.css'), 'utf8');
+    expect(panel).toMatch(/\.panel\s*\{[^}]*background:\s*var\(--surface\)/);
+    expect(panel).toMatch(/\.panel\s*\{[^}]*border-radius:\s*var\(--r\)/);
+    const override = css.match(/\.dispatch-catalogs \.panel\s*\{([^}]*)\}/)?.[1];
+    expect(override).toMatch(/overflow:\s*visible/);
+    expect(override).not.toMatch(/background|border|radius/);
+    expect(panel).toMatch(/\.panel:not\(:has\(> \.panel__head\)\)[^{]*:first-child\s*\{[^}]*border-top-left-radius:\s*calc\(var\(--r\) - 1px\)/);
+    expect(panel).toMatch(/\.panel:not\(:has\(> \.panel__head\)\)[^{]*:last-child\s*\{[^}]*border-top-right-radius:\s*calc\(var\(--r\) - 1px\)/);
+  });
+
+  it('external registration uses labelled house fields without a page width cap', () => {
+    const source = readFileSync(resolve(catalogDirectory, 'ExternalFleetView.tsx'), 'utf8');
+    expect(source).toMatch(/<TextField\s+label="Biển số"/);
+    expect(source).not.toContain('dispatch-catalogs__input');
+    expect(css).not.toMatch(/\.dispatch-catalogs__drawer-select\s*\{/);
   });
 });

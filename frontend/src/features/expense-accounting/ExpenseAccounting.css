@@ -1,8 +1,6 @@
 .expense-accounting { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .expense-accounting, .expense-accounting-drawer { --control-mobile-h: var(--control-touch-h); }
 .expense-accounting > * { min-width: 0; }
-.expense-accounting-page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.expense-accounting-page-heading h1 { margin: 0; font-size: var(--text-title-size); }
 .expense-accounting-tabs.ds-tabs { min-width: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 0; }
 .expense-accounting-tabs::-webkit-scrollbar { display: none; }
 .expense-accounting-tabs .ds-tabs__btn { flex: 0 0 auto; white-space: nowrap; }
@@ -10,15 +8,17 @@
 .expense-accounting-header, .expense-accounting-toolbar, .expense-accounting-pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .expense-accounting-header h2, .expense-accounting-header h3, .expense-accounting-subtitle { margin: 0; font-size: var(--text-dialog-title-size); }
 .expense-accounting-header p, .expense-accounting-hint { margin: 4px 0 0; color: var(--fg-2); }
-.expense-accounting-filters { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(120px, 1fr)); gap: 8px; align-items: end; }
-.expense-accounting-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
-.expense-accounting-filters > *, .expense-accounting-fields > * { min-width: 0; }
+/* The `/accounting/expenses` strip is the shared `ListFilterBar` (card
+   20260927_152): the bar owns the row, the search cell and the gaps, so this
+   sheet declares no filter layout and no control width — a page rule here is
+   what stretched a short-value select across a whole line on 2026-09-27. */
+.expense-accounting-fields > * { min-width: 0; }
 .expense-accounting-form { display: grid; min-width: 0; gap: 12px; }
 .expense-accounting-form > * { min-width: 0; }
 .expense-accounting-fields { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .expense-accounting-drawer .drawer__body { min-width: 0; padding: 12px max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
 .expense-accounting-check { display: flex; align-items: center; gap: 8px; min-height: var(--control-compact-h); }
-.expense-accounting-check input, .expense-register-select input { accent-color: var(--brand); width: 16px; height: 16px; }
+.expense-accounting-check input { accent-color: var(--brand); width: 16px; height: 16px; }
 .expense-accounting-error { padding: 8px 0; margin: 0; color: var(--danger); }
 .expense-accounting-notice { padding: 8px 10px; border-inline-start: 3px solid var(--brand); background: var(--bg-2); margin: 0; }
 .expense-accounting-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 16px; padding-block: 8px; border-block: 1px solid var(--line); }
@@ -32,9 +32,25 @@
 .expense-register-table small { color: var(--fg-2); margin-top: 4px; font-size: var(--text-label-size); }
 .expense-register-table td { overflow-wrap: anywhere; }
 .expense-register-table .num { text-align: end; white-space: nowrap; }
-.expense-register-open, .expense-register-money { padding: 0; border: 0; background: transparent; text-align: inherit; color: var(--brand); cursor: pointer; font: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
-.expense-register-open:hover, .expense-register-money:hover { text-decoration-color: currentColor; }
-.expense-register-open:focus-visible, .expense-register-money:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.expense-register-open { justify-content: flex-start; text-align: inherit; }
+.expense-register-money { justify-content: flex-end; text-align: inherit; }
+
+/* Matrix titles keep their complete label in the shared compact control.
+   The existing local table rail owns any wider intrinsic track. */
+@media (min-width: 768px) {
+  .expense-register-table td:has(> .expense-register-open) { min-width: max-content; }
+}
+
+/* Card 20260929_207 — the selection column is gone, so a row IS the control.
+   The picked row wears the sanctioned NEUTRAL INK selection treatment from
+   `record-table.css` — a neutral surface plus a 3px inset ink edge, never a
+   brand-tinted rule — and a visible focus ring keeps the keyboard path. A row
+   that cannot join a batch is dimmed and inert rather than looking pickable. */
+.expense-register-row--pickable { cursor: pointer; }
+.expense-register-row--pickable:hover { background: var(--bg-2); }
+.expense-register-table tbody tr[data-selected="true"] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }
+.expense-register-row--pickable:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.expense-register-row--locked { color: var(--fg-3); cursor: default; }
 .expense-accounting-facts, .expense-accounting-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 0; }
 .expense-accounting-facts dt, .expense-accounting-notes dt { color: var(--fg-2); margin-bottom: 4px; }
 .expense-accounting-facts dd, .expense-accounting-notes dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
@@ -62,20 +78,18 @@
 .expense-accounting-group-list > button small { color: var(--fg-2); display: block; margin-top: 4px; }
 .expense-accounting-file { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .expense-accounting-file > span { overflow-wrap: anywhere; }
-@media (max-width: 1100px) { .expense-accounting-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.expense-work-road-breakdown { margin: 0; }
+.expense-work-road-breakdown > div { display: flex; justify-content: space-between; gap: 12px; padding-block: 8px; border-bottom: 1px solid var(--line); }
+.expense-work-road-breakdown dd { margin: 0; }
 @media (max-width: 767px) {
   .expense-accounting { gap: 10px; }
-  .expense-accounting-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .expense-accounting-filters > :first-child { grid-column: 1 / -1; }
   .expense-register-table-wrap { overflow: visible; }
   .expense-register-table, .expense-register-table tbody { display: block; }
   .expense-register-table thead { display: none; }
   .expense-register-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--line); padding-block: 8px; gap: 8px; position: relative; }
   .expense-register-table td { display: block; padding: 2px 0; border: 0; text-align: start; min-width: 0; white-space: normal; }
   .expense-register-table td[data-label]::before { content: attr(data-label); display: block; color: var(--fg-2); font-size: var(--text-label-size); margin-bottom: 3px; }
-  .expense-register-table .expense-register-context, .expense-register-table .expense-work-identity, .expense-register-table .expense-work-notes { grid-column: 1 / -1; min-width: 0; max-width: none; }
-  .expense-register-table .expense-register-context { padding-inline-end: 28px; }
-  .expense-register-table .expense-register-select { position: absolute; inset-inline-end: 0; top: 8px; }
+  .expense-register-table .expense-register-context, .expense-register-table td[data-label="Khoản chi"], .expense-register-table .expense-work-identity, .expense-register-table .expense-work-notes { grid-column: 1 / -1; min-width: 0; max-width: none; }
   .expense-register-table tr[data-vehicle-start="true"] td { border-top: 0; }
   .expense-register-table .num { white-space: normal; text-align: start; }
   .expense-accounting-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-size: var(--text-label-size); }
@@ -84,7 +98,19 @@
   .expense-accounting-drawer ::-webkit-scrollbar { display: none; }
 }
 @media (pointer: coarse) {
-  .expense-register-open, .expense-register-money { min-height: var(--control-touch-h); }
-  .expense-register-select { min-width: var(--control-touch-h); min-height: var(--control-touch-h); display: grid; place-items: center; }
   .expense-accounting-check { min-height: var(--control-touch-h); }
+}
+
+/* Tablet work rows keep all three financial totals in view. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .expense-work-table-wrap { overflow: visible; }
+  .expense-work-table, .expense-work-table tbody { display: block; }
+  .expense-work-table thead { display: none; }
+  .expense-work-table tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; padding-block: 12px; border-bottom: 1px solid var(--line); }
+  .expense-work-table td { display: block; min-width: 0; padding: 0; border: 0; }
+  .expense-work-table td[data-label]::before { content: attr(data-label); display: block; color: var(--fg-2); font-size: var(--text-label-size); margin-bottom: 4px; }
+  .expense-work-table .expense-work-identity, .expense-work-table .expense-work-notes { grid-column: 1 / -1; min-width: 0; max-width: none; }
+  .expense-work-table .expense-work-notes { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .expense-work-table .num { text-align: start; white-space: normal; }
+  .expense-work-table tr[data-vehicle-start="true"] td { border-top: 0; }
 }

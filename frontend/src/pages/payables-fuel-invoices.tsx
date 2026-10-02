@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, ClipboardList, Droplets, Eye, FilePenLine, Plus, ShieldCheck, Truck, XCircle } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Droplets, FilePenLine, Plus, ShieldCheck, Truck, XCircle } from 'lucide-react';
 import { SupplierType, round2dp, type TripExpense } from '@tingting/shared';
 
 import { qk } from '../api/keys';
 import { tripClient } from '../api/tripClient';
 import { formatCurrency, formatDate, formatNumber } from '../lib/format';
 import { Panel, Modal } from '../components/UI';
+import { FuelInvoiceFilters } from '../features/payables/FuelInvoiceFilters';
 import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
 import { SortHeader } from '../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
@@ -21,43 +22,24 @@ import {
 } from '../hooks/useQueries';
 import type {
   FuelInvoice,
-  FuelInvoiceAllocation,
-  FuelInvoiceInput,
   FuelInvoiceStatus,
 } from '../api/financialClient';
+import {
+  buildForm,
+  buildFuelInvoicePayload,
+  computeCompletion,
+  emptyForm,
+  emptyRow,
+  resolveEditingInvoice,
+  toDecimal,
+  todayValue,
+  validateFuelInvoiceForm,
+  type FuelInvoiceEditorState,
+  type FuelInvoiceFormRow,
+  type FuelInvoiceFormState,
+} from './payables-fuel-invoices.logic';
 import './payables-fuel-invoices.css';
 import '../styles/table-sort.css';
-
-type FuelInvoiceFormRow = {
-  localId: string;
-  tripId: string;
-  truckId: number | null;
-  tripExpenseId: number | null;
-  voucherReference: string;
-  voucherDate: string;
-  liters: string;
-  note: string;
-};
-
-type FuelInvoiceFormState = {
-  supplierId: string;
-  invoiceNumber: string;
-  invoiceDate: string;
-  totalLiters: string;
-  unitPrice: string;
-  note: string;
-  allocations: FuelInvoiceFormRow[];
-};
-
-type CompletionSummary = {
-  totalLiters: number;
-  allocatedLiters: number;
-  remainingLiters: number;
-  totalAmount: number;
-  allocatedAmount: number;
-  remainingAmount: number;
-  isComplete: boolean;
-};
 
 const STATUS_META: Record<FuelInvoiceStatus, { label: string; className: string; icon: typeof ClipboardList }> = {
   DRAFT: { label: 'Bản nháp', className: 'fuel-invoice-status fuel-invoice-status--pending', icon: ClipboardList },
@@ -68,105 +50,6 @@ const STATUS_META: Record<FuelInvoiceStatus, { label: string; className: string;
   APPROVED: { label: 'Đã ghi nhận (lịch sử)', className: 'fuel-invoice-status fuel-invoice-status--approved', icon: CheckCircle2 },
   REJECTED: { label: 'Từ chối (lịch sử)', className: 'fuel-invoice-status fuel-invoice-status--rejected', icon: XCircle },
 };
-
-const STATUS_OPTIONS: Array<{ value: '' | FuelInvoiceStatus; label: string }> = [
-  { value: '', label: 'Tất cả trạng thái' },
-  { value: 'DRAFT', label: 'Bản nháp' },
-  { value: 'RECORDED', label: 'Đã ghi nhận' },
-  { value: 'VOIDED', label: 'Đã hủy' },
-  { value: 'REVERSED', label: 'Đã hoàn tác' },
-];
-
-let rowSequence = 0;
-
-function nextRowId() {
-  rowSequence += 1;
-  return `fuel-allocation-${rowSequence}`;
-}
-
-function todayValue() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function emptyRow(date = todayValue()): FuelInvoiceFormRow {
-  return {
-    localId: nextRowId(),
-    tripId: '',
-    truckId: null,
-    tripExpenseId: null,
-    voucherReference: '',
-    voucherDate: date,
-    liters: '',
-    note: '',
-  };
-}
-
-function emptyForm(): FuelInvoiceFormState {
-  const date = todayValue();
-  return {
-    supplierId: '',
-    invoiceNumber: '',
-    invoiceDate: date,
-    totalLiters: '',
-    unitPrice: '',
-    note: '',
-    allocations: [emptyRow(date)],
-  };
-}
-
-function buildForm(invoice: FuelInvoice): FuelInvoiceFormState {
-  return {
-    supplierId: String(invoice.supplierId),
-    invoiceNumber: invoice.invoiceNumber,
-    invoiceDate: invoice.invoiceDate.slice(0, 10),
-    totalLiters: String(invoice.totalLiters),
-    unitPrice: String(invoice.unitPrice),
-    note: invoice.note ?? '',
-    allocations: (invoice.allocations?.length ? invoice.allocations : [emptyRow(invoice.invoiceDate)]).map((allocation) => ({
-      localId: nextRowId(),
-      tripId: String(allocation.tripId),
-      truckId: allocation.truckId ?? null,
-      tripExpenseId: allocation.tripExpenseId ?? null,
-      voucherReference: allocation.voucherReference,
-      voucherDate: allocation.voucherDate.slice(0, 10),
-      liters: String(allocation.liters),
-      note: allocation.note ?? '',
-    })),
-  };
-}
-
-function toDecimal(value: string | number | null | undefined): number {
-  if (value == null || value === '') return 0;
-  const number = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
-function computeCompletion(
-  totalLitersInput: string | number,
-  unitPriceInput: string | number,
-  allocations: Array<Pick<FuelInvoiceAllocation, 'liters' | 'amount'>> | FuelInvoiceFormRow[],
-): CompletionSummary {
-  const totalLiters = round2dp(toDecimal(totalLitersInput));
-  const unitPrice = round2dp(toDecimal(unitPriceInput));
-  const allocatedLiters = round2dp(allocations.reduce((sum, allocation) => sum + toDecimal(allocation.liters), 0));
-  const totalAmount = round2dp(totalLiters * unitPrice);
-  const allocatedAmount = round2dp(allocations.reduce((sum, allocation) => {
-    const explicitAmount = 'amount' in allocation ? toDecimal(allocation.amount) : NaN;
-    if (Number.isFinite(explicitAmount) && explicitAmount > 0) return sum + explicitAmount;
-    return sum + round2dp(toDecimal(allocation.liters) * unitPrice);
-  }, 0));
-  const remainingLiters = round2dp(totalLiters - allocatedLiters);
-  const remainingAmount = round2dp(totalAmount - allocatedAmount);
-  return {
-    totalLiters,
-    allocatedLiters,
-    remainingLiters,
-    totalAmount,
-    allocatedAmount,
-    remainingAmount,
-    isComplete: round2dp(remainingLiters) === 0 && round2dp(remainingAmount) === 0,
-  };
-}
 
 function supplierNameFor(invoice: FuelInvoice, suppliersById: Map<number, string>) {
   return suppliersById.get(invoice.supplierId) ?? 'Nhà cung cấp không còn trong danh mục';
@@ -639,7 +522,7 @@ export function FuelInvoicesPanel() {
   const [sort, setSort] = useState<TableSortState | null>(null);
   const handleSortChange = (key: string) => setSort(current => nextTableSort(current, key));
   const [detailInvoiceId, setDetailInvoiceId] = useState<number | null>(null);
-  const [editorState, setEditorState] = useState<{ mode: 'create' | 'edit'; invoiceId: number | null } | null>(null);
+  const [editorState, setEditorState] = useState<FuelInvoiceEditorState>(null);
   const [form, setForm] = useState<FuelInvoiceFormState>(emptyForm);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -737,70 +620,31 @@ export function FuelInvoicesPanel() {
     const totalLiters = Number(form.totalLiters);
     const unitPrice = Number(form.unitPrice);
 
-    if (!supplierId || !form.invoiceNumber.trim() || !form.invoiceDate || !Number.isFinite(totalLiters) || totalLiters <= 0 || !Number.isFinite(unitPrice) || unitPrice <= 0) {
-      setSubmitError('Vui lòng nhập đủ nhà cung cấp, số hóa đơn, ngày hóa đơn, tổng lít và đơn giá.');
+    const validationError = validateFuelInvoiceForm(form, editorCompletion);
+    if (validationError) {
+      setSubmitError(validationError);
       return;
     }
 
-    for (const row of form.allocations) {
-      const hasAnyValue = row.tripId || row.voucherReference.trim() || row.liters;
-      if (!hasAnyValue) continue;
-      if (!row.tripId || !row.voucherReference.trim() || !row.voucherDate || !Number.isFinite(Number(row.liters)) || Number(row.liters) <= 0 || row.tripExpenseId == null) {
-        setSubmitError('Mỗi dòng phân bổ phải có chuyến, phiếu đổ dầu, ngày đổ, số lít thực tế và chi phí nhiên liệu đã ghi nhận làm căn cứ.');
-        return;
-      }
-    }
+    const payload = buildFuelInvoicePayload(form, supplierId, totalLiters, unitPrice);
 
-    if (!editorCompletion.isComplete) {
-      setSubmitError(`Tổng lít phân bổ ${formatNumber(editorCompletion.allocatedLiters)} phải khớp số lít hóa đơn ${formatNumber(editorCompletion.totalLiters)}.`);
-      return;
-    }
-
-    const payload: FuelInvoiceInput = {
-      supplierId,
-      invoiceNumber: form.invoiceNumber.trim(),
-      invoiceDate: form.invoiceDate,
-      totalLiters,
-      unitPrice,
-      note: form.note.trim() || undefined,
-      allocations: form.allocations
-        .filter((row) => row.tripId && row.voucherReference.trim() && row.liters)
-        .map((row) => ({
-          tripId: Number(row.tripId),
-          truckId: row.truckId,
-          tripExpenseId: row.tripExpenseId,
-          voucherReference: row.voucherReference.trim(),
-          voucherDate: row.voucherDate,
-          liters: Number(row.liters),
-          note: row.note.trim() || undefined,
-        })),
-    };
-
-    const editingInvoice = editorState?.mode === 'edit' && editorState.invoiceId != null
-      ? detailQuery.data?.id === editorState.invoiceId
-        ? detailQuery.data
-        : null
-      : null;
+    const editingInvoice = resolveEditingInvoice(editorState, detailQuery.data);
     if (editorState?.mode === 'edit' && !editingInvoice) {
       setSubmitError('Không tải được phiên bản hiện tại của hóa đơn. Vui lòng mở lại chi tiết trước khi lưu.');
       return;
     }
 
     try {
-      let response;
-      if (editorState?.mode === 'edit' && editorState.invoiceId != null) {
-        if (!editingInvoice) {
-          setSubmitError('Không tải được phiên bản hiện tại của hóa đơn. Vui lòng mở lại chi tiết trước khi lưu.');
-          return;
-        }
-        response = await updateMutation.mutateAsync({
-          id: editorState.invoiceId,
+      // `resolveEditingInvoice` returns a row only when its id equals
+      // `editorState.invoiceId`, so that id is the update target; anything else
+      // is a create. The old inner re-check of that invariant was unreachable.
+      const response = editingInvoice
+        ? await updateMutation.mutateAsync({
+          id: editingInvoice.id,
           data: payload,
           expectedVersion: editingInvoice.version,
-        });
-      } else {
-        response = await createMutation.mutateAsync(payload);
-      }
+        })
+        : await createMutation.mutateAsync(payload);
       setEditorState(null);
       setActionNotice('Đã ghi nhận hóa đơn. Thanh toán nhà cung cấp được ghi riêng.');
       setDetailInvoiceId(response.id);
@@ -830,41 +674,19 @@ export function FuelInvoicesPanel() {
           <FuelInvoiceSummaryMetric icon={Truck} label="Giá trị hóa đơn" value={formatCurrency(summary.totalAmount)} />
         </div>
 
-        <div className="fuel-invoices-toolbar">
-          <div className="payables-toolbar__search fuel-invoices-toolbar__search">
-            <Eye size={14} aria-hidden="true" style={{ color: 'var(--ink-3)' }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Tìm theo số hóa đơn hoặc nhà cung cấp…"
-              aria-label="Tìm hóa đơn nhiên liệu"
-            />
-          </div>
-          <UuiSelectField
-            label="Lọc nhà cung cấp nhiên liệu"
-            hideLabel
-            value={supplierFilter}
-            onChange={(event) => setSupplierFilter(event.target.value)}
-            aria-label="Lọc nhà cung cấp nhiên liệu"
-            options={[{ value: '', label: 'Tất cả nhà cung cấp nhiên liệu' }, ...suppliers
-              .slice()
-              .sort((left, right) => left.name.localeCompare(right.name, 'vi'))
-              .map((supplier) => ({ value: String(supplier.id), label: supplier.name }))]}
-            inline
-            controlClassName="fuel-invoices-toolbar__select"
-          />
-          <UuiSelectField
-            label="Lọc trạng thái hóa đơn nhiên liệu"
-            hideLabel
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as FuelInvoiceStatus | '')}
-            aria-label="Lọc trạng thái hóa đơn nhiên liệu"
-            options={STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
-            inline
-            controlClassName="fuel-invoices-toolbar__select"
-          />
-        </div>
+        {/* Card 20260927_152: the ONE shared strip — the search cell plus the
+            supplier/status criteria, which render inline while the strip fits
+            two rows and fold into `Bộ lọc` when the width leaves no other
+            choice. The panel declares no filter layout of its own. */}
+        <FuelInvoiceFilters
+          search={search}
+          onSearchChange={setSearch}
+          supplier={supplierFilter}
+          onSupplierChange={setSupplierFilter}
+          status={statusFilter}
+          onStatusChange={setStatusFilter}
+          suppliers={suppliers}
+        />
 
         {invoicesQuery.error && (
           <div className="fuel-invoice-warning fuel-invoice-warning--error" role="alert">

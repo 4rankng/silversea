@@ -32,9 +32,8 @@
 }
 .pnl-row--subtotal { background: var(--surface-2); border-top: 1px solid var(--line); font-weight: 600; }
 .pnl-row--final {
-  background: var(--accent-soft);
-  border-top: 2px solid var(--accent);
-  border-bottom: 2px solid var(--accent);
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
 }
 .pnl-row__label { font-size: var(--fs-sm); color: var(--ink); }
 .pnl-row__label-sub { font-size: var(--fs-2xs); color: var(--ink-3); font-family: var(--font-data); margin-top: 2px; }
@@ -45,11 +44,26 @@
   font-weight: 700;
   font-size: var(--fs-xl);
   letter-spacing: 0;
-  color: var(--accent);
+}
+.pnl-row--profit-total {
+  --profit-tone: var(--ink);
+  background: var(--surface-2);
+}
+.pnl-row--profit-total[data-profit-state='profit'] {
+  --profit-tone: var(--success-text);
+  background: var(--success-soft);
+}
+.pnl-row--profit-total[data-profit-state='loss'] {
+  --profit-tone: var(--danger);
+  background: var(--danger-soft);
+}
+.pnl-row--profit-total :is(.pnl-row__label, .pnl-row__amount) {
+  color: var(--profit-tone);
+  font-weight: 700;
 }
 .pnl-row__yoy { font-family: var(--font-data); font-size: var(--fs-xs); color: var(--ink-3); text-align: right; }
 .pnl-row__pct { text-align: right; font-family: var(--font-data); font-size: var(--fs-xs); font-weight: 600; }
-.pnl-row__pct--up { color: var(--accent); }
+.pnl-row__pct--up { color: var(--success-text); }
 .pnl-row__pct--down { color: var(--danger); }
 
 .pnl-head {
@@ -207,14 +221,14 @@
 .truck-card__bar-track {
   height: 4px;
   border-radius: 2px;
-  background: var(--border);
+  background: var(--line);
   overflow: hidden;
   margin-bottom: 6px;
 }
 .truck-card__bar-fill {
   height: 100%;
   border-radius: 2px;
-  transition: width 0.3s ease;
+  transition: width var(--t-slow);
 }
 .truck-card__bar-fill--up { background: var(--brand); }
 .truck-card__bar-fill--down { background: var(--danger); }
@@ -227,7 +241,7 @@
 
 .truck-expand-icon {
   flex: 0 0 auto;
-  transition: transform 160ms ease;
+  transition: transform var(--t-normal);
 }
 [aria-expanded='true'] .truck-expand-icon { transform: rotate(180deg); }
 
@@ -235,7 +249,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   padding: 0;
   border: 0;
   color: inherit;
@@ -250,7 +264,7 @@
   font-style: normal;
   font-weight: 500;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--t-fast);
 }
 .truck-summary-row:hover .truck-row-toggle__hint,
 .truck-summary-row.is-expanded .truck-row-toggle__hint,
@@ -326,18 +340,18 @@
   gap: 4px;
   width: max-content;
   padding: 3px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--text-caption-size);
   font-weight: 700;
   white-space: nowrap;
 }
 .cost-check--ok { color: var(--success); background: var(--success-soft); }
-.cost-check--warning { color: var(--warning, #b45309); background: var(--warning-soft, #fef3c7); }
+.cost-check--warning { color: var(--warning); background: var(--warning-soft); }
 .truck-maintenance-note {
   position: relative;
   margin-top: 10px;
   padding: 9px 11px;
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--surface-2);
   color: var(--fg-2);
   font-size: var(--fs-xs);
@@ -439,7 +453,7 @@
 
 /* Revenue area chart — path entrance */
 .finance-revenue-svg path {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--t-slow);
 }
 .finance-revenue-svg circle {
   transition: r 0.15s ease, filter 0.15s ease;
@@ -500,18 +514,18 @@
  * ========================================================================== */
 .dash-wf {
   --wf-bg: #EFF2F0;
-  --wf-card: #FFFFFF;
+  --wf-card: var(--surface);
   --wf-border: #E5E9E7;
   --wf-border-2: #DCE2DF;
   --wf-ink: #0E1F16;
   --wf-ink-2: #56655C;
   --wf-ink-3: #8A988F;
-  --wf-green: #005A2D;
+  --wf-green: var(--brand);
   --wf-green-700: #0A6E3A;
   --wf-green-500: #16A34A;
   --wf-green-soft: #E7F2EC;
-  --wf-blue: #2563EB;
-  --wf-blue-soft: #E8EFFD;
+  --wf-blue: var(--info-text);
+  --wf-blue-soft: var(--info-soft);
   --wf-amber: #C2780B;
   --wf-amber-soft: #FBF1DE;
   --wf-red: #C7372F;
@@ -530,7 +544,7 @@
   overflow: hidden;
   min-width: 0;
   position: relative;
-  transition: background 160ms ease, border-color 160ms ease;
+  transition: background var(--t-normal), border-color var(--t-normal);
 }
 .dash-wf .wf-card:hover {
   border-color: var(--wf-border-2);
@@ -544,7 +558,7 @@
   display: flex;
   gap: 20px;
   padding: 12px 14px 10px;
-  border-bottom: 1px solid var(--wf-line, #EEF1EF);
+  border-bottom: 1px solid var(--line);
   background: var(--wf-bg, #F8FAF9);
   border-radius: 8px 8px 0 0;
 }
@@ -593,7 +607,7 @@
   background: var(--wf-card);
 }
 .dash-wf .wf-chart-toggle__btn {
-  min-height: 45px;
+  min-height: var(--control-max-h);
   padding: 8px 14px;
   font-family: var(--font-body);
   font-size: var(--fs-xs);
@@ -602,9 +616,9 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--t-fast), color var(--t-fast);
   line-height: 1.4;
-  min-height: 45px;
+  min-height: var(--control-max-h);
 }
 .dash-wf .wf-chart-toggle__btn:hover {
   color: var(--wf-ink);

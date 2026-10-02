@@ -26,6 +26,7 @@ const mockRow: DispatchDetailPlanRow = {
     assignedPlate: '15C-167.31',
   },
   estimates: { plannedRevenue: null, plannedCarrierCost: null },
+  plannedEndAt: null,
   classification: 'SINGLE',
   ports: { pickupPortId: null, pickupPortName: null, pickupPortShortName: null, dropoffPortId: null, dropoffPortName: null, dropoffPortShortName: null },
   lotFullyPlated: true,

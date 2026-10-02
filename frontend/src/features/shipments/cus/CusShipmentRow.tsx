@@ -6,10 +6,6 @@
 // the non-button trigger wrapper.
 
 import {
-  ChevronRight,
-  Trash2,
-} from 'lucide-react';
-import {
   SHIPMENT_STATUS_LABELS,
   ShipmentCusBucket,
   type ShipmentCusWorkspaceListItem,
@@ -37,6 +33,29 @@ import {
   type ShipmentQuickEditDraft,
 } from './cusUtils';
 import { formatDateTimeShort } from '../../../lib/format';
+import type { LedgerColumn } from '../../../lib/column-visibility';
+
+/**
+ * The workboard's columns in table order (card 20260928_193). The row owns the
+ * keys because the row owns the cells they name — the page reads this list to
+ * build the `<colgroup>`, the header and the picker, so the three can never
+ * disagree about what exists.
+ *
+ * `customer` (the row's identity, rendered as `th[scope=row]`) and `status` (the
+ * row's ONLY action — `Chi tiết`) are pinned: hiding either costs the row its
+ * context or its only way out (card 20260917_4 AC 3). `notes` declares the
+ * auto-hide rule the source card asks for: hidden by default only while every
+ * rendered row's note cell is empty.
+ */
+export const CUS_ROW_COLUMNS: readonly LedgerColumn[] = [
+  { key: 'customer', label: 'Khách hàng & nhà máy', pinned: true },
+  { key: 'documents', label: 'Chứng từ' },
+  { key: 'classification', label: 'Phân loại & hãng tàu' },
+  { key: 'cargo', label: 'Tổng quan hàng hóa' },
+  { key: 'schedule', label: 'Lịch trình & điều xe' },
+  { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
+  { key: 'status', label: 'Trạng thái', pinned: true },
+];
 
 export interface CusShipmentRowProps {
   item: ShipmentCusWorkspaceListItem;
@@ -47,18 +66,23 @@ export interface CusShipmentRowProps {
   /** Any draft is open — every other row's triggers disable while editing. */
   quickEditOpen: boolean;
   savingQuickEdit: boolean;
+  /** Keys the picker is hiding (empty = render every cell). */
+  hiddenColumns?: readonly string[];
   onStartQuickEdit: (item: ShipmentCusWorkspaceListItem, field: ShipmentQuickEditDraft['field']) => void;
-  onOpenAction: (item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen' | 'delete') => void;
   onOpenDetail: (shipmentId: number) => void;
 }
 
 export function CusShipmentRow({
-  item, dateFrom, dateTo, editing, quickEditOpen, savingQuickEdit,
-  onStartQuickEdit, onOpenAction, onOpenDetail,
+  item, dateFrom, dateTo, editing, quickEditOpen, savingQuickEdit, hiddenColumns = [],
+  onStartQuickEdit, onOpenDetail,
 }: CusShipmentRowProps) {
+  const isHidden = (key: string) => hiddenColumns.includes(key);
   const identity = item.billOrBookNumber || item.declarationNumber || item.customerName || 'lô hàng';
+  // Card 20260921_3: the Chứng từ cell shows EVERY tờ khai of the lot, joined
+  // exactly like the XLSX debit export; older wire payloads fall back to the
+  // single number.
+  const declarationNumbers = item.declarationNumbers ?? (item.declarationNumber ? [item.declarationNumber] : []);
   const primarySignal = derivePrimaryShipmentSignal(item, ['schedule']);
-  const PrimarySignalIcon = primarySignal?.icon;
   const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
   const customerNoteLines = noteLines(item.customerNotes);
   const operationalNoteLines = noteLines(item.operationalNotes);
@@ -75,11 +99,18 @@ export function CusShipmentRow({
     : '';
   const hasDateFilter = Boolean(dateFrom || dateTo);
   const lotScheduleValue = scheduleTimestamp(item);
+
+  // Law §1 (2026-09-22): a missing value is named once, not printed twice.
+  // The cargo cell already says "Chưa có hàng hóa" for a lot that carries no
+  // measurement at all, so the metric line underneath must not render a bare
+  // "— kg" beside that name. One predicate drives both the density flag and
+  // the suppression so the two cannot drift apart again.
+  const cargoMetricsMissing = item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm);
   const groupsToShow = hasDateFilter ? filteredGroups : item.appointmentGroups;
   const scheduleContent = <>
     {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
     {groupsToShow.map((group) => (
-      <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
+      <span key={`${group.at}-${group.factoryName ?? ''}`}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
     ))}
     {/* Card 20260915_35 (lead ruling: fork a): the "Chỉnh sửa Lịch trình" dialog
         writes the SHIPMENT-level closingAt/plannedReturnAt, but for FCL lots the
@@ -104,29 +135,34 @@ export function CusShipmentRow({
     >
       <th scope="row" data-label="Khách hàng & nhà máy" className="cus-dashboard-cell--editable cus-dashboard-cell--identity">
         <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
-        <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => onStartQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
+        <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" data-cell-short="Khách hàng" disabled={(item.cargoMode !== 'FCL' && item.fieldAccess.factoryName.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.cargoMode === 'FCL' ? 'Xem và chỉnh nhà máy theo từng container' : item.fieldAccess.factoryName.reason} onClick={() => onStartQuickEdit(item, 'identity')} aria-haspopup={item.cargoMode === 'FCL' ? undefined : 'dialog'} aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
           <strong className={`cus-customer-name${item.customerName ? '' : ' cus-empty'}`}>{item.customerName || '—'}{item.raw.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}</strong>
-          <span className={item.effectiveFactoryNames.length > 0 || item.factoryName ? undefined : 'cus-empty'}>{item.effectiveFactoryNames.length > 0
+          <span title={[...item.effectiveFactoryNames, item.factoryName].find(Boolean) || 'Chưa có nhà máy'} className={item.effectiveFactoryNames.length > 0 || item.factoryName ? undefined : 'cus-empty'}>{item.effectiveFactoryNames.length > 0
             ? item.effectiveFactoryNames.join(' + ')
             : item.factoryName || 'Chưa có nhà máy'}</span>
-          <span className={item.routeName || item.deliveryLocation ? undefined : 'cus-empty'}>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
+          <span title={item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'} className={item.routeName || item.deliveryLocation ? undefined : 'cus-empty'}>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
         </span></button>
       </th>
-      <td data-label="Chứng từ" className="cus-dashboard-cell--editable">
+      {!isHidden('documents') && (<td data-label="Chứng từ" className="cus-dashboard-cell--editable">
         <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' && item.fieldAccess.declarationNumber.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => onStartQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
           <strong className={item.billOrBookNumber ? undefined : 'cus-empty'}>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
-          <span className={item.declarationNumber ? undefined : 'cus-empty'}>{item.declarationNumber || 'Chưa có tờ khai'}</span>
+          <span className={declarationNumbers.length > 0 ? undefined : 'cus-empty'}>{declarationNumbers.length > 0 ? declarationNumbers.join(', ') : 'Chưa có tờ khai'}</span>
         </span></button>
-      </td>
-      <td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">
-        <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => onStartQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell cus-classification">
+      </td>)}
+      {!isHidden('classification') && (<td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">
+        <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" data-cell-short="Phân loại" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => onStartQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell cus-classification">
           <span className={item.shippingLineName ? 'cus-classification__shipping-line' : 'cus-classification__shipping-line cus-empty'}>{item.shippingLineName || 'Chưa có hãng tàu'}</span>
           {item.isCombined && <span className="cus-combined-tag">Đóng kết hợp</span>}
-          <span className={`cus-direction-badge cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}`}>{directionLabel(item.direction)}</span>
+          {/* No direction yet means no badge at all: a filled pill holding a
+              bare '—' was chrome (and a generic placeholder) inside a data
+              cell — design law §1 (text-only cells, name the missing field). */}
+          {item.direction && (
+            <span className={`cus-direction-badge cus-direction-badge--${item.direction.toLowerCase()}`}>{directionLabel(item.direction)}</span>
+          )}
         </span></button>
-      </td>
-      <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
-        <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => onStartQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
+      </td>)}
+      {!isHidden('cargo') && (<td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
+        <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" data-cell-short="Hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => onStartQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
           {(() => {
             // Customer feedback L2 — when a date filter is
             // active, show the per-day cont count instead of
@@ -141,39 +177,49 @@ export function CusShipmentRow({
             if (hasDateFilter && !summary) {
               return <span className="cus-cargo-summary__containers cus-empty">Không có cont chạy ngày đã chọn</span>;
             }
-            return <strong className="cus-cargo-summary__containers">{worksheetQuantity(item)}</strong>;
+            const quantity = worksheetQuantity(item);
+            // Density + the text-only-cell law: when the card knows NOTHING about
+            // the cargo, name the missing fact once instead of printing two em
+            // dashes ("—" beside "— kg") on the dense fact row.
+            if (quantity === '—' && item.cargoMode !== 'LCL' && item.weightKg == null) {
+              return <span className="cus-cargo-summary__containers cus-empty">Chưa có hàng hóa</span>;
+            }
+            return <strong className="cus-cargo-summary__containers">{quantity}</strong>;
           })()}
-          <span className={item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm) ? 'cus-cargo-summary__metrics cus-empty' : 'cus-cargo-summary__metrics'}>
-            <span className="cus-cargo-summary__weight">
-              {item.cargoMode === 'LCL'
-                ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
-                : `${formatQuantity(item.weightKg)} kg`}
+          {!cargoMetricsMissing && (
+            <span className="cus-cargo-summary__metrics">
+              <span className="cus-cargo-summary__weight">
+                {item.cargoMode === 'LCL'
+                  ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
+                  : `${formatQuantity(item.weightKg)} kg`}
+              </span>
             </span>
-          </span>
+          )}
         </span></button>
-      </td>
-      <td data-label="Lịch trình & điều xe" className={item.cargoMode === 'LCL' ? 'cus-dashboard-cell--editable' : 'cus-dashboard-cell--readonly'}>
+      </td>)}
+      {!isHidden('schedule') && (<td data-label="Lịch trình & điều xe" className={item.cargoMode === 'LCL' ? 'cus-dashboard-cell--editable' : 'cus-dashboard-cell--readonly'}>
         {item.cargoMode === 'LCL' ? (
           <button
             id={`cus-inline-schedule-${item.id}`}
             type="button"
             className="cus-inline-trigger"
             data-cell-label="Lịch trình & điều xe"
+            data-cell-short="Lịch trình"
             disabled={!item.operational.transportDateEditable || quickEditOpen || savingQuickEdit}
             aria-haspopup="dialog"
             aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
             onClick={() => onStartQuickEdit(item, 'schedule')}
           >{scheduleContent}</button>
-        ) : <div className="cus-inline-trigger cus-inline-trigger--readonly" data-cell-label="Lịch trình & điều xe">{scheduleContent}</div>}
-      </td>
-      <td data-label="Ghi chú" className={`cus-dashboard-cell--editable${hasNotes ? '' : ' cus-dashboard-cell--empty-notes'}`}>
+        ) : <div className="cus-inline-trigger cus-inline-trigger--readonly" data-cell-label="Lịch trình & điều xe" data-cell-short="Lịch trình">{scheduleContent}</div>}
+      </td>)}
+      {!isHidden('notes') && (<td data-label="Ghi chú" className={`cus-dashboard-cell--editable${hasNotes ? '' : ' cus-dashboard-cell--empty-notes'}`}>
         <button
           id={`cus-inline-notes-${item.id}`}
           type="button"
           className="cus-inline-trigger cus-note-preview"
           data-cell-label="Ghi chú"
           title={[item.customerNotes, item.operationalNotes].filter(Boolean).join('\n') || undefined}
-          disabled={!item.operational.transportDateEditable || quickEditOpen || savingQuickEdit}
+          disabled={((item.fieldAccess.customerNotes.mode === 'READ_ONLY' && item.fieldAccess.operationalNotes.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit)}
           aria-haspopup="dialog"
           aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
           onClick={() => onStartQuickEdit(item, 'notes')}
@@ -184,38 +230,43 @@ export function CusShipmentRow({
           {operationalNoteLines.length > 0 && <span className="cus-note-internal cus-note-clamp">{operationalNoteLines.join('\n')}</span>}
           {!hasNotes && <span className="cus-note-preview__customer cus-note-preview__customer--empty">Thêm ghi chú</span>}
         </button>
-      </td>
+      </td>)}
       <td data-label="Trạng thái">
         <div className="cus-row-actions">
-          <div className="cus-row-actions__summary">
-            <WorkflowBadge item={item} />
-            {primarySignal && PrimarySignalIcon && <span className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}><PrimarySignalIcon size={13} aria-hidden="true" /> {primarySignal.label}</span>}
+          {/* Card 20260924_21 (BATCH A, item 8): split the compound cell so the
+              lifecycle state and the missing-data warning occupy SEPARATE
+              slots per §1 "One concept, one place per row". The badge owns
+              the status slot; the signal (when present) owns a dedicated
+              slot beneath it. The detail-action buttons stay beside the
+              status slot, visually attached to the badge they describe. */}
+          <div className="cus-row-actions__status">
+            <span className="cus-row-actions__lifecycle">
+              <WorkflowBadge item={item} />
+            </span>
+            {primarySignal && (
+              <span
+                className={`cus-row-actions__signal cus-attention-label cus-attention-label--${primarySignal.tone}`}
+                title={primarySignal.label}
+              >
+                {/* Card 20260922_27 (operator): TEXT ONLY in data cells — the
+                    decorative icon is gone; the label carries the meaning. */}
+                <span className="cus-attention-label__text">{primarySignal.label}</span>
+              </span>
+            )}
           </div>
           <div className="cus-row-actions__buttons">
-            {item.operational.deletable && (
-              <UUIButton
-                size="sm"
-                color="secondary"
-                className="cus-dashboard-delete"
-                aria-label={`Xóa lô hàng ${identity}`}
-                onPress={() => onOpenAction(item, 'delete')}
-                isDisabled={editing}
-                iconLeading={<Trash2 size={16} aria-hidden="true" />}
-              >
-                Xóa
-              </UUIButton>
-            )}
+            {/* Card 20260923_1 (operator ruling): the row's detail action is a
+                text-only link button — no chevron, no trash, no pill chrome. */}
             <UUIButton
               id={'cus-dashboard-detail-' + item.id}
               size="sm"
-              color="tertiary"
+              color="link-color"
               className="cus-dashboard-detail"
               aria-haspopup="dialog"
               aria-controls={'cus-detail-drawer-' + item.id}
               aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + (item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel)}
               onPress={() => onOpenDetail(item.id)}
               isDisabled={editing}
-              iconTrailing={ChevronRight}
             >
               Chi tiết
             </UUIButton>

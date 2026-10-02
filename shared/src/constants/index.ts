@@ -9,7 +9,7 @@ export enum TripStatus {
  *  (giấy báo nợ) and carrier payment statements.
  *
  *  `COMPLETED` is the single terminal / posting state (O2C reconciliation, 01/08/2026 —
- *  `docs/prd/O2C dev.md`). Revenue/AP posts via `postTripCompletion` on the
+ *  `docs/prd/QuyTrinhO2C.md`). Revenue/AP posts via `postTripCompletion` on the
  *  `IN_TRANSIT → COMPLETED` transition, carrying the migrated photo / zero-revenue /
  *  e-POD gates. The former `LOCKED` milestone has been dropped: costs stay editable
  *  after completion (no hard-freeze); an AR snapshot + dirty-flag on `trips` surfaces
@@ -155,11 +155,11 @@ export const TRIP_POD_REQUIRED_FILE_TYPES = [
 ] as const;
 
 /** M8.4 — driver incidental cost types (out-of-pocket expenses).
- *  27.8 spec additions: WAREHOUSE_FEE (Phí chi kho), LIFT_DROP_LACH_HUYEN
+ *  27.8 spec additions: WAREHOUSE_FEE (Phí chi kho), LIFT_DROP_ZONE
  *  (read-only 50.000đ default for Lạch Huyện), ROAD_ALLOWANCE (auto from
  *  `trips.totalRoadAllowance`, read-only), and the "Chi phí khác" sub-options
  *  CONTAINER_WASH (Rửa cont) / CONTAINER_WELD (Hàn cont) / TIRE_WEIGH (Cân lốp).
- *  The three LIFT_DROP_LACH_HUYEN / ROAD_ALLOWANCE / TIRE_WEIGH rows are
+ *  The three LIFT_DROP_ZONE / ROAD_ALLOWANCE / TIRE_WEIGH rows are
  *  read-only on the driver form — they're seeded server-side (Lạch Huyện
  *  default + DB-driven Tiền đường) and only a backend re-compute can change
  *  them. The spec calls for "hệ thống tự động ghi nhận" / "không được điền
@@ -172,7 +172,7 @@ export enum DriverIncidentalCostType {
   WAREHOUSE_FEE = 'WAREHOUSE_FEE',
   /** Phí nâng/hạ Lạch Huyện — read-only 50.000đ default when route touches
    *  Lạch Huyện (27.8). Seeded server-side, not editable by the driver. */
-  LIFT_DROP_LACH_HUYEN = 'LIFT_DROP_LACH_HUYEN',
+  LIFT_DROP_ZONE = 'LIFT_DROP_ZONE',
   /** Tiền đường — auto from `trips.totalRoadAllowance` (27.8). Read-only. */
   ROAD_ALLOWANCE = 'ROAD_ALLOWANCE',
   PARKING = 'PARKING',
@@ -191,7 +191,7 @@ export const DRIVER_INCIDENTAL_COST_LABELS: Record<DriverIncidentalCostType, str
   [DriverIncidentalCostType.LIFT_FEE]: 'Phí nâng',
   [DriverIncidentalCostType.DROP_FEE]: 'Phí hạ',
   [DriverIncidentalCostType.WAREHOUSE_FEE]: 'Phí chi kho',
-  [DriverIncidentalCostType.LIFT_DROP_LACH_HUYEN]: 'Phí nâng/hạ Lạch Huyện',
+  [DriverIncidentalCostType.LIFT_DROP_ZONE]: 'Phí nâng/hạ theo vùng',
   [DriverIncidentalCostType.ROAD_ALLOWANCE]: 'Tiền đường',
   [DriverIncidentalCostType.PARKING]: 'Phí đậu xe',
   [DriverIncidentalCostType.TOLL]: 'Phí cầu đường',
@@ -203,7 +203,7 @@ export const DRIVER_INCIDENTAL_COST_LABELS: Record<DriverIncidentalCostType, str
 } as const;
 
 /** Cost types the driver can pick from the form. Read-only auto rows
- *  (LIFT_DROP_LACH_HUYEN, ROAD_ALLOWANCE) are seeded server-side and only
+ *  (LIFT_DROP_ZONE, ROAD_ALLOWANCE) are seeded server-side and only
  *  shown in the read-only banner; they never appear in this picker. FUEL is
  *  excluded because it has its own FuelRefillReportForm. */
 export const DRIVER_EDITABLE_COST_TYPES: readonly DriverIncidentalCostType[] = [
@@ -230,6 +230,67 @@ export const CHI_PHI_KHAC_SUBOPTIONS: Array<{
   { value: DriverIncidentalCostType.TIRE_WEIGH, label: 'Cân lốp' },
   { value: DriverIncidentalCostType.OTHER, label: 'Khác' },
 ] as const;
+
+/** Card 20260928_163 — the driver lot-cost family's CATALOG refs. Classification
+ *  is the catalog's (`forwarder_expense_types.requires_invoice`), never "did the
+ *  driver type an invoice number": the driver form sends `expenseTypeCode` and the
+ *  server reads the row. `invoiced` mirrors `requires_invoice`, and the form shows
+ *  (and requires) Số hóa đơn only for an invoiced row — so a no-invoice item can
+ *  never be pushed into phải thu khách hàng (card 20260928_164 AC2).
+ *
+ *  The invoiced refs are the canonical ops/chi-hộ codes — FEE_CLEANING 'Phí vệ
+ *  sinh', YARD_STORAGE 'Phí lưu bãi', FEE_WAREHOUSE 'Phí lưu kho' — plus the
+ *  container pair LIFTING/LOWERING. The card-6 twins SANITATION/STORAGE_FEE were
+ *  duplicate display names of the first two (two identical dropdown labels, case
+ *  QA-2026-09-25-01) and are retired by migration 20260928_duplicate_fee_codes.
+ *
+ *  backend/src/tests/card6-driver-lot-cost-classification.test.ts pins this table
+ *  against the live catalog rows, so a drift goes red instead of shipping.
+ */
+export const DRIVER_LOT_COST_EXPENSE_TYPES: ReadonlyArray<{ code: string; invoiced: boolean }> = [
+  { code: 'LIFTING', invoiced: true },
+  { code: 'LOWERING', invoiced: true },
+  { code: 'FEE_CLEANING', invoiced: true },
+  { code: 'YARD_STORAGE', invoiced: true },
+  { code: 'FEE_WAREHOUSE', invoiced: true },
+  { code: 'WAREHOUSE_LABOR', invoiced: false },
+  { code: 'CONTAINER_WELD', invoiced: false },
+  { code: 'TIRE_WEIGH', invoiced: false },
+  { code: 'CONTAINER_SWAP', invoiced: false },
+  { code: 'TWO_POINT_DROP', invoiced: false },
+  { code: 'CARGO_RESTACK', invoiced: false },
+  { code: 'FORKLIFT_DANGKHOA', invoiced: false },
+  // Card 20260928_165 — the road-repair fee ("phí sửa chữa dọc đường") is a
+  // no-invoice fee: its support is a hand-written receipt, never a VAT invoice.
+  { code: 'ROAD_REPAIR', invoiced: false },
+];
+
+/** True when the catalog class of `code` carries an invoice. An unknown or absent
+ *  code is NOT invoiced: an entry without a catalog ref keeps the legacy
+ *  heuristic and offers no invoice field. */
+export function driverLotCostIsInvoiced(code: string | null | undefined): boolean {
+  return DRIVER_LOT_COST_EXPENSE_TYPES.some((type) => type.code === code && type.invoiced);
+}
+
+/** Card 20260919_3 — explicit settlement-screen categories on the expense
+ *  type catalog (forwarder_expense_types.category). Buckets for the per-lot
+ *  payables split (Bảng 2.1 HQGS, Bảng 2.2/2.3 fee columns). Values are
+ *  STRUCTURAL slugs only — no place names may ever enter this enum (port/
+ *  place identity lives in data rows, labels render from config). Rows whose
+ *  type carries no category (null) fall into the on-screen 'Chưa phân loại'
+ *  bucket so no money can silently leave the totals. */
+export enum ExpenseTypeCategory {
+  HQGS = 'HQGS',
+  PHAT_SINH = 'PHAT_SINH',
+  KHAC = 'KHAC',
+  LIFT = 'LIFT',
+  DROP = 'DROP',
+  CSHT = 'CSHT',
+  CARRIER_DETENTION = 'CARRIER_DETENTION',
+  REPAIR_ADVANCE = 'REPAIR_ADVANCE',
+  CARRIER_FREIGHT = 'CARRIER_FREIGHT',
+  ZONE_SURCHARGE = 'ZONE_SURCHARGE',
+}
 
 /** Vietnamese labels for shipment statuses (PRD Mxx-HT-01). */
 export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
@@ -318,10 +379,10 @@ export enum Role {
   DISPATCHER = 'DISPATCHER',
 }
 
-/** Roles that can approve expense approvals and access financial reports. */
+/** Roles that can record financial operations and access financial reports. */
 export const FINANCIAL_ROLES: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 
-/** Check whether a role belongs to the financial/approval group. */
+/** Check whether a role belongs to the financial operations group. */
 export function isFinancialRole(role: Role | string | undefined): boolean {
   return !!role && (FINANCIAL_ROLES as readonly string[]).includes(role);
 }
@@ -353,13 +414,6 @@ export enum CarrierType {
 export enum SettlementMethod {
   COMPANY_DIRECT = 'COMPANY_DIRECT',
   OPS_ADVANCE = 'OPS_ADVANCE',
-}
-
-export enum ApprovalStatus {
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-  RETURN_FOR_EVIDENCE = 'RETURN_FOR_EVIDENCE',
 }
 
 export enum DebitNoteMode {
@@ -436,10 +490,13 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.MANAGER]: 'Quản lý',
   [Role.ACCOUNTANT]: 'Kế toán',
   [Role.DRIVER]: 'Lái xe',
-  [Role.OPS]: 'Nhân viên vận hành', // formerly 'Giao nhận'
+  [Role.OPS]: 'Vận hành', // formerly 'Giao nhận'
   [Role.CUSTOMER]: 'Khách hàng',
   [Role.DISPATCHER]: 'Điều vận',
-  [Role.CUS]: 'CUS',
+  // Card 20260921_25: business label, never the internal role code — the
+  // nav calls this role "Nghiệp vụ Chứng từ" and the users permission badges
+  // already said "Chứng từ" while this map still leaked the code.
+  [Role.CUS]: 'Chứng từ',
 };
 
 export const FUEL_MODE_LABELS: Record<FuelMode, string> = {
@@ -462,16 +519,46 @@ export const PENALTY_STATUS_LABELS: Record<PenaltyStatus, string> = {
   [PenaltyStatus.CANCELED]: 'Đã hủy',
 };
 
-/** Default seeds for forwarder_expense_types config table. */
-export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMarkup: boolean; billingLabel: string }> = {
-  LIFTING:        { name: 'Phí nâng container',        defaultMarkup: false, billingLabel: 'Phí nâng container' },
-  LOWERING:       { name: 'Phí hạ container',           defaultMarkup: false, billingLabel: 'Phí hạ container' },
-  WEIGHING:       { name: 'Phí cân hàng',               defaultMarkup: false, billingLabel: 'Phí cân hàng' },
-  CUSTOMS:        { name: 'Phí làm tờ khai hải quan',   defaultMarkup: true,  billingLabel: 'Phí hải quan' },
-  INFRASTRUCTURE: { name: 'Phí kết cấu hạ tầng',        defaultMarkup: false, billingLabel: 'Phí hạ tầng' },
-  INSPECTION:     { name: 'Phí kiểm hóa tại cảng',      defaultMarkup: false, billingLabel: 'Phí kiểm hóa' },
-  INSPECTION_SVC: { name: 'Phí phục vụ kiểm hóa',       defaultMarkup: true,  billingLabel: 'Phí phục vụ kiểm hóa' },
-  OTHER:          { name: 'Phí chi hộ khác',             defaultMarkup: false, billingLabel: 'Chi phí khác' },
+/** Default seeds for forwarder_expense_types config table. `category` carries
+ *  the card 20260919_3 settlement category (null = chưa phân loại — WEIGHING
+ *  stays uncategorized per ruling; the admin surface reclassifies, no
+ *  migration). */
+export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMarkup: boolean; billingLabel: string; category?: ExpenseTypeCategory | null }> = {
+  LIFTING:        { name: 'Phí nâng container',        defaultMarkup: false, billingLabel: 'Phí nâng container', category: ExpenseTypeCategory.LIFT },
+  LOWERING:       { name: 'Phí hạ container',           defaultMarkup: false, billingLabel: 'Phí hạ container', category: ExpenseTypeCategory.DROP },
+  WEIGHING:       { name: 'Phí cân hàng',               defaultMarkup: false, billingLabel: 'Phí cân hàng', category: ExpenseTypeCategory.PHAT_SINH },
+  CUSTOMS:        { name: 'Phí làm tờ khai hải quan',   defaultMarkup: true,  billingLabel: 'Phí hải quan', category: ExpenseTypeCategory.HQGS },
+  INFRASTRUCTURE: { name: 'Phí kết cấu hạ tầng',        defaultMarkup: false, billingLabel: 'Phí hạ tầng', category: ExpenseTypeCategory.CSHT },
+  INSPECTION:     { name: 'Phí kiểm hóa tại cảng',      defaultMarkup: false, billingLabel: 'Phí kiểm hóa', category: ExpenseTypeCategory.HQGS },
+  INSPECTION_SVC: { name: 'Phí phục vụ kiểm hóa',       defaultMarkup: true,  billingLabel: 'Phí phục vụ kiểm hóa', category: ExpenseTypeCategory.HQGS },
+  OTHER:          { name: 'Phí chi hộ khác',             defaultMarkup: false, billingLabel: 'Chi phí khác', category: ExpenseTypeCategory.KHAC },
+  // Card 20260921_4 — the customer's chi-hộ fee list ("các chi phí.pdf" §1),
+  // seeded as DATA (fee names live in the catalog, never in code). All are
+  // invoice-bearing chi-hộ fees (seed policy pins requiresInvoice), and
+  // invoice-bearing types default the customer charge to the amount.
+  LIFT_EMPTY:     { name: 'Phí nâng vỏ',                 defaultMarkup: false, billingLabel: 'Phí nâng vỏ', category: ExpenseTypeCategory.LIFT },
+  LIFT_CARGO:     { name: 'Phí nâng hàng',               defaultMarkup: false, billingLabel: 'Phí nâng hàng', category: ExpenseTypeCategory.LIFT },
+  YARD_STORAGE_LIFT: { name: 'Phí lưu bãi',              defaultMarkup: false, billingLabel: 'Phí lưu bãi', category: ExpenseTypeCategory.LIFT },
+  LOWER_EMPTY:    { name: 'Phí hạ vỏ',                   defaultMarkup: false, billingLabel: 'Phí hạ vỏ', category: ExpenseTypeCategory.DROP },
+  LOWER_CARGO:    { name: 'Phí hạ hàng',                 defaultMarkup: false, billingLabel: 'Phí hạ hàng', category: ExpenseTypeCategory.DROP },
+  YARD_STORAGE:   { name: 'Phí lưu bãi',                 defaultMarkup: false, billingLabel: 'Phí lưu bãi', category: ExpenseTypeCategory.DROP },
+  CONTAINER_DEMURRAGE: { name: 'Phí lưu vỏ',             defaultMarkup: false, billingLabel: 'Phí lưu vỏ', category: ExpenseTypeCategory.DROP },
+  FEE_EXTENSION:  { name: 'Phí gia hạn',                 defaultMarkup: false, billingLabel: 'Phí gia hạn', category: ExpenseTypeCategory.KHAC },
+  FEE_CLEANING:   { name: 'Phí vệ sinh',                 defaultMarkup: false, billingLabel: 'Phí vệ sinh', category: ExpenseTypeCategory.KHAC },
+  FEE_SCANNING:   { name: 'Phí soi chiếu',               defaultMarkup: false, billingLabel: 'Phí soi chiếu', category: ExpenseTypeCategory.KHAC },
+  FEE_STEVEDORING: { name: 'Phí bốc xếp',                defaultMarkup: false, billingLabel: 'Phí bốc xếp', category: ExpenseTypeCategory.KHAC },
+  FEE_LABOR:      { name: 'Phí công nhân',               defaultMarkup: false, billingLabel: 'Phí công nhân', category: ExpenseTypeCategory.KHAC },
+  FEE_WAREHOUSE:  { name: 'Phí lưu kho',                 defaultMarkup: false, billingLabel: 'Phí lưu kho', category: ExpenseTypeCategory.KHAC },
+  // Card _2: dispatcher-entered zone surcharge — the structural kind the 2.3
+  // ladder reads (payee ruling (i): carrier-paid costs via ops intake).
+  ZONE_SURCHARGE: { name: 'Phí nâng/hạ theo vùng',        defaultMarkup: false, billingLabel: 'Phí nâng/hạ theo vùng', category: ExpenseTypeCategory.PHAT_SINH },
+  // Card 20260928_165 — the driver's road-repair fee ("phí sửa chữa dọc
+  // đường"). It is a ROAD-bucket fee (never billed to the customer) whose
+  // support is the hand-written receipt (ROAD_REPAIR_EVIDENCE_TYPE), so it must
+  // also join a seed POLICY class — a catalog code with no class lands in the
+  // contradictory requiresInvoice:false + substituteEvidenceAllowed:false state
+  // card 20260928_181 fixed for CUSTOMS/ZONE_SURCHARGE.
+  ROAD_REPAIR:    { name: 'Phí sửa chữa dọc đường',      defaultMarkup: false, billingLabel: 'Phí sửa chữa dọc đường', category: ExpenseTypeCategory.REPAIR_ADVANCE },
 };
 
 export const NO_INVOICE_EVIDENCE_TYPES = [
@@ -480,6 +567,38 @@ export const NO_INVOICE_EVIDENCE_TYPES = [
   'ONSITE_PHOTO',
   'SIGNED_CONFIRMATION',
 ] as const;
+
+/** Card 20260921_4 — the customer's three chi-hộ fee families, derived from
+ *  the settlement category (never the name, which is rename-proof data):
+ *  LIFT → Nâng, DROP → Hạ, everything else → Phí khác (the catch-all). */
+export const EXPENSE_FEE_GROUP_LABELS = {
+  LIFT: 'Nâng',
+  DROP: 'Hạ',
+  OTHER: 'Phí khác',
+} as const;
+export type ExpenseFeeGroup = keyof typeof EXPENSE_FEE_GROUP_LABELS;
+
+export function expenseFeeGroupOf(category: string | null | undefined): ExpenseFeeGroup {
+  if (category === 'LIFT') return 'LIFT';
+  if (category === 'DROP') return 'DROP';
+  return 'OTHER';
+}
+
+/** Card 20260928_161 — the Ops cost group ('Nâng' / 'Hạ' / 'Phí khác') of an
+ *  invoice-bearing chi-hộ fee. Both the Ops declaration form and the server
+ *  side of `POST /api/ops/expenses` derive the group from the catalog row's
+ *  settlement `category` through this ONE rule, so a code like `LIFT_EMPTY`,
+ *  `LIFT_CARGO` or `YARD_STORAGE_LIFT` lands in Nâng instead of the Phí khác
+ *  catch-all, and re-categorising a fee in the admin catalog moves it without
+ *  a code change. Codes are never matched: they are data an admin can rename.
+ *  Non-invoice rows are out of scope — the caller's default (`OPS_REGULAR`)
+ *  stands, because "có hóa đơn hay không" is a separate axis. */
+export function opsInvoicedCostGroupOf(category: string | null | undefined): 'INVOICED_LIFT' | 'INVOICED_DROP' | 'INVOICED_OTHER' {
+  const group = expenseFeeGroupOf(category);
+  if (group === 'LIFT') return 'INVOICED_LIFT';
+  if (group === 'DROP') return 'INVOICED_DROP';
+  return 'INVOICED_OTHER';
+}
 
 export type NoInvoiceEvidenceType = typeof NO_INVOICE_EVIDENCE_TYPES[number];
 
@@ -496,6 +615,22 @@ export const DEFAULT_NO_INVOICE_EVIDENCE_TYPES: readonly NoInvoiceEvidenceType[]
   'ONSITE_PHOTO',
   'SIGNED_CONFIRMATION',
 ] as const;
+
+/** Card 20260928_165 — the road-repair fee's supporting document is the
+ *  hand-written receipt the PM calls "phiếu thu viết tay": the driver must
+ *  attach it, and the accountant files and settles the phơi-phiếu row against
+ *  it. One named slug (not a literal at each call site) so the driver form, the
+ *  server guard and the accountant's screen cannot drift apart. */
+export const ROAD_REPAIR_EVIDENCE_TYPE: NoInvoiceEvidenceType = 'RECEIPT';
+
+/** The expense codes whose supporting document IS the hand-written receipt
+ *  (never a VAT invoice), keyed to the evidence kind that names it. One fact,
+ *  three consumers: the driver form requires the receipt for these codes, the
+ *  server refuses an entry without it, and the phơi-phiếu row labels the
+ *  attachment with the same kind — so the requirement cannot drift per side. */
+export const RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES: Readonly<Record<string, NoInvoiceEvidenceType>> = {
+  ROAD_REPAIR: ROAD_REPAIR_EVIDENCE_TYPE,
+};
 
 export const NO_INVOICE_REQUIRED_SCOPE = 'TRIP_OR_SHIPMENT' as const;
 
@@ -540,13 +675,6 @@ export const CARRIER_TYPE_LABELS: Record<CarrierType, string> = {
 export const SETTLEMENT_METHOD_LABELS: Record<SettlementMethod, string> = {
   [SettlementMethod.COMPANY_DIRECT]: 'Công ty trả trực tiếp',
   [SettlementMethod.OPS_ADVANCE]: 'Chi hộ tạm ứng',
-};
-
-export const APPROVAL_STATUS_LABELS: Record<ApprovalStatus, string> = {
-  [ApprovalStatus.PENDING]: 'Chờ duyệt',
-  [ApprovalStatus.APPROVED]: 'Đã duyệt',
-  [ApprovalStatus.REJECTED]: 'Từ chối',
-  [ApprovalStatus.RETURN_FOR_EVIDENCE]: 'Bổ sung chứng từ',
 };
 
 /** B2 — Vietnamese labels for `truck_cap_table.role`. */
@@ -639,7 +767,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
  * (still recorded in the notification drawer) so low-signal events don't spam
  * every role. Absent types => no push. This is the single knob to tune.
  *
- * Audiences (per `docs/prd/O2C dev.md` push MVP — scoped to Driver + Điều vận):
+ * Audiences (per `docs/prd/QuyTrinhO2C.md` push MVP — scoped to Driver + Điều vận):
  *  - 'driver'      → DRIVER role only.
  *  - 'dispatcher'  → Điều vận authority (MANAGER/ADMIN in the dispatcher seat).
  *  - 'financial'   → ACCOUNTANT + MANAGER/ADMIN (financial office action).

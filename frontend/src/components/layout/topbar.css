@@ -56,7 +56,7 @@
 .topbar__left-driver {
   display: flex;
   align-items: center;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -73,7 +73,9 @@
   font-weight: var(--fw-bold);
   color: var(--ink);
   white-space: nowrap;
-  overflow: visible;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Name on top, plate chip as a subtitle below it — a fixed two-line stack
@@ -82,6 +84,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  max-width: 100%;
   gap: 3px;
   min-width: 0;
 }
@@ -127,6 +130,20 @@
   margin-left: auto;
 }
 
+/* Card 20260930_221 — below 768px the month chip's period range ("01/09 –
+   30/09") no longer fits beside the topbar's title block: measured
+   `div.topbar-date l=162 r=392 vw=360`, `l=173 r=402 vw=390` on every route,
+   and still 4px over at 650. The month IS the control's state and the range is
+   repeated in the picker and in the trigger's `aria-label`, which is the
+   reasoning the driver bar has followed since the 2026-09-27 ruling — this one
+   band now carries it for every bar, so the driver-only copy is gone. */
+@media (max-width: 767px) {
+  .topbar-date__sep,
+  .topbar-date__period {
+    display: none;
+  }
+}
+
 /* MonthNavigator trigger + popover */
 .topbar-date {
   position: relative;
@@ -139,8 +156,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  height: 44px;
+  min-height: var(--control-touch-h);
+  height: var(--control-touch-h);
   padding: 0 13px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -153,6 +170,18 @@
   white-space: nowrap;
   box-shadow: none;
   transition: background 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
+}
+/* Case QA-2026-09-27-02 / card 20260927_2: the desktop topbar shrinks the
+   month trigger to 36px so the row matches the page-level input row.
+   Driver topbar keeps the 40px touch-floor rule — the driver identity
+   beside it is the two-line subtitle the customer asked to keep. */
+.topbar:not(.topbar--driver) .topbar-date__trigger {
+  min-height: 36px;
+  height: 36px;
+  padding: 0 12px;
+  gap: 6px;
+  border-radius: 8px;
+  line-height: 1.2;
 }
 .topbar-date__trigger:hover {
   background: var(--surface-2);
@@ -170,22 +199,22 @@
 .topbar-date.is-open .topbar-date__icon {
   color: var(--accent);
 }
-.topbar-date__body {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  text-align: left;
-}
+/* Single-row trigger body — case QA-2026-09-27-02. Label (month/year) and
+   period sit on the same line, separated by a · glyph. The two-line
+   `.topbar-date__body` wrapper from the previous design retired. */
 .topbar-date__label {
-
-  line-height: 1.35;
+  line-height: 1.2;
 }
 .topbar-date__period {
-  font-size: var(--text-caption-size);
   font-family: var(--font-data);
   color: var(--ink-3);
   font-weight: var(--fw-semibold);
-  line-height: 1.35;
+  line-height: 1.2;
+}
+.topbar-date__sep {
+  color: var(--ink-3);
+  line-height: 1.2;
+  user-select: none;
 }
 .topbar-date__caret {
   color: var(--ink-3);
@@ -264,7 +293,7 @@
   transition: background 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
 }
 .month-picker__year-nav:hover {
-  background: #ffffff;
+  background: var(--surface);
   border-color: rgba(0, 90, 45, 0.25);
   color: var(--ink);
 }
@@ -274,7 +303,8 @@
   gap: 8px;
 }
 .month-picker__cell {
-  min-height: 54px;
+  min-height: var(--control-max-h);
+  padding: 0 6px;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -302,7 +332,7 @@
   line-height: 1.3;
 }
 .month-picker__cell:hover {
-  background: #ffffff;
+  background: var(--surface);
   border-color: rgba(0, 90, 45, 0.22);
 }
 .month-picker__cell.is-current {
@@ -345,7 +375,7 @@
   font-weight: var(--fw-bold);
   cursor: pointer;
   padding: 7px 10px;
-  border-radius: 999px;
+  border-radius: 8px;
   font-family: inherit;
   transition: background 120ms var(--ease), border-color 120ms var(--ease);
 }
@@ -379,7 +409,7 @@
   }
 
   .month-picker__cell {
-    min-height: 48px;
+    min-height: var(--control-max-h);
   }
 
   .month-picker__cell-code {
@@ -403,7 +433,7 @@
   }
 
   .month-picker__cell {
-    min-height: 46px;
+    min-height: var(--control-max-h);
     border-radius: 12px;
   }
 
@@ -416,7 +446,7 @@
 
 /* Wireframe topbar classes */
 .topbar__toggle {
-  width: 44px; height: 44px;
+  width: var(--control-touch-h); height: var(--control-touch-h);
   padding: 0;
   background: transparent;
   border: 1px solid transparent;
@@ -464,10 +494,15 @@
 .topbar__breadcrumb strong { color: var(--ink); font-weight: var(--fw-semibold); font-size: var(--text-body-size); }
 
 .topbar__search {
-  flex: 1;
+  /* Case QA-2026-09-27-02 / card 20260927_2: the global nav search is the
+     secondary tool (page-level table search runs below it) — clamp it to
+     360px max so the canvas does not stretch the input across the entire
+     viewport width. Flex keeps it from collapsing below its min-width. */
+  flex: 1 1 0;
   margin-left: 0;
   position: relative;
-  min-width: 240px;
+  min-width: 200px;
+  max-width: 360px;
 }
 .topbar__search > svg {
   position: absolute;
@@ -479,20 +514,24 @@
 }
 .topbar__search > input {
   width: 100%;
-  min-height: 44px;
-  padding: 10px 48px 10px 40px;
+  min-height: 36px;
+  /* 36px follows the dense toolbar contract of the page-level inputs; the
+     global search is intentionally lower-contrast than the local one. */
+  padding: 6px 36px 6px 32px;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  color: var(--ink);
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: var(--text-data-size);
   outline: none;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 .topbar__search > input::placeholder { color: var(--ink-3); }
 .topbar__search > input:focus {
   background: var(--surface);
-  border-color: var(--accent);
-  outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
+  border-color: var(--brand);
+  color: var(--ink);
+  outline: 2px solid var(--brand);
   outline-offset: 1px;
 }
 .topbar__search > kbd {
@@ -522,7 +561,7 @@
   top: 5px; right: 5px;
   min-width: 16px; height: 16px;
   padding: 0 4px;
-  border-radius: 999px;
+  border-radius: 4px;
   background: var(--accent-2);
   color: var(--fg-on-brand);
   font-family: var(--font-data);
@@ -541,7 +580,7 @@
 /* Replaces .date-chip in the topbar — clean slate, no legacy overrides */
 
 .icon-btn {
-  width: 44px; height: 44px;
+  width: var(--control-touch-h); height: var(--control-touch-h);
   display: inline-flex; align-items: center; justify-content: center;
   background: transparent; border: 1px solid transparent;
   border-radius: 10px;
@@ -559,7 +598,7 @@
   display: inline-flex; align-items: center; gap: 8px;
   min-height: var(--control-h); padding: 0 10px 0 4px;
   background: transparent; border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 8px;
   color: var(--ink);
   cursor: pointer;
   transition: background 120ms var(--ease), border-color 120ms var(--ease);
@@ -632,3 +671,52 @@
 }
 .notif-panel__push:disabled { opacity: 0.5; cursor: default; }
 .notif-panel__push-err { font-size: var(--text-caption-size); line-height: 1.35; color: var(--danger); margin-top: 6px; }
+
+/* ─── Driver phone bar: ONE row — identity · date · bell ────────────────────
+   Operators rejected the two-row bar (2026-09-27: "move the date to compact
+   size and to header, why two rows here"): the month navigator no longer
+   takes a full-width row of its own under the greeting, it rides the greeting
+   row right-aligned, and the bar only grows if the row genuinely cannot fit
+   (flex-wrap stays as the ≤340px fallback).
+   The date chip drops its period range ("01/09 – 30/09") in this band — the
+   month is the control's state and the range is repeated in the picker and in
+   the trigger's aria-label — so chip + name + plate + bell share 390px without
+   truncating the driver name. That rule lives in `styles/responsive.css`'s
+   ≤640 band now (card 20260930_221 extended it to every topbar, so a
+   driver-only copy would be a second owner of one rule).
+   styles/responsive.css hides every `.topbar .icon-btn` on phones; the
+   (0,3,0) driver selector below opts the bell back in regardless of that
+   file's later source order. Selectors carry the `.topbar` class so they also
+   outrank responsive.css's equal-or-lower-specificity driver rules. */
+@media (max-width: 640px) {
+  .topbar.topbar--driver {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    align-items: center;
+    /* responsive.css pins .topbar to the single-row --topbar-h at ≤640; the
+       driver bar keeps its own height because the identity column (name +
+       plate, 2 lines) plus the 40px touch floor on the date chip exceed it. */
+    height: auto;
+    min-height: 0;
+  }
+  .topbar.topbar--driver .topbar__left-driver {
+    order: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .topbar.topbar--driver .topbar__center-driver {
+    order: 2;
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+  .topbar.topbar--driver .topbar__actions {
+    order: 3;
+    flex: 0 0 auto;
+    margin-left: 0;
+  }
+  .topbar.topbar--driver .icon-btn {
+    display: inline-flex;
+  }
+}

@@ -72,49 +72,11 @@ export const GOVERNANCE_ACTION_KINDS = [
   'CONTAINER_EDIT_REQUEST',
 ] as const;
 
-export const GOVERNANCE_ACTION_STATUSES = [
-  'PENDING_CHECK',
-  'PENDING_APPROVAL',
-  'APPROVED',
-  'REJECTED',
-  'RETURNED_FOR_EVIDENCE',
-  'CANCELED',
-  'SUPERSEDED',
-] as const;
-
-export const GOVERNANCE_CAPABILITIES = [
-  'GOVERNANCE_CREATE',
-  'FINANCE_CHECK',
-  'FINANCE_APPROVE_STANDARD',
-  'FINANCE_APPROVE_DIRECTOR',
-  'PRICE_APPROVE',
-  'PERIOD_CLOSE_APPROVE',
-  'RECOVERABLE_COST_REQUEST',
-  'TRIP_CLOSE_REQUEST',
-  'TREASURY_OPERATE',
-  'TREASURY_ADMIN',
-] as const;
-
-export const GOVERNANCE_ALLOWED_ACTIONS = [
-  'CHECK',
-  'APPROVE',
-  'REJECT',
-  'RETURN_FOR_EVIDENCE',
-  'CANCEL',
-] as const;
-
 export type GovernanceSubjectType = typeof GOVERNANCE_SUBJECT_TYPES[number];
 export type GovernanceActionKind = typeof GOVERNANCE_ACTION_KINDS[number];
-export type GovernanceActionStatus = typeof GOVERNANCE_ACTION_STATUSES[number];
-export type GovernanceCapability = typeof GOVERNANCE_CAPABILITIES[number];
-export type GovernanceAllowedAction = typeof GOVERNANCE_ALLOWED_ACTIONS[number];
 
-// 2026-09-11 (maker-checker removal): the staged-decision request shapes are
-// gone with the governance_actions queue. Only the in-request decision body
-// (expectedVersion + reason) survives — live endpoints still validate it.
-export const governanceActionDecisionSchema = z.object({
+// Version and reason for direct, audited financial operations.
+export const directFinancialActionSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
   reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
 });
-
-export type GovernanceActionDecisionInput = z.infer<typeof governanceActionDecisionSchema>;

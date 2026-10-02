@@ -14,8 +14,9 @@ import {
   runIdempotent,
 } from '../../services/idempotency.service';
 import type { Tx } from '../../services/trip-shared';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
 const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 
 function parseTripId(req: Request): number {
@@ -58,7 +59,7 @@ router.get('/finance/snapshots/ar/dirty', requireRoles(...ROLES), asyncHandler(a
   res.json(await ArSnapshotService.listDirty());
 }));
 
-router.post('/finance/snapshots/ar/:id/recapture', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/snapshots/ar/:id/recapture', declareMaterialWrite('financial.snapshots.ar.recapture', { method: 'POST', path: '/api/finance/snapshots/ar/:id/recapture' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseTripId(req);
   const { result, replayed } = await runSnapshotRecaptureWriteCommand({
     req,
@@ -74,7 +75,7 @@ router.get('/finance/snapshots/ap/dirty', requireRoles(...ROLES), asyncHandler(a
   res.json(await ApSnapshotService.listDirty());
 }));
 
-router.post('/finance/snapshots/ap/:id/recapture', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/snapshots/ap/:id/recapture', declareMaterialWrite('financial.snapshots.ap.recapture', { method: 'POST', path: '/api/finance/snapshots/ap/:id/recapture' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseTripId(req);
   const { result, replayed } = await runSnapshotRecaptureWriteCommand({
     req,
@@ -90,7 +91,7 @@ router.get('/finance/snapshots/fuel-surcharge/dirty', requireRoles(...ROLES), as
   res.json(await SnapshotServices.listFuelSurchargeDirty());
 }));
 
-router.post('/finance/snapshots/fuel-surcharge/:id/recapture', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/snapshots/fuel-surcharge/:id/recapture', declareMaterialWrite('financial.snapshots.fuel-surcharge.recapture', { method: 'POST', path: '/api/finance/snapshots/fuel-surcharge/:id/recapture' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseTripId(req);
   const { result, replayed } = await runSnapshotRecaptureWriteCommand({
     req,

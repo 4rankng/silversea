@@ -5,7 +5,6 @@ import { eq, and, isNull, desc } from 'drizzle-orm';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import { TxnType, FINANCIAL_ROLES } from '@tingting/shared';
-import { transitionApproval } from './approval.service';
 import { PARTNER_DEFAULT_CURRENCY } from './legal-partner.service';
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
@@ -179,7 +178,8 @@ export async function getDualEntities() {
 }
 
 /**
- * Create a PENDING debt offset. Amount is server-computed as min(AR, AP).
+ * Record a debt offset and its paired ledger entries atomically.
+ * Amount is server-computed as min(AR, AP); no pending approval is persisted.
  * Returns 400 if offset amount <= 0.
  */
 export async function createDebtOffset(input: {
@@ -191,8 +191,12 @@ export async function createDebtOffset(input: {
   minutesReference: string;
   minutesDocumentHash?: string | null;
   createdBy: number;
+  actorRole: string;
   transaction?: Tx;
 }) {
+  if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
+    throw new ApiError(403, 'Bạn không có quyền ghi nhận đối trừ công nợ');
+  }
   const execute = async (tx: Tx) => {
     const note = input.note.trim();
     const minutesReference = input.minutesReference.trim();
@@ -236,124 +240,44 @@ export async function createDebtOffset(input: {
         minutesReference,
         minutesDocumentHash: input.minutesDocumentHash ?? null,
         note,
-        approvalStatus: 'PENDING',
+        // Legacy storage code means recorded; it is not an approval stage.
+        approvalStatus: 'APPROVED',
+        approvedBy: input.createdBy,
+        approvedAt: new Date(),
         createdBy: input.createdBy,
       })
       .returning();
-    return row;
-  };
-  if (input.transaction) {
-    return execute(input.transaction);
-  }
-  return db.transaction(execute);
-}
-
-/**
- * Approve a debt offset:
- * 1. Transitions status from PENDING → APPROVED (via ApprovalService)
- * 2. Posts compensating ADJUSTMENT ledger entries:
- *    - CREDIT on customer ledger (reduces AR)
- *    - DEBIT on supplier ledger (reduces AP)
- * Only ADMIN/MANAGER can approve (delegated to transitionApproval).
- */
-export async function approveDebtOffset(
-  id: number,
-  actorId: number,
-  actorRole: string,
-  transaction?: Tx,
-) {
-  const execute = async (tx: Tx) => {
-    // Transition status (guards role + PENDING check)
-    await transitionApproval(tx, {
-      table: 'debt_offsets',
-      id,
-      toStatus: 'APPROVED',
-      actorId,
-      actorRole,
-    });
-
-    // Reload to get amount and entity IDs
-    const [offset] = await tx
-      .select()
-      .from(s.debtOffsets)
-      .where(eq(s.debtOffsets.id, id))
-      .limit(1);
-
-    const amount = Number(offset.amount);
-    const { customer, supplier } = await loadCounterparties(tx, offset.customerId, offset.supplierId);
-    assertEligibleCanonicalPair(customer.partnerId, supplier.partnerId, offset.currency);
-
-    // Lock both entities (sorted to prevent deadlock)
-    await LedgerService.lockEntities(tx, [
-      { entityType: 'CUSTOMER', entityId: offset.customerId },
-      { entityType: 'VENDOR',   entityId: offset.supplierId },
-    ]);
-
-    // Re-validate amount against current balances (may have changed since creation)
-    const currentAr = await LedgerService.getBalanceTx(tx, 'CUSTOMER', offset.customerId);
-    const currentAp = await LedgerService.getBalanceTx(tx, 'VENDOR', offset.supplierId);
-    if (amount > currentAr || amount > currentAp) {
-      throw new ApiError(400, `Số dư hiện tại không đủ để đối trừ ${amount} (AR=${currentAr}, AP=${currentAp})`);
-    }
-
-    // CREDIT on customer: reduces AR (CUSTOMER balance += debit − credit)
     await LedgerService.postEntry(tx, {
       txnType: TxnType.ADJUSTMENT,
-      txnId: id,
+      txnId: row.id,
       entityType: 'CUSTOMER',
-      entityId: offset.customerId,
+      entityId: input.customerId,
       debit: 0,
       credit: amount,
       note: 'Đối trừ công nợ khách hàng và nhà cung cấp',
     });
-
-    // DEBIT on vendor: reduces AP (VENDOR balance += credit − debit)
     await LedgerService.postEntry(tx, {
       txnType: TxnType.ADJUSTMENT,
-      txnId: id,
+      txnId: row.id,
       entityType: 'VENDOR',
-      entityId: offset.supplierId,
+      entityId: input.supplierId,
       debit: amount,
       credit: 0,
       note: 'Đối trừ công nợ khách hàng và nhà cung cấp',
     });
-
-    // Stamp approvedBy and approvedAt
-    await tx
-      .update(s.debtOffsets)
-      .set({ approvedBy: actorId, approvedAt: new Date() })
-      .where(eq(s.debtOffsets.id, id));
-
-    return offset;
+    return row;
   };
-  return runInTx(transaction, execute);
+  return runInTx(input.transaction, execute);
 }
 
-/**
- * Cancel an APPROVED debt offset by posting REVERSING ADJUSTMENT entries
- * (M06-04 §5: "hủy sau phê duyệt phải dùng bút toán hoàn tác").
- *
- * Behaviour:
- *   - Only allowed on APPROVED offsets. PENDING offsets must use the
- *     rejection path (which writes no ledger entries); CANCELED offsets
- *     are already dead.
- *   - Posts the mirror of the original approval entries:
- *       DEBIT  on customer (restores AR)
- *       CREDIT on vendor   (restores AP)
- *   - Each reversing entry carries the note "Hoàn tác đối trừ công nợ #{id}"
- *     so the audit trail distinguishes it from other ADJUSTMENT entries.
- *   - Sets approvalStatus to 'CANCELED'.
- *
- * After cancel, the customer's AR and the supplier's AP balances are
- * restored to their pre-approval values.
- */
+/** Reverse a recorded offset with compensating entries, preserving history. */
 export async function cancelDebtOffset(
   id: number,
   actorId: number,
   actorRole: string,
   transaction?: Tx,
 ) {
-  // Role guard: same as approve (ADMIN/MANAGER only).
+  // Direct reversal retains the financial role guard.
   if (!(FINANCIAL_ROLES as readonly string[]).includes(actorRole)) {
     throw new ApiError(403, 'Bạn không có quyền hủy đối trừ công nợ');
   }
@@ -373,10 +297,10 @@ export async function cancelDebtOffset(
       throw new ApiError(409, 'Bản ghi đã hủy, không thể hoàn tác lại');
     }
     if (offset.approvalStatus !== 'APPROVED') {
-      // PENDING → use the rejection path (it writes no ledger entries).
+      // Legacy unposted rows have no financial effect to reverse.
       throw new ApiError(
         400,
-        `Không thể hủy bản ghi đang ở ${offset.approvalStatus}; chỉ đối trừ đã phê duyệt mới có thể hủy`,
+        `Không thể hủy bản ghi đang ở ${offset.approvalStatus}; chỉ đối trừ đã ghi nhận mới có thể đảo`,
       );
     }
 
@@ -395,7 +319,7 @@ export async function cancelDebtOffset(
       throw new ApiError(409, 'Bản ghi đã bị hủy bởi người khác. Vui lòng tải lại.');
     }
 
-    // Reversing entries — mirror of approveDebtOffset.
+    // Reverse the original paired entries.
     // DEBIT on customer: restores AR (CUSTOMER balance += debit − credit).
     await LedgerService.postEntry(tx, {
       txnType: TxnType.ADJUSTMENT,
@@ -443,68 +367,6 @@ export async function listDebtOffsets(filters?: {
     .orderBy(desc(s.debtOffsets.createdAt));
 }
 
-export async function requestDebtOffsetApprovalGovernance(input: {
-  debtOffsetId: number;
-  expectedVersion: number;
-  reason: string;
-  makerId: number;
-  makerRole: string;
-  transaction?: Tx;
-}): Promise<GovernanceActionRow> {
-  assertCanMakeGovernanceAction('DEBT_OFFSET_APPROVAL', input.makerRole);
-  const reason = input.reason.trim();
-  if (!reason) {
-    throw new ApiError(400, 'Lý do là bắt buộc');
-  }
-
-  const execute = async (tx: Tx) => {
-    const [offset] = await tx.select()
-      .from(s.debtOffsets)
-      .where(eq(s.debtOffsets.id, input.debtOffsetId))
-      .limit(1)
-      .for('update');
-    if (!offset) {
-      throw new ApiError(404, 'Không tìm thấy bản ghi đối trừ');
-    }
-    assertDebtOffsetStatusVersion(offset.approvalStatus, input.expectedVersion);
-    if (offset.approvalStatus !== 'PENDING') {
-      throw new ApiError(409, 'Chỉ có thể trình duyệt đối trừ đang chờ xử lý');
-    }
-
-    return buildGovernanceAction({
-      subjectType: 'DEBT_OFFSET',
-      subjectId: offset.id,
-      subjectKey: `debt-offset:${offset.id}:approve`,
-      actionKind: 'DEBT_OFFSET_APPROVAL',
-      reason,
-      originalVersion: input.expectedVersion,
-      beforeSnapshot: {
-        approvalStatus: offset.approvalStatus,
-        customerId: offset.customerId,
-        supplierId: offset.supplierId,
-        partnerId: offset.partnerId,
-        amount: offset.amount,
-        currency: offset.currency,
-        offsetDate: offset.offsetDate,
-        note: offset.note,
-        minutesReference: offset.minutesReference,
-        minutesDocumentHash: offset.minutesDocumentHash,
-      },
-      afterSnapshot: {
-        approvalStatus: 'APPROVED',
-      },
-      deltaSnapshot: {
-        amount: offset.amount,
-        minutesReference: offset.minutesReference,
-      },
-      makerId: input.makerId,
-      makerRole: input.makerRole,
-    });
-  };
-
-  return runInTx(input.transaction, execute);
-}
-
 export async function requestDebtOffsetCancelGovernance(input: {
   debtOffsetId: number;
   expectedVersion: number;
@@ -530,7 +392,7 @@ export async function requestDebtOffsetCancelGovernance(input: {
     }
     assertDebtOffsetStatusVersion(offset.approvalStatus, input.expectedVersion);
     if (offset.approvalStatus !== 'APPROVED') {
-      throw new ApiError(409, 'Chỉ có thể trình hủy đối trừ đã được duyệt');
+      throw new ApiError(409, 'Chỉ có thể đảo đối trừ đã được ghi nhận');
     }
 
     return buildGovernanceAction({
@@ -585,23 +447,6 @@ export async function applyDebtOffsetGovernanceAction(
     throw new ApiError(404, 'Không tìm thấy bản ghi đối trừ');
   }
   assertDebtOffsetStatusVersion(offset.approvalStatus, action.originalVersion!);
-
-  if (action.actionKind === 'DEBT_OFFSET_APPROVAL') {
-    const approved = await approveDebtOffset(
-      offset.id,
-      action.approverId!,
-      action.approverRole!,
-      tx,
-    );
-    return {
-      applicationResult: {
-        subjectType: 'DEBT_OFFSET',
-        subjectId: approved.id,
-        approvalStatus: 'APPROVED',
-        resultingVersion: debtOffsetStatusVersion('APPROVED'),
-      },
-    };
-  }
 
   if (action.actionKind === 'DEBT_OFFSET_CANCEL') {
     const canceled = await cancelDebtOffset(

@@ -1,8 +1,9 @@
+import { PhotoImage } from '../shared/PhotoImage';
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, Plus, Trash2, Camera, ImageOff, X } from "lucide-react";
 import { api } from "../../lib/api";
-import { photoSrc } from "../../lib/api/photo";
+import { useAuthedPhotoUrls } from "../../lib/api/photo";
 import { useToast } from "../shared/Toast";
 import { qk } from "../../api/keys";
 import { useTripFormContext } from "../../hooks/useTripFormContext";
@@ -11,14 +12,9 @@ import { ContainerScanner, dataUrlToFile } from "../shared/ContainerScanner";
 import { PhotoViewer } from "../PhotoViewer";
 import "./ContainerInstancesCard.css";
 
-
-
 interface Props {
-
   tripId?: number;
-
   expectedCount?: number;
-
   requiresPhotos?: boolean;
 }
 import { checkContainerNumber, emptyRow, emptySeal, hasEditableContainerData, photoStorageKey, rowKey, sealKey, type ContainerRow, type ServerContainer } from "./container-instance-helpers";
@@ -34,7 +30,12 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
   const [uploading, setUploading] = useState<Record<string, { cont: boolean; seal: boolean }>>({});
   const [deletingPhotos, setDeletingPhotos] = useState<Record<string, { cont: boolean; seal: boolean }>>({});
   const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({});
-  const [lightbox, setLightbox] = useState<{ rowKey: string; type: "CONTAINER" | "SEAL"; urls: string[]; index: number } | null>(null);
+  const [lightbox, setLightbox] = useState<{ rowKey: string; type: "CONTAINER" | "SEAL"; keys: string[]; index: number } | null>(null);
+  // DRV-DET-08: container/seal photos load with the Authorization header (blob),
+  // never a ?token= query string — one flat list so a lane never needs a hook.
+  const photoKeys = rows.flatMap((row) => [...row.photoKeys.cont.filter(Boolean).slice(-1), ...row.photoKeys.seal]);
+  const authedPhotoUrls = useAuthedPhotoUrls(photoKeys);
+  const photoUrl = (key: string) => authedPhotoUrls[photoKeys.indexOf(key)] ?? "";
 
   const consumedNonceRef = useRef<number | undefined>(undefined);
   useEffect(() => {
@@ -234,7 +235,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
             <>
               {urls.map((u, uIdx) => {
                 const isPending = u.startsWith("blob:");
-                const hasLoadError = failedPhotos[u] ?? false;
+                const hasLoadError = (authedPhotoUrls.length === photoKeys.length && !photoUrl(u)) || (failedPhotos[u] ?? false);
                 return (
                   <span key={`${u}-${uIdx}`} className="ci-photo-slot">
                     <button
@@ -246,7 +247,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
                         setLightbox({
                           rowKey: row._key,
                           type: pType,
-                          urls: urls.map(photoSrc),
+                          keys: urls,
                           index: uIdx,
                         });
                       }}
@@ -258,8 +259,8 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
                           <span>Không tải được</span>
                         </span>
                       ) : (
-                        <img
-                          src={photoSrc(u)}
+                        <PhotoImage
+                          src={photoUrl(u)}
                           alt={`${title}${row.containerNumber ? ` ${row.containerNumber}` : ""}`}
                           loading="lazy"
                           onError={() => setFailedPhotos((prev) => ({ ...prev, [u]: true }))}
@@ -581,11 +582,10 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
         <button type="button" className="btn btn--secondary btn--sm" onClick={addRow}>
           <Plus size={16} aria-hidden="true" /> Thêm container
         </button>
-        <span>Dữ liệu container được gửi cùng nút hành động ở cuối biểu mẫu — “Tạo lệnh” khi tạo mới, “Lưu cập nhật” khi chỉnh sửa.</span>
       </div>
 
       {scanner && <ContainerScanner onCapture={handleCapture} onClose={() => setScanner(null)} />}
-      {lightbox && <PhotoViewer urls={lightbox.urls} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />}
+      {lightbox && <PhotoViewer urls={lightbox.keys.map(photoUrl)} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

@@ -3,13 +3,18 @@
 // validators and input types live in shipment-lifecycle-shared.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
+import { eq, sql } from 'drizzle-orm';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import type { ShipmentStatus } from './shipment-types';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
+import { recordDepositFromIntake } from './deposit-refund-tracker.service';
+import { assertContainerSetValid, reconcileShipmentContainersInTx } from './shipment-containers.service';
+import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
+import type { ShipmentContainerInput } from './shipment-types';
 import {
   toNullableFixedDecimal,
   toNullableTimestamp,
@@ -40,10 +45,42 @@ import {
  * `shipments.shipmentCode` column is unique but not the source of truth for
  * business identity).
  */
-export function formatShipmentCode(id: number, createdAt: Date = new Date()): string {
+export function formatShipmentCode(counter: number, createdAt: Date = new Date()): string {
   const yy = String(createdAt.getFullYear()).slice(-2);
   const mm = String(createdAt.getMonth() + 1).padStart(2, '0');
-  return `SHP-${yy}${mm}-${String(id).padStart(5, '0')}`;
+  return `SHP-${yy}${mm}-${String(counter).padStart(5, '0')}`;
+}
+
+/**
+ * Allocate the next shipment code for the code's year-month from the
+ * independent counter (ruling 4b: codes never derive from the row id).
+ * Advisory-locked per month, so concurrent creates serialize; the unique
+ * shipmentCode index stays as the backstop.
+ */
+export async function allocateShipmentCode(tx: Tx, createdAt: Date): Promise<string> {
+  const yy = String(createdAt.getFullYear()).slice(-2);
+  const mm = String(createdAt.getMonth() + 1).padStart(2, '0');
+  const yearMonth = `${yy}${mm}`;
+  await acquireAdvisoryLock(tx, lockKeys.shipmentCodeCounter(yearMonth));
+  const [row] = await tx.select().from(s.shipmentCodeCounters)
+    .where(eq(s.shipmentCodeCounters.yearMonth, yearMonth));
+  // Guard against legacy id-era codes (SHP-<YYMM>-<NNNNN> was once
+  // row-id-backed): the stream always stays above the highest existing
+  // code tail for this month, so untouched old codes can never collide.
+  const [legacy] = await tx.select({
+    maxTail: sql<string | null>`max(nullif(substring(${s.shipments.shipmentCode} from '[0-9]{5}$'), '')::int)`
+  }).from(s.shipments)
+    .where(sql`${s.shipments.shipmentCode} like ${'SHP-' + yearMonth + '-%'}`);
+  const legacyMax = legacy?.maxTail != null && Number.isFinite(Number(legacy.maxTail)) ? Number(legacy.maxTail) : 0;
+  const next = Math.max(row == null ? 0 : row.counter, legacyMax) + 1;
+  if (row == null) {
+    await tx.insert(s.shipmentCodeCounters).values({ yearMonth, counter: next });
+  } else {
+    await tx.update(s.shipmentCodeCounters)
+      .set({ counter: next })
+      .where(eq(s.shipmentCodeCounters.yearMonth, yearMonth));
+  }
+  return formatShipmentCode(next, createdAt);
 }
 // ─── Create ─────────────────────────────────────────────────────────────────
 
@@ -141,8 +178,10 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     initialDeclarationId = declaration.id;
   }
 
-  // 2. Backfill the unique shipmentCode from the row id. Same tx ⇒ atomic.
-  const shipmentCode = formatShipmentCode(shipment.id, shipment.createdAt);
+  // 2. Allocate the unique shipmentCode from the independent per-month
+  // counter (ruling 4b: the code never derives from the row id). Same tx,
+  // advisory-locked counter row ⇒ concurrent creates serialize safely.
+  const shipmentCode = await allocateShipmentCode(tx, shipment.createdAt);
   const [finalized] = await tx.update(s.shipments)
     .set({ shipmentCode })
     .where(eq(s.shipments.id, shipment.id))
@@ -156,6 +195,26 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     reason: 'Tạo lô hàng',
     changedBy: input.createdBy ?? null,
   });
+
+  // Card 20260922_6 — container-deposit intake tick ("có cược"): when the
+  // CUS ticked a deposit at intake, the hoàn-cược tracker row lands in the
+  // SAME tx so a rolled-back create never strands an orphan tracker row.
+  // KT completes bill/carrier/amount by hand when the lot didn't carry them.
+  if (input.hasDeposit) {
+    let customerName = rawCustomerName ?? '';
+    if (!customerName && customerId != null) {
+      const [customer] = await tx.select({ name: s.customers.name }).from(s.customers)
+        .where(eq(s.customers.id, customerId)).limit(1);
+      customerName = customer?.name ?? '';
+    }
+    await recordDepositFromIntake({
+      shipmentId: shipment.id,
+      customerName,
+      carrierName: input.shippingLineName ?? '',
+      billNumber: input.blNumber ?? '',
+      expectedAmount: input.depositAmount ?? null,
+    }, tx);
+  }
 
   const bookingEventCreatorId = input.createdBy ?? actor?.userId ?? null;
   if (bookingEventCreatorId != null) {
@@ -212,7 +271,7 @@ async function rethrowCreateConflict(error: unknown, input: CreateShipmentInput)
 // NOT NULL column on `shipments`); every other field is optional and
 // typically filled in later from the M10.2 doc-entry page.
 export async function createShipmentIdempotent(
-  input: CreateShipmentInput,
+  input: CreateShipmentInput & { containers?: ShipmentContainerInput[] },
   idempotencyKey: string | undefined,
   actor?: AuthUser,
 ): Promise<{ shipment: Awaited<ReturnType<typeof createShipment>> & { initialDeclarationId: number | null }; replayed: boolean }> {
@@ -224,6 +283,18 @@ export async function createShipmentIdempotent(
     entityType: 'shipment',
     create: async (tx) => {
       const { shipment, initialDeclarationId } = await createShipmentTx(tx, input, actor);
+      // Combined save (card 20260918_13): containers ride the SAME
+      // transaction — a containers failure rolls the root back with it, so
+      // no 0-cont orphan lot can survive a failed intake save. The batch is
+      // validated with the same ISO 6346 + duplicate checks the reconcile
+      // endpoint enforces, BEFORE any write, inside the tx; the FCL rate
+      // lock fires exactly as the reconcile endpoint would (ad-hoc skips
+      // inside).
+      if (input.containers?.length) {
+        assertContainerSetValid(input.containers);
+        await reconcileShipmentContainersInTx(tx, shipment.id, input.createdBy ?? null, input.containers);
+        await lockShipmentFreightRate(tx, { shipmentId: shipment.id });
+      }
       return { ...shipment, initialDeclarationId };
     },
     load: async (id, tx) => {

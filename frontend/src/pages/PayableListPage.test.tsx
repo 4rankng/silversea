@@ -200,3 +200,53 @@ describe('PayableListPage server-side column sorting', () => {
     }));
   });
 });
+
+// Card 20260927_152: the strip is the shared `FilterBar` band and the category
+// group rides its quick-filter slot — the page-local `.payables-toolbar` is gone.
+describe('PayableListPage filter strip', () => {
+  function payable(id: number, name: string, totalOutstanding: number) {
+    return {
+      supplier: {
+        id, name, contactPerson: null, phone: null, taxCode: null, note: null,
+        status: 'ACTIVE', linkedCustomerId: null, isFuelSupplier: false,
+        createdAt: '', updatedAt: '', deletedAt: null,
+      },
+      totalOutstanding,
+      aging: { current: totalOutstanding, d30: 0, d60: 0, over90: 0 },
+      maxOverdueDays: 0,
+      kind: 'vendor' as const,
+    };
+  }
+
+  beforeEach(() => {
+    getPayablesSummaryMock.mockReset().mockResolvedValue({
+      items: [payable(1, 'NCC A', 12_000_000)],
+      totalOutstanding: '12000000',
+      totalSuppliers: 1,
+      overdueSuppliers: 0,
+      page: 1,
+      limit: 25,
+      total: 1,
+      totalPages: 1,
+      totals: { current: 12_000_000, d30: 0, d60: 0, over90: 0, currentCount: 1, d30Count: 0, d60Count: 0, over90Count: 0 },
+    });
+  });
+
+  it('renders the shared bar with the search and the category group inside it', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <PayableListPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect((await screen.findAllByText('NCC A')).length).toBeGreaterThan(0);
+
+    const bar = container.querySelector('.filter-bar');
+    expect(bar).toBeTruthy();
+    expect(container.querySelector('.payables-toolbar')).toBeNull();
+    expect(bar?.contains(screen.getByLabelText('Tìm công nợ theo nhà cung cấp'))).toBe(true);
+    expect(bar?.contains(screen.getByRole('tablist', { name: 'Lọc theo loại công nợ' }))).toBe(true);
+  });
+});

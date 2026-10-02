@@ -1,5 +1,7 @@
 # Test Plan — Silversea (TingTing Vietnam)
 
+> **Current policy (2026-09-17):** all application actions are direct within existing permissions. No approval queue, second actor or hidden auto-approval chain. Funding, driver acceptance, documentary completeness, reconciliation and close remain distinct business facts. Use [no-approval regression cases](../2026-09-17-no-approval-workflows.md); old execution PASS is not current evidence. Test changed logic with unit/integration coverage; visual/device cases require actual browser evidence.
+
 > Acceptance criteria & manual test scripts for each role and each flow in
 > the Silversea Vietnamese trucking-logistics platform.
 >
@@ -39,11 +41,11 @@ identical so duplicating it gains nothing.
 
 | Environment | URL                          | Backend                       | When to use                          |
 |-------------|------------------------------|-------------------------------|--------------------------------------|
-| local dev   | http://localhost:7174        | http://localhost:3001         | Per-PR QA, fix-loop, e2e screenshot runs |
+| local dev   | http://localhost:7175        | http://localhost:3002         | Per-PR QA, fix-loop, e2e screenshot runs |
 | staging     | https://vantai.tingting.vip  | (same droplet)                | Final acceptance, regression sweep   |
 
-`make dev` brings up Postgres (`:5441`), Redis (`:6391`), backend (`:3001`),
-frontend (`:7174`) and Adminer (`:8083`). First-run: `make setup`.
+`make dev` brings up Postgres (`:5441`), Redis (`:6391`), backend (`:3002`),
+frontend (`:7175`) and Adminer (`:8083`). First-run: `make setup`.
 
 ## 3. Accounts and credentials
 

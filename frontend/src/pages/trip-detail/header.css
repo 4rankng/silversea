@@ -184,7 +184,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--ink);
@@ -295,6 +295,33 @@
 }
 
 .tdp-edit-btn svg {
+  color: var(--accent);
+}
+
+.tdp-shipment-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm, 8px);
+  padding: 0 12px;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  min-height: var(--control-compact-h);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.tdp-shipment-link-btn:hover {
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent-soft));
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line-2));
+  color: var(--accent-ink, var(--accent));
+}
+
+.tdp-shipment-link-btn svg {
   color: var(--accent);
 }
 

@@ -1,34 +1,62 @@
 import { useState, type ReactNode } from 'react';
-import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package2, Phone } from 'lucide-react';
+import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package, Phone, PhoneCall } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
+import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
 import { driverLocationLabels } from '../../features/driver/driver-display';
 
 /**
  * 2a618442 (structure-guard split): the THÔNG TIN LỆNH fact grid + the
  * THÔNG TIN XUẤT HÓA ĐƠN block, extracted from DriverTripDetailPage.
  *
- * Field order (mobile target sketch, card _4): NGÀY GIỜ KẾ HOẠCH | NHÀ MÁY
- * (short) → TÊN NHÀ MÁY (full) → ĐỊA CHỈ NHÀ MÁY (full) → Số điện thoại
- * liên hệ (one contact name + phone row beneath the factory address)
- * → Container / lô hàng
- * (each container number paired with its type code) → CẢNG NÂNG | CẢNG HẠ
+ * Field order (card 20260926_26/_27): NGÀY GIỜ KẾ HOẠCH → TÊN NHÀ MÁY →
+ * ĐỊA CHỈ NHÀ MÁY → SĐT kho → (SĐT liên hệ — only when it carries a number
+ * DIFFERENT from the kho row; identical numbers never render twice)
+ * → CẢNG NÂNG → CẢNG HẠ
  * (direction-aware: IMPORT swaps Cảng hạ to the empty-container return depot)
- * → Trả cont rỗng / Địa chỉ giao hàng (when applicable). Route text belongs
- * to the task header, not a second fact row. ĐẦU KÉO and RƠ MOÓC are OFF this surface: the wire fields
- * stay, only the rows are dropped.
+ * → Trả cont rỗng / Địa chỉ giao hàng (when applicable).
+ *
+ * Card 20260926_27 dedup decisions (documented on the card):
+ * - ITEM 5: the "Nhà máy" abbrev row is gone — the factory name renders in
+ *   the header (line-2 location); Tên nhà máy + Địa chỉ nhà máy stay. The
+ *   full-name row falls back to factoryName, so the old dash-dedup against
+ *   the removed abbrev neighbor is retired with it.
+ * - ITEM 6 (SUPERSEDED 2026-09-27, operator screenshot: "we need to have
+ *   container lô hàng like previous original design"): the read-only
+ *   "Container / lô hàng" row is BACK in the grid — the driver reads the
+ *   container they are hauling without opening the Số cont & seal card. The
+ *   SEAL row stays out (the seal card is the single home for seal data, which
+ *   is editable there), and the FCL/LCL mode label stays off this screen.
+ * - ITEM 7: khoPhone and contactPhone are independent fields, so they CAN
+ *   differ: identical numbers render ONE row; differing numbers render both
+ *   rows with their own labels so the driver can call the right one.
  */
-function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean }) {
+function TaskFact({ icon, label, value, fullWidth, action }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean; action?: React.ReactNode }) {
   return (
     <div className={`driver-task-fact${fullWidth ? ' driver-task-fact--full' : ''}`}>
       <span className="driver-task-fact__icon">{icon}</span>
-      <div className="driver-task-fact__body">
-        <div className="driver-task-fact__label">{label}</div>
-        <div className="driver-task-fact__value">{value}</div>
-      </div>
+      <span className="driver-task-fact__label">{label}</span>
+      <div className="driver-task-fact__value">{value}</div>
+      {action ? <div className="driver-task-fact__action">{action}</div> : null}
     </div>
   );
+}
+
+/** "MSCU7654329 · 20DC" per container; several containers comma-join. The type
+ *  code falls back to the type name, and a container with neither renders its
+ *  number alone — never a dangling separator. Shows "—" when no containers exist. */
+function containerLedgerValue(containers: DriverTaskDetail['containers']): string {
+  if (!containers || containers.length === 0) return '—';
+  const parts = containers
+    .map((container) => {
+      const num = container.containerNumber?.trim() || '';
+      const type = container.containerTypeCode?.trim() || container.containerTypeName?.trim() || '';
+      if (num && type) return `${num} · ${type}`;
+      return num || type || '';
+    })
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : '—';
 }
 
 /** One fee-invoice row reads "name · address · MST x" — each segment hides
@@ -74,10 +102,8 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   // Both sections start expanded (the driver should see everything on
   // arrival); collapsing is an explicit per-visit space-saving choice.
   const [infoOpen, setInfoOpen] = useState(true);
-  const [invoiceOpen, setInvoiceOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   const plannedAt = fulfillment?.plannedAt ?? trip.plannedStartAt;
-  const containers = trip.containers ?? [];
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
 
   // KP-063: direction-aware destination mapping. For IMPORT the required
@@ -94,44 +120,17 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   const showDeliveryLocationRow = Boolean(locations.delivery);
   const showReturnDepotRow = Boolean(locations.returnDepot);
 
-  // KP-191: each container number paired with its own type code
-  // (e.g. "MNBU12345543 · 40DC"). Seals render on their own row below.
-  const containerLine = containers.length > 0
-    ? containers
-        .map((c) => [c.containerNumber, c.containerTypeCode || c.containerTypeName].filter(Boolean).join(' · '))
-        .filter(Boolean)
-        .join(' · ') || '—'
-    : valueOrDash(fulfillment?.modeLabel ?? trip.cargoTypeName);
-  const sealLine = containers.length > 0
-    ? containers.map((c) => c.sealNumber ? `Seal ${c.sealNumber}` : null).filter(Boolean).join(' · ') || null
-    : null;
+  // Card 20260926_27 item 7: khoPhone and contactPhone are independent
+  // fields and CAN differ. Identical numbers never render twice — the
+  // contact row appears only when it carries a DIFFERENT trimmed number.
+  const khoPhone = fulfillment?.khoPhone?.trim() || null;
+  const contactPhone = fulfillment?.contactPhone?.trim() || null;
+  const showContactPhoneRow = Boolean(contactPhone) && contactPhone !== khoPhone;
 
-  // KP-010: contact name and callable phone grouped together beneath the
-  // factory address, labeled "Số điện thoại liên hệ".
-  const contactName = fulfillment?.contactName?.trim() || trip.instructions?.contactName?.trim() || null;
-  const contactPhone = fulfillment?.contactPhone?.trim() || trip.instructions?.contactPhone?.trim() || null;
-  const contactFieldValue = contactName && contactPhone
-    ? <>{contactName} · <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a></>
-    : contactPhone
-      ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a>
-      : contactName || '—';
-
-  const invoiceInfo = fulfillment?.invoiceInfo ?? null;
-  const missingFactoryInvoiceFields = trip.invoiceFactory ? [
-    !trip.invoiceFactory.name && 'tên pháp lý',
-    !trip.invoiceFactory.address && 'địa chỉ xuất hóa đơn',
-    !trip.invoiceFactory.taxCode && 'mã số thuế',
-  ].filter(Boolean) : [];
-
-  // No adjacent duplicate rows in the factory block: the abbrev row keeps its
-  // full-name fallback, so when the canonical full name resolves to the SAME
-  // string (site-miss or blank site short name), the full-name row dashes
-  // instead of echoing its neighbor.
-  const factoryRowValue = valueOrDash(fulfillment?.factoryShortName || fulfillment?.factoryName);
-  const fullFactoryName = valueOrDash(fulfillment?.factoryFullName);
-  const distinctFullFactoryName = fullFactoryName !== '—' && fullFactoryName !== factoryRowValue
-    ? fullFactoryName
-    : '—';
+  // Card 20260926_27 item 5: the abbrev "Nhà máy" row is gone (the factory
+  // name renders in the header), so the full-name row falls back to the
+  // free-text factory name instead of dashing against the removed neighbor.
+  const fullFactoryName = valueOrDash(fulfillment?.factoryFullName || fulfillment?.factoryName);
 
   return (
     <>
@@ -144,31 +143,31 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           onToggle={() => setInfoOpen((v) => !v)}
         />
         <div className="driver-task-grid" id="driver-task-info-grid" hidden={!infoOpen}>
-          {/* Row 1 — NGÀY GIỜ KẾ HOẠCH | NHÀ MÁY (short name), per the
-              mobile target sketch: the plan time pairs with the destination
-              the driver scans for first. */}
+          {/* Card 20260926_26 item 4: the bill/booking code (internal-ids law:
+              the driver's display key) moved into the header title — one
+              place, not two. */}
           <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={plannedAt ? formatDateTime(plannedAt) : 'Chưa chốt lịch'} />
-          <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={factoryRowValue} />
-          {/* Full factory name: canonical site name from the container
-              factory join; dashes when missing OR when it would duplicate
-              the abbrev row above. */}
-          <TaskFact icon={<Building2 size={16} />} label="Tên nhà máy" value={distinctFullFactoryName} fullWidth />
-          {/* The customer's order-info row is the factory street address;
-              route text remains visible in the task header. */}
-          <TaskFact icon={<Building02 size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} fullWidth />
-          {/* KP-010: contact name + callable phone grouped together
-              beneath the factory address. */}
-          <TaskFact
-            icon={<Phone size={16} />}
-            label="Số điện thoại liên hệ"
-            value={contactFieldValue}
-            fullWidth
-          />
-          {/* KP-191: each container number paired with its own type code. */}
-          <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
-          {sealLine ? (
-            <TaskFact icon={<Package2 size={16} />} label="Seal" value={sealLine} fullWidth />
+          {/* Card 20260926_27 item 5: no abbrev "Nhà máy" row — the factory
+              name renders in the header; Tên nhà máy + Địa chỉ stay. */}
+          <TaskFact icon={<Building2 size={16} />} label="Tên nhà máy" value={fullFactoryName} />
+          {/* The customer's order-info row is the factory street address. */}
+          <TaskFact icon={<Building02 size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} />
+          {/* Card 20260926_25/_27: the kho phone always renders (KP-010);
+              the call affordance is the row's leading phone icon. */}
+          {/* Card 20260926_41 V2 (CHIEF): the info card is pure data — the
+              call affordance lives in the action bar beneath the card. */}
+          <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT kho" value={khoPhone ?? '—'} />
+          {/* Card 20260926_27 item 7: the named-contact number renders only
+              when it DIFFERS from the kho number — identical numbers never
+              render twice. */}
+          {showContactPhoneRow ? (
+            <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT liên hệ" value={contactPhone} />
           ) : null}
+          {/* Operator ruling 2026-09-27: the container the driver is hauling
+              reads here, in the original design's position (after the kho
+              phone, before the ports). Read-only — editing stays in the
+              Số cont & seal card. */}
+          <TaskFact icon={<Package size={16} />} label="Container / lô hàng" value={containerLedgerValue(trip.containers)} />
           <TaskFact icon={<ArrowUpRight size={16} />} label="Cảng nâng" value={pickupPoint} />
           {/* KP-063: direction-aware Cảng hạ. For IMPORT this is the
               empty-container return depot; for EXPORT the drop port. */}
@@ -185,13 +184,45 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
         </div>
       </section>
 
+      {/* Card 20260926_41 V2 (CHIEF): the call affordance lives OUTSIDE the
+          info card — one green Gọi kho button, tel: the site phone. */}
+      {khoPhone ? (
+        <div className="driver-task-call-bar">
+          <a href={`tel:${khoPhone}`} className="driver-task-call-bar__btn">
+            <PhoneCall size={16} aria-hidden="true" /> Gọi kho
+          </a>
+        </div>
+      ) : null}
+
       {/* Operational instructions precede billing details and remain outside
           both independently collapsible sections. */}
       {children}
+    </>
+  );
+}
 
+/**
+ * Card 20260926_30 items 15+17: the invoice block is back-office material —
+ * it leaves the driver's critical path by rendering LAST on the screen and
+ * starting collapsed; the driver expands it on demand.
+ */
+export function DriverInvoiceSection({ trip }: { trip: DriverTaskDetail }) {
+  // Card 20260926_30 item 17: default-collapsed — the section head is the
+  // toggle; the driver expands on demand.
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const fulfillment = trip.fulfillment ?? null;
+  const invoiceInfo = fulfillment?.invoiceInfo ?? null;
+  const missingFactoryInvoiceFields = trip.invoiceFactory ? [
+    !trip.invoiceFactory.name && 'tên pháp lý',
+    !trip.invoiceFactory.address && 'địa chỉ xuất hóa đơn',
+    !trip.invoiceFactory.taxCode && 'mã số thuế',
+  ].filter(Boolean) : [];
+
+  return (
+    <>
       {/* 2a618442 / paper-form spec: "THÔNG TIN XUẤT HÓA ĐƠN" is a STRUCTURAL
-          section — it always renders; rows show their values or the
-          unconfigured empty states below. */}
+          section — it always renders (collapsed by default); rows show their
+          values or the unconfigured empty states below. */}
       <section className={`driver-task-section${invoiceOpen ? '' : ' driver-task-section--collapsed'}`}>
         <CollapsibleSectionHead
           id="driver-task-invoice-grid"
@@ -212,8 +243,9 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           {trip.invoiceFactory?.address ? (
             <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceFactory.address} fullWidth />
           ) : null}
+          {/* Card _28 item 9: MST values are copyable (factory + customer). */}
           {trip.invoiceFactory?.taxCode ? (
-            <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceFactory.taxCode} fullWidth />
+            <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceFactory.taxCode} fullWidth action={<CopyCodeButton value={trip.invoiceFactory.taxCode} label="MST nhà máy" />} />
           ) : null}
           {missingFactoryInvoiceFields.length > 0 ? <p className="driver-task-invoice-empty">Nhà máy chưa cấu hình: {missingFactoryInvoiceFields.join(', ')}.</p> : null}
           {/* Customer master-data invoice block — heading precedes data. */}
@@ -227,7 +259,7 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
                 <TaskFact icon={<MapPinned size={16} />} label="Địa chỉ" value={trip.invoiceMaster.address} fullWidth />
               ) : null}
               {trip.invoiceMaster.taxCode ? (
-                <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth />
+                <TaskFact icon={<FileText size={16} />} label="MST" value={trip.invoiceMaster.taxCode} fullWidth action={<CopyCodeButton value={trip.invoiceMaster.taxCode} label="MST khách hàng" />} />
               ) : null}
             </>
           ) : null}

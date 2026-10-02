@@ -103,8 +103,11 @@ export const forwarderClient = {
   setExpenseCompletion: async (tripId: number, data: { tripContainerId: number | null; completed: boolean }) =>
     api.put(`/forwarder/me/trips/${tripId}/expense-completion`, data),
 
-  deleteExpense: async (id: number, expectedUpdatedAt: string) => {
-    return api.delete(FORWARDER.EXPENSE(id), { expectedUpdatedAt });
+  deleteExpense: async (id: number, expectedUpdatedAt: string, reason: string) => {
+    return api.delete(FORWARDER.EXPENSE(id), {
+      expectedUpdatedAt,
+      body: JSON.stringify({ reason }),
+    });
   },
 
   getAdvanceRequests: async (status?: string) => {
@@ -142,6 +145,11 @@ export const forwarderClient = {
   getAdvanceSettlementDetail: async (id: number) => {
     return api.get<AdvanceSettlementWithRefs>(FORWARDER.ADVANCE_SETTLEMENT_DETAIL(id));
   },
+  getSettlementExport: (id: number, format: 'html' | 'xlsx', scope: 'SELF' | 'OFFICE') =>
+    api.getBlob(scope === 'SELF'
+      ? `${FORWARDER.ADVANCE_SETTLEMENT_DETAIL(id)}/export?format=${format}`
+      : FINANCIAL.ADVANCE_SETTLEMENT_EXPORT(id, format)),
+
   createAdvanceSettlement: async (data: { totalExpenseAmount?: number; refundAmount?: number; note?: string; advanceRequestIds: number[]; tripExpenseIds?: number[] }) => {
     return api.post(FORWARDER.ADVANCE_SETTLEMENTS, data);
   },
@@ -226,6 +234,8 @@ export const forwarderClient = {
 export interface LinkedRequest {
   id: number;
   amount: string;
+  /** Portion consumed by this settlement, not the full advance principal. */
+  allocatedAmount?: string;
   reason: string;
   status: string;
   createdAt: string;

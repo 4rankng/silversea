@@ -7,7 +7,7 @@
   padding: 14px;
   margin-bottom: 10px;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background var(--t-fast), border-color var(--t-fast);
   position: relative;
 }
 .trip-list-page .trip-mcard::before {
@@ -29,7 +29,7 @@
 .trip-list-page .trip-copy-btn--mobile {
   width: fit-content;
   margin-top: 10px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   align-self: flex-start;
   opacity: 0;
   pointer-events: none;
@@ -148,12 +148,6 @@
   color: var(--ink-2);
   font-size: var(--fs-xs);
   font-weight: 700;
-}
-.trip-list-page .trip-mcard__check input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--tbl-green-700);
 }
 .trip-list-page .quick-card-grid {
   display: grid;

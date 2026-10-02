@@ -39,6 +39,8 @@ describe('usePopoverPosition viewport anchoring', () => {
     expect(Number.parseFloat(panel.style.left)).toBeGreaterThanOrEqual(12);
     expect(Number.parseFloat(panel.style.left) + panelWidth).toBeLessThanOrEqual(width - 12);
     unmount();
-    expect(disconnect).toHaveBeenCalledOnce();
+    // TWO observers are released: the popover (its own height can change under
+    // it) and the trigger (the bar re-wraps without a window resize).
+    expect(disconnect).toHaveBeenCalledTimes(2);
   });
 });

@@ -40,6 +40,7 @@ const createdFulfillmentIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdPortIds: number[] = [];
+const createdFactoryIds: number[] = [];
 
 let customerId: number;
 let containerTypeId: number;
@@ -236,6 +237,9 @@ after(async () => {
   if (createdShipmentIds.length) {
     await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
   }
+  if (createdFactoryIds.length) {
+    await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdFactoryIds));
+  }
   if (createdContainerTypeIds.length) {
     await db.delete(s.containerTypes)
       .where(inArray(s.containerTypes.id, createdContainerTypeIds));
@@ -265,6 +269,30 @@ async function findItem(shipmentId: number) {
   const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, adminActor);
   return response.items.find((item) => item.id === shipmentId);
 }
+
+describe('CUS workspace ad-hoc list filter (20260917_12, §6.12)', () => {
+  test('isAdHoc=true returns only the lệnh chạy ngoài rows', async () => {
+    const adhoc = await seedShipment({ isAdHoc: true, blNumber: `WS-ADHOC-${Date.now()}` });
+    const normal = await seedShipment({ isAdHoc: false, blNumber: `WS-NORMAL-${Date.now()}` });
+
+    const response = await listCusShipmentWorkspace(
+      { page: 1, limit: 100, isAdHoc: 'true' } as never,
+      adminActor,
+    );
+    const ids = response.items.map((item) => item.id);
+    assert.ok(ids.includes(adhoc.id), 'ad-hoc lot must be returned');
+    assert.ok(!ids.includes(normal.id), 'normal lot must be excluded');
+  });
+
+  test('absent filter returns both lots (no implicit ad-hoc narrowing)', async () => {
+    const adhoc = await seedShipment({ isAdHoc: true, blNumber: `WS-ADHOC2-${Date.now()}` });
+    const normal = await seedShipment({ blNumber: `WS-NORMAL2-${Date.now()}` });
+
+    const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, adminActor);
+    const ids = response.items.map((item) => item.id);
+    assert.ok(ids.includes(adhoc.id) && ids.includes(normal.id));
+  });
+});
 
 describe('CUS shipment workspace projection — OQ1 split notes', () => {
   test('projects customerNotes and operationalNotes as separate fields', async () => {
@@ -298,8 +326,12 @@ describe('CUS shipment workspace projection — OQ1 split notes', () => {
   });
 
   test('LCL lots read SCHEDULED from closingAt/plannedReturnAt alone (card 20260914_35 rework)', async () => {
-    const importLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT', plannedReturnAt: new Date('2026-09-22T01:15:00.000Z') });
-    const exportLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'EXPORT', closingAt: new Date('2026-09-21T13:03:00.000Z') });
+    // Fixture dates float a week AHEAD of the run clock: the readiness read
+    // compares against now, so hardcoding a real calendar date (2026-09-22)
+    // made this test flip SCHEDULED → OVERDUE the day that instant passed.
+    const aWeekOut = Date.now() + 7 * 86_400_000;
+    const importLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT', plannedReturnAt: new Date(aWeekOut) });
+    const exportLot = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'EXPORT', closingAt: new Date(aWeekOut + 3_600_000) });
 
     const importItem = await findItem(importLot.id);
     const exportItem = await findItem(exportLot.id);
@@ -627,6 +659,227 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
     assert.equal(item.fieldAccess.factoryName.mode, 'DIRECT');
   });
 
+  test('workboard schedule and notes quick-edit opens to admin and dispatcher on unlocked lots', async () => {
+    const dispatcherActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-dispatcher',
+      email: null,
+      fullName: null,
+      role: Role.DISPATCHER,
+    };
+    const shipment = await seedShipment({
+      status: 'IN_TRANSIT',
+      bookingRef: `BOOK-RAW-02-${suffix}`,
+      closingAt: new Date('2026-08-20T01:00:00.000Z'),
+      customerNotes: 'Ghi chú khách hàng',
+    });
+
+    for (const actor of [adminActor, dispatcherActor]) {
+      const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, actor);
+      const item = response.items.find((candidate) => candidate.id === shipment.id);
+      assert.ok(item, `${actor.role} sees the shipment on the workboard`);
+      assert.equal(item.operational.transportDateEditable, true, `${actor.role} schedule/notes trigger enabled`);
+      for (const key of ['closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes'] as const) {
+        assert.equal(item.fieldAccess[key].mode, 'DIRECT', `${actor.role} ${key} opens the quick-edit modal`);
+      }
+    }
+  });
+
+  test('accounting lock closes the schedule quick-edit while notes stay open for every opened role', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const dispatcherActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-dispatcher',
+      email: null,
+      fullName: null,
+      role: Role.DISPATCHER,
+    };
+    const lockedShipment = await seedShipment({
+      blNumber: `RAW-LOCK-${marker}`,
+      cargoMode: 'FCL',
+    });
+    // Real billing document — the accounting-lock FK to billing_documents is
+    // live, sentinel ids violate it.
+    assert.ok(lockedShipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: lockedShipment.customerId,
+      entityName: `RAW lock doc ${marker}`,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+    }).returning();
+    await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId: lockedShipment.id,
+      billingDocumentId: lockDoc.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: {
+        rangeFrom: '2026-08-01',
+        rangeTo: '2026-08-31',
+        issuedAt: '2026-09-01T00:00:00.000Z',
+      },
+      shipmentVersionAtLock: lockedShipment.version,
+      reason: 'Schedule stays closed while the lot is locked; notes stay editable',
+      activatedBy: cusActor.userId,
+    });
+    try {
+      for (const actor of [cusActor, adminActor, dispatcherActor]) {
+        const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, actor);
+        const item = response.items.find((candidate) => candidate.id === lockedShipment.id);
+        assert.ok(item, `${actor.role} sees the locked shipment`);
+        assert.equal(item.operational.transportDateEditable, false, `${actor.role} schedule trigger disabled while locked`);
+        for (const key of ['closingAt', 'plannedReturnAt'] as const) {
+          assert.equal(item.fieldAccess[key].mode, 'READ_ONLY', `${actor.role} ${key} closed while locked`);
+        }
+        for (const key of ['customerNotes', 'operationalNotes'] as const) {
+          assert.equal(item.fieldAccess[key].mode, 'DIRECT', `${actor.role} ${key} opens while locked (notes decouple)`);
+        }
+      }
+    } finally {
+      await db.delete(s.shipmentAccountingLocks)
+        .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
+    }
+  });
+
+  // Product ruling 2026-09-20 ("both notes can be edit"): the accounting lock
+  // freezes schedule/financial fields but no longer the two note fields —
+  // CUS, ADMIN and DISPATCHER keep writing them on locked lots. The lock
+  // clause on transportDateEditable and the schedule fieldAccess keys stays.
+  test('notes quick-edit survives the accounting lock for CUS, ADMIN and DISPATCHER', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const dispatcherActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-dispatcher',
+      email: null,
+      fullName: null,
+      role: Role.DISPATCHER,
+    };
+    const lockedShipment = await seedShipment({
+      blNumber: `RAW-LOCK-${marker}`,
+      cargoMode: 'FCL',
+    });
+    assert.ok(lockedShipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: lockedShipment.customerId,
+      entityName: `RAW lock doc ${marker}`,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+    }).returning();
+    await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId: lockedShipment.id,
+      billingDocumentId: lockDoc.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: {
+        rangeFrom: '2026-08-01',
+        rangeTo: '2026-08-31',
+        issuedAt: '2026-09-01T00:00:00.000Z',
+      },
+      shipmentVersionAtLock: lockedShipment.version,
+      reason: 'Notes stay editable while the schedule stays locked',
+      activatedBy: cusActor.userId,
+    });
+    try {
+      let expectedVersion = lockedShipment.version;
+      for (const actor of [cusActor, adminActor, dispatcherActor]) {
+        const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, actor);
+        const item = response.items.find((candidate) => candidate.id === lockedShipment.id);
+        assert.ok(item, `${actor.role} sees the locked shipment`);
+        assert.equal(item.operational.transportDateEditable, false, `${actor.role} schedule trigger stays disabled while locked`);
+        assert.equal(item.fieldAccess.customerNotes.mode, 'DIRECT', `${actor.role} customerNotes opens under lock`);
+        assert.equal(item.fieldAccess.operationalNotes.mode, 'DIRECT', `${actor.role} operationalNotes opens under lock`);
+        assert.equal(item.fieldAccess.closingAt.mode, 'READ_ONLY', `${actor.role} schedule stays closed under lock`);
+        assert.equal(item.fieldAccess.declarationNumber.mode, 'READ_ONLY', `${actor.role} declaration stays closed under lock`);
+
+        const updated = await updateShipment(lockedShipment.id, {
+          expectedVersion,
+          customerNotes: `Ghi chú sau khóa — ${actor.role}`,
+          operationalNotes: `Ghi chú điều hành sau khóa — ${actor.role}`,
+        }, actor);
+        expectedVersion = updated.version;
+        const after = await listCusShipmentWorkspace({ page: 1, limit: 100 }, actor);
+        const afterItem = after.items.find((candidate) => candidate.id === lockedShipment.id);
+        assert.ok(afterItem);
+        assert.equal(afterItem.raw.customerNotes, `Ghi chú sau khóa — ${actor.role}`, `${actor.role} customerNotes persisted through the lock`);
+        assert.equal(afterItem.raw.operationalNotes, `Ghi chú điều hành sau khóa — ${actor.role}`, `${actor.role} operationalNotes persisted through the lock`);
+      }
+    } finally {
+      await db.delete(s.shipmentAccountingLocks)
+        .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
+    }
+  });
+
+  test('non-notes writes and unopened roles stay closed under the accounting lock', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const managerActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-manager',
+      email: null,
+      fullName: null,
+      role: Role.MANAGER,
+    };
+    const lockedShipment = await seedShipment({
+      blNumber: `RAW-LOCK-${marker}`,
+      cargoMode: 'FCL',
+    });
+    assert.ok(lockedShipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: lockedShipment.customerId,
+      entityName: `RAW lock doc ${marker}`,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+    }).returning();
+    await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId: lockedShipment.id,
+      billingDocumentId: lockDoc.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: {
+        rangeFrom: '2026-08-01',
+        rangeTo: '2026-08-31',
+        issuedAt: '2026-09-01T00:00:00.000Z',
+      },
+      shipmentVersionAtLock: lockedShipment.version,
+      reason: 'Negation pin: non-notes fields and unopened roles stay closed',
+      activatedBy: cusActor.userId,
+    });
+    try {
+      await assert.rejects(
+        () => updateShipment(lockedShipment.id, {
+          expectedVersion: lockedShipment.version,
+          closingAt: '2026-08-21T01:00:00.000Z',
+        }, cusActor),
+        (error: unknown) => error instanceof ApiError && error.statusCode === 409,
+        'schedule write under lock still 409s for CUS',
+      );
+      await assert.rejects(
+        () => updateShipment(lockedShipment.id, {
+          expectedVersion: lockedShipment.version,
+          customerNotes: 'Ghi chú quản lý',
+          operationalNotes: 'Ghi chú điều hành quản lý',
+        }, managerActor),
+        (error: unknown) => error instanceof ApiError && error.statusCode === 409,
+        'MANAGER notes-only write layer stays 409',
+      );
+      const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, managerActor);
+      const item = response.items.find((candidate) => candidate.id === lockedShipment.id);
+      assert.ok(item, 'MANAGER sees the locked shipment');
+      assert.equal(item.fieldAccess.customerNotes.mode, 'READ_ONLY', 'MANAGER customerNotes stays closed under lock');
+      assert.equal(item.fieldAccess.operationalNotes.mode, 'READ_ONLY', 'MANAGER operationalNotes stays closed under lock');
+    } finally {
+      await db.delete(s.shipmentAccountingLocks)
+        .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
+    }
+  });
+
   // TODO/20260911_3 BUG3: CUS creates the lot before the container numbers
   // arrive, then supplements them the next day. The save must be DIRECT —
   // no approval request, no pending row — as long as dispatch has not
@@ -816,13 +1069,18 @@ describe('CUS container-flat projection', () => {
     for (const key of ['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
       assert.equal(future.fieldAccess[key].mode, 'DIRECT', `future.fieldAccess.${key}`);
     }
+    for (const row of [past, future]) {
+      assert.equal(row.routeEditable, true);
+      assert.equal(row.liftSiteEditable, true);
+      assert.equal(row.dropoffSiteEditable, true);
+    }
     // Fields outside the plan's scope (route/container-number/pickup-drop-off)
     // keep their existing trip-based gate, unaffected by the date cutoff.
     assert.equal(past.fieldAccess.containerTypeId.mode, 'DIRECT');
     assert.equal(past.fieldAccess.cargoWeightKg.mode, 'DIRECT');
   });
 
-  test('DISPATCHER edits containerNumber directly (trip or not); route/ports keep the generic split', async () => {
+  test('SISPROD-CUS-ACCESS CUS and DISPATCHER keep linked-trip identity writable but route/ports read-only', async () => {
     const marker = Math.random().toString(16).slice(2, 8);
     const dispatcherActor: AuthUser = {
       userId: 0,
@@ -866,8 +1124,9 @@ describe('CUS container-flat projection', () => {
     assert.equal(trippedRow.fieldAccess.liftSiteId.mode, 'READ_ONLY');
     assert.equal(trippedRow.fieldAccess.dropoffSiteId.mode, 'READ_ONLY');
 
-    // Same line through CUS (unconditional plan-field override) and
-    // ACCOUNTANT (viewer) — the dispatcher branch changed neither.
+    // CUS sees the same operational restriction as the authoritative writer.
+    // The old DIRECT override advertised route/port edits that always fail
+    // the linked-trip guard; container-number identity remains writable.
     const cusView = await listCusShipmentContainers(
       { page: 1, limit: 20, searchSuffix: marker },
       cusActor,
@@ -875,7 +1134,19 @@ describe('CUS container-flat projection', () => {
     const cusRow = cusView.items.find((row) => row.containerNumber === `DSP${marker}T`);
     assert.ok(cusRow);
     assert.equal(cusRow.fieldAccess.containerNumber.mode, 'DIRECT');
-    assert.equal(cusRow.fieldAccess.routeId.mode, 'DIRECT');
+    const cusDetail = await getCusShipmentWorkspaceDetail(trippedShipment.id, cusActor);
+    const cusLine = cusDetail.containers.find((line) => line.id === trippedContainer.id);
+    assert.ok(cusLine);
+    assert.equal(cusLine.fieldAccess.containerNumber.mode, 'DIRECT');
+    for (const key of ['routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
+      assert.equal(cusRow.fieldAccess[key].mode, 'READ_ONLY', `list ${key}`);
+      assert.equal(cusLine.fieldAccess[key].mode, 'READ_ONLY', `detail ${key}`);
+      assert.match(cusLine.fieldAccess[key].reason, /chuyến thực tế/);
+    }
+    for (const key of ['routeEditable', 'liftSiteEditable', 'dropoffSiteEditable'] as const) {
+      assert.equal(cusRow[key], false, `list ${key}`);
+      assert.equal(cusLine.permissions[key], false, `detail ${key}`);
+    }
 
     const accountantView = await listCusShipmentContainers(
       { page: 1, limit: 20, searchSuffix: marker },
@@ -893,9 +1164,21 @@ describe('CUS container-flat projection', () => {
       cargoMode: 'FCL',
     });
     await seedContainer(lockedShipment.id, { containerNumber: `DSP${marker}L` });
+    // Real billing document — the accounting-lock FK to billing_documents is
+    // live (shipment-children FK wave), sentinel ids violate it.
+    assert.ok(lockedShipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: lockedShipment.customerId,
+      entityName: `DSP lock doc ${marker}`,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+    }).returning();
     await db.insert(s.shipmentAccountingLocks).values({
       shipmentId: lockedShipment.id,
-      billingDocumentId: 900_000_000 + lockedShipment.id,
+      billingDocumentId: lockDoc.id,
       billingDocumentVersion: 1,
       billingPeriodSnapshot: {
         rangeFrom: '2026-08-01',
@@ -914,9 +1197,19 @@ describe('CUS container-flat projection', () => {
       const lockedRow = lockedView.items.find((row) => row.containerNumber === `DSP${marker}L`);
       assert.ok(lockedRow);
       assert.equal(lockedRow.fieldAccess.containerNumber.mode, 'READ_ONLY');
+      const cusLockedView = await listCusShipmentContainers(
+        { page: 1, limit: 20, searchSuffix: marker },
+        cusActor,
+      );
+      const cusLockedRow = cusLockedView.items.find((row) => row.containerNumber === `DSP${marker}L`);
+      assert.ok(cusLockedRow);
+      for (const key of ['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
+        assert.equal(cusLockedRow.fieldAccess[key].mode, 'READ_ONLY', `locked CUS ${key}`);
+      }
     } finally {
       await db.delete(s.shipmentAccountingLocks)
         .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
     }
   });
 
@@ -2760,6 +3053,39 @@ describe('Linked-trip guard is value-aware (container number is identity, not an
     );
   });
 
+  test('SISPROD-CUS-ACCESS linked-trip CUS route and port changes still reject with no partial write', async () => {
+    const { marker, shipment, container, fulfillment } = await seedAssignedLot();
+    await attachTrip(fulfillment.id, marker);
+    const route = await seedRoute();
+    const ports = await seedLiftDropPorts();
+    const readState = () => Promise.all([
+      db.select({
+        routeId: s.shipmentContainers.routeId,
+        pickupPortId: s.shipmentContainers.pickupPortId,
+        dropoffPortId: s.shipmentContainers.dropoffPortId,
+      }).from(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id)),
+      db.select({ version: s.shipments.version }).from(s.shipments).where(eq(s.shipments.id, shipment.id)),
+    ]);
+    const before = await readState();
+    for (const update of [{ routeId: route.id }, { liftSiteId: ports.liftPortId }, { dropoffSiteId: ports.dropPortId }]) {
+      await assert.rejects(
+        () => updateCusShipmentContainerLine({
+          shipmentId: shipment.id,
+          containerId: container.id,
+          input: { expectedShipmentVersion: shipment.version, ...update },
+          actor: cusActor,
+        }),
+        (error: unknown) => {
+          assert.ok(error instanceof ApiError);
+          assert.equal(error.statusCode, 409);
+          assert.match(error.message, /Container đã gắn chuyến xe \(TRP-NUM-/);
+          return true;
+        },
+      );
+      assert.deepEqual(await readState(), before);
+    }
+  });
+
   test('a same-value appointment echo does not trip the guard on a tripped row', async () => {
     const { marker, shipment, container, fulfillment } = await seedAssignedLot();
     await attachTrip(fulfillment.id, marker);
@@ -2939,6 +3265,157 @@ describe('container line vehicle plate clear (20260916_6)', () => {
   test.after(async () => {
     for (const id of createdVehicleIds) {
       await db.delete(s.carrierFleetVehicles).where(eq(s.carrierFleetVehicles.id, id)).catch(() => {});
+    }
+  });
+});
+
+// UI-CD-12: factory identity is container-owned. A successful edit must change
+// the same source displayed by CUS, dispatch, and later driver jobs.
+describe('FCL workspace factory source editing', () => {
+  async function factory(overrides: Partial<typeof s.operationalSites.$inferInsert> = {}) {
+    const [row] = await db.insert(s.operationalSites).values({
+      customerId, code: `WSF-${lettersTag()}`, name: `Factory ${lettersTag()}`,
+      shortName: `NM ${lettersTag()}`, address: 'KCN test', siteType: 'FACTORY',
+      ...overrides,
+    }).returning();
+    createdFactoryIds.push(row.id);
+    return row;
+  }
+
+  test('replaces the effective factory only on the selected container, including snapshot and readback', async () => {
+    const first = await factory();
+    const factoryRoute = await seedRoute();
+    const second = await factory({ routeId: factoryRoute.id });
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: first.id, blNumber: `WSFACT-${lettersTag()}` });
+    const selected = await seedContainer(shipment.id);
+    const sibling = await seedContainer(shipment.id, { operationalSiteId: first.id });
+    const fulfillment = await seedFulfillment(shipment.id, selected.id);
+    await seedFulfillment(shipment.id, sibling.id);
+    const before = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(before.containers[0].operationalSiteId, first.id);
+    assert.equal(before.containers[0].fieldAccess.operationalSiteId.mode, 'DIRECT');
+    const result = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: selected.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: second.id }, actor: cusActor });
+    assert.equal(result.line.operationalSiteId, second.id);
+    assert.equal(result.line.routeId, factoryRoute.id);
+    assert.equal(result.line.shipmentVersion, shipment.version + 1);
+    const after = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(after.containers.find(row => row.id === selected.id)?.operationalSiteId, second.id);
+    assert.equal(after.containers.find(row => row.id === sibling.id)?.operationalSiteId, first.id);
+    const flat = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: shipment.blNumber! }, cusActor);
+    assert.equal(flat.items.find(row => row.id === selected.id)?.factoryName, second.shortName);
+    assert.equal(flat.items.find(row => row.id === selected.id)?.fieldAccess.operationalSiteId.mode, 'DIRECT');
+    const [saved] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    const snapshot = saved.siteSnapshot as { deliverySite: { id: number; contactPhone: string | null }; pickupWarehouse: { name: string } };
+    assert.equal(snapshot.deliverySite.id, second.id);
+    assert.equal(snapshot.deliverySite.contactPhone, second.contactPhone);
+    assert.equal(snapshot.pickupWarehouse.name, 'Kho A');
+    await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: selected.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: first.id }, actor: cusActor }),
+    (error: unknown) => error instanceof ApiError && error.statusCode === 409);
+    const unchanged = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(unchanged.containers.find(row => row.id === selected.id)?.operationalSiteId, second.id);
+  });
+
+  test('rejects foreign, inactive, deleted and warehouse choices atomically; selector lists scoped active factories', async () => {
+    const valid = await factory();
+    const foreignCustomer = await seedCustomer({ name: `WS factory foreign ${lettersTag()}` });
+    const invalid = [await factory({ customerId: foreignCustomer.id }), await factory({ isActive: false }),
+      await factory({ deletedAt: new Date() }), await factory({ siteType: 'WAREHOUSE' })];
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: valid.id });
+    const container = await seedContainer(shipment.id);
+    await seedFulfillment(shipment.id, container.id);
+    for (const choice of invalid) {
+      await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+        input: { expectedShipmentVersion: shipment.version, operationalSiteId: choice.id }, actor: cusActor }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 409);
+    }
+    const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.equal(detail.containers[0].operationalSiteId, valid.id);
+    assert.equal(detail.containers[0].shipmentVersion, shipment.version);
+    assert.ok(detail.selectors.operationalSites.some(site => site.id === valid.id));
+    for (const choice of invalid) assert.ok(!detail.selectors.operationalSites.some(site => site.id === choice.id));
+  });
+
+  test('combined factory and port edits retain the factory snapshot; null restores the inherited factory', async () => {
+    const inherited = await factory();
+    const selected = await factory();
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: inherited.id });
+    const container = await seedContainer(shipment.id);
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+    const { dropPortId } = await seedLiftDropPorts();
+    const changed = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: selected.id, dropoffSiteId: dropPortId }, actor: cusActor });
+    assert.equal(changed.line.operationalSiteId, selected.id);
+    assert.equal(changed.line.dropoffSiteId, dropPortId);
+    const [after] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal((after.siteSnapshot as { deliverySite: { id: number } }).deliverySite.id, selected.id);
+    const reset = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: changed.line.shipmentVersion, operationalSiteId: null }, actor: cusActor });
+    assert.equal(reset.line.operationalSiteId, inherited.id);
+    assert.equal(reset.line.dropoffSiteId, dropPortId);
+    const [stored] = await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
+    assert.equal(stored.operationalSiteId, null);
+    const [afterReset] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal((afterReset.siteSnapshot as { deliverySite: { id: number } }).deliverySite.id, inherited.id);
+    await db.update(s.shipmentContainers).set({ operationalSiteId: inherited.id }).where(eq(s.shipmentContainers.id, container.id));
+    const cleared = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: reset.line.shipmentVersion, operationalSiteId: null }, actor: cusActor });
+    assert.equal(cleared.line.operationalSiteId, inherited.id);
+    const [clearedRow] = await db.select().from(s.shipmentContainers).where(eq(s.shipmentContainers.id, container.id));
+    assert.equal(clearedRow.operationalSiteId, null, 'an equal explicit override must still be cleared');
+  });
+
+  test('preserves an unchanged historical factory and blocks changes once a real trip exists', async () => {
+    const historical = await factory({ isActive: false });
+    const next = await factory();
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: historical.id });
+    const container = await seedContainer(shipment.id);
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+    const route = await seedRoute();
+    const [trip] = await db.insert(s.trips).values({ customerId, routeId: route.id, departureDate: '2026-09-17',
+      fulfillmentId: fulfillment.id, status: 'CREATED', tripCode: `WSF-${lettersTag()}` }).returning();
+    createdTripIds.push(trip.id);
+    const noChange = await updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: historical.id }, actor: cusActor });
+    assert.equal(noChange.line.operationalSiteId, historical.id);
+    assert.equal(noChange.line.shipmentVersion, shipment.version);
+    assert.equal(noChange.line.fieldAccess.operationalSiteId.mode, 'READ_ONLY');
+    await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: next.id }, actor: cusActor }),
+    (error: unknown) => error instanceof ApiError && error.statusCode === 409 && error.message.includes('chuyến xe'));
+  });
+
+  test('preserves accounting locks and role boundaries for factory edits', async () => {
+    const first = await factory();
+    const next = await factory();
+    const shipment = await seedShipment({ cargoMode: 'FCL', operationalSiteId: first.id });
+    const container = await seedContainer(shipment.id);
+    await seedFulfillment(shipment.id, container.id);
+    await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, operationalSiteId: next.id }, actor: accountantActor }),
+    (error: unknown) => error instanceof ApiError && error.statusCode === 403);
+    // Real billing document — the accounting-lock FK to billing_documents is
+    // live (shipment-children FK wave), sentinel ids violate it.
+    assert.ok(shipment.customerId != null, 'fixture shipment carries a customer');
+    const [lockDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: shipment.customerId,
+      entityName: `UI-CD-12 lock doc ${suffix}`, rangeFrom: '2026-09-01', rangeTo: '2026-09-30',
+      totalInclVat: '0',
+    }).returning();
+    await db.insert(s.shipmentAccountingLocks).values({ shipmentId: shipment.id,
+      billingDocumentId: lockDoc.id, billingDocumentVersion: 1,
+      billingPeriodSnapshot: { rangeFrom: '2026-09-01', rangeTo: '2026-09-30', issuedAt: '2026-09-17T00:00:00.000Z' },
+      shipmentVersionAtLock: shipment.version, reason: 'UI-CD-12 regression', activatedBy: cusActor.userId });
+    try {
+      const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+      assert.equal(detail.containers[0].fieldAccess.operationalSiteId.mode, 'READ_ONLY');
+      await assert.rejects(() => updateCusShipmentContainerLine({ shipmentId: shipment.id, containerId: container.id,
+        input: { expectedShipmentVersion: shipment.version, operationalSiteId: next.id }, actor: cusActor }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 409);
+    } finally {
+      await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
     }
   });
 });

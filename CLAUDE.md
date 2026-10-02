@@ -1,7 +1,5 @@
-<!-- OPENWIKI:START -->
+# CLAUDE.md
 
-## OpenWiki
+The canonical agent contract for this repo is `AGENTS.md`, imported below. Follow it exactly — nothing in Claude-specific configuration overrides it.
 
-See [AGENTS.md](AGENTS.md) for OpenWiki agent instructions.
-
-<!-- OPENWIKI:END -->
+@AGENTS.md

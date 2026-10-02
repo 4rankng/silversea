@@ -1,8 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { downloadCSV } from '../lib/csv';
 import {
-  Search, Activity, Users, Clock, TrendingUp, Download, FileText,
-  Truck, Settings, DollarSign, LogIn,
+  Activity, Users, Clock, TrendingUp, Download,
   Globe, Terminal, Copy, Check, Info, Eye, X,
 } from 'lucide-react';
 import { Panel, KPI, PageHeader } from '../components/UI';
@@ -16,7 +15,8 @@ import { ACTION_LABELS, resolveCategory, formatTimeShort } from '../lib/audit-he
 import './AuditLogPage.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import { EmptyState, FilterBar, Tabs } from '../design-system';
+import { formatNumber } from '../lib/format';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -50,13 +50,13 @@ function normalizeEntry(e: RawAuditEntry): NormalizedEntry {
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
-const CATEGORIES: { key: Category; label: string; icon: React.ElementType }[] = [
-  { key: 'all',     label: 'Tất cả',    icon: FileText },
-  { key: 'trip',    label: 'Chuyến đi', icon: Truck },
-  { key: 'config',  label: 'Cấu hình',  icon: Settings },
-  { key: 'finance', label: 'Tài chính', icon: DollarSign },
-  { key: 'auth',    label: 'Xác thực',  icon: LogIn },
-  { key: 'penalty', label: 'Kỷ luật',   icon: Activity },
+const CATEGORIES: { key: Category; label: string }[] = [
+  { key: 'all',     label: 'Tất cả' },
+  { key: 'trip',    label: 'Chuyến đi' },
+  { key: 'config',  label: 'Cấu hình' },
+  { key: 'finance', label: 'Tài chính' },
+  { key: 'auth',    label: 'Xác thực' },
+  { key: 'penalty', label: 'Kỷ luật' },
 ];
 
 function formatExactTime(iso: string): string {
@@ -78,15 +78,6 @@ function categoryDotClass(c: string): string {
   if (c === 'auth') return 'audit-dot--auth';
   if (c === 'penalty') return 'audit-dot--delete';
   return 'audit-dot--create';
-}
-
-function categoryIcon(c: string) {
-  if (c === 'trip') return <Truck size={13} />;
-  if (c === 'config') return <Settings size={13} />;
-  if (c === 'finance') return <DollarSign size={13} />;
-  if (c === 'auth') return <LogIn size={13} />;
-  if (c === 'penalty') return <Activity size={13} />;
-  return <FileText size={13} />;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────
@@ -294,6 +285,7 @@ fontSize: 'var(--text-data-size)',
           <button
             className="btn btn--secondary"
             disabled={entries.length === 0}
+            title={entries.length === 0 ? 'Nhật ký trống — không có gì để xuất' : undefined}
             onClick={async () => {
               const headers = isAdmin
                 ? ['#', 'Thời gian', 'Người dùng', 'Hành động', 'Nội dung', 'Địa chỉ IP']
@@ -367,42 +359,34 @@ fontSize: 'var(--text-data-size)',
       </div>
 
       {/* ── Filter Bar ── */}
-      <div data-tour-id="audit-filters" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        {CATEGORIES.map(cat => {
-          const Icon = cat.icon;
-          const isActive = filter === cat.key;
-          return (
-            <button
-              key={cat.key}
-              className={`filter-pill${isActive ? ' is-active' : ''}`}
-              onClick={() => {
-                setFilter(cat.key);
-              }}
-            >
-              <Icon size={14} />
-              {cat.label}
-              {filter === cat.key && (
-                <span className="filter-pill__count">{total}</span>
-              )}
-            </button>
-          );
-        })}
-
-        <div style={{ flex: 1 }} />
-
-        <div className="toolbar__search" style={{ minWidth: 280 }}>
-          <Search size={14} />
-          <input
-            type="text"
-            name="auditSearch"
-            aria-label="Tìm trong nhật ký người dùng"
-            placeholder="Tìm tên, nội dung, hành động…"
-            value={search}
-            onChange={e => {
-              setSearch(e.target.value);
-            }}
+      {/* Card 20260927_152: the ONE shared strip. The category group is the
+          shared boxed `Tabs` (a segmented group is never a page-local chip
+          row), the search is the bar's own cell, and the total rides `Tabs`'
+          plain numeral slot — the count pill it replaced is gone. Only the
+          selected category prints a total: that is the one count the query
+          returns, so no invented per-category number is shown. */}
+      <div data-tour-id="audit-filters">
+        <FilterBar
+          search={{
+            value: search,
+            onChange: setSearch,
+            placeholder: 'Tìm tên, nội dung, hành động…',
+            ariaLabel: 'Tìm trong nhật ký người dùng',
+            inputProps: { name: 'auditSearch' },
+          }}
+        >
+          <Tabs
+            variant="boxed"
+            ariaLabel="Lọc theo nhóm hoạt động"
+            value={filter}
+            onChange={(id) => setFilter(id as Category)}
+            tabs={CATEGORIES.map(cat => ({
+              id: cat.key,
+              label: cat.label,
+              count: filter === cat.key ? total : undefined,
+            }))}
           />
-        </div>
+        </FilterBar>
       </div>
 
       {/* ── Full-width activity list ── */}
@@ -412,7 +396,7 @@ fontSize: 'var(--text-data-size)',
             <h2>Danh sách hoạt động</h2>
             <p>Chọn một bản ghi để xem đầy đủ thông tin và dữ liệu kỹ thuật.</p>
           </div>
-          <span className="audit-list-panel__count">{total.toLocaleString('vi-VN')} bản ghi</span>
+          <span className="audit-list-panel__count">{formatNumber(total)} bản ghi</span>
         </div>
           <div className="record-table-wrap" data-tour-id="audit-table">
             <table className="record-table ops-table table-hover">
@@ -435,8 +419,7 @@ fontSize: 'var(--text-data-size)',
                   <tr>
                     <td colSpan={4} data-label="" style={{ textAlign: 'center', padding: '24px 48px', color: 'var(--ink-3)' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                        <img src={resolveEmptyIllustration('empty-audit')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                        Không tìm thấy bản ghi nào khớp bộ lọc hiện tại.
+                        <EmptyState variant="compact" context="audit" title="Không tìm thấy bản ghi nào khớp bộ lọc hiện tại." />
                       </div>
                     </td>
                   </tr>
@@ -484,7 +467,6 @@ fontSize: 'var(--text-data-size)',
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                               <div className="audit-event-tag">
                                 <span className={`audit-dot ${categoryDotClass(entry.category)}`} />
-                                {categoryIcon(entry.category)}
                                 <span style={{ fontWeight: 600, fontSize: 'var(--text-body-size)', lineHeight: 1.35, color: 'var(--ink-2)' }}>
                                   {ACTION_LABELS[entry.action] || entry.action}
                                 </span>

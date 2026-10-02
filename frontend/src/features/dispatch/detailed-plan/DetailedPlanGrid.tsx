@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Truck } from 'lucide-react';
+import { X } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
 import type { DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
-import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Modal } from '../../../components/UI';
 import {
   DispatchPlanEditorCell,
@@ -13,6 +12,7 @@ import {
   type IssueOrderResult,
 } from './DispatchPlanEditorCell';
 import { QuickIssueOrderButton } from './QuickIssueOrderButton';
+import { DispatchPairAction } from './DispatchPairAction';
 import { deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { formatAppointmentGroupLine } from '../../shipments/cus/cusUtils';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
@@ -20,6 +20,7 @@ import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
 import type { DetailedPlanFilterState, DetailPlanSortDirection, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
+import { billBookingReference } from '../../../lib/business-reference';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { DispatchDriverNote } from './DispatchDriverNote';
 import { detailRowKey } from './DispatchPlanCellValues';
@@ -52,7 +53,7 @@ interface DetailedPlanGridProps {
   zones: Array<{ code: string; label: string }>;
   sortKey: DetailPlanSortKey;
   sortDirection: DetailPlanSortDirection;
-  onToggleSort: (key: 'runHour' | 'deliveryPoint') => void;
+  onToggleSort: (key: Exclude<DetailPlanSortKey, null>) => void;
   onAtomicSave: (
     row: DispatchDetailPlanRow,
     body: {
@@ -128,7 +129,13 @@ export function DetailedPlanGrid({
   const { tags } = useDispatchTaskTags();
   const taskLabels = tags.map((tag) => tag.label);
 
-  if (error) {
+  // P1 (post-cut#4 mount regression, QA _58 repro): a transient failure on a
+  // 30s background-refresh tick must NOT collapse the grid to the error
+  // branch — that unmounted the table mid-edit (inline editors died) and the
+  // surface read as "zero rows". With rows already loaded, the failure
+  // renders as a non-blocking banner over the intact table; the full-branch
+  // error state stays reserved for a cold load with nothing to show.
+  if (error && items.length === 0) {
     return (
       <>
         <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} />
@@ -155,10 +162,17 @@ export function DetailedPlanGrid({
         <div className="dispatch-plan-page__error" role="alert">{assignmentError}</div>
       )}
 
+      {error && items.length > 0 && (
+        <div className="dispatch-plan-page__error" role="alert">
+          <span>{error}</span>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry} disabled={loading}>Thử lại</button>
+        </div>
+      )}
+
       {lotBanner && (
         <div className="detailed-plan-grid__lot-banner" role="status">
           <span>{lotBanner}</span>
-          <button type="button" onClick={onClearLotBanner} aria-label="Đóng thông báo">✕</button>
+          <button type="button" onClick={onClearLotBanner} aria-label="Đóng thông báo"><X size={16} aria-hidden="true" /></button>
         </div>
       )}
 
@@ -169,8 +183,7 @@ export function DetailedPlanGrid({
         </div>
       ) : items.length === 0 ? (
         <EmptyState
-          illustration="/assets/illustrations/empty-dispatch.svg"
-          icon={Truck}
+          context="dispatch"
           title="Không có dòng kế hoạch nào"
           description="Các container của lô đã phân bổ nhà xe sẽ xuất hiện ở đây."
         />
@@ -200,6 +213,19 @@ export function DetailedPlanGrid({
                     Thời gian &amp; lịch trình {sortKey === 'runHour' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
                   </button>
                 </th>
+                <th scope="col" aria-sort={sortKey === 'customer' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
+                  <button
+                    type="button"
+                    className={`detailed-plan-grid__sort${sortKey === 'customer' ? ' is-sorted' : ''}`}
+                    onClick={() => onToggleSort('customer')}
+                    aria-label="Sắp xếp theo khách hàng"
+                  >
+                    Khách hàng &amp; lộ trình {sortKey === 'customer' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
+                  </button>
+                </th>
+                <th scope="col">Nâng hàng</th>
+                {/* The delivery-point sort belongs to the column that shows the
+                    drop; the customer column owns the customer ordering. */}
                 <th scope="col" aria-sort={sortKey === 'deliveryPoint' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
                   <button
                     type="button"
@@ -207,11 +233,9 @@ export function DetailedPlanGrid({
                     onClick={() => onToggleSort('deliveryPoint')}
                     aria-label="Sắp xếp theo điểm trả"
                   >
-                    Khách hàng &amp; lộ trình {sortKey === 'deliveryPoint' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
+                    Trả hàng {sortKey === 'deliveryPoint' ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
                   </button>
                 </th>
-                <th scope="col">Nâng hàng</th>
-                <th scope="col">Trả hàng</th>
                 <th scope="col">Tuyến đường</th>
                 <th scope="col">Container</th>
                 <th scope="col">Điều phối</th>
@@ -240,29 +264,29 @@ export function DetailedPlanGrid({
                 const actionLabel = canQuickIssue
                   ? 'Phát lệnh'
                   : canCompleteExternal ? 'Hoàn thành' : null;
-                const notesCellBlank = !row.notes.vehicleNote && !row.notes.customerNote && actionLabel == null;
+                const notesCellBlank = !row.notes.vehicleNote && !row.notes.customerNote && !row.notes.opsRecoveryNotes?.length && actionLabel == null;
                 const scheduleValue = row.time.runAt ? formatAppointmentGroupLine(row.time.runAt)
                   : [row.time.runHour != null ? `${row.time.runHour}H` : '—', row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ');
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình" data-label-short="Giờ">
                     <div className="ops-schedule">
                       <strong className="ops-schedule__datetime">{scheduleValue}</strong>
-                      <span className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                      <span className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={!row.docs.tradeDirection ? 'true' : undefined}>
                         {row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : '—'}
                         {differentTransportDate && ` · Ngày vận chuyển: ${differentTransportDate}`}
                       </span>
                     </div>
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình" data-label-short="Khách">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                       {row.customerRoute.customerName}
                     </div>
-                    <div className="detailed-plan-grid__line">
+                    <div className="detailed-plan-grid__line" data-empty={!row.customerRoute.factoryName ? 'true' : undefined}>
                       {row.customerRoute.factoryName ?? '—'}
                     </div>
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__route-bill">
+                    <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__route-bill" data-empty={!row.docs.billNumber ? 'true' : undefined}>
                       {row.docs.billNumber ? `Bill: ${row.docs.billNumber}` : '—'}
                     </div>
                   </td>
@@ -275,13 +299,13 @@ export function DetailedPlanGrid({
                     const dropShort = row.ports.dropoffPortShortName;
                     return (
                       <>
-                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng">
+                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng" data-label-short="Nâng" data-empty={!liftShort && !liftPort ? 'true' : undefined}>
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{liftShort ?? liftPort ?? '—'}</div>
                           {liftShort && liftPort && liftShort !== liftPort && (
                             <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{liftPort}</div>
                           )}
                         </td>
-                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Trả hàng">
+                        <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Trả hàng" data-label-short="Trả" data-empty={!dropShort && !dropPort ? 'true' : undefined}>
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{dropShort ?? dropPort ?? '—'}</div>
                           {dropShort && dropPort && dropShort !== dropPort && (
                             <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{dropPort}</div>
@@ -290,7 +314,7 @@ export function DetailedPlanGrid({
                       </>
                     );
                   })()}
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường" data-label-short="Tuyến">
                     {row.customerRoute.routeName ? (
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{row.customerRoute.routeName}</div>
                     ) : row.customerRoute.deliveryPoint ? (
@@ -300,9 +324,9 @@ export function DetailedPlanGrid({
                     )}
                     <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
                       {row.docs.tradeDirection === 'IMPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
+                        <span>Nhập</span>
                       ) : row.docs.tradeDirection === 'EXPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
+                        <span>Xuất</span>
                       ) : '—'}
                     </div>
                     {row.isCombined && (
@@ -311,32 +335,36 @@ export function DetailedPlanGrid({
                       </span>
                     )}
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--container" data-label="Container">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--container" data-label="Container" data-label-short="Cont">
                     {row.cargoMode === 'FCL' ? (
                       <>
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                          {row.container.containerNumber ?? 'Chưa có số'}
-                          {row.dispatch.pairKind && (
-                            <span className="detailed-plan-grid__pair-tag">
-                              {row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
-                            </span>
-                          )}
-                        </div>
-                        <div className="detailed-plan-grid__line">{row.container.containerTypeLabel ?? '—'}</div>
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                        {row.container.containerNumber ? (
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
+                            {row.container.containerNumber}
+                            {row.dispatch.pairKind && (
+                              <span className="detailed-plan-grid__pair-tag">
+                                {row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--missing">Chưa có số cont</div>
+                        )}
+                        <div className="detailed-plan-grid__line" data-empty={!row.container.containerTypeLabel ? 'true' : undefined}>{row.container.containerTypeLabel ?? '—'}</div>
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined}>
                           {formatWeight(row.container.cargoWeightKg)}
                         </div>
                       </>
                     ) : (
                       <>
                         <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">Lô hàng lẻ</div>
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined}>
                           {formatWeight(row.container.cargoWeightKg)}
                         </div>
                       </>
                     )}
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối" data-label-short="Điều phối">
                     <DispatchPlanEditorCell
                       row={row}
                       onAtomicSave={onAtomicSave}
@@ -348,25 +376,13 @@ export function DetailedPlanGrid({
                       onIssueOrder={onIssueOrder}
                     />
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại" data-label-short="Loại">
                     <span className="detailed-plan-grid__classification">
                       {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                     </span>
-                    {onOpenPair
-                      && row.dispatch?.tripId != null
-                      && row.dispatch.carrierType !== 'EXTERNAL'
-                      && !row.dispatch.pairKind
-                      && row.dispatch.tripStatus !== 'CANCELED' && (
-                      <button
-                        type="button"
-                        className="btn btn--secondary btn--sm detailed-plan-grid__pair-btn"
-                        onClick={() => onOpenPair(row)}
-                      >
-                        Ghép chuyến
-                      </button>
-                    )}
+                    <DispatchPairAction row={row} onOpenPair={onOpenPair} />
                   </td>
-                  <td className={`detailed-plan-grid__cell detailed-plan-grid__cell--notes${notesCellBlank ? ' detailed-plan-grid__cell--blank' : ''}`} data-label="Ghi chú">
+                  <td className={`detailed-plan-grid__cell detailed-plan-grid__cell--notes${notesCellBlank ? ' detailed-plan-grid__cell--blank' : ''}`} data-label="Ghi chú" data-label-short="Ghi chú">
                     {row.notes.vehicleNote && (
                       <button
                         type="button"
@@ -377,6 +393,7 @@ export function DetailedPlanGrid({
                         <DispatchDriverNote value={row.notes.vehicleNote} labels={taskLabels} compact />
                       </button>
                     )}
+                    {row.notes.opsRecoveryNotes?.map(note => <button key={note} type="button" className="detailed-plan-grid__note" onClick={() => setExpandedNote({ title: 'Ghi chú OPS', text: note })}><span className="detailed-plan-grid__line detailed-plan-grid__note-clamp" style={{ whiteSpace: 'pre-wrap' }}><strong>OPS: </strong>{note}</span></button>)}
                     {row.notes.customerNote && (
                       <button
                         type="button"
@@ -397,7 +414,7 @@ export function DetailedPlanGrid({
                         type="button"
                         className="detailed-plan-grid__note-action"
                         onClick={() => onCompleteExternalTrip(row)}
-                        aria-label={`Hoàn thành · ${row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`}`}
+                        aria-label={`Hoàn thành · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
                         title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
                       >
                         Hoàn thành

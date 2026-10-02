@@ -131,6 +131,7 @@ export interface UseTripFormReturn {
   estimatedFuelCost: number;
   estimatedTollCost: number;
   estimatedProfit: number;
+  previewTotals: import('@tingting/shared').ComputeTripTotalsOutput;
   completionStatus: CompletionStatus;
   completedSections: number;
   requiredFieldsFilled: number;
@@ -228,6 +229,7 @@ export function useTripForm(arg: TripOptions | UseTripFormParams): UseTripFormRe
     estimatedFuelCost: d.estimatedFuelCost,
     estimatedTollCost: d.estimatedTollCost,
     estimatedProfit: d.estimatedProfit,
+    previewTotals: d.previewTotals,
     completionStatus: d.completionStatus,
     completedSections: d.completedSections,
     requiredFieldsFilled: d.requiredFieldsFilled,

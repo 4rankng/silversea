@@ -4,7 +4,8 @@ import ExcelJS from 'exceljs';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
-import { db } from '../db';
+import { db, type Tx } from '../db';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { reassignTruckDriverInTx } from './truck-driver-assignment.service';
@@ -41,7 +42,12 @@ import {
   type TruckSpecPayload,
 } from './master-data-import-sep2026.service';
 
-export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+// Re-exported so the Sep-2026 two-file merge names the same transaction type
+// from this module — the single authority for the import pipeline — instead of
+// reaching into `../db` a second time.
+export type { Tx };
+
+// Canonical database-handle type lives in ../db (the one Executor seam).
 type Classification = typeof s.masterImportRowClassificationEnum.enumValues[number];
 
 export const MASTER_IMPORT_MAX_BYTES = 15 * 1024 * 1024;
@@ -93,7 +99,6 @@ export interface PortPayload {
   // Sep-2026 sheet ("Cảng & Bãi") additions — null from the legacy parser.
   classification: string | null;
   legalEntity: string | null;
-  isLachHuyen: boolean;
   position: string | null;
 }
 
@@ -386,7 +391,7 @@ function parseTemplateSheet(
         rowNumber,
         entityType,
         'UNSUPPORTED_SOURCE_ROW',
-        'Dòng nguồn chưa có ánh xạ được phê duyệt; không tạo bản ghi.',
+        'Dòng nguồn chưa có ánh xạ hợp lệ; không tạo bản ghi.',
       ));
     } else {
       rows.push(templateRow(sheet.name, rowNumber, entityType));
@@ -508,7 +513,6 @@ function parsePorts(workbook: ExcelJS.Workbook, rows: ParsedRow[]): void {
       webUrl: /^https?:\/\//i.test(webUrl) ? webUrl : null,
       classification: null,
       legalEntity: null,
-      isLachHuyen: false,
       position: null,
     };
     rows.push(classifiedRow({
@@ -743,6 +747,11 @@ function summarizeRows(rows: ParsedRow[]): Record<string, number> {
 async function parseWorkbook(buffer: Buffer): Promise<ParsedWorkbook> {
   const workbook = new ExcelJS.Workbook();
   try {
+    // SAFETY: `Buffer` IS the ExcelJS buffer shape at runtime — ExcelJS only
+    // reads it as a byte source — but its published type is the browser `Blob`
+    // union, which a Node `Buffer` does not structurally satisfy. The cast
+    // bridges that declaration gap only; the `try` below still turns a
+    // malformed workbook into the 400 the route expects.
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
   } catch {
     throw new ApiError(400, 'Tệp XLSX không hợp lệ hoặc đã bị hỏng.');
@@ -998,7 +1007,7 @@ async function replayExistingAnalysis(
   file: MasterWorkbookFile,
 ): Promise<AnalyzeMasterWorkbookResult> {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`master-import:${sourceFileHash}:${MASTER_IMPORT_PARSER_VERSION}`}, 0))`);
+    await acquireAdvisoryLock(tx, lockKeys.masterImportFile(sourceFileHash, MASTER_IMPORT_PARSER_VERSION));
     const [batch] = await tx.select().from(s.masterImportBatches)
       .where(eq(s.masterImportBatches.id, batchId)).limit(1).for('update');
     if (!batch) throw new ApiError(404, 'Không tìm thấy lô nhập Master Data.');
@@ -1036,7 +1045,7 @@ export async function analyzeMasterWorkbook(
 
   try {
     return await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`master-import:${sourceFileHash}:${MASTER_IMPORT_PARSER_VERSION}`}, 0))`);
+      await acquireAdvisoryLock(tx, lockKeys.masterImportFile(sourceFileHash, MASTER_IMPORT_PARSER_VERSION));
       const [existing] = await tx.select().from(s.masterImportBatches).where(and(
         eq(s.masterImportBatches.sourceFileHash, sourceFileHash),
         eq(s.masterImportBatches.parserVersion, MASTER_IMPORT_PARSER_VERSION),
@@ -1101,7 +1110,7 @@ async function applyParsedRows(
   parsed: ParsedWorkbook,
   actorId: number,
 ): Promise<Record<string, number>> {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${'master-data-import.apply'}, 0))`);
+  await acquireAdvisoryLock(tx, lockKeys.masterDataImportApply());
   const persistedRows = await tx.select().from(s.masterImportRowResults)
     .where(eq(s.masterImportRowResults.batchId, batchId));
   const persistedBySource = new Map(persistedRows.map((row) => [`${row.sheetName}:${row.rowNumber}`, row]));
@@ -1195,7 +1204,6 @@ async function applyParsedRows(
       notes: payload.webUrl ? `Trang tác nghiệp: ${payload.webUrl}` : (existing?.notes ?? null),
       classification: payload.classification ?? existing?.classification ?? null,
       legalEntity: payload.legalEntity ?? existing?.legalEntity ?? null,
-      isLachHuyen: payload.isLachHuyen || (existing?.isLachHuyen ?? false),
       opsPortalUrl: payload.webUrl ?? existing?.opsPortalUrl ?? null,
       position: payload.position ?? existing?.position ?? null,
       updatedAt: new Date(),

@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import sharp from 'sharp';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 // auth + Casbin applied at mount point in index.ts
 import { Role } from '@tingting/shared';
 import { storageService } from '../services/storage.service';
@@ -36,6 +36,7 @@ import {
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
 import { assertTripShipmentAccountingUnlocked } from '../services/shipment-accounting-lock.service';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 // Maximum dimension for server-side downscale
 const MAX_IMAGE_DIMENSION = 2048;
@@ -296,88 +297,9 @@ async function releaseUploadCleanupGuard(
  * clearing ALL rows of that type is what actually makes the thumbnail
  * disappear — deleting only the latest would just resurface the previous one.
  */
-export async function deleteTripPhotosByType(
-  tripId: number,
-  type: TripPhotoType,
-  /**
-   * Phase 2: when provided, scope the delete to only photos linked to this
-   * specific container row (via trip_photos.trip_container_id). When omitted,
-   * deletes ALL photos of this type for the trip — the legacy "remove all"
-   * behaviour, which is what the editor's "Xoá ảnh" affordance expects.
-   */
-  containerId?: number,
-): Promise<number> {
-  return db.transaction(async (tx) => {
-    await assertTripShipmentAccountingUnlocked(tx, tripId);
-    const conditions = [eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.type, type)];
-    if (containerId !== undefined) {
-      conditions.push(eq(s.tripPhotos.tripContainerId, containerId));
-    }
-    const rows = await tx.select({ id: s.tripPhotos.id, storageKey: s.tripPhotos.storageKey })
-      .from(s.tripPhotos)
-      .where(and(...conditions))
-      .for('update');
-    if (rows.length === 0) return 0;
-    for (const row of rows) {
-      await enqueueTripPhotoFinalDelete(tx, row.id, row.storageKey, 'trip-photo-final');
-    }
-    await tx.delete(s.tripPhotos)
-      .where(inArray(s.tripPhotos.id, rows.map((row) => row.id)));
-    return rows.length;
-  });
-}
 
-export async function deleteTripPhotoByStorageKey(
-  tripId: number,
-  type: TripPhotoType,
-  storageKey: string,
-  containerId?: number,
-): Promise<number> {
-  const buildConditions = (withContainer: boolean) => {
-    const c = [
-      eq(s.tripPhotos.tripId, tripId),
-      eq(s.tripPhotos.type, type),
-      eq(s.tripPhotos.storageKey, storageKey),
-    ];
-    if (withContainer && containerId !== undefined) {
-      c.push(eq(s.tripPhotos.tripContainerId, containerId));
-    }
-    return c;
-  };
 
-  const row = await db.transaction(async (tx) => {
-    await assertTripShipmentAccountingUnlocked(tx, tripId);
-    let [locked] = await tx.select({
-      id: s.tripPhotos.id,
-      storageKey: s.tripPhotos.storageKey,
-    })
-      .from(s.tripPhotos)
-      .where(and(...buildConditions(true)))
-      .limit(1)
-      .for('update');
-    // A container scope was requested but matched nothing: the photo may be a
-    // legacy unscoped row. Retry without the container filter while retaining
-    // the trip/type/storage-key boundary.
-    if (!locked && containerId !== undefined) {
-      [locked] = await tx.select({
-        id: s.tripPhotos.id,
-        storageKey: s.tripPhotos.storageKey,
-      })
-        .from(s.tripPhotos)
-        .where(and(...buildConditions(false)))
-        .limit(1)
-        .for('update');
-    }
-    if (!locked) return null;
-    await enqueueTripPhotoFinalDelete(tx, locked.id, locked.storageKey, 'trip-photo-final');
-    await tx.delete(s.tripPhotos).where(eq(s.tripPhotos.id, locked.id));
-    return locked;
-  });
-  if (!row) return 0;
-  return 1;
-}
-
-const uploadRouter = Router();
+const uploadRouter = Router()
 
 function requireUploadIdempotencyKey(req: Request): string {
   const key = getRequestIdempotencyKey(req);
@@ -422,7 +344,7 @@ async function prepareCompanyLogo(
 // Company logo upload. Mirrors the config router role gate (config.ts): DRIVER
 // and FORWARDER cannot set the company identity. The storage key is persisted
 // to app_settings via PUT /api/config/company-info.
-uploadRouter.post('/company-logo', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+uploadRouter.post('/company-logo', declareMaterialWrite('upload.company-logo', { method: 'POST', path: '/api/upload/company-logo' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const role = getUser(req).role;
   if (role === Role.DRIVER || role === Role.OPS) {
     throw new ApiError(403, 'Không có quyền tải logo công ty');
@@ -480,7 +402,7 @@ uploadRouter.post('/company-logo', upload.single('file'), asyncHandler(async (re
   });
 }));
 
-uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+uploadRouter.post('/', declareMaterialWrite('upload.trip-photo', { method: 'POST', path: '/api/upload/' }),  upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
   const tripId = parseInt(req.body.trip_id);
   const type = req.body.type as TripPhotoType;
@@ -568,7 +490,7 @@ uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, 
   });
 }));
 
-uploadRouter.post('/trips/:tripId/photos/:type/delete', asyncHandler(async (req: Request, res: Response) => {
+uploadRouter.post('/trips/:tripId/photos/:type/delete', declareMaterialWrite('upload.trip-photo.delete', { method: 'POST', path: '/api/upload/trips/:tripId/photos/:type/delete' }),  asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
   if (isNaN(tripId)) throw new ApiError(400, 'trip_id không hợp lệ');
 
@@ -790,12 +712,12 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
     // forwarder reading an own-owned trip-expense receipt).
   } else if (opsExpenseMatch) {
     // Ops cash-expense receipts: readable by the authoring Ops (the uid
-    // segment) and by the approver roles that review the evidence
+    // segment) and by financial staff authorized to review the evidence
     // (OpsVanHanh §5.4). Everyone else — including other Ops — is denied.
     const user = getUser(req);
     const ownerUid = parseInt(opsExpenseMatch[1], 10);
-    const isApprover = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
-    if (user.userId !== ownerUid && !isApprover) {
+    const canReviewFinancialEvidence = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
+    if (user.userId !== ownerUid && !canReviewFinancialEvidence) {
       throw new ApiError(403, 'Không có quyền truy cập ảnh này');
     }
   } else if (templateLogoMatch) {

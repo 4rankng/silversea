@@ -3,17 +3,18 @@ import { SHIPMENT_CUS_DISPATCH_STATUSES } from '@tingting/shared';
 import { dispatchStatusLabel } from './cusUtils';
 import { DISPATCH_STATUS } from '../detail/ShipmentContainerLedger';
 
-// Customer decision 2026-09-08, revised the same evening: the container
-// dispatch chip has five states — "Đã tạo chuyến" while a CREATED trip still
-// misses its ngày đóng/trả; "Chờ phân xe" once the date is set (or nothing
-// scheduled yet) but no vehicle is on the line; "Đã phân xe" once a vehicle
-// is allocated (the same plate the Phân xe column shows); then "Đang chạy" /
-// "Hoàn thành". Only "Chưa điều xe" (UNASSIGNED) stays retired as chip
-// wording.
+// Customer decision 2026-09-08, revised the same evening; 2026-09-18 user
+// ruling on 20260917_5: the vehicle-allocated state reads "Đã điều xe" (not
+// "Đã phân xe"). The container dispatch chip keeps five states — "Đã tạo
+// chuyến" while a CREATED trip still misses its ngày đóng/trả; "Chờ phân xe"
+// once the date is set (or nothing scheduled yet) but no vehicle is on the
+// line; "Đã điều xe" once a vehicle is allocated (the same plate the Phân xe
+// column shows); then "Đang chạy" / "Hoàn thành". Only "Chưa điều xe"
+// (UNASSIGNED) stays retired as chip wording.
 describe('container dispatch status vocabulary', () => {
   it('labels every shared status with the agreed wording', () => {
     expect(dispatchStatusLabel('AWAITING_VEHICLE')).toBe('Chờ phân xe');
-    expect(dispatchStatusLabel('PLANNED')).toBe('Đã phân xe');
+    expect(dispatchStatusLabel('PLANNED')).toBe('Đã điều xe');
     expect(dispatchStatusLabel('CREATED')).toBe('Đã tạo chuyến');
     expect(dispatchStatusLabel('IN_TRANSIT')).toBe('Đang chạy');
     expect(dispatchStatusLabel('COMPLETED')).toBe('Hoàn thành');

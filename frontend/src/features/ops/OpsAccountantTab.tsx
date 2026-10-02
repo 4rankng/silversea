@@ -1,5 +1,6 @@
+import { opsBillReference } from './opsStatus';
 import { useState } from 'react';
-import { Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Image as ImageIcon, Loader2, X } from 'lucide-react';
 import {
   useAdminOpsExpenses,
   useAdminOpsSettlements,
@@ -9,10 +10,12 @@ import { useToast } from '../../components/shared/Toast';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsSettlementSheet } from './OpsSettlementsPanel';
 import { useAdminOpsSettlement } from '../../hooks/useOpsQueries';
-import { formatVnd } from './opsStatus';
+import { formatMoney } from '../../lib/format';
+import { OpsQueryFeedback } from './OpsQueryFeedback';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
+import { formatDate } from '../../lib/format';
 /**
  * "Chi phí Ops" tab in the advance workspace (OpsVanHanh §5.4): accounting
  * reviews field cash expenses (photos first) and closes settlement batches.
@@ -26,6 +29,9 @@ export function OpsAccountantTab() {
   const sheet = useAdminOpsSettlement(sheetFor);
 
   const items = data?.items ?? [];
+  // The settlement detail is what the "Xem phiếu" modal renders; held as a
+  // local so the pending/error branches below can share one narrowing.
+  const detail = sheet.data;
 
   return (
     <div className="ops-acc">
@@ -40,7 +46,7 @@ export function OpsAccountantTab() {
             <thead>
               <tr>
                 <th>Ngày</th>
-                <th>Mã lô</th>
+                <th>Bill / Booking</th>
                 <th>Cont</th>
                 <th>Loại phí</th>
                 <th>Số tiền</th>
@@ -53,12 +59,12 @@ export function OpsAccountantTab() {
             <tbody>
               {items.map((row) => (
                 <tr key={row.id}>
-                  <td>{row.paidAt}</td>
-                  <td>{row.shipmentCode ?? '—'}</td>
+                  <td>{formatDate(row.paidAt)}</td>
+                  <td>{opsBillReference(row.billRef)}</td>
                   <td>{row.containerNumber ?? 'Chung lô'}</td>
                   <td>{row.expenseTypeName ?? row.expenseTypeCode}</td>
-                  <td className="ops-money">{formatVnd(row.amount)}</td>
-                  <td>{row.paidByName ?? '—'}</td>
+                  <td className="ops-money">{formatMoney(row.amount)} ₫</td>
+                  <td>{row.paidByName ?? 'Chưa rõ người chi'}</td>
                   <td>
                     <button
                       type="button"
@@ -70,7 +76,7 @@ export function OpsAccountantTab() {
                     </button>
                   </td>
                   <td>{row.approvalStatus === 'DRAFT' ? 'Cần bổ sung' : row.approvalStatus === 'VOIDED' || row.approvalStatus === 'REJECTED' ? 'Đã hủy / lịch sử' : row.opsSettlementId == null ? 'Chưa quyết toán' : 'Đã lập phiếu'}</td>
-                  <td>{row.opsSettlementId != null && <button type="button" className="btn-secondary" onClick={() => setSheetFor(row.opsSettlementId)}>Xem phiếu</button>}</td>
+                  <td>{row.opsSettlementId != null && <button type="button" className="btn btn--secondary" onClick={() => setSheetFor(row.opsSettlementId)}>Xem phiếu</button>}</td>
                 </tr>
               ))}
               {!isLoading && items.length === 0 && (
@@ -101,11 +107,11 @@ export function OpsAccountantTab() {
               {(settlements?.items ?? []).map((item) => (
                 <tr key={item.id}>
                   <td className="ops-money">{item.code}</td>
-                  <td>{item.opsUserName ?? item.opsUserId}</td>
-                  <td>{new Date(item.createdAt).toLocaleDateString('vi-VN')}</td>
-                  <td className="ops-money">{formatVnd(item.totalAmount)}</td>
+                  <td>{item.opsUserName ?? 'Chưa rõ người lập'}</td>
+                  <td>{formatDate(item.createdAt)}</td>
+                  <td className="ops-money">{formatMoney(item.totalAmount)} ₫</td>
                   <td className="ops-row-actions">
-                    <button type="button" className="btn-secondary" onClick={() => setSheetFor(item.id)}>Xem</button>
+                    <button type="button" className="btn btn--secondary" onClick={() => setSheetFor(item.id)}>Xem</button>
 
                   </td>
                 </tr>
@@ -122,34 +128,37 @@ export function OpsAccountantTab() {
         <OpsExpensePhotosModal expenseId={photosFor} onClose={() => setPhotosFor(null)} />
       )}
 
-      {sheetFor != null && sheet.data && (
+      {sheetFor != null && (
         <OpsModalBackdrop onClose={() => setSheetFor(null)} ariaLabel="Phiếu quyết toán Ops">
           <div className="ops-modal">
             <header className="ops-modal__head">
-              <h2>{sheet.data.settlement.code}</h2>
+              <h2>{detail?.settlement.code ?? 'Phiếu quyết toán Ops'}</h2>
               <div className="ops-modal__head-actions">
-                <button
+                {detail && <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn btn--secondary"
                   onClick={() => void opsClient
-                    .downloadSettlementExport(sheetFor, sheet.data.settlement.code, true)
+                    .downloadSettlementExport(detail.settlement.id, detail.settlement.code, true)
                     .catch((error: unknown) => toast({
                       kind: 'error',
                       message: error instanceof Error ? error.message : 'Tải Excel thất bại.',
                     }))}
                 >
                   Excel
-                </button>
-                <button type="button" aria-label="Đóng" onClick={() => setSheetFor(null)}>✕</button>
+                </button>}
+                <button type="button" aria-label="Đóng" onClick={() => setSheetFor(null)}><X size={16} aria-hidden="true" /></button>
               </div>
             </header>
             <div className="ops-modal__body">
-              <OpsSettlementSheet grouping={sheet.data.grouping} meta={{
-                code: sheet.data.settlement.code,
-                createdAt: sheet.data.settlement.createdAt,
-                opsName: sheet.data.settlement.opsUserName,
-                note: sheet.data.settlement.note,
-              }} />
+              {/* The modal used to mount only once `data` existed, so "Xem phiếu"
+                  looked dead while the request was in flight or after it failed. */}
+              <OpsQueryFeedback loading={sheet.isPending} error={sheet.isError} label="phiếu quyết toán" onRetry={sheet.refetch} />
+              {detail && <OpsSettlementSheet grouping={detail.grouping} meta={{
+                code: detail.settlement.code,
+                createdAt: detail.settlement.createdAt,
+                opsName: detail.settlement.opsUserName,
+                note: detail.settlement.note,
+              }} />}
             </div>
           </div>
         </OpsModalBackdrop>

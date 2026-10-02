@@ -14,6 +14,8 @@ import {
   Compass,
   Layers,
   FileText,
+  FileSpreadsheet,
+  Coins,
   Store,
   Package,
   CalendarDays,
@@ -113,6 +115,16 @@ export function getNavItems(
         { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
+        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'financials' as SectionName },
+        // Theo dõi hóa đơn kết hợp (card 20260921_18) — kế toán + quản trị write,
+        // CUS read-only on the same page.
+        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
+        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'financials' as SectionName },
+        // Kiểm soát phơi phiếu / tiền đường (card 20260922_5) — the dedicated
+        // control page built by card 20260921_12; discoverability only, the
+        // route and its financeReader gate already existed.
+        { key: 'phoi-phieu', label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu', icon: FileText, section: 'financials' as SectionName },
+        { key: 'chot-debit', label: 'Kế toán chốt debit', path: '/accounting/chot-debit', icon: Calculator, section: 'financials' as SectionName },
 
         // Nhân sự (HR)
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
@@ -162,6 +174,7 @@ export function getNavItems(
         { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
+        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'financials' as SectionName },
 
         // Nhân sự (HR)
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
@@ -197,6 +210,14 @@ export function getNavItems(
         // Tổng Quan Kế Toán (Accounting Dashboard) - first item, per spec
         { key: 'accounting', label: 'Tổng Quan Kế Toán', path: routes.accounting, icon: Calculator, section: undefined },
 
+        // Theo dõi hóa đơn kết hợp (card 20260921_18) — same read-only-for-CUS
+        // page as the accountant entry; writes stay server-gated.
+        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
+        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'financials' as SectionName },
+        // Kiểm soát phơi phiếu / tiền đường (card 20260922_5) — ADMIN+ACCOUNTANT only.
+        { key: 'phoi-phieu', label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu', icon: FileText, section: 'financials' as SectionName },
+        { key: 'chot-debit', label: 'Kế toán chốt debit', path: '/accounting/chot-debit', icon: Calculator, section: 'financials' as SectionName },
+
         // Công nợ & Dòng tiền (AR/AP) - PRIMARY SECTION per spec
         ...(hasCapability('treasury.read') ? [
           { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
@@ -205,9 +226,10 @@ export function getNavItems(
         { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
+        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'financials' as SectionName },
 
         // Pricing config entry points (docx §5-1): accountant fuel-price entry + per-customer×route rate terms.
-        { key: 'config-fuel-price-periods', label: 'Giá dầu DO theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'financials' as SectionName },
+        { key: 'config-fuel-price-periods', label: 'Giá dầu theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'financials' as SectionName },
         { key: 'config-freight-rate-terms', label: 'Điều khoản cước theo tuyến', path: routes.configFreightRateTerms, icon: DollarSign, section: 'financials' as SectionName },
 
         // Báo cáo (Reports)
@@ -241,6 +263,7 @@ export function getNavItems(
         // Quản lý Tài nguyên (Resources) per spec
         { key: 'fleet-vehicles', label: 'Xe nội bộ', path: routes.fleetVehicles, icon: Truck, section: 'resources' as SectionName },
         { key: 'fleet-drivers', label: 'Tài xế', path: routes.fleetDrivers, icon: Users, section: 'resources' as SectionName },
+        { key: 'fleet-external', label: 'Xe ngoài', path: routes.fleetExternal, icon: Truck, section: 'resources' },
         { key: 'suppliers', label: 'Nhà thầu', path: routes.suppliers, icon: Store, section: 'resources' as SectionName },
 
         // Danh mục (Master Data) — dispatchers may add the missing customer or
@@ -260,6 +283,14 @@ export function getNavItems(
         // Nghiệp vụ Chứng từ (Document Operations)
         { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'document-ops' as SectionName },
         { key: 'shipment-containers', label: 'Chi tiết lô hàng', path: routes.shipmentContainers, icon: Container, section: 'document-ops' as SectionName },
+        { key: 'shipment-debit', label: 'Chi phí - Quyết toán', path: routes.shipmentDebit, icon: Calculator, section: 'document-ops' as SectionName },
+        // Theo dõi hóa đơn kết hợp (card 20260921_18) — read-only for this role;
+        // the page hides editors and the server rejects writes (403).
+        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'reconciliation' as SectionName },
+        // Theo dõi hoàn cược deliberately ABSENT for CUS: the route guard
+        // (/accounting/deposit-tracker) admits only ADMIN/MANAGER/ACCOUNTANT.
+        // Nav must derive from the same permission source as the guard — an
+        // entry here bounces CUS to /shipments (card 20260922_29).
 
         // Đối soát (Reconciliation)
         ...(hasCapability('recoverable_costs.read') ? [
@@ -269,8 +300,8 @@ export function getNavItems(
         // Danh mục (Master Data) — CUS can add/edit customers and routes
         { key: 'customers', label: 'Khách hàng', path: routes.configCustomers, icon: Users, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
-        // Giá dầu DO theo kỳ — docx §5-1 names CUS as a fuel-price entrant.
-        { key: 'config-fuel-price-periods', label: 'Giá dầu DO theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'master-data' as SectionName },
+        // Giá dầu theo kỳ — docx §5-1 names CUS as a fuel-price entrant.
+        { key: 'config-fuel-price-periods', label: 'Giá dầu theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'master-data' as SectionName },
       ];
     }
 
@@ -409,6 +440,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const bottomNavRef = useBottomNavAnimations({ ready: !!user && user.role === 'DRIVER' });
   const [sidebarOpen, setSidebarOpen] = useState(() => resolveInitialSidebarOpen(window.innerWidth));
+  // An explicit user choice survives breakpoint crossings; without one the
+  // crossing re-derives the width default (first-run behavior unchanged).
+  const sidebarPreferenceRef = useRef<boolean | null>(null);
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(v => {
+      sidebarPreferenceRef.current = !v;
+      return !v;
+    });
+  }, []);
   const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -459,7 +499,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       setUserMenuOpen(false);
       // Entering desktop from mobile may land in the compact-desktop range,
       // where the sidebar must stay collapsed for full-width tables.
-      setSidebarOpen(resolveInitialSidebarOpen(window.innerWidth));
+      setSidebarOpen(sidebarPreferenceRef.current ?? resolveInitialSidebarOpen(window.innerWidth));
     };
     media.addEventListener('change', handleViewportChange);
     return () => media.removeEventListener('change', handleViewportChange);
@@ -473,7 +513,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const media = window.matchMedia(COMPACT_DESKTOP_MEDIA_QUERY);
     const handleCompactDesktopChange = () => {
-      setSidebarOpen(resolveInitialSidebarOpen(window.innerWidth));
+      setSidebarOpen(sidebarPreferenceRef.current ?? resolveInitialSidebarOpen(window.innerWidth));
     };
     media.addEventListener('change', handleCompactDesktopChange);
     return () => media.removeEventListener('change', handleCompactDesktopChange);
@@ -575,12 +615,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
         e.preventDefault();
-        setSidebarOpen(v => !v);
+        toggleSidebar();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [toggleSidebar]);
 
   // Badge counts
   const { data: badgeData } = useBadgeCounts({
@@ -727,7 +767,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     pageTitle,
     sidebarOpen,
     menuButtonRef,
-    onToggleSidebar: () => setSidebarOpen(v => !v),
+    onToggleSidebar: toggleSidebar,
   };
 
   return (
@@ -770,7 +810,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {/* Bottom Navigation for Drivers on Mobile */}
         {isDriver && (
           <nav className="bottom-nav" aria-label="Điều hướng chính" ref={bottomNavRef as React.RefObject<HTMLElement>}>
-            {navItems.map(item => {
+            {navItems.filter(item => item.key !== 'my-notifications').map(item => {
               const IconC = item.icon;
               const isActive = !userMenuOpen && item.key === activeKey;
               const displayLabel = item.mobileLabel || item.label;
@@ -817,6 +857,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           roleLabel={getRoleLabel(user.role)}
           onClose={closeUserMenu}
           onOpenProfile={openProfileModal}
+          onOpenNotifications={() => handleNavigate(routes.myNotifications)}
           onOpenPassword={openPasswordModal}
           onLogout={() => { setUserMenuOpen(false); logout(); }}
         />

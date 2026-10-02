@@ -5,7 +5,7 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
-  background: #f7faf8;
+  background: var(--bg);
   color: var(--ink);
 }
 
@@ -17,7 +17,7 @@
   justify-content: space-between;
   gap: 18px;
   border-bottom: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
 }
 
 .billing-builder__title-block {
@@ -30,12 +30,12 @@
 .billing-builder__icon {
   width: 50px;
   height: 50px;
-  border: 1px solid rgba(0, 105, 56, 0.18);
+  border: 1px solid var(--line-2);
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: #fff;
-  box-shadow: 0 10px 28px rgba(0, 63, 34, 0.08);
+  background: var(--surface);
+  box-shadow: none;
 }
 
 .billing-builder__eyebrow {
@@ -79,19 +79,19 @@
   height: 5px;
   margin: 0 8px 2px 0;
   border-radius: 999px;
-  background: var(--line-strong, #cfd8d3);
+  background: var(--line-strong);
 }
 
 .billing-builder__close {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-h);
+  height: var(--control-h);
+  min-width: var(--control-h);
+  min-height: var(--control-h);
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink-2);
   cursor: pointer;
 }
@@ -144,8 +144,8 @@
 
 .billing-builder__controls .input,
 .billing-builder__controls .btn {
-  min-height: 44px;
-  height: 44px;
+  min-height: var(--control-h);
+  height: var(--control-h);
 }
 
 .billing-builder__date-input,
@@ -173,7 +173,7 @@
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--sh-sm);
 }
 
@@ -201,7 +201,7 @@
   top: 0;
   z-index: 1;
   padding: 7px 10px;
-  background: #f4f7f5;
+  background: var(--surface-2);
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   color: var(--ink-3);
@@ -223,8 +223,8 @@
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
-  background: #fff;
-  color: #111827;
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .billing-builder__table tr.is-excluded {
@@ -232,41 +232,41 @@
 }
 
 .billing-builder__table tbody tr.billing-builder__item-row:nth-child(even) td {
-  background: #f6fbf8;
+  background: var(--surface);
 }
 
 .billing-builder textarea.input.billing-builder__text-field {
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
+  min-width: var(--control-h);
+  height: var(--control-h);
+  min-height: var(--control-h);
   padding: 5px 0;
-  border: 0;
-  border-radius: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
   resize: none;
   overflow: hidden;
-  background: transparent;
+  background: var(--surface);
   box-shadow: none;
   line-height: 1.35;
   font-size: var(--fs-xs);
   font-weight: 500;
-  color: #111827;
+  color: var(--ink);
 }
 
 .billing-builder textarea.input.billing-builder__text-field:focus {
-  outline: 2px solid rgba(36, 89, 130, 0.24);
+  outline: 2px solid var(--accent-2);
   outline-offset: 2px;
 }
 
 .billing-builder textarea.input.billing-builder__route-field {
-  height: 44px;
-  min-height: 44px;
+  height: var(--control-h);
+  min-height: var(--control-h);
   font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
 .billing-builder__containers,
 .billing-builder__type {
-  color: #1f2937;
+  color: var(--ink-2);
   font-size: var(--text-caption-size);
   font-weight: 550;
   line-height: 1.35;
@@ -282,23 +282,23 @@
 
 .billing-builder input.input.billing-builder__amount {
   width: 100%;
-  height: 44px;
-  min-height: 44px;
+  height: var(--control-h);
+  min-height: var(--control-h);
   min-width: 0;
   padding: 0 6px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
   box-shadow: none;
   text-align: right;
   font-weight: 600;
   font-size: var(--text-caption-size);
   line-height: 34px;
-  color: #111827;
+  color: var(--ink);
 }
 
 .billing-builder input.input.billing-builder__amount:focus {
-  outline: 2px solid rgba(36, 89, 130, 0.24);
+  outline: 2px solid var(--accent-2);
   outline-offset: 2px;
 }
 
@@ -309,7 +309,7 @@
 
 .billing-builder__route-row td {
   padding: 0;
-  background: #f8faf9;
+  background: var(--surface-2);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
@@ -383,7 +383,7 @@
 }
 
 .billing-builder__container-row td {
-  background: #fbfcfc;
+  background: var(--surface);
   border-bottom-color: var(--line);
 }
 
@@ -418,10 +418,10 @@
 }
 
 .billing-builder__action {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-h);
+  height: var(--control-h);
+  min-width: var(--control-h);
+  min-height: var(--control-h);
   border: 1px solid transparent;
   border-radius: 6px;
   display: inline-grid;
@@ -442,7 +442,7 @@
 }
 
 .billing-builder__action--delete:hover:not(:disabled) {
-  border-color: rgba(227, 36, 52, 0.18);
+  border-color: var(--danger);
   background: var(--danger-soft);
 }
 
@@ -466,7 +466,7 @@
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--sh-sm);
 }
 
@@ -506,13 +506,13 @@
   justify-content: flex-end;
   gap: 10px;
   border-top: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
 }
 
 /* Tablet wrap — between the desktop grid and the 680px mobile layout, the
    5-column grid runs out of room and the two rightmost buttons overlap.
    Switch to flex-wrap so "Lọc lại" and "Thêm dòng trình bày" each stay
-   fully readable and independently tappable at ≥44px targets. */
+   fully readable and independently tappable at the shared control targets. */
 @media (max-width: 880px) {
   .billing-builder__controls {
     display: flex;
@@ -555,7 +555,7 @@
   .billing-builder {
     grid-template-rows: auto minmax(0, 1fr) auto;
     overflow: hidden;
-    background: #f8fbf9;
+    background: var(--bg);
   }
 
   .billing-builder__topbar,
@@ -571,7 +571,7 @@
     gap: 10px;
     padding-top: max(12px, env(safe-area-inset-top));
     padding-bottom: 10px;
-    box-shadow: 0 1px 0 rgba(9, 9, 11, 0.04);
+    box-shadow: none;
   }
 
   .billing-builder__body {
@@ -588,7 +588,7 @@
   .billing-builder__icon {
     width: 36px;
     height: 36px;
-    border-radius: 9px;
+    border-radius: 10px;
     flex: 0 0 auto;
   }
 
@@ -635,10 +635,10 @@
   }
 
   .billing-builder__close {
-    width: 34px;
-    height: 34px;
+    width: var(--control-h);
+    height: var(--control-h);
     flex: 0 0 auto;
-    border-radius: 9px;
+    border-radius: 10px;
   }
 
   .billing-builder__close svg {
@@ -672,8 +672,8 @@
   }
 
   .billing-builder__controls .btn {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--control-h);
+    height: var(--control-h);
     justify-content: center;
   }
 
@@ -739,7 +739,7 @@
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: #fff;
+    background: var(--surface);
   }
 
   .billing-builder__mobile-route {
@@ -748,7 +748,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
     align-items: start;
-    background: #f8faf9;
+    background: var(--surface-2);
     border-bottom: 1px solid var(--line);
   }
 
@@ -791,7 +791,7 @@
     gap: 8px;
     align-items: center;
     padding: 8px 12px;
-    background: #fbfcfc;
+    background: var(--surface);
     border-bottom: 1px solid var(--line);
   }
 
@@ -828,7 +828,7 @@
     border: 1px solid var(--line);
     border-radius: 8px;
     overflow: auto;
-    background: #fff;
+    background: var(--surface);
   }
 
   .billing-builder__mobile-item.is-excluded {
@@ -842,7 +842,7 @@
   }
 
   .billing-builder__mobile-row strong {
-    color: #1f2937;
+    color: var(--ink-2);
     font-size: var(--text-data-size);
     font-weight: 600;
     line-height: 1.35;
@@ -850,7 +850,7 @@
   }
 
   .billing-builder__mobile-money {
-    grid-template-columns: minmax(0, 1fr) 36px;
+    grid-template-columns: minmax(0, 1fr) var(--control-h);
     align-items: end;
   }
 
@@ -861,12 +861,12 @@
   }
 
   .billing-builder__mobile-money input.input.billing-builder__amount {
-    height: 44px;
-    min-height: 44px;
+    height: var(--control-h);
+    min-height: var(--control-h);
     padding: 0 10px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: #fff;
+    background: var(--surface);
   }
 
   .billing-builder__note {
@@ -912,14 +912,43 @@
     gap: 7px;
     padding-top: 9px;
     padding-bottom: max(10px, env(safe-area-inset-bottom));
-    background: rgba(255, 255, 255, 0.94);
-    backdrop-filter: blur(12px) saturate(140%);
-    box-shadow: 0 -1px 0 rgba(9, 9, 11, 0.06), 0 -12px 24px rgba(9, 9, 11, 0.04);
+    background: var(--surface);
+    backdrop-filter: none;
+    box-shadow: none;
   }
 
   .billing-builder__footer .btn {
     width: 100%;
-    min-height: 38px;
-    height: 38px;
+    min-height: var(--control-h);
+    height: var(--control-h);
   }
 }
+
+/* §7.2 issue readiness (card 20260920_30): reasons each on their own line so
+   none masks another and the notice never overflows. */
+.billing-builder__issue {
+  display: grid;
+  gap: 8px;
+  margin: 0 20px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.billing-builder__issue-blockers {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: var(--text-caption-size);
+}
+
+.billing-builder__issue-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.billing-builder__issue-row .input { flex: 1 1 auto; }

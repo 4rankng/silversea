@@ -88,14 +88,14 @@ export function AssignOpsDialog({
               { value: '', label: '— Bỏ gán —' },
               ...options.map((user) => ({
                 value: String(user.id),
-                label: [user.fullName?.trim(), user.username].filter(Boolean).join(' · ') || `#${user.id}`,
+                label: [user.fullName?.trim(), user.username].filter(Boolean).join(' · ') || '—',
               })),
             ]}
           />
           {isPending && <p role="status" className="ops-form-photos__hint">Đang tải nhân viên vận hành…</p>}
           {isError && <div role="alert">
             <p>Không tải được danh sách nhân viên vận hành. Lựa chọn của bạn vẫn được giữ.</p>
-            <button type="button" className="btn-secondary" disabled={isFetching} onClick={() => void refetch()}>{isFetching ? 'Đang tải…' : 'Thử lại'}</button>
+            <button type="button" className="btn btn--secondary" disabled={isFetching} onClick={() => void refetch()}>{isFetching ? 'Đang tải…' : 'Thử lại'}</button>
           </div>}
           {excludedCount > 0 && <p className="ops-form-photos__hint">{excludedCount} tài khoản ngừng hoạt động không thể nhận phân công mới.</p>}
           {error && <p className="ops-reject-reason" role="alert">{error}</p>}
@@ -104,8 +104,8 @@ export function AssignOpsDialog({
         <footer className="ops-modal__foot">
           <div />
           <div className="ops-modal__actions">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>Đóng</button>
-            <button type="submit" className="btn-primary" disabled={saving || isPending || isError || choice === '__KEEP__'}>
+            <button type="button" className="btn btn--secondary" onClick={onClose} disabled={saving}>Đóng</button>
+            <button type="submit" className="btn btn--primary" disabled={saving || isPending || isError || choice === '__KEEP__'}>
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>
           </div>

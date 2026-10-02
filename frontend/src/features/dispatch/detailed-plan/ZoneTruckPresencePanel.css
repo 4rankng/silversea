@@ -1,17 +1,25 @@
 /* ─── Xe tại zone presence panel (advisory strip) ──────────────────────── */
+/* Card 20260930_246 (§8 density + §4 horizontal rail + §3 flat surface):
+   the advisory strip drops its card box and becomes one caption line —
+   title inline, chips on a single horizontally-scrollable rail — so it
+   stops stealing a record's height from the plan grids at every width.
+   Every chip stays reachable (the rail scrolls); micro-chip sizing follows
+   the panel's pre-existing advisory scale, not the §5 primary-control
+   floor. */
 
 .zone-presence-panel {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-subtle, #eaecf0);
-  border-radius: var(--app-radius-md, 10px);
-  background: var(--surface-white, #fff);
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0 2px;
+  margin: 0 0 4px;
 }
 
 .zone-presence-panel__head {
   display: flex;
+  flex: none;
+  flex-direction: row;
   align-items: baseline;
   gap: 8px;
 }
@@ -19,36 +27,41 @@
 .zone-presence-panel__title {
   font-size: var(--text-section-size);
   font-weight: 600;
-  color: var(--text-primary, #101828);
+  color: var(--fg-1);
 }
 
 .zone-presence-panel__date {
   font-size: var(--fs-xs, 12px);
-  color: var(--text-tertiary, #667085);
+  color: var(--fg-3);
 }
 
 .zone-presence-panel__chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
 }
 
 .zone-presence-panel__chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 2px 8px;
   font-size: var(--text-data-size);
-  color: var(--text-primary, #101828);
-  background: var(--surface-white, #fff);
-  border: 1px solid var(--border-medium, #d0d5dd);
-  border-radius: 9999px;
+  color: var(--fg-1);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
   cursor: pointer;
-  transition: border-color 120ms ease;
+  transition: border-color var(--t-fast);
 }
 
 .zone-presence-panel__chip:hover {
-  border-color: var(--border-strong, #98a2b3);
+  border-color: var(--line-strong);
 }
 
 .zone-presence-panel__plate {
@@ -58,9 +71,9 @@
 .zone-presence-panel__tag {
   font-size: var(--fs-xs, 12px);
   font-weight: 500;
-  color: var(--text-secondary, #475467);
-  border: 1px solid var(--border-subtle, #eaecf0);
-  border-radius: 9999px;
+  color: var(--fg-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
   padding: 1px 8px;
   white-space: nowrap;
 }
@@ -68,7 +81,7 @@
 .zone-presence-panel__count {
   font-size: var(--fs-xs, 12px);
   font-weight: 600;
-  color: var(--text-tertiary, #667085);
+  color: var(--fg-3);
 }
 
 /* Mobile: chips scroll horizontally instead of wrapping tall. */
@@ -82,5 +95,27 @@
 
   .zone-presence-panel__chip {
     flex: 0 0 auto;
+  }
+}
+
+/* Card 20260930_246: at coarse-pointer widths every chip button carries the
+   §5 44px floor, so the rail form is a full record tall. The advisory strip
+   degrades to a one-line count summary there (§8 density); the full chip
+   rail stays on hover-capable widths. */
+.zone-presence-panel__count-summary {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .zone-presence-panel__chips {
+    display: none;
+  }
+
+  .zone-presence-panel__count-summary {
+    display: inline;
+    flex: none;
+    font-size: var(--fs-xs, 12px);
+    color: var(--fg-3);
+    white-space: nowrap;
   }
 }

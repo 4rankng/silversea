@@ -22,7 +22,7 @@ function TruckForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   return (
     <InlineForm colSpan={5}>
       <div style={{ flex: 2, minWidth: 160 }}>
-        <Field label="Biển số"><input className="input" value={plate} onChange={e => setPlate(e.target.value)} placeholder="Ví dụ: 51C-12345" /></Field>
+        <Field label="Biển số"><input className="input" required pattern={'.*\\S.*'} value={plate} onChange={e => setPlate(e.target.value)} placeholder="Ví dụ: 51C-12345" /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 140 }}>
         <UuiSelectField
@@ -46,7 +46,7 @@ export default function TrucksConfigPage() {
       endpoint="/trucks" colSpan={4}
       pageSlug="trucks"
       iconName="tractor-head"
-      emptyIllustration="empty-trucks.svg"
+      emptyContext="trucks"
       emptyTitle="Chưa có xe đầu kéo"
       emptyHint="Thêm xe đầu kéo để bắt đầu phân chuyến và theo dõi bảo dưỡng."
       columns={[

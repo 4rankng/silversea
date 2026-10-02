@@ -85,8 +85,8 @@
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: var(--control-max-h);
+  height: var(--control-max-h);
   border: 0;
   border-radius: var(--r-sm);
   background: transparent;

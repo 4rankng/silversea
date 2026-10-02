@@ -12,12 +12,11 @@
       "description": "Requirements, scope, PRD decisions, roadmap, and phase planning.",
       "match": {
         "prefixes": ["plans/", "docs/prd/"],
-        "exact": ["ROADMAP.md"],
+        "exact": [],
         "contains": [],
         "keywords": ["roadmap", "prd", "requirement", "scope", "wave", "planning"]
       },
       "context": [
-        "ROADMAP.md",
         "docs/prd/README.md"
       ],
       "qa": [
@@ -176,8 +175,7 @@
       },
       "context": [
         "AGENTS.md",
-        "CONTEXT.md",
-        "HANDOFF.example.md"
+        "CONTEXT.md"
       ],
       "qa": [
         "pnpm context:test",

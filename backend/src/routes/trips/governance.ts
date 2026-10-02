@@ -17,12 +17,13 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 
 import { invalidateReportCaches } from '../../lib/report-cache';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
 
 // Exceptional reopen: applies directly in-request (maker-checker removed
 // 2026-09-11) — the completed trip reopens immediately on a valid request.
-router.post('/:id/unlock', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/unlock', declareMaterialWrite('trips.unlock', { method: 'POST', path: '/api/trips/:id/unlock' }),  asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = tripReopenRequestSchema.parse(req.body);
   const user = getUser(req);
@@ -53,7 +54,7 @@ router.post('/:id/unlock', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // Change departure date (any status except CANCELED)
-router.patch('/:id/departure-date', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/:id/departure-date', declareMaterialWrite('trips.departure-date', { method: 'PATCH', path: '/api/trips/:id/departure-date' }),  asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const { departureDate } = req.body;
   if (!departureDate || typeof departureDate !== 'string') {

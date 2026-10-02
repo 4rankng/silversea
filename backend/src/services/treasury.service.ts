@@ -2,9 +2,10 @@ import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { treasuryFundCodeSchema, type Role, type TreasuryFundCode, type TreasuryAccountFundInput } from '@tingting/shared';
 
 import { runInTx } from '../lib/tx';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
+import type { Executor, Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
   buildGovernanceAction,
@@ -124,8 +125,8 @@ export function normalizeTreasuryPhysicalReference(value: string | null | undefi
   return normalized;
 }
 
-async function hasActiveCutoverAt(tx: Tx, requestedAt: Date): Promise<boolean> {
-  const [row] = await tx.select({ id: s.treasuryAccounts.id })
+async function hasActiveCutoverAt(executor: Executor, requestedAt: Date): Promise<boolean> {
+  const [row] = await executor.select({ id: s.treasuryAccounts.id })
     .from(s.treasuryAccounts)
     .where(and(
       eq(s.treasuryAccounts.status, 'ACTIVE'),
@@ -140,7 +141,7 @@ async function hasActiveCutoverAt(tx: Tx, requestedAt: Date): Promise<boolean> {
  * The request timestamp, rather than a back-dated value date, controls cutover.
  */
 export async function resolveTreasuryPaymentContract(
-  tx: Tx,
+  executor: Executor,
   fields: TreasuryPaymentFields,
   requestedAt: Date,
 ): Promise<ResolvedTreasuryPaymentContract> {
@@ -154,7 +155,7 @@ export async function resolveTreasuryPaymentContract(
     if (valueDate || physicalReference) {
       throw new ApiError(400, 'Phải chọn tài khoản tiền mặt/ngân hàng cho giao dịch thực tế');
     }
-    if (await hasActiveCutoverAt(tx, requestedAt)) {
+    if (await hasActiveCutoverAt(executor, requestedAt)) {
       throw new ApiError(422, 'Phải chọn tài khoản tiền mặt/ngân hàng sau thời điểm chuyển đổi kho quỹ');
     }
     return {
@@ -168,7 +169,7 @@ export async function resolveTreasuryPaymentContract(
   if (!Number.isInteger(treasuryAccountId) || treasuryAccountId <= 0) {
     throw new ApiError(400, 'treasuryAccountId không hợp lệ');
   }
-  const [account] = await tx.select({
+  const [account] = await executor.select({
     id: s.treasuryAccounts.id,
     status: s.treasuryAccounts.status,
     cutoverAt: s.treasuryAccounts.cutoverAt,
@@ -204,7 +205,7 @@ export async function resolveTreasuryPaymentContract(
   };
 }
 
-export async function insertTreasuryMovement(tx: Tx, input: {
+export async function insertTreasuryMovement(executor: Executor, input: {
   treasuryAccountId: number;
   direction: 'IN' | 'OUT';
   amount: number;
@@ -227,7 +228,7 @@ export async function insertTreasuryMovement(tx: Tx, input: {
   const sourceFilter = hasReceipt
     ? eq(s.treasuryMovements.paymentReceiptId, input.paymentReceiptId!)
     : eq(s.treasuryMovements.ledgerEntryId, input.ledgerEntryId!);
-  const [existingSource] = await tx.select().from(s.treasuryMovements)
+  const [existingSource] = await executor.select().from(s.treasuryMovements)
     .where(and(
       eq(s.treasuryMovements.status, 'POSTED'),
       isNull(s.treasuryMovements.reversalOfId),
@@ -244,7 +245,7 @@ export async function insertTreasuryMovement(tx: Tx, input: {
     throw new ApiError(409, 'Nguồn tiền đã liên kết với một giao dịch kho quỹ khác');
   }
 
-  const [physicalConflict] = await tx.select({ id: s.treasuryMovements.id })
+  const [physicalConflict] = await executor.select({ id: s.treasuryMovements.id })
     .from(s.treasuryMovements)
     .where(and(
       eq(s.treasuryMovements.treasuryAccountId, input.treasuryAccountId),
@@ -257,7 +258,7 @@ export async function insertTreasuryMovement(tx: Tx, input: {
     throw new ApiError(409, 'Mã giao dịch thực tế đã được ghi nhận trên tài khoản này');
   }
 
-  const [movement] = await tx.insert(s.treasuryMovements).values({
+  const [movement] = await executor.insert(s.treasuryMovements).values({
     treasuryAccountId: input.treasuryAccountId,
     direction: input.direction,
     amount: String(input.amount),
@@ -273,7 +274,7 @@ export async function insertTreasuryMovement(tx: Tx, input: {
   return movement;
 }
 
-export async function appendTreasuryReversal(tx: Tx, input: {
+export async function appendTreasuryReversal(executor: Executor, input: {
   originalMovementId: number;
   amount: number;
   valueDate: string;
@@ -292,7 +293,7 @@ export async function appendTreasuryReversal(tx: Tx, input: {
     throw new ApiError(400, 'Phiên bản nguồn đảo kho quỹ không hợp lệ');
   }
 
-  const [original] = await tx.select().from(s.treasuryMovements)
+  const [original] = await executor.select().from(s.treasuryMovements)
     .where(and(
       eq(s.treasuryMovements.id, input.originalMovementId),
       isNull(s.treasuryMovements.reversalOfId),
@@ -304,7 +305,7 @@ export async function appendTreasuryReversal(tx: Tx, input: {
     throw new ApiError(409, 'Giao dịch kho quỹ gốc không còn hiệu lực');
   }
 
-  const [existing] = await tx.select().from(s.treasuryMovements)
+  const [existing] = await executor.select().from(s.treasuryMovements)
     .where(and(
       eq(s.treasuryMovements.reversalOfId, original.id),
       eq(s.treasuryMovements.sourceVersion, input.sourceVersion),
@@ -321,7 +322,7 @@ export async function appendTreasuryReversal(tx: Tx, input: {
     throw new ApiError(409, 'Phiên bản nguồn đã liên kết với nội dung đảo kho quỹ khác');
   }
 
-  const [reversed] = await tx.select({
+  const [reversed] = await executor.select({
     amount: sql<string>`coalesce(sum(${s.treasuryMovements.amount}), 0)`,
   }).from(s.treasuryMovements).where(and(
     eq(s.treasuryMovements.reversalOfId, original.id),
@@ -331,7 +332,7 @@ export async function appendTreasuryReversal(tx: Tx, input: {
     throw new ApiError(409, 'Tổng tiền đảo vượt quá giao dịch kho quỹ gốc');
   }
 
-  const [reversal] = await tx.insert(s.treasuryMovements).values({
+  const [reversal] = await executor.insert(s.treasuryMovements).values({
     treasuryAccountId: original.treasuryAccountId,
     direction: original.direction === 'IN' ? 'OUT' : 'IN',
     amount: String(input.amount),
@@ -467,9 +468,7 @@ export async function requestTreasuryAccountSetup(input: {
     throw new ApiError(400, 'Số dư hoặc ngày số dư đầu kỳ không hợp lệ');
   }
   const execute = async (tx: Tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`treasury-account-setup\u001f${code}`}, 0))`,
-    );
+    await acquireAdvisoryLock(tx, lockKeys.treasuryAccountSetup(code));
     const [existing] = await tx.select({ id: s.treasuryAccounts.id })
       .from(s.treasuryAccounts).where(eq(s.treasuryAccounts.code, code)).limit(1);
     if (existing) throw new ApiError(409, 'Mã tài khoản tiền mặt/ngân hàng đã tồn tại');
@@ -516,11 +515,85 @@ export async function updateTreasuryAccountFund(tx: Tx, accountId: number, input
   return { id: updated.id, fundCode: updated.fundCode, version: updated.version };
 }
 
-export async function assertTreasuryFundAssigned(tx: Tx, accountId: number) {
-  const [account] = await tx.select({ fundCode: s.treasuryAccounts.fundCode }).from(s.treasuryAccounts)
+export async function assertTreasuryFundAssigned(executor: Executor, accountId: number) {
+  const [account] = await executor.select({ fundCode: s.treasuryAccounts.fundCode }).from(s.treasuryAccounts)
     .where(eq(s.treasuryAccounts.id, accountId)).for('update');
   if (!account) throw new ApiError(404, 'Không tìm thấy tài khoản tiền mặt/ngân hàng');
   if (!treasuryFundCodeSchema.safeParse(account.fundCode).success) throw new ApiError(409, 'Tài khoản chưa phân nguồn quỹ. Cấu hình Quỹ công ty hoặc Quỹ TM tại Sổ quỹ / ngân hàng trước khi ghi phiếu.');
+}
+
+/**
+ * Which fund a cost line must be paid from. Card 20260928_167 criterion 2, in
+ * the PM's own terms:
+ *
+ *   "Dòng chi phí có hóa đơn (nâng/hạ/lưu bãi… của chi hộ) chỉ được gán TK TM;
+ *    dòng cược cont / tạm ứng Ops / tiền đường lái xe chỉ được gán TK công ty
+ *    — gán sai thì hệ thống chặn."
+ *
+ * The three invoiced groups are the chi-hộ line the customer is billed for, so
+ * the money is the customer's. Everything else is money the company fronts and
+ * recovers from someone else, so it is the company's.
+ */
+export const VOUCHER_REQUIRED_FUND: Readonly<Record<string, 'COMPANY' | 'TM'>> = {
+  INVOICED_LIFT: 'TM',
+  INVOICED_DROP: 'TM',
+  INVOICED_OTHER: 'TM',
+  INVOICE_SERVICE: 'TM',
+  OPS_REGULAR: 'COMPANY',
+  OPS_INCIDENTAL: 'COMPANY',
+  DRIVER_SHIPMENT: 'COMPANY',
+  DRIVER_ROAD: 'COMPANY',
+};
+
+/**
+ * Refuse a voucher whose chosen account belongs to the wrong fund.
+ *
+ * Before this, the only fund check was `assertTreasuryFundAssigned`, which
+ * throws when an account has NO fund at all — it never compared the account's
+ * fund with the line's required one. So an accountant could pay a customer-reimbursed
+ * chi-hộ cost out of the company account, or a driver's road fee out of TM, and
+ * both postings looked valid. The fund book would then be wrong on both sides
+ * and nothing would reconcile.
+ *
+ * `labels` names the offending lines for the message, because a bare
+ * "wrong fund" would send the operator hunting; a fee name points at the row.
+ */
+export async function assertVoucherFundMatches(
+  executor: Executor,
+  accountId: number,
+  lines: ReadonlyArray<{ costGroup: string | null; feeName: string }>,
+): Promise<void> {
+  const fundFor = (group: string | null) => (group ? VOUCHER_REQUIRED_FUND[group] : undefined);
+  const required = [...new Set(lines.map((l) => fundFor(l.costGroup)).filter(Boolean))] as Array<'COMPANY' | 'TM'>;
+  if (required.length === 0) return; // nothing to judge
+
+  const name = (f: 'COMPANY' | 'TM') => (f === 'TM' ? 'Quỹ TM' : 'Quỹ công ty');
+  const [account] = await executor.select({ fundCode: s.treasuryAccounts.fundCode }).from(s.treasuryAccounts)
+    .where(eq(s.treasuryAccounts.id, accountId)).limit(1);
+  const fund = treasuryFundCodeSchema.safeParse(account?.fundCode);
+  const actual = fund.success ? fund.data : null;
+
+  // A voucher whose own lines disagree has no correct account: refuse it and
+  // name the lines on the wrong side, rather than blaming the chosen account.
+  if (required.length > 1) {
+    const forCompany = lines.filter((l) => fundFor(l.costGroup) === 'COMPANY').map((l) => l.feeName);
+    const forTm = lines.filter((l) => fundFor(l.costGroup) === 'TM').map((l) => l.feeName);
+    throw new ApiError(
+      400,
+      `Phiếu này trộn hai nguồn quỹ nên không thể ghi vào một tài khoản. `
+      + `Cần Quỹ công ty: ${forCompany.join(', ') || '—'}; cần Quỹ TM: ${forTm.join(', ') || '—'}. Hãy tách phiếu.`,
+    );
+  }
+
+  const wanted = required[0];
+  if (!actual) return; // assertTreasuryFundAssigned already refused an unclassified account
+  if (actual === wanted) return;
+  const offending = lines.filter((l) => fundFor(l.costGroup) === wanted).map((l) => l.feeName);
+  throw new ApiError(
+    400,
+    `Các dòng này phải chi từ ${name(wanted)}, nhưng tài khoản đã chọn thuộc ${name(actual)}. `
+    + `Dòng sai quỹ: ${offending.join(', ') || 'xem lại các dòng đã chọn'}.`,
+  );
 }
 
 export async function requestTreasuryCutover(input: {

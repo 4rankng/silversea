@@ -25,6 +25,13 @@
   overflow-wrap: normal;
   word-break: normal;
   white-space: normal;
+  /* Card 20260922_26: the button measured 14.8px tall (text line only) — below
+     the WCAG 2.2 Target Size (Minimum) 24x24. min-height lifts the hit area to
+     24px while the matching negative block margin keeps the th's layout height
+     (and therefore the header band) exactly as it was; the 5px overflow lands
+     inside the header cell's own 10px padding. */
+  min-height: 24px;
+  margin-block: -5px;
 }
 
 .table-sort-button:focus-visible {
@@ -42,6 +49,8 @@
 }
 
 /* Idle indicator stays quiet until the column becomes the active sort. */
+/* Card 20260922_26: at 0.4 the 13px idle indicator read as a stray mark
+   ("TRẠNG THÁI !"). 0.65 keeps it clearly secondary while legible. */
 .table-sort-button__icon--idle {
-  opacity: 0.4;
+  opacity: 0.65;
 }

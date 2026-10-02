@@ -5,6 +5,7 @@ import { CustomerAccountType, Role, ShipmentStatus } from '@tingting/shared';
 import type { Customer } from '@tingting/shared';
 import { AddPanel, EditPanel } from './UserForm';
 import type { BusinessUnit, ShipmentScopeOption, UserRow } from '../utils';
+import { CustomerScopeFields, SelectionScopeFields } from './UserFormFields';
 
 vi.mock('../../../components/UI', () => ({
   Drawer: ({
@@ -104,6 +105,32 @@ const shipmentOptions: ShipmentScopeOption[] = [
     updatedAt: '2026-07-27T00:00:00.000Z',
   },
 ];
+
+describe('single-label native scope options', () => {
+  it('keeps an existing customer without a tax-code subtitle selectable by its full name', () => {
+    const setCustomerIds = vi.fn();
+    const customerList = [{ ...customers[0], taxCode: null }];
+    const { rerender } = render(<CustomerScopeFields customerList={customerList} customerIds={[]} setCustomerIds={setCustomerIds} />);
+    const checkbox = screen.getByRole('checkbox', { name: customers[0].name });
+    expect(checkbox.closest('.users-customer-scope__option')?.querySelector('small')).toBeNull();
+    fireEvent.click(checkbox);
+    expect(setCustomerIds).toHaveBeenCalledOnce();
+    expect(setCustomerIds).toHaveBeenCalledWith([customers[0].id]);
+    rerender(<CustomerScopeFields customerList={customerList} customerIds={[customers[0].id]} setCustomerIds={setCustomerIds} />);
+    expect((screen.getByRole('checkbox', { name: customers[0].name }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('keeps a scope option without a subtitle selectable while described options retain their facts', () => {
+    const setSelectedIds = vi.fn();
+    render(<SelectionScopeFields title="Phạm vi đơn vị" icon={null} helpText="" searchPlaceholder="Tìm đơn vị" ariaLabel="Đơn vị được xem" options={businessUnits.map((unit, index) => ({ id: unit.id, title: unit.name, subtitle: index ? `Mã ${unit.code}` : undefined }))} selectedIds={[]} setSelectedIds={setSelectedIds} requiredMessage="Chọn đơn vị" emptyText="Chưa có đơn vị" summaryLabel="Đã chọn" />);
+    const checkbox = screen.getByRole('checkbox', { name: businessUnits[0].name });
+    expect(checkbox.closest('.users-customer-scope__option')?.querySelector('small')).toBeNull();
+    expect(screen.getByText(`Mã ${businessUnits[1].code}`)).toBeTruthy();
+    fireEvent.click(checkbox);
+    expect(setSelectedIds).toHaveBeenCalledOnce();
+    expect(setSelectedIds).toHaveBeenCalledWith([businessUnits[0].id]);
+  });
+});
 
 describe('customer account scope', () => {
   it('requires and submits every selected customer when creating an active CUSTOMER account', async () => {
@@ -269,7 +296,7 @@ describe('customer account scope', () => {
 
     const roleTrigger = screen.getByRole('combobox', { name: /Vai trò/i });
     fireEvent.click(roleTrigger);
-    fireEvent.click(screen.getByRole('option', { name: /^CUS$/i }));
+    fireEvent.click(screen.getByRole("option", { name: /^Chứng từ$/i }));
 
     // No assignment pickers are rendered for CUS anymore — the form only
     // needs identity fields, and submit is enabled immediately.

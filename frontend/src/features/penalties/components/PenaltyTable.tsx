@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, Search, X, ChevronDown } from 'lucide-react';
+import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, X, ChevronDown } from 'lucide-react';
 import { Panel, Btn, PageHeader } from '../../../components/UI';
-import { Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
+import { FilterBar, Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
 import { formatCurrency, formatNumber, formatDate } from '../../../lib/format';
 import { downloadCSV } from '../../../lib/csv';
 import { PenaltyStatus } from '@tingting/shared';
 import { getSeverity, getSeverityLabel, getViolationGrade, getGradeClass, formatTenure } from '../utils';
-import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
+import { EmptyState } from '../../../design-system';
 import { PenaltySeverityIcon } from './penalty-severity-icon';
 import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
 import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
 import { PenaltyScoreboardCards, type PenaltyScoreboardCardRow } from './PenaltyScoreboardCards';
 import { SortHeader } from '../../../components/shared/SortHeader';
+import { FilterDropdown } from '../../../components/FilterDropdown';
+import { billBookingReference } from '../../../lib/business-reference';
 import '../../../styles/table-sort.css';
 
 const STATUS_CHIPS: Array<{ key: PenaltyStatusFilter; label: string }> = [
@@ -108,10 +110,10 @@ export function PenaltyTable({
   const driversOver6m = insights?.driversOver6m ?? 0;
 
   const handleExport = async () => {
-    const headers = ['Lái xe', 'Mã chuyến', 'Lý do', 'Số tiền', 'Ngày'];
+    const headers = ['Lái xe', 'Bill/Booking', 'Lý do', 'Số tiền', 'Ngày'];
     await downloadCSV(`ky-luat-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows.map(p => [
       p.driverName || '—',
-      p.tripCode || '—',
+      p.tripId ? billBookingReference(p.tripCode) : '—',
       p.reasonText || p.customReason || '—',
       p.amount,
       p.date,
@@ -200,47 +202,44 @@ export function PenaltyTable({
             </div>
           </div>
 
-          {/* Filter toolbar — search + driver, scoped to the salary period */}
-          <div className="penalty-filter-bar">
-            <div className="penalty-filter-bar__search">
-              <Search size={14} />
-              <input
-                type="text"
-                aria-label="Tìm biên bản"
-                placeholder="Tìm lái xe, mã chuyến, lý do..."
-                value={search}
-                onChange={e => onSearchChange(e.target.value)}
-              />
-              {search && (
-                <button
-                  className="penalty-filter-bar__clear"
-                  onClick={() => onSearchChange('')}
-                  title="Xóa tìm kiếm"
-                  aria-label="Xóa nội dung tìm kiếm"
-                  type="button"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-            <UuiSelectField
-              id="penalty-driver-filter"
-              label="Lái xe"
-              inline
-              value={driverFilter == null ? '' : String(driverFilter)}
-              onChange={e => onDriverFilterChange(e.target.value ? Number(e.target.value) : undefined)}
-              controlClassName="penalty-filter-bar__select"
-              options={[
-                { value: '', label: 'Tất cả lái xe' },
-                ...drivers.map(d => ({ value: String(d.id), label: d.name })),
-              ]}
-            />
-            {hasActiveFilters && (
+          {/* Filter strip (card 20260927_152) — the shared bar keeps the search
+              and the reset; `Lái xe` is this surface's only secondary criterion,
+              so it rides `Bộ lọc` and the trigger reports how many are applied.
+              The criterion renders inline in the bar while the strip still fits
+              two rows (the measured filter-bar mode) and folds in only when the
+              width leaves no other choice. */}
+          <FilterBar
+            search={{
+              value: search,
+              onChange: onSearchChange,
+              placeholder: 'Tìm lái xe, mã chuyến, lý do...',
+              ariaLabel: 'Tìm biên bản',
+            }}
+            actions={hasActiveFilters ? (
               <button className="penalty-filter-bar__reset" onClick={onResetFilters} type="button">
                 <X size={12} /> Xóa bộ lọc
               </button>
-            )}
-          </div>
+            ) : undefined}
+          >
+            <FilterDropdown
+              count={driverFilter == null ? 0 : 1}
+              ariaLabel="Bộ lọc"
+              dialogLabel="Bộ lọc biên bản"
+              onReset={() => onDriverFilterChange(undefined)}
+            >
+              <UuiSelectField
+                id="penalty-driver-filter"
+                label="Lái xe"
+                inline
+                value={driverFilter == null ? '' : String(driverFilter)}
+                onChange={e => onDriverFilterChange(e.target.value ? Number(e.target.value) : undefined)}
+                options={[
+                  { value: '', label: 'Tất cả lái xe' },
+                  ...drivers.map(d => ({ value: String(d.id), label: d.name })),
+                ]}
+              />
+            </FilterDropdown>
+          </FilterBar>
 
           {listLoading ? (
             <div className="penalty-loading penalty-loading--padded">
@@ -308,12 +307,12 @@ export function PenaltyTable({
                           <td data-label="Lý do">{p.reasonText || p.customReason || '—'}</td>
                           <td data-label="Ngày">{formatDate(p.date)}</td>
                           <td data-label="Chuyến">
-                            {p.tripId && p.tripCode ? (
+                            {p.tripId ? (
                               <a
                                 href={`/trips/${p.tripId}`}
                                 onClick={(e) => { e.preventDefault(); navigate(`/trips/${p.tripId}`); }}
                                 className="penalty-log-trip"
-                              >{p.tripCode}</a>
+                              >{billBookingReference(p.tripCode)}</a>
                             ) : '—'}
                           </td>
                           <td data-label="Số tiền" className="num">
@@ -374,7 +373,7 @@ export function PenaltyTable({
             </div>
           </div>
           <div className="penalty-head-tools">
-            <div className="penalty-seg">
+            <div className="penalty-seg" data-control-group="compact">
               {SCORE_WINDOWS.map(f => (
                 <button
                   key={f.key}
@@ -509,20 +508,12 @@ export function PenaltyTable({
           </div>
           {reasons.length === 0 ? (
             <div className="penalty-empty-reasons">
-              <img
-                src={resolveEmptyIllustration('empty-penalty-reasons')}
-                alt=""
-                aria-hidden="true"
-                className="penalty-empty-reasons__img"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              <EmptyState
+                context="penalty-reasons"
+                title="Chưa có phân loại vi phạm"
+                description="Thêm các mức phạt nội quy để hệ thống tự động áp dụng khi lập biên bản kỷ luật."
+                action={<Btn variant="secondary" icon={<Plus size={13} />} onClick={() => navigate('/config/penalty-reasons')}>Thêm nội quy đầu tiên</Btn>}
               />
-              <div className="penalty-empty-reasons__title">Chưa có phân loại vi phạm</div>
-              <div className="penalty-empty-reasons__desc">
-                Thêm các mức phạt nội quy để hệ thống tự động áp dụng khi lập biên bản kỷ luật.
-              </div>
-              <Btn variant="secondary" icon={<Plus size={13} />} onClick={() => navigate('/config/penalty-reasons')}>
-                Thêm nội quy đầu tiên
-              </Btn>
             </div>
           ) : (
           <div className="penalty-vio-type-list">
@@ -557,7 +548,7 @@ export function PenaltyTable({
             </div>
             <a
               href="/config/penalty-reasons"
-              className="penalty-config-link"
+              className="btn btn--ghost btn--sm"
               onClick={(e) => { e.preventDefault(); navigate('/config/penalty-reasons'); }}
             >
               Sửa bảng phạt →

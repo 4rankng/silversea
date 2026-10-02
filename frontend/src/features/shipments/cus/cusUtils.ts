@@ -12,7 +12,7 @@ import {
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
 import { ApiError } from '../../../lib/api';
-import { formatDateTimeShort } from '../../../lib/format';
+import { formatISODate, formatDateTimeShort, formatNumber } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
 export function formatQuantity(value: string | null, maximumFractionDigits = 2): string {
@@ -49,10 +49,10 @@ export function cargoModeLabel(cargoMode: ShipmentCusWorkspaceListItem['cargoMod
 
 export function worksheetQuantity(item: ShipmentCusWorkspaceListItem): string {
   if (item.operational.totalContainers > 0) {
-    return `${item.operational.totalContainers.toLocaleString('vi-VN')} cont`;
+    return `${formatNumber(item.operational.totalContainers)} cont`;
   }
   if (item.packageCount != null) {
-    return `${item.packageCount.toLocaleString('vi-VN')} ${item.packageType || 'kiện'}`;
+    return `${formatNumber(item.packageCount)} ${item.packageType || 'kiện'}`;
   }
   return '—';
 }
@@ -70,10 +70,11 @@ export function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
 }
 
 /**
- * One display line per per-container appointment group:
- * "09:00 25/08/2026 · Sunrise · 1x40HC" — the time, date, effective factory
- * (SILVER L1), and container-type mix of every container sharing that
- * (local date, factory) group in the lot.
+ * One display line per per-container appointment group, in the canonical
+ * datetime shape (card 20260921_23): "09:00 25/08/2026 · Sunrise · 1x40HC" —
+ * padded time-first 24h + padded date, the effective factory (SILVER L1),
+ * and container-type mix of every container sharing that (local date,
+ * factory) group in the lot.
  */
 export function formatAppointmentGroupLine(at: string, localDate?: string): string {
   const date = new Date(at);
@@ -87,8 +88,8 @@ export function formatAppointmentGroupLine(at: string, localDate?: string): stri
   const time = `${vietnamParts.find((part) => part.type === 'hour')?.value ?? '—'}:${vietnamParts.find((part) => part.type === 'minute')?.value ?? '—'}`;
   const [year, month, day] = (localDate ?? '').split('-');
   const formattedLocalDate = year && month && day
-    ? `${Number(day)}/${Number(month)}/${year}`
-    : new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
+    ? `${day}/${month}/${year}`
+    : formatISODate(at);
   return `${time} ${formattedLocalDate}`;
 }
 
@@ -100,11 +101,11 @@ export function appointmentGroupFactorySegment(factoryName: string | null): stri
 
 export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): string {
   const { totalContainers, plateAssignedContainers, vehicleReadiness } = item.operational;
-  if (vehicleReadiness === 'READY') return 'Đã phân xe';
+  if (vehicleReadiness === 'READY') return 'Đã điều xe';
   if (vehicleReadiness === 'NO_CONTAINERS') return 'Không áp dụng điều xe';
   const waiting = Math.max(0, totalContainers - plateAssignedContainers);
   if (waiting >= totalContainers) return 'Toàn bộ chờ phân xe';
-  return `${waiting.toLocaleString('vi-VN')} cont chờ phân xe`;
+  return `${formatNumber(waiting)} cont chờ phân xe`;
 }
 
 export function noteLines(note: string | null | undefined): string[] {
@@ -130,6 +131,16 @@ export function displayNote(note: string | null | undefined): string {
   return sentence.replace(/(^\p{L})|([.!?]\s+\p{L})/gu, (match) => match.toLocaleUpperCase('vi'));
 }
 
+/** One editable tờ khai row of the documents quick-edit (card 20260921_3).
+ * Existing rows PUT the whole row, so passthrough metadata rides along. */
+export interface QuickEditDeclarationRow {
+  id: number | null;
+  declarationNumber: string;
+  declarationIssuedAt: string | null;
+  declarationScope: 'SINGLE' | 'SHARED' | null;
+  declarationNote: string | null;
+}
+
 export interface ShipmentQuickEditDraft {
   shipmentId: number;
   field: 'identity' | 'documents' | 'classification' | 'cargo' | 'schedule' | 'notes';
@@ -140,13 +151,11 @@ export interface ShipmentQuickEditDraft {
   factoryName: string;
   blNumber: string;
   bookingRef: string;
-  declarationNumber: string;
-  // Existing declaration identity — needed because the PUT endpoint replaces
-  // the whole row, so the modal must resend issuedAt/scope/note verbatim.
-  declarationId: number | null;
-  declarationIssuedAt: string | null;
-  declarationScope: 'SINGLE' | 'SHARED' | null;
-  declarationNote: string | null;
+  declarations: QuickEditDeclarationRow[];
+  // Stored row ids the modal was seeded with (card 20260921_3): the save
+  // deletes ONLY these when absent from the draft, so a declaration another
+  // user added mid-edit is never destroyed by a stale modal.
+  declarationSeedIds: number[];
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   shippingLineName: string;
   packageCount: string;
@@ -170,12 +179,12 @@ export function quickEditTitle(field: ShipmentQuickEditDraft['field']): string {
 /** Container dispatch chip vocabulary (customer decision 2026-09-08, revised
  * the same evening): "Đã tạo chuyến" while a CREATED trip still misses its
  * ngày đóng/trả; "Chờ phân xe" once the date is set (or nothing scheduled)
- * but no vehicle is on the line; "Đã phân xe" once a vehicle is allocated —
+ * but no vehicle is on the line; "Đã điều xe" once a vehicle is allocated —
  * the same plate the Phân xe column shows; "Đang chạy"/"Hoàn thành" follow
  * the trip. */
 export function dispatchStatusLabel(status: ShipmentCusWorkspaceContainerLine['dispatchStatus']): string {
   if (status === 'CREATED') return 'Đã tạo chuyến';
-  if (status === 'PLANNED') return 'Đã phân xe';
+  if (status === 'PLANNED') return 'Đã điều xe';
   if (status === 'IN_TRANSIT') return 'Đang chạy';
   if (status === 'COMPLETED') return 'Hoàn thành';
   return 'Chờ phân xe';

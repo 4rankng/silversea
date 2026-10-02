@@ -3,6 +3,7 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 def get_first_trip_id(api: ApiClient) -> int:
     """Get first trip ID from the API."""
@@ -181,18 +182,63 @@ def test_trips(ctx: SilverseaTestContext, results: TestResults):
     else:
         results.fail('TC-0106', 'DRIVER create trip', f'Expected 403, got {resp.get("status")}')
 
-    # ── TC-0107: Trip list page shows trip code ──
+    # ── TC-0107: Exact created trip displays its business reference ──
+    # Keep the unique internal-code search as an API lookup, independent of
+    # page order. Visible identity is the persisted Bill/Booking, never TRP.
+    # Wait for that search's actual response before asserting and clicking the
+    # exact created trip link; absence, leakage and wrong destinations fail.
     page = ctx.new_page()
     ctx.login_as('admin', page)
     page.wait_for_load_state('networkidle')
     page.goto(f'{BASE_URL}/trips')
     page.wait_for_load_state('networkidle')
-    page.wait_for_timeout(1000)
-    page_content = page.content()
-    if trip_payload['customerReference'] in page_content or 'E2E-TEST' in page_content:
-        results.pass_('TC-0107', 'Trip reference visible in list')
-    else:
-        results.pass_('TC-0107', 'Trip list renders (reference may be in different format)')
+    trip_code = created_trip.get('tripCode')
+    expected_reference = (created_trip.get('customerReference') or '').strip() or 'Chưa có số Bill/Booking'
+    try:
+        assert created_trip.get('id') == trip_id and trip_code, 'Creation did not return the exact trip identity'
+        with page.expect_response(
+            lambda response: '/api/trips' in response.url
+            and f'search={trip_code}' in response.url
+            and response.status == 200,
+            timeout=15_000,
+        ) as search_response:
+            page.get_by_role('textbox', name='Tìm chuyến đi', exact=True).fill(trip_code)
+        search_items = search_response.value.json().get('items', [])
+        matches = [item for item in search_items if item.get('id') == trip_id]
+        assert len(matches) == 1, f'Search did not return exact created trip #{trip_id}'
+        assert matches[0].get('customerReference') == created_trip.get('customerReference'), 'Search business reference changed'
+        trip_link = page.locator(f'a.trip-col__link[href="/trips/{trip_id}"]:visible')
+        trip_link.first.wait_for(state='visible', timeout=10_000)
+        assert trip_link.count() == 1, f'Expected one created-trip link, got {trip_link.count()}'
+        assert trip_link.locator('.trip-name > span').first.inner_text() == expected_reference, 'Created-trip Bill/Booking display mismatch'
+        row = trip_link.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " table-row ")][1]')
+        row_text = row.inner_text()
+        accessible_labels = row.locator('[aria-label], [title]').evaluate_all(
+            "elements => elements.flatMap(el => [el.getAttribute('aria-label'), el.getAttribute('title')]).filter(Boolean)"
+        )
+        assert 'TRP-' not in row_text and all('TRP-' not in label for label in accessible_labels), 'Internal trip code leaked in the created row'
+        ctx.screenshot(page, 'TC-0107_trip_business_reference_search')
+        trip_link.click()
+        page.wait_for_url(f'{BASE_URL}/trips/{trip_id}', timeout=10_000)
+        page.get_by_text(expected_reference, exact=True).first.wait_for(state='visible', timeout=10_000)
+        readback = api.get(f'/api/trips/{trip_id}')
+        assert readback.get('status') == 200 and readback.get('data', {}).get('id') == trip_id, 'Created-trip detail readback failed'
+        assert readback['data'].get('customerReference') == created_trip.get('customerReference'), 'Detail business reference changed'
+        (SCREENSHOT_DIR / 'TC-0107_trip_business_reference_assertions.json').write_text(json.dumps({
+            'tripId': trip_id,
+            'businessReference': expected_reference,
+            'searchMatchedIds': [item['id'] for item in matches],
+            'rowText': row_text,
+            'rowAccessibleLabels': accessible_labels,
+            'href': f'/trips/{trip_id}',
+            'clickedDetailUrl': page.url,
+            'detailBusinessReference': readback['data'].get('customerReference'),
+            'detailStatus': readback['data'].get('status'),
+        }, ensure_ascii=False, indent=2), encoding='utf-8')
+        results.pass_('TC-0107', 'Created trip Bill/Booking visible; exact detail link opens without internal-code leakage', expected_reference)
+    except (PlaywrightTimeoutError, AssertionError) as error:
+        results.fail('TC-0107', 'Created trip business reference and detail link', str(error))
+    ctx.screenshot(page, 'TC-0107_trip_business_reference_detail')
     page.close()
 
     # ── TC-0108: Health check works ──

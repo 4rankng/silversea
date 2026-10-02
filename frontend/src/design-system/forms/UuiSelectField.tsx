@@ -47,10 +47,17 @@ export interface UuiSelectFieldProps {
   placeholder?: string;
   /** `content` shrinks the control to its label; default fills the wrapper. */
   width?: 'stretch' | 'content';
+  /** Optional leading icon on the trigger — replaces the default inset
+   * search glyph (e.g. a chevron for filter comboboxes). */
+  icon?: ReactNode;
   /** Extra classes for the wrapper, control, and popover elements. */
   wrapperClassName?: string;
   controlClassName?: string;
   popoverClassName?: string;
+  /** Compact filters by default; ordinary form controls can opt into md. */
+  size?: 'sm' | 'md';
+  /** Finite category pickers can keep a plain dropdown even with many choices. */
+  searchable?: boolean;
 }
 
 const EMPTY_SELECT_KEY = '__EMPTY_SELECT_VALUE__';
@@ -82,6 +89,9 @@ export function UuiSelectField({
   wrapperClassName,
   controlClassName,
   popoverClassName,
+  icon,
+  size = 'sm',
+  searchable,
 }: UuiSelectFieldProps) {
   const generatedId = useId();
   const messageId = `${id ?? generatedId}-message`;
@@ -95,7 +105,7 @@ export function UuiSelectField({
   ].filter(Boolean).join(' ');
 
   const items = options.map((option) => ({ id: option.value || EMPTY_SELECT_KEY, label: option.label, isDisabled: option.disabled }));
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? '';
+  const selectedLabel = value ? options.find((option) => option.value === value)?.label ?? '' : '';
 
   // Type-to-search text, independent from the committed `value` so the user
   // can filter freely before picking an option. Resynced with the selected
@@ -103,33 +113,33 @@ export function UuiSelectField({
   const [searchText, setSearchText] = useState(selectedLabel);
   useEffect(() => {
     setSearchText(selectedLabel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, options]);
+  }, [value, selectedLabel]);
 
-  const isSearchable = options.length >= SEARCH_THRESHOLD;
+  const isSearchable = searchable ?? options.length >= SEARCH_THRESHOLD;
 
   return (
     <div className={classes}>
       {isSearchable ? (
         <UUISelect.ComboBox
           id={id}
-          size="sm"
+          icon={icon}
+          size={size}
           aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
           aria-describedby={descriptionIds}
           label={hideLabel ? undefined : label}
           menuTrigger="focus"
           openOnPress
-          selectedKey={value || EMPTY_SELECT_KEY}
+          selectedKey={value || null}
           inputValue={searchText}
           onInputChange={setSearchText}
           onSelectionChange={(key) => {
             if (key == null) return;
             const nextValue = key === EMPTY_SELECT_KEY ? '' : String(key);
             onChange(asEvent(nextValue));
-            setSearchText(options.find((option) => (option.value || EMPTY_SELECT_KEY) === key)?.label ?? '');
+            setSearchText(nextValue ? options.find((option) => option.value === nextValue)?.label ?? '' : '');
           }}
           items={items}
-          placeholder={placeholder ?? 'Gõ để tìm kiếm'}
+          placeholder={placeholder ?? options.find(option => option.value === '')?.label ?? 'Gõ để tìm kiếm'}
           isDisabled={disabled}
           isRequired={required}
           isInvalid={invalid ?? Boolean(error)}
@@ -143,12 +153,20 @@ export function UuiSelectField({
       ) : (
         <UUISelect
           id={id}
-          size="sm"
+          size={size}
           aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
           aria-describedby={descriptionIds}
           label={hideLabel ? undefined : label}
+          placeholder={placeholder ?? options.find((option) => option.value === '')?.label ?? '— Chọn —'}
           selectedKey={value || EMPTY_SELECT_KEY}
-          onSelectionChange={(key) => onChange(asEvent(key === EMPTY_SELECT_KEY ? '' : String(key)))}
+          onSelectionChange={(key) => {
+            // React Aria can clear the selection (null key) when the option
+            // list rebuilds; mapping it to String(null) would strand the
+            // control on a key that matches no option and strand the form on
+            // a value the owner never chose.
+            if (key == null) return;
+            onChange(asEvent(key === EMPTY_SELECT_KEY ? '' : String(key)));
+          }}
           items={items}
           isDisabled={disabled}
           isRequired={required}
@@ -157,6 +175,7 @@ export function UuiSelectField({
           popoverClassName={popoverClassName ?? 'ds-uui-select__popover'}
           className="ds-uui-select__control"
           triggerClassName={controlClassName}
+          icon={icon}
         >
           {(item) => <UUISelect.Item id={item.id} label={item.label} isDisabled={item.isDisabled} selectionIndicatorAlign="left" />}
         </UUISelect>

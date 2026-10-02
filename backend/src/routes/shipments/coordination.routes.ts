@@ -30,6 +30,8 @@ import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parseId } from './shipment-shared';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const customerVisibleEventSchema = z.object({
   eventKey: z.string().trim().min(1).max(120),
@@ -53,7 +55,7 @@ const resolveHandoffSchema = z.object({
   rejectReason: z.string().trim().min(1).max(1_000).optional().nullable(),
 });
 
-const coordinationRoutes = Router();
+const coordinationRoutes = Router()
 
 coordinationRoutes.get('/:id/customer-events', asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(req, res);
@@ -62,7 +64,7 @@ coordinationRoutes.get('/:id/customer-events', asyncHandler(async (req: Request,
 }));
 
 coordinationRoutes.post(
-  '/:id/customer-events',
+  '/:id/customer-events', declareMaterialWrite('shipments.customer-events.create', { method: 'POST', path: '/api/shipments/:id/customer-events' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -88,7 +90,7 @@ coordinationRoutes.get('/:id/dispatch-handoff', asyncHandler(async (req: Request
 }));
 
 coordinationRoutes.post(
-  '/:id/dispatch-handoffs',
+  '/:id/dispatch-handoffs', declareMaterialWrite('shipments.dispatch-handoffs.create', { method: 'POST', path: '/api/shipments/:id/dispatch-handoffs' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -108,7 +110,7 @@ coordinationRoutes.post(
 );
 
 coordinationRoutes.post(
-  '/:id/dispatch-handoffs/:handoffId/resolve',
+  '/:id/dispatch-handoffs/:handoffId/resolve', declareMaterialWrite('shipments.handoff.resolve', { method: 'POST', path: '/api/shipments/:id/dispatch-handoffs/:handoffId/resolve' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -193,7 +195,7 @@ coordinationRoutes.post(
   }),
 );
 
-coordinationRoutes.post('/:id/change-requests/:requestId/review', (_req, res) => {
+coordinationRoutes.post('/:id/change-requests/:requestId/review', declareNonMaterialWrite('Retired endpoint — mounted as a response-only 410 stub; kept from re-acquiring behaviour by the exhaustive test.'), (_req, res) => {
   res.status(410).json({ error: 'Luồng phê duyệt đã được gỡ bỏ. Chỉnh sửa lô hàng trực tiếp.' });
 });
 

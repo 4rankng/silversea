@@ -125,11 +125,10 @@
   font-size: var(--text-data-size);
 }
 
-.salary-empty-inline img {
-  width: 56px;
-  height: 46px;
-  object-fit: contain;
-  flex-shrink: 0;
+/* Shared <EmptyState> face in the row strip: unwrap its message column so the
+   art stays beside the message. */
+.salary-empty-inline .ds-empty-state__message {
+  display: contents;
 }
 
 .salary-empty-panel {
@@ -142,16 +141,10 @@
   gap: 12px;
 }
 
-.salary-empty-panel img {
-  width: 168px;
-  height: 140px;
-  object-fit: contain;
-}
-
 @media (max-width: 640px) {
   .driver-select-card {
     padding: 7px 12px;
-    border-radius: 7px;
+    border-radius: 8px;
     min-width: 100px;
   }
 }
@@ -216,7 +209,7 @@
 .cal-cell {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 9px;
+  border-radius: 10px;
   border: 1px solid var(--border-1);
   background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.86));
   display: flex;
@@ -299,12 +292,12 @@
   color: var(--accent-ink);
   background: rgba(0, 177, 79, 0.1);
   padding: 1px 3px;
-  border-radius: 3px;
+  border-radius: 4px;
   margin-top: 2px;
   max-width: 90%;
-  overflow: visible;
-  overflow-wrap: anywhere;
-  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-data);
 }
 
@@ -321,7 +314,7 @@
 /* ─── Status Variants ─── */
 /* Đi chuyến — subtle green tint */
 .cal-cell.status-trip_day {
-  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+  background: linear-gradient(180deg, #f0fdf4, var(--surface));
   border-color: #bbf7d0;
 }
 .cal-cell.status-trip_day .cal-cell-day-num {
@@ -334,7 +327,7 @@
 
 /* Chờ việc — subtle amber tint */
 .cal-cell.status-standby {
-  background: linear-gradient(180deg, #fffbea, #ffffff);
+  background: linear-gradient(180deg, #fffbea, var(--surface));
   border-color: #fde68a;
 }
 .cal-cell.status-standby .cal-cell-day-num {
@@ -347,7 +340,7 @@
 
 /* Nghỉ riêng — subtle rose tint */
 .cal-cell.status-personal_leave {
-  background: linear-gradient(180deg, #fff1f2, #ffffff);
+  background: linear-gradient(180deg, #fff1f2, var(--surface));
   border-color: #fecdd3;
 }
 .cal-cell.status-personal_leave .cal-cell-day-num {
@@ -396,7 +389,7 @@
   font-weight: 500;
   color: var(--fg-2);
   padding: 3px 9px;
-  border-radius: 99px;
+  border-radius: 24px;
   border: 1px solid var(--border-1);
   background: var(--surface);
 }

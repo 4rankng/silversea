@@ -1,4 +1,5 @@
-import { createDefaultDetailedPlanFilters, detailPlanQuery, type DetailedPlanFilterState, type DetailPlanSortKey, type DetailPlanSortDirection } from './detailPlanFilters';
+import { createDefaultDetailedPlanFilters, detailPlanQuery, detailPlanViewSignature, type DetailedPlanFilterState, type DetailPlanSortKey, type DetailPlanSortDirection } from './detailPlanFilters';
+import { compareDetailPlanRows, nextDetailPlanSortState } from './detailedPlanSort';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
 import { ensureFulfillmentFor } from './ensureFulfillment';
@@ -18,6 +19,7 @@ import {
   type ZoneTruckPresenceItem,
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
+import { useMonth } from '../../../hooks/useMonth';
 import { dispatchShipment, type DispatchShipmentRequest } from '../../../api/shipmentClient';
 
 const PAGE_SIZE = 50;
@@ -32,8 +34,36 @@ export type { DetailedPlanFilterState, DetailPlanSortKey, DetailPlanSortDirectio
  * failure). Same request-id race guard pattern as useDispatchMasterPlan.
  */
 export function useDispatchDetailPlan() {
-  const [filters, setFilters] = useState<DetailedPlanFilterState>(createDefaultDetailedPlanFilters);
-  const filtersRef = useRef(filters);
+  const { month, year } = useMonth();
+  const monthStamp = `${year}-${String(month).padStart(2, '0')}`;
+  const [filters, setFilters] = useState<DetailedPlanFilterState>(() => {
+    // Card 20260922_32: the board starts scoped to the topbar month — the
+    // selector must mean something from the first paint (AC1), and the
+    // range is visible in the filter bar's scope chip (AC2).
+    const base = createDefaultDetailedPlanFilters();
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return {
+      ...base,
+      dateFrom: `${monthStamp}-01`,
+      dateTo: `${monthStamp}-${String(lastDay).padStart(2, '0')}`,
+    };
+  });
+
+  // Card 20260922_32: later topbar month changes rewrite the range; the
+  // screen's own presets/date input overwrite it afterwards (last writer
+  // wins, both visible in the filter bar's scope chip).
+  const lastSyncedMonthRef = useRef(monthStamp);
+  useEffect(() => {
+    if (lastSyncedMonthRef.current === monthStamp) return;
+    lastSyncedMonthRef.current = monthStamp;
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    setFilters((current) => ({
+      ...current,
+      date: '',
+      dateFrom: `${monthStamp}-01`,
+      dateTo: `${monthStamp}-${String(lastDay).padStart(2, '0')}`,
+    }));
+  }, [monthStamp, month, year]);  const filtersRef = useRef(filters);
   filtersRef.current = filters;
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<DispatchDetailPlanRow[]>([]);
@@ -93,19 +123,7 @@ export function useDispatchDetailPlan() {
   const viewSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     const requestId = ++requestIdRef.current;
-    const viewSignature = JSON.stringify([
-      page,
-      debouncedQ,
-      filters.date,
-      filters.direction,
-      filters.assignmentStatus,
-      filters.pickupIds,
-      filters.dropoffIds,
-      filters.deliveryPointIds,
-      filters.hourFrom,
-      filters.hourTo,
-      filters.zone,
-    ]);
+    const viewSignature = detailPlanViewSignature(page, debouncedQ, filters);
     // Background refreshes must keep the table mounted: swapping it for the
     // skeleton unmounts the open row editor mid-edit and silently discards
     // the dispatcher's drafted carrier/vehicle/note changes (2026-09-09 bug:
@@ -133,7 +151,7 @@ export function useDispatchDetailPlan() {
         setError('Không thể tải kế hoạch chi tiết. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [page, debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, filters.zone, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps -- filters fields (minus debounced q) enumerated: object identity churns per setFilters spread, depending on it would refetch on no-op patches
+  }, [page, debouncedQ, filters.date, filters.dateFrom, filters.dateTo, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, filters.zone, filters.truckPlate, filters.driverId, filters.carrierClass, filters.trailerType, filters.routeId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps -- filters fields (minus debounced q) enumerated: object identity churns per setFilters spread, depending on it would refetch with stale data patches
 
   const updateFilters = useCallback((patch: Partial<DetailedPlanFilterState>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -154,37 +172,19 @@ export function useDispatchDetailPlan() {
   // Three-state header sort: unsorted → ascending → descending → unsorted.
   // Picking a different column restarts at ascending.
   const toggleSort = useCallback((key: Exclude<DetailPlanSortKey, null>) => {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDirection('asc');
-    } else if (sortDirection === 'asc') {
-      setSortDirection('desc');
-    } else {
-      setSortKey(null);
-      setSortDirection('asc');
-    }
+    const next = nextDetailPlanSortState(sortKey, sortDirection, key);
+    setSortKey(next.sortKey);
+    setSortDirection(next.sortDirection);
   }, [sortKey, sortDirection]);
 
-  // Client-side sort over the loaded page (spec: bundle trips by run time or
-  // dropoff point). Run-time order follows the full runAt timestamp — minutes
-  // decide within the hour. Time-less rows sort LAST in both directions (an
-  // unknown time is never "before" a known one); runHour only breaks ties
-  // between two time-less rows.
+  // Client-side sort over the loaded page (spec: bundle trips by run time,
+  // dropoff point or customer). Run-time order follows the full runAt
+  // timestamp — minutes decide within the hour. Time-less rows sort LAST in
+  // both directions (an unknown time is never "before" a known one); runHour
+  // only breaks ties between two time-less rows.
   const sortedItems = sortKey == null
     ? items
-    : [...items].sort((a, b) => {
-      if (sortKey === 'runHour') {
-        const [av, bv] = [a.time.runAt ?? null, b.time.runAt ?? null];
-        if (av == null || bv == null) {
-          return av != null ? -1 : bv != null ? 1
-            : (a.time.runHour ?? 99) - (b.time.runHour ?? 99);
-        }
-        const cmp = av.localeCompare(bv);
-        return sortDirection === 'desc' ? -cmp : cmp;
-      }
-      const cmp = (a.customerRoute.deliveryPoint ?? '').localeCompare(b.customerRoute.deliveryPoint ?? '', 'vi');
-      return sortDirection === 'desc' ? -cmp : cmp;
-    });
+    : [...items].sort((a, b) => compareDetailPlanRows(a, b, sortKey, sortDirection));
 
   const assignPlate = useCallback(async (
     row: DispatchDetailPlanRow,

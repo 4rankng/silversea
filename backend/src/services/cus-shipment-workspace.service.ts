@@ -15,3 +15,4 @@ export {
   listCusShipmentWorkspace,
 } from './cus-shipment-workspace-reads.service';
 export { updateCusShipmentContainerLine } from './cus-shipment-workspace-writes.service';
+export { addCusShipmentContainer, removeCusShipmentContainer } from './cus-shipment-workspace-writes.service';

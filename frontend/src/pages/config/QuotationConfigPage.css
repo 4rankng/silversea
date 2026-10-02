@@ -1,0 +1,92 @@
+/* ─── Báo giá (card 20260922_56) — quotation live-view screen ───────────────
+   Entity-management table design (law §5: data-dense, /suppliers pattern):
+   flat workband, no card chrome, no pills, text-only data cells (§1).
+   Frames list + live grid; on <1280 the two stack. */
+
+.quotation-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.quotation-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1279px) {
+  .quotation-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+.quotation-frames__table { width: 100%; min-width: 0; table-layout: auto; }
+.quotation-frames__table tbody tr { cursor: pointer; }
+.quotation-frames__table tbody td {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.quotation-frames__table tbody tr:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+.quotation-status { color: var(--ink-3); font-size: var(--text-caption-size); }
+
+/* ── Route block: parameter strip + the 5×10 grid ───────────────────────── */
+.quotation-route-block {
+  min-width: 0;
+}
+
+.quotation-route-block + .quotation-route-block { margin-top: 14px; }
+
+.quotation-route-block__head h3 {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: var(--text-title-size);
+  font-weight: var(--fw-bold, 700);
+}
+
+.quotation-route-block__params,
+.quotation-live-grid-params,
+.quotation-route-block__link {
+  margin: 0 0 4px;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+}
+
+/* Group header row — house neutral ink, no semantic tint (§1/§2). */
+.quotation-grid th[scope="colgroup"] {
+  text-align: center;
+  color: var(--ink-2);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-2);
+}
+
+.quotation-grid th,
+.quotation-grid td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+/* The desktop pricing matrix expands to complete labels and amounts. Phone
+   renders the shared labelled records instead of an off-screen money rail. */
+.quotation-grid { table-layout: auto; min-width: max-content; }
+
+/* Missing price (ruling 2): plain italic text names the missing data —
+   never a fallback value, never a pill. */
+.quotation-grid td.is-missing {
+  color: var(--warning-text);
+  font-style: italic;
+}
+
+/* Matrix headers expand to complete class tokens. The shared record-table
+   recipe owns the frame list's narrow labels and word wrapping. */
+.quotation-grid thead th {
+  white-space: normal;
+  overflow-wrap: normal;
+}

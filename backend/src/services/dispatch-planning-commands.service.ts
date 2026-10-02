@@ -9,6 +9,7 @@ import { LiveTripRow } from './dispatch-planning-utils.service';
 import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
 import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferTrailerTypeFromContainerCode, inferredVehicleCapacityKg, parseIsoWithZone, routeServiceDurationMinutes, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
 import { db } from '../db';
+import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { ApiError } from '../errors';
 import { resolveHandoff } from './dispatch-handoff.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
@@ -467,10 +468,8 @@ export async function issueOrderCreateOrUpdate(
     }
   }
 
-  const lockIds = [truckId, trailerId, driverId].filter((id): id is number => id != null).sort((a, b) => a - b);
-  for (const resourceId of [...new Set(lockIds)]) {
-    await tx.execute(sql`select pg_advisory_xact_lock(6201, ${resourceId})`);
-  }
+  const lockIds = [truckId, trailerId, driverId].filter((id): id is number => id != null);
+  await acquireAdvisoryLocks(tx, lockIds.map(lockKeys.dispatchResource));
 
   const liveTrip = await loadLiveTripForFulfillment(tx, fulfillment.id);
   if (liveTrip && liveTrip.status !== TripStatus.CREATED) {
@@ -605,6 +604,9 @@ export async function issueOrderCreateOrUpdate(
       shipmentContainerId: fulfillment.shipmentContainerId,
       rateKeyOverride: input.pricingRateKey ?? null,
       fallbackTransportDate: localDateInBusinessZone(plannedStartAt),
+      // Card _58 ruling 4c: dispatching a weightless container lot must LOUDLY
+      // block (409), never dispatch silently unpriced.
+      requirePrice: true,
     });
     // F6 factory snapshot (MDN-13): freeze the operational site's display
     // fields at dispatch so later master-data edits cannot drift an

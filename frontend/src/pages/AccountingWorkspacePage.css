@@ -25,10 +25,8 @@
 .accounting-alert { padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--warning) 38%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--warning) 8%, transparent); color: var(--fg-1); font-size: var(--text-body-size); }
 .accounting-alert button { min-height: var(--control-compact-h); margin-left: 6px; padding: 0 10px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--fg-1); font: inherit; font-weight: 700; cursor: pointer; }
 
-.accounting-tabs { display: flex; gap: 4px; padding: 4px; width: fit-content; max-width: 100%; border: 1px solid var(--border-1); border-radius: 10px; background: var(--bg-1); }
-.accounting-tabs .ds-tabs__btn { display: inline-flex; align-items: center; min-height: var(--filter-control-h); padding: 0 12px; border-radius: 7px; color: var(--fg-3); font-size: var(--filter-control-font-size); font-weight: 700; text-decoration: none; }
-.accounting-tabs .ds-tabs__btn--active { background: var(--bg-3); color: var(--fg-1); }
-.accounting-tabs .ds-tabs__btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 32%, transparent); outline-offset: 1px; }
+/* The group's cells, wrapping and selected state come from the canonical
+   `boxed` variant (design-system/Tabs.css), including on narrow phones. */
 
 .accounting-provenance { margin: -8px 0 0; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.5; }
 
@@ -58,37 +56,46 @@
 .accounting-register__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--fs-md); }
 .accounting-register__heading p { margin: 0; color: var(--fg-3); font-size: var(--fs-xs); }
 
-/* One wrapping toolbar row on the shared filter-control scale — search input,
- * divider, inline selects, conditional reset. */
-.accounting-register__toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.accounting-register__search { display: grid; grid-template-columns: minmax(200px, 1fr) auto; flex: 1 1 300px; max-width: 440px; min-width: 0; }
-.accounting-register__search input { min-width: 0; min-height: var(--filter-control-h); padding: 0 10px; border: 1px solid var(--border-2); border-radius: 8px 0 0 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); }
-.accounting-register__search button { min-height: var(--filter-control-h); padding: 0 12px; border: 1px solid var(--border-2); border-left: 0; border-radius: 0 8px 8px 0; background: var(--bg-2); color: var(--fg-1); font: inherit; font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); font-weight: 700; cursor: pointer; }
-.accounting-register__divider { width: 1px; height: var(--filter-control-h); background: var(--border-1); }
-.accounting-register__toolbar .ds-uui-select { flex: 0 1 auto; min-width: 0; }
-.accounting-register__select { min-height: var(--filter-control-h); background: var(--surface-2); border: 1px solid transparent; border-radius: 10px; color: var(--ink); font-family: var(--font-body); cursor: pointer; }
-.accounting-register__select:hover { background: var(--surface); border-color: var(--line-2); }
-.accounting-register__reset { display: inline-flex; align-items: center; gap: 5px; min-height: var(--filter-control-h); padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px; background: transparent; color: var(--fg-2); font: inherit; font-size: var(--filter-control-font-size); font-weight: 700; cursor: pointer; }
-.accounting-register__reset:hover { color: var(--fg-1); background: var(--bg-2); }
+/* Card 20260927_152 — the strip is the shared `ListFilterBar`, which owns the
+   wrapping row, the search cell and every control width. The page-local bar
+   (flex row + gap), the search cell (its label/input/submit trio), the
+   `flex: 1 1 150px` select stretch and the two toolbar grid bands (701-1100px
+   4-track, ≤700px 2-track) are deleted with it; the criteria now live in the
+   `Bộ lọc` dialog and pick up the bar's width contract (`FilterBar.css`). */
 
-/* Table card — chrome only; overflow stays visible (record-table contract)
- * so the sticky thead pins against the app-body scrollport. */
-.accounting-register__wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
-.accounting-register__table tbody tr { cursor: pointer; }
-.accounting-register__table tbody tr[aria-disabled='true'] { cursor: default; }
+/* The reset action rides the bar's own action cluster and keeps only the shared
+   compact density tokens — the shared bar owns its position on the line. */
+.accounting-register__reset {
+  min-height: var(--filter-control-h);
+  font-size: var(--filter-control-font-size);
+  line-height: var(--filter-control-line-height);
+}
+
+/* The shared table owns its row treatment; no second card around it. */
+.accounting-register__wrap { background: transparent; }
+/* Card 20260929_207: the row IS the selection control, so cursor, focus ring
+   and the locked affordance are declared per row state. */
+.accounting-register__table tbody tr.accounting-register__row--pickable { cursor: pointer; }
+.accounting-register__table tbody tr.accounting-register__row--pickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.accounting-register__table tbody tr.accounting-register__row--locked { cursor: default; }
+/* Card 20260929_207 + the selection-state contract: the picked row wears the
+   sanctioned NEUTRAL INK treatment shared by `record-table.css` — a neutral
+   surface plus a 3px inset ink edge, never an accent fill, never a
+   brand-tinted rule. */
+.accounting-register__table tbody tr[data-selected] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }
+
+/* The board states its selection model once, above the table. */
+.accounting-register__hint { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); }
 
 /* Cell payloads. */
-.accounting-row-check { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
-.accounting-row-check input { flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--brand); }
-.accounting-row-check input:disabled { opacity: .45; }
-.accounting-row-check span { display: grid; gap: 2px; min-width: 0; }
-.accounting-row-check strong { color: var(--fg-1); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); overflow-wrap: anywhere; }
-.accounting-row-check small { color: var(--fg-3); font-size: var(--ops-table-meta-size); overflow-wrap: anywhere; }
+.accounting-register__lead { display: grid; gap: 2px; min-width: 0; }
+.accounting-register__lead strong { color: var(--fg-1); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); overflow-wrap: anywhere; }
+.accounting-register__lead small { color: var(--fg-3); font-size: var(--ops-table-meta-size); overflow-wrap: anywhere; }
 .accounting-register__table td .accounting-register__payable { display: block; margin-top: 2px; color: var(--fg-3); font-size: var(--ops-table-meta-size); }
 .accounting-register__table .record-table__action { text-align: right; }
 .accounting-register__table .record-table__action a { display: inline-flex; align-items: center; min-height: var(--control-compact-h); color: var(--brand); font-weight: 700; }
 
-.accounting-status { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: var(--fs-status-pill); font-weight: 800; white-space: nowrap; }
+.accounting-status { display: inline-flex; padding: 3px 7px; border-radius: 6px; font-size: var(--text-caption-size); font-weight: 600; white-space: nowrap; }
 .accounting-status--ready { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
 .accounting-status--missing { background: color-mix(in srgb, var(--warning) 13%, transparent); color: var(--fg-1); }
 
@@ -106,6 +113,12 @@
 .accounting-register__footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; color: var(--fg-3); }
 .accounting-register__footer small { font-size: var(--text-caption-size); }
 
+@container (max-width: 1100px) {
+  .accounting-register__table tbody td.num { text-align: left; }
+  .accounting-register__table tbody tr td.record-table__action { padding-inline: 14px; }
+  .accounting-register__table .record-table__action a { min-height: var(--control-touch-h); }
+}
+
 @media (max-width: 700px) {
   .accounting-page { gap: 14px; }
   .accounting-period { align-items: stretch; flex-direction: column; padding: 10px 0; }
@@ -120,12 +133,6 @@
   .accounting-workflow__metric { grid-column: 2; white-space: normal; }
   .accounting-workflow__arrow { grid-column: 3; grid-row: 1 / span 2; }
 
-  /* Toolbar stacks: search full-width, filters pair two-up. */
-  .accounting-register__toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .accounting-register__search { grid-column: 1 / -1; max-width: none; flex-basis: auto; }
-  .accounting-register__divider { display: none; }
-  .accounting-register__toolbar .ds-uui-select { min-width: 0; }
-  .accounting-register__reset { grid-column: 1 / -1; justify-content: center; }
   .accounting-selection { align-items: stretch; flex-wrap: wrap; padding: 12px 14px; }
   .accounting-selection > div { flex-basis: 100%; }
   .accounting-selection button,
@@ -134,10 +141,7 @@
 }
 
 @media (max-width: 360px) {
-  .accounting-period__fields { grid-template-columns: 1fr; }
   .accounting-workflow { grid-template-columns: 38px minmax(0, 1fr) 18px; gap: 10px; }
   .accounting-workflow__icon { width: 38px; height: 38px; }
   .accounting-tabs { width: 100%; }
-  .accounting-tabs .ds-tabs__btn { flex: 1; min-width: 0; justify-content: center; padding: 0 8px; }
-  .accounting-register__toolbar { grid-template-columns: 1fr; }
 }

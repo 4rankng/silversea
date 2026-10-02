@@ -50,6 +50,7 @@ import { registerAuditEvent } from '../../services/audit-registry';
 import { AuditEvent } from '../../services/audit-types';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
 import { ApiError } from '../../errors';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   getTreasuryPosition,
   requestTreasuryAccountSetup,
@@ -81,7 +82,7 @@ const treasuryReversalSchema = z.object({
   reversalEvidence: z.string().trim().min(1).max(255),
 });
 
-const router = Router();
+const router = Router()
 
 registerAuditEvent('POST', '/api/commissions', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('POST', '/api/drivers/', '/payouts', AuditEvent.DRIVER_SALARY_RECORDED);
@@ -96,7 +97,7 @@ function getRequestIdempotencyKey(req: Request): string | undefined {
 
 // ─── Record payment ──────────────────────────────────────────────────────────
 
-router.post('/payments/receive', asyncHandler(async (req: Request, res: Response) => {
+router.post('/payments/receive', declareMaterialWrite('payments.receive', { method: 'POST', path: '/api/payments/receive' }),  asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
   const data = createPaymentWithTreasurySchema.parse(req.body);
@@ -146,7 +147,7 @@ const paymentRefundRequestSchema = z.object({
 });
 
 router.post(
-  '/payments/receipts/:id/refunds',
+  '/payments/receipts/:id/refunds', declareMaterialWrite('payment-refunds.create', { method: 'POST', path: '/api/payments/receipts/:id/refunds' }), 
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const paymentReceiptId = Number(req.params.id);
@@ -190,7 +191,7 @@ router.post(
 
 // ─── Adjustment ──────────────────────────────────────────────────────────────
 
-router.post('/adjustments', asyncHandler(async (req: Request, res: Response) => {
+router.post('/adjustments', declareMaterialWrite('financial-adjustments.create', { method: 'POST', path: '/api/adjustments' }),  asyncHandler(async (req: Request, res: Response) => {
   const data = createAdjustmentSchema.parse(req.body);
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -225,7 +226,7 @@ router.post('/adjustments', asyncHandler(async (req: Request, res: Response) => 
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/payments/vendor', asyncHandler(async (req: Request, res: Response) => {
+router.post('/payments/vendor', declareMaterialWrite('payments.vendor', { method: 'POST', path: '/api/payments/vendor' }),  asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
   const data = vendorPaymentWithTreasurySchema.parse(req.body);
@@ -258,7 +259,7 @@ router.post('/payments/vendor', asyncHandler(async (req: Request, res: Response)
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/payments/carrier', asyncHandler(async (req: Request, res: Response) => {
+router.post('/payments/carrier', declareMaterialWrite('payments.carrier', { method: 'POST', path: '/api/payments/carrier' }),  asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
   const data = vendorPaymentWithTreasurySchema.parse(req.body);
@@ -345,7 +346,7 @@ router.get('/reports/payables-summary', asyncHandler(async (req: Request, res: R
 // Records a commission payable owed to a supplier (VENDOR ledger, COMMISSION
 // txnType). ADMIN/MANAGER/ACCOUNTANT only.
 
-router.post('/commissions', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/commissions', declareMaterialWrite('commissions.create', { method: 'POST', path: '/api/commissions' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
   const data = commissionSchema.parse(req.body);
@@ -388,7 +389,7 @@ router.post('/commissions', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTA
 // DRIVER ledger. MANAGER/ACCOUNTANT only — drivers may not record their own
 // payouts (DRIVER/FORWARDER denied by requireRoles).
 
-router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/drivers/:driverId/payouts', declareMaterialWrite('drivers.payout', { method: 'POST', path: '/api/drivers/:driverId/payouts' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const driverId = parseInt(req.params.driverId as string, 10);
   if (!Number.isFinite(driverId) || driverId <= 0) {
     throw new ApiError(400, 'driverId không hợp lệ');
@@ -464,7 +465,7 @@ router.get('/finance/treasury/position', requireRoles(Role.ADMIN, Role.MANAGER, 
   });
 }));
 
-router.post('/finance/treasury/accounts/setup', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/treasury/accounts/setup', declareMaterialWrite('treasury.accounts.setup.request', { method: 'POST', path: '/api/finance/treasury/accounts/setup' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const body = treasuryAccountSetupSchema.parse(req.body);
   const { result, replayed } = await runIdempotent({
@@ -496,7 +497,7 @@ router.post('/finance/treasury/accounts/setup', requireRoles(Role.ADMIN, Role.MA
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
 
-router.patch('/finance/treasury/accounts/:id/fund', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.patch('/finance/treasury/accounts/:id/fund', declareMaterialWrite('treasury.accounts.fund.update', { method: 'PATCH', path: '/api/finance/treasury/accounts/:id/fund' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const accountId = parseId(req.params.id);
   const body = treasuryAccountFundSchema.parse(req.body);
@@ -510,7 +511,7 @@ router.patch('/finance/treasury/accounts/:id/fund', requireRoles(Role.ADMIN, Rol
   res.json({ ...result, replayed });
 }));
 
-router.post('/finance/treasury/accounts/:id/cutover', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/treasury/accounts/:id/cutover', declareMaterialWrite('treasury.accounts.cutover.request', { method: 'POST', path: '/api/finance/treasury/accounts/:id/cutover' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const accountId = z.coerce.number().int().positive().parse(req.params.id);
   const body = treasuryCutoverSchema.parse(req.body);
@@ -542,7 +543,7 @@ router.post('/finance/treasury/accounts/:id/cutover', requireRoles(Role.ADMIN, R
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
 
-router.post('/finance/treasury/movements/:id/reversal', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/treasury/movements/:id/reversal', declareMaterialWrite('treasury.movements.reversal.request', { method: 'POST', path: '/api/finance/treasury/movements/:id/reversal' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const movementId = z.coerce.number().int().positive().parse(req.params.id);
   const body = treasuryReversalSchema.parse(req.body);

@@ -13,7 +13,8 @@ import type { FuelPriceHistory } from '@tingting/shared';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
-import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import { EmptyState } from '../../design-system';
+import { formatMoney } from '../../lib/format';
 
 export default function FuelConfigPage() {
   const queryClient = useQueryClient();
@@ -150,10 +151,10 @@ export default function FuelConfigPage() {
           </div>
           <div className="field" id="fuel-base-unit-price-preview">
             <label>Chênh lệch tính phụ phí</label>
-            <div className="input" aria-live="polite" style={{ display: 'flex', alignItems: 'center', minHeight: 44 }}>
+            <div className="input" aria-live="polite" style={{ display: 'flex', alignItems: 'center' }}>
               {surchargeDelta == null
                 ? 'Không phát sinh chênh lệch'
-                : `${surchargeDelta.toLocaleString('vi-VN')} đ/lít`}
+                : <span className="data-token">{formatMoney(surchargeDelta)} đ/lít</span>}
             </div>
           </div>
         </div>
@@ -198,9 +199,7 @@ export default function FuelConfigPage() {
           <div role="alert" className="cfg-form-error">Không tải được lịch sử giá. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void loadHistory()}>Tải lại lịch sử</button></div>
         ) : history.length === 0 ? (
           <div className="cfg-empty" style={{ padding: '24px 16px' }}>
-            <img src={resolveEmptyIllustration('empty-config')} alt="" aria-hidden="true" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            <div className="cfg-empty__title">Chưa có lịch sử</div>
-            <div className="cfg-empty__hint">Lịch sử thay đổi giá sẽ hiển thị sau lần lưu đầu tiên.</div>
+            <EmptyState variant="compact" context="config" title="Chưa có lịch sử" description="Lịch sử thay đổi giá sẽ hiển thị sau lần lưu đầu tiên." />
           </div>
         ) : (
           <div className="table-scroll">
@@ -218,7 +217,7 @@ export default function FuelConfigPage() {
                 {sortedHistory.map((row) => (
                   <tr key={row.id}>
                     <td data-label="Ngày hiệu lực" style={{ whiteSpace: 'nowrap' }}>{new Date(row.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                    <td data-label="Đơn giá (₫/lít)" className="num" style={{ fontWeight: 600 }}>{Number(row.unitPrice).toLocaleString('vi-VN')}</td>
+                    <td data-label="Đơn giá (₫/lít)" className="num" style={{ fontWeight: 600 }}>{formatMoney(Number(row.unitPrice))}</td>
                     <td data-label="Người thay đổi" style={{ color: 'var(--ink-3)' }}>—</td>
                     <td data-label="Ghi chú" style={{ color: 'var(--ink-3)' }}>{row.note || '—'}</td>
                   </tr>

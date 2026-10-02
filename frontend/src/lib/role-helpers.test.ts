@@ -21,7 +21,7 @@ describe('role-helpers', () => {
     });
 
     it('shows transitional label for FORWARDER', () => {
-      expect(getDisplayRole('FORWARDER')).toBe('OPS (Nhân viên vận hành)');
+      expect(getDisplayRole('FORWARDER')).toBe('OPS (Vận hành)');
     });
 
     it('returns clean label for modern CUS', () => {

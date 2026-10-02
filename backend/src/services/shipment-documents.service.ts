@@ -6,12 +6,11 @@
 // db/schema, shared helpers, and sibling leaf services — never
 // shipment.service itself.
 
-import { db } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import type { Tx } from './trip-shared';
 import type { AuthUser } from '../middleware/auth';
 import {
   assertDispatcherCanMutateShipmentIntake,
@@ -21,16 +20,14 @@ import {
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import type { ShipmentDeclarationMutationInput } from './shipment-types';
 
-export async function listShipmentDocuments(shipmentId: number, tx?: Tx) {
-  const client = tx ?? db;
-  return await client.select().from(s.shipmentDocuments)
+export async function listShipmentDocuments(shipmentId: number, executor: Executor = db) {
+  return await executor.select().from(s.shipmentDocuments)
     .where(eq(s.shipmentDocuments.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentDocuments.createdAt));
 }
 
-export async function listShipmentDeclarations(shipmentId: number, tx?: Tx) {
-  const client = tx ?? db;
-  return await client.select().from(s.shipmentDeclarations)
+export async function listShipmentDeclarations(shipmentId: number, executor: Executor = db) {
+  return await executor.select().from(s.shipmentDeclarations)
     .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentDeclarations.createdAt));
 }
@@ -120,16 +117,45 @@ export async function upsertShipmentDeclaration(
   return runInTx(transaction, execute);
 }
 
+/** Card 20260921_3: remove one declaration row of a lot. Same intake gates as
+ * create/update — dispatcher-intake status rule + accounting lock — and the
+ * row must belong to the shipment or it reads 404. */
+export async function deleteShipmentDeclaration(
+  shipmentId: number,
+  declarationId: number,
+  actor?: AuthUser,
+  transaction?: Tx,
+) {
+  const execute = async (tx: Tx) => {
+    const [existingShipment] = await tx.select()
+      .from(s.shipments)
+      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update')
+      .limit(1);
+    if (!existingShipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    assertDispatcherCanMutateShipmentIntake(actor, existingShipment.status);
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
+    const [deleted] = await tx.delete(s.shipmentDeclarations)
+      .where(and(
+        eq(s.shipmentDeclarations.id, declarationId),
+        eq(s.shipmentDeclarations.shipmentId, shipmentId),
+      ))
+      .returning();
+    if (!deleted) throw new ApiError(404, 'Không tìm thấy tờ khai cần xóa');
+    return deleted;
+  };
+  return runInTx(transaction, execute);
+}
+
 // ─── M3.2: expired document check + document replacement ────────────────────
 
 /**
  * Check if a shipment has any expired documents (DO type with expiresAt in the
  * past). Returns the list of expired document rows. Empty = no expired docs.
  */
-export async function checkExpiredDocuments(shipmentId: number, transaction?: Tx) {
-  const client = transaction ?? db;
+export async function checkExpiredDocuments(shipmentId: number, executor: Executor = db) {
   const today = new Date().toISOString().slice(0, 10);
-  const docs = await client.select()
+  const docs = await executor.select()
     .from(s.shipmentDocuments)
     .where(and(
       eq(s.shipmentDocuments.shipmentId, shipmentId),
@@ -168,9 +194,8 @@ export interface DispatchReadiness {
  * the shipment. Throws 404 on a missing/soft-deleted shipment so callers can
  * surface the canonical not-found error before dispatch attempts.
  */
-export async function getDispatchReadiness(shipmentId: number, transaction?: Tx): Promise<DispatchReadiness> {
-  const client = transaction ?? db;
-  const [shipment] = await client.select({
+export async function getDispatchReadiness(shipmentId: number, executor: Executor = db): Promise<DispatchReadiness> {
+  const [shipment] = await executor.select({
     blNumber: s.shipments.blNumber,
   })
     .from(s.shipments)
@@ -183,7 +208,7 @@ export async function getDispatchReadiness(shipmentId: number, transaction?: Tx)
     missing.push('Số vận đơn (B/L)');
   }
 
-  const [containerCountRow] = await client.select({ count: count() })
+  const [containerCountRow] = await executor.select({ count: count() })
     .from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipmentId));
   const containerCount = containerCountRow?.count ?? 0;

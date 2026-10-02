@@ -91,6 +91,7 @@ async function createTripFixture(options: {
   fuelSurchargeAmount?: number;
   createRecoverableExpense?: boolean;
   expenseDate?: string;
+  expenseStatus?: 'RECORDED' | 'APPROVED';
 }) {
   const [customer] = await db.insert(s.customers).values({
     name: `Q15 claim customer ${options.tripCodePrefix} ${Date.now()}`,
@@ -191,7 +192,7 @@ async function createTripFixture(options: {
       payeeName: `Q15 claim payee ${options.tripCodePrefix}`,
       note: `Q15 claim fee ${options.tripCodePrefix}`,
       noInvoiceEvidenceTypes: ['RECEIPT'],
-      approvalStatus: 'APPROVED',
+      approvalStatus: options.expenseStatus ?? 'APPROVED',
       createdBy: actorId,
     }).returning({ id: s.tripExpenses.id });
     expenseIds.push(expense.id);
@@ -249,9 +250,10 @@ test('stores the incl-VAT fuel surcharge in the canonical freight total without 
   assert.equal(saved.ledgerAdjustmentAmount, 0);
 });
 
-test('allows the same trip on non-overlapping periods when July is expense-only and August is freight', async () => {
+test('NO-APP-18B includes directly RECORDED expenses outside the trip completion period', async () => {
   const { customer } = await createTripFixture({
     tripCodePrefix: 'Q15-NONOVERLAP',
+    expenseStatus: 'RECORDED',
     departureDate: '2026-07-31',
     completedAt: new Date('2026-08-02T09:00:00.000Z'),
     revenue: 2_000_000,

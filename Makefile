@@ -3,52 +3,59 @@
         demo deploy deploy-advance deploy-db-backup deploy-seed deploy-server-setup
 
 # ─── Ports ─────────────────────────────────────────────────────────────────────
-# PostgreSQL: 5442  |  Redis: 6392  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8084
+# PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3002  |  Frontend: 7175  |  Adminer: 8083
 # Deliberately off the common defaults so this stack can run alongside other
 # projects on this machine without port or container-name collisions.
+
+# Local commands must work without an ignored backend/.env. Explicit process
+# values still win, and the frontend proxy follows an overridden backend port.
+DEV_BACKEND_PORT ?= $(or $(PORT),3002)
+DEV_FRONTEND_PORT ?= 7175
+DEV_DATABASE_URL ?= $(or $(DATABASE_URL),postgres://postgres:postgres@localhost:5441/silversea)
+DEV_API_PROXY_TARGET ?= $(or $(VITE_API_PROXY_TARGET),http://localhost:$(DEV_BACKEND_PORT))
 
 # ─── Full dev environment ─────────────────────────────────────────────────────
 dev: ## Start everything (db, redis, backend, frontend)
 	@echo "Starting silversea dev environment..."
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
 		docker-compose -f docker-compose.dev.yml up -d
-	@echo "Waiting for database (port 5442)..."
-	@until pg_isready -h localhost -p 5442 -U postgres >/dev/null 2>&1 || \
-		nc -z localhost 5442 >/dev/null 2>&1; do sleep 1; done
+	@echo "Waiting for database (port 5441)..."
+	@until pg_isready -h localhost -p 5441 -U postgres >/dev/null 2>&1 || \
+		nc -z localhost 5441 >/dev/null 2>&1; do sleep 1; done
 	@sleep 1
 	@echo "Running migrations (backup first)..."
 	@$(MAKE) --no-print-directory db-backup || echo "⚠️  db-backup failed — continuing dev startup WITHOUT a pre-migrate backup" >&2
-	@out=$$(cd backend && npx drizzle-kit migrate 2>&1); migrate_status=$$?; \
+	@out=$$(cd backend && DATABASE_URL="$(DEV_DATABASE_URL)" npx drizzle-kit migrate 2>&1); migrate_status=$$?; \
 		printf '%s\n' "$$out" | grep -v "already exists, skipping" || true; \
 		if [ $$migrate_status -ne 0 ]; then \
 			echo "⚠️  drizzle-kit migrate FAILED (exit $$migrate_status) — dev stack continues, but the DB may be behind. Run 'make migrate' for the full error." >&2; \
 		fi
 	@echo ""
-	@echo "Starting backend (port 3001) and frontend (port 7174)..."
-	@echo "  Frontend: http://localhost:7174"
-	@echo "  Backend:  http://localhost:3001/api/health"
-	@echo "  Adminer:  http://localhost:8084  (DB: silversea · user/pass: postgres/postgres)"
+	@echo "Starting backend (port $(DEV_BACKEND_PORT)) and frontend (port $(DEV_FRONTEND_PORT))..."
+	@echo "  Frontend: http://localhost:$(DEV_FRONTEND_PORT)"
+	@echo "  Backend:  http://localhost:$(DEV_BACKEND_PORT)/api/health"
+	@echo "  Adminer:  http://localhost:8083  (DB: silversea · user/pass: postgres/postgres)"
 	@echo "  (Ctrl-C stops backend + frontend; db/redis keep running)"
-	@pid=$$(lsof -ti tcp:7174 -sTCP:LISTEN 2>/dev/null); \
+	@pid=$$(lsof -ti tcp:$(DEV_FRONTEND_PORT) -sTCP:LISTEN 2>/dev/null); \
 	if [ -n "$$pid" ]; then \
-		echo "Port 7174 in use (stale PID $$pid) — freeing..."; \
+		echo "Port $(DEV_FRONTEND_PORT) in use (stale PID $$pid) — freeing..."; \
 		kill $$pid 2>/dev/null || true; \
 		sleep 1; \
 		kill -9 $$pid 2>/dev/null || true; \
 	fi
 	@bash -c '\
 		trap "kill 0" EXIT; \
-		(cd backend && pnpm dev) & \
-		(cd frontend && npx vite --port 7174) & \
+		(cd backend && PORT="$(DEV_BACKEND_PORT)" DATABASE_URL="$(DEV_DATABASE_URL)" pnpm dev) & \
+		(cd frontend && VITE_API_PROXY_TARGET="$(DEV_API_PROXY_TARGET)" npx vite --port $(DEV_FRONTEND_PORT)) & \
 		wait'
 
 # ─── Database ──────────────────────────────────────────────────────────────────
-DB_CONTAINER := ss-main-db
+DB_CONTAINER := ss-prod-db
 DB_NAME      := silversea
 DB_USER      := postgres
 
 migrate: db-backup ## Run database migrations (drizzle-kit) — backs up first, fails closed
-	cd backend && npx drizzle-kit migrate
+	cd backend && DATABASE_URL="$(DEV_DATABASE_URL)" npx drizzle-kit migrate
 
 # Drop and recreate the database from scratch (dev/staging — loses all data).
 db-recreate:
@@ -116,7 +123,7 @@ devdb-prod: ## Sync prod DB (silversea.tingting.vip) → local dev DB — REPLAC
 
 # Internal worker for devdb / devdb-prod (params via DEVDB_* variable overrides).
 devdb-sync:
-	@test -n "$$(docker ps -q -f name=^ss-main-db$$)" || { echo "❌ Local DB container 'ss-main-db' is not running — run 'make dev' first (db only: docker compose -f docker-compose.dev.yml up -d db)." >&2; exit 1; }
+	@test -n "$$(docker ps -q -f name=^ss-prod-db$$)" || { echo "❌ Local DB container 'ss-prod-db' is not running — run 'make dev' first (db only: docker compose -f docker-compose.dev.yml up -d db)." >&2; exit 1; }
 	@mkdir -p backups
 	@dump="backups/$(DEVDB_LABEL)-devdb-$$(date +%Y%m%d-%H%M%S).dump"; \
 	echo "1/3  Dumping $(DEVDB_LABEL) DB on $(DEVDB_SERVER)..."; \
@@ -157,26 +164,33 @@ stgdb: ## Sync prod DB (silversea.tingting.vip) → staging DB (vantai) — REPL
 	echo "4/5  Dropping staging schemas + restoring prod dump (stdin)..."; \
 	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec -i \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -q -c 'DROP SCHEMA public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public;'" >/dev/null; \
 	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec -i \"\$$pg_container\" pg_restore -U \"\$$pg_user\" -d \"\$$pg_db\" --no-owner --no-privileges --exit-on-error" < "$$dump"; \
+	echo "     QA-fixture purge after restore (cards 41-45 data class)..."; \
+	ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js"; \
 	echo "5/5  Restarting staging backend/frontend + sanity check..."; \
 	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); $(DEMO_COMPOSE) up -d backend frontend >/dev/null; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     tables=' || count(*) FROM pg_tables WHERE schemaname='public'\"; docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     routes=' || count(*) FROM routes WHERE deleted_at IS NULL\""; \
 	rm -f "$$dump"; \
 	echo "✅ Staging DB now mirrors prod ($(PROD_SERVER) → $(DEMO_SERVER)). Restart with 'make demo' to advance code too."; \
 	echo "📌 Staging checklist (D4): after 'make demo' applies migration 0064+, run the DEMO freight-pricing seed — cd backend && npx tsx src/seed/seed-demo-freight-pricing.ts (staging/dev only; prod never receives invented contract data)"
 
-setup: ## First-time setup: start infra, recreate DB, migrate, seed
+qapurge: ## Purge QA-fixture rows on staging (identifier-gated, registry-driven; refuses prod)
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js"
+qapurge-dry: ## Dry-run the QA-fixture purge on staging (no writes)
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js --dry-run"
+
+setup: ## Recreate and seed the local database (destructive local setup)
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
 		docker-compose -f docker-compose.dev.yml up -d
 	@sleep 2
 	@$(MAKE) db-recreate
 	@# db-backup gate would abort here: a freshly recreated DB dumps <1KB.
 	@# Nothing to back up on a fresh recreate — migrate without the backup hook.
-	@cd backend && npx drizzle-kit migrate
+	@cd backend && DATABASE_URL="$(DEV_DATABASE_URL)" npx drizzle-kit migrate
 	@echo "Seeding database..."
-	@cd backend && pnpm seed
+	@cd backend && DATABASE_URL="$(DEV_DATABASE_URL)" pnpm seed
 	@echo ""
 	@echo "Setup complete! Run 'make dev' to start the app."
-	@echo "  Frontend: http://localhost:7174"
-	@echo "  Backend:  http://localhost:3001/api/health"
+	@echo "  Frontend: http://localhost:$(DEV_FRONTEND_PORT)"
+	@echo "  Backend:  http://localhost:$(DEV_BACKEND_PORT)/api/health"
 
 # ─── Build ─────────────────────────────────────────────────────────────────────
 build: ## Build shared + backend + frontend
@@ -188,7 +202,7 @@ build: ## Build shared + backend + frontend
 stop: ## Stop backend/frontend (keep db/redis)
 	@echo "Stopping app processes..."
 	@pkill -f "tsx watch src/index.ts" 2>/dev/null || true
-	@pkill -f "vite.*7174" 2>/dev/null || true
+	@pkill -f "vite.*7175" 2>/dev/null || true
 
 down: ## Stop everything including db and redis
 	@docker compose -f docker-compose.dev.yml down 2>/dev/null || \
@@ -229,8 +243,11 @@ demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps exis
 	@$(MAKE) --no-print-directory -C frontend push
 	@echo "2/4  Image pull on $(DEMO_SERVER) (DB volume untouched)..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
-	@echo "3/4  Migrate + cutover..."
+	@echo "3/4  Migrate + catalogs + cutover..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend node dist/seed/seed-cut-catalogs.js"
+	@echo "     QA-fixture purge (cards 41-45 data class; guarded survivors are logged, never deploy-gating)..."
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js || echo '     (purge reported guarded survivors — non-gating)'"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && BUILD_HASH=$(DEPLOY_BUILD_HASH) $(DEMO_COMPOSE) up -d --no-deps backend frontend"
 	@echo "  Frontend stale-asset guard (04:43 lesson)..."
@@ -331,7 +348,7 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "silversea dev ports:"
-	@echo "  Frontend 7174  ·  Backend 3001  ·  Postgres 5441  ·  Redis 6391  ·  Adminer 8083"
+	@echo "  Frontend 7175  ·  Backend 3002  ·  Postgres 5441  ·  Redis 6391  ·  Adminer 8083"
 	@echo ""
 	@echo "demo:  make demo  →  https://vantai.tingting.vip  (DB preserved)"
 	@echo "prod:  make deploy  →  https://silversea.tingting.vip  (ships the prod branch AS-IS, DB preserved)"

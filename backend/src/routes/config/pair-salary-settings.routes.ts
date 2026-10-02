@@ -12,6 +12,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { ApiError } from '../../errors';
+import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   getPairSalarySettingsFrom,
   savePairSalarySettings,
@@ -22,7 +23,7 @@ const pairSalarySettingsUpdateSchema = z.object({
   ketHopSurcharge: z.number().int('Phụ phí kết hợp phải là số nguyên VND').min(0, 'Phụ phí kết hợp không được âm'),
 });
 
-export const pairSalarySettingsRouter = Router();
+export const pairSalarySettingsRouter = Router()
 
 pairSalarySettingsRouter.get(
   '/pair-salary-settings',
@@ -33,7 +34,7 @@ pairSalarySettingsRouter.get(
 );
 
 pairSalarySettingsRouter.put(
-  '/pair-salary-settings',
+  '/pair-salary-settings', declareMaterialWrite('config.pair-salary-settings.update', { method: 'PUT', path: '/api/pair-salary-settings' }), 
   requireRoles(Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const next = pairSalarySettingsUpdateSchema.parse(req.body);

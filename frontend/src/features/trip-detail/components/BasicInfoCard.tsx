@@ -1,7 +1,8 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Truck, User, Calendar, Package, Hash, CheckCircle } from 'lucide-react';
-import { fmtDate } from '../formatters';
+import { formatDate } from '../../../lib/format';
 import type { TripDetail } from '@tingting/shared';
 import { api } from '../../../lib/api';
 import { qk } from '../../../api/keys';
@@ -22,6 +23,7 @@ interface BasicInfoRow {
   isDate?: boolean;
   muted?: boolean;
   full?: boolean;
+  link?: string;
 }
 
 export function BasicInfoCard({ trip }: BasicInfoCardProps) {
@@ -58,10 +60,27 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
       mono: true,
     },
     containerRow,
-    { icon: <Calendar size={17} />, label: 'Ngày khởi hành', value: fmtDate(trip.departureDate), mono: true, isDate: true },
-    { icon: <CheckCircle size={17} />, label: 'Ngày hoàn thành', value: trip.completedAt ? fmtDate(trip.completedAt) : '—', mono: true },
+    { icon: <Calendar size={17} />, label: 'Ngày khởi hành', value: formatDate(trip.departureDate), mono: true, isDate: true },
+    { icon: <CheckCircle size={17} />, label: 'Ngày hoàn thành', value: trip.completedAt ? formatDate(trip.completedAt) : '—', mono: true },
     { icon: <Hash size={17} />, label: 'Mã tham chiếu', value: trip.customerReference ?? 'Chưa có', muted: !trip.customerReference, full: true },
+    ...(trip.shipmentId ? [{
+      icon: <Package size={17} />,
+      label: 'Lô hàng',
+      value: trip.customerReference ? `Chi tiết lô hàng (${trip.customerReference})` : 'Xem chi tiết lô hàng →',
+      link: `/shipments/${trip.shipmentId}`,
+      full: true,
+    }] : []),
   ];
+
+  if (trip.shipmentId) {
+    rows.push({
+      icon: <Package size={17} />,
+      label: 'Lô hàng',
+      value: `Chi tiết lô hàng #${trip.shipmentId} →`,
+      link: `/shipments/${trip.shipmentId}`,
+      full: true,
+    });
+  }
 
   return (
     <div className="card">
@@ -75,7 +94,17 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
               <span className="ri">{row.icon}</span>
               <div className="info-meta">
                 <div className="lbl">{row.label}</div>
-                <div className={`val ${row.mono ? 'mono' : ''} ${row.muted ? 'muted' : ''}`}>{row.value}</div>
+                {row.link ? (
+                  <Link
+                    to={row.link}
+                    className="val val-link"
+                    style={{ color: 'var(--color-primary, #059669)', textDecoration: 'underline', fontWeight: 500 }}
+                  >
+                    {row.value}
+                  </Link>
+                ) : (
+                  <div className={`val ${row.mono ? 'mono' : ''} ${row.muted ? 'muted' : ''}`}>{row.value}</div>
+                )}
               </div>
             </div>
           ))}

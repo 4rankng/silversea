@@ -28,7 +28,7 @@ import {
 import { applyProfitDistributionGovernanceAction } from './profit-distribution.service';
 import { applyTreasuryGovernanceAction } from './treasury.service';
 
-export { assertActiveApprovalApplication, setGovernanceApprovalAfterApplyHookForTest } from './governance-action-core.service';
+export { assertActiveDirectApplication, setDirectActionAfterApplyHookForTest } from './governance-action-core.service';
 export type {
   GovernanceApplyAdapter,
   GovernanceApplyResult,

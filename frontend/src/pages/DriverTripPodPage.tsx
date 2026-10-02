@@ -4,14 +4,13 @@
  * Phần 4 ticket 2026-08-28 customer feedback: the e-POD section used to live
  * inline in the trip detail page alongside the cost form. The customer asked
  * for e-POD to move to its OWN screen that the driver sees AFTER the trip is
- * ended, and for the cost form to be hidden (kế toán tài chính is the post-trial
- * phase per the trial-readiness plan, "từ từ"). This page owns the e-POD
+ * accepted. Driver expenses remain on trip detail. This page owns the e-POD
  * lifecycle: ensure-draft, upload files, submit, and complete the trip.
  *
  * The trip detail page (`DriverTripDetailPage`) keeps the task info, the
- * container card, the fuel image, and a "Bước tiếp: e-POD" CTA that navigates
- * here while the trip is IN_TRANSIT. The `Hoàn thành chuyến` action that used
- * to live on the trip detail is the footer button of THIS page.
+ * container card, the fuel image, and a "Hoàn tất lệnh vận chuyển" CTA that
+ * navigates here while the trip is IN_TRANSIT. The `HOÀN THÀNH CHUYẾN` action
+ * that used to live on the trip detail is the footer button of THIS page.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -24,34 +23,29 @@ import {
   StickyNote,
 } from 'lucide-react';
 import { parseDriverTaskNote, TRIP_STATUS_LABELS, TripPodFileType, TripStatus } from '@tingting/shared';
-import { StatusPill } from '../components/UI';
+import { StatusPill, useConfirm } from '../components/UI';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
-import { useBackShortcut } from '../hooks/useBackShortcut';
+import { usePageLeaveGuard } from '../hooks/usePageLeaveGuard';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
+import { podCompleteCtaLabel } from '../features/driver/driver-trip-model';
 import './DriverTripDetailPage.css';
 import './DriverTripPodPage.css';
-
-// Status-aware completion CTA label — same logic as DriverTripDetailPage:
-// only IN_TRANSIT can complete, COMPLETED is done, others read as not-yet.
-function completeCtaLabel(status: DriverTaskDetail['status']): string {
-  if (status === 'IN_TRANSIT') return 'Hoàn thành chuyến';
-  if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
-  return 'Chưa thể hoàn thành chuyến';
-}
 
 export function DriverTripPodPage() {
   const { id: fulfillmentIdParam } = useParams<{ id: string }>();
   useDriverScreenEntry(fulfillmentIdParam);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { confirm, dialog: confirmDialog } = useConfirm();
+  const [pendingFiles, setPendingFiles] = useState(false);
 
   const fulfillmentId = Number(fulfillmentIdParam);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -76,6 +70,7 @@ export function DriverTripPodPage() {
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
   const podHistory = trip?.podHistory ?? [];
+  const documentNumber = trip?.fulfillment?.documentNumber?.trim() || 'Chưa có số Bill/Booking';
   const documentReadOnlyReason = trip?.accountingLock
     ? 'Lô hàng đã khóa kế toán. Không thể thay đổi chứng từ.'
     : trip?.status === TripStatus.COMPLETED
@@ -196,6 +191,7 @@ export function DriverTripPodPage() {
     }
     setCompleting(true);
     try {
+      if (pendingFiles && !await confirm('Còn tệp bổ sung chưa gửi. Bỏ tệp này và hoàn thành với chứng từ đã lưu?', { variant: 'warning', confirmLabel: 'Bỏ tệp và hoàn thành' })) return;
       if (currentSubmission?.status === 'DRAFT') {
         const podSubmitted = await handleSubmitPod(currentSubmission);
         if (!podSubmitted) return;
@@ -221,14 +217,19 @@ export function DriverTripPodPage() {
     return TRIP_STATUS_LABELS[trip.status] ?? trip.status;
   }, [trip]);
 
-  const handleBack = useCallback(
+  const navigateBack = useCallback(
     // The POD route is fulfillment-scoped; the detail route is trip-scoped.
     () => navigate(trip?.id ? `/my-trips/${trip.id}` : '/my-trips', { replace: true }),
     [navigate, trip?.id],
   );
   // ESC/hardware back mirrors the header back button: both return to the trip
   // detail the driver came from, not straight to the journey board.
-  useBackShortcut(handleBack);
+  const handleBack = usePageLeaveGuard({
+    dirty: pendingFiles, saving: documentBusy || submitting || completing,
+    message: 'Còn tệp chưa gửi. Bỏ tệp và rời trang?',
+    confirm: (message) => confirm(message, { variant: 'warning', confirmLabel: 'Bỏ tệp và rời trang' }),
+    onBack: navigateBack,
+  });
 
   if (!validFulfillmentId) {
     return (
@@ -281,6 +282,7 @@ export function DriverTripPodPage() {
 
   return (
     <div ref={rootRef} className="driver-task-screen driver-trip-pod-screen">
+      {confirmDialog}
       <header className="driver-task-header">
         <button
           type="button"
@@ -297,7 +299,7 @@ export function DriverTripPodPage() {
             <StatusPill variant={tripStatusVariant(trip.status)}>
               {statusLabel}
             </StatusPill>
-            {trip.tripCode && <span className="driver-task-header__customer">{trip.tripCode}</span>}
+            <span className="driver-task-header__customer">{documentNumber}</span>
           </div>
         </div>
       </header>
@@ -331,7 +333,7 @@ export function DriverTripPodPage() {
         <section className="driver-task-section">
           <TripPodSubmission
             key={trip.id}
-            tripCode={trip.tripCode}
+            documentNumber={documentNumber}
             tripVersion={trip.version}
             currentSubmission={currentSubmission}
             history={podHistory}
@@ -340,6 +342,7 @@ export function DriverTripPodPage() {
             disabled={submitting || completing}
             readOnlyReason={documentReadOnlyReason}
             onBusyChange={setPreparingPod}
+            onPendingChange={setPendingFiles}
             onEnsureDraft={handleEnsureDraft}
             onUploadFile={handleUploadPodFile}
           />
@@ -350,8 +353,13 @@ export function DriverTripPodPage() {
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
+            {/* DRV-DET-06 + DRV-DET-05: the screen states that the e-POD is
+                mandatory without a second `e-POD bắt buộc` label (the
+                TripPodSubmission card above owns that literal), and names the
+                uppercase command the driver must press. */}
             <p>
-              Thêm đủ hai loại chứng từ, rồi bấm Hoàn thành chuyến để lưu và kết thúc lệnh.
+              e-POD là bắt buộc: thêm đủ hai loại chứng từ — Phiếu bãi / phiếu hạ và Biên bản
+              giao nhận — rồi bấm HOÀN THÀNH CHUYẾN để gửi hồ sơ và kết thúc lệnh.
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
@@ -374,7 +382,7 @@ export function DriverTripPodPage() {
           >
             <FileCheck2 size={18} />
             <span>
-              {completing || submitting ? 'Đang gửi…' : documentBusy ? 'Đang lưu chứng từ…' : completeCtaLabel(trip.status)}
+              {completing || submitting ? 'Đang gửi…' : documentBusy ? 'Đang lưu chứng từ…' : podCompleteCtaLabel(trip.status)}
             </span>
           </button>
         </div>

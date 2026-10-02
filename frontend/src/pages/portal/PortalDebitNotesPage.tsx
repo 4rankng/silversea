@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, FileSpreadsheet, FileText, Printer, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, FileSpreadsheet, Printer, TriangleAlert } from 'lucide-react';
 import type { BillingDocument } from '@tingting/shared';
 import { api } from '../../lib/api';
 import { Modal } from '../../components/UI';
 import { EmptyState, Pagination } from '../../design-system';
 import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
-import { formatISODate } from '../../lib/format';
+import { formatMoney, formatISODate } from '../../lib/format';
 import './PortalPages.css';
 import '../WorkflowFinance.css';
 
@@ -27,12 +27,6 @@ function statusClass(status: BillingDocument['debitNoteStatus']) {
   return 'portal-status';
 }
 
-function formatDate(value: string | null | undefined) {
-  // Delegates to the shared ISO-date formatter; only the empty-state text is
-  // this surface's own.
-  if (!value) return 'Chưa có dữ liệu lịch sử';
-  return formatISODate(value);
-}
 
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -81,6 +75,19 @@ export default function PortalDebitNotesPage() {
   useEffect(() => {
     setPage(1);
   }, [selectedCustomerId]);
+
+  function openDecision(doc: BillingDocument, action: 'confirm' | 'dispute') {
+    setNotice(null);
+    setDisputeReason('');
+    setDecision({ doc, action });
+  }
+
+  function closeDecision() {
+    if (workingId != null) return;
+    setDecision(null);
+    setDisputeReason('');
+    setNotice(null);
+  }
 
   const updateStatus = async (doc: BillingDocument, action: 'confirm' | 'dispute') => {
     setWorkingId(doc.id);
@@ -138,12 +145,12 @@ export default function PortalDebitNotesPage() {
         </div>
         <div className="portal-page__headline-stat" aria-label="Tổng số giấy báo nợ">
           <span>Tổng chứng từ</span>
-          <strong>{loading ? '—' : total.toLocaleString('vi-VN')}</strong>
+          <strong>{loading ? '—' : formatMoney(total)}</strong>
           <small>{pendingCount > 0 ? `${pendingCount} cần phản hồi trong trang này` : 'Không có phản hồi đang chờ'}</small>
         </div>
       </header>
 
-      {notice && (
+      {notice && !decision && (
         <div className={`portal-notice portal-notice--${notice.tone}`} role={notice.tone === 'error' ? 'alert' : 'status'}>
           {notice.text}
         </div>
@@ -165,7 +172,7 @@ export default function PortalDebitNotesPage() {
             <div><span>Hồ sơ đối soát</span><h2>Chứng từ đã phát hành</h2></div>
             <strong>0 chứng từ</strong>
           </div>
-          <EmptyState icon={FileText} title="Chưa có giấy báo nợ" description="Giấy báo nợ đã phát hành sẽ xuất hiện tại đây." />
+          <EmptyState context="debts" title="Chưa có giấy báo nợ" description="Giấy báo nợ đã phát hành sẽ xuất hiện tại đây." />
         </div>
       ) : (
         <div className="portal-panel">
@@ -173,7 +180,7 @@ export default function PortalDebitNotesPage() {
             <div><span>Hồ sơ đối soát</span><h2>Chứng từ đã phát hành</h2></div>
             <div className="portal-panel__totals">
               <span>Giá trị trong trang</span>
-              <strong>{visibleValue.toLocaleString('vi-VN')} ₫</strong>
+              <strong>{formatMoney(visibleValue)} ₫</strong>
             </div>
           </div>
           <div className="portal-list">
@@ -185,7 +192,7 @@ export default function PortalDebitNotesPage() {
                   <div className="portal-list__primary">
                     <span className={statusClass(doc.debitNoteStatus)}>{STATUS_LABELS[doc.debitNoteStatus ?? 'DRAFT']}</span>
                     <strong>Kỳ {new Date(doc.rangeFrom).toLocaleDateString('vi-VN')} – {new Date(doc.rangeTo).toLocaleDateString('vi-VN')}</strong>
-                    <span className="portal-debit-row__amount">{Number(doc.totalInclVat).toLocaleString('vi-VN')} ₫</span>
+                    <span className="portal-debit-row__amount">{formatMoney(Number(doc.totalInclVat))} ₫</span>
                     <span className="portal-list__meta">
                       Hóa đơn pháp lý: {doc.legalInvoiceRef?.status === 'ISSUED'
                         ? `Đã ghi nhận${doc.legalInvoiceRef.providerReference ? ` · ${doc.legalInvoiceRef.providerReference}` : ''}`
@@ -195,8 +202,8 @@ export default function PortalDebitNotesPage() {
                     </span>
                   </div>
                   <dl className="portal-debit-row__dates">
-                    <div><dt>Hạn hợp đồng</dt><dd>{formatDate(doc.originalDueDate)}</dd></div>
-                    <div><dt>Ngày xử lý</dt><dd>{formatDate(doc.processingDueDate)}</dd></div>
+                    <div><dt>Hạn hợp đồng</dt><dd>{formatISODate(doc.originalDueDate, { empty: 'Chưa có dữ liệu lịch sử' })}</dd></div>
+                    <div><dt>Ngày xử lý</dt><dd>{formatISODate(doc.processingDueDate, { empty: 'Chưa có dữ liệu lịch sử' })}</dd></div>
                   </dl>
                   <div className="portal-actions">
                     <button type="button" className="portal-button" disabled={busy} onClick={() => void exportDoc(doc, 'xlsx')}>
@@ -207,10 +214,10 @@ export default function PortalDebitNotesPage() {
                     </button>
                     {pending && (
                       <>
-                        <button type="button" className="portal-button portal-button--danger" disabled={busy} onClick={() => setDecision({ doc, action: 'dispute' })}>
+                        <button type="button" className="portal-button portal-button--danger" disabled={busy} onClick={() => openDecision(doc, 'dispute')}>
                           <TriangleAlert size={16} /> Phản hồi
                         </button>
-                        <button type="button" className="portal-button portal-button--primary" disabled={busy} onClick={() => setDecision({ doc, action: 'confirm' })}>
+                        <button type="button" className="portal-button portal-button--primary" disabled={busy} onClick={() => openDecision(doc, 'confirm')}>
                           <CheckCircle2 size={16} /> Xác nhận
                         </button>
                       </>
@@ -225,7 +232,8 @@ export default function PortalDebitNotesPage() {
           </div>
         </div>
       )}
-      <Modal isOpen={decision != null} title={decision?.action === 'confirm' ? 'Xác nhận Giấy báo nợ' : 'Phản hồi Giấy báo nợ'} onClose={() => workingId == null && setDecision(null)} footer={<><button className="btn btn--ghost" onClick={() => setDecision(null)} disabled={workingId != null}>Hủy</button><button className={decision?.action === 'dispute' ? 'btn btn--danger' : 'btn btn--primary'} disabled={workingId != null || (decision?.action === 'dispute' && !disputeReason.trim())} onClick={() => decision && void updateStatus(decision.doc, decision.action)}>{workingId != null ? 'Đang gửi…' : decision?.action === 'confirm' ? 'Xác nhận' : 'Gửi phản hồi'}</button></>}>
+      <Modal isOpen={decision != null} title={decision?.action === 'confirm' ? 'Xác nhận Giấy báo nợ' : 'Phản hồi Giấy báo nợ'} onClose={closeDecision} footer={<><button className="btn btn--ghost" onClick={closeDecision} disabled={workingId != null}>Hủy</button><button className={decision?.action === 'dispute' ? 'btn btn--danger' : 'btn btn--primary'} disabled={workingId != null || (decision?.action === 'dispute' && !disputeReason.trim())} onClick={() => decision && void updateStatus(decision.doc, decision.action)}>{workingId != null ? 'Đang gửi…' : decision?.action === 'confirm' ? 'Xác nhận' : 'Gửi phản hồi'}</button></>}>
+        {notice?.tone === 'error' && <div className="portal-notice portal-notice--error" role="alert">{notice.text}</div>}
         {decision?.action === 'confirm' ? <p>Sau khi xác nhận, nội dung Giấy báo nợ sẽ được khóa để theo dõi công nợ.</p> : <div className="workflow-form"><label htmlFor="debit-note-dispute-reason">Lý do phản hồi<textarea id="debit-note-dispute-reason" className="input" rows={5} maxLength={1000} value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)} required /></label><small>{disputeReason.length}/1.000 ký tự</small></div>}
       </Modal>
     </div>

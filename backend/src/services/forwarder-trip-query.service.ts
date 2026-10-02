@@ -9,6 +9,8 @@ import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.ser
 import { operationalName } from '../db/master-data-name';
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
+const FORWARDER_DRIVER_NAME = sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${s.tripCarrierInfo.externalDriverName} else ${s.drivers.name} end`;
+const FORWARDER_TRUCK_PLATE = sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${s.tripCarrierInfo.externalPlateNumber} else ${s.trucks.licensePlate} end`;
 const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
 
 /**
@@ -193,7 +195,8 @@ export async function getForwarderTrips(
     tripStatus: s.trips.status,
     shipmentStatus: s.shipments.status,
     routeName: ROUTE_OPERATIONAL_NAME,
-    truckPlate: s.trucks.licensePlate,
+    truckPlate: FORWARDER_TRUCK_PLATE,
+    driverName: FORWARDER_DRIVER_NAME,
     customerName: CUSTOMER_OPERATIONAL_NAME,
     customerReference: s.trips.customerReference,
     billNumber: s.shipments.blNumber,
@@ -268,6 +271,8 @@ export async function getForwarderTrips(
     ))
     .leftJoin(s.routes, sql`${s.routes.id} = coalesce(${s.trips.routeId}, ${s.shipments.routeId})`)
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+    .leftJoin(s.drivers, eq(s.trips.driverId, s.drivers.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
     .leftJoin(s.cargoTypes, eq(s.shipments.cargoTypeId, s.cargoTypes.id))
     .where(and(...conditions))
@@ -321,7 +326,8 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     departureDate: s.trips.departureDate,
     status: s.trips.status,
     routeName: ROUTE_OPERATIONAL_NAME,
-    truckPlate: s.trucks.licensePlate,
+    truckPlate: FORWARDER_TRUCK_PLATE,
+    driverName: FORWARDER_DRIVER_NAME,
     customerName: CUSTOMER_OPERATIONAL_NAME,
     customerReference: s.trips.customerReference,
     shipmentCode: s.shipments.shipmentCode,
@@ -375,6 +381,8 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     .innerJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+    .leftJoin(s.drivers, eq(s.trips.driverId, s.drivers.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
     .leftJoin(s.cargoTypes, eq(s.trips.cargoTypeId, s.cargoTypes.id))
     .leftJoin(s.users, eq(s.users.id, s.trips.paperOrderCollectedBy))
@@ -436,6 +444,15 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     invoiceDate: s.tripExpenses.invoiceDate,
     declarationNumber: s.tripExpenses.declarationNumber,
     approvalStatus: s.tripExpenses.approvalStatus,
+    deletionReason: s.tripExpenses.deletionReason,
+    deletedAt: s.tripExpenses.deletedAt,
+    // Display name follows the house fallback: the full name when set, else
+    // the username (ops-reconciliation-report.service pattern) — a voided
+    // row must never announce a blank actor.
+    // Display name follows the house fallback: the full name when set, else
+    // the username (ops-reconciliation-report.service pattern) — a voided
+    // row must never announce a blank actor.
+    deletedByName: sql<string | null>`(SELECT COALESCE(NULLIF(u.full_name, ''), u.username) FROM users u WHERE u.id = ${s.tripExpenses.deletedBy})`,
     note: s.tripExpenses.note,
     noInvoiceEvidenceTypes: s.tripExpenses.noInvoiceEvidenceTypes,
     noInvoicePolicySnapshot: s.tripExpenses.noInvoicePolicySnapshot,

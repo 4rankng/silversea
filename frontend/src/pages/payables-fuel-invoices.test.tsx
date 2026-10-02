@@ -1,6 +1,6 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Role } from '@tingting/shared';
 
@@ -69,7 +69,10 @@ vi.mock('../components/UI', () => ({
   ),
 }));
 
-vi.mock('../design-system', () => ({
+vi.mock('../design-system', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../design-system')>();
+  return {
+  ...actual,
   SearchableSelect: ({
     id,
     value,
@@ -121,7 +124,8 @@ vi.mock('../design-system', () => ({
       {...rest}
     />
   ),
-}));
+  };
+});
 
 import { FuelInvoicesPanel } from './payables-fuel-invoices';
 
@@ -386,5 +390,26 @@ describe('FuelInvoicesPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Hóa đơn' }));
     expect(order()).toEqual(['HD-PTX-001', 'HD-PTX-002', 'HD-PTX-003']);
     expect(screen.getByRole('columnheader', { name: 'Hóa đơn' }).getAttribute('aria-sort')).toBe('ascending');
+  });
+
+  // Card 20260927_152: the strip is the shared `FilterBar` band. The two
+  // criteria keep their labels AND their writers — each one still feeds the
+  // fetch gate (`useFuelInvoices`), and the text query still narrows the rows
+  // client-side.
+  it('keeps the supplier and status writers on the shared bar', async () => {
+    setRole(Role.MANAGER);
+    const { container } = renderPanel();
+
+    // The one plane actually renders, and both criteria are INSIDE it.
+    const bar = container.querySelector('.filter-bar');
+    expect(bar).toBeTruthy();
+    expect(bar?.contains(screen.getByLabelText('Lọc nhà cung cấp nhiên liệu'))).toBe(true);
+    expect(bar?.contains(screen.getByLabelText('Lọc trạng thái hóa đơn nhiên liệu'))).toBe(true);
+
+    fireEvent.change(screen.getByLabelText('Lọc nhà cung cấp nhiên liệu'), { target: { value: '7' } });
+    await waitFor(() => expect(useFuelInvoicesMock).toHaveBeenLastCalledWith({ supplierId: 7, status: undefined }));
+
+    fireEvent.change(screen.getByLabelText('Lọc trạng thái hóa đơn nhiên liệu'), { target: { value: 'RECORDED' } });
+    await waitFor(() => expect(useFuelInvoicesMock).toHaveBeenLastCalledWith({ supplierId: 7, status: 'RECORDED' }));
   });
 });

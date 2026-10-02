@@ -5,38 +5,74 @@ import {
   resolveDeliveryStage,
 } from '../../services/delivery-stage';
 
-// The chain order IS the contract: free text (dispatcher override) beats the
-// snapshot site beats the container port. The return depot appears only when
-// the port names a DIFFERENT place than the resolved delivery point.
-test('delivery chain: free text > snapshot site > port', () => {
-  const all = resolveDeliveryStage('Kho Snapshot', 'Điểm điều vận', 'Bãi Port');
-  assert.deepEqual(all, { deliveryName: 'Điểm điều vận', returnDepotName: 'Bãi Port' });
-
-  const noFreeText = resolveDeliveryStage('Kho Snapshot', null, 'Bãi Port');
-  assert.deepEqual(noFreeText, { deliveryName: 'Kho Snapshot', returnDepotName: 'Bãi Port' });
-
-  const portOnly = resolveDeliveryStage(null, null, 'Bãi Port');
-  assert.deepEqual(portOnly, { deliveryName: 'Bãi Port', returnDepotName: null }, 'port as last resort is the delivery itself — no second row');
+// Ruling 2026-09-18 (MasterDataNhaMay §2.2): the HẠ label on a driver card is
+// ALWAYS a port/drop point — the factory has its own card block and never
+// takes this label, in ANY direction. The site snapshot carries the factory,
+// so it is excluded from the chain everywhere; the dispatcher's free-text
+// drop override still carries when no port is recorded. Port and free text
+// agree → single row; the distinct-place Trả-rỗng row is dead (when HẠ is
+// the port, a second row naming the same place is the redundancy the user
+// already rejected).
+test('import: the drop label is the port, never the snapshot factory', () => {
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', null, 'Bãi JJ LOGISTICS', 'IMPORT'),
+    { deliveryName: 'Bãi JJ LOGISTICS', returnDepotName: null },
+    'the factory snapshot must not take the HẠ label on an import',
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', 'Bãi Đồng Nhất', null, 'IMPORT'),
+    { deliveryName: 'Bãi Đồng Nhất', returnDepotName: null },
+    'no structured port → the dispatcher free text still carries the drop',
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', null, null, 'IMPORT'),
+    { deliveryName: null, returnDepotName: null },
+    'no port at all → report missing rather than borrow the factory',
+  );
 });
 
-test('return depot: null when the port matches the delivery point or is absent', () => {
+test('unknown direction renders port-safely under the same rule (no factory fallback)', () => {
   assert.deepEqual(
-    resolveDeliveryStage(null, 'Bãi Đồng Nhất', 'Bãi Đồng Nhất'),
+    resolveDeliveryStage('Kho Snapshot', 'Điểm điều vận', 'Bãi Port'),
+    { deliveryName: 'Bãi Port', returnDepotName: null },
+    'port beats the dispatcher free text and the snapshot',
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('Kho Snapshot', null, 'Bãi Port'),
+    { deliveryName: 'Bãi Port', returnDepotName: null },
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('Kho Snapshot', 'Bãi Đồng Nhất', null),
     { deliveryName: 'Bãi Đồng Nhất', returnDepotName: null },
-    'port == free-text delivery → agreement, one row',
+    'no port → free text carries; snapshot still excluded',
   );
   assert.deepEqual(
-    resolveDeliveryStage('Kho A', null, 'Kho A'),
-    { deliveryName: 'Kho A', returnDepotName: null },
-    'port == snapshot delivery → agreement, one row',
-  );
-  assert.deepEqual(
-    resolveDeliveryStage('Kho A', null, null),
-    { deliveryName: 'Kho A', returnDepotName: null },
-  );
-  assert.deepEqual(
-    resolveDeliveryStage(null, null, null),
+    resolveDeliveryStage('Kho Snapshot', null, null),
     { deliveryName: null, returnDepotName: null },
+    'no port or free text → missing label, never the factory',
+  );
+});
+
+test('export: the drop is the port and there is no empty-return row', () => {
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', null, 'Cảng TIL', 'EXPORT'),
+    { deliveryName: 'Cảng TIL', returnDepotName: null },
+    'factory snapshot must not outrank the port on an export',
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', 'NEWEB-1', 'Cảng TIL', 'EXPORT'),
+    { deliveryName: 'Cảng TIL', returnDepotName: null },
+    'a factory-shaped free text must not outrank the port either',
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', 'Cảng Nam Hải', null, 'EXPORT'),
+    { deliveryName: 'Cảng Nam Hải', returnDepotName: null },
+    'no structured port → the dispatcher free text still carries the drop',
+  );
+  assert.deepEqual(
+    resolveDeliveryStage('NEWEB-1', null, null, 'EXPORT'),
+    { deliveryName: null, returnDepotName: null },
+    'no port at all → report missing rather than borrow the factory',
   );
 });
 

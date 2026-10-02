@@ -10,8 +10,9 @@ import { ApiError } from '../../errors';
  */
 export function parseId(raw: string | string[] | undefined, label = 'ID'): number {
   const value = Array.isArray(raw) ? raw[0] : raw;
-  const id = Number.parseInt(value ?? '', 10);
-  if (!Number.isInteger(id) || id <= 0) {
+  const text = value?.trim() ?? '';
+  const id = Number(text);
+  if (!/^\d+$/.test(text) || !Number.isSafeInteger(id) || id <= 0) {
     throw new ApiError(400, `${label} không hợp lệ`);
   }
   return id;

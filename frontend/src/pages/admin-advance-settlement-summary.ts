@@ -61,7 +61,7 @@ export function summarizeSettlementExpenses(
 }
 
 /**
- * The approval surface is decision-oriented: one horizontal row represents
+ * The settlement overview is decision-oriented: one horizontal row represents
  * one transport plan (the trip), while all linked expense lines are rolled up
  * into category amounts for that row.
  */

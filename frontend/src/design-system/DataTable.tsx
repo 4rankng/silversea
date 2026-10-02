@@ -2,6 +2,7 @@ import type { ReactNode, CSSProperties, MouseEvent } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Pagination, type PaginationProps } from './Pagination';
 import { EmptyState } from './EmptyState';
+import type { EmptyContext } from '../lib/emptyIllustrations';
 import { currentPathname, hasOperationalDensity } from '../lib/operational-density';
 import type { TableSortState } from '../lib/table-sort';
 import './DataTable.css';
@@ -31,6 +32,12 @@ export interface DataTableProps<T> {
   rowClassName?: (row: T) => string | undefined;
   loading?: boolean;
   emptyState?: ReactNode;
+  /**
+   * Shared art for the built-in empty row (`docs/design-guidelines.md` §6).
+   * Pass the surface's `EmptyContext` so a table's empty state matches the page
+   * it sits on; defaults to the general table art.
+   */
+  emptyContext?: EmptyContext;
   pagination?: Omit<PaginationProps, 'page' | 'onChange'> & { page: number; onChange: (p: number) => void };
   loadingRows?: number;
   rowKey?: (row: T, idx: number) => string | number;
@@ -65,6 +72,7 @@ export function DataTable<T extends { id?: number | string }>({
   rowClassName,
   loading,
   emptyState,
+  emptyContext = 'ops',
   pagination,
   loadingRows = 6,
   rowKey = defaultRowKey,
@@ -124,7 +132,7 @@ export function DataTable<T extends { id?: number | string }>({
 
   if (rows.length === 0) {
     return <div className="ds-table-wrap">
-      <div className="ds-table-empty">{emptyState ?? <EmptyState title="Không có dữ liệu" />}</div>
+      <div className="ds-table-empty">{emptyState ?? <EmptyState title="Không có dữ liệu" context={emptyContext} />}</div>
       {pagination && <Pagination {...pagination} />}
     </div>;
   }

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { formatNumber } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
 import { AlertTriangle, CalendarDays, CheckCircle2, ChevronDown, ExternalLink } from 'lucide-react';
-import { EmptyIllustration } from '../components/shared';
+import { EmptyState } from '../design-system';
 import { PageHeader, Panel } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
@@ -67,7 +67,6 @@ const TRIP_TIEBREAKER = (a: FinanceTripDetail, b: FinanceTripDetail) => a.id - b
 
 export default function FinancePage() {
   const { month, year } = useMonth();
-  const [chartView, setChartView] = useState<'day' | 'month'>('day');
   const [expandedTruckIds, setExpandedTruckIds] = useState<Set<number>>(() => new Set());
   const [truckSort, setTruckSort] = useState<TableSortState | null>(null);
   const [tripSort, setTripSort] = useState<TableSortState | null>(null);
@@ -91,12 +90,12 @@ export default function FinancePage() {
     totalRevenueLY, otherRevenueLY, transRevenueLY, totalCostsLY, grossProfitLY,
     companyExpensesLY, netProfitLY, activeCapTable, costPieData,
     topTrucks, categoryBreakdown, truckBreakdown, activeChartData, hasChartData, completedTripCount,
-  } = useFinanceDerived({ allTrips, report, prevReport, capTableRaw, yearlyData, month, chartView });
+  } = useFinanceDerived({ allTrips, report, prevReport, capTableRaw, yearlyData, month });
 
   const allocatedFleetFixedCostTotal = report?.allocatedFleetFixedCostTotal ?? 0;
   const unallocatedFleetFixedCostTotal = report?.unallocatedFleetFixedCostTotal ?? 0;
   const currentPolicy = report?.financialPolicy ?? null;
-  const showFleetCostColumns = fleetDepreciationCost + fleetFixedCost > 0;
+  const showFleetCostColumns = (fleetDepreciationCost ?? 0) + (fleetFixedCost ?? 0) > 0;
 
   const tripDetailsByTruck = useMemo(() => {
     return groupFinanceTripDetails(allTrips, report?.tripDetails);
@@ -160,19 +159,19 @@ export default function FinancePage() {
               if (!report) return;
               const headers = ['Khoản mục', `Tháng ${String(month).padStart(2,'0')}/${year}`, `Tháng ${String(month).padStart(2,'0')}/${year - 1}`];
               const rows = [
-                ['Doanh thu vận tải', transRevenue, transRevenueLY],
-                ['Doanh thu điều xe ngoài', report.externalMarginTotal ?? 0, prevReport?.externalMarginTotal ?? 0],
-                ['Thu nhập khác', otherRevenue, otherRevenueLY],
-                ['Tổng doanh thu', totalRevenue, totalRevenueLY],
-                ['Nhiên liệu', fuelCost, ''],
-                ['Tiền đi đường', roadCost, ''],
-                ['Lương lái xe', driverCost, ''],
-                ['Khấu hao đội xe', fleetDepreciationCost, prevReport?.fleetDepreciationTotal ?? 0],
-                ['Chi phí cố định đội xe', fleetFixedCost, prevReport?.fleetMonthlyFixedCostTotal ?? 0],
-                ['Chưa phân bổ đội xe', unallocatedFleetFixedCostTotal, prevReport?.unallocatedFleetFixedCostTotal ?? 0],
-                ['Tổng chi phí vận hành', totalCosts, totalCostsLY],
-                ['Lợi nhuận gộp', grossProfit, grossProfitLY],
-                ['Lợi nhuận ròng', netProfit, netProfitLY],
+                ['Doanh thu vận tải', transRevenue ?? '—', transRevenueLY ?? '—'],
+                ['Doanh thu điều xe ngoài', report.externalMarginTotal ?? '—', prevReport?.externalMarginTotal ?? '—'],
+                ['Thu nhập khác', otherRevenue ?? '—', otherRevenueLY ?? '—'],
+                ['Tổng doanh thu', totalRevenue ?? '—', totalRevenueLY ?? '—'],
+                ['Nhiên liệu', fuelCost ?? '—', ''],
+                ['Tiền đi đường', roadCost ?? '—', ''],
+                ['Lương lái xe', driverCost ?? '—', ''],
+                ['Khấu hao đội xe', fleetDepreciationCost ?? '—', prevReport?.fleetDepreciationTotal ?? '—'],
+                ['Chi phí cố định đội xe', fleetFixedCost ?? '—', prevReport?.fleetMonthlyFixedCostTotal ?? '—'],
+                ['Chưa phân bổ đội xe', unallocatedFleetFixedCostTotal, prevReport?.unallocatedFleetFixedCostTotal ?? '—'],
+                ['Tổng chi phí vận hành', totalCosts ?? '—', totalCostsLY ?? '—'],
+                ['Lợi nhuận gộp', grossProfit ?? '—', grossProfitLY ?? '—'],
+                ['Lợi nhuận ròng', netProfit ?? '—', netProfitLY ?? '—'],
               ];
               await downloadCSV(`bao-cao-lai-lo-${String(month).padStart(2, '0')}-${String(year).slice(-2)}.csv`, headers, rows, {
                 title: 'BÁO CÁO LÃI LỖ',
@@ -241,13 +240,8 @@ export default function FinancePage() {
           <div className="wf-card wf-chart" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div className="wf-card-h">
               <div>
-                <div className="ttl">Doanh thu {chartView === 'day' ? `Tháng ${month}/${year}` : year}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div className="wf-chart-toggle">
-                  <button className={`wf-chart-toggle__btn${chartView === 'day' ? ' is-active' : ''}`} onClick={() => setChartView('day')}>Ngày</button>
-                  <button className={`wf-chart-toggle__btn${chartView === 'month' ? ' is-active' : ''}`} onClick={() => setChartView('month')}>Tháng</button>
-                </div>
+                <div className="ttl">Doanh thu và lợi nhuận gộp theo tháng · {year}</div>
+                <div className="desc">Số liệu ghi nhận theo từng tháng; tháng {month}/{year} được đánh dấu trên biểu đồ.</div>
               </div>
             </div>
             <div className="wf-legend">
@@ -259,35 +253,32 @@ export default function FinancePage() {
                 <div style={{ padding: '40px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', flex: 1 }}>
                   Đang tải dữ liệu...
                 </div>
-              ) : completedTripCount === 0 ? (
+              ) : !hasChartData && completedTripCount === 0 ? (
                 <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', gap: 8, flex: 1 }}>
-                  <EmptyIllustration name="empty-pricing" width={150} height={124} />
-                  <div>
-                    {chartView === 'day'
-                      ? `Chưa có chuyến nào hoàn thành trong tháng ${month}/${year}`
-                      : `Chưa có chuyến nào hoàn thành trong năm ${year}`}
-                  </div>
-                  <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Hoàn thành chuyến để xem xu hướng doanh thu</div>
+                  <EmptyState
+                    context="pricing"
+                    title={`Chưa có chuyến nào hoàn thành trong năm ${year}`}
+                    description="Hoàn thành chuyến để xem xu hướng doanh thu"
+                  />
                 </div>
               ) : !hasChartData ? (
                 /* Completed trips exist but every series bucket is zero — an
                    accurate zero-value explanation, never a no-trip claim. */
                 <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', gap: 8, flex: 1 }}>
-                  <EmptyIllustration name="empty-pricing" width={150} height={124} />
-                  <div>
-                    {chartView === 'day'
-                      ? `Có ${completedTripCount} chuyến hoàn thành trong tháng ${month}/${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`
-                      : `Có ${completedTripCount} chuyến hoàn thành trong năm ${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`}
-                  </div>
-                  <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Kiểm tra giá cước và các khoản thu đã nhập cho các chuyến này</div>
+                  <EmptyState
+                    context="pricing"
+                    title={`Có ${completedTripCount} chuyến hoàn thành trong năm ${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`}
+                    description="Kiểm tra giá cước và các khoản thu đã nhập cho các chuyến này"
+                  />
                 </div>
               ) : (
                 <RevenueTrendChart
-                  title={`Xu hướng doanh thu và lợi nhuận gộp ${chartView === 'day' ? `tháng ${month}/${year}` : `năm ${year}`}`}
+                  title={`Xu hướng doanh thu và lợi nhuận gộp năm ${year}`}
                   months={activeChartData.months}
                   revenue={activeChartData.revenue}
                   gross={activeChartData.gross}
                   currentIdx={activeChartData.currentIdx}
+                  formatTooltip={(value) => `${formatNumber(value * 1_000_000)} ₫`}
                 />
               )}
             </div>
@@ -346,9 +337,11 @@ export default function FinancePage() {
               </div>
             ) : (
               <div style={{ height: 160, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', gap: 8 }}>
-                <EmptyIllustration name="empty-pie" width={126} height={104} />
-                <div>Chưa có dữ liệu chi phí</div>
-                <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)' }}>Hoàn thành chuyến có chi tiết nhiên liệu/đường để xem cơ cấu</div>
+                <EmptyState
+                  context="pie"
+                  title="Chưa có dữ liệu chi phí"
+                  description="Hoàn thành chuyến có chi tiết nhiên liệu/đường để xem cơ cấu"
+                />
               </div>
             )}
           </div>
@@ -373,9 +366,14 @@ export default function FinancePage() {
                 const minProfit = Math.min(...topTrucks.map(t => t['LN gộp']), 0);
                 const totalRange = maxProfit - minProfit;
                 const svgH = topTrucks.length * 32;
-                const plateW = 65;
+                // Fixed label gutter sized to the LONGEST plate (no truncation):
+                // measured 69–74 units for 10-char plates at 12px in Be Vietnam Pro,
+                // so 7.8 units/char + 6 padding reserves it without colliding with
+                // the bar track. Track shrinks for outlier-long fixture plates.
+                const maxPlateLen = Math.max(...topTrucks.map(t => t.name.length));
+                const plateW = Math.max(65, maxPlateLen * 7.8 + 6);
                 const valW = 75;
-                const barTrackW = 280 - plateW - valW - 10;
+                const barTrackW = Math.max(40, 280 - plateW - valW - 10);
                 const zeroX = minProfit < 0 ? (plateW + 5) + (Math.abs(minProfit) / totalRange) * barTrackW : (plateW + 5);
                 return (
                   <svg width="100%" height={svgH} viewBox={`0 0 280 ${svgH}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Top xe theo lợi nhuận tháng ${month}/${year}`}>
@@ -384,12 +382,15 @@ export default function FinancePage() {
                       const isNegative = val < 0;
                       const w = Math.max(2, (Math.abs(val) / totalRange) * barTrackW);
                       const barX = isNegative ? zeroX - w : zeroX;
-                      const fill = isNegative ? 'var(--danger)' : 'var(--success, #059669)';
-                      const label = t.name.length > 10 ? `${t.name.slice(0, 9)}…` : t.name;
+                      const fill = isNegative ? 'var(--danger)' : 'var(--success, #177448)';
                       return (
                         <g key={i} transform={`translate(0, ${i * 32})`}>
-                          <text x={0} y={15} fontSize="12" fontFamily="var(--font-data)" fontWeight={600} fill="var(--ink-2)" textAnchor="start">{label}<title>{t.name}</title></text>
-                          <rect x={barX} y={4} width={w} height={14} fill={fill} rx={3} opacity={0.85} />
+                          <text x={0} y={15} fontSize="12" fontFamily="var(--font-data)" fontWeight={600} fill="var(--ink-2)" textAnchor="start">{t.name}<title>{t.name}</title></text>
+                          {/* Zero-value rows show label + 0₫ only — a min-width tick here
+                              reads as a stray mark glued to the plate label. */}
+                          {val !== 0 && (
+                            <rect x={barX} y={4} width={w} height={14} fill={fill} rx={3} opacity={0.85} />
+                          )}
                           {minProfit < 0 && (
                             <line x1={zeroX} y1={0} x2={zeroX} y2={24} stroke="var(--line-2)" strokeWidth={1} strokeDasharray="2,2" />
                           )}
@@ -510,7 +511,7 @@ export default function FinancePage() {
               <div className="pnl-row__yoy">—</div><div className="pnl-row__pct">—</div>
             </div>
 
-            {maintenanceCost > 0 && (
+            {(maintenanceCost ?? 0) > 0 && (
             <div className="pnl-row">
               <div className="pnl-row__label">
                 Bảo dưỡng &amp; sửa chữa
@@ -521,7 +522,7 @@ export default function FinancePage() {
             </div>
             )}
 
-            {fleetDepreciationCost > 0 && (
+            {(fleetDepreciationCost ?? 0) > 0 && (
             <div className="pnl-row">
               <div className="pnl-row__label">
                 Khấu hao đội xe
@@ -530,14 +531,14 @@ export default function FinancePage() {
                 </div>
               </div>
               <div className="pnl-row__amount">{formatNumber(fleetDepreciationCost)}</div>
-              <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetDepreciationTotal ?? 0) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? 0) : ''}`}>
-                {prevReport ? yoyPct(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? 0) : '—'}
+              <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetDepreciationTotal ?? null) : '—'}</div>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? null, 'down') : ''}`}>
+                {prevReport ? yoyPct(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? null) : '—'}
               </div>
             </div>
             )}
 
-            {fleetFixedCost > 0 && (
+            {(fleetFixedCost ?? 0) > 0 && (
             <div className="pnl-row">
               <div className="pnl-row__label">
                 Chi phí cố định đội xe
@@ -546,9 +547,9 @@ export default function FinancePage() {
                 </div>
               </div>
               <div className="pnl-row__amount">{formatNumber(fleetFixedCost)}</div>
-              <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetMonthlyFixedCostTotal ?? 0) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? 0) : ''}`}>
-                {prevReport ? yoyPct(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? 0) : '—'}
+              <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetMonthlyFixedCostTotal ?? null) : '—'}</div>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? null, 'down') : ''}`}>
+                {prevReport ? yoyPct(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? null) : '—'}
               </div>
             </div>
             )}
@@ -557,19 +558,19 @@ export default function FinancePage() {
               <div className="pnl-row__label">Tổng chi phí vận hành</div>
               <div className="pnl-row__amount">{formatNumber(totalCosts)}</div>
               <div className="pnl-row__yoy">{prevReport ? formatNumber(totalCostsLY) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(totalCosts, totalCostsLY) : ''}`}>{prevReport ? yoyPct(totalCosts, totalCostsLY) : '—'}</div>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(totalCosts, totalCostsLY, 'down') : ''}`}>{prevReport ? yoyPct(totalCosts, totalCostsLY) : '—'}</div>
             </div>
 
-            <div className="pnl-row pnl-row--subtotal" style={{ background: 'var(--success-soft)' }}>
-              <div className="pnl-row__label" style={{ color: 'var(--success)', fontWeight: 700 }}>
+            <div className="pnl-row pnl-row--subtotal pnl-row--profit-total" data-profit-state={grossProfit == null || grossProfit === 0 ? 'neutral' : grossProfit > 0 ? 'profit' : 'loss'}>
+              <div className="pnl-row__label">
                 Lợi nhuận gộp · Biên {marginPct(grossProfit, totalRevenue)}%
               </div>
-              <div className="pnl-row__amount" style={{ color: 'var(--success)', fontWeight: 700 }}>{formatNumber(grossProfit)}</div>
-              <div className="pnl-row__yoy" style={{ color: 'var(--success)' }}>{prevReport ? formatNumber(grossProfitLY) : '—'}</div>
+              <div className="pnl-row__amount">{formatNumber(grossProfit)}</div>
+              <div className="pnl-row__yoy">{prevReport ? formatNumber(grossProfitLY) : '—'}</div>
               <div className={`pnl-row__pct ${prevReport ? yoyClass(grossProfit, grossProfitLY) : ''}`}>{prevReport ? yoyPct(grossProfit, grossProfitLY) : '—'}</div>
             </div>
 
-            {companyExpenses > 0 && (
+            {(companyExpenses ?? 0) > 0 && (
             <div className="pnl-row">
               <div className="pnl-row__label">
                 Chi phí công ty
@@ -577,21 +578,21 @@ export default function FinancePage() {
               </div>
               <div className="pnl-row__amount">{formatNumber(companyExpenses)}</div>
               <div className="pnl-row__yoy">{prevReport ? formatNumber(companyExpensesLY) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(companyExpenses, companyExpensesLY) : ''}`}>{prevReport ? yoyPct(companyExpenses, companyExpensesLY) : '—'}</div>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(companyExpenses, companyExpensesLY, 'down') : ''}`}>{prevReport ? yoyPct(companyExpenses, companyExpensesLY) : '—'}</div>
             </div>
             )}
 
-            {companyExpenses > 0 && (
+            {(companyExpenses ?? 0) > 0 && (
               <div className="pnl-row pnl-row--subtotal">
                 <div className="pnl-row__label">Tổng chi phí hoạt động</div>
                 <div className="pnl-row__amount">{formatNumber(companyExpenses)}</div>
                 <div className="pnl-row__yoy">{prevReport ? formatNumber(companyExpensesLY) : '—'}</div>
-                <div className={`pnl-row__pct ${prevReport ? yoyClass(companyExpenses, companyExpensesLY) : ''}`}>{prevReport ? yoyPct(companyExpenses, companyExpensesLY) : '—'}</div>
+                <div className={`pnl-row__pct ${prevReport ? yoyClass(companyExpenses, companyExpensesLY, 'down') : ''}`}>{prevReport ? yoyPct(companyExpenses, companyExpensesLY) : '—'}</div>
               </div>
             )}
 
             {/* FINAL NET PROFIT */}
-            <div className="pnl-row pnl-row--final">
+            <div className="pnl-row pnl-row--final pnl-row--profit-total" data-profit-state={netProfit == null || netProfit === 0 ? 'neutral' : netProfit > 0 ? 'profit' : 'loss'}>
               <div className="pnl-row__label" style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, fontSize: 'var(--text-caption-size)' }}>
                 Lợi nhuận ròng
               </div>
@@ -604,7 +605,7 @@ export default function FinancePage() {
           <p style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', margin: '14px 0 24px', lineHeight: 1.5 }}>
             * Lợi nhuận ròng kế toán: <strong>{formatNumber(netProfit)} ₫</strong>.
             {activeCapTable.length > 0
-              ? <> Sau khi kết chuyển chia cổ đông: {activeCapTable.map((p, i) => <span key={i}>{i > 0 ? ' và ' : ''}<strong>{formatNumber(netProfit * p.pct / 100)} ₫</strong> cho {p.name} ({p.pct}%)</span>)}.</>
+              ? <> Sau khi kết chuyển chia cổ đông: {activeCapTable.map((p, i) => <span key={i}>{i > 0 ? ' và ' : ''}<strong>{formatNumber(netProfit != null ? netProfit * p.pct / 100 : null)} ₫</strong> cho {p.name} ({p.pct}%)</span>)}.</>
               : ' Chưa cấu hình bảng cổ phần.'
             }{' '}
             <Link to='/profit'
@@ -764,7 +765,7 @@ export default function FinancePage() {
                             <SortHeader label="Chưa phân bổ" sortKey="unallocatedFleetFixedCost" sort={truckSort} onSortChange={handleTruckSort} className="num" />
                           </>
                         )}
-                        {maintenanceCost > 0 && (
+                        {(maintenanceCost ?? 0) > 0 && (
                           <>
                             <SortHeader label="BD đầu kéo" sortKey="maintTruck" sort={truckSort} onSortChange={handleTruckSort} className="num" />
                             <SortHeader label="BD rơ-mooc" sortKey="maintTrailer" sort={truckSort} onSortChange={handleTruckSort} className="num" />
@@ -804,7 +805,7 @@ export default function FinancePage() {
                                   <td data-label="Chưa phân bổ" className="num">{t.unallocatedFleetFixedCost > 0 ? formatNumber(t.unallocatedFleetFixedCost) : '—'}</td>
                                 </>
                               )}
-                              {maintenanceCost > 0 && (
+                              {(maintenanceCost ?? 0) > 0 && (
                                 <>
                                   <td data-label="BD đầu kéo" className="num">{maintComp.truck > 0 ? formatNumber(maintComp.truck) : '—'}</td>
                                   <td data-label="BD rơ-mooc" className="num">{maintComp.trailer > 0 ? formatNumber(maintComp.trailer) : '—'}</td>
@@ -816,7 +817,7 @@ export default function FinancePage() {
                             </tr>
                             {isExpanded && (
                               <tr id={`truck-details-${t.id}`} className="truck-details-row">
-                                <td data-label="" colSpan={(maintenanceCost > 0 ? 7 : 5) + (showFleetCostColumns ? 2 : 0)}>
+                                <td data-label="" colSpan={((maintenanceCost ?? 0) > 0 ? 7 : 5) + (showFleetCostColumns ? 2 : 0)}>
                                   <div className="truck-details-panel">
                                     <div className="truck-details-panel__intro">
                                       <span><strong>{tripDetails.length}/{t.trips}</strong> lệnh trong kỳ</span>
@@ -925,7 +926,7 @@ export default function FinancePage() {
                             <td data-label="Tổng chi phí" className="num">{formatNumber(cat.total)} ₫</td>
                             <td data-label="Tỷ trọng">
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
+                                <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
                                   <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: 'var(--brand)' }} />
                                 </div>
                                 <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: 'var(--fg-2)', minWidth: 40, textAlign: 'right' }}>

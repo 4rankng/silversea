@@ -3,9 +3,7 @@
  * may add, edit, and retire tractors from this view.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Truck } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
-import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
@@ -15,7 +13,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../../../hooks/animations';
 import { invalidateAllCatalogs, qk } from '../../../api/keys';
 import { listDispatchFleetResources, reassignTruckDriver } from '../../../api/dispatchPlanningClient';
+import { Tabs, type TabItem } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
+import { FilterDropdown } from '../../../components/FilterDropdown';
 import { AssignDriverDialog } from './AssignDriverDialog';
 import { AssignOpsDialog } from '../../ops/AssignOpsDialog';
 import { opsClient } from '../../../api/opsClient';
@@ -25,6 +25,7 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib
 import { TRUCK_STATUS } from '../../fleet';
 import { TruckFormModal } from '../../fleet/TruckFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
+import { matchesCatalogSearch } from './catalog-search';
 import { useCatalogCreate } from './useCatalogCreate';
 import { useConfirm } from '../../../components/UI';
 import './catalogs.css';
@@ -47,6 +48,7 @@ export function FleetVehiclesView() {
   );
   const [assignOpsTruck, setAssignOpsTruck] = useState<TruckType | null>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'down'>('all');
   const [sort, setSort] = useState<TableSortState | null>(null);
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
   // Trailer plate/type shown alongside each tractor (same source as FleetPage).
@@ -99,15 +101,19 @@ export function FleetVehiclesView() {
       }));
   }, [drivers, trucks]);
 
-  const { driverByTruck, trailerById, active, maintenance } = useMemo(() => {
+  const { driverByTruck, trailerById, active, down } = useMemo(() => {
     const driverByTruck = new Map<number, string>();
     drivers.forEach((d) => {
       if (d.assignedTruckId) driverByTruck.set(d.assignedTruckId, d.name);
     });
     const trailerById = new Map(trailers.map((t) => [t.id, t]));
     const active = trucks.filter((t) => t.status === 'ACTIVE').length;
-    const maintenance = trucks.filter((t) => t.status === 'MAINTENANCE').length;
-    return { driverByTruck, trailerById, active, maintenance };
+    // The "Bảo trì / Ngưng" tab selects every non-ACTIVE status (see the
+    // statusFilter branch below), so its count must be the same predicate.
+    // Counting MAINTENANCE alone made the badge disagree with the rows the tab
+    // opens whenever a truck carried another retirement status.
+    const down = trucks.filter((t) => t.status !== 'ACTIVE').length;
+    return { driverByTruck, trailerById, active, down };
   }, [trucks, drivers, trailers]);
 
   const needle = search.trim().toLowerCase();
@@ -126,19 +132,22 @@ export function FleetVehiclesView() {
   }, []);
   const carrierNameById = useMemo(() => new Map(carriers.map((c) => [c.id, c.name])), [carriers]);
   const filtered = useMemo(() => {
-    const byCarrier = carrierFilter === ''
+    const byStatus = statusFilter === 'all'
       ? trucks
-      : trucks.filter((t) => (carrierFilter === 'UNASSIGNED' ? t.carrierId == null : t.carrierId === Number(carrierFilter)));
+      : trucks.filter((t) => (statusFilter === 'active' ? t.status === 'ACTIVE' : t.status !== 'ACTIVE'));
+    const byCarrier = carrierFilter === ''
+      ? byStatus
+      : byStatus.filter((t) => (carrierFilter === 'UNASSIGNED' ? t.carrierId == null : t.carrierId === Number(carrierFilter)));
     if (!needle) return byCarrier;
     return byCarrier.filter((t) => {
       const trailer = t.currentTrailerId ? trailerById.get(t.currentTrailerId) : undefined;
-      return (
-        t.licensePlate.toLowerCase().includes(needle) ||
-        (trailer?.licensePlate ?? '').toLowerCase().includes(needle) ||
-        (driverByTruck.get(t.id) ?? '').toLowerCase().includes(needle)
+      return matchesCatalogSearch(
+        needle,
+        [t.licensePlate, trailer?.licensePlate, driverByTruck.get(t.id)],
+        [t.licensePlate, trailer?.licensePlate],
       );
     });
-  }, [trucks, needle, carrierFilter, driverByTruck, trailerById]);
+  }, [trucks, needle, carrierFilter, statusFilter, driverByTruck, trailerById]);
 
   // Full catalog is already client-side (unpaginated lookup table), so sorting
   // happens locally with the shared contract: empty cells last, id tiebreaker.
@@ -153,46 +162,78 @@ export function FleetVehiclesView() {
   );
   const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
 
+  // Card 20260922_22 — a column no row in the current result fills hides
+  // itself; plate, driver, status and the action rail stay mandatory.
+  const colPresence = useMemo(() => {
+    const present: Record<string, boolean> = {};
+    for (const t of rows) {
+      if (t.carrierId != null) present.carrier = true;
+      if (t.currentTrailerId && trailerById.get(t.currentTrailerId)) present.trailer = true;
+    }
+    return present;
+  }, [rows, trailerById]);
+
+  // Status group — the reference segmented control (operator ruling
+  // 2026-09-27): shared Tabs primitive, tone rides the bucket's meaning
+  // (accent = healthy, warning = downtime), the selection rides the cell.
+  const statusTabs = useMemo<TabItem[]>(() => [
+    { id: 'all', label: 'Tất cả', count: trucks.length },
+    { id: 'active', label: 'Hoạt động', count: active, countTone: 'accent' },
+    { id: 'down', label: 'Bảo trì / Ngưng', count: down, countTone: 'warning' },
+  ], [trucks.length, active, down]);
+
   return (
     <div ref={rootRef}>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Xe nội bộ' }]} />
-      <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
-        <div className="dispatch-catalogs__page-heading">
-          <h1 style={{ fontSize: 'var(--text-title-size)', fontWeight: 700 }}>Danh mục Xe nội bộ</h1>
-          <p style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginTop: 4 }}>
-            Tra cứu xe đầu kéo nội bộ để phân bổ kế hoạch điều độ
-          </p>
-        </div>
-        <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
-          Thêm xe đầu kéo
-        </Button>
-      </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
-      <div className="kpi-grid dispatch-catalogs__summary dispatch-catalogs__vehicle-summary" style={{ marginBottom: 16 }}>
-        <KPI label="Tổng xe đầu kéo" value={trucks.length} unit="xe" icon={Truck} />
-        <KPI label="Hoạt động" value={active} unit="xe" icon={Truck} variant="success" />
-        <KPI label="Bảo trì / Ngưng" value={maintenance} unit="xe" icon={Truck} variant="warn" />
-      </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
       <CatalogTableShell
+        title="Danh mục Xe nội bộ"
+        tabs={(
+          <Tabs
+            tabs={statusTabs}
+            value={statusFilter}
+            onChange={(id) => setStatusFilter(id as 'all' | 'active' | 'down')}
+            variant="boxed"
+            ariaLabel="Lọc theo trạng thái xe"
+          />
+        )}
+        actions={(
+          <Button size="sm" color="primary" iconLeading={Plus} onPress={crud.showForm}>
+            Thêm xe đầu kéo
+          </Button>
+        )}
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Tìm biển số hoặc tài xế…"
         totalLabel={`${filtered.length}/${trucks.length} xe`}
+        hasActiveFilters={statusFilter !== 'all' || carrierFilter !== '' || search.trim() !== ''}
+        onReset={() => { setStatusFilter('all'); setCarrierFilter(''); setSearch(''); }}
         filters={(
-          <UuiSelectField
-            label="Lọc theo nhà xe"
-            hideLabel
-            ariaLabel="Lọc theo nhà xe"
-            wrapperClassName="dispatch-catalogs__carrier-filter"
-            value={carrierFilter}
-            onChange={(e) => setCarrierFilter(e.target.value)}
-            options={[
-              { value: '', label: 'Tất cả nhà xe' },
-              { value: 'UNASSIGNED', label: 'Chưa phân nhà xe' },
-              ...carriers.map((c) => ({ value: String(c.id), label: c.name })),
-            ]}
-          />
+          // ONE criterion beyond the status group: the owning carrier rides the
+          // bar inline while the strip fits two rows and folds into `Bộ lọc`
+          // when the width leaves no other choice (card 20260927_152) — the
+          // measured fold, not a breakpoint. Its width belongs to
+          // FilterBar.css/ListFilterBar.css (`width:auto`, 180px floor).
+          <FilterDropdown
+            count={carrierFilter === '' ? 0 : 1}
+            ariaLabel="Bộ lọc"
+            dialogLabel="Bộ lọc xe đầu kéo"
+            onReset={() => setCarrierFilter('')}
+          >
+            <UuiSelectField
+              label="Lọc theo nhà xe"
+              hideLabel
+              ariaLabel="Lọc theo nhà xe"
+              value={carrierFilter}
+              onChange={(e) => setCarrierFilter(e.target.value)}
+              options={[
+                { value: '', label: 'Nhà xe: Tất cả' },
+                { value: 'UNASSIGNED', label: 'Nhà xe: Chưa phân' },
+                ...carriers.map((c) => ({ value: String(c.id), label: c.name })),
+              ]}
+            />
+          </FilterDropdown>
         )}
       >
         {loading ? (
@@ -206,8 +247,8 @@ export function FleetVehiclesView() {
             <thead>
               <tr>
                 <SortHeader label="Biển số" sortKey="licensePlate" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={applySort} />
-                <SortHeader label="Rơ-moóc đang nối" sortKey="trailerPlate" sort={sort} onSortChange={applySort} />
+                {colPresence.carrier && <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={applySort} />}
+                {colPresence.trailer && <SortHeader label="Rơ-moóc đang nối" sortKey="trailerPlate" sort={sort} onSortChange={applySort} />}
                 <SortHeader label="Tài xế được gán" sortKey="driverName" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
                 <th aria-label="Thao tác" />
@@ -225,8 +266,8 @@ export function FleetVehiclesView() {
                     <td data-label="Biển số" className="dispatch-catalogs__plate">
                       <button type="button" className="dispatch-catalogs__edit" aria-label={`Chỉnh sửa xe ${t.licensePlate}`} onClick={(event) => { event.stopPropagation(); crud.showEdit(t.id); }}>{t.licensePlate}</button>
                     </td>
-                    <td data-label="Nhà xe" data-empty={t.carrierId == null || undefined}>{t.carrierId != null ? carrierNameById.get(t.carrierId) ?? 'Nhà xe chưa xác định' : '—'}</td>
-                    <td data-label="Rơ-moóc đang nối" data-empty={!trailer || undefined}>{trailer ? trailer.licensePlate : '—'}</td>
+                    {colPresence.carrier && <td data-label="Nhà xe" data-empty={t.carrierId == null || undefined}>{t.carrierId != null ? carrierNameById.get(t.carrierId) ?? 'Nhà xe chưa xác định' : '—'}</td>}
+                    {colPresence.trailer && <td data-label="Rơ-moóc đang nối" data-empty={!trailer || undefined}>{trailer ? trailer.licensePlate : '—'}</td>}
                     <td data-label="Tài xế được gán">{driverByTruck.get(t.id) ?? 'Chưa phân công'}</td>
                     <td data-label="Trạng thái">
                       <BadgeWithDot
@@ -297,6 +338,7 @@ export function FleetVehiclesView() {
         error={assignError}
         truck={assignTruck}
         currentDriverName={assignTruck ? driverByTruck.get(assignTruck.id) ?? null : null}
+        currentDriverId={assignTruck ? drivers.find((d) => d.assignedTruckId === assignTruck.id)?.id ?? null : null}
         driverOptions={driverOptions}
         onsave={saveAssign}
         oncancel={() => setAssignOpen(false)}

@@ -6,22 +6,20 @@ import {
   AdvanceRequestStatus,
   type AdvanceRequestWithRefs,
 } from '@tingting/shared';
-import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
+import { PageHeader, StatusPill, FilterPill } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { AssetIcon, type AssetIconName } from '../components/AssetIcon';
 import { Money } from '../components/shared/Money';
 import { useAdminAdvanceBalances } from '../hooks/useQueries';
 import { forwarderClient } from '../api/forwarderClient';
 import { qk } from '../api/keys';
 import { advanceRequestStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
-import { Pagination, UuiSelectField } from '../design-system';
+import { EmptyState, FilterBar, Pagination } from '../design-system';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import './AdminAdvancesPage.css';
 import '../styles/table-sort.css';
 import '../styles/operational-table-typography.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { AdvanceDraftActions } from '../components/shared/AdvanceDraftActions';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
@@ -92,7 +90,6 @@ interface AdvKPIProps {
   value: number;
   meta: string;
   variant: 'warn' | 'success' | 'danger';
-  iconName: AssetIconName;
   active?: boolean;
   hasItems?: boolean;
   // Omit onClick for a summary-only stat (no filter to toggle). Renders as a
@@ -100,14 +97,13 @@ interface AdvKPIProps {
   onClick?: () => void;
 }
 
-function AdvKPI({ label, value, meta, variant, iconName, active = false, hasItems = false, onClick }: AdvKPIProps) {
+function AdvKPI({ label, value, meta, variant, active = false, hasItems = false, onClick }: AdvKPIProps) {
   const interactive = typeof onClick === 'function';
   const content = (
     <>
       <div className="adv-kpi__label">{label}</div>
       <div className="adv-kpi__value">{value}</div>
       <div className="adv-kpi__meta">{meta}</div>
-      <AssetIcon name={iconName} size={58} className="adv-kpi__asset" />
     </>
   );
   const className = `adv-kpi adv-kpi--${variant}${active ? ' is-active' : ''}${hasItems ? ' has-items' : ''}${interactive ? '' : ' adv-kpi--static'}`;
@@ -339,7 +335,6 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           value={countOf(AdvanceRequestStatus.RECORDED)}
           meta={`${formatNumber(amountOf(AdvanceRequestStatus.RECORDED))} ₫`}
           variant="success"
-          iconName="paid"
           active={statusFilter === AdvanceRequestStatus.RECORDED}
           onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.RECORDED ? '' : AdvanceRequestStatus.RECORDED)}
         />
@@ -348,7 +343,6 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           value={countOf(AdvanceRequestStatus.VOIDED)}
           meta={`${formatNumber(amountOf(AdvanceRequestStatus.VOIDED))} ₫`}
           variant="danger"
-          iconName="unpaid"
           active={statusFilter === AdvanceRequestStatus.VOIDED}
           onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.VOIDED ? '' : AdvanceRequestStatus.VOIDED)}
         />
@@ -357,16 +351,18 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           value={balancesData?.items.length ?? 0}
           meta={`${formatNumber(balancesData ? Number(balancesData.totalOutstanding) : 0)} ₫`}
           variant="success"
-          iconName="cashflow"
           hasItems={(balancesData?.items.length ?? 0) > 0}
         />
       </div>
 
       {/* ── Card wrapper ──────────────────────────────────────────────── */}
       <div className="adv-panel">
-        {/* Filter tabs */}
-        <Toolbar>
-          {TABS.map((tab) => (
+        {/* Card 20260927_152 — one shared bar replaces the desktop toolbar +
+            the phone-only status select (one implementation per datum); the
+            full-set tab counts ride the quick-filter slot. */}
+        <FilterBar
+          quickFiltersLabel="Lọc theo trạng thái"
+          quickFilters={TABS.map((tab) => (
             <FilterPill
               key={tab.key}
               active={statusFilter === tab.key}
@@ -376,21 +372,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
               {tab.label}
             </FilterPill>
           ))}
-        </Toolbar>
-        <label className="adv-mobile-filter">
-          <span>Lọc theo trạng thái</span>
-          <UuiSelectField
-            id="adv-status-filter"
-            label="Lọc theo trạng thái"
-            hideLabel
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-            options={TABS.map((tab) => ({
-              value: tab.key,
-              label: `${tab.label} (${tabCounts[tab.key]})`,
-            }))}
-          />
-        </label>
+        />
 
         {table.isLoading ? (
           <div className="adv-loading">
@@ -398,9 +380,11 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           </div>
         ) : table.rows.length === 0 ? (
           <div className="adv-empty">
-            <img src={resolveEmptyIllustration('empty-advances')} alt="" aria-hidden="true" style={{ width: 160, height: 132, objectFit: 'contain', marginBottom: 4 }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            <div className="adv-empty-text">Không có yêu cầu tạm ứng nào</div>
-            <div className="adv-empty-hint">Giao nhận có thể gửi yêu cầu từ ứng dụng di động</div>
+            <EmptyState
+              context="advances"
+              title="Không có yêu cầu tạm ứng nào"
+              description="Giao nhận có thể gửi yêu cầu từ ứng dụng di động"
+            />
           </div>
         ) : (
           <>

@@ -19,6 +19,8 @@ export interface ReassignState {
   externalPlateNumber: string;
   externalDriverName: string;
   externalDriverPhone: string;
+  /** Mandatory per card 20260922_79 — persisted to the audit trail with actor+timestamp. */
+  reason: string;
   loading: boolean;
   error: string;
 }
@@ -56,17 +58,5 @@ const VN_MONTHS = ['tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5', '
 
 export { VN_WEEKDAYS, VN_MONTHS };
 
-export function avatarColorClass(id: number): string {
-  return `da-${(id % 5) + 1}`;
-}
 
-export function formatFullDate(d: Date): string {
-  return `${VN_WEEKDAYS[d.getDay()]} · ${d.getDate()} ${VN_MONTHS[d.getMonth()]}, ${d.getFullYear()}`;
-}
 
-export function isUrgent(iso: string, now: Date = new Date()): boolean {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return false;
-  const diffMs = d.getTime() - now.getTime();
-  return diffMs > 0 && diffMs < 36 * 60 * 60 * 1000;
-}

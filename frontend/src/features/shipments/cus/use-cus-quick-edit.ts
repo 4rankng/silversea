@@ -11,13 +11,14 @@ import { ApiError } from '../../../lib/api';
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import {
   createShipmentDeclaration,
+  deleteShipmentDeclaration,
   updateShipment,
   updateShipmentDeclaration,
 } from '../../../api/shipmentClient';
 import {
-  buildQuickEditDeclarationBody,
   buildQuickEditDraft,
   buildQuickEditPayload,
+  diffQuickEditDeclarations,
   isQuickEditUnchanged,
   quickEditAccessKeys,
   quickEditDeclarationChanged,
@@ -107,11 +108,18 @@ export function useCusQuickEdit(deps: UseCusQuickEditDeps) {
         await updateShipment(item.id, payload);
       }
       if (declarationChanged) {
-        const declarationBody = buildQuickEditDeclarationBody(draft);
-        if (draft.declarationId != null) {
-          await updateShipmentDeclaration(item.id, draft.declarationId, declarationBody);
-        } else {
-          await createShipmentDeclaration(item.id, declarationBody);
+        const diff = diffQuickEditDeclarations(draft, item);
+        // Deletes first: a tờ khai number moving between lots frees its claim
+        // before any reuse. A failure mid-walk leaves partial application —
+        // the existing 409 self-heal (drop draft + refetch) reconciles truth.
+        for (const id of diff.deletes) {
+          await deleteShipmentDeclaration(item.id, id);
+        }
+        for (const update of diff.updates) {
+          await updateShipmentDeclaration(item.id, update.id, update.body);
+        }
+        for (const body of diff.creates) {
+          await createShipmentDeclaration(item.id, body);
         }
       }
       if (restoreFocus) {

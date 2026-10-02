@@ -1,7 +1,7 @@
 /**
  * Ops field-operations portal (docs/prd/OpsVanHanh.md), mounted at /api/ops
  * behind authMiddleware. Role gates per PRD §2: portal routes are OPS-only,
- * expense/settlement approvals are ADMIN/MANAGER/ACCOUNTANT, truck ops
+ * financial reconciliation is ADMIN/MANAGER/ACCOUNTANT, truck ops
  * assignment is ADMIN-only.
  */
 import { Router } from 'express';
@@ -22,7 +22,7 @@ import { formatLocalDate, sniffImageType } from '../lib/format';
 import { storageService } from '../services/storage.service';
 import { createAdvanceRequest, listAdvanceRequestsPaginated } from '../services/advance-request.service';
 import { listOpsOrders, setShipmentPin } from '../services/ops-orders.service';
-import { getOpsWalletSummary } from '../services/ops-wallet.service';
+import { getOpsWalletSummary, getOpsFundBook } from '../services/ops-wallet.service';
 import {
   attachOpsExpensePhoto,
   createOpsExpense,
@@ -42,15 +42,21 @@ import {
 } from '../services/ops-settlements.service';
 import { exportOpsSettlementXlsx } from '../services/ops-settlement-export.service';
 import { getOpsFleet, listActiveTruckOpsAssignments, setTruckOpsAssignment } from '../services/ops-fleet.service';
+import { declareNonMaterialWrite } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 const OPS_ONLY = requireRoles(Role.OPS);
 const OPS_APPROVERS = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 const ADMIN_ONLY = requireRoles(Role.ADMIN);
 
-const router = Router();
+const router = Router()
 
 const dateQuerySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date phải có dạng YYYY-MM-DD');
 const statusFilterSchema = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional();
+// Card 20260928_168 — the sổ quỹ's period window. Reuses the same
+// YYYY-MM-DD rule as every other date param in this file, so a malformed
+// window is a 400 and never a silently empty book.
+const fundBookPeriodSchema = z.object({ from: dateQuerySchema.optional(), to: dateQuerySchema.optional() });
 
 function parseId(value: string | string[] | undefined, label = 'ID'): number {
   return sharedParseId(value, label);
@@ -75,7 +81,7 @@ router.get('/orders', OPS_ONLY, asyncHandler(async (req: Request, res: Response)
 
 // Pins use PUT set-semantics (not POST-toggle) so a replayed request converges
 // on the requested state instead of flipping it again.
-router.put('/orders/shipment-pins/:shipmentId', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.put('/orders/shipment-pins/:shipmentId', declareNonMaterialWrite('Per-user bookmark upsert keyed by (user_id, shipment_id) with PUT set-semantics; a replay converges on the requested pinned state. No business entity mutation.'), OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const shipmentId = parseId(req.params.shipmentId, 'Mã lô');
   const { pinned } = z.object({ pinned: z.boolean() }).parse(req.body);
@@ -86,6 +92,17 @@ router.put('/orders/shipment-pins/:shipmentId', OPS_ONLY, asyncHandler(async (re
 
 router.get('/wallet/summary', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   res.json(await getOpsWalletSummary(getUser(req).userId));
+}));
+
+// Card 20260923_13 — read-only Sổ quỹ scoped to the caller's own tạm ứng/
+// hoàn ứng cash events (ADR 2026-09-24-ops-fund-book-scoped-read). Identity
+// comes only from the session; full treasury stays ACCOUNTANT/ADMIN.
+router.get('/wallet/fund-book', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+  // Card 20260928_168, PM ruling câu 2: the SAME from/to the monthly report
+  // takes, so the sổ quỹ and "Còn phải hoàn ứng" can be read over ONE window
+  // instead of whole-history here against this-month there.
+  const { from, to } = fundBookPeriodSchema.parse(req.query);
+  res.json(await getOpsFundBook(getUser(req).userId, { from, to }));
 }));
 
 router.get('/wallet/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
@@ -106,7 +123,7 @@ router.get('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Reques
   res.json(await listAdvanceRequestsPaginated({ requesterId: user.userId, status, page, limit }));
 }));
 
-router.post('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/wallet/advance-requests', declareMaterialWrite('ops.advance-requests.create', { method: 'POST', path: '/api/ops/wallet/advance-requests' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = createAdvanceRequestSchema.parse(req.body);
   const outcome = await runIdempotent({
@@ -134,8 +151,13 @@ const expenseCreateSchema = z.object({
   costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
   feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
   invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
+  // Card 20260921_5 — the Thực-thu side of the no-invoice pair. Invoice
+  // rows keep the charge=amount invariant regardless of any override.
+  customerChargeAmount: z.union([z.number(), z.string()]).nullable().optional(),
   shipmentId: z.number().int().positive(),
-  shipmentContainerId: z.number().int().positive().nullable().optional(),
+  // Audit c12 A2: name the field — the generic "Giá trị phải lớn hơn 0"
+  // misled operators when the container selection dropped to 0.
+  shipmentContainerId: z.number().int().positive('Dòng cont không hợp lệ — chọn lại cont trước khi lưu.').nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50),
   amount: z.union([z.number(), z.string()]),
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -144,11 +166,13 @@ const expenseCreateSchema = z.object({
 });
 
 const expensePatchSchema = z.object({
+  reason: z.string().trim().min(1).max(1000),
   expectedVersion: z.number().int().positive().optional(),
   costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
   feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
   invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
-  shipmentContainerId: z.number().int().positive().nullable().optional(),
+  customerChargeAmount: z.union([z.number(), z.string()]).nullable().optional(),
+  shipmentContainerId: z.number().int().positive('Dòng cont không hợp lệ — chọn lại cont trước khi lưu.').nullable().optional(),
   expenseTypeCode: z.string().min(1).max(50).optional(),
   amount: z.union([z.number(), z.string()]).optional(),
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -156,7 +180,7 @@ const expensePatchSchema = z.object({
 });
 
 
-router.post('/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = expenseCreateSchema.parse(req.body);
   const outcome = await runIdempotent({
@@ -170,7 +194,7 @@ router.post('/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: Respon
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.patch('/expenses/:id', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.patch('/expenses/:id', declareMaterialWrite('ops.expenses.update', { method: 'PATCH', path: '/api/ops/expenses/:id' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const expenseId = parseId(req.params.id);
   const parsed = expensePatchSchema.parse(req.body);
@@ -184,16 +208,20 @@ router.patch('/expenses/:id', OPS_ONLY, asyncHandler(async (req: Request, res: R
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.delete('/expenses/:id', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.delete('/expenses/:id', declareMaterialWrite('ops.expenses.delete', { method: 'DELETE', path: '/api/ops/expenses/:id' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const expenseId = parseId(req.params.id);
+  // Q10 (card 20260922_78 batch 2): the soft void now captures a mandatory
+  // free-text reason with the actor.
+  const reason = z.object({ reason: z.string().trim().min(1, 'Lý do xóa là bắt buộc.').max(500) })
+    .parse((req.body ?? {})).reason;
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_DELETE,
     idempotencyKey: requireOpsIdempotencyKey(req),
-    payload: { expenseId, userId: user.userId },
+    payload: { expenseId, userId: user.userId, reason },
     createdBy: user.userId,
     create: async (tx) => {
-      await deleteOpsExpense(user.userId, expenseId, tx);
+      await deleteOpsExpense(user.userId, expenseId, reason, tx);
       return { success: true };
     },
   });
@@ -208,7 +236,7 @@ const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { f
  * "lưu trước, bổ sung ảnh sau"). Storage key = content hash, so a retried
  * upload of the same photo converges on one object without idempotency state.
  */
-router.post('/expense-photos/upload', OPS_ONLY, expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/expense-photos/upload', declareNonMaterialWrite('Content-hash storage-object upload; replaying the same photo converges on one object and creates no DB row until an explicit attach.'), OPS_ONLY, expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const file = req.file;
   if (!file) throw new ApiError(400, 'Không có file tải lên.');
@@ -238,25 +266,25 @@ router.post('/expense-photos/upload', OPS_ONLY, expensePhotoUpload.single('file'
   res.status(201).json({ storageKey, url: `/api/photos/${encodeURIComponent(storageKey)}` });
 }));
 
-router.post('/expenses/:id/photos', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/expenses/:id/photos', declareNonMaterialWrite('Attach keyed by the unique (ops_expense_id, storage_key) pair with onConflictDoNothing — a replay converges instead of duplicating evidence.'), OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const { storageKey } = z.object({ storageKey: z.string().min(1).max(500) }).parse(req.body);
   const photo = await attachOpsExpensePhoto(user.userId, parseId(req.params.id), storageKey);
   res.status(201).json(photo);
 }));
 
-router.delete('/expense-photos/:id', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.delete('/expense-photos/:id', declareNonMaterialWrite('Idempotent single-row photo deletion; the storage object is removed only when no other row references it.'), OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   await deleteOpsExpensePhoto(getUser(req).userId, parseId(req.params.id));
   res.json({ success: true });
 }));
 
-// Receipt review: the author or an approver (ADMIN/MANAGER/ACCOUNTANT) may
+// Receipt review: the author or financial staff (ADMIN/MANAGER/ACCOUNTANT) may
 // list an expense's photos — accounting must see the evidence before deciding.
 router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
-  const isApprover = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
-  if (!isApprover && user.role !== Role.OPS) throw new ApiError(403, 'Không có quyền truy cập.');
-  res.json({ items: await listOpsExpensePhotos(user.userId, isApprover, parseId(req.params.id)) });
+  const canReviewFinancialEvidence = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(user.role as Role);
+  if (!canReviewFinancialEvidence && user.role !== Role.OPS) throw new ApiError(403, 'Không có quyền truy cập.');
+  res.json({ items: await listOpsExpensePhotos(user.userId, canReviewFinancialEvidence, parseId(req.params.id)) });
 }));
 
 // ── Đề nghị thanh toán ──────────────────────────────────────────────────────
@@ -267,7 +295,7 @@ router.get('/settlements', OPS_ONLY, asyncHandler(async (req: Request, res: Resp
   res.json({ items: await listOpsSettlements({ opsUserId: user.userId, status }) });
 }));
 
-router.post('/settlements', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/settlements', declareMaterialWrite('ops.settlements.create', { method: 'POST', path: '/api/ops/settlements' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const { note } = z.object({ note: z.string().max(500).optional() }).parse(req.body ?? {});
   const outcome = await runIdempotent({
@@ -281,7 +309,7 @@ router.post('/settlements', OPS_ONLY, asyncHandler(async (req: Request, res: Res
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.post('/settlements/:id/finalize', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/settlements/:id/finalize', declareMaterialWrite('ops.settlements.finalize', { method: 'POST', path: '/api/ops/settlements/:id/finalize' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const id = parseId(req.params.id);
   const outcome = await runIdempotent({
@@ -293,7 +321,7 @@ router.post('/settlements/:id/finalize', OPS_ONLY, asyncHandler(async (req: Requ
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-router.post('/settlements/:id/reopen-draft', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/settlements/:id/reopen-draft', declareMaterialWrite('ops.settlements.reopen-draft', { method: 'POST', path: '/api/ops/settlements/:id/reopen-draft' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const id = parseId(req.params.id);
   const outcome = await runIdempotent({
@@ -314,6 +342,17 @@ router.get('/settlements/:id', OPS_ONLY, asyncHandler(async (req: Request, res: 
   res.json(detail);
 }));
 
+/**
+ * Export contract (OpsVanHanh §5.4 + PRD L129): Excel only — the A4 print
+ * path is the frontend's In view. An explicit unsupported format must 400
+ * instead of silently receiving the spreadsheet.
+ */
+function parseExportFormat(value: unknown): 'xlsx' | undefined {
+  if (value === undefined || value === '') return undefined;
+  if (typeof value === 'string' && (value === 'xlsx' || value === 'xls')) return 'xlsx';
+  throw new ApiError(400, `Định dạng xuất không hỗ trợ: ${typeof value === 'string' ? `"${value}"` : 'tham số lặp'}. Chỉ hỗ trợ Excel (xlsx).`);
+}
+
 async function sendOpsSettlementXlsx(
   res: Response,
   settlementId: number,
@@ -327,6 +366,7 @@ async function sendOpsSettlementXlsx(
 
 router.get('/settlements/:id/export', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
+  parseExportFormat(req.query.format);
   const detail = await getOpsSettlementDetail(parseId(req.params.id));
   if (detail.settlement.opsUserId !== user.userId) {
     throw new ApiError(404, 'Không tìm thấy đề nghị thanh toán.');
@@ -335,6 +375,7 @@ router.get('/settlements/:id/export', OPS_ONLY, asyncHandler(async (req: Request
 }));
 
 router.get('/admin/settlements/:id/export', OPS_APPROVERS, asyncHandler(async (req: Request, res: Response) => {
+  parseExportFormat(req.query.format);
   await sendOpsSettlementXlsx(res, parseId(req.params.id));
 }));
 
@@ -350,7 +391,7 @@ router.get('/trucks/ops-assignments', ADMIN_ONLY, asyncHandler(async (_req: Requ
   res.json({ items: await listActiveTruckOpsAssignments() });
 }));
 
-router.put('/trucks/:truckId/ops-assignment', ADMIN_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.put('/trucks/:truckId/ops-assignment', declareNonMaterialWrite('Replaceable ops-oversight config: deactivate-then-insert converges to one active row per truck; a replay lands the same end state.'), ADMIN_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const truckId = parseId(req.params.truckId, 'Mã xe');
   const { opsUserId } = z.object({ opsUserId: z.number().int().positive().nullable() })
     .parse(req.body);

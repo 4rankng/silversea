@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, debtOffsetSchema, governanceActionDecisionSchema } from '@tingting/shared';
+import { Role, debtOffsetSchema, directFinancialActionSchema } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { ApiError } from '../../errors';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -8,15 +8,16 @@ import { getUser } from '../../middleware/auth';
 import {
   getDualEntities,
   createDebtOffset,
-  approveDebtOffset,
   listDebtOffsets,
   requestDebtOffsetCancelGovernance,
 } from '../../services/debtOffset.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { autoApplyGovernanceAction } from '../../services/adjustment-governance.service';
+import { declareNonMaterialWrite } from '../../middleware/material-write';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
-const router = Router();
+const router = Router()
 
 // ─── Debt Offsets ─────────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ router.get('/finance/debt-offsets', asyncHandler(async (req: Request, res: Respo
   res.json(await listDebtOffsets({ customerId, supplierId, approvalStatus }));
 }));
 
-router.post('/finance/debt-offsets', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/debt-offsets', declareMaterialWrite('debt-offsets.create', { method: 'POST', path: '/api/finance/debt-offsets' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const data = debtOffsetSchema.parse(req.body);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -47,18 +48,12 @@ router.post('/finance/debt-offsets', requireRoles(Role.ADMIN, Role.MANAGER, Role
     payload: { actorId: user.userId, ...data },
     createdBy: user.userId,
     entityType: 'debt_offset',
-    create: async (tx) => {
-      // 2026-09-10 (phê duyệt removed): the creator applies the offset in the
-      // same transaction — paired ADJUSTMENT entries post immediately and the
-      // row lands APPROVED instead of PENDING. Audit: approvedBy/approvedAt +
-      // the ledger pair.
-      const created = await createDebtOffset({
-        ...data,
-        createdBy: user.userId,
-        transaction: tx,
-      });
-      return approveDebtOffset(created.id, user.userId, user.role, tx);
-    },
+    create: (tx) => createDebtOffset({
+      ...data,
+      createdBy: user.userId,
+      actorRole: user.role,
+      transaction: tx,
+    }),
   });
   res.locals.auditEntityId = result.id;
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
@@ -66,20 +61,19 @@ router.post('/finance/debt-offsets', requireRoles(Role.ADMIN, Role.MANAGER, Role
 
 // Retired public approval action. Authorized creation already records the
 // offset atomically; legacy clients must not trigger another financial effect.
-router.post('/finance/debt-offsets/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER),
+router.post('/finance/debt-offsets/:id/approve', declareNonMaterialWrite('Retired endpoint — mounted as a response-only 410 stub; kept from re-acquiring behaviour by the exhaustive test.'), requireRoles(Role.ADMIN, Role.MANAGER),
   (_req: Request, res: Response) => {
     res.status(410).json({ error: 'Luồng phê duyệt đã được loại bỏ. Đối trừ được ghi nhận trực tiếp khi tạo hợp lệ.' });
   },
 );
 
-// M6.4 — cancel an APPROVED debt offset via reversing entries. Mirrors
-// approveDebtOffset's authz (ADMIN/MANAGER). Invalidates the same caches.
-router.post('/finance/debt-offsets/:id/cancel',
+// Reverse a recorded debt offset; retain the existing ADMIN/MANAGER access.
+router.post('/finance/debt-offsets/:id/cancel', declareMaterialWrite('debt-offsets.cancel', { method: 'POST', path: '/api/finance/debt-offsets/:id/cancel' }), 
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string, 10);
     const user = getUser(req);
-    const data = governanceActionDecisionSchema.parse(req.body);
+    const data = directFinancialActionSchema.parse(req.body);
     const idempotencyKey = getRequestIdempotencyKey(req);
     const { result, replayed } = await runIdempotent({
       endpoint: IDEMPOTENCY_ENDPOINTS.DEBT_OFFSET_CANCEL,

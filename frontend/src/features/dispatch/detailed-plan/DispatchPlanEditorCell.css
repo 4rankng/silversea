@@ -1,71 +1,29 @@
 .detailed-plan-grid td.detailed-plan-grid__cell--editable {
-  position: relative;
   padding: 0;
 }
 
-.detailed-plan-grid td.detailed-plan-grid__cell--editable::after {
-  display: block;
-  min-height: 72px;
-  content: '';
-}
-
-.detailed-plan-grid td.detailed-plan-grid__cell--editable:has(.dispatch-assignment-cell__driver)::after {
-  min-height: 94px;
-}
-
+/* Facts determine row height; editing has its own ordinary house action. */
 .dispatch-assignment-cell {
-  position: absolute;
-  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 2px;
+  padding: 8px 12px;
 }
 
 .dispatch-assignment-cell__trigger {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: center;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  gap: 2px 8px;
-  padding: 8px 12px;
-  color: var(--text-primary, #101828);
-  font: inherit;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-}
-
-.dispatch-assignment-cell__trigger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
-}
-
-/* Stay absolute so keyboard focus never shrinks the cell's hit area;
-   z-index alone lifts the ring above the td's stacking context. */
-.dispatch-assignment-cell__trigger:focus-visible {
-  z-index: 1;
-  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  outline-offset: -2px;
-}
-
-.dispatch-assignment-cell__trigger:disabled {
-  cursor: default;
+  justify-self: start;
+  margin-top: 4px;
 }
 
 .dispatch-assignment-cell__carrier,
 .dispatch-assignment-cell__plate,
+.dispatch-assignment-cell__driver,
 .dispatch-assignment-cell__estimate {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dispatch-assignment-cell__carrier,
-.dispatch-assignment-cell__plate,
-.dispatch-assignment-cell__driver {
-  grid-column: 1 / -1;
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .dispatch-assignment-cell__carrier {
@@ -82,18 +40,14 @@
 }
 
 .dispatch-assignment-cell__driver {
-  min-width: 0;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   font-size: var(--ops-table-meta-size, 11px);
   font-weight: 400;
   line-height: var(--ops-table-meta-line-height, 1.4);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dispatch-assignment-cell__estimate {
-  color: var(--text-secondary, #64748b);
+  color: var(--fg-2);
   font-family: var(--font-data, inherit);
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
@@ -106,22 +60,10 @@
      guidance, not disabled UI — the fallback must meet text contrast
      (4.76:1 on white); italic + regular weight already mark the
      placeholder semantic. */
-  color: var(--text-tertiary, #64748b);
+  color: var(--fg-3);
   font-family: inherit;
   font-style: italic;
 }
-
-/* Row-level "phát lệnh" shortcut — layered above the full-cell trigger so a
-   dispatcher can issue an already-plated row without opening the editor. */
-
-/* Row action rendered as a labeled text button ("Phát lệnh" / "Hoàn thành")
-
-/* Row action rendered as a labeled text button ("Phát lệnh" / "Hoàn thành")
-   now lives inside the Ghi chú cell (`.detailed-plan-grid__note-action` in
-   DetailedPlanGrid.css) per the customer's placement ruling — nothing floats
-   over the assignment cell anymore. */
-
-
 
 .dispatch-assignment-dialog {
   display: grid;
@@ -131,19 +73,27 @@
 .dispatch-assignment-dialog__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-areas:
-    'carrier vehicle'
+  grid-template-areas: 'carrier vehicle'
     'classification combined'
-    'revenue cost';
+    'revenue cost'
+    'end end';
   gap: 14px 12px;
   align-items: end;
+}
+
+/* Giờ trả hàng gets its own full-width row: the 2-col cell shrinks the
+ * split-datetime tracks and stretches/overflows its segments (seen live
+ * 15:40); the wide row lets the control size naturally. */
+.dispatch-assignment-dialog__end-field {
+  grid-area: end;
+  min-width: 0;
 }
 
 .dispatch-assignment-dialog__fields > label {
   display: grid;
   min-width: 0;
   gap: 6px;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   font-size: var(--text-label-size);
   font-weight: 600;
 }
@@ -163,7 +113,7 @@
 
 .dispatch-assignment-dialog__classification > label,
 .dispatch-assignment-dialog__money .ds-field__label {
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   font-size: var(--text-label-size);
   font-weight: 600;
 }
@@ -173,19 +123,14 @@
   font-weight: 400;
 }
 
-.dispatch-assignment-dialog__money .ds-field__input,
-.dispatch-assignment-dialog__money .ds-field__affix {
-  min-height: var(--control-compact-h, 34px);
-}
-
 .dispatch-assignment-dialog__money .ds-field__input {
   font-family: var(--font-data, inherit);
 }
 
 .dispatch-assignment-dialog__money .ds-field__affix {
   padding-inline: 10px;
-  color: var(--text-secondary, #475467);
-  background: var(--surface-2, #f8fafc);
+  color: var(--fg-2);
+  background: var(--surface-2);
 }
 
 .dispatch-assignment-dialog__revenue {
@@ -204,9 +149,9 @@
 }
 
 .dispatch-assignment-dialog__issue-btn {
-  background: #4A9E7D;
+  background: var(--accent);
   border-color: transparent;
-  transition: background 120ms ease;
+  transition: background var(--t-fast);
 }
 
 .dispatch-assignment-dialog__issue-btn:hover:not(:disabled) {
@@ -214,7 +159,7 @@
 }
 
 .dispatch-assignment-dialog__issue-btn:active:not(:disabled) {
-  background: #2D6B54;
+  background: var(--accent-2);
 }
 
 .dispatch-assignment-dialog__issue-btn:focus-visible {
@@ -226,20 +171,20 @@
   display: grid;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--border-subtle, #eaecf0);
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
 .dispatch-assignment-dialog__issue legend {
   padding: 0 4px;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   font-size: var(--text-caption-size);
   font-weight: 600;
 }
 
 .dispatch-assignment-dialog__issue-hint {
   margin: 0;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   font-size: var(--text-caption-size);
 }
 
@@ -255,7 +200,7 @@
 .dispatch-assignment-dialog__issue > label {
   display: grid;
   gap: 6px;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   font-size: var(--text-label-size);
   font-weight: 600;
 }
@@ -264,7 +209,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  color: var(--ink-3, #667085);
+  color: var(--ink-3);
   font-size: var(--text-caption-size);
   font-weight: 600;
   text-transform: uppercase;
@@ -275,7 +220,7 @@
 
 .dispatch-assignment-dialog__schedule-section > svg {
   flex-shrink: 0;
-  color: var(--brand, #047857);
+  color: var(--brand);
 }
 
 .dispatch-assignment-dialog__schedule-pills,
@@ -288,34 +233,34 @@
 .dispatch-assignment-dialog__schedule-pill {
   flex: 1;
   padding: 6px 8px;
-  border: 1px solid var(--line, #e4e7ec);
+  border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--surface-2, #f8f9fa);
-  color: var(--ink-2, #344054);
+  background: var(--surface-2);
+  color: var(--ink-2);
   font-family: inherit;
   font-size: var(--text-caption-size);
   font-weight: 500;
   text-align: center;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: all var(--t-fast);
 }
 
 .dispatch-assignment-dialog__schedule-pill:hover {
-  background: var(--surface, #ffffff);
-  border-color: var(--brand, #047857);
-  color: var(--brand, #047857);
+  background: var(--surface);
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
 .dispatch-assignment-dialog__schedule-pill.is-active {
-  background: var(--brand, #047857);
-  border-color: var(--brand, #047857);
-  color: #fff;
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--fg-inverse);
   font-weight: 600;
 }
 
 .dispatch-assignment-dialog__schedule-pill:focus-visible,
 .dispatch-assignment-dialog__schedule-time-pill:focus-visible {
-  outline: 2px solid var(--accent, #0284c7);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -339,7 +284,7 @@
   font-size: var(--text-label-size);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: var(--ink-3, #667085);
+  color: var(--ink-3);
   font-weight: var(--fw-bold, 700);
   line-height: 1.3;
 }
@@ -348,36 +293,36 @@
   display: inline-block;
   font-size: var(--text-caption-size);
   font-weight: 600;
-  color: var(--brand, #047857);
+  color: var(--brand);
   background: rgba(4, 120, 87, 0.1);
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: 4px;
   text-transform: none;
 }
 
 .dispatch-assignment-dialog__schedule-time-pill {
   flex: 1;
   padding: 5px 4px;
-  border: 1px solid var(--line, #e4e7ec);
-  border-radius: 5px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   background: transparent;
-  color: var(--ink-2, #344054);
+  color: var(--ink-2);
   font-family: inherit;
   font-size: var(--text-caption-size);
   text-align: center;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: all var(--t-fast);
 }
 
 .dispatch-assignment-dialog__schedule-time-pill:hover {
-  background: var(--surface-2, #f8f9fa);
-  color: var(--brand, #047857);
+  background: var(--surface-2);
+  color: var(--brand);
 }
 
 .dispatch-assignment-dialog__schedule-time-pill.is-active {
-  background: var(--surface-2, #f8f9fa);
-  border-color: var(--brand, #047857);
-  color: var(--brand, #047857);
+  background: var(--surface-2);
+  border-color: var(--brand);
+  color: var(--brand);
   font-weight: 600;
 }
 
@@ -395,7 +340,7 @@
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: 6px;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   font-size: var(--text-label-size);
   font-weight: 600;
 }
@@ -430,59 +375,62 @@
 }
 
 @container (max-width: 900px) {
-  .detailed-plan-grid td.detailed-plan-grid__cell--editable {
-    position: static;
-  }
-
-  .detailed-plan-grid td.detailed-plan-grid__cell--editable::after {
-    display: none;
-  }
-
+  /* Related facts share responsive tracks; full driver text stays natural. */
   .dispatch-assignment-cell {
-    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 8px;
+    align-items: center;
+  }
+
+  .dispatch-assignment-cell::before,
+  .dispatch-assignment-cell__driver {
+    grid-column: 1 / -1;
+  }
+
+  .dispatch-assignment-cell__carrier,
+  .dispatch-assignment-cell__issue,
+  .dispatch-assignment-cell > .detailed-plan-grid__lot-flag {
+    grid-column: 1;
+  }
+
+  .dispatch-assignment-cell__plate,
+  .dispatch-assignment-cell__trigger {
+    grid-column: 2;
   }
 
   .dispatch-assignment-cell__trigger {
-    position: relative;
-    inset: auto;
-    height: auto;
-    min-height: 0;
+    justify-self: end;
+    margin-top: 0;
   }
 
-  /* `td` keeps this above the grid's `.detailed-plan-grid__cell::before`
-     label rule (equal class specificity would lose on bundle order). */
+  /* Preserve the existing short record label outside the edit action. */
   td.detailed-plan-grid__cell--editable::before {
     display: none;
   }
 
-  .dispatch-assignment-cell__trigger::before {
+  .dispatch-assignment-cell::before {
     display: block;
-    grid-column: 1 / -1;
-    margin-bottom: 3px;
-    color: var(--text-secondary, #64748b);
+    margin-bottom: 2px;
+    color: var(--fg-2);
     content: attr(data-cell-label);
     font-size: var(--text-label-size);
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-weight: 600;
+    letter-spacing: 0;
     line-height: 1.3;
-    text-transform: uppercase;
+    text-transform: none;
   }
 }
 
 @media (max-width: 640px) {
   .dispatch-assignment-dialog__fields {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      'carrier'
-      'vehicle'
-      'classification'
-      'combined'
-      'revenue'
-      'cost';
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: 'carrier carrier'
+      'vehicle vehicle'
+      'classification combined'
+      'revenue cost'
+      'end end';
   }
 
-  .dispatch-assignment-dialog__money .ds-field__input,
-  .dispatch-assignment-dialog__money .ds-field__affix,
   .dispatch-assignment-dialog .searchable-select__trigger {
     min-height: var(--control-mobile-h);
   }
@@ -501,7 +449,7 @@
   min-height: var(--control-compact-h, 34px);
   gap: 8px;
   padding-bottom: 1px;
-  color: var(--text-primary, #101828);
+  color: var(--fg-1);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -511,7 +459,7 @@
   height: 16px;
   flex: 0 0 auto;
   margin: 0;
-  accent-color: var(--accent, #005a2d);
+  accent-color: var(--accent);
 }
 
 .dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check--disabled {
@@ -542,7 +490,7 @@
 .dispatch-assignment-dialog__notes-label {
   font-size: var(--ops-table-supporting-size, 12px);
   font-weight: 500;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
 }
 
 .dispatch-assignment-dialog__notes-tags {
@@ -554,10 +502,10 @@
 
 .dispatch-assignment-dialog__notes-tag {
   appearance: none;
-  border: 1px solid var(--border, #d0d5dd);
-  background: var(--surface, #fff);
-  color: var(--text-primary, #101828);
-  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--fg-1);
+  border-radius: 6px;
   padding: 4px 12px;
   font-size: var(--ops-table-supporting-size, 12px);
   line-height: 1.4;
@@ -568,8 +516,8 @@
 }
 
 .dispatch-assignment-dialog__notes-tag:not(.is-selected):hover:not(:disabled) {
-  border-color: var(--accent, #005a2d);
-  color: var(--accent, #005a2d);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .dispatch-assignment-dialog__notes-tag.is-selected {
@@ -581,7 +529,7 @@
 
 .dispatch-assignment-dialog__notes-tag--add {
   border-style: dashed;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
 }
 
 .dispatch-assignment-dialog__notes-add-row {
@@ -593,7 +541,7 @@
 }
 
 .dispatch-assignment-dialog__notes-add-row input {
-  border: 1px solid var(--border, #d0d5dd);
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   padding: 4px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
@@ -603,9 +551,9 @@
 
 .dispatch-assignment-dialog__notes-add-row button {
   appearance: none;
-  border: 1px solid var(--accent, #005a2d);
-  background: var(--accent, #005a2d);
-  color: #fff;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--fg-inverse);
   border-radius: 8px;
   padding: 4px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
@@ -621,9 +569,7 @@
   margin-top: 4px;
 }
 
-.dispatch-assignment-dialog__notes-text {
-  border: 1px solid var(--border, #d0d5dd);
-  border-radius: 8px;
+textarea.dispatch-assignment-dialog__notes-text {
   padding: 8px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
   min-height: 56px;
@@ -633,16 +579,15 @@
   min-width: 0;
 }
 
-.dispatch-assignment-dialog__notes-text:focus,
 .dispatch-assignment-dialog__notes-add-row input:focus {
-  outline: 2px solid var(--accent, #005a2d);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
 .dispatch-assignment-dialog__notes-preview {
   margin: 0;
   font-size: var(--ops-table-meta-size, 11px);
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   word-break: break-word;
 }
 
@@ -668,21 +613,14 @@
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   cursor: pointer;
 }
 
 .dispatch-assignment-dialog__notes-manage-btn:hover:not(:disabled) {
-  border-color: var(--border, #d0d5dd);
-  color: var(--accent, #005a2d);
-  background: var(--surface-hover, #f8fafc);
-}
-
-.dispatch-tag-manager__backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1040;
-  background: transparent;
+  border-color: var(--line-2);
+  color: var(--accent);
+  background: var(--surface-hover);
 }
 
 .dispatch-tag-manager {
@@ -691,9 +629,9 @@
   width: 280px;
   max-width: calc(100vw - 24px);
   padding: 12px;
-  border: 1px solid var(--line-strong, #cbd5e1);
+  border: 1px solid var(--line-strong);
   border-radius: var(--app-radius-sm, 8px);
-  background: var(--surface, #ffffff);
+  background: var(--surface);
   box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
   animation: dispatchTagManagerPopIn 130ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -718,15 +656,15 @@
 
 .dispatch-tag-manager__header strong {
   font-size: var(--text-caption-size);
-  color: var(--text-primary, #101828);
+  color: var(--fg-1);
 }
 
 .dispatch-tag-manager__count {
   min-width: 20px;
   padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--surface-muted, #f2f4f7);
-  color: var(--text-secondary, #475467);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--fg-2);
   font-size: var(--text-caption-size);
   text-align: center;
 }
@@ -743,13 +681,13 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   cursor: pointer;
 }
 
 .dispatch-tag-manager__close:hover {
-  background: var(--surface-muted, #f2f4f7);
-  color: var(--text-primary, #101828);
+  background: var(--surface-2);
+  color: var(--fg-1);
 }
 
 .dispatch-tag-manager__list {
@@ -757,7 +695,7 @@
   flex-direction: column;
   max-height: 264px;
   overflow-y: auto;
-  border: 1px solid var(--border, #d0d5dd);
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
@@ -770,7 +708,7 @@
 }
 
 .dispatch-tag-manager__row + .dispatch-tag-manager__row {
-  border-top: 1px solid var(--border-light, #eaecf0);
+  border-top: 1px solid var(--line);
 }
 
 .dispatch-tag-manager__label {
@@ -779,7 +717,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--ops-table-supporting-size, 12px);
-  color: var(--text-primary, #101828);
+  color: var(--fg-1);
 }
 
 .dispatch-tag-manager__row-actions {
@@ -799,18 +737,18 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
   cursor: pointer;
 }
 
 .dispatch-tag-manager__icon-btn:hover {
-  background: var(--surface-muted, #f2f4f7);
-  color: var(--accent, #005a2d);
+  background: var(--surface-2);
+  color: var(--accent);
 }
 
 .dispatch-tag-manager__icon-btn--danger:hover {
-  background: var(--danger-soft, #fdf0f1);
-  color: var(--danger, #A0444E);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .dispatch-tag-manager__edit-row,
@@ -825,14 +763,14 @@
 .dispatch-tag-manager__edit-row input {
   flex: 1;
   min-width: 0;
-  border: 1px solid var(--border, #d0d5dd);
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   padding: 4px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
 }
 
 .dispatch-tag-manager__edit-row input:focus {
-  outline: 2px solid var(--accent, #005a2d);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -840,26 +778,26 @@
 .dispatch-tag-manager__confirm button {
   appearance: none;
   flex-shrink: 0;
-  border: 1px solid var(--border, #d0d5dd);
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   padding: 4px 10px;
-  background: var(--surface, #fff);
-  color: var(--text-primary, #101828);
+  background: var(--surface);
+  color: var(--fg-1);
   font-size: var(--ops-table-supporting-size, 12px);
   cursor: pointer;
 }
 
 .dispatch-tag-manager__edit-row button:first-of-type,
 .dispatch-tag-manager__confirm .dispatch-tag-manager__confirm-yes {
-  border-color: var(--accent, #005a2d);
-  background: var(--accent, #005a2d);
-  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--fg-inverse);
 }
 
 .dispatch-tag-manager__confirm span {
   flex: 1;
   font-size: var(--ops-table-supporting-size, 12px);
-  color: var(--danger, #A0444E);
+  color: var(--danger);
   font-weight: 500;
   min-width: 0;
 }
@@ -867,13 +805,13 @@
 .dispatch-tag-manager__notice {
   margin: 8px 0 0;
   font-size: var(--ops-table-meta-size, 11px);
-  color: var(--danger, #A0444E);
+  color: var(--danger);
 }
 
 .dispatch-tag-manager__empty {
   margin: 0;
   font-size: var(--ops-table-supporting-size, 12px);
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
 }
 
 .dispatch-tag-manager__footer {
@@ -882,7 +820,7 @@
   gap: 2px;
   margin-top: 8px;
   font-size: var(--ops-table-meta-size, 11px);
-  color: var(--text-secondary, #475467);
+  color: var(--fg-2);
 }
 
 @media (max-width: 480px) {
@@ -895,4 +833,22 @@
 .dispatch-tag-manager__list { border-inline: 0; border-radius: 0; }
 @media (prefers-reduced-motion: reduce) {
   .dispatch-tag-manager { animation: none; }
+}
+
+/* Keep mouse-driven planning compact; touch users need reliable tag targets. */
+@media (pointer: coarse) {
+  .dispatch-assignment-dialog__notes-tag,
+  .dispatch-assignment-dialog__notes-manage-btn,
+  .dispatch-assignment-dialog__notes-add-row input,
+  .dispatch-assignment-dialog__notes-add-row button,
+  .dispatch-tag-manager button,
+  .dispatch-tag-manager input {
+    min-height: var(--control-touch-h);
+  }
+
+  .dispatch-assignment-dialog__notes-manage-btn,
+  .dispatch-assignment-dialog__notes-add-row button,
+  .dispatch-tag-manager button {
+    min-width: var(--control-touch-h);
+  }
 }

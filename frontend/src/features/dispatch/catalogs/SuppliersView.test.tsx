@@ -119,6 +119,19 @@ describe('SuppliersView (dispatcher read-only)', () => {
     expect(screen.getByRole('button', { name: /thêm nhà thầu phụ/i })).toBeTruthy();
   });
 
+  it('renders its toolbar as the shared filter plane', () => {
+    suppliersState.data = { items: [supplier()], total: 1 };
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
+
+    expect(container.querySelector('.filter-bar.filter-bar--card.list-filter-bar')).toBeTruthy();
+    expect(container.querySelector('.dispatch-catalogs__toolbar')).toBeNull();
+    expect(screen.getByText('1 nhà thầu phụ')).toBeTruthy();
+  });
+
   it('creates a subcontractor through the form modal and refreshes catalogs', async () => {
     apiPost.mockReset();
     apiPost.mockResolvedValueOnce({});
@@ -137,5 +150,19 @@ describe('SuppliersView (dispatcher read-only)', () => {
       name: 'Nhà xe Mới',
     })));
     await waitFor(() => expect(invalidateAllCatalogs).toHaveBeenCalled());
+  });
+
+  it('labels each KPI with the basis of its number', () => {
+    suppliersState.data = { items: [supplier(), supplier({ id: 2, status: 'INACTIVE' })], total: 37 };
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
+
+    // `total` is the whole dataset carried by the paginated response; the active
+    // count is only the rows on this page. The two labels must say so.
+    expect(screen.getByText('Tổng (tất cả)')).toBeTruthy();
+    expect(screen.getByText('Đang hoạt động (trang này)')).toBeTruthy();
   });
 });

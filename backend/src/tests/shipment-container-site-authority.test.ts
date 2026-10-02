@@ -321,6 +321,29 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
   });
 });
 
+  test('an ad-hoc row keeps typed factory/route as raw columns with null ids', async () => {
+    const customer = await makeCustomer('Adhoc raw row');
+    const containerType = await makeContainerType('AD');
+    const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
+    shipmentIds.push(shipment.id);
+    await batchUpsertShipmentContainers(shipment.id, null, [{
+      containerTypeId: containerType.id,
+      containerNumber: 'AAAU1000001',
+      rawFactoryName: 'Xưởng dòng 1',
+      rawRouteName: 'Tuyến dòng 1',
+    }]);
+    const [row] = await db.select({
+      operationalSiteId: s.shipmentContainers.operationalSiteId,
+      rawFactoryName: s.shipmentContainers.rawFactoryName,
+      routeId: s.shipmentContainers.routeId,
+      rawRouteName: s.shipmentContainers.rawRouteName,
+    }).from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipment.id));
+    assert.equal(row?.operationalSiteId, null);
+    assert.equal(row?.rawFactoryName, 'Xưởng dòng 1');
+    assert.equal(row?.routeId, null);
+    assert.equal(row?.rawRouteName, 'Tuyến dòng 1');
+  });
+
 after(async () => {
   if (fulfillmentIds.length > 0) {
     await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));

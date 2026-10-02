@@ -33,19 +33,6 @@
      surfaces keep their own min-widths and are unaffected. */
   .record-table,
   .record-table-wrap > table { min-width: 0; }
-  /* The Untitled-UI select trigger value is single-line by design (its own
-     `truncate` utility ellipsizes). An earlier block here forced it to wrap
-     so a width audit would never see scrollWidth > clientWidth; that audit
-     no longer exists, and since controlClassName lands on the trigger
-     button (2026-08-23) the wrap pushed narrow filter-bar selects to a
-     46px row against the 34px control scale. Let the value ellipsize like
-     every other select; the full text stays available in the open menu. */
-  .expense-filter-bar .truncate.font-medium,
-  .expense-filters .truncate.font-medium {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 }
 
 
@@ -54,7 +41,7 @@
  * ========================================================================== */
 @media (max-width: 1023px) {
   /* ── App shell ── */
-  .app { grid-template-columns: 1fr; }
+  .app { --app-sidebar-offset: 0px; grid-template-columns: 1fr; }
 
   /* Scrollport top padding narrows with the shell; keep the sticky
      thead offset token in sync so headers still pin flush. */
@@ -181,27 +168,30 @@
     color: rgba(255, 255, 255, 0.85);
   }
 
-  /* Search input inside green topbar on tablet */
+  /* The header is branded; its navigation search remains the same opaque
+     house field as desktop. White glyphs became invisible when the shared
+     control surface correctly replaced the old translucent paint. */
   .topbar__search > input {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
+    background: var(--surface);
+    border-color: var(--control-border);
+    color: var(--ink-2);
   }
   .topbar__search > input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--ink-3);
   }
   .topbar__search > input:focus {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+    background: var(--surface);
+    border-color: var(--brand);
+    color: var(--ink);
+    box-shadow: none;
   }
   .topbar__search > svg {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--ink-3);
   }
   .topbar__search > kbd {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.8);
+    background: var(--surface-2);
+    border-color: var(--line);
+    color: var(--ink-3);
   }
 
   /* ── Layouts ── */
@@ -247,6 +237,14 @@
   #root select {
     min-height: 30px;
   }
+  /* Contract guard (design-system.md control-density contract: height is
+     owned by the shared primitive, never page CSS). The zero-specificity
+     :where() floor above loses to any page rule, and Button.css's `.btn`
+     floor (0-1-0) loses to two-class page selectors — e.g.
+     `.workflow-profitability__controls .btn` rendered primary actions at
+     30px on /profit at every width. This ID-scoped floor outranks all
+     page/feature stylesheets; page rules that fight it are dead code. */
+  #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
 
   /* ── App shell ── */
   :root { --app-body-pad-t: 10px; --app-body-pad-x: 8px; }
@@ -284,8 +282,10 @@
     line-height: 1.2;
   }
   .topbar .icon-btn { display: none; }
-  /* Hamburger stays a comfortable tap target at the compact scale */
-  .topbar__toggle { width: 32px; height: 32px; }
+  /* Hamburger is the primary nav control on phones: full 44×44 touch floor
+     (design-guidelines §5) — width was 32px, the most-tapped element under
+     the floor on 52 routes (2026-09-26 mobile sweep). */
+  .topbar__toggle { width: var(--control-touch-h); height: var(--control-touch-h); }
   .topbar__toggle svg { width: 20px; height: 20px; }
   /* Driver identity (greeting + name + plate chip) replaces the old page-title
      topbar on phones — drivers no longer render the "Đang xem <page>" block. */
@@ -303,7 +303,7 @@
     margin-left: auto;
   }
   .topbar-date { padding: 5px 8px; font-size: var(--fs-xs); gap: 5px; }
-  .topbar-date__sep { display: none; }
+
   .topbar-date__trigger {
     min-height: 32px;
     height: 32px;
@@ -314,7 +314,6 @@
   }
   .topbar-date__body { gap: 0; }
   .topbar-date__label { line-height: 1.35; }
-  .topbar-date__period { font-size: var(--fs-xs); line-height: 1.35; }
   .topbar-date__icon { width: 13px; height: 13px; }
   .topbar-date__caret { display: none; }
   /* Month-nav chevrons were 18×18 — borderline untappable. Bump to 28×28. */
@@ -332,10 +331,14 @@
   .page-actions,
   .page-header .header-actions,
   .header-actions { flex-wrap: wrap; width: 100%; gap: 8px; }
+  /* Header/page action buttons follow the shared phone floor. The 30px value
+     here predated the 2026-09-22 law book (design-guidelines §5: 44px touch
+     targets on mobile) and lost to it; without this rule these selectors
+     out-specify Button.css's phone `.btn { min-height: var(--control-touch-h) }`
+     and silently shrink primary actions to the 30px bare-button floor. */
   .page-actions .btn,
   .header-actions .btn,
-  .page-header .btn:not(.btn--icon),
-  .page-header .btn-primary { min-height: 30px; }
+  .page-header .btn:not(.btn--icon) { min-height: var(--control-touch-h); }
   .trip-detail-title { font-size: var(--text-title-size); gap: 8px; line-height: 1.2; }
   .trip-detail-title > span { flex: 1 1 auto; min-width: 0; }
   .trip-detail-subtitle { margin-left: 0; font-size: var(--fs-xs); }
@@ -356,7 +359,8 @@
   .kpi__icon { width: 20px; height: 20px; border-radius: 6px; }
   .kpi__icon svg { width: 11px; height: 11px; }
   .kpi__value { font-size: var(--text-metric-size); line-height: 1.35; margin: 2px 0; }
-  .kpi__value-unit { font-size: var(--fs-xs); line-height: 1.35; margin-left: 2px; }
+  /* Value/unit gap is owned by .kpi__value's flex gap (KpiCard.css). */
+  .kpi__value-unit { font-size: var(--fs-xs); line-height: 1.35; }
   .kpi__meta {
     font-size: var(--fs-xs); line-height: 1.35;
     gap: 3px; flex-wrap: wrap; margin-top: 2px;
@@ -366,12 +370,11 @@
   .kpi__meta > strong { font-weight: 600; }
 
   /* ── Dashboard widget touch targets ── */
-  .wf-link { min-height: 44px; padding: 6px 0; }
-  .wf-minibtn { min-height: 44px; padding: 4px 10px; }
-  .wf-btn { min-height: 44px; }
+  .wf-link { min-height: var(--control-touch-h); padding: 6px 0; }
+  .wf-minibtn { min-height: var(--control-touch-h); padding: 4px 10px; }
+  .wf-btn { min-height: var(--control-touch-h); }
 
   /* ── Status pills & pagination ── */
-  .stab-pill { min-height: 30px; padding: 4px 10px; font-size: var(--text-caption-size); }
   .page-btn { min-width: 36px; min-height: 36px; }
 
   /* ── Panels ── */
@@ -411,14 +414,18 @@
 
   /* ── Toolbar + filter pills ── */
   .toolbar__search { min-width: 0; width: 100%; }
-  .toolbar > .filter-pill { flex: 0 0 auto; }
+  .toolbar > .filter-chip { flex: 0 0 auto; }
   .toolbar > div[style*="flex: 1"],
   .toolbar > .toolbar__spacer,
   .toolbar > .toolbar-spacer { display: none; }
   /* Search follows DOM order; inputs inside other field groups must not
      reorder the whole group behind unrelated actions. */
   .toolbar > .toolbar__search { flex-basis: 100%; }
-  .filter-tabs, .dispatch-page .filter-tabs, .pill-row, .toolbar {
+  /* `.filter-tabs` / `.dispatch-page .filter-tabs` / `.pill-row` were dropped from
+     this band (card 20260927_152): the last element carrying them was
+     `DispatchFilters`, now the shared `Tabs variant="boxed"`, and `.pill-row` had
+     no consumer left. `.toolbar` stays — `components/UI.tsx` still exports it. */
+  .toolbar {
     display: flex;
     flex-wrap: wrap;
     overflow-x: visible;
@@ -427,48 +434,13 @@
     padding-bottom: 2px;
     gap: 6px;
   }
-  .filter-tabs::-webkit-scrollbar,
-  .dispatch-page .filter-tabs::-webkit-scrollbar,
-  .pill-row::-webkit-scrollbar,
   .toolbar::-webkit-scrollbar { display: none; }
-  .filter-tabs > *, .pill-row > * { flex-shrink: 0; }
-  .filter-pill {
+  .filter-chip {
     min-height: var(--control-mobile-h);
     padding: 4px 8px;
     font-size: var(--text-caption-size);
     white-space: nowrap;
   }
-
-  /* Expense filter toolbar wraps into a single column on phone so each
-     filter gets the full operational canvas. The Untitled-UI select
-     component truncates the selected label to a narrow internal column,
-     which the audit rejects as clipped text. Stacking prevents the
-     truncation without changing the component itself. */
-  .expense-filters,
-  .expense-filter-bar {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
-    overflow: visible;
-  }
-  .expense-filters__select,
-  .expense-filters__date,
-  .expense-filter-bar__select,
-  .expense-filter-bar__date {
-    min-width: 0;
-    width: 100%;
-    font-size: var(--fs-sm);
-  }
-  .expense-filters__reset,
-  .expense-filter-bar__reset {
-    grid-column: 1 / -1;
-    justify-self: stretch;
-  }
-  .expense-filters > :nth-child(5):last-child,
-  .expense-filter-bar > :nth-child(5):last-child {
-    grid-column: 1 / -1;
-  }
-
 
   /* ── ConfirmDialog: bottom-sheet on phones (Vantai) ── */
   .confirm-overlay {
@@ -495,21 +467,16 @@
   }
   .confirm-actions .btn {
     flex: 1 1 auto;
-    min-height: 32px;
+    min-height: var(--control-touch-h);
     justify-content: center;
   }
 
   /* ── Compact controls: geometry does not shrink text ── */
-  .btn--sm,
-  .btn-sm { min-height: 32px; padding: 4px 8px; font-size: var(--text-control-size); }
-  .btn--icon,
-  .btn-icon { min-width: 32px; min-height: 32px; padding: 6px; }
-  .btn--icon.btn--sm,
-  .btn-icon.btn-sm { min-width: 30px; min-height: 30px; padding: 5px; }
+  .btn--sm { min-height: var(--control-touch-h); padding: 4px 8px; font-size: var(--text-control-size); }
+  .btn--icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 6px; }
+  .btn--icon.btn--sm { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 5px; }
   .row-actions .btn--icon,
-  .row-actions .btn-icon,
-  td .btn--icon,
-  td .btn-icon { min-width: 30px; min-height: 30px; padding: 5px; }
+  td .btn--icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 5px; }
   .input,
   select.input,
   input.input,
@@ -605,7 +572,7 @@
   .trip-hero__chip { font-size: var(--fs-xs); padding: 4px 9px; }
   .trip-hero__chip svg { width: 13px; height: 13px; }
   .trip-hero__actions { padding-top: 10px; gap: 6px; }
-  .trip-hero__actions .btn { flex: 1 1 auto; min-width: 0; justify-content: center; min-height: 44px; }
+  .trip-hero__actions .btn { flex: 1 1 auto; min-width: 0; justify-content: center; min-height: var(--control-touch-h); }
   .trip-hero__actions-divider { display: none; }
   .trip-hero__actions-spacer { display: none; }
   .trip-hero__warn { font-size: var(--fs-2xs); padding: 3px 7px; }
@@ -668,10 +635,8 @@
     min-height: var(--control-mobile-h);
   }
   #root .btn { padding: 4px 8px; }
-  #root .btn--sm,
-  #root .btn-sm { min-height: var(--control-mobile-h); padding: 4px 8px; }
-  #root .btn--icon,
-  #root .btn-icon {
+  #root .btn--sm { min-height: var(--control-mobile-h); padding: 4px 8px; }
+  #root .btn--icon {
     width: var(--control-mobile-h);
     min-width: var(--control-mobile-h);
     height: var(--control-mobile-h);
@@ -679,8 +644,7 @@
     padding: 6px;
   }
   #root .row-actions .btn--icon,
-  #root td .btn--icon,
-  #root td .btn-icon { min-width: 30px; min-height: 30px; }
+  #root td .btn--icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select,
   #root textarea,
@@ -692,7 +656,7 @@
   }
   #root .sidebar-item,
   #root .nav-item {
-    min-height: 32px;
+    min-height: var(--control-touch-h);
     padding: 4px 8px 4px 10px;
     font-size: var(--text-body-size);
   }
@@ -703,48 +667,85 @@
   #root table tbody td { padding-block: 4px; }
   #root .csc-container-cell__value,
   #root .csc-container-cell__editor { min-height: var(--control-mobile-h); }
-  #root .filter-pill,
-  #root .stab-pill,
+  #root .filter-chip,
   #root .wf-link,
   #root .wf-minibtn,
   #root .wf-btn,
-  #root .topbar-date__trigger { min-height: 30px; }
+  #root .topbar-date__trigger { min-height: var(--control-touch-h); }
   /* Keep compact padding around the readable field value. */
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select { padding-top: 4px; padding-bottom: 4px; }
 
 } /* end PHONE ≤ 640px */
 
-/* Tablet-band touch sizing: phones (≤640px) now run the compact scale, so the
-   old blanket ≤900px 44px block is ranged to 641-900px only — otherwise its
-   later cascade position would override every phone compaction above. */
+/* Touch devices at ANY width — the width-based blocks above stop at 900px,
+   but a coarse pointer at 1024+ (iPad landscape, collapsed icon rail) still
+   needs the floor, and two-class page selectors out-specify Button.css's
+   own coarse rule. Same contract guard, pointer-gated.
+
+   The blanket floors below mirror the phone block's ID-scoped rules for
+   EVERY bare button/input/trigger — measured offenders at 768-1024 were
+   `#config-search` 34px, `.row-action` 30px, CUS note/
+   detail triggers 32-36px, `.detailed-plan-grid__note` 17px. Links
+   (`a[href]`) stay OUT: inline table links vs row density is an open
+   operator ruling (case QA-2026-09-26-03 residuals). */
+@media (pointer: coarse) {
+  #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
+  #root button,
+  #root [role='button'],
+  #root input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']),
+  #root select,
+  #root textarea { min-height: var(--control-touch-h); }
+  #root button,
+  #root [role='button'] { min-width: var(--control-touch-h); }
+  /* Table-cell links: `a` defaults to display:inline where min-height is
+     IGNORED — the 68 inline table links measured 15px tall (2026-09-26
+     sweep). inline-flex makes the floor real; rows grow on touch, which is
+     the point of §5. record-table card mode keeps its <td> elements (restyled
+     by container queries), so td/th covers them; the two custom-card links
+     (fleet tire count, settlement code) are named explicitly. Nav/
+     breadcrumb anchors keep their layout. max-width + wrap keep the
+     no-truncation law for long values. */
+  #root td a[href],
+  #root th a[href],
+  #root .fleet-tire-link,
+  #root .as-mcard__code {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-height: var(--control-touch-h);
+  }
+}
+
+/* Tablet controls retain the same touch target as phones. */
 @media (min-width: 641px) and (max-width: 900px) {
   .btn,
-  .btn--sm,
-  .btn-sm {
-    min-height: 44px;
+  .btn--sm {
+    min-height: var(--control-touch-h);
   }
+  /* Same contract guard as the phone block: two-class page selectors
+     out-specify `.btn` and were shrinking actions below the floor. */
+  #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
 
   .btn--icon,
-  .btn-icon,
   .btn--icon.btn--sm,
-  .btn-icon.btn-sm,
   .row-action {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
+    width: var(--control-touch-h);
+    min-width: var(--control-touch-h);
+    height: var(--control-touch-h);
+    min-height: var(--control-touch-h);
   }
 
-  .filter-pill {
-    min-height: 44px;
+  .filter-chip {
+    min-height: var(--control-touch-h);
   }
 
   input:not([type='checkbox']):not([type='radio']),
   select,
   textarea,
   .input {
-    min-height: 44px;
+    min-height: var(--control-touch-h);
   }
 }
 

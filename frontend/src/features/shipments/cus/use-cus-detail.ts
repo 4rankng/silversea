@@ -9,14 +9,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
+  ShipmentCusContainerAddInput,
   ShipmentCusContainerFlatResponse,
   ShipmentCusContainerFlatRow,
   ShipmentCusContainerSortKey,
   ShipmentCusWorkspaceContainerLine,
 } from '@tingting/shared';
 import {
+  addCusShipmentContainerRow,
   getCusShipmentWorkspaceDetail,
   listCusShipmentContainers,
+  removeCusShipmentContainerRow,
   updateCusShipmentContainerLine,
   updateShipment,
 } from '../../../api/shipmentClient';
@@ -35,23 +38,27 @@ import {
   type ShipmentVehicleDraft,
   type ShipmentDetailEditMode,
 } from '../detail/ShipmentContainerLedger';
-import { canEditMode, isOptimisticShipmentConflict, CUS_DETAIL_PAGE_SIZE, type DispatchStatusFilter } from './cusDetailModel';
+import { canEditMode, isOptimisticShipmentConflict, type DispatchStatusFilter } from './cusDetailModel';
 import { safeError } from './cusUtils';
 
 export interface CusDetailListParams {
   page: number;
+  /** Rows per page — one of SHIPMENT_CUS_PAGE_SIZES (20 by default). */
+  pageSize: number;
   searchSuffix: string;
   transportDateFrom: string;
   transportDateTo: string;
   customerId: number;
   direction: '' | 'IMPORT' | 'EXPORT';
   dispatchStatus: '' | DispatchStatusFilter;
+  /** 'MISSING' = chỉ các dòng thiếu trường bắt buộc (Trạng thái dữ liệu). */
+  informationStatus: '' | 'MISSING';
   sortKey: ShipmentCusContainerSortKey | null;
   sortDir: 'asc' | 'desc' | undefined;
 }
 
 export function useCusDetail(params: CusDetailListParams) {
-  const { page, searchSuffix, transportDateFrom, transportDateTo, customerId, direction, dispatchStatus, sortKey, sortDir } = params;
+  const { page, pageSize, searchSuffix, transportDateFrom, transportDateTo, customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir } = params;
   const [data, setData] = useState<ShipmentCusContainerFlatResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +79,7 @@ export function useCusDetail(params: CusDetailListParams) {
     setEditLoadingRowId(null);
     setEditError(null);
     setEditNotice(null);
-  }, [customerId, direction, dispatchStatus, page, sortDir, sortKey, searchSuffix, transportDateFrom, transportDateTo]);
+  }, [customerId, direction, dispatchStatus, informationStatus, page, sortDir, sortKey, searchSuffix, transportDateFrom, transportDateTo]);
 
   const loadRows = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -82,13 +89,14 @@ export function useCusDetail(params: CusDetailListParams) {
     try {
       const response = await listCusShipmentContainers({
         page,
-        limit: CUS_DETAIL_PAGE_SIZE,
+        limit: pageSize,
         searchSuffix: searchSuffix || undefined,
         transportDateFrom: transportDateFrom || undefined,
         transportDateTo: transportDateTo || undefined,
         customerId: customerId || undefined,
         direction: direction || undefined,
         dispatchStatus: dispatchStatus || undefined,
+        informationStatus: informationStatus || undefined,
         sortBy: sortKey ?? undefined,
         sortDir,
       });
@@ -98,7 +106,7 @@ export function useCusDetail(params: CusDetailListParams) {
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [customerId, direction, dispatchStatus, page, searchSuffix, sortDir, sortKey, transportDateFrom, transportDateTo]);
+  }, [customerId, direction, dispatchStatus, informationStatus, page, pageSize, searchSuffix, sortDir, sortKey, transportDateFrom, transportDateTo]);
 
   useEffect(() => { void loadRows(); }, [loadRows]);
 
@@ -211,18 +219,35 @@ export function useCusDetail(params: CusDetailListParams) {
 
   const saveIdentity = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
+    const isFcl = activeEdit.detail.summary.cargoMode === 'FCL';
+    const line = activeEdit.line;
+    if (isFcl && line.fieldAccess.operationalSiteId?.mode !== 'DIRECT') {
+      throw new Error(line.fieldAccess.operationalSiteId?.reason || 'Không thể chỉnh nhà máy của container này.');
+    }
+    const signature = JSON.stringify(['identity', row.shipmentId, line.id, line.shipmentVersion, draft.operationalSiteId]);
+    const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+    if (isFcl) editIdempotencyKeys.current[signature] = key;
     try {
-      await updateShipment(row.shipmentId, {
-        expectedVersion: activeEdit.detail.summary.version,
-        factoryName: draft.factoryName,
-        ...(activeEdit.detail.summary.cargoMode !== 'FCL' ? { routeId: draft.routeId } : {}),
-        deliveryLocation: draft.deliveryLocation,
-      });
+      if (isFcl) {
+        await updateCusShipmentContainerLine(row.shipmentId, line.id, {
+          expectedShipmentVersion: line.shipmentVersion,
+          operationalSiteId: draft.operationalSiteId ?? null,
+        }, key);
+      } else {
+        await updateShipment(row.shipmentId, {
+          expectedVersion: activeEdit.detail.summary.version,
+          factoryName: draft.factoryName,
+          routeId: draft.routeId,
+          deliveryLocation: draft.deliveryLocation,
+        });
+      }
     } catch (error) {
       if (!isOptimisticShipmentConflict(error)) throw error;
+      delete editIdempotencyKeys.current[signature];
       await recoverConflict(row, 'identity');
       return;
     }
+    delete editIdempotencyKeys.current[signature];
     await finishSave();
   }, [activeEdit, finishSave, recoverConflict]);
 
@@ -267,6 +292,32 @@ export function useCusDetail(params: CusDetailListParams) {
     await finishSave();
   }, [activeEdit, finishSave, recoverConflict]);
 
+  // Card 20260921_2 — add/remove a container row. The per-row trip guard and
+  // the optimistic-version contract live server-side; a rejection surfaces
+  // its Vietnamese message through the hook's edit error channel.
+  const addContainer = useCallback(async (shipmentId: number, payload: ShipmentCusContainerAddInput, rowId?: number) => {
+    try {
+      await addCusShipmentContainerRow(shipmentId, payload);
+    } catch (error) {
+      if (rowId != null) setEditError({ rowId, message: safeError(error, 'Không thể thêm container. Vui lòng thử lại.') });
+      throw error;
+    }
+    await finishSave();
+  }, [finishSave]);
+
+  const removeContainer = useCallback(async (row: ShipmentCusContainerFlatRow) => {
+    setEditError(null);
+    try {
+      await removeCusShipmentContainerRow(row.shipmentId, row.id, {
+        expectedShipmentVersion: row.shipmentVersion,
+      });
+    } catch (error) {
+      setEditError({ rowId: row.id, message: safeError(error, 'Không thể xóa container. Vui lòng thử lại.') });
+      throw error;
+    }
+    await finishSave();
+  }, [finishSave]);
+
   const saveVehicle = useCallback(async (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
     const signature = JSON.stringify(['vehicle', activeEdit.detail.summary.id, line.id, line.shipmentVersion, draft]);
@@ -304,16 +355,15 @@ export function useCusDetail(params: CusDetailListParams) {
     const transportChanged = activeEdit.detail.summary.cargoMode !== 'FCL'
       && draft.transportDate !== row.transportDate;
     // Normalize empty-vs-null: an appointment-less row drafts null while the
-    // formatter reads '' — without this, the both-changed guard below fires
-    // on every transport-only save for appointment-less rows.
+    // formatter reads '' — without this, a transport-only save would look
+    // like a two-group change and rewrite the appointment with its own value.
     const appointmentChanged = (draft.customerAppointmentAt || null) !== (currentAppointmentInput || null);
-    if (transportChanged && appointmentChanged) {
-      throw new Error('Ngày vận chuyển và lịch hẹn được lưu độc lập. Hãy lưu từng nhóm một.');
-    }
     const signature = JSON.stringify(['schedule', activeEdit.detail.summary.id, line.id, line.shipmentVersion, draft.transportDate, appointmentAt]);
     const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
     editIdempotencyKeys.current[signature] = key;
     try {
+      // Two version authorities, one Save: commit the lot date first, then the
+      // container appointment on the version the shipment write returned.
       let expectedShipmentVersion = line.shipmentVersion;
       if (transportChanged) {
         const updated = await updateShipment(row.shipmentId, {
@@ -358,5 +408,6 @@ export function useCusDetail(params: CusDetailListParams) {
     activeEdit, editLoadingRowId, editError, editNotice,
     startEdit, cancelEdit, saveIdentity, saveDocuments, saveContainer,
     saveRoute, saveVehicle, saveSchedule, saveNotes,
+    addContainer, removeContainer,
   };
 }

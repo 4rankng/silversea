@@ -148,7 +148,7 @@
   background-position: center;
   background-repeat: no-repeat;
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition: background-color var(--t-fast), border-color var(--t-fast);
 }
 
 .supplier-form__service-option:hover input {
@@ -174,7 +174,7 @@
   min-width: 0;
   overflow: visible;
   border: 0;
-  border-top: 1px solid var(--border-color-secondary, var(--line, #e2e8f0));
+  border-top: 1px solid var(--border-color-secondary, var(--line));
   border-radius: 0;
   background: transparent;
 }
@@ -216,14 +216,15 @@
   text-align: right;
 }
 
+/* The pager stays IN FLOW after the table (card 20260921_22 surface sweep):
+   a sticky bottom pin on this unbounded workspace floats the bar mid-list at
+   rest, covering rows the operator thinks are the last. List-end flow leaves
+   every row visible. */
 .suppliers-page__workspace > .ds-pagination {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
+  position: static;
   margin: 0;
-  padding: 12px;
-  border-top: 1px solid var(--border-color-secondary, var(--line, #e2e8f0));
-  background: var(--surface, #fff);
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border-color-secondary, var(--line));
 }
 
 @media (max-width: 767px) {

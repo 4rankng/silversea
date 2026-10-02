@@ -19,7 +19,10 @@ import {
 } from '@tingting/shared';
 import { api, ApiError } from '../../lib/api';
 import { buildIdempotencyKey } from '../../lib/idempotency';
+import { formatNumber, formatDateTimeShort } from '../../lib/format';
 import { forwarderClient } from '../../api/forwarderClient';
+import { Tabs } from '../../design-system';
+import { PageHeader } from '../UI';
 
 import { withCustomerScope } from '../../pages/portal/CustomerPortalScope';
 import { RoleWorkInboxGateCell } from './RoleWorkInboxGateCell';
@@ -36,6 +39,9 @@ const labels: Record<Role, readonly [string, string, string]> = {
 };
 const states = ['ACTION', 'WAITING', 'DONE'] as const;
 const countKeys = ['action', 'waiting', 'done'] as const;
+// Tone rides each queue's meaning (operator reference 2026-09-27): amber for
+// work waiting on us, teal for a neutral wait on others, green for done.
+const countTones = ['warning', 'info', 'accent'] as const;
 const STALE_AFTER_MS = 5 * 60 * 1000;
 
 type Props = {
@@ -51,15 +57,6 @@ function endpointFor(role: Role, customerId: number | null | undefined, state: t
   if (role === 'operations') return `/forwarder/me/work-inbox?${query}`;
   if (role === 'driver') return `/driver/me/work-inbox?${query}`;
   return withCustomerScope(`/portal/work-inbox?${query}`, customerId ?? null);
-}
-
-function formatTime(value: string) {
-  return new Date(value).toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function statusLabel(item: WorkInboxItemBase) {
@@ -99,7 +96,7 @@ function factsFor(item: RoleItem, role: Role): Array<{ label: string; value: str
   if (role === 'driver') {
     const value = item as DriverWorkInboxItem;
     return [
-      { label: 'Lô hàng', value: value.shipmentCode || 'Chưa có mã' },
+      { label: 'Lô hàng', value: value.title },
       { label: 'Container', value: value.containerSummary || 'Không áp dụng' },
       { label: 'Điểm đi', value: value.origin || 'Chưa cập nhật' },
       { label: 'Điểm đến', value: value.destination || 'Chưa cập nhật' },
@@ -133,7 +130,6 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const [disputeReason, setDisputeReason] = useState('');
   const [responseMessage, setResponseMessage] = useState<{ kind: 'success' | 'error' | 'conflict'; text: string } | null>(null);
   const responseKeys = useRef(new Map<string, string>());
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const latestLoadRequest = useRef(0);
   const endpoint = endpointFor(role, customerId, states[active], page);
 
@@ -163,16 +159,21 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     void load('initial');
   }, [load]);
 
-  // Reset queue/page only when the scope actually changes — not on mount,
-  // where it would wipe the URL-restored state (QA-043 round trip).
+  // The first ready scope hydrates the URL-restored queue. Only a later
+  // resolved identity change resets it; a scope retry retains the last identity.
   const scopeKey = `${customerId ?? ''}:${role}`;
-  const prevScopeRef = useRef(scopeKey);
+  const prevScopeRef = useRef<string | null>(scopeReady ? scopeKey : null);
   useEffect(() => {
+    if (!scopeReady) return;
+    if (prevScopeRef.current === null) {
+      prevScopeRef.current = scopeKey;
+      return;
+    }
     if (prevScopeRef.current === scopeKey) return;
     prevScopeRef.current = scopeKey;
     setActive(0);
     setPage(1);
-  }, [scopeKey]);
+  }, [scopeKey, scopeReady]);
 
   // Mirror queue/page into the URL (replace — no history spam) so the detail
   // page's return link can rebuild the exact list context. The one-shot `row`
@@ -209,17 +210,15 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     setPage(1);
   };
 
-  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    let next = index;
-    if (event.key === 'ArrowRight') next = (index + 1) % labels[role].length;
-    else if (event.key === 'ArrowLeft') next = (index - 1 + labels[role].length) % labels[role].length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = labels[role].length - 1;
-    else return;
-    event.preventDefault();
-    selectTab(next);
-    window.requestAnimationFrame(() => tabRefs.current[next]?.focus());
-  };
+  // Queue group — the shared boxed Tabs primitive (operator ruling
+  // 2026-09-27). Ids are the queue index so the URL/state contract is intact;
+  // the primitive owns roving focus and arrow-key navigation.
+  const queueTabs = labels[role].map((label, index) => ({
+    id: String(index),
+    label,
+    count: data?.counts?.[countKeys[index]] ?? 0,
+    countTone: countTones[index],
+  }));
 
   const sendOrderExchange = async (item: OperationsWorkInboxItem) => {
     if (item.orderExchangeState === 'COMPLETED') return;
@@ -292,14 +291,10 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   return (
     <main className={`role-work-inbox role-work-inbox--${role}`}>
       <header className="role-work-inbox__header">
-        <div>
-          <span className="role-work-inbox__eyebrow">Không gian công việc</span>
-          <h1>{title}</h1>
-          <p>{description}</p>
-        </div>
-        <button className="role-work-inbox__refresh" type="button" onClick={() => void load()} disabled={loading}>
+        <PageHeader title={title} action={<button className="role-work-inbox__refresh" type="button" onClick={() => void load()} disabled={loading}>
           <RefreshCw size={15} aria-hidden="true" /> Làm mới
-        </button>
+        </button>} />
+        <p>{description}</p>
       </header>
 
 
@@ -320,27 +315,17 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
         </div>
       )}
 
-      <div className="role-work-inbox__tabs" role="tablist" aria-label="Trạng thái công việc">
-        {labels[role].map((label, index) => (
-          <button
-            key={label}
-            id={`role-inbox-tab-${role}-${index}`}
-            type="button"
-            role="tab"
-            aria-selected={active === index}
-            aria-controls={panelId}
-            tabIndex={active === index ? 0 : -1}
-            className={active === index ? 'is-active' : ''}
-            ref={(element) => { tabRefs.current[index] = element; }}
-            onClick={() => selectTab(index)}
-            onKeyDown={(event) => handleTabKeyDown(event, index)}
-          >
-            {label}<span>{data?.counts?.[countKeys[index]] ?? 0}</span>
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="role-work-inbox__tabs"
+        variant="boxed"
+        tabs={queueTabs}
+        value={String(active)}
+        onChange={(id) => selectTab(Number(id))}
+        ariaLabel="Trạng thái công việc"
+        panelId={panelId}
+      />
 
-      <section id={panelId} role="tabpanel" aria-labelledby={`role-inbox-tab-${role}-${active}`}>
+      <section id={panelId} role="tabpanel" aria-label={labels[role][active]}>
         {loading && !data ? (
           <div className="role-work-inbox__state" role="status"><Loader2 className="spin" /> Đang tải công việc…</div>
         ) : refreshError && !data ? (
@@ -414,7 +399,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                           : item.advisories.length > 0 ? <span className="role-work-inbox__advisory">{item.advisories[0].label}</span>
                             : <span className="role-work-inbox__muted">Không có</span>}
                       </td>
-                      <td data-label="Cập nhật"><time dateTime={item.freshnessAt}>{formatTime(item.freshnessAt)}</time></td>
+                      <td data-label="Cập nhật"><time dateTime={item.freshnessAt}>{formatDateTimeShort(item.freshnessAt)}</time></td>
                       <td data-label="Hành động" className="role-work-inbox__action">
                         {orderExchangeAction && operationsItem ? (
                           <button type="button" className="role-work-inbox__button is-primary" disabled={respondingItemId === item.id} onClick={() => void sendOrderExchange(operationsItem)}>{operationsItem.orderExchangeState === 'PENDING' ? 'Bắt đầu đổi lệnh' : 'Xác nhận đã đổi lệnh'}</button>
@@ -450,7 +435,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
         {data && data.totalPages > 1 && (
           <nav className="role-work-inbox__pagination" aria-label="Phân trang công việc">
             <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => Math.max(1, value - 1))}>Trang trước</button>
-            <span>Trang {data.page.toLocaleString('vi-VN')} / {data.totalPages.toLocaleString('vi-VN')} · {data.total.toLocaleString('vi-VN')} việc</span>
+            <span>Trang {formatNumber(data.page)} / {formatNumber(data.totalPages)} · {formatNumber(data.total)} việc</span>
             <button type="button" disabled={page >= data.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Trang sau</button>
           </nav>
         )}

@@ -63,6 +63,7 @@ export interface TripUIState {
   reassignExternalPlateNumber: string;
   reassignExternalDriverName: string;
   reassignExternalDriverPhone: string;
+  reassignReason: string;
   reassignLoading: boolean;
   reassignError: string;
   showAdjust: boolean;
@@ -104,6 +105,7 @@ export interface TripDetailPageData {
   setReassignExternalPlateNumber: (v: string) => void;
   setReassignExternalDriverName: (v: string) => void;
   setReassignExternalDriverPhone: (v: string) => void;
+  setReassignReason: (v: string) => void;
   setShowReassign: (v: boolean) => void;
   setShowAdjust: (v: boolean) => void;
   setAdjustAmount: (v: string) => void;

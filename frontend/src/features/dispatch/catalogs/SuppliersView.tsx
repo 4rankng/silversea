@@ -30,6 +30,7 @@ export function SuppliersView() {
   const { rootRef } = usePageAnimations({ ready: true });
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const searchQuery = search.trim().replace(/\s+/g, ' ');
   const [sort, setSort] = useState<TableSortState | null>(null);
   const crud = useCatalogCreate('/suppliers');
   const { confirm, dialog } = useConfirm();
@@ -37,15 +38,15 @@ export function SuppliersView() {
   // Server-side pagination + search + sort (same contract as the admin page);
   // typing resets to page 1 after a short debounce, sorting resets immediately.
   useEffect(() => {
-    if (search === '') {
+    if (searchQuery === '') {
       setPage(1);
       return;
     }
     const t = setTimeout(() => setPage(1), 300);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [searchQuery]);
 
-  const { data: suppliersData, isLoading: loading, error } = useSuppliers(page, search, sort);
+  const { data: suppliersData, isLoading: loading, error } = useSuppliers(page, searchQuery, sort);
   const applySort = (key: string) => {
     setPage(1);
     setSort((current) => nextTableSort(current, key));
@@ -71,7 +72,7 @@ export function SuppliersView() {
       </div>
       {crud.error && <div className="dispatch-catalogs__error">{crud.error}</div>}
       <div className="kpi-grid dispatch-catalogs__summary" style={{ marginBottom: 16 }}>
-        <KPI label="Tổng (toàn bộ trang)" value={total} unit="NCC" icon={Store} />
+        <KPI label="Tổng (tất cả)" value={total} unit="NCC" icon={Store} />
         <KPI label="Đang hoạt động (trang này)" value={activeCount} unit="NCC" icon={Store} variant="success" />
       </div>
       {error && <div className="dispatch-catalogs__error">Không thể tải dữ liệu</div>}
@@ -114,7 +115,7 @@ export function SuppliersView() {
                       <button type="button" className="dispatch-catalogs__edit" aria-label={`Chỉnh sửa nhà thầu ${s.shortName || s.name}`} onClick={(event) => { event.stopPropagation(); crud.showEdit(s.id); }}>{s.shortName || s.name}</button>
                     </td>
                     <td data-label="Liên hệ" data-empty={!s.contactPerson?.trim() || undefined}>{s.contactPerson || '—'}</td>
-                    <td data-label="SĐT" data-empty={!s.phone?.trim() || undefined}>{s.phone || '—'}</td>
+                    <td data-label="SĐT" data-empty={!s.phone?.trim() || undefined}><span className="data-token">{s.phone || '—'}</span></td>
                     <td data-label="Loại" data-empty={!s.types?.length || undefined}>
                       {(s.types ?? [])
                         .map((t) => SUPPLIER_TYPE_LABELS[t] || t)

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { and, eq } from 'drizzle-orm';
 import { Role, TxnType } from '@tingting/shared';
+import { recordFundedOpsAdvance } from '../services/expense-accounting-reconciliation.service';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
@@ -29,7 +30,8 @@ async function fixture(tx: Tx) {
 async function settlementFixture(tx: Tx) {
   const f = await fixture(tx);
   const [expense] = await tx.insert(s.tripExpenses).values({ tripId: f.trip.id, forwarderId: f.owner.id, createdBy: f.owner.id, expenseType: 'OTHER', buyAmount: '1000', sellAmount: '0', invoiceNumber: 'QA-EVIDENCE', approvalStatus: 'RECORDED', settlementMethod: 'OPS_ADVANCE' }).returning();
-  const [advance] = await tx.insert(s.advanceRequests).values({ requesterId: f.owner.id, amount: '1500', reason: 'QA direct funds', status: 'RECORDED' }).returning();
+  const [account] = await tx.insert(s.treasuryAccounts).values({ code: `DIRECT-${f.owner.id}`, name: 'Direct lifecycle cash', type: 'CASH', fundCode: 'COMPANY', status: 'ACTIVE', createdBy: f.actor.id, updatedBy: f.actor.id }).returning();
+  const advance = await recordFundedOpsAdvance(tx, { userId: f.actor.id, role: Role.ACCOUNTANT }, { opsUserId: f.owner.id, amount: 1500, reason: 'QA direct funds', treasuryAccountId: account.id, valueDate: '2026-09-10', physicalReference: `DIRECT-${f.owner.id}` });
   await tx.insert(s.tripExpenseCompletionScopes).values({ tripId: f.trip.id, tripContainerId: null, status: 'COMPLETED', completedBy: f.actor.id, completedAt: new Date() });
   return { ...f, expense, advance };
 }
@@ -54,7 +56,9 @@ test('transport expense direct edits retain ownership and stale-version guards',
   await assert.rejects(updateForwarderTripExpenseInTx(tx, expense.id, f.owner.id, { note: 'stale' }, new Date(0)), /thay đổi/);
   await tx.update(s.tripExpenses).set({ approvalStatus: 'VOIDED' }).where(eq(s.tripExpenses.id, expense.id));
   await assert.rejects(updateTripExpense(tx, expense.id, { note: 'mutate voided' }), /đã hủy/);
-  await assert.rejects(deleteTripExpenseInTx(tx, expense.id, f.owner.id, expense.updatedAt), /đã hủy/);
+  // Q10 (card 20260922_78): delete is a soft void; the guard order and the
+  // 409 wording are unchanged, args now carry reason + actor.
+  await assert.rejects(deleteTripExpenseInTx(tx, expense.id, f.owner.id, expense.updatedAt, 'QA lý do', f.actor.id), /đã hủy/);
   const deleted = await deleteTripExpenseGuarded(f.trip.id, expense.id, tx);
   assert.ok('error' in deleted);
   const [retained] = await tx.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, expense.id));
@@ -78,7 +82,7 @@ test('recorded settlement posts its ledger atomically and rejects direct replace
   assert.equal(entries.length, 1);
   assert.equal(Number(entries[0].debit), 1500);
   await assert.rejects(updateTripExpense(tx, f.expense.id, { buyAmount: '999' }), /phiếu hoàn ứng/);
-  await assert.rejects(deleteTripExpenseInTx(tx, f.expense.id, f.owner.id, f.expense.updatedAt), /không thể xóa/);
+  await assert.rejects(deleteTripExpenseInTx(tx, f.expense.id, f.owner.id, f.expense.updatedAt, 'QA lý do', f.actor.id), /không thể xóa/);
   const deleted = await deleteTripExpenseGuarded(f.trip.id, f.expense.id, tx);
   assert.ok('error' in deleted);
   await assert.rejects(updateAdvanceSettlement(settlement.id, { expectedVersion: settlement.version, advanceRequestIds: [f.advance.id], tripExpenseIds: [], refundAmount: 1500 }, { transaction: tx, emitNotification: false }), /không thể sửa danh sách/);

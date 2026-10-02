@@ -16,9 +16,9 @@ import { TRIP_STATUS_LABELS, TRIP_STATUS_COLORS, type TripStatus } from '@tingti
 import { PageHeader } from '../../components/UI';
 import { useDriverTwoOrders } from '../../hooks/useDriverQueries';
 import { usePageAnimations } from '../../hooks/animations';
-import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 import { formatDate } from '../../lib/format';
 import './DriverSecondaryPages.css';
+import { EmptyState } from '../../design-system';
 
 interface TripSummary {
   id: number;
@@ -56,9 +56,13 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
       </div>
       <h3 className="dt-card__route">{trip.routeName || 'Tuyến không xác định'}</h3>
       <div className="dt-card__meta">
+        {/* QA-2026-09-27-01 (#5) / internal-ids law: the Truck icon belongs to
+            the PLATE (the driver-facing vehicle identity), never to the
+            internal TRP/SHP trip code. The code no longer titles this line;
+            a missing plate reads as '—' like every other empty fact. */}
         <span className="dt-card__meta-item">
           <Truck size={14} />
-          <span className="dt-card__meta-text">{trip.tripCode ?? 'Chuyến chưa có mã'}</span>
+          <span className="dt-card__meta-text">{trip.truckPlate || '—'}</span>
         </span>
         <span className="dt-card__meta-item">
           <Building2 size={14} />
@@ -69,8 +73,7 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
           <span className="dt-card__meta-text">{formatContainerList(trip.containerNumbers)}</span>
         </span>
       </div>
-      <div className="dt-card__footer">
-        <span className="dt-card__truck">{trip.truckPlate || '—'}</span>
+      <div className="dt-card__footer" style={{ justifyContent: 'flex-end' }}>
         <ArrowRight size={16} />
       </div>
     </Link>
@@ -95,14 +98,16 @@ export default function DriverTwoOrdersPage() {
   if (error) return (
     <div className="driver-secondary-page">
       <PageHeader title="Hai lệnh hôm nay" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
-      <div className="empty-state" role="alert">
-        <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
-        <h3 className="empty-state-title">{error}</h3>
-        <p className="empty-state-desc">Hệ thống tạm thời không phản hồi.</p>
-        <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
+      <EmptyState
+        role="alert"
+        variant="compact"
+        context="driver-tasks"
+        title={error}
+        description="Hệ thống tạm thời không phản hồi."
+        action={<button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => void refetch()}>
           {isFetching ? 'Đang tải…' : 'Thử lại'}
-        </button>
-      </div>
+        </button>}
+      />
     </div>
   );
 
@@ -118,11 +123,12 @@ export default function DriverTwoOrdersPage() {
   if (!view || (!hasPersistedPair && allToday.length === 0)) return (
     <div className="driver-secondary-page">
       <PageHeader title={pageTitle} description={pageDescription} />
-      <div className="empty-state">
-        <img src={resolveEmptyIllustration('empty-trips')} alt="" aria-hidden="true" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        <h3 className="empty-state-title">Hôm nay không có lệnh</h3>
-        <p className="empty-state-desc">Bạn chưa được phân công lệnh nào cho hôm nay.</p>
-      </div>
+      <EmptyState
+        variant="compact"
+        context="driver-tasks"
+        title="Hôm nay không có lệnh"
+        description="Bạn chưa được phân công lệnh nào cho hôm nay."
+      />
     </div>
   );
 
@@ -197,16 +203,16 @@ export default function DriverTwoOrdersPage() {
             {view.active ? (
               <TripCard trip={view.active} label="Lệnh đang chạy" accent="var(--ok, #16a34a)" />
             ) : (
-              <div className="dt-card__empty-slot" data-testid="active-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
-                Chưa có lệnh nào đang chạy.
+              <div className="dt-card__empty-slot" data-testid="active-empty" style={{ padding: 16, border: '1px dashed var(--line)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
+                <EmptyState variant="compact" context="driver-tasks" title="Chưa có lệnh nào đang chạy." />
               </div>
             )}
 
             {view.next ? (
               <TripCard trip={view.next} label="Lệnh tiếp theo" accent="var(--accent, #2563eb)" />
             ) : (
-              <div className="dt-card__empty-slot" data-testid="next-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
-                Không có lệnh tiếp theo.
+              <div className="dt-card__empty-slot" data-testid="next-empty" style={{ padding: 16, border: '1px dashed var(--line)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
+                <EmptyState variant="compact" context="driver-tasks" title="Không có lệnh tiếp theo." />
               </div>
             )}
           </>

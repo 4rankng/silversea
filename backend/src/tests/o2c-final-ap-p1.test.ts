@@ -8,7 +8,7 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { disconnectRedis } from '../lib/redis';
-import { requestTripExpenseDecision } from '../services/approval.service';
+import { updateTripExpense } from '../services/forwarder.service';
 import {
   autoApplyGovernanceAction,
   requestTripFinancialClose,
@@ -240,31 +240,12 @@ async function completeTripGoverned(tripId: number, expectedVersion: number) {
   return completed;
 }
 
-async function governTripExpenseApproval(tripId: number, expenseId: number, expectedVersion: number) {
-  const actors = await createActors('expense-approve');
-  const approved = await autoApplyGovernanceAction({
-    make: () => requestTripExpenseDecision({
-      tripId,
-      expenseId,
-      decision: 'APPROVED',
-      reason: 'Duyệt chi phí NCC cho chuyến đã hoàn thành',
-      evidence: {
-        reviewNote: 'Đã đối chiếu chứng từ và số tiền chi hộ',
-        attachmentRefs: ['O2C-AP-P1'],
-      },
-      expectedExpenseVersion: expectedVersion,
-      makerId: actors.makerId,
-      makerRole: Role.MANAGER,
-    }),
-    actorId: actors.approverAId,
-    actorRole: Role.ADMIN,
-  });
-  assert.equal(approved.status, 'APPROVED');
+async function recordTripExpense(tripId: number, expenseId: number) {
+  const recorded = await db.transaction((tx) => updateTripExpense(tx, expenseId, {
+    note: 'Đã đối chiếu chứng từ và số tiền chi hộ',
+  }, tripId));
+  assert.equal(recorded?.approvalStatus, 'RECORDED');
   return [{ ok: true as const }];
-}
-
-function prepareTripExpenseApproval(tripId: number, expenseId: number, expectedVersion: number) {
-  return createActors('expense-race').then((actors) => ({ actors, expenseId, expectedVersion }));
 }
 
 function prepareTripFinancialChange(tripId: number, expectedVersion: number) {
@@ -304,7 +285,7 @@ async function assertRemainsPending<T>(
 }
 
 describe('O2C final AP P1 fixes', () => {
-  test('external-trip AP hash includes fuel and approved supplier payables', async () => {
+  test('external-trip AP hash includes fuel and recorded and legacy supplier payables', async () => {
     const { trip, expense } = await createTripFixture({
       carrierType: 'EXTERNAL',
       expenseApprovalStatus: 'APPROVED',
@@ -335,13 +316,13 @@ describe('O2C final AP P1 fixes', () => {
     assert.equal(fuelUpdated?.apSnapshotDirty, true);
   });
 
-  test('late approval on a completed trip posts one vendor payable and dirties both snapshots', async () => {
+  test('direct expense recording on a completed trip posts one vendor payable and dirties both snapshots', async () => {
     const { trip, expense, expenseSupplier } = await createTripFixture({
       expenseApprovalStatus: 'PENDING',
     });
     await completeTripGoverned(trip.id, trip.version);
 
-    const results = await governTripExpenseApproval(trip.id, expense.id, expense.version);
+    const results = await recordTripExpense(trip.id, expense.id);
     assert.deepEqual(results.map((result) => result.ok), [true]);
 
     const vendorRows = await db.select().from(s.ledger).where(eq(s.ledger.txnId, expense.id));
@@ -360,7 +341,7 @@ describe('O2C final AP P1 fixes', () => {
     const [updatedExpense] = await db.select({
       approvalStatus: s.tripExpenses.approvalStatus,
     }).from(s.tripExpenses).where(eq(s.tripExpenses.id, expense.id)).limit(1);
-    assert.equal(updatedExpense?.approvalStatus, 'APPROVED');
+    assert.equal(updatedExpense?.approvalStatus, 'RECORDED');
 
     const [updatedTrip] = await db.select({
       arSnapshotDirty: s.tripsComposite.arSnapshotDirty,
@@ -370,12 +351,11 @@ describe('O2C final AP P1 fixes', () => {
     assert.equal(updatedTrip?.apSnapshotDirty, true);
   });
 
-  test('late approval serializes with completed-trip financial correction and posts against the active authority', async () => {
+  test('direct expense recording serializes with completed-trip financial correction and posts against the active authority', async () => {
     const { trip, expense, expenseSupplier } = await createTripFixture({
       expenseApprovalStatus: 'PENDING',
     });
     const completed = await completeTripGoverned(trip.id, trip.version);
-    const expenseApproval = await prepareTripExpenseApproval(trip.id, expense.id, expense.version);
     const financialChange = await prepareTripFinancialChange(trip.id, completed.version);
 
     let releaseLock!: () => void;
@@ -393,29 +373,19 @@ describe('O2C final AP P1 fixes', () => {
     });
     await holderReadyPromise;
 
-    const approvalAttempt = trackSettlement(autoApplyGovernanceAction({
-      make: () => requestTripExpenseDecision({
-        tripId: trip.id,
-        expenseId: expense.id,
-        decision: 'APPROVED',
-        reason: 'Duyệt chi phí NCC cho chuyến đã hoàn thành',
-        evidence: {
-          reviewNote: 'Đã đối chiếu chứng từ và số tiền chi hộ',
-          attachmentRefs: ['O2C-AP-RACE'],
-        },
-        expectedExpenseVersion: expense.version,
-        makerId: expenseApproval.actors.makerId,
-        makerRole: Role.MANAGER,
-      }),
-      actorId: expenseApproval.actors.approverAId,
-      actorRole: Role.ADMIN,
-    }));
-    await assertRemainsPending('late approval', approvalAttempt);
+    const recordAttempt = trackSettlement(recordTripExpense(trip.id, expense.id));
+    try {
+      await assertRemainsPending('direct expense recording', recordAttempt);
+    } catch (error) {
+      releaseLock();
+      await lockHolder;
+      throw error;
+    }
 
     const correctionAttempt = trackSettlement(autoApplyGovernanceAction({
       make: () => requestTripFinancialChange({
         tripId: trip.id,
-        reason: 'Điều chỉnh chuyến đã hoàn thành trong lúc duyệt chi phí',
+        reason: 'Điều chỉnh chuyến đã hoàn thành trong lúc ghi nhận chi phí',
         figures: {
           legs: [],
           fuelMode: FuelMode.AUTO,
@@ -437,7 +407,7 @@ describe('O2C final AP P1 fixes', () => {
 
     releaseLock();
     await lockHolder;
-    await Promise.all([approvalAttempt.promise, correctionAttempt.promise]);
+    await Promise.all([recordAttempt.promise, correctionAttempt.promise]);
 
     const [activePosting] = await db.select({
       id: s.tripFinancialPostings.id,
@@ -476,7 +446,7 @@ describe('O2C final AP P1 fixes', () => {
     assert.ok((updatedTrip?.version ?? 0) > completed.version);
   });
 
-  test('late approval ignores unrelated vendor adjustment rows whose txnId collides with the expense id', async () => {
+  test('direct expense recording ignores unrelated vendor adjustment rows whose txnId collides with the expense id', async () => {
     const { trip, expense, expenseSupplier } = await createTripFixture({
       expenseApprovalStatus: 'PENDING',
     });
@@ -495,8 +465,8 @@ describe('O2C final AP P1 fixes', () => {
       });
     });
 
-    const approvalResults = await governTripExpenseApproval(trip.id, expense.id, expense.version);
-    assert.equal(approvalResults.filter((result) => result.ok).length, 1);
+    const recordResults = await recordTripExpense(trip.id, expense.id);
+    assert.equal(recordResults.filter((result) => result.ok).length, 1);
 
     const vendorRows = await db.select().from(s.ledger)
       .where(eq(s.ledger.txnId, expense.id))

@@ -13,9 +13,9 @@ description: Use testplan/qa/_TEMPLATE.md when producing cycle-scoped regression
 
 # Testplan regression spec template
 
-Cycle-scoped regression specs in `testplan/qa/` (one file per ticket per cycle, e.g.
-`2026-09-10_dispatch-detailed-plan.md`) MUST start from `testplan/qa/_TEMPLATE.md`
-and carry only the ticket-specific parts:
+Cycle-scoped regression specs in `testplan/cycles/<YYYY-MM>/` (one file per ticket per cycle, e.g.
+`2026-09-10_dispatch-detailed-plan.md`; moved out of `testplan/qa/` on 2026-09-27) MUST start from
+`testplan/qa/_TEMPLATE.md` and carry only the ticket-specific parts:
 
 - **Goal** (what changes, in what surface, with what scope guardrail)
 - **Out of scope**
@@ -31,7 +31,7 @@ boilerplate (~34% of file body); template adoption targets ~50% line reduction
 and ~60% token reduction per spec loaded for verification.
 
 When producing a new regression spec:
-1. Copy `_TEMPLATE.md` to `testplan/qa/<YYYY-MM-DD>_<ticket-slug>.md`.
+1. Copy `_TEMPLATE.md` to `testplan/cycles/<YYYY-MM>/<YYYY-MM-DD>_<ticket-slug>.md`.
 2. Fill the ticket-specific sections; leave the shared header untouched.
 3. If the ticket introduces a section the template does not cover (rare — e.g.
    a new auth pattern), add it to the template FIRST, then copy.

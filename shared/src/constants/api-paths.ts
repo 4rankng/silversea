@@ -33,8 +33,6 @@ export const TRIPS = {
   INSTRUCTIONS: (id: number) => `/trips/${id}/instructions`,
   EXPENSES: (id: number) => `/trips/${id}/expenses`,
   EXPENSE: (tripId: number, eid: number) => `/trips/${tripId}/expenses/${eid}`,
-  EXPENSE_APPROVE: (tripId: number, eid: number) => `/trips/${tripId}/expenses/${eid}/approve`,
-  EXPENSE_REJECT: (tripId: number, eid: number) => `/trips/${tripId}/expenses/${eid}/reject`,
 } as const;
 
 export const SHIPMENTS = {
@@ -42,6 +40,8 @@ export const SHIPMENTS = {
   CUS_WORKSPACE_CONTAINERS: '/shipments/cus-workspace/containers',
   CUS_WORKSPACE_DETAIL: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}`,
   CUS_WORKSPACE_CONTAINER_LINE: (shipmentId: number, containerId: number) => `/shipments/cus-workspace/${shipmentId}/containers/${containerId}`,
+  CUS_WORKSPACE_CONTAINER_ADD: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/containers`,
+  CUS_WORKSPACE_CONTAINER_REMOVE: (shipmentId: number, containerId: number) => `/shipments/cus-workspace/${shipmentId}/containers/${containerId}/remove`,
   CUS_WORKSPACE_FINANCE_CONFIRM: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/finance-confirmations`,
   CUS_WORKSPACE_DOCUMENT_CUSTODY: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/document-custody`,
   CUS_WORKSPACE_LOCK: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/lock`,
@@ -146,7 +146,6 @@ export const FINANCIAL = {
   SUPPLIER_STATEMENT_EXPORT: (id: number) => `/ledger/suppliers/${id}/statement/export`,
   FUEL_INVOICES: '/finance/fuel-invoices',
   FUEL_INVOICE: (id: number) => `/finance/fuel-invoices/${id}`,
-  FUEL_INVOICE_APPROVE: (id: number) => `/finance/fuel-invoices/${id}/approve`,
   PAYMENTS_RECEIVE: '/payments/receive',
   PAYMENTS_VENDOR: '/payments/vendor',
   PAYMENTS_CARRIER: '/payments/carrier',
@@ -157,9 +156,6 @@ export const FINANCIAL = {
   EXPENSE: (id: number) => `/expenses/${id}`,
   ADVANCE_REQUESTS: '/advance-requests',
   ADVANCE_SETTLEMENTS: '/advance-settlements',
-  ADVANCE_SETTLEMENT_CHECK: (id: number) => `/advance-settlements/${id}/check`,
-  ADVANCE_SETTLEMENT_APPROVE: (id: number) => `/advance-settlements/${id}/approve`,
-  ADVANCE_SETTLEMENT_REJECT: (id: number) => `/advance-settlements/${id}/reject`,
   ADVANCE_SETTLEMENT_DETAIL: (id: number) => `/advance-settlements/${id}`,
   ADVANCE_SETTLEMENT_EXPORT: (id: number, format: string) => `/advance-settlements/${id}/export?format=${format}`,
   ADVANCE_BALANCES: '/advance-balances',
@@ -170,6 +166,7 @@ export const FINANCIAL = {
   BILLING_DOCUMENT_GENERATE: '/finance/billing-documents/generate',
   BILLING_DOCUMENT: (id: number) => `/finance/billing-documents/${id}`,
   BILLING_DOCUMENT_EXPORT: (id: number) => `/finance/billing-documents/${id}/export`,
+  BILLING_DOCUMENT_ISSUE: (id: number) => `/finance/billing-documents/${id}/issue`,
 } as const;
 
 // ─── Reports ────────────────────────────────────────────────────────────────────

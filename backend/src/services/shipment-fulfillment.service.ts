@@ -112,6 +112,23 @@ async function assertDecompositionActor(actorId: number, executor: Tx | typeof d
   }
 }
 
+export const operationalSiteSnapshot = (site: typeof s.operationalSites.$inferSelect) => ({
+  id: site.id,
+  code: site.code,
+  name: site.shortName || site.name,
+  fullName: site.name,
+  siteType: site.siteType,
+  address: site.address,
+  googleMapsUrl: site.googleMapsUrl,
+  contactName: site.contactName,
+  contactPhone: site.contactPhone,
+  liftFeeInvoiceName: site.liftFeeInvoiceName,
+  liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
+  liftFeeTaxCode: site.liftFeeTaxCode,
+  strictRules: site.strictRules,
+  sourceVersion: site.version,
+});
+
 async function loadSiteSnapshot(
   tx: Tx,
   shipment: typeof s.shipments.$inferSelect,
@@ -133,23 +150,7 @@ async function loadSiteSnapshot(
     throw new ApiError(409, 'Điểm vận hành không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
   }
 
-  const allowlist = (site: typeof sites[number]) => ({
-    id: site.id,
-    code: site.code,
-    name: site.shortName || site.name,
-    fullName: site.name,
-    siteType: site.siteType,
-    address: site.address,
-    googleMapsUrl: site.googleMapsUrl,
-    contactName: site.contactName,
-    contactPhone: site.contactPhone,
-    liftFeeInvoiceName: site.liftFeeInvoiceName,
-    liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
-    liftFeeTaxCode: site.liftFeeTaxCode,
-    strictRules: site.strictRules,
-    sourceVersion: site.version,
-  });
-  const byId = new Map(sites.map((site) => [site.id, allowlist(site)]));
+  const byId = new Map(sites.map((site) => [site.id, operationalSiteSnapshot(site)]));
   return {
     deliverySite: shipment.operationalSiteId ? byId.get(shipment.operationalSiteId) : null,
     pickupWarehouse: shipment.pickupWarehouseSiteId ? byId.get(shipment.pickupWarehouseSiteId) : null,
@@ -229,7 +230,7 @@ export async function ensureShipmentFulfillmentsInTx(
     .where(eq(s.shipmentContainers.shipmentId, shipment.id))
     .orderBy(asc(s.shipmentContainers.id));
   if (shipment.cargoMode === CARGO_MODE.FCL && containers.length === 0) {
-    throw new ApiError(409, 'Lô hàng nguyên container phải có ít nhất một container.');
+    throw new ApiError(409, 'Lô hàng FCL phải có ít nhất một container.');
   }
   if (shipment.cargoMode === CARGO_MODE.LCL && containers.length > 0) {
     throw new ApiError(409, 'Lô hàng lẻ không được tạo container giả.');
@@ -306,25 +307,49 @@ async function loadContainerSiteSnapshots(
     const site = byId.get(container.operationalSiteId);
     if (!site) continue;
     overrides.set(container.id, {
-      deliverySite: {
-        id: site.id,
-        code: site.code,
-        name: site.shortName || site.name,
-        fullName: site.name,
-        siteType: site.siteType,
-        address: site.address,
-        googleMapsUrl: site.googleMapsUrl,
-        contactName: site.contactName,
-        contactPhone: site.contactPhone,
-        liftFeeInvoiceName: site.liftFeeInvoiceName,
-        liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
-        liftFeeTaxCode: site.liftFeeTaxCode,
-        strictRules: site.strictRules,
-        sourceVersion: site.version,
-      },
+      deliverySite: operationalSiteSnapshot(site),
     });
   }
   return overrides;
+}
+
+/**
+ * Card 20260921_2: decompose ONE newly added container row into its own
+ * fulfillment — the narrow counterpart of ensureShipmentFulfillmentsInTx for
+ * a set EXTENSION (ensure requires the active set to already equal the
+ * container list, so it cannot extend a partial set). Caller holds the
+ * shipment lock within its own transaction.
+ */
+export async function createFulfillmentForAddedContainer(
+  tx: Tx,
+  shipmentId: number,
+  containerId: number,
+  actorId: number,
+): Promise<FulfillmentRow> {
+  const [shipment] = await tx.select().from(s.shipments)
+    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+    .for('update')
+    .limit(1);
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+  if (shipment.cargoMode !== CARGO_MODE.FCL) {
+    throw new ApiError(409, 'Chỉ lô hàng FCL mới thêm được dòng container.');
+  }
+  const [container] = await tx.select().from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.id, containerId))
+    .limit(1);
+  if (!container) throw new ApiError(404, 'Không tìm thấy container của lô hàng.');
+  const containerSnapshots = await loadContainerSiteSnapshots(tx, shipment, [container]);
+  const [row] = await tx.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'FCL_CONTAINER',
+    cargoMode: 'FCL',
+    shipmentContainerId: container.id,
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: containerSnapshots.get(container.id) ?? await loadSiteSnapshot(tx, shipment),
+    dispatchClassification: shipment.isCombined ? 'COMBINED' : 'SINGLE',
+    createdBy: actorId,
+  }).returning();
+  return row;
 }
 
 /**

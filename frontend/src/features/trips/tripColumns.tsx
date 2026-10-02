@@ -8,9 +8,10 @@ import {
 import type { TableSortState } from '../../lib/table-sort';
 import { splitRoute } from '../../lib/route';
 import { formatDayMonth } from '../../lib/date';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatNumber } from '../../lib/format';
 import {
   buildTripCode, calcConsumption, getMissingIndicators, getDataCompleteness,
+  isMissingGroundPrice15T,
   STATUS_PILL_CLASS, type TripListContainer, type TripListRow,
   getTripDistance, getTripDisplayGrossProfit,
 } from './tripHelpers';
@@ -29,10 +30,8 @@ export interface TripQuickEditDraft {
 
 export interface TripQuickEditOptions {
   enabled: boolean;
-  selectedIds: Set<number>;
   drafts: Record<number, TripQuickEditDraft>;
   errors: Record<number, string>;
-  onToggleSelect: (tripId: number) => void;
   onDraftChange: (tripId: number, field: keyof TripQuickEditDraft, value: string) => void;
 }
 
@@ -48,10 +47,11 @@ export interface TripColumnSortOptions {
 }
 
 // Sortable column ids → GET /api/trips sortBy keys (the backend whitelist in
-// trip-queries.service.ts). Every data column is sortable; the quick-edit
-// select column is decorative and stays out.
+// trip-queries.service.ts). Every data column is sortable; the row itself is
+// the selection control (card 20260929_207), so there is no select column to
+// keep out of this map.
 const TRIP_COLUMN_SORT_KEYS: Partial<Record<string, string>> = {
-  trip: 'tripCode',
+  trip: 'customerReference',
   truck: 'truck',
   route: 'route',
   container: 'container',
@@ -159,33 +159,13 @@ export function buildTripColumns(
     };
   };
 
-  const quickColumns: ColumnDef<TripDetail>[] = quickEdit?.enabled ? [
-    {
-      id: 'select',
-      header: '',
-      enableSorting: false,
-      cell: ({ row }) => {
-        const trip = row.original;
-        const editable = isQuickEditable(trip);
-        return (
-          <input
-            type="checkbox"
-            className="quick-row-check"
-            checked={quickEdit.selectedIds.has(trip.id)}
-            disabled={!editable}
-            onClick={(e) => e.stopPropagation()}
-            onChange={() => quickEdit.onToggleSelect(trip.id)}
-            aria-label={`Chọn chuyến ${buildTripCode(trip)}`}
-          />
-        );
-      },
-    },
-  ] : [];
-
-  const columns: ColumnDef<TripDetail>[] = [
+  // Card 20260929_207: the selection column is gone from this definition — the
+  // row itself is the control (see TripListPage), so what follows is pure data
+  // columns and the page owns every selection interaction.
+  return [
     {
       id: 'trip',
-      header: sortHeader('Chuyến · Mã', 'trip'),
+      header: sortHeader('Bill / Booking', 'trip'),
       accessorFn: (row) => row.customer?.name ?? '',
       cell: ({ row }) => {
         const trip = row.original;
@@ -279,7 +259,7 @@ export function buildTripColumns(
                 </div>
                 <div className="route-destination">
                   {route.to}
-                  {km > 0 && <span className="route-km-inline"> · {km.toLocaleString('vi-VN')}km</span>}
+                  {km > 0 && <span className="route-km-inline"> · {formatNumber(km)}km</span>}
                 </div>
               </>
             ) : (
@@ -440,6 +420,17 @@ export function buildTripColumns(
             </div>
           );
         }
+        if (isMissingGroundPrice15T(trip)) {
+          return (
+            <div
+              className="money-empty trip-missing-price"
+              title="Giá gốc 15T chưa có — báo thiếu, không hiển thị 0"
+            >
+              <span>—</span>
+              <span className="trip-missing-price-chip">Thiếu giá 15T</span>
+            </div>
+          );
+        }
         return moneyCell(revenue);
       },
     },
@@ -490,14 +481,13 @@ export function buildTripColumns(
               {TRIP_STATUS_LABELS[trip.status]}
             </span>
             {quickEdit?.enabled && quickEdit.errors[trip.id] && (
-              <span className="quick-row-error" title={quickEdit.errors[trip.id]}>Lỗi</span>
+              <span className="quick-row-error">{quickEdit.errors[trip.id]}</span>
             )}
           </div>
         );
       },
     },
   ];
-  return [...quickColumns, ...columns];
 }
 
 /** Computes the per-row CSS variable bag used by the page for stripe colors. */

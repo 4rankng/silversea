@@ -1,8 +1,10 @@
+import { PhotoImage } from '../../components/shared/PhotoImage';
 import { AlertCircle, ArrowLeft, Camera, DollarSign, Loader2, Package, Pencil, Plus, Trash2 } from 'lucide-react';
 import { OPS_EXPENSE_TYPE_DEFAULTS, SETTLEMENT_METHOD_LABELS, SettlementMethod } from '@tingting/shared';
 import { FormGroup } from '../../components/UI';
 import { formatCurrency, formatDate } from '../../lib/format';
 import type { useForwarderTripDetail } from '../../hooks/useQueries';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 
 export interface ForwarderContainer {
   id: number;
@@ -137,10 +139,10 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 20px', borderBottom: '1px solid var(--border-1)',
                     cursor: 'pointer',
-                    width: '100%', minHeight: 44, borderTop: 0, borderLeft: 0, borderRight: 0,
+                    width: '100%', minHeight: 'var(--control-touch-h)', borderTop: 0, borderLeft: 0, borderRight: 0,
                     appearance: 'none', borderRadius: 0,
                     color: 'inherit', font: 'inherit', textAlign: 'left',
-                    background: isActive ? 'var(--brand-subtle, rgba(0,177,79,0.08))' : 'transparent',
+                    background: isActive ? 'var(--brand-subtle, rgba(0,90,45,0.08))' : 'transparent',
                     boxShadow: isActive ? 'inset 3px 0 0 var(--brand)' : undefined,
                   }}
                   onClick={() => onSelectContainer(String(c.id))}
@@ -171,8 +173,11 @@ type TripData = NonNullable<ReturnType<typeof useForwarderTripDetail>['data']>;
 type Expense = TripData['expenses'][number];
 interface ExpenseRowProps { exp: Expense; expenseTypeOptions: Array<{ code: string; name: string }>; uploadingExpenseId: number | null; photos?: string[]; onUpload: (expenseId: number, file: File) => void; onEdit: (expense: Expense) => void; onDelete: (expenseId: number) => void; deletePending: boolean; onLoadPhotos: (expenseId: number) => void }
 export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseTypeOptions, uploadingExpenseId, photos, onUpload: handleUploadPhoto, onEdit: openExpenseEditor, onDelete: handleDeleteExpense, deletePending, onLoadPhotos: loadExpensePhotos }: ExpenseRowProps) {
+ const authedPhotoUrls = useAuthedPhotoUrls(photos ?? []);
  const expensePhotos: Record<number, string[]> = photos ? { [exp.id]: photos } : {};
  const deleteExpenseMut = { isPending: deletePending };
+ const isVoided = exp.approvalStatus === 'VOIDED' || exp.approvalStatus === 'REJECTED';
+ const voidedLabel = exp.approvalStatus === 'REJECTED' ? 'Đã từ chối' : 'Đã hủy';
  const settlementMethodLabel = exp.settlementMethod === 'FORWARDER_ADVANCE'
    ? 'Chi hộ tạm ứng'
    : SETTLEMENT_METHOD_LABELS[exp.settlementMethod as SettlementMethod] || exp.settlementMethod;
@@ -181,15 +186,22 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                   <div className="fwd-expense-record__layout">
                     <DollarSign size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
                     <div className="fwd-expense-record__main">
-                      <span style={{ fontWeight: 600, fontSize: 'var(--text-data-size)' }}>
+                      <span style={{ fontWeight: 600, fontSize: 'var(--text-data-size)', ...(isVoided ? { color: 'var(--fg-3)', textDecoration: 'line-through' as const } : {}) }}>
                         {OPS_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || forwarderExpenseTypeOptions.find(t => t.code === exp.expenseType)?.name || exp.expenseType}
                       </span>
+                      {isVoided && (
+                        <span style={{
+                          fontSize: 'var(--text-body-size)', lineHeight: 1.35, fontWeight: 600,
+                          color: 'var(--danger-text)', background: 'var(--danger-soft)',
+                          borderRadius: 4, padding: '3px 7px', marginLeft: 6,
+                        }}>{voidedLabel}</span>
+                      )}
                       {exp.activeSettlementId && (
                         <span style={{
                           fontSize: 'var(--text-body-size)', lineHeight: 1.35, fontWeight: 600,
                           color: '#92400e', background: '#fef3c7',
                           borderRadius: 4, padding: '3px 7px', marginLeft: 6,
-                        }}>Đã gửi kế toán</span>
+                        }}>Đã lập phiếu</span>
                       )}
                       {exp.note && (
                         <span style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', marginLeft: 8 }}>{exp.note}</span>
@@ -197,6 +209,11 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       {exp.returnForEvidenceReason && (
                         <div style={{ marginTop: 6, fontSize: 'var(--text-body-size)', color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '6px 8px', maxWidth: 420 }}>
                           Cần bổ sung: {exp.returnForEvidenceReason}
+                        </div>
+                      )}
+                      {isVoided && (
+                        <div style={{ marginTop: 6, fontSize: 'var(--text-body-size)', color: 'var(--danger-text)', background: 'var(--danger-soft)', borderRadius: 6, padding: '6px 8px', maxWidth: 420 }}>
+                          {`Lý do hủy: ${exp.deletionReason ?? ''}${exp.deletedByName ? ` — ${exp.deletedByName}` : ''}${exp.deletedAt ? `, ${formatDate(exp.deletedAt)}` : ''}`}
                         </div>
                       )}
                       {(exp.expenseDate || exp.payeeName) && (
@@ -213,7 +230,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       </dl>
                     </div>
                     <div className="fwd-expense-record__amount">
-                      <div style={{ fontWeight: 600, fontSize: 'var(--text-data-size)' }}>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--text-data-size)', ...(isVoided ? { color: 'var(--fg-3)', textDecoration: 'line-through' as const } : {}) }}>
                         {formatCurrency(exp.buyAmount)}
                       </div>
                     </div>
@@ -241,7 +258,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                     <button
                       className="icon-btn fwd-expense-action"
                       onClick={() => openExpenseEditor(exp)}
-                      disabled={Boolean(exp.activeSettlementId) || !exp.canEdit}
+                      disabled={Boolean(exp.activeSettlementId) || !exp.canEdit || isVoided}
                       aria-label={`Điều chỉnh ${OPS_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || exp.expenseType}`}
                       title={exp.activeSettlementId ? 'Khoản chi đã gửi kế toán' : !exp.canEdit ? 'Khoản chi do Ops khác kê' : 'Điều chỉnh chi phí'}
                     >
@@ -250,7 +267,8 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                     <button
                       className="icon-btn fwd-expense-action"
                       onClick={() => void handleDeleteExpense(exp.id)}
-                      disabled={deleteExpenseMut.isPending || Boolean(exp.activeSettlementId) || !exp.canEdit}
+                      disabled={deleteExpenseMut.isPending || Boolean(exp.activeSettlementId) || !exp.canEdit || isVoided}
+                      aria-label={`Xóa chi phí ${OPS_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || exp.expenseType}`}
                       title="Xóa chi phí"
                       style={{ color: 'var(--danger)', opacity: 0.6, padding: 4 }}
                     >
@@ -260,10 +278,10 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                   {/* Photo thumbnails */}
                   {expensePhotos[exp.id] && expensePhotos[exp.id].length > 0 && (
                     <div style={{ display: 'flex', gap: 6, marginTop: 8, paddingLeft: 26 }}>
-                      {expensePhotos[exp.id].map((url, i) => (
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                          <img
-                            src={url}
+                      {expensePhotos[exp.id].map((_url, i) => (
+                        <a key={i} href={authedPhotoUrls[i] || undefined} target="_blank" rel="noopener noreferrer">
+                          <PhotoImage
+                            src={authedPhotoUrls[i]}
                             alt={`Hóa đơn ${i + 1}`}
                             style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-1)' }}
                           />

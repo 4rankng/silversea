@@ -1,4 +1,5 @@
 import React from 'react';
+import { NumberField } from '../design-system';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { useTripOptions } from '../hooks/useTripOptions';
@@ -26,7 +27,7 @@ export default function TripCreatePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [exceptionReason, setExceptionReason] = React.useState('');
-  const [exceptionCeiling, setExceptionCeiling] = React.useState('');
+  const [exceptionCeiling, setExceptionCeiling] = React.useState<number | ''>('');
   const [exceptionError, setExceptionError] = React.useState('');
   const formRef = React.useRef<HTMLDivElement>(null);
   const canRecordException = user?.role === 'ADMIN' || user?.role === 'MANAGER';
@@ -188,21 +189,21 @@ export default function TripCreatePage() {
               </div>
             </div>
             {canRecordException ? <div style={{ display: 'grid', gap: 8 }}>
-              <p>Ghi nhận ngoại lệ một lần cho chuyến này. Hạn mức áp dụng đến lúc lưu; nếu lưu thất bại, ngoại lệ không được tạo.</p>
+              <p>Ngoại lệ một lần cho chuyến này; áp dụng đến lúc lưu.</p>
               <label htmlFor="credit-exception-reason">Lý do ngoại lệ</label>
               <input id="credit-exception-reason" className="form-input" value={exceptionReason} onChange={event => setExceptionReason(event.target.value)} maxLength={1000} />
               <label htmlFor="credit-exception-ceiling">Tổng dư nợ và cam kết tối đa cho phép (₫)</label>
-              <input id="credit-exception-ceiling" className="form-input" inputMode="numeric" value={exceptionCeiling} onChange={event => setExceptionCeiling(event.target.value)} />
+              <NumberField id="credit-exception-ceiling" grouped value={exceptionCeiling} onChange={setExceptionCeiling} />
               {exceptionError && <p role="alert" style={{ color: 'var(--danger)' }}>{exceptionError}</p>}
               <button type="button" className="btn btn--primary" disabled={form.submitting} onClick={async () => {
                 if (!validateVisibleFields()) return;
-                const ceiling = Number(exceptionCeiling.replace(/[.,\s]/g, ''));
-                if (!exceptionReason.trim() || !Number.isSafeInteger(ceiling) || ceiling <= 0) { setExceptionError('Nhập lý do và tổng hạn mức ngoại lệ hợp lệ.'); return; }
+                const ceiling = typeof exceptionCeiling === 'number' && Number.isSafeInteger(exceptionCeiling) && exceptionCeiling > 0 ? exceptionCeiling : null;
+                if (!exceptionReason.trim() || ceiling == null) { setExceptionError('Nhập lý do và tổng hạn mức ngoại lệ hợp lệ.'); return; }
                 setExceptionError('');
                 const tripId = await form.handleSubmit(undefined, { creditException: { reason: exceptionReason.trim(), exposureCeiling: ceiling, scopeType: 'SHIPMENT', expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() } });
                 if (tripId) navigate(`/trips/${tripId}`);
               }}>Ghi ngoại lệ và tạo chuyến</button>
-            </div> : <p>Vai trò hiện tại không có quyền ghi ngoại lệ. Điều chỉnh dư nợ hoặc liên hệ Quản lý để xử lý tín dụng.</p>}
+            </div> : <p>Vai trò hiện tại không có quyền ghi ngoại lệ — liên hệ Quản lý.</p>}
           </section>
         )}
 

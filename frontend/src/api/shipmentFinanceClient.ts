@@ -18,6 +18,7 @@ export const shipmentFinanceClient = {
     return api.get<ShipmentFinanceRecords>(`/shipments/${shipmentId ? `${shipmentId}/` : ''}finance-records?${search}`);
   },
   options: (shipmentId?: number) => api.get<{
+    trips: Array<{ id: number; tripCode: string | null }>;
     suppliers: Array<{ id: number; name: string }>;
     expenses: Array<{ id: number; supplierId: number | null; buyAmount: string; expenseType: string; invoiceNumber: string | null }>;
   }>(`/shipments/finance-record-options${shipmentId ? `?shipmentId=${shipmentId}` : ''}`),

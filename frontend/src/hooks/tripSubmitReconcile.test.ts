@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LoadingType, type TripDetail } from '@tingting/shared';
-import { findInvalidLeg, reconcilePayload } from './tripSubmitReconcile';
+import { findInvalidLeg, reconcilePayload, externalCarrierEditValue, requiresLegacyCarrierSelection } from './tripSubmitReconcile';
 
 const trip = (values: Partial<TripDetail>) => ({ id: 6, version: 3, legs: [], ...values }) as TripDetail;
 describe('KSHIP-004: three-way trip edit reconciliation', () => {
@@ -29,4 +29,24 @@ describe('KSHIP-004: three-way trip edit reconciliation', () => {
 it.each(['Infinity', '-Infinity', 'NaN', '-1'])('rejects non-finite or negative leg distance %s before create', km => {
   const leg = { id: 'leg-1', sequence: 1, loadingType: LoadingType.HANG, origin: 'A', destination: 'B', km };
   expect(findInvalidLeg([leg])).toBe(leg);
+});
+
+ describe('legacy supplier carrier edit identity', () => {
+  it('omits an untouched unresolved supplier while preserving explicit carrier changes', () => {
+    const original = trip({ carrierType: 'EXTERNAL', externalEntityType: 'SUPPLIER', externalCarrierId: null });
+    expect(externalCarrierEditValue(original, 'EXTERNAL', null)).toBeUndefined();
+    expect(externalCarrierEditValue(original, 'EXTERNAL', 9)).toBe(9);
+    expect(externalCarrierEditValue(original, 'OWN', null)).toBeNull();
+  });
+  it('retains normal customer clearing and linked supplier selections', () => {
+    expect(externalCarrierEditValue(trip({ externalEntityType: 'CUSTOMER', externalCarrierId: 9 }), 'EXTERNAL', null)).toBeNull();
+    expect(externalCarrierEditValue(trip({ externalEntityType: 'SUPPLIER', externalCarrierId: 9 }), 'EXTERNAL', 9)).toBeUndefined();
+  });
+});
+
+it('requires an explicit canonical carrier before reassigning an unresolved legacy supplier', () => {
+  expect(requiresLegacyCarrierSelection('SUPPLIER', 'EXTERNAL', '')).toBe(true);
+  expect(requiresLegacyCarrierSelection('SUPPLIER', 'EXTERNAL', '9')).toBe(false);
+  expect(requiresLegacyCarrierSelection('SUPPLIER', 'OWN', '')).toBe(false);
+  expect(requiresLegacyCarrierSelection('CUSTOMER', 'EXTERNAL', '')).toBe(false);
 });

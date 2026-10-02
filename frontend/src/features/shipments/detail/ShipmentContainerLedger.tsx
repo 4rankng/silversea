@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Button as AriaButton } from 'react-aria-components';
-import { CalendarOff, Clock3 } from 'lucide-react';
+import { CalendarOff } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
+  ShipmentCusContainerAddInput,
   ShipmentCusContainerFlatRow,
   ShipmentCusWorkspaceContainerLine,
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import { useClickOutside } from '../../../hooks/useClickOutside';
+import { useConfirm } from '../../../components/UI';
 import { displayNote } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
@@ -15,14 +18,18 @@ import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/te
 import { SearchableSelect, SummaryRail } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { USearchableField } from '../create/uui-fields';
+import { externalVendorPlateOptions } from '../external-plate-options';
 import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
-import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
+import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
+import { formatVietnamDateTimeInput, localDateTimeToIso } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { formatISODate } from '../../../lib/format';
+import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 import '../../../styles/table-sort.css';
+import type { LedgerColumn } from '../../../lib/column-visibility';
 
 export type ShipmentDetailEditMode = 'identity' | 'documents' | 'container' | 'route' | 'schedule' | 'vehicle' | 'notes';
 
@@ -41,6 +48,7 @@ export interface ShipmentRouteDraft {
 }
 
 export interface ShipmentIdentityDraft {
+  operationalSiteId?: number | null;
   factoryName: string | null;
   routeId: number | null;
   deliveryLocation: string | null;
@@ -85,7 +93,7 @@ type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
  
 export const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'indigo' | 'purple' | 'success' }> = {
   AWAITING_VEHICLE: { label: 'Chờ phân xe', color: 'warning' },
-  PLANNED: { label: 'Đã phân xe', color: 'blue' },
+  PLANNED: { label: 'Đã điều xe', color: 'blue' },
   CREATED: { label: 'Đã tạo chuyến', color: 'indigo' },
   IN_TRANSIT: { label: 'Đang chạy', color: 'purple' },
   COMPLETED: { label: 'Hoàn thành', color: 'success' },
@@ -121,12 +129,6 @@ function directionLabel(direction: ShipmentCusContainerFlatRow['direction']): st
   return 'Chưa xác định';
 }
 
-function formatDate(value: string | null): string {
-  // Delegates to the shared ISO-date formatter; only the empty-state text is
-  // this surface's own.
-  if (!value) return 'Chưa có ngày';
-  return formatISODate(value);
-}
 
 function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
   const value = row.customerAppointmentAt;
@@ -189,6 +191,7 @@ function InlineEditor({
   const [customerNotes, setCustomerNotes] = useState(row.customerNotes ?? '');
   const [operationalNotes, setOperationalNotes] = useState(row.operationalNotes ?? '');
   const [factoryName, setFactoryName] = useState(detail.summary.raw.factoryName ?? '');
+  const [operationalSiteId, setOperationalSiteId] = useState(line.operationalSiteId ? String(line.operationalSiteId) : '');
   const [routeId, setRouteId] = useState(detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : '');
   const [deliveryLocation, setDeliveryLocation] = useState(detail.summary.raw.deliveryLocation ?? '');
   const [blNumber, setBlNumber] = useState(detail.summary.raw.blNumber ?? '');
@@ -225,6 +228,13 @@ function InlineEditor({
     .filter((vehicle) => vehicle.carrierId === Number(carrierId))
     .map((vehicle) => ({ value: String(vehicle.id), label: vehicle.label, searchText: vehicle.licensePlate })),
   [carrierId, detail.selectors.carrierVehicles]);
+  // Card 20260925_6: on the new-external-vendor path the typed name selects
+  // the quick-select source — plates already used with THAT vendor (matched
+  // by name or short name), restored after 16fc0d89 dropped the field.
+  const newVendorPlateOptions = useMemo(
+    () => externalVendorPlateOptions(detail.selectors.externalCarriers, detail.selectors.carrierVehicles, newCarrierName),
+    [detail.selectors.externalCarriers, detail.selectors.carrierVehicles, newCarrierName],
+  );
   const matchedVehicle = detail.selectors.carrierVehicles.find((vehicle) => (
     vehicle.carrierId === Number(carrierId)
     && vehicle.licensePlate.localeCompare(plateNumber.trim(), 'vi', { sensitivity: 'base' }) === 0
@@ -232,8 +242,10 @@ function InlineEditor({
   const appointmentScheduleDirty = appointmentDate !== (appointmentInput?.slice(0, 10) ?? '')
     || scheduleTime !== (formatScheduleTime(row) ?? '');
   const dirty = mode === 'identity'
-    ? factoryName.trim() !== (detail.summary.raw.factoryName ?? '')
-      || (detail.summary.cargoMode !== 'FCL' && routeId !== (detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : ''))
+    ? detail.summary.cargoMode === 'FCL'
+      ? operationalSiteId !== (line.operationalSiteId ? String(line.operationalSiteId) : '')
+      : factoryName.trim() !== (detail.summary.raw.factoryName ?? '')
+      || routeId !== (detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : '')
       || deliveryLocation.trim() !== (detail.summary.raw.deliveryLocation ?? '')
     : mode === 'documents'
       ? blNumber.trim() !== (detail.summary.raw.blNumber ?? '')
@@ -264,8 +276,13 @@ function InlineEditor({
               : 'ghi chú';
   const label = `${modeLabel} ${row.containerNumber || `container số ${row.ordinal}`}`;
 
+  // Focus silently on mount: the browser's focusing steps would otherwise
+  // scroll the expanded editor (330–400px tall) fully into view and yank the
+  // tapped cell away from the user's finger (report 2026-09-19). The editor
+  // opens directly under the tapped cell, so its leading edge is already in
+  // view; anything past the fold is reached by natural scrolling.
   useEffect(() => {
-    editorRef.current?.focus();
+    editorRef.current?.focus({ preventScroll: true });
   }, []);
 
   const save = async () => {
@@ -281,6 +298,7 @@ function InlineEditor({
     try {
       if (mode === 'identity') {
         await onSaveIdentity(row, {
+          operationalSiteId: operationalSiteId ? Number(operationalSiteId) : null,
           factoryName: factoryName.trim() || null,
           routeId: routeId ? Number(routeId) : null,
           deliveryLocation: deliveryLocation.trim() || null,
@@ -371,6 +389,7 @@ function InlineEditor({
       data-mode={mode}
       tabIndex={-1}
       onKeyDown={(event) => {
+        if (event.defaultPrevented) return;
         if ((event.target as HTMLElement).closest('[data-date-picker], .time-picker__popup, [data-time-picker-overlay]')) return;
         if (event.key === 'Escape' && !saving) {
           event.preventDefault();
@@ -411,12 +430,9 @@ function InlineEditor({
         </div>
       )}
       {mode === 'identity' && (
-        <div className="shipment-container-ledger__editor-grid">
-          <label><span>Khách hàng</span><input value={row.customerName ?? ''} disabled title={detail.summary.fieldAccess.customerId.reason} /></label>
-          <label><span>Nhà máy</span><input autoFocus value={factoryName} onChange={(event) => setFactoryName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.factoryName.mode === 'READ_ONLY'} /></label>
-          {detail.summary.cargoMode !== 'FCL' && <label><span>Tuyến đường</span><SearchableSelect id={`shipment-detail-route-${line.id}`} value={routeId} onChange={setRouteId} options={routeOptions} placeholder="Chọn tuyến đường" searchPlaceholder="Tìm tuyến đường" disabled={saving || detail.summary.fieldAccess.routeId.mode === 'READ_ONLY'} /></label>}
-          <label><span>Điểm giao</span><input value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.deliveryLocation.mode === 'READ_ONLY'} /></label>
-        </div>
+        <ShipmentIdentityEditor detail={detail} line={line} customerName={row.customerName} currentFactoryName={row.factoryName} saving={saving}
+          factoryName={factoryName} setFactoryName={setFactoryName} operationalSiteId={operationalSiteId} setOperationalSiteId={setOperationalSiteId}
+          routeId={routeId} setRouteId={setRouteId} deliveryLocation={deliveryLocation} setDeliveryLocation={setDeliveryLocation} routeOptions={routeOptions} />
       )}
       {mode === 'documents' && (
         <div className="shipment-container-ledger__editor-grid">
@@ -437,8 +453,8 @@ function InlineEditor({
               { value: 'EXPORT', label: 'Xuất' },
             ]}
           /></label>
-          {tradeDirection === 'IMPORT' && <label><span>Số Bill</span><input autoFocus value={blNumber} onChange={(event) => setBlNumber(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.blNumber.mode === 'READ_ONLY'} /></label>}
-          {tradeDirection === 'EXPORT' && <label><span>Số Booking</span><input autoFocus value={bookingRef} onChange={(event) => setBookingRef(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.bookingRef.mode === 'READ_ONLY'} /></label>}
+          {tradeDirection === 'IMPORT' && <label><span>Số Bill</span><input value={blNumber} onChange={(event) => setBlNumber(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.blNumber.mode === 'READ_ONLY'} /></label>}
+          {tradeDirection === 'EXPORT' && <label><span>Số Booking</span><input value={bookingRef} onChange={(event) => setBookingRef(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.bookingRef.mode === 'READ_ONLY'} /></label>}
           {!tradeDirection && <small>Chọn Nhập hoặc Xuất trước khi cập nhật số chứng từ.</small>}
           <label><span>Hãng tàu</span><input value={shippingLineName} onChange={(event) => setShippingLineName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.shippingLineName.mode === 'READ_ONLY'} /></label>
           <small>Tờ khai dùng luồng chứng từ có kiểm soát riêng: {detail.summary.fieldAccess.declarationNumber.reason}</small>
@@ -446,7 +462,7 @@ function InlineEditor({
       )}
       {mode === 'container' && (
         <div className="shipment-container-ledger__editor-grid">
-          <label><span>Số container</span><input autoFocus value={containerNumber} onChange={(event) => setContainerNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || line.fieldAccess.containerNumber.mode === 'READ_ONLY'} /></label>
+          <label><span>Số container</span><input value={containerNumber} onChange={(event) => setContainerNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || line.fieldAccess.containerNumber.mode === 'READ_ONLY'} /></label>
           <label><span>Loại container</span><SearchableSelect id={`shipment-detail-container-type-${line.id}`} value={containerTypeId} onChange={setContainerTypeId} options={detail.selectors.containerTypes.map((item) => ({ value: String(item.id), label: item.label, searchText: `${item.code} ${item.name}` }))} placeholder="Chọn loại container" searchPlaceholder="Tìm loại container" disabled={saving || line.fieldAccess.containerTypeId.mode === 'READ_ONLY'} /></label>
           <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={cargoWeightKg} onChange={(event) => setCargoWeightKg(event.target.value)} disabled={saving || line.fieldAccess.cargoWeightKg.mode === 'READ_ONLY'} /></label>
           <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={cargoVolumeCbm} onChange={(event) => setCargoVolumeCbm(event.target.value)} disabled={saving || line.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} /></label>
@@ -464,13 +480,14 @@ function InlineEditor({
           <label><span>Nhà xe</span><SearchableSelect id={`shipment-detail-carrier-${line.id}`} value={carrierId} onChange={(value) => { setCarrierId(value); setPlateNumber(''); }} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" disabled={saving || !line.permissions.carrierEditable} /></label>
           {carrierId === 'NEW_EXTERNAL' && <label><span>Tên nhà xe mới</span><input value={newCarrierName} onChange={(event) => setNewCarrierName(event.target.value)} maxLength={255} disabled={saving} /></label>}
           {carrierId && carrierId !== 'NEW_EXTERNAL' && <label><span>Biển số xe</span><USearchableField id={`shipment-detail-vehicle-${line.id}`} label="Biển số xe" hideLabel value={plateNumber} onChange={(plate) => setPlateNumber(plate.toUpperCase())} onCustomValue={(text) => setPlateNumber(text.toUpperCase().slice(0, 20))} options={vehicleOptions.map((vehicle) => ({ value: vehicle.label, label: vehicle.label, searchText: vehicle.searchText }))} placeholder="Chọn hoặc nhập biển số" disabled={saving || !line.permissions.plateEditable} allowsCustomValue searchable /></label>}
+          {carrierId === 'NEW_EXTERNAL' && <label><span>Biển số xe</span><USearchableField id={`shipment-detail-vehicle-new-${line.id}`} label="Biển số xe" hideLabel value={plateNumber} onChange={(plate) => setPlateNumber(plate.toUpperCase())} onCustomValue={(text) => setPlateNumber(text.toUpperCase().slice(0, 20))} options={newVendorPlateOptions} placeholder="Chọn hoặc nhập biển số" disabled={saving || !line.permissions.plateEditable} allowsCustomValue searchable /></label>}
           {carrierId && carrierId !== 'NEW_EXTERNAL' && line.plateNumber && line.permissions.plateEditable && (
             <small className="shipment-container-ledger__plate-clear">
               <button type="button" disabled={saving} onClick={() => { setPlateNumber(''); setClearVehicleRequested(true); }}>Xóa biển số</button>
             </small>
           )}
-          {carrierId === 'OWN' && <small>Biển số nội bộ nhập ở đây là kế hoạch (dự kiến); lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
-          {carrierId !== 'OWN' && carrierId && <small>Biển số nhập ở đây là kế hoạch (dự kiến) cho nhà xe thuê; lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
+          {carrierId === 'OWN' && <small data-testid="plate-plan-note">Biển số ở đây là kế hoạch; lệnh điều xe là nguồn xác nhận cuối.</small>}
+          {carrierId !== 'OWN' && carrierId && <small>Biển số ở đây là kế hoạch; lệnh điều xe là nguồn xác nhận cuối.</small>}
         </div>
       )}
       {mode === 'notes' && (
@@ -506,6 +523,86 @@ function InlineEditor({
   );
 }
 
+/** Card 20260921_2 — inline add-row form: the container spec fields plus the
+ *  row appointment (schedule follows the container — a new row is a new row
+ *  awaiting its appointment, no re-confirmation step). Container TYPE is set
+ *  through the row editor afterwards; this form stays catalog-free on
+ *  purpose so it can open straight from a workboard row without fetching
+ *  the lot's workspace detail. */
+function AddContainerRowForm({ shipmentId, expectedShipmentVersion, submitting, onSubmit, onCancel }: {
+  shipmentId: number;
+  expectedShipmentVersion: number;
+  submitting: boolean;
+  onSubmit: (shipmentId: number, payload: ShipmentCusContainerAddInput) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [number, setNumber] = useState('');
+  const [weight, setWeight] = useState('');
+  const [volume, setVolume] = useState('');
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [error, setError] = useState('');
+  const busy = submitting;
+
+  async function submit() {
+    if (!number.trim()) {
+      setError('Số container là bắt buộc.');
+      return;
+    }
+    if ((appointmentDate ? 1 : 0) !== (appointmentTime ? 1 : 0)) {
+      setError('Vui lòng nhập đầy đủ cả Ngày và Giờ đóng/trả.');
+      return;
+    }
+    setError('');
+    await onSubmit(shipmentId, {
+      expectedShipmentVersion,
+      containerNumber: number.trim().toUpperCase(),
+      ...(weight.trim() ? { cargoWeightKg: weight.trim() } : {}),
+      ...(volume.trim() ? { cargoVolumeCbm: volume.trim() } : {}),
+      ...(appointmentDate && appointmentTime
+        ? { customerAppointmentAt: localDateTimeToIso(`${appointmentDate}T${appointmentTime}`) }
+        : {}),
+    });
+  }
+
+  return (
+    <div className="shipment-container-ledger__editor-grid" data-testid="add-container-form">
+      <label><span>Số container *</span><input aria-label="Số container mới" value={number} onChange={(event) => setNumber(event.target.value.toUpperCase())} maxLength={20} disabled={busy} /></label>
+      <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={weight} onChange={(event) => setWeight(event.target.value)} disabled={busy} /></label>
+      <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={volume} onChange={(event) => setVolume(event.target.value)} disabled={busy} /></label>
+      <BufferedUuiDateInput label="Ngày đóng/trả" value={appointmentDate} onChange={setAppointmentDate} isDisabled={busy} />
+      <label><span>Giờ đóng/trả</span><input aria-label="Giờ đóng/trả mới" type="time" value={appointmentTime} onChange={(event) => setAppointmentTime(event.target.value)} disabled={busy} /></label>
+      {error && <span role="alert">{error}</span>}
+      <div>
+        <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void submit()}>Lưu dòng mới</button>
+        <button type="button" className="btn btn--secondary" disabled={busy} onClick={onCancel}>Hủy</button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The ledger's columns in table order (card 20260928_193). The ledger owns the
+ * keys because it owns the cells they name; the page reads this list to build the
+ * picker, so the two can never disagree about what exists.
+ *
+ * Pins follow card 20260917_4's own contract — the THREE identity columns
+ * (khách hàng, chứng từ, thông số container) cannot hide, because a container row
+ * scrolled out of its own context is unreadable. `notes` carries the same
+ * auto-hide rule as the workboard: hidden by default only while every rendered
+ * row's note cell is empty.
+ */
+export const LEDGER_COLUMNS: readonly LedgerColumn[] = [
+  { key: 'customer', label: 'Khách hàng & lộ trình', pinned: true },
+  { key: 'documents', label: 'Chứng từ & hãng tàu', pinned: true },
+  { key: 'container', label: 'Thông số container', pinned: true },
+  { key: 'route', label: 'Địa điểm nâng / hạ' },
+  { key: 'schedule', label: 'Lịch trình' },
+  { key: 'vehicle', label: 'Phân xe' },
+  { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
+  { key: 'status', label: 'Trạng thái' },
+];
+
 interface ShipmentContainerLedgerProps {
   rows: ShipmentCusContainerFlatRow[];
   totalContainers: number;
@@ -525,6 +622,17 @@ interface ShipmentContainerLedgerProps {
   onSaveIdentity: (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => Promise<void>;
   onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<void>;
   onSaveContainer: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => Promise<void>;
+  /** Card 20260921_2 — add/remove rows (per-row trip guard lives server-side). */
+  onAddContainer?: (shipmentId: number, payload: ShipmentCusContainerAddInput, rowId?: number) => Promise<void>;
+  onRemoveContainer?: (row: ShipmentCusContainerFlatRow) => Promise<void>;
+  /**
+   * Column keys the picker on the page's filter bar is hiding (card
+   * 20260928_193, restoring 20260917_4). The ledger renders `col`/`th`/`td`
+   * conditionally so a `table-layout: fixed` table never shows ghost columns.
+   * Pinned columns are enforced upstream, at the resolver — a hidden key for an
+   * identity column is dropped before it reaches here.
+   */
+  hiddenColumns?: readonly string[];
 }
 
 export function ShipmentContainerLedger({
@@ -546,8 +654,30 @@ export function ShipmentContainerLedger({
   onSaveIdentity,
   onSaveDocuments,
   onSaveContainer,
+  onAddContainer,
+  onRemoveContainer,
+  hiddenColumns = [],
 }: ShipmentContainerLedgerProps) {
+  const isHidden = (key: string) => hiddenColumns.includes(key);
   const missingDateCount = rows.filter((row) => row.transportDate == null).length;
+  // Card 20260921_2: the add-row form opens for a ROW's lot (the workboard is
+  // multi-lot); removal is a per-row action. Both hide while an edit session
+  // is open, and both hide when the parent chose not to wire them.
+  const { confirm, dialog: confirmDialog } = useConfirm();
+  const [addForRow, setAddForRow] = useState<ShipmentCusContainerFlatRow | null>(null);
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const canMutateRows = onAddContainer != null && onRemoveContainer != null && activeEdit == null;
+
+  async function submitAddRow(row: ShipmentCusContainerFlatRow, payload: ShipmentCusContainerAddInput) {
+    if (!onAddContainer) return;
+    setAddSubmitting(true);
+    try {
+      await onAddContainer(row.shipmentId, payload, row.id);
+      setAddForRow(null);
+    } finally {
+      setAddSubmitting(false);
+    }
+  }
   const missingVehicleTodayCount = rows.filter((row) => row.transportDate === today && (!row.carrierName || !row.plateNumber)).length;
   const renderInlineEditor = (edit: ActiveShipmentDetailEdit, editorId: string) => (
     <InlineEditor
@@ -609,27 +739,39 @@ export function ShipmentContainerLedger({
         ]}
       />
       <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
+        {confirmDialog}
+        {addForRow && canMutateRows && (
+          <AddContainerRowForm
+            shipmentId={addForRow.shipmentId}
+            expectedShipmentVersion={addForRow.shipmentVersion}
+            submitting={addSubmitting}
+            onSubmit={(shipmentId, payload) => submitAddRow(addForRow, payload)}
+            onCancel={() => setAddForRow(null)}
+          />
+        )}
         <table>
           <caption>Chi tiết container theo tám nhóm thông tin nghiệp vụ</caption>
           <colgroup>
             <col className="shipment-container-ledger__col--customer" />
             <col className="shipment-container-ledger__col--documents" />
             <col className="shipment-container-ledger__col--container" />
-            <col className="shipment-container-ledger__col--route" />
-            <col className="shipment-container-ledger__col--schedule" />
-            <col className="shipment-container-ledger__col--vehicle" />
-            <col className="shipment-container-ledger__col--notes" />
-            <col className="shipment-container-ledger__col--status" />
+            {!isHidden('route') && <col className="shipment-container-ledger__col--route" />}
+            {!isHidden('schedule') && <col className="shipment-container-ledger__col--schedule" />}
+            {!isHidden('vehicle') && <col className="shipment-container-ledger__col--vehicle" />}
+            {!isHidden('notes') && <col className="shipment-container-ledger__col--notes" />}
+            {!isHidden('status') && <col className="shipment-container-ledger__col--status" />}
+            {canMutateRows && <col className="shipment-container-ledger__col--actions" />}
           </colgroup>
           <thead><tr>
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Chứng từ &amp; hãng tàu" sortKey="billOrBookNumber" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Thông số container" sortKey="containerNumber" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Địa điểm nâng / hạ" sortKey="liftSite" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Lịch trình" sortKey="transportDate" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Phân xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Trạng thái" sortKey="dispatchStatus" sort={sort} onSortChange={onSortChange} />
+            {!isHidden('route') && <SortHeader label="Địa điểm nâng / hạ" sortKey="liftSite" sort={sort} onSortChange={onSortChange} />}
+            {!isHidden('schedule') && <SortHeader label="Lịch trình" sortKey="transportDate" sort={sort} onSortChange={onSortChange} />}
+            {!isHidden('vehicle') && <SortHeader label="Phân xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />}
+            {!isHidden('notes') && <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />}
+            {!isHidden('status') && <SortHeader label="Trạng thái" sortKey="dispatchStatus" sort={sort} onSortChange={onSortChange} />}
+            {canMutateRows && <th scope="col">Thao tác</th>}
           </tr></thead>
           <tbody>
             {rows.map((row) => {
@@ -638,7 +780,7 @@ export function ShipmentContainerLedger({
               const missingVehicleToday = row.transportDate === today && (!row.carrierName || !row.plateNumber);
               const appointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
               const scheduleTime = formatScheduleTime(row);
-              const identityEditable = ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
+              const identityEditable = row.fieldAccess.operationalSiteId?.mode === 'DIRECT';
               const documentsEditable = ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
               const containerEditable = row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY';
               const routeEditable = row.fieldAccess.routeId.mode !== 'READ_ONLY' || row.fieldAccess.liftSiteId.mode !== 'READ_ONLY' || row.fieldAccess.dropoffSiteId.mode !== 'READ_ONLY';
@@ -665,6 +807,17 @@ export function ShipmentContainerLedger({
                         <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
                       </div>
                       <span className="shipment-container-ledger__classification"><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b><span>· {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span></span>
+                      {row.shipmentId && (
+                        <Link
+                          to={`/shipments/${row.shipmentId}`}
+                          className="shipment-container-ledger__shipment-link"
+                          title="Xem chi tiết lô hàng"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ fontSize: '12px', color: 'var(--color-primary, #059669)', textDecoration: 'underline', marginTop: '2px', display: 'inline-block' }}
+                        >
+                          Chi tiết lô hàng →
+                        </Link>
+                      )}
                     </div>)}
                   </td>
                   <td data-label="Thông số container" className={cellClassName(containerEditable, 'container')}>
@@ -675,32 +828,36 @@ export function ShipmentContainerLedger({
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
                     </div>)}
                   </td>
-                  <td data-label="Địa điểm nâng / hạ" className={cellClassName(routeEditable, 'route')}>
+{!isHidden('route') && (<td data-label="Địa điểm nâng / hạ" className={cellClassName(routeEditable, 'route')}>
                     {editableCell(row, 'route', routeEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
-                  </td>
-                  <td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
+                  </td>)}
+{!isHidden('schedule') && (<td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
                     {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule ops-schedule">
                       {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
-                      <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatDate(appointmentInput.slice(0, 10))].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
-                  </td>
-                  <td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
+                      <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatISODate(appointmentInput.slice(0, 10), { empty: 'Chưa có ngày' })].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
+                  </td>)}
+{!isHidden('vehicle') && (<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
-                      {missingVehicleToday && <Badge size="sm" color="warning" className="shipment-container-ledger__vehicle-state"><Clock3 aria-hidden="true" />Chờ phân xe</Badge>}
+                      {/* Card 20260922_24: the dispatch state ("Chờ phân xe") lives
+                          in the Trạng thái cell; repeating it here as a badge made
+                          one row read the same status twice. The amber cell tint
+                          (__vehicle-pending) keeps the attention cue without the
+                          duplicate label. */}
                       <strong>{row.carrierName || <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}</strong>
                       {row.plateNumber
                         ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
                         : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">Chưa gán biển số</BadgeWithDot>}
                     </div>)}
-                  </td>
-                  <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
+                  </td>)}
+{!isHidden('notes') && (<td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__notes">
                       {row.customerNotes && <strong>{displayNote(row.customerNotes)}</strong>}
                       {row.operationalNotes && <span>{displayNote(row.operationalNotes)}</span>}
                       {!row.customerNotes && !row.operationalNotes && <span className="shipment-container-ledger__missing">—</span>}
                     </div>)}
-                  </td>
-                  <td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
+                  </td>)}
+{!isHidden('status') && (<td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
                     <div className="shipment-container-ledger__multiline">
                       <span className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`}>{DISPATCH_STATUS[row.dispatchStatus].label}</span>
                       {row.informationStatus === 'MISSING' && (
@@ -719,7 +876,29 @@ export function ShipmentContainerLedger({
                         />
                       )}
                     </div>
-                  </td>
+                  </td>)}
+                  {canMutateRows && (
+                    <td data-label="Thao tác" className="shipment-container-ledger__cell--actions">
+                      <div className="shipment-container-ledger__multiline">
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm"
+                          aria-label={`Thêm container cùng lô ${row.containerNumber || row.ordinal}`}
+                          onClick={() => setAddForRow(addForRow?.id === row.id ? null : row)}
+                        >＋ Thêm</button>
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm shipment-container-ledger__remove"
+                          aria-label={`Xóa container ${row.containerNumber || row.ordinal}`}
+                          disabled={addSubmitting || editLoadingRowId === row.id}
+                          onClick={async () => {
+                            const ok = await confirm(`Xóa container ${row.containerNumber ?? ''}? Dòng đã lưu chỉ xóa được khi chưa gắn chuyến.`, { variant: 'danger', confirmLabel: 'Xóa' });
+                            if (ok) await onRemoveContainer?.(row);
+                          }}
+                        >Xóa</button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}

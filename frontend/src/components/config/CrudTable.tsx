@@ -5,6 +5,7 @@ import { EmptyState } from '../../design-system';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllPaginated } from '../../lib/http/paginate';
 import { PageHeader, Panel, Modal, useConfirm } from '../UI';
+import { ListFilterBar } from '../ListFilterBar';
 import { Alert } from '../shared/Alert';
 import { useCRUD } from '../../hooks/useCRUD';
 import { qk } from '../../api/keys';
@@ -52,7 +53,7 @@ interface CrudTableProps<T extends { id: number; updatedAt?: string }> {
   rowStyle?: (item: T, isActive: boolean) => React.CSSProperties | undefined;
   toolbarLeft?: (ctx: { totalItems: number; activeCount: number }) => React.ReactNode;
   backTo?: string;
-  emptyIllustration?: string;
+  emptyContext?: import('../../lib/emptyIllustrations').EmptyContext;
   emptyTitle?: string;
   emptyHint?: string;
   pageSlug?: string;
@@ -63,7 +64,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
   title, description, endpoint, listQuery = '', columns, renderForm, colSpan,
   showDelete = true, onDelete, modalChip, sortFn, computeActiveIds, rowStyle,
   toolbarLeft, backTo = '/config',
-  emptyIllustration = 'empty-config.svg',
+  emptyContext = 'config',
   emptyTitle = 'Chưa có dữ liệu',
   emptyHint,
   pageSlug,
@@ -112,11 +113,23 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
   return (
     <div className={wrapperClass}>
       <PageHeader title={title} description={description} onBack={() => navigate(backTo)} iconName={iconName} showTitle />
-      <Panel flush>
-        <div className="toolbar">
-          <div className="cfg-catalogue-search">
-            <input className="input" type="search" aria-label={`Tìm trong ${title.toLowerCase()}`} placeholder="Tìm trong danh mục…" value={search} onChange={event => setSearch(event.target.value)} />
-          </div>
+      {/* The ONE shared filter plane (card 20260927_152): the shell renders no
+          toolbar of its own. The bar owns the row, the wrapping and every
+          control width; the search rides its `search` slot, the result counter
+          is the `status` node and `Thêm mới` is the page action. The bar is a
+          card of its own, so it sits above the table's panel instead of inside
+          it (the shape every converted surface uses). `type="search"` rides
+          `inputProps` so the field keeps the searchbox role it always had (the
+          native clear affordance is globally suppressed in globals.css). */}
+      <ListFilterBar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Tìm trong danh mục…',
+          ariaLabel: `Tìm trong ${title.toLowerCase()}`,
+          inputProps: { type: 'search' },
+        }}
+        status={(
           <div className="cfg-catalogue-summary" aria-live="polite">
             {toolbarLeft
               ? toolbarLeft({ totalItems: items.length, activeCount: activeIds.size })
@@ -126,10 +139,14 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                   </span>
                 )}
           </div>
+        )}
+        actions={(
           <button className="btn btn--primary btn--sm" onClick={() => crud.setShowAddForm(true)}>
             <Plus size={14} /> Thêm mới
           </button>
-        </div>
+        )}
+      />
+      <Panel flush>
         {isError && <div role="alert" className="cfg-catalogue-feedback">
           <span>Không tải được danh mục.{items.length > 0 ? ' Dữ liệu đang hiển thị có thể chưa cập nhật.' : ' Hãy thử lại để kiểm tra dữ liệu hiện có.'}</span>
           <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => { void refetch(); }}>{isFetching ? 'Đang thử lại…' : 'Thử lại'}</button>
@@ -154,7 +171,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                 <tr className="cfg-empty-row">
                   <td colSpan={colSpan + 1} data-label="" style={{ textAlign: 'center' }}>
                     <EmptyState
-                      illustration={`/assets/illustrations/${emptyIllustration}`}
+                      context={emptyContext}
                       title={emptyTitle}
                       description={emptyHint}
                       action={

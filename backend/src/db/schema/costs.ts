@@ -174,6 +174,12 @@ export const tripExpenses = pgTable('trip_expenses', {
   returnForEvidenceReason: text('return_for_evidence_reason'),
   returnedForEvidenceAt: timestamp('returned_for_evidence_at'),
   returnedForEvidenceBy: integer('returned_for_evidence_by'),
+  // Q10 (card 20260922_78): fee rows are SOFT-deleted, never removed — the
+  // reason is free text entered by the actor at delete time (no canned
+  // constants), with actor + timestamp for the governed trail.
+  deletionReason: text('deletion_reason'),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  deletedBy: integer('deleted_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
@@ -358,8 +364,18 @@ export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
   driverId: integer('driver_id')
     .notNull(),
   costType: driverIncidentalCostTypeEnum('cost_type').notNull(),
+  // Card 20260921_6: the catalog row the driver picked (app-level FK →
+  // forwarder_expense_types.code, same convention as ops_expense_entries).
+  // null = legacy/enum-only entry keeps the pre-card heuristic.
+  expenseTypeCode: varchar('expense_type_code', { length: 50 }),
+  // Card 20260921_7: the fee norm (driver_fee_norms.code) the driver picked —
+  // pins the entry to the road bucket, never receivable. null = not norm-driven.
+  feeNormCode: varchar('fee_norm_code', { length: 50 }),
   // VND amount — integer, no decimals (matches tripExpenses.buyAmount convention).
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  // Card 20260921_14: the DRIVER's original figure, kept for comparison when
+  // the accountant adjusts the payable amount. Backfilled = amount.
+  driverEnteredAmount: numeric('driver_entered_amount', { precision: 15, scale: 0 }),
   // The date the cost was incurred (driver-reported). Distinct from createdAt.
   occurredAt: date('occurred_at').notNull(),
   note: text('note'),
@@ -372,4 +388,54 @@ export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
 }, (table) => [
   index('driver_incidental_costs_trip_idx').on(table.tripId, table.occurredAt),
   index('driver_incidental_costs_driver_idx').on(table.driverId),
+]);
+
+/** Card 20260921_7 — driver road/allowance fee norms (định mức) as CONFIG
+ *  DATA. Seeds carry the amounts the customer spec fixed; entries pick a norm
+ *  code and the server applies its costType/costGroup (always DRIVER_ROAD —
+ *  road fees never bill the customer). Amounts here are the DEFAULT the FE
+ *  pre-fills; the driver may override the actual amount per AC3. */
+export const driverFeeNorms = pgTable('driver_fee_norms', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  label: varchar('label', { length: 120 }).notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  costType: varchar('cost_type', { length: 30 }).notNull(),
+  costGroup: varchar('cost_group', { length: 20 }).notNull().default('DRIVER_ROAD'),
+  status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('driver_fee_norms_status_idx').on(table.status),
+]);
+
+// Card 20260921_18 — THEO DÕI HÓA ĐƠN KẾT HỢP: one row per combined invoice
+// against a container trip. supplierPayment is mirrored into trip_expenses
+// (Chi phí khác / "Chi phí hóa đơn") and kept in sync via expense_id.
+export const invoiceTracking = pgTable('invoice_tracking', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  tripId: integer('trip_id').notNull(),
+  expenseId: integer('expense_id'),
+  invoiceNumber: varchar('invoice_number', { length: 50 }).notNull(),
+  invoiceAmount: numeric('invoice_amount', { precision: 15, scale: 0 }).notNull(),
+  supplierPayment: numeric('supplier_payment', { precision: 15, scale: 0 }).notNull(),
+  taxCode: varchar('tax_code', { length: 20 }),
+  supplierName: varchar('supplier_name', { length: 200 }),
+  comNote: varchar('com_note', { length: 200 }),
+  invoiceSentAt: date('invoice_sent_at'),
+  note: text('note'),
+  progress: varchar('progress', { length: 20 }).notNull().default('CHUA_GUI'),
+  expenseDate: date('expense_date').notNull().defaultNow(),
+  createdBy: integer('created_by'),
+  // Q10 (card 20260922_78): tracker rows soft-delete with the same governed
+  // trail as the fee rows they mirror.
+  deletionReason: text('deletion_reason'),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  deletedBy: integer('deleted_by'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('invoice_tracking_shipment_id_idx').on(table.shipmentId),
+  index('invoice_tracking_trip_id_idx').on(table.tripId),
 ]);

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('SupplierListPage dispatch worksheet styling', () => {
-  it('uses the compact operational-table typography and a sticky worksheet footer', () => {
+  it('uses the compact operational-table typography and an in-flow worksheet footer', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.css'), 'utf8');
 
@@ -14,7 +14,9 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     // Workboard standard: the thead skin is owned by the shared record-table
     // base — the page must not re-declare it (conformance invariant).
     expect(css).not.toContain('.suppliers-page__grid th {');
-    expect(css).toContain('position: sticky');
+    // Card 20260921_22 sweep: the worksheet footer stays in flow — a sticky
+    // bottom pin floated it mid-list over the rows (dispatch ruled first).
+    expect(css).toMatch(/__workspace > \.ds-pagination\s*\{[^}]*position:\s*static/);
     expect(css).toContain('font-size: var(--ops-table-primary-size)');
     expect(css).toContain('.suppliers-page__workspace > .ds-pagination {');
   });

@@ -17,13 +17,13 @@ function CapTableForm({ saving, item, onsave, oncancel }: {
   return (
     <InlineForm colSpan={5}>
       <div style={{ flex: 2, minWidth: 180 }}>
-        <Field label="Tên cổ đông"><input className="input" value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="Nhập tên cổ đông…" /></Field>
+        <Field label="Tên cổ đông"><input className="input" required pattern={'.*\\S.*'} value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="Nhập tên cổ đông…" /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 130 }}>
-        <Field label="Số vốn góp (₫)"><input className="input" type="number" step="1000000" value={contributionAmount} onChange={e => setContributionAmount(e.target.value)} placeholder="0" /></Field>
+        <Field label="Số vốn góp (₫)"><input className="input" type="number" step="1000000" required value={contributionAmount} onChange={e => setContributionAmount(e.target.value)} placeholder="0" /></Field>
       </div>
       <div style={{ flex: 1.5, minWidth: 150 }}>
-        <Field label="Ngày hiệu lực"><DateInput className="input" value={effectiveDate} onChange={setEffectiveDate} /></Field>
+        <Field label="Ngày hiệu lực"><DateInput required className="input" value={effectiveDate} onChange={setEffectiveDate} /></Field>
       </div>
       <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => {
         if (!partnerName.trim() || !contributionAmount || !effectiveDate) return;
@@ -70,7 +70,7 @@ export default function CapTableConfigPage() {
       showDelete={false}
       pageSlug="cap-table"
       iconName="equity-ownership"
-      emptyIllustration="empty-pie.svg"
+      emptyContext="pie"
       emptyTitle="Chưa có cổ đông"
       emptyHint="Thêm thông tin vốn góp để hệ thống tự động tính tỷ lệ cổ phần."
       computeActiveIds={computeCapTableActiveIds}
@@ -99,7 +99,7 @@ export default function CapTableConfigPage() {
         {
           header: 'Số vốn góp',
           className: 'num',
-          render: (ct) => <span style={{ fontWeight: 600 }}>{formatCurrency(parseFloat(ct.contributionAmount) || 0)}</span>,
+          render: (ct) => <span className="data-token" style={{ fontWeight: 600 }}>{formatCurrency(parseFloat(ct.contributionAmount) || 0)}</span>,
         },
         {
           header: 'Tỷ lệ (%)',

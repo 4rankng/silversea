@@ -1,0 +1,1 @@
+ALTER TABLE "freight_rate_snapshots" ADD COLUMN "formula_text" text;

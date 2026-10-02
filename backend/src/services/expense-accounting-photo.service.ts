@@ -1,3 +1,5 @@
+import { eq } from 'drizzle-orm';
+import { assertExpenseOwnerWriteScope } from './expense-owner-scope.service';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import type { ExpenseSourceKind } from '@tingting/shared';
@@ -13,6 +15,8 @@ export async function attachAccountingExpensePhoto(actor: ExpenseActor, kind: Ex
   const source = await db.transaction(async tx => {
     const row = await ensureLegacyExpenseSource(tx, kind, id, actor.userId);
     assertExpenseActorScope(actor, row);
+    await assertExpenseOwnerWriteScope(tx, actor, row);
+    if (row.status !== 'RECORDED') throw new ApiError(409, 'Khoản chi đã hủy; giữ nguyên chứng từ lịch sử.');
     if (actor.role === 'CUS') throw new ApiError(403, 'CUS không được cập nhật chứng từ chi phí.');
     return row;
   });
@@ -20,6 +24,14 @@ export async function attachAccountingExpensePhoto(actor: ExpenseActor, kind: Ex
   const buffer = await sharp(file.buffer).rotate().resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer();
   const storageKey = `accounting-expense-photos/${source.id}/${createHash('sha256').update(buffer).digest('hex')}.jpg`;
   await storageService.upload(buffer, storageKey);
-  await db.insert(s.expenseAccountingEvidence).values({ expenseAccountingSourceId: source.id, storageKey, uploadedById: actor.userId }).onConflictDoNothing();
+  await db.transaction(async tx => {
+    const current = await ensureLegacyExpenseSource(tx, kind, id, actor.userId);
+    assertExpenseActorScope(actor, current);
+    await assertExpenseOwnerWriteScope(tx, actor, current);
+    if (current.status !== 'RECORDED') throw new ApiError(409, 'Khoản chi đã hủy; giữ nguyên chứng từ lịch sử.');
+    await tx.insert(s.expenseAccountingEvidence).values({ expenseAccountingSourceId: current.id, storageKey, uploadedById: actor.userId }).onConflictDoNothing();
+    if (kind === 'OPS') await tx.insert(s.opsExpensePhotos).values({ opsExpenseId: id, storageKey, uploadedById: actor.userId }).onConflictDoNothing();
+    if (kind === 'DRIVER') await tx.update(s.driverIncidentalCosts).set({ photoStorageKeys: [...new Set([...current.photoStorageKeys, storageKey])], receiptStorageKey: current.photoStorageKeys[0] ?? storageKey }).where(eq(s.driverIncidentalCosts.id, id));
+  });
   return { storageKey, url: `/api/photos/${storageKey}` };
 }

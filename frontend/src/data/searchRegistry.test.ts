@@ -107,12 +107,13 @@ describe('role-aware search destinations', () => {
     }
   });
 
-  it('gives dispatchers their five nav destinations instead of an empty palette', () => {
+  it('gives dispatchers their six nav destinations instead of an empty palette', () => {
     const items = getSearchItems('DISPATCHER');
     expect(items.map(item => item.path)).toEqual([
       '/dispatch',
       '/dispatch-detail',
       '/fleet/vehicles',
+      '/fleet/external',
       '/fleet/drivers',
       '/suppliers',
     ]);
@@ -131,6 +132,6 @@ describe('role-aware search destinations', () => {
 
   it('gives CUS clerks the shipment workspaces', () => {
     const items = getSearchItems('CUS');
-    expect(items.map(item => item.path)).toEqual(['/shipments', '/shipments-detail']);
+    expect(items.map(item => item.path)).toEqual(['/shipments', '/shipments-detail', '/shipments-debit']);
   });
 });

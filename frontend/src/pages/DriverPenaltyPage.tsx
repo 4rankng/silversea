@@ -7,6 +7,7 @@ import { useSalaryPeriod, useDriverPenalties } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations } from '../hooks/animations';
 import { UuiSelectField } from '../design-system';
 import './DriverPenaltyPage.css';
+import { EmptyState } from '../design-system';
 
 interface DriverPenaltyRow {
   id: number;
@@ -68,7 +69,6 @@ export default function DriverPenaltyPage() {
   }, [allPenalties, currentPeriod]);
   const totalMonthAmount = monthPenalties.reduce((s, p) => s + parseFloat(p.amount), 0);
   const incidentCount = monthPenalties.length;
-  const isSafeThisMonth = incidentCount === 0;
 
   const isLoadingPeriod = periodLoading || loading;
   const summaryUnavailable = currentPeriodError || (!periodLoading && !currentPeriod);
@@ -81,18 +81,20 @@ export default function DriverPenaltyPage() {
   if (loadError) return (
     <div className="driver-penalty-page">
       <PageHeader title="Kỷ luật của tôi" description="Lịch sử vi phạm và khấu trừ lương của bạn" iconName="alert" />
-      <div className="empty-state" role="alert">
-        <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
-        <h3 className="empty-state-title">Không thể tải biên bản vi phạm</h3>
-        <button
+      <EmptyState
+        role="alert"
+        variant="compact"
+        context="error"
+        title="Không thể tải biên bản vi phạm"
+        action={<button
           type="button"
           className="btn btn--secondary btn--sm"
           onClick={() => void refetch()}
           disabled={isFetching}
         >
           Thử lại
-        </button>
-      </div>
+        </button>}
+      />
     </div>
   );
 
@@ -102,7 +104,13 @@ export default function DriverPenaltyPage() {
       {/* ── Page header ─────────────────────────────────────────────────────── */}
       <PageHeader title="Kỷ luật của tôi" description="Lịch sử vi phạm và khấu trừ lương của bạn" iconName="alert" />
 
-      {/* ── Zone 1: Status banner ───────────────────────────────────────────── */}
+      {/* ── Zone 1: Period summary state ─────────────────────────────────────
+          2026-09-27: the "Không vi phạm T…" status banner restated the two
+          month-scoped KPI cards below it (count + deduction) — the same zero
+          signalled twice, plus again in the violations-card header. The KPI
+          grid is the single data surface; the banner's own facts are gone.
+          Loading + the period-read failure alert stay, because they carry
+          state the KPIs cannot (a failed read must not read as "0 vụ"). */}
       {isLoadingPeriod ? (
         <div className="penalty-loading-banner">
           <Loader2 size={16} className="spin" />
@@ -124,24 +132,7 @@ export default function DriverPenaltyPage() {
             {currentPeriodFetching ? 'Đang tải…' : 'Thử lại'}
           </button>
         </div>
-      ) : (
-        <div className={`penalty-status-banner ${isSafeThisMonth ? 'penalty-status-banner--safe' : 'penalty-status-banner--violation'}`}>
-          <div className="penalty-status-banner__icon">
-            {isSafeThisMonth ? <ShieldCheck size={22} /> : <AlertOctagon size={22} />}
-          </div>
-          <div>
-            <div className="penalty-status-banner__title">
-              {isSafeThisMonth ? `Không vi phạm ${monthLabel}` : `${incidentCount} vi phạm ${monthLabel}`}
-            </div>
-            <div className="penalty-status-banner__subtitle">
-              {isSafeThisMonth
-                ? 'Bạn đang chấp hành tốt nội quy công ty. Tiếp tục phát huy!'
-                : `Tổng khấu trừ lương: ${formatCurrency(totalMonthAmount)}`
-              }
-            </div>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* ── Zone 2: KPI grid ──────────────────────────────────────────────── */}
       <div className="kpi-grid cols-3 penalty-kpi-grid">
@@ -159,7 +150,7 @@ export default function DriverPenaltyPage() {
         <div className={`kpi ${!summaryReady ? 'kpi--neutral' : totalMonthAmount > 0 ? 'kpi--warn' : 'kpi--success'}`}>
           <div className="kpi__top"><span className="kpi__label">Khấu trừ {monthLabel}</span></div>
           <div className="kpi__value">
-            {summaryReady && totalMonthAmount > 0 ? <Money value={totalMonthAmount} /> : '—'}
+            {summaryReady ? <Money value={totalMonthAmount} /> : '—'}
           </div>
           <div className="kpi__meta">Trừ vào lương tháng</div>
           <div className="kpi__watermark" aria-hidden="true">
@@ -180,9 +171,9 @@ export default function DriverPenaltyPage() {
       {/* ── Zone 3: Violations data card ───────────────────────────────────── */}
       <div className="penalty-data-card">
         <div className="penalty-data-card__header">
-          <span className="penalty-data-card__title">
-            Sổ vi phạm{!loading && !isFiltering ? ` · ${filteredPenalties.length}` : ''}
-          </span>
+          {/* No count here: the KPI grid already states the violation totals,
+              and the card header count restated them as a fourth zero. */}
+          <span className="penalty-data-card__title">Sổ vi phạm</span>
           <UuiSelectField
             id="penalty-month-filter"
             label="Thời gian"
@@ -210,22 +201,22 @@ export default function DriverPenaltyPage() {
             <p className="penalty-empty-state__loading-text">Đang tải…</p>
           </div>
         ) : monthFilter && (filterPeriodError || filteredError) ? (
-          <div className="penalty-empty-state" role="alert">
-            <p className="penalty-empty-state__title">Không thể tải kỳ đã chọn</p>
-            <button type="button" className="btn btn--secondary btn--sm" onClick={() => void (filterPeriodError ? refetchFilterPeriod() : refetchFiltered())}>
+          <EmptyState
+            role="alert"
+            variant="compact"
+            context="error"
+            title="Không thể tải kỳ đã chọn"
+            action={<button type="button" className="btn btn--secondary btn--sm" onClick={() => void (filterPeriodError ? refetchFilterPeriod() : refetchFiltered())}>
               Thử lại
-            </button>
-          </div>
+            </button>}
+          />
         ) : filteredPenalties.length === 0 ? (
-          <div className="penalty-empty-state">
-            <div className="penalty-empty-state__icon">
-              <ShieldCheck size={32} />
-            </div>
-            <p className="penalty-empty-state__title">Không có biên bản vi phạm</p>
-            <p className="penalty-empty-state__desc">
-              {monthFilter ? 'Không có vi phạm trong khoảng thời gian này.' : 'Bạn chưa có biên bản vi phạm nào.'}
-            </p>
-          </div>
+          <EmptyState
+            variant="compact"
+            context="cleared"
+            title="Không có biên bản vi phạm"
+            description={monthFilter ? 'Không có vi phạm trong khoảng thời gian này.' : 'Bạn chưa có biên bản vi phạm nào.'}
+          />
         ) : (
           <div ref={listRef} className="penalty-violation-list">
             {filteredPenalties.map(p => (

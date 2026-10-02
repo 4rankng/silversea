@@ -5,9 +5,9 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, desc, inArray, notInArray, ilike, sql, count, sum, type SQL } from 'drizzle-orm';
-import { TxnType } from '@tingting/shared';
-import { LedgerService } from './ledger.service';
+import { eq, and, desc, inArray, ilike, sql, count, sum, type SQL } from 'drizzle-orm';
+import { getAdvanceFundedAmounts } from './advance-funding.service';
+import { filterWholeSettlementAdvances } from './advance-consumption.service';
 import type { Tx } from './trip-shared';
 import { escapeLikeTerm } from '../lib/format';
 import { clampPageLimit, enrichWithNames } from './advance-shared.service';
@@ -17,15 +17,12 @@ export async function createAdvanceRequest(
   data: { amount: number; reason: string },
   transaction?: Tx,
 ) {
-  // Direct-effect save (phê duyệt removed): the advance records as RECORDED in
-  // the creating transaction — status, actor, and the OPS_ADVANCE ledger
-  // entry post together. No pending window, no second approver.
+  // Record the request directly without approval. Only actual funding posts money.
   const execute = async (tx: Tx) => {
     const [requester] = await tx.select({ fullName: s.users.fullName })
       .from(s.users)
       .where(eq(s.users.id, requesterId))
       .limit(1);
-    const requesterName = requester?.fullName?.trim() || 'Nhân viên giao nhận';
     const [inserted] = await tx.insert(s.advanceRequests).values({
       requesterId,
       requesterNameSnapshot: requester?.fullName?.trim() || null,
@@ -36,16 +33,6 @@ export async function createAdvanceRequest(
       approvedAt: new Date(),
     }).returning();
 
-    await LedgerService.postEntry(tx, {
-      txnType: TxnType.OPS_ADVANCE,
-      txnId: inserted.id,
-      entityType: 'FORWARDER',
-      entityId: requesterId,
-      debit: 0,
-      credit: Number(inserted.amount),
-      note: `Tạm ứng cho ${requesterName}`,
-    });
-
     const [enriched] = await enrichWithNames([inserted], tx);
     return enriched;
   };
@@ -53,7 +40,7 @@ export async function createAdvanceRequest(
   return runInTx(transaction, execute);
 }
 
-function buildAdvanceRequestConditions(filters?: {
+async function buildAdvanceRequestConditions(filters?: {
   requesterId?: number;
   status?: string;
   search?: string;
@@ -73,11 +60,10 @@ function buildAdvanceRequestConditions(filters?: {
     ));
   }
   if (filters?.excludeLinkedToActiveSettlement) {
-    const claimedRequestIds = db.select({ id: s.advanceSettlementRequests.advanceRequestId })
-      .from(s.advanceSettlementRequests)
-      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
-      .where(notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']));
-    conditions.push(notInArray(s.advanceRequests.id, claimedRequestIds));
+    const candidates = await db.select().from(s.advanceRequests)
+      .where(and(...conditions, eq(s.advanceRequests.status, 'RECORDED')));
+    const eligible = await filterWholeSettlementAdvances(db, candidates);
+    conditions.push(inArray(s.advanceRequests.id, eligible.map(row => row.id)));
   }
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
@@ -128,7 +114,7 @@ export async function listAdvanceRequests(filters?: {
   sortBy?: AdvanceRequestSortKey;
   sortDir?: 'asc' | 'desc';
 }) {
-  const where = buildAdvanceRequestConditions(filters);
+  const where = await buildAdvanceRequestConditions(filters);
 
   const base = db.select()
     .from(s.advanceRequests)
@@ -139,7 +125,8 @@ export async function listAdvanceRequests(filters?: {
   const rows = filters?.limit != null
     ? await base.limit(filters.limit).offset((Math.max(1, filters.page ?? 1) - 1) * filters.limit)
     : await base;
-  return enrichWithNames(rows);
+  const [enriched, funded] = await Promise.all([enrichWithNames(rows), getAdvanceFundedAmounts(db, rows.map(row => row.id))]);
+  return enriched.map(row => ({ ...row, fundedAmount: funded.get(row.id) ?? 0 }));
 }
 
 export interface PaginatedAdvanceRequests {
@@ -173,8 +160,8 @@ export async function listAdvanceRequestsPaginated(filters: {
   sortDir?: 'asc' | 'desc';
 }): Promise<PaginatedAdvanceRequests> {
   const { page, limit } = clampPageLimit(filters.page, filters.limit, 50);
-  const where = buildAdvanceRequestConditions(filters);
-  const whereAll = buildAdvanceRequestConditions({ requesterId: filters.requesterId });
+  const where = await buildAdvanceRequestConditions(filters);
+  const whereAll = await buildAdvanceRequestConditions({ requesterId: filters.requesterId });
 
   const [items, statusRows, filteredCountRows] = await Promise.all([
     listAdvanceRequests({ ...filters, page, limit }),
@@ -231,6 +218,6 @@ export async function getAdvanceRequest(id: number) {
     .where(eq(s.advanceRequests.id, id));
   if (!row) return null;
   const [enriched] = await enrichWithNames([row]);
-  return enriched;
+  return { ...enriched, fundedAmount: (await getAdvanceFundedAmounts(db, [row.id])).get(row.id) ?? 0 };
 }
 

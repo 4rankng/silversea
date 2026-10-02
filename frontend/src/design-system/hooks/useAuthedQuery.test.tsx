@@ -29,7 +29,7 @@ describe('authenticated query session ownership', () => {
     const unsubscribe = onSessionExpired(expired);
     try {
       const { result } = renderHook(() => useAuthedQuery({
-        queryKey: qk.shipmentsCus.list({ page: 1 }), queryFn: () => api.get('/shipments'),
+        queryKey: qk.shipmentsCus.list({ page: 1, pageSize: 20 }), queryFn: () => api.get('/shipments'),
       }), { wrapper: createWrapper() });
       await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
       expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer session-A');
@@ -51,7 +51,7 @@ describe('authenticated query session ownership', () => {
     const unsubscribe = onSessionExpired(expired);
     try {
       const { result } = renderHook(() => useAuthedQuery({
-        queryKey: qk.shipmentsCus.list({ page: 1 }), queryFn: () => api.get('/shipments'),
+        queryKey: qk.shipmentsCus.list({ page: 1, pageSize: 20 }), queryFn: () => api.get('/shipments'),
       }), { wrapper: createWrapper() });
       await waitFor(() => expect(result.current.error).toMatchObject({ status: 401 }));
       expect(getToken()).toBeNull();
@@ -64,7 +64,7 @@ describe('authenticated query session ownership', () => {
     api.setToken('allowed-session');
     const error = new ApiError(403, null, 'Không có quyền');
     const { result } = renderHook(() => useAuthedQuery({
-      queryKey: qk.shipmentsCus.list({ page: 1 }), queryFn: async () => { throw error; },
+      queryKey: qk.shipmentsCus.list({ page: 1, pageSize: 20 }), queryFn: async () => { throw error; },
     }), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.error).toBe(error));
     expect(getToken()).toBe('allowed-session');

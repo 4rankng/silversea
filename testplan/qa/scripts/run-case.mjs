@@ -9,10 +9,10 @@
 // where helpers is `{ env, runId, evidenceDir }`.
 
 import path from 'node:path';
-import fs from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { loadEnv } from '../lib/env.mjs';
+import { loadEnv, blockedForMissingRole } from '../lib/env.mjs';
 import { createSession, writeRunSummary } from '../lib/harness.mjs';
+import { tagNonPassErrors } from '../lib/env-tag.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TESTPLAN_QA = path.resolve(__dirname, '..');
@@ -27,8 +27,8 @@ async function main() {
   const absCase = path.resolve(casePath);
 
   const env = await loadEnv();
-  const today = new Date().toISOString().slice(0, 10);
-  const runId = `${today}_${path.basename(absCase, '.mjs')}`;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const runId = `${timestamp}_${process.pid}_${path.basename(absCase, '.mjs')}`;
   const evidenceDir = path.join(REPO_ROOT, 'testplan', 'qa', 'evidence', runId);
 
   console.log(`[run-case] case=${absCase}`);
@@ -40,16 +40,28 @@ async function main() {
     throw new Error(`case file must export default function; got ${typeof caseMod.default}`);
   }
 
-  const ctx = await createSession({ env, role: caseMod.role, evidenceDir, runId });
+  const ctx = await createSession({ env, role: caseMod.role, evidenceDir, runId }).catch((e) => {
+    // Card 20260928_157: a role this env has no account for is BLOCKED, not a
+    // crash. See lib/env.mjs → missingRoleError / blockedForMissingRole.
+    if (e.code === 'NO_ROLE_CANDIDATES') return null;
+    throw e;
+  });
   const helpers = { env, evidenceDir, runId };
 
   const t0 = Date.now();
   let result;
-  try {
-    result = await caseMod.default(ctx, helpers);
-  } catch (e) {
-    result = { verdict: 'ERROR', errors: [e.stack || e.message] };
+  if (ctx === null) {
+    result = blockedForMissingRole(caseMod.role, env.env);
+  } else {
+    try {
+      result = await caseMod.default(ctx, helpers);
+    } catch (e) {
+      result = { verdict: 'ERROR', errors: [e.stack || e.message] };
+    }
   }
+  // Card 20260928_189: a BLOCKED verdict must name the env, enforced here so
+  // no case can forget. See lib/env-tag.mjs for why this is the boundary.
+  tagNonPassErrors(result, env);
   const durationMs = Date.now() - t0;
 
   await writeRunSummary({
@@ -60,7 +72,7 @@ async function main() {
   console.log(`[run-case] ${result.verdict || 'INCONCLUSIVE'} in ${durationMs}ms`);
   console.log('[run-case] summary written to', path.join(evidenceDir, 'results.json'));
 
-  await ctx.close();
+  if (ctx) await ctx.close();
   process.exit(result.verdict === 'PASS' ? 0 : 1);
 }
 

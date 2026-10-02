@@ -20,6 +20,10 @@ import {
   type ShipmentCusReopenRequestInput,
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusContainerLineUpdateResult,
+  type ShipmentCusContainerAddInput,
+  type ShipmentCusContainerAddResult,
+  type ShipmentCusContainerRemoveInput,
+  type ShipmentCusContainerRemoveResult,
   type ShipmentCusContainerSortKey,
   type ShipmentCusWorkspaceSortKey,
   type ShipmentAccountingLockSummary,
@@ -109,6 +113,8 @@ export interface QuickCreateShipmentRequest {
   /** Null for ad-hoc orders (Lệnh chạy ngoài) — rawCustomerName carries the text. */
   customerId?: number | null;
   isAdHoc?: boolean;
+  /** Combined save: containers ride the create transaction. */
+  containers?: ShipmentContainerBatch['containers'];
   rawCustomerName?: string | null;
   rawRouteName?: string | null;
   routeId?: number | null;
@@ -139,6 +145,9 @@ export interface QuickCreateShipmentRequest {
   /** @deprecated Use driverNotes for shipment write requests. */
   operationalNotes?: string | null;
   customerNotes?: string | null;
+  /** Card 20260922_6 — cược-container intake tick + expected amount. */
+  hasDeposit?: boolean;
+  depositAmount?: number | null;
 }
 
 export interface ShipmentPricingPreviewRequest {
@@ -548,6 +557,14 @@ export interface CancelShipmentFulfillmentResponse {
 /** Dispatch master-plan: how much of the container demand has a planned carrier. */
 export type ShipmentAllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
 
+/** Card 20260925_5: dispatch master-plan FILTER buckets — mutually exclusive
+ * (one lot, one bucket, lead ruling). NOT_ALLOCATED = "Chờ phân xe" (zero
+ * allocations without a locked date, plus partially-allocated lots);
+ * PENDING_CARRIER = "Chờ phân nhà xe" (date locked, zero carriers);
+ * FULLY_ALLOCATED = "Đã phân xong". The ROW payload keeps the derived
+ * ShipmentAllocationStatus wire enum — this type is the filter contract only. */
+export type ShipmentAllocationFilter = 'NOT_ALLOCATED' | 'FULLY_ALLOCATED' | 'PENDING_CARRIER';
+
 /** Per-carrier 20'/40' planned allocation counts (dispatch master-plan chips). */
 export interface ShipmentCarrierAllocationSummaryEntry {
   carrierType: 'OWN' | 'EXTERNAL';
@@ -567,6 +584,7 @@ export interface ShipmentListItem extends Shipment {
   factoryNames?: string[];
   /** Factory operating notes ("Ghi chú nhà máy") for the notes column. */
   factoryNotes?: string | null;
+  opsRecoveryNotes?: string[];
   /** Containers without a đóng/trả appointment; badge shows "Còn X/Y cont chưa chốt ngày đóng trả" when X > 0. */
   containersMissingAppointment?: number;
   containerTotal?: number;
@@ -647,7 +665,7 @@ export async function listZonePortFacets(zone: string, q?: string): Promise<{ it
 }
 
 /** Body for `POST /api/shipments/:id/dispatch` — "phát lệnh" for a fulfillment
- *  that already has a carrier/vehicle planned ("xếp xe"). Mirrors the backend
+ *  that already has a carrier/vehicle planned ("điều xe"). Mirrors the backend
  *  `fulfillmentDispatchSchema` (backend/src/routes/shipments/core.routes.ts). */
 export interface DispatchShipmentRequest {
   fulfillmentId: number;
@@ -734,6 +752,11 @@ export async function listOperationalSites(customerId: number): Promise<Operatio
   );
   return response.items;
 }
+
+// Settlement contracts live in ./shipmentDebit — re-exported so the
+// historical import path keeps working (guard-debt extraction).
+export * from './shipmentDebit';
+
 
 /** Body for `POST /api/shipments/operational-sites`. Optional fields may be null. */
 export interface CreateOperationalSiteBody {
@@ -856,6 +879,13 @@ export async function updateShipmentDeclaration(
   return api.put<ShipmentDeclaration>(`/shipments/${shipmentId}/declarations/${declarationId}`, body);
 }
 
+export async function deleteShipmentDeclaration(
+  shipmentId: number,
+  declarationId: number,
+): Promise<void> {
+  await api.delete(`/shipments/${shipmentId}/declarations/${declarationId}`);
+}
+
 export async function deleteCusShipment(
   shipmentId: number,
   version: number,
@@ -918,7 +948,7 @@ export async function listShipments(params?: {
   /** Dispatch master-plan: filters on expectedDeliveryDate. */
   deliveryDateFrom?: string;
   deliveryDateTo?: string;
-  allocationStatus?: ShipmentAllocationStatus;
+  allocationStatus?: ShipmentAllocationFilter;
   /** Dispatch master-plan Lạch Huyện: OR within ports, AND with other facets. */
   portIds?: number[];
   /** Dispatch master-plan: OWN / EXTERNAL:<id> / UNASSIGNED keys. */
@@ -957,6 +987,8 @@ export interface ShipmentCusWorkspaceFilters {
   customerId?: number;
   direction?: 'IMPORT' | 'EXPORT';
   bucket?: 'NEW' | 'RUNNING' | 'PENDING_LOCK' | 'LOCKED';
+  /** 20260917_12 tri-state: true = chỉ lệnh chạy ngoài, false = chỉ luồng danh mục. */
+  isAdHoc?: boolean;
   sortBy?: ShipmentCusWorkspaceSortKey;
   sortDir?: 'asc' | 'desc';
 }
@@ -983,6 +1015,9 @@ export async function listCusShipmentWorkspace(
   if (filters.customerId != null) query.set('customerId', String(filters.customerId));
   if (filters.direction) query.set('direction', filters.direction);
   if (filters.bucket) query.set('bucket', filters.bucket);
+  // 20260917_12 tri-state: 'true' = chỉ lệnh chạy ngoài, 'false' = chỉ luồng
+  // danh mục, absent = không lọc.
+  if (filters.isAdHoc !== undefined) query.set('isAdHoc', String(filters.isAdHoc));
   if (filters.sortBy) query.set('sortBy', filters.sortBy);
   if (filters.sortDir) query.set('sortDir', filters.sortDir);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
@@ -1035,6 +1070,33 @@ export async function updateCusShipmentContainerLine(
 ): Promise<ShipmentCusContainerLineUpdateResult> {
   return api.post<ShipmentCusContainerLineUpdateResult>(
     SHIPMENTS.CUS_WORKSPACE_CONTAINER_LINE(shipmentId, containerId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+// Card 20260921_2 — add/remove a container row after intake (per-row trip
+// guard lives server-side; the row-level 409 message surfaces as-is).
+export async function addCusShipmentContainerRow(
+  shipmentId: number,
+  body: ShipmentCusContainerAddInput,
+  idempotencyKey?: string,
+): Promise<ShipmentCusContainerAddResult> {
+  return api.post<ShipmentCusContainerAddResult>(
+    SHIPMENTS.CUS_WORKSPACE_CONTAINER_ADD(shipmentId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+export async function removeCusShipmentContainerRow(
+  shipmentId: number,
+  containerId: number,
+  body: ShipmentCusContainerRemoveInput,
+  idempotencyKey?: string,
+): Promise<ShipmentCusContainerRemoveResult> {
+  return api.post<ShipmentCusContainerRemoveResult>(
+    SHIPMENTS.CUS_WORKSPACE_CONTAINER_REMOVE(shipmentId, containerId),
     body,
     { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
   );

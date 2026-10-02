@@ -7,8 +7,9 @@
  * route imports keep working — this module is their owner.
  */
 import { createHash } from 'node:crypto';
-import { sql, eq, and, lte, isNull, desc } from 'drizzle-orm';
+import { eq, and, lte, isNull, desc } from 'drizzle-orm';
 import { db } from '../db';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import type { z } from 'zod';
 import {
   tripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema,
@@ -79,7 +80,7 @@ export async function resolveLiftPricingForWrite(
     throw new ApiError(400, 'Ngày chi không hợp lệ');
   }
 
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${input.tripContainerId})`);
+  await acquireAdvisoryLock(tx, lockKeys.containerScope(input.tripContainerId));
   const [container] = await tx.select({
     tripId: s.tripContainers.tripId,
     containerTypeId: s.tripContainers.containerTypeId,
@@ -196,7 +197,7 @@ export async function deleteForwarderExpensePhotoCommand(
   forwarderId: number,
   expectedUpdatedAt: Date | undefined,
 ): Promise<ForwarderExpensePhotoDeleteCommand | null> {
-  await client.execute(sql`SELECT pg_advisory_xact_lock(6111, ${photoId})`);
+  await acquireAdvisoryLock(client, lockKeys.expensePhoto(photoId));
   const [photo] = await client.select({
     id: s.tripExpensePhotos.id,
     tripExpenseId: s.tripExpensePhotos.tripExpenseId,
@@ -330,7 +331,7 @@ export async function updateForwarderExpenseCommand(args: {
     createdBy: forwarderId,
     responseStatusCode: 200,
     create: async (tx) => {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+      await acquireAdvisoryLock(tx, lockKeys.expense(expenseId));
       const [existing] = await tx.select({
         tripId: s.tripExpenses.tripId,
         expenseType: s.tripExpenses.expenseType,
@@ -416,8 +417,13 @@ export async function deleteForwarderExpenseCommand(args: {
   expenseId: number;
   expectedUpdatedAt: Date;
   idempotencyKey: string;
+  /** Q10 (card 20260922_78): mandatory free-text reason; stored on the row. */
+  reason: string;
+  /** Q10 actor: the signed-in user id (forwarder auth middleware attaches it). */
+  deletedBy: number;
 }) {
-  const { forwarderId, expenseId, expectedUpdatedAt } = args;
+  const { forwarderId, expenseId, expectedUpdatedAt, reason, deletedBy } = args;
+  if (!reason || !reason.trim()) throw new ApiError(400, 'Lý do xóa là bắt buộc.');
   return runIdempotent({
     endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.EXPENSE_DELETE,
     idempotencyKey: args.idempotencyKey,
@@ -425,13 +431,15 @@ export async function deleteForwarderExpenseCommand(args: {
       expenseId,
       forwarderId,
       expectedUpdatedAt: expectedUpdatedAt.toISOString(),
+      reason: reason.trim(),
+      deletedBy,
     },
     createdBy: forwarderId,
     responseStatusCode: 200,
     create: async (tx) => {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+      await acquireAdvisoryLock(tx, lockKeys.expense(expenseId));
       const expense = await getTripExpenseAuditInfo(expenseId, tx);
-      const result = await deleteTripExpenseInTx(tx, expenseId, forwarderId, expectedUpdatedAt);
+      const result = await deleteTripExpenseInTx(tx, expenseId, forwarderId, expectedUpdatedAt, reason, deletedBy);
       if (result === null) throw new ApiError(404, 'Không tìm thấy chi phí');
       if (result === 'FORBIDDEN') throw new ApiError(403, 'Không có quyền xóa chi phí này');
       const auditEntityKey = expense

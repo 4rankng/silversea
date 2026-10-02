@@ -6,7 +6,7 @@ import { Loader2, Save, Trash2, Upload } from 'lucide-react';
 import { PageHeader, Panel } from '../../components/UI';
 import { useCompanyInfo, useSaveCompanyInfo } from '../../hooks/useCatalogQueries';
 import { configClient } from '../../api/configClient';
-import { photoSrc } from '../../lib/api/photo';
+import { useAuthedPhotoUrl } from '../../lib/api/photo';
 import { usePageAnimations } from '../../hooks/animations';
 import './config-page.css';
 
@@ -168,7 +168,12 @@ export default function CompanyInfoConfigPage() {
     }
   };
 
-  const logoSrc = photoSrc(form.logoStorageKey);
+  // The logo lives behind the same authenticated /api/photos route as every
+  // other stored asset (`isProtectedPhotoStorageKey` includes
+  // `company-assets/logo-*.png`), so it loads the same way: Authorization-
+  // header blob fetch, never a ?token= URL. A failed read falls back to the
+  // card's own "Chưa có logo" state.
+  const logoSrc = useAuthedPhotoUrl(form.logoStorageKey);
 
   return (
     <div ref={rootRef} className="cfg-page cfg-page--company-info">

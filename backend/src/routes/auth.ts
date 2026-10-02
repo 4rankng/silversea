@@ -21,12 +21,14 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
 import type { Request, Response } from 'express';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
+import { declareNonMaterialWrite } from '../middleware/material-write';
+import { declareMaterialWrite } from '../middleware/material-write';
 
 // Audit event registrations
 registerAuditEvent('POST', '/api/auth/login', AuditEvent.USER_LOGIN);
 registerAuditEvent('POST', '/api/auth/logout', AuditEvent.USER_LOGOUT);
 
-const router = Router();
+const router = Router()
 export const AUTH_COMMANDS = {
   PROFILE_UPDATE: 'auth.profile.update',
   PASSWORD_CHANGE: 'auth.password.change',
@@ -141,7 +143,7 @@ async function lockBusinessUnitVersion(tx: Tx, id: number, expected: Date, notFo
 
 // ─── Login ───────────────────────────────────────────────────────────────────
 
-router.post('/login', asyncHandler(async (req: Request, res: Response) => {
+router.post('/login', declareNonMaterialWrite('Authentication session creation; no business entity mutation.'), asyncHandler(async (req: Request, res: Response) => {
   const { identifier, password } = loginSchema.parse(req.body);
 
   const user = await userService.authenticate(identifier, password);
@@ -177,7 +179,7 @@ router.get('/me', authMiddleware, asyncHandler(async (req: Request, res: Respons
   res.json({ ...profile, capabilities });
 }));
 
-router.post('/logout', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+router.post('/logout', declareNonMaterialWrite('Authentication session revocation; independently token-bound and replay-safe.'), authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   await revokeCurrentTokenOrThrow(
     req,
     'Phiên đăng nhập chưa được thu hồi trên máy chủ. Vui lòng thử lại.',
@@ -185,7 +187,7 @@ router.post('/logout', authMiddleware, asyncHandler(async (req: Request, res: Re
   res.json({ success: true });
 }));
 
-router.patch('/me', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+router.patch('/me', declareMaterialWrite('auth.profile.update', { method: 'PATCH', path: '/api/auth/me' }),  authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật hồ sơ.');
   const expectedUpdatedAt = requireExpectedUpdatedAt(
@@ -207,7 +209,7 @@ router.patch('/me', authMiddleware, asyncHandler(async (req: Request, res: Respo
   res.json({ ...result, replayed });
 }));
 
-router.post('/change-password', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+router.post('/change-password', declareMaterialWrite('auth.password.change', { method: 'POST', path: '/api/auth/change-password' }),  authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
   const user = getUser(req);
   const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi đổi mật khẩu.');
@@ -249,7 +251,7 @@ router.get('/users', authMiddleware, casbinAuthz('users'), asyncHandler(async (r
   }));
 }));
 
-router.post('/users', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/users', declareMaterialWrite('auth.users.create', { method: 'POST', path: '/api/auth/users' }),  authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
   if (req.user?.role === Role.ACCOUNTANT) {
     throw new ApiError(403, 'Kế toán không thể tạo người dùng');
   }
@@ -288,7 +290,7 @@ router.post('/users', authMiddleware, casbinAuthz('users'), asyncHandler(async (
   res.status(201).json({ ...result, replayed });
 }));
 
-router.patch('/users/:id', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+router.patch('/users/:id', declareMaterialWrite('auth.users.update', { method: 'PATCH', path: '/api/auth/users/:id' }),  authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) throw new ApiError(400, 'ID không hợp lệ');
   const actor = getUser(req);
@@ -357,7 +359,7 @@ router.get('/business-units', authMiddleware, casbinAuthz('users'), asyncHandler
   res.json({ items: await userService.listBusinessUnits() });
 }));
 
-router.post('/business-units', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/business-units', declareMaterialWrite('auth.business-units.create', { method: 'POST', path: '/api/auth/business-units' }),  authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
   requireAdmin(req, 'Chỉ quản trị viên mới có thể tạo đơn vị phụ trách');
   const data = businessUnitSchema.parse(req.body);
   const actor = getUser(req);
@@ -374,7 +376,7 @@ router.post('/business-units', authMiddleware, casbinAuthz('users'), asyncHandle
   res.status(201).json({ ...result, replayed });
 }));
 
-router.patch('/business-units/:id', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+router.patch('/business-units/:id', declareMaterialWrite('auth.business-units.update', { method: 'PATCH', path: '/api/auth/business-units/:id' }),  authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
   requireAdmin(req, 'Chỉ quản trị viên mới có thể cập nhật đơn vị phụ trách');
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) throw new ApiError(400, 'ID không hợp lệ');
@@ -399,7 +401,7 @@ router.patch('/business-units/:id', authMiddleware, casbinAuthz('users'), asyncH
   res.json({ ...result, replayed });
 }));
 
-router.delete('/business-units/:id', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/business-units/:id', declareMaterialWrite('auth.business-units.deactivate', { method: 'DELETE', path: '/api/auth/business-units/:id' }),  authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
   requireAdmin(req, 'Chỉ quản trị viên mới có thể ngưng sử dụng đơn vị phụ trách');
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) throw new ApiError(400, 'ID không hợp lệ');
@@ -423,7 +425,7 @@ router.delete('/business-units/:id', authMiddleware, casbinAuthz('users'), async
   res.json({ ...result, replayed });
 }));
 
-router.delete('/users/:id', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/users/:id', declareMaterialWrite('auth.users.delete', { method: 'DELETE', path: '/api/auth/users/:id' }),  authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
   if (req.user?.role === Role.ACCOUNTANT) {
     throw new ApiError(403, 'Kế toán không thể xóa người dùng');
   }

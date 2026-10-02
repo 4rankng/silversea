@@ -56,10 +56,19 @@ function makeCustomer(id: number, name: string, creditLimit: string): Customer {
   return {
     id,
     name,
-    taxCode: null,
-    contactPerson: null,
-    phone: null,
-    contactInfo: null,
+    // Card 20260922_22: populated optional fields keep the full column set
+    // visible under the presence-driven model this suite's counts assert.
+    shortName: `TCT-${id}`,
+    code: `KH-${String(id).padStart(3, '0')}`,
+    taxCode: `010${String(id).padStart(8, '0')}`,
+    address: `Số ${id} đường Trần Phú`,
+    contactPerson: `Người liên hệ ${id}`,
+    phone: `09010000${String(id).padStart(2, '0')}`,
+    accountantName: `Kế toán ${id}`,
+    accountantPhone: `09020000${String(id).padStart(2, '0')}`,
+    contactInfo: 'Zalo / email',
+    agencyFeePaymentTermDays: 30,
+    paymentTermDays: 45,
     creditLimit,
     creditWarningThreshold: null,
     status: 'ACTIVE',
@@ -92,6 +101,7 @@ function nameOrder(container: HTMLElement): string[] {
 }
 
 beforeEach(() => {
+  authState.context = { user: { userId: 1, username: 'admin', role: 'ADMIN' } };
   getAllCustomers.mockReset().mockResolvedValue(customers);
   fetchAllTrips.mockReset().mockResolvedValue({ items: [] as TripDetail[], total: 0 });
 });
@@ -117,7 +127,8 @@ describe('CustomersConfigPage client-side sorting', () => {
     fireEvent.click(within(details).getByText('Thông tin chi tiết'));
     expect(details.open).toBe(true);
     expect(within(details).getByText('Khách hàng An')).toBeVisible();
-    fireEvent.click(within(row).getByRole('button', { name: 'Thao tác khách hàng Khách hàng An' }));
+    // The row-action label prefers the populated shortName (component contract).
+    fireEvent.click(within(row).getByRole('button', { name: 'Thao tác khách hàng TCT-1' }));
     expect(within(row).getByRole('button', { name: 'Sửa' })).toBeInTheDocument();
     expect(within(row).getByRole('button', { name: 'Xoá' })).toBeInTheDocument();
   });
@@ -165,5 +176,90 @@ describe('CustomersConfigPage dispatcher edit/delete access', () => {
 
     expect(container.querySelectorAll('.cfg-customer-table thead th')).toHaveLength(13);
     expect(container.querySelector('.record-table__action')).not.toBeNull();
+  });
+});
+
+
+describe('UI-CD-09 catalog query whitespace', () => {
+  it('normalizes API queries while preserving the typed search', async () => {
+    renderPage();
+    await screen.findAllByText('Khách hàng An');
+    const input = screen.getByRole('textbox', { name: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' });
+    fireEvent.change(input, { target: { value: '  que  vo  ' } });
+    await waitFor(() => expect(getAllCustomers).toHaveBeenLastCalledWith('que vo'));
+    expect(input).toHaveValue('  que  vo  ');
+    getAllCustomers.mockClear();
+    fireEvent.change(input, { target: { value: 'que vo' } });
+    expect(getAllCustomers).not.toHaveBeenCalled();
+    expect(input).toHaveValue('que vo');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input).toHaveValue('');
+  });
+});
+
+describe('SIS-ROLE-01/02 optional customer trip statistics', () => {
+  it('does not request unavailable trip statistics for CUS', async () => {
+    authState.context = { user: { userId: 2, username: 'cus', role: 'CUS' } };
+    renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    expect(fetchAllTrips).not.toHaveBeenCalled();
+    expect(screen.getByText('Tài khoản không xem doanh thu')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeEnabled();
+    fireEvent.change(screen.getByRole('textbox', { name: /Tìm khách hàng/ }), { target: { value: 'An' } });
+    await waitFor(() => expect(getAllCustomers).toHaveBeenLastCalledWith('An'));
+    expect(fetchAllTrips).not.toHaveBeenCalled();
+  });
+
+  it('loads the catalog independently and does not refetch statistics for search', async () => {
+    let resolveTrips!: (value: { items: TripDetail[]; total: number }) => void;
+    fetchAllTrips.mockImplementation(() => new Promise(resolve => { resolveTrips = resolve; }));
+    renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    expect(screen.getByText('Đang tải doanh thu…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeDisabled();
+    expect(fetchAllTrips).toHaveBeenCalledTimes(1);
+    expect(fetchAllTrips).toHaveBeenCalledWith({ dateFrom: expect.stringMatching(/^\d{4}-\d{2}-01$/), dateTo: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+    fireEvent.change(screen.getByRole('textbox', { name: /Tìm khách hàng/ }), { target: { value: 'Bình' } });
+    await waitFor(() => expect(getAllCustomers).toHaveBeenLastCalledWith('Bình'));
+    expect(fetchAllTrips).toHaveBeenCalledTimes(1);
+    resolveTrips({ items: [], total: 0 });
+    await screen.findByText('Chưa có doanh thu tháng này');
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeEnabled();
+  });
+
+  it('keeps customers visible when statistics fail and retries only statistics', async () => {
+    fetchAllTrips.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValue({ items: [], total: 0 });
+    renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    await screen.findByText('Không thể tải doanh thu.');
+    expect(screen.queryByText('Chưa có doanh thu tháng này')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeDisabled();
+    const catalogCalls = getAllCustomers.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await screen.findByText('Chưa có doanh thu tháng này');
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeEnabled();
+    expect(getAllCustomers).toHaveBeenCalledTimes(catalogCalls);
+    expect(fetchAllTrips).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ListFilterBar adoption (card 20260922_38)', () => {
+  it('renders the shared bar with search and one quick-filter group, no duplicate filter select', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+    expect(bar).not.toBeNull();
+    // The hand-rolled toolbar and its duplicate mobile filter select are gone.
+    expect(container.querySelector('.cfg-customer-toolbar, .cfg-customer-filter-chips, .cfg-customer-search, .cfg-customer-filter-select')).toBeNull();
+    const group = screen.getByRole('group', { name: 'Lọc khách hàng' });
+    expect(within(group).getAllByRole('button')).toHaveLength(4);
+    within(bar).getByRole('textbox', { name: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' });
+  });
+
+  it('routes the empty face through the shared EmptyState', async () => {
+    getAllCustomers.mockResolvedValue([]);
+    renderPage();
+    const face = await screen.findByText('Chưa có khách hàng');
+    expect(face.closest('.ds-empty-state')).not.toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { formatViDate } from './formatters';
+import { formatISODate } from '../../lib/format';
 
 /** The selected finance policy's current state: status note, current-version
  *  facts, and version history. Extracted from FinancePolicySection to keep
@@ -33,7 +33,7 @@ export function FinancePolicyStatusCard({ data }: { data: FinancePolicyStatusDat
                   <dl className="cfg-finance-summary__grid">
                     <div>
                       <dt>Hiệu lực từ</dt>
-                      <dd>{data?.currentPolicy ? formatViDate(data.currentPolicy.effectiveFrom ?? '') : 'Chưa cấu hình'}</dd>
+                      <dd>{data?.currentPolicy ? formatISODate(data.currentPolicy.effectiveFrom ?? '') : 'Chưa cấu hình'}</dd>
                     </div>
                     <div>
                       <dt>Phiên bản</dt>

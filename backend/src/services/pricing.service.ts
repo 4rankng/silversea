@@ -241,8 +241,9 @@ export async function resolveShipmentPricingProjection(
   if (input.cargoMode == null) {
     return missingProjection('Chọn loại lô hàng để xem đơn giá dự kiến.');
   }
-  // Ad-hoc orders (Lệnh chạy ngoài) bypass catalog rate cards by design —
-  // no customer, no projection (spec §4.1: cước phí录入 tay / thủ công).
+  // Lệnh chạy ngoài: không áp thẻ giá danh mục — doanh thu chỉ gồm cước do
+  // khách báo và phí chi hộ (spec §4), nên khi thiếu khách hàng danh mục thì
+  // không có gì để chiếu (cước nhập tay/thủ công).
   if (input.customerId == null) {
     return missingProjection('Lệnh chạy ngoài không áp định mức cước phí danh mục.');
   }

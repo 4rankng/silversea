@@ -8,7 +8,7 @@ import type { TripPodSubmissionProps } from '../components/trip/TripPodSubmissio
  * DriverTripPodPage — Phần 4 ticket 2026-08-28: e-POD is its own screen the
  * driver reaches from the trip detail ("Hoàn tất lệnh vận chuyển"). These tests pin
  * the re-homed completion lifecycle: the footer gate needs both mandatory
- * photos, "Hoàn thành chuyến" submits the open DRAFT then completes the trip,
+ * photos, "HOÀN THÀNH CHUYẾN" submits the open DRAFT then completes the trip,
  * and only a confirmed-online completion navigates back to /my-trips.
  */
 
@@ -104,6 +104,7 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
     accountingLock: null,
     fulfillment: {
       id: 88,
+      documentNumber: ' BILL-POD-55 ',
       driverNotes: null,
     },
     currentPod: makePod([]),
@@ -140,6 +141,24 @@ describe('DriverTripPodPage', () => {
     });
   });
 
+  it('QA-AUDIT-DRV-POD-01 uses the business reference in the header and document panel', () => {
+    renderPage();
+    expect(screen.getByText('BILL-POD-55')).toBeInTheDocument();
+    expect(screen.queryByText('TRIP-55')).toBeNull();
+    expect(podSubmissionMock.mock.calls.at(-1)?.[0].documentNumber).toBe('BILL-POD-55');
+  });
+
+  it.each([null, '   '])('QA-AUDIT-DRV-POD-01 names a missing document number (%s)', (documentNumber) => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ fulfillment: { id: 88, documentNumber, driverNotes: null } }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    renderPage();
+    expect(screen.getByText('Chưa có số Bill/Booking')).toBeInTheDocument();
+    expect(screen.queryByText('TRIP-55')).toBeNull();
+    expect(podSubmissionMock.mock.calls.at(-1)?.[0].documentNumber).toBe('Chưa có số Bill/Booking');
+  });
+
   it('renders the e-POD screen with the mandatory-photo footer gate', async () => {
     renderPage();
 
@@ -151,10 +170,15 @@ describe('DriverTripPodPage', () => {
     // Both mandatory photos are listed as missing and completion is gated.
     expect(screen.getByText('Thiếu Phiếu bãi / phiếu hạ')).toBeTruthy();
     expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/i }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }).hasAttribute('disabled')).toBe(true);
+    // DRV-DET-06: the e-POD screen states that the e-POD is mandatory and
+    // names the uppercase command — without minting a second `e-POD bắt buộc`
+    // label (asserted absent above).
+    expect(screen.getByText(/e-POD là bắt buộc/)).toBeTruthy();
+    expect(screen.getByText('HOÀN THÀNH CHUYẾN')).toBeTruthy();
   });
 
-  it('enables Hoàn thành chuyến once both mandatory photos are on the draft', async () => {
+  it('enables HOÀN THÀNH CHUYẾN once both mandatory photos are on the draft', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: makePod([
@@ -170,7 +194,7 @@ describe('DriverTripPodPage', () => {
 
     renderPage();
 
-    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/i });
+    const complete = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
     expect(complete.hasAttribute('disabled')).toBe(false);
     expect(screen.getByText('Đủ điều kiện hoàn thành chuyến.')).toBeTruthy();
     expect(screen.queryByText(/Thiếu/)).toBeNull();
@@ -212,7 +236,7 @@ describe('DriverTripPodPage', () => {
     });
     renderPage();
 
-    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/i });
+    const complete = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
     fireEvent.click(complete);
 
     expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
@@ -230,7 +254,7 @@ describe('DriverTripPodPage', () => {
       isLoading: false, error: null, isError: false, refetch: refetchMock,
     });
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: /Hoàn thành chuyến/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
     await waitFor(() => expect(toastMock).toHaveBeenCalledWith({ kind: 'error', message: error.message }));
     expect(screen.queryByTestId('driver-journey-board')).toBeNull();
     expect(screen.getByTestId('trip-pod-submission')).toBeTruthy();
@@ -261,7 +285,7 @@ describe('DriverTripPodPage', () => {
     renderPage();
 
     expect(await screen.findByRole('status', { name: 'Lô hàng đã khóa kế toán' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/i }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }).hasAttribute('disabled')).toBe(true);
     expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBe('Lô hàng đã khóa kế toán. Không thể thay đổi chứng từ.');
   });
 
@@ -310,7 +334,7 @@ describe('DriverTripPodPage', () => {
       isLoading: false, error: null, isError: false, refetch: refetchMock,
     });
     renderPage();
-    const complete = screen.getByRole('button', { name: /Hoàn thành chuyến/i });
+    const complete = screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
     expect(complete).toBeEnabled();
     act(() => podSubmissionMock.mock.lastCall?.[0].onBusyChange?.(true));
     expect(complete).toBeDisabled();
@@ -344,11 +368,42 @@ describe('DriverTripPodPage', () => {
     submitPodMock.mockRejectedValueOnce(new Error('Máy chủ không khả dụng'));
     renderPage();
     expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành chuyến/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
     await waitFor(() => expect(submitPodMock).toHaveBeenCalledTimes(1));
     expect(completeTripMock).not.toHaveBeenCalled();
     expect(screen.getByTestId('trip-pod-submission')).toBeTruthy();
   });
 
   // Offline queue conflict/recovery tests removed — completion now uses direct API calls.
+  it('UI-DC-22 warns on Back only while unsent evidence remains and preserves it on cancel', async () => {
+    renderPage();
+    const props = podSubmissionMock.mock.calls.at(-1)![0];
+    await act(async () => props.onPendingChange?.(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+    expect(await screen.findByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Hủy|Ở lại/ }));
+    expect(screen.getByTestId('trip-pod-submission')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeNull());
+    await act(async () => props.onPendingChange?.(false));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+    expect(screen.queryByText('Còn tệp chưa gửi. Bỏ tệp và rời trang?')).toBeNull();
+  });
+
+  it('UI-DC-25 does not silently discard a failed supplementary file when completing saved evidence', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ currentPod: makePod([
+        { fileType: 'YARD_OR_DROP_RECEIPT' }, { fileType: 'SIGNED_DELIVERY_NOTE' },
+      ]) }), isLoading: false, isError: false, refetch: refetchMock,
+    });
+    renderPage();
+    await act(async () => podSubmissionMock.mock.calls.at(-1)![0].onPendingChange?.(true));
+    fireEvent.click(screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
+    expect(await screen.findByText('Còn tệp bổ sung chưa gửi. Bỏ tệp này và hoàn thành với chứng từ đã lưu?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(submitPodMock).not.toHaveBeenCalled();
+    expect(completeTripMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('trip-pod-submission')).toBeInTheDocument();
+  });
+
 });

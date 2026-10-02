@@ -21,8 +21,7 @@ export function localDateInputValue(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-export function formatVnd(value: string | number): string {
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numeric)) return String(value);
-  return numeric.toLocaleString('vi-VN');
+/** Business identity for Ops screens; internal shipment/trip codes never substitute. */
+export function opsBillReference(billRef: string | null): string {
+  return billRef?.trim() || 'Chưa có số Bill/Booking';
 }

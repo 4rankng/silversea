@@ -84,7 +84,8 @@ qa/visual/
   use `ctx.capture(suffix="01-dashboard")` for per-step evidence.
 - **BLOCKED vs FAIL:** raise `AssertionError("BLOCKED: <reason>")` when the
   environment is missing (no seed data, env down). The runner records
-  this as `BLOCKED`, not `FAIL` — blockers don't count against the gate.
+  this as `BLOCKED`, not `FAIL`. A blocked, skipped or empty run exits nonzero
+  because coverage is incomplete; it is not reported as a product failure.
 - **Vietnamese-aware:** assertions look for Vietnamese labels first
   (Doanh thu, Chi phí, ...), English fallback (where the app mixes).
 

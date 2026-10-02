@@ -45,6 +45,7 @@ const baseRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}) => ({
   operationalNotes: null,
   raw: { containerNumber: 'MSKU1234567', containerTypeId: 1, cargoWeightKg: null, cargoVolumeCbm: null },
   fieldAccess: {
+    operationalSiteId: access(),
     containerNumber: access(),
     containerTypeId: access(),
     cargoWeightKg: access(),
@@ -83,6 +84,7 @@ const baseLine = () => ({
   containerTypeId: 1,
   containerTypeLabel: "20'DC",
   routeId: 3,
+  operationalSiteId: 17,
   routeName: 'KCN Quế Võ',
   dispatchStatus: 'AWAITING_VEHICLE',
   tripId: null,
@@ -99,6 +101,7 @@ const baseLine = () => ({
   customerAppointmentAt: '2026-09-10T08:00:00.000Z',
   raw: { containerNumber: 'MSKU1234567', containerTypeId: 1, cargoWeightKg: null, cargoVolumeCbm: null, routeId: 3 },
   fieldAccess: {
+    operationalSiteId: access(),
     containerNumber: access(),
     containerTypeId: access(),
     cargoWeightKg: access(),
@@ -154,7 +157,7 @@ const baseDetail = () => ({
   selectors: {
     routes: [{ id: 3, name: 'KCN Quế Võ', label: 'KCN Quế Võ' }],
     containerTypes: [{ id: 1, code: '20DC', name: "20'DC", label: "20'DC" }],
-    operationalSites: [],
+    operationalSites: [{ id: 17, siteType: 'FACTORY', code: 'ASK-2', name: 'ASKEY-2', label: 'ASKEY-2' }, { id: 18, siteType: 'FACTORY', code: 'ASK-3', name: 'ASKEY-3', label: 'ASKEY-3' }],
     externalCarriers: [],
     carrierVehicles: [],
     ports: [],
@@ -162,10 +165,12 @@ const baseDetail = () => ({
   containers: [],
 }) as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger(mode: ShipmentDetailEditMode, row = baseRow()) {
+function renderLedger(mode: ShipmentDetailEditMode, row = baseRow(), detail = baseDetail(), line = baseLine()) {
   const onCancelEdit = vi.fn();
   const onSaveNotes = vi.fn(async () => {});
   const onSaveSchedule = vi.fn(async () => {});
+  const onSaveIdentity = vi.fn(async () => {});
+  const onSaveVehicle = vi.fn(async () => {});
   const view = render(
     <ShipmentContainerLedger
       rows={[row]}
@@ -173,24 +178,50 @@ function renderLedger(mode: ShipmentDetailEditMode, row = baseRow()) {
       today="2026-09-10"
       sort={null}
       onSortChange={vi.fn()}
-      activeEdit={{ row, detail: baseDetail(), line: baseLine(), mode }}
+      activeEdit={{ row, detail, line, mode }}
       editLoadingRowId={null}
       editError={null}
       onStartEdit={vi.fn()}
       onCancelEdit={onCancelEdit}
       onSaveRoute={vi.fn(async () => {})}
-      onSaveVehicle={vi.fn(async () => {})}
+      onSaveVehicle={onSaveVehicle}
       onSaveSchedule={onSaveSchedule}
       onSaveNotes={onSaveNotes}
-      onSaveIdentity={vi.fn(async () => {})}
+      onSaveIdentity={onSaveIdentity}
       onSaveDocuments={vi.fn(async () => {})}
       onSaveContainer={vi.fn(async () => {})}
     />,
   );
-  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule };
+  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule, onSaveIdentity, onSaveVehicle };
 }
 
 describe('ShipmentContainerLedger inline editor dismissal', () => {
+  it('UI-CD-12 selects the actual container factory and submits its site id', async () => {
+    const { onSaveIdentity, onCancelEdit } = renderLedger('identity');
+    const factory = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    expect(factory).toHaveValue('ASKEY-2');
+    expect(screen.queryByLabelText('Điểm giao')).toBeNull();
+    fireEvent.focus(factory);
+    fireEvent.change(factory, { target: { value: 'ASK-3' } });
+    fireEvent.keyDown(factory, { key: 'ArrowDown' });
+    fireEvent.click(await screen.findByRole('option', { name: 'ASKEY-3' }));
+    expect(onCancelEdit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu /  }));
+    await waitFor(() => expect(onSaveIdentity).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ operationalSiteId: 18 })));
+  });
+
+  it('UI-CD-12 keeps LCL parent identity editing and respects a locked FCL factory', () => {
+    const detail = baseDetail();
+    detail.summary.cargoMode = 'LCL';
+    const { unmount } = renderLedger('identity', baseRow(), detail);
+    expect(screen.getByLabelText('Nhà máy')).toHaveValue('ASKEY-2');
+    expect(screen.getByLabelText('Điểm giao')).toBeTruthy();
+    unmount();
+    const lockedLine = baseLine();
+    lockedLine.fieldAccess.operationalSiteId = access('READ_ONLY');
+    renderLedger('identity', baseRow(), baseDetail(), lockedLine);
+    expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toBeDisabled();
+  });
   it('keeps bare Enter as a newline in the notes editor; Ctrl+Enter saves', () => {
     const { onSaveNotes } = renderLedger('notes');
     const notesArea = screen.getByLabelText('Ghi chú cho khách hàng') as HTMLTextAreaElement;
@@ -311,13 +342,33 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
     // The invalid field's validationMessage (or the editor fallback) surfaces
     // as the save error and the partial text stays in the open editor.
     expect(screen.getByRole('alert')).toHaveTextContent(/.+/);
-    expect((date as HTMLInputElement).value).toBe('15/09/');
+    // Partial text stays visible in the segments of the open editor.
+    expect((date as HTMLInputElement).value).toBe('15');
+    expect(screen.getByLabelText('Tháng — Ngày trả hàng')).toHaveValue('09');
+    expect(screen.getByLabelText('Năm — Ngày trả hàng')).toHaveValue('');
   });
 
   it('identity editor closes on outside pointerdown', () => {
     const { onCancelEdit } = renderLedger('identity');
     fireEvent.pointerDown(document.body);
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  // EDIT-JUMP-01..03 (testplan/cycles/2026-09/2026-09-19-edit-cell-scroll-jump.md): a plain
+  // focus() on mount lets the browser's focusing steps scroll the expanded
+  // editor into view, yanking the tapped cell away from the user's finger.
+  it('focuses the editor container with preventScroll on mount', () => {
+    const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus');
+    try {
+      renderLedger('container');
+      const editor = document.querySelector('.shipment-container-ledger__inline-editor');
+      expect(editor).not.toBeNull();
+      const editorCallIndex = focusSpy.mock.contexts.findIndex((context) => context === editor);
+      expect(editorCallIndex).toBeGreaterThanOrEqual(0);
+      expect(focusSpy.mock.calls[editorCallIndex][0]).toEqual({ preventScroll: true });
+    } finally {
+      focusSpy.mockRestore();
+    }
   });
 });
 
@@ -378,7 +429,7 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     });
     const { view } = renderLedgerWithRow(row);
 
-    const toggle = screen.getByRole('button', { name: /Thiếu dữ liệu/ });
+    const toggle = screen.getByRole('button', { name: /^Thiếu / });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByText('Số container')).toBeNull();
     // Key dispatch blockers render without expanding anything: the schedule
@@ -397,7 +448,7 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     });
     const { view, onStartEdit } = renderLedgerWithRow(row);
 
-    fireEvent.click(screen.getByRole('button', { name: /Thiếu dữ liệu/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Thiếu / }));
     fireEvent.click(screen.getByRole('button', { name: 'Số container' }));
     expect(onStartEdit).toHaveBeenCalledWith(row, 'container', expect.stringContaining('shipment-detail-missing-CONTAINER_NUMBER-'));
     fireEvent.click(screen.getByRole('button', { name: 'Biển số xe' }));
@@ -443,7 +494,9 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     const { view, onSaveSchedule } = renderScheduleEditor('LCL');
 
     expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
-    const dateInputs = document.querySelectorAll('input[placeholder="DD/MM/YYYY"]');
+    // Segmented date fields: each renders DD/MM/YYYY digit slots; the DD slot
+    // accepts the full pasted string and distributes it.
+    const dateInputs = document.querySelectorAll('input[placeholder="DD"]');
     expect(dateInputs).toHaveLength(2);
     fireEvent.change(dateInputs[1], { target: { value: '20/09/2026' } });
     fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
@@ -453,6 +506,25 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     // fixture's 08:00Z appointment reads 15:00 on the VN-pinned wall clock).
     expect(draft.transportDate).toBe('2026-09-20');
     expect(draft.customerAppointmentAt).toBe('2026-09-10T15:00');
+    view.unmount();
+  });
+
+  it('a both-group edit lands in ONE Save — the editor hands the scheduler both fields', () => {
+    const { view, onSaveSchedule } = renderScheduleEditor('LCL');
+
+    // Both groups move at once: the container appointment (ngày + giờ) and the
+    // lot-level Ngày vận chuyển. The screen offers a single Save, so the draft
+    // must carry both and the editor must not dead-end on a red error.
+    const dateInputs = document.querySelectorAll('input[placeholder="DD"]');
+    fireEvent.change(screen.getByLabelText('Giờ trả hàng'), { target: { value: '16:17' } });
+    fireEvent.change(dateInputs[0], { target: { value: '23/09/2026' } });
+    fireEvent.change(dateInputs[1], { target: { value: '20/09/2026' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu lịch trình/ }));
+
+    expect(onSaveSchedule).toHaveBeenCalledTimes(1);
+    const [, , draft] = onSaveSchedule.mock.calls[0];
+    expect(draft).toEqual({ transportDate: '2026-09-20', customerAppointmentAt: '2026-09-23T16:17' });
+    expect(screen.queryByRole('alert')).toBeNull();
     view.unmount();
   });
 
@@ -469,13 +541,12 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
     const { view } = renderScheduleEditor('FCL');
 
     expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
-    expect(document.querySelectorAll('input[placeholder="DD/MM/YYYY"]')).toHaveLength(1);
+    expect(document.querySelectorAll('input[placeholder="DD"]')).toHaveLength(1);
     view.unmount();
   });
 });
 
 describe('vehicle plate clear affordance (20260916_6)', () => {
-  const editable = () => ({ canRead: true, canEdit: true });
   const lineWithPlate = () => ({
     ...baseLine(),
     carrierType: 'EXTERNAL',
@@ -489,7 +560,7 @@ describe('vehicle plate clear affordance (20260916_6)', () => {
   function renderVehicleEditor(overrides: Record<string, unknown> = {}) {
     const row = baseRow({ carrierName: 'Nhà xe A', plateNumber: '29C-123.45' });
     const onSaveVehicle = vi.fn(async () => {});
-    const view = render(
+    render(
       <ShipmentContainerLedger
         rows={[row]}
         totalContainers={1}
@@ -530,5 +601,58 @@ describe('vehicle plate clear affordance (20260916_6)', () => {
   it('does not offer the clear action when no plate is assigned', () => {
     renderVehicleEditor({ plateNumber: null });
     expect(screen.queryByRole('button', { name: 'Xóa biển số' })).toBeNull();
+  });
+});
+
+describe('external-vendor plate quick-select (card 20260925_6)', () => {
+  const vendorDetail = () => {
+    const detail = baseDetail();
+    (detail.selectors as { externalCarriers: unknown[]; carrierVehicles: unknown[] }).externalCarriers = [
+      { id: 91, label: 'Nhà xe Năm Troc', name: 'Nhà xe Năm Troc', shortName: null },
+    ];
+    (detail.selectors as { carrierVehicles: unknown[] }).carrierVehicles = [
+      { id: 9001, carrierId: 91, licensePlate: '29H-123.45', label: '29H-123.45' },
+    ];
+    return detail;
+  };
+
+  it('NEW_EXTERNAL renders a plate field; free typing saves the new vendor with its plate', async () => {
+    const { onSaveVehicle } = renderLedger('vehicle', baseRow(), vendorDetail());
+    const carrierTrigger = screen.getAllByRole('button').find((b) => b.textContent === 'Đội xe SilverSea');
+    expect(carrierTrigger).toBeTruthy();
+    fireEvent.click(carrierTrigger!);
+    fireEvent.click(await screen.findByRole('option', { name: 'Nhập nhà xe mới' }));
+    // THE REGRESSION: the plate entry vanished from the new-external flow
+    // (16fc0d89 gated the combined field to non-NEW_EXTERNAL and deleted the
+    // always-visible free input; the save guard still demands the plate).
+    const plate = screen.getByLabelText('Biển số xe') as HTMLInputElement;
+    fireEvent.change(plate, { target: { value: '29H-123.45' } });
+    const name = screen.getByLabelText('Tên nhà xe mới');
+    fireEvent.change(name, { target: { value: 'Nhà xe Năm Troc' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu/ }));
+    await waitFor(() => expect(onSaveVehicle).toHaveBeenCalledTimes(1));
+    expect(onSaveVehicle).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      carrierType: 'EXTERNAL',
+      newExternalCarrier: { name: 'Nhà xe Năm Troc', plateNumber: '29H-123.45' },
+    }));
+  });
+
+  it('externalVendorPlateOptions matches the typed vendor by name or short name', async () => {
+    const { externalVendorPlateOptions } = await import('../external-plate-options');
+    const carriers = [
+      { id: 91, label: 'Nhà xe Năm Troc', name: 'Nhà xe Năm Troc', shortName: null },
+      { id: 92, label: 'Năm Troc', name: null, shortName: 'Năm Troc' },
+    ];
+    const vehicles = [
+      { carrierId: 91, licensePlate: '29H-123.45', label: '29H-123.45' },
+      { carrierId: 92, licensePlate: '29H-999.99', label: '29H-999.99' },
+      { carrierId: 55, licensePlate: '30F-000.00', label: '30F-000.00' },
+    ];
+    const byName = externalVendorPlateOptions(carriers, vehicles, 'nhà xe năm troc');
+    expect(byName.map((option) => option.value)).toEqual(['29H-123.45']);
+    const byShort = externalVendorPlateOptions(carriers, vehicles, 'năm troc');
+    expect(byShort.map((option) => option.value)).toEqual(['29H-999.99']);
+    expect(externalVendorPlateOptions(carriers, vehicles, 'Nhà xe khác')).toEqual([]);
+    expect(externalVendorPlateOptions(carriers, vehicles, '')).toEqual([]);
   });
 });

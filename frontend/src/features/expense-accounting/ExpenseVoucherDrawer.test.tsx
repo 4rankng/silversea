@@ -20,7 +20,10 @@ function show(accounts: Array<{ id: number; name: string; fundCode: 'COMPANY' | 
 }
 describe('expense cash receipt', () => {
   beforeEach(() => { create.mockReset(); });
-  it('posts a partial receipt even for a locked expense and preserves retry identity after an unknown result', async () => {
+  // Card 20260930_237: the locked-expense partial-receipt chain with retry
+  // identity after an unknown result measured 5.4s at the full-run flake
+  // point; the drawer interaction cluster gets the house 15s contract.
+  it('posts a partial receipt even for a locked expense and preserves retry identity after an unknown result', { timeout: 15000 }, async () => {
     create.mockRejectedValueOnce(new Error('Mất phản hồi')).mockResolvedValueOnce({ id: 1 });
     const saved = show();
     await select('Nguồn quỹ', 'Quỹ công ty'); await select('Tài khoản', 'ACB');

@@ -1,11 +1,13 @@
 // Trip Shared — Types and helpers used across trip sub-modules
 
-import { db } from '../db';
+import type { Executor, Tx } from '../db';
 import * as s from '../db/schema';
 import { isNull, eq, and } from 'drizzle-orm';
 
-/** Transaction type alias used by all mutation/status functions */
-export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+// Canonical database-handle types live in ../db (the one Executor seam).
+// Re-exported here for the trip-family modules that already import Tx from
+// trip-shared; import from ../db in new code.
+export type { Executor, Tx };
 
 /**
  * Resolve the active trailer for a truck's currentTrailerId.

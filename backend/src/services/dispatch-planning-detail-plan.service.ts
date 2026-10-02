@@ -1,13 +1,15 @@
+import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 /**
  * dispatch-planning detail — detail-plan grid, facets, plate/carrier/estimate mutations, zone panels.
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
+import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailDataStatusSql, dispatchDetailTransportDateSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, parseIsoWithZone, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, toIsoOrNull, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES, loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
 import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
 import { db } from '../db';
 import { listDetailPlanPageKeys, pageKeyPredicate } from './dispatch-detail-plan-page';
+import { requireDispatchZone } from './dispatch-detail-plan-zones.service';
 import { ApiError } from '../errors';
 
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
@@ -48,6 +50,8 @@ export interface ListDispatchDetailPlanRowsInput {
   limit?: number;
   q?: string;
   date?: string;
+  dateFrom?: string;
+  dateTo?: string;
   direction?: 'IMPORT' | 'EXPORT';
   assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED';
   pickupIds?: number[];
@@ -57,6 +61,22 @@ export interface ListDispatchDetailPlanRowsInput {
   hourTo?: string;
   /** Only rows whose container picks up or drops off at a port in this zone. */
   zone?: string;
+  /** Exact-match customer scope (card 20260926_50 ribbon combobox). */
+  customerId?: number;
+  /** COMPLETE/MISSING intake-data predicate (card 20260926_50 ribbon select). */
+  dataStatus?: 'COMPLETE' | 'MISSING';
+  /** Card 20260927_61 (CHIEF rulings 27/09): assignment-scoped filters match
+   *  the EFFECTIVE assignment only — the row's current planned plate; no
+   *  reassignment history. */
+  truckPlate?: string;
+  /** Driver of the assigned OWN truck (active PRIMARY assignment). */
+  driverId?: number;
+  /** Đội xe: OWN = xe nhà, EXTERNAL = thầu ngoài (plannedCarrierType). */
+  carrierClass?: 'OWN' | 'EXTERNAL';
+  /** Assigned truck's trailer type (trucks.trailer_type). */
+  trailerType?: string;
+  /** Route of the LOT (FCL container→lot fallback), lot-first per ruling. */
+  routeId?: number;
 }
 
 /**
@@ -91,6 +111,11 @@ export interface UpdateDispatchDetailPlanInput {
   /** Driver-facing note (shipments.operational_notes). Undefined = note
    *  untouched by this save. '' clears; null ≡ '' for change detection. */
   operationalNotes?: string | null;
+  /** Giờ trả hàng staged on the row (shipment_fulfillments.planned_end_at).
+   *  Undefined = untouched by this save; null/'' clears it. Zone-qualified
+   *  instant only — parseIsoWithZone 400s on a naive local string. The FE
+   *  owns the 'Giờ trả hàng phải sau giờ chạy' cross-field rule. */
+  plannedEndAt?: string | null;
   idempotencyKey: string;
   actor: DispatchActor;
 }
@@ -103,6 +128,8 @@ export interface DispatchDetailPlanMutationResult {
   shipmentVersion: number;
   classification: DispatchClassification;
   isCombined: boolean;
+  /** Stored Giờ trả hàng after the save (ISO instant; null when unstaged). */
+  plannedEndAt: string | null;
   /** Stored driver-facing note after the save (accountants never reach this
    *  path — the route gate excludes them, matching the read-side mask). */
   operationalNotes: string | null;
@@ -248,6 +275,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
   const page = Number.isFinite(input.page) ? Math.max(1, Math.floor(input.page as number)) : 1;
   const qPattern = buildPattern(input.q);
   const date = normalizeDate(input.date);
+  const dateFrom = normalizeDate(input.dateFrom);
+  const dateTo = normalizeDate(input.dateTo);
   const pickupIds = normalizeIdList(input.pickupIds, 'pickupIds');
   const dropoffIds = normalizeIdList(input.dropoffIds, 'dropoffIds');
   const deliveryPointIds = normalizeIdList(input.deliveryPointIds, 'deliveryPointIds');
@@ -277,6 +306,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
       input.direction ? eq(s.shipments.tradeDirection, input.direction) : undefined,
       date ? eq(dispatchDetailTransportDateSql(), date) : undefined,
+      dateFrom ? sql`${dispatchDetailTransportDateSql()} >= ${dateFrom}` : undefined,
+      dateTo ? sql`${dispatchDetailTransportDateSql()} <= ${dateTo}` : undefined,
       pickupIds ? inArray(s.shipmentContainers.pickupPortId, pickupIds) : undefined,
       dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, dropoffIds) : undefined,
       deliveryPointIds ? inArray(s.shipments.operationalSiteId, deliveryPointIds) : undefined,
@@ -295,6 +326,30 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       input.assignmentStatus === 'ASSIGNED'
         ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
         : undefined,
+      input.customerId ? eq(s.shipments.customerId, input.customerId) : undefined,
+      input.dataStatus ? dispatchDetailDataStatusSql(input.dataStatus) : undefined,
+      // Card 20260927_61 advanced filters. Plate equality is the effective
+      // assignment key (the editor stores the formatted plate on the row).
+      input.truckPlate ? eq(s.shipmentFulfillments.plannedVehiclePlateNumber, input.truckPlate) : undefined,
+      input.driverId ? sql`${s.shipmentFulfillments.plannedVehiclePlateNumber} in (
+        select t.license_plate from ${s.trucks} t
+        where exists (
+          select 1 from ${s.truckDriverAssignments} a
+          where a.truck_id = t.id and a.driver_id = ${input.driverId}
+            and a.role = 'PRIMARY' and a.ends_at is null
+        )
+      )` : undefined,
+      input.carrierClass ? eq(s.shipmentFulfillments.plannedCarrierType, input.carrierClass) : undefined,
+      input.trailerType ? sql`exists (
+        select 1 from ${s.trucks} t
+        where t.license_plate = ${s.shipmentFulfillments.plannedVehiclePlateNumber}
+          and t.trailer_type = ${input.trailerType}
+      )` : undefined,
+      // Lot-first route: same FCL container→lot fallback the row's Tuyến
+      // cell renders, so a filter on the displayed route never lies.
+      input.routeId ? sql`(case when ${s.shipmentFulfillments.cargoMode} = 'FCL'
+        then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
+        else ${s.shipments.routeId} end) = ${input.routeId}` : undefined,
       shipmentQSearchPredicate(qPattern, { containerNumber: true }),
     );
 
@@ -309,6 +364,13 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       hourTo,
       zone: input.zone ?? null,
       assignmentStatus: input.assignmentStatus ?? null,
+      customerId: input.customerId ?? null,
+      dataStatus: input.dataStatus ?? null,
+      truckPlate: input.truckPlate ?? null,
+      driverId: input.driverId ?? null,
+      carrierClass: input.carrierClass ?? null,
+      trailerType: input.trailerType ?? null,
+      routeId: input.routeId ?? null,
     };
     const pageKeys = await listDetailPlanPageKeys(tx, filters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
     const fulfillmentIds = pageKeys.flatMap((key) => key.fulfillmentId == null ? [] : [key.fulfillmentId]);
@@ -326,6 +388,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
       plannedRevenue: s.shipmentFulfillments.plannedRevenue,
       plannedCarrierCost: s.shipmentFulfillments.plannedCarrierCost,
+      plannedEndAt: s.shipmentFulfillments.plannedEndAt,
       classification: s.shipmentFulfillments.dispatchClassification,
       shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
       siteSnapshot: s.shipmentFulfillments.siteSnapshot,
@@ -367,7 +430,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       pairStatus: s.tripPairs.status,
     }).from(s.shipmentFulfillments)
       .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
-      .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+      .innerJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
       .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
       .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
       .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
@@ -395,7 +458,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       tx.select({ total: sql<number>`count(*)` })
         .from(s.shipmentFulfillments)
         .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
-        .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+        .innerJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
         .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
         .where(filters),
     ]);
@@ -412,6 +475,14 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     ]);
     const pageRows = [...rows, ...unionRows].sort(compareDetailPlanRows);
     const shipmentIds = pageRows.map((row) => row.shipmentId);
+    // Card 20260928_162 criterion 3. Kế toán reads this board too: the route
+    // admits ACCOUNTANT (dispatch-planning.routes.ts:165) and
+    // assertDispatchReadActor lists it. The reason an uncharged Ops cost MUST
+    // carry is exactly what they triage. Blanking the map here was an oversight
+    // of the bulk patch a980c53c, not a redaction — this projection still carries
+    // free text only, never an amount (file standing ruling), so opening it for
+    // ACCOUNTANT does not widen what the role can see.
+    const opsRecoveryNotes = await loadDispatchExpenseNotes(shipmentIds, tx);
     const carrierIds = pageRows
       .map((row) => row.plannedExternalCarrierId)
       .filter((id): id is number => id != null);
@@ -502,6 +573,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           notes: {
             vehicleNote: input.actor.role === Role.ACCOUNTANT ? null : row.operationalNotes,
             customerNote: row.customerNotes,
+            opsRecoveryNotes: opsRecoveryNotes.get(row.shipmentId) ?? [],
           },
           dispatch: {
             tripId: row.tripId,
@@ -529,6 +601,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             plannedRevenue: row.plannedRevenue,
             plannedCarrierCost: row.plannedCarrierCost,
           },
+          plannedEndAt: row.plannedEndAt?.toISOString() ?? null,
           // NOT NULL DEFAULT 'SINGLE': fresh containers surface as "Đơn"
           // until dispatch reclassifies them.
           classification: row.classification,
@@ -873,16 +946,40 @@ export async function resolveDispatchVehicleAssignment(tx: Tx, args: {
         throw new ApiError(400, 'Biển số xe không hợp lệ.');
       }
       plannedVehiclePlateNumber = normalized;
-      // Match against the vendor catalog so a typed plate matching an existing
-      // entry links to it instead of creating a phantom free-text plate.
+      // Registry A (trucks) is the source of truth for external plates: a
+      // typed plate links to (or auto-registers into) the carrier's catalog —
+      // the list dispatchers manage on /suppliers — so attribution
+      // (resolve-carrier) self-heals instead of decaying. Tombstoned plates
+      // stay reserved; the plate's UNIQUE column blocks a duplicate insert.
       if (args.plannedExternalCarrierId != null) {
-        const normalizedCatalogKey = normalized.replace(/[^A-Z0-9]/g, '');
+        const plateKey = normalized.replace(/[^A-Z0-9]/g, '');
+        const [truckMatch] = await tx.select({ id: s.trucks.id }).from(s.trucks)
+          .where(and(
+            eq(s.trucks.carrierId, args.plannedExternalCarrierId),
+            sql`regexp_replace(upper(${s.trucks.licensePlate}), '[^A-Z0-9]', '', 'g') = ${plateKey}`,
+            isNull(s.trucks.deletedAt),
+          ))
+          .limit(1);
+        if (!truckMatch) {
+          const [plateOwner] = await tx.select({ id: s.trucks.id }).from(s.trucks)
+            .where(sql`regexp_replace(upper(${s.trucks.licensePlate}), '[^A-Z0-9]', '', 'g') = ${plateKey}`)
+            .limit(1);
+          if (!plateOwner) {
+            await tx.insert(s.trucks).values({
+              licensePlate: normalized,
+              carrierId: args.plannedExternalCarrierId,
+              status: 'ACTIVE',
+            }).onConflictDoNothing();
+          }
+        }
+        // Legacy B match retained so pre-unification assignments keep
+        // resolving their vehicle link.
         const [match] = await tx.select({
           id: s.carrierFleetVehicles.id,
         }).from(s.carrierFleetVehicles)
           .where(and(
             eq(s.carrierFleetVehicles.carrierId, args.plannedExternalCarrierId),
-            eq(s.carrierFleetVehicles.normalizedPlate, normalizedCatalogKey),
+            eq(s.carrierFleetVehicles.normalizedPlate, plateKey),
             isNull(s.carrierFleetVehicles.deletedAt),
           ))
           .limit(1);
@@ -1066,9 +1163,10 @@ export async function updateDispatchDetailPlan(input: UpdateDispatchDetailPlanIn
       plannedCarrierCost: input.plannedCarrierCost,
       classification: input.classification ?? null as unknown as DispatchClassification,
       isCombined: input.isCombined,
-      // Note is part of the dedup payload: two saves differing only in the
-      // note must not collide as the same idempotent request.
+      // Note and Giờ trả hàng are part of the dedup payload: two saves
+      // differing only in these must not collide as the same idempotent request.
       operationalNotes: input.operationalNotes ?? null,
+      plannedEndAt: input.plannedEndAt ?? null,
     },
     createdBy: input.actor.userId,
     entityType: 'shipment_fulfillments',
@@ -1129,6 +1227,15 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     throw new ApiError(409, 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe.');
   }
 
+  // Giờ trả hàng staging: undefined = untouched; null/'' = clear; otherwise a
+  // zone-qualified instant — validated before any write so an invalid value
+  // changes nothing (all-or-nothing like carrier resolution). The FE owns the
+  // after-start cross-field rule (card _15, 2026-09-26).
+  const plannedEndAtProvided = input.plannedEndAt !== undefined;
+  const nextPlannedEndAt = plannedEndAtProvided
+    ? (input.plannedEndAt == null || input.plannedEndAt === '' ? null : parseIsoWithZone(input.plannedEndAt, 'Giờ trả hàng'))
+    : null;
+
   // Carrier resolution — validated before any write, so an invalid carrier
   // changes nothing (all-or-nothing).
   let carrierName = INTERNAL_FLEET_CARRIER_NAME;
@@ -1187,6 +1294,8 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     } : {}),
     plannedRevenue: input.plannedRevenue == null ? null : String(input.plannedRevenue),
     plannedCarrierCost: input.plannedCarrierCost == null ? null : String(input.plannedCarrierCost),
+    // Giờ trả hàng: a save that omits the field leaves the stored value untouched.
+    ...(plannedEndAtProvided ? { plannedEndAt: nextPlannedEndAt } : {}),
     // Phân loại per-row is the dispatcher's call (2026-09-08): a save that
     // carries it rewrites the stored value; omitted = untouched.
     ...(input.classification ? { dispatchClassification: input.classification } : {}),
@@ -1271,6 +1380,8 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       plannedRevenue: updatedFulfillment.plannedRevenue,
       plannedCarrierCost: updatedFulfillment.plannedCarrierCost,
     },
+    // Stored value, not the input: an omitted save echoes what the row holds.
+    plannedEndAt: toIsoOrNull(updatedFulfillment.plannedEndAt),
     lotFullyPlated,
     driverNotified: false,
     driverHint: vehicle?.driverHint ?? null,
@@ -1290,181 +1401,4 @@ export async function recomputeLotFullyPlated(tx: Tx, shipmentId: number): Promi
   const total = Number(counts?.total ?? 0);
   const plated = Number(counts?.plated ?? 0);
   return total > 0 && plated === total;
-}
-
-// ─── Master-plan per-zone port facet (phase-02) ────────────────────────────────
-
-/**
- * Port options for the master-plan zone multi-select: ports whose PERSISTED
- * dispatch_zone equals the requested code. Zone membership is stored
- * authority, never inferred from names at request time. Scoped to the actor
- * like every other dispatch read.
- */
-
-export async function listZonePortFacets(input: { actor: AuthUser; zone: string; q?: string }) {
-  assertDispatchReadActor(input.actor);
-  const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
-  const qPattern = buildPattern(input.q);
-  void accountantCustomerIds; // catalog read; actor scoping happens on the row set, not the port list
-  // Container-direct like the portIds facet predicate: the master grid lists
-  // all statuses and fulfillments only exist from READY_FOR_DISPATCH onward.
-  const rows = await db.selectDistinct({ id: s.ports.id, name: PORT_OPERATIONAL_NAME, code: s.ports.code })
-    .from(s.shipments)
-    .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.shipmentId, s.shipments.id))
-    .innerJoin(s.ports, and(
-      or(
-        eq(s.ports.id, s.shipmentContainers.pickupPortId),
-        eq(s.ports.id, s.shipmentContainers.dropoffPortId),
-      ),
-      eq(s.ports.dispatchZone, input.zone),
-      isNull(s.ports.deletedAt),
-    ))
-    .where(and(
-      isNull(s.shipments.deletedAt),
-      qPattern ? ilike(s.ports.name, qPattern) : undefined,
-    ))
-    .orderBy(asc(PORT_OPERATIONAL_NAME))
-    .limit(100);
-  return { items: rows };
-}
-
-// ─── Zone truck presence (detail plan panel) ──────────────────────────────────
-
-/** Evidence that one truck has zone work on a given day. */
-
-export interface ZoneTruckPresenceEvidence {
-  reason: 'D-1_DROP' | 'D+1_PICKUP';
-  date: string;
-  containerNumber: string | null;
-  portName: string;
-}
-
-/** One truck with its zone evidence around the viewing date. */
-
-export interface ZoneTruckPresenceItem {
-  truckId: number;
-  plateNumber: string;
-  evidence: ZoneTruckPresenceEvidence[];
-}
-
-/**
- * Resolve a zone code against the live taxonomy and return its operator label.
- * Unknown/inactive zones are a client error — every zone-scoped surface takes
- * its zone from the /dispatch-zones list, so an unknown code means a stale
- * client, not an empty result.
- */
-
-export async function requireDispatchZone(zone: string): Promise<string> {
-  const [row] = await db.select({ label: s.dispatchZones.label })
-    .from(s.dispatchZones)
-    .where(and(eq(s.dispatchZones.code, zone), eq(s.dispatchZones.isActive, true)))
-    .limit(1);
-  if (!row) throw new ApiError(400, 'Khu vực điều phối không hợp lệ.');
-  return row.label;
-}
-
-/**
- * Which OWN trucks have work in `zone` around a viewing date D: a truck that
- * drops a container at a zone port on D-1 (ready for a zone order on D) or
- * picks one up from the zone on D+1 (already committed there). The
- * fleet-picker suggestion engine inverted: instead of tagging trucks for one
- * fulfillment's dropdown, return every truck with evidence for the day being
- * planned.
- *
- * Semantics identical to `buildZoneTruckSuggestions` (single source of truth
- * for plate matching and work-date coalescing): evidence comes from active
- * planned fulfillments joined to zoned ports via containers, matched to owned
- * trucks by normalized plate; workDate = the live trip's departureDate
- * falling back to the shipment's expected delivery date. Advisory only —
- * evidence exposes containerNumber + portName, never customer or shipment.
- */
-
-export async function listZoneTruckPresence(input: { actor: AuthUser; zone: string; date?: string }) {
-  assertDispatchReadActor(input.actor);
-  // Same accountant scoping as the detail rows this panel sits beside: the
-  // evidence exposes container numbers, not just catalog data.
-  const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
-  const zoneLabel = await requireDispatchZone(input.zone);
-  // Default viewing date = today in the dispatch business timezone. 7 =
-  // Asia/Ho_Chi_Minh offset (+07, no DST).
-  const date = normalizeDate(input.date)
-    ?? new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-  const dayBefore = addCalendarDays(date, -1);
-  const dayAfter = addCalendarDays(date, 1);
-
-  // Planned work date: live trip's departure date when present, else the
-  // shipment's expected delivery date. Canceled/deleted trips never count.
-  const workDateSql = sql<string>`coalesce(${s.trips.departureDate}, ${s.shipments.expectedDeliveryDate})`;
-
-  const evidence = await db.select({
-    truckId: s.trucks.id,
-    plateNumber: s.trucks.licensePlate,
-    // Whether the JOINED LH port is the container's dropoff (vs pickup) —
-    // with an OR port join this distinguishes which side matched.
-    isDropoff: sql<boolean>`(${s.shipmentContainers.dropoffPortId} = ${s.ports.id})`,
-    workDate: workDateSql,
-    containerNumber: s.shipmentContainers.containerNumber,
-    portName: s.ports.name,
-  }).from(s.shipmentFulfillments)
-    .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
-    .innerJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
-    .innerJoin(s.ports, and(
-      or(
-        eq(s.shipmentContainers.dropoffPortId, s.ports.id),
-        eq(s.shipmentContainers.pickupPortId, s.ports.id),
-      ),
-      isNull(s.ports.deletedAt),
-      eq(s.ports.dispatchZone, input.zone),
-    ))
-    .innerJoin(s.trucks, eq(
-      sql`upper(regexp_replace(${s.trucks.licensePlate}, '[^A-Za-z0-9]', '', 'g'))`,
-      sql`upper(regexp_replace(${s.shipmentFulfillments.plannedVehiclePlateNumber}, '[^A-Za-z0-9]', '', 'g'))`,
-    ))
-    .leftJoin(s.trips, and(
-      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
-      ne(s.trips.status, TripStatus.CANCELED),
-      isNull(s.trips.deletedAt),
-    ))
-    .where(and(
-      isNull(s.shipmentFulfillments.canceledAt),
-      isNull(s.shipments.deletedAt),
-      eq(s.shipmentFulfillments.plannedCarrierType, 'OWN'),
-      sql`${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null`,
-      accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
-      // Only D-1 / D+1 work dates can ever produce evidence.
-      sql`${workDateSql} in (${dayBefore}, ${dayAfter})`,
-    ))
-    .limit(500);
-
-  const byTruck = new Map<number, ZoneTruckPresenceItem>();
-  for (const row of evidence) {
-    const workDay = String(row.workDate).slice(0, 10);
-    let reason: ZoneTruckPresenceEvidence['reason'] | null = null;
-    // Dropoff in the zone on D-1 → the truck is near the zone the day before.
-    if (row.isDropoff && workDay === dayBefore) reason = 'D-1_DROP';
-    // Pickup from the zone on D+1 → the truck must be there the day after.
-    if (!row.isDropoff && workDay === dayAfter) reason = 'D+1_PICKUP';
-    if (reason == null) continue;
-    const entry = byTruck.get(row.truckId) ?? {
-      truckId: row.truckId,
-      plateNumber: row.plateNumber ?? '',
-      evidence: [],
-    };
-    entry.evidence.push({ reason, date: workDay, containerNumber: row.containerNumber, portName: row.portName });
-    byTruck.set(row.truckId, entry);
-  }
-
-  // Both signals first, then D-1, then D+1; plate tie-break — same merged
-  // visible order as the fleet-picker suggestions.
-  const rank = (ev: ZoneTruckPresenceEvidence[]) => {
-    const hasDrop = ev.some((e) => e.reason === 'D-1_DROP');
-    const hasPickup = ev.some((e) => e.reason === 'D+1_PICKUP');
-    return hasDrop && hasPickup ? 0 : hasDrop ? 1 : 2;
-  };
-  const items = [...byTruck.values()]
-    .sort((a, b) =>
-      rank(a.evidence) - rank(b.evidence)
-      || a.plateNumber.localeCompare(b.plateNumber, 'vi'));
-  return { date, zone: input.zone, zoneLabel, items };
 }

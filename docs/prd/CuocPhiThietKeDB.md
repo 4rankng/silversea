@@ -1,9 +1,7 @@
 # Yêu cầu dữ liệu cước và lịch sử giá
 
-> **Yêu cầu sản phẩm — cập nhật 14/09/2026.** Người có quyền lưu trực tiếp dữ liệu
-> cước và điều chỉnh được phép, không qua phê duyệt nội bộ. Giữ quyền truy cập,
-> ngày hiệu lực, lịch sử và kỳ đã khóa. Cần Internet để làm việc. Tài liệu mô tả
-> sản phẩm cần đạt; xem [mục lục PRD](README.md).
+Tài liệu mô tả dữ liệu cước cần quản lý: nguồn hình thành một mức cước, ngày hiệu lực,
+cách giải thích số tiền và bảo toàn lịch sử. Xem thêm: [mục lục PRD](README.md).
 
 ## 1. Mục tiêu và người sử dụng
 
@@ -55,8 +53,8 @@ Hai kỳ giá trong bảng tham chiếu của khách:
 
 | Kỳ | Giá dầu chưa VAT |
 |---|---:|
-| 11/7 | 21.740 đ/lít |
-| 18/7 | 27.620 đ/lít |
+| 11/7/2026 | 21.740 đ/lít |
+| 18/7/2026 | 27.620 đ/lít |
 
 Đây là giá tham chiếu trong tài liệu nguồn, không phải thông báo giá dầu hiện
 hành. Ba giá gốc 15T còn thiếu. Không tự lấy 0, giá của loại xe khác hoặc số
@@ -140,5 +138,5 @@ ghi thêm khoản nợ khi bổ sung lịch sử.
 - Biểu cước của khách ngoài Long Minh; nguồn giá dầu dùng chung hay riêng; lịch
   áp giá và cách quy đổi VAT cho các kỳ tương lai.
 
-Xem [câu hỏi khách hàng](CauHoiKhachHang_CuocPhi_2026-09-08.md). Các đầu vào này
-không được tự điền từ ví dụ và không làm phát sinh quy trình phê duyệt nội bộ.
+Các đầu vào này không được tự điền từ ví dụ và không làm phát sinh quy trình phê
+duyệt nội bộ.

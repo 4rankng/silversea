@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useId } from 'react';
+import { useChartTooltipPosition } from './useChartTooltipPosition';
 
 /**
  * Shared revenue + gross-profit trend chart.
@@ -28,6 +29,15 @@ export interface RevenueTrendChartProps {
   height?: number;
 }
 
+/** Keep recorded losses and gains inside the same zero-based chart domain. */
+export function revenueTrendDomain(revenue: number[], gross: number[]) {
+  const peak = Math.max(...revenue, ...gross, 1);
+  const floor = Math.min(...revenue, ...gross, 0);
+  const niceSteps = [1, 2, 5, 10, 20, 25, 50, 100, 250, 500, 1000];
+  const step = niceSteps.find(value => value * 4 >= peak - floor) ?? 1000;
+  return { min: Math.floor(floor / step) * step, max: Math.ceil(peak / step) * step || step };
+}
+
 export function RevenueTrendChart({
   months,
   revenue,
@@ -40,6 +50,7 @@ export function RevenueTrendChart({
   height: initialH = 280,
 }: RevenueTrendChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: initialW, height: initialH });
 
   useEffect(() => {
@@ -70,14 +81,11 @@ export function RevenueTrendChart({
   const mL = 46, mR = 18, mT = 14, mB = 30;
   const pW = W - mL - mR, pH = H - mT - mB;
 
-  // Auto-scale y-axis: pick a nice step size that fits the data
-  const peak = Math.max(...revenue, ...gross, 1);
-  const niceSteps = [1, 2, 5, 10, 20, 25, 50, 100, 250, 500, 1000];
-  const step = niceSteps.find(s => s * 4 >= peak) ?? 1000;
-  const yMax = Math.ceil(peak / step) * step || step;
+  const { min: yMin, max: yMax } = revenueTrendDomain(revenue, gross);
+  const ySpan = yMax - yMin;
 
   const X = (i: number) => mL + pW * (i / Math.max(1, revenue.length - 1));
-  const Y = (v: number) => mT + pH * (1 - v / yMax);
+  const Y = (v: number) => mT + pH * (1 - (v - yMin) / ySpan);
 
   const path = (arr: number[]) =>
     arr.map((v, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1)).join(' ');
@@ -85,16 +93,20 @@ export function RevenueTrendChart({
   const areaPath = (arr: number[]) =>
     path(arr) + ` L ${X(arr.length - 1)} ${Y(0)} L ${X(0)} ${Y(0)} Z`;
 
-  const gridValues = [0, yMax / 4, yMax / 2, (3 * yMax) / 4, yMax];
+  const gridValues = Array.from({ length: 5 }, (_, index) => yMin + ySpan * index / 4);
 
   const ax = activeIdx !== null ? X(activeIdx) : 0;
   const ay = activeIdx !== null ? Y(revenue[activeIdx] || 0) : 0;
   const ayGp = activeIdx !== null ? Y(gross[activeIdx] || 0) : 0;
+  useChartTooltipPosition({
+    isOpen: activeIdx !== null, containerRef, tooltipRef, anchorX: ax, anchorY: Math.min(ay, ayGp),
+    chartWidth: W, chartHeight: H, alignment: activeIdx === 0 ? 'start' : activeIdx === months.length - 1 ? 'end' : 'center',
+  });
 
   // Default formatters (in millions). Precision scales with magnitude so two
   // different grid lines can never share one rounded caption ("1tr₫" twice):
   // quarter-ticks of a 2.2tr axis used to all collapse through Math.round.
-  const yDecimals = yMax < 1 ? 2 : yMax < 10 ? 1 : 0;
+  const yDecimals = ySpan < 1 ? 2 : ySpan < 10 ? 1 : 0;
   const fmtY = formatY ?? ((v: number) => {
     if (v === 0) return '0';
     const fixed = v.toFixed(yDecimals);
@@ -132,7 +144,7 @@ export function RevenueTrendChart({
             <text x={mL - 10} y={Y(v) + 3.5} textAnchor="end" fontFamily="var(--font-data)" fill="#56655C">
               {v === 0
                 ? <tspan fontSize="11">0</tspan>
-                : <><tspan fontSize="11">{fmtY(v)}</tspan><tspan fontSize="9">tr₫</tspan></>
+                : <><tspan fontSize="11">{fmtY(v)}</tspan><tspan fontSize="11">tr₫</tspan></>
               }
             </text>
           </g>
@@ -150,8 +162,8 @@ export function RevenueTrendChart({
         {/* Revenue area fill */}
         <path d={areaPath(revenue)} fill="#005A2D" opacity={0.08} />
 
-        {/* Gross profit line */}
-        <path d={path(gross)} fill="none" stroke="#2563EB" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Gross profit line — house info token (graphic, not text) */}
+        <path d={path(gross)} fill="none" stroke="var(--info)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Revenue line (on top) — className preserved for animation hooks */}
         <path className="wf-rev-line" d={path(revenue)} fill="none" stroke="#005A2D" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -160,7 +172,7 @@ export function RevenueTrendChart({
         {activeIdx !== null && (
           <>
             <line x1={ax} y1={mT} x2={ax} y2={mT + pH} stroke="#005A2D" strokeWidth="1" strokeDasharray="3 4" opacity={0.45} />
-            <circle cx={ax} cy={ayGp} r="3.5" fill="#fff" stroke="#2563EB" strokeWidth="2" />
+            <circle cx={ax} cy={ayGp} r="3.5" fill="#fff" stroke="var(--info)" strokeWidth="2" />
             <circle cx={ax} cy={ay} r="4" fill="#fff" stroke="#005A2D" strokeWidth="2.6" />
           </>
         )}
@@ -190,19 +202,20 @@ export function RevenueTrendChart({
       {/* HTML tooltip overlay */}
       {activeIdx !== null && (
         <div
+          ref={tooltipRef}
+          data-chart-tooltip=""
           style={{
             position: 'absolute',
-            left: `${(ax / W) * 100}%`,
-            top: `${(Math.min(ay, ayGp) / H) * 100}%`,
-            transform: `translate(${activeIdx === 0 ? '0' : activeIdx === months.length - 1 ? '-100%' : '-50%'}, calc(-100% - 12px))`,
-            background: '#fff',
+            left: 'var(--chart-tooltip-left, 0px)',
+            top: 'var(--chart-tooltip-top, 0px)',
+            background: 'var(--surface)',
             borderRadius: '8px',
             border: '1px solid #E2E8E5',
             padding: '10px 14px',
             pointerEvents: 'none',
-            // The two Vietnamese label/value pairs need more than 160px once
-            // their markers and horizontal padding are accounted for.
-            minWidth: '192px',
+            width: 'max-content',
+            minWidth: 'var(--chart-tooltip-min-width, 192px)',
+            maxWidth: 'var(--chart-tooltip-max-width, calc(100% - 8px))',
             zIndex: 10,
           }}
         >
@@ -210,7 +223,7 @@ export function RevenueTrendChart({
             {months[activeIdx]}
           </div>
           <div style={{ height: 1, background: '#EEF1EF', margin: '0 -14px 8px -14px' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', columnGap: '12px', alignItems: 'center', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '12px', rowGap: 'var(--space-xs)', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-data)', fontSize: '12px', color: '#56655C', whiteSpace: 'nowrap' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#005A2D' }} />
               Doanh thu
@@ -219,12 +232,12 @@ export function RevenueTrendChart({
               {fmtTip(revenue[activeIdx] || 0)}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', columnGap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '12px', rowGap: 'var(--space-xs)', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-data)', fontSize: '12px', color: '#56655C', whiteSpace: 'nowrap' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB' }} />
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--info)' }} />
               LN gộp
             </div>
-            <div style={{ fontFamily: 'var(--font-data)', fontSize: '12.5px', fontWeight: 700, color: '#2563EB', whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: 'var(--font-data)', fontSize: '12.5px', fontWeight: 700, color: 'var(--info-text)', whiteSpace: 'nowrap' }}>
               {fmtTip(gross[activeIdx] || 0)}
             </div>
           </div>

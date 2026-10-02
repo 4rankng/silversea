@@ -12,13 +12,16 @@ import * as s from '../db/schema';
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import {
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
+  NO_INVOICE_EVIDENCE_TYPE_LABELS,
+  RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES,
   DriverProgressEventType,
   Role,
   TripStatus,
   type DriverIncidentalCostType,
   type DriverIncidentalCostInput,
+  type ExpenseCostGroup,
 } from '@tingting/shared';
-import { upsertExpenseAccountingSource } from './expense-accounting-source.service';
+import { upsertExpenseAccountingSource, receivableForDerivedCharge } from './expense-accounting-source.service';
 import { ApiError } from '../errors';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -90,9 +93,12 @@ async function recordMilestoneEventTx(
   eventType: DriverProgressEventType,
   occurredAtIso: string,
   actorUserId: number,
+  evidence: { note?: string; inferredFromCompletion?: boolean } = {},
 ): Promise<DriverProgressEvent> {
-  const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, driverId, { eventType, occurredAt: occurredAtIso }, actorUserId);
-  const publication = customerPublicationForDriverEvent(eventType, event.occurredAt);
+  const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, driverId, {
+    eventType, occurredAt: occurredAtIso, note: evidence.note,
+  }, actorUserId);
+  const publication = customerPublicationForDriverEvent(eventType, event.occurredAt, evidence.inferredFromCompletion);
   if (publication) {
     const customerEvent = await createCustomerVisibleEvent({
       shipmentId: ownedTrip.shipmentId,
@@ -181,7 +187,7 @@ export async function recordDriverFulfillmentProgress(args: {
         throw new ApiError(409, 'Ops chưa xác nhận giao lệnh gốc cho chuyến này.');
       }
       await assertKetHopSequencingAllowedTx(tx, ownedTrip.tripId);
-      const event = await recordMilestoneEventTx(tx, ownedTrip, args.driverId, eventType, args.input.occurredAt, args.recordedBy);
+      const event = await recordMilestoneEventTx(tx, ownedTrip, args.driverId, eventType, args.input.occurredAt, args.recordedBy, { note: args.input.note });
       if (eventType === DriverProgressEventType.ORDER_RECEIVED && ownedTrip.tripStatus === TripStatus.CREATED) {
         await transitionTripStatus(
           ownedTrip.tripId,
@@ -211,10 +217,19 @@ export async function recordDriverFulfillmentProgress(args: {
   return { event: result, replayed };
 }
 
-function customerPublicationForDriverEvent(eventType: DriverProgressEventType, occurredAt: Date): { title: string; message: string } | null {
+function customerPublicationForDriverEvent(eventType: DriverProgressEventType, occurredAt: Date, inferredFromCompletion = false): { title: string; message: string } | null {
   // This is a deliberately closed allowlist. It must never interpolate notes,
   // evidence references, expense details, incident text, or internal IDs.
   const occurred = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(occurredAt);
+  if (inferredFromCompletion) {
+    const titles: Partial<Record<DriverProgressEventType, string>> = {
+      [DriverProgressEventType.PICKED_UP]: 'Nhận hàng — suy ra từ hoàn thành chuyến',
+      [DriverProgressEventType.LOADING_OR_RETURNING]: 'Thực hiện chặng — suy ra từ hoàn thành chuyến',
+      [DriverProgressEventType.DELIVERED]: 'Giao hàng — suy ra từ hoàn thành chuyến',
+    };
+    const title = titles[eventType];
+    return title ? { title, message: `Mốc được suy ra từ việc tài xế hoàn thành chuyến lúc ${occurred}. Đây là thời điểm ghi nhận, không phải thời điểm quan sát thực tế.${eventType === DriverProgressEventType.DELIVERED ? ' Đây chưa phải xác nhận chấp nhận giao hàng cuối cùng.' : ''}` } : null;
+  }
   if (eventType === DriverProgressEventType.PICKED_UP) return { title: 'Đã nhận hàng để vận chuyển', message: `Tài xế đã báo nhận hàng lúc ${occurred}.` };
   if (eventType === DriverProgressEventType.LOADING_OR_RETURNING) return { title: 'Đang thực hiện chặng vận chuyển', message: `Tài xế đã báo đang thực hiện chặng vận chuyển lúc ${occurred}.` };
   if (eventType === DriverProgressEventType.DELIVERED) return { title: 'Tài xế báo đã giao hàng', message: `Tài xế đã báo giao hàng lúc ${occurred}. Đây chưa phải xác nhận chấp nhận giao hàng cuối cùng.` };
@@ -302,12 +317,72 @@ async function insertDriverIncidentalCostTx(
   tx: Tx,
   tripId: number,
   driverId: number,
-  input: DriverIncidentalCostInput,
+  input: DriverIncidentalCostInput & { expenseTypeCode?: string | null; feeNormCode?: string | null },
   recordedBy: number,
 ): Promise<DriverIncidentalCost> {
   const group = input.costGroup ?? (['TOLL', 'PARKING', 'PER_DIEM'].includes(input.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT');
   if (!['DRIVER_SHIPMENT', 'DRIVER_ROAD'].includes(group)) throw new ApiError(400, 'Nhóm chi phí lái xe không hợp lệ.');
-  const customerChargeAmount = group === 'DRIVER_SHIPMENT' && input.invoiceNumber?.trim() ? input.amount : 0;
+  // Card 20260928_197 — the amount is signed (a correction), so the receivable
+  // derived from it is clamped at 0 rather than following it negative. See
+  // `receivableForDerivedCharge` for why the two sides differ.
+  const customerChargeAmount = group === 'DRIVER_SHIPMENT' && input.invoiceNumber?.trim()
+    ? receivableForDerivedCharge(input.amount) : 0;
+  // Classification source is exclusive: a fee norm (road bucket) and a lot-cost
+  // catalog ref can never both drive one entry.
+  if (input.feeNormCode && input.expenseTypeCode) {
+    throw new ApiError(400, 'Chỉ chọn một nguồn phân loại: định mức hoặc loại phí trong danh mục.');
+  }
+  // Card 20260921_6: when the entry carries a catalog ref, invoiced-vs-no-invoice
+  // is DATA (requiresInvoice) — invoiced types must carry an invoice number and
+  // charge the customer; no-invoice types never charge, whatever the driver
+  // typed. Entries without a catalog ref keep the heuristic above unchanged
+  // (legacy enum-only entries and the offline app queue).
+  const [catalogType] = input.expenseTypeCode
+    ? await tx.select({ name: s.forwarderExpenseTypes.name, requiresInvoice: s.forwarderExpenseTypes.requiresInvoice })
+        .from(s.forwarderExpenseTypes)
+        .where(and(
+          eq(s.forwarderExpenseTypes.code, input.expenseTypeCode),
+          eq(s.forwarderExpenseTypes.status, 'ACTIVE'),
+          isNull(s.forwarderExpenseTypes.deletedAt),
+        ))
+        .limit(1)
+    : [];
+  if (input.expenseTypeCode && !catalogType) {
+    throw new ApiError(400, `Loại phí "${input.expenseTypeCode}" không tồn tại hoặc đã ngừng hiệu lực — chọn lại loại phí trong danh sách.`);
+  }
+  const invoicedClass = catalogType?.requiresInvoice === true;
+  if (invoicedClass && !input.invoiceNumber?.trim()) {
+    throw new ApiError(400, 'Phí có hóa đơn phải kèm số hóa đơn.');
+  }
+  // Card 20260928_165 — a fee whose supporting document is a hand-written
+  // receipt cannot exist without that paper: the accountant files and settles
+  // the phơi-phiếu row against it. Enforced HERE and not only in the driver
+  // form, so the offline queue and any other caller obey one rule; the kind and
+  // the code set come from the one shared map. Codes outside the map mandate no
+  // paper kind.
+  const requiredEvidenceType = input.expenseTypeCode
+    ? RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES[input.expenseTypeCode]
+    : undefined;
+  if (requiredEvidenceType && !input.receiptStorageKey) {
+    throw new ApiError(400, `${catalogType?.name ?? input.expenseTypeCode} phải kèm ${NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidenceType]}.`);
+  }
+  // Card 20260921_7: a fee norm (định mức) pins the entry to the road bucket —
+  // the norm's costType/costGroup apply, the entry never charges the customer
+  // (AC1), and the amount stays the driver-reported actual (the norm amount is
+  // the FE pre-fill default, overridable per AC3). Mutually exclusive with the
+  // lot-cost catalog ref by contract.
+  const [feeNorm] = input.feeNormCode
+    ? await tx.select().from(s.driverFeeNorms)
+        .where(and(
+          eq(s.driverFeeNorms.code, input.feeNormCode),
+          eq(s.driverFeeNorms.status, 'ACTIVE'),
+        ))
+        .limit(1)
+    : [];
+  if (input.feeNormCode && !feeNorm) {
+    throw new ApiError(400, `Định mức "${input.feeNormCode}" không tồn tại hoặc đã ngừng hiệu lực.`);
+  }
+  const normClass = feeNorm != null;
   if (input.receiptStorageKey) {
     const [photo] = await tx.select({ id: s.tripPhotos.id }).from(s.tripPhotos).where(and(
       eq(s.tripPhotos.storageKey, input.receiptStorageKey), eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.uploadedBy, recordedBy)));
@@ -316,18 +391,25 @@ async function insertDriverIncidentalCostTx(
   const [row] = await tx.insert(s.driverIncidentalCosts).values({
     tripId,
     driverId,
-    costType: input.costType,
+    costType: normClass ? (feeNorm!.costType as DriverIncidentalCostType) : input.costType,
+    expenseTypeCode: normClass ? null : (input.expenseTypeCode ?? null),
+    feeNormCode: input.feeNormCode ?? null,
     amount: String(input.amount),
+    driverEnteredAmount: String(input.amount),
     occurredAt: input.occurredAt,
     note: input.note ?? null,
     receiptStorageKey: input.receiptStorageKey ?? null,
     recordedBy,
     payerKind: input.payerKind ?? 'USER',
-    costGroup: group,
-    feeName: input.feeName ?? input.costType,
-    customerChargeAmount: String(customerChargeAmount),
-    invoiceNumber: input.invoiceNumber?.trim() || null,
-    invoiceDate: input.invoiceDate || null,
+    costGroup: normClass ? (feeNorm!.costGroup as ExpenseCostGroup) : group,
+    feeName: normClass ? feeNorm!.label : (catalogType ? catalogType.name : (input.feeName ?? input.costType)),
+    // Card 20260928_197 — `invoicedClass` charges the amount, so it needs the
+    // same clamp as `customerChargeAmount` above; this second derivation is
+    // the one that actually reaches the row when a catalog type decides the
+    // group. Both go through `receivableForDerivedCharge` so neither can drift.
+    customerChargeAmount: String(normClass ? 0 : (invoicedClass ? receivableForDerivedCharge(input.amount) : (catalogType ? 0 : customerChargeAmount))),
+    invoiceNumber: normClass ? null : (invoicedClass ? input.invoiceNumber!.trim() : catalogType ? null : (input.invoiceNumber?.trim() || null)),
+    invoiceDate: normClass ? null : (catalogType && !invoicedClass ? null : (input.invoiceDate || null)),
     photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [],
   }).returning();
   const [trip] = await tx.select({ shipmentId: s.trips.shipmentId, customerId: s.trips.customerId, truckId: s.trips.truckId }).from(s.trips).where(eq(s.trips.id, tripId));
@@ -339,10 +421,10 @@ async function insertDriverIncidentalCostTx(
     return row as DriverIncidentalCost;
   }
   const source = await upsertExpenseAccountingSource(tx, { sourceKind: 'DRIVER', sourceId: row.id, shipmentId: trip.shipmentId,
-    tripId, truckId: trip.truckId, customerId: trip.customerId, expenseTypeCode: input.costType, costGroup: group,
-    feeName: input.feeName ?? input.costType, amount: input.amount,
-    customerChargeAmount,
-    expenseDate: input.occurredAt, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+    tripId, truckId: trip.truckId, customerId: trip.customerId, expenseTypeCode: row.expenseTypeCode ?? input.costType, costGroup: row.costGroup,
+    feeName: row.feeName ?? input.costType, amount: Number(row.amount),
+    customerChargeAmount: Number(row.customerChargeAmount),
+    expenseDate: input.occurredAt, invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate,
     payerKind: input.payerKind ?? 'USER', payerUserId: input.payerKind === 'COMPANY' ? null : recordedBy, payableEntityType: input.payerKind === 'COMPANY' ? null : 'DRIVER', payableEntityId: input.payerKind === 'COMPANY' ? null : driverId,
     recordedById: recordedBy, note: input.note, photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [] });
   const [saved] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, row.id));
@@ -356,6 +438,14 @@ async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverInc
   return row as DriverIncidentalCost;
 }
 
+/** Card 20260921_7: ACTIVE fee norms for the driver cost-form auto-fill. */
+export async function listActiveDriverFeeNorms() {
+  return db.select({ code: s.driverFeeNorms.code, label: s.driverFeeNorms.label, amount: s.driverFeeNorms.amount })
+    .from(s.driverFeeNorms)
+    .where(eq(s.driverFeeNorms.status, 'ACTIVE'))
+    .orderBy(asc(s.driverFeeNorms.code));
+}
+
 /**
  * Record a driver incidental cost. Server-side idempotent: same key + same
  * body → 201 first / 200 replay (no duplicate); same key + different body →
@@ -364,7 +454,7 @@ async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverInc
 export async function recordIncidentalCost(
   tripId: number,
   driverId: number,
-  input: DriverIncidentalCostInput,
+  input: DriverIncidentalCostInput & { expenseTypeCode?: string | null; feeNormCode?: string | null },
   recordedBy: number,
   idempotencyKey: string | undefined,
 ): Promise<{ cost: DriverIncidentalCost; replayed: boolean }> {
@@ -397,7 +487,7 @@ export async function listIncidentalCosts(tripId: number, driverId: number): Pro
     .orderBy(desc(s.driverIncidentalCosts.createdAt));
   const enriched = rows.length ? await db.select().from(s.expenseAccountingSources)
     .where(and(eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), inArray(s.expenseAccountingSources.sourceId, rows.map(row => row.id)))) : [];
-  return rows.map(row => {
+  return rows.filter(row => enriched.find(item => item.sourceId === row.id)?.status !== 'VOIDED').map(row => {
     const source = enriched.find(item => item.sourceId === row.id);
     return { ...row, version: source?.version ?? 1, costGroup: row.costGroup, feeName: row.feeName,
       invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate };
@@ -495,6 +585,7 @@ export async function completeOwnedFulfillmentTrip(args: {
           nextMilestone,
           new Date().toISOString(),
           args.actorUserId,
+          { inferredFromCompletion: true, note: 'Suy ra từ hoàn thành chuyến; thời điểm ghi nhận, không phải thời điểm quan sát thực tế.' },
         );
         autoRecorded = [...autoRecorded, nextMilestone];
         nextMilestone = nextDriverFulfillmentMilestone(autoRecorded);

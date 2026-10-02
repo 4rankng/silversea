@@ -226,6 +226,30 @@ describe('fuel price periods config CRUD', () => {
     assert.ok(dates.includes(fuelDates[0]), 'chronological list includes the entry');
   });
 
+  test('fuel entries record the entrant and the list names them (audit attribution)', async () => {
+    const created = await api('POST', '/fuel-price-periods', accountantId, {
+      unitPrice: 28000,
+      effectiveFrom: fuelDates[3],
+      sourceNote: 'Ai nhập 28.000đ từ 19/9 — audit attribution',
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    createdFuelPeriodIds.push((created.body as { id: number }).id);
+    assert.equal((created.body as { createdBy: number }).createdBy, accountantId,
+      'the entrant id must ride the created row');
+
+    const list = await api('GET', '/fuel-price-periods', accountantId);
+    assert.equal(list.status, 200);
+    const items = (list.body as { items: Array<{ id: number; createdBy: number | null; createdByName: string | null }> }).items;
+    const row = items.find((item) => item.id === (created.body as { id: number }).id);
+    assert.ok(row, 'new row appears in the list');
+    assert.equal(row!.createdBy, accountantId);
+    assert.ok(row!.createdByName, 'list carries the entrant name for attribution');
+    // Legacy rows (created by seed/pre-fix writes) expose no invented author:
+    // the client renders them as "Không xác định".
+    const legacy = items.find((item) => item.createdBy == null);
+    if (legacy) assert.equal(legacy.createdByName, null);
+  });
+
   test('CUS may enter fuel prices (docx §5-1 route-scoped); DISPATCHER may not', async () => {
     const cusEntry = await api('POST', '/fuel-price-periods', cusId, {
       unitPrice: 21900,
@@ -256,6 +280,44 @@ describe('fuel price periods config CRUD', () => {
 });
 
 describe('freight rate terms config CRUD', () => {
+  test('create requires agreed lag and threshold choice; an unrelated patch preserves existing terms', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const base = { customerId: customer.id, routeId: route.id, billingKmOneWay: 100, baseFuelPrice: 20000, surchargeThresholdPct: null };
+    for (const fuelLagDays of [undefined, null, '', '  ', false, true]) {
+      const rejected = await api('POST', '/freight-rate-terms', accountantId, { ...base, fuelLagDays });
+      assert.equal(rejected.status, 400, `Unknown lag ${String(fuelLagDays)}: ${JSON.stringify(rejected.body)}`);
+    }
+    const noThreshold = { customerId: base.customerId, routeId: base.routeId, billingKmOneWay: base.billingKmOneWay, baseFuelPrice: base.baseFuelPrice };
+    const missingThreshold = await api('POST', '/freight-rate-terms', accountantId, { ...noThreshold, fuelLagDays: 0 });
+    // 20260917_11 three-state model: creating WITHOUT a threshold is legal —
+    // the row lands in UNSET (nothing customer-confirmed yet) and the ENGINE,
+    // not this route, refuses to auto-apply fuel prices to it.
+    assert.equal(missingThreshold.status, 201, JSON.stringify(missingThreshold.body));
+    assert.equal(missingThreshold.body.surchargeThresholdMode, 'UNSET');
+    assert.equal(missingThreshold.body.fuelLagConfirmed, false);
+    createdTermsIds.push(Number(missingThreshold.body.id));
+    // A second route so the UNSET row above and this confirmed row don't
+    // collide on the customer×route×date unique key.
+    const route2 = await mkRoute();
+    const recorded = await api('POST', '/freight-rate-terms', accountantId, { ...base, routeId: route2.id, fuelLagDays: '0' });
+    assert.equal(recorded.status, 201, JSON.stringify(recorded.body));
+    const termsId = Number(recorded.body.id);
+    createdTermsIds.push(termsId);
+    const [before] = await db.select().from(s.freightRateTerms).where(eq(s.freightRateTerms.id, termsId));
+    assert.equal(before.fuelLagDays, 0);
+    assert.equal(before.surchargeThresholdPct, null);
+    assert.equal(before.surchargeThresholdAbs, null);
+    const updated = await api('PUT', `/freight-rate-terms/${termsId}`, accountantId, { note: 'Giữ điều khoản đã thỏa thuận' }, before.updatedAt.toISOString());
+    assert.equal(updated.status, 200, JSON.stringify(updated.body));
+    const [after] = await db.select().from(s.freightRateTerms).where(eq(s.freightRateTerms.id, termsId));
+    assert.equal(after.fuelLagDays, 0);
+    assert.equal(after.surchargeThresholdPct, null);
+    assert.equal(after.surchargeThresholdAbs, null);
+    const blankPatch = await api('PUT', `/freight-rate-terms/${termsId}`, accountantId, { fuelLagDays: '' }, after.updatedAt.toISOString());
+    assert.equal(blankPatch.status, 400, JSON.stringify(blankPatch.body));
+  });
+
   test('admin creates terms; duplicate customer×route×date conflicts 409', async () => {
     const customer = await mkCustomer();
     const route = await mkRoute();
@@ -266,6 +328,7 @@ describe('freight rate terms config CRUD', () => {
       billingKmOneWay: 130,
       baseFuelPrice: 17842.5926,
       fuelLagDays: 1,
+      surchargeThresholdPct: null,
     });
     assert.equal(created.status, 201, JSON.stringify(created.body));
     const termsId = (created.body as { id: number }).id;
@@ -277,6 +340,8 @@ describe('freight rate terms config CRUD', () => {
       sharePct: 4,
       billingKmOneWay: 100,
       baseFuelPrice: 17842.5926,
+      fuelLagDays: 1,
+      surchargeThresholdPct: null,
     });
     assert.equal(duplicate.status, 409, JSON.stringify(duplicate.body));
 
@@ -294,6 +359,7 @@ describe('freight rate terms config CRUD', () => {
       sharePct: 2.5,
       billingKmOneWay: 120,
       baseFuelPrice: 17842.5926,
+      fuelLagDays: 1,
       surchargeThresholdPct: 5,
       surchargeThresholdAbs: 500,
     });
@@ -306,6 +372,8 @@ describe('freight rate terms config CRUD', () => {
       sharePct: 2.5,
       billingKmOneWay: 120,
       baseFuelPrice: 17842.5926,
+      fuelLagDays: 1,
+      surchargeThresholdMode: 'PCT',
       surchargeThresholdPct: 5,
     });
     assert.equal(pctOnly.status, 201, JSON.stringify(pctOnly.body));
@@ -322,10 +390,12 @@ describe('freight rate terms config CRUD', () => {
     assert.equal(mergeRejected.status, 400, JSON.stringify(mergeRejected.body));
     assert.match(String((mergeRejected.body as { error?: string }).error), /ngưỡng/i);
 
-    // Swapping modes in one patch is fine (pct cleared, abs set).
+    // Swapping modes in one patch is fine — under the 20260917_11 contract
+    // the patch must carry the new MODE together with the values.
     const [row2] = await db.select().from(s.freightRateTerms)
       .where(eq(s.freightRateTerms.id, termsId));
     const swap = await api('PUT', `/freight-rate-terms/${termsId}`, adminId, {
+      surchargeThresholdMode: 'ABS',
       surchargeThresholdPct: null,
       surchargeThresholdAbs: 500,
     }, row2.updatedAt.toISOString());

@@ -20,6 +20,7 @@ import {
   vehicleReadinessLabel,
   worksheetQuantity,
 } from './cusUtils';
+import { formatNumber } from '../../../lib/format';
 
 /** Board filters that scope the export; pagination + sort are export-owned. */
 export interface CusWorksheetFilters {
@@ -89,7 +90,7 @@ export async function exportCusWorksheet(filters: CusWorksheetFilters): Promise<
     exportItems.map(mapCusWorksheetRow),
     {
       title: 'Tổng quan lô hàng',
-      subtitle: `${exportItems.length.toLocaleString('vi-VN')} lô hàng`,
+      subtitle: `${formatNumber(exportItems.length)} lô hàng`,
       columnTypes: ['text', 'text', 'text', 'text', 'text', 'text', 'text'],
       hideTotals: true,
     },

@@ -1,0 +1,140 @@
+// Settlement screen (Chi phí - Quyết toán) client contracts. Extracted from
+// shipmentClient.ts (structure-guard debt wave 2026-09-18): pure types and
+// thin endpoint wrappers, re-exported so existing import paths hold.
+import { api } from '../lib/api';
+import type { ShipmentDebitEditPayload } from '@tingting/shared';
+
+/** One collapsed lot row on the CUS settlement screen (Chi phí - Quyết toán). */
+export interface ShipmentDebitLotRow {
+  /** Card _202: the row's OWN customer. The list can span customers, so the L2
+   *  workspace keys its fee catalog off this, never off the page's filter. */
+  customerId: number | null;
+  shipmentId: number;
+  code: string;
+  customerName: string;
+  factoryName: string | null;
+  factoryAddress: string | null;
+  billOrBookNumber: string;
+  customsNumber: string | null;
+  /** Lot-level proof summary, e.g. "5/6" — null when nothing is recorded yet. */
+  documentsSummary: string | null;
+  /** Auto freight for the whole lot. null = not computable yet, never 0-by-default. */
+  freightAuto: number | null;
+  /** chi hộ total: CVC + Ops-paid items. null = chưa xác định. */
+  chiHoTotal: number | null;
+  /** phải thu khách − phải trả. null = chưa xác định. */
+  receivableTotal: number | null;
+  /** TỔNG PHẢI TRẢ (CVC + phí chi cho Ops). Producer lands via _7/spec-close
+   *  FullStack half; null/absent = chưa xác định — never derived, never 0. */
+  payableTotal?: number | null;
+  profit: number | null;
+  lockStatus: 'OPEN' | 'LOCKED';
+  lockedAt: string | null;
+}
+
+export interface ShipmentDebitSummary {
+  items: ShipmentDebitLotRow[];
+  total: number;
+  /** Card 20260924_2 F1 shadow totals (BE 855aef81): fulfillment-NULL trips
+   *  excluded from chốt — count of CHUYẾN and their chi-hộ buy-sum. */
+  excludedCount: number;
+  excludedSum: string;
+}
+
+/** Settlement rollup per lot. Delivery date = shipments.expectedDeliveryDate.
+ *  Card _202: an absent `customerId` means every customer — that is the state
+ *  the screen opens in, not an empty result. */
+export async function listShipmentDebitSummary(params: {
+  customerId?: number | null;
+  deliveryDateFrom?: string | null;
+  deliveryDateTo?: string | null;
+  lockStatus?: 'ALL' | 'OPEN' | 'LOCKED';
+}): Promise<ShipmentDebitSummary> {
+  const query = new URLSearchParams();
+  if (params.customerId) query.set('customerId', String(params.customerId));
+  if (params.deliveryDateFrom) query.set('deliveryDateFrom', params.deliveryDateFrom);
+  if (params.deliveryDateTo) query.set('deliveryDateTo', params.deliveryDateTo);
+  if (params.lockStatus && params.lockStatus !== 'ALL') query.set('lockStatus', params.lockStatus);
+  return api.get<ShipmentDebitSummary>(`/shipments/debit-summary?${query.toString()}`);
+}
+
+// ── Chi phí - Quyết toán L2: per-lot detail workspace ──────────────────────
+// ONE contract with the BE producer: the row types come from the shared
+// zod schema (card _7 contract swap) — never re-declared here. Money is
+// numeric with null = chưa xác định. The editable delta rides
+// `shipmentDebitEditPayloadSchema` from @tingting/shared.
+import type {
+  DebitDetailChiHoRow,
+  DebitDetailExpenseItem,
+  DebitDetailFreightRow,
+  ShipmentDebitDetail,
+} from '@tingting/shared';
+
+export type {
+  DebitDetailChiHoRow,
+  DebitDetailExpenseItem,
+  DebitDetailFreightRow,
+  ShipmentDebitDetail,
+};
+
+export async function getShipmentDebitDetail(shipmentId: number): Promise<ShipmentDebitDetail> {
+  return api.get<ShipmentDebitDetail>(`/shipments/${encodeURIComponent(shipmentId)}/debit-detail`);
+}
+
+/** The strict delta: edits on existing expense lines, Phí khác adds/removals. */
+export type ShipmentDebitEditsBody = ShipmentDebitEditPayload;
+
+/** Idempotent per PRD O2C §8 — repeated saves must never duplicate entries. */
+export async function saveShipmentDebitEdits(shipmentId: number, body: ShipmentDebitEditsBody, idempotencyKey: string): Promise<void> {
+  await api.put(`/shipments/${encodeURIComponent(shipmentId)}/debit-edits`, body, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+// ── Card _19: lot lock + adjust-cước (snapshot contract) ───────────────────
+
+/** POST /shipments/:id/lock — active-lock conflicts return 409 with the
+ * dedicated message; retries with the same key return the original lock. */
+export async function lockShipmentCost(shipmentId: number, idempotencyKey: string, expectedShipmentVersion?: number): Promise<void> {
+  await api.post(`/shipments/${encodeURIComponent(shipmentId)}/lock`, expectedShipmentVersion != null ? { expectedShipmentVersion } : {}, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+export interface ShipmentCostAdjustment {
+  id: number;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  reason: string;
+  adjustedAt: string;
+}
+
+/** Adjustments apply beside the locked snapshot — the snapshot never mutates. */
+export async function adjustShipmentCost(shipmentId: number, body: { reason: string; changes: ShipmentDebitEditsBody }, idempotencyKey: string): Promise<void> {
+  await api.post(`/shipments/${encodeURIComponent(shipmentId)}/cost-adjustments`, body, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+export async function listShipmentCostAdjustments(shipmentId: number): Promise<ShipmentCostAdjustment[]> {
+  const response = await api.get<{ items: ShipmentCostAdjustment[] }>(`/shipments/${encodeURIComponent(shipmentId)}/cost-adjustments`);
+  return response.items;
+}
+
+// ── Xuất Debit Note: batched issue + download ──────────────────────────────
+
+/** One POST carries every selected locked lot id; per-lot line grouping is
+ *  preserved inside the union document. The caller derives a stable key from
+ *  the selection, so re-clicking the same selection replays the same
+ *  document instead of issuing a duplicate. */
+export async function createDebitNoteBatch(shipmentIds: number[], idempotencyKey: string): Promise<{ id: number }> {
+  return api.post<{ id: number }>('/shipments/debit-notes', { shipmentIds }, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+/** Downloads the issued union document (xlsx) through the per-lot export
+ *  mount — the lookup is by documentId, the mount id only anchors casbin. */
+export function exportDebitNoteFile(anchorShipmentId: number, documentId: number): Promise<Blob> {
+  return api.getBlob(`/shipments/${encodeURIComponent(anchorShipmentId)}/debit-note/export?documentId=${documentId}`);
+}

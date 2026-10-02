@@ -29,7 +29,7 @@ import {
   OCR_SETTING_KEYS,
   invalidateOcrSettings,
 } from '../services/ocr-settings.service';
-import { OCR_RATE_LIMIT_KEY } from '../services/ocr-rate-limiter';
+import { checkOcrRateLimit, OCR_RATE_LIMIT_KEY } from '../services/ocr-rate-limiter';
 import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -40,10 +40,9 @@ const storageKeys = new Set<string>();
 
 let server: http.Server;
 let baseUrl = '';
-let adminId = 0;
-let managerId = 0;
 let adminToken = '';
 let managerToken = '';
+let accountantToken = '';
 let tripId = 0;
 let customerId = 0;
 let routeId = 0;
@@ -145,7 +144,7 @@ before(async () => {
   originalRows = await captureOcrRows();
   originalOpenrouterEnv = config.openrouterApiKey;
 
-  const mkUser = async (username: string, role: 'ADMIN' | 'MANAGER') => {
+  const mkUser = async (username: string, role: 'ADMIN' | 'MANAGER' | 'ACCOUNTANT') => {
     const [user] = await db.insert(s.users).values({
       username,
       fullName: username,
@@ -159,10 +158,10 @@ before(async () => {
 
   const admin = await mkUser(`ocr-admin-${suffix}`, 'ADMIN');
   const manager = await mkUser(`ocr-manager-${suffix}`, 'MANAGER');
-  adminId = admin.id;
-  managerId = manager.id;
+  const accountant = await mkUser(`ocr-accountant-${suffix}`, 'ACCOUNTANT');
   adminToken = sign({ ...admin, username: admin.username ?? `admin-${admin.id}` });
   managerToken = sign({ ...manager, username: manager.username ?? `manager-${manager.id}` });
+  accountantToken = sign({ ...accountant, username: accountant.username ?? `accountant-${accountant.id}` });
 
   const [customer] = await db.insert(s.customers).values({
     name: `OCR customer ${suffix}`,
@@ -242,7 +241,7 @@ after(async () => {
       await storageService.delete(storageKey).catch(() => undefined);
     }
 
-    await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, [adminId, managerId]));
+    await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, [...createdUserIds]));
     if (tripId) {
       await db.delete(s.trips).where(eq(s.trips.id, tripId));
     }
@@ -269,6 +268,67 @@ after(async () => {
 });
 
 describe('ocr settings route + runtime integration', () => {
+  test('history reads and persist-only validation do not consume recognition quota', async () => {
+    const redis = getRedis();
+    assert.ok(redis, 'This integration test requires the real Redis rate limiter');
+    const fillRecognitionQuota = async () => {
+      await resetOcrRateLimit();
+      assert.equal(await checkOcrRateLimit(), true);
+      assert.equal(await checkOcrRateLimit(), true);
+    };
+
+    try {
+      await fillRecognitionQuota();
+      const quotaMembers = await redis.zrange(OCR_RATE_LIMIT_KEY, 0, -1);
+      const history = await Promise.all(Array.from({ length: 3 }, () =>
+        requestJson('/api/ocr/fuel-evidence-reviews?page=1&limit=20', { token: accountantToken })));
+      for (const response of history) {
+        assert.equal(response.status, 200, JSON.stringify(response.body));
+        assert.deepEqual(response.body, history[0].body);
+      }
+      const membersAfterReads = await redis.zrange(OCR_RATE_LIMIT_KEY, 0, -1);
+      assert.ok(membersAfterReads.every((member) => quotaMembers.includes(member)),
+        'History requests must not add entries to the recognition quota');
+
+      await fillRecognitionQuota();
+      const forbidden = await requestJson('/api/ocr/fuel-evidence-reviews', { token: managerToken });
+      assert.equal(forbidden.status, 403, JSON.stringify(forbidden.body));
+
+      await fillRecognitionQuota();
+      const persistOnly = await requestJson('/api/ocr/persist-only', {
+        method: 'POST', token: adminToken,
+        idempotencyKey: `ocr-quota-persist-validation-${suffix}`,
+      });
+      assert.equal(persistOnly.status, 400, JSON.stringify(persistOnly.body));
+      assert.equal(persistOnly.body.error, 'Không có file tải lên');
+
+      for (const path of ['/api/ocr/', '/api/ocr/pump']) {
+        await fillRecognitionQuota();
+        const recognition = await requestJson(path, {
+          method: 'POST', token: adminToken,
+          idempotencyKey: `ocr-quota-recognition-${path}-${suffix}`,
+        });
+        assert.equal(recognition.status, 429, JSON.stringify(recognition.body));
+        assert.equal(recognition.body.error, 'OCR đang quá tải. Vui lòng thử lại sau.');
+      }
+    } finally {
+      await resetOcrRateLimit();
+    }
+  });
+
+  test('empty capture, pump and persist-only requests return the no-file validation error', async () => {
+    for (const path of ['/api/ocr/', '/api/ocr/pump', '/api/ocr/persist-only']) {
+      await resetOcrRateLimit();
+      const response = await requestJson(path, {
+        method: 'POST', token: adminToken,
+        idempotencyKey: `ocr-empty-upload-${path}-${suffix}`,
+      });
+      assert.equal(response.status, 400, JSON.stringify(response.body));
+      assert.equal(response.body.error, 'Không có file tải lên');
+    }
+    await resetOcrRateLimit();
+  });
+
   test('GET uses env fallback, hides plaintext, and PUT replays with encrypted storage', async () => {
     await resetToEnvFallback({ openrouter: 'env-openrouter-1234' });
 

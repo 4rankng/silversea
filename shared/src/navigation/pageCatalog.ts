@@ -74,6 +74,11 @@ export const PAGE_CATALOG = {
     path: '/fleet/drivers',
     section: 'resources',
   },
+  fleetExternal: {
+    title: 'Xe ngoài',
+    path: '/fleet/external',
+    section: 'resources',
+  },
   fleetTires: {
     title: 'Lốp xe đầu kéo',
     path: (p: Record<string, string | number>) => `/fleet/${p.truckId}/tires`,
@@ -114,6 +119,31 @@ export const PAGE_CATALOG = {
   accounting: {
     title: 'Tổng Quan',
     path: '/accounting',
+    section: 'financials',
+  },
+  accountingDebitClose: {
+    title: 'Kế toán chốt debit',
+    path: '/accounting/chot-debit',
+    section: 'financials',
+  },
+  accountingDepositTracker: {
+    title: 'Theo dõi hoàn cược',
+    path: '/accounting/deposit-tracker',
+    section: 'financials',
+  },
+  accountingReconciliation: {
+    title: 'Báo cáo hoàn ứng',
+    path: '/accounting/hoan-ung',
+    section: 'financials',
+  },
+  accountingInvoiceTracking: {
+    title: 'Theo dõi hóa đơn',
+    path: '/accounting/invoice-tracking',
+    section: 'financials',
+  },
+  accountingPhoiPhieu: {
+    title: 'Kiểm soát phơi phiếu',
+    path: '/accounting/phoi-phieu',
     section: 'financials',
   },
   profit: {
@@ -186,6 +216,14 @@ export const PAGE_CATALOG = {
     // `shipments`; the per-shipment detail page stays at /shipments/:id.
     title: 'Chi tiết lô hàng',
     path: '/shipments-detail',
+    section: 'operations',
+  },
+  shipmentDebit: {
+    // CUS settlement screen: revenue/cost rollup per lot (freight, chi hộ,
+    // receivable, profit) with the lock workflow and the Debit Note export.
+    // Read-only summary lives here; per-lot editing is the container ledger.
+    title: 'Chi phí - Quyết toán',
+    path: '/shipments-debit',
     section: 'operations',
   },
   suppliers: {
@@ -277,6 +315,11 @@ export const PAGE_CATALOG = {
   configPricingTables: {
     title: 'Bảng giá',
     path: '/config/pricing-tables',
+    section: 'config',
+  },
+  configQuotations: {
+    title: 'Báo giá',
+    path: '/config/quotations',
     section: 'config',
   },
   configRoadAllowances: {
@@ -406,6 +449,13 @@ export const PAGE_CATALOG = {
     title: 'Chi tiết phiếu thanh toán',
     path: (p: Record<string, string | number>) => `/my-settlements/${p.id}`,
     pathPattern: '/my-settlements/:id',
+    requiresParams: ['id'],
+  },
+
+  settlementDetail: {
+    title: 'Chi tiết phiếu thanh toán',
+    path: (p: Record<string, string | number>) => `/settlements/${p.id}`,
+    pathPattern: '/settlements/:id',
     requiresParams: ['id'],
   },
 

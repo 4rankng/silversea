@@ -11,6 +11,8 @@ import {
   type OpsExpenseRow,
   type OpsExpenseStatus,
   type OpsFleetTruck,
+  type OpsFundBook,
+  type OpsFundBookPeriod,
   type OpsOrderItem,
   type OpsSettlementDetail,
   type OpsSettlementListItem,
@@ -21,6 +23,9 @@ export const opsKeys = {
   orders: (date: string, q?: string) => ['ops', 'orders', date, q ?? ''] as const,
   expenseTypes: () => ['ops', 'expense-types'] as const,
   walletSummary: () => ['ops', 'wallet-summary'] as const,
+  // Card 20260928_168: the window is part of the key, so two different
+  // windows can never serve each other's cached rows.
+  fundBook: (from?: string, to?: string) => ['ops', 'fund-book', from ?? 'all', to ?? 'all'] as const,
   walletAdvanceRequests: (status?: string) => ['ops', 'wallet-advance-requests', status ?? 'all'] as const,
   walletExpenses: (status?: OpsExpenseStatus) => ['ops', 'wallet-expenses', status ?? 'all'] as const,
   expensePhotos: (id: number) => ['ops', 'expense-photos', id] as const,
@@ -30,7 +35,7 @@ export const opsKeys = {
   adminExpenses: (status?: OpsExpenseStatus, opsUserId?: number) =>
     ['ops', 'admin-expenses', status ?? 'all', opsUserId ?? 0] as const,
   adminSettlements: (status?: string) => ['ops', 'admin-settlements', status ?? 'all'] as const,
-  /** Single settlement under review (kế toán/quản lý duyệt). */
+  /** Single settlement detail for accounting reconciliation. */
   adminSettlement: (id: number) => ['ops', 'admin-settlement', id] as const,
 };
 
@@ -76,6 +81,15 @@ export function useOpsWalletSummary() {
   });
 }
 
+export function useOpsFundBook(period?: OpsFundBookPeriod) {
+  const from = period?.from;
+  const to = period?.to;
+  return useQuery<OpsFundBook>({
+    queryKey: opsKeys.fundBook(from, to),
+    queryFn: () => opsClient.getFundBook({ from, to }),
+  });
+}
+
 export function useOpsWalletExpenses(status?: OpsExpenseStatus) {
   return useQuery<{ items: OpsExpenseRow[] }>({
     queryKey: opsKeys.walletExpenses(status),
@@ -88,7 +102,7 @@ export function useCreateOpsExpense() {
   const invalidate = useInvalidateOps();
   return useMutation({
     mutationFn: opsClient.createExpense,
-    // Optimistic wallet patch (PRD §5.2): Số dư ↓ and Chờ duyệt ↑ the moment
+    // Optimistic wallet patch (PRD §5.2): Số dư ↓ and Chưa quyết toán ↑ the moment
     // the author saves; the server refetch on settle reconciles.
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: opsKeys.walletSummary() });
@@ -124,7 +138,7 @@ export function useUpdateOpsExpense() {
 export function useDeleteOpsExpense() {
   const invalidate = useInvalidateOps();
   return useMutation({
-    mutationFn: (id: number) => opsClient.deleteExpense(id),
+    mutationFn: (input: { id: number; reason: string }) => opsClient.deleteExpense(input.id, input.reason),
     onSettled: () => invalidate(),
   });
 }
@@ -208,7 +222,7 @@ export function useCreateOpsSettlement() {
   });
 }
 
-// ── Duyệt (kế toán / quản lý) ────────────────────────────────────────────────
+// ── Đối chiếu (kế toán / quản lý) ────────────────────────────────────────────────
 
 export function useAdminOpsExpenses(status?: OpsExpenseStatus, opsUserId?: number) {
   return useQuery<{ items: OpsExpenseRow[] }>({

@@ -241,8 +241,23 @@ export const freightRateTerms = pgTable('freight_rate_terms', {
   baseFuelPrice: numeric('base_fuel_price', { precision: 12, scale: 4 }).notNull(),
   // Lag days before new fuel price applies (NEWEB = 1; others TBD).
   fuelLagDays: integer('fuel_lag_days').notNull().default(0),
+  // Whether the lag above is a customer-confirmed term. False = the value is
+  // provisional (the API forces an explicit input, but the stored 0 must not
+  // be read as an agreed term). See CuocPhiThietKeDB.md §8 (20260917_11).
+  fuelLagConfirmed: boolean('fuel_lag_confirmed').notNull().default(false),
+  // Surcharge threshold confirmation state — three states per 20260917_11
+  // criterion 1 (PRD CuocPhiThietKeDB.md §8 forbids reading an empty cell as
+  // "always adjust"):
+  //   'UNSET'  — no customer confirmation yet (the historical NULL rows).
+  //   'NONE'   — customer confirmed NO threshold (always adjust).
+  //   'PCT'    — threshold confirmed as a percentage (surcharge_threshold_pct).
+  //   'ABS'    — threshold confirmed as VNĐ/liter (surcharge_threshold_abs).
+  surchargeThresholdMode: varchar('surcharge_threshold_mode', { length: 10 })
+    .notNull()
+    .default('UNSET'),
   // Surcharge threshold — minimum price change to trigger adjustment.
-  // Two modes: percentage OR absolute (VNĐ/liter). NULL = no threshold (always adjust).
+  // Two modes: percentage OR absolute (VNĐ/liter). NULL is allowed only while
+  // mode = 'UNSET' (never yet confirmed); mode 'NONE' also keeps both NULL.
   // Per docx §2 B: "Hệ thống hỗ trợ cấu hình ngưỡng biến động giá dầu tối thiểu
   // theo 2 dạng tùy chọn".
   surchargeThresholdPct: numeric('surcharge_threshold_pct', { precision: 5, scale: 2 }),
@@ -311,6 +326,18 @@ export const freightRateSnapshots = pgTable('freight_rate_snapshots', {
   liters: numeric('liters', { precision: 10, scale: 3 }).notNull(),
   fuelDelta: numeric('fuel_delta', { precision: 12, scale: 4 }).notNull(),
   sharePct: numeric('share_pct', { precision: 5, scale: 2 }).notNull(),
+  // Card 20260922_59: the per-cell Hệ số (fuel-surcharge-only multiplier from
+  // quotation_cells) APPLIED to surchargeAmount when this snapshot was taken.
+  // Default 1 = ordinary round trip; historical rows read as 1 (true).
+  heSo: numeric('he_so', { precision: 8, scale: 4 }).notNull().default('1'),
+  // Card 20260922_60: pre-rounding surcharge (raw) kept beside the CHARGED
+  // surchargeAmount so the customer's rounding rule explains the number.
+  // NULL on historical rows (no customer rounding existed pre-_60).
+  surchargeRaw: numeric('surcharge_raw', { precision: 15, scale: 0 }),
+  // Frozen prose for states the id-based formula rebuild cannot express —
+  // the surcharge-pending path (unconfirmed surcharge grounds: freight
+  // computes, surcharge 0). NULL on AUTO/rebuilt rows.
+  formulaText: text('formula_text'),
   computedAt: timestamp('computed_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [

@@ -87,7 +87,7 @@
 .user-name__you {
   margin-left: 6px;
   font-size: var(--text-caption-size);
-  color: var(--accent);
+  color: var(--accent-2);
   font-weight: var(--fw-medium);
 }
 
@@ -121,51 +121,10 @@
   flex-shrink: 0;
 }
 
-/* ── Filter pills with subtle role-colored tints ───────────────────────── */
-
-.filter-pill--admin {
-  --fp-color: var(--danger);
-  --fp-soft: var(--danger-soft);
-}
-.filter-pill--manager {
-  --fp-color: var(--warning);
-  --fp-soft: var(--warning-soft);
-}
-.filter-pill--accountant {
-  --fp-color: var(--ink-2);
-  --fp-soft: var(--surface-3);
-}
-.filter-pill--driver {
-  --fp-color: var(--success);
-  --fp-soft: var(--success-soft);
-}
-.filter-pill--forwarder {
-  --fp-color: var(--info);
-  --fp-soft: var(--info-soft);
-}
-
-/* Inactive state: subtle tinted border hint */
-.filter-pill[class*="filter-pill--"] {
-  border-color: color-mix(in srgb, var(--fp-color) 20%, transparent);
-}
-
-.filter-pill[class*="filter-pill--"]:hover {
-  background: var(--fp-soft);
-  border-color: color-mix(in srgb, var(--fp-color) 40%, transparent);
-  color: var(--fp-color);
-}
-
-/* Active state: neutral high-contrast selection */
-.filter-pill[class*="filter-pill--"].is-active {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--fg-on-brand);
-}
-
-.filter-pill[class*="filter-pill--"].is-active .filter-pill__count {
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--fg-on-brand);
-}
+/* The role-tinted filter pills (`.filter-chip--admin` … and their
+   `.filter-chip__count` fill) are deleted (card 20260927_152): the role group
+   is the shared boxed `Tabs` now, whose count numeral is plain tone-coloured
+   text — a page-local tint would be a second segment vocabulary beside it. */
 
 /* ── Users table panel (unified wrapper) ────────────────────────────────── */
 
@@ -174,19 +133,16 @@
   border: 1px solid var(--line);
   border-radius: var(--r);
   overflow: hidden;
-  transition: border-color 0.3s ease;
+  transition: border-color var(--t-slow);
 }
 
 .users-table-panel:hover {
   border-color: var(--line-2);
 }
 
-/* Toolbar inside the panel — flush with top, no bottom border */
-.users-table-panel .toolbar {
-  border-bottom: 1px solid var(--line);
-  padding: 12px 14px;
-  background: var(--surface-2);
-}
+/* The in-panel toolbar skin (`.users-table-panel .toolbar`) is deleted with the
+   toolbar itself (card 20260927_152): the filter strip is the shared
+   `ListFilterBar` card above the panel, so the panel's first row is the legend. */
 
 .users-list-legend {
   display: flex;
@@ -235,7 +191,7 @@
    table-sort-button contract (styles/table-sort.css). */
 .users-table-panel .table-sort-button {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   text-align: left;
 }
 
@@ -247,9 +203,9 @@
 }
 
 .users-admin-page .btn-page {
-  min-width: 44px;
-  min-height: 44px;
-  height: 44px;
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
+  height: var(--control-max-h);
   line-height: 1.35;
 }
 
@@ -269,16 +225,6 @@
   place-items: center;
   margin: 0 auto 16px;
   color: var(--ink-3);
-}
-
-.users-empty__illustration {
-  width: 140px;
-  height: 116px;
-  object-fit: contain;
-  margin: 0 auto 16px;
-  display: block;
-  user-select: none;
-  pointer-events: none;
 }
 
 .users-empty__title {
@@ -329,9 +275,9 @@
   display: flex;
   align-items: center;
   border: 1.5px solid var(--line-2);
-  border-radius: 9px;
-  min-height: 44px;
-  height: 44px;
+  border-radius: 10px;
+  min-height: var(--control-max-h);
+  height: var(--control-max-h);
   background: var(--surface);
   transition: border-color 0.15s ease;
 }
@@ -363,6 +309,19 @@
   outline: none;
   font-family: inherit;
   font-size: var(--control-field-font-size);
+}
+
+/* IconInput's 1.5px border owns the visible field. Native input and password
+   action floors must fit its interior instead of enlarging that boundary. */
+:is(#root, body) .icon-input .icon-input__field:not([type='checkbox']):not([type='radio']):not([type='hidden']) {
+  min-height: 0;
+  height: calc(var(--control-max-h) - 3px);
+  padding-block: 0;
+}
+
+:is(#root, body) .icon-input .pw-toggle {
+  min-height: 0;
+  height: calc(var(--control-max-h) - 3px);
 }
 
 .icon-input__field::placeholder {
@@ -452,8 +411,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   padding: 0 10px;
   background: none;
   border: none;
@@ -461,7 +420,7 @@
   cursor: pointer;
   color: var(--ink-3);
   flex-shrink: 0;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background var(--t-fast), color var(--t-fast);
 }
 
 .pw-toggle:hover {
@@ -593,7 +552,7 @@
   align-items: center;
   gap: 5px;
   padding: 6px 12px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   border-radius: 8px;
   font-size: var(--text-control-size);
   font-weight: var(--fw-semibold);
@@ -647,36 +606,6 @@
   .users-table-panel {
     width: 100%;
     max-width: 100%;
-    min-width: 0;
-  }
-
-  .users-table-panel .users-role-toolbar {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    width: 100%;
-    max-width: 100%;
-    overflow: visible;
-    padding: 10px;
-  }
-
-  .users-role-toolbar .filter-pill {
-    width: 100%;
-    min-width: 0;
-    justify-content: center;
-    padding-inline: 8px;
-    line-height: 1.25;
-    text-align: center;
-    white-space: normal;
-  }
-
-  .users-role-toolbar .toolbar__spacer {
-    display: none;
-  }
-
-  .users-role-toolbar .toolbar__search {
-    grid-column: 1 / -1;
-    width: 100%;
     min-width: 0;
   }
 
@@ -754,15 +683,15 @@
 
   .drawer:has(.users-form-cards) .input,
   .drawer:has(.users-form-cards) select.input {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--control-max-h);
+    height: var(--control-max-h);
     padding-top: 8px;
     padding-bottom: 8px;
   }
 
   .icon-input {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--control-max-h);
+    height: var(--control-max-h);
   }
 
   .icon-input__icon {
@@ -812,10 +741,10 @@
 .kebab-btn {
   background: none;
   border: none;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-max-h);
+  height: var(--control-max-h);
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -848,7 +777,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   padding: 10px 12px;
   font-size: var(--text-control-size);
   line-height: 1.35;
@@ -871,37 +800,11 @@
   cursor: not-allowed;
 }
 
-/* Clear search button styling */
-.search-clear-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--ink-3);
-  background: none;
-  border: none;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, color 0.15s;
-  z-index: 2;
-}
-
-.search-clear-btn:hover {
-  background: var(--surface-3);
-  color: var(--ink-2);
-}
-
-.users-table-panel .toolbar__search input {
-  padding-right: 28px;
-  line-height: 1.35;
-  min-height: 44px;
-}
+/* The page-local search shell (`search-clear-btn` and the in-panel
+   `.toolbar__search input` skin) is deleted (card 20260927_152): the strip's
+   own search cell owns that affordance, and a second clear button beside a
+   shared field is exactly the page-local variant the one-implementation rule
+   bans. */
 
 /* KPI Premium Styling overrides */
 .users-admin-page .kpi-grid .kpi {
@@ -1056,14 +959,14 @@
 }
 
 .users-customer-scope__search {
-  min-height: 44px;
+  min-height: var(--control-max-h);
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 12px;
   border: 1px solid var(--line-2);
   border-radius: 8px;
-  background: var(--surface-1);
+  background: var(--surface);
   color: var(--ink-3);
 }
 
@@ -1075,11 +978,17 @@
 .users-customer-scope__search input {
   min-width: 0;
   width: 100%;
-  min-height: 42px;
+  min-height: calc(var(--control-max-h) - 2px);
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--ink);
+}
+
+:is(#root, body) .users-customer-scope__search input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']) {
+  min-height: 0;
+  height: calc(var(--control-max-h) - 2px);
+  padding-block: 0;
 }
 
 .users-customer-scope__list {
@@ -1087,7 +996,7 @@
   overflow-y: auto;
   border: 1px solid var(--line-2);
   border-radius: 8px;
-  background: var(--surface-1);
+  background: var(--surface);
 }
 
 .users-customer-scope__option {
@@ -1098,6 +1007,13 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--line-2);
   cursor: pointer;
+}
+
+/* Missing tax-code/subtitle rows have one label, not a two-fact record. */
+.users-customer-scope__option:not(:has(small)) {
+  min-height: var(--control-max-h);
+  padding-block: 0;
+  box-sizing: border-box;
 }
 
 .users-customer-scope__option:last-child {

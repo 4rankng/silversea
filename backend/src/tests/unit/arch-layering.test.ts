@@ -17,8 +17,9 @@ import { fileURLToPath } from 'node:url';
  *   1. Route files must not import the db client directly. `../db/schema`
  *      imports stay allowed (type-only surface).
  *   2. Service files must not import from routes (no reverse edges).
- *   3. Source files respect the LOC budget; current violators live in
- *      SIZE_BASELINE below, annotated with the phase that removes them.
+ *   3. Source files respect the LOC budget; violators, if any, live in
+ *      SIZE_BASELINE below, annotated with the phase that removes them
+ *      (the baseline is empty today — keep it that way).
  *
  * Baselines are shrink-only: never add entries. Remove an entry in the same
  * commit that fixes the file.

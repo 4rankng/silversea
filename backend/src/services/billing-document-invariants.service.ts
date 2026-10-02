@@ -433,7 +433,7 @@ export async function assertRecoverableSourcesClaimable(
       Number(line.baseAmount) !== sellAmount
       || (line.amountOverride != null && Number(line.amountOverride) !== sellAmount)
     ) {
-      throw new ApiError(409, 'Số tiền chi phí đã chọn không khớp nguồn đã phê duyệt.');
+      throw new ApiError(409, 'Số tiền chi phí đã chọn không khớp nguồn đã ghi nhận.');
     }
     tripClaimsByTripId.set(expense.tripId, {
       tripId: expense.tripId,

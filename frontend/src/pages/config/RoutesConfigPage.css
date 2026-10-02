@@ -1,17 +1,66 @@
 .routes-config-page .routes-table .record-table__action { position: relative; }
-.routes-config-page .routes-table tbody tr:hover { background: var(--surface); }
-.routes-config-page .routes-table thead th:nth-child(1) { width: 10%; }
-.routes-config-page .routes-table thead th:nth-child(2) { width: 23%; }
-.routes-config-page .routes-table thead th:nth-child(3) { width: 16%; }
-.routes-config-page .routes-table thead th:nth-child(4) { width: 17%; }
-.routes-config-page .routes-table thead th:nth-child(5) { width: 10%; }
-.routes-config-page .routes-table thead th:nth-child(6) { width: 9%; }
-.routes-config-page .routes-table thead th:nth-child(7) { width: 11%; }
-.routes-config-page .routes-table thead th:nth-child(8) { width: 44px !important; }
+/* Neutral ink hover (law: no accent fills on rows); hairline dividers. */
+.routes-config-page .routes-table tbody tr { border-bottom: 1px solid var(--line); }
+.routes-config-page .routes-table tbody tr:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+
+/* Chief spec 20260926_53 — class-anchored widths survive the presence-gated
+   beyond-spec columns: MÃ TUYẾN 140px mono · KHOẢNG CÁCH 100px right mono ·
+   THAO TÁC 80px right; name column takes the remaining width. */
+.routes-config-page .routes-table th.routes-table__code,
+.routes-config-page .routes-table td.routes-table__code { width: 140px; }
+.routes-config-page .routes-table th.routes-table__distance,
+.routes-config-page .routes-table td.routes-table__distance { width: 100px; }
+.routes-config-page .routes-table th.routes-table__distance { white-space: nowrap; }
+.routes-config-page .routes-table th.routes-table__distance button { white-space: nowrap; }
+.routes-config-page .routes-table th.routes-table__actions,
+.routes-config-page .routes-table td.routes-table__actions-cell { width: 80px; }
+.routes-config-page .routes-table td.routes-table__code {
+  font-family: var(--font-data);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold, 600);
+  color: var(--fg-2);
+}
+.routes-config-page .routes-table td.routes-table__distance { font-family: var(--font-data); }
+
+/* No-truncation doctrine (docs/design-guidelines.md §4): the route name is a
+   data value, so it WRAPS. The wrap contract lives in the shared bands —
+   config-page.css `td.routes-table__name .row-strong { white-space: normal;
+   overflow-wrap: anywhere }` plus the card-band release. This page must not
+   re-declare nowrap/overflow/ellipsis here: at this specificity a page rule
+   silently out-ranks the band's release, which is how the name cell clipped
+   at 180px inside the 768px tablet band (2026-09-27 nowrap bug class). */
+.routes-config-page .routes-table tbody td { padding-block: 6px; }
+/* Fine-pointer action buttons shrink to 24px so the row floors at 36px
+   (coarse pointers keep the 44px touch floors via the container query). */
+@media (hover: hover) and (pointer: fine) {
+  .routes-config-page .routes-table .row-action {
+    min-width: 24px;
+    width: 24px;
+    height: 24px;
+    min-height: 24px;
+  }
+}
+
+/* ✎ 🗑 reveal on row hover (fine pointers); always reachable for touch and
+   keyboard — the spec's "..." slot stays reserved for future secondary
+   actions (Duplicate, Audit). */
+@media (hover: hover) and (pointer: fine) {
+  .routes-config-page .routes-table .row-actions .row-action { opacity: 0; transition: opacity 100ms ease; }
+  .routes-config-page .routes-table tbody tr:hover .row-action,
+  .routes-config-page .routes-table .row-actions .row-action:focus-visible { opacity: 1; }
+}
+.routes-config-page .routes-table .row-action--danger { color: var(--danger); }
+.routes-config-page .routes-title-count {
+  font-family: var(--font-data);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-medium);
+  color: var(--fg-3);
+  margin-left: 2px;
+}
 
 /* The row's identity is its name. Optional empty facts remain in the edit
    form, without forcing an empty label/value block into each narrow record. */
-@container (max-width: 1100px) {
+@container (max-width: 640px) {
   .routes-config-page .routes-table { display: block; min-width: 0; table-layout: auto; }
   .routes-config-page .routes-table thead { display: none; }
   .routes-config-page .routes-table tbody { display: grid; gap: 0; }
@@ -35,6 +84,22 @@
     text-align: left;
     line-height: 1.45;
   }
+
+  /* Card 20260930_222 — the desktop column budgets were still reaching the
+     stacked cards. `td:nth-child(3)` ("Tên tuyến rút gọn") carries
+     `width: 200px` and `td.routes-table__code` carries 160px; as grid ITEMS
+     in a `repeat(2, minmax(0, 1fr))` row an explicit width overrides the
+     track, so the short-name cell stayed 200px wide inside a ~172px track and
+     pushed past the viewport — measured l=188 r=388 at 360, l=203 r=403 at
+     390, i.e. exactly one 200px cell sitting in the second column.
+     The selector carries `tbody tr` so it outranks the page's own budget
+     rules on element count; the plain `td` rule above cannot, because those
+     budgets have one more class-level token and are declared later in this
+     same file. Outside this container the budgets are untouched. */
+  .routes-config-page .routes-table tbody tr td:nth-child(3),
+  .routes-config-page .routes-table tbody tr td.routes-table__code,
+  .routes-config-page .routes-table tbody tr td.routes-table__distance,
+  .routes-config-page .routes-table tbody tr td.routes-table__actions-cell { width: auto; }
   .routes-config-page .routes-table tbody tr td::before {
     display: block;
     content: attr(data-label);
@@ -57,14 +122,36 @@
   .routes-config-page .routes-table tbody tr td.routes-table__name::before,
   .routes-config-page .routes-table tbody tr td.record-table__action::before { display: none; }
   .routes-config-page .routes-table tbody tr td.routes-table__note { grid-column: 1 / -1; }
-  .routes-config-page .routes-table tbody tr td.routes-table__distance:not([data-empty])::after { content: ' km'; }
-  .routes-config-page .routes-table tbody tr td.record-table__action { position: absolute; top: 2px; right: 0; width: 44px; padding: 0; }
-  .routes-config-page .routes-table .row-action { min-width: 44px; min-height: 44px; }
+  .routes-config-page .routes-table tbody tr td.record-table__action { position: absolute; top: 2px; right: 0; width: 92px; padding: 0; }
+  .routes-config-page .routes-table .row-action { min-width: var(--control-max-h); min-height: var(--control-max-h); opacity: 1; }
 }
 
-@container (min-width: 680px) and (max-width: 1100px) {
-  .routes-config-page .routes-table tbody tr { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 20px; }
-}
 
 .route-form__compact-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-column: 1 / -1; gap: 12px; min-width: 0; }
 .route-form__compact-pair > * { min-width: 0; }
+
+/* ── Card 20260926_59 (chief bounce) — fixed-column data grid ──
+   Mã 160 mono · Tên flex · Rút gọn 200 · Cự ly 100 right mono · Thao tác 80;
+   hairline dividers and an even-row stripe. Long values WRAP (§4) — the
+   short-name column keeps its 200px budget but never clips. */
+.routes-config-page .routes-table th.routes-table__code,
+.routes-config-page .routes-table td.routes-table__code { width: 160px; }
+.routes-config-page .routes-table th.routes-table__name,
+.routes-config-page .routes-table td.routes-table__name { width: auto; }
+.routes-config-page .routes-table th:nth-child(3),
+.routes-config-page .routes-table td:nth-child(3) { width: 200px; }
+.routes-config-page .routes-table th.routes-table__distance,
+.routes-config-page .routes-table td.routes-table__distance { width: 100px; }
+.routes-config-page .routes-table th.routes-table__distance { white-space: nowrap; }
+.routes-config-page .routes-table th.routes-table__actions,
+.routes-config-page .routes-table td.routes-table__actions-cell { width: 80px; }
+
+.routes-config-page .routes-table tbody tr { border-bottom: 1px solid var(--line); }
+.routes-config-page .routes-table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--ink) 2%, transparent); }
+.routes-config-page .routes-table tbody td { padding-block: 6px; }
+
+/* The single 36px header row (back + title(count) + search 280 + conditional
+   reset + create action) is retired with card 20260927_152: the header is the
+   shared `PageHeader` and the strip is the shared `ListFilterBar`, so the page
+   declares no header row, no search shell and no control width of its own. */
+

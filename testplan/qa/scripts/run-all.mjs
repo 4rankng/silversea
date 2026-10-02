@@ -8,8 +8,10 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { loadEnv } from '../lib/env.mjs';
+import { loadEnv, blockedForMissingRole } from '../lib/env.mjs';
 import { createSession, writeRunSummary } from '../lib/harness.mjs';
+import { runExitCode } from '../lib/run-result.mjs';
+import { tagNonPassErrors } from '../lib/env-tag.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -30,8 +32,8 @@ async function main() {
   }
 
   const env = await loadEnv();
-  const today = new Date().toISOString().slice(0, 10);
-  const runId = `${today}_${topic}`;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const runId = `${timestamp}_${process.pid}_${topic}`;
   const evidenceDir = path.join(REPO_ROOT, 'testplan', 'qa', 'evidence', runId);
 
   console.log(`[run-all] topic=${topic}`);
@@ -53,7 +55,24 @@ async function main() {
   const allResults = [];
   for (const [role, cases] of byRole.entries()) {
     console.log(`\n[run-all] — role ${role}: ${cases.length} case(s)`);
-    const ctx = await createSession({ env, role, evidenceDir, runId });
+    let ctx;
+    try {
+      ctx = await createSession({ env, role, evidenceDir, runId });
+    } catch (e) {
+      // Card 20260928_157: a role this env has no account for (CUSTOMER is
+      // local-only — prod has no portal users) blocks every case of that role.
+      // Before, this throw sat outside the per-case try/catch and the whole
+      // topic died with FATAL + exit 2 instead of reporting the gap.
+      if (e.code !== 'NO_ROLE_CANDIDATES') throw e;
+      const blocked = blockedForMissingRole(role, env.env);
+      for (const c of cases) {
+        const row = { caseId: c.id, role, file: c.file, durationMs: 0, ...blocked };
+        allResults.push(row);
+        console.log(`  ${row.caseId}: ${row.verdict} (no ${role} account in ${env.env})`);
+        console.log('    errors:', row.errors);
+      }
+      continue;
+    }
     for (const c of cases) {
       const t0 = Date.now();
       let result;
@@ -63,6 +82,8 @@ async function main() {
       } catch (e) {
         result = { verdict: 'ERROR', errors: [e.stack || e.message] };
       }
+      // Card 20260928_189 — same boundary rule as run-case.mjs.
+      tagNonPassErrors(result, env);
       const durationMs = Date.now() - t0;
       const row = {
         caseId: c.id,
@@ -86,7 +107,7 @@ async function main() {
   const fail = allResults.filter((r) => r.verdict === 'FAIL').length;
   const other = allResults.length - pass - fail;
   console.log(`[run-all] ${pass} pass · ${fail} fail · ${other} inconclusive/error`);
-  process.exit(fail > 0 ? 1 : 0);
+  process.exitCode = runExitCode(allResults);
 }
 
 main().catch((e) => { console.error('FATAL', e); process.exit(2); });

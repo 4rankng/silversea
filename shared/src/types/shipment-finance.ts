@@ -1,4 +1,5 @@
 export interface ShipmentInvoiceRecord {
+  tripId?: number | null;
   id: number;
   shipmentId: number;
   shipmentCode: string | null;

@@ -1,7 +1,47 @@
-export function formatNumber(n: number | string | null): string {
-  if (n == null) return '—';
+export function formatNumber(n: number | string | null | undefined, options?: FormatValueOptions): string {
+  return formatNumberWithOptions(n, options ?? {});
+}
+
+/**
+ * Card 20260930_231 — the empty-label axis. Every display formatter honors
+ * one options shape: `{ empty }` overrides the house '—' rendered for
+ * null/undefined/non-finite input (some surfaces legitimately use '-' or a
+ * longer hint instead). Measure formatters (km, liters, percent) and the
+ * month formatter below are the unit axis absorbed from the deleted
+ * per-feature alias modules — rounding and empty contracts live only here.
+ */
+export interface FormatValueOptions {
+  empty?: string;
+  /**
+   * Cap on fraction digits for non-money measures (percent, coefficients,
+   * liters-adjacent ratios) — Intl maximumFractionDigits semantics. Money
+   * always goes through formatMoney's pinned zero-digit rounding instead.
+   */
+  decimals?: number;
+}
+
+// Cached formatters — the locale/options pair is constant, and hot paths
+// (counter animations) call these per frame; allocating Intl instances per
+// call showed up as frame cost.
+const VI_VN_ZERO_DIGITS = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
+const viVnDecimals = new Map<number, Intl.NumberFormat>();
+function viVnWithDecimals(decimals: number): Intl.NumberFormat {
+  let formatter = viVnDecimals.get(decimals);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: decimals });
+    viVnDecimals.set(decimals, formatter);
+  }
+  return formatter;
+}
+
+function formatNumberWithOptions(n: number | string | null | undefined, options: FormatValueOptions): string {
+  const empty = options.empty ?? '—';
+  if (n == null) return empty;
   const num = typeof n === 'string' ? parseFloat(n) : n;
-  if (isNaN(num)) return '—';
+  if (isNaN(num)) return empty;
+  if (options.decimals !== undefined) {
+    return viVnWithDecimals(options.decimals).format(num);
+  }
   return num.toLocaleString('vi-VN');
 }
 
@@ -15,10 +55,11 @@ export function formatCompact(n: number | string | null): string {
   return num.toLocaleString('vi-VN');
 }
 
-export function formatCurrency(n: number | string | null): string {
-  if (n == null) return '— ₫';
+export function formatCurrency(n: number | string | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '— ₫';
+  if (n == null) return empty;
   const num = typeof n === 'string' ? parseFloat(n) : n;
-  if (isNaN(num)) return '— ₫';
+  if (isNaN(num)) return empty;
   return `${num.toLocaleString('vi-VN')} ₫`;
 }
 
@@ -51,57 +92,45 @@ export function moneyParts(amount: number, compact: boolean): MoneyParts {
   return { num: fmt(amount), unit: '₫', format: fmt };
 }
 
-export function formatDate(d: string | null): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+/** THE canonical table-cell date (card 20260921_23): "DD/MM/YYYY" padded,
+ * Vietnam wall-clock. Replaces the unpadded vi-VN locale output ("20/9/2026")
+ * so date-only cells match the datetime contract everywhere. */
+export function formatDate(d: string | null, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (!d) return empty;
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return empty;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('day')}/${get('month')}/${get('year')}`;
 }
 
 /**
- * Compact date-time for table cells, TIME FIRST on a 24h clock:
- * "HH:mm d/M/yy" e.g. "17:30 19/8/26" (combined date+time display contract,
- * frontend/docs/design-system.md). Pinned to Vietnam wall-clock
- * (Asia/Ho_Chi_Minh) on ANY host, and built from formatToParts so the
- * time-first order is explicit — toLocaleString order varies by engine
- * (Node renders vi-VN time-first; Chrome renders date-first), which a hard
- * format requirement cannot depend on. Invalid input renders as "—" (the raw
- * string is never echoed back).
+ * THE canonical table-cell datetime (card 20260921_23): "HH:mm DD/MM/YYYY"
+ * — time-first 24h, leading zeros, 4-digit year, pinned to Vietnam
+ * wall-clock (Asia/Ho_Chi_Minh) on ANY host. Supersedes the compact d/M/yy
+ * shape of the 2026-09-09 contract (frontend/docs/design-system.md): the
+ * operator's 2026-09-21 report showed d/M/yy reading as ambiguous across
+ * screens. Built from formatToParts so the order is explicit — locale order
+ * varies by engine. Invalid input renders as "—" (the raw string is never
+ * echoed back).
  */
 export function formatDateTimeShort(value: string | null | undefined): string {
   if (!value) return '—';
   // Naive draft values ("YYYY-MM-DDTHH:mm" — the editor draft wire shape,
   // Vietnam wall-clock by convention: localDateTimeToIso appends +07:00 when
   // persisting) must not ride the host timezone: a GMT+8 host parses them as
-  // local and shows 13:30 as 12:30. Render by string surgery, same compact
+  // local and shows 13:30 as 12:30. Render by string surgery, same canonical
   // shape — host-independent like the instant path below.
   if (!/[Zz]$|[+-]\d{2}:\d{2}$/.test(value)) {
     const draft = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
-    if (draft) return `${draft[4]}:${draft[5]} ${Number(draft[3])}/${Number(draft[2])}/${draft[1].slice(2)}`;
+    if (draft) return `${draft[4]}:${draft[5]} ${draft[3]}/${draft[2]}/${draft[1]}`;
   }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    day: 'numeric',
-    month: 'numeric',
-    year: '2-digit',
-  }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
-  // Number() strips the engine's leading zeros ("08" → 8) so the compact
-  // d/M/yy shape is deterministic across Node and browsers.
-  return `${get('hour')}:${get('minute')} ${Number(get('day'))}/${Number(get('month'))}/${get('year')}`;
-}
-
-/**
- * Card-compact VN-pinned time: "HH:mm - dd/MM" (no year — journey-card
- * density). Same Asia/Ho_Chi_Minh pin as formatDateTimeShort so the board
- * card and the trip detail can never disagree on the same event timestamp,
- * whatever timezone the driver's device runs.
- */
-export function formatCardTimeShort(value: string | null | undefined): string {
-  if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -111,10 +140,12 @@ export function formatCardTimeShort(value: string | null | undefined): string {
     hour12: false,
     day: '2-digit',
     month: '2-digit',
+    year: 'numeric',
   }).formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
-  return `${get('hour')}:${get('minute')} - ${get('day')}/${get('month')}`;
+  return `${get('hour')}:${get('minute')} ${get('day')}/${get('month')}/${get('year')}`;
 }
+
 
 /**
  * Zero-padded dd/mm/yyyy. For date-only strings ("YYYY-MM-DD"), reads
@@ -122,12 +153,13 @@ export function formatCardTimeShort(value: string | null | undefined): string {
  * ±hh:mm), converts to the Vietnam business timezone first so a UTC
  * midnight-adjacent instant maps to the correct local date (KP-032).
  */
-export function formatISODate(iso: string | null | undefined): string {
-  if (!iso) return '—';
+export function formatISODate(iso: string | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (!iso) return empty;
   // Instant with timezone suffix — convert via Intl to Vietnam date.
   if (/[Zz]$|[+-]\d{2}:\d{2}$/.test(iso)) {
     const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return '—';
+    if (Number.isNaN(date.getTime())) return empty;
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
@@ -144,13 +176,71 @@ export function formatISODate(iso: string | null | undefined): string {
 /**
  * Vietnamese-formatted amount with no currency symbol and no decimals — for
  * cells that render the "₫" unit in a separate element. Companion to
- * formatCurrency which always appends " ₫".
+ * formatCurrency which always appends " ₫". THE money rounding contract
+ * (card 20260930_231): Intl half-away-from-zero at zero fraction digits —
+ * superseding the per-feature Math.round and default-Intl variants.
  */
-export function formatMoney(n: number | string | null): string {
-  if (n == null) return '—';
+export function formatMoney(n: number | string | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (n == null) return empty;
   const num = typeof n === 'string' ? Number(n) : n;
-  if (!Number.isFinite(num)) return '—';
-  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(num);
+  if (!Number.isFinite(num)) return empty;
+  return VI_VN_ZERO_DIGITS.format(num);
+}
+
+/** Liters with one decimal and the Vietnamese decimal comma, e.g. "94,8 L". */
+export function formatLiters(n: number | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (n == null) return empty;
+  return `${n.toFixed(1).replace('.', ',')} L`;
+}
+
+/** Kilometers with locale grouping, e.g. "135 km". */
+export function formatKm(n: number | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (n == null) return empty;
+  return `${Math.round(n).toLocaleString('vi-VN')} km`;
+}
+
+/** Percentage with one decimal and the Vietnamese decimal comma, e.g. "60,9". */
+export function formatPercent(n: number | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (n == null) return empty;
+  return n.toFixed(1).replace('.', ',');
+}
+
+/** Month key ("YYYY-MM-…") rendered as "MM/YYYY", e.g. "06/2026". */
+export function formatViMonth(value: string, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (!value) return empty;
+  const month = value.slice(5, 7);
+  const year = value.slice(0, 4);
+  return month && year ? `${month}/${year}` : empty;
+}
+
+/**
+ * Display guard for DB-derived reference strings (design law §8, 2026-09-19;
+ * cards 20260919_38/39): internal ids and machine-generated codes never render
+ * as visible text — the cell shows the house empty value instead.
+ *
+ * Card 20260922_52: a q10 integration-fixture row reached the combined-invoice
+ * board and the page echoed its placeholders verbatim — the operator's 23/09
+ * screenshot shows "Số hóa đơn: INV-EMPTY-1790038443239-q10-q63uv3" repeated
+ * down the column, next to the fixture lot code
+ * "Q10-<epoch>-q10-<random>-<n>". The fixture signature is machine-generated
+ * by construction (13-digit epoch + the `-q10-` marker), so a value an
+ * operator could type can never match it.
+ *
+ * The source of the leak is fixed too (backend/src/tests/q10-soft-delete.test.ts
+ * cleaned up nothing — see that file's after() hook); this guard is the
+ * display-layer half of the contract, so no future fixture can reach the UI.
+ */
+export function formatBusinessRef(value: string | null | undefined): string {
+  const text = value?.trim() ?? '';
+  if (text === '') return '—';
+  if (/INV-EMPTY/i.test(text)) return '—';
+  if (/\b\d{13}-q10-[a-z0-9]{6}\b/i.test(text)) return '—';
+  return text;
 }
 
 /** Calendar date in the platform's Vietnam business timezone for date inputs. */
@@ -164,6 +254,13 @@ export function businessDateISO(value: Date = new Date()): string {
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((item) => item.type === type)?.value ?? '';
   return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+/** Calendar-day arithmetic anchored to Vietnam, independent of device timezone/DST. */
+export function businessDateOffsetISO(offsetDays: number, value: Date = new Date()): string {
+  const day = new Date(`${businessDateISO(value)}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + offsetDays);
+  return day.toISOString().slice(0, 10);
 }
 
 /**

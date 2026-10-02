@@ -2,8 +2,8 @@ import React from 'react';
 
 /** Semantic status colors used across entity lists (users, suppliers, customers). */
 export const STATUS_COLORS = {
-  active: '#059669',
-  inactive: '#DC2626',
+  active: '#177448',
+  inactive: '#A0444E',
 } as const;
 
 /** Resolve status string to color. ACTIVE → emerald, anything else → red. */

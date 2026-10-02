@@ -8,7 +8,7 @@
   top: -100%;
   left: 16px;
   z-index: var(--z-max);
-  min-height: 44px;
+  min-height: var(--control-max-h);
   padding: 10px 16px;
   background: var(--accent-2);
   color: var(--fg-on-brand);
@@ -25,11 +25,12 @@
 }
 
 .app {
+  --app-sidebar-offset: var(--sidebar-w);
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   grid-template-rows: 100vh;
   grid-template-rows: 100dvh;
-  height: 100vh;
+  height: 100%;
   height: 100dvh;
   overflow: clip;
 }
@@ -37,6 +38,7 @@
 /* Desktop sidebar toggle (1024px and above) */
 @media (min-width: 1024px) {
   .app.sidebar-closed {
+    --app-sidebar-offset: 48px;
     grid-template-columns: 48px minmax(0, 1fr);
   }
 
@@ -58,7 +60,7 @@
   .app.sidebar-closed .sidebar-brand-logo {
     margin: 0;
     opacity: 1;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--t-normal);
   }
 
   /* Collapsed nav: show icons only */
@@ -105,6 +107,17 @@
   /* Collapsed footer: show only avatar */
   .app.sidebar-closed .sidebar-footer {
     padding: 8px 4px;
+  }
+
+  /* Touch: the 48px rail's 4px nav/footer gutters left 39px-wide icon
+     targets (measured on 61 routes @1024, 2026-09-26 mobile sweep).
+     Zero the gutters on coarse pointers only — items fill 48px, icons stay
+     centred; fine-pointer desktop keeps the padded rail. */
+  @media (pointer: coarse) {
+    .app.sidebar-closed .sidebar-nav,
+    .app.sidebar-closed .sidebar-footer {
+      padding-inline: 0;
+    }
   }
 
   .app.sidebar-closed .sidebar-user {
@@ -158,11 +171,20 @@
   padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)) max(var(--app-body-pad-x), env(safe-area-inset-right, 0px));
   scrollbar-gutter: stable;
   scroll-behavior: smooth;
+  scroll-padding-block-end: var(--fixed-action-clearance, 0px);
 }
 
 .app-main:not(.driver-mode) .app-body > :where(div, section) {
   width: min(100%, var(--content-max-w));
   margin-inline: auto;
+}
+
+/* The readability cap above is a default for forms and prose — it must not
+   veto a page's own width. A data workspace opts out by carrying this
+   class: its rows span the full available width instead of floating in a
+   capped strip with page void on both sides. */
+.app-main:not(.driver-mode) .app-body > .data-workspace {
+  width: 100%;
 }
 
 @media (min-width: 1024px) and (max-width: 1280px) {

@@ -844,16 +844,15 @@ describe('Q23 field operations replay boundary', () => {
       .from(s.tripExpenses)
       .where(eq(s.tripExpenses.id, createdExpenseId));
     const deleteKey = `q23-forwarder-expense-delete-${suffix}`;
-    const deleted = await jsonRequest(`/api/forwarder/me/expenses/${createdExpenseId}`, {
-      method: 'DELETE',
+    // Card 20260922_78: a delete carries a mandatory free-text reason, which
+    // soft-voids rather than hard-deletes. These calls predate the rule.
+    const deleteBody = {
+      body: { reason: 'q23 field-ops replay cleanup' },
       idempotencyKey: deleteKey,
       expectedUpdatedAt: patchedExpense.updatedAt.toISOString(),
-    });
-    const deletedReplay = await jsonRequest(`/api/forwarder/me/expenses/${createdExpenseId}`, {
-      method: 'DELETE',
-      idempotencyKey: deleteKey,
-      expectedUpdatedAt: patchedExpense.updatedAt.toISOString(),
-    });
+    };
+    const deleted = await jsonRequest(`/api/forwarder/me/expenses/${createdExpenseId}`, { ...deleteBody, method: 'DELETE' });
+    const deletedReplay = await jsonRequest(`/api/forwarder/me/expenses/${createdExpenseId}`, { ...deleteBody, method: 'DELETE' });
     assert.equal(deleted.status, 200, JSON.stringify(deleted.body));
     assert.deepEqual(deletedReplay, deleted);
 
@@ -871,6 +870,10 @@ describe('Q23 field operations replay boundary', () => {
       .where(eq(s.tripExpenses.id, staleExpense.id));
     const staleDelete = await jsonRequest(`/api/forwarder/me/expenses/${staleExpense.id}`, {
       method: 'DELETE',
+      // The reason is mandatory, and it is validated BEFORE the version check —
+      // without it the stale timestamp returns 400 and the 409 this asserts
+      // (the actual point of the case) never happens.
+      body: { reason: 'q23 stale delete probe' },
       idempotencyKey: `q23-forwarder-expense-delete-stale-${suffix}`,
       expectedUpdatedAt: staleExpense.updatedAt.toISOString(),
     });

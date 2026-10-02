@@ -11,6 +11,7 @@ import { loadTripPairingSummaries } from './trip-pairs.service';
 import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 import { operationalName } from '../db/master-data-name';
 import { escapeLikeTerm } from '../lib/format';
+import { readTripExternalCarrier } from './trip-external-carrier-read.service';
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
@@ -22,6 +23,7 @@ const TRIP_RELATION_FIELDS = {
   customerName: CUSTOMER_OPERATIONAL_NAME,
   driverName: s.drivers.name,
   truckPlate: s.trucks.licensePlate,
+  truckClass: s.trucks.vehicleClass,
   routeName: ROUTE_OPERATIONAL_NAME,
   routeDistance: s.routes.distanceKm,
   routeIsMountain: s.routes.isMountain,
@@ -57,7 +59,7 @@ function shapeTripRelations(item: Record<string, unknown>, extras?: {
     ...item,
     customer: item.customerName ? { id: item.customerId, name: item.customerName } : null,
     driver: item.driverName ? { id: item.driverId, name: item.driverName } : null,
-    truck: item.truckPlate ? { id: item.truckId, licensePlate: item.truckPlate } : null,
+    truck: item.truckPlate ? { id: item.truckId, licensePlate: item.truckPlate, vehicleClass: item.truckClass ?? null } : null,
     route: item.routeName ? { id: item.routeId, name: item.routeName, distanceKm: item.routeDistance, isMountain: item.routeIsMountain, fixedFuelAllowance: item.routeFixedFuelAllowance } : null,
     trailerType: item.trailerType || '40FT',
     trailer: item.trailerId ? {
@@ -88,7 +90,7 @@ export interface TripListFilters {
 
 /** Sort keys accepted by GET /api/trips (mirrors the trip-list column ids). */
 export const TRIP_LIST_SORT_KEYS = [
-  'tripCode', 'truck', 'route', 'container', 'consumption', 'road',
+  'tripCode', 'customerReference', 'truck', 'route', 'container', 'consumption', 'road',
   'revenue', 'driverSalary', 'totalCost', 'grossProfit', 'status',
 ] as const;
 export type TripListSortKey = (typeof TRIP_LIST_SORT_KEYS)[number];
@@ -102,6 +104,7 @@ export type TripListSortKey = (typeof TRIP_LIST_SORT_KEYS)[number];
 // site; trips.id stays the stable tiebreaker.
 const TRIP_LIST_SORT_SQL: Record<TripListSortKey, SQL> = {
   tripCode: sql`${s.tripsComposite.tripCode}`,
+  customerReference: sql`nullif(btrim(${s.tripsComposite.customerReference}), '')`,
   truck: sql`coalesce(${s.trucks.licensePlate}, ${s.tripsComposite.externalPlateNumber})`,
   route: sql`${ROUTE_OPERATIONAL_NAME}`,
   container: sql`(
@@ -117,10 +120,10 @@ const TRIP_LIST_SORT_SQL: Record<TripListSortKey, SQL> = {
   totalCost: sql`${s.tripsComposite.totalCost}`,
   grossProfit: sql`case
     when ${s.tripsComposite.carrierType} = 'EXTERNAL'
-      and coalesce(${s.tripsComposite.revenue}, 0) <> 0
-      and coalesce(${s.tripsComposite.externalFreightCost}, 0) <> 0
-    then round(${s.tripsComposite.revenue} / (1 + coalesce(${s.tripsComposite.vatRate}, 0.08)))
-       - round(${s.tripsComposite.externalFreightCost} / (1 + coalesce(${s.tripsComposite.vatRate}, 0.08)))
+    then round(coalesce(${s.tripsComposite.revenue}, 0) / (1 + coalesce(${s.tripsComposite.vatRate}, 0)))
+       - coalesce(${s.tripsComposite.externalFreightCost}, 0)
+       - coalesce(${s.tripsComposite.customerCommission}, 0)
+       - coalesce(${s.tripsComposite.reconciledExtraCost}, 0)
     else ${s.tripsComposite.grossProfit}
   end`,
   status: sql`${s.tripsComposite.status}`,
@@ -291,6 +294,9 @@ export async function getTrips(filters: TripListFilters) {
     twoPointDeliveryBonus: s.tripsComposite.twoPointDeliveryBonus,
     vehicleShiftAllowance: s.tripsComposite.vehicleShiftAllowance,
     tollCost: s.tripsComposite.tollCost,
+    reconciledExtraCost: s.tripsComposite.reconciledExtraCost,
+    reconciledTollCost: s.tripsComposite.reconciledTollCost,
+    tollDeduction: s.tripsComposite.tollDeduction,
     tollsDiscount: s.tripsComposite.tollsDiscount, tollsAddition: s.tripsComposite.tollsAddition, tollsStations: s.tripsComposite.tollsStations,
     carrierType: s.tripsComposite.carrierType,
     // O2C: DB column renamed to external_entity_id (soft pointer), but the API
@@ -410,7 +416,11 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
     totalFuel: sql<number>`coalesce(sum(${s.tripsComposite.fuelLiters}), 0)`,
     totalRoad: sql<number>`coalesce(sum(${s.tripsComposite.totalRoadAllowance}), 0)`,
     totalRevenue: sql<number>`coalesce(sum(${s.tripsComposite.revenue}), 0)`,
-    missingFuel: sql<number>`count(*) filter (where ${s.tripsComposite.fuelLiters} is null or ${s.tripsComposite.fuelLiters} = 0)`,
+    missingFuel: sql<number>`count(*) filter (where ${and(
+      inArray(s.tripsComposite.status, [TripStatus.IN_TRANSIT, TripStatus.COMPLETED]),
+      or(isNull(s.tripsComposite.carrierType), eq(s.tripsComposite.carrierType, 'OWN')),
+      or(isNull(s.tripsComposite.fuelLiters), eq(s.tripsComposite.fuelLiters, '0')),
+    )})`,
   }).from(s.tripsComposite)
     .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
     .where(where);
@@ -493,6 +503,9 @@ export async function getTripById(id: number) {
     vehicleShiftAllowance: s.tripsComposite.vehicleShiftAllowance,
     roadAllowanceOverride: s.tripsComposite.roadAllowanceOverride,
     tollCost: s.tripsComposite.tollCost,
+    reconciledExtraCost: s.tripsComposite.reconciledExtraCost,
+    reconciledTollCost: s.tripsComposite.reconciledTollCost,
+    tollDeduction: s.tripsComposite.tollDeduction,
     completedAt: s.tripsComposite.completedAt,
     roadAllowanceBaseApplied: s.tripsComposite.roadAllowanceBaseApplied,
     tollPerStationApplied: s.tripsComposite.tollPerStationApplied,
@@ -503,6 +516,7 @@ export async function getTripById(id: number) {
     fuelSupplementNormApplied: s.tripsComposite.fuelSupplementNormApplied,
     vatRate: s.tripsComposite.vatRate,
     carrierType: s.tripsComposite.carrierType, externalEntityId: s.tripsComposite.externalEntityId,
+    externalEntityType: s.tripsComposite.externalEntityType,
     externalFreightCost: s.tripsComposite.externalFreightCost,
     externalPlateNumber: s.tripsComposite.externalPlateNumber,
     externalDriverName: s.tripsComposite.externalDriverName,
@@ -521,7 +535,7 @@ export async function getTripById(id: number) {
 
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
 
-  const [legs, photos, instructions, accountingLock] = await Promise.all([
+  const [legs, photos, instructions, accountingLock, externalCarrier] = await Promise.all([
     db.select().from(s.tripLegs).where(eq(s.tripLegs.tripId, id)).orderBy(s.tripLegs.sequence),
     // Only general (`OTHER`) photos belong in the trip-level `photoUrls`.
     // CONTAINER/SEAL photos are surfaced separately by the "Container & Seal"
@@ -534,6 +548,7 @@ export async function getTripById(id: number) {
     // detail payload (one row per trip; null when none exists yet).
     getTripInstructions(id),
     trip.shipmentId == null ? Promise.resolve(null) : getShipmentAccountingLockSummary(trip.shipmentId),
+    readTripExternalCarrier(trip.externalEntityId, trip.externalEntityType),
   ]);
 
   const photoUrls = photos.map(p => `/api/photos/${encodeURIComponent(p.storageKey)}`);
@@ -550,6 +565,7 @@ export async function getTripById(id: number) {
     }),
     instructions,
     accountingLock,
+    ...externalCarrier,
   };
 }
 

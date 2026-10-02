@@ -1,0 +1,43 @@
+/* Faint corner notice — visible, never render-blocking. Bottom-LEFT: toasts
+   own the bottom-right corner (z-toast 500) and the header owns the top edge;
+   the banner clears both and stays below the toast layer. */
+.stale-build-banner {
+  position: fixed;
+  bottom: var(--space-lg, 16px);
+  left: calc(var(--space-lg, 16px) + 56px); /* clears the collapsed sidebar rail */
+
+  z-index: 450;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 12px);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm, 6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  opacity: 0.92;
+}
+
+.stale-build-banner button {
+  min-height: 28px;
+  padding: 2px 10px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm, 6px);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.stale-build-banner button:hover {
+  background: var(--surface-2);
+}
+
+@media (max-width: 767px) {
+  .stale-build-banner {
+    left: var(--space-sm, 8px);
+  }
+}

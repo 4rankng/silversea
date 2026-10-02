@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { Copy, Trash2 } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -6,10 +7,12 @@ import {
 import { formatDateTime24 } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { SearchableSelect } from '../../../design-system';
+import { externalVendorPlateOptions } from '../external-plate-options';
 import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 import {
   dispatchStatusLabel,
+  formatQuantity,
   type ContainerLineDraft,
 } from './cusUtils';
 
@@ -25,6 +28,10 @@ export function ContainerLineRow({
   completing,
   onAppointmentCommit,
   onAppointmentCancel,
+  showCopyAppointment,
+  onCopyAppointmentToEmpty,
+  onRemove,
+  removing,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   line: ShipmentCusWorkspaceContainerLine;
@@ -33,6 +40,12 @@ export function ContainerLineRow({
   onDraftChange: (patch: Partial<ContainerLineDraft>) => void;
   idPrefix: string;
   editing: boolean;
+  /** Card 20260923_1: lot-level remove — the drawer manages container
+   *  composition; absent when no refetch path is wired. Card 20260923_9: the
+   *  action lives in the row's own Thao tác cell (hover-reveal on fine
+   *  pointers, always visible on touch). */
+  onRemove?: () => void;
+  removing?: boolean;
   /** Staff close for external-carrier trips (external drivers don't use the
    *  app) — absent when the line has no completable external trip. */
   onCompleteExternalTrip?: (line: ShipmentCusWorkspaceContainerLine) => void;
@@ -41,8 +54,32 @@ export function ContainerLineRow({
    *  Return false to keep the popover open on failure. */
   onAppointmentCommit?: (val: string) => Promise<boolean> | boolean | void;
   onAppointmentCancel?: () => void;
+  /** Bulk entry: this row's appointment can be copied to every line whose
+   *  appointment is still empty (shown while hovering set rows when the
+   *  table still has empties to fill). */
+  showCopyAppointment?: boolean;
+  onCopyAppointmentToEmpty?: () => void;
 }) {
   const [, setSelectOpen] = useState(false);
+
+  // Card 20260925_6 sweep: the plate datalist follows the picked vendor — an
+  // existing carrier offers its own plates; a typed NEW_EXTERNAL name matches
+  // that vendor's used plates; nothing picked keeps the full list.
+  const plateOptions = useMemo<Array<{ id: number | string; licensePlate: string; label: string }>>(() => {
+    const vehicles = detail.selectors.carrierVehicles;
+    if (draft.carrierKey === 'NEW_EXTERNAL') {
+      return externalVendorPlateOptions(detail.selectors.externalCarriers, vehicles, draft.newCarrierName)
+        .map((option) => ({ id: option.value, licensePlate: option.value, label: option.label }));
+    }
+    if (draft.carrierKey === 'OWN') return [];
+    if (draft.carrierKey) {
+      const raw = draft.carrierKey.startsWith('EXTERNAL:') ? draft.carrierKey.slice('EXTERNAL:'.length) : draft.carrierKey;
+      const id = Number(raw);
+      if (!Number.isFinite(id)) return [];
+      return vehicles.filter((vehicle) => vehicle.carrierId === id);
+    }
+    return vehicles;
+  }, [detail.selectors.carrierVehicles, detail.selectors.externalCarriers, draft.carrierKey, draft.newCarrierName]);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
   const appointmentTriggerRef = useRef<HTMLButtonElement>(null);
   const p = line.permissions;
@@ -51,6 +88,10 @@ export function ContainerLineRow({
   const routeEditable = editing && p.routeEditable;
   const liftSiteEditable = editing && p.liftSiteEditable, dropoffSiteEditable = editing && p.dropoffSiteEditable;
   const customerAppointmentEditable = editing && p.customerAppointmentEditable;
+  // Mirrors the backend's findActiveTripForContainer: a trip on THIS row blocks
+  // its removal unless it was CANCELED. The 409 stays authoritative — this only
+  // keeps the affordance from inviting a doomed click.
+  const activeTrip = line.tripId != null && line.tripStatus !== 'CANCELED';
 
   const carrierOptions = [
     { value: 'OWN', label: 'Đội xe nội bộ SilverSea' },
@@ -74,7 +115,18 @@ export function ContainerLineRow({
       <th scope="row" data-label="Container" className="cus-container-cell cus-container-cell--identity">
         <div className="cus-container-cell__identity-inner">
           <span className="cus-container-row__ordinal">{line.ordinal}</span>
-          <strong id={`${idPrefix}-container-${line.id}`}>{line.containerNumber || 'Chưa có số container'}</strong>
+          <strong id={`${idPrefix}-container-${line.id}`} data-missing-container={line.containerNumber ? undefined : 'true'}>{line.containerNumber || 'Chưa có số container'}</strong>
+          {showCopyAppointment && (
+            <button
+              type="button"
+              className="cus-container-row__copy"
+              onClick={onCopyAppointmentToEmpty}
+              title={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các cont chưa có lịch`}
+              aria-label={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các container chưa có lịch`}
+            >
+              <Copy size={13} aria-hidden="true" />
+            </button>
+          )}
         </div>
       </th>
       {containerTypeEditable ? (
@@ -145,7 +197,7 @@ export function ContainerLineRow({
         <ShipmentContainerCell label="Biển số" value={draft.plateNumber} placeholder="Nhập biển số" className="cus-container-cell">
           <label className="sr-only" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe của container {line.containerNumber || line.ordinal}</label>
           <input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => onDraftChange({ plateNumber: event.target.value })} />
-          <datalist id={`${idPrefix}-plates-${line.id}`}>{detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
+          <datalist id={`${idPrefix}-plates-${line.id}`}>{plateOptions.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
           {line.plateNumber && (
             <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ plateNumber: '' })}>Xóa biển số</button>
           )}
@@ -163,6 +215,11 @@ export function ContainerLineRow({
           <SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => onDraftChange({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng hạ" />
         </ShipmentContainerCell>
       ) : <td data-label="Hạ" className="cus-container-cell"><strong>{line.dropoffSite || '—'}</strong></td>}
+      {/* Card 20260923_9: the line's own weight, and the remove action in its
+          own column — the drawer's add row sits under both. */}
+      <td data-label="Trọng lượng (kg)" className="cus-container-cell">
+        <strong>{formatQuantity(line.raw.cargoWeightKg)}</strong>
+      </td>
       {customerAppointmentEditable ? (
         <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell cus-appointment-cell">
           <button
@@ -193,6 +250,20 @@ export function ContainerLineRow({
           />
         </td>
       ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</strong></td>}
+      <td data-label="Thao tác" className="cus-container-cell cus-container-cell--actions">
+        {onRemove && (
+          <button
+            type="button"
+            className="cus-container-row__remove"
+            onClick={onRemove}
+            disabled={removing || activeTrip}
+            title={activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
+            aria-label={`Xóa container ${line.containerNumber || line.ordinal}`}
+          >
+            <Trash2 size={13} aria-hidden="true" />
+          </button>
+        )}
+      </td>
     </tr>
   );
 }

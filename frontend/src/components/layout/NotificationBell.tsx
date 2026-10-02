@@ -7,6 +7,7 @@ import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { useAuth } from '../../hooks/useAuth';
 import type { Notification } from '@tingting/shared';
 import { resolveNotificationRoute } from '../../lib/notificationClient';
+import { notificationDisplayMessage } from '../../lib/notificationText';
 
 /** Relative time in Vietnamese, e.g. "5 phút trước". */
 function timeAgo(iso: string): string {
@@ -46,7 +47,10 @@ export function NotificationBell() {
   useClickOutside(containerRef, () => setOpen(false), { escapeKey: true, enabled: open });
 
   const openNotification = (notification: Notification) => {
-    if (!notification.isRead) markAsRead.mutate(notification.id);
+    if (!notification.isRead) {
+      markAll.reset();
+      markAsRead.mutate(notification.id);
+    }
     const destination = user ? resolveNotificationRoute(notification, user.role) : null;
     if (destination) {
       setOpen(false);
@@ -76,7 +80,7 @@ export function NotificationBell() {
                 type="button"
                 className="notif-panel__markall"
                 disabled={markAll.isPending}
-                onClick={() => markAll.mutate()}
+                onClick={() => { markAsRead.reset(); markAll.mutate(); }}
               >
                 Đánh dấu đã đọc
               </button>
@@ -84,6 +88,11 @@ export function NotificationBell() {
           </div>
 
           <div className="notif-panel__list">
+            {(markAll.isError || markAsRead.isError) && (
+              <div className="notif-panel__empty" role="alert">
+                Không thể đánh dấu đã đọc. Vui lòng thử lại.
+              </div>
+            )}
             {isError && <div className="notif-panel__empty" role="alert">
               <p>Không tải được thông báo. Vui lòng thử lại.</p>
               <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => { void refetch(); }}>{isFetching ? 'Đang thử lại…' : 'Thử lại'}</button>
@@ -103,7 +112,7 @@ export function NotificationBell() {
                   <span className="notif-item__dot" aria-hidden="true" />
                   <div className="notif-item__body">
                     <div className="notif-item__title">{n.title}</div>
-                    {n.message && <div className="notif-item__msg">{n.message}</div>}
+                    {n.message && <div className="notif-item__msg">{notificationDisplayMessage(n.message)}</div>}
                     <div className="notif-item__time">{timeAgo(n.createdAt)}</div>
                   </div>
                 </button>

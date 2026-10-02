@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, UserCheck, Plus, Download, Search,
+  Users, UserCheck, Plus, Download,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2,
   Building2, Hash, User, Phone, Landmark, Clock, FileText,
 } from 'lucide-react';
+import { Truck as TruckIcon } from 'lucide-react';
 import { useConfirm } from '../components/UI';
+import { SupplierCarrierTrucksSection } from '../features/suppliers/SupplierCarrierTrucksSection';
 import { api } from '../lib/api';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { TextArea } from '../components/untitled-ui/base/textarea/textarea';
@@ -16,8 +19,8 @@ import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, KPI, StatusPill, Modal, ModalChip, ModalChipLive } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useDropdownDismiss } from '../hooks/useDropdownDismiss';
-import { EmptyState, Pagination, useTableQueryState } from '../design-system';
-import type { Supplier } from '@tingting/shared';
+import { EmptyState, FilterBar, Pagination, useTableQueryState } from '../design-system';
+import { SupplierType, type Supplier } from '@tingting/shared';
 import { CONFIG } from '@tingting/shared';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
@@ -26,7 +29,6 @@ import { ClickableCard } from '../components/shared/ClickableCard';
 import { Money } from '../components/shared/Money';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { usePageAnimations } from '../hooks/animations';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import '../styles/operational-table-typography.css';
 import '../styles/record-table.css';
 import './SupplierListPage.css';
@@ -142,6 +144,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
             label="Mã số thuế"
             icon={Landmark}
             value={taxCode}
+            maxLength={20}
             onChange={setTaxCode}
             placeholder="Ví dụ: 0312…"
             inputClassName="tabular-nums"
@@ -208,12 +211,22 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
 export default function SupplierListPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterKey>('all');
+  // Card 20260926_58 (CHIEF): status pills count the WHOLE dataset, never
+  // the loaded pagination chunk ('TRANG NÀY' anti-pattern).
+  const statusCountsQuery = useQuery({
+    queryKey: qk.suppliersStatusCounts,
+    queryFn: () => api.get<{ all: number; active: number; inactive: number; vehicles: Record<string, number> }>('/suppliers/status-counts'),
+  });
+  const vehicleCounts = statusCountsQuery.data?.vehicles ?? {};
+  const [typeFilter, setTypeFilter] = useState<'all' | 'carrier' | 'other'>('all');
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  // Card 20260926_2: expanded carrier row showing its 'Xe của nhà thầu' section.
+  const [trucksOpenId, setTrucksOpenId] = useState<number | null>(null);
   // Row kebab menus join the global click-away / Escape dismissal layer.
   useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
 
@@ -256,15 +269,21 @@ export default function SupplierListPage() {
   const error = queryError ? 'Không thể tải dữ liệu' : mutationError;
 
   const { activeCount, inactiveCount, filtered } = useMemo(() => {
-    const activeCount = suppliers.filter(s => s.status === 'ACTIVE').length;
-    const inactiveCount = suppliers.filter(s => s.status !== 'ACTIVE').length;
+    const activeCount = statusCountsQuery.data?.active ?? suppliers.filter(s => s.status === 'ACTIVE').length;
+    const inactiveCount = statusCountsQuery.data?.inactive ?? suppliers.filter(s => s.status !== 'ACTIVE').length;
     const filtered = suppliers.filter(s => {
+      if (typeFilter === 'carrier' && !s.types?.includes(SupplierType.CARRIER)) return false;
+      if (typeFilter === 'other' && s.types?.includes(SupplierType.CARRIER)) return false;
       if (filter === 'active') return s.status === 'ACTIVE';
       if (filter === 'inactive') return s.status !== 'ACTIVE';
       return true;
     });
     return { activeCount, inactiveCount, filtered };
-  }, [suppliers, filter]);
+  }, [suppliers, filter, typeFilter, statusCountsQuery.data]);
+  // Directory KPIs share the status-count population; table total is scoped
+  // to the current search and remains the pagination/result count.
+  const directoryCounts = statusCountsQuery.data;
+  const directoryCountHint = statusCountsQuery.isError ? 'Không thể tải số liệu' : 'Đang tải số liệu';
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -343,45 +362,53 @@ export default function SupplierListPage() {
       <div className="kpi-grid">
         <KPI
           label="Tổng nhà cung cấp"
-          value={total}
+          value={directoryCounts?.all ?? '—'}
           icon={Users}
           assetIconName="supplier"
-          meta={<span>{total} nhà cung cấp</span>}
+          meta={directoryCounts ? <span>{directoryCounts.all} nhà cung cấp</span> : directoryCountHint}
         />
         <KPI
           label="Đang hoạt động"
-          value={`${activeCount}`}
-          unit={`/ ${total}`}
+          value={directoryCounts?.active ?? '—'}
+          unit={directoryCounts ? `/ ${directoryCounts.all}` : undefined}
           variant="success"
           icon={UserCheck}
           assetIconName="active-supplier"
-          meta={total > 0 ? `${activeCount}/${total} đang hoạt động` : ''}
+          meta={directoryCounts ? `${directoryCounts.active}/${directoryCounts.all} đang hoạt động` : directoryCountHint}
         />
       </div>
 
-      <div className="filter-bar">
-        <button className={`filter-tab${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>Tất cả · {total}</button>
-        <button className={`filter-tab${filter === 'active' ? ' is-active' : ''}`} onClick={() => setFilter('active')}>
-          <StatusDot status="ACTIVE" style={{ marginRight: 4 }} />
-          Hoạt động · {activeCount}
-        </button>
-        <button className={`filter-tab${filter === 'inactive' ? ' is-active' : ''}`} onClick={() => setFilter('inactive')}>
-          <StatusDot status="INACTIVE" style={{ marginRight: 4 }} />
-          Ngừng HĐ · {inactiveCount}
-        </button>
-        <div className="filter-bar__spacer" />
-        <div className="filter-bar__search">
-          <Search size={14} />
-          <input
-            type="text"
-            name="supplierSearch"
-            aria-label="Tìm nhà cung cấp theo tên"
-            placeholder="Tìm theo tên…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
+      {/* The strip IS the shared `FilterBar` (card 20260927_152): the page
+          declares no bar markup, no search shell and no spacer — the component
+          owns `.filter-bar`, its search cell and its pinning. The six toggles
+          narrow the same list (they are quick filters, not secondary criteria),
+          so they ride `quickFilters` with the shared chip shape. */}
+      <FilterBar
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Tên nhà thầu, MST, người liên hệ, SĐT…',
+          ariaLabel: 'Tìm nhà cung cấp theo tên',
+          inputProps: { name: 'supplierSearch' },
+        }}
+        quickFiltersLabel="Lọc nhà cung cấp"
+        quickFilters={(
+          <>
+            <button type="button" aria-pressed={filter === 'all'} className={`filter-chip${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>Tất cả · {statusCountsQuery.data?.all ?? total}</button>
+            <button type="button" aria-pressed={filter === 'active'} className={`filter-chip${filter === 'active' ? ' is-active' : ''}`} onClick={() => setFilter('active')}>
+              <StatusDot status="ACTIVE" style={{ marginRight: 4 }} />
+              Hoạt động · {activeCount}
+            </button>
+            <button type="button" aria-pressed={filter === 'inactive'} className={`filter-chip${filter === 'inactive' ? ' is-active' : ''}`} onClick={() => setFilter('inactive')}>
+              <StatusDot status="INACTIVE" style={{ marginRight: 4 }} />
+              Ngừng HĐ · {inactiveCount}
+            </button>
+            <button type="button" aria-pressed={typeFilter === 'all'} className={`filter-chip${typeFilter === 'all' ? ' is-active' : ''}`} onClick={() => setTypeFilter('all')}>Mọi loại</button>
+            <button type="button" aria-pressed={typeFilter === 'carrier'} className={`filter-chip${typeFilter === 'carrier' ? ' is-active' : ''}`} onClick={() => setTypeFilter('carrier')}>Xe ngoài (nhà thầu vận tải)</button>
+            <button type="button" aria-pressed={typeFilter === 'other'} className={`filter-chip${typeFilter === 'other' ? ' is-active' : ''}`} onClick={() => setTypeFilter('other')}>Vật tư · dịch vụ</button>
+          </>
+        )}
+      />
 
       <div className="mobile-only mobile-table-wrap">
         <div className="m-card-list">
@@ -389,7 +416,7 @@ export default function SupplierListPage() {
             <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--ink-3)' }}>Đang tải…</div>
           ) : filtered.length === 0 ? (
             <EmptyState
-              illustration="/assets/illustrations/empty-clients.svg"
+              context="clients"
               title="Chưa có nhà cung cấp"
               description="Thêm nhà cung cấp đầu tiên để bắt đầu quản lý chi phí."
               action={<button className="btn btn--primary" onClick={() => { setShowAddForm(true); setEditingId(null); }}><Plus size={14} /> Thêm nhà cung cấp</button>}
@@ -414,23 +441,39 @@ export default function SupplierListPage() {
                 {s.contactPerson && (
                   <div className="m-card__meta">
                     {s.contactPerson}
-                    {s.phone && <><span className="m-card__meta-sep">·</span>{s.phone}</>}
+                    {s.phone && <><span className="m-card__meta-sep">·</span><span className="data-token">{s.phone}</span></>}
                   </div>
                 )}
                 <div className="m-card__meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                   <span>Công nợ</span>
                   <Money value={payableBySupplier.get(s.id) ?? 0} />
                 </div>
+                {s.linkedCustomerId != null && (
+                  <div className="m-card__meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span>Xe đang gán</span>
+                    <span style={{ fontFamily: 'var(--font-data)' }}>{vehicleCounts[String(s.linkedCustomerId)] ?? 0}</span>
+                  </div>
+                )}
                 {s.taxCode && (
                   <div className="m-card__meta" style={{ fontFamily: 'var(--font-data)' }}>
-                    MST {s.taxCode}
+                    MST <span className="data-token">{s.taxCode}</span>
                   </div>
                 )}
                 <div className="m-card-edit-row">
+                  {s.types?.includes(SupplierType.CARRIER) && (
+                    <button className="btn btn--ghost btn--sm" aria-expanded={trucksOpenId === s.id} onClick={(e) => { e.stopPropagation(); setTrucksOpenId(trucksOpenId === s.id ? null : s.id); }}>
+                      Xe của nhà thầu
+                    </button>
+                  )}
                   <button className="btn btn--ghost btn--sm" onClick={(e) => { e.stopPropagation(); setEditingId(s.id); setShowAddForm(false); }}>
                     Sửa
                   </button>
                 </div>
+                {trucksOpenId === s.id && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <SupplierCarrierTrucksSection supplierName={s.name} carrierId={s.linkedCustomerId ?? null} />
+                  </div>
+                )}
               </ClickableCard>
             ))
           )}
@@ -480,15 +523,14 @@ export default function SupplierListPage() {
               )}
               {!loading && filtered.length === 0 && (
                 <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
-                  <img src={resolveEmptyIllustration('empty-clients')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain', margin: '0 auto 8px', display: 'block' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                  <div>Chưa có dữ liệu</div>
+                  <EmptyState variant="compact" context="clients" title="Chưa có dữ liệu" />
                 </td></tr>
               )}
-              {filtered.map((s, index) => (
+              {filtered.map((s, index) => [
                   <tr key={s.id} role="button" tabIndex={0}
                     style={{ cursor: 'pointer' }}
                     onClick={() => navigate(`/suppliers/${s.id}`)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/suppliers/${s.id}`); } }}
+                    onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate(`/suppliers/${s.id}`); } }}
                   >
                     <td className="suppliers-page__cell suppliers-page__cell--name" data-label="Tên nhà cung cấp" style={{ position: 'relative' }}>
                       <StatusStrip status={s.status} />
@@ -503,28 +545,34 @@ export default function SupplierListPage() {
                       {s.shortName || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--data" data-label="Mã số thuế">
-                      {s.taxCode || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                      <span className="data-token">{s.taxCode || <span style={{ color: 'var(--ink-3)' }}>—</span>}</span>
                     </td>
                     <td className="suppliers-page__cell" data-label="Người liên hệ">
                       {s.contactPerson || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--data" data-label="SĐT">
-                      {s.phone || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                      <span className="data-token">{s.phone || <span style={{ color: 'var(--ink-3)' }}>—</span>}</span>
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--data suppliers-page__cell--money num" data-label="Công nợ">
                       <Money value={payableBySupplier.get(s.id) ?? 0} />
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--actions record-table__action" data-label="" data-dropdown-root={menuOpenId === s.id ? '' : undefined} style={{ position: 'relative' }}>
                       <div className="row-actions">
-                        <button className="row-action" onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === s.id ? null : s.id); }}>
+                        {s.types?.includes(SupplierType.CARRIER) && (
+                          <button type="button" className="row-action" aria-label={`Xe của nhà thầu ${s.name}`} aria-expanded={trucksOpenId === s.id}
+                            onClick={(e) => { e.stopPropagation(); setTrucksOpenId(trucksOpenId === s.id ? null : s.id); }}>
+                            <TruckIcon size={14} />
+                          </button>
+                        )}
+                        <button type="button" className="row-action" aria-label={`Tùy chọn nhà cung cấp ${s.name}`} aria-expanded={menuOpenId === s.id} onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === s.id ? null : s.id); }}>
                           <MoreHorizontal size={14} />
                         </button>
                       </div>
                       {menuOpenId === s.id && (
                         <div style={{
                           position: 'absolute', right: 12, zIndex: 20,
-                          background: '#fff', border: '1px solid var(--line)', borderRadius: 8,
-                          boxShadow: '0 4px 14px rgba(10,10,10,0.06)', overflow: 'hidden', minWidth: 140,
+                          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8,
+                          overflow: 'hidden', minWidth: 140,
                           ...(index >= filtered.length - 2 && filtered.length > 2
                             ? { bottom: '100%', marginBottom: 4 }
                             : { top: '100%' }),
@@ -541,8 +589,15 @@ export default function SupplierListPage() {
                         </div>
                       )}
                     </td>
-                  </tr>
-              ))}
+                  </tr>,
+                  trucksOpenId === s.id && (
+                    <tr key={`${s.id}-trucks`} className="supplier-carrier-trucks-row">
+                      <td colSpan={8}>
+                        <SupplierCarrierTrucksSection supplierName={s.name} carrierId={s.linkedCustomerId ?? null} />
+                      </td>
+                    </tr>
+                  ),
+              ])}
             </tbody>
           </table>
         </div>
@@ -551,7 +606,6 @@ export default function SupplierListPage() {
       </div>
 
       <SupplierFormModal
-        key={editingId ?? (showAddForm ? 'add' : 'closed')}
         isOpen={showAddForm || editingId != null}
         saving={saving}
         item={editingId != null ? suppliers.find(s => s.id === editingId) : undefined}

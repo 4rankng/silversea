@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import { eq, inArray } from 'drizzle-orm';
 
 import { Role } from '@tingting/shared';
-import { client, db } from '../db';
+import { db } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { config } from '../config';
@@ -19,7 +19,7 @@ import configRoutes from '../routes/config';
 import financialRoutes from '../routes/financial';
 import { appSettingsRouter } from '../routes/app-settings';
 import { disconnectRedis } from '../lib/redis';
-import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
+import { getAppSettings } from '../services/app-settings.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const futureExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1_000).toISOString();
@@ -40,6 +40,14 @@ let scopedCustomerId = 0;
 let server: http.Server;
 let baseUrl = '';
 let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
+const policyKeys = ['credit.warning_threshold_default', 'credit.tier_one_amount_cap', 'salary.payroll_business_unit_id'];
+let originalPolicyRows: Array<typeof s.appSettings.$inferSelect> = [];
+// The test seeds its own ACTIVE business unit (criterion 5, 20260917_10): the
+// environment's stored salary.payroll_business_unit_id may be an orphan the
+// validator rejects, so every settings write here substitutes this id. The
+// teardown restores the exact original rows before deleting this test unit.
+let seededBusinessUnitId: number;
+let seededPayrollDriverRowId: number;
 
 let adminToken: string;
 let managerToken: string;
@@ -189,6 +197,27 @@ async function mkLedgerRow(customerId: number, debit: number) {
 before(async () => {
   await initEnforcer();
   originalSettings = await getAppSettings();
+  originalPolicyRows = await db.select().from(s.appSettings).where(inArray(s.appSettings.key, policyKeys)).orderBy(s.appSettings.key);
+  // Criterion 5 (20260917_10): never round-trip the environment's stored
+  // payroll-unit reference — it may be an orphan. Seed a valid ACTIVE unit
+  // and write that id in every settings mutation below.
+  const [seededUnit] = await db.insert(s.businessUnits)
+    .values({ name: `Final Q01 payroll unit ${suffix}`, status: 'ACTIVE' })
+    .returning({ id: s.businessUnits.id });
+  seededBusinessUnitId = seededUnit.id;
+  // The validator additionally requires the payroll unit to have at least one
+  // ACTIVE driver linked through user_business_unit_links (the same shape
+  // q09-payroll-unit-scope seeds) — seed the full satisfiable chain.
+  const [payrollDriverUser] = await db.insert(s.users)
+    .values({ username: `final-q01-payroll-driver-${suffix}`, passwordHash: 'x', role: 'DRIVER', status: 'ACTIVE' })
+    .returning({ id: s.users.id });
+  userIds.push(payrollDriverUser.id);
+  const [payrollDriver] = await db.insert(s.drivers)
+    .values({ userId: payrollDriverUser.id, name: `Final Q01 payroll driver ${suffix}`, status: 'ACTIVE' })
+    .returning({ id: s.drivers.id });
+  seededPayrollDriverRowId = payrollDriver.id;
+  await db.insert(s.userBusinessUnitLinks)
+    .values({ userId: payrollDriverUser.id, businessUnitId: seededBusinessUnitId });
   const scopedCustomer = await mkCustomerRow({
     name: `Final scoped customer ${suffix}`,
   });
@@ -225,16 +254,35 @@ before(async () => {
 });
 
 after(async () => {
+  // Fixture restoration must not validate or rewrite the caller's policy.
+  // Persisting our temporary payroll unit here then deleting it poisons every
+  // later suite. Restore exact rows (including absence) before owned cleanup.
+  let restoreFailure: unknown;
   try {
-    await saveAppSettings(originalSettings);
+    await db.transaction(async (tx) => {
+      await tx.delete(s.appSettings).where(inArray(s.appSettings.key, policyKeys));
+      if (originalPolicyRows.length) await tx.insert(s.appSettings).values(originalPolicyRows);
+    });
+    assert.deepEqual(await db.select().from(s.appSettings).where(inArray(s.appSettings.key, policyKeys)).orderBy(s.appSettings.key), originalPolicyRows);
+  } catch (error) {
+    restoreFailure = error;
+  }
+  try {
     server.closeAllConnections();
-    // Release the shared postgres client so this file's process can exit
-    // with its true result code instead of hanging the full-suite gate.
-    await client.end({ timeout: 5 });
     await new Promise<void>((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
     });
+  } catch {
+    // Already closed — nothing to do.
+  }
 
+  // Fixture cleanup; the redis close below must run even if a delete throws.
+  try {
+    if (seededBusinessUnitId != null) {
+      await db.delete(s.userBusinessUnitLinks).where(eq(s.userBusinessUnitLinks.businessUnitId, seededBusinessUnitId));
+      await db.delete(s.drivers).where(eq(s.drivers.id, seededPayrollDriverRowId));
+      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, seededBusinessUnitId));
+    }
     if (idempotencyKeys.length > 0) {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
     }
@@ -271,8 +319,11 @@ after(async () => {
     }
   } finally {
     await disconnectRedis();
-    await client.end();
+    // The postgres client is SHARED across the whole in-process tsx run —
+    // ending it here kills the database for every file that runs after this
+    // one (20260917_17). The process teardown reclaims the sockets.
   }
+  if (restoreFailure) throw restoreFailure;
 });
 
 describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
@@ -292,6 +343,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       expectedUpdatedAt: readSettings.body.updatedAt ?? undefined,
       body: {
         ...originalSettings,
+        salaryPayrollBusinessUnitId: seededBusinessUnitId,
         creditWarningThresholdDefault: 0.67,
         creditTierOneAmountCap: 5_000_000,
       },
@@ -518,6 +570,8 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
 
   test('Q08 customer and supplier CRUD converge on one canonical partner for the same normalized tax code', async () => {
     const q08CustomerName = `Final Q08 customer ${suffix}`;
+    const taxSuffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    const normalizedTaxCode = `mst${taxSuffix}`;
     // ADMIN applies immediately — no pending action to approve.
     const createdCustomerAction = await request<Record<string, unknown>>('/api/customers', {
       method: 'POST',
@@ -525,7 +579,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       idempotencyKey: addIdempotencyKey(`final-q08-customer-${suffix}`),
       body: {
         name: q08CustomerName,
-        taxCode: ' MST 123 ',
+        taxCode: ` MST ${taxSuffix} `,
       },
     });
     assert.equal(createdCustomerAction.status, 201, JSON.stringify(createdCustomerAction.body));
@@ -543,7 +597,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       idempotencyKey: addIdempotencyKey(`final-q08-supplier-${suffix}`),
       body: {
         name: q08SupplierName,
-        taxCode: 'm s t123',
+        taxCode: `m s t${taxSuffix}`,
         types: ['SERVICE'],
         primaryType: 'SERVICE',
       },
@@ -575,7 +629,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     const normalizedPartners = await db.select({
       id: s.partners.id,
     }).from(s.partners)
-      .where(eq(s.partners.normalizedTaxCode, 'mst123'));
+      .where(eq(s.partners.normalizedTaxCode, normalizedTaxCode));
     assert.equal(normalizedPartners.length, 1);
 
     // The supplier's carrier-link hook just adopted this customer (set
@@ -591,7 +645,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       idempotencyKey: addIdempotencyKey(`final-q08-customer-update-${suffix}`),
       expectedUpdatedAt: currentCustomerState!.updatedAt.toISOString(),
       body: {
-        taxCode: ' M S T 123 ',
+        taxCode: ` M S T ${taxSuffix} `,
       },
     });
     // Direct apply: 200 with the row, no approval step.
@@ -607,7 +661,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     const normalizedPartnersAfterUpdate = await db.select({
       id: s.partners.id,
     }).from(s.partners)
-      .where(eq(s.partners.normalizedTaxCode, 'mst123'));
+      .where(eq(s.partners.normalizedTaxCode, normalizedTaxCode));
     assert.equal(normalizedPartnersAfterUpdate.length, 1);
   });
 });

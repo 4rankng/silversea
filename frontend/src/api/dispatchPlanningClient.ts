@@ -206,7 +206,7 @@ export interface DispatchDetailPlanRow {
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName?: string | null };
   docs: { billNumber: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
-  notes: { vehicleNote: string | null; customerNote: string | null };
+  notes: { vehicleNote: string | null; customerNote: string | null; opsRecoveryNotes?: string[] };
   dispatch: {
     /** Present once the dispatch order has created a live trip. */
     tripId?: number | null;
@@ -225,6 +225,8 @@ export interface DispatchDetailPlanRow {
     pairKind?: 'KEP' | 'KET_HOP' | null;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
+  /** Giờ trả hàng — staged pre-issuance on the fulfillment; null until set. */
+  plannedEndAt: string | null;
   // NOT NULL DEFAULT 'SINGLE' (mig 0028): every row carries a value — fresh
   // containers start as "Đơn" until dispatch reclassifies them.
   classification: DispatchClassification;
@@ -235,6 +237,9 @@ export interface DispatchDetailPlanRow {
 export interface DispatchDetailPlanFilters {
   q?: string;
   date?: string;
+  /** Inclusive transport-date range — the topbar month scope (20260922_32). */
+  dateFrom?: string;
+  dateTo?: string;
   direction?: 'IMPORT' | 'EXPORT' | '';
   assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED' | '';
   pickupIds?: number[];
@@ -242,9 +247,9 @@ export interface DispatchDetailPlanFilters {
   deliveryPointIds?: number[];
   hourFrom?: string;
   hourTo?: string;
-  /** Only rows whose container picks up or drops off at a port in this zone
-   *  (code from the DB taxonomy via GET /dispatch-zones). */
+  /** Zone code from the DB taxonomy (GET /dispatch-zones). */
   zone?: string;
+  customerId?: number | null; dataStatus?: 'COMPLETE' | 'MISSING' | ''; // card _50 ribbon
 }
 
 export function listDispatchDetailPlanRows(filters: { page?: number; limit?: number } & DispatchDetailPlanFilters = {}) {
@@ -368,6 +373,8 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   clearVehicle?: boolean;
   plannedRevenue: number | null;
   plannedCarrierCost: number | null;
+  /** Giờ trả hàng — omit to leave stored value untouched, null to clear, zone-aware ISO to set. */
+  plannedEndAt?: string | null;
   /** Phân loại (Đơn/Kẹp/Kết hợp) — dispatcher's call; optional so CUS-derived values stay valid. */
   classification?: DispatchClassification;
   isCombined?: boolean;
@@ -381,6 +388,7 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
     classification: DispatchClassification;
     isCombined: boolean;
     operationalNotes: string | null;
+    plannedEndAt: string | null;
     dispatch: {
       carrierType: 'OWN' | 'EXTERNAL';
       carrierName: string | null;

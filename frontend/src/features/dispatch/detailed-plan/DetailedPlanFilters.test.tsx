@@ -1,22 +1,60 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan';
-import { businessDateISO } from '../../../lib/format';
+import { businessDateISO, formatISODate } from '../../../lib/format';
+import { MonthProvider, useMonth } from '../../../hooks/useMonth';
 
 const TEST_ZONES = [{ code: 'LACH_HUYEN', label: 'Lạch Huyện' }, { code: 'HAI_PHONG', label: 'Cảng Hải Phòng' }];
 
-/** Open the multi-select popover for the given visible label (Điểm nâng / hạ / trả). */
-function openFacet(label: string) {
-  // The trigger shows either "Chọn <label>…" (nothing selected) or
-  // "Đã chọn N <label>" (some selections). Match the label either way.
-  const trigger = screen.getByRole('button', { name: new RegExp(`(Chọn|Đã chọn)[^]*${label}`) });
-  fireEvent.click(trigger);
-  return trigger;
+function MonthProbe() {
+  const { month, year } = useMonth();
+  return <span data-testid="month-probe">{`${month}/${year}`}</span>;
 }
 
-function openFilterDrawer() {
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location-probe">{location.pathname}</span>;
+}
+
+/** Router + query + month context: useNavigate, useTripOptions and useMonth
+ *  all need their providers (Gán xe sets the master-plan month scope). */
+function wrapFilters(ui: React.ReactElement, initialEntry = '/dispatch-detail') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={client}>
+        <MonthProvider>
+          <Routes>
+            <Route path="/dispatch-detail" element={<>{ui}<MonthProbe /><LocationProbe /></>} />
+            <Route path="/dispatch" element={<><span>dispatch-landed</span><MonthProbe /><LocationProbe /></>} />
+          </Routes>
+        </MonthProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
+  );
+}
+
+function renderFilters(ui: React.ReactElement) {
+  return render(wrapFilters(ui));
+}
+
+/** Common props so each test lists only what it varies. */
+function baseProps(onChange = vi.fn()) {
+  return {
+    filters: { ...EMPTY_DETAILED_PLAN_FILTERS },
+    onChange,
+    loadDeliveryPointFacets: vi.fn().mockResolvedValue([]),
+    loadPickupPortFacets: vi.fn().mockResolvedValue([]),
+    loadDropoffPortFacets: vi.fn().mockResolvedValue([]),
+    zones: TEST_ZONES,
+  };
+}
+
+function openFilterDialog() {
   fireEvent.click(screen.getByRole('button', { name: /^Bộ lọc/ }));
   return screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch' });
 }
@@ -26,401 +64,325 @@ function getPopover(label: string) {
 }
 
 function getPicker(label: string) {
-  // The popover container is the listbox's parent. Locate it via the listbox
-  // rather than a fragile class selector so the test stays coupled to the
-  // public accessibility tree.
   const listbox = getPopover(label);
   return listbox.parentElement as HTMLElement;
 }
 
 async function pickCheckbox(label: string, facetName: string) {
-  // The migrated picker renders options as toggle buttons (role=option)
-  // instead of checkbox inputs.
   const popover = getPopover(label);
   const option = within(popover).getByRole('option', { name: facetName });
   fireEvent.click(option);
   return option;
 }
 
-describe('DetailedPlanFilters', () => {
+describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
+  it('rides the shared bar: search, the from/to fields and the day scope on the line, criteria behind Bộ lọc', () => {
+    const onChange = vi.fn();
+    const { container } = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+
+    expect(container.querySelector('[data-component="detailed-plan-header"]')).toBeTruthy();
+    // Card 20260926_55: the h1 matches the app chrome — 'Kế hoạch Chi tiết Xe'
+    // (supersedes the _50-era 'Chi tiết lô hàng' pin; topbar context hidden).
+    expect(screen.getByRole('heading', { name: 'Kế hoạch Chi tiết Xe' })).toBeTruthy();
+
+    // Card 20260927_152: the filter plane IS the shared bar — one wrapping line
+    // inside one card. The page-local two-tier header and its ribbon are gone.
+    const bar = container.querySelector('.filter-bar.filter-bar--card.list-filter-bar') as HTMLElement;
+    expect(bar).toBeTruthy();
+    expect(container.querySelector('[data-component="detailed-plan-ribbon"]')).toBeNull();
+    expect(screen.getByPlaceholderText('Bill, Cont, Tờ khai...')).toBeTruthy();
+    // No shortcut badge: the 2026-09-27 CHIEF ruling removed every rendered
+    // ⌘K/kbd affordance (the ⌘K/Ctrl+K handler below stays live and invisible).
+    expect(screen.queryByText('⌘K')).toBeNull();
+    // The date scope is the shared button group (operator ruling 2026-09-27) and
+    // rides the bar's `presets` slot — the slot the bar gives the quick ranges
+    // beside the dates they set.
+    const presetGroup = screen.getByRole('tablist', { name: 'Phạm vi ngày vận chuyển' });
+    expect(presetGroup.className).toContain('ds-tabs--boxed');
+    expect(within(presetGroup).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('true');
+    expect(bar.querySelector('.filter-bar__presets')?.contains(presetGroup)).toBe(true);
+    // CHIEF 2026-09-27: two independent date fields, no range picker.
+    expect(screen.getByRole('group', { name: 'Khoảng ngày vận chuyển' })).toBeTruthy();
+    expect(screen.getByLabelText('Từ ngày')).toBeTruthy();
+    expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Khoảng ngày vận chuyển' })).toBeNull();
+    // The page's own actions ride the bar's action cluster: Gán xe and Xóa lọc.
+    const actions = bar.querySelector('.filter-bar__actions') as HTMLElement;
+    expect(within(actions).getByRole('button', { name: 'Gán xe' })).toBeTruthy();
+    expect(within(actions).getByRole('button', { name: 'Xóa lọc' })).toBeTruthy();
+    // Every criterion the lists do NOT share lives behind ONE trigger ON the bar
+    // (card 20260927_152) — the four quick facets included (operator,
+    // 2026-09-27: "why don't we group them in bộ lọc"), so no band stacks four
+    // dropdown rows.
+    expect(within(actions).queryByRole('button', { name: /^Bộ lọc/ })).toBeNull();
+    expect(within(bar).getByRole('button', { name: 'Bộ lọc' })).toBeTruthy();
+    expect(container.querySelector('.detailed-plan-ribbon__quick')).toBeNull();
+    expect(screen.queryByText('Ngày vận chuyển')).toBeNull();
+    expect(screen.queryByText('Thời gian')).toBeNull();
+
+    // Label-in-control: the integrated trigger text IS the accessible name —
+    // now inside the shared dialog, in one group.
+    const dialog = openFilterDialog();
+    const quick = within(dialog).getByRole('heading', { name: 'Bộ lọc nhanh' }).parentElement as HTMLElement;
+    expect(quick.className).toContain('detailed-plan-filter-panel__group');
+    expect(within(quick).getByRole('button', { name: 'Khách: Tất cả' })).toBeTruthy();
+    expect(within(quick).getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
+    expect(within(quick).getByRole('button', { name: 'Điều xe: Tất cả' })).toBeTruthy();
+    expect(within(quick).getByRole('button', { name: 'Dữ liệu: Tất cả' })).toBeTruthy();
+  });
+
+  it('Gán xe hands the active date scope to the master plan', async () => {
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: '2026-09-15' }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Gán xe' }));
+    expect(await screen.findByText('dispatch-landed')).toBeTruthy();
+    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch');
+    // The month context carries the filter's scope month (9/2026).
+    expect(screen.getByTestId('month-probe').textContent).toBe('9/2026');
+  });
+
+  it('⌘K focuses the quick search', () => {
+    renderFilters(<DetailedPlanFilters {...baseProps()} />);
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    expect(document.activeElement).toBe(screen.getByLabelText('Tìm nhanh'));
+  });
+
+  it('clicking a preset updates the date fields instantly WITHOUT opening a picker', () => {
+    const onChange = vi.fn();
+    const view = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Hôm nay' }));
+    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(), dateFrom: '', dateTo: '' });
+
+    const today = businessDateISO();
+    view.rerender(
+      wrapFilters(
+        <DetailedPlanFilters
+          {...baseProps()}
+          filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: today }}
+        />,
+      ),
+    );
+    // Both fields carry the scope date (segmented: DD / MM / YYYY); no popover,
+    // no merged range trigger.
+    const [expectedDay, expectedMonth, expectedYear] = formatISODate(today).split('/');
+    const fromDay = screen.getByLabelText('Từ ngày') as HTMLInputElement;
+    expect(fromDay.value).toBe(expectedDay);
+    expect((screen.getByLabelText('Tháng — Từ ngày') as HTMLInputElement).value).toBe(expectedMonth);
+    expect((screen.getByLabelText('Năm — Từ ngày') as HTMLInputElement).value).toBe(expectedYear);
+    const toDay = screen.getByLabelText('Đến ngày') as HTMLInputElement;
+    expect(toDay.value).toBe(expectedDay);
+    expect((screen.getByLabelText('Tháng — Đến ngày') as HTMLInputElement).value).toBe(expectedMonth);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('writes an explicit range through the two independent date fields (controlled flow)', () => {
+    const onChange = vi.fn();
+    const view = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+
+    // Each field commits a complete DD/MM/YYYY draft as ISO, on its own.
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '15/09/2026' } });
+    expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-15', dateTo: '' });
+    view.rerender(
+      wrapFilters(
+        <DetailedPlanFilters
+          {...baseProps(onChange)}
+          filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, dateFrom: '2026-09-15' }}
+        />,
+      ),
+    );
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '22/09/2026' } });
+    expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-15', dateTo: '2026-09-22' });
+    // No picker is involved anywhere in the flow.
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('bounds each field by the other so an out-of-order range can never be written', () => {
+    const onChange = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps(onChange)}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, dateFrom: '2026-09-15', dateTo: '2026-09-22' }}
+      />,
+    );
+    // Each field carries the other's boundary, so neither the calendar nor a
+    // typed date can invert the range.
+    expect((screen.getByLabelText('Từ ngày') as HTMLInputElement).max).toBe('2026-09-22');
+    expect((screen.getByLabelText('Đến ngày') as HTMLInputElement).min).toBe('2026-09-15');
+
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '25/09/2026' } });
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '01/09/2026' } });
+    expect(onChange).not.toHaveBeenCalled();
+
+    // A date inside the boundary is written through.
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '20/09/2026' } });
+    expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-15', dateTo: '2026-09-20' });
+  });
+
+  it('maps the drawer facet selects to their filter patches and keeps labels in the triggers', () => {
+    const onChange = vi.fn();
+    renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+    openFilterDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
+    expect(onChange).toHaveBeenCalledWith({ direction: 'IMPORT' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Điều xe: Tất cả' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Chưa điều xe' }));
+    expect(onChange).toHaveBeenCalledWith({ assignmentStatus: 'UNASSIGNED' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dữ liệu: Tất cả' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Thiếu dữ liệu' }));
+    expect(onChange).toHaveBeenCalledWith({ dataStatus: 'MISSING' });
+  });
+
+  it('keeps Xóa lọc disabled at default and resets every filter when enabled', () => {
+    const onChange = vi.fn();
+    const { rerender } = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+    const clearButton = screen.getByRole('button', { name: 'Xóa lọc' });
+    expect(clearButton).toBeDisabled();
+    fireEvent.click(clearButton);
+    expect(onChange).not.toHaveBeenCalled();
+
+    rerender(
+      wrapFilters(
+        <DetailedPlanFilters
+          {...baseProps(onChange)}
+          filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, dataStatus: 'MISSING' }}
+        />,
+      ),
+    );
+    const enabled = screen.getByRole('button', { name: 'Xóa lọc' });
+    expect(enabled).toBeEnabled();
+    fireEvent.click(enabled);
+    expect(onChange).toHaveBeenCalledWith(EMPTY_DETAILED_PLAN_FILTERS);
+  });
+});
+
+describe('DetailedPlanFilters — Bộ lọc dialog (hours/zone/points)', () => {
+  it('keeps structured filters inside Bộ lọc and off the bar', () => {
+    const onChange = vi.fn();
+    renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+
+    const dialog = openFilterDialog();
+    expect(within(dialog).getByRole('textbox', { name: 'Giờ từ' })).toBeTruthy();
+    expect(within(dialog).getByRole('textbox', { name: 'Giờ đến' })).toBeTruthy();
+    expect(within(dialog).getByText('Điểm nâng')).toBeTruthy();
+    expect(within(dialog).getByRole('heading', { name: 'Giờ chạy và khu vực' })).toBeTruthy();
+    expect(within(dialog).getByRole('heading', { name: 'Điểm giao nhận' })).toBeTruthy();
+    // Criteria owned elsewhere must NOT duplicate inside the dialog.
+    expect(within(dialog).queryByText('Xuất / Nhập')).toBeNull();
+    expect(within(dialog).queryByText('Phân xe')).toBeNull();
+
+    const hourFrom = within(dialog).getByLabelText('Giờ từ');
+    expect(hourFrom).toHaveAttribute('type', 'text');
+    expect(hourFrom).toHaveAttribute('placeholder', 'HH:mm');
+    fireEvent.change(hourFrom, { target: { value: '07:30' } });
+    fireEvent.blur(hourFrom);
+    expect(onChange).toHaveBeenCalledWith({ hourFrom: '07:30' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt lại' }));
+    expect(onChange).toHaveBeenCalledWith({
+      ...EMPTY_DETAILED_PLAN_FILTERS,
+      date: '',
+    });
+  });
+
+  it('forwards zone selection and the trigger badge count', async () => {
+    const onChange = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps(onChange)}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, zone: 'LACH_HUYEN', hourFrom: '07:30' }}
+      />,
+    );
+    const dialog = openFilterDialog();
+    expect(within(dialog).getByRole('button', { name: 'Lạch Huyện Khu vực' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Bộ lọc, 2 đang áp dụng' })).toBeTruthy();
+  });
+
   it('keeps the latest facet suggestions when an earlier search resolves later (DSP-FU-005)', async () => {
     let resolveEarlier!: (items: Array<{ id: number; name: string }>) => void;
     const loadDeliveryPointFacets = vi.fn((query?: string) => query === 'Mỹ'
       ? new Promise<Array<{ id: number; name: string }>>((resolve) => { resolveEarlier = resolve; })
       : Promise.resolve(query === 'Mỹ Đình' ? [{ id: 9, name: 'ICD Mỹ Đình' }] : []));
-    render(<DetailedPlanFilters filters={EMPTY_DETAILED_PLAN_FILTERS} onChange={vi.fn()}
-      loadDeliveryPointFacets={loadDeliveryPointFacets}
-      loadPickupPortFacets={vi.fn().mockResolvedValue([])} loadDropoffPortFacets={vi.fn().mockResolvedValue([])} zones={TEST_ZONES} />);
-    openFilterDrawer();
-    openFacet('điểm trả');
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        loadDeliveryPointFacets={loadDeliveryPointFacets}
+      />,
+    );
+    openFilterDialog();
+    const trigger = screen.getByRole('button', { name: /Đã chọn 0 điểm trả|Chọn điểm trả…/ });
+    fireEvent.click(trigger);
     const search = within(getPicker('điểm trả')).getByLabelText(/Tìm điểm trả/);
     fireEvent.change(search, { target: { value: 'Mỹ' } });
     await waitFor(() => expect(loadDeliveryPointFacets).toHaveBeenCalledWith('Mỹ'));
     fireEvent.change(search, { target: { value: 'Mỹ Đình' } });
     await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeInTheDocument());
-    await act(async () => resolveEarlier([{ id: 8, name: 'Mỹ Tho' }]));
+    resolveEarlier([{ id: 8, name: 'Mỹ Tho' }]);
     expect(within(getPopover('điểm trả')).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeInTheDocument();
-  });
-  it('provides visible labels and forwards dispatch-specific filter changes', async () => {
-    const onChange = vi.fn();
-    const { container } = render(
-      <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onChange={onChange}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([{ id: 7, name: 'Cảng Hải Phòng' }])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([{ id: 9, name: 'ICD Mỹ Đình' }])}
-        zones={TEST_ZONES}
-      />,
-    );
-
-    expect(container.querySelectorAll('[data-input-wrapper]')).toHaveLength(2);
-    expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Hôm sau' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tất cả' }).getAttribute('aria-pressed')).toBe('true');
-    const dateMode = screen.getByRole('group', { name: 'Phạm vi ngày vận chuyển' });
-    const selectedDateMode = within(dateMode).getByRole('button', { name: 'Tất cả' });
-    const selectedDateIcon = selectedDateMode.querySelector('svg');
-    expect(selectedDateIcon).toBeTruthy();
-    expect(selectedDateIcon?.parentElement).toBe(selectedDateMode);
-    expect(within(dateMode).getByRole('button', { name: 'Hôm nay' }).querySelector('svg')).toBeNull();
-    expect(within(dateMode).getByRole('button', { name: 'Hôm sau' }).querySelector('svg')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
-    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
-    fireEvent.click(screen.getByRole('button', { name: 'Hôm sau' }));
-    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)) });
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }));
-    expect(onChange).toHaveBeenCalledWith({ date: '' });
-
-    const drawer = openFilterDrawer();
-    expect(within(drawer).getByRole('textbox', { name: 'Giờ từ' })).toBeTruthy();
-    expect(within(drawer).getByRole('textbox', { name: 'Giờ đến' })).toBeTruthy();
-
-    expect(screen.getByText('Tìm nhanh')).toBeTruthy();
-    expect(screen.getAllByText('Ngày vận chuyển')).toHaveLength(1);
-    expect(screen.getByText('Phân xe')).toBeTruthy();
-    expect(screen.getByText('Điểm nâng')).toBeTruthy();
-    expect(screen.getByText('Điểm hạ')).toBeTruthy();
-    expect(screen.getByText('Điểm trả')).toBeTruthy();
-    expect(screen.getByText('Giờ chạy')).toBeTruthy();
-    expect(drawer.querySelectorAll('.detailed-plan-filters__field--direction')).toHaveLength(1);
-    expect(drawer.querySelector('.detailed-plan-filters__field--direction')?.textContent).toContain('Chiều hàng');
-    expect(drawer.querySelectorAll('.detailed-plan-filters__field--assignment')).toHaveLength(1);
-    expect(drawer.querySelector('.detailed-plan-filters__field--assignment')?.textContent).toContain('Phân xe');
-    expect(within(drawer).queryByText('Ngày vận chuyển')).toBeNull();
-    expect(within(drawer).getByRole('heading', { name: 'Phân xe và giờ chạy' })).toBeTruthy();
-    expect(within(drawer).getByRole('heading', { name: 'Điểm giao nhận' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Nhập/Xuất Chiều hàng' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
-    expect(onChange).toHaveBeenCalledWith({ direction: 'IMPORT' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả Phân xe' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Chưa gán Biển số' }));
-    expect(onChange).toHaveBeenCalledWith({ assignmentStatus: 'UNASSIGNED' });
-
-    const hourFrom = screen.getByLabelText('Giờ từ');
-    const hourTo = screen.getByLabelText('Giờ đến');
-    expect(hourFrom).toHaveAttribute('type', 'text');
-    expect(hourFrom).toHaveAttribute('placeholder', 'HH:mm');
-    expect(hourTo).toHaveAttribute('type', 'text');
-    fireEvent.change(hourFrom, { target: { value: '07:30' } });
-    fireEvent.blur(hourFrom);
-    fireEvent.change(hourTo, { target: { value: '09:45' } });
-    fireEvent.blur(hourTo);
-    expect(onChange).toHaveBeenCalledWith({ hourFrom: '07:30' });
-    expect(onChange).toHaveBeenCalledWith({ hourTo: '09:45' });
-
-    fireEvent.change(screen.getByLabelText('Tìm nhanh'), { target: { value: 'BILL-001' } });
-
-    expect(onChange).toHaveBeenCalledWith({ q: 'BILL-001' });
-
-    openFacet('điểm trả');
-    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
-    await pickCheckbox('điểm trả', 'KCN Vân Trung');
-    expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [42] });
-    // Popover stays open after selection — selections live inside the dropdown.
-    expect(getPopover('điểm trả')).toBeTruthy();
-
-    openFacet('điểm nâng');
-    await waitFor(() => expect(within(getPopover('điểm nâng')).getByRole('option', { name: 'Cảng Hải Phòng' })).toBeTruthy());
-    await pickCheckbox('điểm nâng', 'Cảng Hải Phòng');
-    expect(onChange).toHaveBeenCalledWith({ pickupIds: [7] });
-    expect(getPopover('điểm nâng')).toBeTruthy();
-
-    openFacet('điểm hạ');
-    await waitFor(() => expect(within(getPopover('điểm hạ')).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeTruthy());
-    await pickCheckbox('điểm hạ', 'ICD Mỹ Đình');
-    expect(onChange).toHaveBeenCalledWith({ dropoffIds: [9] });
-    expect(getPopover('điểm hạ')).toBeTruthy();
   });
 
   it('keeps an open facet popover open while toggling selections and closes on outside click', async () => {
-    render(
+    renderFilters(
       <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onChange={vi.fn()}
+        {...baseProps()}
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
       />,
     );
-
-    openFilterDrawer();
-    openFacet('điểm trả');
+    openFilterDialog();
+    const trigger = screen.getByRole('button', { name: /Chọn điểm trả…/ });
+    fireEvent.click(trigger);
     await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
     await pickCheckbox('điểm trả', 'KCN Vân Trung');
-    // Multi-select popover must stay open after a click — selections live inside.
     expect(getPopover('điểm trả')).toBeTruthy();
-    // Click outside the popover to close.
     fireEvent.pointerDown(document.body);
     await waitFor(() => expect(screen.queryByRole('listbox', { name: /Danh sách điểm trả/i })).toBeNull());
   });
 
-  it('closes the popover with Escape and returns focus to the trigger', async () => {
-    render(
+  it('closes the facet popover with Escape — one shared dismissal, no stranded focus', async () => {
+    // The shared overlay stack gives the first Escape to the facet picker.
+    // The next Escape dismisses the retained parent filter dialog.
+    renderFilters(
       <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onChange={vi.fn()}
+        {...baseProps()}
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
       />,
     );
-
-    openFilterDrawer();
-    const trigger = openFacet('điểm trả');
+    openFilterDialog();
+    const trigger = screen.getByRole('button', { name: /Chọn điểm trả…/ });
+    fireEvent.click(trigger);
     await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('listbox', { name: /Danh sách điểm trả/i })).toBeNull());
-    await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('false'));
-  });
-
-  it('lets a user narrow the facet list by typing into the popover search', async () => {
-    const onChange = vi.fn();
-    let resolveNarrowSearch: ((items: Array<{ id: number; name: string }>) => void) | undefined;
-    const loadDeliveryPointFacets = vi.fn((query?: string) => query
-      ? new Promise<Array<{ id: number; name: string }>>((resolve) => { resolveNarrowSearch = resolve; })
-      : Promise.resolve([{ id: 42, name: 'KCN Vân Trung' }, { id: 7, name: 'Cảng Hải Phòng' }]));
-    render(
-      <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onChange={onChange}
-        loadDeliveryPointFacets={loadDeliveryPointFacets}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
-      />,
-    );
-
-    openFilterDrawer();
-    openFacet('điểm trả');
-    const popover = getPopover('điểm trả');
-    const picker = getPicker('điểm trả');
-    await waitFor(() => expect(within(popover).getByRole('option', { name: 'Cảng Hải Phòng' })).toBeTruthy());
-    const search = within(picker).getByLabelText(/Tìm điểm trả/);
-    fireEvent.change(search, { target: { value: 'Mỹ' } });
-    await waitFor(() => expect(loadDeliveryPointFacets).toHaveBeenCalledWith('Mỹ'));
-    resolveNarrowSearch?.([{ id: 9, name: 'ICD Mỹ Đình' }]);
-    await waitFor(() => expect(within(popover).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeTruthy());
-
-    await pickCheckbox('điểm trả', 'ICD Mỹ Đình');
-    expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [9] });
-  });
-
-  it('explains when an opened point picker has no matching locations', async () => {
-    render(
-      <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onChange={vi.fn()}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
-      />,
-    );
-
-    openFilterDrawer();
-    openFacet('điểm trả');
-    await screen.findByText('Không tìm thấy điểm phù hợp.');
-  });
-
-  it('keeps structured filters out of the results layout in a dedicated drawer', () => {
-    render(
-      <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onChange={vi.fn()}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
-      />,
-    );
-
-    expect(screen.queryByRole('dialog', { name: 'Bộ lọc kế hoạch' })).toBeNull();
-    const drawer = openFilterDrawer();
-    expect(within(drawer).getByRole('button', { name: 'Xem kết quả' })).toBeTruthy();
-    expect(within(drawer).getByRole('button', { name: 'Đặt lại' })).toBeTruthy();
-  });
-
-  it('always exposes today, next-day and all-days shortcuts for transport date', () => {
-    const onChange = vi.fn();
-    render(
-      <DetailedPlanFilters
-        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: '2099-01-01' }}
-        onChange={onChange}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
-      />,
-    );
-
-    expect(screen.queryByRole('dialog', { name: 'Bộ lọc kế hoạch' })).toBeNull();
-    expect(screen.getByLabelText('Ngày vận chuyển')).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Phạm vi ngày vận chuyển' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Hôm nay' }).getAttribute('aria-pressed')).toBe('false');
-    expect(screen.getByRole('button', { name: 'Hôm sau' }).getAttribute('aria-pressed')).toBe('false');
-    expect(screen.getByRole('button', { name: 'Tất cả' }).getAttribute('aria-pressed')).toBe('false');
-    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
-    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
-    fireEvent.click(screen.getByRole('button', { name: 'Hôm sau' }));
-    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)) });
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }));
-    expect(onChange).toHaveBeenCalledWith({ date: '' });
-  });
-
-  it('keeps Xóa lọc available to reset incomplete local filter drafts', () => {
-    const onChange = vi.fn();
-    render(
-      <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onChange={onChange}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
-      />,
-    );
-
-    const clearButton = screen.getByRole('button', { name: 'Xóa lọc' });
-    expect(clearButton).toBeTruthy();
-    // No committed filter can still have an incomplete buffered input draft.
-    expect(clearButton).toBeEnabled();
-    fireEvent.click(clearButton);
-    expect(onChange).toHaveBeenCalledWith(EMPTY_DETAILED_PLAN_FILTERS);
-  });
-
-  it('renders Hôm nay / Hôm sau / Tất cả / Xóa lọc together so the row never jumps', () => {
-    const onChange = vi.fn();
-    const { container } = render(
-      <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onChange={onChange}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
-      />,
-    );
-
-    // All four buttons must be in the same date-scope-controls row so
-    // toggling filter state never shifts any of the date shortcuts.
-    const controls = container.querySelector('.detailed-plan-filters__date-scope-controls');
-    expect(controls).toBeTruthy();
-    expect(within(controls as HTMLElement).getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
-    expect(within(controls as HTMLElement).getByRole('button', { name: 'Hôm sau' })).toBeTruthy();
-    expect(within(controls as HTMLElement).getByRole('button', { name: 'Tất cả' })).toBeTruthy();
-    expect(within(controls as HTMLElement).getByRole('button', { name: 'Xóa lọc' })).toBeTruthy();
-  });
-
-  it('resets drawer filters without clearing the always-visible date scope', () => {
-    const onChange = vi.fn();
-    render(
-      <DetailedPlanFilters
-        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, q: 'BILL-001', date: '2099-01-01', direction: 'IMPORT' }}
-        onChange={onChange}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
-      />,
-    );
-
-    const drawer = openFilterDrawer();
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Đặt lại' }));
-    expect(onChange).toHaveBeenCalledWith({
-      ...EMPTY_DETAILED_PLAN_FILTERS,
-      q: 'BILL-001',
-      date: '2099-01-01',
-    });
-  });
-
-  it('clears every filter back to the unfiltered default from one coherent toolbar action', () => {
-    const onChange = vi.fn();
-    const { rerender } = render(
-      <DetailedPlanFilters
-        filters={{
-          q: 'BILL-001',
-          date: '2099-01-01',
-          direction: 'IMPORT',
-          assignmentStatus: 'UNASSIGNED',
-          pickupIds: [1],
-          dropoffIds: [2],
-          deliveryPointIds: [3],
-          hourFrom: '07:30',
-          hourTo: '09:45',
-          zone: 'LACH_HUYEN',
-        }}
-        onChange={onChange}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
-      />,
-    );
-
-    expect(screen.getByText('Đang lọc 10 điều kiện')).toBeTruthy();
-    // The Xóa lọc button is now always rendered but only enabled when a
-    // filter is active; the click should still reset every filter.
-    const clearButton = screen.getByRole('button', { name: 'Xóa lọc' });
-    expect(clearButton.getAttribute('disabled')).toBeNull();
-    fireEvent.click(clearButton);
-    expect(onChange).toHaveBeenCalledWith(EMPTY_DETAILED_PLAN_FILTERS);
-
-    rerender(
-      <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onChange={onChange}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
-      />,
-    );
-    expect(screen.queryByText('Mặc định: mọi ngày vận chuyển')).toBeNull();
-    // Retain a reset path for a partially typed date/time draft.
-    expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeEnabled();
+    expect(screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch' })).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Bộ lọc kế hoạch' })).toBeNull());
+    expect(screen.getByRole('button', { name: 'Bộ lọc' })).toBeTruthy();
   });
 
   it('lets a user clear all selections from inside the popover footer', async () => {
     const onChange = vi.fn();
-    render(
+    renderFilters(
       <DetailedPlanFilters
+        {...baseProps(onChange)}
         filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, deliveryPointIds: [42] }}
-        onChange={onChange}
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        zones={TEST_ZONES}
       />,
     );
-
-    openFilterDrawer();
+    openFilterDialog();
     expect(screen.getByRole('button', { name: /Đã chọn 1 điểm trả/ })).toBeTruthy();
-    openFacet('điểm trả');
+    const trigger = screen.getByRole('button', { name: /Đã chọn 1 điểm trả/ });
+    fireEvent.click(trigger);
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn tất cả' }));
     expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [] });
   });

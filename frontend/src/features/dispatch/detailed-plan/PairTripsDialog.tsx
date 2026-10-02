@@ -53,7 +53,8 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
       && candidate.dispatch.tripId !== baseTripId)
     .map((candidate) => ({
       value: String(candidate.dispatch!.tripId),
-      label: `#${candidate.dispatch.tripId} · ${candidate.container.containerNumber ?? 'chưa có vỏ'} · ${candidate.customerRoute.routeName ?? ''}`,
+      // business key render; id never user-facing — Bill của lô + vỏ + tuyến
+      label: [candidate.docs.billNumber, candidate.container.containerNumber ?? 'chưa có vỏ', candidate.customerRoute.routeName].filter(Boolean).join(' · '),
     })), [candidates, baseTripId]);
 
   function draftFor(trip: TripDetail): PairDraftPayload | null {

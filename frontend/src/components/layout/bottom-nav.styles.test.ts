@@ -17,7 +17,19 @@ describe('bottom-nav opacity contract', () => {
   it('is fully opaque, not relying on backdrop-filter alone to hide content underneath', () => {
     const css = read('src/components/layout/bottom-nav.css');
     expect(css).not.toContain('rgba(255, 255, 255, 0.95)');
-    expect(css).toContain('background: var(--surface, #fff);');
-    expect(css).toContain('-webkit-backdrop-filter: blur(14px);');
+    // The bar paints a token, not a literal: `--surface` resolves to #FFFFFF
+    // in src/styles/tokens.css, so the bar stays fully opaque with the
+    // translucent rgba() fallback retired. Assert the opacity contract
+    // (opaque token + the -webkit-prefixed blur stays for the tint) rather
+    // than the retired `#fff` fallback literal.
+    const bar = css.match(/\.bottom-nav \{[^}]*backdrop-filter[^}]*\}/)?.[0] ?? '';
+    expect(bar, 'fixed bottom-nav rule exists').not.toBe('');
+    expect(bar).toMatch(/background:\s*var\(--surface\);/);
+    // The OPACITY contract is about the fill only — a translucent box-shadow
+    // alpha (0.03 hairline) is a shadow, not the bar's own transparency.
+    const fill = bar.match(/background(?:-color)?:\s*([^;]+);/)?.[1] ?? '';
+    expect(fill, 'the bar has a background fill').not.toBe('');
+    expect(fill, 'the bar fill must be fully opaque').not.toMatch(/rgba|hsla|\/\s*[\d.]+\s*\)/);
+    expect(bar).toContain('-webkit-backdrop-filter: blur(14px);');
   });
 });

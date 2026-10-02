@@ -125,6 +125,7 @@ describe('dispatch_zones ADMIN CRUD contract', () => {
     assert.equal(created.status, 201, JSON.stringify(created.body));
     const zoneId = (created.body as { id: number }).id;
     createdZoneIds.push(zoneId);
+    assert.equal(created.body.showPortFacet, true, 'new zones default to visible');
 
     const duplicate = await api('POST', '/dispatch-zones', adminId, {
       code: zc,
@@ -137,6 +138,33 @@ describe('dispatch_zones ADMIN CRUD contract', () => {
       label: 'Sai format',
     });
     assert.equal(invalidCode.status, 400);
+  });
+
+  test('port facet visibility is configurable, returned to readers, and stable across renames', async () => {
+    const created = await api('POST', '/dispatch-zones', adminId, {
+      code: `${zc}_FACET`, label: 'Configurable zone', showPortFacet: false,
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const zoneId = (created.body as { id: number }).id;
+    createdZoneIds.push(zoneId);
+    assert.equal(created.body.showPortFacet, false);
+    const renamed = await api('PUT', `/dispatch-zones/${zoneId}`, adminId, {
+      label: 'Renamed configurable zone',
+    }, String(created.body.updatedAt));
+    assert.equal(renamed.status, 200, JSON.stringify(renamed.body));
+    assert.equal(renamed.body.showPortFacet, false, 'omitted visibility must preserve prior configuration');
+    const active = await api('GET', '/dispatch-zones/active', managerId);
+    const row = (active.body.items as Array<{ code: string; showPortFacet: boolean }>).find(zone => zone.code === `${zc}_FACET`);
+    assert.equal(row?.showPortFacet, false);
+    const shown = await api('PUT', `/dispatch-zones/${zoneId}`, adminId, {
+      showPortFacet: true,
+    }, String(renamed.body.updatedAt));
+    assert.equal(shown.status, 200, JSON.stringify(shown.body));
+    assert.equal(shown.body.showPortFacet, true);
+    const forbidden = await api('PUT', `/dispatch-zones/${zoneId}`, managerId, {
+      showPortFacet: false,
+    }, String(shown.body.updatedAt));
+    assert.equal(forbidden.status, 403);
   });
 
   test('update relabels and reorders; explicit code change is rejected', async () => {

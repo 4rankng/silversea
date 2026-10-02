@@ -1,3 +1,4 @@
+import { PhotoImage } from '../components/shared/PhotoImage';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -18,18 +19,20 @@ import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
-import { DriverTaskInfoSections } from './driver/DriverTaskInfoSections';
+import { DriverTaskInfoSections, DriverInvoiceSection } from './driver/DriverTaskInfoSections';
+import { EmptyState } from '../design-system';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { useQuery } from '@tanstack/react-query';
 import { qk } from '../api/keys';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
-import { getAuthenticatedPhotoUrl } from '../lib/api';
+import { useAuthedPhotoUrls } from '../lib/api/photo';
 import { compressImageFile } from '../lib/imageCompression';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, formatDate } from '../lib/format';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
@@ -49,6 +52,7 @@ export default function DriverTripDetailPage() {
 function DriverTripDetailContent() {
   const { id } = useParams<{ id: string }>();
   useDriverScreenEntry(id);
+  const actionBarRef = useFixedActionClearance<HTMLDivElement>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const geolocation = useGeolocation();
@@ -58,6 +62,9 @@ function DriverTripDetailContent() {
   const [accepting, setAccepting] = useState(false);
   const [blockingTripCode, setBlockingTripCode] = useState<string | null>(null);
   const [blockingTripId, setBlockingTripId] = useState<number | null>(null);
+  // Card 20260926_30 item 16: saved cost-entry count reported by the cost
+  // form so the top progress strip can show it without scrolling.
+  const [costEntryCount, setCostEntryCount] = useState(0);
 
   const tripId = Number(id);
   const validTripId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
@@ -92,6 +99,12 @@ function DriverTripDetailContent() {
   const cancelled = trip?.status === TripStatus.CANCELED;
   const closed = completed || cancelled;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
+  const latestFuelEvidence = trip?.fuelEvidenceReviews?.[0] ?? null;
+  // DRV-DET-08: protected evidence loads through an Authorization-header blob
+  // fetch (`useAuthedPhotoUrls` → object URL, revoked on unmount). The JWT
+  // must never ride in the query string where history/Referer/proxy logs can
+  // capture it. Called before every early return so the hook order is stable.
+  const fuelEvidencePhotoUrl = useAuthedPhotoUrls([latestFuelEvidence?.photoUrl ?? null])[0] ?? '';
 
   const latestCompletedIndex = useMemo(() => {
     let index = -1;
@@ -153,12 +166,12 @@ function DriverTripDetailContent() {
     }
   }
 
-  async function handleUploadFuelEvidence(file: File) {
+  async function handleUploadFuelEvidence(file: File, capturedAt?: Date) {
     if (!trip || cancelled) return;
     setUploadingFuelEvidence(true);
     try {
       const location = await geolocation.awaitAccurateSample();
-      const prepared = await compressImageFile(file, { timestamp: new Date() });
+      const prepared = await compressImageFile(file, { timestamp: capturedAt });
       await driverClient.uploadFuelEvidence({
         tripId: trip.id,
         file: prepared,
@@ -239,7 +252,10 @@ function DriverTripDetailContent() {
       <div className="driver-task-screen">
         <section className="driver-task-section">
           <div className="driver-task-section__head">
-            <span>{basic.tripCode ?? `Chuyến #${basic.id}`}</span>
+            {/* Business descriptor first on the ad-hoc screen: customer, route,
+                or the ad-hoc journey label — the internal TRP code never
+                renders as this title. */}
+            <span>{[basic.customerName ?? basic.routeName ?? 'Hành trình ad-hoc', basic.truckPlate ?? '', basic.departureDate ? formatDate(basic.departureDate) : ''].filter(Boolean).join(' · ')}</span>
           </div>
           <p className="driver-task-empty">
             Lô hàng này chưa có đầu việc vận chuyển (ad-hoc) — không có cột mốc,
@@ -316,8 +332,14 @@ function DriverTripDetailContent() {
   // (/my-trips/:id/pod) — this page only links there. The footer still
   // surfaces the two mandatory-photo gaps so the driver knows what is missing
   // before tapping through.
-  const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
-  const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
+  const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
+
+  // Card 20260926_28 item 10: live completion state for the sticky bar (and
+  // the top progress strip) — missing = the POD-gate files still absent.
+  const podHave = (hasYardReceipt ? 1 : 0) + (hasSignedNote ? 1 : 0);
+  const missingDocs = 2 - podHave;
+  const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
+  const photoHave = ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].filter((type) => photoTypes.has(type as never)).length;
 
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
@@ -326,8 +348,20 @@ function DriverTripDetailContent() {
   const acceptButtonLabel = accepting ? 'Đang gửi…' : 'Nhận lệnh vận chuyển';
 
   return (
-    <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}`}>
+    <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}${!closed && !showAcceptStickyBar ? ' driver-task-screen--has-complete-bar' : ''}`}>
       <DriverTripHeader trip={trip} onBack={handleBack} />
+
+      {/* Card 20260926_30 item 16: compact progress strip at the top — the
+          driver sees what is missing without scrolling. Counts: POD docs
+          (phiếu bãi/hạ + biên bản giao nhận — the completion gate), photos
+          (cont + seal + biên bản — the container card's capture zones), and
+          saved cost entries. Incomplete groups warn, complete groups show
+          ok. */}
+      <div className="driver-task-progress" data-testid="driver-task-progress">
+        <span className={`driver-task-progress__item${podHave >= 2 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-pod">Chứng từ {podHave}/2</span>
+        <span className={`driver-task-progress__item${photoHave >= 3 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-photos">Ảnh {photoHave}/3</span>
+        <span className="driver-task-progress__item" data-testid="progress-costs">Chi phí {costEntryCount}</span>
+      </div>
 
 
 
@@ -350,6 +384,40 @@ function DriverTripDetailContent() {
       {accountingLock && <AccountingLockBanner lock={accountingLock} />}
 
       <fieldset disabled={Boolean(accountingLock)} className="driver-task-fieldset">
+
+      {/* Card 20260926_30 item 15: the completion checklist LEADS the screen —
+          it is the one thing the driver must act on, so it renders before
+          Thông tin lệnh instead of at the bottom.
+          Card 20260927_1: densified for the driver's small phone screen —
+          title + the missing-documents line only. The old 2-line instruction
+          and the two-row bullet list restated what the sticky bar already says
+          (Còn thiếu N chứng từ) and cost ~60px of the first screenful. */}
+      <footer className="driver-task-footer">
+        <div className="driver-task-footer__body">
+          <div className="driver-task-footer__summary">
+            <strong>{cancelled ? 'Chuyến đã hủy' : completed ? 'Chuyến đã hoàn thành' : 'Chứng từ giao hàng'}</strong>
+            {closed ? (
+              <p className="driver-task-footer__hint">Xem lại phiếu bãi và biên bản giao nhận đã lưu.</p>
+            ) : (!hasYardReceipt || !hasSignedNote) ? (
+              <p className="driver-task-footer__issues" role="list">
+                {!hasYardReceipt && <span role="listitem">Thiếu Phiếu bãi / phiếu hạ</span>}
+                {!hasSignedNote && <span role="listitem">Thiếu Biên bản giao nhận</span>}
+              </p>
+            ) : (
+              <p className="driver-task-footer__ready">
+                <CheckCircle2 size={14} />
+                <span>Đủ chứng từ, chờ hoàn thành chuyến.</span>
+              </p>
+            )}
+          </div>
+          {closed && (
+            <Link className="driver-task-complete" to={`/my-trips/${validFulfillmentId}/pod`} style={{ textDecoration: 'none' }}>
+              <FileCheck2 size={18} />
+              <span>Xem chứng từ giao hàng</span>
+            </Link>
+          )}
+        </div>
+      </footer>
 
       <DriverTaskInfoSections trip={trip}>
 
@@ -376,7 +444,12 @@ function DriverTripDetailContent() {
             )}
           </div>
         ) : (
-          <p className="driver-task-empty">Không có tác vụ.</p>
+          <EmptyState
+            variant="compact"
+            context="driver-tasks"
+            title="Không có tác vụ"
+            description="Chưa có việc nào được giao cho chuyến này."
+          />
         )}
         <div className="driver-task-section__head">
           <span>Ghi chú</span>
@@ -454,15 +527,20 @@ function DriverTripDetailContent() {
                 <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
               </button>}
             </div>
-
-
-
+            {!latestFuelEvidence && !cancelled && (
+              <EmptyState
+                variant="compact"
+                context="driver-fuel"
+                title="Chưa có ảnh nhiên liệu"
+                description="Chụp màn hình bơm để làm bằng chứng nhiên liệu."
+              />
+            )}
             {latestFuelEvidence && (
               <div className="driver-task-fuel-details">
                 <div className="driver-task-fuel-grid">
-                  <img
-                    src={getAuthenticatedPhotoUrl(latestFuelEvidence.photoUrl)}
-                    alt={`Ảnh nhiên liệu ${trip.tripCode ?? trip.id}`}
+                  <PhotoImage
+                    src={fuelEvidencePhotoUrl}
+                    alt="Ảnh nhiên liệu"
                     className="driver-task-fuel-img"
                   />
                   <div className="driver-task-fuel-facts">
@@ -506,51 +584,13 @@ function DriverTripDetailContent() {
       <ShipmentCostEntryForm key={tripId} tripId={tripId}
         totalRoadAllowance={trip.totalRoadAllowance}
         costSubmissionNote={trip.costSubmissionNote}
-        readOnly={cancelled || Boolean(accountingLock)} />
+        readOnly={cancelled || Boolean(accountingLock)}
+        onEntriesCountChange={setCostEntryCount} />
 
-      <footer className="driver-task-footer">
-        <div className="driver-task-footer__body">
-          <div className="driver-task-footer__summary">
-            <strong>{cancelled ? 'Chuyến đã hủy' : completed ? 'Chuyến đã hoàn thành' : 'Chứng từ giao hàng'}</strong>
-            <p>{closed ? 'Xem lại phiếu bãi và biên bản giao nhận đã lưu.' : 'Thêm phiếu bãi / phiếu hạ và biên bản giao nhận, rồi hoàn thành chuyến.'}</p>
-            {!closed && (!hasYardReceipt || !hasSignedNote) && (
-              <ul className="driver-task-footer__issues">
-                {!hasYardReceipt && <li>Thiếu Phiếu bãi / phiếu hạ</li>}
-                {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
-              </ul>
-            )}
-          </div>
-          {closed ? (
-            <Link className="driver-task-complete" to={`/my-trips/${validFulfillmentId}/pod`} style={{ textDecoration: 'none' }}>
-              <FileCheck2 size={18} />
-              <span>Xem chứng từ giao hàng</span>
-            </Link>
-          ) : trip.status === 'IN_TRANSIT' ? (
-            <button
-              type="button"
-              className="driver-task-complete"
-              onClick={() => navigate(`/my-trips/${validFulfillmentId}/pod`)}
-            >
-              <FileCheck2 size={18} />
-              <span>Hoàn tất lệnh vận chuyển</span>
-            </button>
-          ) : (
-            <button type="button" className="driver-task-complete" disabled>
-              <FileCheck2 size={18} />
-              <span>{completeCtaLabel(trip.status)}</span>
-            </button>
-          )}
-          {podReady && trip.status === 'IN_TRANSIT' && (
-            <div className="driver-task-footer__ready">
-              <CheckCircle2 size={16} />
-              <span>Đủ điều kiện hoàn thành chuyến.</span>
-            </div>
-          )}
-        </div>
-      </footer>
+      <DriverInvoiceSection trip={trip} />
 
       {showAcceptStickyBar && (
-        <div className="driver-task-accept-sticky" data-testid="accept-sticky-bar">
+        <div ref={actionBarRef} className="driver-task-accept-sticky" data-testid="accept-sticky-bar">
           <div className="driver-task-accept-sticky__inner">
             <button
               type="button"
@@ -566,6 +606,32 @@ function DriverTripDetailContent() {
       )}
 
       {/* KP-087: blocking-trip reference when acceptance is rejected */}
+      {/* Card 20260926_28 item 10: the completion action lives in a sticky
+          bar above the tab nav with LIVE state — "Còn thiếu N chứng từ" —
+          instead of a gray disabled card at the end of the scroll. Hidden
+          while the accept bar is up so the two never stack. */}
+      {!closed && !showAcceptStickyBar && (
+        <div ref={actionBarRef} className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
+          <div className="driver-task-complete-sticky__inner">
+            <span className="driver-task-complete-sticky__status" data-testid="complete-sticky-status">
+              {missingDocs > 0 ? `Còn thiếu ${missingDocs} chứng từ` : 'Đủ điều kiện hoàn thành'}
+            </span>
+            <button
+              type="button"
+              className="driver-task-complete-sticky__btn"
+              disabled={trip.status !== 'IN_TRANSIT'}
+              onClick={() => navigate(`/my-trips/${validFulfillmentId}/pod`)}
+            >
+              <FileCheck2 size={16} />
+              {/* DRV-DET-06: "Hoàn tất lệnh vận chuyển" — this bar navigates
+                  to the e-POD screen; the uppercase HOÀN THÀNH CHUYẾN literal
+                  lives on that screen's footer. */}
+              <span>{completeCtaLabel(trip.status)}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {blockingTripCode && (
         <div className="driver-task-section driver-task-section--banner" role="alert" data-testid="blocking-trip-banner">
           <div className="driver-task-bypass" style={{ background: 'var(--err-bg, #fef2f2)', color: 'var(--err, #dc2626)' }}>
@@ -586,9 +652,9 @@ function DriverTripDetailContent() {
 
       {fuelScanning && (
         <ContainerScanner
-          onCapture={(dataUrl) => {
+          onCapture={(dataUrl, capturedAt) => {
             setFuelScanning(false);
-            void handleUploadFuelEvidence(dataUrlToFile(dataUrl, 'fuel-pump.jpg'));
+            void handleUploadFuelEvidence(dataUrlToFile(dataUrl, 'fuel-pump.jpg'), capturedAt);
           }}
           onClose={() => setFuelScanning(false)}
         />

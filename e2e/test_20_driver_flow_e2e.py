@@ -20,6 +20,29 @@ def rows(resp):
     return resp.get("data", {}).get("items", resp.get("data", [])) if isinstance(resp.get("data"), dict) else resp.get("data", [])
 
 
+def all_rows(api, path, limit=100):
+    """Every row of a paginated catalog list, walking pages until `total`.
+
+    TC-2021's fleet preconditions (card 20260930_239): the drivers/trucks
+    catalogs ride the generic CRUD factory, which for these tables declares NO
+    ordering (no orderByField, no sortable whitelist) — pages are heap order,
+    so a fixed page-1 scan silently depends on whatever rows other suites'
+    runs left behind (the shared dev DB carries 200+ residual 'cardN/CF/ZS'
+    driver rows at any moment, and they recur with every suite run). Walking
+    bounded by `total` makes the lookup deterministic at any row count without
+    touching product code or purging a shared database other lanes are using.
+    """
+    items, page, sep = [], 1, "&" if "?" in path else "?"
+    while True:
+        data = api.get(f"{path}{sep}page={page}&limit={limit}").get("data", {})
+        batch = data.get("items", []) if isinstance(data, dict) else data
+        items.extend(batch)
+        total = data.get("total", len(items)) if isinstance(data, dict) else len(items)
+        if not batch or len(items) >= total:
+            return items
+        page += 1
+
+
 def request_json(api, method, path, body=None, headers=None):
     if method == "POST":
         result = api.post(path, body, headers=headers)
@@ -34,8 +57,8 @@ def request_json(api, method, path, body=None, headers=None):
     return result.get("status", 0), result.get("data", result)
 
 
-def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
-    """CUS creates a fixture → Dispatcher issues directly → Driver accepts that exact trip."""
+def create_driver_flow_fixture(ctx: SilverseaTestContext, results: TestResults):
+    """Create one native CUS/direct-dispatch fixture shared by both driver suites."""
 
     # ════════════════════════════════════════════════════════════════
     #  Phase 0: Gather master data
@@ -47,11 +70,21 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
     admin_api = ApiClient()
     admin_api.login(DEMO_ACCOUNTS['admin']["identifier"], DEMO_ACCOUNTS['admin']["password"])
 
-    # Get CUS user's customer scope
-    users_resp = admin_api.get("/api/auth/users")
-    cus_user = next((u for u in rows(users_resp) if u.get("username") == "cus"), None)
+    # Get CUS user's customer scope.
+    #
+    # Do NOT scan /api/auth/users for a username: that endpoint is paginated and
+    # caps at 500 rows, and its ordering is not by id (page 1 came back as ids
+    # 1, 2, 3, 6217, 5, 6). With ~900 users on a dev DB, the account this suite
+    # needs is routinely absent from page 1 — that is what made TC-2000 fail
+    # while the same credentials logged in fine. Ask the login instead: it
+    # returns the user record directly and needs no list scan.
+    cus_account = DEMO_ACCOUNTS['clerk']
+    cus_api = ApiClient()
+    cus_login = cus_api.login(cus_account["identifier"], cus_account["password"])
+    cus_user = cus_login.get("user") if isinstance(cus_login, dict) else None
     if not cus_user:
-        results.fail("TC-2000", "CUS user exists", str(users_resp))
+        results.fail("TC-2000", f"CUS login as {cus_account['identifier']!r} failed",
+                      str(cus_login)[:400])
         return
     customer_ids = list(cus_user.get("customerIds") or [])
     if not customer_ids:
@@ -66,10 +99,13 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
     sites = rows(admin_api.get(f"/api/shipments/operational-sites?customerId={customer_id}"))
     container_types = rows(admin_api.get("/api/container-types?page=1&pageSize=25"))
     ports = rows(admin_api.get("/api/ports?page=1&pageSize=25"))
-    # Also get trucks and drivers via admin API (dispatcher may not have fleet access)
-    trucks_list = rows(admin_api.get("/api/trucks?limit=50"))
-    drivers_list_api = rows(admin_api.get("/api/drivers?limit=50"))
-    trailers_list = rows(admin_api.get("/api/trailers?limit=50"))
+    # Also get trucks and drivers via admin API (dispatcher may not have fleet
+    # access). Paginated walks, not page-1 scans (card 20260930_239): these
+    # catalogs have no stable ordering, so the fleet preconditions must not
+    # depend on which rows happen to land on page 1.
+    trucks_list = all_rows(admin_api, "/api/trucks")
+    drivers_list_api = all_rows(admin_api, "/api/drivers")
+    trailers_list = all_rows(admin_api, "/api/trailers")
 
     if not routes or not cargo_types or not sites:
         results.fail("TC-2000", "Master data loaded",
@@ -126,6 +162,17 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
                 "containerTypeId": cont_type["id"],
                 "containerNumber": "MSCU6639870",
                 "shippingLineName": "Hãng tàu E2E",
+                # Card 20260922_58 ruling 4c: a weightless container lot 409s
+                # at dispatch ("Thiếu trọng tải") — pricing freezes only with a
+                # weight, and a silently unpriced dispatch is what the ruling
+                # forbids. The fixture carries one so TC-2023 exercises the
+                # assignment flow, not the deliberate missing-weight stop.
+                # 17,500 kg also fits BOTH trailer types (20FT caps at 18,000,
+                # 40FT at 30,000 per TRAILER_CAPACITY_KG), so the deterministic
+                # id-ASC catalog order (card 20260930_242) can surface either
+                # type first without the assignment 409ing on capacity — the
+                # old 18,500 only fit the 40FT pick heap order happened to give.
+                "cargoWeightKg": 17500,
                 "routeId": routes[0]["id"],
                 "pickupPortId": ports[0]["id"],
                 "dropoffPortId": ports[-1]["id"],
@@ -181,8 +228,37 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         results.fail("TC-2021", "Trucks and drivers available", f"trucks={len(trucks_list)} drivers={len(drivers_list_api)}")
         return
 
-    driver_user = next((u for u in rows(users_resp)
-                        if u.get("username") == DEMO_ACCOUNTS["driver"]["identifier"]), None)
+    # Same reasoning as the CUS lookup above: the users list is paginated and
+    # capped, so resolve the driver's own id from its login response instead of
+    # scanning /api/auth/users for a username.
+    #
+    # A user row can authenticate while its `drivers` row is not ACTIVE — a
+    # DB rebuild preserves user rows but clears discarded links. So walk the
+    # roster's DRIVER candidates and take the first that both authenticates AND
+    # owns an active driver record; otherwise this suite would fail on a data
+    # precondition and say nothing about the flow.
+    driver_candidates = [DEMO_ACCOUNTS["driver"]["identifier"]] + [
+        n for n in role_candidates().get("DRIVER", [])
+        if n != DEMO_ACCOUNTS["driver"]["identifier"]
+    ]
+    driver_user = None
+    driver_login_error = None
+    active_drivers = [d for d in drivers_list_api if d.get("status") == "ACTIVE"]
+    for candidate in driver_candidates:
+        probe = ApiClient()
+        login = probe.login(candidate, DEMO_ACCOUNTS["driver"]["password"])
+        user = login.get("user") if isinstance(login, dict) else None
+        if not user:
+            driver_login_error = f"{candidate}: {str(login)[:120]}"
+            continue
+        if any(d.get("userId") == user["id"] for d in active_drivers):
+            driver_user = user
+            DEMO_ACCOUNTS["driver"]["identifier"] = candidate
+            break
+    if not driver_user:
+        results.fail("TC-2021", "No DRIVER account owns an active driver record",
+                     f"tried {len(driver_candidates)} candidate(s); last error: {driver_login_error}")
+        return
     own_driver = next((d for d in drivers_list_api
                        if driver_user and d.get("userId") == driver_user["id"]
                        and d.get("status") == "ACTIVE"), None)
@@ -247,6 +323,37 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
     assert trip.get("driverId") == driver_id, "Dispatch assigned a different driver"
     results.pass_("TC-2023", "Shipment dispatched", f"trip=#{trip.get('id', '?')} truck={truck_id} driver={driver_id}")
 
+    return {
+        "admin_api": admin_api, "shipment_id": shipment_id, "trip": trip,
+        "fulfillment_id": fulfillment_id, "booking_prefix": BOOKING_PREFIX,
+    }
+
+
+def cleanup_driver_flow_fixture(fixture, results):
+    admin_api = fixture["admin_api"]
+    shipment_id = fixture["shipment_id"]
+    trip = fixture["trip"]
+    current = admin_api.get(f"/api/trips/{trip['id']}")
+    current_trip = current.get("data", {})
+    if current.get("status") != 200 or current_trip.get("shipmentId") != shipment_id:
+        results.fail("TC-2098", "Fixture cleanup identity", "Trip read or shipment identity mismatch")
+    elif current_trip.get("status") != "CANCELED":
+        cleanup = admin_api.post(f"/api/trips/{trip['id']}/cancel",
+                                 {"expectedVersion": current_trip["version"]},
+                                 headers={"Idempotency-Key": f"{fixture['booking_prefix']}-cleanup"})
+        if cleanup.get("status") == 200:
+            results.pass_("TC-2098", "Own fixture trip released after assertions")
+        else:
+            results.fail("TC-2098", "Own fixture cleanup", f"status={cleanup.get('status')}")
+
+
+def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
+    fixture = create_driver_flow_fixture(ctx, results)
+    if fixture is None:
+        return
+    shipment_id = fixture["shipment_id"]
+    trip = fixture["trip"]
+    fulfillment_id = fixture["fulfillment_id"]
     try:
         # Dispatcher views UI
         page = ctx.new_page()
@@ -291,14 +398,15 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         # Check bottom nav
         bottom_nav = page.get_by_role("navigation", name="Điều hướng chính")
         nav_items = bottom_nav.locator("button:visible, a:visible")
-        if bottom_nav.is_visible() and nav_items.count() == 5:
-            results.pass_("TC-2032", "Five visible bottom-navigation actions")
+        # docs/prd/ManHinhLaiXe.md specifies four primary driver tabs.
+        if bottom_nav.is_visible() and nav_items.count() == 4:
+            results.pass_("TC-2032", "Four visible bottom-navigation actions")
         else:
             results.fail("TC-2032", "Driver bottom navigation", f"visible actions={nav_items.count()}")
         ctx.screenshot(page, "TC-2032_driver_bottom_nav")
 
         # Check order cards
-        cards = page.locator(".driver-journey-card").filter(has_text=trip["tripCode"])
+        cards = page.locator(".driver-journey-card").filter(has_text=f"BL{BOOKING_PREFIX}")
         card_count = cards.count()
         if card_count == 1:
             results.pass_("TC-2033", f"Created trip #{trip['id']} visible in Lệnh mới")
@@ -317,7 +425,10 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
             tag = card.locator(".driver-journey-card__tag")
             if tag.count() > 0:
                 tag_text = tag.first.inner_text().strip()
-                results.pass_("TC-2034", f"Card tag: {tag_text}" if tag_text in ("ĐƠN", "KẸP") else f"Card tag unexpected: {tag_text}")
+                if tag_text == "ĐƠN":
+                    results.pass_("TC-2034", f"Single-trip fixture tag: {tag_text}")
+                else:
+                    results.fail("TC-2034", "Single-trip fixture tag", f"Expected ĐƠN, got {tag_text}")
             else:
                 results.fail("TC-2034", "Card tag", "Not found")
 
@@ -361,7 +472,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
             if route_text.count() > 0:
                 results.pass_("TC-2041", "Block 1: Route/Lộ trình visible")
             else:
-                results.pass_("TC-2041", "Block 1: Route section", "Different labeling")
+                results.fail("TC-2041", "Block 1: Route section", "Expected route section was not located")
 
             # Block 2: Container info
             cont_info = page.locator("text=/cont|container|số cont|seal|chì/i")
@@ -375,33 +486,39 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
             if contact.count() > 0:
                 results.pass_("TC-2043", "Block 3: Liên hệ visible")
             else:
-                results.pass_("TC-2043", "Block 3: Contact", "Different label")
+                results.fail("TC-2043", "Block 3: Contact", "Expected contact section was not located")
 
-            # Block 6: Vehicle
-            vehicle = page.locator("text=/biển số|đầu kéo|mooc|xe/i")
-            if vehicle.count() > 0:
-                results.pass_("TC-2044", "Block 6: Thông tin xe visible")
+            # Current PRD section 3 removes duplicate truck/trailer detail rows.
+            vehicle_rows = page.get_by_text("Đầu kéo", exact=True).count() + page.get_by_text("Rơ moóc", exact=True).count()
+            if vehicle_rows == 0:
+                results.pass_("TC-2044", "No duplicate truck/trailer rows in order detail")
             else:
-                results.pass_("TC-2044", "Block 6: Vehicle", "Different label")
+                results.fail("TC-2044", "Duplicate vehicle rows in order detail", f"rows={vehicle_rows}")
 
             # Block 7: Accept button
-            accept_btn = page.locator("button:has-text('Nhận lệnh vận chuyển')")
-            if accept_btn.count() > 0:
+            accept_bar = page.get_by_test_id("accept-sticky-bar")
+            accept_btn = accept_bar.get_by_role("button", name="Nhận lệnh vận chuyển", exact=True)
+            if accept_btn.count() == 1 and accept_btn.is_visible():
                 results.pass_("TC-2045", "Block 7: 'Nhận lệnh vận chuyển' sticky button present")
                 ctx.screenshot(page, "TC-2045_accept_button")
             else:
                 all_btns = page.locator("button").all_text_contents()
                 accept_variants = [b.strip() for b in all_btns if "nhận" in b.lower() or "lệnh" in b.lower()]
                 if accept_variants:
-                    results.pass_("TC-2045", f"Accept button (variant)", str(accept_variants[:3]))
+                    results.fail("TC-2045", "Sticky acceptance control was not identified", str(accept_variants[:3]))
                 else:
                     results.fail("TC-2045", "Accept button", f"No match. Buttons: {[b.strip()[:30] for b in all_btns[:8]]}")
 
             # Accept the order
-            accept_btn = page.locator("button:has-text('Nhận lệnh vận chuyển')")
-            if accept_btn.count() > 0:
-                accept_btn.first.click()
-                page.wait_for_timeout(2500)
+            if accept_btn.count() == 1 and accept_btn.is_enabled():
+                with page.expect_response(
+                    lambda response: urlparse(response.url).path == f"/api/driver/me/fulfillments/{fulfillment_id}/progress"
+                    and response.request.method == "POST",
+                    timeout=15000,
+                ) as acceptance:
+                    accept_btn.click()
+                acceptance_status = acceptance.value.status
+                acceptance_detail = acceptance.value.text()[:500] if acceptance_status not in (200, 201) else ""
                 ctx.screenshot(page, "TC-2046_after_accept")
 
                 # Go back and check Đã nhận tab
@@ -412,16 +529,18 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
                 if running_tab.count() > 0:
                     running_tab.first.click()
                     page.wait_for_timeout(1000)
-                    running_cards = page.locator(".driver-journey-card").filter(has_text=trip["tripCode"])
-                    if running_cards.count() == 1:
+                    running_cards = page.locator(".driver-journey-card").filter(has_text=f"BL{BOOKING_PREFIX}")
+                    if acceptance_status in (200, 201) and running_cards.count() == 1:
                         results.pass_("TC-2046", f"Order moved to 'Đã nhận' ({running_cards.count()} card(s))")
                     else:
-                        results.fail("TC-2046", "Đã nhận tab", "No cards found")
+                        results.fail("TC-2046", "Exact accepted fixture in Đã nhận tab",
+                                     f"status={acceptance_status}, matchingCards={running_cards.count()}, response={acceptance_detail}")
                     ctx.screenshot(page, "TC-2046_running_tab")
                 else:
                     results.fail("TC-2046", "Đã nhận tab", "Tab not found")
             else:
-                results.fail("TC-2046", "Accept order", "Button not found")
+                detail = accept_bar.inner_text() if accept_bar.count() else "Sticky acceptance control not found"
+                results.fail("TC-2046", "Accept order unavailable for fixture", detail)
         else:
             results.skip("TC-2040-TC-2046", "Detail + Accept flow", "No order cards")
 
@@ -435,7 +554,10 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         # Mobile: no overflow
         page.goto(f"{BASE_URL}/my-trips")
         page.wait_for_load_state("networkidle")
-        page.wait_for_timeout(1000)
+        # Reload defaults to Lệnh mới; the accepted fixture now belongs to Đã nhận.
+        page.locator("button:has-text('Đã nhận')").click()
+        typography_card = page.locator(".driver-journey-card").filter(has_text=f"BL{BOOKING_PREFIX}")
+        typography_card.wait_for(state="visible", timeout=15000)
         overflow = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
         if overflow:
             results.pass_("TC-2050", "No horizontal overflow (mobile 390px)")
@@ -444,9 +566,9 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
 
         ctx.screenshot(page, "TC-2050_driver_mobile_layout")
         # Approved compact scale: body/data/controls12px, captions11px.
-        typography = page.evaluate("""() => ({
+        typography = typography_card.evaluate("""card => ({
             body: parseFloat(getComputedStyle(document.body).fontSize),
-            useful: [...document.querySelectorAll('.driver-journey-card__route, .driver-journey-card__footer')]
+            useful: [...card.querySelectorAll('.driver-journey-card__route, .driver-journey-card__footer')]
                 .filter(el => el.getBoundingClientRect().height > 0)
                 .map(el => parseFloat(getComputedStyle(el).fontSize))
         })""")
@@ -499,18 +621,7 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         results.pass_("TC-2099", f"Submission, dispatch, and acceptance checks reached for shipment #{shipment_id}", f"run={RUN_ID}")
 
     finally:
-        current = admin_api.get(f"/api/trips/{trip['id']}")
-        current_trip = current.get("data", {})
-        if current.get("status") != 200 or current_trip.get("shipmentId") != shipment_id:
-            results.fail("TC-2098", "Fixture cleanup identity", "Trip read or shipment identity mismatch")
-        elif current_trip.get("status") != "CANCELED":
-            cleanup = admin_api.post(f"/api/trips/{trip['id']}/cancel",
-                                     {"expectedVersion": current_trip["version"]},
-                                     headers={"Idempotency-Key": f"{BOOKING_PREFIX}-cleanup"})
-            if cleanup.get("status") == 200:
-                results.pass_("TC-2098", "Own fixture trip released after assertions")
-            else:
-                results.fail("TC-2098", "Own fixture cleanup", f"status={cleanup.get('status')}")
+        cleanup_driver_flow_fixture(fixture, results)
 
 
 if __name__ == "__main__":

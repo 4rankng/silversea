@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { TIRE_DISPOSAL_REASONS } from "@tingting/shared";
 import type { Tire } from "@tingting/shared";
@@ -6,6 +6,7 @@ import type { Supplier } from "@tingting/shared";
 import { formatErrorMessage } from "../../lib/api";
 import { DateInput } from "../../design-system/forms/DateInput";
 import { UuiSelectField } from "../../design-system/forms/UuiSelectField";
+import { Modal } from "../../design-system/Modal";
 import { draftFromTire, patchFromDraft, positionPayloadFromLabel, type TireEditDraft, type TirePatch } from "../../features/tires/tireUtils";
 import "../../pages/TruckTiresPage.css";
 
@@ -38,31 +39,20 @@ export function TireEditDialog({
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
-  // ESC closes the dialog (mirrors Modal/ConfirmDialog). useBackShortcut yields
-  // while this role="dialog" is open (overlayState DOM fallback), so this
-  // listener owns ESC without fighting the page-level back shortcut.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") oncancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [oncancel]);
-
   const save = async () => {
     if (!draft.serial.trim()) return;
     await onsave(patchFromDraft(draft, suppliers));
   };
 
   return (
-    <div className="ttp-dialog-overlay" role="presentation" onClick={oncancel}>
-      <div className="ttp-dialog" role="dialog" aria-modal="true" aria-labelledby="ttp-edit-title" onClick={(e) => e.stopPropagation()}>
+    <Modal chrome="bare" isOpen title="Sửa thông tin lốp" ariaLabel="Sửa thông tin lốp" backdropDismiss={!saving} onClose={() => { if (!saving) oncancel(); }}>
+      <div className="ttp-dialog">
         <div className="ttp-dialog-head">
           <div>
             <h2 id="ttp-edit-title">Sửa thông tin lốp</h2>
             <p>{tire.serial}</p>
           </div>
-          <button type="button" className="ttp-dialog-close" onClick={oncancel} aria-label="Đóng">
+          <button type="button" className="ttp-dialog-close" onClick={oncancel} disabled={saving} aria-label="Đóng">
             <X size={18} />
           </button>
         </div>
@@ -103,7 +93,7 @@ export function TireEditDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -117,17 +107,6 @@ export function UnmountTireDialog({ tire, saving, oncancel, onremove, ondispose 
   const reasonMissing = choice === "dispose" && (reason === "Khác" ? customReason.trim().length === 0 : false);
   const canConfirm = !reasonMissing;
 
-  // ESC closes the dialog (mirrors the shared Modal/ConfirmDialog). useBackShortcut
-  // already yields while this role="dialog" is open (overlayState DOM fallback), so
-  // this listener owns the key without fighting the page-level back shortcut.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") oncancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [oncancel]);
-
   const confirm = async () => {
     if (choice === "spare") {
       await onremove(tire.id);
@@ -138,8 +117,8 @@ export function UnmountTireDialog({ tire, saving, oncancel, onremove, ondispose 
   };
 
   return (
-    <div className="ttp-dialog-overlay" role="presentation" onClick={oncancel}>
-      <div className="ttp-dialog ttp-dialog--unmount" role="dialog" aria-modal="true" aria-labelledby="ttp-unmount-title" onClick={(e) => e.stopPropagation()}>
+    <Modal chrome="bare" isOpen title="Tháo lốp ra khỏi xe" ariaLabel="Tháo lốp ra khỏi xe" backdropDismiss={!saving} onClose={() => { if (!saving) oncancel(); }}>
+      <div className="ttp-dialog ttp-dialog--unmount">
         <div className="ttp-dialog-head">
           <div>
             <h2 id="ttp-unmount-title">Tháo lốp ra khỏi xe</h2>
@@ -148,7 +127,7 @@ export function UnmountTireDialog({ tire, saving, oncancel, onremove, ondispose 
               {tire.position ? ` · ${tire.position}` : ""}
             </p>
           </div>
-          <button type="button" className="ttp-dialog-close" onClick={oncancel} aria-label="Đóng">
+          <button type="button" className="ttp-dialog-close" onClick={oncancel} disabled={saving} aria-label="Đóng">
             <X size={18} />
           </button>
         </div>
@@ -201,7 +180,7 @@ export function UnmountTireDialog({ tire, saving, oncancel, onremove, ondispose 
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -231,14 +210,6 @@ export function InstallTireDialog({
   const [positionText, setPositionText] = useState(tire.position ?? "");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") oncancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [oncancel]);
-
   const occupied = occupiedPositionsOn(tires, isTruck ? "truck" : "trailer", vehicleId);
   const chosenRaw = positionPayloadFromLabel(positionText).position;
   const positionTaken = !!chosenRaw && occupied.has(chosenRaw);
@@ -257,8 +228,8 @@ export function InstallTireDialog({
   };
 
   return (
-    <div className="ttp-dialog-overlay" role="presentation" onClick={oncancel}>
-      <div className="ttp-dialog ttp-dialog--unmount" role="dialog" aria-modal="true" aria-labelledby="ttp-install-title" onClick={(e) => e.stopPropagation()}>
+    <Modal chrome="bare" isOpen title="Lắp lốp lên xe" ariaLabel="Lắp lốp lên xe" backdropDismiss={!saving} onClose={() => { if (!saving) oncancel(); }}>
+      <div className="ttp-dialog ttp-dialog--unmount">
         <div className="ttp-dialog-head">
           <div>
             <h2 id="ttp-install-title">Lắp lốp lên xe</h2>
@@ -266,7 +237,7 @@ export function InstallTireDialog({
               {tire.serial} · {vehicleLabel}
             </p>
           </div>
-          <button type="button" className="ttp-dialog-close" onClick={oncancel} aria-label="Đóng">
+          <button type="button" className="ttp-dialog-close" onClick={oncancel} disabled={saving} aria-label="Đóng">
             <X size={18} />
           </button>
         </div>
@@ -296,7 +267,7 @@ export function InstallTireDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -326,14 +297,6 @@ export function TransferTireDialog({
   const [positionText, setPositionText] = useState(tire.position ?? "");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") oncancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [oncancel]);
-
   const target = vehicles.find((v) => `${v.kind}:${v.id}` === targetKey) ?? null;
   const chosenRaw = positionPayloadFromLabel(positionText).position;
   const positionTaken = target ? !!chosenRaw && occupiedPositionsOn(tires, target.kind, target.id).has(chosenRaw) : false;
@@ -352,8 +315,8 @@ export function TransferTireDialog({
   };
 
   return (
-    <div className="ttp-dialog-overlay" role="presentation" onClick={oncancel}>
-      <div className="ttp-dialog ttp-dialog--unmount" role="dialog" aria-modal="true" aria-labelledby="ttp-transfer-title" onClick={(e) => e.stopPropagation()}>
+    <Modal chrome="bare" isOpen title="Chuyển lốp sang xe khác" ariaLabel="Chuyển lốp sang xe khác" backdropDismiss={!saving} onClose={() => { if (!saving) oncancel(); }}>
+      <div className="ttp-dialog ttp-dialog--unmount">
         <div className="ttp-dialog-head">
           <div>
             <h2 id="ttp-transfer-title">Chuyển lốp sang xe khác</h2>
@@ -361,7 +324,7 @@ export function TransferTireDialog({
               {tire.serial} · đang trên {currentVehicleLabel}
             </p>
           </div>
-          <button type="button" className="ttp-dialog-close" onClick={oncancel} aria-label="Đóng">
+          <button type="button" className="ttp-dialog-close" onClick={oncancel} disabled={saving} aria-label="Đóng">
             <X size={18} />
           </button>
         </div>
@@ -419,7 +382,7 @@ export function TransferTireDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

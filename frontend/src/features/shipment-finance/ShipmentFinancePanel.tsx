@@ -4,20 +4,21 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Link } from 'react-router-dom';
 import { Role, type ContainerDepositRecord } from '@tingting/shared';
 import { shipmentFinanceClient } from '../../api/shipmentFinanceClient';
-import { DateField, TextField } from '../../design-system';
+import { DateRangeFields, FilterBar, Tabs } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { FilterDropdown } from '../../components/FilterDropdown';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/shared/Toast';
-import { formatDate } from '../../lib/format';
+import { formatDate, formatCurrency } from '../../lib/format';
 import { ShipmentFinanceForm, type FinanceEditor } from './ShipmentFinanceForm';
 import './ShipmentFinancePanel.css';
 
-const money = (value: string) => `${Number(value).toLocaleString('vi-VN')} đ`;
+const money = (value: string) => formatCurrency(value);
 const statusLabels: Record<ContainerDepositRecord['status'], string> = {
   WAITING_DOCUMENTS: 'Chưa nộp chứng từ', WAITING_REFUND: 'Chờ hoàn cược', PARTIAL: 'Đã hoàn một phần', REFUNDED: 'Đã hoàn đủ',
 };
 
-export function ShipmentFinancePanel({ shipmentId, readOnly = false }: { shipmentId?: number; readOnly?: boolean }) {
+export function ShipmentFinancePanel({ shipmentId, readOnly = false, accountingLocked = false }: { shipmentId?: number; readOnly?: boolean; accountingLocked?: boolean }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const cache = useQueryClient();
@@ -35,8 +36,9 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false }: { shipmen
   const activeView = financial ? view : 'invoice';
   const count = activeView === 'invoice' ? query.data?.invoiceTotal ?? 0 : query.data?.depositTotal ?? 0;
   const pageSize = query.data?.pageSize ?? 25;
-  const editable = financial && query.data?.canWrite && !readOnly;
-  const openEditor = (next: FinanceEditor) => { if (editable) setEditor(next); };
+  const canFollowUp = financial && query.data?.canWrite && !readOnly;
+  const editable = canFollowUp && !accountingLocked;
+  const openEditor = (next: FinanceEditor) => { if (editable || (canFollowUp && next.kind === 'deposit' && next.record)) setEditor(next); };
 
   return <section className="shipment-finance" aria-label="Hóa đơn và cược container">
     <header className="shipment-finance__header">
@@ -45,20 +47,54 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false }: { shipmen
         {activeView === 'invoice' ? 'Thêm hóa đơn' : 'Thêm cược'}
       </button>}
     </header>
-    {financial && <div className="shipment-finance__tabs" role="group" aria-label="Loại hồ sơ">
-      <button type="button" aria-pressed={activeView === 'invoice'} onClick={() => { setView('invoice'); setPage(1); }}>Hóa đơn kết hợp</button>
-      <button type="button" aria-pressed={activeView === 'deposit'} onClick={() => { setView('deposit'); setPage(1); }}>Cược container</button>
-    </div>}
-    <form className="shipment-finance__filters" onSubmit={(event) => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
-      <TextField controlSize="sm" className="shipment-finance__search" label="Tìm hồ sơ" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder={activeView === 'invoice' ? 'Số hóa đơn, Bill, khách hàng' : 'Bill, hãng tàu, khách hàng'} />
-      <DateField controlSize="sm" label={activeView === 'invoice' ? 'Ngày hóa đơn từ' : 'Ngày cược từ'} value={from} onChange={(value) => { setFrom(value); setPage(1); }} />
-      <DateField controlSize="sm" label="Đến ngày" value={to} onChange={(value) => { setTo(value); setPage(1); }} />
-      {activeView === 'deposit' && <UuiSelectField label="Trạng thái" value={depositState} onChange={(event) => { setDepositState(event.target.value); setPage(1); }}
-        options={[{ value: '', label: 'Tất cả' }, { value: 'OPEN', label: 'Chưa hoàn đủ' }, { value: 'REFUNDED', label: 'Đã hoàn đủ' }]} />}
-      <button type="submit" className="btn btn--secondary btn--sm">Tìm</button>
-      {(search || from || to || depositState) && <button type="button" className="btn btn--ghost btn--sm" onClick={() => {
-        setSearch(''); setSearchDraft(''); setFrom(''); setTo(''); setDepositState(''); setPage(1);
-      }}>Xóa lọc</button>}
+    {financial && <Tabs
+      className="shipment-finance__tabs"
+      variant="boxed"
+      ariaLabel="Loại hồ sơ"
+      value={activeView}
+      onChange={(id) => { setView(id as 'invoice' | 'deposit'); setPage(1); }}
+      tabs={[
+        { id: 'invoice', label: 'Hóa đơn kết hợp' },
+        { id: 'deposit', label: 'Cược container' },
+      ]}
+    />}
+    <form onSubmit={(event) => { event.preventDefault(); setSearch(searchDraft.trim()); setPage(1); }}>
+      <FilterBar
+        search={{
+          value: searchDraft,
+          onChange: setSearchDraft,
+          placeholder: activeView === 'invoice' ? 'Số hóa đơn, Bill, khách hàng' : 'Bill, hãng tàu, khách hàng',
+          ariaLabel: 'Tìm hồ sơ',
+        }}
+        actions={<>
+          <button type="submit" className="btn btn--secondary btn--sm">Tìm</button>
+          {(search || from || to || depositState) && <button type="button" className="btn btn--ghost btn--sm" onClick={() => {
+            setSearch(''); setSearchDraft(''); setFrom(''); setTo(''); setDepositState(''); setPage(1);
+          }}>Xóa lọc</button>}
+        </>}
+      >
+        <DateRangeFields
+          size="sm"
+          ariaLabel="Khoảng ngày hồ sơ"
+          fromLabel={activeView === 'invoice' ? 'Ngày hóa đơn từ' : 'Ngày cược từ'}
+          toLabel="Đến ngày"
+          from={from}
+          to={to}
+          onChange={({ from: nextFrom, to: nextTo }) => { setFrom(nextFrom); setTo(nextTo); setPage(1); }}
+        />
+        {/* The deposit status is the one secondary criterion here: it rides the
+            bar inline while the strip fits two rows and folds into `Bộ lọc`
+            when it does not (the invoice view hosts no deposit criterion). */}
+        {activeView === 'deposit' && <FilterDropdown
+          count={depositState ? 1 : 0}
+          ariaLabel="Bộ lọc"
+          dialogLabel="Bộ lọc cược container"
+          onReset={() => { setDepositState(''); setPage(1); }}
+        >
+          <UuiSelectField label="Trạng thái" value={depositState} onChange={(event) => { setDepositState(event.target.value); setPage(1); }}
+            options={[{ value: '', label: 'Tất cả' }, { value: 'OPEN', label: 'Chưa hoàn đủ' }, { value: 'REFUNDED', label: 'Đã hoàn đủ' }]} />
+        </FilterDropdown>}
+      </FilterBar>
     </form>
     {query.isError ? <p role="alert">Không tải được hồ sơ. <button type="button" className="btn btn--ghost" onClick={() => void query.refetch()}>Thử lại</button></p>
       : query.isPending ? <p role="status">Đang tải hồ sơ…</p>
@@ -79,7 +115,7 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false }: { shipmen
                 <dl><div><dt>Tiền cược</dt><dd>{money(record.amount)}</dd></div><div><dt>Đã hoàn</dt><dd>{money(record.recoveredAmount)}</dd></div><div><dt>Còn lại</dt><dd>{money(record.outstandingAmount)}</dd></div></dl>
                 <dl><div><dt>Ngày cược</dt><dd>{formatDate(record.depositDate)}</dd></div><div><dt>Nộp chứng từ</dt><dd>{formatDate(record.documentsSubmittedDate)}</dd></div><div><dt>Tiền về</dt><dd>{formatDate(record.refundReceivedDate)}</dd></div></dl>
                 {record.note && <p>{record.note}</p>}
-                {editable && <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEditor({ kind: 'deposit', record })}>Cập nhật cược {record.billNumber}</button>}
+                {canFollowUp && <button type="button" className="btn btn--ghost btn--sm" onClick={() => openEditor({ kind: 'deposit', record })}>Cập nhật cược {record.billNumber}</button>}
               </article>)}
             </div>}
           {count > pageSize && <nav className="shipment-finance__pagination" aria-label="Trang hồ sơ">
@@ -88,7 +124,7 @@ export function ShipmentFinancePanel({ shipmentId, readOnly = false }: { shipmen
             <button type="button" className="btn btn--ghost btn--sm" disabled={page * pageSize >= count || query.isFetching} onClick={() => setPage(page + 1)}>Sau</button>
           </nav>}
         </div>}
-    {editor && <ShipmentFinanceForm editor={editor} shipmentId={shipmentId} onClose={() => setEditor(null)} onSaved={() => {
+    {editor && <ShipmentFinanceForm principalLocked={accountingLocked} editor={editor} shipmentId={shipmentId} onClose={() => setEditor(null)} onSaved={() => {
       setEditor(null); toast({ message: 'Đã lưu hồ sơ', kind: 'success' });
       void cache.invalidateQueries({ queryKey: qk.shipmentFinance.all });
       void cache.invalidateQueries({ queryKey: qk.expenseAccounting.all });

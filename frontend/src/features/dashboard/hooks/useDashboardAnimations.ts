@@ -6,6 +6,7 @@ import {
   utils,
 } from 'animejs';
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion';
+import { formatMoney } from '../../../lib/format';
 
 /**
  * Orchestrates dashboard entrance animations via anime.js v4.
@@ -192,7 +193,7 @@ export function useDashboardAnimations(ready: boolean) {
           delay: 400 + i * 100,
           ease: 'outExpo',
           onUpdate: () => {
-            el.textContent = Math.round(obj.val).toLocaleString('vi-VN');
+            el.textContent = formatMoney(obj.val);
           },
         });
       });

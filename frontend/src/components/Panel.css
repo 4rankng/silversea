@@ -53,6 +53,15 @@
 }
 .panel__body--flush { padding: 0 !important; }
 
+/* A direct flush table can keep overflow visible for sticky headers. Its
+   first row respects the shared shell's corners without clipping overlays. */
+.panel:not(:has(> .panel__head)) > .panel__body--flush > table > thead > tr:first-child > :first-child {
+  border-top-left-radius: calc(var(--r) - 1px);
+}
+.panel:not(:has(> .panel__head)) > .panel__body--flush > table > thead > tr:first-child > :last-child {
+  border-top-right-radius: calc(var(--r) - 1px);
+}
+
 /* Legacy card-shell — match panel styling for visual consistency */
 .card-shell {
   background: var(--surface);

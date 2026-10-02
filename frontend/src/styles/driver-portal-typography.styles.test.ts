@@ -30,7 +30,7 @@ describe('driver, portal and fleet semantic typography', () => {
 
   it.each([
     ['pages/portal/PortalPages.css', '.portal-page h1'],
-    ['components/work-inbox/RoleWorkInbox.css', '.role-work-inbox h1'],
+    ['components/PageHeader.css', '.page-header__title-visible'],
     ['pages/DriverTripDetailPage.css', '.driver-task-header__title'],
     ['pages/TruckTiresPage.css', '.ttp-header h1'],
   ])('%s keeps its page-title role at every breakpoint', (file, selector) => {
@@ -41,5 +41,10 @@ describe('driver, portal and fleet semantic typography', () => {
       const size = body.match(/font-size:\s*([^;]+);/);
       if (size) expect(size[1]).toBe('var(--text-title-size)');
     }
+  });
+
+  it('keeps the work-inbox heading on the shared PageHeader primitive', () => {
+    expect(read('components/work-inbox/RoleWorkInbox.tsx')).toMatch(/<PageHeader\s+title=\{title\}/);
+    expect(read('components/work-inbox/RoleWorkInbox.css')).not.toMatch(/\.role-work-inbox\s+h1\s*\{/);
   });
 });

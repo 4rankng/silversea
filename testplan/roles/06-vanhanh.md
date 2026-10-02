@@ -134,39 +134,32 @@ linked to the OPS.
 
 ## Flow 3 — Yêu cầu Tạm ứng (Advance requests)
 
-**Route**: `/my-advances`
-**Component**: `frontend/src/pages/ForwarderAdvancesPage.tsx`
-**Allow**: `OPS` only.
+**Route**: `/my-advances`; **Allow**: OPS within their own data scope.
+**Canonical cases**: `flows/05-ops-quy-chi-phi.md`, `NO-APP-07..11`.
 
 ### Acceptance criteria
 
-1. **OPS-ADV-01 — List & status**
-   - **Then** the page lists every advance the OPS has
-     submitted, with: `Mã phiếu`, `Số tiền`, `Mục đích`,
-     `Ngày tạo`, `Trạng thái` (`Chờ duyệt` / `Đã duyệt` /
-     `Đã hoàn ứng` / `Đã hủy`).
+1. **OPS-ADV-01 — Request and actual funding are distinct**
+   - List reference, requested amount, purpose, date, actual amount received
+     and outstanding balance. Status reflects requested/funded/reconciled/canceled
+     business events; no approval states or approval queue.
 2. **OPS-ADV-02 — Create a new request**
-   - **When** the user clicks `Yêu cầu tạm ứng`
-   - **Then** a dialog opens: `Số tiền`, `Mục đích` (free
-     text, required), `Chuyến liên quan` (optional, dropdown
-     of OPS's active trips), `Ngày cần tiền`. On submit, a
-     new row in `Chờ duyệt` appears; the office is notified.
-3. **OPS-ADV-03 — Cancel a pending request**
-   - **When** the OPS clicks `Hủy` on a row in `Chờ duyệt`
-   - **Then** the status flips to `Đã hủy`; an audit row is
-     written. After approval, the OPS can no longer cancel
-     (must go through the settlement flow).
-4. **OPS-ADV-04 — Read-only after approval**
-   - **Then** a `Đã duyệt` advance is read-only. The OPS
-     can no longer edit or cancel; they can only view.
+   - Valid amount, required purpose and the relevant work/date are saved directly.
+     Request creation does not increase the wallet or create a cash journal.
+3. **OPS-ADV-03 — Cancel an unfunded request**
+   - An eligible unfunded request can be canceled directly by its owner, with
+     audit history. Actual paid money is corrected/refunded through the existing
+     finance actions, never removed by canceling the request.
+4. **OPS-ADV-04 — Preserve funded history**
+   - OPS can read funding, allocations, refunds and adjustments. Posted cash
+     cannot be overwritten; existing financial permissions and locks still apply.
 
 ### Test steps
 
-1. Log in as `OPS`. Open `/my-advances`.
-2. Submit a new request. Capture.
-3. Cancel the request. Capture the `Đã hủy` state.
-4. As `ACCOUNTANT`/`MANAGER`, approve a different request.
-   Switch back to `OPS`; confirm the row is read-only.
+1. As OPS, create then cancel an unfunded request; verify unchanged cash balance.
+2. Record actual funding for another request as an authorized finance user.
+3. As OPS, verify the actual amount received and its history; attempt to mutate
+   paid history and verify it is protected without an approval detour.
 
 ---
 
@@ -181,46 +174,31 @@ linked to the OPS.
 
 ### Acceptance criteria
 
-1. **OPS-STL-01 — List & status**
-   - **Then** the page lists every settlement the OPS has
-     submitted, with: `Mã phiếu`, `Tạm ứng gốc`, `Số tiền
-     thực chi`, `Chênh lệch`, `Trạng thái` (`Chờ đối soát` /
-     `Đã đối soát` / `Yêu cầu bổ sung` / `Đã hủy`).
-2. **OPS-STL-02 — Create a settlement**
-   - **Given** the OPS has an `Đã duyệt` advance
-   - **When** the user clicks `Hoàn ứng`
-   - **Then** the create page opens with the advance
-     pre-selected. The user adds line items (one per
-     expense): `Loại chi phí` (dropdown from
-     `forwarder_expense_types`), `Số tiền`, `Hóa đơn`
-     (file upload, ≤ 10 MB), `Mô tả`. The total of the
-     line items must equal the `Số tiền thực chi`; a
-     mismatch shows an inline error.
-3. **OPS-STL-03 — Submit for review**
-   - **When** the user clicks `Gửi đối soát`
-   - **Then** the settlement status flips to
-     `Chờ đối soát`; the accountant is notified.
-4. **OPS-STL-04 — Add evidence when requested**
-   - **Given** the accountant set the status to
-     `Yêu cầu bổ sung` with a note
-   - **When** the OPS uploads the missing receipt
-   - **Then** the settlement re-enters `Chờ đối soát`; the
-     note is shown in the activity log.
+1. **OPS-STL-01 — List and truthful recorded state**
+   - Show the owner's settlement code, allocated advance amount, recorded expense total, difference and actual recorded/voided state. Historical status codes remain readable but are not a live approval queue.
+2. **OPS-STL-02 — Select existing source expenses**
+   - Select eligible fully funded advances and existing recorded, unsettled expenses. Do not enter the same expense again inside the settlement builder. Advances already consumed by either settlement or canonical reconciliation are not reusable; partial allocations display the actual remaining amount where supported.
+   - Missing or failed source queries show loading/error/retry rather than claiming no eligible records; keep the note and selected valid sources while recovering. See NO-APP-08A/08B/24.
+3. **OPS-STL-03 — Record directly**
+   - Click `Ghi nhận phiếu thanh toán`. Record one valid settlement with exact source links and allocated amounts. Do not fabricate funding, refund or reimbursement; those require their actual cash commands.
+4. **OPS-STL-04 — Supplement documentary evidence**
+   - Supplement an eligible source expense's missing receipt through its current evidence action. Preserve the expense identity, recorded settlement snapshot and audit. Documentary completeness is independent of a reviewer status and never records the expense or cash twice.
 5. **OPS-STL-05 — Print view**
    - **When** the user opens `/my-settlements/:id`
    - **Then** the page is a print-friendly view (A4, no
      navigation chrome) showing the line items, totals,
      and the OPS's signature box. The print stylesheet
-     hides every sidebar / nav element.
+     hides every sidebar / nav element. Print HTML and XLSX use the current
+     role/portal's authorized GET export route; finance and OPS both read the
+     same source values. No export writes cash or changes settlement state.
 
 ### Test steps
 
 1. Log in as `OPS`. From `/my-advances`, pick an
-   `Đã duyệt` advance and click `Hoàn ứng`.
-2. Add 2 line items; upload 2 small PDFs; submit.
-3. Capture the print view (`/my-settlements/:id`).
-4. As `ACCOUNTANT`, request evidence. Switch back to
-   `OPS`, upload the missing file. Capture.
+   actually funded advance and click `Hoàn ứng`.
+2. Select 2 existing eligible recorded expenses, verify allocated advance amounts and record the settlement.
+3. Capture the print view (`/my-settlements/:id`) and compare both exports with recorded cost and allocated advance snapshots.
+4. Supplement permitted missing evidence on the existing expense and verify unchanged money/history. No request-review-resubmit loop.
 
 ---
 
@@ -259,22 +237,19 @@ common access pattern is a phone browser.
 
 ### Acceptance criteria
 
-1. **OPS-NOT-01 — Pending-action banner**
-   - **Then** when the OPS has any `Chờ duyệt` advance or
-     `Yêu cầu bổ sung` settlement, the topbar shows a
-     small badge with the count.
-2. **OPS-NOT-02 — Approve / reject events**
-   - **When** the office approves or rejects one of the
-     OPS's requests
-   - **Then** the OPS sees a toast on next page load
-     (or, if online, real-time via SSE) and the row's
-     status updates.
+1. **OPS-NOT-01 — Actionable business events**
+   - Indicators distinguish unfunded requests and missing evidence. They do not
+     describe either as pending approval or link to an approval inbox.
+2. **OPS-NOT-02 — Actual funding and reconciliation events**
+   - After finance records actual funding, payment/refund or reconciliation,
+     the affected OPS sees the actual event and updated data on refresh through
+     the existing notification mechanism. No approval/rejection event is emitted.
 
 ### Test steps
 
-1. As `OPS`, open `/my-advances`. Submit a request.
-2. As `ACCOUNTANT`, approve. Switch back to `OPS`;
-   confirm the toast and the row's new status.
+1. As OPS, create an advance request and verify no money is recorded.
+2. As an authorized finance user, record the actual advance once.
+3. Return to OPS, reload and verify the event, amount and source reference agree.
 
 ---
 
@@ -302,9 +277,8 @@ common access pattern is a phone browser.
      containers (+ "Phí chung lô" when >1); Loại phí grouped Có/Không hóa đơn;
      Số tiền positive integer VND; receipt photos optional at save time.
 4. **OPS-ORD-04 — Lưu khoản chi**
-   - **Then** the entry saves as PENDING with `paidBy = current OPS user` and appears
-     in /ops/wallet history; the wallet balance drops optimistically in the same
-     session.
+   - **Then** the entry is recorded directly after the API succeeds, with the actual payer, recorder and funding source kept separate. It appears in `/ops/wallet` history. The balance reflects actual funded advances, eligible paid expenses, refunds and adjustments once; a pending request or failed save is not cash. No approval status or automatic retry is created.
+   - **Error recovery**: failed fee-catalog loading is explicit and retryable; preserve amount/note/images while reloading. Block Save until a real active fee can be selected. See FIN-PRD-01/02 in `../2026-09-17-ui-audit-finance-ops.md`.
 5. **OPS-ORD-05 — Mobile 390×844**
    - **Then** table stays tabular, tap targets ≥ 44px, no horizontal scroll.
 6. **OPS-ORD-06 — Ghim không rò sang Ops khác (P0)**
@@ -361,28 +335,27 @@ there is no dedicated print route or `OpsSettlementPrintPage.tsx`.
 
 ### Acceptance criteria
 
-1. **OPS-WAL-01 — Bốn thẻ & công thức**
-   - **Then** SỐ DƯ HIỆN TẠI = Σ approved advances − (Σ APPROVED + Σ PENDING
-     expenses); Đã duyệt green, Chờ duyệt amber, Bị từ chối red; the balance card
-     is the dominant element.
-2. **OPS-WAL-02 — Optimistic jump**
-   - **When** the OPS saves an expense
-   - **Then** balance drops and Chờ duyệt rises instantly (before refetch) and
-     reconciles exactly after refetch.
+1. **OPS-WAL-01 — Số dư từ tiền thật và đúng nguồn chi**
+   - **Then** quỹ OPS chỉ cộng tiền ứng thực nhận, trừ chi thực tế từ chính quỹ
+     ứng và tiền thực hoàn; chi từ tiền cá nhân giữ nghĩa vụ hoàn trả riêng.
+     Đối chiếu không tự chuyển tiền. Không dùng trạng thái duyệt làm công thức.
+2. **OPS-WAL-02 — Phản hồi lưu đúng sự thật**
+   - **When** OPS lưu khoản chi
+   - **Then** thể hiện đang lưu; chỉ xác nhận đã ghi khi API thành công. Lỗi giữ
+     bản nhập và không giả thay đổi số dư. Tải lại khớp nguồn dữ liệu đã lưu.
 3. **OPS-WAL-03 — Xin tạm ứng**
    - **When** the OPS submits the advance form (amount + required reason)
-   - **Then** a PENDING row is created in the shared `advance_requests` flow
-     (visible in /my-advances and the admin approval page); on approval the
-     balance rises.
+   - **Then** lưu yêu cầu trực tiếp; không có hàng đợi duyệt. Số dư chỉ tăng
+     khi có giao dịch ứng thực tế, đúng người nhận, quỹ và tham chiếu nguồn.
 4. **OPS-WAL-04 — Nhãn nợ chứng từ**
    - **Then** any expense with amount but zero photos shows the red "Nợ chứng từ"
      tag in history.
-5. **OPS-WAL-05 — Từ chối & gửi lại**
-   - **When** ACCOUNTANT rejects an expense with a reason
-   - **Then** the amount leaves Chờ duyệt, returns to the balance, shows under Bị
-     từ chối with the reason; "Chụp lại/Gửi lại" re-enters PENDING.
+5. **OPS-WAL-05 — Bổ sung chứng từ không đảo tiền**
+   - **When** bổ sung hoặc sửa chứng từ của khoản chi đã ghi
+   - **Then** cập nhật đúng phiên bản và lịch sử, không trả tiền lại vào ví hoặc
+     ghi thêm khoản chi. Sửa khoản đã ghi sổ theo cơ chế điều chỉnh/đảo hiện hành.
 6. **OPS-WAL-06 — Tạo đề nghị thanh toán**
-   - **Then** the builder groups all my unsettled PENDING+APPROVED expenses by lot
+   - **Then** the builder groups my eligible recorded, unsettled expenses by lot
      with Có/Không hóa đơn subtotals (from `forwarderExpenseTypes.requiresInvoice`);
      confirming creates a coded phiếu and locks its member set.
 7. **OPS-WAL-07 — Export & in**
@@ -390,13 +363,13 @@ there is no dedicated print route or `OpsSettlementPrintPage.tsx`.
      browser print dialog on the phiếu modal — the `@media print` stylesheet in
      `OpsWalletPage.css` renders an A4 sheet (signature cells included) with all
      app chrome hidden.
-8. **OPS-WAL-08 — Kế toán duyệt (quy tắc hai đường)**
-   - **Then** ACCOUNTANT/ADMIN can approve/reject each Ops expense (reason required
-     on reject) and approve the phiếu once every member is APPROVED (→ đã quyết toán).
-   - **And** khoản **không ảnh biên lai** chỉ duyệt được qua dialog "Duyệt không ảnh biên lai":
-     xác nhận kiểm chứng tận tay + **ghi chú bắt buộc** — backend từ chối approve receipt-less
-     thiếu cờ `inPersonCheck` hoặc thiếu ghi chú, ghi chú được lưu `audit_logs`
-     (event `OPS_EXPENSE_APPROVE_IN_PERSON`). Khoản đủ ảnh duyệt trực tiếp, không dialog.
+8. **OPS-WAL-08 — Kế toán đối chiếu trực tiếp**
+   - **Then** vai trò có quyền đối chiếu, điều chỉnh hoặc đảo khoản chi/phiếu
+     trực tiếp; giữ quy tắc chứng từ, lý do, phiên bản, kỳ khóa và lịch sử.
+     Không có nút duyệt/từ chối, người duyệt hay điều kiện từng khoản đã duyệt.
+   - **And** khoản thiếu ảnh được chỉ rõ chứng từ còn thiếu; chỉ áp dụng yêu cầu
+     chứng từ/giải trình hiện hành, không dựng thêm bước người khác phê duyệt.
+     Đối chiếu và bổ sung ảnh không tạo tiền hoặc nhân đôi chi phí.
 9. **OPS-WAL-09 — Micro-ledger: nhiều Ops chi trên cùng 1 lô vẫn gom về 1 mã lô (P0)**
    - **Given** Ops A chi khoản Nâng cont và Ops B chi khoản Bồi dưỡng, **cùng lô X**
    - **Then** mỗi khoản giữ đúng `paidBy` riêng, nhưng màn Kế toán hiển thị cả hai
@@ -405,9 +378,9 @@ there is no dedicated print route or `OpsSettlementPrintPage.tsx`.
     - **When** Ops nhập + chụp biên lai trên điện thoại tại cảng, rồi mở trên máy tính
     - **Then** khoản chi hiện đủ ở cả hai thiết bị (và ngược lại). Trên mobile ô upload
       mở được camera (`accept="image/*"`).
-11. **OPS-WAL-11 — Số dư chưa đổi khi tạm ứng còn Pending**
-    - **Then** gửi yêu cầu tạm ứng **chưa được duyệt** không làm `[SỐ DƯ HIỆN TẠI]` tăng;
-      chỉ khi Kế toán `Approved` số dư mới tăng.
+11. **OPS-WAL-11 — Yêu cầu ứng chưa phải tiền thực nhận**
+    - **Then** gửi yêu cầu ứng không làm số dư tăng; chỉ giao dịch ứng thực tế
+      mới tăng tiền theo số đã nhận. Đối chiếu không thay thế phiếu chi tiền.
 12. **OPS-WAL-12 — Phân loại 2 rổ đúng danh mục**
     - **Then** rổ **Có hóa đơn** gồm Nâng/Hạ, Phí cảng, Lưu kho, Cơ sở hạ tầng;
       rổ **Không hóa đơn** gồm Phí làm hàng hải quan, Bồi dưỡng, Tiền luật, Cân xe —
@@ -425,7 +398,7 @@ there is no dedicated print route or `OpsSettlementPrintPage.tsx`.
 | Read `/my-orders`                       | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
 | Read `/my-forwarder-trips/:id`          | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
 | Submit advance request                  | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
-| Cancel pending advance                  | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
+| Cancel unfunded advance                  | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
 | Submit settlement                       | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
 | Read `/my-settlements/:id` (print)      | ✅  | view  | view    | view       | ❌  | view       | ❌     | ❌       |
 | Read `/ops/orders` (lots + expense)     | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
@@ -433,7 +406,7 @@ there is no dedicated print route or `OpsSettlementPrintPage.tsx`.
 | Read `/ops/wallet` (+ print)            | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
 | Pin / unpin a lot                       | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
 | Create Ops lot expense (+ photos)       | ✅  | ❌    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
-| Approve/reject Ops expense or phiếu     | ❌  | ✅    | ✅      | ❌         | ❌  | ✅         | ❌     | ❌       |
+| Reconcile/correct Ops expense or phiếu     | ❌  | ✅    | ✅      | ❌         | ❌  | ✅         | ❌     | ❌       |
 | Set "Ops phụ trách" on a truck          | ❌  | ✅    | ❌      | ❌         | ❌  | ❌         | ❌     | ❌       |
 | Read `/dispatch`                        | ❌  | ✅    | ✅      | ✅         | ❌  | ❌         | ❌     | ❌       |
 | Read `/finance` `/accounting`           | ❌  | ✅    | ✅      | ❌         | ❌  | ✅         | ❌     | ❌       |
@@ -458,6 +431,4 @@ there is no dedicated print route or `OpsSettlementPrintPage.tsx`.
 - **Legacy username `giaohan`** fails login (no `n`); only
   `OPS` works. This is documented in `testaccounts.txt`
   so QA doesn't waste cycles trying the typo.
-- **PWA**: OPS is **not** a PWA. The driver app's offline
-  story does not apply. Any future offline work for OPS
-  should be a separate plan.
+- **Connectivity**: the entire app requires Internet, including OPS and driver. Keep unsent data in the current screen after API failure; no heartbeat, offline queue or automatic mutation replay. Future offline features are out of scope.

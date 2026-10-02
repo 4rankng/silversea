@@ -1,0 +1,177 @@
+/* ============================================================================
+ * ColumnPicker — the ONE column-visibility control (card 20260928_193)
+ *
+ * Two placements, one look. On the bar (`inline` mode) it is a compact control
+ * with the same height token, border, radius and type scale as `Bộ lọc` beside
+ * it; inside the `Bộ lọc` dialog it is a labelled criterion block. Both read as
+ * siblings of the search and the date fields, so the strip stays one plane.
+ *
+ * Flat law (docs/design-guidelines.md §3): opaque surface token, hairline
+ * border, no shadow — the popover separates with a border, never with elevation.
+ * Component ceiling §Controls: `--control-max-h` (40px), text 11-12px.
+ * ========================================================================== */
+
+.column-picker {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.column-picker__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--filter-control-h);
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--control-border, var(--line));
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: var(--text-control-compact-size);
+  font-weight: 600;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+
+.column-picker__trigger:hover {
+  background: var(--surface-2);
+  border-color: var(--line-2);
+  color: var(--ink);
+}
+
+.column-picker__trigger:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus, var(--accent));
+  outline-offset: 1px;
+}
+
+/* A hidden column is a narrowed view, so the trigger reports it — the same
+   contract `Bộ lọc` uses, so a closed picker never hides an active setting. */
+.column-picker__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--fg-on-brand);
+  font-family: var(--font-data);
+  font-size: var(--text-caption-size);
+  font-weight: 700;
+}
+
+.column-picker__chevron { color: var(--ink-3); flex-shrink: 0; }
+
+/* --- Popover (bar placement) --------------------------------------------
+ * Portalled to <body> with the repo's one click-popover triple, so the panel is
+ * never clipped by the bar. `visibility: hidden` until `usePopoverPosition` has
+ * real coordinates: an unmeasured panel must not paint in the corner. */
+.column-picker__popover {
+  position: fixed;
+  z-index: var(--z-popover, 400);
+  width: min(260px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  visibility: hidden;
+  overflow-y: auto;
+}
+
+.column-picker__popover[data-positioned='true'] { visibility: visible; }
+.column-picker__popover[data-open='true'] { opacity: 1; }
+
+/* --- The list + reset, identical in both placements ---------------------- */
+.column-picker__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+}
+
+.column-picker__options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* The vendored Untitled UI checkbox carries its own 14px label; the bar's type
+   contract is 11-12px (operator 2026-09-27: "text 11px 12px"), so the consumer
+   scopes the size here instead of editing the shared primitive. */
+.column-picker__option { padding: 6px 4px; border-radius: 6px; }
+.column-picker__option:hover { background: var(--surface-2); }
+.column-picker__option-label {
+  font-size: var(--text-control-compact-size);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.column-picker__reset {
+  align-self: flex-start;
+  flex-shrink: 0;
+  white-space: nowrap;
+  height: calc(var(--filter-control-h) - 2px);
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--control-border, var(--line));
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: var(--text-control-compact-size);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+
+.column-picker__reset:hover:not(:disabled) { background: var(--surface-2); border-color: var(--line-2); color: var(--ink); }
+.column-picker__reset:disabled { color: var(--ink-3); cursor: default; }
+.column-picker__reset:focus-visible { outline: 2px solid var(--focus, var(--accent)); outline-offset: 1px; }
+
+/* --- Inside `Bộ lọc` (folded bar) ---------------------------------------
+ * A labelled criterion: the caption is the field-label voice the dialog's
+ * selects use, so the block lines up with them on the dialog's wrapping row. */
+.column-picker--inline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.column-picker__caption {
+  font-size: var(--text-label-size);
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--ink-2, var(--fg-2));
+}
+
+.column-picker--inline .column-picker__body {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 12px;
+  padding: 0;
+}
+
+.column-picker--inline .column-picker__options {
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.column-picker--inline .column-picker__option { padding: 4px 4px; }

@@ -153,3 +153,133 @@ test('driver reimbursement uses the driver payable command and restores it on re
     assert.equal((await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.tripId, trip.id))).length, 1);
   });
 });
+
+// Case QA-2026-09-24-01 (approval-precedes-payment, payer scope split): the
+// cash-voucher chain pays APPROVED sources only — the refusal names the
+// unapproved fees, never a bare kind-id, and allocations decrement the
+// source's remaining to the đồng.
+test('t5: the cash voucher refuses an unapproved DRIVER source and names the fee, not the id', async () => {
+  await fixture(async (tx, customerId, treasuryAccountId) => {
+    const actor = { userId: 1, role: Role.ACCOUNTANT };
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const [driver] = await tx.insert(s.drivers).values({ name: 'QA driver unapproved payout probe' }).returning();
+    const [shipment] = await tx.insert(s.shipments).values({ customerId, shipmentCode: crypto.randomUUID() }).returning();
+    const trip = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), customerId, routeId: route.id, cargoTypeId: cargo.id,
+      shipmentId: shipment.id, driverId: driver.id, departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
+    const [expense] = await tx.insert(s.driverIncidentalCosts).values({ tripId: trip.id, driverId: driver.id, costType: 'PARKING', amount: '200000',
+      occurredAt: '2026-09-16', payerKind: 'USER', costGroup: 'DRIVER_ROAD', customerChargeAmount: '0', feeName: 'Phí giữ xe kiểm thử' }).returning();
+    await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: expense.id, shipmentId: shipment.id,
+      tripId: trip.id, confirmedAt: null, recordedById: actor.userId }).returning();
+    await assert.rejects(
+      () => createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
+        entries: [{ sourceKind: 'DRIVER', sourceId: expense.id, expectedVersion: 1, amount: 100000 }] }),
+      (error: unknown) => {
+        assert.match((error as Error).message, /Phí giữ xe kiểm thử/);
+        assert.doesNotMatch((error as Error).message, /DRIVER-\d/);
+        return true;
+      },
+      'the refusal names the unapproved fee, never a bare kind-id',
+    );
+  });
+});
+
+test('t6: the payout consumes approved-only money — allocations decrement the remaining', async () => {
+  await fixture(async (tx, customerId, treasuryAccountId) => {
+    const actor = { userId: 1, role: Role.ACCOUNTANT };
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const [driver] = await tx.insert(s.drivers).values({ name: 'QA driver approved payout' }).returning();
+    const [shipment] = await tx.insert(s.shipments).values({ customerId, shipmentCode: crypto.randomUUID() }).returning();
+    const trip = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), customerId, routeId: route.id, cargoTypeId: cargo.id,
+      shipmentId: shipment.id, driverId: driver.id, departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
+    const [expense] = await tx.insert(s.driverIncidentalCosts).values({ tripId: trip.id, driverId: driver.id, costType: 'PARKING', amount: '300000',
+      occurredAt: '2026-09-16', payerKind: 'USER', costGroup: 'DRIVER_ROAD', customerChargeAmount: '0', feeName: 'Phí đường kiểm thử' }).returning();
+    const [source] = await tx.insert(s.expenseAccountingSources).values({ sourceKind: 'DRIVER', sourceId: expense.id, shipmentId: shipment.id,
+      tripId: trip.id, confirmedAt: new Date(), confirmedById: actor.userId, recordedById: actor.userId }).returning();
+    await LedgerService.postEntry(tx, { txnType: TxnType.VENDOR_EXPENSE, entityType: 'DRIVER', entityId: driver.id, debit: 0, credit: 300000, receiptId: `EXPENSE_SOURCE:${source.id}` });
+    await createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
+      entries: [{ sourceKind: 'DRIVER', sourceId: expense.id, expectedVersion: 1, amount: 100000 }] });
+    const allocations = await tx.select({ amount: s.expenseCashAllocations.amount }).from(s.expenseCashAllocations)
+      .where(eq(s.expenseCashAllocations.expenseAccountingSourceId, source.id));
+    assert.equal(String(allocations[0]!.amount), '100000', 'the allocation lands at the paid amount');
+    await assert.rejects(
+      createExpenseVoucher(tx, actor, { direction: 'OUT', treasuryAccountId, valueDate: '2026-09-16', physicalReference: crypto.randomUUID(),
+        entries: [{ sourceKind: 'DRIVER', sourceId: expense.id, expectedVersion: source.version + 1, amount: 250000 }] }),
+      /chỉ còn 200000/,
+      'the second payout caps at the cash-adjusted remaining',
+    );
+  });
+});
+
+// Case QA-2026-09-24-01 correction (Director payer-split ruling round 3):
+
+// Card 20260927_147 — the basket's receivable state is now read once per call instead of
+// once per item. These two cases pin what a wrong batch would break.
+test('t7: one basket on two trips caps each trip against its OWN receivable state', async () => {
+  await fixture(async (tx, customerId, treasuryAccountId) => {
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const tripA = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), customerId, routeId: route.id, cargoTypeId: cargo.id,
+      departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
+    const tripB = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), customerId, routeId: route.id, cargoTypeId: cargo.id,
+      departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
+    await LedgerService.postEntry(tx, { txnType: TxnType.TRIP_REVENUE, txnId: tripA.id, entityType: 'CUSTOMER', entityId: customerId,
+      debit: 300_000, credit: 0, receiptId: `TRIP:${tripA.tripCode}` });
+    await LedgerService.postEntry(tx, { txnType: TxnType.TRIP_REVENUE, txnId: tripB.id, entityType: 'CUSTOMER', entityId: customerId,
+      debit: 100_000, credit: 0, receiptId: `TRIP:${tripB.tripCode}` });
+    const receipt = await recordPaymentReceiptTx(tx, { customerId, treasuryAccountId, receiptId: crypto.randomUUID(),
+      physicalReference: crypto.randomUUID(), valueDate: '2026-09-16', amount: 250_000, allocatedBy: 1, unappliedOnly: true });
+    const mapping = await allocateExpenseReceipt(tx, receipt.id, [
+      { source: { id: 901, customerId, tripId: tripA.id, linkedTripExpenseId: null }, amount: 150_000 },
+      { source: { id: 902, customerId, tripId: tripB.id, linkedTripExpenseId: null }, amount: 100_000 },
+    ], 1);
+    assert.ok(mapping.get(901), 'the first item maps to an allocation');
+    assert.ok(mapping.get(902), 'the second item maps to an allocation');
+    assert.notEqual(mapping.get(901), mapping.get(902), 'the two trips never collapse into one allocation');
+    const rows = await tx.select().from(s.paymentAllocations).where(eq(s.paymentAllocations.customerId, customerId));
+    assert.deepEqual(rows.map(row => `${row.targetType}:${row.targetId}:${row.sourceTripId}:${row.amount}`).sort(),
+      [`TRIP:${tripA.id}:${tripA.id}:150000`, `TRIP:${tripB.id}:${tripB.id}:100000`].sort(),
+      'each trip keeps its own target — never the first trip of the basket');
+    const second = await recordPaymentReceiptTx(tx, { customerId, treasuryAccountId, receiptId: crypto.randomUUID(),
+      physicalReference: crypto.randomUUID(), valueDate: '2026-09-16', amount: 500_000, allocatedBy: 1, unappliedOnly: true });
+    await assert.rejects(allocateExpenseReceipt(tx, second.id,
+      [{ source: { id: 903, customerId, tripId: tripB.id, linkedTripExpenseId: null }, amount: 1 }], 1), /vượt số dư/,
+      'trip B is exhausted by its own 100k');
+    await allocateExpenseReceipt(tx, second.id,
+      [{ source: { id: 904, customerId, tripId: tripA.id, linkedTripExpenseId: null }, amount: 150_000 }], 1);
+    await assert.rejects(allocateExpenseReceipt(tx, second.id,
+      [{ source: { id: 905, customerId, tripId: tripA.id, linkedTripExpenseId: null }, amount: 1 }], 1), /vượt số dư/,
+      'trip A is exhausted at its own 150k remainder, not at trip B\'s');
+  });
+});
+
+test('t8: a group that credits a trip makes the next group on that trip re-read the balance', async () => {
+  await fixture(async (tx, customerId, treasuryAccountId) => {
+    const [route] = await tx.insert(s.routes).values({ name: crypto.randomUUID() }).returning();
+    const [cargo] = await tx.insert(s.cargoTypes).values({ name: crypto.randomUUID() }).returning();
+    const trip = await insertTripComposite(tx, { tripCode: crypto.randomUUID(), customerId, routeId: route.id, cargoTypeId: cargo.id,
+      departureDate: '2026-09-16', status: 'COMPLETED', carrierType: 'OWN' });
+    await LedgerService.postEntry(tx, { txnType: TxnType.TRIP_REVENUE, txnId: trip.id, entityType: 'CUSTOMER', entityId: customerId,
+      debit: 300_000, credit: 0, receiptId: `TRIP:${trip.tripCode}` });
+    const [expense] = await tx.insert(s.tripExpenses).values({ tripId: trip.id, expenseType: 'QA', buyAmount: '200000', sellAmount: '100000',
+      settlementMethod: 'COMPANY_DIRECT' }).returning();
+    const [document] = await tx.insert(s.billingDocuments).values({ type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: customerId,
+      rangeFrom: '2026-09-01', rangeTo: '2026-09-30', totalInclVat: '100000', debitNoteStatus: 'SENT' }).returning();
+    await tx.insert(s.billingDocumentLines).values({ documentId: document.id, sourceType: 'EXPENSE', sourceId: expense.id,
+      lineType: 'SERVICE_FEE', description: 'QA doc-billed expense', baseAmount: '100000' });
+    const receipt = await recordPaymentReceiptTx(tx, { customerId, treasuryAccountId, receiptId: crypto.randomUUID(),
+      physicalReference: crypto.randomUUID(), valueDate: '2026-09-16', amount: 350_000, allocatedBy: 1, unappliedOnly: true });
+    // Group 1 settles the debit note and thereby credits trip T's ledger with 100k;
+    // group 2 settles the trip itself. 250k fits the stale 300k snapshot but not the
+    // live 200k, so a snapshot-only batch would weaken this cap.
+    await assert.rejects(allocateExpenseReceipt(tx, receipt.id, [
+      { source: { id: 911, customerId, tripId: trip.id, linkedTripExpenseId: expense.id }, amount: 100_000 },
+      { source: { id: 912, customerId, tripId: trip.id, linkedTripExpenseId: null }, amount: 250_000 },
+    ], 1), /vượt số dư/);
+    // Control: the live remainder really is 200k (300k revenue − 100k credited above).
+    const mapping = await allocateExpenseReceipt(tx, receipt.id,
+      [{ source: { id: 914, customerId, tripId: trip.id, linkedTripExpenseId: null }, amount: 200_000 }], 1);
+    assert.ok(mapping.get(914)!);
+  });
+});

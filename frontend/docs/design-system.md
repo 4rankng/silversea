@@ -86,6 +86,20 @@ retrieved with the pinned version-8 workflow in
 the component layer, then compose them through the product-specific design
 system and feature modules above.
 
+`src/components/untitled-ui/installed.json` lists every vendored file. Check it
+before running `pnpm uui:add:*` — a listed file is locally adapted and must not
+be overwritten.
+
+## Tailkit UI reference
+
+Tailkit is a **pattern reference, not a component layer** — no Tailkit code is
+installed and its class names must never reach this repo. Look up a layout there,
+then rebuild it in house tokens; the port checklist and the recorded
+incompatibilities are in [`tailkit-ui.md`](./tailkit-ui.md).
+
+Both catalogs are mandatory to consult for a UI/UX problem, per the mandatory
+tool routing in [`AGENTS.md`](../../AGENTS.md).
+
 ## Control density contract
 
 Control size is owned by the shared primitive, never by page CSS:
@@ -278,11 +292,14 @@ exception context semantic, but do not reuse their soft fills for selection.
 ## Combined date + time display contract
 
 Whenever the UI shows a date and a time together, display **time first, date
-after, in 24-hour format**: `HH:mm DD/MM/YYYY` (e.g. `14:30 20/08/2026`;
-tables may compact the date to `14:30 20/8/26`). Never render a 12-hour
-AM/PM clock, and never rely on the browser locale to format a native
+after, in 24-hour format**: `HH:mm DD/MM/YYYY` (e.g. `14:30 20/08/2026`).
+Date-only cells render `DD/MM/YYYY` padded. Never render a 12-hour
+AM/PM clock, never drop the year in a table column, and never rely on the
+browser locale to format a native
 `datetime-local`/`time` input — locale rendering cannot be forced and
-produces 12h clocks on en-US browsers (2026-09-09 customer report).
+produces 12h clocks on en-US browsers (2026-09-09 customer report). The
+compact `d/M/yy` table shape was withdrawn 2026-09-21 (card 20260921_23,
+operator report: five datetime styles app-wide, three in one column).
 
 - Inputs: use the design-system 24h datetime text input
   (`BufferedUuiDateTimeInput` / `useBufferedDateTimeValue`, placeholder
@@ -290,10 +307,10 @@ produces 12h clocks on en-US browsers (2026-09-09 customer report).
   guaranteed in every browser. The stored value stays the ISO local shape
   `YYYY-MM-DDTHH:mm`.
 - Display cells: format through the lib helpers so text, tables, and inputs
-  agree — `formatDateTime24` (full `HH:mm DD/MM/YYYY`, in
-  `frontend/src/lib/format.ts`) for local-ISO values, and
-  `formatDateTimeShort` (compact `HH:mm d/M/yy`, Vietnam-pinned, same file)
-  for timestamps. Never call `toLocaleString`/`Intl` inline for a combined
+  agree — `formatDateTime24` (local-ISO values) and `formatDateTimeShort`
+  (timestamps), both emitting `HH:mm DD/MM/YYYY`; `formatDate` emits the
+  padded `DD/MM/YYYY` for date-only cells (all in `frontend/src/lib/format.ts`).
+  Never call `toLocaleString`/`Intl` inline for a combined
   date-time: field order is engine-dependent (Node renders vi-VN time-first,
   Chrome date-first), which a hard format requirement cannot depend on.
 

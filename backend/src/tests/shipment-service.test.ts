@@ -230,15 +230,18 @@ after(async () => {
 // ─── Pure unit ──────────────────────────────────────────────────────────────
 
 describe('formatShipmentCode', () => {
-  test('formats as SHP-YYMM-NNNNN with 5-digit padding', () => {
+  test('formats as SHP-YYMM-NNNNN from the monthly counter with 5-digit padding', () => {
     const code = formatShipmentCode(42, new Date('2026-07-25T00:00:00Z'));
     assert.equal(code, 'SHP-2607-00042');
   });
 
-  test('is unique per id (PK-backed)', () => {
-    const a = formatShipmentCode(1);
-    const b = formatShipmentCode(2);
-    assert.notEqual(a, b);
+  test('has no id input at all — codes cannot derive from the row id (ruling 4b)', () => {
+    // The signature takes the monthly counter only: there is no id parameter
+    // to derive from, and the code is stable for a given counter + month.
+    const a = formatShipmentCode(7, new Date('2026-09-20T10:00:00Z'));
+    const b = formatShipmentCode(7, new Date('2026-09-20T10:05:00Z'));
+    assert.equal(a, b);
+    assert.notEqual(formatShipmentCode(8, new Date('2026-09-20T10:00:00Z')), a);
   });
 });
 
@@ -792,7 +795,7 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     const customer = await mkCustomer();
     const tag = Math.random().toString(36).slice(2, 8);
     const type = await mkContainerType(`40DC${tag}`, "40'DC");
-    const lachHuyen = await mkPort(`Cảng Lạch Huyện ${tag}`);
+    const dropZonePort = await mkPort(`Cảng Lạch Huyện ${tag}`);
     const dinhVu = await mkPort(`Cảng Đình Vũ ${tag}`);
     const factory = await mkPort(`Nhà máy Bắc Giang ${tag}`);
 
@@ -807,13 +810,13 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
       customerId: customer.id,
       cargoMode: 'FCL',
       expectedDeliveryDate: '2026-08-15',
-      pickupLocation: lachHuyen.name,
+      pickupLocation: dropZonePort.name,
     });
     createdShipmentIds.push(matching.id, legacyOnly.id);
 
     await mkContainer(matching.id, type.id, undefined, {
       pickupPortId: dinhVu.id,
-      dropoffPortId: lachHuyen.id,
+      dropoffPortId: dropZonePort.id,
     });
     await mkContainer(matching.id, type.id, undefined, {
       pickupPortId: dinhVu.id,
@@ -822,7 +825,7 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
 
     const result = await listShipmentsPaginated({
       customerId: customer.id,
-      portIds: [lachHuyen.id],
+      portIds: [dropZonePort.id],
       includeDispatchSummary: true,
       page: 1,
       limit: 20,
@@ -832,7 +835,7 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     assert.deepEqual(result.items[0]!.containerPortGroups, [
       {
         pickupPortName: dinhVu.name,
-        dropoffPortName: lachHuyen.name,
+        dropoffPortName: dropZonePort.name,
         localDate: null,
         containerSummary: `1 x 40DC${tag}`,
       },
@@ -1046,10 +1049,12 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
 
     const unallocated: number[] = [];
     for (let i = 0; i < 2; i += 1) {
+      // No expectedDeliveryDate: under the 20260925_5 bucket exclusivity a
+      // date-set zero-allocation lot belongs to "Chờ phân nhà xe", so this
+      // pagination fixture pins "Chờ phân xe" with date-less lots.
       const shipment = await createShipment({
         customerId: customer.id,
         cargoMode: 'FCL',
-        expectedDeliveryDate: '2026-08-15',
       });
       createdShipmentIds.push(shipment.id);
       unallocated.push(shipment.id);
@@ -1094,6 +1099,78 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     });
     assert.deepEqual(allocatedOnly.items.map((row) => row.id), [allocated.id]);
     assert.equal(allocatedOnly.total, 1);
+  });
+
+  test('allocation buckets are mutually exclusive after the 20260925_5 merge (one lot, one bucket)', async () => {
+    const customer = await mkCustomer();
+    const tag = Math.random().toString(36).slice(2, 8);
+    const ct20 = await mkContainerType(`20DC${tag}`, "20'DC");
+    const ct40 = await mkContainerType(`40HC${tag}`, "40'HC");
+
+    // Date set + zero allocations → the only member of Chờ phân nhà xe.
+    const pendingCarrier = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+    });
+    createdShipmentIds.push(pendingCarrier.id);
+    await mkContainer(pendingCarrier.id, ct20.id);
+
+    // Date set + partial allocation → Chờ phân xe ONLY (has carriers; the
+    // 2026-09-25 ruling: buckets stay mutually exclusive by allocation state).
+    const partialWithDate = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+    });
+    createdShipmentIds.push(partialWithDate.id);
+    const partialContainers = [
+      await mkContainer(partialWithDate.id, ct40.id),
+      await mkContainer(partialWithDate.id, ct40.id),
+    ];
+    await mkCarrierFulfillment(partialWithDate.id, partialContainers[0]!.id, partialWithDate.version);
+
+    // No date + zero allocations → Chờ phân xe only (date not locked).
+    const noDate = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+    });
+    createdShipmentIds.push(noDate.id);
+    await mkContainer(noDate.id, ct20.id);
+
+    const pendingCarrierOnly = await listShipmentsPaginated({
+      customerId: customer.id,
+      allocationStatus: 'PENDING_CARRIER',
+      page: 1,
+      limit: 10,
+    });
+    assert.deepEqual(pendingCarrierOnly.items.map((row) => row.id), [pendingCarrier.id]);
+    assert.equal(pendingCarrierOnly.total, 1);
+
+    const waitingCarrier = await listShipmentsPaginated({
+      customerId: customer.id,
+      allocationStatus: 'NOT_ALLOCATED',
+      page: 1,
+      limit: 10,
+    });
+    assert.equal(waitingCarrier.total, 2, 'Chờ phân xe absorbs zero- and partially-allocated lots');
+    assert.ok(waitingCarrier.items.some((row) => row.id === partialWithDate.id));
+    assert.ok(waitingCarrier.items.some((row) => row.id === noDate.id));
+
+    // One lot, one bucket: the date-set partial lot appears under Chờ phân xe
+    // and under NO other bucket.
+    const inPendingCarrier = pendingCarrierOnly.items.some((row) => row.id === partialWithDate.id);
+    assert.equal(inPendingCarrier, false);
+
+    // Legacy tolerance: a stale client sending PARTIALLY_ALLOCATED gets the
+    // merged bucket, not an error.
+    const legacy = await listShipmentsPaginated({
+      customerId: customer.id,
+      allocationStatus: 'PARTIALLY_ALLOCATED',
+      page: 1,
+      limit: 10,
+    });
+    assert.equal(legacy.total, 2);
   });
 });
 

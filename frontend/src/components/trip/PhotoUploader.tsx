@@ -1,7 +1,8 @@
+import { PhotoImage } from '../shared/PhotoImage';
 import React, { useRef } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
 import { useTripFormContext } from "../../hooks/useTripFormContext";
-import { getAuthenticatedPhotoUrl } from "../../lib/api";
+import { useAuthedPhotoUrls } from "../../lib/api/photo";
 
 /**
  * Trip-level "other" photo uploader for the edit page's "Ảnh & Ghi chú" card.
@@ -19,6 +20,9 @@ interface PhotoUploaderProps {
 export function PhotoUploader({ tripId }: PhotoUploaderProps) {
   const form = useTripFormContext();
   const { photoUrls, uploadPhotos, removePhoto, uploading } = form;
+  // DRV-DET-08: trip photos load with the Authorization header (blob), never a
+  // ?token= query string. Index-aligned with `photoUrls`.
+  const authedPhotoUrls = useAuthedPhotoUrls(photoUrls);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,7 +48,7 @@ export function PhotoUploader({ tripId }: PhotoUploaderProps) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
           {photoUrls.map((url, i) => (
             <div key={url} style={{ width: 64, height: 64, borderRadius: "var(--app-radius-sm)", border: "1px solid var(--border-1)", position: "relative", overflow: "hidden" }}>
-              <img src={getAuthenticatedPhotoUrl(url)} alt={`Ảnh ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <PhotoImage src={authedPhotoUrls[i]} alt={`Ảnh ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               <button type="button" onClick={() => removePhoto(i)} style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, background: "rgba(0,0,0,0.6)", color: "white", border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                 <X size={8} />
               </button>
@@ -52,7 +56,7 @@ export function PhotoUploader({ tripId }: PhotoUploaderProps) {
           ))}
         </div>
 
-        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44, border: "1px dashed var(--fg-3)", borderRadius: "var(--app-radius-sm)", background: "var(--bg-2)", cursor: uploading.OTHER ? "wait" : "pointer", color: "var(--fg-2)", fontSize: 'var(--text-label-size)' }}>
+        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "var(--control-h)", border: "1px dashed var(--fg-3)", borderRadius: "var(--app-radius-sm)", background: "var(--bg-2)", cursor: uploading.OTHER ? "wait" : "pointer", color: "var(--fg-2)", fontSize: 'var(--text-label-size)' }}>
           {uploading.OTHER ? (
             <Loader2 size={16} className="spin" />
           ) : (

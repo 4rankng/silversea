@@ -4,7 +4,6 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { useToast, ToastProvider } from './Toast';
 export type { ToastOptions } from './Toast';
 export { Skeleton, SkeletonLine, SkeletonCircle, SkeletonCard, SkeletonTable, SkeletonKPIs } from './Skeleton';
-export { EmptyState } from './EmptyState';
 export { EmptyIllustration } from './EmptyIllustration';
 export { ClickableCard } from './ClickableCard';
 // daisyUI-backed primitives (prefixed .d-* — see styles/tokens.css).
@@ -24,3 +23,6 @@ export type { CommandPaletteProps, CommandItem } from './CommandPalette';
 export { SortHeader } from './SortHeader';
 // Semantic badge pill for status indicators, tags, and labels.
 export { Badge } from './Badge';
+// Canonical text+dot status treatment (card 20260924_21 — pill-badge purge).
+export { StatusText } from './StatusText';
+export type { StatusVariant } from './StatusText';

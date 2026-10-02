@@ -17,7 +17,7 @@ describe('NativeSelect', () => {
     expect(screen.getByLabelText('Kế hoạch')).toHaveClass(
       'min-h-[34px]',
       'text-[length:var(--text-control-compact-size)]',
-      'max-md:min-h-11',
+      'max-md:min-h-[var(--control-max-h)]',
       'max-md:text-[length:var(--text-input-touch-size)]', '[@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]',
     );
   });

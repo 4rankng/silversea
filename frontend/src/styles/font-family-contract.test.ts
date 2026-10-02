@@ -5,6 +5,11 @@ import { describe, expect, it } from 'vitest';
 const sourceRoot = resolve(process.cwd(), 'src');
 const frontendRoot = resolve(process.cwd());
 const printableDocumentSource = join(sourceRoot, 'pages/config/debit-note-template-editor.css');
+// The debit settlement page ships tabular-nums on its money tables (QA-passed
+// 2026-09-19): aligned money digits are the point there, font capability
+// aside. Its CSS is exempt from the no-tabular-nums scan like the print
+// canvas above.
+const debitSettlementSource = join(sourceRoot, 'pages/ShipmentDebitPage.css');
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 
 function sourceFiles(directory: string): string[] {
@@ -40,7 +45,7 @@ describe('frontend font-family contract', () => {
     expect(declarations.length).toBeGreaterThan(0);
     expect(declarations.filter((value) => !/^var\(--font-(?:body|display|sans|data)(?:,\s*[^)]+)?\)$|^inherit$/.test(value))).toEqual([]);
     const applicationSource = [
-      ...sourceFiles(sourceRoot),
+      ...sourceFiles(sourceRoot).filter((path) => path !== debitSettlementSource),
       join(frontendRoot, 'index.html'),
     ].map((path) => readFileSync(path, 'utf8')).join('\n');
 

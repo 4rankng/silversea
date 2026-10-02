@@ -349,7 +349,7 @@ describe('Q23 trip write contracts', () => {
 
     // O2C: a completed trip is terminal; canceling it requires the governed
     // request path, so a direct cancel is rejected.
-    await assert.rejects(command(), /Thiếu yêu cầu quản trị đã được phê duyệt|chỉ được.*yêu cầu/i);
+    await assert.rejects(command(), /Thao tác phải được thực hiện qua lệnh tài chính có kiểm tra quyền và dữ liệu|chỉ được.*yêu cầu/i);
     const [recordAfterFailure] = await db.select().from(s.idempotencyKeys)
       .where(eq(s.idempotencyKeys.idempotencyKey, key));
     assert.equal(recordAfterFailure, undefined);

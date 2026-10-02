@@ -8,6 +8,7 @@ import { ApiError } from '../../errors';
 import { throwValidation } from '../../lib/validation';
 import { listShipmentFinanceRecords, saveContainerDepositRecord, saveShipmentInvoiceRecord, shipmentFinanceOptions } from '../../services/shipment-finance-records.service';
 import { requireShipmentIdempotencyKey, runShipmentWrite, sendShipmentWrite } from './shipment-shared';
+import { declareMaterialWrite } from '../../middleware/material-write';
 
 const querySchema = z.object({
   search: z.string().trim().max(200).optional(),
@@ -25,7 +26,7 @@ function shipmentId(value: unknown): number {
   return Number(value);
 }
 
-export const financeRecordsRoutes = Router();
+export const financeRecordsRoutes = Router()
 financeRecordsRoutes.get('/finance-record-options', asyncHandler(async (req, res) => {
   res.json(await shipmentFinanceOptions(getUser(req), req.query.shipmentId ? shipmentId(req.query.shipmentId) : undefined));
 }));
@@ -36,7 +37,7 @@ financeRecordsRoutes.get(['/finance-records', '/:id/finance-records'], asyncHand
     ...query.data, shipmentId: req.params.id ? shipmentId(req.params.id) : undefined,
   }));
 }));
-financeRecordsRoutes.post('/:id/invoice-records', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req, res) => {
+financeRecordsRoutes.post('/:id/invoice-records', declareMaterialWrite('shipments.invoice-records.save', { method: 'POST', path: '/api/shipments/:id/invoice-records' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req, res) => {
   const id = shipmentId(req.params.id);
   const parsed = shipmentInvoiceRecordSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
@@ -47,7 +48,7 @@ financeRecordsRoutes.post('/:id/invoice-records', requireRoles(Role.ADMIN, Role.
   }));
   sendShipmentWrite(res, result);
 }));
-financeRecordsRoutes.post('/:id/container-deposits', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req, res) => {
+financeRecordsRoutes.post('/:id/container-deposits', declareMaterialWrite('shipments.container-deposits.save', { method: 'POST', path: '/api/shipments/:id/container-deposits' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req, res) => {
   const id = shipmentId(req.params.id);
   const parsed = containerDepositSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
