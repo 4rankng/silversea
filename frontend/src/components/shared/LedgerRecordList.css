@@ -1,0 +1,147 @@
+/*
+ * LedgerRecordList — the shared phone record band for wide ledgers and
+ * pricing matrices (design law: one surface, two anatomies).
+ *
+ * Consumers:
+ *   - standalone (PhoiPhieuControlPage / OpsSettlementSheet): the page keeps
+ *     its own table inside `.ledger-desktop`; this band renders only on the
+ *     phone breakpoint;
+ *   - via LedgerMatrix: the matrix renders the same band under its caption.
+ *
+ * The JS gate (useMediaQuery) unmounts the inactive half; the media rules
+ * below are the CSS backstop for real viewports. Print always shows the
+ * original table and never the phone records (OpsSettlementSheet print A4).
+ */
+
+.ledger-record-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ledger-record-section {
+  display: grid;
+  gap: 8px;
+}
+
+.ledger-record-section__caption {
+  margin: 0;
+  font-size: var(--text-data-size);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ledger-record {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+/* Selection is a structural edge in neutral ink — never an accent fill. */
+.ledger-record[data-selected='true'] {
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+
+.ledger-record__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.ledger-record__select {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+
+.ledger-record__id {
+  min-width: 0;
+}
+
+.ledger-record__title {
+  margin: 0;
+  font-size: var(--text-data-size);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ledger-record__subtitle {
+  margin: 2px 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+
+.ledger-record__facts {
+  display: grid;
+  gap: 6px 12px;
+  margin-top: 10px;
+}
+
+.ledger-record__fact {
+  display: grid;
+  grid-template-columns: minmax(88px, 38%) minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.ledger-record__fact::before {
+  content: attr(data-label);
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+
+.ledger-record__value {
+  min-width: 0;
+}
+
+/* Full-width lane: the label stacks above the content — composite editors,
+ * source lists and nested workspaces (QA-AUDIT-UI-65). */
+.ledger-record__fact[data-layout='full-width'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ledger-record__fact[data-align='end'] {
+  text-align: end;
+}
+
+.ledger-record__fact[data-align='end'] .ledger-record__value > * {
+  margin-inline-start: auto;
+  text-align: end;
+}
+
+.ledger-record__more {
+  margin-top: 10px;
+}
+
+.ledger-record__more > summary {
+  cursor: pointer;
+  color: var(--brand);
+  font-size: var(--text-caption-size);
+}
+
+.ledger-record-list__pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ledger-record-list__page {
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+
+@media (min-width: 641px) {
+  .ledger-record-list { display: none; }
+}
+
+@media (max-width: 640px) {
+  .ledger-desktop { display: none; }
+}
+
+@media print {
+  .ledger-record-list { display: none !important; }
+  .ledger-desktop { display: revert !important; }
+}
