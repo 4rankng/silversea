@@ -22,7 +22,7 @@
 //      control that opened it — the operator's "why the dropdown jump around
 //      not right below where I clicked".
 //
-// Usage (dev stack up: backend :3002, frontend :7174):
+// Usage (dev stack up: backend :3002, frontend :7175):
 //   node testplan/qa/scripts/ui-filter-audit-20260927.mjs
 //   WIDTHS=390,1440 ROUTES=/shipments node testplan/qa/scripts/ui-filter-audit-20260927.mjs
 //   QA_BASE_URL=http://localhost:7175 node testplan/qa/scripts/ui-filter-audit-20260927.mjs

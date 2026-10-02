@@ -98,13 +98,29 @@ def test_customer_portal(ctx: SilverseaTestContext, results: TestResults):
     mobile = ctx.new_page({'width': 375, 'height': 812})
     _login_customer(mobile)
     mobile_nav = mobile.locator('.customer-shell__bottom-nav a').all_inner_texts()
-    min_target = mobile.locator('.customer-shell__bottom-nav a').evaluate_all(
-        '(els) => Math.min(...els.map((el) => el.getBoundingClientRect().height))'
+    mobile_targets = mobile.locator('.customer-shell__bottom-nav a').evaluate_all(
+        '''(els) => els.map((el) => {
+            const box = el.getBoundingClientRect();
+            const style = getComputedStyle(el);
+            return {
+                height: box.height,
+                visible: box.width > 0 && box.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && Number(style.opacity) > 0,
+                enabled: !el.hasAttribute('disabled') && el.getAttribute('aria-disabled') !== 'true' && !el.closest('[inert]') && style.pointerEvents !== 'none',
+            };
+        })'''
     )
-    if mobile_nav == ['Lô hàng của tôi', 'Giấy báo nợ', 'Sao kê công nợ'] and min_target >= 44:
-        results.pass_('TC-1520', 'Mobile bottom navigation has three usable customer actions')
+    # The accepted shared mobile control is 40px; retain a fractional geometry
+    # tolerance and reject both under/oversized or unavailable targets.
+    targets_fit = len(mobile_targets) == 3 and all(
+        target['visible'] and target['enabled'] and 39.5 <= target['height'] <= 40.5
+        for target in mobile_targets
+    )
+    if mobile_nav == ['Lô hàng của tôi', 'Giấy báo nợ', 'Sao kê công nợ'] and targets_fit:
+        heights = [target['height'] for target in mobile_targets]
+        results.pass_('TC-1520', f'Mobile bottom navigation has three visible enabled 40px customer actions; heights={heights}')
     else:
-        results.fail('TC-1520', 'Mobile navigation', f'nav={mobile_nav}, minHeight={min_target}')
+        results.fail('TC-1520', 'Mobile navigation', f'nav={mobile_nav}, targets={mobile_targets}')
+    ctx.screenshot(mobile, 'TC-1520_customer_portal_mobile_navigation')
 
     for path, heading in (
         ('/portal/shipments', 'Theo dõi lô hàng'),

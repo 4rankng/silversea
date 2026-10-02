@@ -24,7 +24,7 @@ import os
 import urllib.request
 from typing import Optional
 
-API_URL = os.environ.get("VISUAL_API", "http://localhost:3001").rstrip("/")
+API_URL = os.environ.get("VISUAL_API", "http://localhost:3002").rstrip("/")
 
 
 def _api_get(path: str, role: str = "ADMIN") -> dict:

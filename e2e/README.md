@@ -4,8 +4,8 @@ Run `bash e2e/run_all.sh` for every numbered suite, or `bash e2e/run_all.sh 00 2
 for selected numbers. Selection includes every matching file, including both
 suite-20 scripts. `bash e2e/run_all.sh --list` lists files without connecting.
 
-The default frontend is `http://localhost:7174` and API is
-`http://localhost:3001`. Change local ports with `SILVERSEA_FRONTEND_PORT` and
+The default frontend is `http://localhost:7175` and API is
+`http://localhost:3002`. Change local ports with `SILVERSEA_FRONTEND_PORT` and
 `SILVERSEA_BACKEND_PORT`, or provide `SILVERSEA_URL` and `SILVERSEA_API`.
 The runner prints and checks the actual effective endpoints before workflows.
 

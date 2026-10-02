@@ -43,8 +43,8 @@ fi
 
 # Defaults are local; paired explicit staging URLs remain supported. Validation
 # and connectivity above use the effective targets, not unrelated local ports.
-FRONTEND_PORT="${SILVERSEA_FRONTEND_PORT:-7174}"
-BACKEND_PORT="${SILVERSEA_BACKEND_PORT:-3001}"
+FRONTEND_PORT="${SILVERSEA_FRONTEND_PORT:-7175}"
+BACKEND_PORT="${SILVERSEA_BACKEND_PORT:-3002}"
 export SILVERSEA_URL="${SILVERSEA_URL:-http://localhost:$FRONTEND_PORT}"
 export SILVERSEA_API="${SILVERSEA_API:-http://localhost:$BACKEND_PORT}"
 # The persisted dispatch suite uses a deliberately explicit local database URL

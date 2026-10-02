@@ -58,37 +58,37 @@ def test_system_admin(ctx: SilverseaTestContext, results: TestResults):
     else:
         results.fail('TC-1002', 'KPI cards', f'API status: {resp.get("status")}')
 
-    # TC-1003: Role filter visible (card 20260930_243 refresh). The retired
-    # `.filter-pill` row became the shared boxed Tabs group riding the filter
-    # bar (`.filter-bar .ds-tabs__btn`, one chip per role with its count) —
-    # the case asserts every role chip is present there.
+    # TC-1003: The shared category dropdown retains every role and count,
+    # and selecting a role still reaches the existing page filter.
     page = ctx.new_page()
     ctx.login_as('admin', page)
     page.goto(f'{BASE_URL}/users')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    tabs = page.locator('.filter-bar .ds-tabs__btn')
-    tab_labels = []
-    for i in range(tabs.count()):
-        try:
-            tab_labels.append(tabs.nth(i).inner_text().strip())
-        except Exception:
-            pass
+    role_filter = page.get_by_role('button', name=re.compile(r'Lọc tài khoản theo vai trò'))
+    role_filter.click()
+    options = page.get_by_role('option')
+    options.first.wait_for(state='visible')
+    option_labels = options.all_text_contents()
     expected_roles = [
         'Quản trị viên',
         'Quản lý',
         'Kế toán',
         'Lái xe',
-        'Nhân viên vận hành',
+        'Vận hành',
         'Khách hàng',
         'Chứng từ',  # Canonical ROLE_LABELS[Role.CUS]; still assert every role.
         'Điều vận',
     ]
-    found = all(any(role in label for label in tab_labels) for role in expected_roles)
+    found = len(option_labels) == 9 and all(any(role in label for label in option_labels) for role in ['Tất cả', *expected_roles])
+    ctx.screenshot(page, 'TC-1003_role_filter_options')
+    page.get_by_role('option', name=re.compile(r'^Lái xe')).click()
+    page.wait_for_load_state('networkidle')
+    found = found and role_filter.inner_text().strip().startswith('Lái xe (')
     if found:
-        results.pass_('TC-1003', f'Role filter chips visible ({len(tab_labels)} tabs)')
+        results.pass_('TC-1003', f'All 9 role choices/counts visible and DRIVER selected ({len(option_labels)} options)')
     else:
-        results.fail('TC-1003', 'Role filter chips', f'Found labels: {tab_labels}')
+        results.fail('TC-1003', 'Role category filter', f'Found labels: {option_labels}; selected={role_filter.inner_text()}')
     ctx.screenshot(page, 'TC-1003_role_filter')
     page.close()
 

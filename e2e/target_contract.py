@@ -30,8 +30,8 @@ def resolve_targets(environment):
     """Pure validation; local defaults and explicit paired staging are supported."""
     frontend_override = environment.get('SILVERSEA_URL')
     api_override = environment.get('SILVERSEA_API')
-    frontend = frontend_override or f"http://localhost:{environment.get('SILVERSEA_FRONTEND_PORT') or '7174'}"
-    api = api_override or f"http://localhost:{environment.get('SILVERSEA_BACKEND_PORT') or '3001'}"
+    frontend = frontend_override or f"http://localhost:{environment.get('SILVERSEA_FRONTEND_PORT') or '7175'}"
+    api = api_override or f"http://localhost:{environment.get('SILVERSEA_BACKEND_PORT') or '3002'}"
     frontend_url, _ = parse_target(frontend)
     api_url, _ = parse_target(api)
     frontend_local = is_loopback(frontend_url.hostname)

@@ -12,9 +12,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
 from suite_contract import all_cases_pass
+from target_contract import resolve_targets
 
-BASE_URL = os.environ.get('SILVERSEA_URL', 'http://localhost:7174')
-API_URL = os.environ.get('SILVERSEA_API', 'http://localhost:3001')
+_TARGETS = resolve_targets(os.environ)
+BASE_URL = _TARGETS['frontend']
+API_URL = _TARGETS['api']
 SCREENSHOT_DIR = Path(os.environ.get('SILVERSEA_SCREENSHOTS', '/tmp/silversea-e2e'))
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -29,9 +31,8 @@ _USERNAME = re.compile(r'^[a-z][a-z0-9-]*$')
 def _current_env_block() -> str:
     """'local' or 'staging', decided by the API host we were pointed at.
 
-    The E2E defaults to 7174/3001, which is the SIBLING silversea-main
-    checkout; this checkout is 7175/3002. Either way the roster block that
-    matters is the one whose demo accounts actually exist on that host.
+    Targets come from the same validated contract as run_all.sh. The roster
+    block follows the selected API host, including explicit target overrides.
     """
     host = (urlparse(API_URL).hostname or '').lower()
     return 'staging' if host not in {'localhost', '127.0.0.1', '::1'} else 'local'
@@ -351,9 +352,9 @@ class SilverseaTestContext:
         if self.playwright:
             self.playwright.stop()
 
-    def new_page(self, viewport: dict = None) -> Page:
+    def new_page(self, viewport: dict = None, *, touch: bool = False) -> Page:
         vp = viewport or {'width': 1280, 'height': 900}
-        context = self.browser.new_context(viewport=vp)
+        context = self.browser.new_context(viewport=vp, has_touch=touch, is_mobile=touch)
         page = context.new_page()
         original_close = page.close
 

@@ -77,7 +77,7 @@ def build_summary(visual_root: Path) -> Path:
         "# Silversea — Visual Regression Summary",
         "",
         f"_Last refresh:_ {datetime.now().isoformat(timespec='seconds')}",
-        f"_Target:_ `{runs.get('s00_cross_cutting', {}).get('base_url', 'http://localhost:7174')}`",
+        f"_Target:_ `{runs.get('s00_cross_cutting', {}).get('base_url', 'http://localhost:7175')}`",
         "",
         "## Headline",
         "",

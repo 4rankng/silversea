@@ -68,12 +68,17 @@ export async function createSession({ env, role, evidenceDir, runId }) {
   const browser = await puppeteer.launch({
     headless: 'shell',
     ...(process.env.BROWSER_EXECUTABLE_PATH ? { executablePath: process.env.BROWSER_EXECUTABLE_PATH } : {}),
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    args: [
+      '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+      ...(process.env.QA_DISABLE_BACK_FORWARD_CACHE === '1' ? ['--disable-features=BackForwardCache'] : []),
+    ],
   });
   const browserContext = await browser.createBrowserContext();
   const page = await browserContext.newPage();
   await page.setViewport({ width: 1440, height: 900 });
-  await page.evaluateOnNewDocument((t) => localStorage.setItem('token', t), token);
+  await page.evaluateOnNewDocument((t, appOrigin) => {
+    if (location.origin === appOrigin) localStorage.setItem('token', t);
+  }, token, new URL(env.baseUrl).origin);
 
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));

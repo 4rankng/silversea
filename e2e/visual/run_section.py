@@ -8,8 +8,8 @@ Usage:
     python3 run_section.py --list                     # list available sections
 
 Environment:
-    VISUAL_URL=http://localhost:7174      frontend URL
-    VISUAL_API=http://localhost:3001      backend URL
+    VISUAL_URL=http://localhost:7175      frontend URL
+    VISUAL_API=http://localhost:3002      backend URL
 """
 from __future__ import annotations
 

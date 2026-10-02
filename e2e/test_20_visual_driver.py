@@ -13,6 +13,7 @@ from test_20_driver_flow_e2e import create_driver_flow_fixture, cleanup_driver_f
 
 def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixture):
     """Visual + logical QA of the driver app against spec."""
+    bill_number = f"BL{fixture['booking_prefix']}"
 
     # ════════════════════════════════════════════════════════════════
     #  Spec §1: Bottom Navigation Bar (4 tabs)
@@ -87,9 +88,11 @@ def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixtur
     print(f"  Spec §2A: Layer 1 — Card content")
     print(f"{'═'*60}")
 
-    cards = page.locator(".driver-journey-card").filter(has_text=fixture["trip"]["tripCode"])
+    # Cards expose Số Bill/Booking, never the internal TRP code. The shared
+    # native CUS/direct-dispatch fixture owns this unique Bill and fulfillment.
+    cards = page.locator(".driver-journey-card").filter(has_text=bill_number)
     card_count = cards.count()
-    if card_count > 0:
+    if card_count == 1:
         results.pass_("TC-3020", f"{card_count} card(s) visible in Lệnh mới")
 
         card = cards.first
@@ -145,7 +148,7 @@ def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixtur
     print(f"  Spec §2B: Layer 2 — Detail view")
     print(f"{'═'*60}")
 
-    if card_count > 0:
+    if card_count == 1:
         # Click first card's footer to open detail
         cards.first.locator(".driver-journey-card__footer").click()
         page.wait_for_load_state("networkidle")
@@ -153,7 +156,7 @@ def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixtur
         selected_trip_id = urlparse(page.url).path.rstrip('/').rsplit('/', 1)[-1]
 
         # TC-3030: Navigated to /my-trips/:id
-        if "/my-trips/" in page.url:
+        if urlparse(page.url).path.rstrip('/') == f"/my-trips/{fixture['trip']['id']}":
             results.pass_("TC-3030", "Detail page loaded", f"URL: {page.url}")
         else:
             results.fail("TC-3030", "Detail URL", f"URL: {page.url}")
@@ -247,8 +250,7 @@ def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixtur
                 results.fail("TC-3040", "Acceptance control disabled", f"tripId={selected_trip_id}; no known accounting-lock reason was rendered")
         elif accept_btn.count() > 0:
             with page.expect_response(
-                lambda response: urlparse(response.url).path.startswith('/api/driver/me/fulfillments/')
-                and urlparse(response.url).path.endswith('/progress')
+                lambda response: urlparse(response.url).path == f"/api/driver/me/fulfillments/{fixture['fulfillment_id']}/progress"
                 and response.request.method == 'POST',
                 timeout=15000,
             ) as acceptance:
@@ -272,11 +274,12 @@ def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixtur
                 board = board_response.get('data', {})
                 selected = next((row for row in board.get('items', [])
                                  if str(row.get('tripId')) == selected_trip_id), None)
-                trip_code = selected.get('tripCode') if selected else None
-                matching_cards = running_cards.filter(has_text=trip_code) if trip_code else None
+                matching_cards = running_cards.filter(has_text=bill_number)
                 if acceptance_status in (200, 201) and board_response.get('status') == 200 and selected and selected.get('bucket') == 'RUNNING' \
-                        and matching_cards is not None and matching_cards.count() > 0:
-                    results.pass_("TC-3040", "Clicked order appears in 'Đã nhận'", f"tripId={selected_trip_id}, tripCode={trip_code}, bucket=RUNNING")
+                        and selected.get('fulfillmentId') == fixture['fulfillment_id'] \
+                        and selected.get('blNumber') == bill_number and matching_cards.count() == 1:
+                    results.pass_("TC-3040", "Clicked order appears in 'Đã nhận'", f"tripId={selected_trip_id}, fulfillmentId={fixture['fulfillment_id']}, bill={bill_number}, bucket=RUNNING")
+                    print(f"  Persisted journey-board proof: {json.dumps(selected, ensure_ascii=False)}")
                 else:
                     results.fail("TC-3040", "Clicked order did not appear in 'Đã nhận'", f"tripId={selected_trip_id}, acceptance={acceptance_status}, response={acceptance_detail}, boardAPI={board_response.get('status')}, bucket={selected.get('bucket') if selected else None}, renderedCards={running_cards.count()}")
                 ctx.screenshot(page, "TC-3040_running_tab")
@@ -300,7 +303,7 @@ def verify_visual_driver(ctx: SilverseaTestContext, results: TestResults, fixtur
     page.wait_for_load_state("networkidle")
     # Reload defaults to Lệnh mới; the accepted fixture now belongs to Đã nhận.
     page.locator("button:has-text('Đã nhận')").click()
-    typography_card = page.locator(".driver-journey-card").filter(has_text=fixture["trip"]["tripCode"])
+    typography_card = page.locator(".driver-journey-card").filter(has_text=bill_number)
     typography_card.wait_for(state="visible", timeout=15000)
     overflow = page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     if overflow:

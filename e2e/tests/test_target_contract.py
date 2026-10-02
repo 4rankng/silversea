@@ -9,12 +9,20 @@ from target_contract import resolve_targets
 class TargetContractTests(unittest.TestCase):
     def test_defaults_and_local_port_overrides(self):
         self.assertEqual(resolve_targets({}), {
-            'frontend': 'http://localhost:7174', 'api': 'http://localhost:3001',
+            'frontend': 'http://localhost:7175', 'api': 'http://localhost:3002',
         })
-        self.assertEqual(resolve_targets({'SILVERSEA_FRONTEND_PORT': '7175'})['frontend'],
-                         'http://localhost:7175')
-        targets = {'SILVERSEA_URL': 'http://127.0.0.1:7175', 'SILVERSEA_API': 'http://[::1]:3001'}
+        self.assertEqual(resolve_targets({
+            'SILVERSEA_FRONTEND_PORT': '8175', 'SILVERSEA_BACKEND_PORT': '4002',
+        }), {'frontend': 'http://localhost:8175', 'api': 'http://localhost:4002'})
+        targets = {'SILVERSEA_URL': 'http://127.0.0.1:8175', 'SILVERSEA_API': 'http://[::1]:4002'}
         self.assertEqual(resolve_targets(targets)['api'], targets['SILVERSEA_API'])
+
+    def test_explicit_urls_take_precedence_over_port_overrides(self):
+        targets = {'SILVERSEA_URL': 'http://localhost:9175', 'SILVERSEA_API': 'http://localhost:5002',
+                   'SILVERSEA_FRONTEND_PORT': '8175', 'SILVERSEA_BACKEND_PORT': '4002'}
+        self.assertEqual(resolve_targets(targets), {
+            'frontend': targets['SILVERSEA_URL'], 'api': targets['SILVERSEA_API'],
+        })
 
     def test_explicit_paired_remote_staging_is_preserved_without_network(self):
         targets = {'SILVERSEA_URL': 'https://staging.example.test',
