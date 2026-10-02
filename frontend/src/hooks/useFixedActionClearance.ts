@@ -1,47 +1,49 @@
-import { useCallback, useEffect, useState, type RefCallback } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 
-/**
- * Clearance var the app shell consumes (`scroll-padding-block-end` in
- * app-shell.css) so keyboard/scroll focus never parks under a fixed bar.
- */
-const DEFAULT_CLEARANCE_VAR = '--fixed-action-clearance';
+/** Fixed actions reserve the actual shell scrollport they cover, including
+ * responsive wrapping and a Driver navigation bar below them. */
+export function useFixedActionClearance<T extends HTMLElement>(heightProperty?: string) {
+  const [bar, setBar] = useState<T | null>(null);
+  const barRef = useCallback((node: T | null) => { setBar(node); }, []);
 
-/**
- * Attach to a fixed bottom action bar; publish its rendered height as a CSS
- * custom property on `:root` and keep it current while the bar resizes.
- *
- * - `ActionBar` publishes `--trip-action-bar-height` so the app-root-mounted
- *   guided tour stays above the controls instead of being covered by them.
- * - The default var feeds the shell's scroll clearance for the sticky
- *   accept/complete bars (DriverTripDetailPage) and the edit mobile bar
- *   (TripEditPage).
- *
- * Returns a callback ref: the bar may be conditionally mounted (the driver
- * screen swaps accept ↔ complete), and the publish follows whichever element
- * is currently attached. Unmounting the bar removes the property.
- */
-export function useFixedActionClearance<T extends HTMLElement>(
-  cssVar: string = DEFAULT_CLEARANCE_VAR,
-): RefCallback<T> {
-  const [element, setElement] = useState<T | null>(null);
-  const ref = useCallback((node: T | null) => setElement(node), []);
-
-  useEffect(() => {
-    if (!element) {
-      document.documentElement.style.removeProperty(cssVar);
-      return;
-    }
+  useLayoutEffect(() => {
+    if (!bar) return;
+    const scroller = bar.closest<HTMLElement>('.app-body,.content');
+    const root = document.documentElement;
+    let clearance = '';
+    let height = '';
     const publish = () => {
-      document.documentElement.style.setProperty(cssVar, `${element.offsetHeight}px`);
+      const rect = bar.getBoundingClientRect();
+      if (heightProperty) {
+        height = `${rect.height}px`;
+        root.style.setProperty(heightProperty, height);
+      }
+      if (!scroller) return;
+      if (rect.height > 0 && getComputedStyle(bar).position === 'fixed') {
+        const covered = Math.max(0, scroller.getBoundingClientRect().bottom - rect.top);
+        clearance = `calc(${covered}px + var(--space-sm))`;
+        scroller.style.setProperty('--fixed-action-clearance', clearance);
+      } else {
+        scroller.style.removeProperty('--fixed-action-clearance');
+        clearance = '';
+      }
     };
     publish();
-    const observer = new ResizeObserver(publish);
-    observer.observe(element);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(publish);
+    observer?.observe(bar);
+    if (scroller) observer?.observe(scroller);
+    window.addEventListener('resize', publish);
     return () => {
-      observer.disconnect();
-      document.documentElement.style.removeProperty(cssVar);
+      observer?.disconnect();
+      window.removeEventListener('resize', publish);
+      if (scroller?.style.getPropertyValue('--fixed-action-clearance') === clearance) {
+        scroller.style.removeProperty('--fixed-action-clearance');
+      }
+      if (heightProperty && root.style.getPropertyValue(heightProperty) === height) {
+        root.style.removeProperty(heightProperty);
+      }
     };
-  }, [cssVar, element]);
+  }, [bar, heightProperty]);
 
-  return ref;
+  return barRef;
 }

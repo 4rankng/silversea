@@ -1,0 +1,232 @@
+{
+  "provenance": "Read-only local ADMIN GET /api/reports/pnl?month=1..12&year=2026 on2026-10-01; qa/2026-10-01_workflow-audit_finance-chart-source.json; UI81 adds only exact cost/net/source-route projections from the same retained200 bodies; no account/contact/notes",
+  "reports": [
+    {
+      "period": {
+        "month": 1,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": 0,
+      "tripCount": 0,
+      "totalCosts": 0,
+      "netProfit": 0,
+      "maintenanceExpensesTotal": 0,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": []
+    },
+    {
+      "period": {
+        "month": 2,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": 0,
+      "tripCount": 0,
+      "totalCosts": 0,
+      "netProfit": 0,
+      "maintenanceExpensesTotal": 0,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": []
+    },
+    {
+      "period": {
+        "month": 3,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": -27254642,
+      "tripCount": 0,
+      "totalCosts": 27254642,
+      "netProfit": -27254642,
+      "maintenanceExpensesTotal": 27254642,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": []
+    },
+    {
+      "period": {
+        "month": 4,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": -24530168,
+      "tripCount": 0,
+      "totalCosts": 24530168,
+      "netProfit": -24530168,
+      "maintenanceExpensesTotal": 24530168,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": []
+    },
+    {
+      "period": {
+        "month": 5,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": -12463695,
+      "tripCount": 0,
+      "totalCosts": 12463695,
+      "netProfit": -12463695,
+      "maintenanceExpensesTotal": 12463695,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": []
+    },
+    {
+      "period": {
+        "month": 6,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": -44319176,
+      "tripCount": 0,
+      "totalCosts": 44319176,
+      "netProfit": -43183176,
+      "maintenanceExpensesTotal": 44319176,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": []
+    },
+    {
+      "period": {
+        "month": 7,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": -48575505,
+      "tripCount": 0,
+      "totalCosts": 48575505,
+      "netProfit": -48575505,
+      "maintenanceExpensesTotal": 48575505,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": []
+    },
+    {
+      "period": {
+        "month": 8,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": -68373420,
+      "tripCount": 0,
+      "totalCosts": 68373420,
+      "netProfit": -70523420,
+      "maintenanceExpensesTotal": 68373420,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 2150000,
+      "tripDetails": []
+    },
+    {
+      "period": {
+        "month": 9,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": -110000,
+      "tripCount": 1,
+      "totalCosts": 110000,
+      "netProfit": -110000,
+      "maintenanceExpensesTotal": 0,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": [
+        {
+          "routeName": "ASKEY",
+          "profit": -110000,
+          "isExternal": false,
+          "fuelOrHireCost": 0,
+          "roadAllowance": 0,
+          "driverAndAllowances": 0,
+          "tollAndCompanyTickets": 0,
+          "reconciledExtraCost": 110000,
+          "costDifference": 0
+        }
+      ]
+    },
+    {
+      "period": {
+        "month": 10,
+        "year": 2026
+      },
+      "totalRevenue": 4500000,
+      "grossProfit": 2850000,
+      "tripCount": 2,
+      "totalCosts": 1650000,
+      "netProfit": 2850000,
+      "maintenanceExpensesTotal": 0,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": [
+        {
+          "routeName": "Hải Phòng-NEWEB",
+          "profit": 0,
+          "isExternal": true,
+          "fuelOrHireCost": 0,
+          "roadAllowance": 0,
+          "driverAndAllowances": 0,
+          "tollAndCompanyTickets": 0,
+          "reconciledExtraCost": 0,
+          "costDifference": 0
+        },
+        {
+          "routeName": "Hải Phòng-NEWEB",
+          "profit": 2850000,
+          "isExternal": false,
+          "fuelOrHireCost": 1150000,
+          "roadAllowance": 0,
+          "driverAndAllowances": 500000,
+          "tollAndCompanyTickets": 0,
+          "reconciledExtraCost": 0,
+          "costDifference": 0
+        }
+      ]
+    },
+    {
+      "period": {
+        "month": 11,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": 0,
+      "tripCount": 0,
+      "totalCosts": 0,
+      "netProfit": 0,
+      "maintenanceExpensesTotal": 0,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": []
+    },
+    {
+      "period": {
+        "month": 12,
+        "year": 2026
+      },
+      "totalRevenue": 0,
+      "grossProfit": 0,
+      "tripCount": 0,
+      "totalCosts": 0,
+      "netProfit": 0,
+      "maintenanceExpensesTotal": 0,
+      "fleetDepreciationTotal": 0,
+      "fleetMonthlyFixedCostTotal": 0,
+      "companyExpenses": 0,
+      "tripDetails": []
+    }
+  ]
+}

@@ -27,6 +27,8 @@ import { ShipmentExpensePanel } from '../features/expense-accounting/ShipmentExp
 import { ShipmentFinancePanel } from '../features/shipment-finance/ShipmentFinancePanel';
 import { formatCurrency, formatDate, formatDateTimeShort as formatDateTime } from '../lib/format';
 import { allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
+import { ShipmentDetailContainers } from '../features/shipments/detail/ShipmentDetailContainers';
+import { billBookingReference } from '../lib/business-reference';
 import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';
 
@@ -126,13 +128,10 @@ export default function ShipmentDetailPage() {
   }
 
   const { shipment, containers, documents, declarations, statusHistory } = data;
-  const shipmentLabel = shipment.shipmentCode?.trim() || 'Chưa có mã lô hàng';
+  const shipmentLabel = billBookingReference(shipment.blNumber, shipment.bookingRef);
   const customerLabel = shipment.customerName?.trim() || 'Chưa có tên khách hàng';
   const accountingLock = data.accountingLock ?? null;
   const carrierAllocationSummary = allocationSummaryFromDetail(data);
-  const carrierAssignmentByContainerId = new Map(data.carrierAssignments
-    .filter((assignment) => assignment.shipmentContainerId != null)
-    .map((assignment) => [assignment.shipmentContainerId as number, assignment]));
   const lockReason = accountingLock
     ? `Khóa lô do CUS${accountingLock.activatedByName ? ` (${accountingLock.activatedByName})` : ''}${accountingLock.activatedAt ? ` lúc ${formatDateTime(accountingLock.activatedAt)}` : ''}. ${accountingLock.reason}`
     : null;
@@ -247,57 +246,7 @@ export default function ShipmentDetailPage() {
           </section>
         )}
 
-        {/* Containers */}
-        <section className="shipment-detail__card">
-          <h3 className="shipment-detail__section-title">
-            <Container size={16} /> Containers ({containers.length})
-          </h3>
-          {containers.length === 0 ? (
-            <EmptyState variant="compact" context="shipments" title="Chưa có container nào." />
-          ) : (
-            <table className="shipment-detail__table">
-              <thead>
-                <tr>
-                  <th>Loại</th>
-                  <th>Số container</th>
-                  <th>Nhà xe</th>
-                  <th>Xe đã gán</th>
-                  <th>Số seal</th>
-                  <th>Lịch giao</th>
-                  <th>Trọng lượng (kg)</th>
-                  <th>Ghi chú</th>
-                </tr>
-              </thead>
-              <tbody>
-                {containers.map((c) => (
-                  <tr key={c.id}>
-                    <td>{c.containerTypeName ?? c.containerTypeCode ?? '—'}</td>
-                    <td>
-                      {c.containerNumber ?? '—'}
-                      {c.pairKind && (
-                        <span className="shipment-detail__pair-tag">
-                          {c.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
-                        </span>
-                      )}
-                    </td>
-                    <td>{(() => {
-                      const assignment = carrierAssignmentByContainerId.get(c.id);
-                      if (!assignment?.carrierType) return '—';
-                      return assignment.carrierType === 'OWN'
-                        ? 'Đội xe nội bộ SilverSea'
-                        : assignment.externalCarrierName ?? 'Nhà xe chưa xác định';
-                    })()}</td>
-                    <td>{c.plannedVehiclePlate ?? '—'}</td>
-                    <td>{c.sealNumber ?? '—'}</td>
-                    <td>{formatDateTime(c.customerAppointmentAt)}</td>
-                    <td>{c.cargoWeightKg ?? '—'}</td>
-                    <td>{c.notes ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
+        <ShipmentDetailContainers containers={containers} assignments={data.carrierAssignments} />
 
         {/* Documents */}
         {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS].includes(user?.role as Role) && (

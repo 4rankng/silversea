@@ -1,0 +1,8 @@
+# QA-AUDIT-UI57 — shared native aria-invalid boundary paint
+
+1. In local7175 ADMIN, open retained Bill QA-ID02-OPS-130955 / trip2172 / shipment4997 expense work, actual Chi hộ phải trả→Thêm khoản chi. In Ngày chi, native Home+Shift+End then33/10/2026, leave the field. The exact invalid draft and one existing date alert remain; aria-invalid=true and native customValidity fail. The opaque white control boundary uses the danger token, including keyboard focus, with no duplicate helper or layout/height change.
+2. Native correct31/10/2026 and26/10/2026: draft/parent canonical callback stays unchanged, helper clears, aria-invalid=false and normal/focus border returns. Cancel closes without entry changes. Repeat390/768/1440 and save post-click originals, computed border/outline/background/bounds, exact driver exit, API before/after200 read parity and direct147-table output.
+3. Cover analogous real shared bare input, select, textarea and affix/licensed boundary selectors via unmocked controls. Public true invalid state paints only the actual owner; transparent inner inputs keep their existing borderless paint. False/default/required-untouched states do not become red through :invalid. Existing disabled/readOnly fill and focus semantics remain intact.
+4. Preserve the original neutral-border screenshots and the separate38-state Puppeteer driver failure. Run focused surface/date/control tests/types/lint and independent source review before fresh full gates. No page-specific CSS, parser change, fabricated protected URL, business write or blanket all-screen claim.
+
+Not covered until named evidence: staging, non-ADMIN ExpenseCreate error path, successful Save/persistence, every arbitrary third-party field host.

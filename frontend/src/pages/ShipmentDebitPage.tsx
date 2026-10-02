@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { ShipmentDebitRecords } from '../features/shipments/debit/ShipmentDebitRecords';
 import { canManageShipmentDebit } from '../lib/role-access';
 import { useQuery } from '@tanstack/react-query';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
@@ -122,6 +124,8 @@ function DebitLotRow({
 export function ShipmentDebitPage() {
   const { user } = useAuth();
   const canManage = canManageShipmentDebit(user?.role);
+  const phone = useMediaQuery('(max-width: 640px)');
+  const print = useMediaQuery('print');
   const [params, setSearchParams] = useQueuedSearchParams();
   const updateParam = (key: string, value: string | null) => {
     setSearchParams((current) => {
@@ -312,7 +316,13 @@ export function ShipmentDebitPage() {
                 {summary.data?.excludedCount} chuyến chưa gán đầu việc vận chuyển — {formatMoney(Number(summary.data?.excludedSum ?? '0'))} ₫ chưa vào chốt
               </p>
             )}
-            <div className="shipment-debit-table-wrap">
+            {phone && !print ? <ShipmentDebitRecords key={JSON.stringify([customerId, deliveryFrom, deliveryTo, lockStatus])}
+              rows={items} canManage={canManage} selectedIds={selectedIds} expandedId={expandedId}
+              onToggle={toggleExpandedLot} onSaved={() => { void summary.refetch(); }}
+              onSelect={(id, next) => setSelectedIds((current) => {
+                const set = new Set(current); if (next) set.add(id); else set.delete(id); return set;
+              })}
+            /> : <div className="shipment-debit-table-wrap ledger-desktop">
             <table className="shipment-debit-table">
               <thead>
                 <tr>
@@ -346,11 +356,11 @@ export function ShipmentDebitPage() {
                 ))}
               </tbody>
             </table>
-            </div>
+            </div>}
             {/* Scroll cue (card 20260924_9): the table's word-wrap min-width
                 floor makes the wrap scroll sideways on phones — say so plainly;
                 the hint stays hidden at desktop widths (page CSS). */}
-            <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+            <p className="shipment-debit-scroll-hint ledger-desktop">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
           </>
         )}
       </section>

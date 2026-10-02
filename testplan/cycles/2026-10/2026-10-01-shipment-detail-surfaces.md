@@ -1,0 +1,8 @@
+# QA-AUDIT-UI-36 — shipment detail solid cards and readable phone containers
+
+1. Local existing shipmentdetail route: baseline computed card paint currently bg-1/canvas; screenshot actual header,container,document/declaration/history siblings. Final all shipment-detail__card surfaces opaque white, house border/radius with no private bg-1/border2/radius10 skin.
+2. At390 real container record: primary identity/type/status visible; native Chi tiết reveals assigned carrier/vehicle, seal, appointment, cargo weight, notes and pair marker (all eight original matrix fields). Click actual summary and observe delivered values without mutation; the existing container cells have no navigation link, so do not invent one. No internal ID displayed as a key.
+3. At768/1440 phone record list absent, existing container matrix/links preserved. Full form/document/history sources and row values unchanged; actual shipmentdetail API before/after parity, no mutations; record marker and click screenshots,DOM/logreadproof required.
+4. Meaningful regression checks every original container field and action mapping, existing detail tests remain; print retains original matrix. Emptycontainer/missingdata/deniedrole paths reported honestly; no fake setup.
+
+Actual1440 final replay revealed the global900px table floor spilling outside a556px container card and shifting the main pane horizontally. Use existing ds-table-scroll containment (record-table-wrap owns sticky page flow and is not a scroll rail); headings stay fixed while actual desktop horizontal scroll reaches every cell. Preserve phone records/print. This red was found before the containment repair.

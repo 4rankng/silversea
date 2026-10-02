@@ -1,117 +1,32 @@
-import type { ReactNode } from 'react';
-import { Panel } from '../UI';
+import type { Key, ReactNode } from 'react';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { LedgerRecordList, type LedgerRecord } from './LedgerRecordList';
+import { LedgerRecordList, type LedgerRecordFact } from './LedgerRecordList';
+import { Panel } from '../UI';
 
-/** One column of the matrix. `rowHeader` marks the identity column: it
- *  becomes the semantic desktop row header and its cell is not repeated as a
- *  phone fact (the record's title/subtitle already carry the identity).
- *  `align: "end"` right-aligns numeric values/editors only. `layout:
- *  "full-width"` opts a composite editor or source-list cell into the phone
- *  full-width lane; the desktop grid keeps its column. */
-export interface LedgerMatrixColumn {
-  key: string | number;
-  label: ReactNode;
-  primary?: boolean;
-  rowHeader?: boolean;
-  align?: 'end';
-  layout?: 'full-width';
-}
+export interface LedgerMatrixColumn extends Pick<LedgerRecordFact, 'key' | 'label' | 'primary' | 'align' | 'layout'> { rowHeader?: boolean }
+export interface LedgerMatrixRow { key: Key; title: ReactNode; subtitle?: ReactNode; cells: ReactNode[]; cellClassNames?: (string | undefined)[]; className?: string }
 
-/** One row: identity title/subtitle plus exactly one cell per column, in
- *  column order. `cellClassNames` lines up with the columns one-to-one and
- *  rides the cell on both anatomies (e.g. the debit warn tint). */
-export interface LedgerMatrixRow {
-  key: string | number;
-  title: string;
-  subtitle?: string;
-  className?: string;
-  cells: ReactNode[];
-  cellClassNames?: Array<string | undefined>;
-}
-
-/** One explicit columns/rows mapping that owns both anatomies of a ledger:
- *  the desktop semantic table (including its `table-matrix` row-axis
- *  opt-in via the caller's own classes) and the phone LedgerRecordList.
- *  `framed` wraps the desktop table in the house Panel + shared scroll rail;
- *  phone records always keep their own shared Panel shells. */
-export function LedgerMatrix({ caption, columns, rows, className, framed }: {
-  caption: ReactNode;
-  columns: LedgerMatrixColumn[];
-  rows: LedgerMatrixRow[];
-  className?: string;
-  framed?: boolean;
+/** Explicit columns/cells keep phone records and desktop matrices on one value/action mapping. */
+export function LedgerMatrix({ caption, columns, rows, className, framed = false }: {
+  caption: ReactNode; columns: LedgerMatrixColumn[]; rows: LedgerMatrixRow[]; className?: string; framed?: boolean;
 }) {
   const phone = useMediaQuery('(max-width: 640px)');
-  if (phone) {
-    const records: LedgerRecord[] = rows.map((row) => ({
-      key: row.key,
-      title: row.title,
-      subtitle: row.subtitle,
-      facts: columns.flatMap((column, index) => {
-        // The rowHeader column is the identity fact — the record header
-        // (title/subtitle) already says it, so it is never repeated.
-        if (column.rowHeader) return [];
-        return [{
-          key: String(column.key),
-          label: column.label,
-          value: row.cells[index],
-          primary: column.primary,
-          align: column.align,
-          layout: column.layout,
-          className: row.cellClassNames?.[index],
-        }];
-      }),
-    }));
-    return (
-      <section className="ledger-record-section">
-        <h4 className="ledger-record-section__caption">{caption}</h4>
-        <LedgerRecordList rows={records} />
-      </section>
-    );
-  }
-  const table = (
-    <table className={className}>
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          {columns.map((column) => (
-            <th
-              key={column.key}
-              scope="col"
-              data-row-header={column.rowHeader ? 'true' : undefined}
-              data-align={column.align}
-            >
-              {column.label}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.key} className={row.className}>
-            {columns.map((column, index) => {
-              const cellClassName = row.cellClassNames?.[index];
-              if (column.rowHeader) {
-                return <th key={column.key} scope="row" className={cellClassName}>{row.cells[index]}</th>;
-              }
-              return (
-                <td key={column.key} className={cellClassName} data-align={column.align}>
-                  {row.cells[index]}
-                </td>
-              );
-            })}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-  if (!framed) return <div className="ledger-desktop">{table}</div>;
-  return (
-    <div className="ledger-desktop">
-      <Panel flush className="ledger-matrix__panel">
-        <div className="ds-table-scroll">{table}</div>
-      </Panel>
-    </div>
-  );
+  const print = useMediaQuery('print');
+  if (phone && !print) return <section>
+    <h3 className="ledger-matrix__caption">{caption}</h3>
+    <LedgerRecordList rows={rows.map((row) => ({
+      key: row.key, title: row.title, subtitle: row.subtitle,
+      facts: columns.flatMap((column, index) => column.rowHeader ? [] : [{ ...column, value: row.cellClassNames?.[index] ? <div className={row.cellClassNames[index]}>{row.cells[index]}</div> : row.cells[index] }]),
+    }))} />
+  </section>;
+  const table = <table className={className}>
+    <caption>{caption}</caption>
+    <thead><tr>{columns.map((column) => <th key={column.key} scope="col" data-row-header={column.rowHeader || undefined} data-align={column.align}>{column.label}</th>)}</tr></thead>
+    <tbody>{rows.map((row) => <tr key={row.key} className={row.className}>
+      {row.cells.map((cell, index) => columns[index].rowHeader
+        ? <th key={columns[index].key} scope="row" className={row.cellClassNames?.[index]}>{cell}</th>
+        : <td key={columns[index].key} className={row.cellClassNames?.[index]} data-align={columns[index].align}>{cell}</td>)}
+    </tr>)}</tbody>
+  </table>;
+  return framed ? <Panel flush><div className="table-scroll" data-ledger-matrix>{table}</div></Panel> : table;
 }

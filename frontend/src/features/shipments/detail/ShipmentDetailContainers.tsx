@@ -1,90 +1,48 @@
 import { Container } from 'lucide-react';
+import type { ShipmentDetail } from '../../../api/shipmentClient';
+import { LedgerRecordList, type LedgerRecordFact } from '../../../components/shared/LedgerRecordList';
 import { EmptyState } from '../../../design-system';
-import { formatDateTimeShort as formatDateTime } from '../../../lib/format';
-import type { ShipmentContainer } from '../../../api/shipmentClient';
+import { formatDateTimeShort } from '../../../lib/format';
 
-/** One carrier allocation projected onto the container table. Shape mirrors
- *  `ShipmentDetail['carrierAssignments']` — declared locally because the page
- *  test mocks the client module with only the detail fetch. */
-export interface ShipmentCarrierAssignment {
-  fulfillmentId: number;
-  fulfillmentVersion: number;
-  shipmentContainerId: number | null;
-  containerTypeCode: string | null;
-  containerTypeName: string | null;
-  carrierType: 'OWN' | 'EXTERNAL' | null;
-  externalCarrierId: number | null;
-  externalCarrierName: string | null;
+type ContainerRow = ShipmentDetail['containers'][number];
+type Assignment = ShipmentDetail['carrierAssignments'][number];
+
+function containerFacts(container: ContainerRow, assignment?: Assignment): LedgerRecordFact[] {
+  const carrier = !assignment?.carrierType ? '—' : assignment.carrierType === 'OWN'
+    ? 'Đội xe nội bộ SilverSea' : assignment.externalCarrierName ?? 'Nhà xe chưa xác định';
+  return [
+    { key: 'type', label: 'Loại', value: container.containerTypeName ?? container.containerTypeCode ?? '—', primary: true },
+    { key: 'number', label: 'Số container', value: <>{container.containerNumber ?? '—'}{container.pairKind && (
+      <span className="shipment-detail__pair-tag">{container.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}</span>
+    )}</> },
+    { key: 'carrier', label: 'Nhà xe', value: carrier, primary: true },
+    { key: 'vehicle', label: 'Xe đã gán', value: container.plannedVehiclePlate ?? '—', primary: true },
+    { key: 'seal', label: 'Số seal', value: container.sealNumber ?? '—' },
+    { key: 'appointment', label: 'Lịch giao', value: formatDateTimeShort(container.customerAppointmentAt) },
+    { key: 'weight', label: 'Trọng lượng (kg)', value: container.cargoWeightKg ?? '—' },
+    { key: 'notes', label: 'Ghi chú', value: container.notes ?? '—' },
+  ];
 }
 
-/**
- * The Containers card of the shipment detail grid (moved out of
- * `ShipmentDetailPage` for the 400-line ceiling). Each container row reads its
- * carrier through the live assignment for that container; the carrier column
- * heading is state-aware and shares the carrier section's label — "Nhà xe đã
- * gán" the moment any allocation carries a carrier, plain "Nhà xe" otherwise.
- */
+/** One value mapping for the phone records and the existing desktop matrix. */
 export function ShipmentDetailContainers({ containers, assignments }: {
-  containers: ShipmentContainer[];
-  assignments: ShipmentCarrierAssignment[];
+  containers: ShipmentDetail['containers']; assignments: ShipmentDetail['carrierAssignments'];
 }) {
-  const carrierLabelByContainerId = new Map(assignments
-    .filter((assignment) => assignment.shipmentContainerId != null)
-    .map((assignment) => [assignment.shipmentContainerId as number, assignment]));
-  const hasAssignedCarrier = assignments.some((assignment) => assignment.carrierType != null);
-
-  return (
-    <section className="shipment-detail__card">
-      <h3 className="shipment-detail__section-title">
-        <Container size={16} /> Containers ({containers.length})
-      </h3>
-      {containers.length === 0 ? (
-        <EmptyState variant="compact" context="shipments" title="Chưa có container nào." />
-      ) : (
-        <table className="shipment-detail__table">
-          <thead>
-            <tr>
-              <th>Loại</th>
-              <th>Số container</th>
-              <th>{hasAssignedCarrier ? 'Nhà xe đã gán' : 'Nhà xe'}</th>
-              <th>Xe đã gán</th>
-              <th>Số seal</th>
-              <th>Lịch giao</th>
-              <th>Trọng lượng (kg)</th>
-              <th>Ghi chú</th>
-            </tr>
-          </thead>
-          <tbody>
-            {containers.map((c) => {
-              const assignment = carrierLabelByContainerId.get(c.id);
-              const carrierLabel = !assignment?.carrierType
-                ? '—'
-                : assignment.carrierType === 'OWN'
-                  ? 'Đội xe nội bộ SilverSea'
-                  : assignment.externalCarrierName ?? 'Nhà xe chưa xác định';
-              return (
-                <tr key={c.id}>
-                  <td>{c.containerTypeName ?? c.containerTypeCode ?? '—'}</td>
-                  <td>
-                    {c.containerNumber ?? '—'}
-                    {c.pairKind && (
-                      <span className="shipment-detail__pair-tag">
-                        {c.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
-                      </span>
-                    )}
-                  </td>
-                  <td>{carrierLabel}</td>
-                  <td>{c.plannedVehiclePlate ?? '—'}</td>
-                  <td>{c.sealNumber ?? '—'}</td>
-                  <td>{formatDateTime(c.customerAppointmentAt)}</td>
-                  <td>{c.cargoWeightKg ?? '—'}</td>
-                  <td>{c.notes ?? '—'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-    </section>
-  );
+  const byContainer = new Map(assignments.filter((row) => row.shipmentContainerId != null)
+    .map((row) => [row.shipmentContainerId, row]));
+  const rows = containers.map((container) => ({
+    key: container.id,
+    title: container.containerNumber?.trim() || 'Chưa có số container',
+    facts: containerFacts(container, byContainer.get(container.id)),
+  }));
+  return <section className="shipment-detail__card">
+    <h3 className="shipment-detail__section-title"><Container size={16} /> Containers ({containers.length})</h3>
+    {containers.length === 0 ? <EmptyState variant="compact" context="shipments" title="Chưa có container nào." /> : <>
+      <LedgerRecordList rows={rows} />
+      <div className="ds-table-scroll ledger-desktop"><table className="shipment-detail__table">
+        <thead><tr>{rows[0].facts.map((fact) => <th key={fact.key}>{fact.label}</th>)}</tr></thead>
+        <tbody>{rows.map((row) => <tr key={row.key}>{row.facts.map((fact) => <td key={fact.key}>{fact.value}</td>)}</tr>)}</tbody>
+      </table></div>
+    </>}
+  </section>;
 }

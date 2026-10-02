@@ -1,32 +1,17 @@
-/** The stored cell datum the update payload carries (quotationCellSchema). */
-interface QuotationCellRow {
-  routeId: number;
-  vehicleSizeClassCode: string;
-  heSo: number;
-}
+import type { QuotationCellView } from '@tingting/shared';
 
-/**
- * Merge edited hệ số rows back into the full live-view cell set before a
- * replace-all update.
- *
- * The update endpoint is replace-all on `cells`: sending only the rows a
- * single route block edited would wipe every other route's hệ số. This keeps
- * the server-assembled view cells (the complete grid) and overrides each
- * matching cell's `heSo` — keyed by `(routeId, vehicleSizeClassCode)` — with
- * the edited value. Update rows without a matching view cell are dropped: a
- * cell only exists if the detail route assembled it.
- */
+type CoefficientCell = Pick<QuotationCellView, 'routeId' | 'vehicleSizeClassCode' | 'heSo'>;
+
+/** A route editor supplies a subset; the quotation update replaces all cells. */
 export function mergeQuotationCoefficients(
-  cells: ReadonlyArray<QuotationCellRow>,
-  updates: ReadonlyArray<QuotationCellRow>,
-): QuotationCellRow[] {
-  const edited = new Map(
-    updates.map((update) => [`${update.routeId}\u0000${update.vehicleSizeClassCode}`, update.heSo]),
-  );
-  return cells.map((cell) => {
-    const heSo = edited.get(`${cell.routeId}\u0000${cell.vehicleSizeClassCode}`);
-    return heSo === undefined
-      ? { routeId: cell.routeId, vehicleSizeClassCode: cell.vehicleSizeClassCode, heSo: cell.heSo }
-      : { routeId: cell.routeId, vehicleSizeClassCode: cell.vehicleSizeClassCode, heSo };
-  });
+  current: readonly CoefficientCell[],
+  changes: readonly CoefficientCell[],
+): CoefficientCell[] {
+  const key = (cell: CoefficientCell) => `${cell.routeId}:${cell.vehicleSizeClassCode}`;
+  const byKey = new Map(changes.map(cell => [key(cell), cell]));
+  return current.map(cell => ({
+    routeId: cell.routeId,
+    vehicleSizeClassCode: cell.vehicleSizeClassCode,
+    heSo: byKey.get(key(cell))?.heSo ?? cell.heSo,
+  }));
 }
