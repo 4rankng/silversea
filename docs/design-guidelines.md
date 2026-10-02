@@ -58,6 +58,22 @@ the date. A ruling row should name the test or `design-lock` entry that now enfo
 
 ## 3. Surfaces and overlays
 
+- **One visible control recipe across the app.** Enabled native and house/UUI
+  controls use the solid white surface, field radius and control border tokens;
+  readonly and disabled surfaces keep their distinct neutral states. Primary
+  actions use `--brand`; disabled actions are neutral and readable at full
+  opacity. Form sections use the shared Panel; ordinary and polished dialogs
+  share white chrome and quiet dividers without decorative corner accents.
+  *Source:* 2026-10-01 operator rejection of the expense form/dialog screenshots,
+  QA-AUDIT-UI-14/15; browser paint/state assertions and control-surface regression.
+- **Editable phone records expose their full context.** Fee/person/invoice/amount
+  and action fields reflow through the shared labelled record band. Horizontal
+  panning that hides editable context does not qualify as a visual pass. Record
+  labels and values wrap inside their cell; a desktop token nowrap must not make
+  a phone label overlap the next fact. Every phone destination keeps its real
+  screen name in the topbar when the body title is hidden.
+  *Source:* 2026-10-01 operator rejection; QA-AUDIT-UI-12 reopened, UI-16/17.
+
 - **Flat by contract.** Elevation never comes from shadows (`--sh-*: none` in the shell); hierarchy comes from the
   surface ladder and borders. A "looks unused" shadow token is intentional, not dead code.
   *Source:* nepocorp report (parity verified 2026-09-22).
@@ -263,3 +279,99 @@ Not laws — standing conventions already at parity, verified by the 2026-09-22 
 | 2026-09-29 | **Two shared table defects the Kế toán sweep surfaced, fixed at the primitive** (the sweep's own evidence, not a new operator ruling — recorded here because each one had already been patched page-locally three times, which is the divergence §"rule of one answer" exists to stop): (1) **a header label is never chopped mid-word.** `record-table thead th` declared `overflow-wrap: anywhere`, so a narrow column's min-content was one CHARACTER and shredded its label ("CONTAINER" → CONTAINE + R, the defect QA filed as card 20260922_54; `/accounting/deposit-tracker`'s `STT` rendered over two lines). `.ppc-board`, `.shipment-debit-table` and `.invoice-tracking-table` each carried their own copy of the fix. Both the shared base and the global `:where(table thead th)` now declare `overflow-wrap: normal; word-break: keep-all` — law §4's "single-token values EXPAND" applied to the head, so the COLUMN sizes to the label. (2) **supporting text inside a data cell floors at 11px.** A `<small>` beside 12px data renders at the browser's 0.8em default (9.6px, §5 wants 11px for supporting text, and `role-ui-sweep.mjs` counts sub-11px as a defect); the global table base now floors it at `--ops-table-meta-size`. Pins: `src/styles/table-no-truncation.styles.test.ts` (the header rule), `src/styles/operational-table-typography.test.ts` (the `<small>` floor). Measured after: 0 chopped headers and 0 sub-11px text across the 18 routes swept at 1440, and `pnpm design:drift` FELL (rawShadow 61→59, rawZIndex 81→80, untokenizedTransition 133→132). |
 | 2026-09-30 | **The phone's screen name lives in the topbar — one title, and the page keeps the accessible one** (operator, two phone screenshots side by side: `/shipments` printed "Tổng quan lô hàng" in its own header row while `/shipments-detail` printed the same words in the topbar; the request was to make them match). `/shipments` is the only page that had inverted the split: it owned a *visible* `<h1>` AND suppressed the topbar's fallback via `lib/page-heading-policy.ts` + `.app--page-own-heading`, so the phone showed a bespoke header row where every other route shows the shell title. That page now takes the same treatment `PageHeader` gives every other screen — at ≤640px `.shipments-control__title` is sr-only (in the a11y tree, out of the visual flow) and the topbar's "Đang xem" block is the visible title at EVERY width. The policy module, its test, the `Layout.tsx` class and the responsive rule are DELETED: with no page owning a visible phone heading there is nothing left to suppress, and the exact-match path list was the mechanism's whole risk (a prefix would have stripped the title off `/shipments/new`, `-detail`, `-debit`, `/:id`). The `<h1>` is not deleted above 640px — desktop keeps the page's own title beside the tabs, as before. Pin: `src/pages/ShipmentsPage.test.tsx` (the ≤640px sr-only rule + no `app--page-own-heading` in `responsive.css`). Measured: 390px title height 1px (sr-only) with the topbar title visible; 768/1440px unchanged; 0 horizontal overflow at all three. |
 | 2026-09-30 | **A selected row wears the shared neutral-ink edge — the four sheets that still drew an accent rail are conformed** (surfaced by `pnpm check:ui` refusing the build on `border-left: 3px solid var(--accent)`; the same violation also hid in `border-inline-start`, which the checker cannot see). §"Row selection — a row is the control" (card `20260929_207`) already settled this: the edge is `box-shadow: inset 3px 0 0 var(--ink)` over `var(--surface)`, NEVER a brand tint and never an accent-filled row — the exact recipe `styles/record-table.css:118-122` ships. `AccountingWorkspacePage.css`, `CustomersPage.css`, `PhoiPhieuControlPage.css` and `ExpenseAccounting.css` now carry that recipe rather than a fourth variant. Two shapes, not one: three sheets take the base form verbatim on the `<tr>`, while the customers grid paints its zebra on the CELLS, so a row-level background would be hidden under them — its surface therefore rides the cells too (specificity 0,4,3 against the 0,3,3 zebra, later in the sheet, no `!important`). The two tests that pinned the superseded accent recipe — and one that forbade any shadow on the phôi phiếu file — were re-pinned to the contract, and that file's flat-sheet ratchet was narrowed to what it means: comments are stripped, the sanctioned ink edge is subtracted, gradients/3D/drop shadows still fail, and a SECOND assertion pins that every remaining `box-shadow` in the declared sheet IS that edge. The callout rail on `.expense-accounting-notice` is a notice, not a selection state, and is left alone. Pin: `src/styles/selection-state-contract.styles.test.ts` (the four rules + no `border-left: <2-6>px solid` per sheet). |
+
+
+### 2026-10-01 — Phone accounting records remain inside the screen
+
+The owner rejects accounting values that sit off-screen on a phone. At <=640px, wide debit and phôi ledgers use the shared `LedgerRecordList` over house `Panel`: Bill/Booking and customer, primary totals and status stay visible; remaining source facts expand under Chi tiết without horizontal scrolling. An explicit checkbox owns selection, while disclosure and nested actions preserve it. Twenty-record pagination reaches every record and filtering resets the page. Tablet/desktop keep the existing matrix and keyboard selection. Reuse the existing column renderers; do not create another amount calculation or hide facts to fit. This current ruling overrides earlier phone money-matrix scroll allowances for these boards.
+
+The shared topbar keeps current-page context on every non-driver route. The obsolete dispatch-detail suppression is removed because phone page headings are accessible but visually hidden.
+
+### 2026-10-01 — Compact labelled records and short numeric editors
+
+The owner rejected five-fact phone quotation records whose labels occupied five extra lines, and coefficient fields spanning the full data track. `LedgerRecordList` now uses one shared label/value row grid with compact house spacing, retaining every fact, selection, disclosure, action and page boundary. The first `TextField` short-number prototype was96px with40px control height (superseded below by the current72×30owner decision); this geometry never constrains valid decimals or changes zero policy. The target for ordinary five-fact quotation records at390px is≤210px, with original-pixel approval required in addition to dimensions. Tablet and desktop metrics use an opt-in shared `table-matrix` row axis: opaque metric labels remain visible while intrinsic money/class tracks pan. Generic rowspan tables do not inherit that pin. Current owner rejection withdraws the earlier oversized phone visual acceptance; final actual screenshots must establish the replacement.
+
+UI35 desktop continuation: the owner also rejected the ten-class-column matrix. The approved replacement transposes to ten vehicle rows with five metric columns through shared LedgerMatrix, preserving source ordering, group subtitle, amount/render/edit handlers and phone facts. Numeric alignment is explicit shared metadata; long text refs keep their existing start alignment. The earlier sticky ten-column prototype was never accepted.
+
+Latest owner sizing decision (2026-10-01):40px is the mobile component ceiling, not a mandatory minimum for every short numeric editor. The shared TextField short-number geometry deliberately uses72px width and canonical30px compact height on all pointers; its field/group/affix/focus follow the same border-box size. Ordinary controls retain their existing40px ceiling/floor. The prior96×40quotation prototype is superseded; valid decimals and explicit0are not restricted.
+
+Owner clarification 2026-10-01: the40px component ceiling applies to phone, tablet and desktop. It is a ceiling at every width, not an obligatory40px height; compact30px short numeric controls are deliberately allowed. Default touch-floor terminology above describes ordinary controls and does not override this current explicitly scoped numeric exception.
+
+QA-AUDIT-UI-45 (2026-10-01): the single-line option target includes its wrapper
+padding. The old44px installed SelectItem body plus2px outer padding measured46px
+on a stationary390px phone picker. Installed/custom option owners use the current
+40px token rather than obsolete42/44px floors. Genuinely multiline option labels
+retain complete normal wrapping and their intrinsic content height; a fixed
+height that clips those labels is not a valid ceiling repair. This concerns
+menu content and does not relax the ordinary form-control ceiling.
+
+Selected multi-facets use the existing compact count-summary and checked list,
+with full selected names available in the trigger title. Nesting removable
+native buttons inside a native trigger is invalid; individual deselection and
+clear-all remain actual list actions. Supported avatar options budget their
+vertical padding within the same shared ceiling. Native large controls whose
+complete border-box budget already fits retain their existing geometry.
+
+QA-AUDIT-UI-49 (2026-10-01): Escape belongs to the topmost open layer even
+when a disabled clear action leaves focus at BODY. The shared click-outside
+owner uses the existing overlay token stack; opening/closing owns token order,
+not callback/ref rebinding after a parent rerender. First Escape closes the
+picker and restores its trigger in the retained parent; the next closes the
+parent. The topmost owner consumes the native event before dismissal; later
+same-document listeners respect defaultPrevented even if child cleanup has
+already changed the stack. Pointer paths and existing portalled-region guards
+remain unchanged.
+
+QA-AUDIT-UI-53 (2026-10-01): a prefixed from/to date has one opaque border
+owner, the inner prefix/segment boundary of BufferedUuiDateInput. The outer
+label/helper column stays transparent and the error sits below the control. Nested segment groups stay transparent and occupy
+the height minus the two outer border pixels. Shared enabled/read-only/disabled
+paint follows that actual boundary, while the existing outer focus/error ring
+remains visible. Standalone dates keep their own chrome. This corrects the
+shared native fill/filter floor conflict; clipping the field or adding a page
+override is not a repair.
+
+QA-AUDIT-UI-54 (2026-10-01): legacy native small fields take their30px
+modifier from shared Input.css, with ordinary touch fields inheriting the
+existing40px band. Journey/container editors and trip save actions must not
+raise that geometry to45px. Existing single-line reminder/route, photo icon/
+capture, POD/download and scanner-sheet actions use the house control token;
+photo thumbnails, multiline descriptions/notes and disclosure/read rows
+retain their content anatomy. A supported unmounted branch has source
+evidence only, never inferred actual coverage.
+
+UI54 camera continuation: scanner close/flash/gallery/shutter and native
+“Thêm ảnh” buttons are real controls, not media exceptions. All use the
+shared40px token; a compact horizontal label/icon replaces the old72px
+capture action tile. The camera video and photo thumbnails keep their
+existing dimensions. No clipping cap hides the ring, icon or label.
+
+
+UI56 shared filter feedback continuation (2026-10-01): below-field errors may increase the
+field column, but must not lower neighboring controls to the helper baseline.
+The shared FilterBar owns the direct prefix-date/search feedback top-alignment
+exception; hosted Select adapters reuse their existing inner inline label/control
+row, with optional feedback below it. Normal filter rows keep bottom alignment;
+direct standalone dates likewise keep their visible label/intrinsic segmented
+control on one row, with their helper on a separate normal-flow line;
+ordinary forms and folded portalled filters keep their stacked label anatomy. Keep
+helpers in normal flow, readable and below the control, with no absolute
+positioning, clipping, new column count or page-local variant. Current pixels
+and actual sibling geometry remain required for acceptance.
+
+UI54 tablet continuation: complementary edit action bands must leave exactly
+one Save/Cancel owner visible at every width. The existing narrow footer ends
+at the same820px cutoff that hides the shared desktop-only rail; do not leave
+a641–820px action gap or alter handlers/ordinary40px Button geometry.
+
+UI54 driver continuation: the current40px all-screen ceiling also owns Driver
+Back, journey category/day-view/card actions, accept/completion/fuel actions,
+single-line disclosure headers and POD conflict reload. Older AC-NFR48/52px
+opt-ups are superseded and their redundant phone overrides are removed.
+Use the existing house control tokens; do not shrink expanded disclosure
+bodies, static fact rows or decorative/media content. Unavailable material
+branches remain source-only until driven through legitimate owned work.
+
+### 2026-10-02 — UI63 complete inline label/control width budget
+
+A labelled bar field must reserve its label, seam and actual trigger together before sibling packing. A280px whole-field cap cannot hold the measured98.25px label +8px gap +existing200px searchable minimum. The shared UuiSelectField owner gives visible labelled bar fields bounded intrinsic width and applies280px to their trigger; long labels and the inner row wrap normally when necessary. Preserve control height/minimum and complete label text; no clipping, page offsets or page-local geometry. Hidden-label filters, ordinary stacked forms and folded portalled fields retain their existing width/value owners. Paid reference: pinned Untitled UIv8 Select/select-shared; keep the installed house adapter mechanics.

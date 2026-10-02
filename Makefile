@@ -7,6 +7,13 @@
 # Deliberately off the common defaults so this stack can run alongside other
 # projects on this machine without port or container-name collisions.
 
+# Local commands must work without an ignored backend/.env. Explicit process
+# values still win, and the frontend proxy follows an overridden backend port.
+DEV_BACKEND_PORT ?= $(or $(PORT),3002)
+DEV_FRONTEND_PORT ?= 7175
+DEV_DATABASE_URL ?= $(or $(DATABASE_URL),postgres://postgres:postgres@localhost:5441/silversea)
+DEV_API_PROXY_TARGET ?= $(or $(VITE_API_PROXY_TARGET),http://localhost:$(DEV_BACKEND_PORT))
+
 # ─── Full dev environment ─────────────────────────────────────────────────────
 dev: ## Start everything (db, redis, backend, frontend)
 	@echo "Starting silversea dev environment..."
@@ -18,28 +25,28 @@ dev: ## Start everything (db, redis, backend, frontend)
 	@sleep 1
 	@echo "Running migrations (backup first)..."
 	@$(MAKE) --no-print-directory db-backup || echo "⚠️  db-backup failed — continuing dev startup WITHOUT a pre-migrate backup" >&2
-	@out=$$(cd backend && npx drizzle-kit migrate 2>&1); migrate_status=$$?; \
+	@out=$$(cd backend && DATABASE_URL="$(DEV_DATABASE_URL)" npx drizzle-kit migrate 2>&1); migrate_status=$$?; \
 		printf '%s\n' "$$out" | grep -v "already exists, skipping" || true; \
 		if [ $$migrate_status -ne 0 ]; then \
 			echo "⚠️  drizzle-kit migrate FAILED (exit $$migrate_status) — dev stack continues, but the DB may be behind. Run 'make migrate' for the full error." >&2; \
 		fi
 	@echo ""
-	@echo "Starting backend (port 3002) and frontend (port 7175)..."
-	@echo "  Frontend: http://localhost:7175"
-	@echo "  Backend:  http://localhost:3002/api/health"
+	@echo "Starting backend (port $(DEV_BACKEND_PORT)) and frontend (port $(DEV_FRONTEND_PORT))..."
+	@echo "  Frontend: http://localhost:$(DEV_FRONTEND_PORT)"
+	@echo "  Backend:  http://localhost:$(DEV_BACKEND_PORT)/api/health"
 	@echo "  Adminer:  http://localhost:8083  (DB: silversea · user/pass: postgres/postgres)"
 	@echo "  (Ctrl-C stops backend + frontend; db/redis keep running)"
-	@pid=$$(lsof -ti tcp:7175 -sTCP:LISTEN 2>/dev/null); \
+	@pid=$$(lsof -ti tcp:$(DEV_FRONTEND_PORT) -sTCP:LISTEN 2>/dev/null); \
 	if [ -n "$$pid" ]; then \
-		echo "Port 7175 in use (stale PID $$pid) — freeing..."; \
+		echo "Port $(DEV_FRONTEND_PORT) in use (stale PID $$pid) — freeing..."; \
 		kill $$pid 2>/dev/null || true; \
 		sleep 1; \
 		kill -9 $$pid 2>/dev/null || true; \
 	fi
 	@bash -c '\
 		trap "kill 0" EXIT; \
-		(cd backend && pnpm dev) & \
-		(cd frontend && VITE_API_PROXY_TARGET=http://localhost:3002 npx vite --port 7175) & \
+		(cd backend && PORT="$(DEV_BACKEND_PORT)" DATABASE_URL="$(DEV_DATABASE_URL)" pnpm dev) & \
+		(cd frontend && VITE_API_PROXY_TARGET="$(DEV_API_PROXY_TARGET)" npx vite --port $(DEV_FRONTEND_PORT)) & \
 		wait'
 
 # ─── Database ──────────────────────────────────────────────────────────────────
@@ -48,7 +55,7 @@ DB_NAME      := silversea
 DB_USER      := postgres
 
 migrate: db-backup ## Run database migrations (drizzle-kit) — backs up first, fails closed
-	cd backend && npx drizzle-kit migrate
+	cd backend && DATABASE_URL="$(DEV_DATABASE_URL)" npx drizzle-kit migrate
 
 # Drop and recreate the database from scratch (dev/staging — loses all data).
 db-recreate:
@@ -170,19 +177,20 @@ qapurge: ## Purge QA-fixture rows on staging (identifier-gated, registry-driven;
 qapurge-dry: ## Dry-run the QA-fixture purge on staging (no writes)
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js --dry-run"
 
+setup: ## Recreate and seed the local database (destructive local setup)
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
 		docker-compose -f docker-compose.dev.yml up -d
 	@sleep 2
 	@$(MAKE) db-recreate
 	@# db-backup gate would abort here: a freshly recreated DB dumps <1KB.
 	@# Nothing to back up on a fresh recreate — migrate without the backup hook.
-	@cd backend && npx drizzle-kit migrate
+	@cd backend && DATABASE_URL="$(DEV_DATABASE_URL)" npx drizzle-kit migrate
 	@echo "Seeding database..."
-	@cd backend && pnpm seed
+	@cd backend && DATABASE_URL="$(DEV_DATABASE_URL)" pnpm seed
 	@echo ""
 	@echo "Setup complete! Run 'make dev' to start the app."
-	@echo "  Frontend: http://localhost:7175"
-	@echo "  Backend:  http://localhost:3002/api/health"
+	@echo "  Frontend: http://localhost:$(DEV_FRONTEND_PORT)"
+	@echo "  Backend:  http://localhost:$(DEV_BACKEND_PORT)/api/health"
 
 # ─── Build ─────────────────────────────────────────────────────────────────────
 build: ## Build shared + backend + frontend

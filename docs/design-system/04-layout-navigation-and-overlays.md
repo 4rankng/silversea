@@ -161,6 +161,8 @@ Measured 2026-09-27 on the working tree. Counts are greps over
 ### Modal / Dialog
 - **Use** — the ONE modal module: `frontend/src/design-system/Modal.tsx` (+ `Modal.css`, card 20260930_227) owns portal-to-body, scrim + backdrop dismissal, Escape (picker-deferent) and Enter-confirm, focus trap + focus return (close AND unmount paths), nest-safe scroll lock, overlay stacking, house chrome (`.modal__head/__body/__foot`, `--modal-max-w` size, polished variant, ≤640px bottom sheet) and `chrome="bare"` mode for dialog-owned surfaces (`.modal--bare` stays centered). `components/UI` re-exports it for the 33 legacy import sites; new code imports from `@/design-system`.
 - **Never** — a second modal shell: private backdrop/Escape/scroll-lock/focus machinery, or page-local modal markup (below). Density: dialog body must not wrap a UUI select in the legacy input boundary (`operational-density.styles.test.ts`).
+- **Chrome corners** — white header and footer inherit their corresponding shell corner radii, and every house shell, including the polished variant, clips child paint to its rounded boundary (`Modal.css`, QA-AUDIT-UI-19/51). Picker menus use portals so they can extend beyond the panel without breaking its corners.
+- **Loading focus** — a dialog with no enabled controls focuses its temporary non-tabbable container. Tab/reverse Tab stay inside until controls enable, then enter the enabled children. The shared `useFocusTrap` owns this behavior; no page-specific loading trap (QA-AUDIT-UI-69).
 - **Divergence** — the remaining ad-hoc modals below still re-implement surfaces; `features/ops/OpsModalBackdrop` is now a thin bare-mode adapter (skin only — its css owns `.ops-modal*`, no backdrop), and both dispatch hand-rolled portals were migrated (allocation popover rides bare Modal; tag manager rides the popover idiom).
 - **Enforced by** — `frontend/src/design-system/Modal.test.tsx` (THE overlay suite: Escape, focus return, scroll lock incl. nesting, backdrop dismiss + opt-out, picker deference, adapter cases), `dialog-density-contract.styles.test.ts` (frozen-wrapper allowlist), `overlay-surface.styles.test.ts` (incl. TSX overlays and elevation-shadow ban), `features/ops/ops-modal.styles.test.ts` (no parallel backdrop).
 - **Gap** — the mobile bottom-sheet shape lives only in `Modal.css`; `.confirm-box` and the remaining ad-hoc modals re-implement it.
@@ -185,6 +187,7 @@ The 227 census listed ~10 ad-hoc surfaces. Per-surface review resolved every ent
 - DispatchContainerDetailDrawer's `returnFocusTarget` plumbing — RESOLVED (card 20261001_251): redundant second focus-return implementation deleted; the house Drawer's useAnimatedOverlay owns it.
 - FALSE POSITIVES (never were ad-hoc systems): `.cus-quick-edit-modal*` and `.fuel-invoice-modal__footer` are content classes INSIDE house `Modal`s; `.debit-editor-preview__sheet` is a static paper preview (not an overlay); `.csc-customer-popover` is a skin class on the shared SearchableSelect popover; `.ops-settlement-sheet__*` rides `OpsModalBackdrop` since card 20260930_227; `ForwarderTripDateRangePicker` no longer exists.
 - DELIBERATE EXCEPTIONS: `AuditLogPage`'s detail sheet uses the NATIVE `<dialog>` element (`d-modal-end`, `::backdrop`) — the browser owns Escape, focus containment and top-layer stacking, so there is no hand-rolled mechanics to migrate; a redesign into `.modal`/`.drawer` chrome would be a visual decision, not an architecture one. `CustomerPortalLayout`'s `__backdrop` is the sanctioned navigation scrim (the `.sidebar-overlay` pattern) and its account popover rides the global dismissal layer.
+- Audit continuation (QA-AUDIT-UI-67/68/70): `BillingDocumentBuilder` and the five tire dialogs now use the existing bare Modal mechanics; their inner content skins remain local while the shared primitive owns focus, scroll and dismissal. The driver photo-action menu uses ordinary Modal chrome and a contextual zone title. The tire PositionPicker owns its nested Escape before the parent. The pinned Untitled UI v8 `modal` catalog reference was consulted; these adapters deliberately reuse the existing house primitive rather than install another one. Source migration alone is not native acceptance; current click-through evidence belongs in the audit coverage report.
 
 ---
 ## Chrome budgets & touch floors
@@ -194,12 +197,11 @@ The 227 census listed ~10 ad-hoc surfaces. Per-surface review resolved every ent
 - **Divergence** — only the two dispatch pages carry `maxTop` locks; every other page's header height is unpinned.
 - **Enforced by** — `frontend/design-lock/expectations/dispatch.mjs` (8 `maxTop` locks), run via `pnpm design:lock`; `frontend/role-ui-sweep.mjs:95` records `chromeH` but does not gate.
 - **Gap** — no budget number documented in the guidelines for phone/tablet/desktop generally, and no lock on `/shipments`, `/config`, or any non-dispatch page.
-### Touch floors
-- **Use** — `--control-touch-h:44px`, `--control-mobile-h` (`frontend/src/styles/tokens.css:258,261`); phone floors applied centrally in `frontend/src/styles/responsive.css:257,514,520`, driver topbar keeps the rule (`topbar.css:162`), bottom-nav tabs 48px (`bottom-nav.css:150`).
-- **Never** — a control under 44px on a `pointer:coarse` device; header/page action buttons must not out-specify the phone floor (`responsive.css:348`).
-- **Divergence** — sidebar close is 36px until ≤1023px (`sidebar-overlay.css:18`); `.modal__close.btn` is 36px desktop / 44px ≤640px (`Modal.css:52,289`).
-- **Enforced by** — `frontend/src/styles/mobile-touch-floor.styles.test.ts`; `frontend/scripts/check-ui-contract.mjs:109,139,338` (inline interactive minHeight ≥44); design-lock `tapFloor` kind (`dispatch.mjs` `pageWide`, `shipments.mjs`); `frontend/role-ui-sweep.mjs:78` measures `w<44||h<44` as `smallCount` (report only).
-- **Gap** — `tapFloor` locks cover only dispatch + shipments-detail; no global lock or test iterates every route, so a new page can ship sub-44 controls until a manual sweep.
+### Control ceiling and touch sizing
+- **Use** — `--control-max-h:40px`; `--control-touch-h`, `--control-mobile-h` and `--control-h` inherit that ceiling. The operator's accepted40px ceiling applies to ordinary single-line controls on every screen and pointer, superseding the old44px touch rule. Approved compact fields retain their30px token; quotation coefficients use the accepted72×30px field.
+- **Never** — enlarge ordinary controls beyond40px to satisfy the retired44px rule, or give a page its own control-shape/height override. Multiline content and composite record containers have separate content budgets.
+- **Enforced by** — `ordinary-control-ceiling.styles.test.ts`, the shared control geometry contract, `mobile-touch-floor.styles.test.ts` token consumers, design-lock `tapFloor` (default40) and the role sweep. Native computed geometry and original pixels remain required; source declarations alone cannot prove which rule won.
+- **Gap** — design-lock touch-floor cases cover selected routes. The all-route390/768/1440 sweep and per-control evidence are required for the wider audit claim; physical Safari remains separate from Chrome touch emulation.
 ### Device bands
 - **Use** — the documented set in `frontend/src/styles/responsive.css:4-17`: `≤1500` operational canvas, `≤1023` tablet, `≤640` phone, `≤420` narrow phone. Desktop reference width is `1440` (`--content-max-w`), design-lock widths are 390 / 500 / 768 / 1024 / 1440 (`design-lock/expectations/config.mjs` `WIDTHS`, `dispatch.mjs`).
 - **Never** — a new page-local breakpoint; §5 density law assumes these four bands.
@@ -235,3 +237,21 @@ The 227 census listed ~10 ad-hoc surfaces. Per-surface review resolved every ent
 - **Touch floor is lock-backed only for dispatch + shipments-detail.** No route-wide sweep gates merge; worst offender `frontend/src/components/layout/sidebar-overlay.css:18` (36px close control until ≤1023px).
 - **Ad-hoc overlays are unenforced.** `.ops-modal*` runs as a parallel system across 12 files with no test forcing convergence; worst offender `frontend/src/features/ops/ops-modal.css:4`.
 - **Tab markup convergence is unchecked.** 3 independent tab implementations vs the shared `Tabs` primitive; worst offender `frontend/src/features/shipment-finance/ShipmentFinancePanel.css:5`.
+
+### Nested Escape ownership (2026-10-01, QA-AUDIT-UI-49)
+
+`useClickOutside` owns document Escape for its open menu/filter consumers, using
+`isTopOverlayToken` from the existing shared overlay stack. The token lifetime
+is the layer's enabled/escape lifetime; ref/callback listener rebindings never
+move a still-open parent above its child. This handles BODY focus after a clear
+button disables without forcing focus or adding a second overlay mechanism.
+The child's existing close callback restores focus to its trigger in the still
+open parent; another Escape closes that parent. Pointer outside/path and
+ignore-selector semantics are unchanged. Real shared FilterDropdown +
+SearchableMultiSelect regression and DetailedPlanFilters cover sequential
+Escape ownership, exact clear value and focus return.
+
+The shared native Escape handler consumes the event before its close callback.
+Later document listeners respect `defaultPrevented`: browser microtasks can
+commit child cleanup between listeners, so topmost token checks alone cannot
+prevent the same key from closing the next layer.

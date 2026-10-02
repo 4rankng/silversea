@@ -11,7 +11,7 @@ import {
   sleep,
 } from './lib/ui-driver.mjs';
 
-const FRONTEND = process.env.FRONTEND ?? 'http://localhost:7174';
+const FRONTEND = process.env.FRONTEND ?? 'http://localhost:7175';
 const QA_DIR = 'qa';
 mkdirSync(QA_DIR, { recursive: true });
 

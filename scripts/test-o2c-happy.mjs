@@ -26,8 +26,8 @@ import {
   writeArtifact,
 } from "./lib/ui-driver.mjs";
 
-const FRONTEND = process.env.FRONTEND ?? "http://localhost:7174";
-const BACKEND = process.env.BACKEND ?? "http://localhost:3001/api";
+const FRONTEND = process.env.FRONTEND ?? "http://localhost:7175";
+const BACKEND = process.env.BACKEND ?? "http://localhost:3002/api";
 const ROOT = process.env.ARTIFACTS ?? `qa/${new Date().toISOString().slice(0, 10)}_o2c-happy`;
 
 const cusToken = await login("cus");

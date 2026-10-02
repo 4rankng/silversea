@@ -4,6 +4,16 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-01 — Giữ chính sách hiện tại cho các đề xuất220/245/252
+
+Chủ sản phẩm chọn giữ phạm vi CUS đối với danh mục phí báo giá, các trường số
+lượng/đơn giá/phụ cấp chuyến không âm, và tạo lô DRAFT rồi tiếp tục theo luồng
+hiện tại. Quy tắc dòng chi phí âm được hiển thị nhưng không cộng vào tổng không
+đổi. Đây là quyết định không mở thêm quyền hoặc thao tác SUBMIT, không phải
+một thay đổi đã triển khai trên môi trường sản xuất. Quy tắc đang áp dụng nằm ở
+[README §2.5](README.md#25-phạm-vi-danh-mục-phí-trường-chuyến-và-tạo-lô);
+lý do và phạm vi ở [ADR220/245/252](../adr/2026-10-01-audit-todo-policy-rulings.md).
+
 ## 2026-09-28 — Chi phí: số âm có kiểm soát, lý do bắt buộc khi không thu khách, nhóm chi hộ theo danh mục, nguồn quỹ khớp dòng chi
 
 - **Số tiền của một dòng chi phí được phép là số âm, và số âm không được cộng vào tổng nào**

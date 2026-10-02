@@ -70,6 +70,18 @@ Kẹp phụ phí dầu về 0 khi giá dầu kỳ thấp hơn giá mốc; luôn 
 cước đã chốt. Giá trị, phạm vi và điều kiện cụ thể nằm trong các tài liệu cước.
 Thông số khách hàng chưa xác định không được tự thay bằng số minh họa.
 
+### 2.5 Phạm vi danh mục phí, trường chuyến và tạo lô
+
+- CUS giữ phạm vi truy cập danh mục phí báo giá hiện tại; không mở thêm quyền
+  danh mục hoặc tự thêm cột giá phí. Quyền đọc/xuất chi tiết công nợ là phạm vi riêng.
+- Số lượng, đơn giá và tiền phụ cấp trên biểu mẫu chuyến phải không âm. Quy tắc
+  dòng chi phí âm được hiển thị nhưng không cộng vào tổng vẫn áp dụng riêng.
+- Tạo lô ở trạng thái DRAFT rồi tiếp tục theo luồng sẵn sàng, hồ sơ và thực hiện
+  hiện tại; không thêm thao tác SUBMIT hoặc bước gửi duyệt nội bộ.
+
+Chủ sản phẩm chốt giữ các quy tắc này ngày2026-10-01; xem
+[quyết định220/245/252](../adr/2026-10-01-audit-todo-policy-rulings.md).
+
 ## 3. Chất lượng trải nghiệm cần đạt
 
 - **Dễ nhận biết:** người dùng biết mình đang ở đâu, đang xem lô/công việc/kỳ nào, dữ

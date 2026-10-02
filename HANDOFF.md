@@ -1,71 +1,17 @@
-# HANDOFF.md — four-role UI/UX polish wave (cus · dieuvan · laixe · ops)
+# Local audit handoff
 
-**Updated:** 2026-09-30 01:55 (+08)
-**Controller:** Claude Code session (user order: "polish UI UX of cus (chungtu), dieuvan, laixe, ops for all device sizes", plus "avoid long text filler text in the app" and "commit frequently after each logical chunk")
-**Status:** LANDED — 6 commits on `prod` (8f9ab5ea, ccc6d5d9, e45588ea, fa0e6efc, 1cafa684, + this handoff). One card open on a PM question.
+Controller: root, session01a0f570-bbb2-7ec3-826a-2a348ab97832. Updated 2026-10-02; reviewed UI100/UI101 union12 activated; all eight current affected gates0; native acceptance ongoing.
 
-## Goal
+Goal/status: restore lost edits; repair all session/TODO issues; drive local workflows and all screens; deliver portable Git patch. Recovery complete; acceptance ongoing. No final commit/patch.
 
-The four operational roles read clean at every device size: no dead section, no
-phantom finding, no pill in a data cell, no teaching copy, one "chưa" per record.
+Scope/non-goals: shared opaque controls, max40px ordinary controls all screens,72x30 coefficient, coherent responsive records/dialog corners/dates/display keys. LOCAL only; no staging/prod/remote/deploy/branch/worktree/PR/push/history rewrite.
 
-## Commit ledger
+Decisions/authority: owner final restrictedCUS fees, nonnegative trip fields, DRAFT creation/later progression in docs/adr/2026-10-01-audit-todo-policy-rulings.md. Attachments are evidence. Active UUIv8 CLI table/application+button-group/base consultations; deliberate existing house owner; catalogMCP unavailable. Up to five actual audit-owned Chrome windows; unowned Chrome untouched.
 
-- `8f9ab5ea` fix(ops): a dangling expense-source link no longer kills the register read (card 213)
-- `ccc6d5d9` fix(dispatch): status and direction are plain text, one "chưa" per record (card 215)
-- `e45588ea` chore(frontend): the UI sweeps measure the 40px touch floor the law sets (card 217)
-- `fa0e6efc` fix(ui): drop long instructional copy on the four roles' surfaces (card 216)
-- `1cafa684` fix(ops): wallet balances ride the shared rail; fund book stops crashing (card 218)
-- `617bffb7` fix(cus): debit workspace stops asking for a catalog its role cannot read (card 214 → 220)
-- `b772edb5` fix(shell): the month chip stops overflowing every topbar below 768px (card 221)
-- `5224852c` chore(handoff): wave state (this file + the board scripts)
+Owned/preserved: cumulative frontend/backend/shared/e2e/testplan/scripts/design repairs. Root sole livewriter/runtime; agents source-only ignored candidates/cards/reports. Recovery stashc197281 retained; base40011aaf existingprod trunk. QA/plans/accounts/HANDOFF excluded patch/commit. All rejected originals/rawfailures retained; no user Chrome operations.
 
-## Board
+QA/results: active2463 sourcefreeze5f481442/SHA50f747b4; reviewedUI100/UI10112path activationc66bf6a7, all8 affectedgates0 rooteffbe675/actualfullFE532files3864tests0;952 unchangedBE/shared carry actual3059tests589suites0. Actualcurrent205/2050 rootreceipt773027cb;owned69904closed/processabsent,numericexitunavailable. QA20actual52states0/all3widths/APIequal/material0/owned90582exit0;all52originals reviewed50scopedPASS/2warningcontrastFAIL6315165f. OPSactual45states0/root27526/owned55359exit0;all45originals30scopedPASS/15contrastFAIL738010d0. DRIVERactual6states0/owned63603exit0;rootfull6originalledger7ff04377:lockedPODinfo scopedPASS/all6sharedbell UI103FAIL. NewUI102twoCSS sourcecandidateef391/root60494b71;UI103sharedbadgecandidatebd896/rootb6b9ad01;UI104accent-as-body-text classsourceonly underway. No newappactivation. Actual UI101DISPATCHER55629 FAIL25 intentional trip route exclusion;authorizedADMIN7639 FAIL0 transitive cache helperrole,owned44182exit0/current2463exact. QA24 distinct exactADMINcache1a79/rootnonauthor31a55ead prepared;nativecoarsebuttonfloorpending. UI99ADMIN2799FAIL6 pageclose5s/owned94125exit0;separatePUBLICwholebrowser QA21quietpending. UI99ACCOUNTANT43572FAIL27 source mixedcase versus desktop CSSuppercase,fullfield40/headeroriginal027clean;owned13945exit0. QA23sourceheaderprojectionc3cbe444/non-author5d5f2c970,explicitreceivercompositionpending. QA22actual57206FAIL16:integer73/478 correcttrusteddelivery then74trustedevents depart309/358/tooltipgone beforePNG;owned78268exit0. No cause/app/Chrome inference. SeparateQA25headless-new focusednative candidatea160001d/strictpointerglyphAPI/source guards/sourceauthorroot,peerpending;no headed/physical acceptance. All historicalfailedcollections immutable. No global147AFTER/material release.
 
-- **DEV_COMPLETED:** 213, 215, 216, 217, 218, 221 (dated evidence blocks + verify steps inside).
-- **IN_PROGRESS:** 220 (was 214; renumbered after a number collision with another
-  lane's 214) — `CẦN THÔNG TIN`: may CUS read the active quotation fee catalog?
-  The FE no longer calls it; the chi-hộ dedicated columns stay absent for CUS
-  until the PM rules.
-- **TODO (filed, out of this wave's role scope):** 222 (`/config/routes` cell
-  offscreen at 360/390), 223 (`/accounting` links 30px at 768/820/1024).
-- Filed this wave: 213–218, 221–223.
+Unrelated/concurrent preserved: global147 BEFOREd5d6/6234rows095ee intervalOPEN; no AFTER/materialwrites. Fresh root CUS eligibility224bf4fe selectedactualcus1675 ACTIVE undeleted, not authproof; new UI96 identityBEFORE90bc48c7 captured49accountants5assignments4owners rows62de, matchingAFTERpending; oldUI90 before/after preserved and not reused. Rootsource review460608/peer9a89572c/read-only queries34393+95339closed0. OPS1676 giaonhan trip2172/shipment4997/inbox2001; DRIVER6 fulfillment3114 means trip1951/shipment4017 canceled. PT25 owner1676 separate from nativeOPSexpense23recon1; authuser23absent never recreated/unlocked. UI56trip196 nativecostids1/2 separate from canonicalsource8->native5. ACCOUNTANT3 is partial/refusal actor; owneruser14 separate. Prior material/lifecycle failures retained.
 
-## QA
-
-- Sweep (390/768/1440, 4 roles): 0 overflow, 0 clipped, 0 sub-11px, 0 sub-40px;
-  only remaining finding is the CUS debit 403 (now fixed in the FE).
-  `qa/2026-09-30_role-sweep_*`.
-- Nine-width sweep (360…1440, 3 scan users): `offscreen` 58 → 2, both
-  `/config/routes` `td` (card 222, landed by another lane); `small` 18 remain on
-  `/accounting` at 768/820/1024 (card 223).
-- Desktop state matrix (1280/1440/1920/2560 × the 5 touched surfaces, with data):
-  0 overflow, 0 console/API error — `qa/2026-09-30_role-polish_matrix*`.
-- Frontend `tsc -b` 0 · vitest scoped sets green (dispatch 362, ops 50, copy-trim
-  trees 379) · `pnpm design:lock` 200/201 · `pnpm design:drift` no growth.
-- Backend `tsc --noEmit` 0 · card 213 red→green logs in `qa/`.
-- **Not run:** full backend suite, `make build`, E2E — no schema/RBAC/shared
-  change landed; the backend edit is a read-path guard with its own regression test.
-
-## Decisions
-
-- A dangling `expense_accounting_sources` link (polymorphic, no FK) is debris: a
-  LIST read skips it and logs a warning; a read-by-ref still 404s.
-- The touch floor is 40px (2026-09-27 ruling: the ceiling IS the floor) — both
-  sweeps now read it from the same law `scripts/design-lock.mjs` uses.
-- Filler copy is deleted on sight (law §8); messages carrying a decision
-  (blockers, permissions, errors, destructive confirmations) stay.
-- UI copy is asserted through seams (`data-testid`), never by pinning a sentence.
-
-## Open items
-
-- 28 DRIVER links whose source row exists but whose `trips`/`drivers` join no
-  longer resolves (28 of 152 measured) — not deleted, needs a decision on the
-  legacy `drivers` table.
-- `pnpm check:ui` exits 1 on three pre-existing files
-  (AccountingWorkspacePage.css, CustomersPage.css, PhoiPhieuControlPage.css) —
-  none touched by this wave.
-- `filters/customers/w768/max-two-rows` design-lock fails (3 rows) — pre-existing,
-  /customers untouched here.
-- `OpsExpenseFormModal.containers.test.tsx` A1 is borderline (≈5.3s vs a 5s
-  timeout) — pre-existing flake class card 20260928_185.
+Next: rootsolebrowser/runtime one at a time/≤5ownedChrome; finishsourcepeers and freshnativeQA24coarse/QA25chart/QA21+QA23PUBLICprivateaffix before productrepair batchUI102/UI103/UI104/any genuineadditional defect. Eachcard/testplan beforefix;rootnonauthorcompletecandidate/inverse review beforeactivation/newfreeze/affectedgates. Currentallroute318/CUS/rich/UI71/UI72/six/billing114/native pixels remain. Do notpromotehistoricalruns;scopeexactnarrowunchangedcarry only. Allreadonlyclosed→freshidentityAFTER90bcequal→147AFTERequal→freshscopedmaterialGO/Q13reviews843c/66c/fb27/14afb→guardedforwardrestoration/refusal/eligibleSalaryCLOSEDnativeprotocol→E2E19solewriterlast. Salaryretained24REOPENED/noCLOSED;sourceassessment018da00f forbidssetupconfirm/config solelyforpixels. Portablefresh3outputc576/root1234803f/peer4bd30 pending;rawsources2463matchfreeze. Finalprivacy/context/docsdiffreview/appendonlylocaltrunkcommit/actualplainfolderpatchapply+reverse/Downloadsdelivery. No finalcommit/patch/staging/prod/hardware claims.

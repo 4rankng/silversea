@@ -26,7 +26,7 @@ import {
   writeArtifact,
 } from "./lib/ui-driver.mjs";
 
-const FRONTEND = process.env.FRONTEND ?? "http://localhost:7174";
+const FRONTEND = process.env.FRONTEND ?? "http://localhost:7175";
 const ROOT = process.env.ARTIFACTS ?? `qa/${new Date().toISOString().slice(0, 10)}_factory-customer-creation`;
 const STAMP = new Date().toISOString().slice(5, 19).replace(/[-T:]/g, "") + String(Math.floor(Math.random() * 90) + 10);
 

@@ -29,7 +29,7 @@ import { join } from "node:path";
 import { login } from "./lib/http.mjs";
 import { withSession, sleep, STANDARD_VIEWPORT } from "./lib/ui-driver.mjs";
 
-const FRONTEND = process.env.FRONTEND ?? "http://localhost:7174";
+const FRONTEND = process.env.FRONTEND ?? "http://localhost:7175";
 const STAGE = process.argv[2] ?? "before";
 const ARTIFACT_DIR = `qa/${new Date().toISOString().slice(0, 10)}_cus-create-popover-flip`;
 mkdirSync(ARTIFACT_DIR, { recursive: true });

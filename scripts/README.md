@@ -35,6 +35,16 @@ pnpm qa:smoke            # per-role SPA smoke (browser)
 pnpm qa:aggregate        # roll the day's reports into a markdown summary
 ```
 
+`make dev` selects frontend :7175, backend :3002 and the local Docker database
+explicitly, so startup and migrations do not depend on an ignored `backend/.env`.
+Existing process values `PORT`, `DATABASE_URL` and `VITE_API_PROXY_TARGET` remain
+overrides. `DEV_FRONTEND_PORT` selects a different frontend port; the proxy follows
+an overridden backend `PORT` unless explicitly selected. Pass matching `FRONTEND`
+and `BACKEND` values to QA scripts when using custom ports.
+
+`make setup` is destructive local initialization: it recreates and seeds the
+local database. It is a separate target from the staging purge dry-run.
+
 ## Conventions
 
 - **Output dirs:** `qa/<YYYY-MM-DD>_<scope>/` (the date prefix is what
@@ -64,8 +74,8 @@ All scripts honour the same env vars (with sensible defaults):
 
 | Var | Default | Used by |
 |-----|---------|---------|
-| `FRONTEND` | `http://localhost:7174` | every browser script |
-| `BACKEND`  | `http://localhost:3001/api` | every API script |
+| `FRONTEND` | `http://localhost:7175` | every browser script |
+| `BACKEND`  | `http://localhost:3002/api` | every API script |
 | `ARTIFACTS`| `qa/<date>_<scope>/` | every script that writes files |
 | `DB_CONTAINER` | `ss-prod-db` | `qa-dev-ready.mjs` |
 | `REDIS_CONTAINER` | `ss-prod-redis` | `qa-dev-ready.mjs` |

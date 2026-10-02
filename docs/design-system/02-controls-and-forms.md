@@ -9,6 +9,14 @@ enforces it. Every count below is a grep over `frontend/src` at commit state
 ## Buttons
 
 ### Action buttons
+
+Current visual authority (2026-10-01, QA-AUDIT-UI-15): legacy `.btn` and the
+house `Btn`/UUI button adapter use the same brand primary and full-opacity neutral
+disabled treatment in `Button.css`. New call sites choose the house adapter;
+catalog quick-create actions use the existing compact ghost/icon recipes rather
+than page-owned padding, radii or pale accent text. Native and wrapper-owned
+field paint/state boundaries are owned by `base.css` (QA-AUDIT-UI-14).
+
 - **Use** — the daisyUI-derived class family in `frontend/src/components/Button.css`: `.btn` (`Button.css:5`) plus `.btn--primary` (`:32`), `.btn--secondary` (`:48`), `.btn--ghost` (`:57`), `.btn--danger` (`:76`), `.btn--danger-outline` (`:67`), `.btn--icon` (`:87`), `.btn--sm` (`:85`), `.btn--lg` (`:86`). Applied as `className`, not imported. 595 `btn` class matches across **192 `.tsx` files** (token counts: `btn--sm` 299, `btn--secondary` 222, `btn--primary` 178, `btn--ghost` 111, `btn--icon` 19, `btn--danger` 13, `btn--danger-outline` 2, `btn--lg` 1).
 - **Never** — `frontend/src/components/untitled-ui/base/buttons/button.tsx` (`Button`, Aria-backed) is a **second** button system: 16 files import it (`features/dispatch/master-plan/*`, `features/dispatch/catalogs/*`, `features/shipments/cus/*`, `pages/ShipmentsPage.tsx:20`) — it renders its own `styles.colors` size table and does not compose `.btn`, so an operator sees two button shapes on adjacent surfaces. `components/UI.tsx:13` re-exports it as `UIButton` (0 external consumers). Bespoke per-page shells: native `<button>` 936 occurrences; `.page-btn` (`components/Table.css:471`), `.stab-pill`, `.wf-btn`, `.expense-add-btn`.
 - **Divergence** — 595 `.btn` uses / 192 files vs 16 files on UUI `Button`; 936 raw `<button>`.
@@ -16,6 +24,16 @@ enforces it. Every count below is a grep over `frontend/src` at commit state
 - **Gap** — no check owns the `.btn--*` vocabulary or bans a second `<button>` shell; a page can ship a hand-styled button unconcerned.
 
 ## Button groups / segmented controls
+
+- **Compact group budget (QA-AUDIT-UI-84)** — boxed Tabs and ordinary native alignment segments opt into the shared `data-control-group="compact"` geometry owner. Its children retain the30px compact budget and zero vertical padding inside the existing inset/border (QA-AUDIT-UI-93), rather than adding a second40px coarse-pointer floor or padding to the shell. Complete rich title/metadata content keeps its intrinsic height; fine-wide whole-owner and coarse finite-trigger browser locks enforce the40px budget. Long wrapping labels retain intrinsic height; ordinary single-line outer groups remain within40px. Actual whole-group and child bounds establish acceptance.
+
+- **Current category authority (2026-10-01, QA-AUDIT-UI-20)** — boxed `Tabs` use the existing `UuiSelectField` single-selection dropdown at phone widths (≤767px) and on coarse pointers at any width (QA-AUDIT-UI-91). Fine wide pointers retain the shared boxed tabstrip. Category labels and counts stay together, disabled choices remain unavailable, and the existing change/query handler is retained. Users role categories choose `presentation="select"` at every width; desktop category filters remain content-sized and phone pickers fill their available width. Finite categories set `searchable={false}`; ordinary catalogs keep automatic search. Bordered/plain workspace tabs retain their existing presentation and keyboard contract. Earlier UI01 strip-scroll acceptance did not cover the user-reported category readability defect and is superseded for phones.
+
+- **Containment** — the shared `Tabs.css` owns nonshrinking cells and label wrapping.
+  Boxed groups keep one intrinsic row and scroll locally when needed; selected tabs
+  reveal on resize and keyboard navigation. Bordered groups wrap. Pages may place/size the group,
+  but must not force equal-width cells that overlap text or exceed the control-height
+  ceiling. Regression: QA-AUDIT-UI-01 (320/390/768/1024/1440 browser assertions).
 
 - **Use** — `Tabs` from `frontend/src/design-system/Tabs.tsx`, **`variant="boxed"`**, CSS `design-system/Tabs.css`. Operator ruling 2026-09-27 ("this is our existing working button group… use this consistently globally"); the fleet-vehicle status group is the reference look. 17 product call sites `<Tabs` (`ShipmentsPage.tsx:424`, `CustomersPage.tsx:535`, `FleetVehiclesView.tsx:188`, `DetailedPlanFilters.tsx:251`, `PeriodFilter.tsx:97`, …), 13 with `variant="boxed"`.
 - **Never** — a page may size the group and give it a layout hook class
@@ -51,12 +69,34 @@ enforces it. Every count below is a grep over `frontend/src` at commit state
 ## Selects / dropdowns / comboboxes
 
 - **Use** — `UuiSelectField` (`design-system/forms/UuiSelectField.tsx`) — declared "the only sanctioned select control in the app"; 187 usages across **89 files**. It becomes a type-to-search combobox past `SEARCH_THRESHOLD`.
+- **Selected form values** — visibly labelled stacked Select fields show every word and wrap inside their field width (`UuiSelectField.css`, QA-AUDIT-UI-19). The shared adapter removes the vendor's nested truncate paint for this form anatomy; inline/content filters retain the strip's compact geometry.
+- **Hosted filter labels (QA-AUDIT-UI-56)** — adapters inside the shared `FilterBar` reuse the existing inner inline label/control row. Their outer field remains a grid so optional hints/errors stay below that row. Ordinary forms and folded filters portalled outside the bar retain stacked labels and complete selected-value wrapping.
+- **Hosted standalone dates (QA-AUDIT-UI-56)** — direct, non-prefixed `BufferedUuiDateInput` fields in that bar keep their visible label and intrinsic segmented control on one flex row; the normal-flow helper wraps onto a separate line. Prefixed date pairs, ordinary forms and folded portalled fields retain their existing anatomy. Keep full glyphs and the shared width owner rather than squeezing date content to a fixed track.
+- **Complete inline select budget (QA-AUDIT-UI63)** — a visible bar label reserves width in addition to its trigger. The shared adapter claims that combined intrinsic width and caps the actual trigger at280px; it does not apply the stacked/hidden-label field cap to both together. Preserve existing searchable200px minimum, bounded word wrapping and normal-flow row wrapping at a constrained boundary; feedback stays below the inner row. Ordinary forms, folded stacked and hidden-label criteria retain their existing owners.
+- **Searchable content width (QA-AUDIT-UI-72)** — a content-sized ComboBox uses a preferred200px footprint bounded by its host width. Its inline-size query container cannot derive a usable width from the input value alone. Finite Select fields retain their intrinsic content width; shared form and filter owners retain their existing geometry. Actual native field/open/search/selection and constrained-host bounds are the acceptance evidence.
 - **Never** — `SelectField` (`forms/SelectField.tsx`, children API, delegates to `UuiSelectField`) 2 files / 4 uses — a compatibility façade over the same control. `components/UI/Select` (Radix) **0 consumers** and `components/UI/DropdownMenu` **0 consumers** are dead primitives. Native `<select>` survives in 6 places: `features/shipments/cus/CusQuickEdit.tsx:54`, `pages/accounting/DebitSettlementRoundDialog.tsx:191,197,203`, `pages/config/ForwarderExpenseTypesConfigPage.tsx:146`, and the vendored `components/untitled-ui/base/select/select-native.tsx:49`.
 - **Divergence** — 6 native selects despite the eslint ban; 2 UI primitives with 0 consumers.
 - **Enforced by** — `@tingting/no-native-select` (`eslint.config.js:157`), but it is switched `'off'` in an override (`eslint.config.js:251`) — confirm the exempt glob still matches the 6 sites; `design-system/forms/UuiSelectField.styles.test.ts` (popover never clips an option); `form-control-boundaries.test.ts`.
 - **Gap** — the eslint guard does not cover `SelectField`/Radix `Select`, and two vendors ship the same job.
 
 ## Multi-select / facets
+
+Current option geometry (2026-10-01, QA-AUDIT-UI-45): single-line visible menu
+targets stay within the shared `--control-max-h`40px ceiling at every width.
+Installed SelectItem owns the2px outer padding budget; shared searchable,
+multiselect, inline and time lists inherit token sizing from their respective
+owners. No page overrides or fixed row clipping. Genuinely multiline option
+labels keep complete normal wrapping and intrinsic content height. Source
+regression: `UuiSelectField.styles.test.ts`; actual picker geometry and
+keyboard/Cancel evidence remain separate from this source contract.
+
+Selected facets use one count-summary trigger, with complete selected names in
+its title and the existing checked option list. Individual deselection and
+clear-all stay in that list; native buttons must never nest inside the trigger.
+The hidden form value, required/disabled state and keyboard focus return remain
+unchanged. SelectItem's supported24px avatar uses6px per vertical edge, so its
+body plus2px wrapper fits38px before the touch floor. NativeSelect's existing
+large padding is retained because its actual typography yields38.2px.
 
 - **Use** — `SearchableMultiSelect` (`design-system/forms/SearchableMultiSelect.tsx`) — the facet picker; 5 usages / 3 files (`ShipmentsPage.tsx`, `MasterPlanFilters.tsx`, `DetailedPlanFilters.tsx`). Companion single-select `SearchableSelect` — 24 usages / 14 files.
 - **Never** — no third facet widget found; the divergence here is **two searchable-select implementations** (`SearchableSelect` vs `UuiSelectField`'s combobox branch) that mirror each other's UX but are separate code (`forms/SearchableSelect.tsx` own portal/position hook).
@@ -107,12 +147,15 @@ enforces it. Every count below is a grep over `frontend/src` at commit state
 
 ## Disabled / read-only states
 
-- **Use** — `.input:disabled` / `.input[aria-disabled="true"]` (`Input.css:25`), `.ds-field__input:disabled` (`TextField.css:46`), `.btn[disabled]` (`Button.css:93`, opacity .45).
+- **Current field authority (2026-10-01, QA-AUDIT-UI-14)** — `styles/base.css` owns solid enabled `--surface`, read-only `--surface-2`, disabled `--surface-3`, default `--control-border` and `--r-sm` boundaries in the app and body-mounted dialogs. The outer affix/UUI/segmented-date boundary owns paint; label columns and inner inputs stay transparent. Focus/error borders retain precedence. UUI input interiors reserve two border pixels; combobox value wrappers own height and padding. Single-line controls remain within the shared40px ceiling; multiline textareas keep their content height.
+- **Search boundary (2026-10-01, QA-AUDIT-UI-61)** — the existing `FilterBar` search shell uses the same `data-uui-control="input"` boundary as installed InputBase. Common paint and interior geometry keep its native input transparent and two border pixels inside the shell, including coarse-pointer floors. Search labels, value and change handlers remain the shared slot's existing contract; pages do not add a second search skin.
+- **Native invalid authority (2026-10-01, QA-AUDIT-UI57)** — public `aria-invalid="true"` uses the same `base.css` danger border and existing focus outline on the actual native/affix/licensed control boundary. Internally validated DateField/TimeInput drafts do not need duplicate wrapper error state. Inner inputs stay borderless; false and untouched required controls stay neutral. This rule does not introduce `:invalid` validation timing. Real controlled DateField correction and native/group owner regressions live in `TextField.test.tsx` and `control-surface.styles.test.ts`; browser cascade/pixels require separate actual evidence.
+- **Use** — native `disabled` / `readOnly` or their ARIA semantics; shared field paint distinguishes these from editable fields. `.btn[disabled]` uses the full-opacity neutral recipe in `Button.css`.
 - **Use (solid/emphasis controls)** — a disabled control whose fill is `--ink`/`--accent` swaps to a quiet surface, it does not dim the fill: `--surface-3` fill + `--line-2` border + `--ink-2` text at `opacity: 1` (≥4.5:1). A 55%-opacity ink fill over live content reads as a grey slab, not a disabled control (2026-09-27 operator report, `docs/design-guidelines.md` same date; reference impl `.driver-task-complete-sticky__btn:disabled`).
 - **Never** — 91 page-level `:disabled` rules, 764 `disabled` attributes, 85 `readOnly` (1 `aria-readonly`) — every page re-declares the disabled look.
 - **Divergence** — 764 disabled sites / 91 page rules vs 3 primitive rules.
 - **Enforced by** — — none (⇒ flag).
-- **Gap** — read-only has no shared style at all (`aria-readonly` used once).
+- **Gap** — page-owned state rules still need review when they diverge from the shared band; read-only field paint is shared.
 
 ## Focus rings
 
@@ -149,3 +192,11 @@ enforces it. Every count below is a grep over `frontend/src` at commit state
 - **Label / required / error** — no test covers casing, layout, placement, or announcement. Worst offender: `frontend/src/pages/ExpenseEntryPage.tsx`.
 - **Checkboxes** — no test or lint rule on checkbox/radio/toggle. Worst offender: `frontend/src/components/trip/CheckboxCard.tsx`.
 - **`type="time"`** — `native-date-sweep` matches only `type="date"`. Worst offender: `frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:578`.
+
+Short numeric entries (coefficients/counts) use `TextField controlWidth="short-number"`:72px width capped by its containing track, canonical30px compact height on all pointers (the owner-approved short-numeric exception to ordinary40px controls), numeric typography/right alignment. The prop is geometry only; it never sets maxLength, rounds values or changes validation. `controlSize="sm"` remains independent and opt-in for existing compact controls.
+
+Driver control ownership (QA-AUDIT-UI-54): existing Driver journey/detail/POD
+CSS uses the ordinary house control token for navigation/primary actions
+and the shared coarse token for single-line disclosure headers. Obsolete
+44/48/52px opt-ups no longer override the current all-screen40px ceiling;
+static facts, expanded disclosure bodies and media retain content sizing.

@@ -11,8 +11,15 @@ The table/record surface is where per-page invention is worst: one shared
 ## Data tables
 
 ### Table base: `record-table` / `ops-table`
+
+Bounded table `.row-action` buttons use the shared two-pixel inset keyboard
+outline from `components/Table.css`; the complete ring stays inside the existing
+target when phone action rails reach a clipped table edge. Preserve target size,
+content and callbacks rather than adding page-local padding or hiding the ring
+(QA-AUDIT-UI-79).
 - **Use** — `frontend/src/styles/record-table.css` (`.record-table-wrap`, `.record-table`, `.record-table__action`) + `frontend/src/styles/operational-table-typography.css` (`.ops-table`); recipe at `record-table.css:10-30`. **28 of the 76 `.tsx` files that render `<table>`** carry a shared class; `data-label` 423× across 70 files; `record-table__action` 19×.
 - **Never** — **48 of 76 `<table>` files use no shared base**, each inventing a private skin (23 CSS files declare own `border-collapse`, 44 style `td`, 40 `th`; 63 bespoke `*table*` names). Worst: `.routes-table` (90, `pages/config/config-page.css:591`), `.tt-table` (47, `config-page.css:130`), `.cus-dashboard-table` (44, `pages/ShipmentsPage.css:363`), `.ops-bill-table`/`.factories-table` (32 each, `pages/ForwarderTripsPage.css:133`, `config-page.css:558`), `.cfg-customer-table` (26, `pages/config/customer-config-density.css:107`), `.expense-register-table` (23, `features/expense-accounting/ExpenseAccounting.css:28`), `.shipment-debit-table` (12, `pages/ShipmentDebitPage.css:153…`. (Three Kế toán skins left this list on 2026-09-29: `.invoice-tracking-table` (58) — the invoice board also carried a `min-width: 1350px` floor and a private `@container (max-width: 900px)` collapse, and its 1953px table was CLIPPED by the shell's `overflow-x: hidden` so a third of its columns were unreachable; `.deposit-tracker-table` (1220px floor + a page override of `.table-wrap`'s overflow); and `.tt-table` on `/accounting/chot-debit` — all three now ride `record-table ops-table` + `record-table-wrap`.)
+- **Wide human text (QA-AUDIT-UI-88)** — opt in to `.record-table__text` for customer/notes that need an18ch intrinsic minimum, and `.record-table__reference` for a complete12–20ch business reference span that wraps long tokens. The existing1100px record band removes those minima and bounds the reference to its fact. Add `.record-table-wrap--scroll` only when those semantic columns genuinely exceed a desktop canvas: it is the same natural-height wrapper, not a second scroll box or a fixed table floor. Its horizontal boundary owns the table header rather than promising app-body sticky behavior; test the actual header/scroll/focus on adoption. DepositTracker is the proven first adopter, with dates/money/ordinals left atomic.
 - **Divergence** — 28 files on the shared base vs 48 raw tables, 63 class names.
 - **Enforced by** — `src/styles/workboard-standard.styles.test.ts` (thead skin, single global `thead th` case/tracking authority + allowlist of 9 fork surfaces); `src/styles/operational-table-typography.test.ts`; `src/styles/table-sort.styles.test.ts`.
 - **Gap** — nothing requires `record-table`/`ops-table`; the 48 raw tables are unchecked (e.g. `features/shipments/cus/CusContainerLedger.tsx`, `features/ops/OpsFundBookSection.tsx`).
@@ -30,17 +37,30 @@ The table/record surface is where per-page invention is worst: one shared
 - **Gap** — a whole React table system exists unused; adopt or delete it.
 
 ### Table vs card — the band, not a page decision
+
+In the shared record band, each fact permits normal whitespace even when its
+desktop cell has a token-nowrap hook. The inline `data-label` must wrap with its
+value inside the allocated cell; `Money` still owns atomic digits/unit behavior.
+QA-AUDIT-UI-17 covers long Bill values and the full refund-date label.
 - **Use** — `record-table.css`: `@container (max-width: 1100px)` (`:122`) turns each `<tr>` into a labelled record card (`display: grid`, 2-up facts, eyebrow from `content: attr(data-label)`, `:203`); `@container (max-width: 360px)` (`:222`) collapses to 1 column.
 - **Never** — a second band vocabulary + private collapses: `DataTable.css:176` uses `@media (max-width: 1023px)` for the same job; `.cfg-customer-table tbody tr` (`customer-config-density.css:107`), `.cfg-page .routes-table tbody tr` (`config-page.css:663`) re-implement the collapse. (`.invoice-tracking-table tbody`'s private collapse was retired 2026-09-29 — the page now rides this band.)
 - **Divergence** — 1 shared container band vs 1 media band + 2 bespoke collapses.
 - **Enforced by** — `src/styles/workboard-standard.styles.test.ts` (pins 1100px band + `attr(data-label)`); `src/styles/responsive-polish.styles.test.ts` (≤1500px hand-off).
 - **Gap** — two band vocabularies (`@container 1100` / `@media 1023`); the 2 bespoke collapses are unpinned.
 
+Editable expense detail dialogs also use this record band: `data-label` exposes
+every fee, identifier, person, amount and action on phones; one DOM owns both
+record and desktop grid. Totals use the ruled summary anatomy plus `Money`,
+outside the responsive row collection. Phone horizontal panning is not an
+accepted substitute for keeping editable context visible (operator ruling
+2026-10-01, QA-AUDIT-UI-12 reopened). A draft uses quiet text; the shared global
+table hover is neutral and fine-pointer-only, including sticky cells.
+
 ### A board wider than the canvas — `debit-board` (2026-09-29)
-- **Use** — `frontend/src/pages/accounting/AccountingDebitClosePage.css`: a money matrix (17 columns: 10 money + identity + notes) that cannot fit the ~1150px operational canvas takes an explicit scroll box (`.debit-board__wrap`, `overflow-x: auto`, `--border-1` hairline, 8px radius), a per-column `min-width` so the header wraps inside its cell and the TABLE grows, a STICKY identity pair (`.debit-col--date` at `left: 0` with a fixed 96px width, `.debit-col--lot` at `left: 96px`) at `z-index: var(--z-base)` — above the static columns that scroll under it, below the sticky header band (`components/Table.css` pins that at 2) — and a touch-only cue (`.debit-board__hint`, the card `20260924_9` `/shipments-debit` pattern quotes in `responsive` terms). Precedent: `.shipment-debit-table-wrap` (`pages/ShipmentDebitPage.css:116`).
-- **Never** — a `table-layout: fixed` wall with explicit colgroup shares (the retired 2640px `AccountingDebitClosePage` board: the shares were the only thing holding the grouped header together and half the board lived off screen); a `nowrap` money HEADER (it sizes the track from its own label and starves the data columns — the amount never wraps, the header always does); a second horizontal-scroll wrapper on `.record-table-wrap`, whose `overflow: visible` is what lets the sticky header pin against `.app-body`.
+- **Use** — `frontend/src/pages/accounting/AccountingDebitClosePage.css`: at tablet/desktop widths a money matrix (17 columns: 10 money + identity + notes) that cannot fit the operational canvas takes an explicit scroll box, per-column minimum widths and sticky identity columns. At <=640px, `components/shared/LedgerRecordList` renders readable house Panel records using the same column values and actions: identity and primary facts are visible, remaining facts expand under Chi tiết, and a 20-record pager keeps every record reachable. Selection uses an explicit checkbox and never follows a disclosure or nested action. The owner rejected off-screen phone accounting data on 2026-10-01; a horizontal cue alone does not satisfy that requirement. See QA-AUDIT-UI-30/31. Matrix precedent remains `.shipment-debit-table-wrap` above the phone breakpoint.
+- **Never** — a `table-layout: fixed` wall with explicit colgroup shares (the retired 2640px `AccountingDebitClosePage` board: the shares were the only thing holding the grouped header together and half the board lived off screen); a `nowrap` money HEADER (it sizes the track from its own label and starves the data columns — the amount never wraps, the header always does); page-private horizontal-scroll overrides or a second nested wrapper around `.record-table-wrap`. The default shared wrapper keeps `overflow: visible` for app-body sticky headers; the explicit shared wide-text opt-in above owns its own horizontal boundary.
 - **Enforced by** — `src/pages/accounting/AccountingDebitClosePage.test.tsx` (the board's rendered contract); the design-drift ratchet (`pnpm design:drift`: the new sheet adds no raw hex/shadow/z-index/radius/breakpoint).
-- **Gap** — the pattern is pinned on this one board; a future wide board re-types it. Promote it to a primitive the day a second surface needs it.
+- **Gap** — the debit money-matrix anatomy remains that board's distinct grouped/sticky-column pattern. Shared ordinary record tables now have the bounded semantic wide-text adoption above; do not copy the debit board's financial-column shares into them.
 
 ### Column visibility — the default counts VALUES, not cells (2026-09-29)
 - **Use** — `frontend/src/lib/column-visibility.ts` + `hooks/useHiddenColumns.ts`: a column declaring `autoHideWhenEmpty` hides itself while no rendered row carries a value — "Thiếu cước thu" is a missing-data warning, not data (law §1), so a breakdown that is still missing on every row does not hold a track on the board. It returns by itself the moment one row carries a number, and an explicit picker choice always wins.
@@ -70,6 +90,22 @@ The table/record surface is where per-page invention is worst: one shared
 - **Gap** — the marker's colour source is hardcoded, not token-bound.
 
 ### Money cells and numeric alignment
+
+Financial comparisons use the magnitude of a nonzero previous amount, while
+their arrow follows the actual numerical change. Success/danger tone expresses
+favorability separately: lower costs are favorable; higher revenue or profit is
+favorable. Flat or unknown comparisons and zero profit totals are neutral.
+Dashboard and Finance comparison owners retain missing previous reports as
+unknown, and trip profit total owners apply positive/negative/zero state without
+changing calculations or amounts (QA-AUDIT-UI-75).
+
+Tax codes, phone numbers and catalog codes use the global `.data-token` inner
+value boundary from `styles/utilities.css` (QA-AUDIT-UI-22). It preserves whole
+digits without clipping while surrounding record labels and prose still wrap.
+Use the existing `Plate` primitive for vehicle plate values. The source/CSS
+contract is pinned by `styles/numeric-identity.styles.test.ts` and actual customer
+directory/disclosure captures at390/768/1440.
+
 - **Use** — `Money` (`frontend/src/components/shared/Money.tsx`, §10): digits in `--font-data`, unit sub-caption (`Money.css:27`, `opacity: 1` for §2). 90 `<Money>` uses; `.num` alignment 129× in `.tsx` / 28 CSS files (`.record-table .num { text-align: right; font-family: var(--font-data) }`, `record-table.css:96`).
 - **Never** — bare `formatCurrency(...)` renders the unit at digit size: **241 occurrences** in `.tsx` — the dominant non-conforming path (`<Money>` covers ~27%).
 - **Divergence** — 90 `<Money>` vs 241 `formatCurrency`; no rule chooses.
@@ -108,6 +144,7 @@ The table/record surface is where per-page invention is worst: one shared
 
 ### List filter bars
 - **Use** — `FilterBar` (`frontend/src/design-system/FilterBar.tsx`, card 20260930_229) is THE band: it owns the strip layout (`.filter-bar`, one **wrapping flex line** — `display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px 16px` — never a grid, never a declared column count), the measured row budget, and the fold. Consumers hand it slots; its DOM order is search cell → always-inline criteria (`children`) → `fold` criteria → `presets` → `quickFilters` → column picker → spacer → actions. `ListFilterBar` (`frontend/src/components/ListFilterBar.tsx`) is the same component under its former name — a compat alias for the surfaces the staged cutover has not reached; new surfaces import `FilterBar` from the design-system barrel and use the `fold` slot.
+- **Feedback alignment (QA-AUDIT-UI-56)** — normal filter rows retain `flex-end`. Hosted `UuiSelectField` adapters use their existing inner inline label/control anatomy; direct non-prefixed `BufferedUuiDateInput` fields use one visible label/intrinsic control row. Both keep helpers below that row. Direct prefixed date, standalone date or search-error feedback selects the shared `flex-start` state so its normal-flow helper does not lower adjacent controls. Ordinary stacked forms and folded portalled filters retain their label anatomy; this rule does not promise alignment for arbitrary external label stacks. The measured fold and wrapping row budget remain unchanged.
 - **Where a criterion goes** — the criteria every list shares (search, `DateRangeFields` from/to pair, quick ranges, reset) stay visible in the bar. Every other criterion is handed to the band's `fold` slot (`criteria`, `count`, `onReset`, optional `neverInline`): the band mounts the `Bộ lọc` affordance itself (`FilterDropdown`, a flat repo-native trigger reading `Bộ lọc` / `Bộ lọc, N đang áp dụng`, a dialog body that is the *same* wrapping line as the bar, `Đặt lại`/`Áp dụng` riding its last line, panel `min(520px, calc(100vw - 24px))`) — so a bar whose content exceeds two rows always has something to fold into, by construction. Surfaces still on the alias compose `FilterDropdown` as a `children` item; the measured placement behaves identically.
 - **Quick ranges, one implementation per container** — `DateRangePresets` (`design-system/forms/DateRangeFields.tsx`) renders the chips where the bar can hold them; `DateRangePresetSelect` renders the same preset array as a dropdown inside the dialog, where the chips group would wrap onto lines of its own.
 - **Width follows the value** — a filter control is as wide as the value it holds, bounded by its family:
@@ -171,10 +208,10 @@ The table/record surface is where per-page invention is worst: one shared
 
 ### Destructive-action affordances
 - **Use** — shared `confirm` hook (`frontend/src/components/confirm-dialog.tsx:84`; `ConfirmDialog` `:35`) — **37 call sites** (`variant: 'danger'`, `confirmLabel: 'Xóa'`); §4: icon-only destructive actions carry `aria-label`.
-- **Never** — 1 native `window.confirm` survives: `pages/config/MasterDataImportPage.tsx:80`.
-- **Divergence** — 37 shared-dialog calls vs 1 native `confirm`.
+- **Never** — native `window.confirm`; the unsaved-navigation guard in `hooks/usePageLeaveGuard.ts` remains a separate legacy path.
+- **Convergence (2026-10-01, QA-AUDIT-UI-10)** — `pages/config/MasterDataImportPage.tsx` now uses the shared confirmation for rejection, including Cancel and persisted REJECTED proof.
 - **Enforced by** — `src/components/confirm-dialog.test.tsx`.
-- **Gap** — the native `window.confirm` is unchecked; icon-only destructive buttons are not audited for `aria-label`.
+- **Gap** — the legacy navigation guard's native confirmation is unchecked; icon-only destructive buttons are not audited for `aria-label`.
 
 ## System gaps
 
@@ -191,4 +228,10 @@ The table/record surface is where per-page invention is worst: one shared
 - **Empty** — no check requires `EmptyState`/resolver; worst offender `components/trip/ContainerInstancesCard.tsx:377` (`.ci-empty`).
 - **Loading** — no check requires `Skeleton`; worst offender `pages/ExpenseListPage.css:347`.
 - **Sort/pagination/filters** — 4 bespoke sort headers, ~5 pagination families, 28 filter stylesheets compile free.
-- **Destructive** — `pages/config/MasterDataImportPage.tsx:80` still native `confirm`.
+- **Destructive** — `pages/config/MasterDataImportPage.tsx` uses the house confirmation; rejection still requires a reason and preserves the blocked-row apply gate.
+
+`LedgerRecordList` is the phone record fallback for wide ledgers and pricing matrices. Its shared compact label/value rows retain existing renderers and explicit selection/details/page20. Short numeric editors use `TextField controlWidth="short-number"` rather than full-track fields. Metric-by-class tables may opt into `table-matrix` for an opaque sticky row axis inside the existing `table-scroll`; the generic table/rowspan behavior stays unchanged.
+
+`LedgerMatrix` owns one explicit columns/row.cells mapping for desktop matrices and phone `LedgerRecordList`. A `rowHeader` column becomes a semantic desktop row header and uses the row title/subtitle on phone without repeating an identity fact. Optional `align:"end"` aligns only numeric values/editors; ordinary refs/notes retain start alignment. Optional `framed` uses existing desktop Panel/table-scroll while phone records keep their own shared Panel shells. Pricing matrices prefer one class per row and five metric columns rather than ten class tracks; explicit `table-matrix` row-axis semantics pin the marked first header and row headers without altering generic rowspan tables.
+
+Facts and matrix columns may opt into `layout:"full-width"` for a composite editor, source list or expanded nested workspace. The shared record owner stacks its label above the full-width content lane; scalar facts retain the compact paired label/value recipe. Callers declare this anatomy explicitly, without child-type inference or page-local width overrides (QA-AUDIT-UI-65).
