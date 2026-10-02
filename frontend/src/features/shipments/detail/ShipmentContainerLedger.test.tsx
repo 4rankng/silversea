@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   ShipmentCusContainerFlatRow,
@@ -191,6 +192,7 @@ function renderLedger(mode: ShipmentDetailEditMode, row = baseRow(), detail = ba
       onSaveDocuments={vi.fn(async () => {})}
       onSaveContainer={vi.fn(async () => {})}
     />,
+    { wrapper: MemoryRouter },
   );
   return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule, onSaveIdentity, onSaveVehicle };
 }
@@ -395,6 +397,7 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
         onSaveDocuments={vi.fn(async () => {})}
         onSaveContainer={vi.fn(async () => {})}
       />,
+      { wrapper: MemoryRouter },
     );
     return { view, onStartEdit };
   }
@@ -486,6 +489,7 @@ describe('schedule editor lot transport date (non-FCL affordance)', () => {
         onSaveDocuments={vi.fn(async () => {})}
         onSaveContainer={vi.fn(async () => {})}
       />,
+      { wrapper: MemoryRouter },
     );
     return { view, onSaveSchedule };
   }
@@ -580,6 +584,7 @@ describe('vehicle plate clear affordance (20260916_6)', () => {
         onSaveDocuments={vi.fn(async () => {})}
         onSaveContainer={vi.fn(async () => {})}
       />,
+      { wrapper: MemoryRouter },
     );
     return { onSaveVehicle };
   }

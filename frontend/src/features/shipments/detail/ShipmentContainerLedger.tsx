@@ -21,6 +21,7 @@ import { USearchableField } from '../create/uui-fields';
 import { externalVendorPlateOptions } from '../external-plate-options';
 import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
+import { directionLabel, fallback, formatScheduleTime } from './shipment-container-ledger-utils';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
 import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
 import { formatVietnamDateTimeInput, localDateTimeToIso } from '../../../lib/shipment-operations';
@@ -121,23 +122,6 @@ export function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
   if (mode === 'vehicle') return 'phân xe';
   if (mode === 'schedule') return 'lịch trình';
   return 'ghi chú';
-}
-
-function directionLabel(direction: ShipmentCusContainerFlatRow['direction']): string {
-  if (direction === 'IMPORT') return 'Nhập';
-  if (direction === 'EXPORT') return 'Xuất';
-  return 'Chưa xác định';
-}
-
-
-function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
-  const value = row.customerAppointmentAt;
-  const input = formatVietnamDateTimeInput(value);
-  return input ? input.slice(11, 16) : null;
-}
-
-function fallback(value: string | null, label: string) {
-  return value || <span className="shipment-container-ledger__missing">{label}</span>;
 }
 
 function InlineEditor({
