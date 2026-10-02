@@ -167,7 +167,6 @@ function Topbar({
   user,
   isDriver,
   pageTitle,
-  hideContext = false,
   sidebarOpen,
   menuButtonRef,
   onToggleSidebar,
@@ -238,7 +237,7 @@ function Topbar({
         </button>
       )}
 
-      {!isDriver && !hideContext && (
+      {!isDriver && (
         <div className="topbar__context" aria-label="Trang hiện tại">
           <span className="topbar__context-kicker">Đang xem</span>
           <strong title={pageTitle}>{pageTitle}</strong>

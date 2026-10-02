@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useConfirm } from '../UI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, FileText, Download, History, Pencil, Plus, Receipt, Trash2 } from 'lucide-react';
@@ -161,13 +161,13 @@ export default function BillingDocumentsPanel({
                   )}
                 </div>
                 <div className="billing-panel__actions">
-                  <button className="btn-icon" title="Sửa" aria-label="Sửa" onClick={() => openEdit(doc)} style={iconBtn}>
+                  <button className="btn btn--ghost btn--icon btn--sm" title="Sửa" aria-label="Sửa" onClick={() => openEdit(doc)}>
                     <Pencil size={13} />
                   </button>
-                  <button className="btn-icon" title="Xuất Excel" aria-label="Xuất Excel" onClick={() => exportDoc(doc)} style={iconBtn}>
+                  <button className="btn btn--ghost btn--icon btn--sm" title="Xuất Excel" aria-label="Xuất Excel" onClick={() => exportDoc(doc)}>
                     <Download size={13} />
                   </button>
-                  <button className="btn-icon" title="Xóa" aria-label="Xóa" onClick={() => removeDoc(doc)} style={{ ...iconBtn, color: 'var(--danger)' }}>
+                  <button className="btn btn--danger-outline btn--icon btn--sm" title="Xóa" aria-label="Xóa" onClick={() => removeDoc(doc)}>
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -193,8 +193,3 @@ export default function BillingDocumentsPanel({
     </div>
   );
 }
-
-const iconBtn: CSSProperties = {
-  background: 'none', border: 'none', cursor: 'pointer',
-  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 4, color: 'var(--fg-2)',
-};

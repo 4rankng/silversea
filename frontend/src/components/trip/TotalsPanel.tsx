@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from "react";
 import './TripSummaryCard.css';
 import { Clock, Users, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronUp, MapPin } from "lucide-react";
-import { computeTripTotals } from "@tingting/shared";
 import { useTripFormContext } from "../../hooks/useTripFormContext";
-import { useFuelConfig } from '../../hooks/useQueries';
 import { Money } from '../shared/Money';
 import { formatMoney } from '../../lib/format';
 
@@ -18,60 +16,18 @@ import { formatMoney } from '../../lib/format';
  */
 export function TotalsPanel() {
   const form = useTripFormContext();
-  const { data: fuelConfig } = useFuelConfig();
   const {
-    legs, fuelMode, fuelLitersOverride, fuelSupplementLiters,
     tollsDiscount, tollsAddition, tollsStations,
     hasReturnCargo, driverSalary, revenue,
     customerCommission,
     revenueEmptyReturn, revenueCombine,
-    selectedRouteData, roadAllowanceBaseApplied, fuelActualUnitPrice,
+    roadAllowanceBaseApplied,
     roadAllowanceOverride, tollPerStationApplied, returnCargoBonusApplied,
   } = form;
   const [showRoadBreakdown, setShowRoadBreakdown] = useState(true);
 
-  const isMountainRoute = selectedRouteData?.isMountain ?? false;
-  const mountainFixedAllowance = selectedRouteData?.fixedFuelAllowance ? Number(selectedRouteData.fixedFuelAllowance) : null;
-
-  const totals = useMemo(() => {
-    const formattedLegs = legs.map((leg) => ({
-      sequence: leg.sequence,
-      km: Number(leg.km) || 0,
-      loadingType: leg.loadingType,
-    }));
-
-    return computeTripTotals({
-      legs: formattedLegs,
-      fuelMode: fuelMode,
-      fuelLitersOverride: fuelLitersOverride ? Number(fuelLitersOverride) : null,
-      fuelSupplementLiters: fuelSupplementLiters ? Number(fuelSupplementLiters) : 0,
-      fuelLoadedNorm: 43,
-      fuelEmptyNorm: 25,
-      fuelPerTripSupplement: 3,
-      fuelUnitPrice: fuelConfig ? Number(fuelConfig.unitPrice) : 25000,
-      fuelActualUnitPrice: fuelActualUnitPrice !== '' ? Number(fuelActualUnitPrice) : null,
-      isMountainRoute,
-      mountainFixedAllowance,
-      roadAllowanceBase: roadAllowanceBaseApplied ?? 0,
-      tollsDiscount: tollsDiscount ? Number(tollsDiscount) : 0,
-      tollsAddition: tollsAddition ? Number(tollsAddition) : 0,
-      tollsStations: tollsStations ? Number(tollsStations) : 0,
-      tollPerStation: tollPerStationApplied ?? 0,
-      hasReturnCargo,
-      returnCargoBonus: returnCargoBonusApplied ?? 0,
-      revenue: revenue ? Number(revenue) : 0,
-      driverSalary: driverSalary ? Number(driverSalary) : 0,
-      twoPointDeliveryBonus: Number(form.twoPointDeliveryBonus) || 0,
-      vehicleShiftAllowance: Number(form.vehicleShiftAllowance) || 0,
-      customerCommission: Number(customerCommission) || 0,
-    });
-  }, [
-    legs, fuelMode, fuelLitersOverride, fuelSupplementLiters,
-    isMountainRoute, mountainFixedAllowance, roadAllowanceBaseApplied,
-    tollsDiscount, tollsAddition, tollsStations, tollPerStationApplied, returnCargoBonusApplied,
-    hasReturnCargo, revenue, driverSalary, fuelConfig, fuelActualUnitPrice,
-    form.twoPointDeliveryBonus, form.vehicleShiftAllowance, customerCommission,
-  ]);
+  const totals = form.previewTotals;
+  const isExternal = form.carrierType === 'EXTERNAL';
 
   // Road-allowance breakdown — what makes up "Tiền đi đường thực nhận"
   const roadBreakdown = useMemo(() => {
@@ -93,7 +49,7 @@ export function TotalsPanel() {
   const revenueEmpty = Number(revenueEmptyReturn) || 0;
   const revenueComb = Number(revenueCombine) || 0;
   const revenueNum = Number(revenue) || (revenueEmpty + revenueComb);
-  const isProfitPositive = totals.grossProfit >= 0;
+  const isProfitPositive = totals.grossProfit > 0;
 
   const twoPointAmount = Number(form.twoPointDeliveryBonus) || 0;
   const vehicleShiftAmount = Number(form.vehicleShiftAllowance) || 0;
@@ -134,7 +90,7 @@ export function TotalsPanel() {
       </section>
 
       {/* 3. Allocation bar */}
-      <section className="tc-totals__alloc">
+      {!isExternal && <section className="tc-totals__alloc">
         <div className="tc-totals__alloc-head">
           <span>Phân bổ chi phí</span>
           <Money value={totalCost} />
@@ -183,16 +139,28 @@ export function TotalsPanel() {
             </li>
           )}
         </ul>
-      </section>
+      </section>}
 
       {/* 4. Cost rows + profit */}
       <section className="tc-totals__rows">
+        {form.vatRate > 0 && <div className="tc-totals-row">
+          <span className="tc-totals-row__lbl">Doanh thu chưa VAT</span>
+          <span className="tc-totals-row__val"><Money value={totals.freightExVat} /></span>
+        </div>}
+        {Number(customerCommission) > 0 && <div className="tc-totals-row">
+          <span className="tc-totals-row__lbl">Hoa hồng khách hàng</span>
+          <span className="tc-totals-row__val"><Money value={Number(customerCommission)} sign="−" /></span>
+        </div>}
+        {isExternal ? <div className="tc-totals-row">
+          <span className="tc-totals-row__lbl">Cước thuê ngoài (gồm VAT)</span>
+          <span className={`tc-totals-row__val ${(Number(form.externalFreightCost) || 0) === 0 ? 'tc-totals-row__val--neutral' : ''}`}><Money value={Number(form.externalFreightCost) || 0} sign={(Number(form.externalFreightCost) || 0) === 0 ? undefined : "−"} /></span>
+        </div> : <>
         <div className="tc-totals-row">
           <span className="tc-totals-row__lbl">
             <Clock size={13} /> Chi phí nhiên liệu
           </span>
-          <span className="tc-totals-row__val">
-            <Money value={Math.abs(totals.totalFuelCost)} sign="−" />
+          <span className={`tc-totals-row__val ${(Math.abs(totals.totalFuelCost)) === 0 ? 'tc-totals-row__val--neutral' : ''}`}>
+            <Money value={Math.abs(totals.totalFuelCost)} sign={(Math.abs(totals.totalFuelCost)) === 0 ? undefined : "−"} />
           </span>
         </div>
 
@@ -217,8 +185,8 @@ export function TotalsPanel() {
               <span className="tc-totals-row__adjusted-pill">Đã điều chỉnh</span>
             )}
           </span>
-          <span className="tc-totals-row__val">
-            <Money value={Math.abs(fullRoadCost)} sign="−" />
+          <span className={`tc-totals-row__val ${(Math.abs(fullRoadCost)) === 0 ? 'tc-totals-row__val--neutral' : ''}`}>
+            <Money value={Math.abs(fullRoadCost)} sign={(Math.abs(fullRoadCost)) === 0 ? undefined : "−"} />
           </span>
         </div>
 
@@ -239,7 +207,7 @@ export function TotalsPanel() {
             {roadBreakdown.stations > 0 && (
               <div className="tc-totals-breakdown__row">
                 <span>Trạm BOT ({roadBreakdown.stations} × {formatMoney(roadBreakdown.perStation)})</span>
-                <Money value={Math.abs(roadBreakdown.stationCost)} sign="−" />
+                <Money value={Math.abs(roadBreakdown.stationCost)} sign={roadBreakdown.stationCost === 0 ? undefined : "−"} className={roadBreakdown.stationCost === 0 ? "tc-totals-row__val--neutral" : undefined} />
               </div>
             )}
             {roadBreakdown.overridden && (
@@ -255,8 +223,8 @@ export function TotalsPanel() {
           <span className="tc-totals-row__lbl">
             <Users size={13} /> Tiền lương lái xe
           </span>
-          <span className="tc-totals-row__val">
-            <Money value={Math.abs(Number(driverSalary) || 0)} sign="−" />
+          <span className={`tc-totals-row__val ${(Math.abs(Number(driverSalary) || 0)) === 0 ? 'tc-totals-row__val--neutral' : ''}`}>
+            <Money value={Math.abs(Number(driverSalary) || 0)} sign={(Math.abs(Number(driverSalary) || 0)) === 0 ? undefined : "−"} />
           </span>
         </div>
 
@@ -282,15 +250,24 @@ export function TotalsPanel() {
           </div>
         )}
 
+        </>}
+        {totals.totalCost > (isExternal ? Number(form.externalFreightCost) || 0 : totals.totalFuelCost + fullRoadCost + (Number(driverSalary) || 0) + twoPointAmount + vehicleShiftAmount) && <div className="tc-totals-row">
+          <span className="tc-totals-row__lbl">Chi phí thực tế khác</span>
+          <span className="tc-totals-row__val"><Money value={totals.totalCost - (isExternal ? Number(form.externalFreightCost) || 0 : totals.totalFuelCost + fullRoadCost + (Number(driverSalary) || 0) + twoPointAmount + vehicleShiftAmount)} sign="−" /></span>
+        </div>}
+        {isExternal && <div className="tc-totals-row">
+          <span className="tc-totals-row__lbl">Tổng chi phí</span>
+          <span className="tc-totals-row__val"><Money value={totals.totalCost} /></span>
+        </div>}
         <div className="tc-totals__profit">
           <span className="tc-totals__profit-label">Lợi nhuận dự kiến</span>
           <span
-            className={`tc-totals__profit-val ${isProfitPositive ? 'is-pos' : 'is-neg'}`}
+            className={`tc-totals__profit-val ${totals.grossProfit > 0 ? 'is-pos' : totals.grossProfit < 0 ? 'is-neg' : 'is-neutral'}`}
           >
-            <span className="tc-totals__profit-pill" aria-hidden>
+            {totals.grossProfit !== 0 && <span className="tc-totals__profit-pill" aria-hidden>
               {isProfitPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-            </span>
-            <Money value={Math.abs(totals.grossProfit)} sign={isProfitPositive ? '+' : '−'} />
+            </span>}
+            <Money value={Math.abs(totals.grossProfit)} sign={isProfitPositive ? '+' : totals.grossProfit < 0 ? '−' : undefined} />
           </span>
         </div>
       </section>

@@ -58,7 +58,7 @@ export function LocationAutocomplete({
   // (Declared after allSuggestions below; the hook needs its length to
   // re-measure when the list grows or shrinks.)
 
-  useClickOutside(wrapperRef, closeDropdown, { escapeKey: true, additionalRefs: portaledRefs });
+  useClickOutside(wrapperRef, closeDropdown, { escapeKey: true, enabled: isOpen, additionalRefs: portaledRefs });
 
   // Cached location suggestions; fires once per session for all autocomplete inputs.
   const { data: ports = [] } = useQuery<Port[]>({

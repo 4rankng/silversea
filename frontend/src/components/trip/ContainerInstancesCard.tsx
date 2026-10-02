@@ -1,3 +1,4 @@
+import { PhotoImage } from '../shared/PhotoImage';
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, Plus, Trash2, Camera, ImageOff, X } from "lucide-react";
@@ -234,7 +235,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
             <>
               {urls.map((u, uIdx) => {
                 const isPending = u.startsWith("blob:");
-                const hasLoadError = failedPhotos[u] ?? false;
+                const hasLoadError = (authedPhotoUrls.length === photoKeys.length && !photoUrl(u)) || (failedPhotos[u] ?? false);
                 return (
                   <span key={`${u}-${uIdx}`} className="ci-photo-slot">
                     <button
@@ -258,7 +259,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
                           <span>Không tải được</span>
                         </span>
                       ) : (
-                        <img
+                        <PhotoImage
                           src={photoUrl(u)}
                           alt={`${title}${row.containerNumber ? ` ${row.containerNumber}` : ""}`}
                           loading="lazy"

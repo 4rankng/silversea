@@ -68,9 +68,9 @@
   .toast-container { left: var(--space-md, 12px); right: var(--space-md, 12px); }
   .toast { min-width: 0; max-width: 100%; }
   .toast__close {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
+    width: var(--control-max-h);
+    min-width: var(--control-max-h);
+    height: var(--control-max-h);
   }
 }
 

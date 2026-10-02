@@ -210,7 +210,7 @@ describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => 
 
     const img = await screen.findByAltText('Ảnh biên bản giao hàng');
     expect(img.getAttribute('src')).toBe('blob:authed-photo');
-    expect(api.getBlob).toHaveBeenCalledWith('/api/photos/trips%2F55%2Fother-note.jpg');
+    expect(api.getBlob).toHaveBeenCalledWith('/photos/trips%2F55%2Fother-note.jpg');
     expect(document.querySelector('img[src*="token="]')).toBeNull();
     expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
   });
@@ -353,5 +353,24 @@ describe('DriverContainerCard — local container validation', () => {
     for (const [index, name] of ['Thêm ảnh cont', 'Thêm ảnh seal', 'Thêm ảnh biên bản'].entries()) {
       expect(zoneButtons[index].textContent).toContain(name);
     }
+  });
+
+  it('contains photo-action focus and Escape restores the actual opener', async () => {
+    renderCard();
+    const opener = screen.getByRole('button', { name: 'Thêm ảnh cont' });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    const cancel = screen.getByRole('button', { name: 'Hủy' });
+    cancel.focus();
+    fireEvent.keyDown(cancel, { key: 'Tab' });
+    const close = screen.getByRole('button', { name: 'Đóng' });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(cancel).toHaveFocus();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(opener).toHaveFocus();
   });
 });

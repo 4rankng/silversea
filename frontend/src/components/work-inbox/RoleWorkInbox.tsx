@@ -22,6 +22,7 @@ import { buildIdempotencyKey } from '../../lib/idempotency';
 import { formatNumber, formatDateTimeShort } from '../../lib/format';
 import { forwarderClient } from '../../api/forwarderClient';
 import { Tabs } from '../../design-system';
+import { PageHeader } from '../UI';
 
 import { withCustomerScope } from '../../pages/portal/CustomerPortalScope';
 import { RoleWorkInboxGateCell } from './RoleWorkInboxGateCell';
@@ -95,7 +96,7 @@ function factsFor(item: RoleItem, role: Role): Array<{ label: string; value: str
   if (role === 'driver') {
     const value = item as DriverWorkInboxItem;
     return [
-      { label: 'Lô hàng', value: value.shipmentCode || 'Chưa có mã' },
+      { label: 'Lô hàng', value: value.title },
       { label: 'Container', value: value.containerSummary || 'Không áp dụng' },
       { label: 'Điểm đi', value: value.origin || 'Chưa cập nhật' },
       { label: 'Điểm đến', value: value.destination || 'Chưa cập nhật' },
@@ -158,16 +159,21 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     void load('initial');
   }, [load]);
 
-  // Reset queue/page only when the scope actually changes — not on mount,
-  // where it would wipe the URL-restored state (QA-043 round trip).
+  // The first ready scope hydrates the URL-restored queue. Only a later
+  // resolved identity change resets it; a scope retry retains the last identity.
   const scopeKey = `${customerId ?? ''}:${role}`;
-  const prevScopeRef = useRef(scopeKey);
+  const prevScopeRef = useRef<string | null>(scopeReady ? scopeKey : null);
   useEffect(() => {
+    if (!scopeReady) return;
+    if (prevScopeRef.current === null) {
+      prevScopeRef.current = scopeKey;
+      return;
+    }
     if (prevScopeRef.current === scopeKey) return;
     prevScopeRef.current = scopeKey;
     setActive(0);
     setPage(1);
-  }, [scopeKey]);
+  }, [scopeKey, scopeReady]);
 
   // Mirror queue/page into the URL (replace — no history spam) so the detail
   // page's return link can rebuild the exact list context. The one-shot `row`
@@ -285,14 +291,10 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   return (
     <main className={`role-work-inbox role-work-inbox--${role}`}>
       <header className="role-work-inbox__header">
-        <div>
-          <span className="role-work-inbox__eyebrow">Không gian công việc</span>
-          <h1>{title}</h1>
-          <p>{description}</p>
-        </div>
-        <button className="role-work-inbox__refresh" type="button" onClick={() => void load()} disabled={loading}>
+        <PageHeader title={title} action={<button className="role-work-inbox__refresh" type="button" onClick={() => void load()} disabled={loading}>
           <RefreshCw size={15} aria-hidden="true" /> Làm mới
-        </button>
+        </button>} />
+        <p>{description}</p>
       </header>
 
 

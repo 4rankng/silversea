@@ -223,9 +223,20 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Ảnh chưa tải');
     expect((screen.getByLabelText(/Thực chi/) as HTMLInputElement).value).toBe('35.000');
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại ảnh' }));
-    await screen.findByAltText('Biên lai đã chọn');
+    await screen.findByText('Ảnh sẽ gắn với khoản chi này');
+    expect(api.uploadReceiptPhoto).toHaveBeenCalledTimes(2);
     expect(api.uploadReceiptPhoto.mock.calls[1][0].file).toBe(file);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Thử tải lại ảnh' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Thực chi/)).toHaveValue('35.000');
+    // An upload key does not prove that the separate protected photo read succeeded.
+    expect(screen.queryByAltText('Biên lai đã chọn')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Biên lai đã chọn (không tải được)' })).toHaveTextContent('Không tải được');
+    expect(document.querySelector('img[src=""]')).toBeNull();
     expect(api.createIncidentalCost).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledOnce());
+    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ amount: 35000, receiptStorageKey: 'receipt.png' });
   });
 
   it('does not autosave notes and explicitly stores the correct trip note once', async () => {

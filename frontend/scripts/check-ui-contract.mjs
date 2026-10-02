@@ -42,6 +42,11 @@ async function visit(directoryUrl) {
 await visit(sourceRoot);
 
 const tokenCss = await readFile(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
+const touchFloor = Number(tokenCss.match(/--control-max-h:\s*(\d+)px\s*;/)?.[1]);
+if (!Number.isFinite(touchFloor) || touchFloor !== 40
+  || !tokenCss.includes('--control-touch-h: var(--control-max-h);')) {
+  failures.push('styles/tokens.css: a valid canonical touch floor/ceiling is required');
+}
 if (!tokenCss.includes('--status-strip-width: 3px;')
   || !tokenCss.includes('--status-strip-height: 20px;')) {
   failures.push('styles/tokens.css: canonical status strip must remain 3x20px');
@@ -103,13 +108,13 @@ for (const selector of phoneControlSelectors) {
     failures.push(`styles/responsive.css: missing universal phone selector ${selector}`);
   }
 }
-// The PM selected compact phone controls. Preserve low specificity so larger
-// semantic controls (save/close/touch fields) keep their own sizing.
-for (const [selector, height] of [['.wf-link', 44], ['.wf-btn', 44]]) {
+// The2026-09-27 ruling makes the touch floor and control ceiling one token.
+// Require the shared token rather than retaining the superseded44px demand.
+for (const selector of ['.wf-link', '.wf-btn']) {
   const escapedSelector = selector.replace('.', '\\.');
-  const rule = new RegExp(`${escapedSelector}\\s*\\{[^}]*min-height:\\s*${height}px`, 'i');
+  const rule = new RegExp(`${escapedSelector}\\s*\\{[^}]*min-height:\\s*var\\(--control-touch-h\\)`, 'i');
   if (!rule.test(phoneCss)) {
-    failures.push(`styles/responsive.css: ${selector} must retain its ${height}px phone minimum`);
+    failures.push(`styles/responsive.css: ${selector} must retain the canonical touch minimum`);
   }
 }
 
@@ -123,9 +128,9 @@ const driverPenaltyCss = await readFile(
   new URL('../src/pages/DriverPenaltyPage.css', import.meta.url),
   'utf8',
 );
-if (!/\.penalty-month-select\s*\{[^}]*min-height:\s*44px/i
+if (!/\.penalty-month-select\s*\{[^}]*min-height:\s*var\(--control-touch-h\)/i
   .test(driverPenaltyCss)) {
-  failures.push('pages/DriverPenaltyPage.css: mobile month select must remain at least 44px');
+  failures.push('pages/DriverPenaltyPage.css: mobile month select must use the canonical touch minimum');
 }
 
 const advanceSettlementLedgerSource = await readFile(
@@ -322,11 +327,11 @@ async function checkInlineTouchTargets(directoryUrl) {
                 .replaceAll(/['"]/g, '')
                 .replace('px', '');
               const value = Number(valueText);
-              if (Number.isFinite(value) && value < 44) {
+              if (Number.isFinite(value) && value !== touchFloor) {
                 const line = sourceFile.getLineAndCharacterOfPosition(
                   minHeightProperty.getStart(sourceFile),
                 ).line + 1;
-                failures.push(`${displayPath}:${line}: inline interactive minHeight must be at least 44px`);
+                failures.push(`${displayPath}:${line}: inline interactive minHeight must match the ${touchFloor}px floor/ceiling or use its token`);
               }
             }
           }

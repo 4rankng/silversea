@@ -86,6 +86,15 @@ describe('selection-state contract', () => {
     expect(css).toContain('content: attr(data-label);');
   });
 
+  it('keeps global cell hover neutral and fine-pointer-only, including sticky cells', () => {
+    const css = read('src/components/Table.css');
+    const hover = css.match(/@media \(hover: hover\) and \(pointer: fine\) \{\s*tbody tr:hover td \{[\s\S]*?\n\}/)?.[0];
+    expect(hover).toBeDefined();
+    expect(hover).toContain('tbody tr:hover td.sticky');
+    expect(hover).toContain('color-mix(in srgb, var(--fg-1) 2%, var(--surface))');
+    expect(hover).not.toContain('--surface-accent');
+  });
+
   // Card 20260929_207, completed 2026-09-30: the four remaining `data-selected`
   // row surfaces dropped their accent left border / accent fill for the shared
   // record-table recipe — a neutral surface plus the 3px inset ink edge. They

@@ -144,10 +144,10 @@ html:has(body .app.is-driver) {
     border: none;
     flex: 1;
     min-width: 0;
-    min-height: 48px;
+    min-height: var(--control-max-h);
     cursor: pointer;
     transition: color 140ms ease, background-color 140ms ease;
-    padding-top: 4px; /* Space for the indicator */
+    padding-block: 0;
     opacity: 1; /* navigation remains usable if the optional entrance animation cannot start */
     overflow: hidden;
   }
@@ -171,7 +171,7 @@ html:has(body .app.is-driver) {
   }
   
   .bottom-nav-icon-wrap {
-    padding: 6px;
+    padding: 0;
     border-radius: 999px;
     transition: color 140ms ease, background-color 140ms ease;
     color: var(--ink-3);
@@ -263,8 +263,8 @@ html:has(body .app.is-driver) {
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 44px;
-    min-height: 44px;
+    width: var(--control-max-h);
+    min-height: var(--control-max-h);
     border: 0;
     border-radius: var(--r-sm);
     background: transparent;
@@ -354,7 +354,7 @@ html:has(body .app.is-driver) {
     align-items: center;
     gap: 10px;
     width: 100%;
-    min-height: 48px;
+    min-height: var(--control-max-h);
     padding: 10px 4px;
     background: transparent;
     border: 0;

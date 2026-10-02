@@ -88,14 +88,30 @@ describe('Drawer keyboard focus', () => {
     expect(drawerStyles).toContain('.drawer__close:focus-visible');
   });
 
+  it('QA-AUDIT-UI-51 keeps one shared rounded clipping boundary for dialog chrome', () => {
+    const rules = modalStyles.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(rules).toMatch(/\.modal__content\s*\{[^}]*border-radius:\s*var\(--r\);[^}]*overflow:\s*hidden;/);
+    expect(rules).not.toMatch(/\.modal--polished \.modal__content\s*\{[^}]*overflow:\s*visible/);
+    expect(rules).toMatch(/\.modal__head\s*\{[^}]*border-top-left-radius:\s*inherit;[^}]*border-top-right-radius:\s*inherit;/);
+    expect(rules).toMatch(/\.modal__foot\s*\{[^}]*border-bottom-left-radius:\s*inherit;[^}]*border-bottom-right-radius:\s*inherit;/);
+  });
+
+  it('QA-AUDIT-UI-06 keeps authored close and save hints free of shortcut suffixes', () => {
+    for (const file of ['src/design-system/Modal.tsx', 'src/components/UI.tsx', 'src/components/PhotoViewer.tsx', 'src/features/shipments/cus/CusContainerLedger.tsx']) {
+      expect(readFileSync(resolve(process.cwd(), file), 'utf8')).not.toMatch(/(?:label|title)="[^"]*\((?:Esc|Enter)\)/);
+    }
+  });
+
   it('keeps shared dialog chrome compact without sacrificing mobile touch targets', () => {
     expect(modalStyles).toMatch(/\.modal__head\s*\{[^}]*padding:\s*8px 16px;/);
     expect(modalStyles).toMatch(/\.modal__foot\s*\{[^}]*padding:\s*8px 16px;/);
     expect(modalStyles).toMatch(/\.modal__close\.btn\s*\{[^}]*height:\s*36px;/);
     expect(modalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal__head\s*\{[^}]*padding:\s*12px 16px 8px;/);
     expect(modalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal__foot\s*\{[^}]*padding:\s*8px 16px max\(8px, env\(safe-area-inset-bottom\)\);/);
-    expect(modalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal__close\.btn\s*\{[^}]*min-height:\s*44px;/);
+    expect(modalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal__close\.btn\s*\{[^}]*min-height:\s*var\(--control-touch-h\);/);
     expect(responsiveStyles).not.toContain('.modal__head');
+    const tabletBand = responsiveStyles.slice(responsiveStyles.indexOf('/* Tablet controls retain'));
+    expect(tabletBand.split('/* ============================================================================')[0]).not.toContain('44px');
   });
 
   it('moves focus into the drawer, traps it, and restores the opener after Escape', async () => {

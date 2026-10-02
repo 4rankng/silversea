@@ -63,7 +63,7 @@ describe('mobile touch floor (design-guidelines §5)', () => {
   it('keeps header/page action buttons on the shared phone floor, not the 30px bare-button floor', () => {
     const responsive = read('src/styles/responsive.css');
     const block = responsive.match(
-      /\.page-actions \.btn,\s*\.header-actions \.btn,\s*\.page-header \.btn:not\(\.btn--icon\),\s*\.page-header \.btn-primary \{[^}]*\}/,
+      /\.page-actions \.btn,\s*\.header-actions \.btn,\s*\.page-header \.btn:not\(\.btn--icon\) \{[^}]*\}/,
     )?.[0] ?? '';
     expect(block, 'action-button floor rule exists').not.toBe('');
     expect(block).toContain('min-height: var(--control-touch-h);');
@@ -89,11 +89,11 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     expect(css).toContain('Height belongs to the shared .btn phone floor');
   });
 
-  it('raises the bare expense quick-create action to the touch floor on phone/coarse pointers', () => {
-    const css = read('src/pages/ExpenseEntryPage.css');
-    expect(css).toMatch(
-      /@media \(max-width: 640px\), \(pointer: coarse\) \{\s*\.expense-add-btn \{\s*min-height: var\(--control-touch-h\);/,
-    );
+  it('uses the shared quick-create action and its coarse-pointer touch floor', () => {
+    const page = read('src/pages/ExpenseEntryPage.tsx');
+    expect(page).toContain('className="btn btn--ghost btn--sm"');
+    const css = read('src/components/Button.css');
+    expect(css).toMatch(/@media \(pointer: coarse\) \{[\s\S]*?\.btn--sm \{[\s\S]*?min-height: var\(--control-touch-h\)/);
   });
 
   it('stretches the combobox input over the whole field so taps focus it', () => {

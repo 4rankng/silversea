@@ -41,7 +41,7 @@ describe('operational density contract', () => {
     // focusing the input (mobile-touch-floor.styles.test.ts pins height: 100%).
     expect(comboboxStyles).toMatch(/#root \.uui-combobox \[data-combobox-value\] input\[role='combobox'\]\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;[^}]*padding-block:\s*0;/);
     expect(read('src/components/untitled-ui/base/select/select-shared.tsx')).toContain('import "../control-geometry.css"');
-    expect(read('src/components/untitled-ui/base/select/select-item.tsx')).toContain('max-md:min-h-11');
+    expect(read('src/components/untitled-ui/base/select/select-item.tsx')).toContain('max-md:min-h-[calc(var(--control-max-h)-2px)]');
     expect(read('src/components/untitled-ui/base/buttons/button.tsx')).toContain('max-md:min-h-11');
   });
 

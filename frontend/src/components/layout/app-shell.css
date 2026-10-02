@@ -8,7 +8,7 @@
   top: -100%;
   left: 16px;
   z-index: var(--z-max);
-  min-height: 44px;
+  min-height: var(--control-max-h);
   padding: 10px 16px;
   background: var(--accent-2);
   color: var(--fg-on-brand);
@@ -25,6 +25,7 @@
 }
 
 .app {
+  --app-sidebar-offset: var(--sidebar-w);
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   grid-template-rows: 100vh;
@@ -37,6 +38,7 @@
 /* Desktop sidebar toggle (1024px and above) */
 @media (min-width: 1024px) {
   .app.sidebar-closed {
+    --app-sidebar-offset: 48px;
     grid-template-columns: 48px minmax(0, 1fr);
   }
 
@@ -169,6 +171,7 @@
   padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)) max(var(--app-body-pad-x), env(safe-area-inset-right, 0px));
   scrollbar-gutter: stable;
   scroll-behavior: smooth;
+  scroll-padding-block-end: var(--fixed-action-clearance, 0px);
 }
 
 .app-main:not(.driver-mode) .app-body > :where(div, section) {

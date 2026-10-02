@@ -42,4 +42,10 @@ describe('Untitled UI flat-surface control boundaries', () => {
   it('gives select popovers a real boundary under the app-wide no-shadow contract', () => {
     expect(read('src/components/untitled-ui/base/select/popover.tsx')).toContain('border border-secondary');
   });
+
+  it('wrapper inputs fit inside the visible touch boundary despite the universal root floor', () => {
+    const css = read('src/components/untitled-ui/base/control-geometry.css');
+    expect(css).toMatch(/:is\(#root, body\) \[data-uui-control='input'\] > input:not\([^}]+min-height: 0;\s*height: calc\(var\(--uui-control-h\) - 2px\)/);
+    expect(css).toMatch(/:is\(#root, body\) \[data-uui-control='combobox'\] input\[role='combobox'\]:not\([^}]+min-height: 0;\s*height: auto/);
+  });
 });

@@ -143,8 +143,8 @@
   }
 
   .nepo-banner__close {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--control-max-h);
+    min-height: var(--control-max-h);
     margin: -8px -8px -8px 0;
   }
 }

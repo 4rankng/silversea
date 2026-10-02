@@ -245,6 +245,7 @@ export const Button: {
     const commonProps = {
         "data-uui-control": isLinkType ? undefined : "button",
         "data-control-size": size,
+        "data-control-color": color,
         "data-loading": loading ? true : undefined,
         "data-icon-only": isIcon ? true : undefined,
         ...props,

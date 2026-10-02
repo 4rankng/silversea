@@ -22,7 +22,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px; height: 44px;
+  width: var(--control-max-h); height: var(--control-max-h);
   border-radius: 8px;
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -100,7 +100,7 @@
   margin: 0 4px;
   flex-shrink: 0;
 }
-.trip-hero__actions .btn--sm { min-height: 44px; }
+.trip-hero__actions .btn--sm { min-height: var(--control-max-h); }
 .trip-hero__warn {
   display: inline-flex;
   align-items: center;

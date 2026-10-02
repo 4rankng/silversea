@@ -41,7 +41,7 @@ const DropdownMenuItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center gap-2 rounded-lg",
-      "min-h-9 [@media(pointer:coarse)]:min-h-11 px-3 py-2 break-words",
+      "min-h-9 [@media(pointer:coarse)]:min-h-[var(--control-max-h)] px-3 py-2 break-words",
       "text-sm leading-[1.35] tracking-normal text-[var(--ink-2)]",
       "outline-none transition-colors duration-100",
       "focus:bg-[var(--surface-2)] focus:text-[var(--ink)]",
@@ -61,7 +61,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex min-h-9 [@media(pointer:coarse)]:min-h-11 cursor-default select-none items-center gap-2 rounded-lg break-words",
+      "relative flex min-h-9 [@media(pointer:coarse)]:min-h-[var(--control-max-h)] cursor-default select-none items-center gap-2 rounded-lg break-words",
       "py-2 pr-3 pl-8 text-sm leading-[1.35] tracking-normal text-[var(--ink-2)]",
       "outline-none transition-colors duration-100",
       "focus:bg-[var(--surface-2)] focus:text-[var(--ink)]",

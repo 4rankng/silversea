@@ -14,6 +14,22 @@ const dispatchFilters = source('src/features/dispatch/components/DispatchFilters
 const externalCarrierBadge = source('src/features/trips/XeNgoaiBadge.tsx');
 
 describe('operational color contract', () => {
+  it('profit totals preserve sign-aware colors without blanket success overrides (UI75)', () => {
+    const detail = source('src/pages/trip-detail/pnl-fuel.css');
+    expect(detail).toMatch(/\.pl-total--loss\s*\{[^}]*--profit-tone: var\(--danger\)/);
+    expect(detail).toMatch(/\.pl-total--profit\s*\{[^}]*--profit-tone: var\(--success-text\)/);
+    expect(detail).toMatch(/\.pl-total\s*\{[^}]*--profit-tone: var\(--ink\)/);
+    for (const path of ['src/components/trip/TripSummaryCard.css', 'src/pages/TripCreatePage.css']) {
+      const css = source(path);
+      const totalRules = [...css.matchAll(/([^{}]*\.tc-summary-row--total \.tc-summary-row__val)\s*\{([^}]+)\}/g)];
+      if (path === 'src/components/trip/TripSummaryCard.css') expect(totalRules.length).toBeGreaterThan(0);
+      for (const rule of totalRules) expect(rule[2], path).not.toMatch(/(?:^|;)\s*color:/);
+    }
+    const totals = source('src/components/trip/TotalsPanel.tsx');
+    expect(totals).toContain("totals.grossProfit > 0 ? 'is-pos' : totals.grossProfit < 0 ? 'is-neg' : 'is-neutral'");
+    expect(source('src/components/trip/TripSummaryCard.css')).toMatch(/\.tc-totals__profit-val\.is-neutral\s*\{[^}]*color: var\(--ink\)/);
+  });
+
   it('uses a restrained forest, bronze, and oxblood semantic palette', () => {
     expect(tokens).toContain('--info: #2E675E;');
     expect(tokens).toContain('--warning: #A45D1C;');

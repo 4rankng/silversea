@@ -21,7 +21,7 @@ import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import './TripPodSubmission.css';
 
 export interface TripPodSubmissionProps {
-  tripCode?: string | null;
+  documentNumber?: string | null;
   tripVersion: number;
   currentSubmission: DriverTaskPodSubmission | null;
   history: DriverTaskPodSubmission[];
@@ -86,7 +86,7 @@ function triggerInput(ref: React.RefObject<HTMLInputElement | null>) {
 }
 
 export function TripPodSubmission({
-  tripCode,
+  documentNumber,
   currentSubmission,
   history,
   creatingDraft,
@@ -217,7 +217,7 @@ export function TripPodSubmission({
       <div className="trip-pod__head">
         <div>
           <h2 className="trip-pod__title">Chứng từ bắt buộc</h2>
-          {tripCode && <p className="trip-pod__subtitle">{tripCode}</p>}
+          <p className="trip-pod__subtitle">{documentNumber?.trim() || 'Chưa có số Bill/Booking'}</p>
         </div>
         {currentSubmission && currentSubmission.status !== TripPodStatus.DRAFT && (
           <span className={statusClass(currentSubmission.status)}>

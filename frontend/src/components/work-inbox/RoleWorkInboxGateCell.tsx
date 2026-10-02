@@ -34,7 +34,7 @@ function crossBranchGate(item: RoleItem, role: Role): Gate[] {
       {
         label: 'Đã phân xe',
         satisfied: dispatched,
-        pending: dispatched ? undefined : 'Điều vận chưa gán biển số',
+        pending: dispatched ? undefined : !value.truckPlate ? 'Điều vận chưa gán biển số' : 'Điều vận chưa gán tài xế',
       },
       {
         label: 'Đã đổi lệnh',

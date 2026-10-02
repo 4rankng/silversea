@@ -71,12 +71,12 @@ function DraftActions({ request, voidOnly = false }: { request: AdvanceDraft; vo
   const close = () => { if (!busy.current) setAction(null); };
   return <>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-      {!voidOnly && <button type="button" className="btn btn-sm btn-primary" onClick={() => open('record')}>Ghi sổ</button>}
-      <button type="button" className="btn btn-sm btn-secondary" onClick={() => open('void')}>Hủy tạm ứng</button>
+      {!voidOnly && <button type="button" className="btn btn--sm btn--primary" onClick={() => open('record')}>Ghi sổ</button>}
+      <button type="button" className="btn btn--sm btn--secondary" onClick={() => open('void')}>Hủy tạm ứng</button>
     </div>
     <Modal isOpen={action !== null} title={action === 'void' ? (voidOnly ? 'Hủy tạm ứng chưa giao tiền' : 'Hủy tạm ứng chưa ghi sổ') : 'Ghi sổ tạm ứng cũ'} onClose={close} maxWidth={420}
-      footer={<><button type="button" className="btn btn-secondary" disabled={pending} onClick={close}>Đóng</button>
-        <button type="button" className="btn btn-primary" disabled={pending || !valid} onClick={() => void save()}>{pending ? 'Đang lưu…' : action === 'void' ? 'Xác nhận hủy' : 'Ghi sổ tạm ứng'}</button></>}>
+      footer={<><button type="button" className="btn btn--secondary" disabled={pending} onClick={close}>Đóng</button>
+        <button type="button" className="btn btn--primary" disabled={pending || !valid} onClick={() => void save()}>{pending ? 'Đang lưu…' : action === 'void' ? 'Xác nhận hủy' : 'Ghi sổ tạm ứng'}</button></>}>
       <div style={{ display: 'grid', gap: 12 }}>
         {/* business key render; id never user-facing — the draft payload carries no date/requester name */}
         <p className="text-muted">Tạm ứng{request.reason ? ` · ${request.reason}` : ''} · {voidOnly ? 'Chưa giao tiền' : 'Chưa ghi sổ'}. Thao tác lưu có hiệu lực ngay và giữ lịch sử đối chiếu.</p>

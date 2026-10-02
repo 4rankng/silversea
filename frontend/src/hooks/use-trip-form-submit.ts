@@ -11,6 +11,7 @@ import { resolveContainerCount } from './tripFormDispatchUtils';
 import type { PhotoUploadedHandler } from './useTripFormPhotos';
 import {
   FIELD_LABELS,
+  externalCarrierEditValue,
   moneyOrNull,
   moneyOrUndefined,
   moneyOrZero,
@@ -367,7 +368,7 @@ const handleSubmit = useCallback(
           customerCommission: moneyOrZero(s.customerCommission),
           tripWageDays: s.tripWageDays ? Number(s.tripWageDays) : undefined,
           carrierType: s.carrierType,
-          externalCarrierId: s.carrierType === 'EXTERNAL' ? (s.externalCarrierId ?? null) : null,
+          externalCarrierId: externalCarrierEditValue(original, s.carrierType, s.externalCarrierId ?? null),
           externalFreightCost: s.carrierType === 'EXTERNAL' ? moneyOrNull(s.externalFreightCost) : null,
           externalPlateNumber: s.carrierType === 'EXTERNAL' ? (s.externalPlateNumber.trim() || null) : null,
           externalDriverName: s.carrierType === 'EXTERNAL' ? (s.externalDriverName.trim() || null) : null,

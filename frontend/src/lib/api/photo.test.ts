@@ -6,13 +6,21 @@ import { photoRoutePath, useAuthedPhotoUrl, useAuthedPhotoUrls } from './photo';
 
 describe('photoRoutePath', () => {
   it('encodes a bare storage key into the authenticated photo route', () => {
-    expect(photoRoutePath('trips/95/container-image.jpg')).toBe('/api/photos/trips%2F95%2Fcontainer-image.jpg');
+    expect(photoRoutePath('trips/95/container-image.jpg')).toBe('/photos/trips%2F95%2Fcontainer-image.jpg');
   });
 
   it('passes an already-formed route through and rejects empty/preview values', () => {
-    expect(photoRoutePath('/api/photos/denied.jpg')).toBe('/api/photos/denied.jpg');
+    expect(photoRoutePath('/api/photos/denied.jpg')).toBe('/photos/denied.jpg');
+    expect(photoRoutePath('/photos/trips%2F95%2Fcontainer-image.jpg')).toBe('/photos/trips%2F95%2Fcontainer-image.jpg');
     expect(photoRoutePath('blob:https://vantai.tingting.vip/preview-id')).toBeNull();
     expect(photoRoutePath(null)).toBeNull();
+    expect(photoRoutePath('   ')).toBeNull();
+  });
+
+  it('composes with the actual client base exactly once without double-encoding the key', () => {
+    const reference = '/api/photos/trips%2F95%2Fcontainer-image.jpg';
+    expect(`${import.meta.env.VITE_API_BASE || '/api'}${photoRoutePath(reference)}`)
+      .toBe(`${import.meta.env.VITE_API_BASE || '/api'}/photos/trips%2F95%2Fcontainer-image.jpg`);
   });
 });
 
@@ -50,7 +58,7 @@ describe('useAuthedPhotoUrls', () => {
     await waitFor(() => expect(result.current[0]).toBe('blob:object-3'));
     // The protected path travels as an authenticated request path, never as a
     // rendered URL carrying the token.
-    expect(getBlob).toHaveBeenCalledWith('/api/photos/trips%2F95%2Fcontainer-image.jpg');
+    expect(getBlob).toHaveBeenCalledWith('/photos/trips%2F95%2Fcontainer-image.jpg');
     expect(result.current[0]).not.toContain('token=');
   });
 

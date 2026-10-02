@@ -9,7 +9,7 @@
   gap: 6px;
   min-height: var(--control-default-h);
   padding: 5px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-field);
   font-family: var(--font-body);
   font-size: var(--text-control-size);
   font-weight: 600;
@@ -24,22 +24,22 @@
               color 140ms var(--ease);
 }
 .btn:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
+  outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
 
-/* wireframe variants */
+/* Shared action hierarchy: brand primary, solid secondary, quiet tertiary. */
 .btn--primary {
-  background: var(--accent);
+  background: var(--brand);
   color: var(--fg-on-brand);
-  border-color: var(--accent);
+  border-color: var(--brand);
 }
 .btn--primary:hover {
-  background: var(--accent-2);
-  border-color: var(--accent-2);
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
 }
 .btn--primary:active {
-  background: var(--accent-ink);
+  background: var(--brand-hover);
 }
 .d-btn-primary:hover:not(:disabled) {
   background-color: var(--brand-hover);
@@ -90,7 +90,40 @@
 /* Legacy single-dash variants (.btn-primary/.btn-secondary/.btn-ghost/.btn-sm/
    .btn-icon) were retired during CTA unification — all call sites now use the
    double-dash Global classes above. */
-.btn[disabled] { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+/* UUI actions share the flat house surface in public pages and portals too.
+   Actual borders preserve the palette boundary when the vendor ring is removed. */
+body [data-uui-control='button'] {
+  box-shadow: none;
+  border: 1px solid transparent;
+}
+body [data-uui-control='button']::before {
+  content: none;
+}
+body [data-uui-control='button'][data-control-color='primary'] {
+  border-color: var(--brand);
+}
+body [data-uui-control='button'][data-control-color='secondary'] {
+  border-color: var(--line-2);
+}
+body [data-uui-control='button'][data-control-color='primary-destructive'] {
+  border-color: var(--danger);
+}
+body [data-uui-control='button'][data-control-color='secondary-destructive'] {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line-2));
+}
+
+.btn[disabled],
+body [data-uui-control='button']:disabled {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--ink-3);
+  opacity: 1;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+body [data-uui-control='button']:disabled [data-icon] {
+  color: inherit;
+}
 
 @media (max-width: 640px) {
   /* Labels keep the shared control scale while phone actions wrap naturally. */
@@ -121,7 +154,7 @@
   }
 }
 
-/* Touch tablets keep desktop-width layouts but still need the 44px touch
+/* Touch tablets keep desktop-width layouts but still need the 40px touch
    floor — the width-based bump above only covers ≤640px viewports, leaving
    coarse-pointer tablets (iPad) with 30-34px targets in dense toolbars and
    table rows (space-utilisation audit 2026-09-09: /dashboard row actions

@@ -40,8 +40,8 @@
 }
 
 .carrier-allocation-dialog__remove {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -64,7 +64,7 @@
 }
 
 .carrier-allocation-dialog__add {
-  min-height: 44px;
+  min-height: var(--control-max-h);
   display: inline-flex;
   align-items: center;
   justify-content: center;

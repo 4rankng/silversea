@@ -210,19 +210,19 @@ describe('ContainerInstancesCard flat manifest layout', () => {
     expect(container.querySelectorAll('.ci-photo-lane__media')).toHaveLength(3);
   });
 
-  it('replaces a failed thumbnail with a bounded recovery state', () => {
+  it('replaces a failed thumbnail with a bounded recovery state', async () => {
     useTripFormContextMock.mockReturnValue({
       ...useTripFormContextMock(),
       containerRows: [
         {
           ...useTripFormContextMock().containerRows[0],
-          photoKeys: { cont: ['broken-photo.jpg'], seal: [] },
+          photoKeys: { cont: ['blob:broken-photo'], seal: [] },
         },
       ],
     });
 
     render(<ContainerInstancesCard expectedCount={1} />);
-    fireEvent.error(screen.getByAltText('Ảnh container LSQU1077373'));
+    fireEvent.error(await screen.findByAltText('Ảnh container LSQU1077373'));
 
     expect(screen.getByText('Không tải được')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Đổi ảnh container' })).toBeTruthy();

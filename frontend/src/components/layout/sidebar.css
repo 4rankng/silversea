@@ -129,7 +129,7 @@
   width: 100%;
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   background: none;
   border: none;
   border-radius: 10px;
@@ -170,7 +170,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px 10px 14px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   border-radius: 10px;
   color: var(--sb-text);
   font-size: var(--text-control-size);
@@ -391,7 +391,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   padding: 10px 12px;
   border-radius: 8px;
   font-size: var(--text-control-size);

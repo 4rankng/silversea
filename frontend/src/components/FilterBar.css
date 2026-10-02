@@ -44,6 +44,15 @@
   min-width: 0;
 }
 
+/* Direct prefix-date/search feedback follows the control in normal flow.
+ * Align that state at the control's top so the helper cannot drag sibling
+ * controls down to its last line. Normal labelled stacks keep flex-end. */
+.filter-bar:has(> .date-range-fields .uui-date-hint--error),
+.filter-bar:has(> [data-input-wrapper] > .date-seg-group ~ .uui-date-hint--error),
+.filter-bar:has(> .filter-bar__search-cell > .filter-bar__search-error) {
+  align-items: flex-start;
+}
+
 /* The shared toolbar surface: one card around the whole strip. */
 .filter-bar--card {
   padding: 12px 14px;

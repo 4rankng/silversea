@@ -9,11 +9,13 @@
 import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { FuelMode, LoadingType, FUEL_PRICE_PER_LITER_FALLBACK, FUEL_LOADED_NORM_FALLBACK, FUEL_EMPTY_NORM_FALLBACK, computeTripDriverSalary } from '@tingting/shared';
+import { FuelMode, LoadingType, computeTripDriverSalary } from '@tingting/shared';
 import type { PricingTable, TripDetail, TripLeg, PaginatedResponse } from '@tingting/shared';
 import { tripClient } from '../api/tripClient';
 import { businessDateISO } from '../lib/format';
 import { configClient } from '../api/configClient';
+import { useFuelConfig } from './useQueries';
+import { computeTripFormPreview, resolveTripPreviewSettings } from './tripFinancialPreview';
 import { useTrailerAutoPin } from './useTrailerAutoPin';
 import { qk } from '../api/keys';
 
@@ -30,10 +32,6 @@ import {
 import { usePersistedContainerType } from './usePersistedContainerType';
 import { useTripFormSubmit } from './use-trip-form-submit';
 import type { SubmitOptions } from './use-trip-form-submit';
-
-const FUEL_PRICE_PER_LITER = FUEL_PRICE_PER_LITER_FALLBACK;
-const LOADED_RATE = FUEL_LOADED_NORM_FALLBACK;
-const EMPTY_RATE = FUEL_EMPTY_NORM_FALLBACK;
 
 function moneyOrZero(value: string): number {
   const digits = value.replace(/\D/g, '');
@@ -74,6 +72,7 @@ export interface UseTripFormDispatchReturn {
   estimatedFuelCost: number;
   estimatedTollCost: number;
   estimatedProfit: number;
+  previewTotals: ReturnType<typeof computeTripFormPreview>;
   completionStatus: CompletionStatus;
   completedSections: number;
   requiredFieldsFilled: number;
@@ -93,6 +92,7 @@ export interface UseTripFormDispatchReturn {
 
 export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripFormDispatchReturn {
   const { state: s, options, isEditMode, existingTrip, governanceReason, onCreditLimitBlocked } = params;
+  const { data: fuelConfig } = useFuelConfig();
   const lastPopulatedTripId = useRef<number | undefined>(undefined);
 
   usePersistedContainerType({
@@ -115,6 +115,12 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     staleTime: 10 * 60 * 1000,
   });
 
+  const { data: roadAllowances = [] } = useQuery({
+    queryKey: qk.catalogs.roadAllowances,
+    queryFn: () => configClient.getRoadAllowances(),
+    staleTime: 10 * 60 * 1000,
+  });
+
   useEffect(() => {
     // Only derive revenue from splits when at least one split is populated.
     // When both are blank, leave the seeded stored value intact so an untouched
@@ -130,7 +136,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
   }, [s.revenueEmptyReturn, s.revenueCombine]);
 
   const { legs, setLegs, addLeg, removeLeg, updateLeg } = useTripFormLegs(options.routes, s.routeId, isEditMode);
-  const { photoUrls, uploading, uploadPhotos, removePhoto, flushPendingPhotos,
+  const { photoUrls, setPhotoUrls, uploading, uploadPhotos, removePhoto, flushPendingPhotos,
     uploadContainerPhoto, flushPendingContainerPhotos, revokeRowPhotos, revokeContainerPhoto } = useTripFormPhotos(s.setError, onOcrResult);
 
   useEffect(() => {
@@ -179,6 +185,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     }
     s.setRevenueCombine(existingTrip.revenueCombine ? String(existingTrip.revenueCombine) : '');
     s.setCustomerCommission(existingTrip.customerCommission ? String(existingTrip.customerCommission) : '0');
+    s.setRoadAllowanceOverride(existingTrip.roadAllowanceOverride != null ? String(existingTrip.roadAllowanceOverride) : '');
     s.setTripWageDays(existingTrip.tripWageDays ? String(existingTrip.tripWageDays) : '');
     s.setNotes(existingTrip.notes || '');
     // Instructions (N2 / B1.3) arrive on the same detail payload as the rest of
@@ -193,7 +200,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     s.setInstructionsNotes(inst?.notes ?? '');
     s.setFuelActualUnitPrice(existingTrip.fuelActualUnitPrice != null ? String(existingTrip.fuelActualUnitPrice) : '');
     s.setFuelSupplierId(existingTrip.fuelSupplierId ?? null);
-    s.setPhotoUrls(existingTrip.photoUrls || []);
+    setPhotoUrls(existingTrip.photoUrls || []);
 
     s.setCarrierType(existingTrip.carrierType ?? 'OWN');
     s.setVatRate(existingTrip.vatRate != null ? Number(existingTrip.vatRate) : 0.08);
@@ -337,55 +344,12 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.driverId, s.departureDate, s.completedAt, driverBaseSalary, isEditMode]);
 
-  const estimatedFuelCost = useMemo(() => {
-    if (s.fuelMode === FuelMode.FLAT_RATE) {
-      const liters = Number(s.fuelLitersOverride) || 0;
-      return liters * FUEL_PRICE_PER_LITER;
-    }
-    const fixedRouteAllowance = Number(selectedRouteData?.fixedFuelAllowance || 0);
-    if (fixedRouteAllowance > 0) {
-      return fixedRouteAllowance * FUEL_PRICE_PER_LITER;
-    }
-    return legs.reduce((acc, leg) => {
-      const km = Number(leg.km) || 0;
-      const rate = leg.loadingType === LoadingType.HANG ? LOADED_RATE : EMPTY_RATE;
-      return acc + (km / 100) * rate * FUEL_PRICE_PER_LITER;
-    }, 0);
-  }, [s.fuelMode, s.fuelLitersOverride, selectedRouteData, legs]);
-
-  const estimatedTollCost = useMemo(() => {
-    const base = isEditMode && existingTrip?.roadAllowanceBaseApplied ? Number(existingTrip.roadAllowanceBaseApplied) : 0;
-    const discount = moneyOrZero(s.tollsDiscount);
-    const addition = moneyOrZero(s.tollsAddition);
-    const stations = Number(s.tollsStations) || 0;
-
-    const perStation = isEditMode && existingTrip?.tollPerStationApplied
-      ? Number(existingTrip.tollPerStationApplied)
-      : (roadConfig ? Number(roadConfig.tollPerStation) : 55000);
-
-    const returnBonus = s.hasReturnCargo
-      ? (isEditMode && existingTrip?.returnCargoBonusApplied
-          ? Number(existingTrip.returnCargoBonusApplied)
-          : (roadConfig ? Number(roadConfig.returnCargoBonus) : 300000))
-      : 0;
-
-    const tongTienDiDuong = addition > 0
-      ? addition
-      : (base - (stations * perStation) + returnBonus);
-
-    return Math.max(0, tongTienDiDuong - discount);
-  }, [isEditMode, existingTrip, roadConfig, s.tollsDiscount, s.tollsAddition, s.tollsStations, s.hasReturnCargo]);
-
-  const estimatedProfit = useMemo(
-    () =>
-      (Number(s.revenue) || 0) -
-      estimatedFuelCost -
-      estimatedTollCost -
-      moneyOrZero(s.driverSalary) -
-      moneyOrZero(s.twoPointDeliveryBonus) -
-      moneyOrZero(s.vehicleShiftAllowance),
-    [s.revenue, estimatedFuelCost, estimatedTollCost, s.driverSalary, s.twoPointDeliveryBonus, s.vehicleShiftAllowance],
-  );
+  const previewSettings = useMemo(() => resolveTripPreviewSettings(existingTrip, fuelConfig ?? undefined, roadConfig ?? undefined,
+    selectedRouteData, s.trailerType, roadAllowances), [existingTrip, fuelConfig, roadConfig, selectedRouteData, s.trailerType, roadAllowances]);
+  const previewTotals = useMemo(() => computeTripFormPreview(s, legs, previewSettings), [s, legs, previewSettings]);
+  const estimatedFuelCost = s.carrierType === 'EXTERNAL' ? 0 : previewTotals.totalFuelCost;
+  const estimatedTollCost = s.carrierType === 'EXTERNAL' ? 0 : previewTotals.totalRoadAllowance + previewTotals.tollCost + (Number(s.tollsDiscount) || 0);
+  const estimatedProfit = previewTotals.grossProfit;
 
   const requiredFieldsFilled = useMemo(() => {
     let count = 0;
@@ -525,6 +489,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     estimatedFuelCost,
     estimatedTollCost,
     estimatedProfit,
+    previewTotals,
     completionStatus,
     completedSections,
     requiredFieldsFilled,
@@ -532,13 +497,9 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     handleSubmit,
     selectedRouteData,
     driverBaseSalary,
-    roadAllowanceBaseApplied: isEditMode && existingTrip?.roadAllowanceBaseApplied ? Number(existingTrip.roadAllowanceBaseApplied) : undefined,
-    tollPerStationApplied: isEditMode && existingTrip?.tollPerStationApplied
-      ? Number(existingTrip.tollPerStationApplied)
-      : roadConfig ? Number(roadConfig.tollPerStation) : undefined,
-    returnCargoBonusApplied: isEditMode && existingTrip?.returnCargoBonusApplied
-      ? Number(existingTrip.returnCargoBonusApplied)
-      : roadConfig ? Number(roadConfig.returnCargoBonus) : undefined,
+    roadAllowanceBaseApplied: previewSettings.roadAllowanceBase,
+    tollPerStationApplied: previewSettings.tollPerStation,
+    returnCargoBonusApplied: previewSettings.returnCargoBonus,
     twoPointDeliveryDefault: roadConfig?.twoPointDeliveryBonus ? Number(roadConfig.twoPointDeliveryBonus) : undefined,
     vehicleShiftDefault: roadConfig?.vehicleShiftDefault ? Number(roadConfig.vehicleShiftDefault) : undefined,
   };

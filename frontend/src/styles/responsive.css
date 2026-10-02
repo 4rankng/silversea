@@ -41,7 +41,7 @@
  * ========================================================================== */
 @media (max-width: 1023px) {
   /* ── App shell ── */
-  .app { grid-template-columns: 1fr; }
+  .app { --app-sidebar-offset: 0px; grid-template-columns: 1fr; }
 
   /* Scrollport top padding narrows with the shell; keep the sticky
      thead offset token in sync so headers still pin flush. */
@@ -168,27 +168,30 @@
     color: rgba(255, 255, 255, 0.85);
   }
 
-  /* Search input inside green topbar on tablet */
+  /* The header is branded; its navigation search remains the same opaque
+     house field as desktop. White glyphs became invisible when the shared
+     control surface correctly replaced the old translucent paint. */
   .topbar__search > input {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
+    background: var(--surface);
+    border-color: var(--control-border);
+    color: var(--ink-2);
   }
   .topbar__search > input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--ink-3);
   }
   .topbar__search > input:focus {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+    background: var(--surface);
+    border-color: var(--brand);
+    color: var(--ink);
+    box-shadow: none;
   }
   .topbar__search > svg {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--ink-3);
   }
   .topbar__search > kbd {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.8);
+    background: var(--surface-2);
+    border-color: var(--line);
+    color: var(--ink-3);
   }
 
   /* ── Layouts ── */
@@ -335,8 +338,7 @@
      and silently shrink primary actions to the 30px bare-button floor. */
   .page-actions .btn,
   .header-actions .btn,
-  .page-header .btn:not(.btn--icon),
-  .page-header .btn-primary { min-height: var(--control-touch-h); }
+  .page-header .btn:not(.btn--icon) { min-height: var(--control-touch-h); }
   .trip-detail-title { font-size: var(--text-title-size); gap: 8px; line-height: 1.2; }
   .trip-detail-title > span { flex: 1 1 auto; min-width: 0; }
   .trip-detail-subtitle { margin-left: 0; font-size: var(--fs-xs); }
@@ -368,9 +370,9 @@
   .kpi__meta > strong { font-weight: 600; }
 
   /* ── Dashboard widget touch targets ── */
-  .wf-link { min-height: 44px; padding: 6px 0; }
-  .wf-minibtn { min-height: 44px; padding: 4px 10px; }
-  .wf-btn { min-height: 44px; }
+  .wf-link { min-height: var(--control-touch-h); padding: 6px 0; }
+  .wf-minibtn { min-height: var(--control-touch-h); padding: 4px 10px; }
+  .wf-btn { min-height: var(--control-touch-h); }
 
   /* ── Status pills & pagination ── */
   .page-btn { min-width: 36px; min-height: 36px; }
@@ -470,16 +472,11 @@
   }
 
   /* ── Compact controls: geometry does not shrink text ── */
-  .btn--sm,
-  .btn-sm { min-height: var(--control-touch-h); padding: 4px 8px; font-size: var(--text-control-size); }
-  .btn--icon,
-  .btn-icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 6px; }
-  .btn--icon.btn--sm,
-  .btn-icon.btn-sm { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 5px; }
+  .btn--sm { min-height: var(--control-touch-h); padding: 4px 8px; font-size: var(--text-control-size); }
+  .btn--icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 6px; }
+  .btn--icon.btn--sm { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 5px; }
   .row-actions .btn--icon,
-  .row-actions .btn-icon,
-  td .btn--icon,
-  td .btn-icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 5px; }
+  td .btn--icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); padding: 5px; }
   .input,
   select.input,
   input.input,
@@ -575,7 +572,7 @@
   .trip-hero__chip { font-size: var(--fs-xs); padding: 4px 9px; }
   .trip-hero__chip svg { width: 13px; height: 13px; }
   .trip-hero__actions { padding-top: 10px; gap: 6px; }
-  .trip-hero__actions .btn { flex: 1 1 auto; min-width: 0; justify-content: center; min-height: 44px; }
+  .trip-hero__actions .btn { flex: 1 1 auto; min-width: 0; justify-content: center; min-height: var(--control-touch-h); }
   .trip-hero__actions-divider { display: none; }
   .trip-hero__actions-spacer { display: none; }
   .trip-hero__warn { font-size: var(--fs-2xs); padding: 3px 7px; }
@@ -638,10 +635,8 @@
     min-height: var(--control-mobile-h);
   }
   #root .btn { padding: 4px 8px; }
-  #root .btn--sm,
-  #root .btn-sm { min-height: var(--control-mobile-h); padding: 4px 8px; }
-  #root .btn--icon,
-  #root .btn-icon {
+  #root .btn--sm { min-height: var(--control-mobile-h); padding: 4px 8px; }
+  #root .btn--icon {
     width: var(--control-mobile-h);
     min-width: var(--control-mobile-h);
     height: var(--control-mobile-h);
@@ -649,8 +644,7 @@
     padding: 6px;
   }
   #root .row-actions .btn--icon,
-  #root td .btn--icon,
-  #root td .btn-icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }
+  #root td .btn--icon { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }
   #root input:not([type="checkbox"]):not([type="radio"]),
   #root select,
   #root textarea,
@@ -727,34 +721,31 @@
 /* Tablet controls retain the same touch target as phones. */
 @media (min-width: 641px) and (max-width: 900px) {
   .btn,
-  .btn--sm,
-  .btn-sm {
-    min-height: 44px;
+  .btn--sm {
+    min-height: var(--control-touch-h);
   }
   /* Same contract guard as the phone block: two-class page selectors
      out-specify `.btn` and were shrinking actions below the floor. */
   #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
 
   .btn--icon,
-  .btn-icon,
   .btn--icon.btn--sm,
-  .btn-icon.btn-sm,
   .row-action {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
+    width: var(--control-touch-h);
+    min-width: var(--control-touch-h);
+    height: var(--control-touch-h);
+    min-height: var(--control-touch-h);
   }
 
   .filter-chip {
-    min-height: 44px;
+    min-height: var(--control-touch-h);
   }
 
   input:not([type='checkbox']):not([type='radio']),
   select,
   textarea,
   .input {
-    min-height: 44px;
+    min-height: var(--control-touch-h);
   }
 }
 

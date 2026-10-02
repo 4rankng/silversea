@@ -76,28 +76,40 @@ export default [
 
   // The operator's words are RELATIVE — "component height are inconsistent
   // [...] please follow same height as [the tab row]" — so these compare against
-  // the tab chip: a magic ceiling would lock in one of the two pointer variants
-  // (32px with a mouse, 40px on touch).
+  // the category control: the approved mobile dropdown replaces tab chips
+  // below 768px and on coarse pointers; fine wide layouts retain tabs. Keep the relative-height promise
+  // and separately enforce the owner's 40px ceiling on each mobile trigger.
   {
-    id: 'filters/phone/controls-match-the-tab-row',
+    id: 'filters/phone/controls-match-the-category-control',
     role: 'cus',
     path: '/shipments',
     width: 390,
     kind: 'matchHeight',
     selector: '.filter-bar__search',
-    of: '.shipments-control__tabs [role="tab"]',
-    note: NOT_OVERSIZED,
+    of: '.shipments-control__tabs button[aria-haspopup="listbox"]',
+    note: `${NOT_OVERSIZED} — search follows the approved mobile category dropdown height`,
   },
   {
-    id: 'filters/touch/controls-match-the-tab-row',
+    id: 'filters/touch/controls-match-the-category-control',
     role: 'cus',
     path: '/shipments',
     width: 594,
     kind: 'matchHeight',
     selector: '.filter-bar__search',
-    of: '.shipments-control__tabs [role="tab"]',
-    note: NOT_OVERSIZED,
+    of: '.shipments-control__tabs button[aria-haspopup="listbox"]',
+    note: `${NOT_OVERSIZED} — search follows the approved mobile category dropdown height`,
   },
+  ...[390, 594].map((width) => ({
+    id: `filters/w${width}/category-control-max-height`,
+    role: 'cus',
+    path: '/shipments',
+    width,
+    kind: 'maxHeight',
+    selector: '.shipments-control__tabs button[aria-haspopup="listbox"]',
+    max: 40,
+    tol: 0,
+    note: `${NOT_OVERSIZED} — the approved category trigger must exist and respect the owner's 40px ceiling`,
+  })),
   {
     id: 'filters/inline/date-fields-match-the-tab-row',
     role: 'cus',
@@ -105,8 +117,8 @@ export default [
     width: 1024,
     kind: 'matchHeight',
     selector: '.date-range-fields [data-input-wrapper]',
-    of: '.shipments-control__tabs [role="tab"]',
-    note: 'the from/to fields follow the tab-row height (CHIEF 2026-09-27: "these two oversize [...] please follow same height as [the tab row]") — the ≤640 band used to raise every bar control to the mobile touch height while the tab chips stayed compact. MEASURED WHERE THE PAIR IS ACTUALLY INLINE: this lock used to sit at 594px, but the pair now rides the FilterDropdown fold ladder, and at ≤768 the bar holds two rows with the pair inside the `Bộ lọc` dialog — a sanctioned trade, not a regression. Measured 2026-09-28: the pair is in the bar at ≥900 only (inBar false at 460/500/594/768). At 1024 it reads 30px vs the 32px tab row (Δ2). The 594 band still asserts the live equivalent via `filters/touch/controls-match-the-tab-row` above, so that band is not left uncovered.',
+    of: '.shipments-control__tabs button[aria-haspopup="listbox"]',
+    note: 'the from/to fields follow the tab-row height (CHIEF 2026-09-27: "these two oversize [...] please follow same height as [the tab row]") — the ≤640 band used to raise every bar control to the mobile touch height while the tab chips stayed compact. MEASURED WHERE THE PAIR IS ACTUALLY INLINE: this lock used to sit at 594px, but the pair now rides the FilterDropdown fold ladder, and at ≤768 the bar holds two rows with the pair inside the `Bộ lọc` dialog — a sanctioned trade, not a regression. Measured 2026-09-28: the pair is in the bar at ≥900 only (inBar false at 460/500/594/768). The 1024 fixture uses a coarse pointer, so its comparator is the existing finite category Select; fine1440 comparators retain native tabs. Historic30px vs32px tab measurements predate this presentation change. The 594 band still asserts the live equivalent via `filters/touch/controls-match-the-category-control` above, so that band is not left uncovered.',
   },
   {
     id: 'filters/desktop/controls-match-the-tab-row',
@@ -709,5 +721,27 @@ export default [
     selector: '.filter-bar > *',
     max: 2,
     note: `${TWO_ROWS} — measured on /config-penalty-reasons`,
+  },
+  {
+    id: 'tabs/rich-debt/fine1440/whole-owner-max-height',
+    role: 'admin',
+    path: '/customers/1',
+    width: 1440,
+    kind: 'maxHeight',
+    selector: '.dd-workspace-tabs[role="tablist"]',
+    max: 40,
+    tol: 0,
+    note: 'UI93: the complete rich title/metadata boxed owner stays within40px without clipping or shrinking its text; fine wide pointers retain native tabs',
+  },
+  {
+    id: 'tabs/rich-debt/coarse768/finite-owner-max-height',
+    role: 'admin',
+    path: '/customers/1',
+    width: 768,
+    kind: 'maxHeight',
+    selector: '.dd-workspace-tabs button[aria-haspopup="listbox"]',
+    max: 40,
+    tol: 0,
+    note: 'UI91/UI93: the existing finite category Select is the actual rich-workspace owner on a coarse pointer; its complete trigger stays within40px',
   },
 ];

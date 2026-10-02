@@ -17,6 +17,7 @@ holds no matter how the CSS is refactored, renamed, or re-specificitied.
 cd frontend
 pnpm design:lock                 # every lock, exits 1 on any drift
 pnpm design:lock --only dispatch # filter by id substring
+QA_HEADED=1 pnpm design:lock     # unattended headed mode; default stays unchanged
 ```
 
 Evidence lands in `qa/design-lock/` (gitignored): `report.json` plus a
@@ -54,7 +55,7 @@ export default [
 |---|---|---|
 | `noPageOverflow` | the document never scrolls sideways | — |
 | `noClippedText` | no text node is truncated by `overflow:hidden`/ellipsis | `max` (default 0) |
-| `tapFloor` | every visible control is ≥ 44px on touch widths | `min` (default 44) |
+| `tapFloor` | visible targets meet the lock's minimum; input/combobox boundaries are counted once and require visible nonzero contained field interiors; standalone controls and date-group checks stay separate | `min` (default40) |
 | `minFont` | no text renders below the caption token | `min` (default 11) |
 | `maxHeight` / `minHeight` | element box height | `max` / `min`, `tol` |
 | `maxWidth` / `minWidth` | element box width (e.g. a control must not stretch) | `max` / `min`, `tol` |
@@ -80,6 +81,23 @@ empty, otherwise the lock is vacuous.
 that actually won, not the value some rule in the file declares. Use it for
 every trap where a broader selector can silently out-rank the approved one
 (`white-space`, `display`, `font-size`, `overflow`, `grid-template-columns`).
+
+`tapFloor` measures existing `[data-uui-control="input"]` and
+`[data-uui-control="combobox"]` boundaries, not their border-reserving native
+interiors (QA-HARNESS03). Boundary candidates remain in the inventory when a
+field collapses to zero; a missing, hidden, zero or escaping field interior
+fails. Independently actionable nested buttons keep their own target check.
+Hidden boundary families are not active targets. Segmented date parts keep
+their existing exemption and explicit date-group geometry promises.
+Native closed `details` conceal descendants outside their first direct
+`summary`; check every closed ancestor. Summary controls remain presented,
+and visible zero-size boundaries/interiors still fail.
+
+Only exact `QA_HEADED=1` supplies `headless:false` to Playwright. This optional
+QA capture mode keeps the same locks, actions, browser path and screenshot
+settings; it does not add graphics flags or an inspector pause. Record actual
+launch/closure and inspect new originals. A clean headed capture does not
+explain or waive a rejected earlier raster.
 
 ## Reaching a surface that is not on screen at load
 

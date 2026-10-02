@@ -1,3 +1,4 @@
+import { PhotoImage } from '../shared/PhotoImage';
 import React from 'react';
 import './ImagesNotesCard.css';
 import { Upload, Loader2, X } from 'lucide-react';
@@ -51,7 +52,7 @@ export function ImagesNotesCard({ collapsible, defaultCollapsed }: ImagesNotesCa
             <div className="photo-grid">
               {photoUrls.map((_url, i) => (
                 <div key={i} className="photo-thumb">
-                  <img src={authedPhotoUrls[i]} alt={`Preview ${i + 1}`} />
+                  <PhotoImage src={authedPhotoUrls[i]} alt={`Preview ${i + 1}`} />
                   <button
                     type="button"
                     className="photo-thumb__remove"

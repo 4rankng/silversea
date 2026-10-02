@@ -78,7 +78,7 @@ describe('shared control density', () => {
     const geometry = read('src/components/untitled-ui/base/control-geometry.css');
     expect(geometry).toMatch(/\[data-uui-control\]\[data-control-size='sm'\]\s*\{[^}]*--uui-control-h:\s*var\(--control-compact-h\)/);
     expect(geometry).toMatch(/@media \(pointer: coarse\)[\s\S]*--uui-control-h:\s*var\(--control-touch-h\)/);
-    expect(nativeSelect).toContain('max-md:min-h-11');
+    expect(nativeSelect).toContain('max-md:min-h-[var(--control-max-h)]');
     expect(bufferedDate).toContain('size={size}');
   });
 

@@ -14,6 +14,13 @@
   user-select: none;
   transition: background var(--t-fast), border-color var(--t-fast);
 }
+/* A single label is ordinary control chrome. Described records retain their
+   content height; neither variant truncates its text or fixes a maximum. */
+.tc-checkbox-card:not(:has(.tc-checkbox-card__desc)) {
+  min-height: var(--control-max-h);
+  padding-block: 0;
+  box-sizing: border-box;
+}
 .field > .tc-checkbox-card {
   display: flex;
   margin-bottom: 0;

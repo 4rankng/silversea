@@ -1,3 +1,4 @@
+import { PhotoImage } from '../shared/PhotoImage';
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Camera, CheckCircle2, Fuel, Info, Loader2, Plus, ReceiptText } from 'lucide-react';
 import { DriverIncidentalCostType } from '@tingting/shared';
@@ -192,7 +193,7 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
           {entries.map((entry, entryIndex) => (
             <li key={entry.id} className="shipment-cost-entry__item">
               {entry.receiptStorageKey && (
-                <img
+                <PhotoImage
                   src={receiptUrls[entryIndex]}
                   alt="Hóa đơn đổ dầu"
                   className="shipment-cost-entry__thumb"
@@ -271,7 +272,7 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
             </label>
             {receiptStorageKey && (
               <div className="shipment-cost-entry__receipt-preview">
-                <img src={draftReceiptUrl} alt="Hóa đơn đổ dầu đã chụp" />
+                <PhotoImage src={draftReceiptUrl} alt="Hóa đơn đổ dầu đã chụp" />
                 <span><ReceiptText size={14} /> Đã đính kèm ảnh hóa đơn</span>
               </div>
             )}

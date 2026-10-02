@@ -68,9 +68,9 @@
   border: none;
   color: var(--ink-3);
   cursor: pointer;
-  width: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-max-h);
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   padding: 0;
   border-radius: 10px;
   display: grid;

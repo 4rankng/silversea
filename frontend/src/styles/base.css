@@ -99,3 +99,61 @@ img { display: block; }
 [data-input-wrapper] {
   background: transparent;
 }
+
+/* The paint owner is the enabled control, including native legacy adapters
+   and body-mounted dialogs. Match the shell's specificity so page canvas
+   aliases cannot turn an editable field into a wireframe. Inner inputs stay
+   transparent when their UUI or affix boundary already owns the white fill. */
+:is(#root, body) :where(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='hidden']), textarea, .date-seg-group, [data-date-boundary]):not(:where(:disabled, [aria-disabled='true'], [readonly], [aria-readonly='true'], [data-uui-control] input, .ds-field__input-group input, [data-date-boundary] .date-seg-group)) {
+  background-color: var(--surface);
+  background-image: none;
+}
+
+:is(#root, body) :where(input[readonly], textarea[readonly], input[aria-readonly='true'], textarea[aria-readonly='true'], .ds-field__input-group:has(input[readonly]), [data-uui-control='input']:has(input[readonly]), .date-seg-group:has(input[readonly]), [data-date-boundary]:has(input[readonly])) {
+  background-color: var(--surface-2);
+  color: var(--ink-2);
+}
+
+:is(#root, body) :where(input:disabled:not([type='checkbox']):not([type='radio']), textarea:disabled, input[aria-disabled='true'], textarea[aria-disabled='true'], .ds-field__input-group:has(input:disabled), [data-uui-control='input']:has(input:disabled), [data-uui-control='select']:disabled, [data-uui-control='combobox'][data-disabled], .date-seg-group:has(input:disabled), [data-date-boundary]:has(input:disabled)) {
+  background-color: var(--surface-3);
+  color: var(--ink-2);
+  cursor: not-allowed;
+}
+
+/* A wrapper is the paint layer; its disabled/read-only input must not add a
+   second inset rectangle. Its native state still supplies the semantics. */
+/* Prefix dates use a dedicated inner boundary. The nested
+   segment group must not repaint across that boundary, including state fill. */
+:is(#root, body) :where([data-uui-control] input, .ds-field__input-group input, [data-date-boundary] .date-seg-group) {
+  background: transparent;
+}
+
+/* The control boundary uses the same house radius and readable border on
+   native fields, affix groups, and licensed adapters. Interaction and error
+   states retain their own border; label columns remain outside this band. */
+:is(#root, body) :where(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='hidden']):not([data-uui-control] input):not(.ds-field__input-group input), textarea, select, .ds-field__input-group, [data-uui-control='input']:not(.date-seg-wrapper), [data-uui-control='select'], [data-uui-control='combobox'], .date-seg-group) {
+  border-radius: var(--r-sm);
+}
+
+:is(#root, body) :where(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='hidden']):not([data-uui-control] input):not(.ds-field__input-group input), textarea, select, .ds-field__input-group, [data-uui-control='input']:not(.date-seg-wrapper), [data-uui-control='select'], [data-uui-control='combobox'], .date-seg-group):not(:where(:disabled, [aria-disabled='true'], [data-disabled], :focus-within, [aria-invalid='true'], [data-invalid], [data-invalid] *, .ds-field--error *, .date-seg-group--error, .border-brand, .border-error, .border-error_subtle, :has([aria-invalid='true']), :has([data-invalid]))) {
+  border-color: var(--control-border);
+}
+
+/* Public aria-invalid boundary paint (QA-AUDIT-UI57). Internal date/time
+   validation can mark the native field without an external wrapper error.
+   Paint the actual border owner, including its existing focus outline;
+   inner inputs remain borderless and untouched required fields stay neutral. */
+:is(#root, body) :where(
+  input[aria-invalid='true']:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='hidden']):not([data-uui-control] input):not(.ds-field__input-group input),
+  textarea[aria-invalid='true'],
+  select[aria-invalid='true'],
+  .ds-field__input-group:has([aria-invalid='true']),
+  [data-uui-control='input']:not(.date-seg-wrapper):has([aria-invalid='true']),
+  [data-uui-control='select'][aria-invalid='true'],
+  [data-uui-control='combobox'][aria-invalid='true'],
+  [data-date-boundary]:has([aria-invalid='true']),
+  .date-seg-group:not([data-date-boundary] .date-seg-group):has([aria-invalid='true'])
+) {
+  border-color: var(--danger);
+  outline-color: var(--danger);
+}

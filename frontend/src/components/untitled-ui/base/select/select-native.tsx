@@ -18,7 +18,7 @@ const styles = {
     sm: {
         // Always reserve the trailing icon lane. Without it, a long selected
         // label can paint underneath the chevron and hide the select affordance.
-        root: "min-h-[34px] py-1 pl-2.5 pr-8 max-md:min-h-11 max-md:py-2 max-md:pl-3 max-md:pr-10",
+        root: "min-h-[34px] py-1 pl-2.5 pr-8 max-md:min-h-[var(--control-max-h)] max-md:py-2 max-md:pl-3 max-md:pr-10",
         icon: "size-4 right-2.5 stroke-[2.25px]",
     },
     md: {

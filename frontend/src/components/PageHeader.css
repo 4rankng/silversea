@@ -169,15 +169,11 @@
   }
 }
 
-/* 2026-09-27: the sr-only treatment above assumes the app-shell topbar prints
- * the current page title on phones. The driver topbar deliberately renders no
- * `.topbar__context` (Layout.tsx gates it on `!isDriver`), so on a driver
- * phone the H1 was the only title and it was hidden too — the driver saw no
- * screen name at all. Opt the driver shell back out: the H1 is the visible
- * title there, printed once. Non-driver pages keep the topbar copy + sr-only
- * H1 split. */
+/* A brand-only shell has no screen-name context. Driver and customer pages
+   therefore retain their sole H1; the office shell supplies its phone title. */
 @media (max-width: 640px) {
-  .is-driver .page-header__title-visible {
+  .is-driver .page-header__title-visible,
+  .customer-shell .page-header__title-visible {
     position: static;
     width: auto;
     height: auto;

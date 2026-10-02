@@ -11,12 +11,24 @@ it('opens saved evidence on demand and retains a failed file for explicit retry'
   expect(get).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Xem / bổ sung chứng từ' }));
   const picker = await screen.findByLabelText('Bổ sung ảnh chứng từ');
-  fireEvent.change(picker, { target: { files: [new File(['proof'], 'receipt.png', { type: 'image/png' })] } });
+  const file = new File(['proof'], 'receipt.png', { type: 'image/png' });
+  fireEvent.change(picker, { target: { files: [file] } });
   await screen.findByText('Bạn không còn được phân công chuyến này.');
   expect(screen.getByText('receipt.png')).toBeInTheDocument();
   expect(uploadProof).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại ảnh' }));
   await waitFor(() => expect(uploadProof).toHaveBeenCalledTimes(2));
-  await screen.findByAltText('Chứng từ 1');
-  expect(screen.queryByText('receipt.png')).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByText('receipt.png')).not.toBeInTheDocument());
+  expect(uploadProof.mock.calls[1][0]).toEqual({ sourceKind: 'DRIVER', sourceId: 5, expectedVersion: 1 });
+  expect(uploadProof.mock.calls[1][0]).toEqual(uploadProof.mock.calls[0][0]);
+  expect(uploadProof.mock.calls[1][1]).toBe(file);
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Thử tải lại ảnh' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Chưa có ảnh chứng từ.')).not.toBeInTheDocument();
+  // The stored key remains a slot even though this test supplies no protected image body.
+  expect(document.querySelectorAll('.expense-accounting-photos > a')).toHaveLength(1);
+  expect(document.querySelector('.expense-accounting-photos > a')).not.toHaveAttribute('href');
+  expect(screen.queryByAltText('Chứng từ 1')).not.toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Chứng từ 1 (không tải được)' })).toHaveTextContent('Không tải được');
+  expect(document.querySelector('img[src=""]')).toBeNull();
 });

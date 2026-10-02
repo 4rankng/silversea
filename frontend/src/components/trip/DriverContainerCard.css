@@ -153,9 +153,8 @@
   gap: 6px;
 }
 
-/* Card 20260926_29 item 13: the strip is one horizontal row of uniform 72px
-   tiles + the ghost scanner actions under them — the old `1fr` row stretched
-   every tile to the tallest column (~110px). */
+/* Capture actions use one intrinsic row within the current40px control
+   ceiling; media previews below retain their independent dimensions. */
 .dcc-capture-group {
   display: grid;
   grid-template-rows: auto auto;
@@ -165,11 +164,11 @@
 
 .dcc-capture-btn {
   display: inline-flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 72px;
+  min-height: var(--control-h);
   border: 1px dashed var(--line-strong, var(--line));
   border-radius: 12px;
   background: var(--surface-2);
@@ -184,32 +183,30 @@
   cursor: default;
 }
 
-/* Phần 4 ticket 2026-08-28: the camera-only button was hard to use when the
-   device denied the camera or the file picker was hidden inside the scanner
-   overlay. The primary capture button is now a <label> wrapping a hidden
-   <input type="file"> (no capture attribute — one tap opens the OS picker
-   with camera AND gallery, so a denied camera is never a dead end). The
-   secondary "Mở camera" button still opens the fullscreen scanner overlay. */
+/* The primary action opens the existing camera/gallery sheet. Camera
+   denial retains the gallery route; file inputs and upload handlers are
+   unchanged by the shared control geometry. */
 /* Capture targets stay compact while filling their equal grid columns. */
 .dcc-capture-btn--primary {
   width: 100%;
   min-width: 0;
-  height: 72px;
-  padding: 6px;
+  height: var(--control-h);
+  padding: 4px 6px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-2);
   color: var(--ink-3);
   text-align: center;
-  overflow: hidden;
 }
 
 .dcc-capture-btn--primary svg {
+  flex-shrink: 0;
   width: 15px;
   height: 15px;
 }
 
 .dcc-capture-btn--primary span {
+  min-width: 0;
   font-size: var(--text-caption-size);
   font-weight: 400;
   line-height: 1.3;
@@ -219,8 +216,8 @@
   background: color-mix(in srgb, var(--brand) 12%, var(--surface-2));
 }
 
-/* Scanner triggers demote to ghost actions UNDER the slot row (32px, 44px
-   coarse-pointer floor). */
+/* Scanner triggers demote to ghost actions UNDER the slot row (32px,40px
+   coarse-pointer token). */
 .dcc-capture-btn--secondary {
   min-height: 32px;
   font-size: var(--text-control-compact-size);
@@ -233,7 +230,7 @@
 
 @media (pointer: coarse) {
   .dcc-capture-btn--secondary {
-    min-height: 44px;
+    min-height: var(--control-h);
   }
 }
 
@@ -378,8 +375,8 @@
 @media (pointer: coarse) {
   .dcc-bento__edit-btn,
   .dcc-photo-remove {
-    min-height: var(--control-touch-h, 44px);
-    min-width: var(--control-touch-h, 44px);
+    min-height: var(--control-touch-h);
+    min-width: var(--control-touch-h);
   }
 }
 
@@ -422,40 +419,17 @@
   min-width: 0;
 }
 
-/* Card 20260926_28 item 11: the Thêm-ảnh action sheet — flat bottom sheet,
-   no shadows (design law), full-bleed on phones. */
-.dcc-sheet {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal, 1000);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: color-mix(in srgb, var(--ink) 40%, transparent);
-}
-
-.dcc-sheet__panel {
-  width: min(var(--driver-measure, 720px), 100%);
+/* The shared Modal owns the photo menu's surface, corners and dismissal. */
+.dcc-sheet__actions {
   display: grid;
-  gap: 4px;
-  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
-  border: 1px solid var(--line);
-  border-radius: 14px 14px 0 0;
-  background: var(--surface);
-}
-
-.dcc-sheet__title {
-  margin: 0 0 4px;
-  font-size: var(--text-section-size);
-  font-weight: 700;
-  color: var(--ink);
+  gap: var(--space-xs);
 }
 
 .dcc-sheet__action {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-height: 48px;
+  min-height: var(--control-h);
   padding: 0 12px;
   border: none;
   border-radius: 10px;

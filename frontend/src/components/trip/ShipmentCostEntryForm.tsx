@@ -1,3 +1,4 @@
+import { PhotoImage } from '../shared/PhotoImage';
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Plus, ReceiptText, StickyNote } from 'lucide-react';
 import {
@@ -88,7 +89,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
       />
     )) :
       <ul className="shipment-cost-entry__list">{state.entries.map((entry, index) => <li key={entry.id} className="shipment-cost-entry__item">
-        {entry.receiptStorageKey && <a href={receiptUrls[index] || undefined} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><img src={receiptUrls[index]} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}
+        {entry.receiptStorageKey && <a href={receiptUrls[index] || undefined} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><PhotoImage src={receiptUrls[index]} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}
         <div className="shipment-cost-entry__item-body"><div className="shipment-cost-entry__item-top"><strong>{entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong><span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span></div>
           <div className="shipment-cost-entry__item-meta"><span>{formatISODate(entry.occurredAt)}</span><span>{entry.payerKind === 'COMPANY' ? 'Công ty đã trả' : 'Tôi chi'}</span>{entry.costGroup && <span>{entry.costGroup === 'DRIVER_ROAD' ? 'Tiền đường' : 'Chi phí lô hàng'}</span>}{entry.invoiceNumber && <span>HĐ {entry.invoiceNumber}</span>}</div>
           {entry.note && <span className="shipment-cost-entry__item-note">{entry.note}</span>}
@@ -136,7 +137,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         <input type="file" accept="image/*" className="sr-only" aria-label="Chọn ảnh biên lai" disabled={disabled} onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ''; if (file) void state.upload(file); }} />
       </label>
       {state.pendingFile && !state.uploading && <div className="shipment-cost-entry__upload-retry" role="status"><span>{state.pendingFile.name} · Chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" disabled={disabled} onClick={() => { if (state.pendingFile) void state.upload(state.pendingFile); }}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={state.discardPendingFile}>Bỏ ảnh chưa tải</button></div>}
-      {state.draft.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><img src={draftReceiptUrl} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
+      {state.draft.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><PhotoImage src={draftReceiptUrl} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
       {/* Card 20260928_165 — the road-repair fee's document is the hand-written
           receipt; the form blocks the submit (never silently) until it is
           attached, and the server refuses the entry without it. */}

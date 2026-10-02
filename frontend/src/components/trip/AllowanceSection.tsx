@@ -271,10 +271,10 @@ export function AllowanceSection() {
                   className="btn"
                   style={{
                     padding: 0,
-                    width: 44,
-                    height: 44,
-                    minWidth: 44,
-                    minHeight: 44,
+                    width: 'var(--control-touch-h)',
+                    height: 'var(--control-touch-h)',
+                    minWidth: 'var(--control-touch-h)',
+                    minHeight: 'var(--control-touch-h)',
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",

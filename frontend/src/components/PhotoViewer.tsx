@@ -144,7 +144,7 @@ export function PhotoViewer({ urls, initialIndex = 0, onClose }: PhotoViewerProp
             <RotateCcw size={18} />
           </button>
           <div className="pv-divider" />
-          <button type="button" className="pv-btn pv-btn--close" aria-label="Đóng ảnh" onClick={onClose} title="Đóng (Esc)">
+          <button type="button" className="pv-btn pv-btn--close" aria-label="Đóng ảnh" onClick={onClose} title="Đóng">
             <X size={20} />
           </button>
         </div>

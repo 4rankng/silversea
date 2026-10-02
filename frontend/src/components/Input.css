@@ -17,6 +17,15 @@
   color: var(--ink);
   transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
 }
+/* Small native fields share the compact house geometry. Touch bands may
+   promote ordinary fields to the common40px token; pages do not own a floor. */
+.input--sm {
+  min-height: var(--control-compact-h);
+  height: var(--control-compact-h);
+  padding: 0 10px;
+  font-size: var(--control-field-font-size);
+}
+
 .input:hover {
   border-color: var(--line-strong);
   background: var(--surface);

@@ -12,7 +12,7 @@ describe('DRV-FOLLOWUP-005 responsive document rows', () => {
     expect(tablet).toMatch(/\.trip-pod__card\s*\{[^}]*grid-row:\s*span 3;[^}]*grid-template-rows:\s*subgrid;[^}]*align-items:\s*start;/);
     expect(tablet).toMatch(/\[data-editable="false"\] \.trip-pod__card\s*\{[^}]*grid-row:\s*span 2;/);
     expect(css).toMatch(/\.trip-pod__actions\s*\{[^}]*align-self:\s*start;/);
-    expect(css).toMatch(/\.trip-pod__action,\s*\.trip-pod__submit\s*\{[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/\.trip-pod__action,\s*\.trip-pod__submit\s*\{[^}]*min-height:\s*var\(--control-h\);/);
     const header = css.match(/\.trip-pod__card-head\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(header).not.toMatch(/(?:min-|max-)?height\s*:/);
   });

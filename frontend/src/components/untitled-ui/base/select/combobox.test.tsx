@@ -169,7 +169,7 @@ const FACTORIES = [
   { id: 'canon', label: 'CANON', supportingText: 'Công ty Canon · Hà Nội' },
 ];
 
-function FactorySearchHarness({ initialValue = '' }: { initialValue?: string }) {
+function FactorySearchHarness({ initialValue = '', clearSelectionOnQueryEmpty = false }: { initialValue?: string; clearSelectionOnQueryEmpty?: boolean }) {
   const [selectedKey, setSelectedKey] = useState(initialValue);
   const [inputValue, setInputValue] = useState(FACTORIES.find((factory) => factory.id === initialValue)?.label ?? '');
   return (
@@ -179,7 +179,10 @@ function FactorySearchHarness({ initialValue = '' }: { initialValue?: string }) 
         items={FACTORIES}
         selectedKey={selectedKey || null}
         inputValue={inputValue}
-        onInputChange={setInputValue}
+        onInputChange={(text) => {
+          setInputValue(text);
+          if (clearSelectionOnQueryEmpty && text === '') setSelectedKey('');
+        }}
         onSelectionChange={(key) => {
           if (key === null) return;
           setSelectedKey(String(key));
@@ -322,6 +325,36 @@ describe('ComboBox factory search while typing', () => {
     expect(screen.getByLabelText('Nhà máy đã chọn')).toHaveTextContent('vid');
     expect((input as HTMLInputElement).value).toContain('VID');
   });
+  it('preserves uncontrolled catalog state and keeps a cleared query open after a pick', async () => {
+    const notify = vi.fn();
+    render(<ComboBox label="Nhà máy" items={FACTORIES} onSelectionChange={notify}>
+      {(item) => <SelectItem id={item.id} value={item} label={item.label} supportingText={item.supportingText} />}
+    </ComboBox>);
+    const input = await focusFactorySearch();
+    fireEvent.click(await screen.findByRole('option', { name: /VID/ }));
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+    expect(input).toHaveValue(FACTORIES[0].label + ' ' + FACTORIES[0].supportingText); expect(notify).toHaveBeenCalledTimes(1); expect(notify).toHaveBeenCalledWith('vid');
+    fireEvent.click(input); fireEvent.change(input, { target: { value: '' } });
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'true'));
+    expect(input).toHaveValue(''); expect(screen.getAllByRole('option')).toHaveLength(FACTORIES.length);
+  });
+
+  it('keeps suggestions open when query typing clears an authoritative catalog key after a real pick', async () => {
+    render(<FactorySearchHarness initialValue="canon" clearSelectionOnQueryEmpty />);
+    const input = await focusFactorySearch();
+    fireEvent.change(input, { target: { value: 'vid' } });
+    fireEvent.click(await screen.findByRole('option', { name: /VID/ }));
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+    expect(screen.getByLabelText('Nhà máy đã chọn')).toHaveTextContent('vid');
+    fireEvent.click(input); fireEvent.change(input, { target: { value: '' } });
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'true'));
+    expect(screen.getByLabelText('Nhà máy đã chọn')).toBeEmptyDOMElement();
+    expect(screen.getAllByRole('option')).toHaveLength(FACTORIES.length);
+    fireEvent.change(input, { target: { value: 'dong mai' } });
+    expect(await screen.findByRole('option', { name: /VID/ })).toBeTruthy();
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+  });
+
 });
 
 describe('ComboBox invalid focus ring', () => {

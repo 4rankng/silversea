@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Filter, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { useToast } from '../shared/Toast';
@@ -11,7 +10,7 @@ import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { documentFileName, filterAuthoritativeDebitNoteLines, groupLinesByContainer, lineTotal, normalizeLine, selectedTripIdsFromSearch, splitRouteName, thisMonthRange, displayDate, TITLE, type BillingRouteGroup } from './billing-document-builder-utils';
 import { DateInput } from '../../design-system/forms/DateInput';
-import { UuiSelectField } from '../../design-system';
+import { Modal, UuiSelectField } from '../../design-system';
 import './BillingDocumentBuilder.css';
 import type {
   BillingDocument,
@@ -60,8 +59,6 @@ export default function BillingDocumentBuilder({
   }, [selectedTripIds]);
   const requestedFrom = initialRangeFrom ?? new URLSearchParams(window.location.search).get('from') ?? month.from;
   const requestedTo = initialRangeTo ?? new URLSearchParams(window.location.search).get('to') ?? month.to;
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-
   const [rangeFrom, setRangeFrom] = useState(initialDoc?.rangeFrom ?? requestedFrom);
   const [rangeTo, setRangeTo] = useState(initialDoc?.rangeTo ?? requestedTo);
   const [lines, setLines] = useState<BillingDocumentLine[]>((initialDoc?.lines as BillingDocumentLine[]) ?? []);
@@ -368,25 +365,10 @@ export default function BillingDocumentBuilder({
     }
   };
 
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) onClose();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [busy, isOpen, onClose]);
-
-  useEffect(() => {
-    setPortalTarget(document.body);
-  }, []);
-
   if (!isOpen) return null;
 
-  if (!portalTarget) return null;
-
   const content = (
-    <section className="billing-builder" role="dialog" aria-modal="true" aria-labelledby="billing-builder-title">
+    <section className="billing-builder">
       <header className="billing-builder__topbar">
         <div className="billing-builder__title-block">
           <div className="billing-builder__icon">
@@ -780,5 +762,15 @@ export default function BillingDocumentBuilder({
     </section>
   );
 
-  return createPortal(content, portalTarget);
+  return (
+    <Modal
+      chrome="bare"
+      isOpen={isOpen}
+      title={TITLE[type]}
+      ariaLabel={TITLE[type]}
+      onClose={() => { if (!busy) onClose(); }}
+    >
+      {content}
+    </Modal>
+  );
 }

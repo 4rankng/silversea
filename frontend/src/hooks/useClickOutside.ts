@@ -1,6 +1,6 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
-import { registerOverlayToken, unregisterOverlayToken } from './useAnimatedOverlay';
+import { isTopOverlayToken, registerOverlayToken, unregisterOverlayToken } from './useAnimatedOverlay';
 
 /**
  * Attach click-outside + optional Escape-key dismissal to a container ref.
@@ -11,6 +11,8 @@ export function useClickOutside(
   onDismiss: () => void,
   options?: {
     escapeKey?: boolean;
+    /** Escape can cancel a draft while an outside press commits its exit. */
+    onEscape?: () => void;
     enabled?: boolean;
     additionalRefs?: RefObject<HTMLElement | null>[];
     /** Event targets inside a matching element never dismiss this layer —
@@ -19,18 +21,26 @@ export function useClickOutside(
     ignoreSelector?: string;
   },
 ) {
-  const { escapeKey = false, enabled = true, ignoreSelector } = options ?? {};
+  const { escapeKey = false, enabled = true, ignoreSelector, onEscape } = options ?? {};
   const additionalRefs = options?.additionalRefs;
+  const overlayTokenRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !escapeKey) return;
+    // Layer order follows opening/closing, not listener rebindings when a
+    // parent rerenders its callbacks or additional refs after a child choice.
+    registerOverlay();
+    const token = registerOverlayToken();
+    overlayTokenRef.current = token;
+    return () => {
+      unregisterOverlay();
+      unregisterOverlayToken(token);
+      overlayTokenRef.current = null;
+    };
+  }, [enabled, escapeKey]);
 
   useEffect(() => {
     if (!enabled) return;
-    // A dismiss-on-ESC dropdown/overlay claims Escape — register so the ESC
-    // "go back" shortcut yields and parent overlays (Drawer/Modal) yield while it's open.
-    let token: number | null = null;
-    if (escapeKey) {
-      registerOverlay();
-      token = registerOverlayToken();
-    }
     const handler = (e: MouseEvent | KeyboardEvent | PointerEvent) => {
       // Targets inside an ignored region (e.g. a portaled select popover whose
       // own backdrop owns outside clicks) never dismiss this layer — pointer
@@ -38,9 +48,13 @@ export function useClickOutside(
       const path = e.composedPath();
       if (ignoreSelector && path.some((node) => node instanceof Element && node.matches(ignoreSelector))) return;
       if (e instanceof KeyboardEvent) {
-        if (escapeKey && e.key === 'Escape') {
+        if (escapeKey && e.key === 'Escape' && !e.defaultPrevented && isTopOverlayToken(overlayTokenRef.current)) {
+          // Native document listeners can run after a child commits its close
+          // and unregisters its token. Consume this event before dismissal so
+          // a later parent listener cannot close a second layer on the same key.
+          e.preventDefault();
           e.stopPropagation();
-          onDismiss();
+          (onEscape ?? onDismiss)();
         }
         return;
       }
@@ -63,9 +77,7 @@ export function useClickOutside(
       document.removeEventListener(pressEvent, handler);
       if (escapeKey) {
         document.removeEventListener('keydown', handler);
-        unregisterOverlay();
-        if (token != null) unregisterOverlayToken(token);
       }
     };
-  }, [additionalRefs, ref, onDismiss, enabled, escapeKey, ignoreSelector]);
+  }, [additionalRefs, ref, onDismiss, enabled, escapeKey, ignoreSelector, onEscape]);
 }

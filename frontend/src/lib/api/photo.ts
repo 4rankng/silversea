@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from './client';
 
 /**
- * Resolve a stored photo reference to the authenticated photo route path the
- * API serves (`GET /api/photos/…`), or null when the value is empty or is
+ * Resolve a stored photo reference to the API-client-relative photo path
+ * (`/photos/…` — the client owns `/api`), or null when the value is empty or is
  * already a browser-renderable `blob:` preview. Accepts either a bare storage
  * key (e.g. `trips/154/container-….jpg`, as returned by the trip detail /
  * containers endpoints) or an already-formed `/api/photos/…` URL (as returned
@@ -11,9 +11,10 @@ import { api } from './client';
  * single path segment that the wildcard photo route decodes.
  */
 export function photoRoutePath(value: string | null | undefined): string | null {
-  if (!value) return null;
-  if (value.startsWith('blob:')) return null;
-  return value.startsWith('/api/photos/') ? value : `/api/photos/${encodeURIComponent(value)}`;
+  const reference = value?.trim();
+  if (!reference || reference.startsWith('blob:')) return null;
+  if (reference.startsWith('/api/photos/')) return reference.slice('/api'.length);
+  return reference.startsWith('/photos/') ? reference : `/photos/${encodeURIComponent(reference)}`;
 }
 
 /**

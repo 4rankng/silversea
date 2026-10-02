@@ -66,9 +66,6 @@ export interface TopbarProps {
   };
   isDriver: boolean;
   pageTitle: string;
-  /** Suppresses the 'Đang xem …' context block on routes whose page header
-   *  already carries the title (card 20260926_55: /dispatch-detail). */
-  hideContext?: boolean;
   sidebarOpen: boolean;
   menuButtonRef: React.RefObject<HTMLButtonElement | null>;
   onToggleSidebar: () => void;

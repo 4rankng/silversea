@@ -118,6 +118,8 @@
 
 .column-picker__reset {
   align-self: flex-start;
+  flex-shrink: 0;
+  white-space: nowrap;
   height: calc(var(--filter-control-h) - 2px);
   padding: 0 12px;
   background: var(--surface);
@@ -155,12 +157,17 @@
 
 .column-picker--inline .column-picker__body {
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
+  width: 100%;
+  min-width: 0;
   gap: 12px;
   padding: 0;
 }
 
 .column-picker--inline .column-picker__options {
+  flex: 1 1 0;
+  min-width: 0;
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;

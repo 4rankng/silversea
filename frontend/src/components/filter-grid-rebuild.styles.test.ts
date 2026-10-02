@@ -185,9 +185,13 @@ describe('the from/to date group is two independent fields (CHIEF 2026-09-27)', 
     expect(dateFieldsTsx).toContain('fieldPrefix="Từ"');
     expect(dateFieldsTsx).toContain('fieldPrefix="Đến"');
     expect(dateFieldsTsx).toMatch(/className="date-range-fields__arrow"[^>]*aria-hidden="true"/);
-    const groupCss = read('src/design-system/forms/DateRangeFields.css');
-    expect(groupCss).toMatch(/\[data-has-prefix\]\s*\{[^}]*border:\s*1px solid/);
-    expect(groupCss).toMatch(/\[data-has-prefix\][^{]*\.date-seg-group\s*\{[^}]*border:\s*0/);
+    const boundaryCss = read('src/design-system/forms/BufferedUuiDateInput.css');
+    expect(boundaryCss).toMatch(/\[data-date-boundary\]\s*\{[^}]*border:\s*1px solid var\(--control-border, var\(--line\)\)/);
+    expect(boundaryCss).toMatch(/\[data-date-boundary\] \.date-seg-group\s*\{[^}]*min-width:\s*0;[^}]*border:\s*0/);
+    expect(boundaryCss).toMatch(/\[data-date-boundary\] \.uui-date-prefix\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap/);
+    const bufferedSource = read('src/design-system/forms/BufferedUuiDateInput.tsx');
+    expect(bufferedSource.indexOf('<div data-date-boundary')).toBeGreaterThan(-1);
+    expect(bufferedSource.indexOf('<p id={`${id}-hint`}')).toBeGreaterThan(bufferedSource.indexOf('<div data-date-boundary'));
   });
 
   it('Chi tiết lô hàng mounts the shared group inside its bar', () => {

@@ -291,17 +291,28 @@ export const matchesComboboxSearch = (text: string, inputValue: string): boolean
  * menu once per changed input while focus and text remain. Escape and
  * click-away closes stay closed (flag + focus check).
  */
-function KeepSuggestionsOpen({ enabled, controlledSelectedKey, containerRef, escapeClosedAtRef }: {
+function KeepSuggestionsOpen({ enabled, controlledSelectedKey, containerRef, escapeClosedAtRef, selectionCommittedRef }: {
   enabled: boolean;
-  controlledSelectedKey: string | number | null;
+  controlledSelectedKey: string | number | null | undefined;
   containerRef: RefObject<HTMLDivElement | null>;
   escapeClosedAtRef: RefObject<number>;
+  selectionCommittedRef: RefObject<boolean>;
 }) {
   const state = useContext(ComboBoxStateContext);
   const wasOpen = useRef(false);
   const reopenedForInput = useRef<string | null>(null);
   useEffect(() => {
-    if (!state || !enabled) return;
+    if (!state) return;
+    const committed = selectionCommittedRef.current;
+    selectionCommittedRef.current = false;
+    if (!enabled) {
+      // React Aria closes changed non-null keys; actual empty commits close here.
+      // Query/internal nulls are not commits and keep suggestions open.
+      if (committed && controlledSelectedKey === null && state.selectedKey === null && state.isOpen) {
+        state.setOpen(false);
+      }
+      return;
+    }
     if (state.isOpen) {
       wasOpen.current = true;
       return;
@@ -352,6 +363,7 @@ export const ComboBox = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [popoverWidth, setPopoverWidth] = useState("");
     const escapeClosedAtRef = useRef(0);
+    const selectionCommittedRef = useRef(false);
 
     // Resize observer for popover width
     const onResize = useCallback(() => {
@@ -377,6 +389,10 @@ export const ComboBox = ({
                 {...otherProps}
                 isInvalid={isInvalid}
                 selectedKey={otherProps.selectedKey}
+                onSelectionChange={(key) => {
+                    selectionCommittedRef.current = key != null;
+                    otherProps.onSelectionChange?.(key);
+                }}
             >
                 {(state) => (
                     <div
@@ -398,9 +414,10 @@ export const ComboBox = ({
 
                         <KeepSuggestionsOpen
                             enabled={Boolean(otherProps.allowsCustomValue)}
-                            controlledSelectedKey={otherProps.selectedKey ?? null}
+                            controlledSelectedKey={otherProps.selectedKey}
                             containerRef={containerRef}
                             escapeClosedAtRef={escapeClosedAtRef}
+                            selectionCommittedRef={selectionCommittedRef}
                         />
                         <ComboBoxValue
                             containerRef={containerRef}

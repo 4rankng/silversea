@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
 import './ActionBar.css';
 import { AlertTriangle, Check, ArrowRight, Loader2 } from 'lucide-react';
 import { useTripFormContext } from '../../hooks/useTripFormContext';
 import { isAnyUploading } from '../../hooks/useTripFormPhotos';
+import { useFixedActionClearance } from '../../hooks/useFixedActionClearance';
 
 interface ActionBarProps {
   loading?: boolean;
@@ -11,7 +11,7 @@ interface ActionBarProps {
 }
 
 export function ActionBar({ loading, onCancel, onSubmit }: ActionBarProps) {
-  const barRef = useRef<HTMLDivElement>(null);
+  const barRef = useFixedActionClearance<HTMLDivElement>('--trip-action-bar-height');
   const form = useTripFormContext();
   const allFilled = form.requiredFieldsFilled >= form.totalRequiredFields;
   // Leg validity gates the button with the SAME rule the submit path
@@ -20,24 +20,6 @@ export function ActionBar({ loading, onCancel, onSubmit }: ActionBarProps) {
   const legsReady = form.legsValid;
   const ready = allFilled && legsReady;
   const disabled = form.submitting || isAnyUploading(form.uploading) || loading;
-
-  // The guided tour is mounted at the app root, while this bar is fixed within
-  // the trip form. Publish the actual responsive height so floating guidance
-  // can stay above the controls instead of being covered by them.
-  useEffect(() => {
-    const bar = barRef.current;
-    if (!bar) return;
-    const publishHeight = () => {
-      document.documentElement.style.setProperty('--trip-action-bar-height', `${bar.offsetHeight}px`);
-    };
-    publishHeight();
-    const observer = new ResizeObserver(publishHeight);
-    observer.observe(bar);
-    return () => {
-      observer.disconnect();
-      document.documentElement.style.removeProperty('--trip-action-bar-height');
-    };
-  }, []);
 
   return (
     <>

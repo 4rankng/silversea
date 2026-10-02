@@ -6,6 +6,20 @@
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .section-gap { margin-bottom: 16px; }
 
+/* Tax codes, phones and catalog codes are atomic values (design law §4).
+ * Keep the boundary inside the fact so its label/prose may still wrap. */
+.data-token {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+/* Separate a record's identity and supporting facts without concatenating. */
+.record-cell-stack {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
 /* Visually hide while keeping the element in the a11y tree. The PageHeader
  * component renders its <h1> with this class on every page that has no
  * onBack/action slot; without a global rule the H1 was visible (a duplicate

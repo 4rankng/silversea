@@ -9,7 +9,7 @@ import { AuthedPhotoImg, renderThumb } from './DriverTripPhotos';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { normalizeContainerNumber } from '@tingting/shared';
 import { checkContainerNumber } from './container-instance-helpers';
-import { TextField } from '../../design-system';
+import { Modal, TextField } from '../../design-system';
 import { CopyCodeButton } from './CopyCodeButton';
 import './DriverContainerCard.css';
 
@@ -67,9 +67,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
   const [containerError, setContainerError] = useState<string | null>(null);
   const containerFieldRef = useRef<HTMLDivElement>(null);
   const [scannerType, setScannerType] = useState<'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE' | null>(null);
-  // Card 20260926_28 item 11: the merged Thêm-ảnh action sheet (camera /
-  // gallery) — one entry per capture zone; file inputs live on refs so the
-  // sheet can trigger the picker after the sheet unmounts.
+  // One photo menu per zone; refs keep the gallery input reachable after close.
   const [sheetType, setSheetType] = useState<'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE' | null>(null);
   const fileInputs = useRef<Record<'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE', HTMLInputElement | null>>({ CONTAINER: null, SEAL: null, DELIVERY_NOTE: null });
   const [editing, setEditing] = useState(false);
@@ -700,12 +698,15 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
         onChange={noteInputChange}
       />
 
-      {/* Card 20260926_28 item 11: the Thêm-ảnh action sheet — camera via
-          the fullscreen scanner overlay, gallery via the hidden file input. */}
+      {/* Shared photo menu: scanner capture or the existing gallery input. */}
       {sheetType && (
-        <div className="dcc-sheet" role="dialog" aria-modal="true" aria-label="Thêm ảnh" onClick={() => setSheetType(null)}>
-          <div className="dcc-sheet__panel" onClick={(e) => e.stopPropagation()}>
-            <p className="dcc-sheet__title">Thêm ảnh {sheetType === 'CONTAINER' ? 'cont' : sheetType === 'SEAL' ? 'seal' : 'biên bản'}</p>
+        <Modal
+          isOpen
+          title={`Thêm ảnh ${sheetType === 'CONTAINER' ? 'cont' : sheetType === 'SEAL' ? 'seal' : 'biên bản'}`}
+          onClose={() => setSheetType(null)}
+          maxWidth={480}
+        >
+          <div className="dcc-sheet__actions">
             <button
               type="button"
               className="dcc-sheet__action"
@@ -730,7 +731,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             </button>
             <button type="button" className="dcc-sheet__action dcc-sheet__action--cancel" onClick={() => setSheetType(null)}>Hủy</button>
           </div>
-        </div>
+        </Modal>
       )}
     </section>
   );

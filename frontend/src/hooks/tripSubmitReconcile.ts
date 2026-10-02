@@ -13,6 +13,16 @@ const digitsToNumber = (value: string): number | undefined => {
 const calendarDate = (value: unknown) => value ? businessDateISO(new Date(String(value))) : null;
 const optionalText = (value: unknown) => value == null || value === '' ? null : String(value);
 
+/** Preserve the legacy supplier pointer when its mapped customer selection is untouched. */
+export function externalCarrierEditValue(original: Pick<TripDetail, 'externalEntityType' | 'externalCarrierId'>, carrierType: 'OWN' | 'EXTERNAL', selectedId: number | null): number | null | undefined {
+  if (carrierType === 'OWN') return null;
+  return original.externalEntityType === 'SUPPLIER' && selectedId === original.externalCarrierId ? undefined : selectedId;
+}
+
+export function requiresLegacyCarrierSelection(entityType: TripDetail['externalEntityType'], carrierType: 'OWN' | 'EXTERNAL', selectedId: string): boolean {
+  return entityType === 'SUPPLIER' && carrierType === 'EXTERNAL' && !selectedId;
+}
+
 export interface TripEditConflictField { key: string; label: string; local: unknown; latest: unknown; }
 export class TripEditConflictError extends ApiError {
   constructor(readonly latestVersion: number, readonly fields: TripEditConflictField[]) {

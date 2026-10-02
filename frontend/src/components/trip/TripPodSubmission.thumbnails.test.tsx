@@ -44,7 +44,7 @@ function makeSubmission(overrides: Record<string, unknown> = {}): DriverTaskPodS
 function renderSubmission(submission: DriverTaskPodSubmission) {
   return render(
     <TripPodSubmission
-      tripCode="TRIP-55"
+      documentNumber="BILL-55"
       tripVersion={3}
       currentSubmission={submission}
       history={[]}

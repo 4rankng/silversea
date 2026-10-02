@@ -156,8 +156,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  height: 44px;
+  min-height: var(--control-touch-h);
+  height: var(--control-touch-h);
   padding: 0 13px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -173,7 +173,7 @@
 }
 /* Case QA-2026-09-27-02 / card 20260927_2: the desktop topbar shrinks the
    month trigger to 36px so the row matches the page-level input row.
-   Driver topbar keeps the 44px touch-floor rule — the driver identity
+   Driver topbar keeps the 40px touch-floor rule — the driver identity
    beside it is the two-line subtitle the customer asked to keep. */
 .topbar:not(.topbar--driver) .topbar-date__trigger {
   min-height: 36px;
@@ -303,7 +303,8 @@
   gap: 8px;
 }
 .month-picker__cell {
-  min-height: 54px;
+  min-height: var(--control-max-h);
+  padding: 0 6px;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -408,7 +409,7 @@
   }
 
   .month-picker__cell {
-    min-height: 48px;
+    min-height: var(--control-max-h);
   }
 
   .month-picker__cell-code {
@@ -432,7 +433,7 @@
   }
 
   .month-picker__cell {
-    min-height: 46px;
+    min-height: var(--control-max-h);
     border-radius: 12px;
   }
 
@@ -445,7 +446,7 @@
 
 /* Wireframe topbar classes */
 .topbar__toggle {
-  width: 44px; height: 44px;
+  width: var(--control-touch-h); height: var(--control-touch-h);
   padding: 0;
   background: transparent;
   border: 1px solid transparent;
@@ -528,9 +529,9 @@
 .topbar__search > input::placeholder { color: var(--ink-3); }
 .topbar__search > input:focus {
   background: var(--surface);
-  border-color: var(--accent);
+  border-color: var(--brand);
   color: var(--ink);
-  outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
+  outline: 2px solid var(--brand);
   outline-offset: 1px;
 }
 .topbar__search > kbd {
@@ -579,7 +580,7 @@
 /* Replaces .date-chip in the topbar — clean slate, no legacy overrides */
 
 .icon-btn {
-  width: 44px; height: 44px;
+  width: var(--control-touch-h); height: var(--control-touch-h);
   display: inline-flex; align-items: center; justify-content: center;
   background: transparent; border: 1px solid transparent;
   border-radius: 10px;
@@ -694,7 +695,7 @@
     align-items: center;
     /* responsive.css pins .topbar to the single-row --topbar-h at ≤640; the
        driver bar keeps its own height because the identity column (name +
-       plate, 2 lines) plus the 44px touch floor on the date chip exceed it. */
+       plate, 2 lines) plus the 40px touch floor on the date chip exceed it. */
     height: auto;
     min-height: 0;
   }

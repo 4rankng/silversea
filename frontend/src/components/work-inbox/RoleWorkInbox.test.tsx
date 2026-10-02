@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../lib/api';
@@ -7,13 +7,18 @@ import { RoleWorkInbox } from './RoleWorkInbox';
 
 const { apiGet, apiPost } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn() }));
 
-function renderInbox(ui: React.ReactElement) {
+function RouterLocation() {
+  const location = useLocation();
+  return <output data-testid="inbox-location">{location.pathname}{location.search}</output>;
+}
+
+function renderInbox(ui: React.ReactElement, initialEntry = '/') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  return render(ui, { wrapper: ({ children }) => (
     <QueryClientProvider client={client}>
-      <MemoryRouter>{ui}</MemoryRouter>
-    </QueryClientProvider>,
-  );
+      <MemoryRouter initialEntries={[initialEntry]}>{children}<RouterLocation /></MemoryRouter>
+    </QueryClientProvider>
+  ) });
 }
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../lib/api')>(),
@@ -90,7 +95,46 @@ describe('RoleWorkInbox', () => {
   beforeEach(() => {
     apiGet.mockReset();
     apiPost.mockReset();
+    window.history.replaceState(null, '', '/');
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+  });
+
+  it('preserves restored queue and page through first asynchronous customer scope hydration (UI43)', async () => {
+    apiGet.mockResolvedValue(response([]));
+    const route = '/portal/shipments?tab=1&page=2';
+    window.history.replaceState(null, '', route);
+    const view = renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={null} scopeReady={false} />, route);
+    expect(apiGet).not.toHaveBeenCalled();
+    expect(screen.getByRole('tab', { name: /Đang xử lý/ }).getAttribute('aria-selected')).toBe('true');
+
+    view.rerender(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} scopeReady />);
+    await screen.findByText('Không có việc trong nhóm này.');
+    expect(apiGet.mock.calls.map(([path]) => path)).toEqual(['/portal/work-inbox?view=WAITING&page=2&limit=100&customerId=7']);
+    expect(screen.getByRole('tab', { name: /Đang xử lý/ }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('inbox-location').textContent).toBe(route);
+
+    view.rerender(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} scopeReady={false} />);
+    view.rerender(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} scopeReady />);
+    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(2));
+    expect(apiGet.mock.calls.every(([path]) => String(path).includes('view=WAITING&page=2'))).toBe(true);
+    expect(screen.getByTestId('inbox-location').textContent).toBe(route);
+  });
+
+  it('resets queue and page for a later resolved customer or role switch (UI43)', async () => {
+    apiGet.mockResolvedValue(response([]));
+    const route = '/portal/shipments?tab=1&page=2';
+    window.history.replaceState(null, '', route);
+    const view = renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} scopeReady />, route);
+    await screen.findByText('Không có việc trong nhóm này.');
+    view.rerender(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={14} scopeReady />);
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/portal/work-inbox?view=ACTION&page=1&limit=100&customerId=14'));
+    expect(screen.getByRole('tab', { name: /Cần xác nhận/ }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('inbox-location').textContent).toBe('/portal/shipments');
+
+    fireEvent.click(screen.getByRole('tab', { name: /Đang xử lý/ }));
+    view.rerender(<RoleWorkInbox role="driver" title="Việc hôm nay" description="Mô tả" />);
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/driver/me/work-inbox?view=ACTION&page=1&limit=100'));
+    expect(screen.getByRole('tab', { name: /Cần làm/ }).getAttribute('aria-selected')).toBe('true');
   });
 
   it('renders loading, populated desktop table facts, tabs, and empty state', async () => {
@@ -264,6 +308,16 @@ describe('RoleWorkInbox', () => {
     const dispatchItem = within(gateList).getAllByRole('listitem')[0];
     expect(dispatchItem.textContent).toContain('Đã phân xe');
     expect(dispatchItem.textContent).toContain('Điều vận chưa gán biển số');
+  });
+
+  it('names the missing driver without declaring an assigned external plate absent (DTL03)', async () => {
+    apiGet.mockResolvedValue(response([{ ...operationsItem, driverName: null, truckPlate: '15H-154.98' }]));
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
+    const table = await screen.findByRole('table');
+    const dispatch = within(within(table).getAllByRole('list', { name: /Mốc nghiệp vụ/ })[0]).getAllByRole('listitem')[0];
+    expect(dispatch.textContent).toContain('Điều vận chưa gán tài xế');
+    expect(dispatch.textContent).not.toContain('Điều vận chưa gán biển số');
+    expect(dispatch.textContent).not.toContain('✓');
   });
 
   it('hides the cross-branch gate column for the customer role (not relevant to their workflow)', async () => {

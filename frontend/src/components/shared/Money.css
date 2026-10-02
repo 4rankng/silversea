@@ -8,7 +8,8 @@
   display: inline-flex;
   align-items: baseline;
   gap: 0.15em;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   line-height: 1.35;
 }
 

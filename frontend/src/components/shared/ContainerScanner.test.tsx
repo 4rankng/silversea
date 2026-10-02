@@ -13,6 +13,9 @@ describe('ContainerScanner lifecycle', () => {
     expect(screen.getByRole('dialog', { name: 'Chụp ảnh container hoặc seal' })).toBeInTheDocument();
     const close = screen.getByRole('button', { name: 'Đóng' });
     const gallery = screen.getByRole('button', { name: 'Chọn ảnh từ thư viện' });
+    for (const button of [close, gallery, screen.getByRole('button', { name: 'Chụp ảnh' })]) {
+      expect(button).toHaveStyle({ width: 'var(--control-h)', height: 'var(--control-h)' });
+    }
     gallery.focus();
     fireEvent.keyDown(gallery, { key: 'Tab' });
     expect(close).toHaveFocus();

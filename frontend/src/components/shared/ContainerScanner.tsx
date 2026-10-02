@@ -263,7 +263,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
           type="button"
           onClick={onClose}
           aria-label="Đóng"
-          style={roundBtn(44, 'rgba(0,0,0,0.5)')}
+          style={roundBtn('rgba(0,0,0,0.5)')}
         >
           <X size={20} color="#fff" />
         </button>
@@ -272,7 +272,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
             type="button"
             onClick={handleFlashToggle}
             aria-label={flashOn ? 'Tắt đèn flash' : 'Bật đèn flash'}
-            style={roundBtn(44, flashOn ? 'var(--brand)' : 'rgba(0,0,0,0.5)')}
+            style={roundBtn(flashOn ? 'var(--brand)' : 'rgba(0,0,0,0.5)')}
           >
             <Zap size={20} color="#fff" fill={flashOn ? '#fff' : 'none'} />
           </button>
@@ -291,7 +291,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
             disabled={busy}
             onClick={() => galleryRef.current?.click()}
             style={{
-              ...roundBtn(44, 'rgba(0,0,0,0.5)'),
+              ...roundBtn('rgba(0,0,0,0.5)'),
               position: 'absolute', left: 0, bottom: 4, cursor: 'pointer',
             }}
             aria-label="Chọn ảnh từ thư viện"
@@ -309,7 +309,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
             disabled={busy || status !== 'ready'}
             aria-label="Chụp ảnh"
             style={{
-              width: 72, height: 72, borderRadius: '50%',
+              width: 'var(--control-h)', height: 'var(--control-h)', borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: '4px solid rgba(255,255,255,0.95)',
               background: 'var(--brand)',
@@ -318,7 +318,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
               transition: 'transform 0.1s ease, opacity 0.15s ease',
             }}
           >
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--brand)' }} />
+            <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'var(--brand)' }} />
           </button>
         </div>
       </div>
@@ -327,10 +327,10 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
   );
 }
 
-function roundBtn(size: number, background: string): React.CSSProperties {
+function roundBtn(background: string): React.CSSProperties {
   return {
-    width: size,
-    height: size,
+    width: 'var(--control-h)',
+    height: 'var(--control-h)',
     borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',

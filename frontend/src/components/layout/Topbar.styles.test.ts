@@ -7,6 +7,13 @@ const responsiveCss = readFileSync(resolve(process.cwd(), 'src/styles/responsive
 const entranceHook = readFileSync(resolve(process.cwd(), 'src/hooks/useTopbarEntrance.ts'), 'utf8');
 
 describe('topbar visibility contract', () => {
+  it('keeps current-page context on every non-driver route', () => {
+    const shell = readFileSync(resolve(process.cwd(), 'src/components/Layout.tsx'), 'utf8');
+    const source = readFileSync(resolve(process.cwd(), 'src/components/layout/Topbar.tsx'), 'utf8');
+    expect(shell).not.toContain('hideContext');
+    expect(source).not.toContain('hideContext');
+    expect(source).toContain('aria-label="Trang hiện tại"');
+  });
   it('lets a long driver identity shrink without overlapping the month control', () => {
     expect(topbarCss).toMatch(/\.topbar__left-driver\s*\{[^}]*flex:\s*1 1 auto;/);
     expect(topbarCss).toMatch(/\.topbar__welcome \.name\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/);

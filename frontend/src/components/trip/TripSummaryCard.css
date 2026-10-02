@@ -90,7 +90,8 @@
   font-weight: var(--fw-semibold);
 }
 .tc-summary-row__val--neg { color: var(--danger); }
-.tc-summary-row__val--pos { color: var(--accent); }
+.tc-summary-row__val--pos { color: var(--success-text); }
+.tc-summary-row__val--neutral { color: var(--ink); }
 .tc-summary-row--total {
   margin-top: 6px;
   padding-top: 12px;
@@ -99,7 +100,6 @@
   font-weight: var(--fw-bold);
 }
 .tc-summary-row--total .tc-summary-row__val {
-  color: var(--accent);
   font-size: var(--fs-md);
 }
 
@@ -329,6 +329,12 @@
   opacity: 1;
   line-height: 1.35;
 }
+/* Exact zero costs have no deduction sign or danger tone. */
+.tc-totals-row__val--neutral,
+.tc-totals-row__val--neutral .money__unit,
+.tc-totals-breakdown__row .money.tc-totals-row__val--neutral {
+  color: var(--ink);
+}
 .tc-totals-row__adjusted-pill {
   font-size: var(--fs-xs);
   padding: 2px 7px;
@@ -416,9 +422,11 @@
   font-size: var(--text-caption-size);
 }
 .tc-totals__profit-val.is-pos {
-  color: var(--accent);
+  color: var(--success-text);
 }
-.tc-totals__profit-val.is-pos .money__unit { color: var(--accent); }
+.tc-totals__profit-val.is-pos .money__unit { color: var(--success-text); }
+.tc-totals__profit-val.is-neutral { color: var(--ink); }
+.tc-totals__profit-val.is-neutral .money__unit { color: var(--ink); }
 .tc-totals__profit-val.is-neg {
   color: var(--danger);
 }

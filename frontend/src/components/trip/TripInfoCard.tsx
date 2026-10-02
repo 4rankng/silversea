@@ -104,9 +104,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
     />
   );
 
-  const marginPreview = form.carrierType === 'EXTERNAL' && form.externalFreightCost && form.revenue
-    ? Math.round(Number(form.revenue) / (1 + form.vatRate)) - Math.round(Number(form.externalFreightCost) / (1 + form.vatRate))
-    : null;
+  const marginPreview = form.carrierType === 'EXTERNAL' ? form.previewTotals.externalMargin : null;
 
   return (
     <CardSection number={1} title="Thông tin chuyến đi" subtitle="Khách hàng, tuyến, hàng hóa và phương tiện" badge="required">

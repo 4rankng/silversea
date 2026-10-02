@@ -16,7 +16,7 @@ describe('Banner', () => {
       /@media \(max-width: 640px\)[\s\S]*?grid-template-areas:\s*"content close"\s*"action action";/,
     );
     expect(bannerCss).toMatch(
-      /@media \(max-width: 640px\)[\s\S]*?\.nepo-banner__close\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px;/,
+      /@media \(max-width: 640px\)[\s\S]*?\.nepo-banner__close\s*\{[\s\S]*?min-width:\s*var\(--control-max-h\);[\s\S]*?min-height:\s*var\(--control-max-h\);/,
     );
   });
 

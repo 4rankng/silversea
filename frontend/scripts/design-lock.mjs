@@ -12,8 +12,11 @@
 // Output: qa/design-lock/report.json + failing screenshots (gitignored)
 
 import { chromium } from '@playwright/test';
-import { mkdirSync, writeFileSync, readdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync, readdirSync, realpathSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { resolve, dirname, basename, isAbsolute } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -21,8 +24,8 @@ const FE_ROOT = resolve(HERE, '..');
 const FE = process.env.QA_BASE_URL || 'http://localhost:7175';
 const OUT = resolve(FE_ROOT, process.env.OUT || '../qa/design-lock');
 const PASS = process.env.QA_PASS || 'Abc123';
-// A 768/1024 tablet is a touch device: `pointer: coarse` media queries (44px
-// floors, tablet bands) key off this, so those widths must be captured in a
+// A 768/1024 tablet is a touch device: `pointer: coarse` media queries (40px
+// controls, tablet bands) key off this, so those widths must be captured in a
 // touch context or the locks measure the wrong product.
 const TOUCH_MAX = Number(process.env.TOUCH_MAX || 1024);
 const ROLE_USER = { cus: 'cus', chungtu: 'cus', dieuvan: 'dieuvan', laixe: 'laixe', ops: 'giaonhan' };
@@ -72,13 +75,33 @@ function evaluateLock(lock) {
     }
     case 'tapFloor': {
       // Operator ruling 2026-09-27: "text 11px 12px component size max 40px".
-      // The touch floor is the ceiling — a coarse pointer used to inflate a
-      // 12px filter field to 44px (the oversized box in the operator's
-      // /shipments screenshot). `min: 44` on a lock still asserts the old
-      // floor where a surface genuinely needs it.
+      // Installed input/combobox boundaries own the target; their native
+      // interiors reserve the border pixels. Inventory the boundaries too:
+      // a collapsed interior must fail, not disappear from a visible-only scan.
       const min = lock.min ?? 40;
       const hits = [];
+      let boundaryCount = 0;
+      const nativeFields = 'input:not([type=hidden]), select, textarea, [role=combobox]';
+      const boundarySelector = '[data-uui-control="input"]:not(.date-seg-wrapper), [data-uui-control="combobox"]';
+      const boundaries = new Set(document.querySelectorAll(boundarySelector));
+      const presented = (el) => {
+        if (el.closest('[hidden], [aria-hidden="true"]')) return false;
+        for (let ancestor = el; ancestor; ancestor = ancestor.parentElement) {
+          if (ancestor !== el && ancestor instanceof HTMLDetailsElement && !ancestor.open) {
+            const summary = [...ancestor.children].find(child => child.tagName === 'SUMMARY');
+            if (!summary?.contains(el)) return false;
+          }
+          const style = getComputedStyle(ancestor);
+          if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) <= 0.05) return false;
+        }
+        return true;
+      };
       for (const el of document.querySelectorAll('a[href], button, [role=button], input:not([type=hidden]), select, textarea')) {
+        // Independent buttons (e.g. a clear action) retain their own check.
+        if (el.matches(nativeFields) && !el.classList.contains('date-seg')) {
+          const boundary = el.closest(boundarySelector);
+          if (boundary) { boundaries.add(boundary); continue; }
+        }
         if (!vis(el) || el.closest('[aria-hidden="true"]')) continue;
         // A digit segment in a segmented date/time field is not its own target
         // — the GROUP is (it click-opens the picker) and each box is
@@ -88,7 +111,25 @@ function evaluateLock(lock) {
         const r = el.getBoundingClientRect();
         if (r.width < min - 0.5 || r.height < min - 0.5) hits.push({ el: desc(el), w: num(r.width), h: num(r.height) });
       }
-      return { pass: hits.length <= (lock.max ?? 0), actual: `${hits.length} under ${min}px`, detail: hits.slice(0, 6) };
+      for (const boundary of boundaries) {
+        if (!presented(boundary)) continue;
+        boundaryCount += 1;
+        const r = boundary.getBoundingClientRect();
+        const interiors = [...boundary.querySelectorAll(nativeFields)].filter(el =>
+          !el.classList.contains('date-seg') && el.closest(boundarySelector) === boundary);
+        const invalidInteriors = interiors.filter(el => {
+          const box = el.getBoundingClientRect();
+          return !presented(el) || !vis(el) || box.left < r.left - 0.5 || box.right > r.right + 0.5
+            || box.top < r.top - 0.5 || box.bottom > r.bottom + 0.5;
+        });
+        const reasons = [];
+        if (r.width < min - 0.5 || r.height < min - 0.5) reasons.push('undersized boundary');
+        if (!interiors.length) reasons.push('no native field interior');
+        if (invalidInteriors.length) reasons.push('invisible, zero or escaping interior');
+        if (reasons.length) hits.push({ el: desc(boundary), w: num(r.width), h: num(r.height), reasons,
+          interiors: invalidInteriors.map(el => { const box = el.getBoundingClientRect(); return { el: desc(el), w: num(box.width), h: num(box.height) }; }) });
+      }
+      return { pass: hits.length <= (lock.max ?? 0), actual: `${hits.length} invalid targets (min ${min}px)`, boundaryCount, detail: hits.slice(0, 6) };
     }
     case 'minFont': {
       const min = lock.min ?? 11;
@@ -314,7 +355,22 @@ async function loadLocks() {
   return { locks, files };
 }
 
-const browser = await chromium.launch({ args: ['--font-render-hinting=none'] });
+const browser = await chromium.launch({
+  ...(process.env.BROWSER_EXECUTABLE_PATH ? { executablePath: process.env.BROWSER_EXECUTABLE_PATH } : {}),
+  ...(process.env.QA_HEADED === '1' ? { headless: false } : {}),
+  args: ['--font-render-hinting=none'],
+});
+
+async function waitForResolvedPage(page, target) {
+  const pathname = new URL(target, FE).pathname;
+  await page.waitForFunction(expected => {
+    const main = document.querySelector('#main-content, #customer-main');
+    const text = main?.innerText.trim() ?? '';
+    return location.pathname === expected && !location.pathname.startsWith('/login')
+      && text.length > 20 && !/^Đang tải[.…]+$/.test(text);
+  }, pathname, { timeout: 30000 });
+}
+
 
 // --- probe mode: measure a surface so a human can write the lock ------------
 if (probeIdx !== -1) {
@@ -323,6 +379,7 @@ if (probeIdx !== -1) {
   const page = await ctx.newPage();
   await login(page, ROLE_USER[role] || role);
   await page.goto(`${FE}${path}`, { waitUntil: 'networkidle' });
+  await waitForResolvedPage(page, path);
   await page.waitForTimeout(1500);
   const geo = await page.evaluate(probeGeometry);
   console.log(JSON.stringify({ role, path, width, ...geo }, null, 2));
@@ -341,22 +398,220 @@ if (!locks.length) {
   process.exit(0);
 }
 
-// One browser context per (role, width): a fresh context per lock would
-// re-login ~60 times and dominate the run time.
+// Keep preparation on cache hits; bound the launched browser's actual native
+// windows to five. Evicted keys rebuild through the original context/login.
+const MAX_OWNED_WINDOWS = 5;
 const contexts = new Map();
+const windowLedger = { maxOwnedWindows: MAX_OWNED_WINDOWS, peak: 0, events: [], cleanup: [],
+  ownership: 'CDP session of this chromium.launch only; no external browser, process or window access' };
+const saveWindowLedger = () => writeFileSync(resolve(OUT, 'window-cache.json'), JSON.stringify(windowLedger, null, 2));
+let windowSession;
+async function boundedWindowOperation(operation, label) {
+  let timer;
+  try { return await Promise.race([Promise.resolve().then(operation), new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Bounded owned-window operation timed out: ${label}`)), 5000);
+  })]); } finally { clearTimeout(timer); }
+}
+async function ownedWindowCensus(stage, key) {
+  assert.equal(browser.isConnected(), true, 'Own launched browser must remain connected');
+  const { targetInfos } = await boundedWindowOperation(() => windowSession.send('Target.getTargets', {
+    filter: [{ type: 'page', exclude: false }, { exclude: true }],
+  }), 'actual owned page targets');
+  assert.ok(Array.isArray(targetInfos));
+  const targets = [];
+  for (const target of targetInfos) {
+    assert.equal(target.type, 'page');
+    const { windowId, bounds } = await boundedWindowOperation(() => windowSession.send('Browser.getWindowForTarget', {
+      targetId: target.targetId,
+    }), 'actual owned native window');
+    assert.ok(Number.isInteger(windowId), 'Native Chrome window ID required');
+    targets.push({ targetId: target.targetId, browserContextId: target.browserContextId ?? null, windowId, bounds });
+  }
+  const windowIds = [...new Set(targets.map(target => target.windowId))].sort((a, b) => a - b);
+  windowLedger.peak = Math.max(windowLedger.peak, windowIds.length);
+  const census = { at: new Date().toISOString(), stage, key, windowIds, targets };
+  windowLedger.events.push(census); saveWindowLedger();
+  assert.ok(windowIds.length <= MAX_OWNED_WINDOWS, 'At most five actual owned native windows');
+  return census;
+}
+// QA-HARNESS14: the exact launched child, never a process-name census or user browser.
+let ownedBrowser;
+function readBrowserProcess(pid) {
+  assert.ok(Number.isInteger(pid) && pid > 1 && pid !== process.pid && pid !== process.ppid);
+  let output;
+  try { output = execFileSync('ps', ['-p', String(pid), '-o', 'pid=,ppid=,lstart=,command='], {
+    encoding: 'utf8', timeout: 1000, stdio: ['ignore', 'pipe', 'pipe'],
+  }); } catch (error) {
+    if (error.status === 1 && !String(error.stdout ?? '').trim() && !String(error.stderr ?? '').trim()) return null;
+    throw error;
+  }
+  const lines = output.trim().split('\n').filter(Boolean);
+  assert.equal(lines.length, 1, 'Exactly one proven PID observation');
+  const match = lines[0].trim().match(/^(\d+)\s+(\d+)\s+(\S+\s+\S+\s+\S+\s+\S+\s+\S+)\s+(.+)$/);
+  assert.ok(match, 'Actual PID/birth/command required');
+  const row = { pid: Number(match[1]), ppid: Number(match[2]), birth: match[3].replace(/\s+/g, ' '), command: match[4] };
+  assert.equal(row.pid, pid); return row;
+}
+async function identifyLaunchedBrowser() {
+  const { processInfo } = await boundedWindowOperation(() => windowSession.send('SystemInfo.getProcessInfo'), 'identify launched browser process');
+  const browsers = processInfo.filter(row => row.type === 'browser');
+  assert.equal(browsers.length, 1, 'Own launch CDP must identify one actual browser process');
+  const row = readBrowserProcess(browsers[0].id); assert.ok(row);
+  assert.equal(row.ppid, process.pid, 'Actual browser must be this runner direct launched child');
+  const profile = row.command.match(/(?:^|\s)(--user-data-dir=([^\s]+))/);
+  assert.ok(profile && isAbsolute(profile[2]), 'Exact generated private browser profile required');
+  const actualProfile = realpathSync(profile[2]);
+  assert.equal(dirname(actualProfile), realpathSync(tmpdir()), 'Profile belongs to current native temporary root');
+  assert.ok(basename(actualProfile).startsWith('playwright_chromiumdev_profile-'), 'Playwright-generated profile only');
+  const boundary = row.command.indexOf(' --'); assert.ok(boundary > 0);
+  const executable = realpathSync(row.command.slice(0, boundary));
+  if (process.env.BROWSER_EXECUTABLE_PATH) assert.equal(executable, realpathSync(process.env.BROWSER_EXECUTABLE_PATH));
+  return { ...row, executable, profileArgument: profile[1], privateProfile: actualProfile,
+    numericExitCode: null, numericExitBasis: 'OS observation does not expose the browser child exit status' };
+}
+function sameBrowserIdentity(row) {
+  return row && ownedBrowser && row.pid === ownedBrowser.pid && row.ppid === ownedBrowser.ppid
+    && row.birth === ownedBrowser.birth && row.command === ownedBrowser.command;
+}
+async function closeLaunchedBrowser() {
+  const proof = { owned: ownedBrowser ?? null, gracefulDeadlineMs: 5000, attempts: [], rawErrors: [], accepted: false };
+  try { await boundedWindowOperation(() => browser.close(), 'close own launched browser'); proof.graceful = { status: 'fulfilled' }; }
+  catch (error) {
+    const expectedDeadline = error.message === 'Bounded owned-window operation timed out: close own launched browser';
+    proof.graceful = { status: expectedDeadline ? 'timeout' : 'error', name: error.name, message: error.message };
+    proof.rawErrors.push(proof.graceful); proof.unexpectedGracefulError = !expectedDeadline;
+  }
+  const observe = () => {
+    assert.ok(ownedBrowser, 'No process signals or closure acceptance without exact initial ownership');
+    const current = readBrowserProcess(ownedBrowser.pid);
+    const connected = browser.isConnected();
+    const row = { at: new Date().toISOString(), connected, pidAbsent: current === null,
+      sameOwnedIdentity: sameBrowserIdentity(current) === true, identityChanged: current !== null && !sameBrowserIdentity(current) };
+    if (row.identityChanged) throw new Error('Proven PID identity changed; refuse any signal or closure acceptance');
+    proof.lastObservation = row;
+    return { current, row, closed: current === null && connected === false };
+  };
+  try {
+    for (const stage of [{ signal: null, boundMs: 1000 }, { signal: 'SIGTERM', boundMs: 3000 }, { signal: 'SIGKILL', boundMs: 5000 }]) {
+      let observation = observe();
+      if (observation.closed) break;
+      const attempt = { signal: stage.signal, boundMs: stage.boundMs, initial: observation.row, signalSent: false };
+      proof.attempts.push(attempt);
+      if (stage.signal && observation.current) {
+        // Re-read immediately before signaling; an unknown/reused PID is never touched.
+        observation = observe(); attempt.beforeSignal = observation.row;
+        if (observation.current) {
+          assert.equal(sameBrowserIdentity(observation.current), true);
+          try { process.kill(ownedBrowser.pid, stage.signal); attempt.signalSent = true; }
+          catch (error) { if (error.code !== 'ESRCH') throw error; attempt.signalRace = 'ESRCH; actual absence still required'; }
+        }
+      }
+      const deadline = Date.now() + stage.boundMs;
+      do {
+        observation = observe(); if (observation.closed) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } while (Date.now() < deadline);
+      attempt.final = observation.row;
+      if (observation.closed) break;
+    }
+    const final = observe(); proof.connectedAfter = final.row.connected; proof.pidAbsent = final.row.pidAbsent;
+    proof.closed = final.closed; proof.accepted = final.closed && !proof.unexpectedGracefulError;
+    proof.closureBasis = 'Actual Playwright disconnected plus exact CDP-identified direct child PID/birth/private-profile absence';
+  } catch (error) {
+    proof.observationFailure = { name: error.name, message: error.message }; proof.closed = false;
+    proof.connectedAfter = browser.isConnected();
+  }
+  proof.finishedAt = new Date().toISOString(); return proof;
+}
+
+function validateCachedWindows(census) {
+  const windows = new Set();
+  for (const [key, entry] of contexts) {
+    assert.equal(entry.page.isClosed(), false, `Cached ${key} must remain live`);
+    const target = census.targets.find(target => target.targetId === entry.targetId);
+    assert.ok(target, `Cached ${key} actual target must remain present`);
+    assert.equal(target.browserContextId, entry.browserContextId);
+    assert.equal(target.windowId, entry.windowId);
+    assert.ok(!windows.has(entry.windowId), 'Cached contexts require distinct actual owned windows');
+    windows.add(entry.windowId);
+  }
+}
+async function closeCachedEntry(key, entry, stage) {
+  const before = await ownedWindowCensus(stage + '-before', key);
+  const closingWindows = [...new Set(before.targets.filter(target => target.browserContextId === entry.browserContextId).map(target => target.windowId))];
+  assert.ok(closingWindows.includes(entry.windowId), 'Eviction owns the actual cached native window');
+  await boundedWindowOperation(() => entry.ctx.close(), 'close exact oldest cached context');
+  const deadline = Date.now() + 5000;
+  let after;
+  do {
+    after = await ownedWindowCensus(stage + '-after', key);
+    if (!after.targets.some(target => target.browserContextId === entry.browserContextId)
+      && closingWindows.every(windowId => !after.windowIds.includes(windowId))) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  } while (Date.now() < deadline);
+  assert.ok(!after.targets.some(target => target.browserContextId === entry.browserContextId), 'Closed context has no remaining actual targets');
+  assert.ok(closingWindows.every(windowId => !after.windowIds.includes(windowId)), 'Old native windows must disappear before any new creation');
+  contexts.delete(key);
+  windowLedger.events.push({ at: new Date().toISOString(), stage: stage + '-closed', key,
+    targetId: entry.targetId, windowIds: closingWindows, preparation: { path: entry.path, opened: entry.opened ?? null, clicked: entry.clicked ?? null } });
+  saveWindowLedger();
+  return after;
+}
 const getCtx = async (role, width) => {
   const key = `${role}@${width}`;
-  if (contexts.has(key)) return contexts.get(key);
-  const ctx = await contextFor(browser, width);
-  const page = await ctx.newPage();
-  await login(page, ROLE_USER[role] || role);
-  const entry = { ctx, page, width, path: null };
-  contexts.set(key, entry);
-  return entry;
+  let before = await ownedWindowCensus('get-before', key); validateCachedWindows(before);
+  if (contexts.has(key)) {
+    const entry = contexts.get(key);
+    windowLedger.events.push({ at: new Date().toISOString(), stage: 'cache-hit', key, targetId: entry.targetId, windowId: entry.windowId,
+      preparation: { path: entry.path, opened: entry.opened ?? null, clicked: entry.clicked ?? null } });
+    saveWindowLedger(); return entry;
+  }
+  while (before.windowIds.length >= MAX_OWNED_WINDOWS) {
+    const oldest = contexts.entries().next().value;
+    assert.ok(oldest, 'No known cached context available to evict; unknown owned capacity must fail closed');
+    before = await closeCachedEntry(oldest[0], oldest[1], 'evict-oldest'); validateCachedWindows(before);
+  }
+  let ctx;
+  try {
+    ctx = await contextFor(browser, width);
+    const page = await ctx.newPage();
+    const session = await ctx.newCDPSession(page);
+    let targetInfo;
+    try { ({ targetInfo } = await boundedWindowOperation(() => session.send('Target.getTargetInfo'), 'identify exact new page target')); }
+    finally { await boundedWindowOperation(() => session.detach(), 'detach page identity observation'); }
+    assert.equal(targetInfo.type, 'page'); assert.ok(targetInfo.targetId && targetInfo.browserContextId);
+    const created = await ownedWindowCensus('created-before-login', key);
+    const target = created.targets.find(target => target.targetId === targetInfo.targetId);
+    assert.ok(target); assert.equal(target.browserContextId, targetInfo.browserContextId);
+    assert.ok(!before.windowIds.includes(target.windowId), 'New cached context owns a new native window');
+    assert.equal(created.windowIds.length, before.windowIds.length + 1, 'Exactly one native window was created');
+    await login(page, ROLE_USER[role] || role);
+    const entry = { ctx, page, width, path: null, targetId: target.targetId, browserContextId: target.browserContextId, windowId: target.windowId };
+    contexts.set(key, entry);
+    const ready = await ownedWindowCensus('cache-ready', key); validateCachedWindows(ready);
+    return entry;
+  } catch (error) {
+    windowLedger.events.push({ at: new Date().toISOString(), stage: 'creation-failed', key, message: error.message }); saveWindowLedger();
+    if (ctx) {
+      try { await boundedWindowOperation(() => ctx.close(), 'close failed new owned context'); }
+      catch (cleanupError) { windowLedger.cleanup.push({ key, stage: 'creation', error: cleanupError.message }); saveWindowLedger(); }
+    }
+    throw error;
+  }
 };
 
 const results = [];
 let failed = 0;
+let executionComplete = false;
+const saveMeasuredReport = phase => writeFileSync(resolve(OUT, 'report.json'), JSON.stringify({
+  at: new Date().toISOString(), base: FE, total: results.length, expectedTotal: locks.length, failed,
+  locks: results, phase, executionComplete, executionFailure: windowLedger.failure ?? null,
+  cleanup: windowLedger.cleanup, ownedBrowserClosure: windowLedger.browserClosure ?? null,
+  nativeWindowPeak: windowLedger.peak,
+}, null, 2));
+try {
+  windowSession = await boundedWindowOperation(() => browser.newBrowserCDPSession(), 'observe own launched browser windows');
+  ownedBrowser = await identifyLaunchedBrowser(); windowLedger.ownedBrowser = ownedBrowser; saveWindowLedger();
 for (const lock of locks) {
   const entry = await getCtx(lock.role, lock.width);
   const { page } = entry;
@@ -365,6 +620,7 @@ for (const lock of locks) {
   // measuring whatever the phone context had navigated to last.
   if (entry.path !== lock.path) {
     await page.goto(`${FE}${lock.path}`, { waitUntil: 'networkidle' });
+    await waitForResolvedPage(page, lock.path);
     await page.waitForTimeout(1500);
     entry.path = lock.path;
     entry.opened = null;
@@ -393,6 +649,8 @@ for (const lock of locks) {
   if (lock.selector) {
     await page.locator(lock.selector).first().waitFor({ state: 'attached', timeout: 8000 }).catch(() => {});
   }
+  const measuredWindows = await ownedWindowCensus('lock-before-evaluate', `${lock.role}@${lock.width}`);
+  validateCachedWindows(measuredWindows);
   const res = await page.evaluate(evaluateLock, lock);
   const row = { ...lock, ...res };
   results.push(row);
@@ -407,18 +665,32 @@ for (const lock of locks) {
     await page.screenshot({ path: shot, fullPage: false }).catch(() => {});
     row.screenshot = shot;
   }
+  saveMeasuredReport('measuring');
 }
+executionComplete = true;
 
-for (const { ctx } of contexts.values()) await ctx.close().catch(() => {});
-await browser.close();
-
-writeFileSync(resolve(OUT, 'report.json'), JSON.stringify({
-  at: new Date().toISOString(),
-  base: FE,
-  total: results.length,
-  failed,
-  locks: results,
-}, null, 2));
+} catch (error) {
+  windowLedger.failure = { at: new Date().toISOString(), message: error.message }; saveWindowLedger();
+  throw error;
+} finally {
+  try { saveMeasuredReport('before-cleanup'); }
+  catch (error) { windowLedger.cleanup.push({ stage: 'report-before-cleanup', error: error.message }); }
+  for (const [key, entry] of [...contexts]) {
+    try { await closeCachedEntry(key, entry, 'final-close'); }
+    catch (error) { windowLedger.cleanup.push({ key, error: error.message }); saveWindowLedger(); }
+  }
+  if (windowSession) {
+    try { await boundedWindowOperation(() => windowSession.detach(), 'detach own window observation'); }
+    catch (error) { windowLedger.cleanup.push({ stage: 'observer', error: error.message }); saveWindowLedger(); }
+  }
+  windowLedger.browserClosure = await closeLaunchedBrowser();
+  for (const error of windowLedger.browserClosure.rawErrors) windowLedger.cleanup.push({ stage: 'browser',
+    ...error, resolvedByCurrentClosureProof: error.status === 'timeout' && windowLedger.browserClosure.accepted === true });
+  windowLedger.finishedAt = new Date().toISOString(); saveWindowLedger();
+  saveMeasuredReport('after-cleanup');
+}
+if (!windowLedger.browserClosure?.accepted || windowLedger.cleanup.some(row =>
+  row.stage !== 'browser' || row.resolvedByCurrentClosureProof !== true)) throw new Error('Owned window cleanup failed; complete measurements and raw ledger retained');
 
 console.log(`design-lock: ${results.length - failed}/${results.length} locks hold (${files.length} module(s)); evidence ${resolve(OUT, 'report.json')}`);
 process.exit(failed ? 1 : 0);

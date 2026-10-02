@@ -66,13 +66,6 @@
   letter-spacing: 0.04em;
 }
 
-/* Compact input modifier */
-.input--sm {
-  min-height: 45px;
-  padding: 7px 10px;
-  font-size: var(--fs-sm);
-}
-
 /* Responsive: stack leg card route grid on small screens.
    (Consolidated from two previously duplicated 640px blocks.) */
 @media (max-width: 640px) {
