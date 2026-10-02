@@ -66,7 +66,7 @@
   color: var(--ink-3);
   text-align: center;
 }
-.toplist__rank--top { color: var(--accent); }
+.toplist__rank--top { color: var(--accent-ink); }
 .toplist__body { min-width: 0; }
 .toplist__title {
   font-weight: var(--fw-semibold); font-size: var(--text-data-size); color: var(--ink); margin-bottom: 2px;
@@ -176,7 +176,7 @@
   --wf-border-2: #DCE2DF;
   --wf-ink: #0E1F16;
   --wf-ink-2: #56655C;
-  --wf-ink-3: #8A988F;
+  --wf-ink-3: var(--ink-3);
   --wf-green: var(--brand);
   --wf-green-700: #0A6E3A;
   --wf-green-500: #16A34A;

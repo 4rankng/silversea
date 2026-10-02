@@ -691,13 +691,13 @@
    operator ruling (case QA-2026-09-26-03 residuals). */
 @media (pointer: coarse) {
   #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
-  #root button,
-  #root [role='button'],
-  #root input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']),
-  #root select,
-  #root textarea { min-height: var(--control-touch-h); }
-  #root button,
-  #root [role='button'] { min-width: var(--control-touch-h); }
+  :is(#root, body) button,
+  :is(#root, body) [role='button'],
+  :is(#root, body) input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']),
+  :is(#root, body) select,
+  :is(#root, body) textarea { min-height: var(--control-touch-h); }
+  :is(#root, body) button,
+  :is(#root, body) [role='button'] { min-width: var(--control-touch-h); }
   /* Table-cell links: `a` defaults to display:inline where min-height is
      IGNORED — the 68 inline table links measured 15px tall (2026-09-26
      sweep). inline-flex makes the floor real; rows grow on touch, which is

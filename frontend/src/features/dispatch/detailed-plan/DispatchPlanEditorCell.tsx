@@ -48,6 +48,7 @@ export interface AtomicPlanSaveResult {
   isCombined: boolean;
   /** Stored driver-facing note after the save. */
   operationalNotes: string | null;
+  plannedEndAt: string | null;
   dispatch: {
     carrierType: 'OWN' | 'EXTERNAL';
     carrierName: string | null;
@@ -73,6 +74,7 @@ interface DispatchPlanEditorCellProps {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
+      plannedEndAt?: string | null;
       classification: DispatchClassification;
       operationalNotes?: string | null;
     },
@@ -131,7 +133,6 @@ function vietnamLocalInputToIso(local: string): string | null {
   return new Date(`${local}:00+07:00`).toISOString();
 }
 
-
 /** Stored estimates are digit strings; NumberField drafts hold number | ''. */
 const estimateToDraft = (value: string | null): number | '' => (value && value.trim() ? Number(value) : '');
 
@@ -146,7 +147,6 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
     operationalNotes: row.notes.vehicleNote,
   };
 }
-
 
 function parseVnd(value: string): { valid: true; value: number | null } | { valid: false; value: null } {
   const normalized = value.trim();

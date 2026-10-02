@@ -50,9 +50,11 @@ vi.mock('../../api/shipmentClient', () => ({
   checkShipmentReferenceDuplicate: mocks.checkDuplicate,
 }));
 
-vi.mock('../../components/UI', async () => {
+vi.mock('../../components/UI', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../components/UI')>();
   const { createContext } = await import('react');
   return ({
+  ...actual,
   Modal: ({ isOpen, onClose, title, children, footer }: {
     isOpen: boolean; onClose?: () => void; title?: string; children: React.ReactNode; footer?: React.ReactNode;
   }) => isOpen ? <div role="dialog" aria-label={title}>{children}{footer}<button type="button" onClick={onClose}>Đóng</button></div> : null,

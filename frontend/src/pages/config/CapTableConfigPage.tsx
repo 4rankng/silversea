@@ -91,7 +91,7 @@ export default function CapTableConfigPage() {
             <span style={{ fontWeight: 600, color: 'var(--fg-1)' }}>
               {ct.partnerName}
               {isActive && (
-                <span style={{ marginLeft: 8, padding: '1px 7px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 'var(--text-caption-size)', fontWeight: 700, letterSpacing: '0.04em' }}>HIỆN TẠI</span>
+                <span style={{ marginLeft: 8, padding: '1px 7px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontSize: 'var(--text-caption-size)', fontWeight: 700, letterSpacing: '0.04em' }}>HIỆN TẠI</span>
               )}
             </span>
           ),

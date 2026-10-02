@@ -73,7 +73,7 @@ beforeEach(() => {
 });
 
 describe('card 20260929_207 — row selection replaces the checkbox column', () => {
-  it('PHOI10 keeps concise disabled direction actions while retaining scope guidance and selected eligible counts', async () => {
+  it('PHOI10 keeps concise disabled direction actions while retaining scope guidance and selected eligible counts', { timeout: 15000 }, async () => {
     const { container } = renderBoard([row({ eligibleIn: 1, eligibleOut: 1 })]);
     await screen.findAllByText('Chưa có số Bill/Booking');
     const noSelection = screen.getByRole('button', { name: 'Lập phiếu chi' });

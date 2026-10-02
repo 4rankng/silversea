@@ -101,6 +101,37 @@ beforeEach(() => {
 });
 
 describe('FactoriesConfigPage', () => {
+  it('shows address and named phone values directly and edits the default contact list', { timeout: 15000 }, async () => {
+    const contacts = [{ name: 'Cổng kho', phone: '0901234567', isDefault: true }, { name: 'Điều phối', phone: '0907654321', isDefault: false }];
+    listMock.mockResolvedValue([{ ...factory, contacts }]);
+    renderPage();
+    await screen.findByText('Nhà máy A');
+    expect(screen.getByText('KCN Đình Vũ')).toBeVisible();
+    expect(screen.getByText('0907654321')).toBeVisible();
+    expect(document.querySelector('.factory-record-details details')).toBeNull();
+    fireEvent.click(screen.getByTitle('Sửa điểm vận hành'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Tên liên hệ 2' }), { target: { value: 'Điều phối mới' } });
+    fireEvent.click(within(dialog).getAllByRole('radio')[1]);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa liên hệ 1' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cập nhật' }));
+    await waitFor(() => expect(updateMock).toHaveBeenCalledOnce());
+    expect(updateMock).toHaveBeenCalledWith(11, expect.objectContaining({ contacts: [{ name: 'Điều phối mới', phone: '0907654321', isDefault: true }] }));
+  });
+
+  it('preserves a legacy named contact with no phone on unrelated metadata edits', async () => {
+    listMock.mockResolvedValue([{ ...factory, contactPhone: null, contacts: [] }]);
+    renderPage();
+    await screen.findByText('Nhà máy A');
+    expect(screen.getByText('Anh Tùng · Chưa có số điện thoại')).toBeVisible();
+    fireEvent.click(screen.getByTitle('Sửa điểm vận hành'));
+    fireEvent.change(await screen.findByDisplayValue('Nhà máy A'), { target: { value: 'Nhà máy A sửa tên' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
+    await waitFor(() => expect(updateMock).toHaveBeenCalledOnce());
+    expect(updateMock.mock.calls[0][1]).not.toHaveProperty('contacts');
+    expect(updateMock.mock.calls[0][1].contactName).toBe('Anh Tùng');
+  });
+
   it('lists sites with customer, type, route and status', async () => {
     renderPage();
     expect(await screen.findByText('Nhà máy A')).toBeTruthy();
@@ -182,7 +213,7 @@ describe('FactoriesConfigPage', () => {
     expect(updateMock).toHaveBeenCalledWith(11, expect.objectContaining({
       expectedVersion: 3,
       name: 'Nhà máy A — renamed',
-      routeId: 7,
+      contacts: [expect.objectContaining({ phone: factory.contactPhone })],
     }));
   });
 

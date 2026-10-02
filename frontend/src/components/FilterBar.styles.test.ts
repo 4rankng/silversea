@@ -5,20 +5,15 @@ import { describe, expect, it } from 'vitest';
 const css = readFileSync(resolve(process.cwd(), 'src/components/FilterBar.css'), 'utf8');
 
 describe('shared filter bar styling', () => {
-  it('aligns direct below-field feedback without changing normal labelled-stack alignment', () => {
+  it('keeps validation outside toolbar flow without changing sibling alignment', () => {
     const normal = css.match(/\.filter-bar\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(normal).toContain('align-items: flex-end');
-    const feedbackRules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(rule => rule[1].includes('.filter-bar:has(> .date-range-fields .uui-date-hint--error)'));
-    expect(feedbackRules).toHaveLength(1);
-    expect(feedbackRules[0][1]).toContain('.filter-bar:has(> .filter-bar__search-cell > .filter-bar__search-error)');
-    expect(feedbackRules[0][1]).toContain('.filter-bar:has(> [data-input-wrapper] > .date-seg-group ~ .uui-date-hint--error)');
-    expect(feedbackRules[0][1]).not.toMatch(/:has\([^)]*:has\(/);
-    const feedback = feedbackRules[0][2];
-    expect(feedback).toContain('align-items: flex-start');
-    expect(feedback).not.toMatch(/position:|height:|overflow:|grid-template|margin/);
-    const helper = css.match(/\.filter-bar__search-error\s*\{([^}]+)\}/)?.[1] ?? '';
-    expect(helper).not.toMatch(/(?:^|;)\s*(?:position:\s*absolute|(?:min-|max-)?height:|overflow:\s*(?:hidden|clip))/);
-    expect(css).not.toMatch(/\.filter-bar\s*\{[^}]*align-items:\s*flex-start/);
+    const feedback = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(rule => rule[1].includes('.filter-bar .uui-date-hint--error'));
+    expect(feedback?.[1]).toContain('.filter-bar__search-error');
+    expect(feedback?.[2]).toContain('position: absolute');
+    expect(feedback?.[2]).toContain('background: var(--surface)');
+    expect(feedback?.[2]).not.toMatch(/overflow:\s*(?:hidden|clip)/);
+    expect(css).not.toMatch(/\.filter-bar:has\([^{}]+\{[^}]*align-items:/);
   });
 
   it('keeps standalone date labels and controls in one hosted row with feedback below', () => {

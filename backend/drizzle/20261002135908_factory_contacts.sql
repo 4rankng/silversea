@@ -1,0 +1,1 @@
+ALTER TABLE "operational_sites" ADD COLUMN "contacts" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -1,3 +1,4 @@
+import type { OperationalSiteContact } from '@tingting/shared';
 // Extracted verbatim from the original schema.ts split; behavior identical.
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
@@ -482,6 +483,7 @@ export const operationalSites = pgTable('operational_sites', {
   googleMapsUrl: text('google_maps_url'),
   contactName: varchar('contact_name', { length: 120 }),
   contactPhone: varchar('contact_phone', { length: 30 }),
+  contacts: jsonb('contacts').$type<OperationalSiteContact[]>().notNull().default(sql`'[]'::jsonb`),
   // Free-text warehouse contact block from the sheet (Thông tin liên hệ kho) —
   // often multiple names/phones in one cell, distinct from the single
   // contactName/contactPhone pair above.

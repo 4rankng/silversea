@@ -322,9 +322,12 @@
 .fleet-detail .fleet-tire-link:hover {
   border-color: color-mix(in srgb, var(--fleet-glow) 34%, transparent);
   background: color-mix(in srgb, var(--fleet-green-end) 95%, transparent);
-  color: var(--accent);
+  color: var(--accent-ink);
   transform: translateY(-1px);
 }
+
+.fleet-page .fleet-tire-link:hover svg,
+.fleet-detail .fleet-tire-link:hover svg { color: var(--accent); }
 
 .fleet-page .fleet-tire-link__count,
 .fleet-detail .fleet-tire-link__count {

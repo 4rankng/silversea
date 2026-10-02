@@ -697,17 +697,37 @@ describe('shipment intake submission', () => {
 });
 
 describe('operational site admin maintenance', () => {
-  test('limits the master-data list and updates to ADMIN and MANAGER', async () => {
-    const clerk = await actor(Role.CUS);
-    await assert.rejects(
-      () => listOperationalSitesForAdmin(clerk),
-      (err: unknown) => err instanceof ApiError && err.statusCode === 403,
-    );
+  test('permits CUS and DISPATCHER factory maintenance while denying DRIVER', async () => {
     const ref = await references();
-    await assert.rejects(
-      () => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version }, clerk),
-      (err: unknown) => err instanceof ApiError && err.statusCode === 403,
-    );
+    for (const role of [Role.CUS, Role.DISPATCHER]) {
+      const authorized = await actor(role);
+      const rows = await listOperationalSitesForAdmin(authorized);
+      assert.ok(rows.some(row => row.id === ref.site.id));
+      const current = rows.find(row => row.id === ref.site.id)!;
+      const updated = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: current.version, name: 'Nhà máy quản lý' }, authorized);
+      assert.equal(updated.name, 'Nhà máy quản lý');
+    }
+    const denied = await actor(Role.DRIVER);
+    await assert.rejects(() => listOperationalSitesForAdmin(denied), (err: unknown) => err instanceof ApiError && err.statusCode === 403);
+    await assert.rejects(() => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version }, denied), (err: unknown) => err instanceof ApiError && err.statusCode === 403);
+  });
+
+  test('stores named contacts, changes default and deletes without stale scalar values', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const contacts = [{ name: 'Cổng kho', phone: '0901234567', isDefault: true }, { name: 'Điều phối', phone: '0907654321', isDefault: false }];
+    const saved = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version, contacts }, admin);
+    assert.deepEqual(saved.contacts, contacts);
+    assert.equal(saved.contactPhone, contacts[0].phone);
+    const changed = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: saved.version, contacts: contacts.map(contact => ({ ...contact, isDefault: !contact.isDefault })) }, admin);
+    assert.equal(changed.contactName, 'Điều phối');
+    assert.equal(changed.contactPhone, contacts[1].phone);
+    const omitted = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: changed.version, name: 'Đổi tên' }, admin);
+    assert.deepEqual(omitted.contacts, changed.contacts);
+    const cleared = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: omitted.version, contacts: [] }, admin);
+    assert.deepEqual(cleared.contacts, []);
+    assert.equal(cleared.contactName, null);
+    assert.equal(cleared.contactPhone, null);
   });
 
   test('lists every live site with its customer, including deactivated rows', async () => {
@@ -748,6 +768,16 @@ describe('operational site admin maintenance', () => {
       () => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version, name: 'Lần thứ hai' }, admin),
       (err: unknown) => err instanceof ApiError && err.statusCode === 409,
     );
+  });
+
+  test('allows metadata edits on a legacy factory with no route without permitting explicit route clearing', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    await db.update(s.operationalSites).set({ routeId: null }).where(eq(s.operationalSites.id, ref.site.id));
+    const changed = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version, contacts: [{ name: 'Kho', phone: '0901234567', isDefault: true }] }, admin);
+    assert.equal(changed.routeId, null);
+    assert.equal(changed.contactPhone, '0901234567');
+    await assert.rejects(() => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: changed.version, routeId: null }, admin), (error: unknown) => error instanceof ApiError && error.statusCode === 409);
   });
 
   test('keeps the FACTORY route invariant on merged updates', async () => {

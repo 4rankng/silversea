@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, MapPin, Building2, Phone } from 'lucide-react';
-import type { Route } from '@tingting/shared';
+import type { Route, OperationalSiteContact } from '@tingting/shared';
+import { OperationalSiteContactsEditor } from './OperationalSiteContactsEditor';
 import { Modal } from '../UI';
 import { SelectField, TextField } from '../../design-system';
 import { EntityFormSection } from '../../components/shared/EntityFormParts';
@@ -38,6 +39,7 @@ interface SiteFormState {
   googleMapsUrl: string;
   contactName: string;
   contactPhone: string;
+  contacts: OperationalSiteContact[];
   routeId: string;
 }
 
@@ -50,6 +52,7 @@ const EMPTY_FORM: SiteFormState = {
   googleMapsUrl: '',
   contactName: '',
   contactPhone: '',
+  contacts: [],
   routeId: '',
 };
 
@@ -186,6 +189,7 @@ export function OperationalSiteCreateDialog({
         googleMapsUrl: form.googleMapsUrl.trim() || null,
         contactName: form.contactName.trim() || null,
         contactPhone: form.contactPhone.trim() || null,
+        contacts: form.contacts,
       });
       setForm(EMPTY_FORM);
       onCreated(created);
@@ -324,20 +328,9 @@ export function OperationalSiteCreateDialog({
           </div>
         </EntityFormSection>
         <EntityFormSection icon={Phone} label="Liên hệ">
-          <TextField
-            label="Người liên hệ"
-            value={form.contactName}
-            onChange={(event) => update('contactName', event.target.value)}
-            maxLength={120}
-            disabled={saving}
-          />
-          <TextField
-            label="Số điện thoại"
-            value={form.contactPhone}
-            onChange={(event) => update('contactPhone', event.target.value)}
-            maxLength={30}
-            disabled={saving}
-          />
+          <div className="col-span-full">
+            <OperationalSiteContactsEditor value={form.contacts} disabled={saving} onChange={contacts => update('contacts', contacts)} />
+          </div>
           <div className="col-span-full">
             <TextField
               label="Liên kết Google Maps (không bắt buộc)"

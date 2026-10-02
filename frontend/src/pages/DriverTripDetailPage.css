@@ -494,7 +494,7 @@
 }
 
 .driver-task-link {
-  color: var(--accent);
+  color: var(--accent-ink);
   text-decoration: none;
   overflow-wrap: anywhere;
 }
@@ -1177,6 +1177,8 @@
   font-size: var(--text-caption-size);
   font-weight: 600;
 }
+
+.driver-task-ops-toggle > span { color: var(--accent-ink); }
 
 .driver-task-close-chip {
   display: inline-flex;

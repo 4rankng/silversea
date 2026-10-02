@@ -25,7 +25,7 @@ function highlightText(text: string, query: string): React.ReactNode {
   return (
     <>
       {text.slice(0, idx)}
-      <mark style={{ background: 'transparent', color: 'var(--accent, #818cf8)', fontWeight: 700 }}>
+      <mark style={{ background: 'transparent', color: 'var(--accent-ink, #00361B)', fontWeight: 700 }}>
         {text.slice(idx, idx + lowerQ.length)}
       </mark>
       {text.slice(idx + lowerQ.length)}

@@ -440,3 +440,6 @@ export * from './schemas/treasury';
 export * from './schemas/shipment-debit-summary';
 export * from './schemas/shipment-debit-edits';
 export * from './schemas/shipment-debit-detail';
+
+export { operationalSiteContacts } from './operational-site-contacts';
+export type { OperationalSiteContact } from './operational-site-contacts';

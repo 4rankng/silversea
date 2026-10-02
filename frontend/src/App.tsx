@@ -214,6 +214,7 @@ export function AppRoutes() {
   // fields; financial/cost fields are stripped by the backend intake services.
   // DISPATCHER reaches the same pages create-only (Casbin grants POST on
   // customers/routes; the pages hide edit/delete for that role).
+  const factoryEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || isCus || currentRole === Role.DISPATCHER ? el : <Navigate to={homeRedirect} replace />);
   const catalogEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus || currentRole === Role.DISPATCHER ? el : <Navigate to={homeRedirect} replace />);
   const accountantOnly = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   const shipmentReaderOnly = (el: ReactElement) => (
@@ -344,7 +345,7 @@ export function AppRoutes() {
               /system/admin-health work-inbox RBAC). Kept separate from /config. */}
           <Route path="/admin-center" element={strictAdminOnly(page(<AdminCenterPage />))} />
           <Route path="/config" element={adminOnly(page(<ConfigPage />))} />
-          <Route path="/config/factories" element={adminOnly(page(<FactoriesConfigPage />))} />
+          <Route path="/config/factories" element={factoryEditorOnly(page(<FactoriesConfigPage />))} />
           <Route path="/config/trailers" element={adminOnly(page(<TrailersConfigPage />))} />
           <Route path="/config/trucks" element={adminOnly(page(<TrucksConfigPage />))} />
           <Route path="/config/trucks/:truckId/owners" element={adminOnly(page(<TruckOwnersConfigPage />))} />

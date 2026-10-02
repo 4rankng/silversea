@@ -392,3 +392,19 @@ describe('FilterBar fold — the law is structural (card 20260930_229)', () => {
     expect(panel.hasAttribute('data-positioned')).toBe(false);
   });
 });
+
+
+describe('filter search validation accessibility', () => {
+  it('associates the error without dropping an existing description and removes it after correction', () => {
+    const search = { value: '', onChange: () => {}, ariaLabel: 'Tìm chứng từ', placeholder: 'Số Bill', inputProps: { 'aria-describedby': 'search-tip' } };
+    const { rerender } = render(<><p id="search-tip">Dùng số Bill</p><FilterBar search={{ ...search, error: 'Chứng từ không hợp lệ' }} /></>);
+    const input = screen.getByRole('textbox', { name: 'Tìm chứng từ' });
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription('Dùng số Bill Chứng từ không hợp lệ');
+    expect(screen.getByRole('alert')).toHaveTextContent('Chứng từ không hợp lệ');
+    rerender(<><p id="search-tip">Dùng số Bill</p><FilterBar search={search} /></>);
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(input).toHaveAccessibleDescription('Dùng số Bill');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});

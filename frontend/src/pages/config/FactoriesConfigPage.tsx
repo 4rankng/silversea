@@ -23,7 +23,9 @@ import {
   updateAdminOperationalSite,
   type AdminOperationalSite,
 } from '../../api/shipmentClient';
-import type { Route } from '@tingting/shared';
+import { operationalSiteContacts, type OperationalSiteContact, type Route } from '@tingting/shared';
+import { OperationalSiteContactsList } from '../../components/shipment/OperationalSiteContactsList';
+import { OperationalSiteContactsEditor } from '../../components/shipment/OperationalSiteContactsEditor';
 import { removeDiacritics } from '../../lib/format';
 import './config-page.css';
 
@@ -35,6 +37,7 @@ type SiteDraft = {
   googleMapsUrl: string;
   contactName: string;
   contactPhone: string;
+  contacts: OperationalSiteContact[];
   warehouseContactInfo: string;
   liftInfo: string;
   dropInfo: string;
@@ -52,6 +55,7 @@ function draftFrom(site: AdminOperationalSite): SiteDraft {
     googleMapsUrl: site.googleMapsUrl || '',
     contactName: site.contactName || '',
     contactPhone: site.contactPhone || '',
+    contacts: operationalSiteContacts(site),
     warehouseContactInfo: site.warehouseContactInfo || '',
     liftInfo: site.liftInfo || '',
     dropInfo: site.dropInfo || '',
@@ -128,11 +132,12 @@ export default function FactoriesConfigPage() {
         expectedVersion: editing.version,
         name: draft.name,
         shortName: draft.shortName || undefined,
-        routeId: draft.routeId ?? null,
+        ...(draft.routeId !== editing.routeId ? { routeId: draft.routeId ?? null } : {}),
         address: draft.address,
         googleMapsUrl: draft.googleMapsUrl || null,
         contactName: draft.contactName || null,
         contactPhone: draft.contactPhone || null,
+        ...(draft.contacts.length || operationalSiteContacts(editing).length ? { contacts: draft.contacts } : {}),
         warehouseContactInfo: draft.warehouseContactInfo || null,
         liftInfo: draft.liftInfo || null,
         dropInfo: draft.dropInfo || null,
@@ -201,6 +206,9 @@ export default function FactoriesConfigPage() {
           <div className="record-table-wrap">
           <table className="record-table ops-table factories-table">
             <caption className="sr-only">Danh mục nhà máy / kho theo khách hàng</caption>
+            <colgroup>
+              {[4, 10, 9, 17, 7, 12, 31, 7, 3].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+            </colgroup>
             <thead>
               <tr>
                 <th className="num">STT</th>
@@ -234,14 +242,9 @@ export default function FactoriesConfigPage() {
                   <td data-label="Loại">{site.siteType === 'FACTORY' ? 'Nhà máy' : 'Kho'}</td>
                   <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
                   <td data-label="Chi tiết" className="factory-record-details">
-                    <details>
-                      <summary>Địa chỉ và liên hệ</summary>
-                      <dl>
-                        <div><dt>Địa chỉ</dt><dd>{site.address || '—'}</dd></div>
-                        <div><dt>Liên hệ</dt><dd>{site.contactName || '—'}</dd></div>
-                        <div><dt>Điện thoại</dt><dd>{site.contactPhone || '—'}</dd></div>
-                      </dl>
-                    </details>
+                    <div>{site.address || 'Chưa có địa chỉ'}</div>
+                    <OperationalSiteContactsList contacts={operationalSiteContacts(site)} />
+                    {!operationalSiteContacts(site).length && site.contactName ? <div>{site.contactName} · Chưa có số điện thoại</div> : null}
                   </td>
                   <td data-label="Trạng thái">
                     {site.isActive
@@ -311,14 +314,9 @@ export default function FactoriesConfigPage() {
                     onChange={(e) => setDraft({ ...draft, address: e.target.value })} />
                 </Field>
               </div>
-              <Field label="Người liên hệ">
-                <input className="input" value={draft.contactName} maxLength={120}
-                  onChange={(e) => setDraft({ ...draft, contactName: e.target.value })} />
-              </Field>
-              <Field label="Số điện thoại">
-                <input className="input" value={draft.contactPhone} maxLength={30}
-                  onChange={(e) => setDraft({ ...draft, contactPhone: e.target.value })} />
-              </Field>
+              <div className="cfg-form-columns__full">
+                <OperationalSiteContactsEditor value={draft.contacts} disabled={saving} onChange={contacts => setDraft({ ...draft, contacts })} />
+              </div>
               <div className="cfg-form-columns__full">
                 <Field label="Liên kết Google Maps">
                   <input className="input" value={draft.googleMapsUrl} maxLength={2000}

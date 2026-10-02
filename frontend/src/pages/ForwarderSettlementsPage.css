@@ -606,6 +606,8 @@
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 8%, var(--line));
 }
 
+.fset-summary__header > span { color: var(--accent-ink); }
+
 .fset-summary__grid {
   padding: 16px 20px;
   display: flex;
@@ -656,7 +658,7 @@
 }
 
 .fset-summary__total--positive {
-  color: var(--accent);
+  color: var(--success-text);
 }
 
 .fset-summary__total--negative {

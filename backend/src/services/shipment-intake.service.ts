@@ -19,6 +19,21 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+function siteContactValues(input: Pick<OperationalSiteUpdateInput, 'contacts' | 'contactName' | 'contactPhone'>, existing?: Pick<typeof s.operationalSites.$inferSelect, 'contacts' | 'contactName' | 'contactPhone'>) {
+  const contacts = input.contacts ?? existing?.contacts ?? [];
+  const defaultContact = contacts.find(contact => contact.isDefault);
+  // A structured list is authoritative; old clients must not desynchronize its default.
+  if (contacts.length || input.contacts !== undefined) return {
+    contacts, contactName: defaultContact?.name ?? null, contactPhone: defaultContact?.phone ?? null,
+  };
+  return {
+    contacts,
+    contactName: input.contactName !== undefined ? input.contactName : existing?.contactName ?? null,
+    contactPhone: input.contactPhone !== undefined ? input.contactPhone : existing?.contactPhone ?? null,
+  };
+}
+
+
 export interface SubmitShipmentForDispatchInput {
   shipmentId: number;
   expectedVersion: number;
@@ -298,6 +313,7 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
     googleMapsUrl: s.operationalSites.googleMapsUrl,
     contactName: s.operationalSites.contactName,
     contactPhone: s.operationalSites.contactPhone,
+    contacts: s.operationalSites.contacts,
     liftFeeInvoiceName: s.operationalSites.liftFeeInvoiceName,
     liftFeeInvoiceAddress: s.operationalSites.liftFeeInvoiceAddress,
     liftFeeTaxCode: s.operationalSites.liftFeeTaxCode,
@@ -363,6 +379,7 @@ export async function createOperationalSiteForIntake(
     if (existing && !existing.isActive) {
       throw new ApiError(409, 'Điểm vận hành đang ngưng hoạt động; không tự động kích hoạt lại.');
     }
+    const contactValues = siteContactValues(input, existing);
     const values = {
       customerId: input.customerId,
       code: input.code,
@@ -372,8 +389,7 @@ export async function createOperationalSiteForIntake(
       routeId: input.siteType === 'FACTORY' ? input.routeId : null,
       address: input.address,
       googleMapsUrl: input.googleMapsUrl ?? null,
-      contactName: input.contactName ?? null,
-      contactPhone: input.contactPhone ?? null,
+      ...contactValues,
       liftFeeInvoiceName: input.liftFeeInvoiceName ?? null,
       liftFeeInvoiceAddress: input.liftFeeInvoiceAddress ?? null,
       liftFeeTaxCode: input.liftFeeTaxCode ?? null,
@@ -403,6 +419,7 @@ export async function createOperationalSiteForIntake(
       googleMapsUrl: row.googleMapsUrl,
       contactName: row.contactName,
       contactPhone: row.contactPhone,
+      contacts: row.contacts,
       liftFeeInvoiceName: row.liftFeeInvoiceName,
       liftFeeInvoiceAddress: row.liftFeeInvoiceAddress,
       liftFeeTaxCode: row.liftFeeTaxCode,
@@ -425,8 +442,8 @@ export function isValidIntakeSiteType(value: string): value is OperationalSiteTy
  * active-only.
  */
 export async function listOperationalSitesForAdmin(actor: AuthUser) {
-  if (![Role.ADMIN, Role.MANAGER].includes(actor.role)) {
-    throw new ApiError(403, 'Chỉ quản trị viên hoặc giám đốc được xem danh mục nhà máy.');
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền xem danh mục nhà máy.');
   }
   return db.select({
     id: s.operationalSites.id,
@@ -442,6 +459,7 @@ export async function listOperationalSitesForAdmin(actor: AuthUser) {
     googleMapsUrl: s.operationalSites.googleMapsUrl,
     contactName: s.operationalSites.contactName,
     contactPhone: s.operationalSites.contactPhone,
+    contacts: s.operationalSites.contacts,
     liftFeeInvoiceName: s.operationalSites.liftFeeInvoiceName,
     liftFeeInvoiceAddress: s.operationalSites.liftFeeInvoiceAddress,
     liftFeeTaxCode: s.operationalSites.liftFeeTaxCode,
@@ -468,8 +486,8 @@ export async function updateOperationalSiteForAdmin(
   input: OperationalSiteUpdateInput,
   actor: AuthUser,
 ) {
-  if (![Role.ADMIN, Role.MANAGER].includes(actor.role)) {
-    throw new ApiError(403, 'Chỉ quản trị viên hoặc giám đốc được chỉnh sửa danh mục nhà máy.');
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền chỉnh sửa danh mục nhà máy.');
   }
   return db.transaction(async (tx) => {
     const [row] = await tx.select().from(s.operationalSites)
@@ -485,7 +503,7 @@ export async function updateOperationalSiteForAdmin(
       routeId: 'routeId' in input ? input.routeId ?? null : row.routeId,
       name: input.name ?? row.name,
     };
-    if (row.siteType === OperationalSiteType.FACTORY && merged.routeId == null) {
+    if ('routeId' in input && row.siteType === OperationalSiteType.FACTORY && merged.routeId == null) {
       throw new ApiError(409, 'Nhà máy cần được liên kết với một tuyến đường.');
     }
     if (row.siteType === OperationalSiteType.WAREHOUSE && merged.routeId != null) {
@@ -497,14 +515,14 @@ export async function updateOperationalSiteForAdmin(
       if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
     }
 
+    const contactValues = siteContactValues(input, row);
     const [updated] = await tx.update(s.operationalSites).set({
       ...(input.name != null ? { name: input.name } : {}),
       ...(input.shortName != null ? { shortName: input.shortName } : {}),
       ...('routeId' in input ? { routeId: merged.routeId } : {}),
       ...(input.address != null ? { address: input.address } : {}),
       ...(input.googleMapsUrl !== undefined ? { googleMapsUrl: input.googleMapsUrl } : {}),
-      ...(input.contactName !== undefined ? { contactName: input.contactName } : {}),
-      ...(input.contactPhone !== undefined ? { contactPhone: input.contactPhone } : {}),
+      ...contactValues,
       ...(input.liftFeeInvoiceName !== undefined ? { liftFeeInvoiceName: input.liftFeeInvoiceName } : {}),
       ...(input.liftFeeInvoiceAddress !== undefined ? { liftFeeInvoiceAddress: input.liftFeeInvoiceAddress } : {}),
       ...(input.liftFeeTaxCode !== undefined ? { liftFeeTaxCode: input.liftFeeTaxCode } : {}),
@@ -527,6 +545,7 @@ export async function updateOperationalSiteForAdmin(
       googleMapsUrl: updated.googleMapsUrl,
       contactName: updated.contactName,
       contactPhone: updated.contactPhone,
+      contacts: updated.contacts,
       liftFeeInvoiceName: updated.liftFeeInvoiceName,
       liftFeeInvoiceAddress: updated.liftFeeInvoiceAddress,
       liftFeeTaxCode: updated.liftFeeTaxCode,

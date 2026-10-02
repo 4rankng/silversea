@@ -194,7 +194,7 @@
 }
 
 .dispatch-assignment-dialog__issue-warning {
-  color: var(--color-fg-warning-primary, #b54708);
+  color: var(--color-text-warning-primary);
 }
 
 .dispatch-assignment-dialog__issue > label {
@@ -517,7 +517,7 @@
 
 .dispatch-assignment-dialog__notes-tag:not(.is-selected):hover:not(:disabled) {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .dispatch-assignment-dialog__notes-tag.is-selected {

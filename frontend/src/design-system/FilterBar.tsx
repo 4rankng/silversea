@@ -1,4 +1,4 @@
-import { useRef, type ReactNode, type RefObject } from 'react';
+import { useId, useRef, type ReactNode, type RefObject, type InputHTMLAttributes } from 'react';
 import { Search } from 'lucide-react';
 import { ColumnPicker } from '../components/ColumnPicker';
 import { FilterDropdown } from '../components/FilterDropdown';
@@ -52,8 +52,8 @@ export interface FilterBarSearchProps {
   /** Focus target for a page-level shortcut (e.g. `/` or ⌘K). */
   inputRef?: RefObject<HTMLInputElement | null>;
   /** Extra attributes for the input (title, autocomplete, data-* hooks). */
-  inputProps?: Record<string, unknown>;
-  /** Validation message rendered under the field (role="alert" when set). */
+  inputProps?: InputHTMLAttributes<HTMLInputElement> & Record<string, unknown>;
+  /** Accessible validation popover, outside toolbar layout (role="alert"). */
   error?: string | null;
 }
 
@@ -127,6 +127,7 @@ export interface FilterBarColumns {
 
 export function FilterBar({ search, children, fold, columns, presets, quickFilters, quickFiltersLabel, status, actions }: FilterBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
+  const searchErrorId = useId();
   // Keep every criterion inline while the strip still fits two rows; fold them
   // into `Bộ lọc` only when the width leaves no other choice.
   const mode = useFilterBarFit(barRef);
@@ -148,8 +149,7 @@ export function FilterBar({ search, children, fold, columns, presets, quickFilte
       <FilterBarViewControlsProvider value={mode === 'inline' ? null : columnPicker}>
       <div className="filter-bar filter-bar--card list-filter-bar" ref={barRef}>
         {search && (
-          // The cell is a stack: the shell plus the field's own validation line
-          // (a cell that grows a second row must stay one bar item).
+          // Validation stays associated with this input but floats outside layout.
           <div className="filter-bar__search-cell">
             <div className="filter-bar__search" data-uui-control="input">
               <Search size={14} aria-hidden="true" />
@@ -161,9 +161,11 @@ export function FilterBar({ search, children, fold, columns, presets, quickFilte
                 value={search.value}
                 onChange={(event) => search.onChange(event.target.value)}
                 {...search.inputProps}
+                aria-invalid={search.error ? true : search.inputProps?.['aria-invalid']}
+                aria-describedby={[search.inputProps?.['aria-describedby'], search.error ? searchErrorId : undefined].filter(Boolean).join(' ') || undefined}
               />
             </div>
-            {search.error ? <p className="filter-bar__search-error" role="alert">{search.error}</p> : null}
+            {search.error ? <p id={searchErrorId} className="filter-bar__search-error" role="alert">{search.error}</p> : null}
           </div>
         )}
         {children}

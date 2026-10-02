@@ -2404,13 +2404,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
   // Card 20260927_67 (5). The three-way reading of the CUS surface:
   // solid grey = neutral/empty, outlined = identifier, peach = warning.
-  it('reads badge colour as role: outline for identifiers, peach only for warning', () => {
+  it('reads static classifications as plain text, reserving peach for warnings', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
-    // Xuất/Nhập and Đóng kết hợp are classifications, so both take the outline.
+    // Xuất/Nhập and Đóng kết hợp are plain classifications per the owner session ruling.
     // The two direction modifiers share one rule, so match the whole block.
-    const outlineBlock = css.match(/\.cus-direction-badge--import,[\s\S]*?\.cus-direction-badge--export\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(outlineBlock).toMatch(/border:\s*1px solid var\(--control-border\)/);
-    expect(css).toMatch(/\.cus-combined-tag\s*\{[^}]*border:\s*1px solid var\(--control-border\)/);
+    const outlineBlock = css.match(/\.cus-direction-badge--import,[\s\S]*?\.cus-direction-badge--export[\s\S]*?\{[^}]*\}/)?.[0] ?? '';
+    expect(outlineBlock).toMatch(/border:\s*0/);
+    expect(outlineBlock).toMatch(/background:\s*transparent/);
+    expect(css).toMatch(/\.cus-combined-tag\s*\{[^}]*border:\s*0/);
     // The combined tag used to be a solid peach fill, which spent the warning
     // colour on a harmless category. Peach now means warning and nothing else.
     const combined = css.match(/\.cus-combined-tag\s*\{[^}]*\}/)?.[0] ?? '';

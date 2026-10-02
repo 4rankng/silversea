@@ -338,10 +338,10 @@
 .month-picker__cell.is-current {
   background: rgba(232, 241, 236, 0.78);
   border-color: rgba(0, 90, 45, 0.28);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .month-picker__cell.is-current .month-picker__cell-code {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .month-picker__cell.is-current:hover {
   background: rgba(232, 241, 236, 0.96);
@@ -370,7 +370,7 @@
 .month-picker__today {
   background: rgba(0, 90, 45, 0.08);
   border: 1px solid rgba(0, 90, 45, 0.14);
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: var(--text-control-size);
   font-weight: var(--fw-bold);
   cursor: pointer;
@@ -556,11 +556,13 @@
   margin-left: auto;
 }
 
+/* Keep the count above the centred bell; the button owns the touch target. */
 .icon-btn .badge {
   position: absolute;
-  top: 5px; right: 5px;
-  min-width: 16px; height: 16px;
-  padding: 0 4px;
+  top: calc(-1 * var(--space-sm)); right: 0;
+  min-width: var(--space-lg); height: var(--space-lg);
+  min-height: var(--space-lg);
+  padding: 0 var(--space-xs);
   border-radius: 4px;
   background: var(--accent-2);
   color: var(--fg-on-brand);
@@ -568,13 +570,10 @@
   font-size: var(--text-caption-size);
   font-weight: var(--fw-bold);
   display: grid; place-items: center;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  /* override generic .badge */
+  border: var(--border) solid rgba(255, 255, 255, 0.8);
+  /* Override generic badge density, retaining its complete nowrap count. */
   letter-spacing: 0;
-  min-width: 20px;
-  min-height: 20px;
-  line-height: 1.35;
-  padding: 0 5px;
+  line-height: 1;
 }
 
 /* Replaces .date-chip in the topbar — clean slate, no legacy overrides */

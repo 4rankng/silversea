@@ -323,6 +323,7 @@ export function useDispatchDetailPlan() {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
+      plannedEndAt?: string | null;
       /** Phân loại (Đơn/Kẹp/Kết hợp) — the dispatcher's call since 2026-09-08;
        *  optional so CUS-derived values stay valid when a caller omits it. */
       classification?: DispatchClassification;
@@ -351,6 +352,7 @@ export function useDispatchDetailPlan() {
               shipmentVersion: result.shipmentVersion,
               isCombined: result.isCombined,
               classification: result.classification,
+              plannedEndAt: result.plannedEndAt,
               lotFullyPlated: result.lotFullyPlated,
               dispatch: { ...item.dispatch, ...result.dispatch },
               estimates: { ...result.estimates },

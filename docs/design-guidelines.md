@@ -375,3 +375,19 @@ branches remain source-only until driven through legitimate owned work.
 ### 2026-10-02 — UI63 complete inline label/control width budget
 
 A labelled bar field must reserve its label, seam and actual trigger together before sibling packing. A280px whole-field cap cannot hold the measured98.25px label +8px gap +existing200px searchable minimum. The shared UuiSelectField owner gives visible labelled bar fields bounded intrinsic width and applies280px to their trigger; long labels and the inner row wrap normally when necessary. Preserve control height/minimum and complete label text; no clipping, page offsets or page-local geometry. Hidden-label filters, ordinary stacked forms and folded portalled fields retain their existing width/value owners. Paid reference: pinned Untitled UIv8 Select/select-shared; keep the installed house adapter mechanics.
+
+### 2026-10-02 — Stable filter validation (QA-SESSION-FILTER-01)
+
+Owner explicit session ruling: date/search error feedback uses a surface-backed
+anchored popover outside the shared toolbar flow; validation never increases
+toolbar height or moves sibling filters. Ordinary form helper layout remains
+unchanged. Error stays accessible through aria-describedby and role=alert, and
+disappears on a valid correction. Browser regression records exact toolbar
+bounds before/after native invalid date entry.
+
+### 2026-10-02 — Static classifications (QA-SESSION-STATIC-01)
+
+Owner Nhập/Xuất screenshot: informational shipment direction and combined-cargo
+labels render plain text with no border, fill, radius or button semantics. Real
+edit/filter actions keep control chrome. This supersedes the earlier
+outlined-classification treatment.

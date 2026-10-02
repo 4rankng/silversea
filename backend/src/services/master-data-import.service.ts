@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { Role, operationalSiteContacts } from '@tingting/shared';
 
 import { db, type Tx } from '../db';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
@@ -1165,6 +1165,11 @@ async function applyParsedRows(
       googleMapsUrl: payload.googleMapsUrl,
       contactName: payload.contactName,
       contactPhone: payload.contactPhone,
+      // The structured list must move in lockstep with the imported pair:
+      // readers prefer `contacts` when non-empty, so writing only the legacy
+      // pair would leave imported values invisible until an unrelated PATCH
+      // clobbered them.
+      contacts: operationalSiteContacts({ contactName: payload.contactName, contactPhone: payload.contactPhone }),
       liftFeeInvoiceName: payload.liftFeeInvoiceName,
       liftFeeInvoiceAddress: payload.liftFeeInvoiceAddress,
       liftFeeTaxCode: payload.liftFeeTaxCode,

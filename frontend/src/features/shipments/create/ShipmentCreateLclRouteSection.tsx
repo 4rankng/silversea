@@ -119,7 +119,7 @@ export function ShipmentCreateLclRouteSection({
                       border: 0,
                       background: 'none',
                       padding: 0,
-                      color: 'var(--accent, #2563eb)',
+                      color: 'var(--accent-ink, #00361B)',
                       fontWeight: 700,
                       cursor: 'pointer',
                       fontSize: 'var(--text-control-size)',

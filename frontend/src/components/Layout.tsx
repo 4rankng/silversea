@@ -272,6 +272,7 @@ export function getNavItems(
         // edit/delete affordances for this role.
         { key: 'customers', label: 'Khách hàng', path: routes.configCustomers, icon: Users, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
+        { key: 'config-factories', label: 'Nhà máy / Kho', path: routes.configFactories, icon: Store, section: 'master-data' as SectionName },
       ];
     }
 
@@ -302,6 +303,7 @@ export function getNavItems(
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
         // Giá dầu theo kỳ — docx §5-1 names CUS as a fuel-price entrant.
         { key: 'config-fuel-price-periods', label: 'Giá dầu theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'master-data' as SectionName },
+        { key: 'config-factories', label: 'Nhà máy / Kho', path: routes.configFactories, icon: Store, section: 'master-data' as SectionName },
       ];
     }
 

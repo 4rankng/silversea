@@ -6,7 +6,7 @@ import {
   DriverProgressEventType,
   TripPodFileType,
   TripPodStatus,
-  type DriverIncidentalCostType,
+  type OperationalSiteContact, type DriverIncidentalCostType,
   type TripStatus,
   type ShipmentAccountingLockSummary,
   type VehicleAlert,
@@ -14,7 +14,6 @@ import {
 import { fileCommandFingerprint } from '../lib/api';
 import type { FuelEvidenceReviewRecord } from './fuelEvidenceClient';
 import type { DriverJourneyCard } from './driverJourneyBoard';
-
 type DriverMilestoneEventType = DriverProgressEventType;
 
 interface DriverTaskTripSummary {
@@ -203,6 +202,7 @@ export interface DriverTaskDetail {
     factoryAddress: string | null;
     /** Kho site phone — the warehouse-phone row always renders, tel link or "—". */
     khoPhone: string | null;
+    factoryContacts?: OperationalSiteContact[];
     pickupPortName: string | null;
     dropPortName: string | null;
     /** Stage-2 empty-container return depot — rendered in its own row only
@@ -281,6 +281,7 @@ interface DriverFulfillmentDetailResponse {
   factoryFullName: string | null;
   factoryAddress: string | null;
   khoPhone: string | null;
+  factoryContacts?: OperationalSiteContact[];
   invoiceMaster: DriverInvoiceMaster | null;
   invoiceFactory: DriverInvoiceFactory | null;
   knownTagLabels: string[];
@@ -350,6 +351,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       factoryFullName: wire.factoryFullName ?? null,
       factoryAddress: wire.factoryAddress,
       khoPhone: wire.khoPhone,
+      factoryContacts: wire.factoryContacts ?? [],
       pickupPortName: wire.pickupLocation,
       dropPortName: wire.deliveryLocation,
       returnDepotName: wire.returnDepotName ?? null,

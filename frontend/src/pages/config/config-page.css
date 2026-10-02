@@ -197,7 +197,7 @@
   padding: 2px 7px;
   border-radius: 6px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .cfg-page .cfg-form-grid {
@@ -893,7 +893,7 @@
 }
 
 .cfg-finance-strip__meta a {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: var(--fw-semibold);
 }
 

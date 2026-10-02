@@ -74,7 +74,7 @@ async function buildWorkbookFixture(): Promise<Buffer> {
 
   const sites = workbook.addWorksheet('NHÀ MÁY');
   setRow(sites, 2, ['STT', 'MÃ NỘI BỘ', 'NHÀ MÁY', 'ĐỊA CHỈ', 'MST NÂNG HẠ', 'LƯU Ý', 'ĐỊNH VỊ KHO']);
-  setRow(sites, 3, [1, customerCode, siteName, 'Địa chỉ thử nghiệm', `Mã số thuế ${taxCode}`, 'Tuân thủ quy định an toàn', 'https://maps.example.test/site']);
+  setRow(sites, 3, [1, customerCode, siteName, 'Địa chỉ thử nghiệm, người liên hệ: Nguyễn Văn A, sđt: 0901234567', `Mã số thuế ${taxCode}`, 'Tuân thủ quy định an toàn', 'https://maps.example.test/site']);
 
   const routes = workbook.addWorksheet('TUYẾN ĐƯỜNG');
   setRow(routes, 2, ['STT', 'TUYẾN ĐƯỜNG', 'HÀNG NHẬP', 'HÀNG XUẤT']);
@@ -593,6 +593,16 @@ describe('master-data apply', () => {
       [[siteName, 'FACTORY'], [warehouseName, 'WAREHOUSE']]
         .sort((left, right) => left[0]!.localeCompare(right[0]!)),
     );
+    // The imported contact pair must land in the structured list in lockstep:
+    // readers prefer `contacts` when non-empty, so a pair-only write would
+    // leave imported values invisible until an unrelated PATCH clobbered them.
+    const importedFactory = sites.find((site) => site.name === siteName)!;
+    assert.equal(importedFactory.contactName, 'Nguyễn Văn A');
+    assert.equal(importedFactory.contactPhone, '0901234567');
+    assert.deepEqual(importedFactory.contacts, [{ name: 'Nguyễn Văn A', phone: '0901234567', isDefault: true }]);
+    const importedWarehouse = sites.find((site) => site.name === warehouseName)!;
+    assert.equal(importedWarehouse.contactPhone, null);
+    assert.deepEqual(importedWarehouse.contacts, []);
     assert.equal(ports.length, 1);
     assert.equal(trucks.length, 1);
     assert.equal(drivers.length, 1);

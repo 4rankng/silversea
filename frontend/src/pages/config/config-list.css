@@ -124,7 +124,7 @@
   color: var(--ink-3);
   font-size: var(--text-control-size);
 }
-.cfg-list-footer__add:hover { color: var(--accent); }
+.cfg-list-footer__add:hover { color: var(--accent-ink); }
 
 @media (max-width: 640px) {
   .cfg-list-header { display: none; }

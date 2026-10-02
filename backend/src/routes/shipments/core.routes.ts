@@ -437,7 +437,7 @@ coreRoutes.post(
 // because the entity ships on the intake endpoints above.
 coreRoutes.get(
   '/operational-sites/admin',
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     res.json({ items: await listOperationalSitesForAdmin(getUser(req)) });
   }),
@@ -446,7 +446,7 @@ coreRoutes.get(
 coreRoutes.patch(
   '/operational-sites/:id',
   declareNonMaterialWrite('Reference-data CRUD (factory/warehouse master). Version-checked partial update — a replay hits the stale-version 409 guard instead of applying twice, and identity fields (customer, code, site type) are immutable. No financial or shipment-lifecycle mutation.'),
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const siteId = Number.parseInt(req.params.id as string, 10);
     if (!Number.isInteger(siteId) || siteId < 1) {

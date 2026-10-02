@@ -73,11 +73,11 @@ describe('operational color contract', () => {
     // no semantic colour at all, not which neutral surface it sits on. Asserting
     // the token would forbid the outline the card asks for while proving nothing
     // about colour discipline.
-    const directionBadge = shipmentList.match(/\.cus-direction-badge--import,[\s\S]*?\.cus-direction-badge--export\s*\{[^}]*\}/)?.[0] ?? '';
+    const directionBadge = shipmentList.match(/\.cus-direction-badge--import,[\s\S]*?\.cus-direction-badge--export[\s\S]*?\{[^}]*\}/)?.[0] ?? '';
     expect(directionBadge).toContain('color: var(--ink-2)');
     expect(directionBadge).not.toMatch(/--(?:warning|danger|info|success|warn|err|ok)\b/);
-    // It reads as an identifier: a neutral outline, not a filled shape.
-    expect(directionBadge).toMatch(/border:\s*1px solid var\(--control-border\)/);
+    // Static classifications have no control border.
+    expect(directionBadge).toMatch(/border:\s*0/);
     // The combined tag shared that peach fill once, spending the warning colour
     // on a category. Same discipline, same guarantee.
     const combinedTag = shipmentList.match(/\.cus-combined-tag\s*\{[^}]*\}/)?.[0] ?? '';

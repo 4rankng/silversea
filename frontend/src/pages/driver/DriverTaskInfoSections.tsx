@@ -1,4 +1,7 @@
 import { useState, type ReactNode } from 'react';
+import { operationalSiteContacts } from '@tingting/shared';
+import { Modal, Btn } from '../../components/UI';
+import { OperationalSiteContactsList } from '../../components/shipment/OperationalSiteContactsList';
 import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package, Phone, PhoneCall } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
@@ -123,8 +126,10 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   // Card 20260926_27 item 7: khoPhone and contactPhone are independent
   // fields and CAN differ. Identical numbers never render twice — the
   // contact row appears only when it carries a DIFFERENT trimmed number.
+  const [callOpen, setCallOpen] = useState(false);
   const khoPhone = fulfillment?.khoPhone?.trim() || null;
   const contactPhone = fulfillment?.contactPhone?.trim() || null;
+  const callContacts = operationalSiteContacts({ contacts: fulfillment?.factoryContacts, contactName: fulfillment?.contactName, contactPhone: khoPhone ?? contactPhone });
   const showContactPhoneRow = Boolean(contactPhone) && contactPhone !== khoPhone;
 
   // Card 20260926_27 item 5: the abbrev "Nhà máy" row is gone (the factory
@@ -186,13 +191,14 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
 
       {/* Card 20260926_41 V2 (CHIEF): the call affordance lives OUTSIDE the
           info card — one green Gọi kho button, tel: the site phone. */}
-      {khoPhone ? (
+      {callContacts.length ? (
         <div className="driver-task-call-bar">
-          <a href={`tel:${khoPhone}`} className="driver-task-call-bar__btn">
-            <PhoneCall size={16} aria-hidden="true" /> Gọi kho
-          </a>
+          {callContacts.length === 1 ? <a href={`tel:${callContacts[0].phone}`} className="driver-task-call-bar__btn"><PhoneCall size={16} aria-hidden="true" /> Gọi kho</a> : <Btn onClick={() => setCallOpen(true)} icon={<PhoneCall size={16} />}>Gọi kho</Btn>}
         </div>
       ) : null}
+      <Modal isOpen={callOpen} onClose={() => setCallOpen(false)} title="Chọn liên hệ để gọi" maxWidth={480}>
+        <OperationalSiteContactsList contacts={callContacts} callable />
+      </Modal>
 
       {/* Operational instructions precede billing details and remain outside
           both independently collapsible sections. */}

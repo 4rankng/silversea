@@ -91,6 +91,7 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
   ports: { pickupPortId: null, pickupPortName: null, dropoffPortId: null, dropoffPortName: null },
   estimates: { plannedRevenue: null, plannedCarrierCost: null },
   lotFullyPlated: false,
+  plannedEndAt: null,
   ...overrides,
 } as DispatchDetailPlanRow);
 
@@ -407,10 +408,16 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
     listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
   });
 
-  it.each(['success', 'failure'])('ignores a pre-save refresh %s after an unfiltered atomic save (DSP-FU-006)', async (outcome) => {
-    const previous = row();
+  it.each([
+    { outcome: 'success', savedEnd: '2026-08-20T06:00:00.000Z' },
+    { outcome: 'failure', savedEnd: '2026-08-20T06:00:00.000Z' },
+    { outcome: 'success', savedEnd: null },
+    { outcome: 'failure', savedEnd: null },
+  ])('QA-SESSION-SCHEDULE-01 keeps saved return time $savedEnd against stale refresh $outcome (DSP-FU-006)', async ({ outcome, savedEnd }) => {
+    const previous = row({ plannedEndAt: '2026-08-20T02:00:00.000Z' });
     const updated = row({
       version: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      plannedEndAt: savedEnd,
       dispatch: { ...previous.dispatch, assignedPlate: '15C-167.31', assignedDriverName: 'Nguyễn Văn A' },
       notes: { ...previous.notes, vehicleNote: 'Kiểm tra seal' },
       lotFullyPlated: true,
@@ -434,13 +441,13 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
     updateDispatchDetailPlanMock.mockResolvedValue({
       fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
       classification: 'SINGLE', isCombined: false, operationalNotes: 'Kiểm tra seal',
-      plannedEndAt: null,
+      plannedEndAt: savedEnd,
       dispatch: { ...updated.dispatch, carrierType: 'OWN' }, estimates: updated.estimates, lotFullyPlated: true,
       driverNotified: false, driverHint: null, replayed: false,
     });
 
     await act(async () => {
-      await result.current.savePlan(previous, { carrierType: 'OWN', truckId: 7, plannedRevenue: null, plannedCarrierCost: null });
+      await result.current.savePlan(previous, { carrierType: 'OWN', truckId: 7, plannedRevenue: null, plannedCarrierCost: null, plannedEndAt: savedEnd });
     });
     expect(result.current.items).toEqual([updated]);
     await act(async () => {

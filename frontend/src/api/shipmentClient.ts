@@ -1,3 +1,4 @@
+import type { OperationalSiteContact } from '@tingting/shared';
 // Shipment API client — frontend transport layer for `/api/shipments/*`.
 //
 // Mirrors the `tripClient.ts` / `configClient.ts` pattern: thin helpers over
@@ -231,6 +232,7 @@ export interface OperationalSite {
   googleMapsUrl: string | null;
   contactName: string | null;
   contactPhone: string | null;
+  contacts?: OperationalSiteContact[];
   warehouseContactInfo: string | null;
   liftInfo: string | null;
   dropInfo: string | null;
@@ -770,6 +772,7 @@ export interface CreateOperationalSiteBody {
   googleMapsUrl?: string | null;
   contactName?: string | null;
   contactPhone?: string | null;
+  contacts?: OperationalSiteContact[];
   liftFeeInvoiceName?: string | null;
   liftFeeInvoiceAddress?: string | null;
   liftFeeTaxCode?: string | null;
@@ -803,6 +806,7 @@ export interface UpdateOperationalSiteBody {
   googleMapsUrl?: string | null;
   contactName?: string | null;
   contactPhone?: string | null;
+  contacts?: OperationalSiteContact[];
   warehouseContactInfo?: string | null;
   liftInfo?: string | null;
   dropInfo?: string | null;

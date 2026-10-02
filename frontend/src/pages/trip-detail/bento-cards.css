@@ -337,7 +337,7 @@
 }
 
 .info-meta .val.muted-pos {
-  color: var(--accent);
+  color: var(--success-text);
   font-weight: 700;
 }
 

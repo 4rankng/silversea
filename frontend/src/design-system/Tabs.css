@@ -175,7 +175,7 @@
  * for the downtime bucket, accent-green for the healthy bucket, info for a
  * neutral "waiting" bucket. */
 .ds-tabs__count--accent {
-  color: var(--accent, #177448);
+  color: var(--success-text, #155B39);
 }
 
 .ds-tabs__count--warning {

@@ -121,7 +121,7 @@ const pageStyles = `
   .pr-usage { text-align: right; }
   .pr-usage .k { font-size: var(--text-caption-size); color: var(--ink-3); font-weight: 600; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
   .pr-usage .v { font-size: var(--text-caption-size); font-weight: 600; color: var(--ink-2); }
-  .pr-usage .v b { font-family: var(--font-data); color: var(--accent); font-size: var(--text-data-size); }
+  .pr-usage .v b { font-family: var(--font-data); color: var(--accent-ink); font-size: var(--text-data-size); }
   .pr-usage.zero .v b { color: var(--ink-3); }
 
   /* ── Animations ── */

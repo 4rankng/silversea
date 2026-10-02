@@ -863,6 +863,26 @@ describe('DriverTripDetailPage', () => {
     expect(valueOf('SĐT liên hệ')).toBe('0909000001');
   });
 
+  it('offers named factory telephone choices with the default first and retains direct single-number calls', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ fulfillment: { ...makeTaskDetail().fulfillment!, factoryContacts: [
+        { name: 'Cổng kho', phone: '0901234567', isDefault: false },
+        { name: 'Điều phối', phone: '0907654321', isDefault: true },
+      ] } }), isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+    const opener = await screen.findByRole('button', { name: 'Gọi kho' });
+    fireEvent.click(opener);
+    const dialog = await screen.findByRole('dialog', { name: 'Chọn liên hệ để gọi' });
+    const links = within(dialog).getAllByRole('link');
+    expect(links[0]).toHaveAttribute('href', 'tel:0907654321');
+    await waitFor(() => expect(within(dialog).getByText('Điều phối')).toBeVisible());
+    expect(links[0]).toHaveAttribute('aria-label', 'Gọi Điều phối 0907654321');
+    expect(links[1]).toHaveAttribute('href', 'tel:0901234567');
+    await waitFor(() => expect(within(dialog).getByText('Cổng kho')).toBeVisible());
+    expect(links[1]).toHaveAttribute('aria-label', 'Gọi Cổng kho 0901234567');
+  });
+
   it('card _27: identical kho and contact numbers render ONE phone row', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
