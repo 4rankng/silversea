@@ -34,6 +34,10 @@ export function DateInput({ value, onChange, id: providedId, ref, name, ...rest 
     if (!inputRef.current?.contains(next) && !panelRef.current?.contains(next)) {
       setOpen(false);
       setTouched(true);
+      if (!validation && parsed) {
+        if (parsed !== value) emit(parsed);
+        setDraft(formatDateInput(parsed));
+      }
     }
   };
 
@@ -72,10 +76,6 @@ export function DateInput({ value, onChange, id: providedId, ref, name, ...rest 
           blurFrame.current = null;
           closeWhenFocusLeaves(document.activeElement);
         });
-        if (!panelRef.current?.contains(next)) {
-          setTouched(true);
-          if (!validation && parsed) setDraft(formatDateInput(parsed));
-        }
         rest.onBlur?.(event);
       }}
       onKeyDown={(event) => {
@@ -87,6 +87,7 @@ export function DateInput({ value, onChange, id: providedId, ref, name, ...rest 
           event.preventDefault(); event.stopPropagation(); dismiss();
         } else if (event.key === 'Enter') {
           setTouched(true);
+          if (!validation && parsed && parsed !== value) emit(parsed);
           if (active || validation) { event.preventDefault(); event.stopPropagation(); setOpen(false); }
         }
       }}
@@ -95,7 +96,7 @@ export function DateInput({ value, onChange, id: providedId, ref, name, ...rest 
     {message && <span id={`${id}-date-error`} role="alert" className="uui-date-hint uui-date-hint--error">{message}</span>}
     {active && <DatePickerSurface id={`${id}-calendar`} label="Chọn ngày" value={parsed ?? ''} min={min} max={max}
       panelRef={panelRef} anchorRef={inputRef} keyboard={keyboard}
-      onExit={() => { setOpen(false); setTouched(true); }} onDismiss={dismiss}
+      onExit={() => closeWhenFocusLeaves(null)} onDismiss={dismiss}
       onPick={(next) => { setDraft(formatDateInput(next)); setTouched(false); emit(next); dismiss(); }} />}
   </>;
 }

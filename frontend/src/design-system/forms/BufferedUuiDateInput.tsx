@@ -28,7 +28,7 @@ export interface BufferedUuiDateInputProps
    * Inline cue rendered INSIDE the field, ahead of the segments — the from/to
    * marker of the shared range filter ("Từ 01/09/2026 → Đến 30/09/2026"). When
    * set, the label is kept for the accessibility name only (`sr-only`) and the
-   * field's border moves to the wrapper, so the cue reads as part of the control
+   * field's border belongs to its inner boundary, so the cue reads as part of the control
    * instead of floating above it. (Not `prefix`: `InputBaseProps` already uses
    * that name for the UUI input's own currency prefix.)
    */
@@ -89,7 +89,10 @@ export function BufferedUuiDateInput({
       setTouched(true);
       // Normalize a complete draft the moment focus leaves the whole field
       // (segment-to-segment hops stay untouched drafts).
-      if (!validation && parsed) setDraft(formatDate(parsed));
+      if (!validation && parsed) {
+        if (parsed !== value) emit(parsed);
+        setDraft(formatDate(parsed));
+      }
     }
   };
 
@@ -97,38 +100,8 @@ export function BufferedUuiDateInput({
     if (!disabled && !readOnly) { setKeyboardPicker(keyboard); setOpen(true); }
   };
 
-  return (
-    <div
-      ref={(node) => { fieldRef.current = node; if (typeof groupRef === 'function') groupRef(node); else if (groupRef) groupRef.current = node; }}
-      onFocusCapture={() => {
-        if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
-        blurFrame.current = null;
-      }}
-      onBlurCapture={(event) => {
-        if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
-        const next = event.relatedTarget as Node | null;
-        if (next) {
-          blurFrame.current = null;
-          closeWhenFocusLeaves(next);
-        } else {
-          // Some pointer focus transfers have no relatedTarget. Let the new
-          // calendar button receive focus before deciding it left the field.
-          blurFrame.current = requestAnimationFrame(() => {
-            blurFrame.current = null;
-            closeWhenFocusLeaves(document.activeElement);
-          });
-        }
-      }}
-      data-input-wrapper
-      data-input-size={size}
-      data-has-prefix={fieldPrefix != null ? '' : undefined}
-      className={['group flex h-max w-full flex-col items-start justify-start gap-1.5', className].filter(Boolean).join(' ')}
-    >
-      {/* A prefix field keeps the label for its accessibility name only: the
-          visible cue is the prefix, so rendering both would say "Từ ngày Từ". */}
-      {label && <Label className={fieldPrefix != null ? 'sr-only' : undefined} isRequired={required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}</Label>}
-      {fieldPrefix != null && <span className="uui-date-prefix" aria-hidden="true">{fieldPrefix}</span>}
-      <DateTimeSegments
+  const segments = (
+    <DateTimeSegments
         id={`${id}-segments`}
         part="date"
         groupAriaLabel={label ?? 'Ngày'}
@@ -161,16 +134,56 @@ export function BufferedUuiDateInput({
             else if (event.key === 'Escape' && active) { event.preventDefault(); event.stopPropagation(); dismiss(); }
             else if (event.key === 'Enter') {
               setTouched(true);
+              if (!validation && parsed && parsed !== value) emit(parsed);
               if (active || validation) { event.preventDefault(); event.stopPropagation(); setOpen(false); }
             }
           },
         } as ComponentProps<typeof DateTimeSegments>['inputProps']}
       />
+  );
+
+  return (
+    <div
+      ref={(node) => { fieldRef.current = node; if (typeof groupRef === 'function') groupRef(node); else if (groupRef) groupRef.current = node; }}
+      onFocusCapture={() => {
+        if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
+        blurFrame.current = null;
+      }}
+      onBlurCapture={(event) => {
+        // React portal blur also bubbles through this field. The calendar
+        // surface owns its focus exit; handling it here would commit twice.
+        if (panelRef.current?.contains(event.target as Node)) return;
+        if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
+        const next = event.relatedTarget as Node | null;
+        if (next) {
+          blurFrame.current = null;
+          closeWhenFocusLeaves(next);
+        } else {
+          // Some pointer focus transfers have no relatedTarget. Let the new
+          // calendar button receive focus before deciding it left the field.
+          blurFrame.current = requestAnimationFrame(() => {
+            blurFrame.current = null;
+            closeWhenFocusLeaves(document.activeElement);
+          });
+        }
+      }}
+      data-input-wrapper
+      data-input-size={size}
+      data-has-prefix={fieldPrefix != null ? '' : undefined}
+      className={['group flex h-max w-full flex-col items-start justify-start gap-1.5', className].filter(Boolean).join(' ')}
+    >
+      {/* A prefix field keeps the label for its accessibility name only: the
+          visible cue is the prefix, so rendering both would say "Từ ngày Từ". */}
+      {label && <Label className={fieldPrefix != null ? 'sr-only' : undefined} isRequired={required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}</Label>}
+      {fieldPrefix != null ? <div data-date-boundary data-uui-control="date" data-control-size={size}>
+        <span className="uui-date-prefix" aria-hidden="true">{fieldPrefix}</span>
+        {segments}
+      </div> : segments}
       {name && <input type="hidden" name={name} value={value} disabled={disabled} form={nativeProps?.form ?? rest.form} />}
       {(message || hint) && <p id={`${id}-hint`} role={message ? 'alert' : undefined} className={message ? 'uui-date-hint uui-date-hint--error' : 'uui-date-hint'}>{message || hint}</p>}
       {active && <DatePickerSurface id={`${id}-calendar`} label={`Chọn ngày${label ? ` — ${label}` : ''}`}
         value={parsed ?? ''} min={min} max={max} panelRef={panelRef} anchorRef={inputRef} additionalRefs={[fieldRef]} keyboard={keyboardPicker}
-        onExit={() => { setOpen(false); setTouched(true); }} onDismiss={dismiss}
+        onExit={() => closeWhenFocusLeaves(null)} onDismiss={dismiss}
         onPick={(next) => { setDraft(formatDate(next)); setTouched(false); emit(next); dismiss(); }} />}
     </div>
   );

@@ -188,6 +188,38 @@ describe('Modal overlay suite — stacking + picker deference', () => {
 });
 
 describe('Modal overlay suite — bare mode (ops shell, positioned panels)', () => {
+  it('contains focus while every control is disabled and enters controls when loading ends', async () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+    const content = (disabled: boolean) => (
+      <Harness chrome="bare" ariaLabel="Đang tải giấy báo nợ">
+        <button disabled={disabled}>Đóng</button>
+        <button disabled={disabled}>Lưu</button>
+      </Harness>
+    );
+    const { rerender, unmount } = render(content(true));
+    const dialog = await screen.findByRole('dialog', { name: 'Đang tải giấy báo nợ' });
+    await waitFor(() => expect(dialog).toHaveFocus());
+    expect(fireEvent.keyDown(dialog, { key: 'Tab' })).toBe(false);
+    expect(dialog).toHaveFocus();
+    expect(fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })).toBe(false);
+    expect(dialog).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Đóng' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
+    rerender(content(false));
+    expect(dialog).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: 'Tab' });
+    expect(screen.getByRole('button', { name: 'Đóng' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Đóng' }), { key: 'Tab', shiftKey: true });
+    expect(screen.getByRole('button', { name: 'Lưu' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Lưu' }), { key: 'Tab' });
+    expect(screen.getByRole('button', { name: 'Đóng' })).toHaveFocus();
+    unmount();
+    expect(opener).toHaveFocus();
+    opener.remove();
+  });
+
   it('renders mechanics only: children own the surface, no house chrome', async () => {
     render(
       <Harness chrome="bare" ariaLabel="Khai báo chi phí">

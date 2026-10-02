@@ -403,7 +403,7 @@ export const qk = {
     /** Vehicle → accountant assignment board. */
     truckAssignments: ['phoi-phieu-truck-assignments'] as const,
     /** Control-table rows — one entry per filter combination. */
-    rows: (filters: { dateFrom: string; dateTo: string; status: string; search: string; sortBy: string }) =>
+    rows: (filters: { dateFrom: string; dateTo: string; status: string; search: string; sortBy: string; confirmation?: string }) =>
       ['phoi-phieu-rows', filters] as const,
     /** Broad prefix — matches all phoi-phieu-rows queries regardless of filters. */
     rowsAll: ['phoi-phieu-rows'] as const,
@@ -415,7 +415,7 @@ export const qk = {
     report: (kind: 'THU' | 'TRA', dateFrom: string, dateTo: string, scope?: 'SELF' | 'ALL' | 'UNASSIGNED') =>
       ['phoi-phieu-report', kind, dateFrom, dateTo, scope] as const,
     /** Chi-ho fee detail dialog, per trip. */
-    chiHo: (tripId: number) => ['phoi-phieu-chi-ho', tripId] as const,
+    chiHo: (tripId: number, confirmation?: 'CONFIRMED' | 'UNCONFIRMED') => confirmation ? ['phoi-phieu-chi-ho', tripId, confirmation] as const : ['phoi-phieu-chi-ho', tripId] as const,
   },
 
   /* ── Container deposit tracking (Theo dõi hoàn cược) ────────────────── */

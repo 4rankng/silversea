@@ -81,6 +81,7 @@ export interface OpsExpenseRow {
   id: number;
   shipmentId: number;
   shipmentCode: string | null;
+  billRef: string | null;
   containerNumber: string | null;
   expenseTypeCode: string;
   expenseTypeName: string | null;
@@ -119,6 +120,7 @@ export interface OpsFleetTruck {
   tripId: number | null;
   tripCode: string | null;
   shipmentCode: string | null;
+  billRef: string | null;
   driverName: string | null;
   status: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | null;
   lastEventType: string | null;

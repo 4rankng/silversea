@@ -144,7 +144,7 @@ export function DateTimeSegments({
         else onComplete?.();
       }
     }
-    onValueChange(next.join(separator));
+    onValueChange(next.some(Boolean) ? next.join(separator) : '');
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {

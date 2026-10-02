@@ -13,12 +13,29 @@
   max-width: 100%;
 }
 
+/* The same house category picker owns the phone presentation and explicit
+   all-width role filters. Field geometry and paint remain shared controls. */
+.ds-tabs-category {
+  min-width: 0;
+  max-width: 100%;
+  width: fit-content;
+}
+
+@media (max-width: 767px) {
+  .ds-tabs-category { width: 100%; }
+}
+
 /* Canonical button group (operator ruling 2026-09-27 — the fleet-vehicle
    status group is the reference): hairline container on the recessed surface,
    2px inset, and a FLAT white pill for the selected cell (1px outline, no
    shadow — the flat-surface law). One group shape for every segmented control
    in the app. */
 .ds-tabs--boxed {
+  /* Preserve one control row without squeezing labels/counts into equal
+     tracks. The primitive reveals selected tabs on resize and keyboard use. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
   /* A segmented control is a content-sized object: inside a grid/flex cell it
      must hug its cells instead of stretching into an empty box (operator
      reference shows the group ending after the last cell). */
@@ -57,6 +74,7 @@
 
 .ds-tabs__btn {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
   border: 1px solid transparent;
@@ -86,6 +104,10 @@
   outline-offset: 2px;
 }
 
+.ds-tabs--boxed .ds-tabs__btn:focus-visible {
+  outline-offset: -2px;
+}
+
 .ds-tabs__btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -106,7 +128,7 @@
 
 .ds-tabs--bordered .ds-tabs__btn {
   border-radius: 0;
-  padding: 10px 14px 12px;
+  padding: 8px 14px;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
 }
@@ -126,6 +148,8 @@
 
 .ds-tabs__label {
   display: inline-block;
+  min-width: 0;
+  white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.35;
 }
@@ -162,7 +186,7 @@
   color: var(--info-text, var(--info, #0E7090));
 }
 
-/* 44px floor on any touch device OR any narrow window — a 390px windowed
+/* Touch floor on any touch device OR any narrow window — a 390px windowed
    browser reports `pointer: fine` but is still a phone-width layout. */
 @media (pointer: coarse), (max-width: 767px) {
   .ds-tabs__btn {

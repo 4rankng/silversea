@@ -67,8 +67,8 @@
   font-weight: 600;
 }
 
-/* Coarse pointer: 44px floor. */
+/* Ordinary touch controls share the current 40px ceiling. */
 @media (pointer: coarse) {
-  .inline-label-select__trigger { height: 44px; }
-  .inline-label-select__option { min-height: 44px; }
+  .inline-label-select__trigger { height: var(--control-max-h); }
+  .inline-label-select__option { min-height: var(--control-max-h); }
 }

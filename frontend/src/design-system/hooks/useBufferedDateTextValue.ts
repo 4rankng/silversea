@@ -41,7 +41,11 @@ export function useBufferedDateTextValue({ value, onChange, min = '', max = '', 
     inputRef.current?.setCustomValidity(validateDateInputText(text, min, max));
     setDraft(text);
     setTouched(false);
-    const next = text.trim() ? parseDateTime24(`00:00 ${text}`)?.slice(0, 10) : '';
+    // A loose one-digit day/month is a valid blur shorthand, but not a
+    // completed typing draft. Emitting it now makes the parent's ISO echo
+    // pad the segment before its next key (3 becomes03, blocking31/33).
+    const complete = /^\d{2}\/\d{2}\/\d{4}$/.test(text.trim());
+    const next = !text.trim() ? '' : complete ? parseDateTime24(`00:00 ${text}`)?.slice(0, 10) : null;
     if (next != null && (!next || ((!min || next >= min) && (!max || next <= max)))) emit(next);
   };
   return { draft, setDraft, touched, setTouched, parsed, validation, message, emit, update };

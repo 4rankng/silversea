@@ -1,6 +1,8 @@
 // Card 20260921_12 — Bảng kiểm soát phơi phiếu / tiền đường client.
 import { api } from '../lib/api';
 
+export type ChiHoConfirmation = 'CONFIRMED' | 'UNCONFIRMED';
+
 export interface PhoiPhieuRow {
   tripId: number;
   tripCode: string | null;
@@ -8,6 +10,7 @@ export interface PhoiPhieuRow {
   shipmentCode: string | null;
   billOrBooking: string | null;
   customerName: string | null;
+  factoryName?: string | null;
   routeName: string | null;
   containerNumber: string | null;
   containerTypeLabel: string | null;
@@ -20,7 +23,10 @@ export interface PhoiPhieuRow {
   dropSite: string | null;
   plateNumber: string | null;
   driverName: string | null;
+  carrierName?: string | null;
   departureDate: string | null;
+  /** Appointment day in Vietnam, or the established shipment schedule fallback. */
+  transportDate?: string | null;
   tripStatus: string | null;
   chiHoThu: number | null;
   chiHoTra: number | null;
@@ -42,7 +48,7 @@ export interface PhoiPhieuRow {
 
 export async function listPhoiPhieuRows(params: {
   dateFrom?: string; dateTo?: string; status?: string; search?: string;
-  sortBy?: 'grouped' | 'date';
+  sortBy?: 'grouped' | 'date'; confirmation?: ChiHoConfirmation | '';
 }): Promise<{ items: PhoiPhieuRow[] }> {
   const query = new URLSearchParams();
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
@@ -50,6 +56,7 @@ export async function listPhoiPhieuRows(params: {
   if (params.status) query.set('status', params.status);
   if (params.search) query.set('search', params.search);
   if (params.sortBy) query.set('sortBy', params.sortBy);
+  if (params.confirmation) query.set('confirmation', params.confirmation);
   return api.get(`/expense-accounting/phoi-phieu/rows?${query.toString()}`);
 }
 
@@ -92,8 +99,9 @@ export interface PhoiPhieuChiHoDetail {
   totals: { thu: number; tra: number };
 }
 
-export async function getPhoiPhieuChiHo(tripId: number): Promise<PhoiPhieuChiHoDetail> {
-  return api.get(`/expense-accounting/phoi-phieu/${tripId}/chi-ho`);
+export async function getPhoiPhieuChiHo(tripId: number, confirmation?: ChiHoConfirmation): Promise<PhoiPhieuChiHoDetail> {
+  const query = confirmation ? `?confirmation=${confirmation}` : '';
+  return api.get(`/expense-accounting/phoi-phieu/${tripId}/chi-ho${query}`);
 }
 
 export async function updatePhoiPhieuMeta(tripId: number, body: {

@@ -92,7 +92,8 @@
   align-items: center;
   gap: 8px;
   position: relative;
-  padding: 10px 12px;
+  min-height: var(--control-max-h);
+  padding: 0 12px;
   color: var(--ink-3);
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
@@ -116,6 +117,14 @@
   color: var(--ink-3);
 }
 
+/* Search chrome owns its bottom border. Its native input stays inside that
+   boundary, including the shell's coarse-pointer native input minimum. */
+:is(#root, body) .searchable-select__search-input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']) {
+  min-height: 0;
+  height: calc(var(--control-max-h) - 1px);
+  padding-block: 0;
+}
+
 .searchable-select__close {
   display: none;
 }
@@ -134,8 +143,8 @@
   display: flex;
   align-items: flex-start;
   width: 100%;
-  min-height: 42px;
-  padding: 10px 10px 10px 6px;
+  min-height: var(--control-max-h);
+  padding: 8px 10px 8px 6px;
   color: var(--ink-2);
   font: inherit;
   font-size: var(--control-field-font-size);
@@ -277,7 +286,7 @@
      so this band keeps only the touch sizing of the shared chrome. */
 
   .searchable-select__search {
-    min-height: 48px;
+    min-height: var(--control-max-h);
     padding-right: 56px;
   }
 
@@ -287,8 +296,8 @@
     top: 50%;
     transform: translateY(-50%);
     display: inline-grid;
-    width: 44px;
-    height: 44px;
+    width: var(--control-max-h);
+    height: var(--control-max-h);
     place-items: center;
     margin: 0;
     padding: 0;
@@ -308,7 +317,7 @@
   .searchable-select__close:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
   .searchable-select__option {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     font-size: var(--text-input-touch-size);
   }
 }
@@ -339,52 +348,14 @@
    ≤640px top-pinned sheet it belonged to (card 20260927_152): the panel is
    anchored to its trigger at every width, so it has no sheet story to tell. */
 
-/* Multi-select trigger: chip row inside the picker button. */
-.searchable-select__trigger-chips {
-  display: flex;
+/* Multi-select names and removal controls live in the checked option list.
+   Its one trigger presents an atomic count, never nested interactive chips. */
+.searchable-select__selection-count {
   flex: 1;
-  flex-wrap: wrap;
-  gap: 4px;
   min-width: 0;
-  align-items: center;
-}
-
-.searchable-select__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 4px 2px 8px;
-  background: color-mix(in srgb, var(--brand) 12%, transparent);
-  color: var(--brand);
-  border-radius: 999px;
-  font-size: var(--text-caption-size);
+  color: var(--ink);
   font-weight: 600;
-  max-width: 100%;
-}
-
-.searchable-select__chip-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.searchable-select__chip-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  color: inherit;
-  background: transparent;
-  border: 0;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.searchable-select__chip-remove:hover {
-  background: color-mix(in srgb, var(--brand) 22%, transparent);
 }
 
 .searchable-select__multi-footer {

@@ -151,7 +151,7 @@ export function FilterBar({ search, children, fold, columns, presets, quickFilte
           // The cell is a stack: the shell plus the field's own validation line
           // (a cell that grows a second row must stay one bar item).
           <div className="filter-bar__search-cell">
-            <div className="filter-bar__search">
+            <div className="filter-bar__search" data-uui-control="input">
               <Search size={14} aria-hidden="true" />
               <input
                 ref={search.inputRef}

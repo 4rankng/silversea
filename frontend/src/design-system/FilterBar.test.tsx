@@ -125,6 +125,9 @@ describe('FilterBar control integration', () => {
     // validation message never becomes a grid cell of its own.
     expect(kids[0].classList.contains('filter-bar__search-cell')).toBe(true);
     expect(kids[0].querySelector('.filter-bar__search')).toBeTruthy();
+    // QA-AUDIT-UI-61: the bordered search shell owns shared paint and
+    // interior geometry; a bare input must not repaint across its border.
+    expect(kids[0].querySelector('.filter-bar__search')).toHaveAttribute('data-uui-control', 'input');
     expect(screen.getByRole('combobox', { name: 'Trạng thái' })).toBe(kids[1]);
     expect(bar.querySelector('.list-filter-bar__quick')).toBe(kids[2]);
     expect(bar.querySelector('.filter-bar__spacer')).toBe(kids[3]);

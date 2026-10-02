@@ -17,6 +17,8 @@ export interface TextFieldProps extends BaseFieldProps, Omit<InputHTMLAttributes
   className?: string;
   /** Compact operational geometry; coarse pointers retain the shared touch floor. */
   controlSize?: 'sm' | 'md';
+  /** Content-sized editor for coefficients and other short numeric values. */
+  controlWidth?: 'short-number';
 }
 
 export function TextField({
@@ -28,13 +30,15 @@ export function TextField({
   suffix,
   className,
   controlSize = 'md',
+  controlWidth,
   ...input
 }: TextFieldProps) {
   const generatedId = useId();
   const id = input.id ?? generatedId;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [input['aria-describedby'], errorId].filter(Boolean).join(' ') || undefined;
-  const cls = ['ds-field', `ds-field--${controlSize}`, error ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
+  const invalid = Boolean(error) || input['aria-invalid'] === true || input['aria-invalid'] === 'true';
+  const cls = ['ds-field', `ds-field--${controlSize}`, controlWidth ? `ds-field--${controlWidth}` : '', invalid ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
 
   return (
     <div className={cls}>

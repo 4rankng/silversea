@@ -10,7 +10,7 @@
 
    Field anatomy (operator reference 2026-09-27: "Từ 01/09/2026 → Đến
    30/09/2026"): the cue rides INSIDE the field as a prefix and the field's ONE
-   border sits on the wrapper — the shared `BufferedUuiDateInput` normally
+   border sits on an inner boundary — the shared `BufferedUuiDateInput` normally
    stacks label-over-control and paints the border on `.date-seg-group`, which
    left the cue floating above an uneven top edge. Only the `prefix` variant
    moves the border; every other consumer keeps the label-above anatomy.
@@ -21,8 +21,13 @@
 
 .date-range-fields {
   display: grid;
+  /* The pair occupies one complete host-grid row, including portalled filter
+     dialogs. A single half-row track cannot contain both DD/MM/YYYY fields.
+     Inline FilterBar flex sizing remains its shared context owner. */
+  grid-column: 1 / -1;
+  width: min(100%, 348px);
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
+  align-items: start;
   gap: 6px;
   min-width: 0;
   background: transparent;
@@ -41,54 +46,13 @@
   color: var(--ink-3);
   font-size: var(--text-control-compact-size);
   line-height: 1;
+  padding-top: calc((var(--uui-control-h, var(--filter-control-h)) - 1em) / 2);
   user-select: none;
 }
 
-/* --- Inline-prefix field (the from/to variant) ---------------------------
-   The wrapper becomes the field: one border, a row layout, and the cue first. */
-.date-range-fields > [data-input-wrapper][data-has-prefix] {
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  height: var(--uui-control-h, var(--control-default-h));
-  padding: 0 10px;
-  box-sizing: border-box;
-  background: var(--surface);
-  border: 1px solid var(--control-border, var(--line));
-  border-radius: 8px;
-}
-
-.date-range-fields > [data-input-wrapper][data-has-prefix]:focus-within {
-  border-color: var(--accent);
-  outline: 2px solid var(--focus, var(--accent));
-  outline-offset: 1px;
-}
-
-.date-range-fields > [data-input-wrapper][data-has-prefix] .uui-date-prefix {
-  flex: 0 0 auto;
-  margin: 0;
-  color: var(--ink-3);
-  font-size: var(--text-caption-size);
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-/* The segments lose the chrome the wrapper now owns — but keep their
-   `min-width: max-content` floor lowered to `auto`, because the wrapper's
-   padding and the prefix already reserve room for the glyphs. */
-.date-range-fields > [data-input-wrapper][data-has-prefix] .date-seg-group {
-  flex: 1 1 auto;
-  width: 100%;
-  min-width: 0;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-}
-
-.date-range-fields > [data-input-wrapper][data-has-prefix] .date-seg-group:focus-within {
-  outline: none;
-}
+/* BufferedUuiDateInput owns the prefix control border/state/geometry.
+   This pair owns only the two tracks; helpers stay below either endpoint
+   without moving its sibling control down. */
 
 /* Legacy label-above anatomy for any caller that renders no prefix. */
 .date-range-fields > [data-input-wrapper]:not([data-has-prefix]) [data-label],

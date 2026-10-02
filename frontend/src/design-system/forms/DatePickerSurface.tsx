@@ -17,7 +17,7 @@ export function DatePickerSurface({ id, label, value, min, max, onPick, onDismis
   const position = usePopoverPosition(panelRef, anchorRef, true, 280, 260);
   const blurFrame = useRef<number | null>(null);
   useFocusTrap(panelRef, keyboard);
-  useClickOutside(panelRef, onExit, { escapeKey: true, additionalRefs: [anchorRef, ...additionalRefs] });
+  useClickOutside(panelRef, onExit, { escapeKey: true, onEscape: onDismiss, additionalRefs: [anchorRef, ...additionalRefs] });
   useEffect(() => () => { if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current); }, []);
   const closeWhenFocusLeaves = (next: Node | null) => {
     if (![panelRef, anchorRef, ...additionalRefs].some((ref) => ref.current?.contains(next))) onExit();

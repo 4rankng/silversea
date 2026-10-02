@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UuiSelectField } from './UuiSelectField';
@@ -78,4 +79,46 @@ describe('searchable field catalogue refresh', () => {
     view.rerender(<UuiSelectField label="Tuyến" value="2" onChange={onChange} options={options.map(o => o.value === '2' ? { ...o, label: 'KCN Đông Mai' } : o)} />);
     expect(input).toHaveValue('KCN Đông Mai');
   });
+  function ControlledField({ initialValue = '1', notify }: { initialValue?: string; notify: (event: { target: { value: string } }) => void }) {
+    const [value, setValue] = useState(initialValue);
+    return <><UuiSelectField label="Tuyến" value={value} options={options} onChange={(event) => {
+      notify(event); setValue(event.target.value);
+    }} /><output aria-label="Tuyến đã chọn">{value}</output></>;
+  }
+
+  it.each(['1', ''])('closes a committed empty catalog option from value %j without replacing its placeholder', async (initialValue) => {
+    const notify = vi.fn();
+    render(<ControlledField initialValue={initialValue} notify={notify} />);
+    const input = screen.getByRole('combobox', { name: 'Tuyến' });
+    await act(async () => { input.focus(); fireEvent.click(input); });
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.click(await screen.findByRole('option', { name: 'Tất cả tuyến' }));
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+    expect(input).toHaveValue(''); expect(input).toHaveAttribute('placeholder', 'Tất cả tuyến');
+    expect(screen.getByLabelText('Tuyến đã chọn')).toBeEmptyDOMElement();
+    expect(notify).toHaveBeenCalledTimes(1); expect(notify).toHaveBeenCalledWith({ target: { value: '' } });
+    expect(input).toHaveFocus();
+    fireEvent.click(input); fireEvent.change(input, { target: { value: 'draft query' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+    expect(input).toHaveValue(''); expect(notify).toHaveBeenCalledTimes(1);
+  });
+
+  it('consumes normal and same-key picks before a later focused query is cleared', async () => {
+    const notify = vi.fn(); render(<ControlledField initialValue="" notify={notify} />);
+    const input = screen.getByRole('combobox', { name: 'Tuyến' });
+    for (let index = 0; index < 2; index++) {
+      await act(async () => { input.focus(); fireEvent.click(input); });
+      fireEvent.click(await screen.findByRole('option', { name: 'Hải Phòng — Quế Võ' }));
+      await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+      expect(screen.getByLabelText('Tuyến đã chọn')).toHaveTextContent('1');
+      expect(notify).toHaveBeenCalledTimes(index + 1);
+    }
+    fireEvent.click(input); fireEvent.change(input, { target: { value: '' } });
+    await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'true'));
+    expect(screen.getAllByRole('option')).toHaveLength(options.length);
+    expect(screen.getByLabelText('Tuyến đã chọn')).toHaveTextContent('1');
+    expect(notify).toHaveBeenCalledTimes(2);
+  });
+
 });

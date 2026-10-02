@@ -56,6 +56,8 @@ export interface UuiSelectFieldProps {
   popoverClassName?: string;
   /** Compact filters by default; ordinary form controls can opt into md. */
   size?: 'sm' | 'md';
+  /** Finite category pickers can keep a plain dropdown even with many choices. */
+  searchable?: boolean;
 }
 
 const EMPTY_SELECT_KEY = '__EMPTY_SELECT_VALUE__';
@@ -89,6 +91,7 @@ export function UuiSelectField({
   popoverClassName,
   icon,
   size = 'sm',
+  searchable,
 }: UuiSelectFieldProps) {
   const generatedId = useId();
   const messageId = `${id ?? generatedId}-message`;
@@ -112,7 +115,7 @@ export function UuiSelectField({
     setSearchText(selectedLabel);
   }, [value, selectedLabel]);
 
-  const isSearchable = options.length >= SEARCH_THRESHOLD;
+  const isSearchable = searchable ?? options.length >= SEARCH_THRESHOLD;
 
   return (
     <div className={classes}>

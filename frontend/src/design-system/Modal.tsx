@@ -188,7 +188,7 @@ export interface ModalProps {
   subtitle?: string;
   /** Right-aligned slot in the header — typically status chips. */
   headerRight?: React.ReactNode;
-  /** Enable the polished visual treatment (corner accents, gradient, eyebrow). */
+  /** Enable the house eyebrow/title treatment with white chrome and dividers. */
   polished?: boolean;
   /** Explicit accessible dialog name. Needed when `title` is a display name
    * (e.g. the entity's own name) so the dialog still announces the action.
@@ -301,7 +301,7 @@ export function Modal({
                 <h3 id={titleId} className="modal__title">{title}</h3>
               </div>
               {headerRight && <div className="modal__head-right">{headerRight}</div>}
-              <Tooltip label="Đóng (Esc)" side="bottom">
+              <Tooltip label="Đóng" side="bottom">
                 <button
                   className="btn btn--ghost btn--icon btn--sm modal__close"
                   onClick={handleClose}

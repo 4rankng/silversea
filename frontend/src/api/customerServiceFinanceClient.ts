@@ -15,8 +15,10 @@ export interface RecoverableCost {
   version: number;
   tripId: number;
   tripCode: string | null;
+  tripReference: string;
   shipmentId: number | null;
   shipmentCode: string | null;
+  shipmentReference: string;
   customerId: number;
   customerName: string;
   expenseType: string;

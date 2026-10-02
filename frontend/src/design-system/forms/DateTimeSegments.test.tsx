@@ -75,6 +75,24 @@ describe('DateTimeSegments', () => {
     expect(activeLabel()).toBe('Phút — test');
   });
 
+  it.each([
+    { part: 'date' as const, initial: '19/09/2026', segments: ['dd', 'mm2', 'yyyy'], partial: '/09/2026' },
+    { part: 'time' as const, initial: '08:30', segments: ['hh', 'mm'], partial: ':30' },
+  ])('emits empty only after every $part segment is cleared, preserving partial separators (UI50)', ({ part, initial, segments, partial }) => {
+    const changes: string[] = [];
+    function ClearHarness() {
+      const [current, setCurrent] = useState(initial);
+      return <DateTimeSegments id="clear" part={part} groupAriaLabel="clear" value={current}
+        onValueChange={next => { changes.push(next); setCurrent(next); }} onOpenPicker={() => {}} />;
+    }
+    render(<ClearHarness />);
+    type(segments[0], '');
+    expect(changes).toEqual([partial]);
+    for (const key of segments.slice(1)) type(key, '');
+    expect(changes.at(-1)).toBe('');
+    for (const key of segments) expect(seg(key)).toHaveValue('');
+  });
+
   it('walks day → month → year and ends naturally on the year (8)', () => {
     render(<Harness part="date" />);
     type('dd', '19');

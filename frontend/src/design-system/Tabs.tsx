@@ -1,4 +1,6 @@
-import { useId, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { Children, isValidElement, useId, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { UuiSelectField } from './forms/UuiSelectField';
 import './Tabs.css';
 
 /**
@@ -48,9 +50,21 @@ export interface TabsProps {
    *  one-panel-per-group pattern, e.g. the work inbox queues). */
   panelId?: string;
   className?: string;
+  /** Category filters can use the same dropdown on every viewport. */
+  presentation?: 'responsive' | 'select';
 }
 
-export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, panelId, className }: TabsProps) {
+function labelText(node: ReactNode): string {
+  return Children.toArray(node).map(child => {
+    if (typeof child === 'string' || typeof child === 'number') return String(child);
+    return isValidElement<{ children?: ReactNode }>(child) ? labelText(child.props.children) : '';
+  }).join(' ').replace(/\s+/g, ' ').trim();
+}
+
+export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, panelId, className, presentation = 'responsive' }: TabsProps) {
+  const narrow = useMediaQuery('(max-width: 767px)');
+  const coarse = useMediaQuery('(pointer: coarse)');
+  const asSelect = presentation === 'select' || (variant === 'boxed' && (narrow || coarse));
   const groupId = useId();
   const tablistRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -71,7 +85,7 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, pane
     const observer = new ResizeObserver(reveal);
     observer.observe(list);
     return () => observer.disconnect();
-  }, [value]);
+  }, [value, asSelect]);
   const tabbableId = tabs.find((tab) => tab.id === value && !tab.disabled)?.id
     ?? tabs.find((tab) => !tab.disabled)?.id;
   const variantClass = variant === 'boxed' ? 'd-tabs-boxed' : variant === 'bordered' ? 'd-tabs-border' : '';
@@ -97,8 +111,28 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, pane
     nextTab.click();
   };
 
+  if (asSelect) {
+    return (
+      <div className={['ds-tabs-category', className].filter(Boolean).join(' ')}>
+        <UuiSelectField
+          label={ariaLabel}
+          placeholder={ariaLabel}
+          hideLabel
+          searchable={false}
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          options={tabs.map(tab => ({
+            value: tab.id,
+            label: `${labelText(tab.label)}${tab.count === undefined ? '' : ` (${tab.count})`}`,
+            disabled: tab.disabled,
+          }))}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div ref={tablistRef} className={cls} role="tablist" aria-label={ariaLabel}>
+    <div ref={tablistRef} className={cls} data-control-group={variant === 'boxed' ? 'compact' : undefined} role="tablist" aria-label={ariaLabel}>
       {tabs.map((t) => {
         const isActive = t.id === value;
         return (

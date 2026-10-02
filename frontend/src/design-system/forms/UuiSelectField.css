@@ -22,6 +22,32 @@
    of widening a two-column form and scrolling its drawer horizontally. */
 .ds-uui-select__control { min-width: 0; }
 
+/* A labelled stacked field displays its complete selected value. The vendor's
+   nested truncate utilities otherwise hide words even when the outer field
+   fits. Inline/content filters keep their strip-owned compact geometry. */
+.ds-uui-select:has([data-label]):not(.ds-uui-select--inline):not(.ds-uui-select--content):not(.filter-bar .ds-uui-select) [data-uui-select-value],
+.ds-uui-select:has([data-label]):not(.ds-uui-select--inline):not(.ds-uui-select--content):not(.filter-bar .ds-uui-select) [data-uui-select-value] > section,
+.ds-uui-select:has([data-label]):not(.ds-uui-select--inline):not(.ds-uui-select--content):not(.filter-bar .ds-uui-select) [data-uui-select-value] > section > p {
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+
+.ds-uui-select:has([data-label]):not(.ds-uui-select--inline):not(.ds-uui-select--content):not(.filter-bar .ds-uui-select) [data-uui-select-value] > section {
+  flex: 1 1 auto;
+}
+
+/* The wrapper's existing content floor centers one or two value lines inside
+   the same boundary. Extra block padding must not inflate the40px touch field. */
+.ds-uui-select:has([data-label]):not(.ds-uui-select--inline):not(.ds-uui-select--content):not(.filter-bar .ds-uui-select) [data-uui-select-value] {
+  padding-block: 0;
+}
+
+.ds-uui-select:has([data-label]):not(.ds-uui-select--inline):not(.ds-uui-select--content):not(.filter-bar .ds-uui-select) [data-uui-select-value] > section > p {
+  line-height: var(--lh-snug);
+}
+
 /*
  * React Aria's Select renders its label as a `<span data-label="true">`
  * nested inside the control wrapper, not a direct `<label>` child — target
@@ -46,7 +72,8 @@
  * banned outright), and the list never spills past the phone viewport.
  */
 .ds-uui-select__popover {
-  min-width: 220px;
+  width: max-content;
+  min-width: min(max(220px, var(--trigger-width, 220px)), calc(100vw - 32px));
   max-width: calc(100vw - 32px);
 }
 
@@ -86,18 +113,40 @@
 /* React Aria renders the inline label as a span[data-label] INSIDE the
    control row, not a direct <label> child, so the guard above never matched
    it — tight filter toolbars (e.g. penalty log "Lái xe") squeezed the span
-   into a mid-word two-line stack. Keep it unsqueezable and on one line. */
-.ds-uui-select--inline [data-label] {
+   into a mid-word two-line stack. Hosted filter adapters use this same inner
+   row; their outer grid retains optional feedback below the control. Ordinary
+   forms and folded portalled filters retain their stacked field anatomy. */
+:is(.ds-uui-select--inline, .filter-bar .ds-uui-select) [data-label] {
   flex: 0 0 auto;
-  white-space: nowrap;
+  margin: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
-.ds-uui-select--inline .ds-uui-select__control {
+:is(.ds-uui-select--inline, .filter-bar .ds-uui-select) .ds-uui-select__control {
   flex: 1 1 auto;
   min-width: 140px;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+/* A visible inline label is additional to the trigger's width budget. The
+   old whole-field280px cap could not contain a98px label +8px seam +the
+   searchable control's existing200px minimum, so it painted over its sibling.
+   Reserve the combined intrinsic width; at a constrained boundary the inner
+   row wraps in normal flow. Feedback remains in the outer grid. The :has
+   guard leaves hidden-label, ordinary form and folded stacked caps intact. */
+.filter-bar .ds-uui-select:has(.ds-uui-select__control > [data-label]) {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.filter-bar .ds-uui-select:has(.ds-uui-select__control > [data-label]) .ds-uui-select__control > [data-uui-control] {
+  max-width: min(280px, 100%);
 }
 
 /* Content-sized variant: shrink the field to its label + control. */
@@ -105,15 +154,13 @@
   width: fit-content;
 }
 
-/*
- * Card 20260924_1 (image1, HIGH) — the shared untitled-ui Popover pins its
- * box to the trigger width (w-(--trigger-width)) with overflow-x-hidden, so
- * an option longer than a narrow trigger clipped mid-word with no ellipsis
- * ("Có hóa đơn · Nâ" at the ops-orders cost-group picker). min-width floors
- * the trigger width for short options and lets long options size the popover
- * (max-content of the nowrap option rows), so no label is ever cut — design
- * law §4, docs/design-guidelines.md. CSS-only: no select logic touched.
- */
-.ds-uui-select__popover {
-  min-width: max-content;
+/* A searchable input has no text-owned intrinsic width inside its inline-size
+   container. Give only that content variant a bounded preferred footprint;
+   finite Select values continue to own their natural width. */
+.ds-uui-select--content:has(.uui-combobox) {
+  width: min(200px, 100%);
 }
+
+/* Long options may expand beyond a compact trigger, then wrap inside the
+   viewport cap. An intrinsic minimum must never outrank that maximum.
+   The installed Select.Item already owns complete, normally wrapping labels. */

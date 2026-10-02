@@ -58,8 +58,8 @@ export const quotationClient = {
   get(id: number): Promise<QuotationView> {
     return api.get<QuotationView>(QUOTATION_PATHS.DETAIL(id));
   },
-  create(body: QuotationCreateInput): Promise<QuotationView> {
-    return api.post<QuotationView>(QUOTATION_PATHS.LIST, body, withIdempotencyKey());
+  create(body: QuotationCreateInput): Promise<{ id: number }> {
+    return api.post<{ id: number }>(QUOTATION_PATHS.LIST, body, withIdempotencyKey());
   },
   update(id: number, body: QuotationUpdateInput): Promise<QuotationView> {
     return api.put<QuotationView>(QUOTATION_PATHS.DETAIL(id), body, withIdempotencyKey());
