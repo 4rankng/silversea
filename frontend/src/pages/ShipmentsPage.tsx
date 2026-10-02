@@ -1,17 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw, Save } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ExternalLink, FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw, Save } from 'lucide-react';
 import {
-  CUS_SEARCH_PATTERN,
-  SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
-  SHIPMENT_CUS_BUCKET_LABELS,
-  SHIPMENT_DOCUMENT_CUSTODY_LABELS,
-  ShipmentCusBucket,
-  ShipmentDocumentCustody,
-  Role,
-  type ShipmentCusWorkspaceListItem,
-  type ShipmentCusWorkspaceListResponse,
-  type ShipmentCusWorkspaceSortKey,
+  CUS_SEARCH_PATTERN, SHIPMENT_CUS_WORKSPACE_SORT_KEYS, SHIPMENT_CUS_BUCKET_LABELS,
+  SHIPMENT_DOCUMENT_CUSTODY_LABELS, ShipmentCusBucket, ShipmentDocumentCustody, Role,
+  type ShipmentCusWorkspaceListItem, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { FilterDropdown } from '../components/FilterDropdown';
@@ -697,13 +690,8 @@ export default function ShipmentsPage() {
                   every state and answers with a reason (containers first, then
                   the lifecycle guard) instead of disappearing. */}
               <div className="cus-drawer-lot-bar">
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm cus-drawer-lot-delete"
-                  onClick={() => requestDeleteLot(drawerItem)}
-                >
-                  Xóa lô
-                </button>
+                <Link to={`/shipments/${drawerItem.id}`} className="btn btn--secondary btn--sm cus-drawer-lot-detail" title="Xem toàn màn hình chi tiết lô hàng" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><ExternalLink size={14} /> Chi tiết lô hàng</Link>
+                <button type="button" className="btn btn--ghost btn--sm cus-drawer-lot-delete" onClick={() => requestDeleteLot(drawerItem)}>Xóa lô</button>
                 {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
               </div>
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
