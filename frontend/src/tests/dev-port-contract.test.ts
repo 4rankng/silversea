@@ -115,8 +115,8 @@ describe('dev port contract', () => {
   });
 
   it('keeps the other active harness defaults on the same startup ports', () => {
-    const harnessFiles = ['scripts/lib/http.mjs', 'e2e/visual/lib/runner.py'];
-    for (const directory of ['scripts', 'e2e/visual/sections']) {
+    const harnessFiles = ['scripts/lib/http.mjs'];
+    for (const directory of ['scripts']) {
       for (const name of readdirSync(resolve(process.cwd(), '..', directory))) {
         if (name.endsWith('.mjs') || name.endsWith('.py')) harnessFiles.push(`${directory}/${name}`);
       }
@@ -133,9 +133,6 @@ describe('dev port contract', () => {
       }
     }
     expect(offenders).toEqual([]);
-    expect(repoFile('e2e/run_all.sh')).toContain(`SILVERSEA_FRONTEND_PORT:-${frontendPort}`);
-    expect(repoFile('e2e/run_all.sh')).toContain(`SILVERSEA_BACKEND_PORT:-${backendPort}`);
-    expect(repoFile('e2e/helpers.py')).toContain('resolve_targets(os.environ)');
   });
 
   it('has a preflight that fails loudly before measuring anything', () => {

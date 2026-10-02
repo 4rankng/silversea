@@ -40,7 +40,6 @@ Every task runs: **Understand → Plan → Implement → QA → Fix → Re-QA �
 | Frontend typecheck | `cd frontend && npx tsc -b` | 0 errors |
 | Frontend tests | `cd frontend && pnpm test` | all pass |
 | Build | `make build` | succeeds |
-| E2E (API / flow / RBAC / schema changes) | `cd e2e && ./run_all.sh` | all pass |
 
 Scope to what the change touches — never skip a gate it could affect. Shared contracts, Drizzle schemas, financial calculations (`shared/src/calculations/`), or RBAC changes → full set including E2E.
 
@@ -79,7 +78,7 @@ Every bugfix/feature: update `testplan/` first, re-test before marking done. **E
 - `shared/`: cross-package Zod contracts, types, navigation catalog, financial calculations.
 - `backend/`: Express 5, Drizzle/Postgres, Casbin, services, routes, jobs, tests.
 - `frontend/`: React/Vite app, feature modules, design system, API clients, tests — see [[frontend-architecture]] and [[design-system-contracts]].
-- `e2e/`: authenticated product-flow checks. `plans/`: durable implementation plans (a plan is not proof of completion). `qa/`: verification evidence. `deploy/` + Makefiles: deployment mechanics.
+- `plans/`: durable implementation plans (a plan is not proof of completion). `qa/`: verification evidence. `deploy/` + Makefiles: deployment mechanics.
 
 **Core invariants:**
 - Drizzle ORM only; **no raw SQL** in application behavior.

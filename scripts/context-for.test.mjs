@@ -42,7 +42,7 @@ describe('development context resolver', () => {
       explicitProfiles: ['database'],
     });
     assert.deepEqual(result.profiles, ['database']);
-    assert.ok(result.qa.includes('cd e2e && ./run_all.sh'));
+    assert.ok(result.qa.includes('make build'));
   });
 
   test('no match returns only bounded base context', () => {

@@ -1,264 +1,202 @@
 # AGENTS.md — SilverSea Agent Contract
 
-SilverSea (TransTing) is a road-freight transport management system: shipments, containers, trips, drivers, customs, and accounting. pnpm monorepo — `shared/` (Zod contracts, types, financial calculations), `backend/` (Express 5, Drizzle ORM + Postgres, Casbin RBAC), `frontend/` (React + Vite SPA), `e2e/` (authenticated product flows).
-
-**This file is the canonical contract for every agent runtime** (Claude Code, Codex, opencode, subagents). Other surfaces each serve one job: `CONTEXT.md` = what to load per task; `docs/` + `docs/adr/` = domain knowledge; `HANDOFF.md` = local task state. Nothing overrides this file except an explicit, current user decision.
+This is the canonical contract for Codex, Claude Code, opencode and subagents.
+SilverSea/TransTing is a pnpm transport-management monorepo: `shared/` contracts
+and calculations, `backend/` Express/Drizzle/Postgres/Casbin, and `frontend/`
+React/Vite. `CONTEXT.md` selects task context; `docs/` records
+product decisions; `HANDOFF.md` records local continuity, never product truth.
 
 ## 1. Authority order
 
-When sources disagree, use this order:
+1. Explicit current user decisions and accepted task scope.
+2. This contract: workflow, safety and completion requirements.
+3. Accepted decisions in `docs/adr/` and the PRD index `docs/prd/README.md`.
+   Pending proposals and document attachments are evidence, not approval.
+4. Current implementation, schemas, migrations and tests.
+5. Plans for future work; a plan is not completion evidence.
+6. Handoff history; verify branch, data, runtime and QA claims before reuse.
 
-1. Explicit user decisions and accepted scope for the current task.
-2. This contract (workflow, safety, Definition of Done).
-3. Accepted/modified SilverSea decisions in `docs/prd/business-logic-qa-proposals.md` — `pending` proposals are not approved requirements.
-4. Current code, schemas, tests, and migrations for implemented behavior.
-5. Active phase plans in `plans/` for intended future work — a plan is not proof of completion.
-6. `HANDOFF.md` for continuity only; verify drift-prone claims before acting.
+Final audit policies are in `docs/adr/2026-10-01-audit-todo-policy-rulings.md`:
+restricted CUS fee access, nonnegative trip inputs, DRAFT shipment creation with
+later progression. Do not reopen an owner decision without a new instruction.
 
 ## 2. Non-negotiables
 
-- **Trunk-based git.** No branches, no worktrees, no PRs against yourself (§4).
-- **Git history is append-only.** Never `reset`/`amend`/`rebase`/force-push; undo with `revert` or a forward fix.
-- **Production is untouchable.** No agent ever writes the prod database, logs into prod, or taps prod UI. Deploy only on explicit owner instruction; implementation authorization is never deploy authorization.
-- **Drizzle ORM only — no raw SQL** in application behavior. Financial precision only via `round2dp()` / `computeTripTotals()` (`shared/src/calculations/`).
-- **No stubs, mocks, `test.skip`, `TODO` placeholders, or fake data.** If a gate is red, fix the root cause — never weaken tests, `eslint-disable`, broaden types, or skip/delete failing tests.
-- **Never self-approve.** Authoring and review are separate passes; non-trivial changes go through `code-reviewer`/`verifier`.
-- **Never claim "tested"/"verified" without the evidence of the claimed rung (§9).** Lying about testing is worse than not testing.
-- **Testplan first.** Every bugfix/feature updates `testplan/` before it is done (§6).
-- **Tickets before fixes.** The card lands in TODO before any fix work starts.
-- **Sweep the class, not the instance.** Fix the instance and sweep the same defect class in the same breath.
-- **Internal IDs are never user-facing.** Số Bill / Số Booking is the display key.
+- Local development only by default. Never access production UI/database or
+  write production data. Deployment requires explicit owner instruction.
+- Trunk only: no new branches, worktrees or self-authored PRs. Append-only Git:
+  no reset, amend, rebase or force-push. Preserve unrelated work. See §4.
+- Drizzle for application database behavior; no raw SQL escape hatch.
+  Financial precision uses shared `round2dp()` / `computeTripTotals()`.
+- No stubs, fake data, mock replacements, skipped/deleted failing tests,
+  placeholder fixes, lint suppressions or widened types to make gates green.
+- Regression case and issue/TODO card before implementation. Fix the whole
+  defect class in its shared owner; sweep sibling consumers, not unrelated work.
+- Internal IDs never serve as display keys: use Số Bill / Số Booking.
+- Nontrivial changes require an independent code-reviewer/verifier pass.
+- Report only the execution and evidence obtained; §9 governs UI claims.
 
-## 3. Workflow: closed-loop SDLC
+## 3. Workflow and context
 
-Every task runs **Understand → Plan → Implement → QA → Fix → Re-QA → DONE**. "Done" means all gates green — not that code was written. Loop Fix ↔ Re-QA while any gate is red.
+Understand → Plan → Implement → QA → Fix → Re-QA → Done. Continue until affected
+checks pass; a written patch alone is not completion.
 
-### Context loading
+1. Read `CONTEXT.md`, then current `HANDOFF.md` if present.
+2. Run `pnpm context -- <path-or-task>`. Read returned sources and relevant code/
+   tests. If no profile matches, scout then select `--profile <profile-id>`.
+3. State output, acceptance criteria, scope, constraints and touchpoints.
+4. Record regression/TODO case, implement, run affected gates and obtain review.
+5. Controller alone updates the bounded handoff and runs `pnpm context:check`.
+   Subagents write `plans/.../reports/`; preserve concurrent work.
 
-1. Read `CONTEXT.md` and `HANDOFF.md` (if present). `HANDOFF.md` is local state, not product truth; keep it to the field list in `CONTEXT.md` ("Task state and handoff").
-2. Resolve task-specific context: `pnpm context -- <changed-path-or-task-keyword>`.
-3. Read only returned sources plus code around the target. No bulk-loading. If the resolver returns no profile: scout with `rg`/code intelligence first, then `pnpm context -- --profile <profile-id>`.
-4. State expected output, acceptance criteria, scope, constraints, and touchpoints before implementing.
-5. Before handoff: the controller updates `HANDOFF.md` and runs `pnpm context:check`. Subagents report via `plans/.../reports/` only.
+Select the smallest relevant skills, read each fully and announce why.
+Use `postgres-drizzle` for PostgreSQL/Drizzle work; also use
+`drizzle-safe-migrations` for backfills, constraints, deployment order/rollback.
+Match installed versions and repo pnpm commands. Never put secrets, customer
+records, machine paths or transient output into the context manifest.
 
-`.codex/context-manifest.json` must never contain secrets, machine-specific paths, customer data, or transient output.
+### Required UI routing
 
-### Skill selection
+Read `docs/design-system/README.md` and `docs/design-guidelines.md` before UI
+changes. One pattern, one shared implementation: never override shared design
+bands with page-local variants. Use the paid catalogs before inventing layouts:
 
-Before any task, select the smallest relevant skill(s). Read each `SKILL.md` fully before acting. Announce selections and why.
+| Catalog | Purpose | Required discovery |
+|---|---|---|
+| Untitled UI PRO | Component source | `search_components` / `get_page_templates`, then `get_component` / `get_component_bundle`; version 8, returned `pnpm uui:add:*` from frontend. `search_icons` for icon names. |
+| Tailkit UI | Layout reference | `browse_catalog` then `get_component_code` with actual plural ids such as `a-c-tables-13`. |
 
-**Mandatory tool routing:**
+Never paste Tailkit classes/dependencies: rebuild layout with house tokens.
+See `frontend/docs/untitled-ui.md` and `frontend/docs/tailkit-ui.md`. Record the
+catalog/component id consulted, or deliberately chosen house primitive and
+reason. If unavailable, record that limitation; do not pretend consultation.
 
-- **PostgreSQL / Drizzle ORM** → `postgres-drizzle` skill; match the installed Drizzle version and existing patterns. Data backfills, constraint tightening, deployment ordering, or rollback → also `drizzle-safe-migrations` (replace its generic examples with this repo's `pnpm` commands).
-- **Any UI/UX design problem** — layout, component choice, interaction pattern, form, table, dialog, empty state, density, visual polish → **use the paid UI catalogs before inventing anything.** Actively call them; not using them wastes the licence and produces worse UI.
+Current owner design decisions: opaque form surfaces; consistent emerald house
+tokens; ordinary controls at most 40px on every screen; coefficient 72×30px;
+compact facts and useful content density; responsive wrapping without clipping;
+rounded dialog corners clipped by the shared surface; dimmed dialog backdrop;
+errors in accessible toast/popover without filter-height jumps; visible filters
+when width permits; static status text must not look actionable. Retain all
+labels, values and keyboard access. No invented signed-trip-input permission.
 
-  | Catalog | Role | Tools |
-  |---|---|---|
-  | **Untitled UI PRO** (`untitledui` MCP) | The repo's component **source** | `search_components`, `get_page_templates` to discover · `get_component` / `get_component_bundle` for the install command · `search_icons` for exact `@untitledui/icons` names. Pass `version: 8`. Run the returned `pnpm uui:add:*` from `frontend/`. |
-  | **Tailkit UI** (`tailkit` MCP) | **Pattern reference only** | `browse_catalog` → real ids (they are **plural**: `a-c-tables-13`, `m-s-pricing-01`) · `get_component_code` for the layout idea. |
+Drive changed screens and affected siblings at 390/768/1440. Use
+`cd frontend && pnpm design:lock` only for an approved look. The full route
+sweep is `node role-ui-sweep.mjs` from frontend when required by task scope;
+explicit owner exclusions take precedence. Maximum five audit-owned Chrome
+windows concurrently; reuse them and preserve unrelated windows.
 
-  - **Never paste Tailkit class names into this repo.** Its components are built on a `secondary-{50..900}` colour ramp, `@headlessui/react`, and Heroicons `hi-*` classes this project does not have — it renders colourless or breaks the build. Take the *layout*, rebuild it in house tokens.
-  - Paths: [`frontend/docs/untitled-ui.md`](frontend/docs/untitled-ui.md) · [`frontend/docs/tailkit-ui.md`](frontend/docs/tailkit-ui.md).
-  - **Report which catalog you consulted** in the handoff, by component id (`a-c-tables-13`) or Untitled component name. A UI decision with no catalog consultation and no stated reason is an incomplete decision — the same bar as a UI claim with no screenshot.
+## 4. Git workflow
 
-- **Frontend UI work — required reading.** `docs/design-system/README.md` (the system map: which primitive does which job, what is banned, what enforces it) and `docs/design-guidelines.md` (the design law book: dated §-numbered rulings; every UI change obeys it). **One pattern, one implementation** — change the primitive and let pages inherit; never add a page-local variant, and never re-declare a rule a shared band already owns (a page rule with higher specificity silently outranks the band — both 2026-09-27 regressions were exactly this). Lock an approved look: `cd frontend && pnpm design:lock`; all-route × 390/768/1440 sweep: `node role-ui-sweep.mjs` from `frontend/`.
+Work in the existing trunk checkout, including an existing `prod` checkout.
+No `checkout -b`, `switch -c`, `branch` or `worktree add`. Surface existing
+branches/worktrees; obtain direction before merging/deleting them. Do not
+push or delete remote branches without explicit instruction. Fetch only when
+needed by authorized scope, such as a patch against the latest requested base.
 
-## 4. Git workflow: trunk-based only
+Land via affected green gates → independent review → trunk commit. Never bypass
+a failed gate to satisfy an automatic commit rule. Undo through revert/forward
+fix. For patch delivery preserve local changes; prove apply/reverse against the
+requested base in a plain directory without a branch/worktree or history rewrite.
 
-- Strict trunk-based development — all work lands on the trunk; the closed-loop SDLC is the safety model, not branches. (The prod deploy checkout lands directly on its `prod` branch under these same rules.)
-- **No branches.** Never `git checkout -b`, `git switch -c`, `git branch`, `git worktree add` — applies to skills and subagents too. Exactly one worktree at the repo root.
-- Commit directly to the trunk. Implement → QA gates → commit. If tooling refuses, commit anyway rather than branching.
-- **No PRs against yourself.** Code review happens through the fix-loop rules and `code-reviewer`/`verifier` agents.
-- **Existing branches/worktrees**: surface to the user; ask before merging or deleting.
-- **Remotes untouched unless asked.** No push, force-push, or remote branch deletion without explicit instruction.
+## 5. Affected QA gates
 
-## 5. QA gates (run after every implementation)
+Save exact command, complete output and exit status for each run under `qa/`.
+Run every gate the change can affect; fix failures rather than weakening checks.
 
-Run from repo root. **All gates the change can affect must be green.**
-
-| Gate | Command | Bar |
-|------|---------|-----|
-| Lint (root) | `pnpm lint` | 0 errors |
+| Gate | Command | Required result |
+|---|---|---|
+| Root lint | `pnpm lint` | 0 errors |
 | Backend typecheck | `cd backend && npx tsc --noEmit` | 0 errors |
 | Backend tests | `cd backend && pnpm test` | all pass |
 | Frontend typecheck | `cd frontend && npx tsc -b` | 0 errors |
 | Frontend tests | `cd frontend && pnpm test` | all pass |
 | Build | `make build` | succeeds |
-| E2E (API / flow / RBAC / schema changes) | `cd e2e && ./run_all.sh` | all pass |
 
-Scope to what the change touches — never skip a gate it could affect. Shared contracts, Drizzle schemas, financial calculations (`shared/src/calculations/`), or RBAC changes → the full set including E2E.
+Shared contracts, schema, RBAC or financial calculation changes require the full
+set. Docs-only changes require their context/link checks.
+The versioned hook `scripts/githooks/pre-commit` is wired through
+`core.hooksPath`/pnpm prepare. It typechecks affected packages and test files:
+backend test changes use test-inclusive tsconfig, not build-only config.
+A justified `--no-verify` is never evidence of a green compile gate.
 
-**Mechanical compile gate:** a versioned pre-commit hook (`scripts/githooks/pre-commit`, wired by `git config core.hooksPath scripts/githooks` — also auto-wired on `pnpm install` via the root `prepare` script) runs the typecheck table whenever staged files touch a project, and refuses the commit on failure. This enforces "QA gates → commit" for every session sharing this checkout, including sweep commits. Escape hatch: `git commit --no-verify` (justify in the commit body — a red trunk is worse than a delayed commit).
+## 6. Regression plan
 
-- **Test files are typechecked too (card 20260928_201).** `tsconfig.build.json` excludes `src/tests`, so the hook historically typechecked no test file at all and 4 real type errors reached two landings behind a green hook. When a staged file matches `backend/src/tests/**` or `*.test.ts` / `*.spec.ts`, the hook runs the test-inclusive `tsc --noEmit` (`tsconfig.json`, a strict superset of the build config) and refuses on any error. Commits touching no test file keep the cheaper build-only run. Proof: `qa/2026-09-28_card201_gate-proof.log`.
-- **`qa/` is gitignored, so the artifacts this file mandates do not travel with the repo** (`.gitignore:97` ignores `/qa/`; only `qa/qawave-driver.sh` is force-tracked). Save them locally as the gates require, but do not assume a reviewer or a fresh clone can see them.
+Before implementation, add every reported bug to `testplan/` with case ID,
+reproduction steps and expected behavior. Extend meaningful existing tests.
+Re-run the case before reporting completion; cite its ID and evidence.
 
-## 6. Testplan regression rule
+## 7. QA artifacts
 
-Every bugfix/feature: update `testplan/` first, re-test before marking done. **Every user-reported bug must also land a regression case in `testplan/`** (repro steps + expected behavior + case ID) before its fix is reported done, so the same bug cannot regress silently — cite the case ID in the fix report and re-run it before any deploy.
-
-## 7. QA artifacts (`qa/` — mandatory)
-
-Every QA run → one artifact under `qa/`. Pass or fail.
-
-- **Naming:** `qa/<YYYY-MM-DD>_<scope>_<gate>.<ext>` — e.g. `qa/2026-07-25_trip-status_backend-test.log`
-- **Content:** exact command, exit status, full output. Failures must include the fix-and-re-run that turned green.
-
-A task is not done without its QA artifacts saved.
+Naming: `qa/<YYYY-MM-DD>_<scope>_<gate>.<ext>`. Record pass and fail outputs,
+including the repair and green rerun. `qa/` is ignored except force-tracked
+artifacts; never assume these files exist in a fresh clone or delivered patch.
+Do not include accounts, secrets or private customer data in exported artifacts.
 
 ## 8. Definition of Done
 
-A task is done **only when all** are true:
+Behavior implemented and executed; all affected gates green; independent review
+resolved; no skip/stub/placeholder workaround; relevant docs/regressions updated;
+QA artifacts saved; UI claims satisfy §9 with design provenance. State remaining
+coverage explicitly. Never label partial implementation or packaging as complete
+product acceptance.
 
-1. Code implements the requested behavior — verified by running it.
-2. Every affected QA gate is green.
-3. Diff reviewed (self or reviewer) for correctness and scope creep.
-4. No `TODO`/`skip`/stub/placeholder in the changed surface.
-5. Docs updated if user-visible behavior, commands, or architecture changed.
-6. All QA artifacts saved under `qa/`.
-7. For any UI-facing bug or feature: the **UI verification contract** (§9) is satisfied per claim, **and** the paid UI catalogs were consulted per §3 routing — or a house primitive was chosen deliberately, with the reason stated.
+## 9. UI verification contract
 
-## 9. UI verification contract (anti-lying rule)
-
-Applies to every bug fix or feature with a user-visible surface, in local dev (`http://localhost:7175`) or staging (`https://vantai.tingting.vip/`).
-
-### The claim ladder — never skip a rung, always state which rung you are on
-
-| Rung | Label to use verbatim | What it means |
+| Rung | Label | Evidence |
 |---|---|---|
-| 0 | `NOT TESTED` | No code executed against this path. Reasoning only. |
-| 1 | `CODE-READ ONLY` | Read the code/schema. No execution. |
-| 2 | `DB/API VERIFIED` | Ran SQL or hit the API directly. **The UI was never driven.** |
-| 3 | `UI DRIVEN` | Clicked the actual control in a real browser session, captured the resulting DOM/screenshot, and confirmed the DB side effect. |
+| 0 | NOT TESTED | No execution of this path. |
+| 1 | CODE-READ ONLY | Source/schema review, no real UI execution. |
+| 2 | DB/API VERIFIED | Actual database/API evidence; UI not driven. |
+| 3 | UI DRIVEN | Actual control clicked; screenshot/DOM and persisted side effect captured. |
 
-### Rules
+Use a rung per bug, never transfer coverage between bugs. Automated unit/compile
+results are separately stated; they do not imply UI DRIVEN. Reserve UI behavior
+claims such as "works end-to-end" or "fixed and tested" for rung 3.
 
-- The words *tested*, *verified*, *works end-to-end*, *confirmed*, *fixed and tested* are reserved for **rung 3 only**. Rung 2 must be reported as "DB/API verified, UI not driven".
-- Reasoning from code + a DB query is **rung 2**, never rung 3.
-- One rung label **per bug/claim**, not per session. Bug A's rung-3 evidence never implies coverage of bug B.
-- State the environment for any UI claim: local dev or staging, account used, and the concrete object tested (BL / shipment code / plate).
+Default: drive the real changed control before the report. Prepare local auth/
+server first (`puppeteer-spa-auth`, `make dev`); inject token before SPA navigation
+and ensure the screenshot is the actual target, not login. Capture real errors.
+Do not promise a click after handoff or ask the user to do authorized local QA.
+If execution fails, say which path failed, why and its actual rung; retain the
+failure evidence. Explicitly excluded exhaustive visual sweeps are not blockers
+for scoped fixes, but do not imply omitted paths passed.
 
-### Default action: click
+A UI DRIVEN claim requires paths to all four:
+1. Screenshot after the click: `qa/<date>_<scope>_ui-<step>.png`.
+2. Post-click DOM/text assertion with actual success/error text.
+3. Database side-effect proof (query and row output); for read-only changes,
+   capture unchanged relevant persisted state and expected API/data identity.
+4. Driver command/script log with exit status: `qa/<date>_<scope>_ui-driver.log`.
 
-The expected and default action for a UI bug is to **click the actual button in a real browser and observe the real outcome.** Reasoning from code is the fallback, not the shortcut.
+Record environment, account role, concrete Bill/Booking/plate and catalog/
+component provenance. UI tasks end with this coverage table; every Not covered
+cell names an actual limit (roles, widths, staging, error/rollback path):
 
-- **Do not avoid clicking.** "The user can verify in their browser", "the logic clearly handles this", "skipping the click to save time" are all **refusals to test** — treat them as such and click.
-- **Do not be afraid of the click.** A red error toast, a 500, a broken dialog is *useful evidence*. Catching it in QA is the whole point; clicking and seeing the failure beats reasoning and reporting a fake pass.
-- **Do not be lazy about setup.** If the driver / auth / dev server isn't ready, set it up first (`puppeteer-spa-auth` skill, `make dev`, seed data), then click. Don't downgrade the claim because the harness was inconvenient.
-- **No "I'll do it later".** A click promised after the report is a click that will never happen. Click before writing "fixed".
-- **No "the dialog is already open, let me just describe it".** Describe = rung 1. Click = rung 3. The difference is non-negotiable.
-
-### Rung 3 requires artifacts — no artifact, no claim
-
-A `UI DRIVEN` claim is valid only if all four exist and are referenced by path in the report:
-
-1. **Screenshot after the click** → `qa/<YYYY-MM-DD>_<scope>_ui-<step>.png`
-2. **Post-click DOM/text assertion** showing the expected success or error state (the actual toast/row/status text, quoted).
-3. **DB side-effect proof** — the query and its row output (e.g. new `trip` row, updated status).
-4. **Driver log** → `qa/<YYYY-MM-DD>_<scope>_ui-driver.log` — the script/commands run, exit status.
-
-Auth for headless runs: the `puppeteer-spa-auth` skill (`evaluateOnNewDocument` injects the token **before** first navigation) — otherwise the SPA silently redirects to login and you will screenshot a login page and call it a pass.
-
-### Mandatory coverage report — end every UI task with this block
-
-```
-## Verification coverage
 | Claim / bug | Rung | Evidence | Not covered |
 |---|---|---|---|
-| <bug A>     | UI DRIVEN | qa/…png, qa/…log, trip id=14 | mobile viewport, FORWARDER role |
-| <bug B>     | DB/API VERIFIED | psql output | never clicked "Thêm nhà xe" |
-```
+| Specific claim | UI DRIVEN or lower rung | artifact paths | explicit limits |
 
-The **Not covered** column must never be empty or "n/a". If nothing else comes to mind, list at least: other roles, mobile viewport, staging vs local, and the error/rollback path. Omitting this block means the task is not done.
+## 10. Tracker and domain
 
-### Design provenance — the licensed catalogs are part of the evidence
+GitHub Issues: `4rankng/silversea` via gh; see `docs/agents/issue-tracker.md`.
+Canonical triage labels: `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`; see `docs/agents/triage-labels.md`.
+Domain loading: `CONTEXT.md` and `docs/adr/`; see `docs/agents/domain.md`.
 
-A UI claim is only complete if you can say where the design came from.
+## 11. Environment and source navigation
 
-- **State the catalog and the component** you consulted: a Tailkit id (`a-c-tables-13`) or the Untitled UI component name from `frontend/src/components/untitled-ui/installed.json`.
-- **Inventing a pattern without looking is a defect**, not a shortcut — it is the named anti-pattern in the design law book ("reference before invention"). The catalogs are licensed; the point of the licence is that agents actually open them.
-- Choosing an **existing house primitive** is a legitimate answer — say so, and say why the catalog search confirmed nothing better fits. Silence is what fails.
-- Both catalogs are **dark-mode- and brand-blind**: their output is a *layout idea* that must be rebuilt in house tokens. The app is light-only and the brand is TransTing emerald. See [`frontend/docs/tailkit-ui.md`](frontend/docs/tailkit-ui.md) for the port checklist.
+`make dev`: Postgres :5441, Redis :6391, backend :3002, frontend :7175,
+Adminer :8083. First setup: `make setup`; health `http://localhost:3002/api/health`.
+All accounts belong only in `testplan/testaccounts.txt`; never duplicate them.
+Backend layering: `docs/backend-architecture.md`; context guidance:
+`CONTEXT.md`. Production prohibition remains in §2.
 
-### Prohibited phrasings
-
-- ❌ "Verified: the fix works end-to-end" without rung-3 artifacts for *that specific* claim.
-- ❌ Reporting multiple bugs under one blanket "tested and fixed".
-- ❌ "should now work", "this will fix it" dressed up as verification.
-- ❌ Silently downgrading: if the driver failed, report `NOT TESTED — driver failed: <reason>`, never rung-2 wording that sounds like rung 3.
-
-### When you cannot drive the UI
-
-Say so in the first sentence of the report: *"I could not drive the UI for X because Y. Rung: DB/API VERIFIED only."* Then ask whether to invest in the driver or hand the click-through to the user. Do **not** proceed to a confident summary.
-
-## 10. Agent skills
-
-### Issue tracker
-
-Issues live in GitHub Issues (`4rankng/silversea`, via the `gh` CLI). See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical triage labels are used as-is (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (the pnpm packages are layers of one product sharing one domain language). See `docs/agents/domain.md`.
-
-## 11. Environment & accounts
-
-- **Backend architecture:** [`docs/backend-architecture.md`](docs/backend-architecture.md) — layering rules, naming, god-file split, add-an-entity path; enforced by `backend/src/tests/unit/arch-layering.test.ts`.
-- **Context engineering:** [`docs/context-engineering/playbook.md`](docs/context-engineering/playbook.md)
-- Start: `make dev` → Postgres `:5441` · Redis `:6391` · Backend `:3002` · Frontend `:7175` · Adminer `:8083`. First-time setup: `make setup`.
-- Backend health: http://localhost:3002/api/health
-- All logins for every environment are centralized in [`testplan/testaccounts.txt`](testplan/testaccounts.txt) — users, roles, URLs, the shared password rule, and scripted-testing API notes. Do NOT add or duplicate account data anywhere else; update the canonical file only.
-- Staging: https://vantai.tingting.vip/
-
-<!-- code-review-graph MCP tools -->
-## MCP Tools: code-review-graph
-
-**This project has a knowledge graph. Start with the code-review-graph
-MCP tools to narrow scope, then read the source.** The graph is cheaper than scanning files and
-gives you structural context (callers, dependents, test coverage) that file search cannot.
-
-### When to use graph tools FIRST
-
-- **Exploring code**: `semantic_search_nodes_tool` or `query_graph_tool` instead of Grep
-- **Understanding impact**: `get_impact_radius_tool` instead of manually tracing imports
-- **Code review**: `detect_changes_tool` + `get_review_context_tool` instead of reading entire files
-- **Finding relationships**: `query_graph_tool` with callers_of/callees_of/imports_of/tests_for
-- **Architecture questions**: `get_architecture_overview_tool` + `list_communities_tool`
-
-### Verify in the source
-
-- Narrow scope with the graph, then read the source. Do not change code from graph output alone.
-- For any non-trivial change, read the implementation and the relevant tests before concluding.
-- Verify the exact source when touching behavior, database logic, migrations, retries, fallbacks,
-  recovery, or compatibility code.
-- When the graph and the source disagree, the source wins. The graph may be stale or may not
-  model that relationship.
-- An empty graph result can mean "not indexed" or "not statically visible", not "does not exist".
-
-### Key Tools
-
-| Tool | Use when |
-| ------ | ---------- |
-| `detect_changes_tool` | Reviewing code changes — gives risk-scored analysis |
-| `get_review_context_tool` | Need source snippets for review — token-efficient |
-| `get_impact_radius_tool` | Understanding blast radius of a change |
-| `get_affected_flows_tool` | Finding which execution paths are impacted |
-| `query_graph_tool` | Tracing callers, callees, imports, tests, dependencies |
-| `semantic_search_nodes_tool` | Finding functions/classes by name or keyword |
-| `get_architecture_overview_tool` | Understanding high-level codebase structure |
-| `refactor_tool` | Planning renames, finding dead code |
-
-### Workflow
-
-1. The graph auto-updates on file changes (via hooks).
-2. Use `detect_changes_tool` for code review.
-3. Use `get_affected_flows_tool` to understand impact.
-4. Use `query_graph_tool` pattern="tests_for" to check coverage.
-<!-- /code-review-graph MCP tools -->
+Use available code-review-graph tools first to narrow code/impact/review scope,
+then verify source and relevant tests. Empty/unindexed graph results are not
+negative evidence; fall back to scoped source searches. Useful tools:
+`semantic_search_nodes_tool`, `query_graph_tool`, `get_impact_radius_tool`,
+`detect_changes_tool`, `get_review_context_tool`, `get_affected_flows_tool`.
+Source wins when a graph is stale or models a relationship incompletely.
 
 <!-- REPOWISE_AGENTS:START — Do not edit below this line. Auto-generated by Repowise. -->
 ## Codebase Intelligence for silversea-prod (Repowise)
