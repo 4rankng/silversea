@@ -136,8 +136,6 @@ export function displayNote(note: string | null | undefined): string {
 export interface QuickEditDeclarationRow {
   id: number | null;
   declarationNumber: string;
-  // Luồng hải quan (card _5) — assigned by Customs per tờ khai; '' = unset.
-  declarationChannel: '' | 'RED' | 'YELLOW' | 'GREEN';
   declarationIssuedAt: string | null;
   declarationScope: 'SINGLE' | 'SHARED' | null;
   declarationNote: string | null;

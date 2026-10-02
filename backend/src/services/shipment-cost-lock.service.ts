@@ -16,7 +16,6 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { computeLotPayablesBreakdown } from './lot-payables.service';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
-import { getLotDeclaredChannel } from './shipment-documents.service';
 import { documentVatTotals, VAT_TREATMENT_VERSION } from './billing-document-shared.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
 
@@ -82,11 +81,6 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
   const summary = await getShipmentDebitSummary({ customerId: lot.customerId!, lockStatus: 'ALL' });
   const item = summary.items.find((row) => row.shipmentId === shipmentId);
   const payables = await computeLotPayablesBreakdown(shipmentId);
-  // Card 20260919_5 freeze contract: the declared channel belongs to the
-  // snapshot so a later re-declaration cannot rewrite an issued note. The
-  // pick is the shared deterministic one (newest declaration, id desc) —
-  // the frozen value always equals what the wire displayed at freeze time.
-  const customsChannel = await getLotDeclaredChannel(shipmentId);
   // Freeze contract: port labels join the frozen basis — a rename after the
   // lock must not rewrite the issued note's lift/drop columns. Per-container
   // capture (catalog labels + ad-hoc raw names); old snapshots lack the key
@@ -136,7 +130,6 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
     unclassifiedFee: payables.unclassifiedFee,
     opsExpenseTotal: payables.opsExpenseTotal,
     payableTotal: payables.payableTotal,
-    customsChannel,
     portLabels,
     zoneSurcharge: await resolveLotZoneSurcharge(shipmentId),
   };

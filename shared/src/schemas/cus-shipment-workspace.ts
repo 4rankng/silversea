@@ -341,14 +341,12 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
     declarationIssuedAt: z.string().datetime().nullable(),
     declarationScope: z.enum(['SINGLE', 'SHARED']).nullable(),
     declarationNote: z.string().nullable(),
-    declarationChannel: z.enum(['RED', 'YELLOW', 'GREEN']).nullable().optional(),
     // Card 20260921_3: every declaration row of the lot (id-asc), so the
     // documents quick-edit can manage the full list and the row column can
     // join all numbers. Optional for raw producers that predate the field.
     declarations: z.array(z.object({
       id: z.number().int().positive(),
       declarationNumber: z.string().nullable(),
-      channel: z.enum(['RED', 'YELLOW', 'GREEN']).nullable(),
       // Whole-row PUT contract: the modal resends these verbatim so the
       // endpoint's unconditional set never wipes existing metadata.
       issuedAt: z.string().datetime().nullable(),

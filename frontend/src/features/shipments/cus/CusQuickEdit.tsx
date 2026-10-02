@@ -6,13 +6,6 @@ import { TimeInput } from '../../../design-system/forms/TimeInput';
 import { BufferedUuiDateInput, UuiSelectField } from '../../../design-system';
 import { vehicleReadinessLabel, type QuickEditDeclarationRow, type ShipmentQuickEditDraft } from './cusUtils';
 
-const DECLARATION_CHANNEL_OPTIONS: Array<{ value: QuickEditDeclarationRow['declarationChannel']; label: string }> = [
-  { value: '', label: '— Chưa có —' },
-  { value: 'RED', label: 'Luồng đỏ' },
-  { value: 'YELLOW', label: 'Luồng vàng' },
-  { value: 'GREEN', label: 'Luồng xanh' },
-];
-
 export function ShipmentQuickEditFields({
   draft,
   item,
@@ -29,13 +22,13 @@ export function ShipmentQuickEditFields({
   const update = (patch: Partial<ShipmentQuickEditDraft>) => onChange({ ...draft, ...patch });
   const documentDirection = draft.tradeDirection || item.direction || '';
 
-  // Card 20260921_3: each tờ khai row edits its own number + luồng; add/remove
-  // happen in the draft only — nothing persists until Lưu thay đổi.
+  // Card 20260921_3: each tờ khai row edits its own number; add/remove happen
+  // in the draft only — nothing persists until Lưu thay đổi.
   const updateDeclarationRow = (index: number, patch: Partial<QuickEditDeclarationRow>) => {
     update({ declarations: draft.declarations.map((row, i) => i === index ? { ...row, ...patch } : row) });
   };
   const addDeclarationRow = () => {
-    update({ declarations: [...draft.declarations, { id: null, declarationNumber: '', declarationChannel: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null }] });
+    update({ declarations: [...draft.declarations, { id: null, declarationNumber: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null }] });
   };
   const removeDeclarationRow = (index: number) => {
     update({ declarations: draft.declarations.filter((_, i) => i !== index) });
@@ -57,15 +50,6 @@ export function ShipmentQuickEditFields({
               <label className="cus-quick-edit-modal__declaration-number"><span>Số tờ khai</span>
                 <input value={row.declarationNumber} onChange={(event) => updateDeclarationRow(index, { declarationNumber: event.target.value })} maxLength={50} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason} />
               </label>
-              <div className="cus-quick-edit-modal__declaration-channel" title={item.fieldAccess.declarationNumber.reason}>
-                <UuiSelectField
-                  label="Luồng hải quan"
-                  value={row.declarationChannel}
-                  onChange={(event) => updateDeclarationRow(index, { declarationChannel: event.target.value as QuickEditDeclarationRow['declarationChannel'] })}
-                  disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'}
-                  options={DECLARATION_CHANNEL_OPTIONS}
-                />
-              </div>
               <button type="button" className="btn btn--secondary btn--sm cus-quick-edit-modal__declaration-remove" onClick={() => removeDeclarationRow(index)} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} aria-label={`Xóa tờ khai ${row.declarationNumber.trim() || 'trống'}`}>
                 <X size={14} aria-hidden="true" />
                 <span className="sr-only">Xóa tờ khai</span>

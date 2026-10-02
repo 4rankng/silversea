@@ -395,12 +395,10 @@ function buildListItem(
       declarationIssuedAt: declaration?.issuedAt?.toISOString() ?? null,
       declarationScope: declaration?.scope ?? null,
       declarationNote: trimOrNull(declaration?.note),
-      declarationChannel: declaration?.channel ?? null,
       // Full id-asc list for the documents quick-edit (card 20260921_3).
       declarations: declarations.map((item) => ({
         id: item.id,
         declarationNumber: trimOrNull(item.declarationNumber),
-        channel: item.channel,
         issuedAt: item.issuedAt?.toISOString() ?? null,
         scope: item.scope,
         note: trimOrNull(item.note),

@@ -135,6 +135,7 @@ changes or idx 92's `when` in the journal moves off 1789744800000).
 | 103 | 20260919213000_align_expense_type_invoice_policy | the five codes return 0 rows on prod (seed differs from dev) — UPDATE matches nothing | absent — applies as no-op |
 | 104 | 20260919161608_shipment_code_counter | table absent | absent — applies fresh |
 | 105 | 20260919163645_port_zone_surcharges | table absent | absent — applies fresh |
+| 106 | 20261002161654_drop_declaration_customs_channel | `shipment_declarations.channel` column absent (dropped — card 20261002_262) | absent — applies fresh |
 
 No interleaving: applied = {92} is a clean prefix of the re-apply window;
 absent = {93–105} contiguous. Migrator semantics (drizzle-orm 0.45.2

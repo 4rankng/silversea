@@ -47,7 +47,6 @@ export function seedDeclarationRows(item: ShipmentCusWorkspaceListItem): QuickEd
   return (item.raw.declarations ?? []).map((row) => ({
     id: row.id,
     declarationNumber: row.declarationNumber ?? '',
-    declarationChannel: row.channel ?? '',
     declarationIssuedAt: row.issuedAt ?? null,
     declarationScope: row.scope ?? null,
     declarationNote: row.note ?? null,
@@ -64,11 +63,10 @@ export interface QuickEditDeclarationDiff {
 }
 
 /** Row body for PUT/POST — mirrors the API's whole-row PUT contract: number
- * trim-to-null, '' channel → null, metadata resent verbatim. */
+ * trim-to-null, metadata resent verbatim. */
 function declarationRowBody(row: QuickEditDeclarationRow): QuickEditDeclarationBody {
   return {
     declarationNumber: row.declarationNumber.trim() || null,
-    channel: row.declarationChannel || null,
     issuedAt: row.declarationIssuedAt,
     scope: row.declarationScope ?? undefined,
     note: row.declarationNote,
@@ -77,9 +75,9 @@ function declarationRowBody(row: QuickEditDeclarationRow): QuickEditDeclarationB
 
 /**
  * Diff the draft rows against the stored rows (card 20260921_3). Existing rows
- * PUT the whole row when number or channel changed; brand-new rows POST only
- * when they carry a number or a channel (a fully blank added row is a modal-
- * local no-op); stored ids missing from the draft delete.
+ * PUT the whole row when the number changed; brand-new rows POST only when
+ * they carry a number (a fully blank added row is a modal-local no-op);
+ * stored ids missing from the draft delete.
  */
 export function diffQuickEditDeclarations(draft: ShipmentQuickEditDraft, item: ShipmentCusWorkspaceListItem): QuickEditDeclarationDiff {
   const stored = item.raw.declarations ?? [];
@@ -89,14 +87,13 @@ export function diffQuickEditDeclarations(draft: ShipmentQuickEditDraft, item: S
   for (const row of draft.declarations) {
     const number = row.declarationNumber.trim();
     if (row.id == null) {
-      if (number || row.declarationChannel) diff.creates.push(declarationRowBody(row));
+      if (number) diff.creates.push(declarationRowBody(row));
       continue;
     }
     if (!storedById.has(row.id)) continue; // stale id: the refetch reconciles
     keptIds.add(row.id);
     const source = storedById.get(row.id)!;
-    const changed = number !== (source.declarationNumber ?? '')
-      || (row.declarationChannel || null) !== (source.channel ?? null);
+    const changed = number !== (source.declarationNumber ?? '');
     if (changed) diff.updates.push({ id: row.id, body: declarationRowBody(row) });
   }
   // Deletes come from the SEED ids the modal opened with: a stored id the

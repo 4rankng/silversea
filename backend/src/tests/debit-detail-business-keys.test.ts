@@ -52,8 +52,8 @@ describe('debit-detail wire carries business keys, never ids', () => {
   test('an EXPORT lot renders Số Booking + tờ khai and parses against the wire schema', async () => {
     const shipmentId = await mkLot('EXPORT', { bookingRef: `BOOK-${suffix}` });
     await db.insert(s.shipmentDeclarations).values([
-      { shipmentId, declarationNumber: `DECL-A-${suffix}`, channel: 'GREEN' as const },
-      { shipmentId, declarationNumber: `DECL-B-${suffix}`, channel: 'RED' as const },
+      { shipmentId, declarationNumber: `DECL-A-${suffix}` },
+      { shipmentId, declarationNumber: `DECL-B-${suffix}` },
     ]);
 
     const detail = await getShipmentDebitDetail(shipmentId);

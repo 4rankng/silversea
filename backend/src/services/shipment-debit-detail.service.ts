@@ -17,7 +17,6 @@ import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { runIdempotent } from './idempotency.service';
 import { assertShipmentCostUnlocked, SHIPMENT_COST_LOCKED_MESSAGE } from './shipment-cost-lock.service';
-import { getLotDeclaredChannel } from './shipment-documents.service';
 import { activeTripConditions } from './active-trip-scope';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
@@ -75,10 +74,6 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     .map((row) => row.declarationNumber)
     .filter((value): value is string => value != null && value !== '')
     .join(', ') || null;
-  // Card 20260919_5 producer contract: the declared channel rides top-level
-  // (lot-level attribute — every container row renders the same value).
-  const customsChannel = await getLotDeclaredChannel(shipmentId);
-
   // Frozen port labels (card 20260919_35): locked lots read their lift/drop
   // site labels from the snapshot; unlocked lots and old locks read null and
   // the client falls back to the live label.
@@ -455,7 +450,6 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     unattachedTrips: unattachedSections,
     payables,
     thuKhachTotal: hasChiHoData ? thuKhachTotal : null,
-    customsChannel,
     bookingRef: shipment.bookingRef ?? null,
     billNumber: shipment.blNumber ?? null,
     declarationNumber: lotDeclarationNumber,

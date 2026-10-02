@@ -116,7 +116,7 @@ describe('isQuickEditUnchanged', () => {
   it('documents: declaration list diff ignored when READ_ONLY', () => {
     const item = makeItem();
     const withNewRow = draftFrom(item, 'documents');
-    withNewRow.declarations = [...withNewRow.declarations, { id: null, declarationNumber: 'TK-NEW', declarationChannel: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
+    withNewRow.declarations = [...withNewRow.declarations, { id: null, declarationNumber: 'TK-NEW', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
     expect(isQuickEditUnchanged(withNewRow, item)).toBe(false);
     const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'locked' } } });
     expect(isQuickEditUnchanged(draftFrom(locked, 'documents', {}), locked)).toBe(true);
@@ -266,9 +266,6 @@ describe('declaration upsert rules', () => {
       id: 11,
       body: {
         declarationNumber: null,
-        // Card _5: the body always states the channel — null = cleared, never
-        // an accidental keep.
-        channel: null,
         issuedAt: '2026-08-31T02:00:00.000Z',
         scope: 'SINGLE',
         note: 'ghi-chu-to-khai',
@@ -279,51 +276,15 @@ describe('declaration upsert rules', () => {
   });
 });
 
-describe('declaration channel (card _5, row-level)', () => {
-  it('seeds each draft row with its stored channel', () => {
-    const channeled = makeItem({ raw: { declarations: [{ id: 11, declarationNumber: 'TK789', channel: 'YELLOW', issuedAt: null, scope: 'SINGLE', note: null }] } });
-    expect(draftFrom(channeled, 'documents').declarations[0].declarationChannel).toBe('YELLOW');
-    expect(draftFrom(makeItem(), 'documents').declarations[0].declarationChannel).toBe('');
-  });
-
-  it('fires the declaration save for a channel-only change on an existing row', () => {
-    const base = makeItem();
-    const red = draftFrom(base, 'documents');
-    red.declarations[0].declarationChannel = 'RED';
-    expect(quickEditDeclarationChanged(red, base)).toBe(true);
-    expect(isQuickEditUnchanged(red, base)).toBe(false);
-    // Untouched rows stay unchanged — the PUT never fires.
-    expect(isQuickEditUnchanged(draftFrom(base, 'documents'), base)).toBe(true);
-  });
-
-  it('carries the channel in the update body, unset as null', () => {
-    const base = makeItem();
-    const green = draftFrom(base, 'documents');
-    green.declarations[0].declarationChannel = 'GREEN';
-    const diff = diffQuickEditDeclarations(green, base);
-    expect(diff.updates).toHaveLength(1);
-    expect(diff.updates[0].body.channel).toBe('GREEN');
-    expect(diffQuickEditDeclarations(draftFrom(base, 'documents'), base).updates[0]?.body.channel ?? null).toBeNull();
-  });
-
-  it('keeps a READ_ONLY declaration number gating the channel too', () => {
-    const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'locked' } } });
-    const red = draftFrom(locked, 'documents');
-    red.declarations[0].declarationChannel = 'RED';
-    expect(quickEditDeclarationChanged(red, locked)).toBe(false);
-  });
-});
-
 describe('multi-row diff (card 20260921_3)', () => {
-  it('creates a POST only for a new row carrying a number or channel', () => {
+  it('creates a POST only for a new row carrying a number', () => {
     const item = makeItem();
     const draft = draftFrom(item, 'documents');
-    draft.declarations.push({ id: null, declarationNumber: 'TK-2', declarationChannel: 'YELLOW', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
-    draft.declarations.push({ id: null, declarationNumber: '', declarationChannel: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
+    draft.declarations.push({ id: null, declarationNumber: 'TK-2', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
+    draft.declarations.push({ id: null, declarationNumber: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
     const diff = diffQuickEditDeclarations(draft, item);
     expect(diff.creates).toEqual([{
       declarationNumber: 'TK-2',
-      channel: 'YELLOW',
       issuedAt: null,
       scope: undefined,
       note: null,
@@ -345,7 +306,7 @@ describe('multi-row diff (card 20260921_3)', () => {
   it('ignores stale ids for writes but still deletes seed rows absent from the draft', () => {
     const item = makeItem();
     const draft = draftFrom(item, 'documents');
-    draft.declarations = [{ id: 999, declarationNumber: 'GHOST', declarationChannel: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
+    draft.declarations = [{ id: 999, declarationNumber: 'GHOST', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
     const diff = diffQuickEditDeclarations(draft, item);
     // Ghost 999 produces no write; seed row 11 was removed in the modal, so
     // it deletes. A row ADDED concurrently (never seeded) can never delete.
@@ -357,7 +318,7 @@ describe('multi-row diff (card 20260921_3)', () => {
   it('never deletes a declaration added concurrently after the modal opened', () => {
     const item = makeItem();
     const draft = draftFrom(item, 'documents');
-    item.raw = { ...item.raw, declarations: [...(item.raw.declarations ?? []), { id: 12, declarationNumber: 'TK-CONCURRENT', channel: null, issuedAt: null, scope: 'SINGLE', note: null }] };
+    item.raw = { ...item.raw, declarations: [...(item.raw.declarations ?? []), { id: 12, declarationNumber: 'TK-CONCURRENT', issuedAt: null, scope: 'SINGLE', note: null }] };
     const diff = diffQuickEditDeclarations(draft, item);
     expect(diff.deletes).toEqual([]);
     expect(diff.updates).toEqual([]);

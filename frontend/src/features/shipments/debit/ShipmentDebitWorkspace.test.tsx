@@ -322,19 +322,6 @@ describe('Bảng 2.1 wire contract (card _7)', () => {
     expect(screen.getByText('4.800.000')).toBeTruthy();
   });
 
-  it('renders the lot declaration channel on every container row (card _5)', async () => {
-    getDetail.mockResolvedValue({
-      ...wireDetail,
-      customsChannel: 'RED',
-      freightRows: wireDetail.freightRows.map((row) => ({ ...row, containerNumber: 'CONT-00X' })),
-    });
-    renderWorkspace();
-    await screen.findByText('Bảng 2.1 — Cước vận tải');
-    const cells = screen.getAllByText('Luồng đỏ');
-    expect(cells.length).toBe(1);
-    expect(screen.getAllByText('Chưa xác định').length).toBeGreaterThanOrEqual(1);
-  });
-
   it('renders the lock-frozen port labels under the container (card _35)', async () => {
     getDetail.mockResolvedValue({
       ...wireDetail,
@@ -350,13 +337,6 @@ describe('Bảng 2.1 wire contract (card _7)', () => {
     renderWorkspace();
     await screen.findByText('Bảng 2.1 — Cước vận tải');
     expect(screen.queryByText(/Nâng: /)).toBeNull();
-  });
-
-  it('leaves the channel blank when the lot has none (card _5)', async () => {
-    getDetail.mockResolvedValue({ ...wireDetail, customsChannel: null });
-    renderWorkspace();
-    await screen.findByText('Bảng 2.1 — Cước vận tải');
-    expect(screen.queryByText(/Luồng (đỏ|vàng|xanh)/)).toBeNull();
   });
 
   it('carries no place-named field in the shared wire schema', async () => {

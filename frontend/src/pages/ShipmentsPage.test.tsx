@@ -85,7 +85,7 @@ const row: ShipmentCusWorkspaceListItem = {
     packageCount: null, packageType: null, cargoWeightKg: '25000', cargoVolumeCbm: '52.5', customsCutoffAt: '2026-08-11T08:00:00.000Z',
     closingAt: null, plannedReturnAt: '2026-08-12T10:00:00.000Z', customerNotes: 'Giao buổi sáng', operationalNotes: 'Ưu tiên cổng số 2',
     declarationId: 9, declarationIssuedAt: null, declarationScope: 'SINGLE', declarationNote: null,
-    declarations: [{ id: 9, declarationNumber: 'TK-54321', channel: null, issuedAt: null, scope: 'SINGLE', note: null }],
+    declarations: [{ id: 9, declarationNumber: 'TK-54321', issuedAt: null, scope: 'SINGLE', note: null }],
   },
   fieldAccess: {
     customerId: directAccess, factoryName: directAccess, routeId: directAccess, deliveryLocation: directAccess,
@@ -958,8 +958,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // its scope resent verbatim so the whole-row PUT keeps the metadata.
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1/declarations/9', {
       declarationNumber: 'TK-99999',
-      // Card _5: the body states the channel explicitly (null = cleared).
-      channel: null,
       issuedAt: null,
       scope: 'SINGLE',
       note: null,
@@ -989,8 +987,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/1/declarations', {
       declarationNumber: 'TK-NEW-1',
-      // Card _5: explicit channel (null when unset) rides the create body too.
-      channel: null,
       issuedAt: null,
       note: null,
     }));

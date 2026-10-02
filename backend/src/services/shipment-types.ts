@@ -70,7 +70,6 @@ export type ShipmentDeclarationMutationInput = {
   issuedAt?: string | null;
   scope?: typeof s.shipmentDeclarations.scope.enumValues[number];
   note?: string | null;
-  channel?: typeof s.shipmentDeclarations.channel.enumValues[number] | null;
   updatedBy?: number | null;
 };
 

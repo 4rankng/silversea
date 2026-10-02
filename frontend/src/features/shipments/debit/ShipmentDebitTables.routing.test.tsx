@@ -34,7 +34,6 @@ const detail = (): ShipmentDebitDetail => ({
     ],
     carrierDetention: null, repairAdvance: null, opsDocsStatus: 'READY',
   }],
-  customsChannel: null,
   zoneSurcharge: null,
   payables: { chiHoTotal: null },
   thuKhachTotal: null,

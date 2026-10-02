@@ -389,5 +389,5 @@
   padding-bottom: 4px;
 }
 
-/* Luồng hải quan line under the customs fee (card _5). */
+/* Caption line under a table cell (lift/drop site labels, card _35). */
 .csc-debit-channel { display: block; font-size: var(--text-caption-size); color: var(--fg-3); }

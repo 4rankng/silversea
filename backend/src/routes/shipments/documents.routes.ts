@@ -44,9 +44,6 @@ const shipmentDeclarationSchema = z.object({
   issuedAt: z.string().trim().min(1).optional().nullable(),
   scope: z.enum(['SINGLE', 'SHARED']).optional(),
   note: z.string().trim().optional().nullable(),
-  // Card 20260919_5: undefined = keep current value, null = clear (partial
-  // update). Anything outside RED/YELLOW/GREEN is rejected here at the API.
-  channel: z.enum(['RED', 'YELLOW', 'GREEN']).optional().nullable(),
 });
 
 const replaceShipmentDocumentSchema = z.object({
@@ -165,7 +162,6 @@ documentsRoutes.post(
           issuedAt: parsed.data.issuedAt ?? null,
           scope: parsed.data.scope,
           note: parsed.data.note ?? null,
-          channel: parsed.data.channel,
           updatedBy: user.userId,
         }, user, tx);
         return {
@@ -217,7 +213,6 @@ documentsRoutes.put(
           issuedAt: parsed.data.issuedAt ?? null,
           scope: parsed.data.scope,
           note: parsed.data.note ?? null,
-          channel: parsed.data.channel,
           updatedBy: user.userId,
         }, user, tx);
         return {
