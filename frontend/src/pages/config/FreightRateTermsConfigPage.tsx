@@ -21,7 +21,7 @@ function renderThreshold(r: FreightRateTermRow) {
     return <span style={{ color: 'var(--info-text)' }}>{fmtShare(r.surchargeThresholdPct)}%</span>;
   }
   if (r.surchargeThresholdAbs != null) {
-    return <span style={{ color: 'var(--info-text)' }}>{formatMoney(Number(r.surchargeThresholdAbs))} đ/lít</span>;
+    return <span className="data-token" style={{ color: 'var(--info-text)' }}>{formatMoney(Number(r.surchargeThresholdAbs))} đ/lít</span>;
   }
   if ((r as { surchargeThresholdMode?: string }).surchargeThresholdMode === 'UNSET') {
     // Distinct from NONE (criterion 3): "chưa chốt" must never share the

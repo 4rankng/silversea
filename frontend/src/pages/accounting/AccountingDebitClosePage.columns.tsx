@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { formatCurrency, formatDate } from '../../lib/format';
+import { billBookingReference } from '../../lib/business-reference';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
@@ -60,11 +61,10 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   {
     key: 'lo', label: 'Thông tin lô hàng', className: 'debit-col--lot', pinned: true,
     cell: (row) => (
-      <>
-        {row.code ?? '—'}
-        {row.billOrBooking != null && <small>{row.billOrBooking}</small>}
+      <div className="record-cell-stack">
+        <span>{billBookingReference(row.billOrBooking)}</span>
         {row.customerName != null && <small>{row.customerName}</small>}
-      </>
+      </div>
     ),
   },
   {

@@ -209,7 +209,7 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
                     </span>
                   </td>
                   <td>
-                    <span className="fleet-phone">{d.phone || "—"}</span>
+                    <span className="fleet-phone data-token">{d.phone || "—"}</span>
                   </td>
                   <td>{d.assignedTruckId && truckMap.has(d.assignedTruckId) ? <span className="fleet-pair">{truckMap.get(d.assignedTruckId)!.licensePlate}</span> : <span className="fleet-unassigned">— Chưa phân —</span>}</td>
                   <td>
@@ -271,7 +271,7 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
                   <div className="fleet-driver-card__identity-copy">
                     <div className="fleet-driver-card__name">{d.name}</div>
                     {d.phone && (
-                      <div className="fleet-driver-card__phone">{d.phone}</div>
+                      <div className="fleet-driver-card__phone"><span className="data-token">{d.phone}</span></div>
                     )}
                   </div>
                 </div>
@@ -334,7 +334,7 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
                 </span>
               ),
             },
-            { label: "Số điện thoại", value: d.phone || "—" },
+            { label: "Số điện thoại", value: <span className="data-token">{d.phone || "—"}</span> },
             { label: "Xe phân công", value: truck ? <Plate plate={truck.licensePlate} tag="VN" /> : <span className="fleet-unassigned">— Chưa phân —</span> },
             {
               label: "Lương cơ bản",

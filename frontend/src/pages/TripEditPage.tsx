@@ -7,6 +7,7 @@ import { TripEditConflictError } from '../hooks/tripSubmitReconcile';
 import { Spinner } from '../components/shared/Spinner';
 import { useTripDetail } from '../hooks/useQueries';
 import { formatCurrency } from '../lib/format';
+import { billBookingReference } from '../lib/business-reference';
 import { useAuth } from '../hooks/useAuth';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useTripForm } from '../hooks/useTripForm';
@@ -24,6 +25,7 @@ import { AncillaryFeesCard } from '../components/trip/AncillaryFeesCard';
 import { TripInstructionsCard } from '../components/trip/TripInstructionsCard';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import type { TripOptions } from '../hooks/useTripOptions';
 import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
@@ -39,9 +41,9 @@ export default function TripEditPage() {
   const { data: trip, isLoading: loading, error: tripError, refetch: refetchTrip } = useTripDetail(id);
   const { data: catalogData } = useCatalogs();
   const { rootRef } = usePageAnimations({ ready: !loading });
+  const actionBarRef = useFixedActionClearance<HTMLDivElement>();
   const [governanceReason, setGovernanceReason] = useState('');
   const [editConflict, setEditConflict] = useState<TripEditConflictError | null>(null);
-
   const editOptions: TripOptions = useMemo(() => ({
     customers: catalogData?.customers.map((c) => ({ id: c.id, label: c.name })) ?? [],
     carrierCustomers: catalogData?.customers.filter(c => c.isCarrier).map(c => ({ id: c.id, label: c.name })) ?? [],
@@ -100,10 +102,8 @@ export default function TripEditPage() {
     })));
   };
 
-  // The trip form hydrates from `existingTrip` via an effect inside the form
-  // hook (one render after `trip` arrives), so gate the dirty baseline on a
-  // `formHydrated` flag that flips the render *after* population — otherwise
-  // the populate pass would read as a spurious "dirty" on every load.
+  // Wait for the form hook to hydrate existingTrip before recording the dirty
+  // baseline; its population effect runs one render after trip/catalog arrive.
   const [formHydrated, setFormHydrated] = useState(false);
   useEffect(() => { setFormHydrated(!!trip && !!catalogData); }, [trip, catalogData]);
   const guard = useDirtyGuard([form], formHydrated);
@@ -183,9 +183,9 @@ export default function TripEditPage() {
             <ArrowLeft size={18} />
           </button>
           <div className="tc-title-wrap">
-            <h1 className="sr-only">{trip.tripCode || 'Cập nhật số liệu'}</h1>
+            <h1 className="sr-only">{billBookingReference(trip.customerReference)}</h1>
             <p className="tc-page-sub" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: 'var(--text-body-size)' }}>{trip.tripCode || 'Cập nhật số liệu'}</strong>
+              <strong style={{ fontSize: 'var(--text-body-size)' }}>{billBookingReference(trip.customerReference)}</strong>
               <span
                 className={`tc-status-pill tc-status-pill--${trip.status === TripStatus.IN_TRANSIT ? 'in-transit' : trip.status === TripStatus.COMPLETED ? 'completed' : 'draft'}`}
                 aria-label={`Trạng thái: ${trip.status}`}
@@ -487,7 +487,7 @@ export default function TripEditPage() {
                 ) : (
                   <div className="tc-rail-notice">
                     <div className="tc-rail-notice-title">Cập nhật số liệu</div>
-                    <div>Lệnh vận chuyển {trip.tripCode || 'Lệnh vận chuyển'}</div>
+                    <div>Lệnh vận chuyển {billBookingReference(trip.customerReference)}</div>
                   </div>
                 )}
 
@@ -529,7 +529,7 @@ export default function TripEditPage() {
           }}
         />
 
-        <div className="tc-edit-mobile-bar">
+        <div ref={actionBarRef} className="tc-edit-mobile-bar">
           <button
             type="button"
             className="btn btn--secondary tc-mobile-btn"

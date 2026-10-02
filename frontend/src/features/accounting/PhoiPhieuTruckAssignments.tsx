@@ -97,7 +97,7 @@ export function PhoiPhieuTruckAssignments() {
             hideLabel
             value={batchAccountant}
             onChange={(event) => setBatchAccountant(event.target.value)}
-            options={[{ value: '', label: '— Chọn kế toán —' }, ...accountants.map((a) => ({ value: String(a.id), label: a.fullName ?? `Kế toán #${a.id}` }))]}
+            options={[{ value: '', label: '— Chọn kế toán —' }, ...accountants.map((a) => ({ value: String(a.id), label: a.fullName?.trim() || 'Chưa có tên kế toán' }))]}
             width="content"
           />
           <button
@@ -151,7 +151,7 @@ function AssignmentRow({ row, accountants, onSave }: {
           hideLabel
           value={picked}
           onChange={(event) => setPicked(event.target.value)}
-          options={[{ value: '', label: '— Chưa gán —' }, ...accountants.map((accountant) => ({ value: String(accountant.id), label: accountant.fullName ?? `Kế toán #${accountant.id}` }))]}
+          options={[{ value: '', label: '— Chưa gán —' }, ...accountants.map((accountant) => ({ value: String(accountant.id), label: accountant.fullName?.trim() || 'Chưa có tên kế toán' }))]}
           width="content"
         />
       </td>

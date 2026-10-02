@@ -15,6 +15,7 @@ import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from 
 import { PenaltyScoreboardCards, type PenaltyScoreboardCardRow } from './PenaltyScoreboardCards';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { FilterDropdown } from '../../../components/FilterDropdown';
+import { billBookingReference } from '../../../lib/business-reference';
 import '../../../styles/table-sort.css';
 
 const STATUS_CHIPS: Array<{ key: PenaltyStatusFilter; label: string }> = [
@@ -109,10 +110,10 @@ export function PenaltyTable({
   const driversOver6m = insights?.driversOver6m ?? 0;
 
   const handleExport = async () => {
-    const headers = ['Lái xe', 'Mã chuyến', 'Lý do', 'Số tiền', 'Ngày'];
+    const headers = ['Lái xe', 'Bill/Booking', 'Lý do', 'Số tiền', 'Ngày'];
     await downloadCSV(`ky-luat-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows.map(p => [
       p.driverName || '—',
-      p.tripCode || '—',
+      p.tripId ? billBookingReference(p.tripCode) : '—',
       p.reasonText || p.customReason || '—',
       p.amount,
       p.date,
@@ -306,12 +307,12 @@ export function PenaltyTable({
                           <td data-label="Lý do">{p.reasonText || p.customReason || '—'}</td>
                           <td data-label="Ngày">{formatDate(p.date)}</td>
                           <td data-label="Chuyến">
-                            {p.tripId && p.tripCode ? (
+                            {p.tripId ? (
                               <a
                                 href={`/trips/${p.tripId}`}
                                 onClick={(e) => { e.preventDefault(); navigate(`/trips/${p.tripId}`); }}
                                 className="penalty-log-trip"
-                              >{p.tripCode}</a>
+                              >{billBookingReference(p.tripCode)}</a>
                             ) : '—'}
                           </td>
                           <td data-label="Số tiền" className="num">
@@ -372,7 +373,7 @@ export function PenaltyTable({
             </div>
           </div>
           <div className="penalty-head-tools">
-            <div className="penalty-seg">
+            <div className="penalty-seg" data-control-group="compact">
               {SCORE_WINDOWS.map(f => (
                 <button
                   key={f.key}
@@ -547,7 +548,7 @@ export function PenaltyTable({
             </div>
             <a
               href="/config/penalty-reasons"
-              className="penalty-config-link"
+              className="btn btn--ghost btn--sm"
               onClick={(e) => { e.preventDefault(); navigate('/config/penalty-reasons'); }}
             >
               Sửa bảng phạt →

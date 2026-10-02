@@ -51,7 +51,7 @@ export interface TripColumnSortOptions {
 // the selection control (card 20260929_207), so there is no select column to
 // keep out of this map.
 const TRIP_COLUMN_SORT_KEYS: Partial<Record<string, string>> = {
-  trip: 'tripCode',
+  trip: 'customerReference',
   truck: 'truck',
   route: 'route',
   container: 'container',
@@ -165,7 +165,7 @@ export function buildTripColumns(
   return [
     {
       id: 'trip',
-      header: sortHeader('Chuyến · Mã', 'trip'),
+      header: sortHeader('Bill / Booking', 'trip'),
       accessorFn: (row) => row.customer?.name ?? '',
       cell: ({ row }) => {
         const trip = row.original;

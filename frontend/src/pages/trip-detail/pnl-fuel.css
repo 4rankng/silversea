@@ -101,28 +101,39 @@
 }
 
 .pl-total {
+  --profit-tone: var(--ink);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #E8F7EE;
-  border: 1px solid #CFEBDD;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: var(--r-md, 14px);
   padding: 14px 15px;
   margin-top: 8px;
 }
 
+.pl-total--profit {
+  --profit-tone: var(--success-text);
+  background: var(--success-soft);
+}
+
+.pl-total--loss {
+  --profit-tone: var(--danger);
+  background: var(--danger-soft);
+}
+
 .pl-total .k {
   font-size: var(--fs-sm);
   font-weight: 700;
-  color: var(--brand);
+  color: var(--profit-tone);
 }
 
 .pl-total .v {
   font-family: var(--font-data);
   font-size: var(--fs-lg);
   font-weight: 700;
-  color: var(--accent-2);
+  color: var(--profit-tone);
   letter-spacing: 0;
 }
 

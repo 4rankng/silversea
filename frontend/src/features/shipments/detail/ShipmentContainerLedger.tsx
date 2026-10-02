@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Button as AriaButton } from 'react-aria-components';
 import { CalendarOff } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
@@ -573,8 +574,8 @@ function AddContainerRowForm({ shipmentId, expectedShipmentVersion, submitting, 
       <label><span>Giờ đóng/trả</span><input aria-label="Giờ đóng/trả mới" type="time" value={appointmentTime} onChange={(event) => setAppointmentTime(event.target.value)} disabled={busy} /></label>
       {error && <span role="alert">{error}</span>}
       <div>
-        <button type="button" className="btn-primary" disabled={busy} onClick={() => void submit()}>Lưu dòng mới</button>
-        <button type="button" className="btn-secondary" disabled={busy} onClick={onCancel}>Hủy</button>
+        <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void submit()}>Lưu dòng mới</button>
+        <button type="button" className="btn btn--secondary" disabled={busy} onClick={onCancel}>Hủy</button>
       </div>
     </div>
   );
@@ -806,6 +807,17 @@ export function ShipmentContainerLedger({
                         <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
                       </div>
                       <span className="shipment-container-ledger__classification"><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b><span>· {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span></span>
+                      {row.shipmentId && (
+                        <Link
+                          to={`/shipments/${row.shipmentId}`}
+                          className="shipment-container-ledger__shipment-link"
+                          title="Xem chi tiết lô hàng"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ fontSize: '12px', color: 'var(--color-primary, #059669)', textDecoration: 'underline', marginTop: '2px', display: 'inline-block' }}
+                        >
+                          Chi tiết lô hàng →
+                        </Link>
+                      )}
                     </div>)}
                   </td>
                   <td data-label="Thông số container" className={cellClassName(containerEditable, 'container')}>
@@ -870,13 +882,13 @@ export function ShipmentContainerLedger({
                       <div className="shipment-container-ledger__multiline">
                         <button
                           type="button"
-                          className="btn-secondary btn--sm"
+                          className="btn btn--secondary btn--sm"
                           aria-label={`Thêm container cùng lô ${row.containerNumber || row.ordinal}`}
                           onClick={() => setAddForRow(addForRow?.id === row.id ? null : row)}
                         >＋ Thêm</button>
                         <button
                           type="button"
-                          className="btn-secondary btn--sm shipment-container-ledger__remove"
+                          className="btn btn--secondary btn--sm shipment-container-ledger__remove"
                           aria-label={`Xóa container ${row.containerNumber || row.ordinal}`}
                           disabled={addSubmitting || editLoadingRowId === row.id}
                           onClick={async () => {

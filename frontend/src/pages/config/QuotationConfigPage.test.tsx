@@ -70,16 +70,20 @@ describe('QuotationConfigPage (card 20260922_56)', () => {
     expect(within(framesRegion).getByText('Công ty B')).toBeTruthy();
   });
 
-  it('opens the grid with the two group headers and all ten class columns in file order', async () => {
+  it('opens all ten class rows in file order with their groups and five metric columns', async () => {
     render(<QuotationConfigPage />, { wrapper: makeWrapper() });
     const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
     fireEvent.click(await within(framesRegion).findByText('Công ty A'));
     expect(await screen.findByRole('heading', { name: 'KCN Quế Võ – ASKEY' })).toBeTruthy();
-    expect(screen.getByText('HÀNG LẺ')).toBeInTheDocument();
-    expect(screen.getByText('HÀNG CONTAINER')).toBeInTheDocument();
+    expect(screen.getAllByText('Hàng lẻ')).toHaveLength(6);
+    expect(screen.getAllByText('Hàng container')).toHaveLength(4);
+    const classRows = within(document.querySelector('.quotation-grid') as HTMLElement).getAllByRole('row').slice(1);
+    expect(classRows).toHaveLength(10);
+    expect(classRows.map(row => within(row).getByRole('rowheader').querySelector('.data-token')?.textContent)).toEqual(QUOTATION_GRID_COLUMNS.map(column => column.label));
+    classRows.forEach(row => expect(within(row).getAllByRole('cell')).toHaveLength(5));
     expect(screen.getByText(/Giá dầu tham chiếu/)).toBeTruthy();
-    expect(screen.getByText(/Lag 1 ngày/)).toBeTruthy();
-    // Ten class columns, file order.
+    expect(screen.getByText(/Trễ 1 ngày/)).toBeTruthy();
+    // Ten class rows retain canonical source order and every original label.
     for (const label of QUOTATION_GRID_COLUMNS.map((c) => c.label)) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }

@@ -29,5 +29,5 @@ export const shipmentCreateGridStyle: CSSProperties = {
 
 const sectionStyle: CSSProperties = {
   borderRadius: 12, padding: 16,
-  display: 'grid', gap: 12, background: 'var(--surface-1)', minWidth: 0,
+  display: 'grid', gap: 12, background: 'var(--surface)', minWidth: 0,
 };

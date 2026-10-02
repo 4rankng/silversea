@@ -388,17 +388,17 @@ export default function ForwarderSettlementCreatePage() {
             </div>
             <div className="fset-summary__row">
               <span className="fset-summary__label">Tổng chi phí</span>
-              <span className="fset-summary__value fset-summary__value--expense"><Money value={totalExpense} sign="−" /></span>
+              <span className={`fset-summary__value${totalExpense === 0 ? '' : ' fset-summary__value--expense'}`}><Money value={totalExpense} sign={totalExpense === 0 ? undefined : '−'} /></span>
             </div>
             <div className="fset-summary__row">
               <span className="fset-summary__label">Tiền hoàn lại</span>
-              <span className="fset-summary__value fset-summary__value--refund"><Money value={totalRefund} sign="−" /></span>
+              <span className={`fset-summary__value${totalRefund === 0 ? '' : ' fset-summary__value--refund'}`}><Money value={totalRefund} sign={totalRefund === 0 ? undefined : '−'} /></span>
             </div>
             <div className="fset-summary__divider" />
             <div className="fset-summary__row fset-summary__row--total">
               <span>Chênh lệch</span>
               <span className={`fset-summary__total ${balance > 0 ? 'fset-summary__total--positive' : balance < 0 ? 'fset-summary__total--negative' : ''}`}>
-                <Money value={Math.abs(balance)} />
+                <Money value={balance} />
               </span>
             </div>
           </div>

@@ -274,7 +274,7 @@ export default function TripListPage() {
         queryClient.invalidateQueries({ queryKey: qk.trips.summary(dateFrom, dateTo) }),
         queryClient.invalidateQueries({ queryKey: qk.trips.all }),
       ]);
-      setCopyPlanMessage(`Đã copy kế hoạch thành ${created.tripCode ?? 'chuyến mới'}.`);
+      setCopyPlanMessage(`Đã copy kế hoạch thành ${buildTripCode(created)}.`);
     } catch (err) {
       setCopyPlanError(true);
       setCopyPlanMessage(err instanceof Error ? err.message : 'Không thể copy kế hoạch vận chuyển.');
@@ -314,13 +314,13 @@ export default function TripListPage() {
       );
       for (const res of remaining) allTrips.push(...res.items);
     }
-    const headers = ['Mã', 'Khách hàng', 'Tuyến', 'Xe', 'Ngày khởi hành', 'KM', 'Loại cont', 'Số cont', 'Dầu (L)', 'Nhà CC Dầu', 'Giá trị dầu', 'Tổng đi đường', 'Doanh thu', 'Tổng chi phí', 'LN gộp', 'Trạng thái'];
+    const headers = ['Bill / Booking', 'Khách hàng', 'Tuyến', 'Xe', 'Ngày khởi hành', 'KM', 'Loại cont', 'Số cont', 'Dầu (L)', 'Nhà CC Dầu', 'Giá trị dầu', 'Tổng đi đường', 'Doanh thu', 'Tổng chi phí', 'LN gộp', 'Trạng thái'];
     const rows = allTrips.map((t) => {
       const containers = (t as unknown as { containers?: Array<{ containerNumber: string; containerTypeCode: string | null; containerTypeName: string | null }> }).containers ?? [];
       const typeCodes = Array.from(new Set(containers.map((c) => c.containerTypeCode || c.containerTypeName).filter(Boolean))).join(', ');
       const numbers = containers.map((c) => c.containerNumber).join(', ');
       return [
-        t.tripCode ?? '—',
+        buildTripCode(t),
         t.customer?.name ?? '',
         t.route?.name ?? '',
         t.carrierType === 'EXTERNAL' ? (t.externalPlateNumber ?? 'Xe ngoài') : (t.truck?.licensePlate ?? ''),

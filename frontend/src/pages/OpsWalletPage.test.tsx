@@ -25,7 +25,7 @@ function renderPage() {
 }
 
 const expense = (overrides: Record<string, unknown> = {}) => ({
-  id: 1, shipmentId: 10, shipmentCode: 'SS-1', containerNumber: 'TSTU0000001',
+  id: 1, shipmentId: 10, shipmentCode: 'SS-1', billRef: 'BL-1', containerNumber: 'TSTU0000001',
   expenseTypeCode: 'CANXE', expenseTypeName: 'Cân xe', requiresInvoice: false,
   amount: '90000', paidAt: '2026-09-07', note: null, approvalStatus: 'RECORDED',
   rejectionReason: null, opsSettlementId: null, hasPhoto: false, paidById: 7,
@@ -64,19 +64,19 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
 
   it('explains a failed removal and preserves the expense for retry', async () => {
     apiDelete.mockRejectedValueOnce(new Error('Không thể kết nối để xóa khoản chi'));
-    renderPage(); fireEvent.click(await screen.findByRole('button', { name: 'Xóa khoản chi SS-1' }, { timeout: 5000 }));
+    renderPage(); fireEvent.click(await screen.findByRole('button', { name: 'Xóa khoản chi BL-1' }, { timeout: 5000 }));
     // Q10 (card 20260922_78): the removal dialog now demands a reason first.
     fireEvent.change(within(screen.getByRole('dialog', { name: 'Nhập lý do' })).getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Nhập trùng khoản' } });
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Nhập lý do' })).getByRole('button', { name: 'Xóa' }));
     expect(await screen.findByText('Không thể kết nối để xóa khoản chi')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Xóa khoản chi SS-1' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xóa khoản chi BL-1' })).toBeEnabled());
     expect(apiDelete).toHaveBeenCalledOnce();
     expect(screen.getByText('Cân xe')).toBeInTheDocument();
   });
 
   it('prevents overlapping removal requests while deletion is pending', async () => {
     apiDelete.mockReturnValue(new Promise(() => {})); renderPage();
-    const remove = await screen.findByRole('button', { name: 'Xóa khoản chi SS-1' }, { timeout: 5000 });
+    const remove = await screen.findByRole('button', { name: 'Xóa khoản chi BL-1' }, { timeout: 5000 });
     fireEvent.click(remove);
     // Q10: type the reason before the removal request can fire.
     fireEvent.change(within(screen.getByRole('dialog', { name: 'Nhập lý do' })).getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Nhập trùng khoản' } });
@@ -156,10 +156,10 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
   it('lets the author edit a recorded unsettled expense (PRD §5.5 sửa)', async () => {
     apiPatch.mockResolvedValue(expense({ amount: '120000' }));
     renderPage();
-    await screen.findByText('SS-1');
+    await screen.findByText('BL-1');
 
-    fireEvent.click(screen.getByRole('button', { name: /Sửa khoản chi SS-1/ }));
-    const dialog = await screen.findByRole('dialog', { name: /Sửa khoản chi SS-1/ });
+    fireEvent.click(screen.getByRole('button', { name: /Sửa khoản chi BL-1/ }));
+    const dialog = await screen.findByRole('dialog', { name: /Sửa khoản chi BL-1/ });
     expect(dialog).toBeInTheDocument();
     // Prefilled with the current amount — the money field is a grouped text
     // input (card 20260928_197), so it holds the vi-VN rendering of 90.000.
@@ -218,11 +218,18 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     });
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Xem' }));
-    const detail = await screen.findByRole('dialog', { name: 'Phiếu quyết toán 12' });
+    const detail = await screen.findByRole('dialog', { name: 'Chi tiết quyết toán' });
+    expect(detail).not.toHaveAccessibleName(/\b12\b/);
+    expect(within(detail).getByRole('heading', { name: 'Chi tiết quyết toán' })).toBeInTheDocument();
     expect(within(detail).getByRole('status')).toHaveTextContent('Đang tải chi tiết quyết toán');
     await waitFor(() => expect(rejectDetail).toBeDefined());
     rejectDetail(new Error('Unavailable'));
     expect(await within(detail).findByRole('alert')).toHaveTextContent('Không tải được chi tiết quyết toán');
+    expect(detail).toHaveAccessibleName('Chi tiết quyết toán');
+    expect(apiGet).toHaveBeenCalledWith('/ops/settlements/12');
+    expect(apiPost).not.toHaveBeenCalled();
+    expect(apiPatch).not.toHaveBeenCalled();
+    expect(apiDelete).not.toHaveBeenCalled();
     fireEvent.click(within(detail).getByRole('button', { name: 'Đóng' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -238,14 +245,30 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
       return Promise.resolve({ items: [] });
     });
     renderPage();
-    await screen.findByText('SS-1');
+    await screen.findByText('BL-1');
     expect(screen.queryByRole('button', { name: /Sửa khoản chi/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Xóa khoản chi/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ảnh' }));
     const dialog = await screen.findByRole('dialog', { name: 'Ảnh biên lai' });
-    expect(await within(dialog).findByRole('button', { name: 'Xem ảnh 1' })).toBeInTheDocument();
+    // Metadata alone supplies no authenticated photo body. Preserve readonly
+    // policy while exercising the honest unavailable slot, not an empty viewer.
+    const unavailable = await within(dialog).findByRole('button', { name: 'Ảnh 1 (không tải được)' });
+    expect(unavailable).toBeDisabled();
+    expect(within(dialog).getByRole('img', { name: 'Biên lai 1 (không tải được)' })).toHaveTextContent('Không tải được');
+    expect(dialog.querySelector('img[src=""]')).toBeNull();
+    fireEvent.click(unavailable);
+    expect(screen.queryByRole('button', { name: 'Đóng ảnh' })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /Xóa ảnh/ })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /Lưu|Thêm ảnh/ })).not.toBeInTheDocument();
+    expect(apiGet).toHaveBeenCalledWith('/ops/expenses/1/photos');
+    expect(apiPost).not.toHaveBeenCalled();
+    expect(apiPatch).not.toHaveBeenCalled();
+    expect(apiDelete).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByText('BL-1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Sửa khoản chi/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Xóa khoản chi/ })).not.toBeInTheDocument();
   });
 
 });

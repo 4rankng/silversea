@@ -67,7 +67,6 @@ const TRIP_TIEBREAKER = (a: FinanceTripDetail, b: FinanceTripDetail) => a.id - b
 
 export default function FinancePage() {
   const { month, year } = useMonth();
-  const [chartView, setChartView] = useState<'day' | 'month'>('day');
   const [expandedTruckIds, setExpandedTruckIds] = useState<Set<number>>(() => new Set());
   const [truckSort, setTruckSort] = useState<TableSortState | null>(null);
   const [tripSort, setTripSort] = useState<TableSortState | null>(null);
@@ -91,7 +90,7 @@ export default function FinancePage() {
     totalRevenueLY, otherRevenueLY, transRevenueLY, totalCostsLY, grossProfitLY,
     companyExpensesLY, netProfitLY, activeCapTable, costPieData,
     topTrucks, categoryBreakdown, truckBreakdown, activeChartData, hasChartData, completedTripCount,
-  } = useFinanceDerived({ allTrips, report, prevReport, capTableRaw, yearlyData, month, chartView });
+  } = useFinanceDerived({ allTrips, report, prevReport, capTableRaw, yearlyData, month });
 
   const allocatedFleetFixedCostTotal = report?.allocatedFleetFixedCostTotal ?? 0;
   const unallocatedFleetFixedCostTotal = report?.unallocatedFleetFixedCostTotal ?? 0;
@@ -241,13 +240,8 @@ export default function FinancePage() {
           <div className="wf-card wf-chart" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div className="wf-card-h">
               <div>
-                <div className="ttl">Doanh thu {chartView === 'day' ? `Tháng ${month}/${year}` : year}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div className="wf-chart-toggle">
-                  <button className={`wf-chart-toggle__btn${chartView === 'day' ? ' is-active' : ''}`} onClick={() => setChartView('day')}>Ngày</button>
-                  <button className={`wf-chart-toggle__btn${chartView === 'month' ? ' is-active' : ''}`} onClick={() => setChartView('month')}>Tháng</button>
-                </div>
+                <div className="ttl">Doanh thu và lợi nhuận gộp theo tháng · {year}</div>
+                <div className="desc">Số liệu ghi nhận theo từng tháng; tháng {month}/{year} được đánh dấu trên biểu đồ.</div>
               </div>
             </div>
             <div className="wf-legend">
@@ -259,11 +253,11 @@ export default function FinancePage() {
                 <div style={{ padding: '40px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', flex: 1 }}>
                   Đang tải dữ liệu...
                 </div>
-              ) : completedTripCount === 0 ? (
+              ) : !hasChartData && completedTripCount === 0 ? (
                 <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', gap: 8, flex: 1 }}>
                   <EmptyState
                     context="pricing"
-                    title={chartView === 'day' ? `Chưa có chuyến nào hoàn thành trong tháng ${month}/${year}` : `Chưa có chuyến nào hoàn thành trong năm ${year}`}
+                    title={`Chưa có chuyến nào hoàn thành trong năm ${year}`}
                     description="Hoàn thành chuyến để xem xu hướng doanh thu"
                   />
                 </div>
@@ -273,17 +267,18 @@ export default function FinancePage() {
                 <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--wf-ink-3)', fontSize: 'var(--text-caption-size)', gap: 8, flex: 1 }}>
                   <EmptyState
                     context="pricing"
-                    title={chartView === 'day' ? `Có ${completedTripCount} chuyến hoàn thành trong tháng ${month}/${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0` : `Có ${completedTripCount} chuyến hoàn thành trong năm ${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`}
+                    title={`Có ${completedTripCount} chuyến hoàn thành trong năm ${year} nhưng doanh thu và lợi nhuận ghi nhận bằng 0`}
                     description="Kiểm tra giá cước và các khoản thu đã nhập cho các chuyến này"
                   />
                 </div>
               ) : (
                 <RevenueTrendChart
-                  title={`Xu hướng doanh thu và lợi nhuận gộp ${chartView === 'day' ? `tháng ${month}/${year}` : `năm ${year}`}`}
+                  title={`Xu hướng doanh thu và lợi nhuận gộp năm ${year}`}
                   months={activeChartData.months}
                   revenue={activeChartData.revenue}
                   gross={activeChartData.gross}
                   currentIdx={activeChartData.currentIdx}
+                  formatTooltip={(value) => `${formatNumber(value * 1_000_000)} ₫`}
                 />
               )}
             </div>
@@ -537,7 +532,7 @@ export default function FinancePage() {
               </div>
               <div className="pnl-row__amount">{formatNumber(fleetDepreciationCost)}</div>
               <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetDepreciationTotal ?? null) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? null) : ''}`}>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? null, 'down') : ''}`}>
                 {prevReport ? yoyPct(fleetDepreciationCost, prevReport.fleetDepreciationTotal ?? null) : '—'}
               </div>
             </div>
@@ -553,7 +548,7 @@ export default function FinancePage() {
               </div>
               <div className="pnl-row__amount">{formatNumber(fleetFixedCost)}</div>
               <div className="pnl-row__yoy">{prevReport ? formatNumber(prevReport.fleetMonthlyFixedCostTotal ?? null) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? null) : ''}`}>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? null, 'down') : ''}`}>
                 {prevReport ? yoyPct(fleetFixedCost, prevReport.fleetMonthlyFixedCostTotal ?? null) : '—'}
               </div>
             </div>
@@ -563,15 +558,15 @@ export default function FinancePage() {
               <div className="pnl-row__label">Tổng chi phí vận hành</div>
               <div className="pnl-row__amount">{formatNumber(totalCosts)}</div>
               <div className="pnl-row__yoy">{prevReport ? formatNumber(totalCostsLY) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(totalCosts, totalCostsLY) : ''}`}>{prevReport ? yoyPct(totalCosts, totalCostsLY) : '—'}</div>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(totalCosts, totalCostsLY, 'down') : ''}`}>{prevReport ? yoyPct(totalCosts, totalCostsLY) : '—'}</div>
             </div>
 
-            <div className="pnl-row pnl-row--subtotal" style={{ background: 'var(--success-soft)' }}>
-              <div className="pnl-row__label" style={{ color: 'var(--success)', fontWeight: 700 }}>
+            <div className="pnl-row pnl-row--subtotal pnl-row--profit-total" data-profit-state={grossProfit == null || grossProfit === 0 ? 'neutral' : grossProfit > 0 ? 'profit' : 'loss'}>
+              <div className="pnl-row__label">
                 Lợi nhuận gộp · Biên {marginPct(grossProfit, totalRevenue)}%
               </div>
-              <div className="pnl-row__amount" style={{ color: 'var(--success)', fontWeight: 700 }}>{formatNumber(grossProfit)}</div>
-              <div className="pnl-row__yoy" style={{ color: 'var(--success)' }}>{prevReport ? formatNumber(grossProfitLY) : '—'}</div>
+              <div className="pnl-row__amount">{formatNumber(grossProfit)}</div>
+              <div className="pnl-row__yoy">{prevReport ? formatNumber(grossProfitLY) : '—'}</div>
               <div className={`pnl-row__pct ${prevReport ? yoyClass(grossProfit, grossProfitLY) : ''}`}>{prevReport ? yoyPct(grossProfit, grossProfitLY) : '—'}</div>
             </div>
 
@@ -583,7 +578,7 @@ export default function FinancePage() {
               </div>
               <div className="pnl-row__amount">{formatNumber(companyExpenses)}</div>
               <div className="pnl-row__yoy">{prevReport ? formatNumber(companyExpensesLY) : '—'}</div>
-              <div className={`pnl-row__pct ${prevReport ? yoyClass(companyExpenses, companyExpensesLY) : ''}`}>{prevReport ? yoyPct(companyExpenses, companyExpensesLY) : '—'}</div>
+              <div className={`pnl-row__pct ${prevReport ? yoyClass(companyExpenses, companyExpensesLY, 'down') : ''}`}>{prevReport ? yoyPct(companyExpenses, companyExpensesLY) : '—'}</div>
             </div>
             )}
 
@@ -592,12 +587,12 @@ export default function FinancePage() {
                 <div className="pnl-row__label">Tổng chi phí hoạt động</div>
                 <div className="pnl-row__amount">{formatNumber(companyExpenses)}</div>
                 <div className="pnl-row__yoy">{prevReport ? formatNumber(companyExpensesLY) : '—'}</div>
-                <div className={`pnl-row__pct ${prevReport ? yoyClass(companyExpenses, companyExpensesLY) : ''}`}>{prevReport ? yoyPct(companyExpenses, companyExpensesLY) : '—'}</div>
+                <div className={`pnl-row__pct ${prevReport ? yoyClass(companyExpenses, companyExpensesLY, 'down') : ''}`}>{prevReport ? yoyPct(companyExpenses, companyExpensesLY) : '—'}</div>
               </div>
             )}
 
             {/* FINAL NET PROFIT */}
-            <div className="pnl-row pnl-row--final">
+            <div className="pnl-row pnl-row--final pnl-row--profit-total" data-profit-state={netProfit == null || netProfit === 0 ? 'neutral' : netProfit > 0 ? 'profit' : 'loss'}>
               <div className="pnl-row__label" style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, fontSize: 'var(--text-caption-size)' }}>
                 Lợi nhuận ròng
               </div>
@@ -931,7 +926,7 @@ export default function FinancePage() {
                             <td data-label="Tổng chi phí" className="num">{formatNumber(cat.total)} ₫</td>
                             <td data-label="Tỷ trọng">
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
+                                <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
                                   <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: 'var(--brand)' }} />
                                 </div>
                                 <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: 'var(--fg-2)', minWidth: 40, textAlign: 'right' }}>

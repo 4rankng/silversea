@@ -77,7 +77,7 @@ export function ShipmentCreateLclCargoFields({
             disabled={saving}
             style={{
               alignSelf: 'start',
-              minHeight: 44,
+              minHeight: 'var(--control-touch-h)',
               padding: '0 14px',
               border: '1px dashed var(--border-2)',
               borderRadius: 8,

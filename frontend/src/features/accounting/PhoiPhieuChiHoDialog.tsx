@@ -1,36 +1,43 @@
 import { useMemo, useState } from 'react';
+import { sumExcludingNegative } from '@tingting/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   correctPhoiPhieuRow, getPhoiPhieuChiHo, updatePhoiPhieuMeta,
-  updatePhoiPhieuRowAmounts, voidPhoiPhieuRow, type PhoiPhieuFeeRow,
+  updatePhoiPhieuRowAmounts, voidPhoiPhieuRow, type PhoiPhieuFeeRow, type ChiHoConfirmation,
 } from '../../api/phoiPhieuClient';
-import { formatCurrency } from '../../lib/format';
+import { billBookingReference } from '../../lib/business-reference';
 import { qk } from '../../api/keys';
-import { useConfirm } from '../../components/UI';
+import { Btn, useConfirm } from '../../components/UI';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
-import { Modal, NumberField } from '../../design-system';
+import { EmptyState, Modal, NumberField, TextField } from '../../design-system';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
+import { PhoiPhieuDetailSummary } from './PhoiPhieuDetailSummary';
+import './phoi-phieu-dialogs.css';
 
 interface Props {
   tripId: number;
+  billOrBooking?: string | null;
+  confirmation?: ChiHoConfirmation;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
+export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const detail = useQuery({
-    queryKey: qk.phoiPhieu.chiHo(tripId),
-    queryFn: () => getPhoiPhieuChiHo(tripId),
+    queryKey: qk.phoiPhieu.chiHo(tripId, confirmation),
+    queryFn: () => getPhoiPhieuChiHo(tripId, confirmation),
   });
   const [edits, setEdits] = useState<Record<number, { thu: number | ''; tra: number | '' }>>({});
   const [linked, setLinked] = useState(false);
+  const [linkNotice, setLinkNotice] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [refreshRequired, setRefreshRequired] = useState(false);
   const [adding, setAdding] = useState(false);
   const [ngayLayPhoi, setNgayLayPhoi] = useState<string | null>(null);
-  const [trangThaiLay] = useState<string | null>(null);
+  const [trangThaiLay, setTrangThaiLay] = useState<string | null>(null);
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
   const { confirm, dialog } = useConfirm();
 
@@ -57,20 +64,45 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
     };
     return {
       thu: rows.reduce((sum, row) => sum + live(row, 'thu'), 0),
-      tra: rows.reduce((sum, row) => sum + live(row, 'tra'), 0),
+      tra: sumExcludingNegative(rows, row => live(row, 'tra')),
     };
   }, [rows, edits]);
+  const meta = {
+    ...(ngayLayPhoi !== null && (ngayLayPhoi || null) !== (detail.data?.ngayLayPhoi || null) ? { ngayLayPhoi: ngayLayPhoi || null } : {}),
+    ...(trangThaiLay !== null && (trangThaiLay.trim() || null) !== (detail.data?.trangThaiLay || null) ? { trangThaiLay: trangThaiLay.trim() || null } : {}),
+  };
+  const dirty = Object.keys(meta).length > 0 || rows.some(row => {
+    const edit = edits[row.entryId];
+    return edit && (edit.thu !== (row.amountThu ?? '') || edit.tra !== (row.amountTra ?? ''));
+  });
 
   function setEdit(row: PhoiPhieuFeeRow, key: 'thu' | 'tra', value: number | '') {
+    const releaseLink = linked && key === 'tra' && typeof value === 'number' && value < 0;
+    if (releaseLink) { setLinked(false); setLinkNotice('Khoản chi âm không áp dụng Thu bằng trả. Số tiền thu được giữ nguyên.'); }
     setEdits((current) => {
       const target = { ...(current[row.entryId] ?? { thu: row.amountThu ?? '', tra: row.amountTra ?? '' }) };
       target[key] = value;
-      if (linked) target[key === 'thu' ? 'tra' : 'thu'] = value;
+      if (linked && !releaseLink) target[key === 'thu' ? 'tra' : 'thu'] = value;
       return { ...current, [row.entryId]: target };
     });
   }
 
+  function setEquality(next: boolean) {
+    if (next && rows.some(row => Number(edits[row.entryId]?.tra ?? row.amountTra) < 0)) {
+      setLinked(false);
+      setLinkNotice('Khoản chi âm không áp dụng Thu bằng trả. Số tiền thu được giữ nguyên.');
+      return;
+    }
+    setLinked(next); setLinkNotice('');
+  }
+
+  async function refreshDetail() {
+    const result = await detail.refetch();
+    setRefreshRequired(result.isError);
+  }
+
   async function saveAll() {
+    if (saving || detail.isFetching || refreshRequired) return;
     setSaving(true);
     setError('');
     try {
@@ -91,11 +123,14 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
           await updatePhoiPhieuRowAmounts(tripId, row.entryId, payload);
         }
       }
+      if (Object.keys(meta).length > 0) await updatePhoiPhieuMeta(tripId, meta);
       await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) });
       onSaved();
       onClose();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Không lưu được thay đổi.');
+      setRefreshRequired(true);
+      await refreshDetail();
     } finally {
       setSaving(false);
     }
@@ -116,13 +151,6 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
     }
   }
 
-  async function saveMeta(ngayLayPhoi: string, trangThaiLay: string) {
-    await updatePhoiPhieuMeta(tripId, {
-      ...(ngayLayPhoi ? { ngayLayPhoi } : {}),
-      ...(trangThaiLay ? { trangThaiLay } : {}),
-    });
-  }
-
   return (
     <>
       {/* The one design-system modal module owns the shell (portal, scrim,
@@ -133,51 +161,58 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
       {!addPanelOpen && <Modal
         isOpen
         onClose={onClose}
-        title={`Chi tiết chi hộ ${detail.data?.tripCode ?? ''}`.trim()}
+        title={`Chi tiết chi hộ ${billBookingReference(billOrBooking)}`}
         ariaLabel="Chi tiết chi hộ"
-        maxWidth={720}
+        maxWidth={1240}
+        footer={detail.data && <>
+          <Btn size="sm" disabled={saving || adding} onClick={() => setAdding(true)}>＋ Thêm dòng</Btn>
+          <Btn size="sm" disabled={saving} onClick={onClose}>Hủy</Btn>
+          <Btn size="sm" variant="primary" disabled={saving || detail.isFetching || refreshRequired} onClick={() => void saveAll()}>Lưu</Btn>
+        </>}
       >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
+      <div className="phoi-detail-body">
         {detail.isLoading && <p>Đang tải…</p>}
-        {error && <p role="alert" style={{ color: 'var(--err, #dc2626)' }}>{error}</p>}
+        {error && <div role="alert" className="phoi-detail-error">
+          <p>{error}</p>
+          {refreshRequired && <>
+            <p>{detail.error?.message} Tải lại khoản chi trước khi lưu tiếp.</p>
+            <Btn size="sm" disabled={saving || detail.isFetching} onClick={() => void refreshDetail()}>Tải lại khoản chi</Btn>
+          </>}
+        </div>}
         {detail.data && (
           <>
-            <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)' }}>
+            {rows.length === 0 ? <EmptyState variant="compact" context="expenses" title="Chưa có khoản chi hộ" description="Thêm dòng để ghi nhận khoản chi của chuyến này." /> : <div className="record-table-wrap" role="region" aria-label="Các khoản chi hộ">
+            <table className="record-table ops-table phoi-detail-matrix">
               <thead><tr>
-                <th>STT</th><th>Nội dung phí</th><th>Hóa đơn</th><th>Số tiền thu</th><th>Số tiền trả</th><th>Người thanh toán</th><th aria-label="Thao tác" />
+                <th className="phoi-detail-col--ordinal">STT</th><th className="phoi-detail-col--description">Nội dung phí</th><th className="phoi-detail-col--identity">Hóa đơn</th><th className="phoi-detail-col--money">Số tiền thu</th><th className="phoi-detail-col--money">Số tiền trả</th><th className="phoi-detail-col--identity">Người thanh toán</th><th className="phoi-detail-col--action" aria-label="Thao tác" />
               </tr></thead>
               <tbody>
                 {detail.data.rows.map((row, index) => {
                   return (
                     <tr key={row.sourceId}>
-                      <td>{index + 1}</td>
-                      <td>{row.feeName ?? '—'}</td>
-                      <td>{row.invoiceNumber ?? '—'}</td>
-                      <td><NumberField aria-label={`Số tiền thu dòng ${index + 1}`} grouped value={edits[row.entryId]?.thu ?? row.amountThu ?? ''} onChange={(n) => setEdit(row, 'thu', n)} /></td>
-                      <td><NumberField aria-label={`Số tiền trả dòng ${index + 1}`} grouped value={edits[row.entryId]?.tra ?? row.amountTra ?? ''} onChange={(n) => setEdit(row, 'tra', n)} /></td>
-                      <td>{row.payerName ?? '—'}</td>
-                      <td><button type="button" className="btn btn--secondary btn--sm" disabled={saving || row.confirmed} title={row.confirmed ? 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa' : undefined} onClick={() => void removeRow(row)}>Xóa</button></td>
+                      <td data-label="STT" className="phoi-detail-col--ordinal">{index + 1}</td>
+                      <td data-label="Nội dung phí" className="phoi-detail-col--description">{row.feeName ?? '—'}</td>
+                      <td data-label="Hóa đơn" className="phoi-detail-col--identity">{row.invoiceNumber ?? '—'}</td>
+                      <td data-label="Số tiền thu" className="phoi-detail-col--money"><NumberField aria-label={`Số tiền thu dòng ${index + 1}`} suffix="₫" grouped value={edits[row.entryId]?.thu ?? row.amountThu ?? ''} onChange={(n) => setEdit(row, 'thu', n)} /></td>
+                      <td data-label="Số tiền trả" className="phoi-detail-col--money"><NumberField aria-label={`Số tiền trả dòng ${index + 1}`} suffix="₫" grouped signed value={edits[row.entryId]?.tra ?? row.amountTra ?? ''} onChange={(n) => setEdit(row, 'tra', n)} /></td>
+                      <td data-label="Người thanh toán" className="phoi-detail-col--identity">{row.payerName ?? '—'}</td>
+                      <td data-label="Thao tác" className="phoi-detail-col--action"><Btn size="sm" disabled={saving || row.confirmed} title={row.confirmed ? 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa' : undefined} onClick={() => void removeRow(row)}>Xóa</Btn></td>
                     </tr>
                   );
                 })}
-                <tr>
-                  <td colSpan={3}><strong>TỔNG CỘNG</strong></td>
-                  <td><strong>{formatCurrency(totals.thu)}</strong></td>
-                  <td><strong>{formatCurrency(totals.tra)}</strong></td>
-                  <td colSpan={2} />
-                </tr>
               </tbody>
             </table>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>
-              <input type="checkbox" checked={linked} onChange={(e) => setLinked(e.target.checked)} />
+            </div>}
+            <PhoiPhieuDetailSummary items={[{ label: 'Tổng thu', amount: totals.thu }, { label: 'Tổng trả', amount: totals.tra }]} />
+            {dirty && <p role="status" className="phoi-detail-note">Có thay đổi chưa lưu</p>}
+            <label className="phoi-detail-linked">
+              <input type="checkbox" checked={linked} onChange={(e) => setEquality(e.target.checked)} />
               Nhập Thu và Trả bằng nhau
             </label>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
-              <BufferedUuiDateInput label="Ngày lấy phơi" size="sm" value={ngayLayPhoi ?? (detail.data.ngayLayPhoi ?? '')} onChange={(next) => { setNgayLayPhoi(next); void saveMeta(next, trangThaiLay ?? detail.data?.trangThaiLay ?? ''); }} />
-              <label>Trạng thái lấy <input defaultValue={detail.data.trangThaiLay ?? ''} onBlur={(e) => void saveMeta(ngayLayPhoi ?? detail.data?.ngayLayPhoi ?? '', e.target.value)} /></label>
-              <button type="button" className="btn btn--secondary btn--sm" disabled={saving || adding} onClick={() => setAdding(true)}>＋ Thêm dòng</button>
-              <button type="button" className="btn btn--primary btn--sm" disabled={saving} onClick={() => void saveAll()}>Lưu</button>
-              <button type="button" className="btn btn--secondary btn--sm" disabled={saving} onClick={onClose}>Hủy</button>
+            {linkNotice && <p role="status" className="phoi-detail-note">{linkNotice}</p>}
+            <div className="phoi-detail-meta">
+              <BufferedUuiDateInput label="Ngày lấy phơi" size="sm" value={ngayLayPhoi ?? (detail.data.ngayLayPhoi ?? '')} onChange={setNgayLayPhoi} />
+              <TextField label="Trạng thái lấy" value={trangThaiLay ?? detail.data.trangThaiLay ?? ''} onChange={(e) => setTrangThaiLay(e.target.value)} />
             </div>
           </>
         )}
@@ -187,7 +222,7 @@ export function PhoiPhieuChiHoDialog({ tripId, onClose, onSaved }: Props) {
       </div>
       </Modal>}
       {addPanelOpen && catalog.data && <ExpenseCreateDrawer
-      work={{ tripId, shipmentCode: detail.data?.tripCode ?? null, containerNumber: null }}
+      work={{ tripId, shipmentCode: billBookingReference(billOrBooking), containerNumber: null }}
       catalog={catalog.data} initialGroup="OPS_INCIDENTAL" entryScope="OPS"
       onClose={() => setAdding(false)}
       onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) }); onSaved(); }}

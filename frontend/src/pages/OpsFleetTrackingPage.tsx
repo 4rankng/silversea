@@ -1,3 +1,4 @@
+import { opsBillReference } from '../features/ops/opsStatus';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useOpsFleet } from '../hooks/useOpsQueries';
 import './OpsFleetTrackingPage.css';
@@ -70,8 +71,8 @@ export default function OpsFleetTrackingPage() {
                   </td>
                   <td data-label="Rơ-moóc">{truck.trailerPlate ?? <span className="ops-fleet__missing">Chưa có rơ-moóc</span>}</td>
                   <td className="ops-fleet__wide" data-label="Lệnh đang gán">
-                    {truck.tripCode
-                      ? `${truck.tripCode}${truck.shipmentCode ? ` · ${truck.shipmentCode}` : ''}`
+                    {truck.tripId != null
+                      ? opsBillReference(truck.billRef)
                       : <span className="ops-fleet__missing">Chưa gán lệnh</span>}
                   </td>
                   <td data-label="Tài xế">{truck.driverName ?? <span className="ops-fleet__missing">Chưa có tài xế</span>}</td>

@@ -125,10 +125,8 @@ export function UserTable({
       />
 
       {/* ── Filters: the ONE shared strip (card 20260927_152) ────────────── */}
-      {/* The role group is the shared boxed `Tabs` — counts ride its own plain
-          numeral slot, so the role-tinted count pill this row used to render is
-          gone — and the search is the bar's own cell. No page rule declares the
-          strip's layout, its control widths or its heights. */}
+      {/* One shared category picker keeps every role/count reachable without
+          a multi-row role strip. The bar owns the search and control layout. */}
       <div data-tour-id="users-role-filters">
         <FilterBar
           search={{
@@ -140,6 +138,7 @@ export function UserTable({
         >
           <Tabs
             variant="boxed"
+            presentation="select"
             ariaLabel="Lọc tài khoản theo vai trò"
             value={filter}
             onChange={(id) => onFilterChange(id as FilterKey)}

@@ -567,7 +567,7 @@
 
   .master-plan-grid__container-detail-trigger,
   .master-plan-grid__note-detail-trigger {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   .master-plan-grid__cell--action {
@@ -580,22 +580,15 @@
   }
 
   .master-plan-grid__allocation-trigger {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     padding: 10px 16px;
   }
 
-  /* Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell
-     holds a 44px trigger, so the cell body lands at ~64px tall. The notes
-     cell directly below is text-only — an empty "—" placeholder or a
-     short note would render ~40-50px, leaving a ~14-24px height pop in
-     the action + notes footer pair. Ground the notes-trigger to 44px so
-     empty/short notes share the action-cell rhythm AND keep the 44px
-     touch target that the design system reserves for tappable surfaces
-     (design-system.md: "Compact field typography is shared too: sm
-     fields use 12px on desktop and 14px at narrow widths, while
-     retaining the 44px touch target"). */
+  /* Keep empty/short notes on the shared 40px compact control budget.
+     Allocation and note records may grow to show their multiple facts;
+     their inner detail actions retain the ordinary control budget. */
   .master-plan-grid__notes-trigger {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   /* (this rule's sentence-case override for the phone/tablet record lives at

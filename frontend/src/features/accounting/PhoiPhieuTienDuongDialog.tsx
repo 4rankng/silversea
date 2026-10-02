@@ -4,12 +4,18 @@ import { confirmPhoiPhieuTienDuong, getPhoiPhieuTienDuong } from '../../api/phoi
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { formatCurrency } from '../../lib/format';
-import { DRIVER_INCIDENTAL_COST_LABELS } from '@tingting/shared';
-import { Modal, NumberField } from '../../design-system';
+import { billBookingReference } from '../../lib/business-reference';
+import { DRIVER_INCIDENTAL_COST_LABELS, sumExcludingNegative } from '@tingting/shared';
+import { EmptyState, Modal, NumberField } from '../../design-system';
+import { Btn } from '../../components/UI';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
+import { Money } from '../../components/shared/Money';
+import { PhoiPhieuDetailSummary } from './PhoiPhieuDetailSummary';
+import './phoi-phieu-dialogs.css';
 
 interface Props {
   tripId: number;
+  billOrBooking?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -18,12 +24,7 @@ interface Props {
  *  (EXPENSE_ACCOUNTING_UPDATED / _CORRECTED payload.reason). */
 const EDIT_REASON = 'Kế toán sửa số tiền trong xem chi tiết tiền đường';
 
-/** Headers wrap at spaces only (keep-all) — table text never clips mid-token
- *  (design law §4; board thead contract, card 20260922_54). */
-const th = (extra: React.CSSProperties): React.CSSProperties =>
-  ({ whiteSpace: 'normal', wordBreak: 'keep-all', overflowWrap: 'normal', ...extra });
-
-export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
+export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const detail = useQuery({
     queryKey: qk.phoiPhieu.tienDuong(tripId),
@@ -34,6 +35,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
+  const [refreshRequired, setRefreshRequired] = useState(false);
   const confirmLock = useRef(false);
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
 
@@ -50,12 +52,10 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
       return edit === undefined ? row.amount : edit === '' ? 0 : edit;
     };
     return {
-      total: rows.reduce((sum, row) => sum + live(row), 0),
-      approved: rows.filter((row) => row.confirmed).reduce((sum, row) => sum + live(row), 0),
+      total: sumExcludingNegative(rows, live),
+      approved: sumExcludingNegative(rows.filter((row) => row.confirmed), live),
     };
   }, [rows, edits]);
-  const totalMoney = formatCurrency(totals.total);
-  const approvedMoney = formatCurrency(totals.approved);
   const unapproved = totals.total - totals.approved;
 
   // Card 20260923_11 rule, carried here: the dialog and the "Thêm khoản chi"
@@ -65,7 +65,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   const addPanelOpen = adding && Boolean(catalog.data);
 
   async function tickConfirm(row: (typeof rows)[number]) {
-    if (confirmLock.current || detail.isFetching) return;
+    if (confirmLock.current || detail.isFetching || refreshRequired) return;
     confirmLock.current = true;
     setConfirming(row.sourceId);
     setError('');
@@ -88,7 +88,14 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
   /** The chi hộ dialog's save loop, for driver rows: unapproved money goes
    *  through the plain update, approved money through the correction path that
    *  keeps the original amount in history. */
+  async function refreshDetail(clearError = false) {
+    const result = await detail.refetch();
+    setRefreshRequired(result.isError);
+    if (clearError && !result.isError) setError('');
+  }
+
   async function saveAll() {
+    if (saving || confirming !== null || detail.isFetching || refreshRequired) return;
     setSaving(true);
     setError('');
     try {
@@ -109,12 +116,15 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
       onClose();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Không lưu được thay đổi.');
+      setRefreshRequired(true);
+      await refreshDetail();
     } finally {
       setSaving(false);
     }
   }
 
   const busy = saving || confirming !== null;
+  const dirty = rows.some(row => edits[row.sourceId] !== undefined && edits[row.sourceId] !== row.amount);
 
   return (
     <>
@@ -122,75 +132,74 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
           Escape, focus return, scroll lock — card 20260930_227); house chrome
           renders the header/close so this dialog no longer re-assembles them.
           Card 20260923_11: suppressed while the add panel owns the screen. */}
-      {/* 7 fixed-layout columns need budgeted widths: the old 640px shell
-          equal-shared them to ~91px and nowrap headers clipped mid-token.
-          Wider shell + wrap-at-spaces headers (design law §4). */}
       {!addPanelOpen && <Modal
         isOpen
         onClose={onClose}
-        title={`Chi tiết tiền đường ${detail.data?.tripCode ?? ''}`.trim()}
+        title={`Chi tiết tiền đường ${billBookingReference(billOrBooking)}`}
         ariaLabel="Chi tiết tiền đường"
-        maxWidth={760}
+        maxWidth={1240}
+        footer={detail.data && <>
+          <Btn size="sm" disabled={busy || adding} onClick={() => setAdding(true)}>＋ Thêm dòng</Btn>
+          <Btn size="sm" disabled={busy} onClick={onClose}>Hủy</Btn>
+          <Btn size="sm" variant="primary" disabled={busy || detail.isFetching || refreshRequired || Object.keys(edits).length === 0} onClick={() => void saveAll()}>Lưu</Btn>
+        </>}
       >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
+      <div className="phoi-detail-body">
         {detail.isLoading && <p>Đang tải…</p>}
-        {(error || detail.isError) && <p role="alert" style={{ color: 'var(--err, #dc2626)' }}>{error || detail.error?.message} <button type="button" className="btn btn--secondary btn--sm" disabled={busy || detail.isFetching} onClick={() => void detail.refetch().then(result => { if (!result.isError) setError(''); })}>Tải lại khoản chi</button></p>}
+        {(error || detail.isError) && <div role="alert" className="phoi-detail-error">
+          <p>{error || detail.error?.message}</p>
+          {refreshRequired && <p>{detail.error?.message} Tải lại khoản chi trước khi lưu tiếp.</p>}
+          <Btn size="sm" disabled={busy || detail.isFetching} onClick={() => void refreshDetail(!refreshRequired)}>Tải lại khoản chi</Btn>
+        </div>}
         {detail.data && (
           <>
-            <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)' }}>
-              {/* Widths sum to 100% so the fixed layout never equal-shares
-                  the money columns into clip territory (law §4). */}
+            {rows.length === 0 ? <EmptyState variant="compact" context="expenses" title="Chưa có khoản tiền đường" description="Thêm dòng để ghi nhận khoản chi của chuyến này." /> : <div className="record-table-wrap" role="region" aria-label="Các khoản tiền đường">
+            <table className="record-table ops-table phoi-detail-matrix">
               <thead><tr>
-                <th style={th({ width: '5%' })}>STT</th>
-                <th style={th({ width: '20%' })}>Khoản lái xe nhập</th>
-                <th style={th({ width: '11%' })}>Ngày</th>
-                <th style={th({ width: '17%' })}>Lái xe</th>
-                <th style={th({ width: '16%' })}>Lái xe nhập ban đầu (đ)</th>
-                <th style={th({ width: '15%' })}>Thực chi hiện tại (đ)</th>
-                <th style={th({ width: '16%' })}>Kế toán duyệt</th>
+                <th className="phoi-detail-col--ordinal">STT</th>
+                <th className="phoi-detail-col--description">Khoản lái xe nhập</th>
+                <th className="phoi-detail-col--date">Ngày</th>
+                <th className="phoi-detail-col--identity">Lái xe</th>
+                <th className="phoi-detail-col--money">Lái xe nhập ban đầu (đ)</th>
+                <th className="phoi-detail-col--money">Thực chi hiện tại (đ)</th>
+                <th className="phoi-detail-col--action">Kế toán duyệt</th>
               </tr></thead>
               <tbody>
                 {rows.map((row, index) => (
                   <tr key={row.sourceId}>
-                    <td>{index + 1}</td>
-                    <td>{row.feeName || DRIVER_INCIDENTAL_COST_LABELS[row.costType as keyof typeof DRIVER_INCIDENTAL_COST_LABELS] || row.costType}</td>
-                    <td>{row.occurredAt ?? '—'}</td>
-                    <td>{row.driverName ?? '—'}</td>
-                    <td>{formatCurrency(row.driverEnteredAmount ?? row.amount)}</td>
-                    <td>
+                    <td data-label="STT" className="phoi-detail-col--ordinal">{index + 1}</td>
+                    <td data-label="Khoản lái xe nhập" className="phoi-detail-col--description">{row.feeName || DRIVER_INCIDENTAL_COST_LABELS[row.costType as keyof typeof DRIVER_INCIDENTAL_COST_LABELS] || row.costType}</td>
+                    <td data-label="Ngày" className="phoi-detail-col--date">{row.occurredAt ?? '—'}</td>
+                    <td data-label="Lái xe" className="phoi-detail-col--identity">{row.driverName ?? '—'}</td>
+                    <td data-label="Lái xe nhập ban đầu (đ)" className="phoi-detail-col--money"><Money value={row.driverEnteredAmount ?? row.amount} /></td>
+                    <td data-label="Thực chi hiện tại (đ)" className="phoi-detail-col--money">
                       <NumberField
                         aria-label={`Thực chi dòng ${index + 1}`}
                         grouped
+                        signed
+                        suffix="₫"
                         value={edits[row.sourceId] ?? row.amount}
                         disabled={saving}
                         onChange={(n) => setAmount(row.sourceId, n)}
                       />
                     </td>
-                    <td>
+                    <td data-label="Kế toán duyệt" className="phoi-detail-col--action">
                       {row.confirmed
-                        ? <span style={{ color: 'var(--ok, #16a34a)', fontWeight: 600 }}>Đã duyệt</span>
-                        : <button type="button" className="btn btn--primary btn--sm" disabled={busy || detail.isFetching} onClick={() => void tickConfirm(row)}>Tích duyệt</button>}
+                        ? <span>Đã duyệt</span>
+                        : <Btn size="sm" disabled={busy || detail.isFetching || refreshRequired} onClick={() => void tickConfirm(row)}>Tích duyệt</Btn>}
                     </td>
                   </tr>
                 ))}
-                <tr>
-                  <td colSpan={4}><strong>TỔNG CỘNG</strong></td>
-                  <td />
-                  <td><strong>{totalMoney}</strong><br /><small>Tổng phát sinh — mọi dòng</small></td>
-                  <td><strong>{approvedMoney}</strong><br /><small>Đã duyệt — số vào phiếu chi, khớp cột Tiền đường</small></td>
-                </tr>
               </tbody>
             </table>
-            <p style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
+            </div>}
+            <PhoiPhieuDetailSummary items={[{ label: 'Tổng phát sinh', amount: totals.total }, { label: 'Đã duyệt', amount: totals.approved }]} />
+            {dirty && <p role="status" className="phoi-detail-note">Có thay đổi chưa lưu</p>}
+            <p className="phoi-detail-note">
               Tổng phát sinh là tất cả dòng; chỉ dòng đã duyệt mới được lập phiếu chi thanh toán cho lái xe
               {unapproved > 0 ? ` — còn ${formatCurrency(unapproved)} chưa duyệt, không vào phiếu.` : '.'}
               {' '}Con số “Đã duyệt” chính là con số hiện ở cột Tiền đường của bảng kiểm soát phơi phiếu.
             </p>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap', marginTop: 8 }}>
-              <button type="button" className="btn btn--secondary btn--sm" disabled={busy || adding} onClick={() => setAdding(true)}>＋ Thêm dòng</button>
-              <button type="button" className="btn btn--primary btn--sm" disabled={busy || Object.keys(edits).length === 0} onClick={() => void saveAll()}>Lưu</button>
-              <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={onClose}>Hủy</button>
-            </div>
           </>
         )}
         {adding && catalog.isPending && <p role="status">Đang tải loại phí và nhân viên…</p>}
@@ -198,7 +207,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, onClose, onSaved }: Props) {
       </div>
     </Modal>}
       {addPanelOpen && catalog.data && <ExpenseCreateDrawer
-        work={{ tripId, shipmentCode: detail.data?.tripCode ?? null, containerNumber: null }}
+        work={{ tripId, shipmentCode: billBookingReference(billOrBooking), containerNumber: null }}
         catalog={catalog.data} initialGroup="DRIVER_ROAD"
         onClose={() => setAdding(false)}
         onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.tienDuong(tripId) }); onSaved(); }}

@@ -74,7 +74,7 @@ describe('configuration and administration responsive contracts', () => {
     expect(actions).not.toContain('position: absolute');
     expect(actions).not.toContain('opacity: 0');
     expect(source).toContain('.pr-act:focus-visible');
-    expect(source).toContain('.pr-act { width: 44px; height: 44px; }');
+    expect(source).toContain('.pr-act { width: var(--control-max-h); height: var(--control-max-h); }');
   });
 
   it('uses shell gutters in the document editor and flat issuer fields', () => {

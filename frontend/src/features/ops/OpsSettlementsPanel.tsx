@@ -1,3 +1,4 @@
+import { opsBillReference } from './opsStatus';
 import { useState } from 'react';
 import { Download, FileText, Loader2, Printer, X } from 'lucide-react';
 import {
@@ -12,9 +13,11 @@ import { useToast } from '../../components/shared/Toast';
 import { formatMoney } from '../../lib/format';
 
 import './ops-modal.css';
+import '../../design-system/DataTable.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
 import { formatDate } from '../../lib/format';
+import { LedgerRecordList } from '../../components/shared/LedgerRecordList';
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   DRAFT: { label: 'Bản nháp cần hoàn tất', color: 'var(--warn, #d97706)' },
   RECORDED: { label: 'Đã quyết toán', color: 'var(--ok, #16a34a)' },
@@ -52,7 +55,7 @@ export function OpsSettlementsPanel() {
     <section className="ops-wallet__section" aria-label="Phiếu quyết toán">
       <header className="ops-wallet__section-head">
         <h2>Phiếu quyết toán</h2>
-        <button type="button" className="btn-primary" onClick={() => void handleCreate()} disabled={createSettlement.isPending}>
+        <button type="button" className="btn btn--primary" onClick={() => void handleCreate()} disabled={createSettlement.isPending}>
           {createSettlement.isPending ? <Loader2 size={14} className="spin" /> : <FileText size={14} />}
           Lập phiếu quyết toán
         </button>
@@ -80,11 +83,11 @@ export function OpsSettlementsPanel() {
                   <td className="ops-money" data-label="Tổng">{formatMoney(item.totalAmount)} ₫</td>
                   <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="ops-row-actions ops-wallet__wide">
-                    <button type="button" className="btn-secondary" onClick={() => setDetailId(item.id)}>
+                    <button type="button" className="btn btn--secondary" onClick={() => setDetailId(item.id)}>
                       Xem
                     </button>
-                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn-primary" disabled={finalizeSettlement.isPending} onClick={() => void finalizeSettlement.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã ghi nhận phiếu quyết toán.' })).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được phiếu.' }))}>Hoàn tất phiếu</button>}
-                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn-secondary" disabled={reopenDraft.isPending} onClick={() => void reopenDraft.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã mở các khoản chi. Vào Lịch sử chi để bổ sung và lập lại phiếu.' })).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được phiếu.' }))}>Mở khoản chi để bổ sung</button>}
+                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn btn--primary" disabled={finalizeSettlement.isPending} onClick={() => void finalizeSettlement.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã ghi nhận phiếu quyết toán.' })).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được phiếu.' }))}>Hoàn tất phiếu</button>}
+                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn btn--secondary" disabled={reopenDraft.isPending} onClick={() => void reopenDraft.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã mở các khoản chi. Vào Lịch sử chi để bổ sung và lập lại phiếu.' })).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được phiếu.' }))}>Mở khoản chi để bổ sung</button>}
                   </td>
                 </tr>
               );
@@ -98,14 +101,14 @@ export function OpsSettlementsPanel() {
       </div>
 
       {detailId != null && (
-        <OpsModalBackdrop onClose={() => setDetailId(null)} ariaLabel={`Phiếu quyết toán ${detail.data?.settlement.code ?? detailId}`}>
+        <OpsModalBackdrop onClose={() => setDetailId(null)} ariaLabel={detail.data?.settlement.code ? `Phiếu quyết toán ${detail.data.settlement.code}` : 'Chi tiết quyết toán'}>
           <div className="ops-modal">
             <header className="ops-modal__head">
               <h2>{detail.data?.settlement.code ?? "Chi tiết quyết toán"}</h2>
               <div className="ops-modal__head-actions">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn btn--secondary"
                   disabled={!detail.data}
                   onClick={() => detail.data && void opsClient
                     .downloadSettlementExport(detailId, detail.data.settlement.code)
@@ -116,7 +119,7 @@ export function OpsSettlementsPanel() {
                 >
                   <Download size={14} /> Excel
                 </button>
-                <button type="button" className="btn-secondary" disabled={!detail.data} onClick={() => window.print()}>
+                <button type="button" className="btn btn--secondary" disabled={!detail.data} onClick={() => window.print()}>
                   <Printer size={14} /> In
                 </button>
                 <button type="button" aria-label="Đóng" onClick={() => setDetailId(null)}><X size={16} aria-hidden="true" /></button>
@@ -150,40 +153,64 @@ export function OpsSettlementSheet({ grouping, meta }: {
       {meta.note && <p>Ghi chú: {meta.note}</p>}
       {grouping.groups.map((group) => (
         <section key={group.shipmentId}>
-          <h4>Lô {group.shipmentCode ?? group.billRef ?? '—'} — {group.customerName ?? ''} · {group.billRef ?? '—'}</h4>
+          <h4>Lô {opsBillReference(group.billRef)} — {group.customerName ?? ''}</h4>
           {(['withInvoice', 'withoutInvoice'] as const).map((basketKey) => {
             const basket = group[basketKey];
             if (basket.items.length === 0) return null;
+            const basketLabel = basketKey === 'withInvoice' ? 'Có hóa đơn' : 'Không hóa đơn';
+            const subtotalLabel = basketKey === 'withInvoice' ? 'Tổng có hóa đơn' : 'Tổng không hóa đơn';
+            const rows = basket.items.map((item, index) => ({
+              key: index,
+              container: item.containerNumber ?? 'Phí chung lô',
+              expenseType: item.expenseTypeName ?? '',
+              amount: `${formatMoney(item.amount)} ₫`,
+            }));
             return (
-              <table key={basketKey} className="tt-table ops-settlement-sheet__table">
-                <thead>
-                  <tr>
-                    <th>{basketKey === 'withInvoice' ? 'Có hóa đơn' : 'Không hóa đơn'} — Cont</th>
-                    <th>Loại phí</th>
-                    <th>Số tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {basket.items.map((item, index) => (
-                    <tr key={index}>
-                      <td>{item.containerNumber ?? 'Phí chung lô'}</td>
-                      <td>{item.expenseTypeName ?? ''}</td>
-                      <td className="ops-money">{formatMoney(item.amount)} ₫</td>
+              <div key={basketKey}>
+                <LedgerRecordList rows={rows.map((row) => ({
+                    key: row.key,
+                    title: row.container,
+                    subtitle: basketLabel,
+                    facts: [
+                      { key: 'type', label: 'Loại phí', value: row.expenseType, primary: true },
+                      { key: 'amount', label: 'Số tiền', value: <span className="data-token">{row.amount}</span>, primary: true, align: 'end' as const },
+                    ],
+                  }))} />
+                <LedgerRecordList rows={[
+                  { key: 'subtotal', title: subtotalLabel, facts: [{ key: 'amount', label: 'Số tiền', value: <span className="data-token">{formatMoney(basket.total)} ₫</span>, primary: true, align: 'end' }] },
+                ]} />
+                <div className="ledger-desktop ds-table-scroll">
+                <table className="tt-table ops-settlement-sheet__table">
+                  <thead>
+                    <tr>
+                      <th>{basketLabel} — Cont</th>
+                      <th>Loại phí</th>
+                      <th>Số tiền</th>
                     </tr>
-                  ))}
-                  <tr className="ops-settlement-sheet__subtotal">
-                    <td colSpan={2}>Tổng {basketKey === 'withInvoice' ? 'có hóa đơn' : 'không hóa đơn'}</td>
-                    <td className="ops-money">{formatMoney(basket.total)} ₫</td>
-                  </tr>
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row.key}>
+                        <td>{row.container}</td>
+                        <td>{row.expenseType}</td>
+                        <td className="ops-money">{row.amount}</td>
+                      </tr>
+                    ))}
+                    <tr className="ops-settlement-sheet__subtotal">
+                      <td colSpan={2}>{subtotalLabel}</td>
+                      <td className="ops-money">{formatMoney(basket.total)} ₫</td>
+                    </tr>
+                  </tbody>
+                </table>
+                </div>
+              </div>
             );
           })}
           <p className="ops-settlement-sheet__group-total">Tổng lô: {formatMoney(group.total)}</p>
         </section>
       ))}
       <p className="ops-settlement-sheet__grand">
-        TỔNG CỘNG: {formatMoney(grouping.totals.grand)}
+        TỔNG CỘNG: {formatMoney(grouping.totals.grand)}{' '}
         (Có HĐ: {formatMoney(grouping.totals.withInvoice)} · Không HĐ: {formatMoney(grouping.totals.withoutInvoice)})
       </p>
       <div className="ops-settlement-sheet__signatures">

@@ -312,7 +312,7 @@
   }
 
   .mobile-back-bar .btn {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     border-radius: 10px;
     font-size: var(--fs-sm);
     font-weight: 600;

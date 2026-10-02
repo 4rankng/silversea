@@ -166,7 +166,7 @@
 }
 
 .fadv-form-panel__fields input {
-  min-height: 48px;
+  min-height: var(--control-max-h);
   border-radius: 8px;
   border: 1px solid var(--line-2);
   background: var(--surface-2);
@@ -187,9 +187,9 @@
 }
 
 .fadv-form-panel__close {
-  width: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-max-h);
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   padding: 0;
   justify-content: center;
   flex: none;
@@ -325,7 +325,7 @@
   }
 
   .fadv-form-panel__actions .btn {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     flex: 1;
     justify-content: center;
   }

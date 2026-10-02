@@ -11,7 +11,7 @@
 .csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 .csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .csc-extra-dates__row > div:first-child { flex: 1 1 220px; min-width: 0; }
-.csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
+.csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: var(--control-max-h); padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
 .csc-workspace { display: grid; gap: 12px; min-width: 0; }
 .csc-form { display: grid; gap: 12px; min-width: 0; }
 .csc-section { padding: 18px !important; gap: 14px !important; border: 0 !important; border-radius: 14px !important; background: var(--surface) !important; scroll-margin-top: 16px; }
@@ -213,7 +213,7 @@
 .csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
 .csc-pricing__explain { padding-top: 8px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__explain p { margin: 3px 0; }
 .csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
-.csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-soft); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: 44px; border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
+.csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-soft); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: var(--control-max-h); border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
 .csc-submit-error { color: var(--danger); background: var(--danger-soft); font-size: var(--text-data-size); line-height: 1.5; }
 .csc-summary__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; }
 @media (min-width: 1101px) and (min-height: 721px) {
@@ -239,7 +239,7 @@
   .csc-container-row__mobile-index { display: inline; }
   .csc-container-row td[data-label]::before { display: block; margin-bottom: 3px; color: var(--fg-2); content: attr(data-label); font-size: var(--text-label-size); font-weight: 700; line-height: 1.35; }
   .csc-container-table .csc-container-row__actions { position: absolute; top: 6px; right: 6px; }
-  .csc-container-row__actions .csc-icon-button { min-width: 44px; min-height: 44px; }
+  .csc-container-row__actions .csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }
 }
 @media (max-width: 1100px) {
   /* The app shell owns the tablet/phone canvas gutter. The continuous CUS
@@ -250,7 +250,7 @@
   .csc-identity-grid__customer { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 /* Keep the normal-flow action row above the iPhone home indicator at the end
    of the long create form. It is deliberately not sticky. */
@@ -274,7 +274,7 @@
   }
 }
 
-@media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: 44px; } }
+@media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: var(--control-max-h); } }
 @media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-validation-summary, .csc-submit-error { padding: 8px !important; } }
 @media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
@@ -317,18 +317,18 @@
   gap: 6px;
   font-size: var(--text-caption-size);
   line-height: 1.4;
-  color: #b45309;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
+  color: var(--warning-text);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
   border-radius: 6px;
   padding: 6px 10px;
 }
 .csc-field-warning__link {
-  color: #b45309;
+  color: var(--warning-text);
   font-weight: 600;
   text-decoration: underline;
 }
-.csc-field-warning__link:hover { color: #92400e; }
+.csc-field-warning__link:hover { color: var(--warning-text); }
 
 /* Separate time/date controls remain usable in the repeatable desktop grid.
  * 176px is the control's measured floor: the two segment groups carry
@@ -345,7 +345,7 @@
   .csc-container-cell .csc-container-cell__display { display: none; }
   .csc-container-cell .csc-container-cell__editor > * { opacity: 1; }
   .csc-container-cell .csc-route-picker { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; }
-  .csc-container-cell .csc-route-picker__add { width: auto; min-height: 44px; padding-inline: 8px; }
+  .csc-container-cell .csc-route-picker__add { width: auto; min-height: var(--control-max-h); padding-inline: 8px; }
 }
 
 /* Bulk appointment copy (user ruling 2026-09-18): the affordance lives in the
@@ -390,7 +390,7 @@
 
 /* 20260918_3 requirement C: the in-row remove button (38px) is the tallest
    element in the container row — one step down on desktop keeps the row
-   compact; the 44px coarse-pointer floor stays in the ≤640px block. */
+   compact; the shared40px coarse-pointer budget stays in the ≤640px block. */
 @media (min-width: 641px) {
   .csc-container-row .csc-icon-button { min-width: 30px; min-height: 30px; }
 }

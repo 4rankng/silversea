@@ -349,11 +349,8 @@ describe('DetailedPlanFilters — Bộ lọc dialog (hours/zone/points)', () => 
   });
 
   it('closes the facet popover with Escape — one shared dismissal, no stranded focus', async () => {
-    // The facet picker is the innermost layer and `Bộ lọc` is a shared
-    // `FilterDropdown` popover: both own the same Escape dismissal
-    // (`useClickOutside(…, { escapeKey: true })`), so one press leaves neither
-    // layer open. That is the primitive's contract, not this page's
-    // (`components/FilterDropdown.test.tsx` pins it for the trigger alone).
+    // The shared overlay stack gives the first Escape to the facet picker.
+    // The next Escape dismisses the retained parent filter dialog.
     renderFilters(
       <DetailedPlanFilters
         {...baseProps()}
@@ -366,9 +363,10 @@ describe('DetailedPlanFilters — Bộ lọc dialog (hours/zone/points)', () => 
     await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('listbox', { name: /Danh sách điểm trả/i })).toBeNull());
-    expect(screen.queryByRole('dialog', { name: 'Bộ lọc kế hoạch' })).toBeNull();
-    // The bar itself is untouched: its trigger is still there to reopen, so the
-    // dismissal never strands the dispatcher outside the filter plane.
+    expect(screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch' })).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Bộ lọc kế hoạch' })).toBeNull());
     expect(screen.getByRole('button', { name: 'Bộ lọc' })).toBeTruthy();
   });
 

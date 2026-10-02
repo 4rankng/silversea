@@ -54,43 +54,20 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => 
     expect(css).toMatch(/\.ppc-board \.ppc-value\s*\{[^}]*white-space:\s*nowrap/);
   });
 
-  it('atomic columns are budgeted explicitly — the fixed-layout board no longer equal-shares every column', () => {
-    // Card 20260929_207: the 3% selection track is GONE with the checkbox
-    // column (PM directive 2026-09-29). This contract now pins both halves of
-    // that: no orphaned select track, and the freed share landing on the
-    // content columns that were being crushed to three ragged lines.
+  it('the approved workflow matrix grows to honest column minima at every width', () => {
     expect(css).not.toMatch(/ppc-col--select/);
-    // Card 20260925_47: shares rebalanced so unbreakable header tokens hold
-    // their longest word at ≤2 even lines (fixed layout honours width only).
-    // 2026-09-29: rebalanced AGAIN, because the two IDENTITY tracks were the
-    // starved ones — measured at 1144px, 'Lịch trình' held 57px against the
-    // 149px its trip code + bill need and 'Thông tin xe' 57px against 206px,
-    // so a code the operator reads character by character broke after every
-    // hyphen. The wrapping text columns pay for the two identity tracks now.
-    // Shares are RELATIVE weights (fixed layout scales them to the table's
-    // 100%), so the pin is the shape, not an absolute total.
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--lich-trinh\s*\{[^}]*width:\s*12%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--xe\s*\{[^}]*width:\s*10%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--customer-route\s*\{[^}]*width:\s*9%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--thongso\s*\{[^}]*width:\s*8%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--diadiem\s*\{[^}]*width:\s*9%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--chiho\s*\{[^}]*width:\s*11%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--money\s*\{[^}]*width:\s*10%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--status\s*\{[^}]*width:\s*8%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--date\s*\{[^}]*width:\s*9%/);
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--ghichu\s*\{[^}]*width:\s*7%/);
-    // Card 20260928_162 — the not-charged reason column takes the note-track
-    // weight; the budget stays explicit now that a 12th column exists.
-    expect(css).toMatch(/\.ppc-board th\.ppc-col--ghichu-ops\s*\{[^}]*width:\s*7%/);
-    const shares = new Map(
-      [...css.matchAll(/\.ppc-board th\s*\.ppc-col--([\w-]+)\s*\{[^}]*width:\s*([\d.]+)%/g)]
-        .map((match) => [match[1], Number(match[2])]),
-    );
-    expect([...shares.keys()], 'every track is declared').toHaveLength(11);
-    // The identity tracks carry the widest weight and the note tracks the
-    // narrowest — inverting either is what starved the board.
-    expect(shares.get('lich-trinh')!).toBeGreaterThan(shares.get('customer-route')!);
-    expect(shares.get('xe')!).toBeGreaterThanOrEqual(shares.get('ghichu')! * 1.4);
+    expect(css).toMatch(/\.ppc-board\s*\{[^}]*table-layout:\s*auto/);
+    expect(css).not.toMatch(/table-layout:\s*fixed|width:\s*\d+%/);
+    for (const column of ['lich-trinh', 'xe', 'customer-route', 'thongso', 'diadiem',
+      'chiho', 'money', 'status', 'date', 'ghichu', 'ghichu-ops']) {
+      const budget = css.match(new RegExp(`\\.ppc-board \\.ppc-col--${column}(?:\\s*,[^{}]+)?\\s*\\{[^}]*min-width:\\s*(\\d+)px`));
+      expect(budget, `${column} has a real content floor`).not.toBeNull();
+      expect(Number(budget?.[1])).toBeGreaterThanOrEqual(104);
+    }
+    expect(css).toMatch(/\.ppc-board \.ppc-identity\s*\{[^}]*white-space:\s*nowrap/);
+    expect(css).toMatch(/\.ppc-board-wrap\s*\{[^}]*overflow-x:\s*auto/);
+    expect(source).toContain('className="ppc-board-wrap ledger-desktop" role="region"');
+    expect(source).toContain('className="ppc-board-hint ledger-desktop"');
   });
 
   // Card 20260929_207 + the selection-state contract: the picked row is drawn in
@@ -105,9 +82,10 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => 
     expect(css).not.toMatch(/border-left:\s*[2-6]px solid/);
   });
 
-  it('chi hộ affordance is an icon-only button with a ≥24px hit area (09-18 icon-action ruling, §5)', () => {
-    expect(css).toMatch(/\.ppc-board \.ppc-icon-btn\s*\{[^}]*width:\s*26px/);
-    expect(css).toMatch(/\.ppc-board \.ppc-icon-btn\s*\{[^}]*height:\s*26px/);
+  it('chi hộ affordance inherits the shared default/touch icon-button geometry', () => {
+    expect(source).toContain('className="btn btn--secondary btn--icon"');
+    expect(source).not.toContain('className="ppc-icon-btn"');
+    expect(css).not.toMatch(/ppc-icon-btn/);
   });
 });
 
@@ -159,17 +137,17 @@ describe('phôi phiếu filter strip contract (card 20260927_152)', () => {
 
   it('the bar carries the shared search slot and the two fields of the shared date pair', () => {
     const bar = source.match(/<FilterBar([\s\S]*?)<\/FilterBar>/)?.[1] ?? '';
-    expect(bar).toContain("placeholder: 'Mã chuyến, container, khách'");
+    expect(bar).toContain("placeholder: 'Bill/Booking, phí, hóa đơn'");
     expect(bar).toContain("ariaLabel: 'Tìm kiếm'");
     expect(bar).toContain('<DateRangeFields');
     // ONE from/to implementation — the page no longer mounts bare date fields.
     expect(source).not.toContain('<BufferedUuiDateInput');
   });
 
-  it('the four secondary criteria live inside the dropdown, which comes last', () => {
+  it('the secondary criteria live inside the dropdown, which comes last', () => {
     const bar = source.match(/<FilterBar([\s\S]*?)<\/FilterBar>/)?.[1] ?? '';
     const dropdown = bar.match(/<FilterDropdown([\s\S]*?)<\/FilterDropdown>/)?.[1] ?? '';
-    for (const label of ['Trạng thái', 'Sắp xếp', 'Loại phiếu', 'Số tài khoản quỹ (STK)']) {
+    for (const label of ['Trạng thái', 'Đối chiếu chi hộ', 'Sắp xếp', 'Loại phiếu', 'Số tài khoản quỹ (STK)']) {
       expect(dropdown).toContain(`label="${label}"`);
     }
     expect(dropdown).toContain('onReset={resetSecondary}');

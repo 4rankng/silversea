@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { LedgerRecordList, type LedgerRecord } from '../../components/shared/LedgerRecordList';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { ReceiptText } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow } from '../../api/phoiPhieuClient';
+import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow, type ChiHoConfirmation } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 import { formatNumber, formatCurrency, formatDate } from '../../lib/format';
+import { billBookingReference } from '../../lib/business-reference';
 import { PageHeader } from '../../components/UI';
+import { Money } from '../../components/shared/Money';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
@@ -27,14 +31,16 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const money = (value: number | null | undefined) =>
-  value == null || !Number.isFinite(value) ? 'Chưa xác định' : formatCurrency(value);
+  value == null || !Number.isFinite(value) ? 'Chưa xác định' : <Money value={value} />;
 
 interface Filters {
   dateFrom: string; dateTo: string; status: string; search: string; sortBy: 'grouped' | 'date';
+  confirmation: ChiHoConfirmation | '';
 }
 
 export default function PhoiPhieuControlPage() {
-  const [filters, setFilters] = useState<Filters>({ dateFrom: '', dateTo: '', status: '', search: '', sortBy: 'grouped' });
+  const phone = useMediaQuery('(max-width: 640px)');
+  const [filters, setFilters] = useState<Filters>({ dateFrom: '', dateTo: '', status: '', search: '', sortBy: 'grouped', confirmation: '' });
   const [reportScope, setReportScope] = useState<'' | 'SELF' | 'ALL' | 'UNASSIGNED'>('');
   const [direction, setDirection] = useState<'IN' | 'OUT'>('OUT');
   const [treasuryAccountId, setTreasuryAccountId] = useState('');
@@ -58,10 +64,12 @@ export default function PhoiPhieuControlPage() {
   // decides WHICH rows may be picked, so a row that cannot be issued stays
   // inert instead of silently taking part in the voucher.
   const selection = useTableRowSelection<number>();
-  const selected = selection.selected;
+  const { clear: clearSelection } = selection;
   const selectableRows = useMemo(() => rows.filter(canSelect), [rows]);
+  const selectedIds = rowsQuery.isFetching || rowsQuery.isError ? [] : selection.selectedAmong(selectableRows.map((row) => row.tripId));
   const allSelected = selection.allOfSelected(selectableRows.map((row) => row.tripId));
-  const selectedCount = selection.countAmong(selectableRows.map((row) => row.tripId));
+  const selectedCount = selectedIds.length;
+  useEffect(() => { clearSelection(); }, [filters.dateFrom, filters.dateTo, filters.status, filters.search, filters.confirmation, clearSelection]);
   // Card 20260929_207: the "select every row" affordance moved out of the
   // deleted header checkbox and into the toolbar, where its scope is stated in
   // the label: it covers the rows ON THIS PAGE, never the whole filtered set.
@@ -71,7 +79,7 @@ export default function PhoiPhieuControlPage() {
   }
 
   async function issueVoucher() {
-    if (selected.size === 0) {
+    if (selectedIds.length === 0) {
       setMessage({ kind: 'err', text: 'Chọn ít nhất một dòng.' });
       return;
     }
@@ -82,7 +90,7 @@ export default function PhoiPhieuControlPage() {
     setIssuing(true);
     try {
       const voucher = await createPhoiPhieuVoucher({
-        tripIds: [...selected], direction, treasuryAccountId: Number(treasuryAccountId),
+        tripIds: selectedIds, direction, treasuryAccountId: Number(treasuryAccountId),
       });
       setMessage({ kind: 'ok', text: `Đã lập phiếu ${voucher.code}: ${voucher.entries} khoản, tổng ${formatCurrency(voucher.total)} — sổ quỹ đã được điều chỉnh.` });
       selection.clear();
@@ -94,20 +102,19 @@ export default function PhoiPhieuControlPage() {
     }
   }
 
-  // Card 20260927_152: the four criteria behind `Bộ lọc` — the count feeds the
-  // trigger badge, `Đặt lại` clears exactly those four and nothing else.
+  // Secondary criteria share the existing filter trigger and reset action.
   const secondaryCount = (filters.status ? 1 : 0) + (filters.sortBy !== 'grouped' ? 1 : 0)
-    + (direction !== 'OUT' ? 1 : 0) + (treasuryAccountId ? 1 : 0);
+    + (direction !== 'OUT' ? 1 : 0) + (treasuryAccountId ? 1 : 0) + (filters.confirmation ? 1 : 0);
   const resetSecondary = () => {
-    setFilters((current) => ({ ...current, status: '', sortBy: 'grouped' }));
+    setFilters((current) => ({ ...current, status: '', sortBy: 'grouped', confirmation: '' }));
     setDirection('OUT');
     setTreasuryAccountId('');
   };
   const voucherLabel = issuing
     ? 'Đang lập…'
-    : selected.size === 0
-      ? `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} — chọn dòng đã duyệt`
-      : `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} (${[...selected].reduce((sum, tripId) => {
+    : selectedIds.length === 0
+      ? `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'}`
+      : `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} (${selectedIds.reduce((sum, tripId) => {
           const row = rows.find((candidate) => candidate.tripId === tripId);
           return sum + (row ? (direction === 'IN' ? row.eligibleIn : row.eligibleOut) : 0);
         }, 0)} khoản)`;
@@ -124,7 +131,7 @@ export default function PhoiPhieuControlPage() {
         search={{
           value: filters.search,
           onChange: (search) => setFilters((current) => ({ ...current, search })),
-          placeholder: 'Mã chuyến, container, khách',
+          placeholder: 'Bill/Booking, phí, hóa đơn',
           ariaLabel: 'Tìm kiếm',
         }}
         actions={(
@@ -134,11 +141,11 @@ export default function PhoiPhieuControlPage() {
               className="btn btn--secondary btn--sm"
               onClick={toggleAll}
               disabled={selectableRows.length === 0}
-              title={allSelected ? 'Bỏ chọn các dòng đang hiện' : `Chọn ${selectableRows.length} dòng đang hiện trên trang này`}
+              title={allSelected ? 'Bỏ chọn các dòng kết quả' : `Chọn ${selectableRows.length} dòng trong kết quả`}
             >
-              {allSelected ? 'Bỏ chọn dòng trang này' : `Chọn cả trang này (${selectableRows.length})`}
+              {allSelected ? (phone ? 'Bỏ chọn tất cả' : 'Bỏ chọn dòng trang này') : `${phone ? 'Chọn tất cả' : 'Chọn cả trang này'} (${selectableRows.length})`}
             </button>
-            <button type="button" className="btn btn--primary" disabled={issuing || selected.size === 0} title={selected.size === 0 ? 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu' : undefined} onClick={() => void issueVoucher()}>
+            <button type="button" className="btn btn--primary" disabled={issuing || selectedIds.length === 0} title={selectedIds.length === 0 ? 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu' : undefined} onClick={() => void issueVoucher()}>
               {voucherLabel}
             </button>
           </div>
@@ -146,13 +153,15 @@ export default function PhoiPhieuControlPage() {
       >
         <DateRangeFields
           id="phoi-phieu-date-range"
-          ariaLabel="Khoảng ngày chuyến"
+          ariaLabel="Khoảng ngày hẹn"
           from={filters.dateFrom}
           to={filters.dateTo}
           onChange={({ from, to }) => setFilters((current) => ({ ...current, dateFrom: from, dateTo: to }))}
         />
         <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc phơi phiếu" onReset={resetSecondary}>
           <UuiSelectField label="Trạng thái" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} options={TRIP_STATUS_OPTIONS} />
+          <UuiSelectField label="Đối chiếu chi hộ" value={filters.confirmation} onChange={(event) => setFilters({ ...filters, confirmation: event.target.value as Filters['confirmation'] })}
+            options={[{ value: '', label: 'Tất cả' }, { value: 'CONFIRMED', label: 'Đã đối chiếu' }, { value: 'UNCONFIRMED', label: 'Chưa đối chiếu' }]} />
           <UuiSelectField label="Sắp xếp" value={filters.sortBy} onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as 'grouped' | 'date' })} options={[{ value: 'grouped', label: 'Gom theo số xe' }, { value: 'date', label: 'Theo ngày' }]} />
           <UuiSelectField label="Loại phiếu" value={direction} onChange={(e) => setDirection(e.target.value as 'IN' | 'OUT')}
             options={[{ value: 'OUT', label: 'Phiếu chi' }, { value: 'IN', label: 'Phiếu thu' }]} />
@@ -169,22 +178,49 @@ export default function PhoiPhieuControlPage() {
           issued is dimmed and inert rather than looking pickable. */}
       <p className="ppc-selection-hint" role="status">
         {selectedCount === 0
-          ? `Bấm vào một dòng để chọn · ${selectableRows.length} dòng lập được phiếu trên trang này`
+          ? `${phone ? 'Dùng ô Chọn của bản ghi' : 'Bấm vào một dòng để chọn'} · ${selectableRows.length} dòng lập được phiếu trong kết quả`
           : `Đã chọn ${selectedCount} dòng`}
       </p>
-      <div className="ppc-board-wrap" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
-        <table className="tt-table ppc-board">
+      <LedgerRecordList rows={rows.map((row): LedgerRecord => ({
+        key: row.tripId, title: billBookingReference(row.billOrBooking),
+        subtitle: row.customerName ?? 'Chưa có khách hàng',
+        selected: selection.isSelected(row.tripId), selectable: canSelect(row),
+        onSelect: () => selection.toggle(row.tripId),
+        facts: [
+          { key: 'factory', label: 'Nhà máy', value: row.factoryName ?? 'Chưa có nhà máy', primary: true },
+          { key: 'route', label: 'Tuyến', value: row.routeName ?? 'Chưa có tuyến', primary: true },
+          { key: 'container', label: 'Container', value: <>{row.containerNumber ?? '—'} · {row.containerTypeLabel ?? '—'}</>, primary: true },
+          { key: 'date', label: 'Ngày hẹn', value: formatDate(row.transportDate ?? null, { empty: 'Chưa có ngày hẹn' }), primary: true },
+          { key: 'status', label: 'Trạng thái', value: row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—', primary: true },
+          { key: 'chiHoThu', label: 'Chi hộ phải thu', value: money(row.chiHoThu), primary: true },
+          { key: 'chiHoTra', label: 'Chi hộ phải trả', value: money(row.chiHoTra), primary: true },
+          { key: 'road', label: 'Tiền đường', value: money(row.tienDuong), primary: true },
+          { key: 'capacity', label: 'Trọng tải container', value: row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + ' kg' : '—' },
+          { key: 'weight', label: 'Trọng lượng hàng', value: row.cargoWeightKg != null ? formatNumber(row.cargoWeightKg) + ' kg' : 'Chưa có' },
+          { key: 'sites', label: 'Địa điểm nâng / hạ', value: <>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</> },
+          { key: 'truck', label: 'Biển số xe', value: row.plateNumber ?? '—' },
+          { key: 'carrier', label: 'Nhà vận tải', value: row.carrierName ?? 'Chưa xác định nhà vận tải' },
+          { key: 'driver', label: 'Lái xe', value: row.driverName ?? 'Chưa có lái xe' },
+          { key: 'cusNotes', label: 'Ghi chú vận tải', value: row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—' },
+          { key: 'opsNotes', label: 'Ghi chú chi phí OPS', value: row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—' },
+          { key: 'driverNotes', label: 'Ghi chú lái xe', value: row.driverNote ?? '—' },
+          { key: 'chiHoAction', label: 'Chi hộ', value: <button type="button" className="btn btn--secondary" aria-label={`Chi tiết chi hộ ${billBookingReference(row.billOrBooking)}`} onClick={() => { setTienDuongTripId(null); setChiHoTripId(row.tripId); }}>Chi tiết chi hộ</button> },
+          { key: 'roadAction', label: 'Tiền đường', value: <button type="button" className="btn btn--secondary" onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}>Xem chi tiết</button> },
+        ],
+      }))} />
+      <div className="ppc-board-wrap ledger-desktop" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
+        <table className="tt-table ops-table ppc-board">
           <caption className="sr-only">Phơi phiếu và tiền đường theo chuyến</caption>
           <thead><tr>
-            <th scope="col" className="ppc-col--lich-trinh">Lịch trình</th>
-            <th scope="col" className="ppc-col--customer-route">Khách hàng &amp; Tuyến</th>
+            <th scope="col" className="ppc-col--lich-trinh">Số Bill / Booking</th>
+            <th scope="col" className="ppc-col--customer-route">Khách hàng / Nhà máy / Tuyến</th>
             <th scope="col" className="ppc-col--thongso">Thông số container</th>
             <th scope="col" className="ppc-col--diadiem">Địa điểm nâng / hạ</th>
             <th scope="col" className="ppc-col--xe">Thông tin xe</th>
             <th scope="col" className="ppc-col--chiho" title="Chi hộ: phải thu và phải trả của lô hàng">Chi hộ (thu / trả)</th>
             <th scope="col" className="ppc-col--money">Tiền đường</th>
             <th scope="col" className="ppc-col--status">Trạng thái</th>
-            <th scope="col" className="ppc-col--date">Ngày</th>
+            <th scope="col" className="ppc-col--date">Ngày hẹn</th>
             <th scope="col" className="ppc-col--ghichu" title="Ghi chú vận tải của CUS và điều vận">Ghi chú vận tải</th>
             {/* Card 20260928_162 — the second ruled surface for the not-charged
                 reason. Same content as the dispatch plan grids, through the same
@@ -205,10 +241,10 @@ export default function PhoiPhieuControlPage() {
                 tabIndex={pickable ? 0 : undefined}
                 {...selection.rowProps(row.tripId, { selectable: pickable })}
               >
-                <td className="ppc-col--lich-trinh">{row.tripCode ?? '—'}<br /><small>{row.billOrBooking ?? ''}</small></td>
-                <td>{row.customerName ?? '—'}<br /><small>{row.routeName ?? ''}</small></td>
+                <td className="ppc-col--lich-trinh"><span className="ppc-identity">{billBookingReference(row.billOrBooking)}</span></td>
+                <td className="ppc-col--customer-route">Khách hàng: {row.customerName ?? 'Chưa có khách hàng'}<br /><small>Nhà máy: {row.factoryName ?? 'Chưa có nhà máy'}</small><br /><small>Tuyến: {row.routeName ?? 'Chưa có tuyến'}</small></td>
                 <td className="ppc-col--thongso">
-                  {row.containerNumber ?? '—'}
+                  <span className="ppc-identity">{row.containerNumber ?? '—'}</span>
                   <br /><small>{row.containerTypeLabel ?? ''}</small>
                   {/* Card 20260928_172: the PM asked for TRỌNG TẢI CONTAINER, and
                       the line that used to read "Trọng tải" was the CARGO weight —
@@ -217,21 +253,21 @@ export default function PhoiPhieuControlPage() {
                   <br /><small>Trọng tải container: {row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + ' kg' : '—'}</small>
                   <br /><small>Trọng lượng hàng: {row.cargoWeightKg != null ? formatNumber(row.cargoWeightKg) + ' kg' : 'Chưa có'}</small>
                 </td>
-                <td>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>
-                <td className="ppc-col--xe">{row.plateNumber ?? '—'}<br /><small>{row.driverName ?? ''}</small></td>
+                <td className="ppc-col--diadiem">{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>
+                <td className="ppc-col--xe"><span className="ppc-identity">{row.plateNumber ?? '—'}</span><br /><small>Nhà vận tải: {row.carrierName ?? 'Chưa xác định nhà vận tải'}</small><br /><small>Lái xe: {row.driverName ?? 'Chưa có lái xe'}</small></td>
                 <td className="ppc-col--chiho">
                   <span className="ppc-line">Phải thu: <span className="ppc-value">{money(row.chiHoThu)}</span></span>
                   <span className="ppc-line">Phải trả: <span className="ppc-value">{money(row.chiHoTra)}</span></span>
                   <span className="ppc-cell-actions">
-                    <button type="button" className="ppc-icon-btn" aria-label={`Chi tiết chi hộ ${row.tripCode ?? ''}`} title="Chi tiết chi hộ" onClick={() => { setTienDuongTripId(null); setChiHoTripId(row.tripId); }}><ReceiptText size={14} aria-hidden="true" /></button>
+                    <button type="button" className="btn btn--secondary btn--icon" aria-label={`Chi tiết chi hộ ${billBookingReference(row.billOrBooking)}`} title="Chi tiết chi hộ" onClick={() => { setTienDuongTripId(null); setChiHoTripId(row.tripId); }}><ReceiptText size={14} aria-hidden="true" /></button>
                   </span>
                 </td>
                 <td className="ppc-col--money">
                   <span className="ppc-line"><span className="ppc-value">{money(row.tienDuong)}</span></span>
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}>Xem chi tiết</button>
+                  <button type="button" className="btn btn--secondary" onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}>Xem chi tiết</button>
                 </td>
                 <td className="ppc-col--status">{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</td>
-                <td className="ppc-col--date">{formatDate(row.departureDate)}</td>
+                <td className="ppc-col--date">{formatDate(row.transportDate ?? null, { empty: 'Chưa có ngày hẹn' })}</td>
                 <td className="ppc-col--ghichu">{row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}</td>
                 <td className="ppc-col--ghichu-ops">{row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—'}</td>
                 <td className="ppc-col--ghichu">{row.driverNote ?? '—'}</td>
@@ -241,9 +277,11 @@ export default function PhoiPhieuControlPage() {
           </tbody>
         </table>
       </div>
+      <p className="ppc-board-hint ledger-desktop">Vuốt ngang để xem đầy đủ các cột.</p>
       {tienDuongTripId != null && (
         <PhoiPhieuTienDuongDialog
           tripId={tienDuongTripId}
+          billOrBooking={rows.find((row) => row.tripId === tienDuongTripId)?.billOrBooking}
           onClose={() => setTienDuongTripId(null)}
           onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })}
         />
@@ -273,6 +311,8 @@ export default function PhoiPhieuControlPage() {
       {chiHoTripId != null && (
         <PhoiPhieuChiHoDialog
           tripId={chiHoTripId}
+          billOrBooking={rows.find((row) => row.tripId === chiHoTripId)?.billOrBooking}
+          confirmation={filters.confirmation || undefined}
           onClose={() => setChiHoTripId(null)}
           onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })}
         />

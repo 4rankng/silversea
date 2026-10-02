@@ -19,6 +19,7 @@ import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { expenseDateSchema, type ExpenseAccountingEntry, type ExpenseReconciliation } from '@tingting/shared';
 
 import { SkeletonTable, StatusText } from '../../components/shared';
+import { Money } from '../../components/shared/Money';
 import { Btn, PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, EmptyState, FilterBar, SummaryRail, UuiSelectField } from '../../design-system';
@@ -239,9 +240,9 @@ function ReportRow({ row, index, actionLot, onVoucher }: {
     <tr>
       <td data-label="STT">{index + 1}</td>
       <td data-label="Nhân viên">{row.staffName}</td>
-      <td data-label="Số tiền ĐNTT" className="num">{formatMoney(row.dntt)} ₫</td>
-      <td data-label="Số tiền đã ứng" className="num">{formatMoney(row.advanced)} ₫</td>
-      <td data-label="Còn phải hoàn ứng" className="num">{remainingText(row.remaining)}</td>
+      <td data-label="Số tiền ĐNTT" className="num"><Money value={row.dntt} /></td>
+      <td data-label="Số tiền đã ứng" className="num"><Money value={row.advanced} /></td>
+      <td data-label="Còn phải hoàn ứng" className="num"><Money value={Math.abs(row.remaining)} sign={row.remaining > 0 ? '+' : row.remaining < 0 ? '−' : undefined} /></td>
       <td data-label="Chiều">
         <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>
       </td>

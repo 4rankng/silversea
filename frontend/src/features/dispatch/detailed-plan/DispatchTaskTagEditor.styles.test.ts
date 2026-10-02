@@ -15,7 +15,7 @@ describe('UI-CD-10 dispatch task tag touch targets', () => {
       '.dispatch-tag-manager button',
       '.dispatch-tag-manager input',
     ]) expect(block).toContain(selector);
-    expect(block).toContain('min-height: var(--control-touch-h, 44px)');
-    expect(block).toContain('min-width: var(--control-touch-h, 44px)');
+    expect(block).toContain('min-height: var(--control-touch-h)');
+    expect(block).toContain('min-width: var(--control-touch-h)');
   });
 });

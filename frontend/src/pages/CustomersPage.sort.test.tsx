@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { readFileSync } from 'node:fs';
@@ -120,6 +120,37 @@ describe('CustomersPage server-side sort headers', () => {
     const header = screen.getByRole('button', { name: 'Liên hệ & SĐT' }).closest('th');
     expect(header?.getAttribute('aria-sort')).toBe('ascending');
     expect(screen.getByRole('button', { name: 'MST' }).closest('th')?.getAttribute('aria-sort')).toBe('none');
+  });
+
+  it('keeps the server total and omits unsupported directory status counts across filtering and pagination', async () => {
+    const { container } = renderPage();
+    await screen.findAllByText('Biển Bạc');
+    const group = screen.getByRole('tablist', { name: 'Lọc theo trạng thái khách hàng' });
+    const all = within(group).getByRole('tab', { name: /^Tất cả/ });
+    const active = within(group).getByRole('tab', { name: /^Hoạt động/ });
+    const locked = within(group).getByRole('tab', { name: /^Tạm khoá/ });
+    const writesBefore = [apiMock.post.mock.calls.length, apiMock.put.mock.calls.length, apiMock.delete.mock.calls.length];
+    expect(within(all).getByText('12')).toBeVisible();
+    expect(active.textContent).toBe('Hoạt động');
+    expect(locked.textContent).toBe('Tạm khoá');
+    expect(screen.getByText('2/12 khách hàng')).toBeVisible();
+
+    fireEvent.click(active);
+    expect(active).toHaveAttribute('aria-selected', 'true');
+    expect(container.querySelectorAll('tbody tr.customers-row')).toHaveLength(2);
+    fireEvent.click(locked);
+    expect(locked).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('0/12 khách hàng')).toBeVisible();
+    expect(container.querySelectorAll('tbody tr.customers-row')).toHaveLength(0);
+    fireEvent.click(all);
+    expect(all).toHaveAttribute('aria-selected', 'true');
+    expect(container.querySelectorAll('tbody tr.customers-row')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
+    await waitFor(() => expect(lastGetUrl()).toContain('page=2'));
+    expect(within(all).getByText('12')).toBeVisible();
+    expect(active.textContent).toBe('Hoạt động');
+    expect(locked.textContent).toBe('Tạm khoá');
+    expect([apiMock.post.mock.calls.length, apiMock.put.mock.calls.length, apiMock.delete.mock.calls.length]).toEqual(writesBefore);
   });
 
   it('omits sort params entirely until a header is pressed', async () => {

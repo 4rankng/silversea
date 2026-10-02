@@ -151,10 +151,10 @@ export default function FuelConfigPage() {
           </div>
           <div className="field" id="fuel-base-unit-price-preview">
             <label>Chênh lệch tính phụ phí</label>
-            <div className="input" aria-live="polite" style={{ display: 'flex', alignItems: 'center', minHeight: 44 }}>
+            <div className="input" aria-live="polite" style={{ display: 'flex', alignItems: 'center' }}>
               {surchargeDelta == null
                 ? 'Không phát sinh chênh lệch'
-                : `${formatMoney(surchargeDelta)} đ/lít`}
+                : <span className="data-token">{formatMoney(surchargeDelta)} đ/lít</span>}
             </div>
           </div>
         </div>

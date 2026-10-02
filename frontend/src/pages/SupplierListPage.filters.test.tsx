@@ -82,6 +82,53 @@ beforeEach(() => {
 });
 
 describe('SupplierListPage filter strip', () => {
+  it('keeps directory KPIs and status pills on the same population when search returns one row', async () => {
+    const directory = [supplierFixture(1, 'Garage Auto 123'), supplierFixture(2, 'Vật tư Minh Long')];
+    apiMock.get.mockImplementation(async (url: string) => {
+      if (url === '/suppliers/status-counts') return { all: 14, active: 12, inactive: 2, vehicles: {} };
+      const searched = new URL(url, 'http://localhost').searchParams.get('search') === 'Garage';
+      return { items: searched ? directory.slice(0, 1) : directory, total: searched ? 1 : 14, page: 1, pageSize: 10 };
+    });
+    renderPage();
+    const activeKpi = (await screen.findByText('Đang hoạt động')).closest('.kpi') as HTMLElement;
+    const totalKpi = screen.getByText('Tổng nhà cung cấp').closest('.kpi') as HTMLElement;
+    await waitFor(() => expect(within(activeKpi).getByText('12/14 đang hoạt động')).toBeTruthy());
+    expect(within(totalKpi).getByText('14 nhà cung cấp')).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm nhà cung cấp theo tên' }), { target: { value: 'Garage' } });
+    await waitFor(() => expect(screen.queryAllByText('Vật tư Minh Long')).toHaveLength(0));
+    expect(screen.getAllByText('Garage Auto 123').length).toBeGreaterThan(0);
+    expect(within(activeKpi).getByText('12/14 đang hoạt động')).toBeTruthy();
+    expect(within(activeKpi).getByText('/ 14')).toBeTruthy();
+    expect(within(totalKpi).getByText('14 nhà cung cấp')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tất cả · 14' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Hoạt động · 12' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ngừng HĐ · 2' })).toBeTruthy();
+    expect(apiMock.get.mock.calls.some(([url]) => String(url).includes('search=Garage'))).toBe(true);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm nhà cung cấp theo tên' }), { target: { value: '' } });
+    await waitFor(() => expect(screen.getAllByText('Vật tư Minh Long').length).toBeGreaterThan(0));
+    expect(within(activeKpi).getByText('12/14 đang hoạt động')).toBeTruthy();
+  });
+
+  it('does not invent directory KPI counts from a loaded page while status counts are pending', async () => {
+    let resolveCounts!: (value: { all: number; active: number; inactive: number; vehicles: Record<string, number> }) => void;
+    const counts = new Promise<{ all: number; active: number; inactive: number; vehicles: Record<string, number> }>((resolve) => { resolveCounts = resolve; });
+    apiMock.get.mockImplementation(async (url: string) => url === '/suppliers/status-counts' ? counts : {
+      items: [supplierFixture(1, 'Garage Auto 123')], total: 1, page: 1, pageSize: 10,
+    });
+    renderPage();
+    expect(await screen.findAllByText('Garage Auto 123')).toBeTruthy();
+    const activeKpi = screen.getByText('Đang hoạt động').closest('.kpi') as HTMLElement;
+    const totalKpi = screen.getByText('Tổng nhà cung cấp').closest('.kpi') as HTMLElement;
+    expect(within(activeKpi).getByText('—')).toBeTruthy();
+    expect(within(totalKpi).getByText('—')).toBeTruthy();
+    expect(within(activeKpi).queryByText('/ 1')).toBeNull();
+    resolveCounts({ all: 14, active: 12, inactive: 2, vehicles: {} });
+    await waitFor(() => expect(within(activeKpi).getByText('12/14 đang hoạt động')).toBeTruthy());
+    expect(within(totalKpi).getByText('14 nhà cung cấp')).toBeTruthy();
+  });
+
   it('renders the shared bar with the search slot and the six toggles', async () => {
     const { container } = renderPage();
     expect(await screen.findAllByText('Garage Auto 123')).toBeTruthy();

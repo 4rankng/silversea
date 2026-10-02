@@ -42,10 +42,6 @@
   color: var(--fg-3);
 }
 
-.treasury-table td.num {
-  white-space: nowrap;
-}
-
 .treasury-table__balance strong {
   font-size: var(--ops-table-primary-size);
   font-weight: var(--ops-table-primary-weight);

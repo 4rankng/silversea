@@ -217,7 +217,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__keyboard-hint\s*\{[^}]*font-size:\s*var\(--text-caption-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger__edit-error\s*\{[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.shipment-container-ledger__recovery\s*\{[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*min-width:\s*44px;[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*min-width:\s*var\(--control-max-h\);[^}]*height:\s*var\(--control-max-h\);[^}]*min-height:\s*var\(--control-max-h\);/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__keyboard-hint\s*\{[^}]*display:\s*none;/);
     // Labels stay visible at every width — the icon-only skin (hidden
     // [data-text]) is gone, so no rule may target the text span again.

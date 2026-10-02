@@ -1,6 +1,7 @@
 import { AgingDisclosure } from '../components/finance/AgingDisclosure';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
+import { billBookingReference } from '../lib/business-reference';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
 import { ChevronRight, Gift } from 'lucide-react';
@@ -86,12 +87,12 @@ export function CommissionModal({
   const tripOptions = (tripOptionsQuery.data?.items ?? []).map((trip) => ({
     value: String(trip.id),
     label: [
-      trip.tripCode || 'Chuyến chưa có mã',
+      billBookingReference(trip.customerReference),
       trip.customer?.name || 'Khách hàng chưa xác định',
       trip.route?.name || 'Tuyến chưa xác định',
       trip.departureDate || 'Chưa có ngày khởi hành',
     ].join(' · '),
-    searchText: `${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
+    searchText: `${trip.customerReference ?? ''} ${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
   }));
 
   useEffect(() => {

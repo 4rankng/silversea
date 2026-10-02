@@ -530,7 +530,7 @@ export default function SettlementPrintPage() {
           ) : null}
           <div className="settlement-detail__summary-card settlement-detail__summary-card--balance">
             <div className="settlement-detail__summary-label">{balanceLabel}</div>
-            <div className={`settlement-detail__summary-value ${balance >= 0 ? 'settlement-detail__summary-value--positive' : 'settlement-detail__summary-value--negative'}`}>
+            <div className={`settlement-detail__summary-value ${balance > 0 ? 'settlement-detail__summary-value--positive' : balance < 0 ? 'settlement-detail__summary-value--negative' : ''}`}>
               {formatCurrency(Math.abs(balance))}
             </div>
           </div>

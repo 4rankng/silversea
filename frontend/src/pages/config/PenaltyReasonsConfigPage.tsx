@@ -160,7 +160,7 @@ const pageStyles = `
     .pr-grid { grid-template-columns: 1fr; }
   }
   @media (pointer: coarse) {
-    .pr-act { width: 44px; height: 44px; }
+    .pr-act { width: var(--control-max-h); height: var(--control-max-h); }
   }
   @media (prefers-reduced-motion: reduce) {
     .pr-card, .pr-spinner { animation: none; }

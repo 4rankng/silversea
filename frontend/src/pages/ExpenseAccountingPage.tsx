@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { PAGE_CATALOG } from '@tingting/shared';
 import { PageHeader } from '../components/UI';
 import { ExpenseAccountingWorkspace } from '../features/expense-accounting/ExpenseAccountingWorkspace';
 
@@ -15,7 +16,7 @@ export default function ExpenseAccountingPage() {
   const navigate = useNavigate();
   return (
     <div className="expense-accounting">
-      <PageHeader title="Chi phí phát sinh" onBack={() => navigate('/accounting')} />
+      <PageHeader title={PAGE_CATALOG.expenses.title} onBack={() => navigate('/accounting')} />
       <ExpenseAccountingWorkspace />
     </div>
   );

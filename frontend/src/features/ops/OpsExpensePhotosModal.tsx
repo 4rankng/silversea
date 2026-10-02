@@ -1,3 +1,4 @@
+import { PhotoImage } from '../../components/shared/PhotoImage';
 import { useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { useOpsExpensePhotos, useDeleteOpsExpensePhoto } from '../../hooks/useOpsQueries';
@@ -38,8 +39,9 @@ export function OpsExpensePhotosModal({ expenseId, canDelete = false, onClose }:
           <div className="ops-photo-grid">
             {photos.map((photo, index) => (
               <figure key={photo.id} className="ops-photo-grid__item">
-                <button type="button" onClick={() => setViewerIndex(index)} aria-label={`Xem ảnh ${index + 1}`}>
-                  <img src={urls[index]} alt={`Biên lai ${index + 1}`} />
+                <button type="button" disabled={!urls[index]} onClick={() => { if (urls[index]) setViewerIndex(index); }}
+                  aria-label={urls[index] ? `Xem ảnh ${index + 1}` : `Ảnh ${index + 1} (không tải được)`}>
+                  <PhotoImage src={urls[index]} alt={`Biên lai ${index + 1}`} />
                 </button>
                 {canDelete && (
                   <button

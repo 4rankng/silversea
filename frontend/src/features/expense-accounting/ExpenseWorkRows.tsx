@@ -16,7 +16,7 @@ export function ExpenseWorkRows({ rows, onOpen }: { rows: ExpenseWorkRow[]; onOp
       <td data-label="Container / cảng"><strong>{row.containerNumber ?? 'Chưa có số cont'}</strong><span>{row.containerType ?? 'Chưa có loại cont'} · {row.classification ?? 'Chưa phân loại'}</span><small>Nâng: {row.liftLocation ?? '—'}</small><small>Hạ: {row.dropLocation ?? '—'}</small></td>
       <td data-label="Điều phối"><strong>{row.vehiclePlate ?? 'Chưa phân xe'}</strong><span>{row.driverName ?? 'Chưa phân lái xe'}</span><small>{row.carrierName ?? 'Chưa có nhà vận tải'}</small></td>
       <td data-label="Ghi chú" className="expense-work-notes"><small>Điều vận</small><span>{row.operationalNotes || '—'}</span><small>Lái xe</small><span>{row.driverNotes || '—'}</span></td>
-      {(Object.keys(WORK_FEE_LABELS) as WorkFeeGroup[]).map(group => <td data-label={WORK_FEE_LABELS[group]} key={group} className="num"><button type="button" className="expense-register-money" onClick={() => onOpen(row, group)} aria-label={`${WORK_FEE_LABELS[group]} · ${displayKey(row.shipmentCode)} · ${row.containerNumber ?? 'phí chung'}`}>{expenseMoney(row[group])}</button></td>)}
+      {(Object.keys(WORK_FEE_LABELS) as WorkFeeGroup[]).map(group => <td data-label={WORK_FEE_LABELS[group]} key={group} className="num"><button type="button" className="btn btn--ghost btn--sm expense-register-money" onClick={() => onOpen(row, group)} aria-label={`${WORK_FEE_LABELS[group]} · ${displayKey(row.shipmentCode)} · ${row.containerNumber ?? 'phí chung'}`}>{expenseMoney(row[group])}</button></td>)}
     </tr>)}</tbody>
   </table></div>;
 }

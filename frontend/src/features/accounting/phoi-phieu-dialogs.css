@@ -1,0 +1,19 @@
+/* ============================================================================
+ * PhoiPhieu dialogs styling — shared across PhoiPhieuChiHoDialog and
+ * PhoiPhieuTienDuongDialog.
+ *
+ * Inside the modal the tt-table's fixed layout equal-shares columns and
+ * thead th pins nowrap, so long headers wrap at spaces instead of clipping
+ * (case QA-2026-09-24-01; design law §4).
+ * ========================================================================== */
+
+.phoi-detail-matrix {
+  table-layout: auto;
+  width: 100%;
+}
+
+.phoi-detail-matrix thead th {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}

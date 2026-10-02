@@ -255,7 +255,7 @@
   margin-top: var(--space-lg);
   padding: var(--space-lg);
   background: var(--bg-2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--r-sm);
 }
 .profit-settlement__preview-title {

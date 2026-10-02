@@ -127,19 +127,12 @@
 }
 
 /* ── Reopen reason textarea ───────────────────────────────────────────── */
-.salary-attendance__reopen-textarea {
+textarea.salary-attendance__reopen-textarea {
   width: 100%;
   min-height: 88px;
   resize: vertical;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  color: var(--fg-1);
-  padding: 10px 12px;
-}
 
-.salary-attendance__reopen-textarea--error {
-  border-color: var(--danger);
+  padding: 10px 12px;
 }
 
 /* ── Full-width flex button ───────────────────────────────────────────── */

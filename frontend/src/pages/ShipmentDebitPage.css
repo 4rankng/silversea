@@ -85,7 +85,7 @@
   gap: 12px;
   border-radius: 12px;
   padding: 16px;
-  background: var(--surface-1);
+  background: var(--surface);
   min-width: 0;
 }
 
@@ -164,7 +164,9 @@
   table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--text-caption-size);
-  /* Card 20260924_9: the global table rail floors every table at 900px
+  /* UI87 adds24px to the prior1064px minimum for the leading control
+     column; all other column allocations keep their existing budget.
+     Card 20260924_9: the global table rail floors every table at 900px
      (components/Table.css), and the identity column is this table's only
      unmeasured column — at a 390px viewport it inherited just
      900 − 840 = 60px, so the QA0915-138-EXC chip shattered per character
@@ -172,7 +174,7 @@
      columns (840 measured + 224 identity = 1064): the identity cell always
      gets a word-wrap floor, and the overflow-x wrap scrolls sideways
      (with the phone-visible hint below) instead of shredding content. */
-  min-width: 1064px;
+  min-width: 1088px;
 }
 
 .shipment-debit-table th {
@@ -195,7 +197,9 @@
    without horizontal scroll: long money headers wrap to two lines (their
    values set the minimum), text headers stay single-line, and TRẠNG THÁI is
    fixed per the standing fixed-status-column ruling. */
-.shipment-debit-table th.shipment-debit-col--lead { width: 32px; padding-inline: 6px; }
+/* The shared coarse control is40px. Reserve56px including matching6px
+   cell insets at every width; the old32px column leaked into the identity. */
+.shipment-debit-table th.shipment-debit-col--lead { width: 56px; padding-inline: 6px; }
 .shipment-debit-table th.shipment-debit-col--docs { width: 118px; }
 .shipment-debit-table th.shipment-debit-col--money { white-space: normal; }
 .shipment-debit-table th.shipment-debit-col--freight { width: 110px; }
@@ -224,14 +228,15 @@
   height: 24px;
   border-radius: 8px;
   border: 1px solid var(--border-1);
-  background: var(--surface-1);
+  background: var(--surface);
   cursor: pointer;
 }
 
 /* display:flex/grid on a <td> overrides table-cell and makes the row's
    consecutive broken cells merge into ONE anonymous column (card _12 root
    cause: the whole row shifted left by two headers). Keep tds plain. */
-.shipment-debit-row__lead {
+.shipment-debit-table td.shipment-debit-row__lead {
+  padding-inline: 6px;
   white-space: nowrap;
 }
 
@@ -344,12 +349,12 @@
 /* ============================================================================
  * Card 20260924_9 — phone media block (390 / 640 / coarse pointer).
  *
- * The L1 table keeps its 1064px floor so the identity cell never slivers
+ * The L1 table keeps its1088px floor so the identity cell never slivers
  * (the 900px rail inherited from components/Table.css shredded the
  * QA0915-138-EXC chip per character). The wrap then scrolls sideways — say
  * so plainly with the hidden-by-default `.shipment-debit-scroll-hint` and
- * give the leading expand control a 44px touch floor. Lead cell widens to
- * 56px so the 44px button sits with its 6px cell padding on each side.
+ * give the leading expand control the shared40px touch floor. The base
+ * leading column already reserves56px with matching6px cell insets.
  *
  * Match the project's house media syntax (responsive.css + debit's own
  * coarse query): `(max-width: 640px), (hover: none) and (pointer: coarse)`.
@@ -359,12 +364,8 @@
     display: block;
   }
 
-  .shipment-debit-col--lead {
-    width: 56px;
-  }
-
   .shipment-debit-row__expand-button {
-    width: 44px;
-    height: 44px;
+    width: var(--control-max-h);
+    height: var(--control-max-h);
   }
 }

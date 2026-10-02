@@ -23,16 +23,12 @@
   width: 100%;
 }
 
-/* QA-2026-09-27-01 (#3): this declaration was already 44px but never won.
-   The phone/coarse blanket floor in responsive.css is `#root button
-   { min-height: var(--control-touch-h) }` (currently 40px) — an ID selector,
-   which out-ranks any class-only rule, so the tabs rendered 41.19px. The
-   ID-scoped selector below out-ranks it and keeps the 44px floor
-   (docs/design-guidelines.md §5) on the journey sub-tabs. */
+/* Journey categories retain their existing equal-share layout and use the
+   current house control budget at every width. */
 #root .driver-journey__tabs .ds-tabs__btn {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 44px;
+  min-height: var(--control-h);
   justify-content: center;
 }
 
@@ -51,17 +47,12 @@
   text-align: center;
 }
 
-/* Day-view entry — the header control that reaches the M8.3 day-view screen
-   (card 20260922_30). Square-cornered button, not a pill: it is navigation,
-   and pills stay reserved for status. QA-2026-09-27-01 (#3): this is a real
-   navigation control, so it holds the documented 44px touch floor
-   (docs/design-guidelines.md §5) instead of `--control-touch-h`, which the
-   2026-09-27 density ruling set to 40px. */
+/* The day-view navigation shares the ordinary house control budget. */
 .driver-journey__day-view {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: var(--control-h);
   padding: 6px 12px;
   border: 1px solid var(--line-2);
   border-radius: var(--r-sm);
@@ -429,9 +420,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  /* Driver primary-action touch floor (AC DRV-LIST-04); the ≤640px opt-up
-     below keeps it from being squashed by the global #root button floor. */
-  min-height: 48px;
+  /* The current user-approved ceiling supersedes the older driver opt-up. */
+  min-height: var(--control-h);
   margin-top: 4px;
   border: 1px solid var(--brand);
   border-radius: var(--r-sm);
@@ -453,17 +443,6 @@
 
 .driver-journey-card__footer--quiet:active {
   background: var(--surface-2);
-}
-
-/* The app-wide mobile touch floor (responsive.css `#root button` at ≤640px)
-   carries ID specificity and squashes class-level min-heights. The card
-   footer is the card's primary action, so it opts back up to the 48px
-   driver primary-action floor with matching ID specificity — same idiom as
-   the trip detail accept bar (c9012bd0). */
-@media (max-width: 640px) {
-  #root .driver-journey-card__footer {
-    min-height: 48px;
-  }
 }
 
 /* KẾT HỢP sequencing lock (TC-GHEP-010): the second card explains why its

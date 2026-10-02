@@ -149,6 +149,60 @@ async function openDialog() {
   await waitFor(() => expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy());
 }
 
+describe('UI52-B editor business identity', () => {
+  it.each([
+    { container: ' MSCU1234567 ', bill: 'BL-2026-010', expected: 'MSCU1234567' },
+    { container: null, bill: ' BL-2026-010 ', expected: 'BL-2026-010' },
+    { container: ' ', bill: ' BOOK-2026-010 ', expected: 'BOOK-2026-010' },
+    { container: null, bill: null, expected: 'Chưa có số Bill/Booking' },
+    { container: ' ', bill: ' ', expected: 'Chưa có số Bill/Booking' },
+  ])('keeps $expected in the editor trigger/title and Cancel preserves the exact row', async ({ container, bill, expected }) => {
+    mockFleetResources();
+    const original = row();
+    original.container = { ...original.container, containerNumber: container };
+    original.docs = { ...original.docs, billNumber: bill };
+    const onAtomicSave = vi.fn();
+    renderCell(original, { onAtomicSave });
+    const name = `Sửa ô điều phối ${expected}`;
+    const trigger = screen.getByRole('button', { name });
+    expect(trigger).toHaveAttribute('title', `Chỉnh sửa điều phối · ${expected}`);
+    expect(trigger.getAttribute('aria-label')).not.toContain(original.shipmentCode);
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('heading', { name: `Chỉnh sửa điều phối · ${expected}` })).toBeInTheDocument();
+    expect(screen.getByLabelText('Nhà xe').id).toBe(`dispatch-carrier-${original.fulfillmentId}`);
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name })).toBe(trigger);
+    expect(onAtomicSave).not.toHaveBeenCalled();
+  });
+});
+
+describe('QA-AUDIT-UI-92 complete assignment facts', () => {
+  it('keeps full facts outside one compact edit action and Cancel preserves the row', async () => {
+    mockFleetResources();
+    const original = row();
+    original.dispatch = { ...original.dispatch, assignedDriverName: PAIRED_TRUCK.assignedDriverName };
+    const saved = structuredClone(original);
+    const onAtomicSave = vi.fn();
+    const { container } = renderCell(original, { onAtomicSave });
+    const trigger = screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
+    expect(trigger).toHaveTextContent(/^Sửa$/);
+    for (const text of [original.dispatch.carrierName ?? 'Chưa phân nhà xe', PAIRED_TRUCK.licensePlate, PAIRED_TRUCK.assignedDriverName, 'Đã điều xe']) {
+      const fact = screen.getByText(text);
+      expect(container.querySelector('.dispatch-assignment-cell')).toContainElement(fact);
+      expect(trigger).not.toContainElement(fact);
+    }
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' })).toBe(trigger);
+    expect(trigger).toHaveFocus();
+    expect(onAtomicSave).not.toHaveBeenCalled();
+    expect(original).toEqual(saved);
+  });
+});
+
 function issueButton(): HTMLButtonElement {
   // The row now carries its own labeled "Phát lệnh" action, so the dialog's
   // issue button is matched by its dedicated class, not by its text.

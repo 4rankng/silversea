@@ -1,3 +1,4 @@
+import { LedgerMatrix } from '../../../components/shared/LedgerMatrix';
 // Settlement workspace tables + the draft/delta helpers they render from.
 // Split from ShipmentDebitWorkspace.tsx at the guard's new-file ceiling:
 // the container keeps queries, mutations and the action rail; this module
@@ -57,60 +58,48 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
   frozen: boolean;
   setFreight: (containerNumber: string, patch: Partial<{ psActual: string; note: string }>) => void;
 }) {
-  return (
-    <table className="csc-debit-table csc-debit-table--freight">
-      <caption>Bảng 2.1 — Cước vận tải</caption>
-      <thead><tr>
-        <th scope="col">Số Container</th>
-        <th scope="col">Cước thu</th>
-        <th scope="col">Phụ phí xăng dầu</th>
-        {/* Port-fee column: config-sourced heading pending its producer —
-            interim '—' per the port-names ruling, no place-named label. */}
-        <th scope="col">—</th>
-        <th scope="col">Phí Hải Quan</th>
-        <th scope="col">Phát sinh</th>
-        <th scope="col">Tổng</th>
-        <th scope="col">Ghi chú</th>
-      </tr></thead>
-      <tbody>
-        {detail.freightRows.map((row) => {
+  return <LedgerMatrix className="csc-debit-table csc-debit-table--freight"
+    caption={<>Bảng 2.1 — Cước vận tải</>}
+    columns={[
+      { key: 'c0', label: <>Số Container</> },
+      { key: 'c1', label: <>Cước thu</>, primary: true },
+      { key: 'c2', label: <>Phụ phí xăng dầu</>, primary: true },
+      { key: 'c3', label: <>—</> },
+      { key: 'c4', label: <>Phí Hải Quan</> },
+      { key: 'c5', label: <>Phát sinh</> },
+      { key: 'c6', label: <>Tổng</>, primary: true },
+      { key: 'c7', label: <>Ghi chú</> }
+    ]}
+    rows={detail.freightRows.map((row) => {
           const cells = row.containerNumber == null ? { psActual: '', note: '' } : (draft.freight[row.containerNumber] ?? { psActual: '', note: '' });
           const known = row.freightCharge != null || row.fuelSurcharge != null || row.customsCustomerCharge != null;
           const derivedTotal = (row.freightCharge ?? 0) + (row.fuelSurcharge ?? 0) + (row.customsCustomerCharge ?? 0) + num(cells.psActual || '0');
-          return (
-            <tr key={row.containerNumber ?? `trip-${row.tripId}`}>
-              <td>{row.containerNumber}<small>{row.containerTypeLabel ?? ''}</small>{(row.liftSiteLabel || row.dropSiteLabel) && <small className="csc-debit-channel">Nâng: {row.liftSiteLabel ?? '—'} · Hạ: {row.dropSiteLabel ?? '—'}</small>}</td>
-              <td>{row.freightCharge == null ? '(auto)' : formatMoney(row.freightCharge)}</td>
-              <td>{row.fuelSurcharge == null ? '(auto)' : formatMoney(row.fuelSurcharge)}</td>
-              <td>—</td>
-              <td>{row.customsCustomerCharge == null ? '—' : formatMoney(row.customsCustomerCharge)}</td>
-              <td>
-                <input
+          return { key: row.containerNumber ?? `trip-${row.tripId}`, title: row.containerNumber ?? 'Chưa có số container', cells: [
+                <><div className="record-cell-stack">{row.containerNumber}<small>{row.containerTypeLabel ?? ''}</small>{(row.liftSiteLabel || row.dropSiteLabel) && <small className="csc-debit-channel">Nâng: {row.liftSiteLabel ?? '—'} · Hạ: {row.dropSiteLabel ?? '—'}</small>}</div></>,
+                <>{row.freightCharge == null ? '(auto)' : formatMoney(row.freightCharge)}</>,
+                <>{row.fuelSurcharge == null ? '(auto)' : formatMoney(row.fuelSurcharge)}</>,
+                <>—</>,
+                <>{row.customsCustomerCharge == null ? '—' : formatMoney(row.customsCustomerCharge)}</>,
+                <><input
                   className="csc-debit-input"
                   aria-label={`PS thực tế ${row.containerNumber}`}
                   placeholder="PS thực tế"
                   value={cells.psActual}
                   disabled={frozen}
                   onChange={(event) => { if (row.containerNumber != null) setFreight(row.containerNumber, { psActual: event.target.value }); }}
-                />
-              </td>
-              <td>{known ? formatMoney(derivedTotal) : 'Chưa xác định'}</td>
-              <td>
-                <input
+                /></>,
+                <>{known ? formatMoney(derivedTotal) : 'Chưa xác định'}</>,
+                <><input
                   className="csc-debit-input"
                   aria-label={`Ghi chú PS ${row.containerNumber}`}
                   placeholder="Ghi chú phí PS"
                   value={cells.note}
                   disabled={frozen}
                   onChange={(event) => { if (row.containerNumber != null) setFreight(row.containerNumber, { note: event.target.value }); }}
-                />
-              </td>
-            </tr>
-          );
+                /></>,
+              ] };
         })}
-      </tbody>
-    </table>
-  );
+  />;
 }
 
 
@@ -138,22 +127,20 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
       {item.invoiceNumber && <small className="csc-debit-item__hd">HD: {item.invoiceNumber}</small>}
     </div>
   );
-  return (
-    <table className="csc-debit-table csc-debit-table--chiho">
-      <caption>Bảng 2.2 — Phí Chi Hộ &amp; Tiền Treo</caption>
-      <thead><tr>
-        <th scope="col">Số Container</th>
-        <th scope="col">Phí Nâng</th>
-        <th scope="col">Phí Hạ</th>
-        <th scope="col">Phí cơ sở hạ tầng</th>
-        {columns.map((col) => <th key={col.key} scope="col">{col.label}</th>)}
-        <th scope="col">Phí khác (không hđ)</th>
-        <th scope="col">Cược Hãng Tàu (Tiền treo)</th>
-        <th scope="col">Tạm thu sửa chữa</th>
-        <th scope="col">Chứng từ Ops</th>
-      </tr></thead>
-      <tbody>
-        {detail.chiHoRows.map((row, chiIdx) => {
+  return <LedgerMatrix className="csc-debit-table csc-debit-table--chiho"
+    caption={<>Bảng 2.2 — Phí Chi Hộ &amp; Tiền Treo</>}
+    columns={[
+      { key: 'c0', label: <>Số Container</> },
+      { key: 'c1', label: <>Phí Nâng</>, primary: true },
+      { key: 'c2', label: <>Phí Hạ</>, primary: true },
+      { key: 'c3', label: <>Phí cơ sở hạ tầng</>, primary: true },
+      ...columns.map((col) => ({ key: col.key, label: col.label, layout: 'full-width' as const })),
+      { key: 'c4', label: <>Phí khác (không hđ)</>, layout: 'full-width' },
+      { key: 'c5', label: <>Cược Hãng Tàu (Tiền treo)</> },
+      { key: 'c6', label: <>Tạm thu sửa chữa</> },
+      { key: 'c7', label: <>Chứng từ Ops</> }
+    ]}
+    rows={detail.chiHoRows.map((row, chiIdx) => {
           const liftItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === 'lift');
           const lowerItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === 'lower');
           const cshtItems = row.items.filter((item) => canonicalFeeBucket(item.expenseType) === 'csht');
@@ -168,15 +155,18 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
           const draftsOf = (colKey: string) => draft.addedFees.filter((fee) => fee.tripId === row.tripId && columnOf(fee.name)?.key === colKey);
           const otherManaged = row.otherFees.filter((fee) => columnOf(fee.name) == null);
           const otherDrafts = draft.addedFees.filter((fee) => fee.tripId === row.tripId && columnOf(fee.name) == null);
-          return (
-            <tr key={row.containerNumber ?? `row-${chiIdx}`}>
-              <td>{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></td>
-              <td>{liftItems.length === 0 ? <span>—</span> : liftItems.map(roItem)}</td>
-              <td>{lowerItems.length === 0 ? <span>—</span> : lowerItems.map(roItem)}</td>
-              <td>{cshtItems.length === 0 ? <span>—</span> : cshtItems.map(roItem)}</td>
-              {columns.map((col) => (
-                <td key={col.key}>
-                  {managedOf(col.key).map((fee) => (
+          return { key: row.containerNumber ?? `row-${chiIdx}`, title: row.containerNumber ?? 'Chưa có số container', cellClassNames: [
+                ...Array<string | undefined>(5 + columns.length).fill(undefined),
+                `csc-debit-warn-cell ${detention.warn ? 'csc-debit-warn-cell--armed' : ''}`,
+                `csc-debit-warn-cell ${repair.warn ? 'csc-debit-warn-cell--armed' : ''}`,
+                undefined,
+              ], cells: [
+                <><div className="record-cell-stack">{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></div></>,
+                <>{liftItems.length === 0 ? <span>—</span> : liftItems.map(roItem)}</>,
+                <>{lowerItems.length === 0 ? <span>—</span> : lowerItems.map(roItem)}</>,
+                <>{cshtItems.length === 0 ? <span>—</span> : cshtItems.map(roItem)}</>,
+                ...columns.map((col) => (
+                <>{managedOf(col.key).map((fee) => (
                     <div className="csc-debit-otherfee" key={fee.id}>
                       <span className="csc-debit-item__name">{fee.name}</span>
                       <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
@@ -192,8 +182,7 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
                       </div>
                       {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
                     </div>
-                  ))}
-                  {draftsOf(col.key).map((fee) => (
+                  ))}{draftsOf(col.key).map((fee) => (
                     <div className="csc-debit-otherfee" key={fee.key}>
                       <div className="csc-debit-otherfee__grid">
                         <label className="csc-debit-otherfee__field">
@@ -208,12 +197,9 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
                         </label>
                       </div>
                     </div>
-                  ))}
-                </td>
-              ))}
-              <td>
-                {otherItems.map(roItem)}
-                {otherManaged.map((fee) => (
+                  ))}</>
+              )),
+                <>{otherItems.map(roItem)}{otherManaged.map((fee) => (
                     <div className="csc-debit-otherfee" key={fee.id}>
                       <span className="csc-debit-item__name">{fee.name}</span>
                       <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
@@ -229,8 +215,7 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
                       </div>
                       {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
                     </div>
-                  ))}
-                {otherDrafts.map((fee) => (
+                  ))}{otherDrafts.map((fee) => (
                     <div className="csc-debit-otherfee" key={fee.key}>
                       <div className="csc-debit-otherfee__grid">
                         <label className="csc-debit-otherfee__field">
@@ -245,23 +230,14 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
                         </label>
                       </div>
                     </div>
-                  ))}
-                <button type="button" className="csc-debit-addfee" aria-label="+ Thêm chi phí" disabled={frozen}
-                  onClick={() => { if (row.tripId != null) addFee(row.tripId); }}>+ THÊM CHI PHÍ</button>
-              </td>
-              <td className={detention.warn ? 'csc-debit-warn-cell csc-debit-warn-cell--armed' : 'csc-debit-warn-cell'}>
-                {detention.warn && <AlertTriangle aria-hidden="true" size={13} />}{detention.text}
-              </td>
-              <td className={repair.warn ? 'csc-debit-warn-cell csc-debit-warn-cell--armed' : 'csc-debit-warn-cell'}>
-                {repair.warn && <AlertTriangle aria-hidden="true" size={13} />}{repair.text}
-              </td>
-              <td><span className="csc-debit-docs">{row.opsDocsStatus === 'READY' ? 'Đã đủ' : 'Chờ bổ sung'}</span></td>
-            </tr>
-          );
+                  ))}<button type="button" className="csc-debit-addfee" aria-label="+ Thêm chi phí" disabled={frozen}
+                  onClick={() => { if (row.tripId != null) addFee(row.tripId); }}>+ THÊM CHI PHÍ</button></>,
+                <>{detention.warn && <AlertTriangle aria-hidden="true" size={13} />}{detention.text}</>,
+                <>{repair.warn && <AlertTriangle aria-hidden="true" size={13} />}{repair.text}</>,
+                <><span className="csc-debit-docs">{row.opsDocsStatus === 'READY' ? 'Đã đủ' : 'Chờ bổ sung'}</span></>,
+              ] };
         })}
-      </tbody>
-    </table>
-  );
+  />;
 }
 
 /** Adjust-cước panel: reason mandatory, contract freight kept visible for
@@ -278,16 +254,15 @@ export function AdjustPanel({ detail, reason, setReason, pending, error, history
   return (
     <div className="csc-debit-adjust">
       <p className="csc-debit-adjust__title">Điều chỉnh cước sau khóa — cước hợp đồng giữ lại để đối chiếu</p>
-      <table className="csc-debit-table">
-        <tbody>
-          {detail.freightRows.map((row) => (
-            <tr key={row.containerNumber}>
-              <th scope="row">{row.containerNumber}{row.containerTypeLabel ? ` (${row.containerTypeLabel})` : ''}</th>
-              <td>Cước hợp đồng: {row.freightCharge == null ? 'Chưa xác định' : formatMoney(row.freightCharge)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <LedgerMatrix caption="Cước hợp đồng theo container" className="csc-debit-table"
+        columns={[{ key: 'container', label: 'Số container' }, { key: 'freight', label: 'Cước hợp đồng', primary: true }]}
+        rows={detail.freightRows.map((row) => ({ key: row.containerNumber ?? `trip-${row.tripId}`,
+          title: row.containerNumber ?? 'Chưa có số container', cells: [
+            <>{row.containerNumber}{row.containerTypeLabel ? ` (${row.containerTypeLabel})` : ''}</>,
+            <>Cước hợp đồng: {row.freightCharge == null ? 'Chưa xác định' : formatMoney(row.freightCharge)}</>,
+          ],
+        }))}
+      />
       <label className="csc-debit-adjust__reason">
         <span>Lý do (bắt buộc)</span>
         <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={2} />
@@ -320,35 +295,26 @@ export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
     row.containerNumber ?? `trip-${row.tripId}`,
     row.otherFees.filter((fee) => defaultFeeRouting(fee.name) === 'OTHER_COSTS').map((fee) => fee.name),
   ]));
-  return (
-    <table className="csc-debit-table csc-debit-table--payables">
-      <caption>Bảng 2.3 — Phí Phải trả (chỉ xem)</caption>
-      <thead><tr>
-        <th scope="col">Số Container</th>
-        <th scope="col">Cước trả</th>
-        {/* Zone surcharge: the heading is CONFIG DATA rendered verbatim —
-            place names are data, never identifiers. No configured zone keeps
-            the interim '—' column; null amounts render '—', never 0. */}
-        <th scope="col">{detail.zoneSurcharge?.label ?? '—'}</th>
-        <th scope="col">Phí HQGS</th>
-        <th scope="col">Phí Phát sinh</th>
-        <th scope="col">Ghi chú</th>
-      </tr></thead>
-      <tbody>
-        {detail.freightRows.map((row) => (
-          <tr key={row.containerNumber ?? `trip-${row.tripId}`}>
-            <td>{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></td>
-            <td>{money(row.payableFreight)}</td>
-            <td>{detail.zoneSurcharge?.amount == null ? '—' : formatMoney(detail.zoneSurcharge.amount)}</td>
-            <td>{money(row.customsFee)}</td>
-            <td>{money(row.phatSinhFee)}</td>
-            <td>{buildDebitNote(row.psActualNote, otherFeeNamesByContainer.get(row.containerNumber ?? `trip-${row.tripId}`) ?? [])}</td>
-          </tr>
-        ))}
-        {payablesCommonRow(detail.payables)}
-      </tbody>
-    </table>
-  );
+  const common = payablesCommonRow(detail.payables);
+  return <LedgerMatrix className="csc-debit-table csc-debit-table--payables"
+    caption={<>Bảng 2.3 — Phí Phải trả (chỉ xem)</>}
+    columns={[
+      { key: 'c0', label: <>Số Container</> },
+      { key: 'c1', label: <>Cước trả</>, primary: true },
+      { key: 'c2', label: <>{detail.zoneSurcharge?.label ?? '—'}</> },
+      { key: 'c3', label: <>Phí HQGS</>, primary: true },
+      { key: 'c4', label: <>Phí Phát sinh</>, primary: true },
+      { key: 'c5', label: <>Ghi chú</> }
+    ]}
+    rows={[...detail.freightRows.map((row) => ({ key: row.containerNumber ?? `trip-${row.tripId}`, title: row.containerNumber ?? 'Chưa có số container', cells: [
+                <><div className="record-cell-stack">{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></div></>,
+                <>{money(row.payableFreight)}</>,
+                <>{detail.zoneSurcharge?.amount == null ? '—' : formatMoney(detail.zoneSurcharge.amount)}</>,
+                <>{money(row.customsFee)}</>,
+                <>{money(row.phatSinhFee)}</>,
+                <>{buildDebitNote(row.psActualNote, otherFeeNamesByContainer.get(row.containerNumber ?? `trip-${row.tripId}`) ?? [])}</>,
+              ] })), ...(common ? [common] : [])]}
+  />;
 }
 
 /** Card _62 — the "Phí chung lô" row: container-NULL ops fees bucketed the
@@ -356,14 +322,5 @@ export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
  *  lot has no chung-lô rows (both sums null). */
 function payablesCommonRow(payables: ShipmentDebitDetail['payables']) {
   if (payables.hqgsCommonFee == null && payables.phatSinhCommonFee == null) return null;
-  return (
-    <tr className="csc-debit-table__common-row">
-      <td>Phí chung lô</td>
-      <td>—</td>
-      <td>—</td>
-      <td>{money(payables.hqgsCommonFee)}</td>
-      <td>{money(payables.phatSinhCommonFee)}</td>
-      <td>—</td>
-    </tr>
-  );
+  return { key: 'common', title: 'Phí chung lô', className: 'csc-debit-table__common-row', cells: [<>Phí chung lô</>, <>—</>, <>—</>, <>{money(payables.hqgsCommonFee)}</>, <>{money(payables.phatSinhCommonFee)}</>, <>—</>] };
 }

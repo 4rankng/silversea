@@ -102,7 +102,7 @@
     grid-template-columns: 1fr;
   }
   .trip-list-page .quick-edit-toolbar__main .btn {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
   .trip-list-page .table-foot {
     align-items: stretch;
@@ -135,7 +135,7 @@
   .trip-list-page .hero-top { flex-direction: column; gap: 10px; align-items: flex-start; }
   .trip-list-page .hero-sub { font-size: var(--fs-xs); }
   .trip-list-page .hero-actions { width: 100%; flex-wrap: wrap; }
-  .trip-list-page .hero-actions .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
+  .trip-list-page .hero-actions .btn { flex: 1 1 auto; justify-content: center; min-height: var(--control-max-h); }
 
   .trip-list-page .metrics {
     display: grid;

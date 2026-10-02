@@ -1,8 +1,10 @@
+import { PhotoImage } from '../../components/shared/PhotoImage';
 import { AlertCircle, ArrowLeft, Camera, DollarSign, Loader2, Package, Pencil, Plus, Trash2 } from 'lucide-react';
 import { OPS_EXPENSE_TYPE_DEFAULTS, SETTLEMENT_METHOD_LABELS, SettlementMethod } from '@tingting/shared';
 import { FormGroup } from '../../components/UI';
 import { formatCurrency, formatDate } from '../../lib/format';
 import type { useForwarderTripDetail } from '../../hooks/useQueries';
+import { useAuthedPhotoUrls } from '../../lib/api/photo';
 
 export interface ForwarderContainer {
   id: number;
@@ -137,7 +139,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 20px', borderBottom: '1px solid var(--border-1)',
                     cursor: 'pointer',
-                    width: '100%', minHeight: 44, borderTop: 0, borderLeft: 0, borderRight: 0,
+                    width: '100%', minHeight: 'var(--control-touch-h)', borderTop: 0, borderLeft: 0, borderRight: 0,
                     appearance: 'none', borderRadius: 0,
                     color: 'inherit', font: 'inherit', textAlign: 'left',
                     background: isActive ? 'var(--brand-subtle, rgba(0,90,45,0.08))' : 'transparent',
@@ -171,6 +173,7 @@ type TripData = NonNullable<ReturnType<typeof useForwarderTripDetail>['data']>;
 type Expense = TripData['expenses'][number];
 interface ExpenseRowProps { exp: Expense; expenseTypeOptions: Array<{ code: string; name: string }>; uploadingExpenseId: number | null; photos?: string[]; onUpload: (expenseId: number, file: File) => void; onEdit: (expense: Expense) => void; onDelete: (expenseId: number) => void; deletePending: boolean; onLoadPhotos: (expenseId: number) => void }
 export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseTypeOptions, uploadingExpenseId, photos, onUpload: handleUploadPhoto, onEdit: openExpenseEditor, onDelete: handleDeleteExpense, deletePending, onLoadPhotos: loadExpensePhotos }: ExpenseRowProps) {
+ const authedPhotoUrls = useAuthedPhotoUrls(photos ?? []);
  const expensePhotos: Record<number, string[]> = photos ? { [exp.id]: photos } : {};
  const deleteExpenseMut = { isPending: deletePending };
  const isVoided = exp.approvalStatus === 'VOIDED' || exp.approvalStatus === 'REJECTED';
@@ -275,10 +278,10 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                   {/* Photo thumbnails */}
                   {expensePhotos[exp.id] && expensePhotos[exp.id].length > 0 && (
                     <div style={{ display: 'flex', gap: 6, marginTop: 8, paddingLeft: 26 }}>
-                      {expensePhotos[exp.id].map((url, i) => (
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                          <img
-                            src={url}
+                      {expensePhotos[exp.id].map((_url, i) => (
+                        <a key={i} href={authedPhotoUrls[i] || undefined} target="_blank" rel="noopener noreferrer">
+                          <PhotoImage
+                            src={authedPhotoUrls[i]}
                             alt={`Hóa đơn ${i + 1}`}
                             style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-1)' }}
                           />

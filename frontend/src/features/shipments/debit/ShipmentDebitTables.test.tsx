@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChiHoTable, FreightTable, PayablesTable, buildDelta, buildDraft } from './ShipmentDebitTables';
 import type { ShipmentDebitDetail } from '../../../api/shipmentClient';
 
@@ -159,4 +159,39 @@ it('stacks the fee editor label-over-control: control row (input + ×) and a 2-f
   expect(fields.map((field) => field.querySelector('.csc-debit-otherfee__label')?.textContent)).toEqual(['Tên phí', 'Số tiền']);
   expect(fields[0]!.querySelector('input[aria-label^="Tên phí mới"]')).not.toBeNull();
   expect(fields[1]!.querySelector('input[aria-label^="Số tiền phí mới"]')).not.toBeNull();
+});
+
+const originalMedia = window.matchMedia;
+function phoneViewport() {
+  window.matchMedia = (query: string): MediaQueryList => ({
+    matches: query.includes('max-width: 640px'), media: query, onchange: null,
+    addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
+  });
+}
+afterEach(() => { window.matchMedia = originalMedia; });
+
+it('QA-AUDIT-UI-39 phone ledgers keep all amounts and mount editable controls once', () => {
+  phoneViewport();
+  const value = detail({ payableFreight: 8e6, phatSinhFee: 90000, customsCustomerCharge: 150000 });
+  value.chiHoRows = [{ tripId: 601, containerNumber: 'QATU1234569', containerTypeLabel: null, items: [],
+    otherFees: [{ id: 2, name: 'Manual fee', amount: 200 }], carrierDetention: 350000, repairAdvance: null, opsDocsStatus: 'PENDING' }];
+  const freightChanges: unknown[] = []; const feeChanges: unknown[] = [];
+  render(<><FreightTable detail={value} draft={buildDraft(value)} frozen={false} setFreight={(...args) => freightChanges.push(args)} />
+    <ChiHoTable detail={value} draft={buildDraft(value)} frozen={false} setFeeAmount={(...args) => feeChanges.push(args)} addFee={() => {}} removeFee={() => {}} setAddedFee={() => {}} />
+    <PayablesTable detail={value} /></>);
+  expect(screen.queryByRole('table')).toBeNull();
+  expect(screen.getAllByRole('article')).toHaveLength(3);
+  const revenue = screen.getByText('Bảng 2.1 — Cước vận tải').closest('section')!;
+  expect(within(revenue).getByText('4.650.000')).toBeTruthy();
+  expect(screen.getAllByLabelText('PS thực tế QATU1234569')).toHaveLength(1);
+  fireEvent.change(screen.getByLabelText('PS thực tế QATU1234569'), { target: { value: '100000' } });
+  expect(freightChanges).toEqual([['QATU1234569', { psActual: '100000' }]]);
+  fireEvent.change(screen.getByLabelText('Số tiền chi hộ phí khác Manual fee QATU1234569'), { target: { value: '400' } });
+  expect(feeChanges).toEqual([[2, '400']]);
+  expect(screen.getByText('[ 350.000 đ ]').closest('.csc-debit-warn-cell--armed')).toBeTruthy();
+  expect(screen.getByText('8.000.000')).toBeTruthy();
+  expect(screen.getByText('90.000')).toBeTruthy();
+  expect(screen.getByText('Manual fee')).toBeTruthy();
+  expect(screen.getByText('Manual fee').closest('.ledger-record__fact')).toHaveAttribute('data-layout', 'full-width');
+  expect(screen.getByText('4.650.000').closest('.ledger-record__fact')).not.toHaveAttribute('data-layout');
 });

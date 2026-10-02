@@ -30,8 +30,10 @@ function makeCost(overrides: Partial<RecoverableCost> = {}): RecoverableCost {
     version: 7,
     tripId: 12,
     tripCode: 'CH-2608-012',
+    tripReference: 'DNKM13333',
     shipmentId: 18,
     shipmentCode: 'DNKM13333',
+    shipmentReference: 'DNKM13333',
     customerId: 4,
     customerName: 'Công ty Long Minh',
     expenseType: 'LIFT_ON',
@@ -115,6 +117,32 @@ describe('RecoverableCostsPage', () => {
     expect(screen.getAllByText('2.200.000 ₫').length).toBeGreaterThan(0);
     expect(screen.getAllByText('700.000 ₫').length).toBeGreaterThan(0);
     expect(screen.queryByText(/\b2,2\s*(tr|M)\b/i)).toBeNull();
+  });
+
+
+  it.each([
+    ['zero', { sellAmount: 1_500_000 }, '0 ₫', null],
+    ['positive', {}, '700.000 ₫', 'is-positive'],
+    ['negative', { buyAmount: 2_200_000, sellAmount: 1_500_000 }, '-700.000 ₫', 'is-negative'],
+  ] as const)('keeps %s variance tone truthful in both record views and the page summary', async (_state, amounts, expectedAmount, expectedTone) => {
+    listRecoverableCostsMock.mockResolvedValue({ items: [makeCost(amounts)], total: 1, page: 1, limit: 25 });
+    renderPage();
+    const ledger = await screen.findByTestId('recoverable-cost-ledger');
+    const records = screen.getByTestId('recoverable-cost-records');
+    const summary = screen.getByRole('region', { name: 'Tổng hợp trang hiện tại' });
+    const summaryOwner = within(summary).getByText('Chênh lệch thu/chi').parentElement;
+    const ledgerValue = ledger.querySelector('[data-label="Chênh lệch thu/chi"] .recoverable-costs__money');
+    const recordValue = records.querySelector('.recoverable-costs__record-variance .recoverable-costs__money');
+    const summaryValue = summaryOwner?.querySelector('strong');
+
+    for (const value of [ledgerValue, recordValue, summaryValue]) {
+      expect(value).toHaveTextContent(expectedAmount);
+    }
+    for (const owner of [ledgerValue, recordValue, summaryOwner]) {
+      expect(owner?.classList.contains('is-positive')).toBe(expectedTone === 'is-positive');
+      expect(owner?.classList.contains('is-negative')).toBe(expectedTone === 'is-negative');
+    }
+    expect(requestRecoverableCostMock).not.toHaveBeenCalled();
   });
 
   it('filters by recorded status and resets the requested page to one', { timeout: 15000 }, async () => {

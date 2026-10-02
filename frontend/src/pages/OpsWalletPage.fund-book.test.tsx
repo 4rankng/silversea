@@ -97,10 +97,12 @@ describe('OpsWalletPage Sổ quỹ (card 20260923_13)', () => {
       fireEvent.change(screen.getByLabelText(label), { target: { value } });
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/wallet/fund-book')) {
-        return Promise.resolve(fundBook({
-          period: { from: '2026-09-22', to: '2026-09-30' },
+        const query = new URL(url, 'http://localhost').searchParams;
+        const period = { from: query.get('from'), to: query.get('to') };
+        return Promise.resolve(fundBook(period.from || period.to ? {
+          period,
           periodOpening: '1000000', periodIn: '0', periodOut: '600000', periodClosing: '-600000',
-        }));
+        } : {}));
       }
       if (url.startsWith('/ops/wallet/summary')) return Promise.resolve({ totalAdvance: '1000000', approved: '600000', pending: '0', rejected: '0', returned: '0', balance: '400000' });
       return Promise.resolve({ items: [] });
@@ -110,9 +112,9 @@ describe('OpsWalletPage Sổ quỹ (card 20260923_13)', () => {
     // Default: no window in the request at all, and no period block.
     await screen.findByRole('region', { name: 'Sổ quỹ' });
     expect(apiGet.mock.calls.some(([url]) => String(url).includes('from='))).toBe(false);
-    expect(screen.queryByLabelText('Tổng theo khoảng đang lọc')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByLabelText('Tổng theo khoảng đang lọc')).not.toBeInTheDocument());
 
-    setWindow('Từ ngày', '2026-09-22');
+    setWindow('Từ ngày', '22/09/2026');
 
     // The window is the server's filter, not a client-side slice, so the
     // request must carry it and the whole-history figures must still show.
@@ -123,6 +125,25 @@ describe('OpsWalletPage Sổ quỹ (card 20260923_13)', () => {
     expect(screen.getByText(/Khoảng đang lọc/)).toBeInTheDocument();
     expect(screen.getByText(/Số dư cuối kỳ/)).toBeInTheDocument();
     // The all-time figure is still on screen, and still its own number.
+    expect(within(screen.getByLabelText('Tổng sổ quỹ')).getByText(/Số dư cuối sổ/)).toBeInTheDocument();
+
+    setWindow('Đến ngày', '30/09/2026');
+    await waitFor(() => {
+      const requests = apiGet.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith('/ops/wallet/fund-book'));
+      expect(new URL(requests.at(-1)!, 'http://localhost').searchParams.get('from')).toBe('2026-09-22');
+      expect(new URL(requests.at(-1)!, 'http://localhost').searchParams.get('to')).toBe('2026-09-30');
+    });
+    expect(await screen.findByLabelText('Tổng theo khoảng đang lọc')).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Tổng sổ quỹ')).getByText(/Số dư cuối sổ/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá khoảng' }));
+    await waitFor(() => {
+      const requests = apiGet.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith('/ops/wallet/fund-book'));
+      expect(new URL(requests.at(-1)!, 'http://localhost').search).toBe('');
+    });
+    const range = screen.getByRole('group', { name: 'Khoảng ngày sổ quỹ' });
+    for (const input of within(range).getAllByRole('textbox')) expect(input).toHaveValue('');
+    expect(screen.queryByLabelText('Tổng theo khoảng đang lọc')).not.toBeInTheDocument();
     expect(within(screen.getByLabelText('Tổng sổ quỹ')).getByText(/Số dư cuối sổ/)).toBeInTheDocument();
   });
 });

@@ -1,3 +1,4 @@
+import { opsBillReference } from './opsStatus';
 import { useQuery } from '@tanstack/react-query';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
@@ -101,7 +102,7 @@ export function OpsExpenseHistory() {
           <thead>
             <tr>
               <th>Ngày</th>
-              <th>Mã lô</th>
+              <th>Bill / Booking</th>
               <th>Cont</th>
               <th>Loại phí</th>
               <th>Số tiền</th>
@@ -114,7 +115,7 @@ export function OpsExpenseHistory() {
             {items.map((row: OpsExpenseRow) => (
               <tr key={row.id} className="ops-wallet__row">
                 <td data-label="Ngày">{row.paidAt.split('-').reverse().join('/')}</td>
-                <td data-label="Mã lô">{row.shipmentCode ?? '—'}</td>
+                <td data-label="Bill / Booking">{opsBillReference(row.billRef)}</td>
                 <td data-label="Cont">{row.containerNumber ?? 'Chung lô'}</td>
                 <td data-label="Loại phí">{row.feeName ?? row.expenseTypeName ?? row.expenseTypeCode}</td>
                 <td className="ops-money" data-label="Số tiền">{formatMoney(row.amount)} ₫</td>
@@ -142,8 +143,8 @@ export function OpsExpenseHistory() {
                   {isEditableExpense(row) && (
                     <button
                       type="button"
-                      className="btn-secondary"
-                      aria-label={`Sửa khoản chi ${row.shipmentCode ?? row.expenseTypeName ?? 'khoản chi'}`}
+                      className="btn btn--secondary"
+                      aria-label={`Sửa khoản chi ${opsBillReference(row.billRef)}`}
                       onClick={() => setEditing(row)}
                     >
                       <Pencil size={13} />
@@ -153,8 +154,8 @@ export function OpsExpenseHistory() {
                   {isEditableExpense(row) && (
                     <button
                       type="button"
-                      className="btn-secondary ops-danger"
-                      aria-label={`Xóa khoản chi ${row.shipmentCode ?? row.expenseTypeName ?? 'khoản chi'}`}
+                      className="btn btn--secondary ops-danger"
+                      aria-label={`Xóa khoản chi ${opsBillReference(row.billRef)}`}
                       disabled={deleting}
                       onClick={() => void handleDelete(row)}
                     >
@@ -189,7 +190,7 @@ export function OpsExpenseHistory() {
 function OpsLegacyExpenseDetail({ row, onClose }: { row: OpsExpenseRow; onClose: () => void }) {
   const query = useQuery({ queryKey: qk.opsLegacyExpense(row.sourceId), queryFn: () => expenseAccountingClient.get({ sourceKind: 'TRIP', sourceId: row.sourceId! }) });
   return <Drawer isOpen onClose={onClose} title="Khoản chi được nhập từ kế toán" footer={<button className="btn btn--secondary" onClick={onClose}>Đóng</button>}>
-    <p>{row.shipmentCode} · {row.feeName ?? row.expenseTypeName}</p>
+    <p>{opsBillReference(row.billRef)} · {row.feeName ?? row.expenseTypeName}</p>
     <p>Thực chi: <strong>{formatMoney(row.amount)} ₫</strong></p>
     {row.note && <p style={{ whiteSpace: 'pre-wrap' }}>{row.note}</p>}
     {query.isLoading && <p role="status">Đang tải chứng từ…</p>}

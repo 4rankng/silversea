@@ -6,6 +6,7 @@ import { dispatchStatusLabel } from '../../shipments/cus/cusUtils';
 import { formatDateTime24 } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { Drawer } from '../../../components/UI';
+import { billBookingReference } from '../../../lib/business-reference';
 import './DispatchContainerDetailDrawer.css';
 
 function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }) {
@@ -111,7 +112,7 @@ export function DispatchContainerDetailDrawer({
       });
   };
 
-  const label = shipment?.shipmentCode?.trim() || shipment?.blNumber?.trim() || shipment?.bookingRef?.trim() || 'Lô hàng';
+  const label = billBookingReference(shipment?.blNumber, shipment?.bookingRef);
   return (
     <Drawer
       isOpen={shipment != null}

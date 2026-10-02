@@ -1,3 +1,4 @@
+import { PhotoImage } from '../../../components/shared/PhotoImage';
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Package, Loader2, Camera, ImageOff } from 'lucide-react';
@@ -228,7 +229,7 @@ function PhotoGallery({ label, kind, urls, broken, onOpen, onBroken }: PhotoGall
       <div className="cs-gallery__label">{label}</div>
       <div className="cs-thumbs">
         {urls.map((url, i) => {
-          const isBroken = broken.has(url);
+          const isBroken = !url || broken.has(url);
           return (
             <button
               key={`${url}-${i}`}
@@ -244,7 +245,7 @@ function PhotoGallery({ label, kind, urls, broken, onOpen, onBroken }: PhotoGall
                   <span>Lỗi tải</span>
                 </span>
               ) : (
-                <img
+                <PhotoImage
                   src={url}
                   alt={`${label} ${i + 1}`}
                   onError={() => onBroken(url)}

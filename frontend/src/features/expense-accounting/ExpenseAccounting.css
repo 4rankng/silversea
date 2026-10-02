@@ -32,9 +32,14 @@
 .expense-register-table small { color: var(--fg-2); margin-top: 4px; font-size: var(--text-label-size); }
 .expense-register-table td { overflow-wrap: anywhere; }
 .expense-register-table .num { text-align: end; white-space: nowrap; }
-.expense-register-open, .expense-register-money { padding: 0; border: 0; background: transparent; text-align: inherit; color: var(--brand); cursor: pointer; font: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
-.expense-register-open:hover, .expense-register-money:hover { text-decoration-color: currentColor; }
-.expense-register-open:focus-visible, .expense-register-money:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.expense-register-open { justify-content: flex-start; text-align: inherit; }
+.expense-register-money { justify-content: flex-end; text-align: inherit; }
+
+/* Matrix titles keep their complete label in the shared compact control.
+   The existing local table rail owns any wider intrinsic track. */
+@media (min-width: 768px) {
+  .expense-register-table td:has(> .expense-register-open) { min-width: max-content; }
+}
 
 /* Card 20260929_207 — the selection column is gone, so a row IS the control.
    The picked row wears the sanctioned NEUTRAL INK selection treatment from
@@ -84,7 +89,7 @@
   .expense-register-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--line); padding-block: 8px; gap: 8px; position: relative; }
   .expense-register-table td { display: block; padding: 2px 0; border: 0; text-align: start; min-width: 0; white-space: normal; }
   .expense-register-table td[data-label]::before { content: attr(data-label); display: block; color: var(--fg-2); font-size: var(--text-label-size); margin-bottom: 3px; }
-  .expense-register-table .expense-register-context, .expense-register-table .expense-work-identity, .expense-register-table .expense-work-notes { grid-column: 1 / -1; min-width: 0; max-width: none; }
+  .expense-register-table .expense-register-context, .expense-register-table td[data-label="Khoản chi"], .expense-register-table .expense-work-identity, .expense-register-table .expense-work-notes { grid-column: 1 / -1; min-width: 0; max-width: none; }
   .expense-register-table tr[data-vehicle-start="true"] td { border-top: 0; }
   .expense-register-table .num { white-space: normal; text-align: start; }
   .expense-accounting-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-size: var(--text-label-size); }
@@ -93,7 +98,6 @@
   .expense-accounting-drawer ::-webkit-scrollbar { display: none; }
 }
 @media (pointer: coarse) {
-  .expense-register-open, .expense-register-money { min-height: var(--control-touch-h); }
   .expense-accounting-check { min-height: var(--control-touch-h); }
 }
 

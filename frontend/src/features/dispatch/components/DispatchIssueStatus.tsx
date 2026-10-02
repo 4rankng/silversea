@@ -62,7 +62,7 @@ export function dispatchIssueStatusVariant(status: DispatchIssueStatus): StatusV
 export function DispatchIssueStatusChip({ status }: { status: DispatchIssueStatus }) {
   if (status === 'UNASSIGNED') return null;
   return (
-    <StatusText variant={dispatchIssueStatusVariant(status)} className="dispatch-assignment-cell__issue">
+    <StatusText variant={dispatchIssueStatusVariant(status)} className="dispatch-assignment-cell__issue" style={{ whiteSpace: 'normal' }}>
       {DISPATCH_ISSUE_STATUS_LABELS[status]}
     </StatusText>
   );

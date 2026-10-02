@@ -3,6 +3,8 @@ import { ArrowRight, Eye, EyeOff, Lock, ShieldCheck, User } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../lib/api/errors';
 import { BRAND } from '../brand';
+import { Btn } from '../components/UI';
+import { TextField } from '../design-system/forms/TextField';
 import './LoginPage.css';
 
 export default function LoginPage() {
@@ -56,7 +58,7 @@ export default function LoginPage() {
           </header>
 
           <div className="login-form-wrap">
-            <form className="login-form" onSubmit={submit}>
+            <form className="login-form" onSubmit={submit} aria-busy={submitting}>
               <div className="login-intro">
                 <p className="login-eyebrow">Cổng vận hành</p>
                 <h1 id="login-title">Chào mừng trở lại</h1>
@@ -71,14 +73,12 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <div className="field">
-                <label htmlFor="username-input">Tên đăng nhập hoặc số điện thoại</label>
-                <div className="input-icon">
-                  <User size={18} aria-hidden="true" />
-                  <input
+              <div className="field ds-field">
+                <label htmlFor="username-input" className="ds-field__label">Tên đăng nhập hoặc số điện thoại</label>
+                  <TextField
                     id="username-input"
                     name="username"
-                    className="input"
+                    prefix={<User size={18} aria-hidden="true" />}
                     value={username}
                     onChange={e => { setUsername(e.target.value); clearError(); }}
                     placeholder="Nhập tên đăng nhập hoặc số điện thoại"
@@ -89,17 +89,24 @@ export default function LoginPage() {
                     required
                     autoFocus
                   />
-                </div>
               </div>
 
-              <div className="field">
-                <label htmlFor="password-input">Mật khẩu</label>
-                <div className="input-icon">
-                  <Lock size={18} aria-hidden="true" />
-                  <input
+              <div className="field ds-field">
+                <label htmlFor="password-input" className="ds-field__label">Mật khẩu</label>
+                  <TextField
                     id="password-input"
                     name="password"
-                    className="input"
+                    prefix={<Lock size={18} aria-hidden="true" />}
+                    suffix={
+                      <Btn
+                        variant="ghost"
+                        size="sm"
+                        icon={showPw ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                        onClick={() => setShowPw(!showPw)}
+                        aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                        aria-pressed={showPw}
+                      />
+                    }
                     type={showPw ? 'text' : 'password'}
                     value={password}
                     onChange={e => { setPassword(e.target.value); clearError(); }}
@@ -109,16 +116,6 @@ export default function LoginPage() {
                     aria-describedby={error ? 'login-error' : undefined}
                     required
                   />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowPw(!showPw)}
-                    aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                    aria-pressed={showPw}
-                  >
-                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
               </div>
 
               {error && (
@@ -127,15 +124,15 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <button
-                className="btn btn--primary btn--lg login-submit"
+              <Btn
+                variant="primary"
+                className="login-submit"
+                icon={!submitting ? <ArrowRight size={18} aria-hidden="true" /> : undefined}
                 type="submit"
                 disabled={!username.trim() || !password || submitting}
-                aria-busy={submitting}
               >
-                <span>{submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}</span>
-                {!submitting && <ArrowRight size={18} aria-hidden="true" />}
-              </button>
+                {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
+              </Btn>
 
               <p className="login-help">
                 Tài khoản được cấp bởi quản trị viên doanh nghiệp.

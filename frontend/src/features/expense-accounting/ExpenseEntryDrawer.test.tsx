@@ -16,6 +16,12 @@ function show(chargeOnly = true, overrides: Partial<ExpenseAccountingEntry> = {}
 }
 describe('expense charge correction', () => {
   beforeEach(() => { update.mockReset().mockResolvedValue(entry); correct.mockReset().mockResolvedValue(entry); });
+  it('retains a historical payer selection without displaying its numeric ID (UI37)', () => {
+    show(false, { payerUserId: 42, payerName: null });
+    expect(screen.getAllByText('Chưa có tên nhân viên').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Nhân viên 42')).toBeNull();
+    expect(update).not.toHaveBeenCalled();
+  });
   it('preserves confirmed records and uses the linked correction command', async () => {
     show(false, { confirmedAt: '2026-09-17T00:00:00Z', locked: true, costGroup: 'OPS_REGULAR' });
     expect(screen.getByLabelText(/Thực chi/)).toBeDisabled();

@@ -95,7 +95,7 @@ describe('bulk appointment copy', () => {
     expect(copyButton()).toBeNull();
     expect(triggerText(11)).toBe(sourceText);
     expect(triggerText(12)).toBe(sourceText);
-    const save = screen.getByTitle('Lưu tất cả thay đổi (Enter)');
+    const save = screen.getByTitle('Lưu tất cả thay đổi');
     fireEvent.click(save);
     await screen.findByText('Cập nhật dữ liệu container thành công!');
     expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(2);

@@ -1,3 +1,4 @@
+import { PhotoImage } from '../../components/shared/PhotoImage';
 import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2, X } from 'lucide-react';
 import { useOpsExpenseTypes, useCreateOpsExpense } from '../../hooks/useOpsQueries';
@@ -168,19 +169,15 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
           {typesQuery.isPending && <p role="status">Đang tải danh mục loại phí…</p>}
           {typesQuery.isError && <div role="alert">
             <p>Không tải được danh mục loại phí. Nội dung đang nhập vẫn được giữ.</p>
-            <button type="button" className="btn-secondary" disabled={typesQuery.isFetching} onClick={() => void typesQuery.refetch()}>
+            <button type="button" className="btn btn--secondary" disabled={typesQuery.isFetching} onClick={() => void typesQuery.refetch()}>
               {typesQuery.isFetching ? 'Đang tải…' : 'Thử tải lại loại phí'}
             </button>
           </div>}
           {typesQuery.isSuccess && !typesData?.items.length && <p role="status">Chưa có loại phí đang sử dụng. Liên hệ người quản lý danh mục để bổ sung.</p>}
           <div className="ops-form-grid">
             <label>
-              Mã lô
-              <input value={order.shipmentCode ?? '—'} readOnly />
-            </label>
-            <label>
               Số {order.tradeDirection === 'EXPORT' ? 'Booking' : 'Bill'}
-              <input value={order.billRef ?? '—'} readOnly />
+              <input value={order.billRef?.trim() || 'Chưa có số Bill/Booking'} readOnly />
             </label>
             <UuiSelectField
               label="Số Cont"
@@ -226,7 +223,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               <span>Ảnh biên lai ({photos.length})</span>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn--secondary"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading || busy}
               >
@@ -248,7 +245,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               <ul className="ops-form-photos__list">
                 {photos.map((photo, photoIndex) => (
                   <li key={photo.storageKey}>
-                    <img src={photoUrls[photoIndex]} alt={photo.name} />
+                    <PhotoImage src={photoUrls[photoIndex]} alt={photo.name} />
                     <button
                       type="button"
                       aria-label={`Xóa ${photo.name}`}
@@ -266,8 +263,8 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         <footer className="ops-modal__foot">
           <div>{`Tổng: ${amountValid ? formatMoney(String(amount)) : '—'} ₫`}</div>
           <div className="ops-modal__actions">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={busy || uploading}>Đóng</button>
-            <button type="submit" className="btn-primary" disabled={!canSubmit}>
+            <button type="button" className="btn btn--secondary" onClick={onClose} disabled={busy || uploading}>Đóng</button>
+            <button type="submit" className="btn btn--primary" disabled={!canSubmit}>
               {busy ? <Loader2 size={14} className="spin" /> : null} Lưu
             </button>
           </div>

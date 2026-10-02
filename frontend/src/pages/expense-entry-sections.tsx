@@ -1,3 +1,4 @@
+import { PhotoImage } from '../components/shared/PhotoImage';
 import { Check, Loader2, Plus, Upload, X } from 'lucide-react';
 import { formatDate } from '../lib/format';
 import type { ExpenseWithRefs } from '@tingting/shared';
@@ -78,7 +79,7 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveD
   // Receipt thumbnails sit behind the JWT, so every src is an Authorization-
   // header blob fetch (DRV-DET-08 — never a `?token=` URL; a fresh `blob:`
   // preview passes through unchanged). A read that fails resolves to '', which
-  // shows the same retryable hint an <img> error used to: Thử lại refetches,
+  // shows the same retryable hint an <PhotoImage> error used to: Thử lại refetches,
   // it never re-uploads.
   const [reloadKey, setReloadKey] = useState(0);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -88,12 +89,11 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveD
   const settled = receiptUrls.length === photos.length;
   return <>
                 <div className="expense-layout__aside">
-                  <div className="expense-panel expense-panel--photo">
-                    <div className="expense-panel__header">
-                      <h3 className="expense-panel__title">Ảnh hóa đơn</h3>
-                      <p className="expense-panel__subtitle">Đính kèm biên lai / chứng từ nếu có</p>
+                  <div className="panel expense-panel expense-panel--photo">
+                    <div className="panel__head">
+                      <h3 className="panel__title">Ảnh hóa đơn</h3>
                     </div>
-                    <div className="expense-panel__body expense-photo-body">
+                    <div className="panel__body expense-photo-body">
                       {photos.length > 0 && (
                         <div className="expense-photo-grid">
                           {photos.map((p, idx) => (
@@ -112,10 +112,11 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, saveD
                                 <button
                                   type="button"
                                   className="expense-photo-thumb__open"
+                                  disabled={!receiptUrls[idx]}
                                   aria-label={`Xem ảnh hóa đơn ${idx + 1}`}
-                                  onClick={() => setViewerIndex(idx)}
+                                  onClick={() => { if (receiptUrls[idx]) setViewerIndex(idx); }}
                                 >
-                                  <img
+                                  <PhotoImage
                                     src={receiptUrls[idx]}
                                     alt={`Ảnh ${idx + 1}`}
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}

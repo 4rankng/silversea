@@ -232,7 +232,7 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
             <legend style={labelStyle}>VAT</legend>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
               {VAT_RATES.map((rate) => (
-                <label key={rate} style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 44, minHeight: 44 }}>
+                <label key={rate} style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 'var(--control-touch-h)', minHeight: 'var(--control-touch-h)' }}>
                   <input type="radio" name="dsr-vat" checked={vatRate === rate} onChange={() => setVatRate(rate)} />
                   <span>{rate}%</span>
                 </label>

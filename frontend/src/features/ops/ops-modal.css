@@ -41,14 +41,24 @@
 
 .ops-modal__head button {
   flex: none;
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ops-modal__head button:not(.btn) {
   min-width: 36px;
   min-height: 36px;
   border: none;
   background: transparent;
   cursor: pointer;
   color: var(--fg-2);
+}
+
+.ops-modal__head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ops-modal__body {
@@ -172,38 +182,6 @@
   flex-wrap: wrap;
 }
 
-/* Modal action buttons — styled here (not page css) so the footer actions
- * never render as joined bare text on a page that lacks a modal context. */
-.btn-secondary,
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 10px;
-  font-size: var(--text-data-size);
-  cursor: pointer;
-}
-
-.btn-secondary {
-  border: 1px solid var(--line);
-  background: var(--bg-1);
-  color: var(--fg-1);
-}
-
-.btn-primary {
-  border: none;
-  background: var(--ink);
-  color: var(--fg-inverse);
-}
-
-.btn-primary:disabled,
-.btn-secondary:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
 .spin {
   animation: ops-spin 0.9s linear infinite;
 }
@@ -229,8 +207,7 @@
     width: 100%;
   }
 
-  .ops-modal__actions .btn-primary,
-  .ops-modal__actions .btn-secondary {
+  .ops-modal__actions .btn {
     flex: 1 1 100px;
     justify-content: center;
   }
@@ -244,10 +221,10 @@
 @media (pointer: coarse) {
   .ops-modal__head button,
   .ops-modal__actions button,
-  .ops-form-photos__list button { min-width: 44px; min-height: 44px; }
+  .ops-form-photos__list button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }
   .ops-form-grid input:not(.ds-uui-select input),
   .ops-form-grid select,
-  .ops-form-note textarea { min-height: 44px; font-size: var(--control-field-font-size); }
+  .ops-form-note textarea { min-height: var(--control-touch-h); font-size: var(--control-field-font-size); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { Money } from '../../components/shared/Money';
 import { formatMoney } from '../../lib/format';
+import { billBookingReference } from '../../lib/business-reference';
 
 
 interface CustomerLogisticsItem {
@@ -57,7 +58,7 @@ export function CustomerDrawerHistories({ customerId }: { customerId: number }) 
         <dt>Đơn logistics gần đây</dt>
         {logistics == null ? <dd>…</dd> : logistics.length === 0 ? <dd>—</dd> : logistics.map((item) => (
           <dd key={item.id} style={{ fontWeight: 400 }}>
-            {item.shipmentCode}{item.blNumber ? ` · ${item.blNumber}` : ''} — {item.status}
+            {billBookingReference(item.blNumber, item.bookingRef)} — {item.status}
             {item.expectedDeliveryDate ? ` · giao ${item.expectedDeliveryDate.slice(0, 10)}` : ''}
           </dd>
         ))}

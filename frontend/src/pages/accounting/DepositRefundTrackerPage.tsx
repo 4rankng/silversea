@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { CalendarClock, Plus, X } from 'lucide-react';
 import { SkeletonTable, StatusText, useToast } from '../../components/shared';
+import { Money } from '../../components/shared/Money';
 import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, EmptyState, FilterBar, NumberField, SummaryRail, UuiSelectField } from '../../design-system';
@@ -238,7 +239,7 @@ export default function DepositRefundTrackerPage() {
         />
       )}
       {hasRows && (
-        <div className="record-table-wrap">
+        <div className="record-table-wrap record-table-wrap--scroll">
           <table className="record-table ops-table">
             <thead>
               <tr>
@@ -252,10 +253,10 @@ export default function DepositRefundTrackerPage() {
                 <tr key={row.id}>
                   <td data-label="STT" className="deposit-col--token">{index + 1}</td>
                   <td data-label="Ngày" className="deposit-col--token">{formatDepositDate(row.createdAt)}</td>
-                  <td data-label="Khách hàng">{row.customerName}</td>
+                  <td data-label="Khách hàng" className="record-table__text">{row.customerName}</td>
                   <td data-label="Hãng tàu">{row.carrierName}</td>
-                  <td data-label="Bill" className="deposit-col--token">{row.billNumber}</td>
-                  <td data-label="Số tiền cược" className="num deposit-col--token">{formatMoney(Number(row.depositAmount))} ₫</td>
+                  <td data-label="Bill"><span className="record-table__reference">{row.billNumber}</span></td>
+                  <td data-label="Số tiền cược" className="num deposit-col--token"><Money value={Number(row.depositAmount)} /></td>
                   <td data-label="Ngày nộp CV" className="deposit-col--token">{row.cvSubmittedDate ? formatDepositDate(row.cvSubmittedDate) : '—'}</td>
                   <td data-label="Ngày dự kiến hoàn cược" className="deposit-col--token">{row.expectedRefundDate ? formatDepositDate(row.expectedRefundDate) : '—'}</td>
                   <td data-label="Trạng thái">
@@ -263,12 +264,12 @@ export default function DepositRefundTrackerPage() {
                       {STATUS_LABELS[row.status]}
                     </StatusText>
                   </td>
-                  <td data-label="Ghi chú">{row.note ?? '—'}</td>
+                  <td data-label="Ghi chú" className="record-table__text">{row.note ?? '—'}</td>
                   <td data-label="" className="record-table__action">
                     {row.status === 'CHUA_HOAN_CUOC' && (
                       <>
-                        <Btn variant="secondary" size="sm" onClick={() => setDateModal(row)}>
-                          <CalendarClock size={14} /> Ngày CV / số tiền
+                        <Btn variant="secondary" size="sm" icon={<CalendarClock size={14} />} onClick={() => setDateModal(row)}>
+                          Ngày CV / số tiền
                         </Btn>
                         <Btn
                           variant="primary"

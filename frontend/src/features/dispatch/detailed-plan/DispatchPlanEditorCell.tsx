@@ -12,6 +12,7 @@ import {
 import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
+import { billBookingReference } from '../../../lib/business-reference';
 import { DateTimeField, NumberField, SearchableSelect, type SearchableSelectOption } from '../../../design-system';
 import {
   CURRENT_PLATE_PREFIX,
@@ -175,7 +176,7 @@ function vehicleBody(value: string): VehicleBody | null {
 }
 
 /**
- * One full-cell trigger and one atomic editor for the whole detailed-plan row:
+ * One compact assignment action and one atomic editor for the whole detailed-plan row:
  * carrier, vehicle, estimates and Phân loại (Đơn/Kẹp/Kết hợp — the dispatcher's
  * call since 2026-09-08) save together through PATCH
  * /dispatch-detail-plan-rows/:id/plan or not at all. The lot-level Đóng kết
@@ -599,7 +600,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     }
   }
 
-  const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
+  const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
   const currentPlate = row.dispatch.assignedPlate;
   // Completed rows are frozen history (the backend rejects plan saves), so the
   // trigger locks with an explanation instead of opening a doomed editor.
@@ -609,12 +610,26 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT');
 
   return (
-    <div className="dispatch-assignment-cell">
+    <div className="dispatch-assignment-cell" data-cell-label="Điều phối">
+      <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
+      <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
+        {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
+      </span>
+      {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
+        <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
+          {row.dispatch.assignedDriverName || 'Chưa có tài xế'}
+        </span>
+      )}
+      <DispatchIssueStatusChip status={issueStatus} />
+      {/* Cước thu/trả temporarily hidden from the grid cell per customer
+          request (docx T2.3); the editor dialog still shows and saves both. */}
+      {row.lotFullyPlated && !currentPlate && (
+        <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
+      )}
       <button
         ref={triggerRef}
         type="button"
-        className="dispatch-assignment-cell__trigger"
-        data-cell-label="Điều phối"
+        className="btn btn--secondary btn--sm dispatch-assignment-cell__trigger"
         onClick={openEditor}
         disabled={disabled || planFrozen || ensuring}
         aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
@@ -625,21 +640,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
             ? 'Phân xe lại trước khi chuyến xuất phát'
             : `Chỉnh sửa điều phối · ${identity}`}
       >
-        <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
-        <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
-          {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
-        </span>
-        {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
-          <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
-            {row.dispatch.assignedDriverName || 'Chưa có tài xế'}
-          </span>
-        )}
-        <DispatchIssueStatusChip status={issueStatus} />
-        {/* Cước thu/trả temporarily hidden from the grid cell per customer
-            request (docx T2.3); the editor dialog still shows and saves both. */}
-        {row.lotFullyPlated && !currentPlate && (
-          <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
-        )}
+        {canReassignIssuedTrip ? 'Phân xe lại' : 'Sửa'}
       </button>
 
       <Modal

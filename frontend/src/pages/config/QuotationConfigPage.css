@@ -5,6 +5,7 @@
 
 .quotation-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   min-width: 0;
 }
@@ -17,24 +18,25 @@
 }
 
 @media (max-width: 1279px) {
-  .quotation-layout { grid-template-columns: 1fr; }
+  .quotation-layout { grid-template-columns: minmax(0, 1fr); }
 }
 
-.quotation-frames__table { width: 100%; min-width: 0; }
+.quotation-frames__table { width: 100%; min-width: 0; table-layout: auto; }
 .quotation-frames__table tbody tr { cursor: pointer; }
-.quotation-frames__table tbody tr.is-selected {
-  background: var(--surface);
-  box-shadow: inset 3px 0 0 var(--ink);
+.quotation-frames__table tbody td {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.quotation-frames__table tbody tr:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
 }
 
 .quotation-status { color: var(--ink-3); font-size: var(--text-caption-size); }
 
 /* ── Route block: parameter strip + the 5×10 grid ───────────────────────── */
 .quotation-route-block {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-  padding: 12px 14px;
+  min-width: 0;
 }
 
 .quotation-route-block + .quotation-route-block { margin-top: 14px; }
@@ -68,30 +70,12 @@
 .quotation-grid td {
   border-bottom: 1px solid var(--line);
   padding: 8px 10px;
-  text-align: right;
   white-space: nowrap;
 }
 
-.quotation-grid th.quotation-grid__row-label,
-.quotation-grid td:first-child {
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-/* heSo input — compact, right-aligned like the money it scales. */
-.quotation-grid td input {
-  width: 100%;
-  min-width: 0;
-  height: 32px;
-  padding: 0 6px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--app-radius-sm, 6px);
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  text-align: right;
-}
+/* The desktop pricing matrix expands to complete labels and amounts. Phone
+   renders the shared labelled records instead of an off-screen money rail. */
+.quotation-grid { table-layout: auto; min-width: max-content; }
 
 /* Missing price (ruling 2): plain italic text names the missing data —
    never a fallback value, never a pill. */
@@ -100,14 +84,9 @@
   font-style: italic;
 }
 
-/* ── D3 (card _57 finish-out, 2026-09-23): nowrap headers overflow visibly
-   into the neighbour cell — the no-truncation law (docs/design-guidelines.md
-   §4/§11) allows only WRAP or EXPAND, and the frames column is width-capped
-   (minmax(280px, 380px)) so wrap is the only legal move. Applies to both
-   page tables: the frames list AND the route-block grid (same overlap class
-   seen on "CONT40 NHẸ <20T" at 1920). */
-.quotation-frames__table thead th,
+/* Matrix headers expand to complete class tokens. The shared record-table
+   recipe owns the frame list's narrow labels and word wrapping. */
 .quotation-grid thead th {
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }

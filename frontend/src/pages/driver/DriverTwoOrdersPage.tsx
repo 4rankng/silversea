@@ -203,7 +203,7 @@ export default function DriverTwoOrdersPage() {
             {view.active ? (
               <TripCard trip={view.active} label="Lệnh đang chạy" accent="var(--ok, #16a34a)" />
             ) : (
-              <div className="dt-card__empty-slot" data-testid="active-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
+              <div className="dt-card__empty-slot" data-testid="active-empty" style={{ padding: 16, border: '1px dashed var(--line)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
                 <EmptyState variant="compact" context="driver-tasks" title="Chưa có lệnh nào đang chạy." />
               </div>
             )}
@@ -211,7 +211,7 @@ export default function DriverTwoOrdersPage() {
             {view.next ? (
               <TripCard trip={view.next} label="Lệnh tiếp theo" accent="var(--accent, #2563eb)" />
             ) : (
-              <div className="dt-card__empty-slot" data-testid="next-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
+              <div className="dt-card__empty-slot" data-testid="next-empty" style={{ padding: 16, border: '1px dashed var(--line)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 'var(--text-body-size)' }}>
                 <EmptyState variant="compact" context="driver-tasks" title="Không có lệnh tiếp theo." />
               </div>
             )}

@@ -481,13 +481,13 @@
   }
 
   .dispatch-allocation-popover__remove {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
+    width: var(--control-max-h);
+    min-width: var(--control-max-h);
+    min-height: var(--control-max-h);
   }
 
   .dispatch-allocation-popover__add {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   .dispatch-allocation-popover__notice.is-warning {
@@ -501,7 +501,7 @@
   }
 
   .dispatch-allocation-popover__actions > * {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 }
 

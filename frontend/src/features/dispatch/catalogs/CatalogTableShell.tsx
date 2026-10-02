@@ -68,7 +68,7 @@ export function CatalogTableShell({
     <div className="dispatch-catalogs">
       {(title || tabs || actions) && (
         <div className="dispatch-catalogs__strip-head">
-          {title && <h1 className="dispatch-catalogs__strip-title">{title}</h1>}
+          {title && <h1 className="dispatch-catalogs__strip-title page-header__title-visible">{title}</h1>}
           {tabs}
           {actions && <div className="dispatch-catalogs__strip-actions">{actions}</div>}
         </div>

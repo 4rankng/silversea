@@ -226,3 +226,34 @@ describe('FinancePage per-truck table column sorting', () => {
     expect(within(categoryPanel).getByRole('columnheader', { name: 'Tổng chi phí' }).getAttribute('aria-sort')).toBe('ascending');
   });
 });
+
+describe('UI75 recognized report tone', () => {
+  it('uses cost direction at every compared expense row while retaining exact source amounts', () => {
+    const current = { ...report, totalRevenue: 4_500_000, otherIncome: 0, externalMarginTotal: 0, serviceMarginTotal: 0,
+      totalCosts: 1_650_000, grossProfit: 2_850_000, netProfit: 2_850_000, fleetDepreciationTotal: 100,
+      fleetMonthlyFixedCostTotal: 50, companyExpenses: 5 };
+    const prior = { ...current, totalCosts: 110_000, fleetDepreciationTotal: 50, fleetMonthlyFixedCostTotal: 100, companyExpenses: 10 };
+    usePnlReportMock.mockImplementation((_month: number, year: number) => ({ data: year === 2026 ? current : prior, isLoading: false, error: null }));
+    const { container } = renderPage();
+    const row = (label: string) => [...container.querySelectorAll('.pnl-row')]
+      .find(node => node.querySelector('.pnl-row__label')?.textContent?.trim().startsWith(label)) as HTMLElement;
+    expect(row('Khấu hao đội xe').querySelector('.pnl-row__pct')).toHaveClass('pnl-row__pct--down');
+    expect(row('Chi phí cố định đội xe').querySelector('.pnl-row__pct')).toHaveClass('pnl-row__pct--up');
+    expect(row('Tổng chi phí vận hành').querySelector('.pnl-row__pct')).toHaveClass('pnl-row__pct--down');
+    expect(row('Chi phí công ty').querySelector('.pnl-row__pct')).toHaveClass('pnl-row__pct--up');
+    expect(row('Tổng chi phí hoạt động').querySelector('.pnl-row__pct')).toHaveClass('pnl-row__pct--up');
+    expect(row('Tổng chi phí vận hành').querySelector('.pnl-row__amount')).toHaveTextContent('1.650.000');
+    expect(row('Lợi nhuận gộp')).toHaveAttribute('data-profit-state', 'profit');
+  });
+
+  it.each([-50_000, 0])('renders current profit %s with truthful total state and exact amounts', (profit) => {
+    usePnlReportMock.mockReturnValue({ data: { ...report, grossProfit: profit, netProfit: profit }, isLoading: false, error: null });
+    const { container } = renderPage();
+    const totals = container.querySelectorAll('.pnl-row--profit-total');
+    expect(totals).toHaveLength(2);
+    for (const total of totals) {
+      expect(total).toHaveAttribute('data-profit-state', profit < 0 ? 'loss' : 'neutral');
+      expect(total.querySelector('.pnl-row__amount')).toHaveTextContent(profit < 0 ? '-50.000' : '0');
+    }
+  });
+});

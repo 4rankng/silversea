@@ -2,9 +2,12 @@ import React from 'react';
 import { Wallet } from 'lucide-react';
 import { Money } from '../../../components/shared/Money';
 import type { TripDerivedData } from '../types';
+import type { TripDetail } from '@tingting/shared';
+import { getExternalTripDisplayTotals } from '../../trips/tripHelpers';
 
 interface FinancialCardProps {
   derived: TripDerivedData;
+  trip: TripDetail;
   customerCommission?: number;
 }
 
@@ -19,13 +22,15 @@ function NegMoney({ value }: { value: number }) {
   return <Money value={0} />;
 }
 
-export function FinancialCard({ derived, customerCommission = 0 }: FinancialCardProps) {
+export function FinancialCard({ derived, trip, customerCommission = 0 }: FinancialCardProps) {
   const {
     revenue, fuelCost, roadAllowance, tollCost, tollsDiscount, driverSalary,
     twoPointDeliveryBonus, vehicleShiftAllowance,
     totalCost, grossProfit,
   } = derived;
 
+  const external = trip.carrierType === 'EXTERNAL' ? getExternalTripDisplayTotals(trip) : null;
+  const extraCost = Number(trip.reconciledExtraCost ?? 0);
   const showCommission = customerCommission > 0;
   const showTwoPointBonus = twoPointDeliveryBonus > 0;
   const showShiftAllowance = vehicleShiftAllowance > 0;
@@ -38,8 +43,8 @@ export function FinancialCard({ derived, customerCommission = 0 }: FinancialCard
       <div className="card-body">
         <div className="pl">
           <div className="pl-row">
-            <span className="k">Doanh thu</span>
-            <span className="v"><Money value={revenue} /></span>
+            <span className="k">{external ? 'Doanh thu chưa VAT' : 'Doanh thu'}</span>
+            <span className="v"><Money value={external?.freightExVat ?? revenue} /></span>
           </div>
           {showCommission && (
             <div className="pl-row">
@@ -48,7 +53,12 @@ export function FinancialCard({ derived, customerCommission = 0 }: FinancialCard
             </div>
           )}
           <div className="pl-divider dashed" />
-          <div className="pl-row">
+          {external ? (
+            <div className="pl-row">
+              <span className="k">Cước thuê ngoài (gồm VAT)</span>
+              <span className="v neg"><NegMoney value={Number(trip.externalFreightCost ?? 0)} /></span>
+            </div>
+          ) : <>          <div className="pl-row">
             <span className="k"><span className="swatch swatch--fuel" />Chi phí nhiên liệu</span>
             <span className="v neg"><NegMoney value={fuelCost} /></span>
           </div>
@@ -82,12 +92,19 @@ export function FinancialCard({ derived, customerCommission = 0 }: FinancialCard
               <span className="v neg"><NegMoney value={vehicleShiftAllowance} /></span>
             </div>
           )}
+</>}
+          {extraCost > 0 && (
+            <div className="pl-row">
+              <span className="k">Chi phí phát sinh đã đối soát</span>
+              <span className="v neg"><NegMoney value={extraCost} /></span>
+            </div>
+          )}
           <div className="pl-divider" />
           <div className="pl-row subtotal">
             <span className="k">Tổng chi phí</span>
             <span className="v"><Money value={totalCost} /></span>
           </div>
-          <div className="pl-total">
+          <div className={`pl-total pl-total--${grossProfit > 0 ? 'profit' : grossProfit < 0 ? 'loss' : 'neutral'}`}>
             <span className="k">Lợi nhuận gộp</span>
             <span className="v"><Money value={Math.abs(grossProfit)} sign={grossProfit > 0 ? '+' : grossProfit < 0 ? '−' : undefined} /></span>
           </div>

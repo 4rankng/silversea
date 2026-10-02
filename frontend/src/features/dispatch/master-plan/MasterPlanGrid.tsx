@@ -8,6 +8,7 @@ import {
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
 import { formatDateTimeShort, formatISODate } from '../../../lib/format';
+import { billBookingReference } from '../../../lib/business-reference';
 import {
   isNoteLong,
   MasterPlanNoteModal,
@@ -390,7 +391,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       size="xs"
                       color="link-color"
                       className="master-plan-grid__container-detail-trigger"
-                      aria-label={`Xem chi tiết container của ${item.shipmentCode ?? item.blNumber ?? item.bookingRef ?? 'lô hàng'}`}
+                      aria-label={`Xem chi tiết container của ${billBookingReference(item.blNumber, item.bookingRef)}`}
                       onPress={(event) => onViewContainers(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
                     >
                       Chi tiết

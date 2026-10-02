@@ -234,7 +234,7 @@
 }
 
 .settlement-detail__summary-value--positive {
-  color: #16a34a;
+  color: var(--success-text);
 }
 
 .settlement-detail__summary-value--negative {
@@ -245,10 +245,10 @@
 .settlement-detail__note {
   position: relative;
   padding: 12px 16px;
-  background: #fffbeb;
+  background: var(--warning-soft);
   border-radius: 4px;
   font-size: var(--fs-sm);
-  color: #92400e;
+  color: var(--warning-text);
   margin-bottom: 16px;
   line-height: 1.6;
 }
@@ -261,7 +261,7 @@
   width: var(--status-strip-width);
   height: var(--status-strip-height);
   border-radius: var(--status-strip-radius);
-  background: #d97706;
+  background: var(--warning);
   pointer-events: none;
 }
 
@@ -502,9 +502,9 @@
 .settlement-expense-editor > div:first-child span, .settlement-expense-editor label { font-size: 12px; color: var(--fg-3); }
 .settlement-expense-editor label { display: grid; gap: 6px; }
 .settlement-expense-editor__actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
-.settlement-expense-editor__actions .btn { min-height: 44px; }
+.settlement-expense-editor__actions .btn { min-height: var(--control-max-h); }
 .settlement-expense-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.settlement-expense-actions .btn { min-height: 44px; }
+.settlement-expense-actions .btn { min-height: var(--control-max-h); }
 @media (max-width: 720px) { .settlement-expense-editor { grid-template-columns: 1fr; } .settlement-expense-editor__actions { grid-column: 1; } }
 .settlement-editor-hint { margin: -4px 0 12px; color: var(--ink-3); font-size: var(--fs-xs); }
 .settlement-link-list { display: grid; gap: 8px; }

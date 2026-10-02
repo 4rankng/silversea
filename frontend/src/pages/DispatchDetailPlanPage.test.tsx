@@ -138,6 +138,8 @@ describe('DispatchDetailPlanPage — ghép chuyến wiring (DISP-DP-12)', () => 
 
     const pairButtons = screen.getAllByRole('button', { name: 'Ghép chuyến' });
     expect(pairButtons).toHaveLength(2);
+    expect(pairButtons.map(button => button.textContent?.trim())).toEqual(['Ghép', 'Ghép']);
+    expect(pairButtons[0]).toHaveAttribute('title', 'Ghép chuyến · TGHU900');
     fireEvent.click(pairButtons[0]);
 
     const dialog = await screen.findByRole('dialog');
@@ -154,10 +156,46 @@ describe('DispatchDetailPlanPage — ghép chuyến wiring (DISP-DP-12)', () => 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   }, 20_000);
 
-  it('offers no pair affordance for a row without a trip', () => {
-    plan.items = [row(902, { dispatch: { ...row(902).dispatch, tripId: null } }), row(901)];
+  it.each([
+    { label: 'without a trip', dispatch: { tripId: null } },
+    { label: 'with an external carrier', dispatch: { carrierType: 'EXTERNAL' } },
+    { label: 'already paired', dispatch: { pairKind: 'KEP' } },
+    { label: 'canceled', dispatch: { tripStatus: 'CANCELED' } },
+  ] as const)('offers no pair affordance for a row $label', ({ dispatch }) => {
+    plan.items = [row(902, { dispatch: { ...row(902).dispatch, ...dispatch } }), row(901)];
     renderPage();
 
     expect(screen.getAllByRole('button', { name: 'Ghép chuyến' })).toHaveLength(1);
+  });
+});
+
+describe('DispatchDetailPlanPage — external completion identity (UI52-B)', () => {
+  it.each([
+    { container: 'TGHU900', bill: 'BL-900', expected: 'TGHU900' },
+    { container: null, bill: 'BL-900', expected: 'BL-900' },
+    { container: null, bill: 'BK-900', expected: 'BK-900' },
+    { container: null, bill: null, expected: 'Chưa có số Bill/Booking' },
+    { container: '  ', bill: null, expected: 'Chưa có số Bill/Booking' },
+  ] as const)('keeps $expected in the opened confirmation and returns to the same row on Cancel', async ({ container, bill, expected }) => {
+    const existing = row(900);
+    plan.items = [row(900, {
+      container: { ...existing.container, containerNumber: container },
+      docs: { ...existing.docs, billNumber: bill },
+      dispatch: { ...existing.dispatch, carrierType: 'EXTERNAL' },
+    })];
+    renderPage();
+
+    const opener = screen.getByRole('button', { name: `Hoàn thành · ${expected}` });
+    fireEvent.click(opener);
+    const dialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(dialog).toHaveTextContent(`Hoàn thành chuyến với xe ngoài ${expected}?`);
+    expect(dialog).not.toHaveTextContent('SS-000200');
+    expect(dialog).not.toHaveTextContent('dòng 900');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('button', { name: `Hoàn thành · ${expected}` })).toBe(opener);
+    expect(plan.items).toHaveLength(1);
+    expect(plan.refresh).not.toHaveBeenCalled();
   });
 });

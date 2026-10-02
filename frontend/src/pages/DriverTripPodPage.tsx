@@ -70,6 +70,7 @@ export function DriverTripPodPage() {
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
   const podHistory = trip?.podHistory ?? [];
+  const documentNumber = trip?.fulfillment?.documentNumber?.trim() || 'Chưa có số Bill/Booking';
   const documentReadOnlyReason = trip?.accountingLock
     ? 'Lô hàng đã khóa kế toán. Không thể thay đổi chứng từ.'
     : trip?.status === TripStatus.COMPLETED
@@ -298,7 +299,7 @@ export function DriverTripPodPage() {
             <StatusPill variant={tripStatusVariant(trip.status)}>
               {statusLabel}
             </StatusPill>
-            {trip.tripCode && <span className="driver-task-header__customer">{trip.tripCode}</span>}
+            <span className="driver-task-header__customer">{documentNumber}</span>
           </div>
         </div>
       </header>
@@ -332,7 +333,7 @@ export function DriverTripPodPage() {
         <section className="driver-task-section">
           <TripPodSubmission
             key={trip.id}
-            tripCode={trip.tripCode}
+            documentNumber={documentNumber}
             tripVersion={trip.version}
             currentSubmission={currentSubmission}
             history={podHistory}

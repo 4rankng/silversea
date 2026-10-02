@@ -310,7 +310,7 @@ export function ColumnPropertyPanel({
           options={VARIABLES.map(item => ({ value: item.value, label: item.label }))}
         />
         <Field label="Căn lề">
-          <div className="debit-editor-align-control" role="group" aria-label="Căn lề">
+          <div className="debit-editor-align-control" data-control-group="compact" role="group" aria-label="Căn lề">
             {[
               { value: 'left' as const, label: 'Trái', Icon: AlignLeft },
               { value: 'center' as const, label: 'Giữa', Icon: AlignCenter },

@@ -9,53 +9,30 @@
   line-height: 1.3;
 }
 
-/* Card 20260923_8 group B — column budget + atomic cells. tt-table is
-   table-layout: fixed (equal ~8.3% shares for 12 columns): dates fractured
-   mid-number and "Chưa xác định" wrapped ragged. Explicit widths for the
-   narrow/atomic columns; single-token cells expand (nowrap, no clip) per
-   design law §4; the two ghi chú columns keep wrapping (long text). */
-/* Card 20260929_207: the 3% selection track is gone with the checkbox column,
-   and its share goes back to the content columns — the board had 13 tracks
-   for 12 columns of content, which is why "Ghi chú vận tải" and the note bodies
-   were being crushed to four ragged lines. */
-/* Card 20260925_47: track shares rebalanced — the fixed 13-track layout
-   squeezed unbreakable header tokens below their glyph floor ('Địa điểm nâng
-   / hạ' fell to three ragged lines; 'CONTAINER' painted over its neighbour
-   once a min-width rescue was tried — min-width is inert under
-   table-layout: fixed, only width sizes tracks). Explicit shares hold every
-   header at its longest word, ≤2 even lines. */
-/* 2026-09-29: the budget was still starved at the two IDENTITY columns, and
-   only there — measured at 1144px: 'Lịch trình' held 57px against the 149px its
-   trip code + bill need, 'Thông tin xe' 57px against 206px for plate + driver,
-   so an identifier the operator reads character by character broke after every
-   hyphen ("TRP- / 2026- / 09- / 0013"). The two identity tracks now hold a
-   token and the WRAPPING text columns pay for it: a company name or a place
-   pair costs one more line, a broken identifier costs a misread.
-   Sum: 12 + 10 + 9 + 8 + 9 + 11 + 10 + 8 + 9 + 7 + 7 = 100 (the ghichu rule
-   covers both transport/driver note columns) — relative weights, which
-   `table-layout: fixed` scales to the table's own 100%. The ghichu-ops track
-   (card 20260928_162, the not-charged reason column) takes the note-track
-   weight; every track keeps its relative share of the 12-column board. */
-.ppc-board th.ppc-col--lich-trinh { width: 12%; }
-.ppc-board th.ppc-col--xe { width: 10%; }
-.ppc-board th.ppc-col--customer-route { width: 9%; }
-.ppc-board th.ppc-col--thongso { width: 8%; }
-.ppc-board th.ppc-col--diadiem { width: 9%; }
-.ppc-board th.ppc-col--chiho { width: 11%; }
-.ppc-board th.ppc-col--money { width: 10%; }
-.ppc-board th.ppc-col--status { width: 8%; }
-.ppc-board th.ppc-col--date { width: 9%; }
-.ppc-board th.ppc-col--ghichu { width: 7%; }
-/* Card 20260928_162 — the OPS cost-note column (the not-charged reason).
-   Shares the note-track weight: relative budgets, fixed layout scales. */
-.ppc-board th.ppc-col--ghichu-ops { width: 7%; }
+/* All-width workflow matrix: fixed percentage tracks compressed this board
+   at tablet/desktop widths. The approved debit-close pattern grows each track
+   to its content budget; the existing wrapper owns deliberate sideways reach. */
+.ppc-board { table-layout: auto; }
+.ppc-board th,
+.ppc-board td { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
+.ppc-board .ppc-col--lich-trinh { min-width: 188px; }
+.ppc-board .ppc-col--xe { min-width: 148px; }
+.ppc-board .ppc-col--customer-route { min-width: 188px; }
+.ppc-board .ppc-col--thongso { min-width: 164px; }
+.ppc-board .ppc-col--diadiem { min-width: 164px; }
+.ppc-board .ppc-col--chiho { min-width: 188px; }
+.ppc-board .ppc-col--money { min-width: 144px; }
+.ppc-board .ppc-col--status { min-width: 132px; }
+.ppc-board .ppc-col--date { min-width: 104px; }
+.ppc-board .ppc-col--ghichu,
+.ppc-board .ppc-col--ghichu-ops { min-width: 164px; }
+.ppc-board .ppc-identity { white-space: nowrap; }
 
-/* The two identity tracks are wide enough for their COMMON token (a 15-char
-   trip code + bill, a plate + driver), so the operator reads them on one line.
-   They deliberately still WRAP: a code is free text on the wire and the seed
-   holds 32-character ones ("G21-BILL-1790678705710-mlz5bd-4") — `nowrap` made
-   those paint over the next column, which is worse than a hyphen break inside
-   the cell (measured 2026-09-29). Law §4's no-EXPAND fallback applies. */
+/* The trip/bill pair is the board's identity. It stays visible within the
+   scroll box while the remaining workflow columns move, below header chrome. */
+.ppc-board .ppc-col--lich-trinh { position: sticky; left: 0; }
+.ppc-board th.ppc-col--lich-trinh { z-index: calc(var(--z-base) + 3); background: var(--surface-2); }
+.ppc-board td.ppc-col--lich-trinh { z-index: var(--z-base); background: var(--surface); }
 
 /* Selection: a row IS the control now. The picked row wears the sanctioned
    NEUTRAL INK selection treatment from `record-table.css` — a neutral surface
@@ -68,6 +45,9 @@
 .ppc-board tbody tr.ppc-row--pickable:hover { background: var(--surface-2, var(--surface)); }
 .ppc-board tbody tr[data-selected="true"] {
   background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+.ppc-board tbody tr[data-selected="true"] td.ppc-col--lich-trinh {
   box-shadow: inset 3px 0 0 var(--ink);
 }
 .ppc-board tbody tr.ppc-row--pickable:focus-visible {
@@ -98,42 +78,35 @@
 .ppc-board .ppc-line { display: block; }
 .ppc-board .ppc-value { white-space: nowrap; }
 .ppc-board .ppc-cell-actions { display: block; margin-top: 4px; }
-.ppc-board .ppc-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px; /* ≥24px desktop hit-area floor (§5) */
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
-  background: var(--surface);
-  cursor: pointer;
-}
-.ppc-board .ppc-icon-btn:hover { border-color: var(--accent); }
-
 /* The board's sideways scroll lives with the board. The wrapper used to borrow
    `shipment-container-ledger` from /shipments-detail's sheet, which this page
    never imports — so the div carried NO styles, the table overflowed it, and the
    shell's `overflow-x: hidden` put every column past the fold out of reach. */
 .ppc-board-wrap { overflow-x: auto; }
 
-/* Phone: the fixed budget cannot hold eleven tracks in ~374px — measured 425
-   cell spills at 390px and a shredded action button. Below the phone band the
-   board sizes to its CONTENT and the wrapper scrolls sideways, the
-   /shipments-debit pattern (card 20260924_9); the desktop budget above is
-   untouched. */
+/* The existing matrix scroll cue is shown only where touch needs it. */
+.ppc-board-hint { display: none; margin: 4px 0 0; color: var(--ink-2); font-size: var(--text-caption-size); }
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .ppc-board-hint { display: block; }
+}
+/* A long business reference can occupy most of a phone canvas. Let that
+   identity scroll too so it cannot mask the money/actions and final notes. */
 @media (max-width: 640px) {
-  .ppc-board { min-width: 900px; table-layout: auto; }
-  .ppc-board th,
-  .ppc-board td { width: auto; }
+  .ppc-board .ppc-col--lich-trinh { position: static; }
 }
 
-/* Báo cáo tháng report tables (card 20260924_1, image11). tt-table ships
-   white-space: nowrap under table-layout: fixed — the long mixed headers
-   painted across neighbouring columns, which the audit read as "merged cells,
-   no line". Wrap at spaces like .ppc-board and draw the vertical separator
-   between header cells so every sub-column keeps a visible boundary;
-   law book §4 (docs/design-guidelines.md). */
+/* Monthly reports are money matrices (09-29 design law), like the debit-close
+   board: the table grows to its column budgets and the existing board wrapper
+   owns horizontal reach. Amounts stay atomic while headings wrap at spaces. */
+.ppc-report { table-layout: auto; }
+.ppc-report th,
+.ppc-report td { overflow-wrap: normal; word-break: keep-all; }
+.ppc-report__ordinal { min-width: 48px; }
+.ppc-report__party { min-width: 160px; }
+.ppc-report__note { min-width: 160px; }
+.ppc-report th.ppc-report__money,
+.ppc-report td.ppc-report__money { min-width: 104px; text-align: right; }
+.ppc-report td.ppc-report__money { white-space: nowrap; }
 .ppc-report thead th {
   white-space: normal;
   word-break: keep-all;
@@ -163,7 +136,7 @@
   padding: 12px;
   border: 1px solid var(--border-1);
   border-radius: 8px;
-  background: var(--surface-1);
+  background: var(--surface);
 }
 
 /* Card 20260930_214 — the "xe đã phân công" table is the one thing here that
@@ -214,4 +187,10 @@
   align-items: center;
   min-height: 32px;
   cursor: pointer;
+}
+
+@media (pointer: coarse), (max-width: 767px) {
+  .ppc-assign-batch__list label {
+    min-height: var(--control-touch-h);
+  }
 }

@@ -1,82 +1,29 @@
 .detailed-plan-grid td.detailed-plan-grid__cell--editable {
-  position: relative;
   padding: 0;
 }
 
-.detailed-plan-grid td.detailed-plan-grid__cell--editable::after {
-  display: block;
-  min-height: 72px;
-  content: '';
-}
-
-.detailed-plan-grid td.detailed-plan-grid__cell--editable:has(.dispatch-assignment-cell__driver)::after {
-  min-height: 94px;
-}
-
+/* Facts determine row height; editing has its own ordinary house action. */
 .dispatch-assignment-cell {
-  position: absolute;
-  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 2px;
+  padding: 8px 12px;
 }
 
 .dispatch-assignment-cell__trigger {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: center;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  gap: 2px 8px;
-  padding: 8px 12px;
-  color: var(--fg-1);
-  font: inherit;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
+  justify-self: start;
+  margin-top: 4px;
 }
 
-.dispatch-assignment-cell__trigger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
-}
-
-/* Stay absolute so keyboard focus never shrinks the cell's hit area;
-   z-index alone lifts the ring above the td's stacking context. */
-.dispatch-assignment-cell__trigger:focus-visible {
-  z-index: 1;
-  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  outline-offset: -2px;
-}
-
-.dispatch-assignment-cell__trigger:disabled {
-  cursor: default;
-}
-
-/* Every line in this cell is a NAME or a sentence — carrier ("Chưa phân nhà
-   xe"), plate ("15H-207.01", "CUS sẽ bổ sung"), driver ("Nguyễn Duy Tuấn") and
-   the estimate. As one-line tokens they clipped behind an ellipsis in the 1024
-   band (106px of text in an 88px cell; the plate placeholder overflowed by 2px)
-   — the 2026-09-27 six-width sweep found 15 of them. They wrap instead, capped
-   at two lines so a row cannot grow without bound. */
 .dispatch-assignment-cell__carrier,
 .dispatch-assignment-cell__plate,
 .dispatch-assignment-cell__driver,
 .dispatch-assignment-cell__estimate {
   min-width: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
+  display: block;
   overflow-wrap: anywhere;
   white-space: normal;
-}
-
-.dispatch-assignment-cell__carrier,
-.dispatch-assignment-cell__plate,
-.dispatch-assignment-cell__driver {
-  grid-column: 1 / -1;
 }
 
 .dispatch-assignment-cell__carrier {
@@ -117,18 +64,6 @@
   font-family: inherit;
   font-style: italic;
 }
-
-/* Row-level "phát lệnh" shortcut — layered above the full-cell trigger so a
-   dispatcher can issue an already-plated row without opening the editor. */
-
-/* Row action rendered as a labeled text button ("Phát lệnh" / "Hoàn thành")
-
-/* Row action rendered as a labeled text button ("Phát lệnh" / "Hoàn thành")
-   now lives inside the Ghi chú cell (`.detailed-plan-grid__note-action` in
-   DetailedPlanGrid.css) per the customer's placement ruling — nothing floats
-   over the assignment cell anymore. */
-
-
 
 .dispatch-assignment-dialog {
   display: grid;
@@ -186,11 +121,6 @@
 .dispatch-assignment-dialog :is(.searchable-select__value, .searchable-select__placeholder),
 .dispatch-assignment-dialog__classification p {
   font-weight: 400;
-}
-
-.dispatch-assignment-dialog__money .ds-field__input,
-.dispatch-assignment-dialog__money .ds-field__affix {
-  min-height: var(--control-compact-h, 34px);
 }
 
 .dispatch-assignment-dialog__money .ds-field__input {
@@ -445,71 +375,62 @@
 }
 
 @container (max-width: 900px) {
-  .detailed-plan-grid td.detailed-plan-grid__cell--editable {
-    position: static;
-  }
-
-  .detailed-plan-grid td.detailed-plan-grid__cell--editable::after {
-    display: none;
-  }
-
+  /* Related facts share responsive tracks; full driver text stays natural. */
   .dispatch-assignment-cell {
-    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 8px;
+    align-items: center;
+  }
+
+  .dispatch-assignment-cell::before,
+  .dispatch-assignment-cell__driver {
+    grid-column: 1 / -1;
+  }
+
+  .dispatch-assignment-cell__carrier,
+  .dispatch-assignment-cell__issue,
+  .dispatch-assignment-cell > .detailed-plan-grid__lot-flag {
+    grid-column: 1;
+  }
+
+  .dispatch-assignment-cell__plate,
+  .dispatch-assignment-cell__trigger {
+    grid-column: 2;
   }
 
   .dispatch-assignment-cell__trigger {
-    position: relative;
-    inset: auto;
-    height: auto;
-    min-height: 0;
+    justify-self: end;
+    margin-top: 0;
   }
 
-  /* `td` keeps this above the grid's `.detailed-plan-grid__cell::before`
-     label rule (equal class specificity would lose on bundle order). */
+  /* Preserve the existing short record label outside the edit action. */
   td.detailed-plan-grid__cell--editable::before {
     display: none;
   }
 
-  .dispatch-assignment-cell__trigger::before {
+  .dispatch-assignment-cell::before {
     display: block;
-    grid-column: 1 / -1;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
     color: var(--fg-2);
     content: attr(data-cell-label);
     font-size: var(--text-label-size);
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    line-height: 1.3;
-    text-transform: uppercase;
-  }
-}
-
-/* 2026-09-27 phone rework: the dispatch cell is one of the td records that
-   now print a sentence-case label, so its own label stops shouting in caps —
-   one label voice across the whole card. It stays its own grid row (the
-   trigger is the button surface; the label must not steal its tap area). */
-@container (max-width: 900px) {
-  .dispatch-assignment-cell__trigger::before {
-    margin-bottom: 2px;
     font-weight: 600;
     letter-spacing: 0;
+    line-height: 1.3;
     text-transform: none;
   }
 }
 
 @media (max-width: 640px) {
   .dispatch-assignment-dialog__fields {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'carrier'
-      'vehicle'
-      'classification'
-      'combined'
-      'revenue'
-      'cost';
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: 'carrier carrier'
+      'vehicle vehicle'
+      'classification combined'
+      'revenue cost'
+      'end end';
   }
 
-  .dispatch-assignment-dialog__money .ds-field__input,
-  .dispatch-assignment-dialog__money .ds-field__affix,
   .dispatch-assignment-dialog .searchable-select__trigger {
     min-height: var(--control-mobile-h);
   }
@@ -581,7 +502,7 @@
 
 .dispatch-assignment-dialog__notes-tag {
   appearance: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-2);
   background: var(--surface);
   color: var(--fg-1);
   border-radius: 6px;
@@ -620,7 +541,7 @@
 }
 
 .dispatch-assignment-dialog__notes-add-row input {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   padding: 4px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
@@ -648,9 +569,7 @@
   margin-top: 4px;
 }
 
-.dispatch-assignment-dialog__notes-text {
-  border: 1px solid var(--border);
-  border-radius: 8px;
+textarea.dispatch-assignment-dialog__notes-text {
   padding: 8px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
   min-height: 56px;
@@ -660,7 +579,6 @@
   min-width: 0;
 }
 
-.dispatch-assignment-dialog__notes-text:focus,
 .dispatch-assignment-dialog__notes-add-row input:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -700,7 +618,7 @@
 }
 
 .dispatch-assignment-dialog__notes-manage-btn:hover:not(:disabled) {
-  border-color: var(--border);
+  border-color: var(--line-2);
   color: var(--accent);
   background: var(--surface-hover);
 }
@@ -777,7 +695,7 @@
   flex-direction: column;
   max-height: 264px;
   overflow-y: auto;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
@@ -845,7 +763,7 @@
 .dispatch-tag-manager__edit-row input {
   flex: 1;
   min-width: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   padding: 4px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
@@ -860,7 +778,7 @@
 .dispatch-tag-manager__confirm button {
   appearance: none;
   flex-shrink: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   padding: 4px 10px;
   background: var(--surface);
@@ -925,12 +843,12 @@
   .dispatch-assignment-dialog__notes-add-row button,
   .dispatch-tag-manager button,
   .dispatch-tag-manager input {
-    min-height: var(--control-touch-h, 44px);
+    min-height: var(--control-touch-h);
   }
 
   .dispatch-assignment-dialog__notes-manage-btn,
   .dispatch-assignment-dialog__notes-add-row button,
   .dispatch-tag-manager button {
-    min-width: var(--control-touch-h, 44px);
+    min-width: var(--control-touch-h);
   }
 }

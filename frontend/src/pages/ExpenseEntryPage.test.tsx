@@ -73,9 +73,25 @@ describe('ExpenseEntryPage load and recovery', () => {
     const selectErrors = [...document.querySelectorAll('.ds-uui-select__error')].map(e => e.textContent);
     expect(selectErrors).toContain('Vui lòng chọn nhà cung cấp');
     expect(selectErrors).toContain('Vui lòng chọn hạng mục chi phí');
-    expect(screen.getByText('Số tiền phải là số nguyên khác 0, tối đa 999.999.999.999.999đ')).toBeInTheDocument();
+    expect(screen.getByText('Số tiền phải là số nguyên lớn hơn 0, tối đa 999.999.999.999.999đ')).toBeInTheDocument();
     // The app validates and displays itself; no offscreen native [required]
     // control participates (AC 2).
     expect(document.querySelectorAll('[required]')).toHaveLength(0);
+  });
+
+  it('explains the positive amount boundary without silently changing an entered sign', async () => {
+    renderPage();
+    const save = await screen.findByRole('button', { name: 'Lưu chi phí' });
+    await waitFor(() => expect(save).toBeEnabled());
+    const amount = screen.getByLabelText('Số tiền (đ)', { exact: false });
+    fireEvent.change(amount, { target: { value: '-30000' } });
+    fireEvent.click(save);
+    expect(amount).toHaveValue('-30.000');
+    expect(screen.getByText('Số tiền phải là số nguyên lớn hơn 0, tối đa 999.999.999.999.999đ')).toBeInTheDocument();
+    fireEvent.change(amount, { target: { value: '30000' } });
+    fireEvent.click(save);
+    expect(amount).toHaveValue('30.000');
+    expect(screen.queryByText('Số tiền phải là số nguyên lớn hơn 0, tối đa 999.999.999.999.999đ')).not.toBeInTheDocument();
+    expect(document.querySelector('.ds-uui-select__error')).toHaveTextContent('Vui lòng chọn nhà cung cấp');
   });
 });

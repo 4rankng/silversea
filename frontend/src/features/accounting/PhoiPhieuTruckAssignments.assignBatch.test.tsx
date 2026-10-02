@@ -48,6 +48,32 @@ beforeEach(() => {
 });
 
 describe('card 20260928_166 — gán kế toán hàng loạt', () => {
+  it('keeps missing display identity explicit while preserving row and batch assignment keys', async () => {
+    const truck = UNASSIGNED[0];
+    const accountant = ACCOUNTANTS[0];
+    listMock.mockResolvedValue({
+      assignments: [{ truckId: truck.truckId, plate: truck.plate, accountantId: accountant.id, accountantName: null, version: 1 }],
+      unassignedTrucks: UNASSIGNED.slice(1),
+      accountants: [{ ...accountant, fullName: null }],
+    });
+    const view = renderBoard();
+    fireEvent.click(await screen.findByText(/Phân công xe cho kế toán phơi phiếu/));
+    await waitFor(() => expect(view.container.querySelectorAll('[data-uui-control="select"]')).toHaveLength(2));
+    const row = screen.getByText(truck.plate).closest('tr')!;
+    expect(within(row).getByRole('button', { name: `Chưa có tên kế toán Kế toán phụ trách ${truck.plate}` })).toHaveTextContent('Chưa có tên kế toán');
+    expect(view.container).not.toHaveTextContent(`Kế toán #${accountant.id}`);
+    const batch = view.container.querySelectorAll<HTMLButtonElement>('[data-uui-control="select"]')[1];
+    fireEvent.click(batch);
+    fireEvent.click(await screen.findByRole('option', { name: 'Chưa có tên kế toán' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: `Chọn xe ${UNASSIGNED[1].plate}` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Phân công 1 xe' }));
+    await waitFor(() => expect(assignBatchMock).toHaveBeenCalledTimes(1));
+    expect(assignBatchMock.mock.calls[0][0]).toEqual({ accountantId: accountant.id, truckIds: [UNASSIGNED[1].truckId] });
+    fireEvent.click(within(row).getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(assignOneMock).toHaveBeenCalledTimes(1));
+    expect(assignOneMock.mock.calls[0]).toEqual([truck.truckId, { accountantId: accountant.id, expectedVersion: 1 }]);
+  });
+
   it('offers the unassigned trucks as pickable rows, not as a comma-joined sentence', async () => {
     renderBoard();
     const summary = await screen.findByText(/Phân công xe cho kế toán phơi phiếu/);

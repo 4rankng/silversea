@@ -89,7 +89,7 @@
 @media (max-width: 640px) {
   .accounting-work-inbox__lane { border-inline: 0; border-radius: 0; }
   .accounting-work-inbox__lane > header { padding: 10px 8px; }
-  .accounting-work-inbox__lane > header button { min-width: 44px; min-height: 44px; }
+  .accounting-work-inbox__lane > header button { min-width: var(--control-max-h); min-height: var(--control-max-h); }
 }
 
 /* QA-101: an empty lane is a compact status row (count + refresh live in

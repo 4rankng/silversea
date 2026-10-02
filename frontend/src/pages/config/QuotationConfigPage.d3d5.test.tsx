@@ -67,12 +67,14 @@ beforeEach(() => {
 describe('QuotationConfigPage display fixes (card 20260923_10)', () => {
   it('D3: quotation table headers wrap, so no header paints over its neighbour column', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/config/QuotationConfigPage.css'), 'utf8');
-    // .tt-table thead th ships `white-space: nowrap` under `table-layout:
-    // fixed`; a longer header then overflows into the next column ("NGÀY HIỆU
-    // LỰC" over "GHI CHÚ"). The quotation tables must re-declare wrapping.
-    const wrapRule = css.match(/\.quotation-frames__table thead th,\s*\.quotation-grid thead th\s*\{([^}]*)\}/);
-    expect(wrapRule?.[1]).toContain('white-space: normal');
-    expect(wrapRule?.[1]).toContain('overflow-wrap: anywhere');
+    // UI35 preserves the original overlap gate with intrinsic matrix tracks
+    // and the shared labelled-record frame recipe instead of equal columns.
+    const source = readFileSync(resolve(process.cwd(), 'src/pages/config/QuotationConfigPage.tsx'), 'utf8');
+    expect(css).toMatch(/\.quotation-grid\s*\{[^}]*table-layout:\s*auto;[^}]*min-width:\s*max-content/);
+    expect(css).toMatch(/\.quotation-grid thead th\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*normal/);
+    expect(source).toContain('quotation-frames__table record-table ops-table');
+    expect(source).toContain('data-label="Ngày hiệu lực"><span className="data-token">{frame.effectiveDate}');
+    expect(css).toMatch(/\.quotation-frames__table tbody td\s*\{[^}]*overflow-wrap:\s*normal/);
   });
 
   it('D5: the liters row renders a bare count, never a currency suffix', async () => {
@@ -81,10 +83,15 @@ describe('QuotationConfigPage display fixes (card 20260923_10)', () => {
     fireEvent.click(await within(framesRegion).findByText('Công ty A'));
     await screen.findByRole('heading', { name: 'KCN Quế Võ – ASKEY' });
 
-    const litersRow = screen.getByText('Tổng lít dầu/chuyến').closest('tr') as HTMLElement;
-    const cells = within(litersRow).getAllByRole('cell');
-    expect(cells[0].textContent).toBe('20');
-    expect(cells[cells.length - 1].textContent).toBe('64');
-    expect(litersRow.textContent ?? '').not.toMatch(/[₫đ]/);
+    const table = document.querySelector('.quotation-grid') as HTMLElement;
+    const headers = within(table).getAllByRole('columnheader');
+    const litersIndex = headers.findIndex((header) => header.textContent === 'Tổng lít dầu/chuyến');
+    expect(litersIndex).toBe(2);
+    const classRows = within(table).getAllByRole('row').slice(1);
+    expect(classRows).toHaveLength(10);
+    const liters = classRows.map((row) => within(row).getAllByRole('cell')[litersIndex - 1].textContent);
+    expect(liters[0]).toBe('20');
+    expect(liters[liters.length - 1]).toBe('64');
+    expect(liters.join(' ')).not.toMatch(/[₫đ]/);
   });
 });

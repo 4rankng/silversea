@@ -1,6 +1,6 @@
 .ops-bill-page {
   min-width: 0;
-  --ops-control-height: 46px;
+  --ops-control-height: var(--control-max-h);
   --ops-surface: var(--surface);
   --ops-surface-muted: var(--surface-2);
 }
@@ -360,7 +360,7 @@
 }
 
 @media (max-width: 767px) {
-  .ops-bill-page { --ops-control-height: 48px; }
+  .ops-bill-page { --ops-control-height: var(--control-max-h); }
   .ops-bill-page .page-header { gap: 10px; margin-bottom: 16px; }
   .ops-bill-page .page-title { font-size: var(--text-title-size); line-height: 1.2; }
   .ops-bill-page .page-subtitle { max-width: 34ch; font-size: var(--text-caption-size); }

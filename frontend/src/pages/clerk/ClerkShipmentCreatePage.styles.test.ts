@@ -31,7 +31,7 @@ describe('shipment create responsive layout', () => {
     expect(recordRules).toMatch(/\.csc-container-cell \.csc-container-cell__display\s*\{[^}]*display:\s*none;/);
     expect(recordRules).toMatch(/\.csc-container-cell \.csc-container-cell__editor > \*\s*\{[^}]*opacity:\s*1;/);
     expect(recordRules).toMatch(/\.csc-container-cell \.csc-route-picker\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
-    expect(recordRules).toMatch(/\.csc-container-cell \.csc-route-picker__add\s*\{[^}]*min-height:\s*44px;/);
+    expect(recordRules).toMatch(/\.csc-container-cell \.csc-route-picker__add\s*\{[^}]*min-height:\s*var\(--control-max-h\);/);
   });
 
   it('gives every form control a persistent visible boundary and focus state', () => {
@@ -82,7 +82,7 @@ describe('shipment create responsive layout', () => {
   it('keeps the quantity-plus-add control touch-safe and contained on mobile', () => {
     expect(css).toMatch(/\.csc-container-actions\s*\{[^}]*justify-content:\s*flex-end;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-add-control\s*\{[^}]*grid-template-columns:\s*72px minmax\(0,\s*1fr\);/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-add-control input[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-add-control input[^}]*min-height:\s*var\(--control-max-h\);/);
   });
 
   it('uses shared headers on desktop and deliberate record layouts below the wide canvas', () => {
@@ -107,7 +107,7 @@ describe('shipment create responsive layout', () => {
     // compact segments, no per-option box.
     expect(css).toMatch(/\.csc-mode > div\s*\{[^}]*display:\s*inline-flex;[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*8px;/);
     expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*34px;[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode__option[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode__option[^}]*min-height:\s*var\(--control-max-h\);/);
     // The old faux-radio dot and the 8px option boxes are gone for good.
     expect(css).not.toMatch(/\.csc-mode__option::before/);
     expect(css).not.toMatch(/\.csc-mode > div\s*\{[^}]*grid-template-columns:\s*repeat\(2/);

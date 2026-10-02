@@ -280,6 +280,10 @@ export default function SupplierListPage() {
     });
     return { activeCount, inactiveCount, filtered };
   }, [suppliers, filter, typeFilter, statusCountsQuery.data]);
+  // Directory KPIs share the status-count population; table total is scoped
+  // to the current search and remains the pagination/result count.
+  const directoryCounts = statusCountsQuery.data;
+  const directoryCountHint = statusCountsQuery.isError ? 'Không thể tải số liệu' : 'Đang tải số liệu';
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -358,19 +362,19 @@ export default function SupplierListPage() {
       <div className="kpi-grid">
         <KPI
           label="Tổng nhà cung cấp"
-          value={total}
+          value={directoryCounts?.all ?? '—'}
           icon={Users}
           assetIconName="supplier"
-          meta={<span>{total} nhà cung cấp</span>}
+          meta={directoryCounts ? <span>{directoryCounts.all} nhà cung cấp</span> : directoryCountHint}
         />
         <KPI
           label="Đang hoạt động"
-          value={`${activeCount}`}
-          unit={`/ ${total}`}
+          value={directoryCounts?.active ?? '—'}
+          unit={directoryCounts ? `/ ${directoryCounts.all}` : undefined}
           variant="success"
           icon={UserCheck}
           assetIconName="active-supplier"
-          meta={total > 0 ? `${activeCount}/${total} đang hoạt động` : ''}
+          meta={directoryCounts ? `${directoryCounts.active}/${directoryCounts.all} đang hoạt động` : directoryCountHint}
         />
       </div>
 
@@ -437,7 +441,7 @@ export default function SupplierListPage() {
                 {s.contactPerson && (
                   <div className="m-card__meta">
                     {s.contactPerson}
-                    {s.phone && <><span className="m-card__meta-sep">·</span>{s.phone}</>}
+                    {s.phone && <><span className="m-card__meta-sep">·</span><span className="data-token">{s.phone}</span></>}
                   </div>
                 )}
                 <div className="m-card__meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -452,7 +456,7 @@ export default function SupplierListPage() {
                 )}
                 {s.taxCode && (
                   <div className="m-card__meta" style={{ fontFamily: 'var(--font-data)' }}>
-                    MST {s.taxCode}
+                    MST <span className="data-token">{s.taxCode}</span>
                   </div>
                 )}
                 <div className="m-card-edit-row">
@@ -541,13 +545,13 @@ export default function SupplierListPage() {
                       {s.shortName || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--data" data-label="Mã số thuế">
-                      {s.taxCode || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                      <span className="data-token">{s.taxCode || <span style={{ color: 'var(--ink-3)' }}>—</span>}</span>
                     </td>
                     <td className="suppliers-page__cell" data-label="Người liên hệ">
                       {s.contactPerson || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--data" data-label="SĐT">
-                      {s.phone || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                      <span className="data-token">{s.phone || <span style={{ color: 'var(--ink-3)' }}>—</span>}</span>
                     </td>
                     <td className="suppliers-page__cell suppliers-page__cell--data suppliers-page__cell--money num" data-label="Công nợ">
                       <Money value={payableBySupplier.get(s.id) ?? 0} />

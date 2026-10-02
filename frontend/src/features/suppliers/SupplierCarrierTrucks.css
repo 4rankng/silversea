@@ -90,7 +90,7 @@
 @media (max-width: 480px), (pointer: coarse) {
   .supplier-carrier-trucks__add input,
   .supplier-carrier-trucks__add .btn {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   .supplier-carrier-trucks__add {

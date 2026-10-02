@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -41,6 +41,30 @@ describe('MasterDataImportPage', () => {
     mocks.apply.mockResolvedValue({ batch: { ...baseBatch, status: 'APPLIED', version: 2 }, appliedCounts: { port: 1 }, replayed: false });
   });
 
+  it('uses shared opaque Panels for the native file form and analyzed facts without changing actions', async () => {
+    const { container } = renderPage();
+    const primary = screen.getByLabelText('Data form.xlsx (khách hàng, nhà máy, tuyến, cảng, xe)');
+    const formPanel = primary.closest('.panel');
+    expect(formPanel).not.toBeNull();
+    for (const id of ['master-data-file-form', 'master-data-file-role', 'master-data-file-legacy']) {
+      const input = document.getElementById(id);
+      expect(input).toHaveAttribute('type', 'file');
+      expect(input?.closest('.panel')).toBe(formPanel);
+    }
+    expect(screen.getByRole('button', { name: /Kiểm tra dữ liệu/ })).toBeDisabled();
+    expect(mocks.analyze).not.toHaveBeenCalled();
+    await uploadAndAnalyze();
+    expect(await screen.findByText('NHÀ MÁY · 1 dòng')).toBeTruthy();
+    expect(container.querySelectorAll('.panel')).toHaveLength(6);
+    expect(screen.getByText('Hợp lệ', { selector: '.panel__body > div' }).closest('.panel')?.textContent).toContain('2');
+    const tables = screen.getAllByRole('table', { hidden: true });
+    expect(tables).toHaveLength(baseBatch.rows.length);
+    for (const table of tables) expect(table.closest('.panel__body')).toHaveClass('panel__body--flush');
+    expect(screen.getByRole('button', { name: /Áp dụng dữ liệu hợp lệ/ })).not.toBeDisabled();
+    expect(mocks.apply).not.toHaveBeenCalled();
+    expect(mocks.reject).not.toHaveBeenCalled();
+  });
+
   it('shows a redacted dry-run and applies a fully valid batch', async () => {
     renderPage();
     await uploadAndAnalyze();
@@ -57,7 +81,7 @@ describe('MasterDataImportPage', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     renderPage();
     await uploadAndAnalyze();
-    fireEvent.click(screen.getByRole('button', { name: /Tải báo cáo lỗi đã ẩn dữ liệu nhạy cảm/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Tải báo cáo lỗi/ }));
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:master-report');
@@ -80,7 +104,6 @@ describe('MasterDataImportPage', () => {
   });
 
   it('requires and sends an explicit reason when Admin rejects a batch', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     mocks.reject.mockResolvedValue({ batch: { ...baseBatch, status: 'REJECTED', version: 2 }, replayed: false });
     renderPage();
     await uploadAndAnalyze();
@@ -88,7 +111,22 @@ describe('MasterDataImportPage', () => {
     expect(await screen.findByText(/Vui lòng nhập lý do/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Lý do từ chối'), { target: { value: 'Dữ liệu nhà xe chưa được xác nhận' } });
     fireEvent.click(screen.getByRole('button', { name: /Từ chối đợt nhập/ }));
+    const confirmation = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(mocks.reject).not.toHaveBeenCalled();
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Từ chối' }));
     await waitFor(() => expect(mocks.reject).toHaveBeenCalledWith(baseBatch, 'Dữ liệu nhà xe chưa được xác nhận'));
     expect(await screen.findByText(/Đợt nhập đã bị từ chối/)).toBeTruthy();
+  });
+
+  it('cancels the house confirmation without rejecting the analyzed batch', async () => {
+    renderPage();
+    await uploadAndAnalyze();
+    fireEvent.change(screen.getByLabelText('Lý do từ chối'), { target: { value: 'Kiểm tra dữ liệu nguồn' } });
+    fireEvent.click(screen.getByRole('button', { name: /Từ chối đợt nhập/ }));
+    const confirmation = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(mocks.reject).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /Áp dụng dữ liệu hợp lệ/ })).toBeTruthy();
   });
 });

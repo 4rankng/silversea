@@ -83,14 +83,17 @@ function DebitLotRow({
       <td className="shipment-debit-row__docs">
         <span><small>Số Bill:</small> {row.billOrBookNumber ?? 'Chưa có'}</span>
         <span><small>Số tờ khai:</small> {row.customsNumber ?? 'Chưa có'}</span>
-        <Link
-          to={`/shipments/${row.shipmentId}`}
-          className="shipment-debit-row__detail-link"
-          onClick={(e) => e.stopPropagation()}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', marginTop: '2px', color: 'var(--color-primary-600, #059669)', textDecoration: 'none' }}
-        >
-          Chi tiết lô hàng →
-        </Link>
+        {row.shipmentId && (
+          <Link
+            to={`/shipments/${row.shipmentId}`}
+            className="shipment-debit-row__detail-link"
+            title="Xem chi tiết lô hàng"
+            onClick={(e) => e.stopPropagation()}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '12px', color: 'var(--color-primary, #059669)', textDecoration: 'underline' }}
+          >
+            Chi tiết lô hàng →
+          </Link>
+        )}
       </td>
       <td className="shipment-debit-row__money">{row.freightAuto == null ? 'Chưa xác định' : formatMoney(row.freightAuto)}</td>
       <td className="shipment-debit-row__money">{row.chiHoTotal == null ? 'Chưa xác định' : formatMoney(row.chiHoTotal)}</td>

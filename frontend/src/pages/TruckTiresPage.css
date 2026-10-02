@@ -36,21 +36,7 @@
 }
 
 .ttp-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-control-compact-size);
-  color: var(--fg-3);
-  text-decoration: none;
-  min-height: 44px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--bg-2, transparent);
-  border: 1px solid var(--border-2);
-}
-
-.ttp-back:hover {
-  color: var(--brand, var(--fg-1));
+  margin-bottom: 10px;
 }
 
 .ttp-workbench {
@@ -62,10 +48,6 @@
 
 .ttp-panel {
   min-width: 0;
-  background: var(--bg-1);
-  border: 1px solid var(--border-2);
-  border-radius: 12px;
-  box-shadow: 0 12px 34px -30px rgba(20, 34, 29, 0.38);
 }
 
 .ttp-panel--form {
@@ -82,8 +64,6 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px 10px;
-  border-bottom: 1px solid var(--border-1);
 }
 
 .ttp-legend {
@@ -118,29 +98,6 @@
   color: var(--fg-3);
   font-size: var(--text-caption-size);
   line-height: 1.35;
-}
-
-.ttp-tool-btn {
-  min-height: var(--control-compact-h);
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 11px;
-  border: 1px solid var(--border-2);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--fg-2);
-  font-size: var(--text-caption-size);
-  font-weight: 650;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.ttp-tool-btn:hover {
-  color: var(--fg-1);
-  border-color: var(--border-3, var(--border-2));
-  background: var(--bg-2);
 }
 
 /* Tire tables ride the shared record-table base (record-table-wrap +
@@ -216,36 +173,8 @@
   font-weight: 650;
 }
 
-.ttp-add .input,
-.ttp-add select.input {
+.ttp-add .input {
   width: 100%;
-  height: var(--control-default-h);
-  padding: 0 12px;
-  border: 1px solid var(--line-2, var(--border-2));
-  border-radius: 10px;
-  font-size: var(--text-data-size);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(250, 252, 251, 0.96));
-  color: var(--ink, var(--fg-1));
-  box-shadow: inset 0 1px 2px rgba(16, 24, 20, 0.025), 0 1px 0 rgba(255, 255, 255, 0.72);
-}
-
-.ttp-add .input::placeholder {
-  color: color-mix(in srgb, var(--ink-3) 82%, var(--ink) 18%);
-  opacity: 1;
-}
-
-.ttp-add .input:hover,
-.ttp-add select.input:hover {
-  border-color: var(--line-strong, var(--border-3, var(--border-2)));
-  background: var(--surface);
-}
-
-.ttp-add .input:focus-visible,
-.ttp-add select.input:focus-visible {
-  outline: none;
-  border-color: var(--accent, var(--brand));
-  box-shadow: inset 0 1px 2px rgba(16, 24, 20, 0.015), 0 0 0 4px rgba(0, 177, 79, 0.13), 0 8px 18px -18px rgba(0, 90, 45, 0.55);
-  transform: translateY(-1px);
 }
 
 .ttp-position-picker {
@@ -262,8 +191,7 @@
 }
 
 .ttp-position-select-trigger.is-open {
-  border-color: var(--accent, var(--brand));
-  box-shadow: inset 0 1px 2px rgba(16, 24, 20, 0.015), 0 0 0 4px rgba(0, 177, 79, 0.13), 0 8px 18px -18px rgba(0, 90, 45, 0.55);
+  border-color: var(--brand);
 }
 
 .ttp-position-select-trigger > span {
@@ -297,10 +225,8 @@
   overflow-x: hidden;
   border: 1px solid var(--line, var(--border-1));
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--surface);
   box-shadow: 0 18px 46px -24px rgba(9, 9, 11, 0.36), 0 0 0 1px rgba(9, 9, 11, 0.03);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
 }
 
 .ttp-position-picker-menu--floating {
@@ -310,28 +236,11 @@
   z-index: calc(var(--z-modal, 300) + 20);
 }
 
-.ttp-position-picker-menu::before {
-  content: '';
-  position: absolute;
-  top: -7px;
-  left: 28px;
-  width: 14px;
-  height: 14px;
-  border-top: 1px solid var(--line, var(--border-1));
-  border-left: 1px solid var(--line, var(--border-1));
-  background: rgba(255, 255, 255, 0.96);
-  transform: rotate(45deg);
-}
-
-.ttp-position-picker-menu--floating::before {
-  display: none;
-}
-
 .ttp-position-picker-option,
 .ttp-position-picker-manage {
   position: relative;
   width: 100%;
-  min-height: 42px;
+  min-height: var(--control-touch-h);
   display: flex;
   align-items: center;
   border: 0;
@@ -372,7 +281,7 @@
   bottom: 0;
   justify-content: center;
   gap: 7px;
-  min-height: 46px;
+  min-height: var(--control-max-h);
   border-top: 1px solid var(--line, var(--border-1));
   background: var(--surface-2);
   color: var(--accent-ink);
@@ -574,8 +483,8 @@
   overscroll-behavior: contain;
   background: var(--surface);
   border: 1px solid var(--line, var(--border-2));
-  border-radius: 18px;
-  box-shadow: 0 24px 58px -18px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  border-radius: var(--r);
+  box-shadow: none;
 }
 
 .ttp-dialog--positions {
@@ -670,9 +579,7 @@
   align-items: start;
   gap: 14px;
   padding: 18px 20px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, white) 0%, rgba(255, 255, 255, 0.94) 62%),
-    var(--surface);
+  background: var(--surface);
 }
 
 .ttp-position-title-block {
@@ -892,9 +799,7 @@
   padding: 22px;
   border: 1px dashed var(--line-2, var(--border-2));
   border-radius: 14px;
-  background:
-    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 46%),
-    var(--surface);
+  background: var(--surface);
   text-align: center;
 }
 
@@ -1078,9 +983,6 @@
 }
 
 /* ─── Disposed (thanh lý) section ─────────────────────────────────────────── */
-.ttp-disposed {
-  background: var(--bg-2);
-}
 
 .ttp-table--disposed tbody td {
   color: var(--fg-3);
@@ -1152,7 +1054,7 @@
 
 @media (pointer: coarse) {
   .ttp-dialog-close {
-    width: 44px;
-    height: 44px;
+    width: var(--control-touch-h);
+    height: var(--control-touch-h);
   }
 }

@@ -58,7 +58,7 @@ function BusinessCalendarForm({
       <label
         style={{
           display: 'flex',
-          minHeight: 44,
+          minHeight: 'var(--control-touch-h)',
           alignItems: 'center',
           gap: 9,
           cursor: 'pointer',

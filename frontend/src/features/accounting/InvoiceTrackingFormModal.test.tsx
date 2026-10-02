@@ -10,7 +10,7 @@ const row = { id: 7, invoiceNumber: 'QA-INV', invoiceAmount: '1200000', supplier
   expenseDate: '2026-09-22', progress: 'CHUA_GUI' } as InvoiceTrackingRow;
 beforeEach(() => {
   vi.resetAllMocks();
-  api.lots.mockResolvedValue({ items: [{ id: 9, shipmentCode: 'QA-LOT', customerName: 'QA customer' }] });
+  api.lots.mockResolvedValue({ items: [{ id: 9, shipmentCode: 'QA-LOT', blNumber: 'QA-WF04-114144', bookingRef: null, customerName: 'QA customer' }] });
   api.detail.mockResolvedValue({ podReviews: [{ tripId: 11, tripCode: 'QA-TRIP', tripStatus: 'COMPLETED' }] });
 });
 
@@ -19,31 +19,31 @@ describe('invoice save lifecycle', () => {
     let resolve!: (value: unknown) => void;
     api.lots.mockImplementationOnce(() => new Promise(yes => { resolve = yes; }));
     render(<InvoiceTrackingFormModal mode="create" row={null} onClose={vi.fn()} onSaved={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText('Mã lô'), { target: { value: 'QA-LOT' } });
-    fireEvent.change(screen.getByLabelText('Mã lô'), { target: { value: '' } });
-    await act(async () => resolve({ items: [{ id: 9, shipmentCode: 'STALE-LOT', customerName: 'Old result' }] }));
-    expect(screen.queryByRole('button', { name: /STALE-LOT/ })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Bill / Booking'), { target: { value: 'QA-WF04' } });
+    fireEvent.change(screen.getByLabelText('Bill / Booking'), { target: { value: '' } });
+    await act(async () => resolve({ items: [{ id: 9, shipmentCode: 'STALE-LOT', blNumber: 'BL-001', customerName: 'Old result' }] }));
+    expect(screen.queryByRole('button', { name: /BL-001/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Đang tìm lô…')).not.toBeInTheDocument();
   });
 
   for (const staleOutcome of ['resolve', 'reject'] as const) {
     it(`ignores an old lot's detail ${staleOutcome} after another lot is selected`, async () => {
       let resolve!: (value: unknown) => void; let reject!: (reason: Error) => void;
-      api.lots.mockResolvedValue({ items: [{ id: 9, shipmentCode: 'QA-LOT-A' }, { id: 10, shipmentCode: 'QA-LOT-B' }] });
+      api.lots.mockResolvedValue({ items: [{ id: 9, shipmentCode: 'QA-LOT-A', blNumber: 'BL-001' }, { id: 10, shipmentCode: 'QA-LOT-B', bookingRef: 'BOOK-001' }] });
       api.detail.mockImplementationOnce(() => new Promise((yes, no) => { resolve = yes; reject = no; }))
         .mockResolvedValueOnce({ podReviews: [{ tripId: 12, tripCode: 'TRIP-B' }] });
       api.create.mockResolvedValue({});
       render(<InvoiceTrackingFormModal mode="create" row={null} onClose={vi.fn()} onSaved={vi.fn()} />);
-      fireEvent.change(screen.getByLabelText('Mã lô'), { target: { value: 'QA-LOT' } });
-      fireEvent.click(await screen.findByRole('button', { name: 'QA-LOT-A' }));
-      fireEvent.change(screen.getByLabelText('Mã lô'), { target: { value: 'QA-LOT' } });
-      fireEvent.click(await screen.findByRole('button', { name: 'QA-LOT-B' }));
-      expect(await screen.findByLabelText('Chuyến (cont)')).toHaveTextContent('TRIP-B');
+      fireEvent.change(screen.getByLabelText('Bill / Booking'), { target: { value: 'BL-001' } });
+      fireEvent.click(await screen.findByRole('button', { name: 'BL-001' }));
+      fireEvent.change(screen.getByLabelText('Bill / Booking'), { target: { value: 'BOOK-001' } });
+      fireEvent.click(await screen.findByRole('button', { name: 'BOOK-001' }));
+      expect(await screen.findByLabelText('Chuyến (cont)')).toHaveTextContent('BOOK-001');
       await act(async () => {
         if (staleOutcome === 'resolve') resolve({ podReviews: [{ tripId: 11, tripCode: 'TRIP-A' }] });
         else reject(new Error('Old request failed'));
       });
-      expect(screen.getByLabelText('Chuyến (cont)')).toHaveTextContent('TRIP-B');
+      expect(screen.getByLabelText('Chuyến (cont)')).toHaveTextContent('BOOK-001');
       expect(screen.queryByText('TRIP-A')).not.toBeInTheDocument();
       expect(screen.queryByText('Không tải được danh sách chuyến của lô.')).not.toBeInTheDocument();
       fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'QA-INV' } });
@@ -61,8 +61,8 @@ describe('invoice save lifecycle', () => {
       const onClose = vi.fn(); const onSaved = vi.fn();
       render(<InvoiceTrackingFormModal mode={mode} row={mode === 'edit' ? row : null} onClose={onClose} onSaved={onSaved} />);
       if (mode === 'create') {
-        fireEvent.change(screen.getByLabelText('Mã lô'), { target: { value: 'QA-LOT' } });
-        fireEvent.click(await screen.findByRole('button', { name: /QA-LOT/ }));
+        fireEvent.change(screen.getByLabelText('Bill / Booking'), { target: { value: 'QA-WF04' } });
+        fireEvent.click(await screen.findByRole('button', { name: /QA-WF04-114144/ }));
         await screen.findByLabelText('Chuyến (cont)');
         fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'QA-INV' } });
         fireEvent.change(screen.getByLabelText('Số tiền hóa đơn (₫)'), { target: { value: '1200000' } });

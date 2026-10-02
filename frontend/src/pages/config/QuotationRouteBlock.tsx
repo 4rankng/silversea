@@ -7,7 +7,9 @@
 // no currency suffix; the đồng formatters stay on money columns only.
 import { useState } from 'react';
 import { QUOTATION_GRID_COLUMNS, type QuotationCellView } from '@tingting/shared';
-import { formatCurrency } from '../../lib/format';
+import { Money } from '../../components/shared/Money';
+import { LedgerMatrix } from '../../components/shared/LedgerMatrix';
+import { TextField } from '../../design-system';
 
 export const ROW_LABELS = ['Hệ số', 'Tổng lít dầu/chuyến', 'Giá cos', 'Phụ phí', 'Tổng'] as const;
 
@@ -15,8 +17,8 @@ export function fmtLiters(value: number | null | undefined): string {
   return value == null ? '—' : new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value);
 }
 
-function fmt(value: number | null | undefined): string {
-  return value == null ? '—' : formatCurrency(value);
+function money(value: number | null | undefined) {
+  return value == null ? '—' : <Money value={value} className="data-token" />;
 }
 
 export interface RouteBlockData {
@@ -40,13 +42,35 @@ export function RouteBlock({ block, saving, onSaveHeSo }: {
   const lag = head?.fuelLagDays ?? null;
 
   function commitHeSo() {
+    if (saving) return;
+    let changed = false;
+    const invalidDrafts: Record<string, string> = {};
     const cells = block.cells.map((cell) => {
-      const raw = drafts[cellKey(cell)];
-      const parsed = raw === undefined ? NaN : Number(raw.replace(',', '.'));
-      const heSo = Number.isFinite(parsed) && parsed >= 0 ? parsed : cell.heSo;
+      const key = cellKey(cell);
+      const raw = drafts[key];
+      const parsed = raw === undefined || raw.trim() === '' ? NaN : Number(raw.replace(',', '.'));
+      const valid = Number.isFinite(parsed) && parsed >= 0;
+      const heSo = valid ? parsed : cell.heSo;
+      if (raw !== undefined && !valid) invalidDrafts[key] = String(cell.heSo);
+      if (heSo !== cell.heSo) changed = true;
       return { routeId: cell.routeId, vehicleSizeClassCode: cell.vehicleSizeClassCode, heSo };
     });
-    onSaveHeSo(cells);
+    if (Object.keys(invalidDrafts).length) setDrafts((current) => ({ ...current, ...invalidDrafts }));
+    if (changed) onSaveHeSo(cells);
+  }
+
+  function coefficient(cell: QuotationCellView) {
+    const key = cellKey(cell);
+    return <TextField
+      aria-label={`Hệ số ${block.routeName} ${cell.vehicleSizeClassCode}`}
+      value={drafts[key] ?? String(cell.heSo ?? 1)}
+      onChange={(event) => setDrafts((current) => ({ ...current, [key]: event.target.value }))}
+      onBlur={commitHeSo}
+      disabled={saving}
+      inputMode="decimal"
+      controlSize="sm"
+      controlWidth="short-number"
+    />;
   }
 
   return (
@@ -54,58 +78,35 @@ export function RouteBlock({ block, saving, onSaveHeSo }: {
       <div className="quotation-route-block__head">
         <h3>{block.routeName}</h3>
         <p className="quotation-route-block__params">
-          Giá dầu tham chiếu {fmt(baseFuel)} đ/lít · Lag {lag ?? '—'} ngày · Làm tròn: HALF_UP từng thành phần (cố định)
+          Giá dầu tham chiếu {money(baseFuel)}/lít · Trễ {lag ?? '—'} ngày · Làm tròn từng khoản: từ 5 lên
         </p>
         <p className="quotation-route-block__link">
           <a href="/config/freight-rate-terms">Sửa tham số giá dầu/lag tại Bảng điều kiện giá</a>
         </p>
       </div>
-      <div className="quotation-route-block__table-wrap">
-        <table className="quotation-grid tt-table">
-          <thead>
-            <tr>
-              <th rowSpan={2} scope="col" className="quotation-grid__row-label">Nội dung</th>
-              <th colSpan={6} scope="colgroup">HÀNG LẺ</th>
-              <th colSpan={4} scope="colgroup">HÀNG CONTAINER</th>
-            </tr>
-            <tr>
-              {QUOTATION_GRID_COLUMNS.map((column) => (
-                <th scope="col" key={column.vehicleSizeClassCode}>{column.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ROW_LABELS.map((label, rowIndex) => (
-              <tr key={label}>
-                <th scope="row" className="quotation-grid__row-label">{label}</th>
-                {block.cells.map((cell, _cellIndex) => {
-                  const key = cellKey(cell);
-                  if (rowIndex === 0) {
-                    return (
-                      <td key={key}>
-                        <input
-                          aria-label={`Hệ số ${block.routeName} ${cell.vehicleSizeClassCode}`}
-                          value={drafts[key] ?? String(cell.heSo ?? 1)}
-                          onChange={(event) => setDrafts((current) => ({ ...current, [key]: event.target.value }))}
-                          onBlur={commitHeSo}
-                          disabled={saving}
-                          inputMode="decimal"
-                        />
-                      </td>
-                    );
-                  }
-                  if (rowIndex === 1) return <td key={key}>{fmtLiters(cell.liters)}</td>;
-                  if (rowIndex === 2) {
-                    return <td key={key} className={cell.missingPrice ? 'is-missing' : undefined}>{cell.missingPrice ? 'Thiếu giá' : fmt(cell.giaCos)}</td>;
-                  }
-                  if (rowIndex === 3) return <td key={key}>{fmt(cell.surcharge)}</td>;
-                  return <td key={key}>{fmt(cell.total)}</td>;
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        <LedgerMatrix framed caption={<span className="sr-only">{block.routeName}</span>}
+          className="quotation-grid tt-table table-matrix"
+          columns={[
+            { key: 'class', label: 'Loại xe', rowHeader: true },
+            ...ROW_LABELS.map((label, index) => ({ key: index, label, primary: true, align: 'end' as const })),
+          ]}
+          rows={block.cells.map((cell) => {
+            const index = QUOTATION_GRID_COLUMNS.findIndex(column => column.vehicleSizeClassCode === cell.vehicleSizeClassCode);
+            const title = QUOTATION_GRID_COLUMNS[index]?.label ?? cell.vehicleSizeClassCode;
+            const subtitle = index < 6 ? 'Hàng lẻ' : 'Hàng container';
+            return {
+              key: cellKey(cell), title, subtitle,
+              cells: [
+                <div><span className="data-token">{title}</span><div className="row-meta">{subtitle}</div></div>,
+                coefficient(cell),
+                <span className="data-token">{fmtLiters(cell.liters)}</span>,
+                cell.missingPrice ? 'Thiếu giá' : money(cell.giaCos),
+                money(cell.surcharge), money(cell.total),
+              ],
+              cellClassNames: [undefined, undefined, undefined, cell.missingPrice ? 'is-missing' : undefined],
+            };
+          })}
+        />
     </section>
   );
 }

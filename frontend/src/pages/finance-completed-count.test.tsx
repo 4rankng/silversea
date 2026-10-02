@@ -37,7 +37,6 @@ function runDerived(over: Partial<Parameters<typeof useFinanceDerived>[0]> = {})
     capTableRaw: [],
     yearlyData: Array.from({ length: 12 }, (_, i) => (i === 8 ? baseReport() : null)),
     month: 9,
-    chartView: 'day' as const,
     ...over,
   }));
   return result.current;
@@ -45,7 +44,7 @@ function runDerived(over: Partial<Parameters<typeof useFinanceDerived>[0]> = {})
 
 // The no-trip empty state must key on completed-trip presence, never on the
 // chart series: all-zero buckets are filtered OUT of the series, which used
-// to make a completed-but-zero month claim "no completed trips".
+// to make completed-but-zero report data claim "no completed trips".
 describe('useFinanceDerived completedTripCount', () => {
   it('the card state — 4 completed zero-revenue trips — counts 4 with an empty chart series', () => {
     const d = runDerived();
@@ -53,14 +52,16 @@ describe('useFinanceDerived completedTripCount', () => {
     expect(d.hasChartData).toBe(false);
   });
 
-  it('a month with no completed trips counts 0 (genuine empty state)', () => {
-    const d = runDerived({ allTrips: [{ id: 9, status: 'CREATED', departureDate: '2026-09-10' } as unknown as TripDetail] });
+  it('reports with no recognized trips count 0 regardless of operational work', () => {
+    const d = runDerived({
+      allTrips: [{ id: 9, status: 'CREATED', departureDate: '2026-09-10' } as unknown as TripDetail],
+      yearlyData: Array.from({ length: 12 }, (_, i) => i === 8 ? baseReport({ tripCount: 0 }) : null),
+    });
     expect(d.completedTripCount).toBe(0);
   });
 
-  it('month view sums the yearly reports’ real tripCount field', () => {
+  it('the monthly chart sums the yearly reports’ real tripCount field', () => {
     const d = runDerived({
-      chartView: 'month' as const,
       yearlyData: Array.from({ length: 12 }, (_, i) => (i === 7 || i === 8 ? baseReport({ tripCount: i === 7 ? 5 : 4 }) : null)),
     });
     expect(d.completedTripCount).toBe(9);
@@ -70,6 +71,7 @@ describe('useFinanceDerived completedTripCount', () => {
     const d = runDerived({
       allTrips: [{ ...completedZeroTrip(1), revenue: '10000000', grossProfit: 2000000 } as unknown as TripDetail],
       report: baseReport({ totalRevenue: 10_000_000, grossProfit: 2_000_000 }),
+      yearlyData: Array.from({ length: 12 }, (_, i) => i === 8 ? baseReport({ totalRevenue: 10_000_000, grossProfit: 2_000_000 }) : null),
     });
     expect(d.hasChartData).toBe(true);
   });

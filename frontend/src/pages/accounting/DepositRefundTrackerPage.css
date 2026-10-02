@@ -17,7 +17,7 @@
    44px coarse pointer); icon-only with aria-label per §4. */
 .deposit-tracker-warnings__dismiss { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; padding: 0; border: none; background: transparent; color: var(--danger-text); border-radius: 8px; cursor: pointer; }
 .deposit-tracker-warnings__dismiss:hover { background: rgba(127, 45, 55, 0.08); }
-@media (pointer: coarse) { .deposit-tracker-warnings__dismiss { min-width: 44px; min-height: 44px; } }
+@media (pointer: coarse) { .deposit-tracker-warnings__dismiss { min-width: var(--control-max-h); min-height: var(--control-max-h); } }
 /* The summary strip is the shared `SummaryRail` (recipe #4) — the hand-rolled
    totals tile (border/background/radius/type ramp of its own) is deleted with
    it. See DepositRefundTrackerPage.styles.test.ts. */

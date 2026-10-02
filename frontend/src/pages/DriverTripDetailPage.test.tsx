@@ -347,7 +347,7 @@ describe('DriverTripDetailPage', () => {
     // a user surface (dc1b1cba), so the code-leading variant would fail here.
     const img = await screen.findByAltText('Ảnh nhiên liệu');
     await waitFor(() => expect(img.getAttribute('src')).toBe('blob:fuel-evidence'));
-    expect(getBlob).toHaveBeenCalledWith('/api/photos/fuel-evidence%2F55%2F3%2Fhash-rand.jpg');
+    expect(getBlob).toHaveBeenCalledWith('/photos/fuel-evidence%2F55%2F3%2Fhash-rand.jpg');
     expect(document.querySelector('img[src*="token="]')).toBeNull();
     expect(screen.getByText(/OCR chưa xác minh/)).toBeTruthy();
     expect(screen.queryByText(/Chờ kế toán xác nhận/)).toBeNull();
@@ -810,13 +810,13 @@ describe('DriverTripDetailPage', () => {
     await screen.findByText(/Số cont & seal/);
     // No container saved → the form renders with the merged capture zones.
     fireEvent.click(screen.getByRole('button', { name: 'Thêm ảnh cont' }));
-    expect(screen.getByRole('dialog', { name: 'Thêm ảnh' })).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'Thêm ảnh cont' })).toBeTruthy();
     expect(screen.getAllByText('Thêm ảnh cont').length).toBeGreaterThan(0);
     // One camera entry + one gallery entry inside the sheet.
     expect(screen.getAllByRole('button', { name: 'Chụp ảnh' }).length).toBe(1);
     expect(screen.getAllByRole('button', { name: 'Chọn từ thư viện' }).length).toBe(1);
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
-    expect(screen.queryByRole('dialog', { name: 'Thêm ảnh' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Thêm ảnh cont' })).toBeNull();
   });
 
   it('card _30: progress summary counts saved POD files, photos and reported cost entries', async () => {
@@ -1243,7 +1243,7 @@ describe('DriverTripDetailPage', () => {
     try {
       const img = await screen.findByAltText('Ảnh biên bản');
       await waitFor(() => expect(img.getAttribute('src')).toBe('blob:delivery-note'));
-      expect(getBlob).toHaveBeenCalledWith('/api/photos/trips%2F55%2Fdelivery-note.jpg');
+      expect(getBlob).toHaveBeenCalledWith('/photos/trips%2F55%2Fdelivery-note.jpg');
       expect(document.querySelector('img[src*="token="]')).toBeNull();
       expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản' })).toBeTruthy();
     } finally {

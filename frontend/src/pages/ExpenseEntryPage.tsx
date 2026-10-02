@@ -254,7 +254,7 @@ export default function ExpenseEntryPage() {
       const FRIENDLY: Record<string, string> = {
         supplierId: 'Vui lòng chọn nhà cung cấp',
         categoryId: 'Vui lòng chọn hạng mục chi phí',
-        amount: 'Số tiền phải là số nguyên khác 0, tối đa 999.999.999.999.999đ',
+        amount: 'Số tiền phải là số nguyên lớn hơn 0, tối đa 999.999.999.999.999đ',
         expenseDate: 'Vui lòng chọn ngày phát sinh chi phí',
         paymentStatus: 'Vui lòng chọn trạng thái thanh toán',
       };
@@ -393,20 +393,19 @@ export default function ExpenseEntryPage() {
 
           <div className="expense-page-layout">
             <fieldset disabled={savedExpenseId != null} className="expense-layout__main" style={{ minWidth: 0, border: 0, padding: 0, margin: 0 }}>
-              <div className="expense-panel">
-                <div className="expense-panel__header">
-                  <h2 className="expense-panel__title">Thông tin chung</h2>
-                  <p className="expense-panel__subtitle">{isEdit ? 'Cập nhật' : 'Nhập'} các thông tin cơ bản cho phiếu chi</p>
+              <div className="panel expense-panel">
+                <div className="panel__head">
+                  <h2 className="panel__title">Thông tin chung</h2>
                 </div>
 
-                <div className="expense-panel__body expense-grid">
+                <div className="panel__body expense-grid">
               <ExpenseBasicFields form={form} errors={errors} isEdit={isEdit} existingExpense={existingExpense} set={set} />
 
               <div className="expense-group expense-group--catalog">
                 <div className="expense-label-row">
                   <label htmlFor={showNewSupplier ? 'newSupplierName' : 'supplierId'} className="expense-label">Nhà cung cấp <span className="expense-required">*</span></label>
                   {!showNewSupplier && (
-                    <button type="button" onClick={() => setShowNewSupplier(true)} className="expense-add-btn">
+                    <button type="button" onClick={() => setShowNewSupplier(true)} className="btn btn--ghost btn--sm">
                       <Plus size={14} /> Thêm mới
                     </button>
                   )}
@@ -424,10 +423,10 @@ export default function ExpenseEntryPage() {
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateSupplier(); } if (e.key === 'Escape') { setShowNewSupplier(false); setNewSupplierName(''); } }}
                       autoFocus
                     />
-                    <button type="button" aria-label="Lưu nhà cung cấp mới" className="btn btn--primary expense-quick-create-save" disabled={creatingSupplier || !newSupplierName.trim()} onClick={handleCreateSupplier}>
+                    <button type="button" aria-label="Lưu nhà cung cấp mới" className="btn btn--primary btn--icon btn--sm" disabled={creatingSupplier || !newSupplierName.trim()} onClick={handleCreateSupplier}>
                       {creatingSupplier ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
                     </button>
-                    <button type="button" aria-label="Hủy thêm nhà cung cấp" className="btn btn--ghost btn--sm expense-quick-create-cancel" onClick={() => { setShowNewSupplier(false); setNewSupplierName(''); }}>
+                    <button type="button" aria-label="Hủy thêm nhà cung cấp" className="btn btn--ghost btn--icon btn--sm" onClick={() => { setShowNewSupplier(false); setNewSupplierName(''); }}>
                       <X size={16} />
                     </button>
                   </div>
@@ -454,7 +453,7 @@ export default function ExpenseEntryPage() {
                 <div className="expense-label-row">
                   <label htmlFor={showNewCategory ? 'newCategoryName' : 'categoryId'} className="expense-label">Hạng mục <span className="expense-required">*</span></label>
                   {!showNewCategory && (
-                    <button type="button" onClick={() => setShowNewCategory(true)} className="expense-add-btn">
+                    <button type="button" onClick={() => setShowNewCategory(true)} className="btn btn--ghost btn--sm">
                       <Plus size={14} /> Thêm mới
                     </button>
                   )}
@@ -472,10 +471,10 @@ export default function ExpenseEntryPage() {
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); } if (e.key === 'Escape') { setShowNewCategory(false); setNewCategoryName(''); } }}
                       autoFocus
                     />
-                    <button type="button" aria-label="Lưu hạng mục mới" className="btn btn--primary expense-quick-create-save" disabled={creatingCategory || !newCategoryName.trim()} onClick={handleCreateCategory}>
+                    <button type="button" aria-label="Lưu hạng mục mới" className="btn btn--primary btn--icon btn--sm" disabled={creatingCategory || !newCategoryName.trim()} onClick={handleCreateCategory}>
                       {creatingCategory ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
                     </button>
-                    <button type="button" aria-label="Hủy thêm hạng mục" className="btn btn--ghost btn--sm expense-quick-create-cancel" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}>
+                    <button type="button" aria-label="Hủy thêm hạng mục" className="btn btn--ghost btn--icon btn--sm" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}>
                       <X size={16} />
                     </button>
                   </div>

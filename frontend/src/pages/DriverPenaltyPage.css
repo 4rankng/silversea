@@ -314,7 +314,7 @@
   /* Month select = UuiSelectField trigger (class lands on the button);
      touch floor per docs/design-guidelines.md. */
   .penalty-month-select {
-    min-height: 44px;
+    min-height: var(--control-touch-h);
   }
 }
 

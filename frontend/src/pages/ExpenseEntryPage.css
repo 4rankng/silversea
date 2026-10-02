@@ -59,24 +59,9 @@
   gap: 16px;
 }
 
-/* Panel card */
-.expense-panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
+/* Shared Panel owns the section surface, boundary and inner spacing. */
 .expense-panel--photo {
   flex: 1;
-}
-
-.expense-panel__header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line-3);
-}
-.expense-panel__body {
-  padding: 16px;
 }
 
 .expense-photo-body {
@@ -217,19 +202,6 @@
   margin-top: 12px;
 }
 
-/* ── Panel header typography ── */
-.expense-panel__title {
-  font-size: var(--text-section-size);
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.expense-panel__subtitle {
-  font-size: var(--text-caption-size);
-  color: var(--ink-3);
-  margin-top: 4px;
-}
-
 /* ── Label row (flex container for label + action) ── */
 .expense-label-row {
   display: flex;
@@ -247,30 +219,7 @@
   color: var(--danger);
 }
 
-/* ── "Thêm mới" inline action button ── */
-.expense-add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--text-control-size);
-  color: var(--accent);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 6px;
-  font-weight: 600;
-  min-height: 32px;
-  min-width: 44px;
-  border-radius: 6px;
-}
-/* Touch floor on phones/tablets (design-guidelines §5: 44px mobile); desktop
-   keeps the compact 32px inline-action scale. Bare button, so the shared
-   `.btn` phone floor does not reach it — it needs its own override. */
-@media (max-width: 640px), (pointer: coarse) {
-  .expense-add-btn { min-height: var(--control-touch-h); }
-}
-
-/* ── Quick-create inline form row ── */
+/* Catalog actions use the shared compact ghost button. */
 .expense-quick-create-row {
   display: flex;
   gap: 6px;
@@ -279,18 +228,6 @@
 
 .expense-quick-create-row .expense-input {
   flex: 1;
-}
-
-/* ── Quick-create action buttons ── */
-.expense-quick-create-save {
-  padding: 12px;
-  border-radius: 12px;
-}
-
-.expense-quick-create-cancel {
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.05);
 }
 
 /* ── Field error message ── */
@@ -338,16 +275,6 @@
 @media (max-width: 640px) {
   .expense-page-wrap {
     padding: 0 0 20px;
-  }
-  .expense-panel__header {
-    padding: 10px;
-  }
-  .expense-panel__body {
-    padding: 10px;
-  }
-  .expense-input {
-    font-size: var(--control-field-font-size);
-    min-height: 44px;
   }
   .expense-upload-zone {
     min-height: 100px;
@@ -397,20 +324,14 @@
 .expense-quick-create-row .expense-input { min-width: 0; }
 .expense-page-wrap .expense-select > span { padding-inline: 10px; }
 .expense-page-wrap .expense-select [data-combobox-value] { padding-block: 0; }
-@media (max-width: 640px) {
-  .expense-panel__subtitle { font-size: var(--text-caption-size); }
-}
 @media (prefers-reduced-motion: reduce) {
   .expense-page-wrap .animate-shake { animation: none; }
   .expense-page-wrap button, .expense-upload-zone { transition: none; }
 }
 
 /* Phone fields pair where their content is short. Catalog names retain a full
-   line; sections share the page surface instead of adding another inset card. */
+   line; shared Panel keeps the same section hierarchy across device sizes. */
 @media (max-width: 640px) {
-  .expense-panel { border: 0; border-radius: 0; background: transparent; }
-  .expense-panel__header { padding: 8px 0; }
-  .expense-panel__body { padding: 10px 0; }
   .expense-grid { gap: 10px 8px; }
   .expense-group--catalog { grid-column: 1 / -1; }
   .expense-actions { flex-direction: row; }

@@ -19,6 +19,25 @@ const row = (carrierType: 'OWN' | 'EXTERNAL' = 'OWN') => ({
 beforeEach(() => { vi.clearAllMocks(); listFleet.mockResolvedValue({ items: [ownTruck] }); });
 
 describe('VID-DSP-02 direct release', () => {
+  it.each([
+    { container: ' CSQU3054383 ', bill: 'VID-DSP-BL', expected: 'CSQU3054383' },
+    { container: null, bill: ' VID-DSP-BL ', expected: 'VID-DSP-BL' },
+    { container: ' ', bill: ' BOOK-2026-001 ', expected: 'BOOK-2026-001' },
+    { container: null, bill: null, expected: 'Chưa có số Bill/Booking' },
+    { container: ' ', bill: ' ', expected: 'Chưa có số Bill/Booking' },
+  ])('UI52-B release name uses $expected while preserving the exact row/appointment payload', async ({ container, bill, expected }) => {
+    const original = row('EXTERNAL');
+    original.container = { ...original.container, containerNumber: container };
+    original.docs = { ...original.docs, billNumber: bill };
+    const issue = vi.fn().mockResolvedValue({});
+    render(<QuickIssueOrderButton row={original} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: `Phát lệnh · ${expected}` }));
+    await waitFor(() => expect(issue).toHaveBeenCalledTimes(1));
+    expect(issue).toHaveBeenCalledWith(original, expect.objectContaining({ carrierType: 'EXTERNAL', externalCarrierId: 8, externalPlateNumber: '15H-012.34', plannedStartAt: '2026-09-15T07:17:00.000Z' }));
+    expect(await screen.findByRole('button', { name: `Phát lệnh · ${expected}` })).not.toBeDisabled();
+    expect(listFleet).not.toHaveBeenCalled();
+  });
+
   it('VID-DSP-05 presents one icon-only action with a descriptive accessible name and tooltip', () => {
     render(<QuickIssueOrderButton row={row()} onIssueOrder={vi.fn()} />);
     const button = screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' });
@@ -35,8 +54,8 @@ describe('VID-DSP-02 direct release', () => {
     const iconRule = css.match(/\.detailed-plan-grid__note-action--icon\s*\{([^}]+)\}/)?.[1] ?? '';
     expect(iconRule).toMatch(/width:\s*28px/);
     expect(iconRule).toMatch(/min-height:\s*28px/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*767px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*width:\s*var\(--control-touch-h,\s*44px\)/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*767px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*min-height:\s*var\(--control-touch-h,\s*44px\)/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*width:\s*var\(--control-touch-h\)/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*min-height:\s*var\(--control-touch-h\)/);
   });
 
   it('issues with one click and resolves fleet only on demand, preserving exact planned appointment', async () => {

@@ -369,10 +369,7 @@ export default function CustomersPage() {
     return { top, totalDebt, topShare, anyDebt: totalDebt > 0 };
   }, [customers, debtMap]);
 
-  const { activeCount, lockedCount, filtered } = useMemo(() => {
-    const activeCount = customers.filter(c => c.status === CustomerStatus.ACTIVE).length;
-    const lockedCount = customers.filter(c => c.status === CustomerStatus.LOCKED).length;
-    const filtered = customers.filter(c => {
+  const filtered = useMemo(() => customers.filter(c => {
       if (filter === 'active') return c.status === CustomerStatus.ACTIVE;
       if (filter === 'locked') return c.status === CustomerStatus.LOCKED;
       if (filter === 'risk') {
@@ -384,9 +381,7 @@ export default function CustomersPage() {
         return debt / limit > 0.8;
       }
       return true;
-    });
-    return { activeCount, lockedCount, filtered };
-  }, [customers, filter, debtMap]);
+  }), [customers, filter, debtMap]);
   // Card 20260929_207: the page-wide select-all, scoped to the rows on screen.
   const allOnPageSelected = selection.allOfSelected(filtered.map((c) => c.id));
   const toggleAllOnPage = () => {
@@ -523,8 +518,6 @@ export default function CustomersPage() {
         filter={filter}
         onFilter={setFilter}
         total={total}
-        activeCount={activeCount}
-        lockedCount={lockedCount}
         resultCount={filtered.length}
         concentration={concentration}
         onExport={exportCustomers}
@@ -570,13 +563,13 @@ export default function CustomersPage() {
                 </div>
                 {c.taxCode && (
                   <div className="m-card__meta" style={{ fontFamily: 'var(--font-data)' }}>
-                    MST {c.taxCode}
+                    MST <span className="data-token">{c.taxCode}</span>
                   </div>
                 )}
                 {(c.contactPerson || c.phone) && (
                   <div className="m-card__meta">
                     {c.contactPerson}
-                    {c.phone && <><span className="m-card__meta-sep">·</span>{c.phone}</>}
+                    {c.phone && <><span className="m-card__meta-sep">·</span><span className="data-token">{c.phone}</span></>}
                   </div>
                 )}
                 {c.creditLimit && (
@@ -745,7 +738,7 @@ export default function CustomersPage() {
                       </button>
                     </td>
                     <td data-label="Mã số thuế" className="customers-mono-cell">
-                      {c.taxCode || <span className="customers-muted">—</span>}
+                      <span className="data-token">{c.taxCode || <span className="customers-muted">—</span>}</span>
                     </td>
                     <td data-label="Người liên hệ & SĐT">
                       <span className="customers-contact-stack">
@@ -764,7 +757,7 @@ export default function CustomersPage() {
                               } catch { toast({ kind: 'error', message: 'Không sao chép được' }); }
                             }}
                           >
-                            {c.phone}
+                            <span className="data-token">{c.phone}</span>
                           </button>
                         )}
                         {!c.phone && <span className="customers-muted">—</span>}
@@ -889,7 +882,7 @@ export default function CustomersPage() {
                   <dt>Tên ngắn</dt>
                   <dd>{c.shortName || '—'}</dd>
                   <dt>Mã số thuế</dt>
-                  <dd>{c.taxCode || '—'}</dd>
+                  <dd><span className="data-token">{c.taxCode || '—'}</span></dd>
                   <dt>Hạn mức tín dụng</dt>
                   <dd>{c.creditLimit ? formatCurrency(c.creditLimit) : '—'}</dd>
                   <dt>Công nợ hiện tại</dt>
@@ -903,7 +896,7 @@ export default function CustomersPage() {
                   <dt>Người liên hệ</dt>
                   <dd>{c.contactPerson || '—'}</dd>
                   <dt>Điện thoại</dt>
-                  <dd>{c.phone || '—'}</dd>
+                  <dd><span className="data-token">{c.phone || '—'}</span></dd>
                   <dt>Thông tin liên hệ khác</dt>
                   <dd>{c.contactInfo || '—'}</dd>
                 </dl>

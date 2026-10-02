@@ -3,7 +3,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // Card 20260922_53 (TC-CCP-03): the tracker table must scroll horizontally
-// (never clip the action column) and date/bill tokens must stay on one line.
+// (never clip the action column). Dates remain atomic; genuinely long Bill
+// references use the shared complete-wrapping anatomy (QA-AUDIT-UI-88).
 // Rule-local CSS assertions per the no-truncation test idiom.
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
@@ -24,7 +25,8 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
   // (`.table-wrap` overflow override, 1220px min-width, `.bill`/`.date-cell`
   // nowrap, the 250px action column, the `deposit-status` pill). The redesign
   // retires every one of them: the table is the ONE shared base
-  // (`record-table ops-table` in `.record-table-wrap`), which owns cell
+  // (`record-table ops-table` in `.record-table-wrap`), with the explicit shared
+  // wide-text scroll adoption for customer/note/reference columns. It owns cell
   // padding, numeric alignment, token wrapping and the ≤1100px labelled
   // record-card band. The pins below therefore describe the mechanism that
   // replaced the workarounds — never re-pinned onto a rule that no longer
@@ -32,7 +34,7 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
   it('imports and renders the shared base instead of a page-private skin', () => {
     expect(tsx).toContain("import '../../styles/record-table.css';");
     expect(tsx).toContain("import '../../styles/operational-table-typography.css';");
-    expect(tsx).toContain('className="record-table-wrap"');
+    expect(tsx).toContain('className="record-table-wrap record-table-wrap--scroll"');
     expect(tsx).toContain('className="record-table ops-table"');
   });
 
@@ -44,8 +46,8 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
     expect(decls).not.toMatch(/min-width:\s*1220px/);
     expect(decls).not.toMatch(/250px/);
     // The shared base owns the wrap, so the sheet declares white-space for
-    // exactly ONE thing: the single-token cells (a dd/mm/yyyy date, a bill
-    // number, the ordinal) that must not fracture mid-token (law §4). The
+    // exactly ONE thing: date and ordinal token cells. Long Bill references
+    // wrap completely through the shared reference owner (QA-AUDIT-UI-88). The
     // 2026-09-27 invoice-tracking regression was a nowrap rule with no such
     // reason — the check still catches one, because it must name this class.
     const whiteSpaceRules = [...decls.matchAll(/[^{}]*\{[^}]*white-space\s*:[^}]*\}/g)].map((m) => m[0].split('{')[0].trim());

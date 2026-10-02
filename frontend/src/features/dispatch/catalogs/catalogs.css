@@ -56,15 +56,9 @@
   }
 }
 
-/* The card chrome would trap the table's sticky thead (overflow: hidden
-   creates a clipping context). Catalogs are unbounded worksheets like the
-   shipments pair: strip the clip and keep the sheet edge-to-edge. */
+/* Preserve sticky-header reach without replacing the house Panel surface. */
 .dispatch-catalogs .panel {
   overflow: visible;
-  border: 0;
-  border-top: 1px solid var(--border-1);
-  border-radius: 0;
-  background: transparent;
 }
 
 /* The catalog toolbar is the shared `ListFilterBar` (card 20260927_152), so this
@@ -78,13 +72,6 @@
 .dispatch-catalogs__count {
   font-size: var(--text-data-size);
   color: var(--fg-3);
-}
-
-/* The "Nhà xe" picker inside the Xe ngoài register drawer — a form field, not a
-   filter control (the filter instance dropped the class). */
-.dispatch-catalogs__drawer-select {
-  width: min(160px, 100%);
-  min-width: 0;
 }
 
 .dispatch-catalogs__table {
@@ -258,7 +245,7 @@
     min-height: 44px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px 12px;
-    padding: 10px 0;
+    padding: 10px 12px;
     border: 0;
     border-bottom: 1px solid var(--border-1);
     border-radius: 0;

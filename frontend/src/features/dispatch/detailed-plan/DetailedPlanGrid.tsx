@@ -12,6 +12,7 @@ import {
   type IssueOrderResult,
 } from './DispatchPlanEditorCell';
 import { QuickIssueOrderButton } from './QuickIssueOrderButton';
+import { DispatchPairAction } from './DispatchPairAction';
 import { deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { formatAppointmentGroupLine } from '../../shipments/cus/cusUtils';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
@@ -19,6 +20,7 @@ import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
 import type { DetailedPlanFilterState, DetailPlanSortDirection, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
+import { billBookingReference } from '../../../lib/business-reference';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { DispatchDriverNote } from './DispatchDriverNote';
 import { detailRowKey } from './DispatchPlanCellValues';
@@ -378,19 +380,7 @@ export function DetailedPlanGrid({
                     <span className="detailed-plan-grid__classification">
                       {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                     </span>
-                    {onOpenPair
-                      && row.dispatch?.tripId != null
-                      && row.dispatch.carrierType !== 'EXTERNAL'
-                      && !row.dispatch.pairKind
-                      && row.dispatch.tripStatus !== 'CANCELED' && (
-                      <button
-                        type="button"
-                        className="btn btn--secondary btn--sm detailed-plan-grid__pair-btn"
-                        onClick={() => onOpenPair(row)}
-                      >
-                        Ghép chuyến
-                      </button>
-                    )}
+                    <DispatchPairAction row={row} onOpenPair={onOpenPair} />
                   </td>
                   <td className={`detailed-plan-grid__cell detailed-plan-grid__cell--notes${notesCellBlank ? ' detailed-plan-grid__cell--blank' : ''}`} data-label="Ghi chú" data-label-short="Ghi chú">
                     {row.notes.vehicleNote && (
@@ -424,7 +414,7 @@ export function DetailedPlanGrid({
                         type="button"
                         className="detailed-plan-grid__note-action"
                         onClick={() => onCompleteExternalTrip(row)}
-                        aria-label={`Hoàn thành · ${row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`}`}
+                        aria-label={`Hoàn thành · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
                         title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
                       >
                         Hoàn thành

@@ -24,7 +24,8 @@ import './config-page.css';
 import './customer-config-density.css';
 
 function CustomerCompactDetails({ customer: c }: { customer: Customer }) {
-  const facts = [
+  const tokenLabels = new Set(['Mã KH', 'Mã số thuế', 'SĐT liên hệ', 'SĐT kế toán']);
+  const facts: Array<[string, string | null | undefined]> = [
     ['Tên đầy đủ', c.name], ['Tên viết tắt', c.shortName], ['Mã KH', c.code], ['Mã số thuế', c.taxCode],
     ['Địa chỉ', c.address || c.contactInfo], ['Người liên hệ', c.contactPerson], ['SĐT liên hệ', c.phone],
     ['Kế toán liên hệ', c.accountantName], ['SĐT kế toán', c.accountantPhone], ['Liên hệ khác', c.contactInfo],
@@ -33,7 +34,7 @@ function CustomerCompactDetails({ customer: c }: { customer: Customer }) {
   ];
   return <details className="cfg-customer-details">
     <summary>Thông tin chi tiết</summary>
-    <dl>{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || 'Chưa cập nhật'}</dd></div>)}</dl>
+    <dl>{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd><span className={tokenLabels.has(label) ? 'data-token' : undefined}>{value || 'Chưa cập nhật'}</span></dd></div>)}</dl>
   </details>;
 }
 
@@ -286,14 +287,14 @@ export default function CustomersConfigPage() {
                     {c.shortName && c.shortName !== c.name && <strong className="cfg-customer-short-name">{c.shortName}</strong>}
                     <div className="row-strong cfg-customer-full-name" title={c.name}>{c.name}</div>
                     <div className="cfg-customer-compact-meta">
-                      {c.taxCode && <span>MST {c.taxCode}</span>}
-                      {(c.contactPerson || c.phone) && <span>{[c.contactPerson, c.phone].filter(Boolean).join(' · ')}</span>}
+                      {c.taxCode && <span>MST <span className="data-token">{c.taxCode}</span></span>}
+                      {(c.contactPerson || c.phone) && <span>{c.contactPerson}{c.contactPerson && c.phone && ' · '}{c.phone && <span className="data-token">{c.phone}</span>}</span>}
                     </div>
                     <CustomerCompactDetails customer={c} />
                   </td>
                   {colPresence.shortName && <td data-label="Tên viết tắt">{c.shortName || '—'}</td>}
-                  {colPresence.code && <td data-label="Mã KH">{c.code || '—'}</td>}
-                  {colPresence.taxCode && <td data-label="Mã Số Thuế">{c.taxCode || '—'}</td>}
+                  {colPresence.code && <td data-label="Mã KH"><span className="data-token">{c.code || '—'}</span></td>}
+                  {colPresence.taxCode && <td data-label="Mã Số Thuế"><span className="data-token">{c.taxCode || '—'}</span></td>}
                   {/* Card 20260926_9: staging census (BE) — 2 live rows keep
                       their address in contact_info; ĐỊA CHỈ falls back to the
                       address-bearing field (Director's no-migration ruling)
@@ -301,9 +302,9 @@ export default function CustomersConfigPage() {
                       LIÊN HỆ KHÁC keeps its own data untouched. */}
                   {colPresence.address && <td data-label="Địa Chỉ" style={{ overflowWrap: 'anywhere' }}>{c.address || c.contactInfo || '—'}</td>}
                   {colPresence.contactPerson && <td data-label="Người liên hệ">{c.contactPerson || '—'}</td>}
-                  {colPresence.phone && <td data-label="SĐT liên hệ">{c.phone || '—'}</td>}
+                  {colPresence.phone && <td data-label="SĐT liên hệ"><span className="data-token">{c.phone || '—'}</span></td>}
                   {colPresence.accountantName && <td data-label="Kế toán liên hệ">{c.accountantName || '—'}</td>}
-                  {colPresence.accountantPhone && <td data-label="SĐT Kế toán">{c.accountantPhone || '—'}</td>}
+                  {colPresence.accountantPhone && <td data-label="SĐT Kế toán"><span className="data-token">{c.accountantPhone || '—'}</span></td>}
                   {colPresence.contactInfo && <td data-label="Liên hệ khác" style={{ overflowWrap: 'anywhere' }}>{c.contactInfo || '—'}</td>}
                   {colPresence.agencyFeePaymentTermDays && <td className="num" data-label="Hạn Thanh Toán Chi hộ (Ngày)">{c.agencyFeePaymentTermDays ?? '—'}</td>}
                   {colPresence.paymentTermDays && <td className="num" data-label="Hạn Thanh Toán Cước (Ngày)">{c.paymentTermDays ?? '—'}</td>}

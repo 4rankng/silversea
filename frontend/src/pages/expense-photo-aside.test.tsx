@@ -49,9 +49,9 @@ describe('ExpensePhotoAside receipt thumbnails', () => {
   it('renders the thumb from an authenticated blob fetch instead of a ?token= URL', async () => {
     renderAside();
 
-    const img = screen.getByAltText('Ảnh 1') as HTMLImageElement;
+    const img = await screen.findByAltText('Ảnh 1') as HTMLImageElement;
     await waitFor(() => expect(img.getAttribute('src')).toBe('blob:receipt'));
-    expect(api.getBlob).toHaveBeenCalledWith('/api/photos/expense-photos%2F2%2Fabc.png');
+    expect(api.getBlob).toHaveBeenCalledWith('/photos/expense-photos%2F2%2Fabc.png');
     expect(document.querySelector('img[src*="token="]')).toBeNull();
   });
 

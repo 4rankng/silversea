@@ -15,6 +15,7 @@ import { EmptyState, FilterBar, Pagination } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { useTableRowSelection, type RowSelection } from '../../hooks/useTableRowSelection';
+import { billBookingReference } from '../../lib/business-reference';
 
 type AccountingTransportRegisterProps = {
   rows: AccountingTransportRegisterRow[];
@@ -361,7 +362,7 @@ function TransportTableRow({
     >
       <td data-label="Chuyến">
         <span className="accounting-register__lead">
-          <strong>{row.tripCode ?? 'Chuyến chưa có mã'}</strong>
+          <strong>{billBookingReference(row.tripCode)}</strong>
           <small>{row.containerNumbers.join(', ') || 'Chưa có container'}</small>
         </span>
       </td>

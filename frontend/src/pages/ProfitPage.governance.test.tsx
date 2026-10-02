@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -149,6 +149,15 @@ describe('ProfitPage governance request UX', () => {
     expect(screen.getByText(/không ghi nhận chuyển tiền/)).toBeTruthy();
     expect(screen.queryByText(/đang chờ kiểm tra/)).toBeNull();
     expect(refetchHistoryMock).toHaveBeenCalledOnce();
+  });
+
+  it('renders its existing zero company-cost report without a subtraction sign or danger tone', () => {
+    render(<MemoryRouter><ProfitPage /></MemoryRouter>);
+    const row = screen.getByText('Chi phí chung công ty').closest('.calc-row')!;
+    const amount = row.querySelector('.calc-row__value')!;
+    expect(within(amount as HTMLElement).getByText('0')).toBeVisible();
+    expect(amount.querySelector('.money__sign')).toBeNull();
+    expect(amount).not.toHaveClass('calc-row__value--neg');
   });
 
   // Ownership-blocked warning (QA-069): the blocked truck's plate links

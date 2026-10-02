@@ -21,20 +21,40 @@ export function marginPct(grossProfit: number | null, totalRevenue: number | nul
 
 export function yoyPct(current: number | null, previous: number | null): string {
   if (current == null || previous == null) return '—';
-  if (previous === 0) return current > 0 ? 'Mới' : '—';
-  const pct = ((current - previous) / previous * 100).toFixed(1);
-  return `${Number(pct) >= 0 ? '+' : ''}${pct}%`;
+  if (previous === 0) return current !== 0 ? 'Mới' : '0%';
+  const pct = ((current - previous) / Math.abs(previous) * 100).toFixed(1);
+  return `${Number(pct) > 0 ? '+' : ''}${pct}%`;
 }
 
-export function yoyClass(current: number | null, previous: number | null): string {
-  if (current == null || previous == null) return '';
-  return current >= previous ? 'pnl-row__pct--up' : 'pnl-row__pct--down';
+export function yoyClass(current: number | null, previous: number | null, favorableDirection: 'up' | 'down' = 'up'): string {
+  if (current == null || previous == null || current === previous) return '';
+  const direction = current > previous ? 'up' : 'down';
+  return direction === favorableDirection ? 'pnl-row__pct--up' : 'pnl-row__pct--down';
 }
 
-const runningSum = (arr: number[]): number[] => {
-  let acc = 0;
-  return arr.map((value) => (acc += value));
-};
+type MonthlyFinanceSource = Pick<PnlReport, 'totalRevenue' | 'grossProfit' | 'tripCount'>;
+
+/** Financial reports supply monthly recognition; operational trips do not. */
+export function deriveMonthlyFinanceChart(reports: (MonthlyFinanceSource | null)[], month: number) {
+  const points = reports.map((report, index) => ({
+    month: `T${index + 1}`,
+    revenue: (report?.totalRevenue ?? 0) / 1_000_000,
+    gross: (report?.grossProfit ?? 0) / 1_000_000,
+  }));
+  const hasValue = (point: typeof points[number]) => point.revenue !== 0 || point.gross !== 0;
+  const first = points.findIndex(hasValue);
+  const lastFromEnd = [...points].reverse().findIndex(hasValue);
+  const visible = first < 0 ? [] : points.slice(first, points.length - lastFromEnd);
+  const currentIdx = visible.findIndex(point => point.month === `T${month}`);
+  return {
+    months: visible.map(point => point.month),
+    revenue: visible.map(point => point.revenue),
+    gross: visible.map(point => point.gross),
+    currentIdx: currentIdx >= 0 ? currentIdx : undefined,
+    hasChartData: visible.length > 0,
+    completedTripCount: reports.reduce((sum, report) => sum + (report?.tripCount ?? 0), 0),
+  };
+}
 
 interface FinanceDerivedInput {
   allTrips: TripDetail[];
@@ -43,7 +63,6 @@ interface FinanceDerivedInput {
   capTableRaw: CapTableHistory[];
   yearlyData: (PnlReport | null)[];
   month: number;
-  chartView: 'day' | 'month';
 }
 
 export function deriveTripCostBreakdown(report?: PnlReport) {
@@ -92,7 +111,7 @@ export function deriveTripCostBreakdown(report?: PnlReport) {
   };
 }
 
-export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, yearlyData, month, chartView }: FinanceDerivedInput) {
+export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, yearlyData, month }: FinanceDerivedInput) {
 
     const {
       fuelCost, roadCost, driverCost, tollAndTicketsCost, maintenanceCost, fleetDepreciationCost, fleetFixedCost, otherTripCost, companyExpenses,
@@ -274,72 +293,13 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
       };
     }, [allTrips, report, prevReport, capTableRaw, yearlyData]);
 
-    const trimmedChartData = useMemo(() => {
-      const firstDataIdx = revenueChartData.findIndex(d => d['Doanh thu'] > 0 || d['LN gộp'] > 0);
-      if (firstDataIdx < 0) return [];
-      const lastDataIdx = [...revenueChartData].reverse().findIndex(d => d['Doanh thu'] > 0 || d['LN gộp'] > 0);
-      return revenueChartData.slice(firstDataIdx, revenueChartData.length - lastDataIdx);
-    }, [revenueChartData]);
-
-    const currentChartMonthIdx = useMemo(() => {
-      return trimmedChartData.findIndex(d => d.name === `T${month}`);
-    }, [trimmedChartData, month]);
-
-    const dailyChartData = useMemo(() => {
-      const dayMap = new Map<string, { revenue: number; gross: number }>();
-      for (const t of allTrips) {
-        if (t.status === 'CANCELED') continue;
-        const dateKey = t.departureDate?.slice(0, 10);
-        if (!dateKey) continue;
-        const rev = Number(t.revenue) || 0;
-        const gp = Number(t.grossProfit) || 0;
-        const existing = dayMap.get(dateKey) ?? { revenue: 0, gross: 0 };
-        existing.revenue += rev;
-        existing.gross += gp;
-        dayMap.set(dateKey, existing);
-      }
-      const sorted = Array.from(dayMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .filter(([, v]) => v.revenue > 0 || v.gross > 0);
-      return {
-        labels: sorted.map(([d]) => String(parseInt(d.slice(8, 10), 10))),
-        revenue: runningSum(sorted.map(([, v]) => v.revenue / 1_000_000)),
-        gross: runningSum(sorted.map(([, v]) => v.gross / 1_000_000)),
-      };
-    }, [allTrips]);
-
-    const activeChartData = useMemo(() => {
-      if (chartView === 'day') {
-        return {
-          months: dailyChartData.labels,
-          revenue: dailyChartData.revenue,
-          gross: dailyChartData.gross,
-          currentIdx: undefined,
-        };
-      }
-      return {
-        months: trimmedChartData.map(d => d.name as string),
-        revenue: trimmedChartData.map(d => d['Doanh thu'] as number),
-        gross: trimmedChartData.map(d => d['LN gộp'] as number),
-        currentIdx: currentChartMonthIdx >= 0 ? currentChartMonthIdx : undefined,
-      };
-    }, [chartView, dailyChartData, trimmedChartData, currentChartMonthIdx]);
-
-    const hasChartData = chartView === 'day' ? dailyChartData.labels.length > 0 : trimmedChartData.length > 0;
-
-    // Completed-trip presence for the ACTIVE view — the no-trip empty state
-    // must key on THIS, never on the chart series (all-zero buckets are
-    // filtered out of the series, which used to make a completed-but-zero
-    // month claim "no completed trips"). Day view counts the month-scoped
-    // trips; month view sums the yearly reports' real tripCount field.
-    const completedTripCount = chartView === 'day'
-      ? allTrips.filter((t) => t.status === 'COMPLETED').length
-      : yearlyData.reduce((sum, r) => sum + (r?.tripCount ?? 0), 0);
+    const activeChartData = useMemo(() => deriveMonthlyFinanceChart(yearlyData, month), [yearlyData, month]);
+    const { hasChartData, completedTripCount } = activeChartData;
   return {
     fuelCost, roadCost, driverCost, tollAndTicketsCost, maintenanceCost, fleetDepreciationCost, fleetFixedCost, otherTripCost, companyExpenses,
     totalRevenue, otherRevenue, transRevenue, totalCosts, grossProfit, netProfit,
     totalRevenueLY, otherRevenueLY, transRevenueLY, totalCostsLY, grossProfitLY,
     companyExpensesLY, netProfitLY, activeCapTable, revenueChartData, costPieData,
-    topTrucks, categoryBreakdown, truckBreakdown, trimmedChartData, activeChartData, hasChartData, completedTripCount,
+    topTrucks, categoryBreakdown, truckBreakdown, activeChartData, hasChartData, completedTripCount,
   };
 }

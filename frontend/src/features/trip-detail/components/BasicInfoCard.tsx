@@ -63,6 +63,13 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
     { icon: <Calendar size={17} />, label: 'Ngày khởi hành', value: formatDate(trip.departureDate), mono: true, isDate: true },
     { icon: <CheckCircle size={17} />, label: 'Ngày hoàn thành', value: trip.completedAt ? formatDate(trip.completedAt) : '—', mono: true },
     { icon: <Hash size={17} />, label: 'Mã tham chiếu', value: trip.customerReference ?? 'Chưa có', muted: !trip.customerReference, full: true },
+    ...(trip.shipmentId ? [{
+      icon: <Package size={17} />,
+      label: 'Lô hàng',
+      value: trip.customerReference ? `Chi tiết lô hàng (${trip.customerReference})` : 'Xem chi tiết lô hàng →',
+      link: `/shipments/${trip.shipmentId}`,
+      full: true,
+    }] : []),
   ];
 
   if (trip.shipmentId) {
@@ -90,8 +97,8 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
                 {row.link ? (
                   <Link
                     to={row.link}
-                    className={`val ${row.mono ? 'mono' : ''} ${row.muted ? 'muted' : ''}`}
-                    style={{ color: 'var(--accent, #059669)', fontWeight: 600, textDecoration: 'none' }}
+                    className="val val-link"
+                    style={{ color: 'var(--color-primary, #059669)', textDecoration: 'underline', fontWeight: 500 }}
                   >
                     {row.value}
                   </Link>

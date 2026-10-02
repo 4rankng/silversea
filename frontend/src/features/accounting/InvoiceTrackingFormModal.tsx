@@ -6,10 +6,13 @@ import { createInvoiceTracking, updateInvoiceTracking } from '../../api/invoiceT
 import { getShipmentDetail, listShipments } from '../../api/shipmentClient';
 import { businessDateISO } from '../../lib/format';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
+import { billBookingReference } from '../../lib/business-reference';
 
 interface LotOption {
   id: number;
   shipmentCode: string | null;
+  blNumber: string | null;
+  bookingRef: string | null;
   customerName: string | null;
 }
 
@@ -67,7 +70,7 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
     try {
       const response = await listShipments({ q, limit: 8 });
       if (searchSeq.current !== seq) return;
-      setLotResults(response.items.map((item) => ({ id: item.id, shipmentCode: item.shipmentCode, customerName: item.customerName })));
+      setLotResults(response.items.map((item) => ({ id: item.id, shipmentCode: item.shipmentCode, blNumber: item.blNumber, bookingRef: item.bookingRef, customerName: item.customerName })));
     } catch {
       if (searchSeq.current === seq) setLotResults([]);
     } finally {
@@ -94,7 +97,7 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
       for (const item of detail.podReviews) {
         if (item.tripId == null || seen.has(item.tripId)) continue;
         seen.add(item.tripId);
-        const label = [item.tripCode, item.containerNumber, item.tripStatus].filter(Boolean).join(' · ');
+        const label = [billBookingReference(lot.blNumber, lot.bookingRef), item.containerNumber, item.tripStatus].filter(Boolean).join(' · ');
         trips.push({ tripId: item.tripId, label: label || 'Chuyến chưa có mã' });
       }
       setTripOptions(trips);
@@ -161,7 +164,7 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
       <fieldset className="invoice-tracking-form" disabled={saving} aria-busy={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         {mode === 'create' && (
           <div className="invoice-tracking-lot-picker">
-            <FormGroup label="Mã lô" htmlFor="ivt-lot">
+            <FormGroup label="Bill / Booking" htmlFor="ivt-lot">
               <input
                 id="ivt-lot"
                 className="input"
@@ -176,7 +179,7 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
                 {lotResults.map((lot) => (
                   <li key={lot.id}>
                     <button type="button" onClick={() => void pickLot(lot)}>
-                      <span className="ivt-stack__primary">{lot.shipmentCode ?? '—'}</span>
+                      <span className="ivt-stack__primary">{billBookingReference(lot.blNumber, lot.bookingRef)}</span>
                       <span className="ivt-stack__sub">{lot.customerName ?? ''}</span>
                     </button>
  </li>
@@ -185,7 +188,7 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
             )}
             {pickedLot && (
               <p className="ivt-hint">
-                Lô đã chọn: <strong>{pickedLot.shipmentCode ?? '—'}</strong>{pickedLot.customerName ? ` — ${pickedLot.customerName}` : ''}
+                Lô đã chọn: <strong>{billBookingReference(pickedLot.blNumber, pickedLot.bookingRef)}</strong>{pickedLot.customerName ? ` — ${pickedLot.customerName}` : ''}
               </p>
             )}
             {tripOptions.length > 0 && (

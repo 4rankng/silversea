@@ -176,11 +176,11 @@ export default function TreasuryPositionPage() {
                         <small>{account.cutoverAt ? `Chuyển đổi: ${formatDateTimeVN(account.cutoverAt)}` : 'Chưa chuyển đổi đầy đủ'}</small>
                       </div>
                     </td>
-                    <td data-label="Đầu kỳ" className="num">{formatCurrency(account.openingBalance)}</td>
-                    <td data-label="Thu" className="num">{formatCurrency(account.totalIn)}</td>
-                    <td data-label="Chi" className="num">{formatCurrency(account.totalOut)}</td>
+                    <td data-label="Đầu kỳ" className="num"><span className="data-token">{formatCurrency(account.openingBalance)}</span></td>
+                    <td data-label="Thu" className="num"><span className="data-token">{formatCurrency(account.totalIn)}</span></td>
+                    <td data-label="Chi" className="num"><span className="data-token">{formatCurrency(account.totalOut)}</span></td>
                     <td data-label="Số dư ghi sổ" className="num treasury-table__balance">
-                      <strong>{formatCurrency(account.bookBalance)}</strong>
+                      <strong><span className="data-token">{formatCurrency(account.bookBalance)}</span></strong>
                     </td>
                     <td data-label="Trạng thái" className="treasury-table__status">
                       <StatusPill variant={COVERAGE_VARIANT[account.completeness]}>{COVERAGE[account.completeness]}</StatusPill>

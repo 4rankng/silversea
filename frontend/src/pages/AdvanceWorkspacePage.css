@@ -16,7 +16,7 @@
 }
 
 .advance-workspace__governance-link {
-  min-height: 44px;
+  min-height: var(--control-max-h);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -37,22 +37,11 @@
   color: var(--brand);
 }
 
-/* Layout hook only — three equally sized views on one row. Shape, selection
-   and focus ride the shared `bordered` variant (design-system/Tabs.css). */
+/* Group placement only. Content-sized cells wrap and keep their control
+   geometry through the shared `bordered` variant (design-system/Tabs.css). */
 .advance-workspace__views {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   max-width: 720px;
   margin-bottom: 18px;
-}
-
-.advance-workspace__views .ds-tabs__btn {
-  min-width: 0;
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
 }
 
 .advance-workspace__governance-link:focus-visible {
@@ -111,19 +100,12 @@
     margin-bottom: 14px;
   }
 
-  .advance-workspace__views .ds-tabs__btn {
-    min-height: 44px;
-    line-height: var(--lh-snug);
-  }
-
-  .advance-workspace__views .ds-tabs__btn span,
   .advance-workspace__section-heading p {
     overflow-wrap: anywhere;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .advance-workspace__views .ds-tabs__btn,
   .advance-workspace__governance-link {
     transition: none;
   }

@@ -187,7 +187,7 @@
   .tc-page-head { padding: 16px 14px 8px; flex-wrap: wrap; gap: 12px; }
   .tc-page-title { font-size: var(--text-title-size); line-height: 1.35; }
   .tc-page-sub { font-size: var(--fs-xs); }
-  .tc-back-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  .tc-back-btn { width: var(--control-max-h); height: var(--control-max-h); min-width: var(--control-max-h); min-height: var(--control-max-h); }
   .tc-form-row,
   .tc-form-row--three { grid-template-columns: 1fr; }
   .tc-card { margin-bottom: 16px; padding-bottom: 16px; border-radius: 0; }

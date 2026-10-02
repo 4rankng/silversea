@@ -8,7 +8,7 @@ const read = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
  * close-status chip are new chrome on the driver mobile surface. Per the
  * size-consistency scale (design-system contract): chips are pills with
  * 4/8–10px padding and the shared caption role; the collapse toggle is a real control
- * and carries the 44px coarse-pointer floor (control-density contract — the
+ * and carries the current coarse-pointer budget (control-density contract — the
  * compact base and the coarse override ship together). @media behavior isn't
  * reliably testable through jsdom rendering, so this asserts on the raw CSS
  * text — same pattern as driver-mobile-full-bleed.styles.test.ts.
@@ -32,8 +32,8 @@ describe('driver trip-detail chips style contract (36d0183d)', () => {
     expect(block).toMatch(/font-size:\s*var\(--text-caption-size\)/);
   });
 
-  it('collapse toggle keeps the 44px coarse-pointer floor', () => {
+  it('collapse toggle keeps the current coarse-pointer budget', () => {
     expect(css).toMatch(/\.driver-task-ops-toggle \{[^}]*\}/);
-    expect(css).toMatch(/@media \(pointer: coarse\) \{\s*\.driver-task-ops-toggle \{\s*min-height:\s*var\(--control-touch-h, 44px\);\s*\}\s*\}/);
+    expect(css).toMatch(/@media \(pointer: coarse\) \{\s*\.driver-task-ops-toggle \{\s*min-height:\s*var\(--control-touch-h\);\s*\}\s*\}/);
   });
 });

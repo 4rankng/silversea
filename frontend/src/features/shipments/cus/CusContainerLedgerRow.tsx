@@ -115,7 +115,7 @@ export function ContainerLineRow({
       <th scope="row" data-label="Container" className="cus-container-cell cus-container-cell--identity">
         <div className="cus-container-cell__identity-inner">
           <span className="cus-container-row__ordinal">{line.ordinal}</span>
-          <strong id={`${idPrefix}-container-${line.id}`}>{line.containerNumber || 'Chưa có số container'}</strong>
+          <strong id={`${idPrefix}-container-${line.id}`} data-missing-container={line.containerNumber ? undefined : 'true'}>{line.containerNumber || 'Chưa có số container'}</strong>
           {showCopyAppointment && (
             <button
               type="button"

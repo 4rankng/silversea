@@ -35,6 +35,7 @@ import {
   type ForwarderContainer,
 } from '../features/forwarder/forwarder-trip-detail-sections';
 import { tripStatusVariant } from '../lib/tripStatus';
+import { billBookingReference } from '../lib/business-reference';
 import './ForwarderTripDetailPage.css';
 
 interface ForwarderTripWorkspaceProps {
@@ -219,14 +220,11 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
           <span className="fwd-detail-hero__eyebrow">Chi tiết chuyến xe</span>
           <div className="fwd-detail-hero__title-row">
             <h1 className="fwd-detail-hero__title">
-              {trip.billNumber || trip.bookingNumber || trip.shipmentCode || trip.routeName || 'Chuyến đi'}
+              {billBookingReference(trip.billNumber, trip.bookingNumber)}
             </h1>
             <StatusPill variant={tripStatusVariant(trip.status)}>
               {TRIP_STATUS_LABELS[trip.status as TripStatus] || trip.status}
             </StatusPill>
-            {trip.tripCode && (
-              <span className="fwd-detail-hero__trip-code">{trip.tripCode}</span>
-            )}
           </div>
           <p className="fwd-detail-hero__subtitle">
             {[trip.customerName, trip.factoryName, trip.routeName].filter(Boolean).join(' · ')}

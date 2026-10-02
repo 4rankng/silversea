@@ -30,8 +30,8 @@
 }
 
 .dd-back {
-  width: 44px;
-  height: 44px;
+  width: var(--control-max-h);
+  height: var(--control-max-h);
   border-radius: var(--r);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1547,8 +1547,8 @@
     margin-bottom: 14px;
   }
   .debt-detail-page .dd-back {
-    width: 44px;
-    height: 44px;
+    width: var(--control-max-h);
+    height: var(--control-max-h);
     margin-top: 2px;
   }
   .debt-detail-page .dd-avatar {
@@ -1577,7 +1577,7 @@
   .debt-detail-page .dd-actions .btn {
     flex: 1 1 auto;
     justify-content: center;
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
   .debt-detail-page .dd-account-strip {
     grid-template-columns: 1fr;

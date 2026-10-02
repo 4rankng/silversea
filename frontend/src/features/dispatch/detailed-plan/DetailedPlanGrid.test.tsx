@@ -384,7 +384,7 @@ describe('DetailedPlanGrid', () => {
     expect(container.querySelectorAll('.detailed-plan-grid__classification')).toHaveLength(4);
   });
 
-  it('opens one atomic edit dialog from the full Điều phối cell', async () => {
+  it('opens one atomic edit dialog from the compact Điều phối action', async () => {
     const { container } = renderGrid([row({ classification: 'SINGLE' })]);
     const dispatchCell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
     expect(dispatchCell).toBeTruthy();
@@ -408,28 +408,24 @@ describe('DetailedPlanGrid', () => {
     expect(within(dialog).queryByLabelText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
   });
 
-  it('keeps the dispatcher column read-like until its one full-cell trigger is clicked', () => {
+  it('keeps assignment facts as read content beside one independently named edit action', () => {
+    const item = row();
+    const { container } = renderGrid([item]);
+    const cell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
+    if (!cell) throw new Error('Missing actual assignment cell');
+    const trigger = within(cell).getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
+    expect(cell.querySelectorAll('button')).toHaveLength(1);
+    expect(trigger).toHaveTextContent(/^Sửa$/);
+    for (const text of [item.dispatch.carrierName ?? 'Chưa phân nhà xe', 'Chưa phân xe']) {
+      const fact = within(cell).getByText(text);
+      expect(trigger).not.toContainElement(fact);
+    }
+    expect(cell).toHaveAttribute('data-label-short', 'Điều phối');
+    expect(within(cell).queryByRole('textbox')).toBeNull();
     const editorCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
     const gridCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
-
-    expect(editorCss).toContain('.dispatch-assignment-cell__trigger {');
-    expect(editorCss).toContain('height: 100%;');
-    expect(editorCss).toContain('cursor: pointer;');
-    // Single-column trigger since the driver row joined the cell — every
-    // child (carrier, plate, driver) spans the full trigger width.
-    expect(editorCss).toMatch(/__trigger\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
-    expect(editorCss).toMatch(/\.detailed-plan-grid td\.detailed-plan-grid__cell--editable::after\s*\{[^}]*min-height:\s*72px;/);
-    expect(editorCss).toMatch(/\.dispatch-assignment-cell__carrier,[\s\S]*?\.dispatch-assignment-cell__driver\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
-    expect(editorCss).toMatch(/@container \(max-width:\s*900px\)[\s\S]*?td\.detailed-plan-grid__cell--editable::after\s*\{[^}]*display:\s*none;/);
     expect(editorCss).toContain('.dispatch-assignment-dialog__fields {');
     expect(editorCss).toMatch(/\.dispatch-assignment-dialog__fields > \.dispatch-assignment-dialog__check\s*\{[^}]*display:\s*flex;/);
-    // The grid's mobile `.detailed-plan-grid__cell::before` label rule has
-    // equal class specificity; the editable cell must win on `td` so its
-    // trigger covers the whole cell — not just below a stray label strip.
-    expect(editorCss).toMatch(/td\.detailed-plan-grid__cell--editable::before\s*\{\s*display:\s*none/);
-    // Keyboard focus must never switch the trigger to relative positioning:
-    // that shrink wraps it and un-clicks the bottom of the cell.
-    expect(editorCss).not.toMatch(/:focus-visible\s*\{[^}]*position:\s*relative/);
     expect(gridCss).not.toContain('.fulfillment-estimate-cell__value {');
   });
 
@@ -524,9 +520,9 @@ describe('DetailedPlanGrid', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
     expect(css).toContain('@container (max-width: 640px)');
-    expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(css).toContain('.detailed-plan-grid__cell--schedule,\n  .detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--ports,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
-    expect(css).toContain('.detailed-plan-grid__cell--classification {\n    position: absolute;');
+    expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\) minmax\(0, max-content\);/);
+    expect(css).toContain('.detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--ports,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
+    expect(css).toMatch(/td\.detailed-plan-grid__cell--classification\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*grid-row:\s*1;[^}]*grid-column:\s*3;/);
     // 2026-09-27 phone rework ("messy and wasted lots of space"): the label
     // rides the record line it names (short, sentence case) instead of owning
     // an uppercase row, and the values keep the `·` separator. Pinned so the
@@ -617,15 +613,27 @@ describe('DetailedPlanGrid', () => {
     expect(screen.queryByText(/Chọn nhanh ngày|KHUNG GIỜ/)).toBeNull();
   });
 
-  it('renders the Hoàn thành action inside the Ghi chú cell for in-flight external rows', () => {
+  it.each([
+    ['container', 'MSCU1234567', 'BL-2026-010', 'SS-000200', 'MSCU1234567'],
+    ['Bill/Booking projection', null, 'BL-2026-010', 'SS-000200', 'BL-2026-010'],
+    ['missing business reference', null, null, 'SS-000200', 'Chưa có số Bill/Booking'],
+    ['missing business reference and internal code', null, null, '', 'Chưa có số Bill/Booking'],
+  ] as const)('renders the Hoàn thành action with %s identity and preserves its existing row callback', (_case, containerNumber, billNumber, shipmentCode, reference) => {
     const onCompleteExternalTrip = vi.fn();
-    const { container } = renderGrid([row({
+    const item = row({
       taskStatus: 'DISPATCHED',
+      shipmentCode,
+      container: { ...row().container, containerNumber },
+      docs: { ...row().docs, billNumber },
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'CREATED' },
-    })], { onCompleteExternalTrip });
+    });
+    const { container } = renderGrid([item], { onCompleteExternalTrip });
     const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
-    fireEvent.click(within(notesCell).getByRole('button', { name: /Hoàn thành/ }));
+    const action = within(notesCell).getByRole('button', { name: `Hoàn thành · ${reference}` });
+    expect(action).not.toHaveAccessibleName(/SS-000200|dòng 101/);
+    fireEvent.click(action);
     expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1);
+    expect(onCompleteExternalTrip).toHaveBeenCalledWith(item);
   });
 
   it('renders no row action for an already-issued own row', () => {

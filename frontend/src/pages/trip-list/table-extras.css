@@ -40,7 +40,7 @@
 .trip-list-page .page-info b { color: var(--ink); font-weight: 700; }
 .trip-list-page .pagination { display: flex; align-items: center; gap: 6px; }
 .trip-list-page .page-btn {
-  min-width: 44px; min-height: 44px;
+  min-width: var(--control-max-h); min-height: var(--control-max-h);
   padding: 0 8px;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--surface);

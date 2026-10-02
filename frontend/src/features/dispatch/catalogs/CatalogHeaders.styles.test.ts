@@ -96,3 +96,24 @@ describe('fleet catalog command strips (card 20260926_57 — chief spec)', () =>
     expect(vehicles).toContain('Nhà xe: Tất cả');
   });
 });
+
+// UI34: shared Panel owns surface/corners; catalogs own only sticky reach.
+describe('resource catalogue house surface', () => {
+  it('retains shared white Panel and inherited flush-table top corners', () => {
+    const panel = readFileSync(resolve(catalogDirectory, '../../../components/Panel.css'), 'utf8');
+    expect(panel).toMatch(/\.panel\s*\{[^}]*background:\s*var\(--surface\)/);
+    expect(panel).toMatch(/\.panel\s*\{[^}]*border-radius:\s*var\(--r\)/);
+    const override = css.match(/\.dispatch-catalogs \.panel\s*\{([^}]*)\}/)?.[1];
+    expect(override).toMatch(/overflow:\s*visible/);
+    expect(override).not.toMatch(/background|border|radius/);
+    expect(panel).toMatch(/\.panel:not\(:has\(> \.panel__head\)\)[^{]*:first-child\s*\{[^}]*border-top-left-radius:\s*calc\(var\(--r\) - 1px\)/);
+    expect(panel).toMatch(/\.panel:not\(:has\(> \.panel__head\)\)[^{]*:last-child\s*\{[^}]*border-top-right-radius:\s*calc\(var\(--r\) - 1px\)/);
+  });
+
+  it('external registration uses labelled house fields without a page width cap', () => {
+    const source = readFileSync(resolve(catalogDirectory, 'ExternalFleetView.tsx'), 'utf8');
+    expect(source).toMatch(/<TextField\s+label="Biển số"/);
+    expect(source).not.toContain('dispatch-catalogs__input');
+    expect(css).not.toMatch(/\.dispatch-catalogs__drawer-select\s*\{/);
+  });
+});

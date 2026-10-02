@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import '../design-system/forms/TextField.css';
 import { ChevronLeft, ChevronRight, Loader2, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
 import { formatDateTimeVN, formatCurrency } from '../lib/format';
 import { Panel } from '../components/UI';
@@ -291,7 +292,7 @@ export default function SalaryAttendancePage() {
                       )}
                       {lifecycle?.status === 'CLOSED' && lifecycle.canReopen && canReopenCompanyPeriod && (
                         <>
-                          <div className="salary-attendance__form-group">
+                          <div className={`salary-attendance__form-group${reopenReasonError ? ' ds-field--error' : ''}`}>
                             <label htmlFor="salary-period-reopen-reason" className="salary-attendance__form-label">
                               Lý do mở lại kỳ
                             </label>
@@ -306,7 +307,7 @@ export default function SalaryAttendancePage() {
                                 }
                               }}
                               placeholder="Nêu rõ vì sao cần mở lại kỳ đã chốt"
-                              className={`salary-attendance__reopen-textarea ${reopenReasonError ? 'salary-attendance__reopen-textarea--error' : ''}`}
+                              className={`ds-field__input salary-attendance__reopen-textarea ${reopenReasonError ? 'salary-attendance__reopen-textarea--error' : ''}`}
                             />
                             {reopenReasonError && (
                               <div role="alert" className="salary-attendance__error-text">

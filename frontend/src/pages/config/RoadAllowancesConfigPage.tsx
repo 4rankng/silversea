@@ -73,7 +73,7 @@ export default function RoadAllowancesConfigPage() {
       columns={[
         { header: 'Tuyến đường', render: (ra) => routeMap.get(ra.routeId) || '—' },
         { header: 'Loại rơ-moóc', render: (ra) => <span className="badge badge-outline">{TRAILER_TYPE_LABELS[ra.trailerType] || ra.trailerType}</span> },
-        { header: 'Mức cơ bản', className: 'num', render: (ra) => <span style={{ color: 'var(--fg-1)' }}>{formatCurrency(ra.baseAmount)}</span> },
+        { header: 'Mức cơ bản', className: 'num', render: (ra) => <span className="data-token" style={{ color: 'var(--fg-1)' }}>{formatCurrency(ra.baseAmount)}</span> },
       ]}
       renderForm={(p) => <RoadAllowanceForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} routes={routes} onDelete={p.onDelete} deleting={p.deleting} />}
     />

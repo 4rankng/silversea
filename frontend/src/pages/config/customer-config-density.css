@@ -111,7 +111,7 @@
   .cfg-page--customers .cfg-customer-table tbody tr > td:first-child { grid-column: 1; min-width: 0; }
   .cfg-page--customers .cfg-customer-table tbody tr > td::before { display: none; }
   .cfg-page--customers .cfg-customer-table tbody tr > td.record-table__action { grid-column: 2; grid-row: 1; align-self: start; padding: 0; }
-  .cfg-page--customers .cfg-customer-table .row-action { min-width: 44px; min-height: 44px; }
+  .cfg-page--customers .cfg-customer-table .row-action { min-width: var(--control-max-h); min-height: var(--control-max-h); }
   .cfg-customer-short-name { display: block; font-size: var(--text-data-size); line-height: 1.4; }
   .cfg-customer-full-name { display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
   .cfg-customer-short-name + .cfg-customer-full-name { color: var(--ink-3); font-weight: var(--fw-regular, 400); font-size: var(--text-caption-size); }
@@ -124,7 +124,7 @@
   .cfg-customer-details dt { color: var(--ink-3); font-size: var(--text-caption-size); font-weight: var(--fw-regular, 400); }
   .cfg-customer-details dd { margin: 2px 0 0; overflow-wrap: anywhere; line-height: 1.4; font-size: var(--text-data-size); }
 }
-@media (pointer: coarse) { .cfg-customer-details > summary { min-height: 44px; } }
+@media (pointer: coarse) { .cfg-customer-details > summary { min-height: var(--control-max-h); } }
 
 /* Card 20260925_47 (audit, header-wrap band): the two Hạn Thanh Toán headers
    read 'HẠN THANH / TOÁN CHI HỘ / (NGÀY)' — three ragged lines at tight

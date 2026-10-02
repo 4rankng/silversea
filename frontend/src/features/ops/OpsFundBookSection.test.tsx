@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { OpsFundBook } from '../../api/opsClient';
 import { OpsFundBookSection } from './OpsFundBookSection';
@@ -39,6 +39,31 @@ function balanceColumn(): string[] {
 }
 
 describe('Sổ quỹ running balance', () => {
+  it('uses independent shared dates with ISO query scope, refuses inversion and clears back to the whole history (UI74)', () => {
+    useOpsFundBookMock.mockReturnValue({ data: book(), isLoading: false, isError: false, refetch: vi.fn() });
+    render(<OpsFundBookSection />);
+    const range = screen.getByRole('group', { name: 'Khoảng ngày sổ quỹ' });
+    const from = within(range).getByLabelText('Từ ngày');
+    const to = within(range).getByLabelText('Đến ngày');
+    expect(from).toHaveAttribute('type', 'text');
+    expect(to).toHaveAttribute('type', 'text');
+    expect(useOpsFundBookMock).toHaveBeenLastCalledWith({ from: undefined, to: undefined });
+    fireEvent.change(from, { target: { value: '28/09/2026' } });
+    expect(useOpsFundBookMock).toHaveBeenLastCalledWith({ from: '2026-09-28', to: undefined });
+    fireEvent.change(to, { target: { value: '28/09/2026' } });
+    expect(useOpsFundBookMock).toHaveBeenLastCalledWith({ from: '2026-09-28', to: '2026-09-28' });
+    const callsBeforeInvalid = useOpsFundBookMock.mock.calls.length;
+    fireEvent.change(from, { target: { value: '29/09/2026' } });
+    fireEvent.blur(from, { relatedTarget: screen.getByRole('button', { name: 'Xoá khoảng' }) });
+    expect(screen.getByRole('alert')).toHaveTextContent('Chọn ngày đến 28/09/2026.');
+    expect(useOpsFundBookMock.mock.calls.slice(callsBeforeInvalid)).not.toContainEqual([{ from: '2026-09-29', to: '2026-09-28' }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá khoảng' }));
+    expect(useOpsFundBookMock).toHaveBeenLastCalledWith({ from: undefined, to: undefined });
+    for (const input of within(range).getAllByRole('textbox')) expect(input).toHaveValue('');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(balanceColumn()).toEqual(['7.000.000', '6.910.000']);
+  });
+
   it('starts the Số dư column at the window opening and lands on the closing', () => {
     useOpsFundBookMock.mockReturnValue({ data: book(), isLoading: false, isError: false, refetch: vi.fn() });
     render(<OpsFundBookSection />);

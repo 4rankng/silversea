@@ -99,7 +99,7 @@ export default function CapTableConfigPage() {
         {
           header: 'Số vốn góp',
           className: 'num',
-          render: (ct) => <span style={{ fontWeight: 600 }}>{formatCurrency(parseFloat(ct.contributionAmount) || 0)}</span>,
+          render: (ct) => <span className="data-token" style={{ fontWeight: 600 }}>{formatCurrency(parseFloat(ct.contributionAmount) || 0)}</span>,
         },
         {
           header: 'Tỷ lệ (%)',

@@ -39,9 +39,9 @@
 
 .shipment-detail__card {
   min-width: 0;
-  background: var(--bg-1);
-  border: 1px solid var(--border-2);
-  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
   padding: 16px;
 }
 
@@ -69,8 +69,8 @@
   font-size: var(--text-caption-size);
   color: var(--fg-3);
   padding: 2px 8px;
-  border-radius: 6px;
-  background: var(--bg-2);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
 }
 
 .shipment-detail__fields {
@@ -145,6 +145,8 @@
 }
 
 .shipment-detail__table th {
+  white-space: normal;
+  overflow-wrap: normal;
   font-weight: 600;
   color: var(--fg-2);
   font-size: var(--text-caption-size);
@@ -172,8 +174,8 @@
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  background: var(--bg-2);
-  border-radius: 6px;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
   font-size: var(--text-data-size);
 }
 
@@ -200,8 +202,8 @@
 
 .shipment-detail__decl {
   padding: 8px 10px;
-  background: var(--bg-2);
-  border-radius: 6px;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
   font-size: var(--text-data-size);
   display: flex;
   flex-direction: column;
@@ -402,7 +404,7 @@
 }
 
 .shipment-pod-review__action {
-  min-height: 44px;
+  min-height: var(--control-max-h);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -475,7 +477,7 @@
 }
 
 .shipment-pod-review__vat-field select {
-  min-height: 44px;
+  min-height: var(--control-max-h);
   width: 100%;
   border: 1px solid var(--border-2);
   border-radius: 8px;
@@ -491,7 +493,7 @@
 }
 
 .shipment-pod-review__complete-button {
-  min-height: 44px;
+  min-height: var(--control-max-h);
   white-space: nowrap;
 }
 
@@ -511,7 +513,7 @@
   padding: 12px;
   border: 1px solid var(--warning);
   border-radius: 8px;
-  background: #fffbeb;
+  background: var(--warning-soft);
   color: var(--warning-text);
   line-height: 1.45;
   cursor: pointer;

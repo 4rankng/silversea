@@ -130,8 +130,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   border-radius: 10px;
   transition: color 0.15s ease;
 }
@@ -146,7 +146,7 @@
 }
 
 .salary-summary-dark__row-val--pos {
-  color: var(--accent);
+  color: var(--success-text);
 }
 
 .salary-summary-dark__row--total {
@@ -164,7 +164,7 @@
 }
 
 .salary-summary-dark__row--total .salary-summary-dark__row-val {
-  color: var(--accent);
+  color: var(--success-text);
   font-size: var(--fs-md);
   font-weight: 700;
 }

@@ -320,7 +320,6 @@
 .tc-rail-btn {
   width: 100%;
   justify-content: center;
-  min-height: 45px;
   font-weight: 600;
   letter-spacing: 0.005em;
 }
@@ -387,6 +386,12 @@
   .tc-card-body {
     gap: 12px;
   }
+
+}
+
+/* Complement the shared .desktop-only cutoff: every narrow edit width owns
+ * one footer, including the tablet band between641 and820px. */
+@media (max-width: 820px) {
   .tc-edit-mobile-bar {
     display: flex;
     position: fixed;
@@ -404,7 +409,6 @@
   .tc-mobile-btn {
     flex: 1;
     justify-content: center;
-    min-height: 45px;
   }
   .tc-mobile-btn--primary {
     flex: 2;

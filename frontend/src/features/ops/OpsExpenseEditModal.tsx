@@ -1,3 +1,5 @@
+import { PhotoImage } from '../../components/shared/PhotoImage';
+import { opsBillReference } from './opsStatus';
 import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, X, Trash2 } from 'lucide-react';
 import { useOpsExpenseTypes, useUpdateOpsExpense, useAttachOpsExpensePhoto, useOpsExpensePhotos, useDeleteOpsExpensePhoto } from '../../hooks/useOpsQueries';
@@ -140,10 +142,10 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   }
 
   return (
-    <OpsModalBackdrop onClose={() => { if (!savingRef.current && !uploadingPhoto) onClose(); }} ariaLabel={`Sửa khoản chi ${entry.shipmentCode ?? ''}`}>
+    <OpsModalBackdrop onClose={() => { if (!savingRef.current && !uploadingPhoto) onClose(); }} ariaLabel={`Sửa khoản chi ${opsBillReference(entry.billRef)}`}>
       <form className="ops-modal" onSubmit={handleSubmit}>
         <header className="ops-modal__head">
-          <h2>Sửa khoản chi · {entry.shipmentCode ?? '—'}{entry.containerNumber ? ` · ${entry.containerNumber}` : ''}</h2>
+          <h2>Sửa khoản chi · {opsBillReference(entry.billRef)}{entry.containerNumber ? ` · ${entry.containerNumber}` : ''}</h2>
           <button type="button" aria-label="Đóng" disabled={updateExpense.isPending || uploadingPhoto} onClick={onClose}><X size={18} /></button>
         </header>
         <div className="ops-modal__body">
@@ -151,7 +153,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
           {typesQuery.isPending && <p role="status">Đang tải danh mục loại phí…</p>}
           {typesQuery.isError && <div role="alert">
             <p>Không tải được danh mục loại phí. Nội dung đang nhập vẫn được giữ.</p>
-            <button type="button" className="btn-secondary" disabled={typesQuery.isFetching} onClick={() => void typesQuery.refetch()}>
+            <button type="button" className="btn btn--secondary" disabled={typesQuery.isFetching} onClick={() => void typesQuery.refetch()}>
               {typesQuery.isFetching ? 'Đang tải…' : 'Thử tải lại loại phí'}
             </button>
           </div>}
@@ -195,7 +197,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
               </span>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn--secondary"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploadingPhoto || attachPhoto.isPending}
               >
@@ -217,9 +219,9 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
               <ul className="ops-form-photos__list">
                 {serverPhotos.map((photo, photoIndex) => (
                   <li key={photo.storageKey}>
-                    <img src={serverPhotoUrls[photoIndex]} alt="Biên lai khoản chi" />
+                    <PhotoImage src={serverPhotoUrls[photoIndex]} alt="Biên lai khoản chi" />
                     {/* Business key + position — never the DB row id (internal-ids law). */}
-                    <button type="button" aria-label={`Xóa ảnh biên lai ${entry.shipmentCode ?? 'khoản chi'} · ảnh ${photoIndex + 1}`} disabled={locked || deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được ảnh.' }))}><Trash2 size={14} /></button>
+                    <button type="button" aria-label={`Xóa ảnh biên lai ${opsBillReference(entry.billRef)} · ảnh ${photoIndex + 1}`} disabled={locked || deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được ảnh.' }))}><Trash2 size={14} /></button>
                   </li>
                 ))}
               </ul>
@@ -229,8 +231,8 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
         <footer className="ops-modal__foot">
           <div>{entry.rejectionReason ? `Lý do bị từ chối: ${entry.rejectionReason}` : ''}</div>
           <div className="ops-modal__actions">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={updateExpense.isPending || uploadingPhoto}>Đóng</button>
-            {!locked && <button type="submit" className="btn-primary" disabled={!canSubmit}>
+            <button type="button" className="btn btn--secondary" onClick={onClose} disabled={updateExpense.isPending || uploadingPhoto}>Đóng</button>
+            {!locked && <button type="submit" className="btn btn--primary" disabled={!canSubmit}>
               {updateExpense.isPending ? <Loader2 size={14} className="spin" /> : null} Lưu
             </button>}
           </div>

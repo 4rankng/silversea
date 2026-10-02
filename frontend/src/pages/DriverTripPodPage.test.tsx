@@ -104,6 +104,7 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
     accountingLock: null,
     fulfillment: {
       id: 88,
+      documentNumber: ' BILL-POD-55 ',
       driverNotes: null,
     },
     currentPod: makePod([]),
@@ -138,6 +139,24 @@ describe('DriverTripPodPage', () => {
       isError: false,
       refetch: refetchMock,
     });
+  });
+
+  it('QA-AUDIT-DRV-POD-01 uses the business reference in the header and document panel', () => {
+    renderPage();
+    expect(screen.getByText('BILL-POD-55')).toBeInTheDocument();
+    expect(screen.queryByText('TRIP-55')).toBeNull();
+    expect(podSubmissionMock.mock.calls.at(-1)?.[0].documentNumber).toBe('BILL-POD-55');
+  });
+
+  it.each([null, '   '])('QA-AUDIT-DRV-POD-01 names a missing document number (%s)', (documentNumber) => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ fulfillment: { id: 88, documentNumber, driverNotes: null } }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    renderPage();
+    expect(screen.getByText('Chưa có số Bill/Booking')).toBeInTheDocument();
+    expect(screen.queryByText('TRIP-55')).toBeNull();
+    expect(podSubmissionMock.mock.calls.at(-1)?.[0].documentNumber).toBe('Chưa có số Bill/Booking');
   });
 
   it('renders the e-POD screen with the mandatory-photo footer gate', async () => {

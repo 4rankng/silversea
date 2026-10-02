@@ -130,13 +130,10 @@
   color: var(--danger);
 }
 .tc-hero-widgets .tc-summary-row__val--pos {
-  color: var(--accent);
+  color: var(--success-text);
 }
 .tc-hero-widgets .tc-summary-row--total {
   border-top-color: var(--line);
-}
-.tc-hero-widgets .tc-summary-row--total .tc-summary-row__val {
-  color: var(--accent);
 }
 .tc-hero-widgets .tc-summary-row--total .tc-summary-row__lbl {
   color: var(--ink);

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { listBoard, sendRequests, confirmReq, withdrawReq, listRounds, createRound } = vi.hoisted(() => ({
   listBoard: vi.fn(),
@@ -63,6 +63,8 @@ function boardWith(rows: AccountingDebitBoardRow[]) {
 }
 
 const dataRows = (container: HTMLElement) => [...container.querySelectorAll('.debit-board tbody tr')] as HTMLElement[];
+const originalMatchMedia = window.matchMedia;
+afterEach(() => { window.matchMedia = originalMatchMedia; });
 
 beforeEach(() => {
   // The column choice is per-workstation state (card 20260928_193): a choice
@@ -73,11 +75,65 @@ beforeEach(() => {
 });
 
 describe('AccountingDebitClosePage — heading and board identity', () => {
+  it('QA-AUDIT-UI-65 gives pending reconciliation its complete action lane with the original request identity', async () => {
+    window.matchMedia = (media): MediaQueryList => ({
+      media, matches: media === '(max-width: 640px)', onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
+    });
+    boardWith([row({ adjustment: { status: 'PENDING', requestId: 55, requestedAt: null, confirmedAt: null } })]);
+    renderPage();
+    const record = await screen.findByRole('article', { name: 'BL-1' });
+    const confirm = within(record).getByRole('button', { name: 'Xác nhận' });
+    expect(confirm.closest('.ledger-record__fact')).toHaveAttribute('data-layout', 'full-width');
+    expect(within(record).getByText('1.790.000 ₫').closest('.ledger-record__fact')).not.toHaveAttribute('data-layout');
+    fireEvent.click(confirm);
+    await waitFor(() => expect(confirmReq.mock.calls[0]?.[0]).toEqual([55]));
+    expect(confirmReq).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(within(record).getByRole('button', { name: 'Rút' })).toBeEnabled());
+    fireEvent.click(within(record).getByRole('button', { name: 'Rút' }));
+    await waitFor(() => expect(withdrawReq.mock.calls[0]?.[0]).toEqual([55]));
+    expect(withdrawReq).toHaveBeenCalledTimes(1);
+    expect(sendRequests).not.toHaveBeenCalled(); expect(createRound).not.toHaveBeenCalled();
+  });
+  it('offers phone facts and independent selection without writing a cancelled debit', async () => {
+    window.matchMedia = (media): MediaQueryList => ({
+      media, matches: media === '(max-width: 640px)', onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {},
+      dispatchEvent() { return true; },
+    });
+    boardWith([row()]);
+    renderPage();
+    const record = await screen.findByRole('article', { name: 'BL-1' });
+    expect(within(record).getByText('KH A')).toBeVisible();
+    expect(within(record).getByText('ABCZ1234567 · 40HC')).toBeVisible();
+    const selection = within(record).getByRole('checkbox', { name: 'Chọn BL-1' });
+    fireEvent.click(within(record).getByText('Chi tiết'));
+    expect(selection).not.toBeChecked();
+    fireEvent.click(selection);
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn Debit (1 dòng)' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chọn Debit — chốt đợt đối soát' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    expect(createRound).not.toHaveBeenCalled();
+    expect(sendRequests).not.toHaveBeenCalled();
+    expect(confirmReq).not.toHaveBeenCalled();
+    expect(within(record).getByRole('checkbox')).toBeChecked();
+  });
+  it('keeps Bill/Booking and customer separate and never falls back to internal shipment codes', async () => {
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: null, customerName: 'KH B' })]);
+    renderPage();
+    const reference = await screen.findByText('BL-1');
+    expect(reference.parentElement).toHaveClass('record-cell-stack');
+    expect(reference.parentElement?.querySelector('small')).toHaveTextContent('KH A');
+    expect(screen.getByText('Chưa có số Bill/Booking')).toBeInTheDocument();
+    expect(screen.queryByText('SHP-26-0001')).not.toBeInTheDocument();
+    expect(screen.queryByText('SHP-26-0002')).not.toBeInTheDocument();
+  });
+
   it('names the screen, not the document (page-heading law)', async () => {
     boardWith([row()]);
     renderPage();
     expect(await screen.findByRole('heading', { level: 1, name: 'Kế toán chốt debit' })).toBeInTheDocument();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     // The document's name is the BOARD's, and the page never shouts: no heading
     // or visible caption carries an ALL-CAPS run.
     expect(screen.getByRole('heading', { level: 2, name: /Kế hoạch điều động tổng hợp/ })).toBeInTheDocument();
@@ -117,12 +173,12 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     // missing, the column is not offered a track; the totals keep theirs.
     boardWith([row({ thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null } })]);
     const { unmount } = renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     expect(screen.queryByText('Cước thu (tự động)')).not.toBeInTheDocument();
     expect(screen.getByText('Tổng thu')).toBeInTheDocument();
     unmount();
     // One row carrying a rate is enough for the column to exist again.
-    boardWith([row({ thu: { ...RATES, cuocThu: null } }), row({ shipmentId: 2, code: 'SHP-26-0002' })]);
+    boardWith([row({ thu: { ...RATES, cuocThu: null } }), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2' })]);
     renderPage();
     expect(await screen.findByText('Cước thu (tự động)')).toBeInTheDocument();
   });
@@ -130,7 +186,7 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
   it('offers the column picker on the shared strip', async () => {
     boardWith([row()]);
     renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     expect(screen.getByRole('button', { name: /Cột hiển thị/ })).toBeInTheDocument();
   });
 });
@@ -139,7 +195,7 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
   it('has no checkbox column; a row is picked by clicking it', async () => {
     boardWith([row()]);
     const { container } = renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     expect(screen.queryAllByRole('checkbox')).toEqual([]);
     const first = dataRows(container)[0];
     fireEvent.click(first);
@@ -151,7 +207,7 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
   it('picks the focused row with the keyboard', async () => {
     boardWith([row()]);
     const { container } = renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     const first = dataRows(container)[0];
     expect(first.getAttribute('tabindex')).toBe('0');
     fireEvent.keyDown(first, { key: ' ' });
@@ -161,7 +217,7 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
   it('a row waiting on reconciliation is inert — its controls decide instead', async () => {
     boardWith([row({ adjustment: { status: 'PENDING', requestId: 55, requestedAt: null, confirmedAt: null } })]);
     const { container } = renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     const first = dataRows(container)[0];
     expect(first.getAttribute('tabindex')).toBeNull();
     fireEvent.click(first);
@@ -170,7 +226,7 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
   });
 
   it('select-all covers the rows the filter is showing', async () => {
-    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002' })]);
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2' })]);
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Chọn tất cả 2 lô đủ điều kiện/ }));
     expect(await screen.findByText('Đã chọn 2 lô')).toBeInTheDocument();
@@ -178,10 +234,10 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
   });
 
   it('sends the adjustment request for the picked rows and clears the selection', async () => {
-    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002' })]);
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2' })]);
     sendRequests.mockResolvedValue({ requested: [1], alreadyPending: [], locked: [] });
     const { container } = renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     fireEvent.click(dataRows(container)[0]);
     fireEvent.click(await screen.findByRole('button', { name: /Gửi yêu cầu điều chỉnh cước/ }));
     await waitFor(() => expect(sendRequests.mock.calls[0][0]).toEqual({ shipmentIds: [1] }));
@@ -191,7 +247,7 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
   it('confirms every pending row the filter is showing, in one pass', async () => {
     boardWith([
       row(),
-      row({ shipmentId: 2, code: 'SHP-26-0002', adjustment: { status: 'PENDING', requestId: 55, requestedAt: null, confirmedAt: null } }),
+      row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', adjustment: { status: 'PENDING', requestId: 55, requestedAt: null, confirmedAt: null } }),
     ]);
     confirmReq.mockResolvedValue({});
     renderPage();
@@ -202,33 +258,33 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
 
 describe('AccountingDebitClosePage — filters', () => {
   it('the search cell narrows the board by code, bill or customer', async () => {
-    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH B' })]);
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', customerName: 'KH B' })]);
     renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     fireEvent.change(screen.getByLabelText('Tìm lô hàng'), { target: { value: 'KH B' } });
-    await waitFor(() => expect(screen.queryByText('SHP-26-0001')).not.toBeInTheDocument());
-    expect(screen.getByText('SHP-26-0002')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('BL-1')).not.toBeInTheDocument());
+    expect(screen.getByText('BL-2')).toBeInTheDocument();
   });
 
   it('the customer facet narrows the board and drops the previous selection', async () => {
-    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH B', phanXe: ['Nhà xe B'] })]);
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', customerName: 'KH B', phanXe: ['Nhà xe B'] })]);
     const { container } = renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     fireEvent.click(dataRows(container)[0]);
     fireEvent.click(screen.getByRole('button', { name: /Chọn khách hàng/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
-    await waitFor(() => expect(screen.queryByText('SHP-26-0002')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('BL-2')).not.toBeInTheDocument());
     expect(screen.queryByText(/Đã chọn/)).not.toBeInTheDocument();
   });
 
   it('the truck facet narrows by phân xe', async () => {
-    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH B', phanXe: ['Nhà xe B'] })]);
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', customerName: 'KH B', phanXe: ['Nhà xe B'] })]);
     renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     fireEvent.click(screen.getByRole('button', { name: /Chọn nhà xe/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Nhà xe B' }));
-    await waitFor(() => expect(screen.queryByText('SHP-26-0001')).not.toBeInTheDocument());
-    expect(screen.getByText('SHP-26-0002')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('BL-1')).not.toBeInTheDocument());
+    expect(screen.getByText('BL-2')).toBeInTheDocument();
   });
 
   it('an empty page speaks with the shared empty state, not a bare table row', async () => {
@@ -243,7 +299,7 @@ describe('AccountingDebitClosePage — Chọn Debit popup + settlement rounds (c
   it('opens the popup with the picked lots, and the direction tick reveals counterparty + amount', async () => {
     boardWith([row()]);
     const { container } = renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     fireEvent.click(dataRows(container)[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Chọn Debit (1 dòng)' }));
     const dialog = await screen.findByRole('dialog', { name: 'Chọn Debit — chốt đợt đối soát' });
@@ -261,7 +317,7 @@ describe('AccountingDebitClosePage — Chọn Debit popup + settlement rounds (c
       totalAmount: 1933200, amount: '1790000',
     });
     const { container } = renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     fireEvent.click(dataRows(container)[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Chọn Debit (1 dòng)' }));
     const dialog = await screen.findByRole('dialog');
@@ -282,7 +338,7 @@ describe('AccountingDebitClosePage — Chọn Debit popup + settlement rounds (c
     boardWith([row()]);
     createRound.mockRejectedValue(new Error('Lô SHP-26-0001 đã thuộc một đợt chốt (Lần 1 · 2026/09).'));
     const { container } = renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findByText('BL-1');
     fireEvent.click(dataRows(container)[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Chọn Debit (1 dòng)' }));
     await screen.findByRole('dialog');

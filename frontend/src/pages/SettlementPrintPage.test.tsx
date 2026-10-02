@@ -50,6 +50,31 @@ describe('settlement read-only exports', () => {
     expect(screen.queryByText(/1\.000\.000/)).not.toBeInTheDocument();
   });
 
+
+  it.each(['zero', 'positive', 'negative'] as const)('keeps the %s settlement balance tone and existing magnitude label', (balanceState) => {
+    if (balanceState === 'positive') {
+      state.linkedRequests = [{
+        id: 10, amount: '1000000', allocatedAmount: '1000', reason: 'Tạm ứng một triệu',
+        status: 'RECORDED', createdAt: '2026-09-17T00:00:00.000Z',
+      }];
+    }
+    if (balanceState === 'negative') {
+      state.linkedExpenses = [{
+        id: 5, tripId: 10, expenseType: 'OTHER', buyAmount: '1000',
+        departureDate: '2026-09-17', customerName: 'Khách hàng tên dài để kiểm tra hiển thị',
+        containerNumber: 'CSQU3054383', invoiceNumber: 'INV-LONG-1234', note: null, tripCode: 'QA-TRIP-10',
+      }];
+    }
+    const { container } = page();
+    const owner = container.querySelector('.settlement-detail__summary-card--balance');
+    const value = owner?.querySelector('.settlement-detail__summary-value');
+    expect(owner).toHaveTextContent(balanceState === 'zero' ? 'Chênh lệch sau quyết toán' : balanceState === 'positive' ? 'Còn dư chưa hoàn' : 'Thiếu phải bổ sung');
+    expect(value).toHaveTextContent(balanceState === 'zero' ? '0 ₫' : '1.000 ₫');
+    expect(value?.classList.contains('settlement-detail__summary-value--positive')).toBe(balanceState === 'positive');
+    expect(value?.classList.contains('settlement-detail__summary-value--negative')).toBe(balanceState === 'negative');
+    expect(getBlob).not.toHaveBeenCalled();
+  });
+
   it('keeps expense labels and complete values available when rows reflow on mobile', () => {
     state.linkedExpenses = [{
       id: 5, tripId: 10, expenseType: 'OTHER', buyAmount: '1000',

@@ -32,9 +32,8 @@
 }
 .pnl-row--subtotal { background: var(--surface-2); border-top: 1px solid var(--line); font-weight: 600; }
 .pnl-row--final {
-  background: var(--accent-soft);
-  border-top: 2px solid var(--accent);
-  border-bottom: 2px solid var(--accent);
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
 }
 .pnl-row__label { font-size: var(--fs-sm); color: var(--ink); }
 .pnl-row__label-sub { font-size: var(--fs-2xs); color: var(--ink-3); font-family: var(--font-data); margin-top: 2px; }
@@ -45,11 +44,26 @@
   font-weight: 700;
   font-size: var(--fs-xl);
   letter-spacing: 0;
-  color: var(--accent);
+}
+.pnl-row--profit-total {
+  --profit-tone: var(--ink);
+  background: var(--surface-2);
+}
+.pnl-row--profit-total[data-profit-state='profit'] {
+  --profit-tone: var(--success-text);
+  background: var(--success-soft);
+}
+.pnl-row--profit-total[data-profit-state='loss'] {
+  --profit-tone: var(--danger);
+  background: var(--danger-soft);
+}
+.pnl-row--profit-total :is(.pnl-row__label, .pnl-row__amount) {
+  color: var(--profit-tone);
+  font-weight: 700;
 }
 .pnl-row__yoy { font-family: var(--font-data); font-size: var(--fs-xs); color: var(--ink-3); text-align: right; }
 .pnl-row__pct { text-align: right; font-family: var(--font-data); font-size: var(--fs-xs); font-weight: 600; }
-.pnl-row__pct--up { color: var(--accent); }
+.pnl-row__pct--up { color: var(--success-text); }
 .pnl-row__pct--down { color: var(--danger); }
 
 .pnl-head {
@@ -207,7 +221,7 @@
 .truck-card__bar-track {
   height: 4px;
   border-radius: 2px;
-  background: var(--border);
+  background: var(--line);
   overflow: hidden;
   margin-bottom: 6px;
 }
@@ -235,7 +249,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   padding: 0;
   border: 0;
   color: inherit;
@@ -593,7 +607,7 @@
   background: var(--wf-card);
 }
 .dash-wf .wf-chart-toggle__btn {
-  min-height: 45px;
+  min-height: var(--control-max-h);
   padding: 8px 14px;
   font-family: var(--font-body);
   font-size: var(--fs-xs);
@@ -604,7 +618,7 @@
   cursor: pointer;
   transition: background var(--t-fast), color var(--t-fast);
   line-height: 1.4;
-  min-height: 45px;
+  min-height: var(--control-max-h);
 }
 .dash-wf .wf-chart-toggle__btn:hover {
   color: var(--wf-ink);

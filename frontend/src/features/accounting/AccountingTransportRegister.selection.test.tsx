@@ -94,6 +94,15 @@ const draftHref = () => decodeURIComponent(
 );
 
 describe('card 20260929_207 — row selection replaces the checkbox column', () => {
+  it('ID03 renders an honest missing business reference without changing row selection or debt link identity', () => {
+    const { container } = renderRegister([row({ tripId: 196, tripCode: null })]);
+    const [first] = bodyRows(container);
+    expect(within(first).getByText('Chưa có số Bill/Booking')).toBeInTheDocument();
+    expect(within(first).getByRole('link', { name: 'Công nợ' })).toHaveAttribute('href', '/debt/5');
+    fireEvent.click(within(first).getByText('Chưa có số Bill/Booking'));
+    expect(first).toHaveAttribute('aria-selected', 'true');
+    expect(draftHref()).toContain('196');
+  });
   it('ships no checkbox anywhere in the register', () => {
     const { container } = renderRegister([row()]);
     expect(container.querySelector('input[type="checkbox"]')).toBeNull();

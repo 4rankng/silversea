@@ -46,7 +46,7 @@ describe('PhoiPhieuControlPage date filter control contract', () => {
     const bar = container.querySelector('.list-filter-bar') as HTMLElement;
     expect(bar).toBeTruthy();
     expect(container.querySelector('.date-range-fields')).toBeTruthy();
-    expect(within(bar).getByLabelText('Tìm kiếm')).toHaveAttribute('placeholder', 'Mã chuyến, container, khách');
+    expect(within(bar).getByLabelText('Tìm kiếm')).toHaveAttribute('placeholder', 'Bill/Booking, phí, hóa đơn');
     expect(within(bar).getByRole('button', { name: /Lập phiếu/ })).toBeTruthy();
   });
 
@@ -123,7 +123,7 @@ describe('PhoiPhieuControlPage — the not-charged reason column (card 20260928_
 
   it('names the empty column slot with the house dash when the lot has no OPS note', async () => {
     const { container } = renderPageWithRow({ ...reasonRow, opsRecoveryNotes: [] });
-    await screen.findByText(/TRP-162/);
+    await screen.findByText(/BILL-162/);
     const opsCells = container.querySelectorAll('td.ppc-col--ghichu-ops');
     expect(opsCells).toHaveLength(1);
     expect(opsCells[0]!.textContent).toBe('—');

@@ -1,7 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
-import { deriveTripCostBreakdown } from './finance-derived';
+import { deriveTripCostBreakdown, yoyClass, yoyPct } from './finance-derived';
 import type { PnlReport } from '../hooks/useQueries';
+
+describe('recognized report comparisons (UI75)', () => {
+  it('preserves actual movement across negative and zero baselines', () => {
+    expect(yoyPct(2_850_000, -110_000)).toBe('+2690.9%');
+    expect(yoyPct(-200, -100)).toBe('-100.0%');
+    expect(yoyPct(-50, -100)).toBe('+50.0%');
+    expect(yoyPct(-100, 0)).toBe('Mới');
+    expect(yoyPct(0, 0)).toBe('0%');
+    expect(yoyPct(-100, -100)).toBe('0.0%');
+    expect(yoyPct(null, 0)).toBe('—');
+    expect(yoyPct(100, null)).toBe('—');
+  });
+
+  it('keeps expenses lower-favorable and equality/unknown neutral', () => {
+    expect(yoyClass(100, 50, 'down')).toBe('pnl-row__pct--down');
+    expect(yoyClass(50, 100, 'down')).toBe('pnl-row__pct--up');
+    expect(yoyClass(100, 100)).toBe('');
+    expect(yoyClass(100, null)).toBe('');
+    expect(yoyClass(-50, -100)).toBe('pnl-row__pct--up');
+    expect(yoyClass(-200, -100)).toBe('pnl-row__pct--down');
+  });
+});
 
 describe('deriveTripCostBreakdown', () => {
   it('uses authoritative trip details and reconciles residual cost back to totalCosts', () => {

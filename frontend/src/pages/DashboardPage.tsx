@@ -208,7 +208,7 @@ export default function DashboardPage() {
         pct: slice.pct,
         color: slice.color,
       }))
-      .filter(item => item.value > 0 && item.pct > 0)
+      .filter(item => item.value !== null && item.value > 0 && item.pct !== null && item.pct > 0)
       .sort((a, b) => b.value - a.value);
   }, [d]);
 

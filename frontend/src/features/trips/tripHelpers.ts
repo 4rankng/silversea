@@ -1,5 +1,6 @@
 import { Banknote, Fuel, type LucideIcon } from 'lucide-react';
-import { TripStatus, type TripDetail } from '@tingting/shared';
+import { computeTripTotals, TripStatus, type TripDetail } from '@tingting/shared';
+import { billBookingReference } from '../../lib/business-reference';
 
 export interface TripListContainer {
   containerNumber: string;
@@ -24,9 +25,9 @@ export const STATUS_PILL_CLASS: Record<TripStatus, string> = {
 export const DEFAULT_WARN_THRESHOLD = 37;
 export const PAGE_SIZE = 25;
 
-export function buildTripCode(trip: TripDetail): string {
-  if (trip.tripCode) return trip.tripCode;
-  return '—';
+export function buildTripCode(trip: Pick<TripDetail, 'customerReference'>): string {
+  // Dispatch issuance persists the originating Bill/Booking in customerReference.
+  return billBookingReference(trip.customerReference);
 }
 
 /**
@@ -62,14 +63,21 @@ export function getTripDisplayGrossProfit(trip: TripDetail): number {
     return Number(trip.grossProfit ?? 0);
   }
 
-  const revenue = Number(trip.revenue ?? 0);
-  const externalFreightCost = Number(trip.externalFreightCost ?? 0);
-  if (!revenue || !externalFreightCost) {
-    return Number(trip.grossProfit ?? 0);
-  }
+  return getExternalTripDisplayTotals(trip).grossProfit;
+}
 
-  const vatRate = Number(trip.vatRate ?? 0.08);
-  return Math.round(revenue / (1 + vatRate)) - Math.round(externalFreightCost / (1 + vatRate));
+export function getExternalTripDisplayTotals(trip: TripDetail) {
+  return computeTripTotals({
+    legs: [], fuelMode: 'AUTO', fuelLitersOverride: null, fuelSupplementLiters: 0,
+    fuelLoadedNorm: 0, fuelEmptyNorm: 0, fuelPerTripSupplement: 0, fuelUnitPrice: 0,
+    isMountainRoute: false, mountainFixedAllowance: null, roadAllowanceBase: 0,
+    tollsDiscount: 0, tollsAddition: 0, tollsStations: 0, tollPerStation: 0,
+    hasReturnCargo: false, returnCargoBonus: 0, driverSalary: 0,
+    twoPointDeliveryBonus: 0, vehicleShiftAllowance: 0, carrierType: 'EXTERNAL',
+    revenue: Number(trip.revenue ?? 0), externalFreightCost: Number(trip.externalFreightCost ?? 0),
+    vatRate: Number(trip.vatRate ?? 0), customerCommission: Number(trip.customerCommission ?? 0),
+    reconciledExtraCost: Number(trip.reconciledExtraCost ?? 0),
+  });
 }
 
 export interface MissingIndicator {
@@ -83,7 +91,7 @@ export function getMissingIndicators(trip: TripDetail): MissingIndicator[] {
   const revenue = Number(trip.revenue ?? 0);
   if (!revenue) missing.push({ icon: Banknote, label: 'Chưa nhập doanh thu' });
   const fuel = Number(trip.fuelLiters ?? 0);
-  if (!fuel) missing.push({ icon: Fuel, label: 'Chưa khai báo dầu' });
+  if (trip.carrierType !== 'EXTERNAL' && !fuel) missing.push({ icon: Fuel, label: 'Chưa khai báo dầu' });
   return missing;
 }
 

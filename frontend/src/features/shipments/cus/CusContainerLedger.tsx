@@ -553,7 +553,7 @@ export function ContainerLedger({
               className="btn btn--ghost btn--sm cus-container-revert"
               onClick={discardAll}
               disabled={saving}
-              title="Hủy thay đổi (Esc)"
+              title="Hủy thay đổi"
             >
               Hủy
             </button>
@@ -562,7 +562,7 @@ export function ContainerLedger({
               className="btn btn--primary btn--sm cus-container-confirm"
               onClick={() => void saveAll()}
               disabled={saving}
-              title="Lưu tất cả thay đổi (Enter)"
+              title="Lưu tất cả thay đổi"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

@@ -1025,7 +1025,7 @@
   }
 
   .fleet-page .page-actions .btn {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     padding-inline: 14px;
     border-radius: 12px;
   }

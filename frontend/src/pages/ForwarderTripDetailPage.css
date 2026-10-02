@@ -159,7 +159,7 @@
 .fwd-expense-group__header > div { display: grid; gap: 2px; }
 .fwd-expense-group__header strong { font-size: var(--text-data-size); color: var(--fg-1); }
 .fwd-expense-group__header span { font-size: var(--text-caption-size); color: var(--fg-3); }
-.fwd-expense-action { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; }
+.fwd-expense-action { min-width: var(--control-max-h); min-height: var(--control-max-h); display: inline-grid; place-items: center; }
 
 .fwd-expense-record { padding: 10px 20px; border-bottom: 1px solid var(--border-1); }
 .fwd-expense-record__layout { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
@@ -229,7 +229,7 @@
 
 @media (max-width: 560px) {
   .fwd-expense-group__header { align-items: flex-start; }
-  .fwd-expense-group__header .btn { min-height: 44px; }
+  .fwd-expense-group__header .btn { min-height: var(--control-max-h); }
 }
 
 /* ── Back button ─────────────────────────────────────────── */

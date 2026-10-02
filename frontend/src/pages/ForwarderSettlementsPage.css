@@ -1011,7 +1011,7 @@
   .fset-create-form { animation: none; }
 }
 .fset-incomplete-label {
-  color: #92400e;
+  color: var(--warning-text);
   font-size: var(--text-label-size);
   font-weight: 600;
 }

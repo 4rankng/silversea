@@ -29,7 +29,7 @@
 .trip-list-page .trip-copy-btn--mobile {
   width: fit-content;
   margin-top: 10px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   align-self: flex-start;
   opacity: 0;
   pointer-events: none;

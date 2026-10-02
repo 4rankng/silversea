@@ -41,6 +41,27 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
 } as ShipmentListItem);
 
 describe('MasterPlanGrid', () => {
+  it.each([
+    { bill: ' BL-2026-001 ', booking: 'BOOK-2026-002', expected: 'BL-2026-001' },
+    { bill: null, booking: ' BOOK-2026-002 ', expected: 'BOOK-2026-002' },
+    { bill: ' ', booking: ' BOOK-2026-002 ', expected: 'BOOK-2026-002' },
+    { bill: null, booking: null, expected: 'Chưa có số Bill/Booking' },
+    { bill: ' ', booking: ' ', expected: 'Chưa có số Bill/Booking' },
+  ])('UI52-B note dialog uses $expected without leaking the internal shipment code', ({ bill, booking, expected }) => {
+    const original = item({ blNumber: bill, bookingRef: booking, operationalNotes: 'Điều vận liên hệ thủ kho trước giờ giao hàng để kiểm tra kế hoạch bốc dỡ và chuẩn bị chứng từ.' });
+    const onUpdateNotes = vi.fn();
+    render(<MasterPlanGrid items={[original]} onAllocate={vi.fn()} onUpdateNotes={onUpdateNotes} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent(expected);
+    expect(dialog).not.toHaveTextContent(original.shipmentCode!);
+    expect(dialog).toHaveTextContent(original.operationalNotes!);
+    fireEvent.click(within(dialog).getAllByRole('button', { name: 'Đóng' })[0]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onUpdateNotes).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeInTheDocument();
+  });
+
   it('shows OPS recovery instructions separately from driver notes', () => {
     render(<MasterPlanGrid items={[item({ opsRecoveryNotes: ['Khách trả theo chứng từ\nGiữ bản gốc'] })]} onAllocate={vi.fn()} />);
     expect(screen.getByText(/Khách trả theo chứng từ/)).toHaveTextContent('Giữ bản gốc');
@@ -550,7 +571,7 @@ describe('MasterPlanGrid', () => {
     const onViewContainers = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} onViewContainers={onViewContainers} />);
 
-    const trigger = screen.getByRole('button', { name: 'Xem chi tiết container của SS-000100' });
+    const trigger = screen.getByRole('button', { name: 'Xem chi tiết container của BL-2026-001' });
     fireEvent.click(trigger);
 
     expect(onViewContainers).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
@@ -576,14 +597,14 @@ describe('MasterPlanGrid', () => {
     expect(triggerRule).toContain('width: 100%');
     expect(triggerRule).toContain('text-align: left');
     expect(css).toContain('.master-plan-grid__allocation-trigger:focus-visible');
-    expect(css).toContain('min-height: 44px');
+    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__allocation-trigger\s*\{[^}]*min-height:\s*var\(--control-max-h\);/);
   });
 
   it('keeps the per-row container detail action compact on desktop and touch-safe on narrow screens', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('.master-plan-grid__container-detail-trigger');
     expect(css).toContain('min-height: max(28px, var(--uui-control-h))');
-    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__container-detail-trigger,\s*\.master-plan-grid__note-detail-trigger\s*\{[\s\S]*?min-height:\s*44px;/);
+    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__container-detail-trigger,\s*\.master-plan-grid__note-detail-trigger\s*\{[\s\S]*?min-height:\s*var\(--control-max-h\);/);
   });
 
   it('labels every shipment field group for the stacked narrow-screen layout', () => {
@@ -672,17 +693,12 @@ describe('MasterPlanGrid', () => {
     expect(css.slice(phoneStart)).toContain('padding: 6px 10px');
   });
 
-  // Polish 2026-09-09 (PM seq-151 visual-quality gate): the action cell
-  // holds a 44px trigger (action + notes footer pair landed at 5324b1ad),
-  // so without a matching floor the notes cell below would render at its
-  // natural text height (40-50px) — a 14-24px rhythm pop. The
-  // notes-trigger must hit the same 44px touch target inside the
-  // ≤900px card view so empty/short notes ground to the action cell.
-  it('grounds the notes-trigger to the 44px touch floor inside the ≤900px card view', () => {
+  // Empty/short notes and the action cell share the canonical 40px ceiling.
+  it('grounds the notes-trigger to the canonical control budget inside the ≤900px card view', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
 
     expect(css).toMatch(
-      /@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__notes-trigger\s*\{[\s\S]*?min-height:\s*44px/,
+      /@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__notes-trigger\s*\{[\s\S]*?min-height:\s*var\(--control-max-h\)/,
     );
 
     // Desktop table view stays untouched — only the card view pins the floor.

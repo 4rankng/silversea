@@ -191,7 +191,7 @@
    table-sort-button contract (styles/table-sort.css). */
 .users-table-panel .table-sort-button {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   text-align: left;
 }
 
@@ -203,9 +203,9 @@
 }
 
 .users-admin-page .btn-page {
-  min-width: 44px;
-  min-height: 44px;
-  height: 44px;
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
+  height: var(--control-max-h);
   line-height: 1.35;
 }
 
@@ -276,8 +276,8 @@
   align-items: center;
   border: 1.5px solid var(--line-2);
   border-radius: 10px;
-  min-height: 44px;
-  height: 44px;
+  min-height: var(--control-max-h);
+  height: var(--control-max-h);
   background: var(--surface);
   transition: border-color 0.15s ease;
 }
@@ -309,6 +309,19 @@
   outline: none;
   font-family: inherit;
   font-size: var(--control-field-font-size);
+}
+
+/* IconInput's 1.5px border owns the visible field. Native input and password
+   action floors must fit its interior instead of enlarging that boundary. */
+:is(#root, body) .icon-input .icon-input__field:not([type='checkbox']):not([type='radio']):not([type='hidden']) {
+  min-height: 0;
+  height: calc(var(--control-max-h) - 3px);
+  padding-block: 0;
+}
+
+:is(#root, body) .icon-input .pw-toggle {
+  min-height: 0;
+  height: calc(var(--control-max-h) - 3px);
 }
 
 .icon-input__field::placeholder {
@@ -398,8 +411,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   padding: 0 10px;
   background: none;
   border: none;
@@ -539,7 +552,7 @@
   align-items: center;
   gap: 5px;
   padding: 6px 12px;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   border-radius: 8px;
   font-size: var(--text-control-size);
   font-weight: var(--fw-semibold);
@@ -670,15 +683,15 @@
 
   .drawer:has(.users-form-cards) .input,
   .drawer:has(.users-form-cards) select.input {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--control-max-h);
+    height: var(--control-max-h);
     padding-top: 8px;
     padding-bottom: 8px;
   }
 
   .icon-input {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--control-max-h);
+    height: var(--control-max-h);
   }
 
   .icon-input__icon {
@@ -728,10 +741,10 @@
 .kebab-btn {
   background: none;
   border: none;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-max-h);
+  height: var(--control-max-h);
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -764,7 +777,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   padding: 10px 12px;
   font-size: var(--text-control-size);
   line-height: 1.35;
@@ -946,14 +959,14 @@
 }
 
 .users-customer-scope__search {
-  min-height: 44px;
+  min-height: var(--control-max-h);
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 12px;
   border: 1px solid var(--line-2);
   border-radius: 8px;
-  background: var(--surface-1);
+  background: var(--surface);
   color: var(--ink-3);
 }
 
@@ -965,11 +978,17 @@
 .users-customer-scope__search input {
   min-width: 0;
   width: 100%;
-  min-height: 42px;
+  min-height: calc(var(--control-max-h) - 2px);
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--ink);
+}
+
+:is(#root, body) .users-customer-scope__search input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']) {
+  min-height: 0;
+  height: calc(var(--control-max-h) - 2px);
+  padding-block: 0;
 }
 
 .users-customer-scope__list {
@@ -977,7 +996,7 @@
   overflow-y: auto;
   border: 1px solid var(--line-2);
   border-radius: 8px;
-  background: var(--surface-1);
+  background: var(--surface);
 }
 
 .users-customer-scope__option {
@@ -988,6 +1007,13 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--line-2);
   cursor: pointer;
+}
+
+/* Missing tax-code/subtitle rows have one label, not a two-fact record. */
+.users-customer-scope__option:not(:has(small)) {
+  min-height: var(--control-max-h);
+  padding-block: 0;
+  box-sizing: border-box;
 }
 
 .users-customer-scope__option:last-child {

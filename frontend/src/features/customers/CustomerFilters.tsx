@@ -22,8 +22,6 @@ export interface CustomerFiltersProps {
   filter: CustomerFilterKey;
   onFilter: (filter: CustomerFilterKey) => void;
   total: number;
-  activeCount: number;
-  lockedCount: number;
   /** Rows the current criteria leave — the bar's `n/total khách hàng` count. */
   resultCount: number;
   concentration: CustomerConcentration;
@@ -60,7 +58,7 @@ export interface CustomerFiltersProps {
 export function CustomerFilters({
   search, onSearch, searchInputRef,
   filter, onFilter,
-  total, activeCount, lockedCount, resultCount, concentration,
+  total, resultCount, concentration,
   onExport, onAdd, onReset, hasActiveFilters,
   excludeOwnFleet, onExcludeOwnFleetChange,
 }: CustomerFiltersProps) {
@@ -79,8 +77,8 @@ export function CustomerFilters({
         <Tabs variant="boxed"
           tabs={[
             { id: 'all', label: 'Tất cả', count: total },
-            { id: 'active', label: 'Hoạt động', count: activeCount, countTone: 'accent' },
-            { id: 'locked', label: 'Tạm khoá', count: lockedCount, countTone: 'warning' },
+            { id: 'active', label: 'Hoạt động' },
+            { id: 'locked', label: 'Tạm khoá' },
           ]}
           value={filter}
           onChange={(id) => onFilter(id as CustomerFilterKey)}

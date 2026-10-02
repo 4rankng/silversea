@@ -46,8 +46,8 @@
 .customer-shell__close {
   display: none;
   margin-left: auto;
-  width: 44px;
-  height: 44px;
+  width: var(--control-touch-h);
+  height: var(--control-touch-h);
   place-items: center;
   border: 0;
   border-radius: 8px;
@@ -72,7 +72,7 @@
 
 .customer-shell__nav-item {
   display: flex;
-  min-height: 44px;
+  min-height: var(--control-touch-h);
   align-items: center;
   gap: 11px;
   padding: 0 12px;
@@ -100,8 +100,8 @@
 .customer-shell__avatar { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .14); }
 .customer-shell__identity button {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: var(--control-touch-h);
+  height: var(--control-touch-h);
   place-items: center;
   border: 0;
   border-radius: 8px;
@@ -138,7 +138,7 @@
   font-weight: 600;
 }
 
-.customer-shell__account-popover button { min-height: 44px; }
+.customer-shell__account-popover button { min-height: var(--control-touch-h); }
 
 .customer-shell__scope-bar {
   display: flex;
@@ -249,8 +249,8 @@
   .customer-shell__mobile-header strong { font-size: var(--text-body-size); }
   .customer-shell__icon-button {
     display: grid;
-    width: 44px;
-    height: 44px;
+    width: var(--control-touch-h);
+    height: var(--control-touch-h);
     place-items: center;
     border: 0;
     border-radius: 8px;
@@ -267,7 +267,7 @@
   .customer-shell__scope-bar select {
     width: 100%;
     min-width: 0;
-    min-height: 44px;
+    min-height: var(--control-touch-h);
   }
   .customer-shell__scope-error { padding: 10px 16px; }
   .customer-shell__main { padding: 12px 8px 12px; }
@@ -287,7 +287,7 @@
   }
   .customer-shell__bottom-nav a {
     display: grid;
-    min-height: 52px;
+    min-height: var(--control-touch-h);
     place-items: center;
     align-content: center;
     gap: 3px;

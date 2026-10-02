@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Check, ChevronDown, Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
 import type { TirePosition } from "@tingting/shared";
@@ -6,8 +6,11 @@ import type { Supplier } from "@tingting/shared";
 import { ConfirmDialog } from "../../components/UI";
 import { useToast } from "../../components/shared/Toast";
 import { formatErrorMessage } from "../../lib/api";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import { Modal } from "../../design-system/Modal";
 import { DateInput } from "../../design-system/forms/DateInput";
 import { cleanText, normalizedCatalogLabel, positionPayloadFromLabel, supplierIdFromText, textMatches } from "../../features/tires/tireUtils";
+import { floatingPickerMenuStyle } from "./tire-picker-placement";
 import "../../pages/TruckTiresPage.css";
 
 export type PositionManagerOpener = (onSelect?: (value: string) => void) => void;
@@ -110,22 +113,9 @@ function useFloatingPickerMenu(open: boolean, itemCount: number, onClose: () => 
       const menu = menuRef.current;
       if (!root || !menu) return;
 
-      const rect = root.getBoundingClientRect();
-      const gap = 8;
-      const viewportPadding = 8;
-      const menuWidth = Math.min(rect.width, maxWidth, window.innerWidth - viewportPadding * 2);
-      const availableBelow = window.innerHeight - rect.bottom - gap - viewportPadding;
-      const availableAbove = rect.top - gap - viewportPadding;
-      const openUp = availableBelow < 180 && availableAbove > availableBelow;
-      const maxHeight = Math.max(180, Math.min(maxHeightLimit, openUp ? availableAbove : availableBelow));
-
-      setMenuStyle({
-        top: openUp ? Math.max(viewportPadding, rect.top - gap - maxHeight) : rect.bottom + gap,
-        left: Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - menuWidth - viewportPadding)),
-        width: menuWidth,
-        maxHeight,
-        visibility: "visible",
-      });
+      setMenuStyle(floatingPickerMenuStyle(root.getBoundingClientRect(),
+        { width: window.innerWidth, height: window.innerHeight },
+        { maxWidth, maxHeight: maxHeightLimit }));
     };
 
     updateMenuPosition();
@@ -138,27 +128,14 @@ function useFloatingPickerMenu(open: boolean, itemCount: number, onClose: () => 
     };
   }, [itemCount, maxHeightLimit, maxWidth, open]);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Node | null;
-      if (!target) return;
-      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+  useClickOutside(rootRef, onClose, {
+    enabled: open,
+    escapeKey: true,
+    onEscape: () => {
+      rootRef.current?.querySelector<HTMLElement>('[aria-haspopup="listbox"]')?.focus();
       onClose();
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
-    window.addEventListener("pointerdown", onPointerDown, true);
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [onClose, open]);
+    },
+  });
 
   return { rootRef, menuRef, menuStyle };
 }
@@ -202,6 +179,9 @@ export function PositionPicker({ value, labels, onChange, onManage }: { value: s
             className="ttp-position-picker-manage"
             onPointerDown={(e) => {
               e.preventDefault();
+            }}
+            onClick={() => {
+              rootRef.current?.querySelector<HTMLElement>('[aria-haspopup="listbox"]')?.focus();
               setOpen(false);
               onManage((label) => onChange(label));
             }}
@@ -400,15 +380,15 @@ export function TirePositionsManagerDialog({
   };
 
   return (
-    <div className="ttp-dialog-overlay" role="presentation" onClick={oncancel}>
-      <div className="ttp-dialog ttp-dialog--positions" role="dialog" aria-modal="true" aria-labelledby="ttp-position-manager-title" onClick={(e) => e.stopPropagation()}>
+    <Modal chrome="bare" isOpen title="Vị trí lắp" ariaLabel="Vị trí lắp" backdropDismiss={!saving} onClose={() => { if (!saving) oncancel(); }}>
+      <div className="ttp-dialog ttp-dialog--positions">
         <div className="ttp-dialog-head ttp-position-head">
           <div className="ttp-position-title-block">
             <span className="ttp-position-kicker">Danh mục lốp</span>
             <h2 id="ttp-position-manager-title">Vị trí lắp</h2>
             <p>Quản lý các lựa chọn xuất hiện trong ô vị trí trên trang lốp xe.</p>
           </div>
-          <button type="button" className="ttp-dialog-close" onClick={oncancel} aria-label="Đóng">
+          <button type="button" className="ttp-dialog-close" onClick={oncancel} disabled={saving} aria-label="Đóng">
             <X size={18} />
           </button>
         </div>
@@ -521,6 +501,6 @@ export function TirePositionsManagerDialog({
         }}
         onCancel={() => setDeleteTarget(null)}
       />
-    </div>
+    </Modal>
   );
 }

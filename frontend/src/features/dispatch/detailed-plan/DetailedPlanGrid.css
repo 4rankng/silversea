@@ -425,7 +425,7 @@
   .detailed-plan-grid__note-action {
     display: flex;
     width: 100%;
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 }
 
@@ -443,8 +443,8 @@
 
 @media (max-width: 767px), (pointer: coarse) {
   .detailed-plan-grid__note-action--icon {
-    width: var(--control-touch-h, 44px);
-    min-height: var(--control-touch-h, 44px);
+    width: var(--control-touch-h);
+    min-height: var(--control-touch-h);
   }
 }
 
@@ -516,14 +516,11 @@
   }
 
   .detailed-plan-grid__row {
-    /* Data-dense card band (user: utilise the available space, cut the dead
-       vertical air): every field group pairs 2-up and the label sits INLINE
-       with its value, so one lot ≈ half the height of the old stacked-label
-       layout. Only the interactive dispatch cell and the notes cell keep the
-       full card width. */
+    /* Facts pair on two flexible tracks; the intrinsic type/action track
+       owns header space instead of painting over the business identity. */
     position: relative;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, max-content);
     overflow: hidden;
     border: 1px solid var(--border-color-secondary, var(--line));
     border-radius: 10px;
@@ -625,15 +622,15 @@
   .detailed-plan-grid__cell--route,
   .detailed-plan-grid__cell--container { grid-row: 2; }
   .detailed-plan-grid__row td:nth-child(3) { grid-row: 3; grid-column: 1; }
-  .detailed-plan-grid__row td:nth-child(4) { grid-row: 3; grid-column: 2; padding-left: 10px; }
+  .detailed-plan-grid__row td:nth-child(4) { grid-row: 3; grid-column: 2 / -1; padding-left: 10px; }
   /* (row/column of the two interactive cells: see the paired rule below) */
 
   .detailed-plan-grid__cell--schedule { grid-column: 1; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  .detailed-plan-grid__cell--documents { grid-column: 2; padding-right: 92px; border-bottom: 1px solid var(--line); }
+  .detailed-plan-grid__cell--documents { grid-column: 2; border-bottom: 1px solid var(--line); }
   .detailed-plan-grid__cell--route { grid-column: 1; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .detailed-plan-grid__cell--ports { grid-column: 1 / -1; display: inline-block; padding: 2px 10px; border: 0; }
   .detailed-plan-grid__cell--ports + .detailed-plan-grid__cell--ports { padding-left: 0; }
-  .detailed-plan-grid__cell--container { grid-column: 2; border-bottom: 1px solid var(--line); }
+  .detailed-plan-grid__cell--container { grid-column: 2 / -1; border-bottom: 1px solid var(--line); }
 
   /* The two interactive blocks PAIR at tablet instead of each owning a
      full-width row: at 768px a 742px row holding 30%-wide content (the
@@ -650,20 +647,47 @@
 
   .detailed-plan-grid__cell--notes {
     grid-row: 4;
-    grid-column: 2;
+    grid-column: 2 / -1;
     border-top: 0;
   }
 
-  /* Phân loại pill pins to the card corner — the full-width row it used to
-     occupy is gone. Reserve its space on the documents cell (top-right). */
-  .detailed-plan-grid__cell--classification {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    padding: 0;
+  td.detailed-plan-grid__cell--notes {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-content: start;
+    column-gap: 8px;
+    row-gap: 4px;
   }
 
-  .detailed-plan-grid__cell--classification::before {
+  td.detailed-plan-grid__cell--notes::before {
+    margin: 0;
+  }
+
+  td.detailed-plan-grid__cell--notes > * {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  /* Natural header height includes the ordinary row action, so its full
+     type/action group cannot continue into the customer/Bill lane. */
+  td.detailed-plan-grid__cell--classification {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    grid-row: 1;
+    grid-column: 3;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .detailed-plan-grid__cell--classification .detailed-plan-grid__pair-btn {
+    margin-top: 0;
+    flex-shrink: 0;
+  }
+
+  td.detailed-plan-grid__cell--classification::before {
     display: none;
   }
 
@@ -737,7 +761,6 @@
     display: none;
   }
 
-  .detailed-plan-grid__cell--schedule,
   .detailed-plan-grid__cell--route,
   .detailed-plan-grid__cell--ports,
   .detailed-plan-grid__cell--notes,
@@ -746,7 +769,7 @@
   }
 
   .detailed-plan-grid__row td.detailed-plan-grid__cell--schedule {
-    padding-right: 76px;
+    grid-column: 1 / 3;
     border-bottom: 1px solid var(--line);
   }
 
@@ -754,8 +777,7 @@
     border-bottom: 1px solid var(--line);
   }
 
-  /* The corner pill overlaps the schedule row here — the tablet band's 92px
-     reservation on this cell is dead width at phone size. */
+  /* Route/direction facts keep the complete width below header/identity. */
   .detailed-plan-grid__cell--documents {
     padding-right: 10px;
     border-right: 1px solid var(--line);
@@ -770,16 +792,6 @@
     border-top: 1px solid var(--line);
   }
 
-  .detailed-plan-grid__row td.detailed-plan-grid__cell--classification {
-    position: absolute;
-    top: 6px;
-    right: 10px;
-    padding: 0;
-  }
-
-  .detailed-plan-grid__cell--classification::before {
-    display: none;
-  }
 }
 
 
@@ -832,7 +844,7 @@
   .detailed-plan-grid__row:not(:has(.detailed-plan-grid__cell--ports[data-empty='true']))
     .detailed-plan-grid__cell--ports:nth-of-type(3) { grid-row: 3; grid-column: 1; }
   .detailed-plan-grid__row:not(:has(.detailed-plan-grid__cell--ports[data-empty='true']))
-    .detailed-plan-grid__cell--ports:nth-of-type(4) { grid-row: 3; grid-column: 2; padding-left: 10px; }
+    .detailed-plan-grid__cell--ports:nth-of-type(4) { grid-row: 3; grid-column: 2 / -1; padding-left: 10px; }
   /* Route and container each carry a value list that needs the full 390px
      record width (route + direction chip, or cont no. + type + weight): at
      half width both wrapped, which dropped the value separator to the start

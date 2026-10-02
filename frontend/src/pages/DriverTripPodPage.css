@@ -120,7 +120,7 @@
 .driver-task-footer__conflict-reload {
   flex: 0 0 auto;
   align-self: center;
-  min-height: 44px;
+  min-height: var(--control-h);
   padding: 0 14px;
   border-radius: 10px;
   border: 1px solid var(--danger);

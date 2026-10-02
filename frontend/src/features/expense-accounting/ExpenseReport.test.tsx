@@ -46,3 +46,34 @@ it('FIX-WS-CUTOFF-DRAFT: clear and type a date without today replacing the input
   expect(screen.getByLabelText('URL')).toHaveTextContent('reportAsOf=2026-09-10');
   expect(api.report).toHaveBeenLastCalledWith(expect.objectContaining({ asOfDate: '2026-09-10' }));
 });
+
+it('QA-AUDIT-UI-37 keeps the actual carrier group totals and drilldown without exposing its internal key', async () => {
+  // Existing local API group on Bill QA22-DISPATCH-220922-A; no new business row.
+  const entries = ([
+    ['DRIVER', 5, 'Phụ cấp bãi thử nghiệm mới', 'DRIVER_ROAD', 75000, 0],
+    ['DRIVER', 2, 'Phí nâng', 'DRIVER_SHIPMENT', 220000, 0],
+    ['DRIVER', 1, 'Trả đêm', 'DRIVER_ROAD', 110000, 0],
+    ['OPS', 24, 'QA22-DO-60376805 ops invoiced', 'INVOICED_LIFT', 80000, 80000],
+    ['OPS', 23, 'QA22-DO-60376805 ops regular', 'OPS_REGULAR', 50000, 50000],
+  ] as const).map(([sourceKind, sourceId, feeName, costGroup, amount, paidAmount]) => ({
+    ...source, sourceKind, sourceId, shipmentId: 273, shipmentCode: 'QA22-DISPATCH-220922-A',
+    tripCode: 'QA22-DISPATCH-220922-A', expenseDate: '2026-09-22', feeName, costGroup,
+    amount, paidAmount, allocatedAdvanceAmount: 0, outstandingPayable: amount - paidAmount,
+  }));
+  api.report.mockResolvedValue({ items: [{ entityType: 'CARRIER', entityId: 0, entityName: 'SilverSea',
+    carrierCode: 'SILVERSEA_INTERNAL', lift: 80000, drop: 0, other: 455000, total: 535000,
+    settled: 130000, outstanding: 405000, entries }], unknownCount: 0,
+    totals: { total: 535000, settled: 130000, outstanding: 405000 } });
+  show('/expense-accounting?reportDirection=OUT&reportAsOf=2026-10-01');
+  fireEvent.click(await screen.findByRole('button', { name: 'Tổng · SilverSea' }));
+  expect(screen.queryByText('SILVERSEA_INTERNAL')).not.toBeInTheDocument();
+  expect(screen.getByRole('dialog')).toHaveTextContent('5 khoản');
+  expect(screen.getByRole('dialog')).toHaveTextContent('535.000');
+  const links = screen.getAllByRole('link', { name: 'QA22-DISPATCH-220922-A' });
+  expect(links).toHaveLength(5);
+  links.forEach(link => expect(link).toHaveAttribute('href', '/shipments/273'));
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Đã thanh toán · SilverSea' })).toHaveTextContent('130.000');
+  expect(screen.getByRole('button', { name: 'Còn lại · SilverSea' })).toHaveTextContent('405.000');
+});

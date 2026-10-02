@@ -47,10 +47,10 @@
    made the criteria taller than the search and the date fields on the same line
    (the operator's 2026-09-27 mixed-height report). The bar's --filter-control-h
    is the one height token now. */
-/* The four secondary criteria (UUI selects) are content-sized by the shared
-   reset and bounded by their own family cap (L3: ≤280px) in BOTH scopes they
-   live in — the bar while they fit and the portalled `Bộ lọc` dialog after the
-   fold — so a long customer name can never widen a criterion past its value. */
+/* The stacked/hidden-label criteria retain the family280px cap in either
+   scope. A visible inline bar label claims additional space through the shared
+   UuiSelectField owner, which applies this budget to the trigger instead of
+   squeezing the combined label/control field. The declaration stays unchanged. */
 :is(.filter-bar, .filter-dropdown__body) .shipments-detail-criterion.ds-uui-select { max-width: 280px; }
 /* The from/to fields' own input stays flat inside the bar (the wrapper owns the
    border; nothing in the pair paints a shadow). */
@@ -451,12 +451,12 @@
   .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .shipment-container-ledger__route i { transform: rotate(90deg); justify-self: start; }
   .shipment-container-ledger__cell-trigger { min-height: 44px; }
-  .shipment-container-ledger__edit-action { min-width: 44px; height: 44px; min-height: 44px; }
+  .shipment-container-ledger__edit-action { min-width: var(--control-max-h); height: var(--control-max-h); min-height: var(--control-max-h); }
   .shipment-container-ledger__keyboard-hint { display: none; }
   .shipment-container-ledger__schedule-pill,
-  .shipment-container-ledger__schedule-time-pill { min-height: 44px; }
-  .shipment-container-ledger__schedule-clear { display: inline-flex; align-items: center; min-height: 44px; }
-  .shipment-container-ledger__plate-clear button { display: inline-flex; align-items: center; min-height: 44px; }
+  .shipment-container-ledger__schedule-time-pill { min-height: var(--control-max-h); }
+  .shipment-container-ledger__schedule-clear { display: inline-flex; align-items: center; min-height: var(--control-max-h); }
+  .shipment-container-ledger__plate-clear button { display: inline-flex; align-items: center; min-height: var(--control-max-h); }
   .shipment-container-ledger__editor-footer { justify-content: flex-end; }
   .shipments-detail-error { margin-inline: 10px; }
   .shipments-detail-workspace > .ds-pagination { padding-inline: 12px; }

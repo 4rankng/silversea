@@ -34,6 +34,29 @@ describe('deposit tracker workflows', () => {
     expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined);
   });
 
+  it('keeps the date action icon beside its complete label and closes its unsaved draft without writes (UI73)', async () => {
+    page(); await screen.findByText('QA-BILL');
+    const action = screen.getByRole('button', { name: 'Ngày CV / số tiền' });
+    const icon = action.querySelector('svg[data-icon="leading"]');
+    expect(icon).not.toBeNull();
+    expect(icon?.parentElement).toBe(action);
+    expect(action.querySelector('[data-text]')).toHaveTextContent('Ngày CV / số tiền');
+    expect(action.querySelector('[data-text] svg')).toBeNull();
+    fireEvent.click(action);
+    let form = within(await screen.findByRole('dialog', { name: 'Cập nhật hoàn cược - Bill QA-BILL' }));
+    expect(form.getByLabelText('Ngày nộp CV')).toHaveValue('');
+    fireEvent.change(form.getByLabelText('Ghi chú'), { target: { value: 'Unsaved date-form draft' } });
+    fireEvent.click(form.getByRole('button', { name: 'Đóng' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(api.updateDepositTrackerDates).not.toHaveBeenCalled();
+    expect(api.markDepositRefunded).not.toHaveBeenCalled();
+    expect(api.createDepositTracker).not.toHaveBeenCalled();
+    fireEvent.click(action);
+    form = within(await screen.findByRole('dialog', { name: 'Cập nhật hoàn cược - Bill QA-BILL' }));
+    expect(form.getByLabelText('Ghi chú')).toHaveValue('');
+    expect(form.getByLabelText('Số tiền cược (₫)')).toHaveValue('');
+  });
+
   it('refreshes a stale refund amount and requires confirmation of the refreshed value', async () => {
     const initial = { ...row, depositAmount: '4000000' };
     const fresh = { ...row, depositAmount: '5000000' };

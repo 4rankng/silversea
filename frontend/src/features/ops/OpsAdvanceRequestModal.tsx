@@ -65,8 +65,8 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
         <footer className="ops-modal__foot">
           <div>{amountValid ? `${formatMoney(Number(amount))} ₫` : ''}</div>
           <div className="ops-modal__actions">
-            <button type="button" className="btn-secondary" onClick={close} disabled={createAdvance.isPending}>Đóng</button>
-            <button type="submit" className="btn-primary" disabled={!canSubmit || createAdvance.isPending}>
+            <button type="button" className="btn btn--secondary" onClick={close} disabled={createAdvance.isPending}>Đóng</button>
+            <button type="submit" className="btn btn--primary" disabled={!canSubmit || createAdvance.isPending}>
               {createAdvance.isPending ? <Loader2 size={14} className="spin" /> : null} Lưu tạm ứng
             </button>
           </div>

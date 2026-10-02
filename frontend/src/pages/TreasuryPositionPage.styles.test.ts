@@ -29,9 +29,12 @@ describe('treasury position page density contract', () => {
   });
 
   it('leaves the numeric type treatment to the shared table base', () => {
-    // .record-table .num owns --font-data and the right edge; the page only
-    // stops the money cells from wrapping.
-    expect(pageCss).toMatch(/\.treasury-table td\.num\s*\{\s*white-space:\s*nowrap;/);
+    // The outer labelled record must wrap the label separately from the
+    // atomic money. Otherwise a negative balance escapes a phone fact cell.
+    expect(pageCss).not.toMatch(/\.treasury-table td\.num\s*\{\s*white-space:\s*nowrap;/);
+    for (const field of ['openingBalance', 'totalIn', 'totalOut', 'bookBalance']) {
+      expect(pageTsx).toContain(`<span className="data-token">{formatCurrency(account.${field})}</span>`);
+    }
     expect(pageCss).not.toMatch(/font-family:\s*var\(--font-data\)/);
     expect(pageCss).not.toMatch(/tabular-nums/);
   });

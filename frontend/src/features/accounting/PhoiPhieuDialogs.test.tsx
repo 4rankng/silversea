@@ -10,10 +10,12 @@ import PhoiPhieuControlPage from '../../pages/accounting/PhoiPhieuControlPage';
 // the exact payload the house client sends and the money strings the board and
 // the detail must agree on.
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
-import { formatCurrency } from '../../lib/format';
+import { confirmPhoiPhieuTienDuong, getPhoiPhieuTienDuong } from '../../api/phoiPhieuClient';
+
 
 vi.mock('../../api/phoiPhieuClient', () => ({
   correctPhoiPhieuRow: vi.fn(),
+  confirmPhoiPhieuTienDuong: vi.fn(),
   getPhoiPhieuChiHo: vi.fn().mockResolvedValue({
     tripCode: 'ST-2609-0001',
     ngayLayPhoi: null,
@@ -57,7 +59,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({
       billOrBooking: 'BILL-001', customerName: 'Khách A', routeName: 'HP - HN',
       containerNumber: 'ABCZ1234567', containerTypeLabel: '40HC', cargoWeightKg: 24000, containerPayloadKg: 26500,
       liftSite: 'Đình Vũ', dropSite: 'Bắc Giang', plateNumber: '29K-123.45', driverName: 'Tuấn',
-      departureDate: '2026-09-22T00:00:00.000Z', tripStatus: 'IN_TRANSIT',
+      departureDate: '2026-09-22T00:00:00.000Z', transportDate: '2026-09-22', tripStatus: 'IN_TRANSIT',
       chiHoThu: null, chiHoTra: null, tienDuong: null,
       eligibleIn: 0, eligibleOut: 2,
       cusDispatchNotes: [], driverNote: null, confirmable: true,
@@ -67,7 +69,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({
       billOrBooking: 'BILL-002', customerName: 'Khách B', routeName: 'HP - QN',
       containerNumber: 'DEFZ7654321', containerTypeLabel: '20GP', cargoWeightKg: 18000, containerPayloadKg: 28200,
       liftSite: 'Đình Vũ', dropSite: 'Quảng Ninh', plateNumber: '29K-678.90', driverName: 'Thắng',
-      departureDate: '2026-09-22T00:00:00.000Z', tripStatus: 'COMPLETED',
+      departureDate: '2026-09-22T00:00:00.000Z', transportDate: '2026-09-22', tripStatus: 'COMPLETED',
       chiHoThu: 1_350_000, chiHoTra: 1_350_000, tienDuong: 2_000_000,
       eligibleIn: 1, eligibleOut: 0,
       cusDispatchNotes: [], driverNote: null, confirmable: true,
@@ -77,7 +79,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({
       billOrBooking: null, customerName: 'ADC P 1790089547534-zcain7', routeName: 'ADC route P 1790089547534-zcain7',
       containerNumber: 'GHIZ0001111', containerTypeLabel: '40HC', cargoWeightKg: null, containerPayloadKg: 26500,
       liftSite: 'Đình Vũ', dropSite: 'Hải Phòng', plateNumber: '30K-111.22', driverName: 'card6 driver 1790004852053-9kzgw8-26',
-      departureDate: '2026-09-23T00:00:00.000Z', tripStatus: 'CREATED',
+      departureDate: '2026-09-23T00:00:00.000Z', transportDate: '2026-09-23', tripStatus: 'CREATED',
       chiHoThu: null, chiHoTra: null, tienDuong: null,
       cusDispatchNotes: [], driverNote: null, confirmable: false,
     },
@@ -118,7 +120,7 @@ describe('phôi phiếu detail dialogs render in the house modal shell (card 202
     // scroll offset (the 21,588px defect).
     expect(dialog.parentElement).toBe(document.body);
     expect(dialog).toHaveClass('modal');
-    await waitFor(() => expect(screen.getByText('Chi tiết chi hộ ST-2609-0001')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Chi tiết chi hộ Chưa có số Bill/Booking')).toBeInTheDocument());
   });
 
   it('Chi hộ dialog: ✕ and Escape both dismiss; body scroll locks while open and restores after', async () => {
@@ -183,7 +185,7 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
 
   it('renders exactly ONE "Xem chi tiết" button per row — the two identical buttons are deduped (D1 ruling)', async () => {
     renderBoard();
-    for (const tripCode of ['ST-2609-0101', 'ST-2609-0102']) {
+    for (const tripCode of ['BILL-001', 'BILL-002']) {
       const row = await findRow(tripCode);
       expect(within(row).getAllByRole('button', { name: 'Xem chi tiết' })).toHaveLength(1);
     }
@@ -191,14 +193,14 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
 
   it('keeps chi hộ detail reachable via a distinct icon-only affordance named "Chi tiết chi hộ" (no workflow orphaned)', async () => {
     renderBoard();
-    const row = await findRow('ST-2609-0101');
+    const row = await findRow('BILL-001');
     const chiHo = within(row).getByRole('button', { name: /Chi tiết chi hộ/ });
     expect(chiHo.textContent.trim()).toBe('');
   });
 
   it('renders chi hộ phải thu / phải trả as atomic lines (no ragged mid-token wrap)', async () => {
     renderBoard();
-    const row = await findRow('ST-2609-0101');
+    const row = await findRow('BILL-001');
     const lines = within(row).getAllByText((content, element) => element?.classList.contains('ppc-line') ?? false);
     expect(lines.length).toBeGreaterThanOrEqual(2);
     expect(within(row).getByText(/Phải thu:/)).toBeTruthy();
@@ -207,7 +209,7 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
 
   it('date cells carry the atomic nowrap column class (no mid-number fracture like 22/09/202 6)', async () => {
     renderBoard();
-    await findRow('ST-2609-0102');
+    await findRow('BILL-002');
     for (const cell of screen.getAllByText('22/09/2026')) {
       expect(cell.closest('td')?.className).toContain('ppc-col--date');
     }
@@ -218,7 +220,7 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
   // surface must retire the other rather than stacking on it.
   it('retires the open detail surface when another is requested — never two board dialogs at once', async () => {
     renderBoard();
-    const row = await findRow('ST-2609-0101');
+    const row = await findRow('BILL-001');
     fireEvent.click(within(row).getByRole('button', { name: 'Xem chi tiết' }));
     expect(await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' })).toBeInTheDocument();
 
@@ -239,24 +241,33 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
   });
   it('board rows render stored names verbatim (names are data)', async () => {
     renderBoard();
-    const row = await findRow('ST-2609-0103');
+    const row = await findRow('Chưa có số Bill/Booking');
     expect(row.textContent).toContain('ADC P 1790089547534-zcain7');
     expect(row.textContent).toContain('card6 driver');
   });
 
   // Case QA-2026-09-24-01: with nothing checked the toolbar read "(0 dòng)"
   // while approved entries existed in the modal — a false zero that reads as
-  // "nothing approved". Zero state instructs instead; the count appears only
-  // when it is truthful (a row is actually checked).
-  it('phiếu toolbar zero state instructs instead of showing a false "(0 dòng)" (case QA-2026-09-24-01)', async () => {
+  // "nothing approved". PHOI10 keeps the short action while its title and
+  // adjacent scope guidance explain selection; counts appear after selection.
+  it('PHOI10 zero state retains concise direction actions and truthful selection guidance (case QA-2026-09-24-01)', async () => {
     renderBoard();
-    expect(await findRow('ST-2609-0101')).toBeTruthy();
-    await screen.findByText('ST-2609-0102');
-    const button = screen.getByRole('button', { name: /Lập phiếu/ });
+    expect(await findRow('BILL-001')).toBeTruthy();
+    await screen.findByText('BILL-002');
+    const button = screen.getByRole('button', { name: 'Lập phiếu chi' });
     expect(button.textContent).not.toContain('(0 dòng)');
-    expect(button.textContent).toContain('chọn dòng đã duyệt');
-    // The selected state is pinned by the eligible-counter test below — this
-    // test only asserts the false-zero is gone.
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('title', 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu');
+    expect(screen.getByText('Bấm vào một dòng để chọn · 2 dòng lập được phiếu trong kết quả')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Chọn cả trang này (2)' })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Loại phiếu/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Phiếu thu' }));
+    const receiveButton = screen.getByRole('button', { name: 'Lập phiếu thu' });
+    expect(receiveButton).toBeDisabled();
+    expect(receiveButton).toHaveAttribute('title', 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu');
+    expect(screen.getByText('Bấm vào một dòng để chọn · 2 dòng lập được phiếu trong kết quả')).toBeInTheDocument();
+    // The next case still pins the selected-state eligible khoản count.
   });
 
   // Case QA-2026-09-24-01: the toolbar counter previews the voucher's
@@ -264,12 +275,12 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
   // the button says exactly what pressing it will issue.
   it('toolbar counter previews the eligible set per direction (case QA-2026-09-24-01)', async () => {
     renderBoard();
-    const row = await findRow('ST-2609-0101');
-    await screen.findByText('ST-2609-0102');
+    const row = await findRow('BILL-001');
+    await screen.findByText('BILL-002');
     // Card 20260929_207: the row is the control now — the checkbox column is
     // gone app-wide, so the same intent (pick this row, then read what the
     // voucher would issue) is driven by clicking the row itself.
-    fireEvent.click(within(row).getByText('ST-2609-0101'));
+    fireEvent.click(within(row).getByText('BILL-001'));
     const button = screen.getByRole('button', { name: /Lập phiếu/ });
     expect(button.textContent).toContain('(2 khoản)');
     expect(button.textContent).not.toContain('dòng');
@@ -306,19 +317,22 @@ describe('card 20260928_171 — chi tiết tiền đường: sửa số tiền, 
 
   it('AC1: cột Tiền đường của bảng và con số "đã duyệt" trong màn hình chi tiết là MỘT con số', async () => {
     render(<PhoiPhieuControlPage />, { wrapper: makeWrapper() });
-    const row = await findBoardRow('ST-2609-0102');
-    expect(within(row).getByText(formatCurrency(2_000_000))).toBeInTheDocument();
+    const row = await findBoardRow('BILL-002');
+    const boardMoney = row.querySelector('.ppc-col--money .money')!;
+    expect(boardMoney.querySelector('.money__num')?.textContent).toBe('2.000.000');
+    expect(boardMoney.querySelector('.money__unit')?.textContent).toBe('₫');
 
     fireEvent.click(within(row).getByRole('button', { name: 'Xem chi tiết' }));
     const dialog = await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
     await within(dialog).findByLabelText('Thực chi dòng 1');
-    const approvedLabel = within(dialog).getByText(/Đã duyệt — số vào phiếu chi, khớp cột Tiền đường/);
-    const footer = approvedLabel.closest('tr')!;
+    const footer = within(dialog).getByRole('region', { name: 'Tổng cộng' });
     // the same string the board cell shows, now inside the detail
-    expect(within(footer).getByText(formatCurrency(2_000_000))).toBeInTheDocument();
+    expect(within(footer).getByText('2.000.000')).toHaveClass('money__num');
     // the gross stays visible, but under the label that says it is the gross
-    expect(within(footer).getByText(formatCurrency(2_050_000))).toBeInTheDocument();
-    expect(within(footer).getByText(/Tổng phát sinh — mọi dòng/)).toBeInTheDocument();
+    expect(within(footer).getByText('2.050.000')).toHaveClass('money__num');
+    expect(within(footer).getByText('Tổng phát sinh')).toBeInTheDocument();
+    expect(within(footer).getByText('Đã duyệt')).toBeInTheDocument();
+    expect(within(dialog).getByText(/chỉ dòng đã duyệt mới được lập phiếu chi/)).toBeInTheDocument();
   });
 
   it('AC2: sửa số tiền dòng CHƯA duyệt lưu qua đường update của khoản chi lái xe, kèm version + lý do', async () => {
@@ -363,5 +377,115 @@ describe('card 20260928_171 — chi tiết tiền đường: sửa số tiền, 
     expect(screen.queryByRole('dialog', { name: 'Chi tiết tiền đường' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(screen.getAllByText('Tiền đường').length).toBeGreaterThan(0);
+  });
+});
+
+
+describe('PHOI08 Tiền đường authoritative partial-save retry', () => {
+  const initialRead = vi.mocked(getPhoiPhieuTienDuong).getMockImplementation()!;
+  const initialUpdate = vi.mocked(expenseAccountingClient.update).getMockImplementation()!;
+  const initialCorrect = vi.mocked(expenseAccountingClient.correct).getMockImplementation()!;
+  function resetBoundary() {
+    vi.mocked(confirmPhoiPhieuTienDuong).mockClear();
+    vi.mocked(getPhoiPhieuTienDuong).mockReset().mockImplementation(initialRead);
+    vi.mocked(expenseAccountingClient.update).mockReset().mockImplementation(initialUpdate);
+    vi.mocked(expenseAccountingClient.correct).mockReset().mockImplementation(initialCorrect);
+  }
+  beforeEach(resetBoundary);
+  afterEach(resetBoundary);
+
+  it('rereads after later failure and retries only the remaining DRIVER source', async () => {
+    const initial = await getPhoiPhieuTienDuong(7);
+    let authoritative = initial.rows.map(row => ({ ...row }));
+    const correct = vi.mocked(expenseAccountingClient.correct).getMockImplementation()!;
+    const get = vi.mocked(getPhoiPhieuTienDuong);
+    get.mockClear();
+    get.mockResolvedValueOnce(initial).mockImplementationOnce(async () => ({ ...initial, rows: authoritative }));
+    vi.mocked(expenseAccountingClient.correct).mockImplementationOnce(async (ref, body) => {
+      authoritative = authoritative.map(row => row.sourceId === ref.sourceId ? { ...row, amount: body.amount!, version: row.version + 1 } : row);
+      return correct(ref, body);
+    });
+    vi.mocked(expenseAccountingClient.update).mockRejectedValueOnce(new Error('Dòng tiền đường tiếp theo không lưu được'));
+    const onClose = vi.fn(); const onSaved = vi.fn();
+    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={onClose} onSaved={onSaved} />, { wrapper: makeWrapper() });
+    await screen.findByLabelText('Thực chi dòng 2');
+    fireEvent.change(screen.getByLabelText('Thực chi dòng 1'), { target: { value: '2100000' } });
+    fireEvent.change(screen.getByLabelText('Thực chi dòng 2'), { target: { value: '70000' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Dòng tiền đường tiếp theo không lưu được');
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Lưu$/ })).toBeEnabled());
+    expect(screen.getByLabelText('Thực chi dòng 1')).toHaveValue('2.100.000');
+    expect(screen.getByLabelText('Thực chi dòng 2')).toHaveValue('70.000');
+    expect(onClose).not.toHaveBeenCalled(); expect(onSaved).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(onSaved).toHaveBeenCalledOnce();
+    expect(expenseAccountingClient.correct).toHaveBeenCalledOnce();
+    expect(expenseAccountingClient.correct).toHaveBeenCalledWith(
+      { sourceKind: 'DRIVER', sourceId: 21, expectedVersion: 1 },
+      expect.objectContaining({ expectedVersion: 1, amount: 2100000 }),
+    );
+    expect(expenseAccountingClient.update).toHaveBeenCalledTimes(2);
+    expect(expenseAccountingClient.update).toHaveBeenLastCalledWith(
+      { sourceKind: 'DRIVER', sourceId: 22, expectedVersion: 4 },
+      expect.objectContaining({ expectedVersion: 4, amount: 70000 }),
+    );
+  });
+
+  it('keeps Save blocked through failed reads and reloads before retrying the remaining source', async () => {
+    const initial = await getPhoiPhieuTienDuong(7);
+    let authoritative = initial.rows.map(row => ({ ...row }));
+    const correct = vi.mocked(expenseAccountingClient.correct).getMockImplementation()!;
+    const get = vi.mocked(getPhoiPhieuTienDuong);
+    get.mockClear();
+    get.mockResolvedValueOnce(initial)
+      .mockRejectedValueOnce(new Error('Không tải lại được tiền đường'))
+      .mockRejectedValueOnce(new Error('Tiền đường vẫn chưa tải lại được'))
+      .mockImplementationOnce(async () => ({ ...initial, rows: authoritative }));
+    vi.mocked(expenseAccountingClient.correct).mockImplementationOnce(async (ref, body) => {
+      authoritative = authoritative.map(row => row.sourceId === ref.sourceId ? { ...row, amount: body.amount!, version: row.version + 1 } : row);
+      return correct(ref, body);
+    });
+    vi.mocked(expenseAccountingClient.update).mockRejectedValueOnce(new Error('Dòng tiền đường tiếp theo không lưu được'));
+    const onClose = vi.fn(); const onSaved = vi.fn();
+    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={onClose} onSaved={onSaved} />, { wrapper: makeWrapper() });
+    await screen.findByLabelText('Thực chi dòng 2');
+    fireEvent.change(screen.getByLabelText('Thực chi dòng 1'), { target: { value: '2100000' } });
+    fireEvent.change(screen.getByLabelText('Thực chi dòng 2'), { target: { value: '70000' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Dòng tiền đường tiếp theo không lưu được');
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('alert')).toHaveTextContent('Không tải lại được tiền đường');
+    expect(screen.getByRole('button', { name: /^Lưu$/ })).toBeDisabled();
+    const confirm = screen.getByRole('button', { name: 'Tích duyệt' });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(confirmPhoiPhieuTienDuong).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+    expect(expenseAccountingClient.correct).toHaveBeenCalledOnce();
+    expect(expenseAccountingClient.update).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại khoản chi' }));
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(3));
+    expect(screen.getByRole('alert')).toHaveTextContent('Dòng tiền đường tiếp theo không lưu được');
+    expect(screen.getByRole('alert')).toHaveTextContent('Tiền đường vẫn chưa tải lại được');
+    expect(screen.getByRole('button', { name: /^Lưu$/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Tích duyệt' })).toBeDisabled();
+    expect(confirmPhoiPhieuTienDuong).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled(); expect(onSaved).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại khoản chi' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Lưu$/ })).toBeEnabled());
+    expect(screen.getByRole('alert')).toHaveTextContent('Dòng tiền đường tiếp theo không lưu được');
+    expect(screen.getByLabelText('Thực chi dòng 1')).toHaveValue('2.100.000');
+    expect(screen.getByLabelText('Thực chi dòng 2')).toHaveValue('70.000');
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(onSaved).toHaveBeenCalledOnce();
+    expect(expenseAccountingClient.correct).toHaveBeenCalledOnce();
+    expect(expenseAccountingClient.update).toHaveBeenCalledTimes(2);
+    expect(expenseAccountingClient.update).toHaveBeenLastCalledWith(
+      { sourceKind: 'DRIVER', sourceId: 22, expectedVersion: 4 },
+      expect.objectContaining({ expectedVersion: 4, amount: 70000 }),
+    );
   });
 });

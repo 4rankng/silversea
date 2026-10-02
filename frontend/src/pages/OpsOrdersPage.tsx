@@ -4,7 +4,7 @@ import { Pin, PinOff, Plus } from 'lucide-react';
 import { useOpsOrders, useToggleShipmentPin, opsKeys } from '../hooks/useOpsQueries';
 import type { OpsOrderItem } from '../api/opsClient';
 import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
-import { localDateInputValue, shipmentStatusText } from '../features/ops/opsStatus';
+import { localDateInputValue, shipmentStatusText, opsBillReference } from '../features/ops/opsStatus';
 import './OpsOrdersPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 import { BufferedUuiDateInput, FilterBar } from '../design-system';
@@ -81,7 +81,7 @@ export default function OpsOrdersPage() {
         search={{
           value: searchInput,
           onChange: setSearchInput,
-          placeholder: 'Mã lô · Khách hàng · Số cont',
+          placeholder: 'Bill/Booking · Khách hàng · Số cont',
           ariaLabel: 'Tìm kiếm',
         }}
       >
@@ -103,11 +103,10 @@ export default function OpsOrdersPage() {
           <thead>
             <tr>
               <th className="col-pin" aria-label="Ghim" />
-              <th scope="col" className="col-code">Mã lô</th>
+              <th scope="col" className="col-code">Bill / Booking</th>
               <th scope="col">Khách hàng</th>
               <th scope="col">Tuyến</th>
               <th scope="col">Cont</th>
-              <th scope="col">Bill / Booking</th>
               <th scope="col">Trạng thái</th>
               <th className="col-actions" aria-label="Thao tác" />
             </tr>
@@ -115,9 +114,7 @@ export default function OpsOrdersPage() {
           <tbody>
             {items.map((order) => {
               const status = shipmentStatusText(order.status);
-              // A11y identity for the pin: shipment code when present, the row's
-              // Bill/Booking business key otherwise — the label never ends bare.
-              const pinKey = order.shipmentCode ?? order.billRef ?? 'lô';
+              const pinKey = opsBillReference(order.billRef);
               return (
                 <tr key={order.id} className={`ops-orders__row${order.pinned ? ' is-pinned' : ''}`}>
                   <td className="col-pin">
@@ -133,7 +130,7 @@ export default function OpsOrdersPage() {
                       {order.pinned ? <Pin size={15} /> : <PinOff size={15} />}
                     </button>
                   </td>
-                  <td className="col-code" data-label="Mã lô">{order.shipmentCode ?? <span className="ops-orders__route-missing">Chưa có mã lô</span>}</td>
+                  <td className="col-code" data-label="Bill / Booking">{opsBillReference(order.billRef)}</td>
                   <td className="col-customer" data-label="Khách hàng">{order.customerName ?? <span className="ops-orders__route-missing">Chưa có khách hàng</span>}</td>
                   <td className="col-route" data-label="Tuyến">{order.routeName ?? <span className="ops-orders__route-missing">Chưa có tuyến đường</span>}</td>
                   <td data-label="Container">
@@ -141,7 +138,6 @@ export default function OpsOrdersPage() {
                       ? <span className="ops-orders__route-missing">Chưa có cont</span>
                       : `${order.containerCount} · ${order.containerNumbers.join(', ')}`}
                   </td>
-                  <td data-label="Bill / Booking">{order.billRef ?? <span className="ops-orders__route-missing">Chưa có Bill/Booking</span>}</td>
                   <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="col-actions">
                     <button type="button" className="btn btn--primary btn--sm ops-orders__expense" onClick={() => setExpenseFor(order)}>
@@ -152,7 +148,7 @@ export default function OpsOrdersPage() {
               );
             })}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={8} className="ops-orders__empty">
+              <tr><td colSpan={7} className="ops-orders__empty">
                 {search ? <><p>Không có lô hàng phù hợp với từ khóa trong ngày đã chọn.</p><button type="button" className="btn btn--secondary btn--sm" onClick={() => { setSearchInput(''); setSearch(''); }}>Xóa tìm kiếm</button></> : 'Không có lô hàng trong ngày này.'}
               </td></tr>
             )}

@@ -1,3 +1,4 @@
+import { round2dp } from '@tingting/shared';
 import { formatNumber } from '../../lib/format';
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -20,11 +21,34 @@ export function splitKpi(v: number): { num: string; suffix: string } {
   return { num: formatNumber(v), suffix: '' };
 }
 
-export function fmtMoM(current: number, previous: number | undefined | null): string {
-  if (previous == null) return '—';
-  if (previous === 0) return current > 0 ? 'Mới' : '0%';
-  const pct = ((current - previous) / previous) * 100;
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+export function fmtMoM(current: number | null, previous: number | undefined | null): string {
+  if (current == null || previous == null) return '—';
+  if (previous === 0) return current !== 0 ? 'Mới' : '0%';
+  const pct = ((current - previous) / Math.abs(previous)) * 100;
+  return `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`;
+}
+
+export interface MonthlyChange {
+  label: string;
+  direction: 'up' | 'down' | 'flat';
+}
+
+export function monthlyChange(current: number | null, previous: number | undefined | null): MonthlyChange {
+  return {
+    label: fmtMoM(current, previous),
+    direction: current == null || previous == null || current === previous ? 'flat' : current > previous ? 'up' : 'down',
+  };
+}
+
+export function previousComparisonValues(report?: {
+  totalRevenue?: number | null; totalCosts?: number | null; grossProfit?: number | null; netProfit?: number | null;
+}) {
+  return {
+    prevRevenue: report?.totalRevenue ?? null,
+    prevCosts: report?.totalCosts ?? null,
+    prevGross: report?.grossProfit ?? null,
+    prevNet: report?.netProfit ?? null,
+  };
 }
 
 /**
@@ -42,27 +66,30 @@ export interface PieSlice {
   label: string;
   value: number;
   color: string;
-  pct: number;
+  pct: number | null;
 }
 
 export function buildPieSlices(
   slices: Array<{ label: string; value: number; color: string }>,
 ): { slicesWithPct: PieSlice[]; conicGradient: string; totalPie: number } {
-  const visibleSlices = slices.filter(sl => sl.value > 0.5);
-  const totalPie = visibleSlices.reduce((s, sl) => s + sl.value, 0) || 1;
-  const p = (v: number) => Math.round((v / totalPie) * 100);
-  let usedPct = 0;
-  const slicesWithPct = visibleSlices.map((sl, i) => {
-    const pct = i === visibleSlices.length - 1 ? Math.max(0, 100 - usedPct) : p(sl.value);
-    usedPct += pct;
-    return { ...sl, pct };
+  const visibleSlices = slices.filter(slice => Number.isFinite(slice.value) && slice.value !== 0);
+  const rawTotal = visibleSlices.reduce((sum, slice) => sum + slice.value, 0);
+  const totalPie = round2dp(rawTotal);
+  if (totalPie <= 0 || visibleSlices.some(slice => slice.value < 0)) {
+    return { slicesWithPct: visibleSlices.map(slice => ({ ...slice, pct: null })), conicGradient: 'none', totalPie };
+  }
+  const shares = visibleSlices.map(slice => slice.value / rawTotal * 100);
+  const percentages = shares.map(Math.floor);
+  const remainder = 100 - percentages.reduce((sum, pct) => sum + pct, 0);
+  const order = shares.map((share, index) => ({ index, fraction: share - percentages[index] }))
+    .sort((a, b) => b.fraction - a.fraction);
+  for (let index = 0; index < remainder; index++) percentages[order[index].index]++;
+  const slicesWithPct = visibleSlices.map((slice, index) => ({ ...slice, pct: percentages[index] }));
+  let cumulative = 0;
+  const gradientStops = slicesWithPct.map(slice => {
+    const start = cumulative;
+    cumulative += slice.pct;
+    return `${slice.color} ${start}% ${cumulative}%`;
   });
-  let cumPct = 0;
-  const gradientStops = slicesWithPct.map(sl => {
-    const start = cumPct;
-    cumPct += sl.pct;
-    return `${sl.color} ${start}% ${cumPct}%`;
-  });
-  const conicGradient = `conic-gradient(${gradientStops.join(', ')})`;
-  return { slicesWithPct, conicGradient, totalPie };
+  return { slicesWithPct, conicGradient: `conic-gradient(${gradientStops.join(', ')})`, totalPie };
 }

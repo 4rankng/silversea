@@ -428,30 +428,30 @@
 @media (max-width: 640px) {
   /* ── PenaltyPage: 44px tap targets on primary controls ── */
   .penalty-chip {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     padding: 8px 14px;
     font-size: var(--fs-xs);
   }
   .penalty-seg button {
-    min-height: 44px;
+    min-height: var(--control-max-h);
     padding: 10px 14px;
     font-size: var(--fs-xs);
   }
   .penalty-row-act {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--control-max-h);
+    min-height: var(--control-max-h);
   }
   .penalty-page .kpi-grid { gap: 8px; }
 } /* end 640px */
 
-/* ── Record-card mode (container ≤900px): full 44px touch target for the
+/* ── Record-card mode (container ≤900px): shared 40px budget for the
       cancel action. The strip's own controls take their height from the shared
       filter-control density (`ListFilterBar`), so this file re-declares none of
       them — the page-local search/clear pair is gone with the cutover
       (card 20260927_152). ── */
 @media (max-width: 899px) {
   .penalty-page .penalty-log-table .record-table__action .penalty-row-act {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--control-max-h);
+    min-height: var(--control-max-h);
   }
 }

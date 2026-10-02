@@ -16,8 +16,8 @@ import { Plus } from '@untitledui/icons';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
-import { Drawer } from '../../../components/UI';
-import { Tabs, type TabItem } from '../../../design-system';
+import { Drawer, Panel } from '../../../components/UI';
+import { Tabs, TextField, type TabItem } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import {
   createCarrierFleetVehicle,
@@ -197,14 +197,14 @@ export function ExternalFleetView() {
             <tbody>
               {filtered.map((row) => (
                 <tr key={`cat-${row.id}`}>
-                  <td>{row.licensePlate}</td>
-                  <td>{row.carrierName}</td>
-                  <td>
+                  <td data-label="Biển số"><span className="dispatch-catalogs__plate">{row.licensePlate}</span></td>
+                  <td data-label="Nhà xe">{row.carrierName}</td>
+                  <td data-label="Trạng thái">
                     {row.isActive
                       ? <BadgeWithDot color="success">Hoạt động</BadgeWithDot>
                       : <BadgeWithDot color="warning">Ngưng</BadgeWithDot>}
                   </td>
-                  <td>
+                  <td data-label="Thao tác">
                     <Button
                       size="xs"
                       color="secondary"
@@ -222,10 +222,7 @@ export function ExternalFleetView() {
       </CatalogTableShell>
 
       {linked.length > 0 && (
-        <section>
-          <h2 className="dispatch-catalogs__title" style={{ margin: '16px 0 8px', fontSize: 14, fontWeight: 600 }}>
-            Xe nội bộ liên kết nhà thầu — quản lý tại trang Nhà thầu phụ
-          </h2>
+        <Panel title="Xe nội bộ liên kết nhà thầu — quản lý tại trang Nhà thầu phụ" flush>
           <table className="dispatch-catalogs__table">
             <thead>
               <tr>
@@ -237,9 +234,9 @@ export function ExternalFleetView() {
             <tbody>
               {linked.map((row) => (
                 <tr key={`truck-${row.id}`}>
-                  <td>{row.licensePlate}</td>
-                  <td>{row.carrierName}</td>
-                  <td>
+                  <td data-label="Biển số"><span className="dispatch-catalogs__plate">{row.licensePlate}</span></td>
+                  <td data-label="Nhà thầu">{row.carrierName}</td>
+                  <td data-label="Trạng thái">
                     {row.tombstonedAt
                       ? <BadgeWithDot color="warning">Đã xóa — khôi phục tại Nhà thầu phụ</BadgeWithDot>
                       : row.status === 'ACTIVE'
@@ -253,7 +250,7 @@ export function ExternalFleetView() {
           <p style={{ fontSize: 12, color: 'var(--text-secondary, #64748b)', margin: '8px 0 0' }}>
             Xe của nhà thầu được liên kết ở trang Nhà thầu phụ; trang này chỉ đọc.
           </p>
-        </section>
+        </Panel>
       )}
 
       <Drawer
@@ -270,11 +267,11 @@ export function ExternalFleetView() {
         )}
       >
         {formError && <div className="dispatch-catalogs__error">{formError}</div>}
+        <div className="stack">
         <UuiSelectField
           label="Nhà xe"
-          hideLabel
           ariaLabel="Nhà xe"
-          wrapperClassName="dispatch-catalogs__drawer-select"
+          size="md"
           value={draftCarrier}
           onChange={(e) => setDraftCarrier(e.target.value)}
           options={[
@@ -282,12 +279,13 @@ export function ExternalFleetView() {
             ...carrierOptions.map((c) => ({ value: String(c.id), label: c.name })),
           ]}
         />
-        <input
-          className="dispatch-catalogs__input"
-          placeholder="Biển số (VD: 29A-12.34)"
+        <TextField
+          label="Biển số"
+          placeholder="Ví dụ: 29A-12.34"
           value={draftPlate}
           onChange={(e) => setDraftPlate(e.target.value)}
         />
+        </div>
       </Drawer>
     </div>
   );

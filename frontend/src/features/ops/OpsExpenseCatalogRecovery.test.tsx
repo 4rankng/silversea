@@ -11,7 +11,7 @@ const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.f
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 const types = { items: [{ id: 1, code: 'HANDLING', name: 'Làm hàng', requiresInvoice: false }] };
 const order: OpsOrderItem = { id: 8, shipmentCode: 'OPS-RECOVERY', status: 'CREATED', tradeDirection: 'IMPORT', billRef: 'BL-RECOVERY', customerName: 'Khách hàng', routeName: 'Hải Phòng', pinned: false, pinnedAt: null, containerCount: 0, containerNumbers: [], containerIds: [] };
-const entry: OpsExpenseRow = { id: 7, shipmentId: 8, shipmentCode: 'OPS-RECOVERY', containerNumber: null, expenseTypeCode: 'HANDLING', expenseTypeName: 'Làm hàng', requiresInvoice: false, amount: '100000', paidAt: '2026-09-17', note: 'Nội dung cũ', approvalStatus: 'RECORDED', rejectionReason: null, opsSettlementId: null, hasPhoto: false, paidById: 12, paidByName: 'Ops', createdAt: '2026-09-17T00:00:00Z', version: 2 };
+const entry: OpsExpenseRow = { id: 7, shipmentId: 8, shipmentCode: 'OPS-RECOVERY', billRef: 'BL-RECOVERY', containerNumber: null, expenseTypeCode: 'HANDLING', expenseTypeName: 'Làm hàng', requiresInvoice: false, amount: '100000', paidAt: '2026-09-17', note: 'Nội dung cũ', approvalStatus: 'RECORDED', rejectionReason: null, opsSettlementId: null, hasPhoto: false, paidById: 12, paidByName: 'Ops', createdAt: '2026-09-17T00:00:00Z', version: 2 };
 function show(edit = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const close = vi.fn();

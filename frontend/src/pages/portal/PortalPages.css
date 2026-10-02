@@ -468,7 +468,7 @@ a.portal-list__row:focus-visible {
 
 .portal-back {
   display: inline-flex;
-  min-height: 44px;
+  min-height: var(--control-max-h);
   align-items: center;
   gap: 6px;
   margin-bottom: 12px;
@@ -769,7 +769,7 @@ a.portal-list__row:focus-visible {
   }
 
   .portal-button {
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   .portal-debit-row .portal-actions .portal-button {
@@ -866,7 +866,7 @@ a.portal-list__row:focus-visible {
 .portal-history-label {
   font-weight: var(--fw-semibold);
 }
-@media(max-width:639px){.portal-timeline__meta{align-items: flex-start;flex-direction: column;gap:2px}.portal-timeline .portal-button{position: sticky;bottom: calc(12px + env(safe-area-inset-bottom));width: 100%;min-height:48px}}
+@media(max-width:639px){.portal-timeline__meta{align-items: flex-start;flex-direction: column;gap:2px}.portal-timeline .portal-button{position: sticky;bottom: calc(12px + env(safe-area-inset-bottom));width: 100%;min-height:var(--control-max-h)}}
 
 /* The statement's filter controls take their height from the shared bar
    (`--filter-control-h`, touch floor on coarse pointers) — see FilterBar.css. */

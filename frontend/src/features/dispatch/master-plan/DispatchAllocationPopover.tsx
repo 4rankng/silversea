@@ -8,6 +8,7 @@ import {
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { CloseButton } from '../../../components/untitled-ui/base/buttons/close-button';
 import { Modal } from '../../../design-system/Modal';
+import { billBookingReference } from '../../../lib/business-reference';
 import {
   AllocationDayGroup,
   AllocationRow,
@@ -224,7 +225,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
             <p className="dispatch-allocation-popover__eyebrow">Kế hoạch tổng quát</p>
             <h3 id="dispatch-allocation-title">Phân bổ nhà xe</h3>
             <div className="dispatch-allocation-popover__shipment">
-              <strong>{shipment.blNumber || shipment.bookingRef || shipment.shipmentCode}</strong>
+              <strong>{billBookingReference(shipment.blNumber, shipment.bookingRef)}</strong>
               <span>{shipment.customerName ?? 'Chưa có tên khách hàng'}</span>
             </div>
           </div>

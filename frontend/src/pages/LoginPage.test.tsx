@@ -14,6 +14,30 @@ function fillCredentials() {
 describe('login recovery', () => {
   beforeEach(() => { login.mockReset(); });
 
+  it('keeps native credential semantics through shared field and action owners', () => {
+    const { container } = render(<LoginPage />);
+    const username = screen.getByLabelText('Tên đăng nhập hoặc số điện thoại');
+    const password = screen.getByLabelText('Mật khẩu');
+    expect(username).toHaveAttribute('id', 'username-input');
+    expect(username).toHaveAttribute('name', 'username');
+    expect(username).toHaveAttribute('autocomplete', 'username');
+    expect(username).toHaveAttribute('autocapitalize', 'none');
+    expect(username).toHaveFocus();
+    expect(username).toBeRequired();
+    expect(password).toHaveAttribute('id', 'password-input');
+    expect(password).toHaveAttribute('name', 'password');
+    expect(password).toHaveAttribute('autocomplete', 'current-password');
+    expect(password).toHaveAttribute('type', 'password');
+    expect(password).toBeRequired();
+    expect(username).toHaveClass('ds-field__input');
+    expect(password).toHaveClass('ds-field__input');
+    expect(container.querySelectorAll('.ds-field__input-group')).toHaveLength(2);
+    expect(container.querySelectorAll('.input-icon,.password-toggle')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Hiện mật khẩu' })).toHaveAttribute('data-uui-control', 'button');
+    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toHaveAttribute('data-uui-control', 'button');
+    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeDisabled();
+  });
+
   it('clears stale credential feedback as the user corrects either field', async () => {
     login.mockRejectedValue(new ApiError(401, {}, 'Unauthorized'));
     render(<LoginPage />);
@@ -46,10 +70,13 @@ describe('login recovery', () => {
     expect(screen.getByLabelText('Mật khẩu')).toHaveAttribute('type', 'text');
     expect(screen.getByLabelText('Mật khẩu')).toHaveValue('wrong');
     const form = container.querySelector('form')!;
+    expect(form).toHaveAttribute('aria-busy', 'false');
     fireEvent.submit(form);
     fireEvent.submit(form);
+    expect(form).toHaveAttribute('aria-busy', 'true');
     expect(login).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: 'Đang đăng nhập…' })).toBeDisabled();
     await act(async () => resolve());
+    expect(form).toHaveAttribute('aria-busy', 'false');
   });
 });

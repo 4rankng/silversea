@@ -353,8 +353,8 @@ export default function ForwarderExpenseTypesConfigPage() {
             header: 'Ngưỡng',
             render: (item) => (
               <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-2)', lineHeight: 1.45 }}>
-                <div>{formatCurrency(item.noInvoicePerItemLimit)} / khoản</div>
-                <div>{formatCurrency(item.noInvoicePerDayLimit)} / ngày</div>
+                <div><span className="data-token">{formatCurrency(item.noInvoicePerItemLimit)}</span> / khoản</div>
+                <div><span className="data-token">{formatCurrency(item.noInvoicePerDayLimit)}</span> / ngày</div>
               </div>
             ),
           },

@@ -53,6 +53,28 @@ beforeEach(() => {
 });
 
 describe('DispatchAllocationPopover', () => {
+  it.each([
+    { bill: ' BL-2026-001 ', booking: 'BOOK-2026-002', expected: 'BL-2026-001' },
+    { bill: null, booking: ' BOOK-2026-002 ', expected: 'BOOK-2026-002' },
+    { bill: ' ', booking: ' BOOK-2026-002 ', expected: 'BOOK-2026-002' },
+    { bill: null, booking: null, expected: 'Chưa có số Bill/Booking' },
+    { bill: ' ', booking: ' ', expected: 'Chưa có số Bill/Booking' },
+  ])('UI52-B header shows $expected and closing never saves the unchanged shipment', async ({ bill, booking, expected }) => {
+    const original = shipment({ blNumber: bill, bookingRef: booking });
+    const onClose = vi.fn();
+    const onSaved = vi.fn();
+    render(<DispatchAllocationPopover shipment={original} onClose={onClose} onSaved={onSaved} />);
+    await screen.findByLabelText(/Nhà xe dòng 1/);
+    const identity = document.querySelector('.dispatch-allocation-popover__shipment strong');
+    expect(identity).toHaveTextContent(expected);
+    expect(identity?.textContent).toBe(expected);
+    expect(identity?.textContent).not.toContain(original.shipmentCode);
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(saveShipmentCarrierAllocations).not.toHaveBeenCalled();
+  });
+
   it('does not flag an untouched 0/0 row as an error', async () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 

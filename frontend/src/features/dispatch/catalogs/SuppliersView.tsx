@@ -115,7 +115,7 @@ export function SuppliersView() {
                       <button type="button" className="dispatch-catalogs__edit" aria-label={`Chỉnh sửa nhà thầu ${s.shortName || s.name}`} onClick={(event) => { event.stopPropagation(); crud.showEdit(s.id); }}>{s.shortName || s.name}</button>
                     </td>
                     <td data-label="Liên hệ" data-empty={!s.contactPerson?.trim() || undefined}>{s.contactPerson || '—'}</td>
-                    <td data-label="SĐT" data-empty={!s.phone?.trim() || undefined}>{s.phone || '—'}</td>
+                    <td data-label="SĐT" data-empty={!s.phone?.trim() || undefined}><span className="data-token">{s.phone || '—'}</span></td>
                     <td data-label="Loại" data-empty={!s.types?.length || undefined}>
                       {(s.types ?? [])
                         .map((t) => SUPPLIER_TYPE_LABELS[t] || t)

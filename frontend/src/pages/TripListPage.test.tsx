@@ -39,6 +39,7 @@ function mkTrip(id: number, tripCode: string): TripDetail {
   return {
     id,
     tripCode,
+    customerReference: 'QA-WF04-114144',
     status: 'COMPLETED',
     carrierType: 'OWN',
     departureDate: '2026-08-1' + (id % 9),
@@ -88,7 +89,7 @@ describe('TripListPage server-side column sort', () => {
     expect(lastCallParams().sortDir).toBeUndefined();
     // Every data column header is a sort button (the quick-edit select column
     // is decorative and has no header).
-    for (const label of ['Chuyến · Mã', 'Xe', 'Tuyến', 'Container', 'Tiêu hao', 'Tổng đi đường', 'Doanh thu', 'Tổng chi phí', 'LN gộp', 'Trạng thái']) {
+    for (const label of ['Bill / Booking', 'Xe', 'Tuyến', 'Container', 'Tiêu hao', 'Tổng đi đường', 'Doanh thu', 'Tổng chi phí', 'LN gộp', 'Trạng thái']) {
       expect(screen.getByRole('button', { name: label })).toBeTruthy();
     }
   });
@@ -113,13 +114,22 @@ describe('TripListPage server-side column sort', () => {
 
   it('resets to page 1 when a sort is applied from a later page', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getAllByText('TRP-202608-0001').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText('QA-WF04-114144').length).toBeGreaterThan(0));
 
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     await waitFor(() => expect(lastCallParams()).toMatchObject({ page: 2 }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Xe' }));
     await waitFor(() => expect(lastCallParams()).toMatchObject({ page: 1, sortBy: 'truck', sortDir: 'asc' }));
+  });
+
+  it('renders the business reference without the internal trip code', async () => {
+    renderPage();
+    expect((await screen.findAllByText('QA-WF04-114144')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('TRP-202608-0001')).toBeNull();
+    expect(screen.queryByText('TRP-202608-0002')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Bill / Booking' }));
+    await waitFor(() => expect(lastCallParams()).toMatchObject({ sortBy: 'customerReference', sortDir: 'asc' }));
   });
 });
 
@@ -133,7 +143,7 @@ describe('TripListPage filter strip (card 20260927_152)', () => {
   it('renders the shared filter bar — no page-local card — and keeps the search writer', async () => {
     getTripsSummaryMock.mockResolvedValue(summary);
     const { container } = renderPage();
-    await waitFor(() => expect(screen.getAllByText('TRP-202608-0001').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText('QA-WF04-114144').length).toBeGreaterThan(0));
 
     expect(container.querySelector('.filter-bar.list-filter-bar')).toBeTruthy();
     for (const retired of ['.filters-card', '.filters-row-top', '.filters-row-bottom', '.filters-divider', '.filters-search']) {
@@ -147,7 +157,7 @@ describe('TripListPage filter strip (card 20260927_152)', () => {
   it('writes the status segment and the criteria into the list query', async () => {
     getTripsSummaryMock.mockResolvedValue(summary);
     const { container } = renderPage();
-    await waitFor(() => expect(screen.getAllByText('TRP-202608-0001').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText('QA-WF04-114144').length).toBeGreaterThan(0));
     const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
 
     fireEvent.click(within(bar).getByRole('tab', { name: /Đang chạy/ }));

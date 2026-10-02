@@ -690,8 +690,20 @@ export default function ShipmentsPage() {
                   every state and answers with a reason (containers first, then
                   the lifecycle guard) instead of disappearing. */}
               <div className="cus-drawer-lot-bar">
-                <Link to={`/shipments/${drawerItem.id}`} className="btn btn--secondary btn--sm cus-drawer-lot-detail" title="Xem toàn màn hình chi tiết lô hàng" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><ExternalLink size={14} /> Chi tiết lô hàng</Link>
-                <button type="button" className="btn btn--ghost btn--sm cus-drawer-lot-delete" onClick={() => requestDeleteLot(drawerItem)}>Xóa lô</button>
+                <Link
+                  to={`/shipments/${drawerItem.id}`}
+                  className="btn btn--secondary btn--sm cus-drawer-lot-detail"
+                  title="Xem toàn màn hình chi tiết lô hàng"
+                >
+                  <ExternalLink size={14} /> Chi tiết lô hàng
+                </Link>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm cus-drawer-lot-delete"
+                  onClick={() => requestDeleteLot(drawerItem)}
+                >
+                  Xóa lô
+                </button>
                 {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
               </div>
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">

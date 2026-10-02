@@ -79,20 +79,19 @@ describe('driver density contract (20260926_26)', () => {
     expect(headerBlock).toMatch(/align-items:\s*center/);
   });
 
-  it('call affordance keeps its 44px target without inflating the row (V2: bar button below the card)', () => {
+  it('call affordance keeps the current house target without inflating the row (V2: bar button below the card)', () => {
     const callBlock = css.slice(css.indexOf('.driver-task-call-bar__btn {'));
-    expect(callBlock).toMatch(/min-height:\s*var\(--control-touch-h, 44px\)/);
+    expect(callBlock).toMatch(/min-height:\s*var\(--control-touch-h\)/);
   });
 });
 
-/* Card 20260926_29 item 13: the container-card capture strip is ONE row of
- * uniform 72px tiles — the old `1fr` group row stretched every tile to the
- * tallest column (~110px). */
+/* UI54 current owner ceiling replaces the older72px action tiles; capture
+ * groups still avoid the old1fr stretch to the tallest column. */
 describe('driver capture strip contract (20260926_29)', () => {
   const css = read('src/components/trip/DriverContainerCard.css');
 
-  it('capture tiles are uniform 72px', () => {
-    expect(css).toMatch(/\.dcc-capture-btn--primary \{[^}]*height:\s*72px;/s);
+  it('capture actions use the shared ceiling without stretching their group', () => {
+    expect(css).toMatch(/\.dcc-capture-btn--primary \{[^}]*height:\s*var\(--control-h\);/s);
     expect(css).not.toMatch(/\.dcc-capture-group \{[^}]*grid-template-rows:\s*1fr/s);
   });
 });

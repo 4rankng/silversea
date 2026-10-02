@@ -191,7 +191,7 @@ export function FleetDriversView() {
                       </>
                     ) : '—'}
                   </td>}
-                  {colPresence.phone && <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}>{d.phone || '—'}</td>}
+                  {colPresence.phone && <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}><span className="data-token">{d.phone || '—'}</span></td>}
                   {colPresence.bankName && <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined} title={d.bankName || undefined}>{d.bankName || '—'}</td>}
                   {colPresence.bankAccount && <td data-label="Số TK nhận tiền" data-empty={!d.bankAccount?.trim() || undefined}>{d.bankAccount || '—'}</td>}
                   {colPresence.salaryType && <td data-label="Hình thức lương" data-empty={!d.salaryType?.trim() || undefined}>{d.salaryType || '—'}</td>}

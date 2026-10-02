@@ -90,8 +90,8 @@ describe('customer catalog uses compact scoped summary and record layouts', () =
     expect(responsiveRecords).toMatch(/\.cfg-customer-details dl\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
     expect(responsiveRecords).toMatch(/\.cfg-customer-details dd\s*\{[^}]*overflow-wrap: anywhere;/);
     expect(responsiveRecords).toMatch(/\.cfg-customer-details > summary:focus-visible\s*\{[^}]*outline: 2px solid var\(--focus\);/);
-    expect(responsiveRecords).toMatch(/@media \(pointer: coarse\)\s*\{\s*\.cfg-customer-details > summary\s*\{\s*min-height: 44px;/);
-    expect(responsiveRecords).toContain('min-width: 44px; min-height: 44px;');
+    expect(responsiveRecords).toMatch(/@media \(pointer: coarse\)\s*\{\s*\.cfg-customer-details > summary\s*\{\s*min-height: var\(--control-max-h\);/);
+    expect(responsiveRecords).toContain('min-width: var(--control-max-h); min-height: var(--control-max-h);');
   });
 });
 

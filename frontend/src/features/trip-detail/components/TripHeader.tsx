@@ -7,6 +7,7 @@ import {
 import { TRIP_STATUS_LABELS, TripStatus, type TripDetail } from '@tingting/shared';
 import { Tooltip } from '../../../components/shared/Tooltip';
 import type { TripPermissions } from '../types';
+import { billBookingReference } from '../../../lib/business-reference';
 
 interface TripHeaderProps {
   trip: TripDetail;
@@ -46,7 +47,7 @@ export function TripHeader({
         </Tooltip>
         <div className="tc-title-wrap">
           <h1 className="tc-page-title">
-            {trip.tripCode || 'Lệnh vận chuyển'}
+            {billBookingReference(trip.customerReference)}
             <span
               className={`tc-status-pill tc-status-pill--${statusClass}`}
               aria-label={`Trạng thái: ${statusLabel}`}

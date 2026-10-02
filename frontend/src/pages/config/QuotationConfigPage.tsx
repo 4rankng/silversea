@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { PageHeader } from '../../components/UI';
+import { Btn, PageHeader } from '../../components/UI';
 import { EmptyState, FilterBar, UuiSelectField } from '../../design-system';
 import { Alert } from '../../components/shared/Alert';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
@@ -12,9 +12,13 @@ import { useQuotation, useQuotations, useUpdateQuotation } from '../../hooks/use
 import { qk } from '../../api/keys';
 import { quotationClient, triggerKindLabel, type ImportPreviewPayload } from '../../api/quotationClient';
 import { formatCurrency, formatDate } from '../../lib/format';
+import { mergeQuotationCoefficients } from '../../lib/quotation-coefficients';
 import { RouteBlock, fmtLiters, type RouteBlockData } from './QuotationRouteBlock';
 import { QuotationImportPreview } from './QuotationImportPreview';
 import { QuotationFeesSection } from './QuotationFeesSection';
+import { QuotationCreateDialog } from './QuotationCreateDialog';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import './QuotationConfigPage.css';
 
 // ─── Báo giá (card 20260922_56) — quotation live-view screen ───────────────
@@ -37,6 +41,7 @@ export default function QuotationConfigPage() {
   const [importing, setImporting] = useState(false);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
   const [versionFilterFrom, setVersionFilterFrom] = useState('');
   const [versionFilterTo, setVersionFilterTo] = useState('');
   const [viewingVersion, setViewingVersion] = useState<{ version: number; payload: QuotationView | null } | null>(null);
@@ -153,7 +158,7 @@ export default function QuotationConfigPage() {
         effectiveDate: detail.data!.effectiveDate,
         surchargeRoundingMode: detail.data!.surchargeRoundingMode,
         note: detail.data!.note,
-        cells,
+        cells: mergeQuotationCoefficients(detail.data!.cells, cells),
         fees: schemaCleanFees(detail.data!.fees),
       },
     });
@@ -207,9 +212,7 @@ export default function QuotationConfigPage() {
           >
             Xuất xlsx
           </button>
-          <a className="btn btn--primary" href="#/config/quotations/new" onClick={(event) => event.preventDefault()} title="Thẻ _56 — chưa trong phạm vi thẻ _57">
-            ＋ Tạo báo giá
-          </a>
+          <Btn variant="primary" onClick={() => setCreating(true)}>＋ Tạo báo giá</Btn>
           </>
         )}
       >
@@ -241,7 +244,8 @@ export default function QuotationConfigPage() {
 
       <div className="quotation-layout">
         <section className="quotation-frames" aria-label="Danh sách báo giá">
-          <table className="quotation-frames__table tt-table">
+          <div className="record-table-wrap">
+          <table className="quotation-frames__table record-table ops-table">
             <thead>
               <tr>
                 <th scope="col">Khách hàng</th>
@@ -255,16 +259,25 @@ export default function QuotationConfigPage() {
                 <tr
                   key={frame.id}
                   className={frame.id === selectedId ? 'is-selected' : undefined}
+                  tabIndex={0}
+                  aria-selected={frame.id === selectedId}
                   onClick={() => setSelectedId(frame.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelectedId(frame.id);
+                    }
+                  }}
                 >
-                  <td>{frame.customerName}</td>
-                  <td>{frame.templateName}</td>
-                  <td>{frame.effectiveDate}</td>
-                  <td>{frame.note ?? '—'}</td>
+                  <td data-label="Khách hàng">{frame.customerName}</td>
+                  <td data-label="Mẫu báo giá">{frame.templateName}</td>
+                  <td data-label="Ngày hiệu lực"><span className="data-token">{frame.effectiveDate}</span></td>
+                  <td data-label="Ghi chú">{frame.note ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
           {!frames.isLoading && filteredFrames.length === 0 && (
             <EmptyState context="search" title="Không có báo giá khớp bộ lọc." />
           )}
@@ -275,7 +288,7 @@ export default function QuotationConfigPage() {
           {selectedId != null && detail.isError && <Alert variant="error" style="soft">{String(detail.error)}</Alert>}
           {selectedId != null && detail.isLoading && <p className="quotation-status">Đang tải lưới giá…</p>}
           {detail.data && routeBlocks.map((block) => (
-            <RouteBlock key={block.routeId} block={block} saving={update.isPending} onSaveHeSo={saveHeSo} />
+            <RouteBlock key={`${selectedId}:${block.routeId}`} block={block} saving={update.isPending} onSaveHeSo={saveHeSo} />
           ))}
         </section>
       </div>
@@ -343,8 +356,8 @@ export default function QuotationConfigPage() {
                       <td>{cell.vehicleSizeClassCode}</td>
                       <td>{cell.heSo}</td>
                       <td>{cell.liters != null ? fmtLiters(cell.liters) : '—'}</td>
-                      <td>{cell.giaCos != null ? formatCurrency(cell.giaCos) : '—'}</td>
-                      <td>{cell.surcharge != null ? formatCurrency(cell.surcharge) : '—'}</td>
+                      <td>{cell.giaCos != null ? <span className="data-token">{formatCurrency(cell.giaCos)}</span> : '—'}</td>
+                      <td>{cell.surcharge != null ? <span className="data-token">{formatCurrency(cell.surcharge)}</span> : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -353,6 +366,11 @@ export default function QuotationConfigPage() {
           )}
         </section>
       )}
+      {creating && <QuotationCreateDialog onClose={() => setCreating(false)} onCreated={id => {
+        setSelectedId(id);
+        setCustomer(''); setDateFrom(''); setDateTo('');
+        setCreating(false);
+      }} />}
     </div>
   );
 }

@@ -3,6 +3,8 @@ import { useOpsFundBook } from '../../hooks/useOpsQueries';
 import { formatMoney } from '../../lib/format';
 import { formatDate } from '../../lib/format';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
+import { Btn } from '../../components/UI';
+import { DateRangeFields, FilterBar } from '../../design-system';
 
 /**
  * Sổ quỹ (card 20260923_13, ADR 2026-09-24-ops-fund-book-scoped-read): read-only
@@ -31,30 +33,11 @@ export function OpsFundBookSection() {
     <section className="ops-wallet__section" aria-label="Sổ quỹ">
       <header className="ops-wallet__section-head">
         <h2>Sổ quỹ</h2>
-        <div className="ops-fund-book__period">
-          <label htmlFor="fund-book-from">Từ ngày</label>
-          <input
-            id="fund-book-from"
-            type="date"
-            value={from}
-            max={to || undefined}
-            onChange={(event) => setFrom(event.target.value)}
-          />
-          <label htmlFor="fund-book-to">Đến ngày</label>
-          <input
-            id="fund-book-to"
-            type="date"
-            value={to}
-            min={from || undefined}
-            onChange={(event) => setTo(event.target.value)}
-          />
-          {(from || to) && (
-            <button type="button" className="ops-fund-book__period-clear" onClick={() => { setFrom(''); setTo(''); }}>
-              Xoá khoảng
-            </button>
-          )}
-        </div>
       </header>
+      <FilterBar actions={(from || to) ? <Btn variant="secondary" size="sm" onClick={() => { setFrom(''); setTo(''); }}>Xoá khoảng</Btn> : undefined}>
+        <DateRangeFields id="fund-book-period" ariaLabel="Khoảng ngày sổ quỹ" from={from} to={to}
+          onChange={({ from: nextFrom, to: nextTo }) => { setFrom(nextFrom); setTo(nextTo); }} />
+      </FilterBar>
       <OpsQueryFeedback loading={isLoading} error={isError} label="sổ quỹ" onRetry={refetch} />
       {items.length === 0 && !isLoading && !isError && (
         <p className="ops-modal-hint">Chưa có khoản tạm ứng/hoàn ứng nào được ghi sổ.</p>

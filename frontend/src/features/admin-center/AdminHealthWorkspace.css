@@ -32,17 +32,17 @@
 @media (max-width: 1000px) { .admin-health-workspace__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) {
   .admin-health-workspace > header { align-items: flex-start; padding: 12px; }
-  .admin-health-workspace > header button { width: 44px; height: 44px; }
+  .admin-health-workspace > header button { width: var(--control-max-h); height: var(--control-max-h); }
   .admin-health-workspace__summary { align-items: flex-start; flex-wrap: wrap; padding: 9px 12px; }
   .admin-health-workspace__summary span { width: 100%; margin-left: 24px; }
   .admin-health-workspace__grid { grid-template-columns: 1fr; }
   .admin-health-workspace article p { min-height: 0; }
   .admin-health-workspace article a,
-  .admin-health-workspace__state button { min-height: 44px; }
+  .admin-health-workspace__state button { min-height: var(--control-max-h); }
 }
 
 @media (pointer: coarse) {
-  .admin-health-workspace > header button { width: 44px; height: 44px; }
+  .admin-health-workspace > header button { width: var(--control-max-h); height: var(--control-max-h); }
   .admin-health-workspace article a,
-  .admin-health-workspace__state button { min-height: 44px; }
+  .admin-health-workspace__state button { min-height: var(--control-max-h); }
 }

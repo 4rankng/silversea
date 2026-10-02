@@ -18,7 +18,7 @@ const forwarderSource = readFileSync(resolve(process.cwd(), 'src/features/forwar
 const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), updateExpense: vi.fn(), deleteExpensePhoto: vi.fn(), attachExpensePhoto: vi.fn(), uploadExpensePhoto: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 
-const entry: OpsExpenseRow = { id: 7, shipmentId: 8, shipmentCode: 'SHP-20260924-0099', containerNumber: null, expenseTypeCode: 'HANDLING', expenseTypeName: 'Làm hàng', requiresInvoice: false, amount: '123000', paidAt: '2026-09-24', note: null, approvalStatus: 'RECORDED', rejectionReason: null, opsSettlementId: null, hasPhoto: true, paidById: 12, paidByName: 'Ops', createdAt: '2026-09-24T00:00:00Z', version: 1 };
+const entry: OpsExpenseRow = { id: 7, shipmentId: 8, shipmentCode: 'SHP-20260924-0099', billRef: 'BL-0099', containerNumber: null, expenseTypeCode: 'HANDLING', expenseTypeName: 'Làm hàng', requiresInvoice: false, amount: '123000', paidAt: '2026-09-24', note: null, approvalStatus: 'RECORDED', rejectionReason: null, opsSettlementId: null, hasPhoto: true, paidById: 12, paidByName: 'Ops', createdAt: '2026-09-24T00:00:00Z', version: 1 };
 
 const photoRow = { id: 55123, storageKey: 'ops-expense-photos/12/abc.jpg', url: '/api/photos/x', uploadedAt: '2026-09-24T00:00:00Z' };
 
@@ -46,7 +46,7 @@ beforeEach(() => {
 describe('delete affordances announce business keys, never DB ids (QA-2026-09-24-09 O4/F2)', () => {
   it('O4: the ops edit-modal photo delete button names the lot and the photo position, not photo.id', async () => {
     showEdit();
-    const button = await screen.findByRole('button', { name: 'Xóa ảnh biên lai SHP-20260924-0099 · ảnh 1' });
+    const button = await screen.findByRole('button', { name: 'Xóa ảnh biên lai BL-0099 · ảnh 1' });
     expect(button).toBeTruthy();
   });
 
@@ -56,7 +56,7 @@ describe('delete affordances announce business keys, never DB ids (QA-2026-09-24
 
   it('O4 sibling: ops history action buttons fall back to business keys, never row.id', () => {
     expect(historySource).not.toMatch(/aria-label=\{`[^`]*\?\? row\.id/);
-    expect(historySource).toContain('row.shipmentCode ?? row.expenseTypeName');
+    expect(historySource).toContain('opsBillReference(row.billRef)');
   });
 
   it('F2: the forwarder expense delete affordance carries an aria-label, not only title', () => {

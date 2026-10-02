@@ -1,3 +1,4 @@
+import { opsBillReference } from './opsStatus';
 import { useState } from 'react';
 import { Image as ImageIcon, Loader2, X } from 'lucide-react';
 import {
@@ -45,7 +46,7 @@ export function OpsAccountantTab() {
             <thead>
               <tr>
                 <th>Ngày</th>
-                <th>Mã lô</th>
+                <th>Bill / Booking</th>
                 <th>Cont</th>
                 <th>Loại phí</th>
                 <th>Số tiền</th>
@@ -59,7 +60,7 @@ export function OpsAccountantTab() {
               {items.map((row) => (
                 <tr key={row.id}>
                   <td>{formatDate(row.paidAt)}</td>
-                  <td>{row.shipmentCode ?? 'Chưa gắn lô'}</td>
+                  <td>{opsBillReference(row.billRef)}</td>
                   <td>{row.containerNumber ?? 'Chung lô'}</td>
                   <td>{row.expenseTypeName ?? row.expenseTypeCode}</td>
                   <td className="ops-money">{formatMoney(row.amount)} ₫</td>
@@ -75,7 +76,7 @@ export function OpsAccountantTab() {
                     </button>
                   </td>
                   <td>{row.approvalStatus === 'DRAFT' ? 'Cần bổ sung' : row.approvalStatus === 'VOIDED' || row.approvalStatus === 'REJECTED' ? 'Đã hủy / lịch sử' : row.opsSettlementId == null ? 'Chưa quyết toán' : 'Đã lập phiếu'}</td>
-                  <td>{row.opsSettlementId != null && <button type="button" className="btn-secondary" onClick={() => setSheetFor(row.opsSettlementId)}>Xem phiếu</button>}</td>
+                  <td>{row.opsSettlementId != null && <button type="button" className="btn btn--secondary" onClick={() => setSheetFor(row.opsSettlementId)}>Xem phiếu</button>}</td>
                 </tr>
               ))}
               {!isLoading && items.length === 0 && (
@@ -106,11 +107,11 @@ export function OpsAccountantTab() {
               {(settlements?.items ?? []).map((item) => (
                 <tr key={item.id}>
                   <td className="ops-money">{item.code}</td>
-                  <td>{item.opsUserName ?? item.opsUserId}</td>
+                  <td>{item.opsUserName ?? 'Chưa rõ người lập'}</td>
                   <td>{formatDate(item.createdAt)}</td>
                   <td className="ops-money">{formatMoney(item.totalAmount)} ₫</td>
                   <td className="ops-row-actions">
-                    <button type="button" className="btn-secondary" onClick={() => setSheetFor(item.id)}>Xem</button>
+                    <button type="button" className="btn btn--secondary" onClick={() => setSheetFor(item.id)}>Xem</button>
 
                   </td>
                 </tr>
@@ -135,7 +136,7 @@ export function OpsAccountantTab() {
               <div className="ops-modal__head-actions">
                 {detail && <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn btn--secondary"
                   onClick={() => void opsClient
                     .downloadSettlementExport(detail.settlement.id, detail.settlement.code, true)
                     .catch((error: unknown) => toast({

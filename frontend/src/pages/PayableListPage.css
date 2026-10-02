@@ -169,7 +169,7 @@
   .payables-page .page-actions .btn {
     width: 100%;
     justify-content: center;
-    min-height: 44px;
+    min-height: var(--control-max-h);
   }
 
   .payables-aging-grid {
@@ -254,7 +254,7 @@
   }
 
   .commission-form .input {
-    height: 46px;
+    height: var(--control-max-h);
     font-size: var(--control-field-font-size);
   }
 }

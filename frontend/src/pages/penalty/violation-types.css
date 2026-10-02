@@ -100,7 +100,7 @@
 }
 
 .penalty-empty-stat .val.pos {
-  color: var(--accent);
+  color: var(--success-text);
 }
 
 .penalty-empty-divider {

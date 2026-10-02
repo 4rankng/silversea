@@ -89,16 +89,16 @@ export function ExpenseRegisterRows({ rows, selected, selectable, onSelect, onOp
         tabIndex={pickable ? 0 : undefined}
         {...selection.rowProps(key, { selectable: pickable })}
       >
-      <td data-label="Lô / công việc" className="expense-register-context"><button type="button" className="expense-register-open" onClick={() => onOpen(entry)}>{businessKey(entry.shipmentCode) ?? `${entry.customerName} · ${formatDate(entry.expenseDate)}`}</button><span>{entry.customerName}</span><small>{entry.containerNumber ?? 'Phí chung lô'}</small>{entry.routeName && <small>{entry.routeName}</small>}</td>
-      <td data-label="Xe / người chi"><strong>{entry.truckPlate ?? 'Chưa có xe'}</strong>{entry.driverName && <span>{entry.driverName}</span>}<small>{entry.carrierName ?? entry.carrierCode ?? ''}</small><span>{entry.payerName ?? (entry.payerKind === 'COMPANY' ? 'Công ty trả trực tiếp' : 'Chưa xác định người chi')}</span></td>
-      <td data-label="Khoản chi"><button type="button" className="expense-register-open" onClick={() => onOpen(entry)}>{entry.feeName}</button><small>{entry.costGroup ? EXPENSE_COST_GROUP_LABELS[entry.costGroup] : 'Chưa phân loại'} · {formatDate(entry.expenseDate)}</small><span>{entry.invoiceNumber ? `HĐ ${entry.invoiceNumber}` : entry.evidenceMissing ? 'Cần bổ sung chứng từ' : 'Không có hóa đơn'}</span></td>
-      <td data-label="Thực chi" className="num"><button type="button" className="expense-register-money" onClick={() => onOpen(entry)}>{expenseMoney(entry.amount)}</button></td>
+      <td data-label="Lô / công việc" className="expense-register-context"><button type="button" className="btn btn--ghost btn--sm expense-register-open" onClick={() => onOpen(entry)}>{businessKey(entry.shipmentCode) ?? `${entry.customerName} · ${formatDate(entry.expenseDate)}`}</button><span>{entry.customerName}</span><small>{entry.containerNumber ?? 'Phí chung lô'}</small>{entry.routeName && <small>{entry.routeName}</small>}</td>
+      <td data-label="Xe / người chi"><strong>{entry.truckPlate ?? 'Chưa có xe'}</strong>{entry.driverName && <span>{entry.driverName}</span>}<small>{entry.carrierName?.trim() || (entry.carrierCode ? 'Chưa có tên nhà xe' : '')}</small><span>{entry.payerName ?? (entry.payerKind === 'COMPANY' ? 'Công ty trả trực tiếp' : 'Chưa xác định người chi')}</span></td>
+      <td data-label="Khoản chi"><button type="button" className="btn btn--ghost btn--sm expense-register-open" onClick={() => onOpen(entry)}>{entry.feeName}</button><small>{entry.costGroup ? EXPENSE_COST_GROUP_LABELS[entry.costGroup] : 'Chưa phân loại'} · {formatDate(entry.expenseDate)}</small><span>{entry.invoiceNumber ? `HĐ ${entry.invoiceNumber}` : entry.evidenceMissing ? 'Cần bổ sung chứng từ' : 'Không có hóa đơn'}</span></td>
+      <td data-label="Thực chi" className="num"><button type="button" className="btn btn--ghost btn--sm expense-register-money" onClick={() => onOpen(entry)}>{expenseMoney(entry.amount)}</button></td>
       <td data-label="Thực thu" className="num">{expenseMoney(entry.customerChargeAmount)}</td>
       {canViewPayments && <><td data-label="Còn phải thu" className="num">{expenseMoney(entry.outstandingReceivable)}</td><td data-label="Còn phải trả" className="num">{expenseMoney(entry.outstandingPayable)}</td></>}
       <td data-label="Ngày duyệt">
         {onConfirm && isConfirmableEntry(entry) && !entry.locked
           ? <button type="button" className="btn btn--secondary btn--sm" onClick={() => onConfirm(entry)}>Duyệt</button>
-          : <><span>{entry.status === 'VOIDED' ? 'Đã hủy' : entry.confirmedAt ? 'Đã đối chiếu' : 'Chưa đối chiếu'}</span>{entry.confirmedAt && <small>{formatDate(entry.confirmedAt)}</small>}{entry.confirmedAt && <small>{`Người duyệt: ${entry.confirmedByName ?? (entry.confirmedById != null ? `#${entry.confirmedById}` : '—')}`}</small>}{entry.locked && !entry.confirmedAt && <small>Đã khóa chỉnh sửa</small>}</>}
+          : <><span>{entry.status === 'VOIDED' ? 'Đã hủy' : entry.confirmedAt ? 'Đã đối chiếu' : 'Chưa đối chiếu'}</span>{entry.confirmedAt && <small>{formatDate(entry.confirmedAt)}</small>}{entry.confirmedAt && <small>{`Người duyệt: ${entry.confirmedByName?.trim() || 'Chưa có tên người duyệt'}`}</small>}{entry.locked && !entry.confirmedAt && <small>Đã khóa chỉnh sửa</small>}</>}
       </td>
     </tr>;
     })}</tbody>

@@ -102,7 +102,7 @@ export default function PricingTablesConfigPage() {
         { header: 'Lớp giá', render: (pt) => pt.rateKey || 'Áp dụng chung' },
         { header: 'Loại container', render: (pt) => containerTypes.find((type) => type.id === pt.containerTypeId)?.code || '—' },
         { header: 'Hiệu lực từ', render: (pt) => pt.effectiveDate || '—' },
-        { header: 'Giá', className: 'num', render: (pt) => <span style={{ color: 'var(--fg-1)' }}>{formatCurrency(pt.price)}</span> },
+        { header: 'Giá', className: 'num', render: (pt) => <span className="data-token" style={{ color: 'var(--fg-1)' }}>{formatCurrency(pt.price)}</span> },
       ]}
       renderForm={(p) => <PricingForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} customers={customers} routes={routes} containerTypes={containerTypes} onDelete={p.onDelete} deleting={p.deleting} />}
     />

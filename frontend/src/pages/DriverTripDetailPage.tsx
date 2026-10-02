@@ -1,3 +1,4 @@
+import { PhotoImage } from '../components/shared/PhotoImage';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -23,6 +24,7 @@ import { EmptyState } from '../design-system';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { useQuery } from '@tanstack/react-query';
@@ -50,6 +52,7 @@ export default function DriverTripDetailPage() {
 function DriverTripDetailContent() {
   const { id } = useParams<{ id: string }>();
   useDriverScreenEntry(id);
+  const actionBarRef = useFixedActionClearance<HTMLDivElement>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const geolocation = useGeolocation();
@@ -535,7 +538,7 @@ function DriverTripDetailContent() {
             {latestFuelEvidence && (
               <div className="driver-task-fuel-details">
                 <div className="driver-task-fuel-grid">
-                  <img
+                  <PhotoImage
                     src={fuelEvidencePhotoUrl}
                     alt="Ảnh nhiên liệu"
                     className="driver-task-fuel-img"
@@ -587,7 +590,7 @@ function DriverTripDetailContent() {
       <DriverInvoiceSection trip={trip} />
 
       {showAcceptStickyBar && (
-        <div className="driver-task-accept-sticky" data-testid="accept-sticky-bar">
+        <div ref={actionBarRef} className="driver-task-accept-sticky" data-testid="accept-sticky-bar">
           <div className="driver-task-accept-sticky__inner">
             <button
               type="button"
@@ -608,7 +611,7 @@ function DriverTripDetailContent() {
           instead of a gray disabled card at the end of the scroll. Hidden
           while the accept bar is up so the two never stack. */}
       {!closed && !showAcceptStickyBar && (
-        <div className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
+        <div ref={actionBarRef} className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
           <div className="driver-task-complete-sticky__inner">
             <span className="driver-task-complete-sticky__status" data-testid="complete-sticky-status">
               {missingDocs > 0 ? `Còn thiếu ${missingDocs} chứng từ` : 'Đủ điều kiện hoàn thành'}

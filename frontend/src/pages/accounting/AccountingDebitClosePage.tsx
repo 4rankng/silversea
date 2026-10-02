@@ -20,6 +20,7 @@ import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 import { BOARD_CAPTION, BOARD_COLUMNS, GROUP_LABELS, type CellContext } from './AccountingDebitClosePage.columns';
 import { DebitRoundBoard } from './AccountingDebitClosePage.rounds';
+import { AccountingDebitRecords } from './AccountingDebitRecords';
 import './AccountingDebitClosePage.css';
 
 /**
@@ -276,7 +277,7 @@ export default function AccountingDebitClosePage() {
           type="button"
           className="btn btn--ghost btn--sm"
           disabled={selectableIds.length === 0}
-          title="Chọn mọi lô đang hiển thị trong bộ lọc, không phải toàn bộ kết quả"
+          title="Chọn tất cả lô đủ điều kiện trong bộ lọc hiện tại"
           onClick={toggleAll}
         >
           {allSelected ? 'Bỏ chọn tất cả' : `Chọn tất cả ${selectableIds.length} lô đủ điều kiện`}
@@ -323,7 +324,8 @@ export default function AccountingDebitClosePage() {
             {BOARD_CAPTION}
             {period !== '' && <span className="debit-note"> · kỳ {period}</span>}
           </h2>
-          <div className="debit-board__wrap" role="region" aria-label="Bảng kế hoạch điều động tổng hợp" tabIndex={0}>
+          <AccountingDebitRecords rows={visibleRows} columns={shown} context={cellContext} selection={selection} />
+          <div className="debit-board__wrap ledger-desktop" role="region" aria-label="Bảng kế hoạch điều động tổng hợp" tabIndex={0}>
             <table className="debit-board">
               <caption className="sr-only">{BOARD_CAPTION} — thu/trả theo lô</caption>
               <thead>
@@ -374,7 +376,7 @@ export default function AccountingDebitClosePage() {
               </tbody>
             </table>
           </div>
-          <p className="debit-board__hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+          <p className="debit-board__hint ledger-desktop">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
         </>
       ))}
 

@@ -19,10 +19,10 @@
   cursor: help;
 }
 
-/* The two criteria are `UuiSelectField`s, capped at the family ceiling (card
-   20260927_152, law §3): a long customer name must never let a criterion grow
-   past 280px, in the bar and in the `Bộ lọc` dialog alike — the dialog is
-   portalled to <body>, so it needs its own scope in the same `:is()`. */
+/* The two stacked/hidden-label criteria retain the280px family ceiling in
+   both bar and portalled dialog scopes. For a visible inline bar label, the
+   shared UuiSelectField owner reserves the combined width and caps its actual
+   trigger; this unchanged declaration continues to own the other variants. */
 :is(.filter-bar, .filter-dropdown__body) .trip-criterion.ds-uui-select { max-width: 280px; }
 
 /* ── Section heading ──────────────────────────────────────────────────── */

@@ -1,3 +1,4 @@
+import { PhotoImage } from '../components/shared/PhotoImage';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +10,7 @@ import { PageHeader, StatusPill } from '../components/UI';
 import { FilterDropdown } from '../components/FilterDropdown';
 import { formatDateTimeVN, formatCurrency } from '../lib/format';
 import { FilterBar, Pagination, UuiSelectField } from '../design-system';
+import { billBookingReference } from '../lib/business-reference';
 
 const STATUS_VARIANT: Record<FuelEvidenceReviewStatus, 'warn' | 'success' | 'danger'> = {
   PENDING: 'warn',
@@ -123,17 +125,17 @@ export default function FuelEvidenceReviewPage() {
           <section key={row.id} className="panel" style={{ padding: 16 }}>
             <div className="fuel-evidence-review__card">
               <div>
-                <img
+                <PhotoImage
                   src={photoUrls[rowIndex]}
-                  alt={`Ảnh nhiên liệu ${row.tripCode ?? '—'}`}
+                  alt={`Ảnh nhiên liệu ${billBookingReference(row.tripCode)}`}
                   style={{ width: '100%', borderRadius: 12, border: '1px solid var(--border-1)', objectFit: 'cover' }}
                 />
               </div>
               <div style={{ display: 'grid', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-3)', fontWeight: 600 }}>Chuyến / chủ ảnh</div>
-                    <div style={{ fontSize: 'var(--text-section-size)', fontWeight: 700 }}>{row.tripCode || '—'}</div>
+                    <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-3)', fontWeight: 600 }}>Bill/Booking / chủ ảnh</div>
+                    <div style={{ fontSize: 'var(--text-section-size)', fontWeight: 700 }}>{billBookingReference(row.tripCode)}</div>
                     <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>{row.ownerName || '—'}</div>
                   </div>
                   <StatusPill variant={STATUS_VARIANT[row.reviewStatus]}>

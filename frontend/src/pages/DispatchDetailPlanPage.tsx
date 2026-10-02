@@ -6,6 +6,7 @@ import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReass
 import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
+import { billBookingReference } from '../lib/business-reference';
 import './DispatchPlanPage.css';
 
 /**
@@ -102,9 +103,8 @@ export default function DispatchDetailPlanPage() {
       <ConfirmDialog
         isOpen={completingRow != null}
         message={`Hoàn thành chuyến với xe ngoài ${
-          completingRow?.container.containerNumber
-            ?? completingRow?.docs.billNumber
-            ?? completingRow?.shipmentCode ?? ''
+          completingRow?.container.containerNumber?.trim()
+            || billBookingReference(completingRow?.docs.billNumber)
         }? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.`}
         confirmLabel={completing ? 'Đang hoàn thành…' : 'Hoàn thành chuyến'}
         onConfirm={() => void confirmCompleteExternalTrip()}

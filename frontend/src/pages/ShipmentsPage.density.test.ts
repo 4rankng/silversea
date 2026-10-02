@@ -70,7 +70,7 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(ledgerRowSource).toMatch(/<SearchableSelect[\s\S]*?size="sm"/);
-    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-cell input,[\s\S]*?\.cus-container-table \.cus-container-cell \.searchable-select__trigger\s*\{[^}]*min-height:\s*44px;[^}]*font-size:\s*var\(--control-field-font-size\);/);
+    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-cell input,[\s\S]*?\.cus-container-table \.cus-container-cell \.searchable-select__trigger\s*\{[^}]*min-height:\s*var\(--control-max-h\);[^}]*font-size:\s*var\(--control-field-font-size\);/);
     expect(css).toMatch(/\.shipments-page \.ds-pagination__controls\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
   });
 
@@ -126,11 +126,11 @@ describe('shipment container editor density', () => {
 
 // Card 20260925_1 (CHIEF 25/09 09:46) export-button pins — SUPERSEDED by
 // card 20260926_45/_47: the summary rail is gone; Tải XLSX rides the Row 1
-// action cluster (ghost, h-8 desktop, 44px touch floor below 768px) and never
+// action cluster (ghost, h-8 desktop, 40px touch budget below 768px) and never
 // owns a full-width row.
 describe('shipment worksheet export button — non-fighting compact (superseded by 20260926_47)', () => {
   it('Tải XLSX rides Row 1 at h-8 on desktop; no full-width slab anywhere', () => {
-    // h-8 law scoped to ≥768 — below it the UUI button keeps its 44px touch
+    // h-8 law scoped to ≥768 — below it the UUI button keeps its40px touch
     // floor. Matched by selector (the rule only lives inside the ≥768 query,
     // so a stray top-level copy would be a different regression).
     const exportRule = css.match(/\.shipments-control__actions \.shipment-uui-button\s*\{([^}]*)\}/)?.[1] ?? '';

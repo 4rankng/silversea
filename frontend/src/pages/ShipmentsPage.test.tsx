@@ -413,6 +413,18 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=MSCU6639870')));
   });
 
+  it('QA-AUDIT-UI-08 distinguishes descriptive missing-container text from an ISO identifier', async () => {
+    apiGet.mockImplementation((url: string) => url === '/shipments/cus-workspace/1'
+      ? Promise.resolve({ ...detail, containers: [{ ...detail.containers[0], containerNumber: null }] })
+      : Promise.resolve(listResponse()));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    const missing = await screen.findByText('Chưa có số container');
+    expect(missing.getAttribute('data-missing-container')).toBe('true');
+    expect(missing.id).toBeTruthy();
+  });
+
   it('renders the approved seven-column multi-line dashboard and opens detail in a drawer', async () => {
     renderPage();
     const table = await screen.findByRole('table');
@@ -2259,6 +2271,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // Container codes: one line, never bold, copy icon in the ordinal slot
     // (user ruling 2026-09-18).
     expect(css).toMatch(/\.cus-container-cell--identity strong\s*\{[^}]*font-weight:\s*400;[^}]*white-space:\s*nowrap;/);
+    expect(css).toMatch(/\.cus-container-cell--identity strong\[data-missing-container='true'\]\s*\{[^}]*white-space:\s*normal;/);
+    expect(css).toMatch(/\.cus-container-table thead th\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*normal;/);
     // 2026-09-18 relocation ruling: the copy affordance replaces the ordinal on
     // hover — same top-right slot, never over the container number.
     expect(css).toMatch(/\.cus-container-row__copy\s*\{[^}]*left:\s*auto;[^}]*right:\s*12px;/);
@@ -2439,7 +2453,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // 8px, not 7px: commit cd862de4 moved the app-wide control radius to 8px
     // as the design-system standard (7px survives only in utilities.css).
     expect(css).toMatch(/\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height\s*:\s*38px\s*;[^}]*border-radius\s*:\s*8px\s*;[^}]*font-size\s*:\s*var\(--control-field-font-size\)\s*;/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields \{ grid-template-columns:\s*1fr; \}[\s\S]*?\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields \{ grid-template-columns:\s*1fr; \}[\s\S]*?\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height:\s*var\(--control-max-h\);/);
   });
 
   it('shows the full customer company name with compact wrapping instead of an ellipsis', async () => {

@@ -134,6 +134,8 @@ describe('ShipmentDetailPage', () => {
     );
 
     expect(await screen.findByText(/Khóa lô do CUS/)).toBeTruthy();
+    expect(screen.getAllByText('BL-001').length).toBeGreaterThan(0);
+    expect(screen.queryByText('CUS-0001')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Cập nhật & điều xe' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Đã khóa bởi CUS' })).toBeNull();
     expect(screen.queryByText(/Đã khóa bởi Kế toán/)).toBeNull();

@@ -1,7 +1,7 @@
 // Card 20260924_3 — the display-only unattached-trips section. Pins: hidden
 // at empty, verbatim fee rendering, totals untouched, chốt semantics visible.
-import { render, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 import { UnattachedTripsTable } from './ShipmentDebitTables.unattached';
 
 const trip = (over: Record<string, unknown> = {}) => ({
@@ -43,4 +43,24 @@ describe('UnattachedTripsTable (card 20260924_3)', () => {
     expect(within(table).getByText('OTHER')).toBeTruthy();
     expect(within(table).getAllByText('—').length).toBeGreaterThanOrEqual(3);
   });
+});
+
+const originalMedia = window.matchMedia;
+function phoneViewport() {
+  window.matchMedia = (query: string): MediaQueryList => ({
+    matches: query.includes('max-width: 640px'), media: query, onchange: null,
+    addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
+  });
+}
+afterEach(() => { window.matchMedia = originalMedia; });
+
+it('QA-AUDIT-UI-39 phone unattached fees remain complete and outside chốt', () => {
+  phoneViewport(); render(<UnattachedTripsTable trips={[trip()]} />);
+  expect(screen.queryByRole('table')).toBeNull();
+  const record = screen.getByRole('article', { name: 'TRIP-26-0701' });
+  for (const value of ['2026-09-20', 'DONE', 'Ngoài chốt', 'Hải quan giám sát', 'Thu khách: 200.000', 'HD: HD-77', 'Chưa xác định']) {
+    expect(within(record).getByText(value)).toBeTruthy();
+  }
+  expect(within(record).getAllByText('150.000')).toHaveLength(2);
+  expect(within(record).getByText('Hải quan giám sát').closest('.ledger-record__fact')).toHaveAttribute('data-layout', 'full-width');
 });

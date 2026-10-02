@@ -146,17 +146,6 @@
   transition: background 120ms var(--ease), color 120ms var(--ease), box-shadow 120ms var(--ease);
 }
 
-.penalty-config-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 6px 0;
-  color: var(--accent-2);
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-}
-
 .penalty-seg button.active {
   background: var(--surface);
   color: var(--ink);

@@ -121,8 +121,8 @@ function DesktopLedger({ items, footer, sort, onSortChange }: {
           </tr>
           <tr>
             <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Lô hàng" sortKey="shipmentCode" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
+            <SortHeader label="Lô hàng" sortKey="shipmentReference" sort={sort} onSortChange={onSortChange} />
+            <SortHeader label="Chuyến" sortKey="tripReference" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Khoản chi" sortKey="expenseName" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Chi thực tế" sortKey="buyAmount" sort={sort} onSortChange={onSortChange} className="num" />
             <SortHeader label="Chi hộ" sortKey="recoverablePrincipalAmount" sort={sort} onSortChange={onSortChange} className="num" />
@@ -140,8 +140,8 @@ function DesktopLedger({ items, footer, sort, onSortChange }: {
             return (
               <tr key={item.id}>
                 <td className="recoverable-costs__customer" data-label="Khách hàng"><strong>{item.customerName}</strong></td>
-                <td data-label="Lô hàng"><strong>{item.shipmentCode ?? 'Chưa có mã lô'}</strong></td>
-                <td data-label="Chuyến">{item.tripCode ?? 'Chưa có mã chuyến'}</td>
+                <td data-label="Lô hàng"><strong>{item.shipmentReference ?? 'Chưa có số Bill/Booking'}</strong></td>
+                <td data-label="Chuyến">{item.tripReference ?? 'Chưa có số Bill/Booking'}</td>
                 <td data-label="Khoản chi">
                   <div className="recoverable-costs__expense">
                     <strong>{expenseLabel(item)}</strong>
@@ -152,7 +152,7 @@ function DesktopLedger({ items, footer, sort, onSortChange }: {
                 <td className="num" data-label="Chi hộ"><Money value={item.recoverablePrincipalAmount} /></td>
                 <td className="num" data-label="Phí dịch vụ"><Money value={item.serviceFeeAmount} /></td>
                 <td className="num" data-label="Thu khách"><Money value={item.sellAmount} /></td>
-                <td className="num" data-label="Chênh lệch thu/chi"><Money value={difference} tone={difference < 0 ? 'negative' : 'positive'} /></td>
+                <td className="num" data-label="Chênh lệch thu/chi"><Money value={difference} tone={difference < 0 ? 'negative' : difference > 0 ? 'positive' : undefined} /></td>
                 <td data-label="Hóa đơn / chứng từ"><Evidence item={item} /></td>
                 <td data-label="Trạng thái"><Eligibility item={item} /></td>
                 <td className="recoverable-costs__action record-table__action" data-label=""><SourceAction item={item} /></td>
@@ -176,8 +176,8 @@ function MobileRecords({ items, footer }: { items: RecoverableCost[]; footer?: R
             <header>
               <div>
                 <p>{item.customerName}</p>
-                <h2>{item.shipmentCode ?? item.tripCode ?? 'Chưa có mã lô hàng'}</h2>
-                <span>{item.tripCode && item.shipmentCode ? item.tripCode : expenseLabel(item)}</span>
+                <h2>{item.shipmentReference ?? 'Chưa có số Bill/Booking'}</h2>
+                <span>{item.tripReference ?? 'Chưa có số Bill/Booking'}</span>
               </div>
               <Eligibility item={item} />
             </header>
@@ -191,7 +191,7 @@ function MobileRecords({ items, footer }: { items: RecoverableCost[]; footer?: R
               <div><dt>Chi hộ</dt><dd><Money value={item.recoverablePrincipalAmount} /></dd></div>
               <div><dt>Phí dịch vụ</dt><dd><Money value={item.serviceFeeAmount} /></dd></div>
               <div><dt>Thu khách</dt><dd><Money value={item.sellAmount} /></dd></div>
-              <div className="recoverable-costs__record-variance"><dt>Chênh lệch thu/chi</dt><dd><Money value={difference} tone={difference < 0 ? 'negative' : 'positive'} /></dd></div>
+              <div className="recoverable-costs__record-variance"><dt>Chênh lệch thu/chi</dt><dd><Money value={difference} tone={difference < 0 ? 'negative' : difference > 0 ? 'positive' : undefined} /></dd></div>
             </dl>
             <SourceAction item={item} />
           </article>
@@ -297,7 +297,7 @@ export function RecoverableCostsWorkspace() {
         <div><span>Khoản phù hợp</span><strong>{data?.total ?? 0}</strong><small>Theo bộ lọc hiện tại</small></div>
         <div><span>Chi thực tế</span><strong>{formatCurrency(pageTotals.buy)}</strong><small>Trang hiện tại</small></div>
         <div><span>Thu khách</span><strong>{formatCurrency(pageTotals.sell)}</strong><small>Trang hiện tại</small></div>
-        <div className={pageTotals.variance < 0 ? 'is-negative' : 'is-positive'}>
+        <div className={pageTotals.variance < 0 ? 'is-negative' : pageTotals.variance > 0 ? 'is-positive' : undefined}>
           <span>Chênh lệch thu/chi</span><strong>{formatCurrency(pageTotals.variance)}</strong><small>Trang hiện tại</small>
         </div>
       </section>

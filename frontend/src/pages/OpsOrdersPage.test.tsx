@@ -98,7 +98,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
 
   it('renders the day list with containers and colored plain-text status', async () => {
     renderPage();
-    expect(await screen.findByText('SS-A')).toBeInTheDocument();
+    expect(await screen.findByText('BL-001')).toBeInTheDocument();
     expect(screen.getByText(/TSTU1111111/)).toBeInTheDocument();
     expect(screen.getByText('Sẵn sàng phát lệnh')).toBeInTheDocument();
     expect(screen.getByText('Đang vận chuyển')).toBeInTheDocument();
@@ -106,26 +106,24 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
 
   it('retains all shipment fields and both actions in the labelled narrow-screen record', async () => {
     renderPage();
-    const row = (await screen.findByText('SS-A')).closest('tr')!;
+    const row = (await screen.findByText('BL-001')).closest('tr')!;
     const fields = Array.from(row.querySelectorAll('td[data-label]')).map((cell) => [cell.getAttribute('data-label'), cell.textContent]);
     expect(fields).toEqual([
-      ['Mã lô', 'SS-A'],
+      ['Bill / Booking', 'BL-001'],
       ['Khách hàng', 'Khách A'],
       ['Tuyến', 'HP-BN'],
       ['Container', '1 · TSTU1111111'],
-      ['Bill / Booking', 'BL-001'],
       ['Trạng thái', 'Sẵn sàng phát lệnh'],
     ]);
-    expect(row.querySelector('.ops-pin')).toHaveAttribute('aria-label', 'Ghim SS-A');
+    expect(row.querySelector('.ops-pin')).toHaveAttribute('aria-label', 'Ghim BL-001');
     expect(row.querySelector('.ops-orders__expense')).toHaveTextContent('Khai chi phí');
   });
 
-  it('labels the pin button with a business key when the lot has no shipment code', async () => {
+  it('uses a business key and never falls back to the internal shipment code', async () => {
     const data = makeItems();
-    // Bulk lots carry shipment_code = null; Bill/Booking is the business key
-    // the row itself displays, so the pin must speak in the same identity.
-    data.items[0].shipmentCode = null;
-    data.items[1].shipmentCode = null;
+    // Distinct internal codes exist even when the business key is missing.
+    data.items[0].shipmentCode = 'SHP-2609-00011';
+    data.items[1].shipmentCode = 'SHP-2609-00022';
     data.items[1].billRef = null;
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/orders')) return Promise.resolve(data);
@@ -136,9 +134,11 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
 
     const codedRow = (await screen.findByText('BL-001')).closest('tr')!;
     expect(codedRow.querySelector('.ops-pin')).toHaveAttribute('aria-label', 'Ghim BL-001');
+    expect(screen.queryByText('SHP-2609-00011')).not.toBeInTheDocument();
+    expect(screen.queryByText('SHP-2609-00022')).not.toBeInTheDocument();
     // Both keys absent: the label still names its object, never ends bare.
     const orphanRow = (await screen.findByText('Khách B')).closest('tr')!;
-    expect(orphanRow.querySelector('.ops-pin')).toHaveAttribute('aria-label', 'Ghim lô');
+    expect(orphanRow.querySelector('.ops-pin')).toHaveAttribute('aria-label', 'Ghim Chưa có số Bill/Booking');
   });
 
   it('keeps the narrow records flat and removes the forced horizontal table floor', () => {
@@ -162,7 +162,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
 
   it('preserves debounced search and selected-date filtering', async () => {
     renderPage();
-    await screen.findByText('SS-A');
+    await screen.findByText('BL-001');
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '  TSTU1111111  ' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/ops/orders?date=${dateStr}&q=TSTU1111111`));
     fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '20/09/2026' } });
@@ -172,13 +172,13 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
   it('distinguishes an empty search from an empty day and clears only the query', async () => {
     apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('q=missing') ? { date: dateStr, items: [] } : makeItems()));
     renderPage();
-    await screen.findByText('SS-A');
+    await screen.findByText('BL-001');
     fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '20/09/2026' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: 'missing' } });
     expect(await screen.findByText('Không có lô hàng phù hợp với từ khóa trong ngày đã chọn.')).toBeInTheDocument();
     expect(screen.queryByText('Không có lô hàng trong ngày này.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Xóa tìm kiếm' }));
-    expect(await screen.findByText('SS-A')).toBeInTheDocument();
+    expect(await screen.findByText('BL-001')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Tìm kiếm' })).toHaveValue('');
     // The shared date field keeps its value: the three segments still read
     // DD/MM/YYYY (the field shows a draft, so the value lives per segment).
@@ -191,16 +191,16 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     // reconciled by the refetch (the mock server does not persist pins).
     apiPut.mockReturnValue(new Promise(() => {}));
     renderPage();
-    await screen.findByText('SS-A');
+    await screen.findByText('BL-001');
 
-    const pinButtons = screen.getAllByRole('button', { name: /Ghim SS-/ });
+    const pinButtons = screen.getAllByRole('button', { name: /Ghim (BL-|BK-)/ });
     // SS-B is the second row; pinning it must float it above SS-A immediately.
     fireEvent.click(pinButtons[1]);
 
     // The mutation stays pending, so nothing reconciles the optimistic patch.
     await waitFor(() => {
       const firstCode = document.querySelector('.ops-orders__table tbody tr .col-code');
-      expect(firstCode?.textContent).toBe('SS-B');
+      expect(firstCode?.textContent).toBe('BK-002');
     });
     await waitFor(() => {
       expect(apiPut).toHaveBeenCalledWith('/ops/orders/shipment-pins/22', { pinned: true });
@@ -210,31 +210,31 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
   it('reports a failed pin, restores the saved state, and allows an explicit retry', async () => {
     apiPut.mockRejectedValueOnce(new Error('Mất kết nối khi lưu ghim'));
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Ghim SS-A' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ghim BL-001' }));
     expect(await screen.findByText('Mất kết nối khi lưu ghim')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Ghim SS-A' })).toBeEnabled());
-    expect(screen.getByRole('button', { name: 'Ghim SS-A' })).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ghim BL-001' })).toBeEnabled());
+    expect(screen.getByRole('button', { name: 'Ghim BL-001' })).toHaveAttribute('aria-pressed', 'false');
     apiPut.mockReturnValueOnce(new Promise(() => {}));
-    fireEvent.click(screen.getByRole('button', { name: 'Ghim SS-A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghim BL-001' }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(2));
-    expect(screen.getByRole('button', { name: 'Bỏ ghim SS-A' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Bỏ ghim BL-001' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('sends one pin update while the previous action is pending', async () => {
     apiPut.mockReturnValue(new Promise(() => {}));
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Ghim SS-A' }));
-    const pending = await screen.findByRole('button', { name: 'Bỏ ghim SS-A' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Ghim BL-001' }));
+    const pending = await screen.findByRole('button', { name: 'Bỏ ghim BL-001' });
     expect(pending).toBeDisabled();
     expect(pending).toHaveAttribute('aria-busy', 'true');
     fireEvent.click(pending);
-    fireEvent.click(screen.getByRole('button', { name: 'Ghim SS-B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghim BK-002' }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
   });
 
   it('opens the expense form with the lô context auto-filled', async () => {
     renderPage();
-    await screen.findByText('SS-A');
+    await screen.findByText('BL-001');
 
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
 
@@ -265,7 +265,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
   });
   it('shows the rejected negative amount and explains how to recover before saving', async () => {
     renderPage();
-    await screen.findByText('SS-A');
+    await screen.findByText('BL-001');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
     fireEvent.click(await screen.findByRole('combobox', { name: /Loại phí/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
@@ -314,7 +314,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     let finishUpload!: (value: { storageKey: string; url: string }) => void;
     apiUpload.mockReturnValue(new Promise((resolve) => { finishUpload = resolve; }));
     renderPage();
-    await screen.findByText('SS-A');
+    await screen.findByText('BL-001');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
     fireEvent.click(await screen.findByRole('combobox', { name: /Loại phí/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));

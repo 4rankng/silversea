@@ -1,3 +1,4 @@
+import { PhotoImage } from '../../components/shared/PhotoImage';
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ExpenseAccountingEntry } from '@tingting/shared';
@@ -31,7 +32,7 @@ export function ExpenseProofs({ entry, canUpload }: { entry: ExpenseAccountingEn
   }
   return <section className="expense-proofs" aria-label="Chứng từ khoản chi">
     <h3 className="expense-accounting-subtitle">Chứng từ</h3>
-    {keys.length > 0 && <div className="expense-accounting-photos">{keys.map((key, index) => <a key={key} href={urls[index] || undefined} target="_blank" rel="noreferrer"><img src={urls[index]} alt={`Chứng từ ${index + 1}`} /></a>)}</div>}
+    {keys.length > 0 && <div className="expense-accounting-photos">{keys.map((key, index) => <a key={key} href={urls[index] || undefined} target="_blank" rel="noreferrer"><PhotoImage src={urls[index]} alt={`Chứng từ ${index + 1}`} /></a>)}</div>}
     {canUpload && <label className="btn btn--secondary expense-accounting-file">{busy ? 'Đang tải ảnh…' : 'Bổ sung ảnh chứng từ'}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/heic,image/heif" disabled={busy} onChange={event => { const next = event.target.files?.[0]; event.currentTarget.value = ''; if (next) void upload(next); }} /></label>}
     {error && <p role="alert" className="expense-accounting-error">{error}</p>}
     {file && !busy && <div className="expense-accounting-file"><span>{file.name}</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => void upload(file)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" onClick={() => { setFile(null); setError(''); }}>Bỏ ảnh chưa tải</button></div>}

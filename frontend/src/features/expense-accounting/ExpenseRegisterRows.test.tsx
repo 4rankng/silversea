@@ -12,6 +12,15 @@ const entry = {
   customerChargeAmount: 3000, expenseDate: '2026-09-16',
 } as ExpenseAccountingEntry;
 
+it('QA-AUDIT-UI-37 keeps the truck plate while a missing carrier name never exposes its grouping key', () => {
+  const missingCarrier = { ...entry, carrierName: null, carrierCode: 'SILVERSEA_INTERNAL', truckPlate: 'QA22C-60376805' };
+  const { bodyRows } = renderRows([missingCarrier]);
+  const cell = bodyRows()[0].querySelector('[data-label="Xe / người chi"]')!;
+  expect(cell).toHaveTextContent('QA22C-60376805');
+  expect(cell).toHaveTextContent('Chưa có tên nhà xe');
+  expect(cell).not.toHaveTextContent('SILVERSEA_INTERNAL');
+});
+
 /** Pickable rows are the ones the old per-row checkbox enabled: status RECORDED
  *  and not yet confirmed (a VOIDED row can never join a confirm batch — same
  *  predicate as ExpenseBoard's "Chọn trang này"). */
@@ -57,6 +66,19 @@ const bodyRow = (container: HTMLElement, sourceId: number) =>
   [...container.querySelectorAll('.expense-register-table tbody tr')].find(row => within(row as HTMLElement).queryByText(`Phí ${sourceId}`)) as HTMLTableRowElement;
 
 describe('ExpenseRegisterRows', () => {
+  it('keeps the complete expense title on the canonical compact action without selecting its row', () => {
+    const existing = { ...entry, feeName: 'Phí sửa chữa dọc đường' };
+    const onOpen = vi.fn(), onSelect = vi.fn();
+    render(<ExpenseRegisterRows rows={[existing]} selected={new Set()} selectable canViewPayments={false} onSelect={onSelect} onOpen={onOpen} />);
+    const action = screen.getByRole('button', { name: existing.feeName });
+    expect(action).toHaveTextContent(existing.feeName);
+    expect(action).toHaveClass('btn', 'btn--ghost', 'btn--sm');
+    fireEvent.click(action);
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith(existing);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-selected="true"]')).toBeNull();
+  });
+
   it('describes a generic source lock without claiming that the accounting period is locked', () => {
     render(<ExpenseRegisterRows rows={[entry]} selected={new Set()} selectable={false} canViewPayments={false} onSelect={vi.fn()} onOpen={vi.fn()} />);
 
@@ -142,6 +164,12 @@ describe('ExpenseRegisterRows — row selection replaces the checkbox column', (
 });
 
 describe('ExpenseRegisterRows — Ngày duyệt column + approved rows (card 20260928_168)', () => {
+  it('uses honest missing approver copy without exposing the stored numeric ID (UI37)', () => {
+    const approved = { ...row(9), confirmedAt: '2026-09-21T02:00:00.000Z', confirmedById: 42, confirmedByName: null } as ExpenseAccountingEntry;
+    const { view } = renderRows([approved]);
+    expect(screen.getByText('Người duyệt: Chưa có tên người duyệt')).toBeInTheDocument();
+    expect(view.container.textContent).not.toContain('#42');
+  });
   it('AC1: the date column is named Ngày duyệt and shows who approved', () => {
     const approved = {
       ...row(9),

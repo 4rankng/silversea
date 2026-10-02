@@ -51,6 +51,41 @@ describe('ops modal shell stylesheet ownership', () => {
     expect(css).toMatch(/\.ops-modal\s*\{[^}]*background:\s*var\(--surface\)/);
   });
 
+  it('QA-AUDIT-UI59 keeps icon-labelled header actions in a row and lets house Btn own its paint and density', () => {
+    const shared = css.match(/\.ops-modal__head button\s*\{([^}]+)\}/)?.[1];
+    expect(shared).toBeDefined();
+    expect(shared).toContain('display: inline-flex');
+    expect(shared).toContain('align-items: center');
+    expect(shared).toContain('justify-content: center');
+    // SVG + an anonymous text node must not become two implicit grid rows.
+    expect(shared).not.toMatch(/inline-grid|place-items|background|border:|color:|padding|gap:|min-height|min-width/);
+    const close = css.match(/\.ops-modal__head button:not\(\.btn\)\s*\{([^}]+)\}/)?.[1];
+    expect(close).toBeDefined();
+    expect(close).toContain('background: transparent');
+    expect(close).toContain('border: none');
+    expect(close).toContain('min-height: 36px');
+    const own = readFileSync(resolve(process.cwd(), 'src/features/ops/OpsSettlementsPanel.tsx'), 'utf8');
+    const accountant = readFileSync(resolve(process.cwd(), 'src/features/ops/OpsAccountantTab.tsx'), 'utf8');
+    for (const source of [own, accountant]) {
+      expect(source).toContain('className="btn btn--secondary"');
+      expect(source).toContain('aria-label="Đóng"');
+      expect(source).toContain('downloadSettlementExport');
+    }
+    expect(own).toContain('<Download size={14} /> Excel');
+    expect(own).toContain('<Printer size={14} /> In');
+    expect(own).toContain('window.print()');
+  });
+
+  it('QA-AUDIT-UI59 self-owns header sibling spacing for a fresh accountant visit', () => {
+    const group = css.match(/\.ops-modal__head-actions\s*\{([^}]+)\}/)?.[1];
+    expect(group).toBeDefined();
+    expect(group).toContain('display: inline-flex');
+    expect(group).toContain('align-items: center');
+    expect(group).toContain('gap: 8px');
+    const wallet = readFileSync(resolve(process.cwd(), 'src/pages/OpsWalletPage.css'), 'utf8');
+    expect(wallet).not.toContain('.ops-modal__head-actions');
+  });
+
   it('OpsOrdersPage.css no longer carries the moved shell (moved, not copied)', () => {
     const pageCss = readFileSync(resolve(process.cwd(), 'src/pages/OpsOrdersPage.css'), 'utf8');
     expect(pageCss).not.toMatch(/\.ops-modal-backdrop/);

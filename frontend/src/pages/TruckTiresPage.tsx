@@ -159,7 +159,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
     <div className="ttp">
       <div className="ttp-header">
         <div>
-          <Link to={routes.fleet} className="ttp-back">
+          <Link to={routes.fleet} className="btn btn--secondary ttp-back">
             <ArrowLeft size={14} />
             Quay lại đội xe
           </Link>
@@ -169,13 +169,13 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
       </div>
 
       <div className="ttp-workbench">
-        <section className="ttp-panel ttp-panel--form" aria-labelledby="ttp-add-title">
-          <div className="ttp-section-head">
+        <section className="panel ttp-panel ttp-panel--form" aria-labelledby="ttp-add-title">
+          <div className="panel__head ttp-section-head">
             <div>
               <h2 id="ttp-add-title">Thêm lốp</h2>
               <p>Nhập serial và thông tin chính cho {vehicleNoun} này.</p>
             </div>
-            <button type="button" className="ttp-tool-btn" onClick={() => openPositionManager()}>
+            <button type="button" className="btn btn--secondary btn--sm ttp-tool-btn" onClick={() => openPositionManager()}>
               <Settings2 size={15} />
               Vị trí lốp
             </button>
@@ -202,8 +202,8 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
           />
         </section>
 
-        <section className="ttp-panel ttp-panel--table" aria-labelledby="ttp-mounted-title">
-          <div className="ttp-section-head">
+        <section className="panel ttp-panel ttp-panel--table" aria-labelledby="ttp-mounted-title">
+          <div className="panel__head ttp-section-head">
             <div>
               <h2 id="ttp-mounted-title">Lốp đang lắp trên {vehicleNoun}</h2>
               <p>{tiresOnVehicle.length} lốp đang theo dõi</p>
@@ -215,8 +215,8 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
       </div>
 
       {spares.length > 0 && (
-        <section className="ttp-panel ttp-spares" aria-labelledby="ttp-spares-title">
-          <div className="ttp-section-head">
+        <section className="panel ttp-panel ttp-spares" aria-labelledby="ttp-spares-title">
+          <div className="panel__head ttp-section-head">
             <div>
               <h2 id="ttp-spares-title">Lốp dự phòng trong kho</h2>
               <p>{spares.length} lốp có thể lắp lên phương tiện</p>
@@ -228,8 +228,8 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
       )}
 
       {disposed.length > 0 && (
-        <section className="ttp-panel ttp-disposed" aria-labelledby="ttp-disposed-title">
-          <div className="ttp-section-head">
+        <section className="panel ttp-panel ttp-disposed" aria-labelledby="ttp-disposed-title">
+          <div className="panel__head ttp-section-head">
             <div>
               <h2 id="ttp-disposed-title">Đã thanh lý</h2>
               <p>{disposed.length} lốp đã đưa ra khỏi sử dụng</p>

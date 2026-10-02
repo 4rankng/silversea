@@ -91,6 +91,12 @@ function renderTable(props: Partial<PenaltyTableProps> = {}) {
 }
 
 describe('PenaltyTable', () => {
+  it('ID03 preserves the exact trip link when the business reference is missing', () => {
+    renderTable({ rows: [row({ tripCode: null })], total: 1 });
+    expect(screen.getByRole('link', { name: 'Chưa có số Bill/Booking' })).toHaveAttribute('href', '/trips/7');
+    expect(document.querySelector('td[data-label="Số tiền"]')).toHaveTextContent('500.000');
+    expect(screen.getByRole('button', { name: 'Hủy kỷ luật' })).toBeEnabled();
+  });
   it('marks every violation-log header sortable and reports the active sort', () => {
     const onSortChange = vi.fn();
     const { rerender } = renderTable({ rows: [row()], total: 1, sort: null, onSortChange });
