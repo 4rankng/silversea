@@ -1,23 +1,18 @@
-import { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import { useState, useMemo, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, Plus, Download,
-  MoreHorizontal, Pencil, Trash2, X, Save, Loader2,
-  Building2, Hash, User, Phone, Landmark, Clock, FileText,
+  MoreHorizontal, Pencil, Trash2, Loader2,
 } from 'lucide-react';
 import { Truck as TruckIcon } from 'lucide-react';
 import { useConfirm } from '../components/UI';
 import { SupplierCarrierTrucksSection } from '../features/suppliers/SupplierCarrierTrucksSection';
-import { SupplierTypePicker } from '../features/suppliers/SupplierTypePicker';
 import { api } from '../lib/api';
-import { Input } from '../components/untitled-ui/base/input/input';
-import { TextArea } from '../components/untitled-ui/base/textarea/textarea';
-import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { PageHeader, KPI, StatusPill, Modal, ModalChip, ModalChipLive } from '../components/UI';
+import { PageHeader, KPI, StatusPill } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useDropdownDismiss } from '../hooks/useDropdownDismiss';
 import { EmptyState, FilterBar, Pagination, useTableQueryState } from '../design-system';
