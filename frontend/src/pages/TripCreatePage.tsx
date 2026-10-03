@@ -185,7 +185,7 @@ export default function TripCreatePage() {
             <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
               <div style={creditMetricStyle}>
                 <span style={creditMetricLabelStyle}>Giá trị chuyến dự kiến</span>
-                <strong>{estimatedProposedAmount > 0 ? formatCurrency(estimatedProposedAmount) : 'Chưa xác định'}</strong>
+                <strong>{formatCurrency(estimatedProposedAmount)}</strong>
               </div>
             </div>
             {canRecordException ? <div style={{ display: 'grid', gap: 8 }}>

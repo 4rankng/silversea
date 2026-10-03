@@ -546,9 +546,9 @@ function DriverTripDetailContent() {
                   <div className="driver-task-fuel-facts">
                     <div><strong>Thời điểm chụp:</strong> {formatDateTime(latestFuelEvidence.capturedAt)}</div>
                     <div><strong>Lít:</strong> {latestFuelEvidence.litres ?? '—'}</div>
-                    <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
-                    <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
-                    <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
+                    <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice != null ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
+                    <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount != null ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
+                    <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal != null ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
                     <div>
                       <strong>GPS:</strong>
                       {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? (

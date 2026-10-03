@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Plus, Download,
-  Pencil, Trash2, X, Save, Loader2, Truck,
+  Pencil, Trash2, X, Save, Loader2,
   Building2, Hash, Landmark, MapPin, User, Phone,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -99,7 +99,6 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
   const [contactInfo, setContactInfo] = useState(item?.contactInfo || '');
   const [accountantName, setAccountantName] = useState(item?.accountantName || '');
   const [accountantPhone, setAccountantPhone] = useState(item?.accountantPhone || '');
-  const [isCarrier, setIsCarrier] = useState(item?.isCarrier ?? false);
 
   useEffect(() => {
     if (isOpen) {
@@ -111,7 +110,6 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
       setContactInfo(item?.contactInfo || '');
       setAccountantName(item?.accountantName || '');
       setAccountantPhone(item?.accountantPhone || '');
-      setIsCarrier(item?.isCarrier ?? false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-sync only when the target customer ID changes, not on every prop update
   }, [isOpen, item?.id]);
@@ -127,7 +125,6 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
       contactInfo: contactInfo.trim() || undefined,
       accountantName: accountantName.trim() || undefined,
       accountantPhone: accountantPhone.trim() || undefined,
-      isCarrier,
     });
   };
 
@@ -217,18 +214,7 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen }: {
           />
         </EntityFormSection>
         <EntityFormSection icon={Landmark} label="Kế toán &amp; điều khoản">
-          <div className="col-span-full">
-            <label className="flex items-center gap-2 cursor-pointer select-none text-sm" style={{ minHeight: 32 }}>
-              <input
-                type="checkbox"
-                checked={isCarrier}
-                onChange={(e) => setIsCarrier(e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
-              />
-              <Truck size={14} />
-              <span>Nhà xe (đối tác vận tải ngoài)</span>
-            </label>
-          </div>
+          <div className="col-span-full" />
           <Input
             size="sm"
             label="Giám đốc"
@@ -550,11 +536,6 @@ export default function CustomersPage() {
                     {c.shortName || c.name}
                     {c.linkedSupplierId && (
                       <Badge variant="success" style={{ marginLeft: 6 }}>2 chiều</Badge>
-                    )}
-                    {c.isCarrier && (
-                      <span style={{ marginLeft: 6, fontSize: 'var(--text-body-size)', fontWeight: 700, color: 'var(--info-text)', background: 'var(--info-soft)', border: '1px solid color-mix(in srgb, var(--info) 22%, transparent)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                        <Truck size={11} aria-hidden="true" /> Xe ngoài
-                      </span>
                     )}
                   </span>
                   <StatusPill variant={c.status === CustomerStatus.ACTIVE ? 'success' : 'danger'}>
@@ -884,7 +865,7 @@ export default function CustomersPage() {
                   <dt>Mã số thuế</dt>
                   <dd><span className="data-token">{c.taxCode || '—'}</span></dd>
                   <dt>Hạn mức tín dụng</dt>
-                  <dd>{c.creditLimit ? formatCurrency(c.creditLimit) : '—'}</dd>
+                  <dd>{c.creditLimit != null ? formatCurrency(c.creditLimit) : '—'}</dd>
                   <dt>Công nợ hiện tại</dt>
                   <dd style={debt > 0 ? { color: 'var(--warning-text)' } : undefined}>
                     <Money value={debt} />

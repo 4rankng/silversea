@@ -597,17 +597,19 @@ export default function PayableListPage() {
                         }}>
                           {formatCurrency(d.totalOutstanding)}
                         </td>
+                        {/* Card 20261002_293: a computed 0 bucket renders "0 ₫"
+                            (quietly toned), never a dash that reads as no data. */}
                         <td data-label="0-30 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
-                          {d.aging.current > 0 ? formatCurrency(d.aging.current) : '—'}
+                          {d.aging.current != null ? formatCurrency(d.aging.current) : '—'}
                         </td>
                         <td data-label="31-60 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
-                          {d.aging.d30 > 0 ? formatCurrency(d.aging.d30) : '—'}
+                          {d.aging.d30 != null ? formatCurrency(d.aging.d30) : '—'}
                         </td>
                         <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
-                          {d.aging.d60 > 0 ? formatCurrency(d.aging.d60) : '—'}
+                          {d.aging.d60 != null ? formatCurrency(d.aging.d60) : '—'}
                         </td>
                         <td data-label=">90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
-                          {d.aging.over90 > 0 ? formatCurrency(d.aging.over90) : '—'}
+                          {d.aging.over90 != null ? formatCurrency(d.aging.over90) : '—'}
                         </td>
                         <td data-label="" className="record-table__action" style={{ textAlign: 'right' }}>
                           <ChevronRight size={14} style={{ color: 'var(--fg-3)' }} />

@@ -64,8 +64,10 @@ export function PenaltyScoreboardCards({ rows, avgStreak, driversOver90, onOpenD
                 </div>
                 <div className="mm">
                   <span className="lab">Phạt YTD</span>
+                  {/* 0 ₫ is a value, not a missing one (card 20261002_293):
+                     the dash hid a real zero; the tone still marks it quiet. */}
                   <span className={d.fineYtd > 0 ? 'val danger' : 'val empty'}>
-                    {d.fineYtd > 0 ? formatCurrency(d.fineYtd) : '—'}
+                    {d.fineYtd != null ? formatCurrency(d.fineYtd) : '—'}
                   </span>
                 </div>
               </div>

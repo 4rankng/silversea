@@ -60,7 +60,10 @@ export function formatCurrency(n: number | string | null | undefined, options?: 
   if (n == null) return empty;
   const num = typeof n === 'string' ? parseFloat(n) : n;
   if (isNaN(num)) return empty;
-  return `${num.toLocaleString('vi-VN')} ₫`;
+  // Card 20261002_293: VND display is zero-digit always — a fractional rate
+  // (unit prices arrive as numeric(8,4)) must round at the display edge, the
+  // same contract formatMoney already pins, not leak decimals into money.
+  return `${VI_VN_ZERO_DIGITS.format(num)} ₫`;
 }
 
 /**
