@@ -419,3 +419,16 @@ Shift+Tab back is untouched. Implementation: UUI `ComboBox onReady` handle
 → `USearchableField openApiRef` → the paired field's `onKeyDown`. Pins:
 `ContainerTypeCellPicker.test.tsx` (bare-focus-closed preservation +
 hand-off-opens-once).
+
+### 2026-10-03 — Filters stay visible when width permits (owner decision 2026-10-02, card 20261002_282)
+
+Owner decision recorded in the contract's design block (AGENTS.md §3,
+02-10 wave): filters are visible when width permits. This governs the
+DEFAULT at wide widths — where the criteria fit the inline budget they stay
+in the bar rather than folding into `Bộ lọc`. It does not rewrite the fold
+MECHANISM: the 2026-09-27 two-row `Bộ lọc` ruling and the row-budget law
+(`docs/design-system/03-data-display-and-feedback.md`) remain how the band
+counts rows and picks `inline → dialog`. The measured reconciliation between
+the ≥1280 inline expectation (R17) and the two-row cap is card
+20261002_282's open scope; the owning lane brings measured options before
+the shared band moves. No implementation pins yet — they land with 282.
