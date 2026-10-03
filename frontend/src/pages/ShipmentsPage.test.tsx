@@ -811,6 +811,22 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-dashboard-row \.status-strip\s*\{[^}]*pointer-events:\s*none;/);
   });
 
+  // Owner ruling 03-10 (screenshot): hovering a shipment card highlighted the
+  // WHOLE card. The sheet carried `.cus-dashboard-row:hover > th, > td`, so every
+  // cell in the row lit and the cell actually under the pointer no longer read
+  // as the hovered one. The hover belongs to the cell alone.
+  it('CUS-HOVER-01 highlights the hovered cell, never the whole row', () => {
+    // Comments quote the removed rule verbatim, so assert against the sheet with
+    // comments stripped — otherwise the explanation of the fix fails the fix.
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    // No descendant-combinator row tint: that is the shape that lit every cell.
+    expect(rules).not.toMatch(/\.cus-dashboard-row:hover\s*>\s*(th|td)/);
+    expect(rules).not.toMatch(/\.cus-dashboard-row:hover[^{]*\{[^}]*background/);
+    // The cell under the pointer is what carries the hover, and only on a fine
+    // pointer — a touch browser keeps :hover stuck on the last-touched target.
+    expect(rules).toMatch(/@media \(hover: hover\) and \(pointer: fine\)\s*\{[^}]*\.cus-dashboard-table td:hover[^}]*background:\s*var\(--surface-2\)/);
+  });
+
   it('CUS-OVERVIEW-03 retains a distinct recovery warning after deduplicating the missing-date signal', async () => {
     apiGet.mockResolvedValue(listResponse([{
       ...row,

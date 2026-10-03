@@ -485,8 +485,17 @@
   transition: background var(--t-fast);
 }
 
-.cus-dashboard-row:hover > th,
-.cus-dashboard-row:hover > td { background: var(--surface-2); }
+/* Owner ruling 03-10: hovering a row must NOT tint every cell in it. This
+   sheet used to carry `.cus-dashboard-row:hover > th, .cus-dashboard-row:hover
+   > td { background: var(--surface-2) }`, so moving the pointer anywhere across
+   a shipment lit the entire card and the highlighted cell stopped reading as
+   "this one is under the pointer". The hover now lands on the cell alone.
+   Fine pointers only: touch browsers keep :hover stuck on the last-touched
+   target, which would strand the tint after the finger lifts. */
+@media (hover: hover) and (pointer: fine) {
+  .cus-dashboard-table td:hover,
+  .cus-dashboard-table th:hover { background: var(--surface-2); }
+}
 
 /* The attention signal lives in the CELL'S TEXT, not in a colour field. This
    sheet used to tint the whole schedule cell cream, and its own reasoning said
