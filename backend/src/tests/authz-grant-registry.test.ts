@@ -122,6 +122,18 @@ function oldHasRouteScopedRoleAllowance(
   ) {
     return true;
   }
+  // Card 20261002_220 (ruling change, same-commit oracle update per this
+  // file's rule): PM ruled 2026-10-03 that CUS may read the quotation fee
+  // catalog. Before this ruling the row was absent and CUS was denied the
+  // active-fee GET, so the Chi-hộ dedicated cost columns had no source.
+  if (
+    resource === 'config'
+    && role === Role.CUS
+    && method === 'GET'
+    && /^\/quotations\/fees\/active\/?$/.test(path)
+  ) {
+    return true;
+  }
   if (
     resource === 'financial'
     && role === Role.CUS
@@ -264,6 +276,13 @@ const CONFIG_PATHS = [
   '/fuel-price-periods/9/',
   '/fuel-price-periods/x',
   '/fuel-price-periods/9/export',
+  // Card 20261002_220 — the granted active-fee read, plus the near-miss
+  // shapes that must stay denied.
+  '/quotations/fees/active',
+  '/quotations/fees/active/',
+  '/quotations/fees/active/9',
+  '/quotations/fees/archived',
+  '/quotations/fees/active/export',
   '/pricing-tables',
   '/expense-categories',
   '/customers?include=archived',
@@ -305,12 +324,14 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
   });
 
   describe('registry integrity', () => {
-    it('carries the ported bypass rows (ten + the 253 mirror) and two exclusive rows', () => {
+    it('carries the ported bypass rows (ten + the 253 mirror + the 220 fee read) and two exclusive rows', () => {
       // Card 20261001_253 added one config-resource mirror of the financial
       // debit-note row: both bare-'/'api gates evaluate sequentially, so the
       // grant must be reachable at each gate the request actually passes.
-      assert.equal(ROUTE_GRANT_RULES.length, 13);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 11);
+      // Card 20261002_220 added one more bypass (CUS reads the active
+      // quotation fee catalog) on the PM ruling of 2026-10-03.
+      assert.equal(ROUTE_GRANT_RULES.length, 15);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 13);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 

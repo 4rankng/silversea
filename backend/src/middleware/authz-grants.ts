@@ -164,6 +164,25 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     source: 'card 20261001_253 (mount-order fix; mirrors the Card-20260930_228 financial row)',
   },
   {
+    // Card 20261002_220 (PM ruling 2026-10-03: CUS IS to read the quotation
+    // fee catalog). The Chi-hộ table's dedicated cost columns come from
+    // /api/quotations/fees/active, and CUS is a first-party role on that
+    // screen — it was denied by the `config, read` policy row, so either the
+    // columns silently vanished or the FE had to suppress the call. Scoped to
+    // this ONE GET path rather than a `p, CUS, config, read` policy row:
+    // granting config:read wholesale would hand CUS every config catalog
+    // (pricing tables, expense categories, portals), which this ruling does
+    // not say. Every other quotation verb keeps its own requireRoles.
+    resource: 'config',
+    methods: ['GET'],
+    pathPattern: /^\/quotations\/fees\/active\/?$/,
+    roles: [Role.CUS],
+    effect: 'bypass',
+    reason:
+      'CUS staff the Chi hộ cost screen, whose dedicated fee columns are built from the customer\'s active quotation frames (/api/quotations/fees/active). PM ruled 2026-10-03 that CUS gets read access. Bridge route-scoped to that single GET so the rest of the config catalog stays Casbin-governed for CUS.',
+    source: 'PM ruling 2026-10-03 (card 20261002_220)',
+  },
+  {
     resource: 'financial',
     methods: ['GET'],
     pathPattern: /^\/finance\/billing-documents\/\d+(\/export)?$/,
