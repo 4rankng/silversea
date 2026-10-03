@@ -13,6 +13,7 @@ import type { FuelPriceHistory } from '@tingting/shared';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
+import './FuelConfigPage.css';
 import { EmptyState } from '../../design-system';
 import { formatMoney } from '../../lib/format';
 
@@ -203,7 +204,7 @@ export default function FuelConfigPage() {
         ) : (
           <div className="table-scroll">
             <div className="record-table-wrap record-table-wrap--table">
-            <table className="record-table ops-table">
+            <table className="record-table ops-table fuel-history-table">
               <thead>
                 <tr>
                   <SortHeader label="Ngày hiệu lực" sortKey="effectiveDate" sort={historySort} onSortChange={handleHistorySort} />
