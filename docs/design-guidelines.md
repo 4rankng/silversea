@@ -391,3 +391,16 @@ Owner Nhập/Xuất screenshot: informational shipment direction and combined-ca
 labels render plain text with no border, fill, radius or button semantics. Real
 edit/filter actions keep control chrome. This supersedes the earlier
 outlined-classification treatment.
+
+### 2026-10-03 — Grid cell actions sit bottom-right, outside the text flow (card 20261002_302)
+
+PM (screenshot 03/10): a cell's "Chi tiết" action must not share its row with
+the values it opens — "chi tiet shoult be at bottom right of cell, not there,
+dont occupy text space". In the master-plan grid the cargo block is a column
+(summary full-width; the action drops to its own right-aligned row) and a note
+line holding a detail trigger stacks the note above the right-aligned action
+(`align-self: flex-end`). The <768 phone band keeps its §8 inline record shape
+(budget-pinned); a cell action never takes value width on ≥768. Class sweep:
+the pattern exists only in the master-plan grid (cargo + operational/factory
+note cells) — the detailed-plan grid carries no inline cell "Chi tiết"
+triggers. Pins: `MasterPlanGrid.cellactions.styles.test.ts`.

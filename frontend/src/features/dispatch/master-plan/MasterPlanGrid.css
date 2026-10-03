@@ -335,11 +335,14 @@
   border-color: var(--fg-3);
 }
 
+/* PM 2026-10-03 (card 20261002_302): the cell's "Chi tiết" action is a
+   bottom-right footnote of the cell, never a row-sharer with the values —
+   the summary block takes the full width and the action drops to its own
+   right-aligned row. */
 .master-plan-grid__cargo-content {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 2px 8px;
 }
 
@@ -350,8 +353,9 @@
 
 .master-plan-grid__line--notes:has(> .master-plan-grid__note-detail-trigger) {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
 }
 
 .master-plan-grid__line--notes:has(> .master-plan-grid__note-detail-trigger) > :first-child {
@@ -367,6 +371,7 @@
   min-width: 44px;
   min-height: max(28px, var(--uui-control-h));
   margin: 0;
+  align-self: flex-end;
   align-items: center;
   justify-content: flex-end;
   color: var(--accent-2);
