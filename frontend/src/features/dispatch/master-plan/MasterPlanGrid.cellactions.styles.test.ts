@@ -31,7 +31,7 @@ describe('master-plan grid cell-action placement (card 20261002_302)', () => {
   });
 
   it('stacks a note line holding a detail trigger, instead of the old side-by-side row', () => {
-    const block = css.match(/\.master-plan-grid__line--notes:has\(\> \.master-plan-grid__note-detail-trigger\)\s*\{[^}]*\}/)?.[0];
+    const block = css.match(/\.master-plan-grid__line--notes:has\(> \.master-plan-grid__note-detail-trigger\)\s*\{[^}]*\}/)?.[0];
     expect(block).toBeTruthy();
     expect(block).toContain('flex-direction: column;');
     expect(block).not.toContain('align-items: flex-start;');
