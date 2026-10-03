@@ -199,12 +199,16 @@
 
 @media (max-width: 1023px) {
   /* Card 20260927_149 (criterion 3 — the same defect CLASS as the driver band):
-     the tab bar was a FIXED layer (`position: fixed; inset: auto 0 0`) and the
-     main column paid for it with a reserved 92px padding. That pairing is what
-     leaves an untiled strip under the bar on a real iPhone, where the visual
-     viewport is shorter than the layout viewport — the driver shell lost it in
-     f902c3e0 by making the bar an IN-FLOW flex item of a `100dvh` column whose
-     content area owns the scroll. The same structure is applied here. */
+     the tab bar follows the proven phone pattern (sibling projects payroll and
+     nepocorp, both verified band-free on the user's real iPhone): `position:
+     fixed; bottom: 0` with the home-indicator strip painted INSIDE the bar's
+     own opaque box (`env(safe-area-inset-bottom)` padding), while the
+     scrolling content column pays the bar's height as bottom clearance. The
+     interim in-flow structure (e4d9a6c) depended on iOS dvh reflow — the one
+     half a desktop browser can never verify (visual viewport ≠ layout
+     viewport). A fixed bar cannot leave uncovered space below itself, and the
+     old 92px main-column reserve stays gone: clearance lives on the scrolling
+     element once, not as a blanket compensation that hides the last row. */
   .customer-shell {
     display: flex;
     flex-direction: column;
@@ -231,6 +235,11 @@
     min-height: 0;
     overflow-y: auto;
     margin-left: 0;
+    /* Clearance for the fixed tab bar below: 1px hairline + 6px pad +
+       --control-touch-h link + 6px pad = 53px bar content, +24px slack, then
+       the bar's env() strip covers the inset itself. The last row parks
+       above the bar instead of under it. */
+    padding-bottom: calc(77px + env(safe-area-inset-bottom, 0px));
   }
   .customer-shell__desktop-topbar { display: none; }
   .customer-shell__mobile-header {
@@ -277,8 +286,11 @@
      reserve space for it — an overlay is the only thing that needs a padding
      compensation, and a wrong compensation is what hides the last row. */
   .customer-shell__bottom-nav {
-    position: static;
-    flex: 0 0 auto;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));

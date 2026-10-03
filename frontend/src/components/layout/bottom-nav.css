@@ -73,18 +73,22 @@ html:has(body .app.is-driver) {
   }
 
   /* Card QA-2026-09-27-01 residual (driver task screens still ended in a
-     ~200px blank): the tab bar is a flex SIBLING of .app-body inside
-     .app-main (`position: relative`, `flex-shrink: 0`) — it is never an
-     overlay, so it already owns its own space in the layout column. The
-     nav-sized reserve that used to live here was therefore a SECOND, dead
-     strip stacked under each screen's own sticky-bar clearance (measured
-     390x844: 70px here + 140px on `.driver-task-screen--has-complete-bar`
-     = 210px of blank after the last section). Removed; the screen's own
-     reserve still clears the fixed action bar it was authored for.
-     The bar's geometry now lives in one place — `--bottom-nav-h`, consumed
-     by `.bottom-nav` below AND by the fixed accept/complete bars
-     (DriverTripDetailPage.css) — so the two can never drift by the 5px the
-     old hard-coded `bottom: 60px` was off by. */
+     ~200px blank): the tab bar is the fixed overlay again (card 149, below),
+     so the scrolling content pays the bar's height ONCE at the end of the
+     scroll — the last row parks above the bar instead of under it. The
+     clearance derives from `--bottom-nav-h`, the same token the fixed
+     accept/complete bars on the trip screen offset by, so the three layers
+     share one source of truth and can never drift. (The 09-27 removal of the
+     old 70px reserve was correct for the in-flow bar experiment, where the
+     reserve really was dead; with a fixed bar it is load-bearing again.)
+     Full-bleed screens zero the shell inset at every width (rule above), so
+     the band-scoped rule below re-adds only the bottom clearance. */
+  .app.is-driver .app-body {
+    padding-bottom: calc(var(--bottom-nav-h) + 16px);
+  }
+  .app.is-driver .app-body:has(.driver-journey, .driver-task-screen) {
+    padding-bottom: calc(var(--bottom-nav-h) + 16px);
+  }
   :root {
     /* Tab row: 4px top pad + 32px icon wrap + 2px gap + ~15px label. */
     --bottom-nav-tab-h: 53px;
@@ -99,8 +103,20 @@ html:has(body .app.is-driver) {
 
   .bottom-nav {
     display: flex;
-    position: relative;
-    flex-shrink: 0;
+    /* Card 20260927_149 (user evidence 03/10): the in-flow bar experiment
+       (f902c3e0) depended on iOS dvh reflow — the one half a desktop browser
+       can never verify (visual viewport ≠ layout viewport), which kept this
+       card blocked on a device re-test. The proven phone pattern from the
+       sibling projects (payroll, nepocorp — both verified band-free on the
+       user's iPhone) pins the bar to the viewport bottom: a fixed bar cannot
+       leave uncovered space below itself at any viewport state, and its own
+       opaque box paints the home-indicator strip via the env() padding
+       below. The html/body surface paints above stay as over-scroll
+       defense in depth. */
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
     /* Card 20260927_149 (CHIEF research fix #1): env() applies ONCE — as the
        home-indicator padding below. The old height calc() added the same
        inset a second time, inflating the bar and misplacing it on iOS.
