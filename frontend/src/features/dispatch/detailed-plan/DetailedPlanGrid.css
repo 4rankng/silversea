@@ -112,6 +112,15 @@
   gap: 6px;
   padding: 0 0 8px;
   border-bottom: 1px solid var(--border-color-secondary, var(--line));
+  /* A section is a ROW of the panel, so it takes the panel's full width. The
+     panel's `justify-items: start` (the operator's "width of control relative
+     to value it holds", 2026-09-27) is about the CONTROLS inside a section,
+     not about the section itself — and it was squeezing each section to its
+     content, so the `Điểm giao nhận` group measured 148px and the two-up grid
+     inside it had 68px tracks to split. The controls still take their content
+     width (`.detailed-plan-filter-panel__fields` sets `justify-self: start` on
+     its paired children); the section is what must span. */
+  justify-self: stretch;
 }
 
 .detailed-plan-filter-panel__group:last-child { padding-bottom: 0; border-bottom: 0; }
@@ -127,21 +136,46 @@
 }
 
 /* Dense dialog (operator 2026-09-27: the same "data dense" law the record cards
-   follow): the 15 criteria pack two per line inside each section, so the panel
-   fits under its trigger instead of growing past the viewport and having to
-   cover the header to stay on screen. */
+   follow): the criteria pack TWO PER LINE inside each section, at EVERY width,
+   so the panel fits under its trigger instead of growing past the viewport and
+   having to cover the header to stay on screen.
+
+   Operator 2026-10-03, on the 390px sheet: "why so many filter rows, can we put
+   2 filter per row in this screen". The two-up pairing was already the rule
+   here, but it sat behind `min-width: 641px` — so the ONE width with the least
+   room for a tall stack (the phone) was the single width that got one field
+   per row, and 15 criteria became a scroll. 2-up is now the default, matching
+   the paired fact/shortcut grids the accounting and catalog surfaces already
+   use on phones.
+
+   A criterion wider than its share (a searchable facet whose trigger carries
+   the full address, the from/to pair) spans the full line rather than
+   squeezing: 2-up pairs the short "Tất cả"-style selects, and the wide ones
+   ask for the row the way the bar's own 348px date cap asks for it. */
 .detailed-plan-filter-panel__fields,
 .detailed-plan-filter-panel__quick {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px 12px;
+  /* The panel's `justify-items: start` sizes every TRACK to its content, so
+     the tracks came out at 68px and a `grid-column: 1 / -1` child still
+     measured 148px against a 336px row — the span was right, the track it
+     spanned was not. These grids own their track sizing: the two columns
+     share the row, and each control takes the width of the value it holds
+     inside its own half (the operator's 2026-09-27: "the width of control
+     should relative to value it holds") rather than from the parent grid. */
+  justify-items: stretch;
 }
 
-.detailed-plan-filter-panel__quick > * { min-width: 0; }
-
-@media (min-width: 641px) {
-  .detailed-plan-filter-panel__fields,
-  .detailed-plan-filter-panel__quick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Every criterion is a normal 2-up child now, including the three port facets
+   (`Điểm nâng` / `Điểm hạ` / `Điểm trả`) — they are equal-weight address
+   pickers, so they pair like the short selects instead of each owning a row
+   (operator 2026-10-03: "can we put 2 filter per row in this screen"). They
+   keep `min-width: 0` so the searchable trigger truncates inside its half
+   rather than forcing the pair to overflow. */
+.detailed-plan-filter-panel__fields > *,
+.detailed-plan-filter-panel__quick > * {
+  min-width: 0;
 }
 
 .detailed-plan-grid__lot-banner {
