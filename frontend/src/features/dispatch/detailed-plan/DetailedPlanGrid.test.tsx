@@ -685,6 +685,19 @@ describe('DetailedPlanGrid — QA-001 appointment minutes', () => {
     expect(screen.queryByText('— 11/09/2026')).toBeNull();
   });
 
+  it('CARD-269 renders the saved Giờ trả hàng in the schedule cell — immediately, not only in the editor', () => {
+    // The dispatcher saved 13:00 05/10/2026 (plannedEndAt, zone-aware ISO);
+    // the appointment-derived time still says the old date. The column must
+    // show the saved dispatch hour (PM R34: the grid updates to 13:00).
+    const { container } = renderGrid([row({
+      time: { deliveryDate: '2026-10-01', runHour: null },
+      plannedEndAt: '2026-10-05T06:00:00.000+00:00',
+    })]);
+    const schedule = container.querySelector('.ops-schedule')!;
+    expect(schedule.firstElementChild).toHaveTextContent('13:00 05/10/2026');
+    expect(schedule.textContent).not.toContain('01/10/2026');
+  });
+
   it('SCHEDULE-LAYOUT-04 preserves a fully unknown schedule and direction', () => {
     const { container } = renderGrid([row({ time: { deliveryDate: null, runHour: null }, docs: { billNumber: 'UNKNOWN', tradeDirection: null, declarationNumbers: [] } })]);
     const schedule = container.querySelector('.ops-schedule')!;
