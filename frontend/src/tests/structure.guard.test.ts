@@ -39,7 +39,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // contract change; a future split (extract the keydown-capture handlers)
   // should restore a smaller ceiling.
   // 26/09: invalid-focus red outline ternary (error-wins-over-focus contract)
-  'src/components/untitled-ui/base/select/combobox.tsx': 467,
+  // 03/10: card 20261002_272 — the paired-field Tab hand-off (onReady handle
+  //  via ComboBoxStateContext + the openApiRef plumbing) landed +19 over the
+  //  frozen 467; refrozen 467→486, shrink candidate (extract the handle into
+  //  a hook).
+  'src/components/untitled-ui/base/select/combobox.tsx': 486,
   // Bumped 650 -> 656: ticket 365943ea - factoryShortName and operationalNotes fields
   // Bumped 656 -> 679: 2026-09-11 trip-detail polish — wire gains
   // factoryAddress / khoPhone / invoiceMaster / knownTagLabels and their
