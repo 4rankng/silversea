@@ -72,9 +72,12 @@ describe('QuotationConfigPage display fixes (card 20260923_10)', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/pages/config/QuotationConfigPage.tsx'), 'utf8');
     expect(css).toMatch(/\.quotation-grid\s*\{[^}]*table-layout:\s*auto;[^}]*min-width:\s*max-content/);
     expect(css).toMatch(/\.quotation-grid thead th\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*normal/);
-    expect(source).toContain('quotation-frames__table record-table ops-table');
-    expect(source).toContain('data-label="Ngày hiệu lực"><span className="data-token">{frame.effectiveDate}');
-    expect(css).toMatch(/\.quotation-frames__table tbody td\s*\{[^}]*overflow-wrap:\s*normal/);
+    // Card 20261002_288 rebuilt the frames list as a compact selection list:
+    // the master column carries no table header at all (nothing can paint
+    // over a neighbour), and its wrapping text fields keep the wrap contract.
+    expect(source).toContain('role="listbox"');
+    expect(source).not.toContain('quotation-frames__table');
+    expect(css).toMatch(/\.quotation-frames__customer\s*\{[^}]*overflow-wrap:\s*normal/);
   });
 
   it('D5: the liters row renders a bare count, never a currency suffix', async () => {

@@ -267,3 +267,58 @@ describe('QuotationConfigPage fee catalog (card 20260922_64)', () => {
     expect(body.fees[0]).toEqual({ feeName: 'Lưu ca xe', subType: null, defaultAmount: 1000000, routing: 'OTHER_COSTS', note: null, sortOrder: 0 });
   });
 });
+
+describe('QuotationConfigPage master list + detail states (card 20261002_288)', () => {
+  // The validity label reads the LOCAL calendar: a frame is in force from its
+  // effective date on (frames carry no end date). Fixtures straddle "today".
+  const datedFrames = [
+    { id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null },
+    { id: 2, customerId: 9, customerName: 'Công ty B', templateName: 'LOG COM', effectiveDate: '2099-01-01', note: 'Hiệu lực sau' },
+  ];
+
+  function mockFrames(framesList: unknown[]) {
+    apiGet.mockReset();
+    apiGetBlob.mockReset();
+    apiPut.mockClear();
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/quotations') return Promise.resolve(framesList);
+      if (path === '/quotations/1') return Promise.resolve({
+        id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null,
+        cells: [], // the live norm: a frame whose grid is not configured yet
+        fees: [],
+      });
+      if (path === '/quotations/1/versions') return Promise.resolve({ items: [], total: 0 });
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+  }
+
+  it('ranks each frame customer → quote code → applied date → validity status', async () => {
+    mockFrames(datedFrames);
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
+    const options = await within(framesRegion).findAllByRole('option');
+    expect(options).toHaveLength(2);
+
+    const first = within(options[0]);
+    expect(first.getByText('Công ty A')).toBeTruthy();               // customer names the row
+    expect(first.getByText('Mẫu 1')).toBeTruthy();                   // quote code
+    expect(first.getByText('01/09/2026')).toBeTruthy();              // applied date, dd/mm/yyyy
+    expect(first.getByText('Đang hiệu lực')).toBeTruthy();           // in force
+
+    const second = within(options[1]);
+    expect(second.getByText('Chưa hiệu lực')).toBeTruthy();          // effective date in the future
+  });
+
+  it('keeps the pane alive when nothing is selected and names a frame with no route grid', async () => {
+    mockFrames(datedFrames);
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    const detail = document.querySelector('.quotation-detail') as HTMLElement;
+    expect(detail.className).toContain('is-empty');
+    expect(await within(detail).findByText('Chọn một báo giá để xem lưới giá.')).toBeTruthy();
+
+    fireEvent.click(await within(document.querySelector('.quotation-frames') as HTMLElement).findByText('Công ty A'));
+    expect((document.querySelector('.quotation-detail') as HTMLElement).className).not.toContain('is-empty');
+    expect(await within(document.querySelector('.quotation-detail') as HTMLElement)
+      .findByText('Báo giá chưa có biểu giá theo tuyến.')).toBeTruthy();
+  });
+});
