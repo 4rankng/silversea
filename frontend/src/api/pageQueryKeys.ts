@@ -19,6 +19,14 @@ export const pageQueryKeys = {
   opsLegacyExpense: (sourceId: number | undefined) => ['ops-legacy-expense', sourceId] as const,
   /** Supplier directory: status pill counts over the whole dataset. */
   suppliersStatusCounts: ['suppliers', 'status-counts'] as const,
+  /**
+   * The nhà xe population — carriers only, read from `GET /customers` with
+   * `?isCarrier=true`. Carriers ARE customers rows, so this RIDES the
+   * `all-customers` prefix rather than declaring a sibling: catalog mutations
+   * then bust the customer list and the carrier list in one invalidateQueries
+   * pass, and no new entry is owed to `allCatalogKeys`.
+   */
+  allCarriers: ['all-customers', 'carriers'] as const,
   /** Quotation config: the kế-toán fuel-approval alert + its batch drawer. */
   quotationFuelApprovals: {
     all: ['quotation-fuel-approvals'] as const,

@@ -7,7 +7,7 @@ vi.mock('../../../hooks/useTripQueries', () => ({
   useTripDetail: vi.fn(),
 }));
 vi.mock('../../../hooks/useCatalogs', () => ({
-  useCatalogs: () => ({ data: { customers: [] } }),
+  useCatalogs: () => ({ data: { customers: [], externalCarriers: [] } }),
 }));
 vi.mock('../../../hooks/useCatalogQueries', () => ({
   useTrucksAndDrivers: () => ({ data: null }),

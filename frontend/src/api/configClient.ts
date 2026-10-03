@@ -126,6 +126,16 @@ export const configClient = {
   getAllCustomers: (search?: string) =>
     fetchAllPaginated<Customer>(CONFIG.CUSTOMERS, search ? { search } : undefined),
 
+  /**
+   * The nhà xe population. Carriers are customers rows flagged `isCarrier`, but
+   * they are administered on /suppliers — so the plain customer list filters
+   * them out and any screen that must enumerate carriers asks for them here.
+   * Ids are the SAME customer ids the dispatch/allocation writes take, because
+   * that is the row the carrier dropdowns select.
+   */
+  getAllCarriers: () =>
+    fetchAllPaginated<Customer>(CONFIG.CUSTOMERS, { isCarrier: 'true' }),
+
   createCustomer: (data: { name: string; shortName?: string; taxCode?: string; contactPerson?: string; phone?: string; contactInfo?: string; accountantName?: string; accountantPhone?: string }) =>
     api.post<Customer>(CONFIG.CUSTOMERS, data),
 

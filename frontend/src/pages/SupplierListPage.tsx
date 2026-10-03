@@ -9,6 +9,7 @@ import {
 import { Truck as TruckIcon } from 'lucide-react';
 import { useConfirm } from '../components/UI';
 import { SupplierCarrierTrucksSection } from '../features/suppliers/SupplierCarrierTrucksSection';
+import { SupplierTypePicker } from '../features/suppliers/SupplierTypePicker';
 import { api } from '../lib/api';
 import { Input } from '../components/untitled-ui/base/input/input';
 import { TextArea } from '../components/untitled-ui/base/textarea/textarea';
@@ -20,8 +21,7 @@ import { PageHeader, KPI, StatusPill, Modal, ModalChip, ModalChipLive } from '..
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useDropdownDismiss } from '../hooks/useDropdownDismiss';
 import { EmptyState, FilterBar, Pagination, useTableQueryState } from '../design-system';
-import { SupplierType, type Supplier } from '@tingting/shared';
-import { CONFIG } from '@tingting/shared';
+import { SupplierType, CONFIG, type Supplier } from '@tingting/shared';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
 import { usePayablesSummary } from '../hooks/useFinancialQueries';
@@ -62,6 +62,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
   const [note, setNote] = useState(item?.note || '');
   const [chiHoDueDays, setChiHoDueDays] = useState<string>(item?.chiHoDueDays != null ? String(item.chiHoDueDays) : '');
   const [cuocDueDays, setCuocDueDays] = useState<string>(item?.cuocDueDays != null ? String(item.cuocDueDays) : '');
+  const [types, setTypes] = useState<SupplierType[]>(item?.types ?? []);
 
   useEffect(() => {
     if (isOpen) {
@@ -73,6 +74,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
       setNote(item?.note || '');
       setChiHoDueDays(item?.chiHoDueDays != null ? String(item.chiHoDueDays) : '');
       setCuocDueDays(item?.cuocDueDays != null ? String(item.cuocDueDays) : '');
+      setTypes(item?.types ?? []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, item?.id]);
@@ -88,6 +90,9 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
       note: note.trim() || undefined,
       chiHoDueDays: chiHoDueDays.trim() === '' ? null : Number(chiHoDueDays),
       cuocDueDays: cuocDueDays.trim() === '' ? null : Number(cuocDueDays),
+      types,
+      // Reporting-only; the backend rejects a primaryType outside `types`.
+      primaryType: types[0] ?? null,
     });
   };
 
@@ -167,7 +172,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
             inputClassName="tabular-nums"
           />
         </EntityFormSection>
-
+        <SupplierTypePicker types={types} onChange={setTypes} />
         <EntityFormSection icon={Clock} label="Điều khoản thanh toán">
           <UnitInput
             size="sm"
@@ -404,8 +409,8 @@ export default function SupplierListPage() {
               Ngừng HĐ · {inactiveCount}
             </button>
             <button type="button" aria-pressed={typeFilter === 'all'} className={`filter-chip${typeFilter === 'all' ? ' is-active' : ''}`} onClick={() => setTypeFilter('all')}>Mọi loại</button>
-            <button type="button" aria-pressed={typeFilter === 'carrier'} className={`filter-chip${typeFilter === 'carrier' ? ' is-active' : ''}`} onClick={() => setTypeFilter('carrier')}>Xe ngoài (nhà thầu vận tải)</button>
-            <button type="button" aria-pressed={typeFilter === 'other'} className={`filter-chip${typeFilter === 'other' ? ' is-active' : ''}`} onClick={() => setTypeFilter('other')}>Vật tư · dịch vụ</button>
+            <button type="button" aria-pressed={typeFilter === 'carrier'} className={`filter-chip${typeFilter === 'carrier' ? ' is-active' : ''}`} onClick={() => setTypeFilter('carrier')}>Nhà xe</button>
+            <button type="button" aria-pressed={typeFilter === 'other'} className={`filter-chip${typeFilter === 'other' ? ' is-active' : ''}`} onClick={() => setTypeFilter('other')}>Nhà cung cấp khác</button>
           </>
         )}
       />

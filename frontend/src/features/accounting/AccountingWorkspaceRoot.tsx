@@ -115,8 +115,8 @@ export function AccountingWorkspaceRoot() {
           search={state.transportSearch}
           customerId={state.customerId ? String(state.customerId) : ''}
           carrierId={state.carrierId ? String(state.carrierId) : ''}
-          customers={(queries.transportParties.data ?? []).filter((party) => !party.isCarrier)}
-          carriers={(queries.transportParties.data ?? []).filter((party) => party.isCarrier)}
+          customers={queries.transportCustomers.data ?? []}
+          carriers={queries.transportCarriers.data ?? []}
           ownership={state.ownership ?? ''}
           readiness={state.readiness ?? ''}
           selectionScopeKey={buildTransportSelectionScopeKey(state)}

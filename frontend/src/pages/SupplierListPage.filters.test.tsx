@@ -169,7 +169,7 @@ describe('SupplierListPage filter strip', () => {
     renderPage();
     expect(await screen.findAllByText('Garage Auto 123')).toBeTruthy();
 
-    const carrierChip = screen.getByRole('button', { name: 'Xe ngoài (nhà thầu vận tải)' });
+    const carrierChip = screen.getByRole('button', { name: 'Nhà xe' });
     expect(carrierChip.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(carrierChip);
 

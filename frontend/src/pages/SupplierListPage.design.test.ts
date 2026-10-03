@@ -33,6 +33,7 @@ describe('SupplierListPage dispatch worksheet styling', () => {
 
   it('builds the edit modal on the untitled-ui kit with sectioned fields', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.tsx'), 'utf8');
+    const picker = readFileSync(resolve(process.cwd(), 'src/features/suppliers/SupplierTypePicker.tsx'), 'utf8');
 
     expect(page).toContain('maxWidth={960}');
     // Untitled-UI react-aria inputs (label + icon live on the component), not
@@ -44,12 +45,15 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     // Sectioned form: the shared EntityFormSection primitive (icon chip +
     // uppercase label + hairline divider, 2-col field grid) groups the
     // profile, payment-term, and note fields; the footer carries the shared
-    // required-field hint.
+    // required-field hint. The type section lives in its own component —
+    // SupplierListPage sits under a frozen LOC ceiling (scripts/check-structure.mjs).
     expect(page).toContain("import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';");
     expect((page.match(/<EntityFormSection icon=\{[A-Za-z2]+\} label=/g) ?? []).length).toBe(3);
     expect(page).toContain('Thông tin nhà cung cấp');
     expect(page).toContain('Điều khoản thanh toán');
     expect(page).toContain('Ghi chú');
+    expect(page).toContain('<SupplierTypePicker types={types} onChange={setTypes} />');
+    expect(picker).toContain('<EntityFormSection icon={Truck} label="Phân loại — quyết định nhà xe">');
     expect(page).toContain('<RequiredHint />');
     // The required name gates the submit; the section primitive owns the
     // responsive 2-col field grid.

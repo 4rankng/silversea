@@ -65,9 +65,21 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
     enabled: state.activeView === 'transport',
   });
 
-  const transportParties = useQuery({
+  // The two populations come from two different sources on purpose: the
+  // customers list serves billing parties (non-carriers only since 2026-10-03)
+  // while the carrier filter must enumerate nhà xe, which live in
+  // customers.isCarrier. bootstrap.externalCarriers is that carrier list —
+  // reading both out of one unfiltered array is what made them merge.
+  const transportCustomers = useQuery({
     queryKey: qk.catalogs.allCustomers,
     queryFn: () => configClient.getAllCustomers(),
+    staleTime: 5 * 60 * 1000,
+    enabled: state.activeView === 'transport',
+  });
+
+  const transportCarriers = useQuery({
+    queryKey: qk.allCarriers,
+    queryFn: () => configClient.getAllCarriers(),
     staleTime: 5 * 60 * 1000,
     enabled: state.activeView === 'transport',
   });
@@ -77,7 +89,8 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
     payables,
     profitability,
     transportRegister,
-    transportParties,
+    transportCustomers,
+    transportCarriers,
     hasOverviewError:
       receivables.isError || payables.isError || profitability.isError,
   };

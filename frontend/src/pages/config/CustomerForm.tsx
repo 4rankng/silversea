@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Truck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import './config-page.css';
 import './customer-form.css';
 import { UuiSelectField } from '../../design-system';
@@ -54,7 +54,6 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
   );
   const [creditWarningThreshold, setCreditWarningThreshold] = useState(toThresholdPercent(item?.creditWarningThreshold));
   const [status, setStatus] = useState(item?.status || 'ACTIVE');
-  const [isCarrier, setIsCarrier] = useState(item?.isCarrier ?? false);
   const [debitNoteMode, setDebitNoteMode] = useState<Customer['debitNoteMode']>(item?.debitNoteMode ?? 'MONTHLY');
   const [debitNoteTemplateId, setDebitNoteTemplateId] = useState<number | null>(item?.debitNoteTemplateId ?? null);
   const { data: templates } = useQuery<DebitNoteTemplate[]>({
@@ -153,18 +152,6 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-        <label className="flex items-center gap-2 cursor-pointer select-none text-sm">
-          <input
-            type="checkbox"
-            checked={isCarrier}
-            onChange={e => setIsCarrier(e.target.checked)}
-            style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
-          />
-          <Truck size={14} />
-          <span>Nhà xe (đối tác vận tải ngoài)</span>
-        </label>
-      </div>
 
       <Field label="Thông tin liên hệ khác / Địa chỉ">
         <textarea className="input" value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="SĐT, email, địa chỉ khác…" rows={3} style={{ resize: 'vertical' }} />
@@ -207,7 +194,6 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
             status,
             debitNoteMode,
             debitNoteTemplateId,
-            isCarrier,
           });
         }} disabled={saving || !name.trim()
           || (Boolean(creditWarningThreshold.trim()) && fromThresholdPercent(creditWarningThreshold) == null)

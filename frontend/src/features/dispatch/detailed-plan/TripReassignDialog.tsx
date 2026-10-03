@@ -31,7 +31,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
   const { data: catalogData } = useCatalogs();
   const trucks = trucksDriversData?.trucks ?? [];
   const drivers = trucksDriversData?.drivers ?? [];
-  const carrierCustomers = catalogData?.customers.filter((c) => c.isCarrier).map((c) => ({ id: c.id, label: c.name })) ?? [];
+  const carrierCustomers = catalogData?.externalCarriers?.map((c) => ({ id: c.id, label: c.name })) ?? [];
 
   const [carrierType, setCarrierType] = useState<'OWN' | 'EXTERNAL'>('OWN');
   const [truckId, setTruckId] = useState('');

@@ -27,6 +27,7 @@ import {
 import {
   applyFleetSpecs,
   applyReferenceEntities,
+  parseCarriersV2,
   parseCustomersV2,
   parseDriversV2,
   parsePortsV2,
@@ -35,6 +36,7 @@ import {
   parseStaffUsers,
   parseTrailerSpecs,
   parseTruckSpecs,
+  type CarrierPayload,
   type CustomerPayload,
   type RoutePayload,
   type StaffUserPayload,
@@ -125,7 +127,7 @@ interface FleetPayload {
 }
 
 type AcceptedPayload = SitePayload | PortPayload | DriverPayload | FleetPayload
-  | CustomerPayload | RoutePayload | TruckSpecPayload | TrailerSpecPayload | StaffUserPayload;
+  | CustomerPayload | CarrierPayload | RoutePayload | TruckSpecPayload | TrailerSpecPayload | StaffUserPayload;
 
 export interface ParsedRow {
   sheetName: string;
@@ -778,6 +780,10 @@ async function parseWorkbook(buffer: Buffer): Promise<ParsedWorkbook> {
   // Sep-2026 delivery sheets (Data form.xlsx + User & Role.xlsx, merged into
   // one workbook by the route before this parse runs). No-ops when absent.
   parseCustomersV2(workbook, rows);
+  // The workbook's "Nhà xe" sheet is a SEPARATE population from "Khách
+  // hàng" — it was whitelisted in knownSheets with no parser behind it until
+  // 2026-10-03, so it parsed to zero rows with zero warnings.
+  parseCarriersV2(workbook, rows);
   parseSitesV2(workbook, rows);
   parseRoutesV2(workbook, rows);
   parsePortsV2(workbook, rows);

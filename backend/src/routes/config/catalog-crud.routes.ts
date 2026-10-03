@@ -244,6 +244,12 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, { materia
   // now searchable too; the factory's contains-ILIKE covers full values
   // and last-4/5-char tails alike.
   searchableFields: ['shortName', 'name', 'taxCode', 'phone', 'contactPerson'],
+  // Carriers ("nhà xe") are customers rows flagged isCarrier, so an unfiltered
+  // list shows both populations gộp into one table — the 2026-10-03 report.
+  // The customer list is the non-carrier population by default; the carriers
+  // are administered on /suppliers, and `?isCarrier=true` stays available for
+  // the screens that must enumerate them.
+  booleanFilters: { isCarrier: false },
   sortableColumns: {
     name: operationalName(s.customers.shortName, s.customers.name),
     contactPerson: s.customers.contactPerson,

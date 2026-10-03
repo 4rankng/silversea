@@ -46,7 +46,7 @@ export default function TripEditPage() {
   const [editConflict, setEditConflict] = useState<TripEditConflictError | null>(null);
   const editOptions: TripOptions = useMemo(() => ({
     customers: catalogData?.customers.map((c) => ({ id: c.id, label: c.name })) ?? [],
-    carrierCustomers: catalogData?.customers.filter(c => c.isCarrier).map(c => ({ id: c.id, label: c.name })) ?? [],
+    carrierCustomers: catalogData?.externalCarriers?.map(c => ({ id: c.id, label: c.name })) ?? [],
     routes: catalogData?.routes.map(r => ({
       id: r.id,
       label: `${r.name}${r.distanceKm ? ` (${r.distanceKm} km)` : ''}`,

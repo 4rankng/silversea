@@ -80,8 +80,12 @@ export async function getBootstrapData() {
       }));
 
     return {
+      // The two arrays are DIFFERENT populations, not one list split later:
+      // `customers` is the billing-party catalog (no nhà xe) and
+      // `externalCarriers` is the carrier catalog. Carriers used to sit in
+      // both, so every "Khách hàng" dropdown also offered nhà xe (2026-10-03).
       customers: customersList
-        .filter(c => c.status === 'ACTIVE')
+        .filter(c => c.status === 'ACTIVE' && !c.isCarrier)
         .map((customer) => ({ ...customer, fullName: customer.name, name: customer.shortName || customer.name })),
       externalCarriers: customersList
         .filter((customer) => customer.status === 'ACTIVE' && customer.isCarrier)
