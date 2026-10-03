@@ -63,16 +63,24 @@ describe('Tabs keyboard navigation', () => {
     expect(first.id).not.toBe(second.id);
   });
 
-  it('commits dropdown category IDs while retaining counts and disabled choices', async () => {
+  it('commits dropdown category IDs while keeping disabled choices out of reach, and never shows a counter', async () => {
     const onChange = vi.fn();
     render(<Tabs tabs={tabs.map(tab => ({ ...tab, count: tab.id === 'all' ? 12 : 0 }))} value="all" onChange={onChange} ariaLabel="Công việc" presentation="select" />);
     expect(screen.queryByRole('tablist')).toBeNull();
+    // The closed control names the scope, not a count: a dropdown collapses the
+    // group into one control, so a numeral would ride the value as a stray
+    // annotation (operator 2026-10-03: "dropdown should not contain counter").
+    expect(screen.getByRole('button', { name: /Công việc/ })).toHaveTextContent('Tất cả');
+    expect(screen.getByRole('button', { name: /Công việc/ })).not.toHaveTextContent('(12)');
     fireEvent.keyDown(screen.getByRole('button', { name: /Công việc/ }), { key: 'ArrowDown' });
-    const blocked = await screen.findByRole('option', { name: 'Không khả dụng (0)' });
+    const blocked = await screen.findByRole('option', { name: 'Không khả dụng' });
     expect(blocked).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(blocked);
     expect(onChange).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('option', { name: 'Đang thực hiện (0)' }));
+    // …and the open list is the same: no count on any option.
+    expect(screen.getByRole('option', { name: 'Đang thực hiện' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /Đang thực hiện \(0\)/ })).toBeNull();
+    fireEvent.click(screen.getByRole('option', { name: 'Đang thực hiện' }));
     expect(onChange).toHaveBeenCalledWith('active');
   });
 
@@ -84,16 +92,19 @@ describe('Tabs keyboard navigation', () => {
     expect(screen.queryByRole('tablist')).toBeNull();
     const trigger = screen.getByRole('button', { name: /Công việc/ });
     expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
-    expect(trigger).toHaveTextContent('Tất cả (12)');
+    // The count belongs to the segmented form; the dropdown names the scope
+    // alone (operator 2026-10-03: "dropdown should not contain counter").
+    expect(trigger).toHaveTextContent('Tất cả');
+    expect(trigger).not.toHaveTextContent('(12)');
     fireEvent.keyDown(trigger, { key: 'ArrowDown' });
-    const blocked = await screen.findByRole('option', { name: 'Không khả dụng (0)' });
+    const blocked = await screen.findByRole('option', { name: 'Không khả dụng' });
     expect(blocked).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(blocked);
     expect(onChange).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('option', { name: 'Đang thực hiện (0)' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Đang thực hiện' }));
     expect(onChange).toHaveBeenCalledExactlyOnceWith('active');
     rerender(<Tabs tabs={countedTabs} value="active" onChange={onChange} ariaLabel="Công việc" />);
-    expect(screen.getByRole('button', { name: /Công việc/ })).toHaveTextContent('Đang thực hiện (0)');
+    expect(screen.getByRole('button', { name: /Công việc/ })).toHaveTextContent('Đang thực hiện');
   });
 
   it.each(['bordered', 'plain'] as const)('retains %s tablists and native keyboard navigation on a coarse-wide pointer', variant => {

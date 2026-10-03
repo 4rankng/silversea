@@ -123,7 +123,13 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, pane
           onChange={event => onChange(event.target.value)}
           options={tabs.map(tab => ({
             value: tab.id,
-            label: `${labelText(tab.label)}${tab.count === undefined ? '' : ` (${tab.count})`}`,
+            // The dropdown form carries NO count (operator 2026-10-03: "dropdown
+            // should not contain counter"). The segmented form is the place a
+            // count reads: it is a row of chips the eye scans side by side. The
+            // dropdown collapses that same group into ONE closed control, so
+            // the numeral rides the value as a stray annotation — and it
+            // repeats on every option rather than marking the one selected.
+            label: labelText(tab.label),
             disabled: tab.disabled,
           }))}
         />
