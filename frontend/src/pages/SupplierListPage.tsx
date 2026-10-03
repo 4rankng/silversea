@@ -237,12 +237,24 @@ export default function SupplierListPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirm();
 
+  // Card (freeze-halting small, lead 2026-10-03): the sort pair in the URL
+  // seeds the filters bag on mount — a ?sortBy=&sortDir= deep link is
+  // honored by the first server fetch instead of being ignored until a
+  // header press. Invalid/absent values drop out via readTableSort.
+  const urlSortSeed = (() => {
+    const p = new URLSearchParams(window.location.search);
+    const by = p.get('sortBy');
+    if (!by) return {};
+    return { sortBy: by, sortDir: p.get('sortDir') === 'desc' ? 'desc' : 'asc' } as Partial<SupplierTableFilters>;
+  })();
+
   const table = useTableQueryState<Supplier, SupplierTableFilters>({
     endpoint: (params) => configClient.getSuppliers(
       params.page ?? 1,
       params.search ?? '',
       readTableSort(params.sortBy, params.sortDir),
     ),
+    initialFilters: urlSortSeed,
     queryKey: qk.catalogs.suppliersTable,
     defaultPageSize: 10,
     debounceMs: 300,
