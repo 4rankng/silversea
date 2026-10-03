@@ -134,7 +134,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 1146 -> 1154: 2026-09-25 card 20260925_5 (FE) — the allocation
   // filter contract gains the ShipmentAllocationFilter type + doc comment;
   // shrink candidate.
-  'src/api/shipmentClient.ts': 1154,
+  // 2026-10-03 settlement addendum: the 263 FE landing's delete-client fn
+  //  landed +10 over the frozen 1154 (guard was tree-blocked by foreign
+  //  WIP at the time); refrozen 1154→1164, shrink debt on the tech-debt
+  //  ledger.
+  'src/api/shipmentClient.ts': 1164,
   // Bumped 717 -> 784: 2026-09-20 card _37/_43 billing-gate scope — the
   // document builder grew with the billing readiness gate work.
   'src/components/billing/BillingDocumentBuilder.tsx': 784,
@@ -438,6 +442,11 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // conditional `<col>`/`SortHeader` triple, and the `columns` prop on the bar.
   // 2026-10-03 tree settlement: audit-session chunk +1 (status filter),
   //  refrozen 779→780 at landing c5*; shrink debt on the tech-debt ledger.
+  // 2026-10-03 settlement addendum: the 263 FE landing grew the factory
+  //  config page to 460L (delete affordance + confirm modal) — first
+  //  baseline entry (new-file ceiling 400 superseded), shrink debt on
+  //  the tech-debt ledger.
+  'src/pages/config/FactoriesConfigPage.tsx': 460,
   'src/pages/ShipmentsPage.tsx': 780,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
