@@ -265,8 +265,11 @@ export function DetailedPlanGrid({
                   ? 'Phát lệnh'
                   : canCompleteExternal ? 'Hoàn thành' : null;
                 const notesCellBlank = !row.notes.vehicleNote && !row.notes.customerNote && !row.notes.opsRecoveryNotes?.length && actionLabel == null;
+                // PM 03/10 (card 20261003_304): a present date renders ALONE —
+                // the '—' placeholder never prefixes it. The bare dash stays
+                // only for a fully unknown schedule (no date, no hour).
                 const scheduleValue = row.time.runAt ? formatAppointmentGroupLine(row.time.runAt)
-                  : [row.time.runHour != null ? `${row.time.runHour}H` : '—', row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ');
+                  : [row.time.runHour != null ? `${row.time.runHour}H` : null, row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ') || '—';
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
