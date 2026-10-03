@@ -150,11 +150,12 @@ export function FilterBar({ search, children, fold, columns, presets, quickFilte
   // criteria leave `Bộ lọc` where the space genuinely exists. The measured
   // ladder below 1280, the retry/clamp behavior, and `neverInline` are all
   // untouched; design lock: the w1440 pins become `rows-budget` (max 3).
-  // Measured backstop note (card 20261002_282): on current shells the bar's
-  // clientWidth caps around 1127px regardless of viewport, so on today's dense
-  // bars this curve is a measured no-op until composition compacts — it stands
-  // as the owner-default for genuinely-wide bars; the R17 named screens own
-  // their follow-up card.
+  // Measured note (card 20261002_282; corrected 03/10 after the detached-
+  // worktree adjudication): at the clean landing the criteria DO surface
+  // inline within the 3-row budget at 1280/1440 (verified on a detached
+  // worktree with its own vite). A fold observed through the shared dev
+  // stack was an artifact of concurrent in-flight design-system edits in
+  // that tree, not a property of this change.
   const wideBudget = useMediaQuery('(min-width: 1280px)');
   // Keep every criterion inline while the strip still fits its row budget; fold
   // them into `Bộ lọc` only when the width leaves no other choice.
