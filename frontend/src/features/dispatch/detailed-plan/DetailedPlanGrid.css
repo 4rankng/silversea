@@ -279,6 +279,16 @@
   .detailed-plan-grid__row:hover {
     background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
   }
+  /* Card 20261003_315 sweep: same cell-level tint as the master-plan grid —
+     the global `tbody tr:hover td` wash must not break the row into tones. */
+  .detailed-plan-grid tbody > .detailed-plan-grid__row:hover > .detailed-plan-grid__cell {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
+}
+
+.detailed-plan-grid__row,
+.detailed-plan-grid__cell {
+  transition: none !important;
 }
 
 .detailed-plan-grid__row--plated {

@@ -157,6 +157,19 @@
   .master-plan-grid__row:hover {
     background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
   }
+  /* Card 20261003_315 (PM: "jumping color very irritating"): the tint must
+     paint on the CELLS — the global `tbody tr:hover td` wash
+     (components/Table.css) and per-column hovers otherwise break the row
+     into different tones as the pointer crosses boundaries. One tone, full
+     row width; inner structured divs stay transparent so it reads through. */
+  .master-plan-grid tbody > .master-plan-grid__row:hover > .master-plan-grid__cell {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
+}
+
+.master-plan-grid__row,
+.master-plan-grid__cell {
+  transition: none !important;
 }
 
 
@@ -482,13 +495,7 @@
 }
 
 .master-plan-grid__allocation-trigger:hover {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .master-plan-grid__cell--action:hover {
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
-  }
+  background: transparent;
 }
 
 .master-plan-grid__allocation-trigger:focus-visible {
