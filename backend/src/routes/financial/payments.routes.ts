@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { replayCashAction } from '../../services/cash-command-replay.service';
+import { getOutstandingAdvanceBalances } from '../../services/advance-shared.service';
 import { receiptCommandIdentity, vendorCommandIdentity, driverCommandIdentity } from '../../services/cash-command-identity.service';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
@@ -455,6 +456,9 @@ router.get('/finance/treasury/position', requireRoles(Role.ADMIN, Role.MANAGER, 
       .from(s.treasuryAccounts).where(eq(s.treasuryAccounts.status, 'ACTIVE'));
     return Promise.all(accounts.map(account => getTreasuryPosition(account.id, tx)));
   });
+  // Card 20261002_291: the summary bar's fifth figure — the same canonical
+  // outstanding the OPS fund book shows (min(đã ứng, đã cấp) − đã tiêu).
+  const { totalOutstanding } = await getOutstandingAdvanceBalances();
   res.json({
     asOf: new Date().toISOString(),
     currency: 'VND',
@@ -462,6 +466,7 @@ router.get('/finance/treasury/position', requireRoles(Role.ADMIN, Role.MANAGER, 
       ? 'UNAVAILABLE'
       : positions.some(position => position.completeness === 'PARTIAL') ? 'PARTIAL' : 'COMPLETE',
     accounts: sortTreasuryPositions(positions, parsedSort.data.sortBy, parsedSort.data.sortDir),
+    opsAdvance: { totalOutstanding },
   });
 }));
 

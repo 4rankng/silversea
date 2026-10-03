@@ -125,9 +125,7 @@ export default function TreasuryPositionPage() {
             { label: 'Thu', value: formatCurrency(totals.totalIn) },
             { label: 'Chi', value: formatCurrency(totals.totalOut) },
             { label: 'Số dư ghi sổ', value: formatCurrency(totals.bookBalance) },
-            ...(data.opsAdvance
-              ? [{ label: 'Tạm ứng OPS còn tồn', value: formatCurrency(data.opsAdvance.totalOutstanding) }]
-              : []),
+            { label: 'Tạm ứng OPS còn tồn', value: formatCurrency(data.opsAdvance.totalOutstanding) },
           ]}
         />
       )}

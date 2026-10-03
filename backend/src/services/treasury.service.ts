@@ -35,6 +35,10 @@ export interface TreasuryPosition {
   fundCode: TreasuryFundCode | null;
   version: number;
   currency: string;
+  /** Card 20261002_291: the business identity a row displays — the technical
+   *  `code` is never a user-facing label. */
+  bankName: string | null;
+  bankAccountNumber: string | null;
   openingBalance: number;
   totalIn: number;
   totalOut: number;
@@ -375,6 +379,8 @@ export async function getTreasuryPosition(accountId: number, transaction?: Tx): 
       fundCode: account.fundCode,
       version: account.version,
       currency: account.currency,
+      bankName: account.bankName,
+      bankAccountNumber: account.bankAccountNumber,
       openingBalance,
       totalIn,
       totalOut,
@@ -421,6 +427,8 @@ export async function getTreasuryPositions(accountIds: number[], transaction?: T
       fundCode: account.fundCode,
       version: account.version,
         currency: account.currency,
+        bankName: account.bankName,
+        bankAccountNumber: account.bankAccountNumber,
         openingBalance,
         totalIn,
         totalOut,

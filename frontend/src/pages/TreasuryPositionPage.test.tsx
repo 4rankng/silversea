@@ -22,6 +22,8 @@ function account(accountId: number, name: string, bookBalance: number) {
     fundCode: null,
     version: 1,
     currency: 'VND',
+    bankName: null,
+    bankAccountNumber: null,
     openingBalance: 1000,
     totalIn: 2000,
     totalOut: 500,
@@ -36,6 +38,7 @@ beforeEach(() => {
     asOf: '2026-08-23T08:00:00.000Z',
     currency: 'VND',
     coverage: 'COMPLETE',
+    opsAdvance: { totalOutstanding: 0 },
     accounts: [account(1, 'Tiền mặt quỹ', 900), account(2, 'VCB chính', 500)],
   });
 });
@@ -102,10 +105,22 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
     expect(cashRow.textContent).not.toContain('ACC-1');
   });
 
-  it('keeps the rail to four items while the read carries no ops advance', async () => {
+  it('carries the bank identity through the row caption from the read', async () => {
+    getTreasuryPositionMock.mockReset().mockResolvedValue({
+      asOf: '2026-10-03T08:00:00.000Z',
+      currency: 'VND',
+      coverage: 'COMPLETE',
+      opsAdvance: { totalOutstanding: 0 },
+      accounts: [{ ...account(1, 'VCB chính', 500), type: 'BANK', bankName: 'Vietcombank', bankAccountNumber: '0221000999' }],
+    });
     render(<TreasuryPositionPage />);
-    const rail = await screen.findByRole('region', { name: 'Tóm tắt số dư ghi sổ' });
-    await waitFor(() => expect(rail.textContent).toContain('Số dư ghi sổ'));
-    expect(rail.textContent).not.toContain('Tạm ứng OPS');
+    const row = await screen.findByText('VCB chính');
+    const cell = row.closest('td')!;
+    expect(cell.textContent).toContain('Vietcombank');
+    expect(cell.textContent).toContain('0221000999');
+    expect(cell.textContent).not.toContain('ACC-1');
+    // The fifth rail metric renders from the read's canonical outstanding.
+    const rail = document.querySelector('[aria-label="Tóm tắt số dư ghi sổ"]')!;
+    expect(rail.textContent).toContain('Tạm ứng OPS còn tồn');
   });
 });
