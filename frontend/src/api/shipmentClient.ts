@@ -832,6 +832,16 @@ export async function updateAdminOperationalSite(
   return api.patch<OperationalSite>(`/shipments/operational-sites/${siteId}`, body);
 }
 
+/**
+ * Soft-delete from the admin config surface (card 20261002_263, R29). The
+ * backend 409s with a Vietnamese business message while any live shipment
+ * still points at the site, and 404s an unknown or already-deleted id —
+ * surfaces belong to the caller.
+ */
+export async function deleteAdminOperationalSite(siteId: number): Promise<{ ok: true }> {
+  return api.delete<{ ok: true }>(`/shipments/operational-sites/${siteId}`);
+}
+
 export async function submitShipmentForDispatch(
   id: number,
   body: {

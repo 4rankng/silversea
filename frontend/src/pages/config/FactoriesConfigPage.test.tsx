@@ -21,6 +21,7 @@ vi.mock('../../api/shipmentClient', async (importOriginal) => {
     listAdminOperationalSites: vi.fn(),
     updateAdminOperationalSite: vi.fn(),
     createOperationalSite: vi.fn(),
+    deleteAdminOperationalSite: vi.fn(),
   };
 });
 
@@ -39,6 +40,7 @@ vi.mock('../../api/configClient', async (importOriginal) => {
 const listMock = vi.mocked(shipmentClientModule.listAdminOperationalSites);
 const updateMock = vi.mocked(shipmentClientModule.updateAdminOperationalSite);
 const createSiteMock = vi.mocked(shipmentClientModule.createOperationalSite);
+const deleteSiteMock = vi.mocked(shipmentClientModule.deleteAdminOperationalSite);
 const routesMock = vi.mocked(configClientModule.configClient.getRoutesList);
 const customersMock = vi.mocked(configClientModule.configClient.getAllCustomers);
 
@@ -258,5 +260,44 @@ describe('FactoriesConfigPage filter strip', () => {
     expect(source).not.toContain('maxWidth: 280');
     expect(source).not.toContain('maxWidth: 240');
     expect(source).not.toContain("style={{ flex: 1 }}");
+  });
+
+  // Card 20261002_263 (R29) — mutating test: taps ONE named fixture row's Xóa
+  // action (title-contract read), then the modal's confirm button is the
+  // actual mutation tap. Mutates: 1 mocked site row via deleteAdminOperationalSite.
+  it('deletes a site after the confirm modal answers', async () => {
+    listMock.mockResolvedValue([factory]);
+    deleteSiteMock.mockResolvedValue({ ok: true });
+    renderPage();
+
+    // The list query is async — await the rows before any lookup.
+    const deleteButtons = await screen.findAllByTitle('Xóa nhà máy / kho');
+    fireEvent.click(deleteButtons[0]);
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Xóa Nhà máy A/)).toBeTruthy();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa' }));
+    await waitFor(() => {
+      expect(deleteSiteMock).toHaveBeenCalledWith(factory.id);
+    });
+    await waitFor(() => {
+      expect(listMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('keeps the confirm open and shows the business message on 409', async () => {
+    listMock.mockResolvedValue([factory]);
+    deleteSiteMock.mockRejectedValue(new Error('Không thể xóa: nhà máy đang có lô hàng còn hiệu lực sử dụng.'));
+    renderPage();
+
+    const deleteButtons = await screen.findAllByTitle('Xóa nhà máy / kho');
+    fireEvent.click(deleteButtons[0]);
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa' }));
+    expect(await screen.findByText(/lô hàng còn hiệu lực/)).toBeTruthy();
+    // The dialog stays open so the operator reads the message in place.
+    expect(screen.getByRole('dialog')).toBeTruthy();
   });
 });

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { PageHeader, Modal } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
@@ -19,6 +19,7 @@ import { OperationalSiteCreateDialog } from '../../components/shipment/Operation
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import {
+  deleteAdminOperationalSite,
   listAdminOperationalSites,
   updateAdminOperationalSite,
   type AdminOperationalSite,
@@ -78,6 +79,11 @@ export default function FactoriesConfigPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  // R29 (card 20261002_263): the row's Xóa action parks the site here until
+  // the confirm modal answers — the tap itself never deletes.
+  const [deleting, setDeleting] = useState<AdminOperationalSite | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const sitesQuery = useQuery({
     queryKey: qk.catalogs.adminOperationalSites,
@@ -157,6 +163,23 @@ export default function FactoriesConfigPage() {
   }
 
   const isFactory = editing?.siteType === 'FACTORY';
+
+  async function confirmDelete() {
+    if (!deleting || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      await deleteAdminOperationalSite(deleting.id);
+      toast({ kind: 'success', message: `Đã xóa ${deleting.name}.` });
+      setDeleting(null);
+      await queryClient.invalidateQueries({ queryKey: qk.catalogs.adminOperationalSites });
+    } catch (err) {
+      // 409 keeps the dialog open: the site is still referenced by a live
+      // shipment, so the operator reads the business message in place.
+      setDeleteError((err as Error)?.message || 'Không thể xóa nhà máy / kho.');
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
 
   return (
     <div className="cfg-page cfg-page--factories fade-up">
@@ -260,6 +283,14 @@ export default function FactoriesConfigPage() {
                         onClick={() => openEdit(site)}
                       >
                         <Pencil size={14} />
+                      </button>
+                      <button
+                        className="row-action"
+                        title="Xóa nhà máy / kho"
+                        aria-label={`Xóa ${site.shortName || site.name}`}
+                        onClick={() => setDeleting(site)}
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
@@ -372,6 +403,37 @@ export default function FactoriesConfigPage() {
               onsave={() => { void save(); }}
             />
           </form>
+        )}
+      </Modal>
+
+      {/* R29 destructive confirm (untitledui destructive-modal family, rebuilt
+          in house tokens): names the row, states the consequence, and keeps
+          the backend's 409 business message visible in place. */}
+      <Modal
+        isOpen={!!deleting}
+        title={deleting ? `Xóa ${deleting.name}?` : ''}
+        subtitle="Nhà máy / kho"
+        polished
+        onClose={() => { setDeleting(null); setDeleteError(null); }}
+        maxWidth={440}
+      >
+        {deleting && (
+          <div>
+            {deleteError && <Alert variant="error" style="soft">{deleteError}</Alert>}
+            <p style={{ margin: '0 0 12px', color: 'var(--fg-2)' }}>
+              Danh mục sẽ bị xóa khỏi bảng và các form nhận lô. Lô hàng lịch sử
+              vẫn giữ nguyên thông tin nhà máy này. Không thể xóa khi còn lô
+              hàng đang chạy tham chiếu.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn--ghost" onClick={() => { setDeleting(null); setDeleteError(null); }}>
+                Hủy
+              </button>
+              <button className="btn btn--danger" disabled={deleteBusy} onClick={() => { void confirmDelete(); }}>
+                {deleteBusy ? 'Đang xóa…' : 'Xóa'}
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
 
