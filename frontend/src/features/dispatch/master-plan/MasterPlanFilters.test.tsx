@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../api/configClient', () => ({
   configClient: { getDispatchZones: vi.fn() },
@@ -211,4 +211,80 @@ describe('MasterPlanFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ portIds: [11] });
   });
 
+});
+
+// Card 20261002_285 AC1 + AC3. RED-first: on coarse pointers the delivery range
+// renders INSIDE the `Bộ lọc` dialog, which makes it a folded criterion there —
+// but it was excluded from both the badge and `Đặt lại`, and `MasterPlanPage`
+// passes no bar-level reset. A phone user could apply a date, then find no count
+// for it and no way to clear it. On fine pointers the range rides the bar, and
+// that behaviour is pinned by the tests above and must not change.
+describe('master-plan delivery range is a real criterion on coarse pointers (card 20261002_285)', () => {
+  const originalMatchMedia = window.matchMedia;
+  afterEach(() => { window.matchMedia = originalMatchMedia; });
+
+  function useCoarsePointerMedia() {
+    window.matchMedia = (media): MediaQueryList => ({
+      media,
+      matches: media === '(hover: none) and (pointer: coarse)',
+      onchange: null,
+      addListener() {}, removeListener() {},
+      addEventListener() {}, removeEventListener() {},
+      dispatchEvent() { return true; },
+    } as unknown as MediaQueryList);
+  }
+
+  it('counts the applied range in the trigger badge', () => {
+    useCoarsePointerMedia();
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(
+      <MasterPlanFilters
+        filters={{ ...EMPTY_FILTERS, deliveryDateFrom: '2026-08-01', deliveryDateTo: '2026-08-05' }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    // Both ends set = two applied conditions, not zero.
+    expect(screen.getByRole('button', { name: 'Bộ lọc, 2 đang áp dụng' })).toBeTruthy();
+  });
+
+  it('Đặt lại clears the range it now shows inside the dialog', () => {
+    useCoarsePointerMedia();
+    const onChange = vi.fn();
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(
+      <MasterPlanFilters
+        filters={{ ...EMPTY_FILTERS, deliveryDateFrom: '2026-08-01', deliveryDateTo: '2026-08-05', portIds: [7] }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 3 đang áp dụng' }));
+    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
+    // The range really is in the dialog on this pointer type.
+    expect(within(dialog).getByLabelText('Từ ngày')).toBeTruthy();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt lại' }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      tradeDirection: '',
+      allocationStatus: '',
+      portIds: [],
+      carrierKeys: [],
+      deliveryDateFrom: '',
+      deliveryDateTo: '',
+    });
+  });
+
+  it('leaves the fine-pointer contract alone: the range is not a dialog criterion', () => {
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(
+      <MasterPlanFilters
+        filters={{ ...EMPTY_FILTERS, portIds: [7], deliveryDateFrom: '2026-08-01' }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    // portIds only — the date rides the bar and is not counted.
+    expect(screen.getByRole('button', { name: 'Bộ lọc, 1 đang áp dụng' })).toBeTruthy();
+  });
 });

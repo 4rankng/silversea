@@ -117,8 +117,18 @@ export default function AccountingInvoiceTrackingPage() {
   }), [rows, supplier, diffOnly, search]);
   const totals = computeTotals(filtered);
 
-  const clearFilters = () => { setSearch(''); setSupplier(''); setDiffOnly(false); };
-  const hasActiveFilters = Boolean(search.trim() || supplier || diffOnly);
+  // Card 20261002_285 AC1: the period IS a filter condition — it scopes the
+  // query, not just the view. It is seeded to `initialPeriod`, so "applied"
+  // means "differs from the default", not "non-empty"; a plain non-empty test
+  // would be permanently true and would suppress the empty state's guidance.
+  const periodChanged = period.from !== initialPeriod.from || period.to !== initialPeriod.to;
+  const clearFilters = () => {
+    setPeriod(initialPeriod);
+    setSearch('');
+    setSupplier('');
+    setDiffOnly(false);
+  };
+  const hasActiveFilters = Boolean(periodChanged || search.trim() || supplier || diffOnly);
 
   // Card 20260927_152: the two criteria behind `Bộ lọc` — the count feeds the
   // trigger badge, `Đặt lại` clears exactly those two and nothing else.
@@ -287,7 +297,7 @@ export default function AccountingInvoiceTrackingPage() {
           context="finance"
           title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
           description={hasActiveFilters ? undefined : 'Thêm chi phí lô hàng để bắt đầu theo dõi.'}
-          action={hasActiveFilters ? <button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button> : undefined}
+          action={hasActiveFilters ? <button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc</button> : undefined}
         />
       )}
 
@@ -297,7 +307,7 @@ export default function AccountingInvoiceTrackingPage() {
           context="finance"
           title="Không tìm thấy hóa đơn nào trong kỳ đã chọn"
           description="Không dòng nào khớp bộ lọc hiện tại."
-          action={<button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc ngày</button>}
+          action={<button type="button" className="btn btn--ghost btn--sm" onClick={clearFilters}>Xóa bộ lọc</button>}
         />
       )}
 

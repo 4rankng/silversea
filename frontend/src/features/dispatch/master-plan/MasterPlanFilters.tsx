@@ -212,6 +212,13 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   const applyRange = (next: DateRangeValue) => {
     onChange({ deliveryDateFrom: next.from, deliveryDateTo: next.to });
   };
+  // Card 20261002_285: on coarse pointers the delivery range renders INSIDE the
+  // `Bộ lọc` dialog (see the fold's criteria), which makes it a folded criterion
+  // there — so it has to be counted and cleared like one. It used to be neither:
+  // `Đặt lại` left an applied, uncounted date condition behind on a phone, and
+  // `MasterPlanPage` has no bar-level reset to fall back on. Declared up here
+  // (it was below, where the count could not see it).
+  const rangeFieldsOnCoarsePointer = useCoarsePointer();
   // The criteria behind `Bộ lọc`: the count feeds the trigger badge and `Đặt
   // lại` clears exactly these. The delivery dates are NOT among them — they are
   // the bar's own control now, and the field itself clears its value.
@@ -220,6 +227,9 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
     filters.allocationStatus !== '',
     filters.portIds.length > 0,
     filters.carrierKeys.length > 0,
+    ...(rangeFieldsOnCoarsePointer
+      ? [filters.deliveryDateFrom !== '', filters.deliveryDateTo !== '']
+      : []),
   ].filter(Boolean).length;
 
   const clearSecondaryFilters = () => {
@@ -228,6 +238,9 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
       allocationStatus: '',
       portIds: [],
       carrierKeys: [],
+      ...(rangeFieldsOnCoarsePointer
+        ? { deliveryDateFrom: '', deliveryDateTo: '' }
+        : {}),
     });
   };
 
@@ -244,8 +257,6 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   }, []);
 
   const visibleZones = zones.filter((zone) => zone.showPortFacet !== false);
-
-  const rangeFieldsOnCoarsePointer = useCoarsePointer();
 
   const rangeFields = (
     <DateRangeFields

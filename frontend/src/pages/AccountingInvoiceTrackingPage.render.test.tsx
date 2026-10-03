@@ -7,7 +7,7 @@
 // shipmentCode / customerName verbatim. Design law 2026-09-19 (cards
 // 20260919_38/39): internal ids and machine-generated codes never render as
 // visible text — the cell shows the house empty value instead.
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,6 +21,7 @@ vi.mock('../api/invoiceTrackingClient', () => client);
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'ADMIN' } }) }));
 
 import AccountingInvoiceTrackingPage from './AccountingInvoiceTrackingPage';
+import { businessDateISO } from '../lib/format';
 import type { InvoiceTrackingRow } from '@tingting/shared';
 
 /** The exact row that sat live in the dev DB (`invoice_tracking` id 88,
@@ -112,5 +113,46 @@ describe('invoice-tracking filter bar search', () => {
 
     expect(screen.queryByText('Số hóa đơn: HD-C18-01')).toBeNull();
     expect(screen.getByText('Số hóa đơn: HD-XYZ-9')).toBeInTheDocument();
+  });
+});
+
+// Card 20261002_285 AC1. RED-first: the period scopes the QUERY, so it is a
+// filter condition — but `hasActiveFilters` ignored it, and `clearFilters` never
+// reset it. Two empty-state buttons were labelled "Xóa bộ lọc ngày" ("clear the
+// DATE filter") while calling a handler that could not touch the date, and a
+// period-only filter armed no reset at all.
+describe('invoice-tracking period is a resettable filter condition (card 20261002_285)', () => {
+  beforeEach(() => {
+    Object.values(client).forEach((fn) => fn.mockReset());
+  });
+
+  it('arms the bar reset for a period that differs from the default', async () => {
+    renderBoard([]);
+    await screen.findByText('Không tìm thấy hóa đơn nào trong kỳ đã chọn');
+    // The default period is not a filter, so the strip reset stays disabled.
+    expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeDisabled();
+
+    // "Tháng trước" always differs from the default (1st of this month → today).
+    // The preset group is a tablist, so its entries carry role="tab".
+    fireEvent.click(screen.getByRole('tab', { name: /Tháng trước/ }));
+
+    expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeEnabled();
+  });
+
+  it('Xóa lọc returns the query to the default period', async () => {
+    renderBoard([]);
+    await screen.findByText('Không tìm thấy hóa đơn nào trong kỳ đã chọn');
+    fireEvent.click(screen.getByRole('tab', { name: /Tháng trước/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeEnabled());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa lọc' }));
+
+    const today = businessDateISO();
+    await waitFor(() => {
+      const calls = client.listInvoiceTracking.mock.calls;
+      expect(calls[calls.length - 1]?.[0]).toBe(`${today.slice(0, 7)}-01`);
+      expect(calls[calls.length - 1]?.[1]).toBe(today);
+    });
+    expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeDisabled();
   });
 });

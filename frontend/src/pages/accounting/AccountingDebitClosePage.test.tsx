@@ -367,3 +367,44 @@ describe('AccountingDebitClosePage — Chọn Debit popup + settlement rounds (c
     expect(screen.getByText('01/09/2026')).toBeInTheDocument();
   });
 });
+
+// Card 20261002_285 AC3. RED-first: the badge summed the two facets' SELECTED
+// VALUE counts, so three customers plus one truck read "4 đang áp dụng" while
+// `Đặt lại` cleared both facets in one click — a number the operator could never
+// reach by clearing. AC3 counts conditions; the sibling multi-select already did.
+describe('debit-close facet badge counts criteria, not selected values (card 20261002_285)', () => {
+  it('two customers in one facet badge as a single applied condition', async () => {
+    // The badge lives on the `Bộ lọc` trigger, and the band only folds once it
+    // MEASURES more than two rows (design-system/filter-bar-mode.ts). jsdom
+    // reports a zero-width bar with zero-height children, so the strip stays
+    // `inline` forever and the trigger never mounts. Give the bar a width and
+    // stack its children vertically so the measurement sees a real overflow.
+    const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const siblings = this.parentElement ? [...this.parentElement.children] : [];
+      const i = Math.max(0, siblings.indexOf(this));
+      const top = i * 40;
+      return { top, bottom: top + 30, left: 0, right: 100, width: 100, height: 30, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    });
+    const widthSpy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(500);
+
+    try {
+      boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH B' })]);
+      renderPage();
+      const trigger = await screen.findByRole('button', { name: /^Bộ lọc/ });
+      fireEvent.click(trigger);
+      const dialog = screen.getByRole('dialog', { name: 'Bộ lọc chốt debit' });
+      // The trigger's accessible name is "Chọn khách hàng…" while empty.
+      fireEvent.click(within(dialog).getByRole('button', { name: /Chọn khách hàng/ }));
+
+      fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
+      fireEvent.click(screen.getByRole('option', { name: 'KH B' }));
+
+      // One criterion applied (the customer facet), two values inside it.
+      // Pre-fix this read "2" because the badge summed the selected values.
+      expect(screen.getByRole('button', { name: 'Bộ lọc, 1 đang áp dụng' })).toBeInTheDocument();
+    } finally {
+      rectSpy.mockRestore();
+      widthSpy.mockRestore();
+    }
+  });
+});
