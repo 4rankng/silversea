@@ -1,5 +1,5 @@
-import { Copy, Trash2 } from 'lucide-react';
-import { useRef } from 'react';
+import { Copy, Info, Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
 import type { CatalogData } from '../../../api/tripClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
 import { formatDateTime24 } from '../../../lib/format';
@@ -9,6 +9,7 @@ import {
 } from './uui-fields';
 import { UDateTimeField as DateTimeField } from './uui-datetime-field';
 import { ShipmentContainerCell } from './ShipmentContainerCell';
+import { FactoryDetailPopover } from './FactoryDetailPopover';
 import { ContainerTypeCellPicker } from './ContainerTypeCellPicker';
 import type { ShipmentContainerDraft } from './shipment-create-model';
 
@@ -85,6 +86,18 @@ export function ShipmentCreateContainerRow({
   const canCopyAppointment = Boolean(row.customerAppointmentAt) && emptyAppointmentCount >= 2;
   // Card 20261002_272: open handle for the paired-field Tab hand-off.
   const typePickerOpenApi = useRef<{ open: () => void } | null>(null);
+  // Card 20261002_268: read-only factory detail peek beside the cell value.
+  const [factoryDetailOpen, setFactoryDetailOpen] = useState(false);
+  const factoryDetailAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const factoryName = factory?.shortName || factory?.name || (isAdHoc ? row.rawFactoryName : '');
+  const factoryInvoiceGroups = factory ? [{
+    label: 'Hóa đơn cẩu phí',
+    lines: [
+      { label: 'Tên', value: factory.liftFeeInvoiceName ?? '' },
+      { label: 'Địa chỉ', value: factory.liftFeeInvoiceAddress ?? '' },
+      { label: 'MST', value: factory.liftFeeTaxCode ?? '' },
+    ].filter((line) => line.value.trim() !== ''),
+  }] : [];
 
   return (
     <tr key={row.key} className="csc-container-row">
@@ -151,10 +164,23 @@ export function ShipmentCreateContainerRow({
       </ShipmentContainerCell>
       <ShipmentContainerCell
         label="Nhà máy *"
-        value={factory?.shortName || factory?.name || (isAdHoc ? row.rawFactoryName : '')}
+        value={factoryName}
         placeholder={isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Chọn nhà máy'}
         fieldId={`container-${row.key}-factory`}
         error={issueByField.get(`container-${row.key}-factory`)}
+        actions={factory ? (
+          <button
+            type="button"
+            ref={factoryDetailAnchorRef}
+            className="csc-container-cell__action"
+            aria-label={`Xem chi tiết nhà máy ${factoryName}`}
+            aria-haspopup="dialog"
+            aria-expanded={factoryDetailOpen}
+            onClick={() => setFactoryDetailOpen((open) => !open)}
+          >
+            <Info size={14} aria-hidden="true" />
+          </button>
+        ) : undefined}
       >
         <SearchableField
           id={`container-${row.key}-factory`}
@@ -176,6 +202,14 @@ export function ShipmentCreateContainerRow({
           {...(isAdHoc ? { onCustomValue: (text: string) => containerFactoryCustomText(row.key, text) } : {})}
         />
       </ShipmentContainerCell>
+      <FactoryDetailPopover
+        name={factoryName}
+        address={factory?.address ?? ''}
+        invoiceGroups={factoryInvoiceGroups}
+        anchorRef={factoryDetailAnchorRef}
+        open={factoryDetailOpen && factory != null}
+        onClose={() => setFactoryDetailOpen(false)}
+      />
       <ShipmentContainerCell
         label="Tuyến đường *"
         value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name || (isAdHoc ? row.rawRouteName : '')}
