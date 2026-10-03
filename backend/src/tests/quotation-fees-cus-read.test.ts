@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import type { AddressInfo } from 'node:net';
 import { Role } from '@tingting/shared';
+import { client } from '../db';
 
 /**
  * Card 20261002_220 — CUS reads the active quotation fee catalog (PM ruling
@@ -20,7 +21,6 @@ import { Role } from '@tingting/shared';
 describe('card 20261002_220 — CUS reads the active quotation fee catalog', () => {
   let server: import('node:http').Server;
   let port = 0;
-  let closeRouter: (() => Promise<void>) | null = null;
 
   /** Boot the REAL router behind the REAL casbin gate, as index.ts mounts it,
    *  with the acting role injected — no auth middleware, so the only thing
@@ -67,13 +67,13 @@ describe('card 20261002_220 — CUS reads the active quotation fee catalog', () 
   }
 
   before(async () => {
-    const { closeDb } = await import('../db');
-    closeRouter = closeDb;
+    // Teardown closes the shared pool directly (db/index exports `client`,
+    // not a closeDb helper — fixed forward from card 20260930_220's landing).
   });
 
   after(async () => {
     await closeServer();
-    if (closeRouter) await closeRouter();
+    await client.end();
   });
 
   test('CUS gets the active fee catalog instead of 403', async () => {
