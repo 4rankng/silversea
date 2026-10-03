@@ -62,12 +62,12 @@ const tripState = async (label) => {
 await chiHo('before');
 
 const detail = await api('GET', `/driver/me/fulfillments/${FULFILLMENT}`);
-const fulfillmentVersion = detail.body?.version ?? detail.body?.fulfillment?.version ?? 1;
-log('fulfillment version', { fulfillmentVersion });
+const fulfillmentVersion = detail.body?.tripVersion ?? detail.body?.version ?? 1;
+log('fulfillment detail', { keys: Object.keys(detail.body ?? {}), body: JSON.stringify(detail.body).slice(0, 400), chosen: fulfillmentVersion });
 
 const occurred = new Date().toISOString();
 for (const eventType of ['ORDER_RECEIVED', 'DEPARTED']) {
-  const r = await api('POST', `/driver/me/fulfillments/${FULFILLMENT}/progress`, { eventType, occurredAt: occurred, fulfillmentVersion });
+  const r = await api('POST', `/driver/me/fulfillments/${FULFILLMENT}/progress`, { eventType, occurredAt: occurred, expectedVersion: fulfillmentVersion });
   log(`progress ${eventType}`, { status: r.status, body: JSON.stringify(r.body).slice(0, 120) });
   await tripState(`after ${eventType}`);
 }
@@ -76,6 +76,7 @@ const today = new Date().toISOString().slice(0, 10);
 const cost = await api('POST', `/driver/me/trips/${TRIP}/incidental-costs`, {
   costType: 'LIFT_FEE',
   amount: 1500000,
+  payerKind: 'USER',
   occurredAt: today,
   note: `${MARKER} — chi ho phi rung (xoa duoc sau QA)`,
 });
