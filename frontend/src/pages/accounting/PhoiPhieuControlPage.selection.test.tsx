@@ -85,7 +85,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn dòng trang này' }));
     expect(noSelection).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: /Loại phiếu/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Phiếu thu' }, undefined, { timeout: 10_000 }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Phiếu thu' }, { timeout: 10_000 }));
     expect(screen.getByRole('button', { name: 'Lập phiếu thu' })).toBeDisabled();
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
     expect(screen.getByRole('button', { name: 'Lập phiếu thu (1 khoản)' })).toBeEnabled();
@@ -117,7 +117,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
     expect(screen.getByRole('button', { name: /Lập phiếu chi \(1 khoản\)/ })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /Đối chiếu chi hộ/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Chưa đối chiếu' }, undefined, { timeout: 10_000 }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Chưa đối chiếu' }, { timeout: 10_000 }));
     await waitFor(() => expect(client.listPhoiPhieuRows).toHaveBeenLastCalledWith(expect.objectContaining({ confirmation: 'UNCONFIRMED' })));
     expect(screen.getByRole('button', { name: /Lập phiếu chi/ })).toBeDisabled();
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();

@@ -498,7 +498,7 @@ export default function ShipmentsPage() {
               tabs={LOT_STATUS_TABS.map((tab) => ({
                 id: tab.id,
                 label: tab.label,
-                count: tab.countOf?.(ws.data!.pageSummary, total),
+                count: 'countOf' in tab ? tab.countOf(ws.data!.pageSummary, total) : undefined,
                 countTone: tab.countTone,
               }))}
             />
