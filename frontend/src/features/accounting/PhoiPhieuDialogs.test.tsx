@@ -489,3 +489,22 @@ describe('PHOI08 Tiền đường authoritative partial-save retry', () => {
     );
   });
 });
+
+describe('PHOI13 Chi hộ dialog keeps its content readable (card 20261002_278)', () => {
+  it('re-pins the table header to the dialog scrollport', async () => {
+    render(<PhoiPhieuChiHoDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    const table = await screen.findByRole('table');
+
+    // The page-level sticky offset (-24px) is tuned for `.app-body`; inside the
+    // dialog the scrollport is `.modal__body`, so an inherited offset rides the
+    // header ABOVE the scrollport edge and over row 1 — the "text edges cut
+    // off" defect. The table overrides the token it actually consumes.
+    expect(table.style.getPropertyValue('--sticky-thead-top')).toBe('0px');
+
+    // The wrap must stay `overflow: visible` so `.modal__body` remains the
+    // header's scrollport. Promoting it to a scroll container (the `--scroll`
+    // modifier) collapses the vertical overflow the header pins inside and
+    // would silently un-pin the header instead.
+    expect(table.closest('.record-table-wrap--scroll')).toBeNull();
+  });
+});

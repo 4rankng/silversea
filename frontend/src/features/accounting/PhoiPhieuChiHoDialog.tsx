@@ -182,7 +182,8 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
         {detail.data && (
           <>
             {rows.length === 0 ? <EmptyState variant="compact" context="expenses" title="Chưa có khoản chi hộ" description="Thêm dòng để ghi nhận khoản chi của chuyến này." /> : <div className="record-table-wrap" role="region" aria-label="Các khoản chi hộ">
-            <table className="record-table ops-table phoi-detail-matrix">
+            {/* Card 20261002_278. `--sticky-thead-top` is -24px so a page table's header pins flush under the topbar while `.app-body` scrolls. This table lives in a DIFFERENT scrollport (`.modal__body`, 12px padding), so the inherited offset rode the header above the scrollport edge and over row 1 — the "nội dung bị cắt mép chữ" report. Overriding the token the shared rule actually consumes re-pins it flush here without touching the page-level default. */}
+            <table className="record-table ops-table phoi-detail-matrix" style={{ '--sticky-thead-top': '0px' } as React.CSSProperties}>
               <thead><tr>
                 <th className="phoi-detail-col--ordinal">STT</th><th className="phoi-detail-col--description">Nội dung phí</th><th className="phoi-detail-col--identity">Hóa đơn</th><th className="phoi-detail-col--money">Số tiền thu</th><th className="phoi-detail-col--money">Số tiền trả</th><th className="phoi-detail-col--identity">Người thanh toán</th><th className="phoi-detail-col--action" aria-label="Thao tác" />
               </tr></thead>
