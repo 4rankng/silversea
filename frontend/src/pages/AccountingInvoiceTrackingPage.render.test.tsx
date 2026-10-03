@@ -119,8 +119,8 @@ describe('invoice-tracking filter bar search', () => {
 // Card 20261002_285 AC1. RED-first: the period scopes the QUERY, so it is a
 // filter condition — but `hasActiveFilters` ignored it, and `clearFilters` never
 // reset it. Two empty-state buttons were labelled "Xóa bộ lọc ngày" ("clear the
-// DATE filter") while calling a handler that could not touch the date, and a
-// period-only filter armed no reset at all.
+// DATE filter"; the landed copy is the shorter "Xóa bộ lọc") while calling a
+// handler that could not touch the date, and a period-only filter armed no reset.
 describe('invoice-tracking period is a resettable filter condition (card 20261002_285)', () => {
   beforeEach(() => {
     Object.values(client).forEach((fn) => fn.mockReset());

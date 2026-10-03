@@ -158,7 +158,10 @@ describe('invoice-tracking command strip (card 20260929_ivt — shared primitive
 
   it('empty state keeps the period copy and the clear-filters sub-link', () => {
     expect(tsx).toContain('Không tìm thấy hóa đơn nào trong kỳ đã chọn');
-    expect(tsx).toContain('Xóa bộ lọc ngày');
+    // Card 20261002_285's landing shortened the reset copy — the date-scoped
+    // label overpromised ("clear the DATE filter") for a handler that resets
+    // every condition.
+    expect(tsx).toContain('Xóa bộ lọc');
   });
 
   it('scrollbar thumb is neutral ink — the green table-scroll thumb is gone', () => {
