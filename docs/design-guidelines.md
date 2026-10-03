@@ -404,3 +404,18 @@ line holding a detail trigger stacks the note above the right-aligned action
 the pattern exists only in the master-plan grid (cargo + operational/factory
 note cells) — the detailed-plan grid carries no inline cell "Chi tiết"
 triggers. Pins: `MasterPlanGrid.cellactions.styles.test.ts`.
+
+### 2026-10-03 — Paired numeric→picker fields: Tab hand-off opens the picker exactly once (card 20261002_272)
+
+Customer (TingTing 03/10) + PM directive. For a PAIRED field set — a numeric
+entry field followed by its picker — Tab LEAVING the numeric field opens the
+picker's suggestion menu exactly once (focus lands, then a programmatic
+open through the combobox's `onReady` handle). Bare focus and pass-through
+tabbing stay CLOSED: this scopes, not reverses, the 2026-09-21 ruling that
+rejected a focus trigger for the Loại container cell ("menu bật cả khi chỉ
+Tab ngang qua, che các ô khác") — the flash-over-other-cells problem cannot
+occur because the open fires only on the paired field's own Tab keydown.
+Shift+Tab back is untouched. Implementation: UUI `ComboBox onReady` handle
+→ `USearchableField openApiRef` → the paired field's `onKeyDown`. Pins:
+`ContainerTypeCellPicker.test.tsx` (bare-focus-closed preservation +
+hand-off-opens-once).

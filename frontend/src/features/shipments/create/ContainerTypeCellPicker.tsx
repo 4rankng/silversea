@@ -16,6 +16,10 @@ interface ContainerTypeCellPickerProps {
   saving: boolean;
   /** Field validation error, surfaced into the combobox hint. */
   error?: string;
+  /** Receives the programmatic open handle for the paired-field Tab
+   *  hand-off (card 20261002_272): the Số container field's Tab keydown
+   *  focuses this picker and calls `open()` exactly once. */
+  openApiRef?: { current: { open: () => void } | null };
 }
 
 /**
@@ -34,7 +38,7 @@ interface ContainerTypeCellPickerProps {
  * không bao giờ mở menu khi gõ. Không dùng `searchable` (focus-trigger)
  * vì menu bật cả khi chỉ Tab ngang qua, che các ô khác.
  */
-export function ContainerTypeCellPicker({ value, onChange, options, fieldId, saving, error }: ContainerTypeCellPickerProps) {
+export function ContainerTypeCellPicker({ value, onChange, options, fieldId, saving, error, openApiRef }: ContainerTypeCellPickerProps) {
   const [createOpen, setCreateOpen] = useState(false);
   // Typed text carried from the combobox create option into the dialog.
   const [initialCode, setInitialCode] = useState('');
@@ -56,6 +60,7 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
           hideLabel
           required
           openOnType
+          openApiRef={openApiRef}
           value={value}
           onChange={onChange}
           options={mergedOptions.map((item) => ({ value: String(item.id), label: item.code }))}

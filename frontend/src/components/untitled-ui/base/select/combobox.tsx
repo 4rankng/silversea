@@ -46,6 +46,15 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
      * down rather than clipping off-screen.
      */
     popoverPlacement?: 'top' | 'bottom' | 'left' | 'right' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'start' | 'end';
+    /**
+     * Hands the caller a programmatic open handle once the combobox state
+     * exists (card 20261002_272). For a PAIRED-FIELD Tab hand-off: the
+     * sibling field's Tab keydown focuses this input and calls `open()` —
+     * a deliberate navigation act opens the menu exactly once, while bare
+     * focus and pass-through stay closed (the 2026-09-21 focus-trigger
+     * rejection still holds).
+     */
+    onReady?: (api: { open: () => void }) => void;
     children: AriaListBoxProps<SelectItemType>["children"];
 }
 
@@ -65,7 +74,7 @@ interface ComboBoxValueProps extends AriaGroupProps {
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassName: _shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, isInvalid, onClear, onEnterCommit, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null }) => {
+const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassName: _shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, isInvalid, onClear, onEnterCommit, onReady, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null; onReady?: (api: { open: () => void }) => void }) => {
     const state = useContext(ComboBoxStateContext);
     // True from the last explicit option-navigation key until the next typing
     // key or a consumed Enter — see the keydown-capture handler below.
@@ -83,6 +92,14 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
         otherProps.onClick?.(event);
         if (openOnPress && !event.defaultPrevented && !state?.isOpen) state?.open(null, "manual");
     };
+
+    // Card 20261002_272: hand the caller a programmatic open handle bound to
+    // the live state. The caller re-stores the latest closure on every state
+    // identity change — the assignment is idempotent.
+    useEffect(() => {
+        if (!state) return;
+        onReady?.({ open: () => state.open(null, "manual") });
+    }, [state, onReady]);
 
     return (
         <AriaGroup
@@ -357,6 +374,7 @@ export const ComboBox = ({
     onEnterCommit,
     className,
     popoverPlacement,
+    onReady,
     ...otherProps
 }: ComboBoxProps) => {
     const placeholderRef = useRef<HTMLDivElement>(null);
@@ -425,6 +443,7 @@ export const ComboBox = ({
                             ref={placeholderRef}
                             placeholder={placeholder}
                             shortcut={shortcut}
+                            onReady={onReady}
                             shortcutClassName={shortcutClassName}
                             icon={icon}
                             openOnPress={openOnPress}

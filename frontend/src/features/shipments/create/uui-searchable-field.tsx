@@ -70,6 +70,13 @@ interface USearchableFieldProps {
    * row (20260920_26).
    */
   createOption?: { label: (typed: string) => string; onSelect: (typed: string) => void };
+  /**
+   * Receives the programmatic open handle once the combobox state exists
+   * (card 20261002_272 — the paired-field Tab hand-off: the sibling field's
+   * Tab keydown focuses this input and calls `open()`; bare focus and
+   * pass-through still never open — menuTrigger semantics are unchanged).
+   */
+  openApiRef?: { current: { open: () => void } | null };
 }
 
 export function USearchableField({
@@ -94,6 +101,7 @@ export function USearchableField({
   hideLabel,
   popoverPlacement,
   createOption,
+  openApiRef,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   const selectedLabel = selected?.label;
@@ -226,6 +234,7 @@ export function USearchableField({
         shortcut={shortcut}
         popoverClassName={popoverClassName}
         className="csc-uui-field csc-control-boundary"
+        {...(openApiRef ? { onReady: (api: { open: () => void }) => { openApiRef.current = api; } } : {})}
       >
         {(item: { id: string | number; label?: string; searchText?: string }) => (
           <SelectItem

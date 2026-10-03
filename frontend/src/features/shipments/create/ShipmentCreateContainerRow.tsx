@@ -1,4 +1,5 @@
 import { Copy, Trash2 } from 'lucide-react';
+import { useRef } from 'react';
 import type { CatalogData } from '../../../api/tripClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
 import { formatDateTime24 } from '../../../lib/format';
@@ -82,6 +83,8 @@ export function ShipmentCreateContainerRow({
   const dropoffPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.dropoffPortId);
   const factory = operationalSites.find((site) => String(site.id) === row.operationalSiteId);
   const canCopyAppointment = Boolean(row.customerAppointmentAt) && emptyAppointmentCount >= 2;
+  // Card 20261002_272: open handle for the paired-field Tab hand-off.
+  const typePickerOpenApi = useRef<{ open: () => void } | null>(null);
 
   return (
     <tr key={row.key} className="csc-container-row">
@@ -114,6 +117,16 @@ export function ShipmentCreateContainerRow({
           hideLabel
           value={row.containerNumber}
           onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())}
+          onKeyDown={(event) => {
+            // Card 20261002_272 (PM 03/10, option a): Tab LEAVING the paired
+            // Số container field opens the Loại container picker's menu
+            // exactly once — a deliberate navigation act. Bare focus and
+            // pass-through stay closed (the 2026-09-21 ruling stands). The
+            // default Tab proceeds: focus lands on the picker, then we open.
+            if (event.key === 'Tab' && !event.shiftKey) {
+              window.setTimeout(() => typePickerOpenApi.current?.open(), 0);
+            }
+          }}
           disabled={saving}
           error={issueByField.get(`container-${row.key}-number`)}
         />
@@ -133,6 +146,7 @@ export function ShipmentCreateContainerRow({
           fieldId={`container-${row.key}-type`}
           saving={saving}
           error={issueByField.get(`container-${row.key}-type`)}
+          openApiRef={typePickerOpenApi}
         />
       </ShipmentContainerCell>
       <ShipmentContainerCell
