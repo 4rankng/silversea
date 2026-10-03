@@ -179,6 +179,7 @@ large padding is retained because its actual typography yields38.2px.
 - **Validation / error display** — no shared `FieldError`; errors are 8 page-local classes. Worst offender: `src/features/app-settings/FinancePolicySection.tsx` (`.cfg-form-error`, 22 uses).
 - **Required marking** — 5 bespoke `*` markers, no shared contract; worst offender: `src/pages/ExpenseEntryPage.tsx` (`.expense-required` ×8).
 - **One text input** — `.input` vs `ds-field__input` vs UUI `InputBase`; worst offender: `components/trip/InputWithPrefix.tsx`.
+- **Trip-form money inputs are an OWNER-RULED EXEMPTION, not the same gap** — `InputWithPrefix` keeps a raw-digit-string contract and strips every non-digit, so it cannot express a negative. That is the settled ruling in `docs/adr/2026-10-01-audit-todo-policy-rulings.md` (card 20260930_245): trip quantity, rate and allowance stay nonnegative, while signed expense rows remain visible and excluded from totals. A migration of this family onto the `NumberField` signed contract is therefore NOT pending debt for this reason — it would contradict the ruling. Revisit only on a new owner instruction.
 - **One searchable picker** — `SearchableSelect` and `UuiSelectField` duplicate the combobox; worst offender: `design-system/forms/SearchableSelect.tsx`.
 - **One button** — `.btn` classes vs UUI `Button`; worst offender: `frontend/src/components/untitled-ui/base/buttons/button.tsx` + its 16 adopters.
 
@@ -191,7 +192,7 @@ large padding is retained because its actual typography yields38.2px.
 - **Disabled / read-only** — 91 page `:disabled` rules, no pin. Worst offender: `frontend/src/pages/config/config-page.css`.
 - **Label / required / error** — no test covers casing, layout, placement, or announcement. Worst offender: `frontend/src/pages/ExpenseEntryPage.tsx`.
 - **Checkboxes** — no test or lint rule on checkbox/radio/toggle. Worst offender: `frontend/src/components/trip/CheckboxCard.tsx`.
-- **`type="time"`** — `native-date-sweep` matches only `type="date"`. Worst offender: `frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:578`.
+- **`type="time"`** — the native-input sweep matches only `type="date"`, so a `type="time"` can reappear silently. The one offender, `ShipmentContainerLedger.tsx`, was moved to the shared segmented entry in card 20261002_275; it could not before, because `SplitDateTimeField` always renders a date beside the time and that form owns its date separately. `frontend/src/design-system/forms/TimeSegmentsField.test.tsx` now pins that a time field carries no `input[type="time"]`, which covers the two fields that have one — the script gap itself is still open.
 
 Short numeric entries (coefficients/counts) use `TextField controlWidth="short-number"`:72px width capped by its containing track, canonical30px compact height on all pointers (the owner-approved short-numeric exception to ordinary40px controls), numeric typography/right alignment. The prop is geometry only; it never sets maxLength, rounds values or changes validation. `controlSize="sm"` remains independent and opt-in for existing compact controls.
 
