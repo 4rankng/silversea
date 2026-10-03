@@ -29,10 +29,8 @@
     "base/select/select-shared.tsx",
     "base/select/select.tsx",
     "base/tags/base-components/tag-checkbox.tsx",
-    "base/tags/base-components/tag-close-x.tsx",
     "base/textarea/textarea.tsx",
     "base/tooltip/tooltip.tsx",
-    "foundations/dot-icon.tsx",
-    "foundations/featured-icon/featured-icon.tsx"
+    "foundations/dot-icon.tsx"
   ]
 }
