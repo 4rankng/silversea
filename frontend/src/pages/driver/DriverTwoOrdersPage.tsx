@@ -82,22 +82,22 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
 
 export default function DriverTwoOrdersPage() {
   const { data, isLoading: loading, error: queryError, refetch, isFetching } = useDriverTwoOrders();
-  const error = queryError ? 'Không thể tải thông tin hai lệnh' : null;
+  const error = queryError ? 'Không thể tải thông tin lệnh trong ngày' : null;
   const { rootRef } = usePageAnimations({ ready: !loading });
 
   if (loading) return (
     <div className="driver-secondary-page">
-      <PageHeader title="Hai lệnh hôm nay" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
+      <PageHeader title="Lệnh trong ngày" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
       <div className="driver-secondary-state" role="status">
         <Loader2 size={20} className="spin" />
-        <p>Đang tải hai lệnh hôm nay…</p>
+        <p>Đang tải lệnh trong ngày…</p>
       </div>
     </div>
   );
 
   if (error) return (
     <div className="driver-secondary-page">
-      <PageHeader title="Hai lệnh hôm nay" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
+      <PageHeader title="Lệnh trong ngày" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
       <EmptyState
         role="alert"
         variant="compact"
@@ -115,7 +115,7 @@ export default function DriverTwoOrdersPage() {
   const allToday: TripSummary[] = view?.allToday ?? [];
   const pairedTrips = view?.pair ? [view.pair.first, view.pair.second].filter((trip): trip is TripSummary => Boolean(trip)) : [];
   const hasPersistedPair = pairedTrips.length > 0;
-  const pageTitle = hasPersistedPair ? 'Lệnh ghép 2 chiều' : 'Hai lệnh hôm nay';
+  const pageTitle = hasPersistedPair ? 'Lệnh ghép 2 chiều' : 'Lệnh trong ngày';
   const pageDescription = hasPersistedPair
     ? 'Thứ tự chuyến đi đã được điều vận ghép sẵn cho cùng xe và lái xe'
     : 'Lệnh đang chạy và lệnh tiếp theo trong ngày';
