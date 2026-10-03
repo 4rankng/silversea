@@ -678,10 +678,11 @@ describe('DetailedPlanGrid — QA-001 appointment minutes', () => {
     expect(screen.getByText('20H 11/09/2026')).toBeTruthy();
   });
 
-  it('SCHEDULE-LAYOUT-04 keeps a known date without inventing a time (PM 03/10: no dash placeholder before a present date — card 20261003_304)', () => {
+  it('SCHEDULE-LAYOUT-04 keeps a known date without inventing a time, labelled as the delivery date (card 20261003_318: a bare date read as a stored hour misled the user)', () => {
     renderGrid([row({ time: { deliveryDate: '2026-09-11', runHour: null } })]);
 
-    expect(screen.getByText('11/09/2026')).toBeTruthy();
+    expect(screen.getByText('Ngày giao 11/09/2026')).toBeTruthy();
+    expect(screen.queryByText(/^11\/09\/2026$/)).toBeNull();
     expect(screen.queryByText('— 11/09/2026')).toBeNull();
   });
 

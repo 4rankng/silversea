@@ -272,10 +272,16 @@ export function DetailedPlanGrid({
                 // this column the moment it is saved — the staged plannedEndAt
                 // outranks the appointment-derived run timestamp, so the
                 // dispatcher sees 13:00 immediately after Lưu, and after reload.
+                // Card 20261003_318: the delivery-date fallback is LABELLED —
+                // a bare date read as a stored return hour sent the user into
+                // the editor expecting it there.
                 const scheduleValue = row.plannedEndAt
                   ? formatAppointmentGroupLine(row.plannedEndAt)
                   : row.time.runAt ? formatAppointmentGroupLine(row.time.runAt)
-                    : [row.time.runHour != null ? `${row.time.runHour}H` : null, row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ') || '—';
+                    : row.time.runHour != null
+                      ? [`${row.time.runHour}H`, row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ')
+                      : row.time.deliveryDate ? `Ngày giao ${formatISODate(row.time.deliveryDate)}`
+                        : '—';
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
