@@ -1,13 +1,47 @@
 import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import type { ShipmentAllocationFilter } from '../../../api/shipmentClient';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
-import { DateRangeFields, FilterBar, SearchableMultiSelect, type DateRangeValue } from '../../../design-system';
+import { DateRangeFields, DateRangePresets, FilterBar, SearchableMultiSelect, type DateRangePreset, type DateRangeValue } from '../../../design-system';
 import { listZonePortFacets } from '../../../api/shipmentClient';
 import { configClient } from '../../../api/configClient';
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { MasterPlanFilters as FilterState } from './useDispatchMasterPlan';
 import './MasterPlanGrid.css';
 import { useCoarsePointer } from '../useCoarsePointer';
+import { businessDateISO } from '../../../lib/format';
+
+/**
+ * Quick delivery-date scope of the strip (card 20261002_258, operator
+ * 2026-10-02: "làm như bên Chi tiết, để nút truy cập nhanh Hôm nay/sau/tất cả").
+ * The segments set the same state the from/to fields set (last writer wins),
+ * and `range()` is evaluated at click so `Hôm nay` stays anchored to the day
+ * it is clicked. It replaces the old §5 exemption ("the date inputs cover
+ * them") that kept this surface chipless — the operator's own referenced
+ * pattern (the Chi tiết screen) ships these chips.
+ */
+const DELIVERY_DATE_PRESETS: DateRangePreset[] = [
+  {
+    id: 'today',
+    label: 'Hôm nay',
+    range: () => {
+      const today = businessDateISO();
+      return { from: today, to: today };
+    },
+  },
+  {
+    id: 'tomorrow',
+    label: 'Hôm sau',
+    range: () => {
+      const tomorrow = businessDateISO(new Date(Date.now() + 86_400_000));
+      return { from: tomorrow, to: tomorrow };
+    },
+  },
+];
+
+// The all-dates scope is a CHIP of the bar only (the house shape on
+// /shipments-detail): the dialog holds no copy — the from/to fields remain the
+// full-capability control. Active-detection maps the empty range to this tab.
+const ALL_DATES_PRESET: DateRangePreset = { id: 'all', label: 'Tất cả', range: () => ({ from: '', to: '' }) };
 
 interface MasterPlanFiltersProps {
   filters: FilterState;
@@ -247,6 +281,17 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
 
   const rangeFieldsOnCoarsePointer = useCoarsePointer();
 
+  // The quick scope rides the band's `presets` slot — beside the from/to dates
+  // it sets, the slot the bar gives the quick ranges (band law, FilterBar.tsx).
+  const presetNode = (
+    <DateRangePresets
+      presets={[...DELIVERY_DATE_PRESETS, ALL_DATES_PRESET]}
+      value={rangeValue}
+      onChange={applyRange}
+      ariaLabel="Lọc nhanh ngày giao"
+    />
+  );
+
   const rangeFields = (
     <DateRangeFields
           className="master-plan-filters__date-range"
@@ -267,6 +312,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
         placeholder: 'Tìm theo B/L, Booking, khách hàng…',
         ariaLabel: 'Tìm kiếm lô hàng',
       }}
+      presets={presetNode}
       actions={action}
       fold={{
         criteria: (
