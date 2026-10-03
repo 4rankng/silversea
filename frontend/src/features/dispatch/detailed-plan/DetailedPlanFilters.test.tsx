@@ -387,3 +387,78 @@ describe('DetailedPlanFilters — Bộ lọc dialog (hours/zone/points)', () => 
     expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [] });
   });
 });
+
+// Card 20261002_285 AC1. RED-first: the date scope has TWO representations — the
+// `date` preset and the `dateFrom`/`dateTo` range — and `clearSecondaryFilters`
+// preserved only the preset. An identically-scoped custom range was therefore
+// silently wiped by the dialog's own `Đặt lại`, while the same preset survived.
+describe('detailed-plan Bộ lọc reset keeps the whole date scope (card 20261002_285)', () => {
+  it('leaves a custom from/to range in place and clears the folded criteria', () => {
+    const onChange = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps(onChange)}
+        filters={{
+          ...EMPTY_DETAILED_PLAN_FILTERS,
+          q: 'BL-001',
+          dateFrom: '2026-08-01',
+          dateTo: '2026-08-05',
+          deliveryPointIds: [42],
+        }}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
+      />,
+    );
+    openFilterDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt lại' }));
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+      q: 'BL-001',
+      dateFrom: '2026-08-01',
+      dateTo: '2026-08-05',
+      deliveryPointIds: [],
+    }));
+  });
+
+  it('still preserves the preset scope, unchanged from before', () => {
+    const onChange = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps(onChange)}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, q: 'BL-001', date: '2026-08-01', deliveryPointIds: [42] }}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
+      />,
+    );
+    openFilterDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt lại' }));
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+      q: 'BL-001',
+      date: '2026-08-01',
+      deliveryPointIds: [],
+    }));
+  });
+});
+
+describe('DetailedPlanFilters — quick assignment chips (card 20261002_274, A07)', () => {
+  it('carries the Tất cả / Chưa gán xe / Đã gán xe quick chips on the bar', () => {
+    const onChange = vi.fn();
+    renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    expect(within(group).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(within(group).getByRole('tab', { name: 'Chưa gán xe' }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assignmentStatus: 'UNASSIGNED' }));
+    fireEvent.click(within(group).getByRole('tab', { name: 'Đã gán xe' }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assignmentStatus: 'ASSIGNED' }));
+  });
+
+  it('mirrors an applied assignment filter as the active chip', () => {
+    renderFilters(
+      <DetailedPlanFilters {...baseProps()} filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, assignmentStatus: 'ASSIGNED' }} />,
+    );
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    expect(within(group).getByRole('tab', { name: 'Đã gán xe' }).getAttribute('aria-selected')).toBe('true');
+    expect(within(group).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('false');
+  });
+});

@@ -42,6 +42,20 @@ const ASSIGNMENT_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'ASSIGNED', label: 'Đã điều xe' },
 ];
 
+/**
+ * Quick assignment scope of the strip (card 20261002_274, A07): the
+ * dispatcher's most-used sweep — Tất cả / Chưa gán xe / Đã gán xe — rides the
+ * band's `quickFilters` slot as the shared boxed group (law §263). It drives
+ * the SAME `assignmentStatus` state as the Điều xe select inside `Bộ lọc`
+ * (the presets-and-fields precedent: one state, a quick control on the bar
+ * and the full select in the dialog).
+ */
+const ASSIGNMENT_QUICK_TABS: TabItem[] = [
+  { id: 'ALL', label: 'Tất cả' },
+  { id: 'UNASSIGNED', label: 'Chưa gán xe' },
+  { id: 'ASSIGNED', label: 'Đã gán xe' },
+];
+
 const DATA_STATUS_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'ALL_DATA_STATUS', label: 'Tất cả' },
   { id: 'COMPLETE', label: 'Đầy đủ' },
@@ -215,13 +229,21 @@ export function DetailedPlanFilters({
 
   /** `Đặt lại` of `Bộ lọc`: clears exactly the criteria in the dialog. The
    *  search and the date scope are bar controls and stay (`Xóa lọc` clears
-   *  everything, including them). */
+   *  everything, including them).
+   *
+   *  Card 20261002_285 AC1: the date scope has TWO representations — the
+   *  `date` preset and the `dateFrom`/`dateTo` range — and `selectDate` /
+   *  `applyRange` are last-writer-wins between them. Preserving only `date`
+   *  meant a preset survived the dialog reset while an identically-scoped
+   *  custom range was silently wiped by it. Both now ride through. */
   const clearSecondaryFilters = () => {
     setDraftResetKey((key) => key + 1);
     onChange({
       ...createDefaultDetailedPlanFilters(),
       q: filters.q,
       date: filters.date,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
     });
   };
 
@@ -287,6 +309,16 @@ export function DetailedPlanFilters({
           ariaLabel: 'Tìm nhanh',
           inputRef: searchInputRef,
         }}
+        quickFiltersLabel="Lọc nhanh gán xe"
+        quickFilters={(
+          <Tabs
+            tabs={ASSIGNMENT_QUICK_TABS}
+            value={filters.assignmentStatus || 'ALL'}
+            onChange={(id) => onChange({ assignmentStatus: id === 'ALL' ? '' : id as DetailedPlanFilterState['assignmentStatus'] })}
+            variant="boxed"
+            ariaLabel="Lọc nhanh gán xe"
+          />
+        )}
         presets={dateScope}
         actions={(
           <>
