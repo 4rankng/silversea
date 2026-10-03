@@ -225,9 +225,22 @@ export async function upsertFuelConfig(data: {
   return { result, status };
 }
 
-export async function getFuelPriceHistory(): Promise<typeof s.fuelPriceHistory.$inferSelect[]> {
+export async function getFuelPriceHistory(): Promise<Array<typeof s.fuelPriceHistory.$inferSelect & { changedByName: string | null }>> {
   return cacheGet('config:fuel-price-history', 300, async () => {
-    return db.select().from(s.fuelPriceHistory).orderBy(desc(s.fuelPriceHistory.effectiveDate));
+    // Card 20261002_290: resolve the changer's display name backend-side — the
+    // internal id is never a user-facing label (§2), and the column the history
+    // table shows comes from this one read.
+    return db.select({
+      id: s.fuelPriceHistory.id,
+      unitPrice: s.fuelPriceHistory.unitPrice,
+      effectiveDate: s.fuelPriceHistory.effectiveDate,
+      changedBy: s.fuelPriceHistory.changedBy,
+      changedByName: s.users.fullName,
+      note: s.fuelPriceHistory.note,
+      createdAt: s.fuelPriceHistory.createdAt,
+    }).from(s.fuelPriceHistory)
+      .leftJoin(s.users, eq(s.users.id, s.fuelPriceHistory.changedBy))
+      .orderBy(desc(s.fuelPriceHistory.effectiveDate));
   });
 }
 

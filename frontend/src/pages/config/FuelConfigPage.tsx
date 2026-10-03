@@ -34,14 +34,13 @@ export default function FuelConfigPage() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState(false);
   // Client-side column sort for the price-history table — a small full-set
-  // list fetched in one array; null keeps the backend's order. "Người thay
-  // đổi" renders a constant placeholder (the API has no author field yet), so
-  // it stays a plain decorative header.
+  // list fetched in one array; null keeps the backend's order.
   const [historySort, setHistorySort] = useState<TableSortState | null>(null);
   const handleHistorySort = (key: string) => setHistorySort(current => nextTableSort(current, key));
   const sortedHistory = useMemo(() => sortClientSide(history, historySort, {
     effectiveDate: row => row.effectiveDate,
     unitPrice: row => Number(row.unitPrice),
+    changedByName: row => row.changedByName ?? '',
     note: row => row.note,
   }, (a, b) => b.id - a.id), [history, historySort]);
 
@@ -209,6 +208,7 @@ export default function FuelConfigPage() {
                 <tr>
                   <SortHeader label="Ngày hiệu lực" sortKey="effectiveDate" sort={historySort} onSortChange={handleHistorySort} />
                   <SortHeader className="num" label="Đơn giá (₫/lít)" sortKey="unitPrice" sort={historySort} onSortChange={handleHistorySort} />
+                  <SortHeader label="Người thay đổi" sortKey="changedByName" sort={historySort} onSortChange={handleHistorySort} />
                   <SortHeader label="Ghi chú" sortKey="note" sort={historySort} onSortChange={handleHistorySort} />
                 </tr>
               </thead>
@@ -217,6 +217,7 @@ export default function FuelConfigPage() {
                   <tr key={row.id}>
                     <td data-label="Ngày hiệu lực" style={{ whiteSpace: 'nowrap' }}>{new Date(row.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                     <td data-label="Đơn giá (₫/lít)" className="num" style={{ fontWeight: 600 }}>{formatMoney(Number(row.unitPrice))}</td>
+                    <td data-label="Người thay đổi" style={{ color: 'var(--ink-3)' }}>{row.changedByName ?? '—'}</td>
                     <td data-label="Ghi chú" style={{ color: 'var(--ink-3)' }}>{row.note || '—'}</td>
                   </tr>
                 ))}

@@ -356,6 +356,9 @@ export interface FuelPriceHistory {
   unitPrice: string;
   effectiveDate: string;
   changedBy: number | null;
+  /** Display name resolved from changedBy (card 20261002_290) — the internal
+   *  id is never a user-facing label. */
+  changedByName: string | null;
   note: string | null;
   createdAt: string;
 }

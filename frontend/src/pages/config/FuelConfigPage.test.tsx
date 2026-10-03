@@ -62,22 +62,24 @@ describe('initial and conflicting fuel configuration', () => {
 });
 
 describe('fuel price history table', () => {
-  it('renders a real table on the --table adoption, with no dead placeholder column', async () => {
+  it('renders a real table on the --table adoption, with the changer display name', async () => {
     history.mockResolvedValue([
-      { id: 1, unitPrice: '17842.593', effectiveDate: '2026-09-01T00:00:00Z', changedBy: 3, note: 'Cấu hình ban đầu' },
-      { id: 2, unitPrice: '18200', effectiveDate: '2026-09-20T00:00:00Z', changedBy: null, note: null },
+      { id: 1, unitPrice: '17842.593', effectiveDate: '2026-09-01T00:00:00Z', changedBy: 3, changedByName: 'Nguyễn Văn A', note: 'Cấu hình ban đầu' },
+      { id: 2, unitPrice: '18200', effectiveDate: '2026-09-20T00:00:00Z', changedBy: null, changedByName: null, note: null },
     ]);
     render(screenTree());
     const historyPanel = await screen.findByText('Lịch sử giá nhiên liệu');
     const table = historyPanel.closest('.panel, [class*=panel]')?.parentElement?.querySelector('table') ?? document.querySelector('.record-table');
     expect(table).toBeTruthy();
-    // The wrap declares the table-mode adoption: a 3-column ledger stays a
+    // The wrap declares the table-mode adoption: a 4-column ledger stays a
     // table on desktop instead of misclassifying into the phone card band.
     expect(table!.closest('.record-table-wrap')!.className).toContain('record-table-wrap--table');
     const headers = Array.from(table!.querySelectorAll('thead th')).map((th) => th.textContent?.trim());
-    expect(headers).toEqual(['Ngày hiệu lực', 'Đơn giá (₫/lít)', 'Ghi chú']);
-    // The payload carries only the internal changedBy id — a column of
-    // dashes taught nothing; the name column waits for the backend join.
-    expect(headers).not.toContain('Người thay đổi');
+    expect(headers).toEqual(['Ngày hiệu lực', 'Đơn giá (₫/lít)', 'Người thay đổi', 'Ghi chú']);
+    // Card 20261002_290: the name column shows the RESOLVED display name —
+    // the internal changedBy id never renders (§2), and an unresolved row
+    // reads the house dash without ever exposing the id.
+    const nameCells = Array.from(table!.querySelectorAll('tbody td[data-label="Người thay đổi"]')).map(td => td.textContent?.trim());
+    expect(nameCells).toEqual(['Nguyễn Văn A', '—']);
   });
 });
