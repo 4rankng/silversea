@@ -27,6 +27,7 @@ let truckId = 0;
 const plate = `51C-${suffix.slice(-6)}`.slice(0, 20);
 let lotA = { shipmentId: 0, fulfillmentId: 0, fulfillmentVersion: 1, shipmentVersion: 1 };
 let lotB = { shipmentId: 0, fulfillmentId: 0, fulfillmentVersion: 1, shipmentVersion: 1 };
+let lotC = { shipmentId: 0, fulfillmentId: 0, fulfillmentVersion: 1, shipmentVersion: 1 };
 
 const DAY = (offset: number) => new Date(Date.now() + offset * 86400_000).toISOString().slice(0, 10);
 
@@ -106,6 +107,7 @@ before(async () => {
   truckId = truck.id;
   lotA = await seedLot('a', DAY(2));
   lotB = await seedLot('b', DAY(2));
+  lotC = await seedLot('c', DAY(9));
 });
 
 after(async () => {
@@ -130,13 +132,13 @@ describe('dispatch plan-row rig conflict (card 20261003_317)', () => {
   });
 
   test('A1 the first assignment of the rig succeeds', async () => {
-    const r = await patchPlan(lotA.fulfillmentId, lotA.shipmentId, `${DAY(2)}T06:00:00+07:00`);
+    const r = await patchPlan(lotA.fulfillmentId, lotA.shipmentId, `${DAY(2)}T18:00:00+07:00`);
     assert.equal(r.replayed, false);
   });
 
   test('B1 the same rig on an overlapping window is refused with 409', async () => {
     await assert.rejects(
-      () => patchPlan(lotB.fulfillmentId, lotB.shipmentId, `${DAY(2)}T06:00:00+07:00`),
+      () => patchPlan(lotB.fulfillmentId, lotB.shipmentId, `${DAY(2)}T18:00:00+07:00`),
       (err: unknown) => {
         assert.ok(err instanceof Error && /đầu xe|trùng/i.test(err.message), `unexpected message: ${String(err)}`);
         return true;
@@ -145,13 +147,13 @@ describe('dispatch plan-row rig conflict (card 20261003_317)', () => {
     );
   });
 
-  test('B2 a provably disjoint window on the same rig is allowed', async () => {
-    const r = await patchPlan(lotB.fulfillmentId, lotB.shipmentId, `${DAY(9)}T06:00:00+07:00`);
+  test('C1 a rig assignment in a provably disjoint window is allowed', async () => {
+    const r = await patchPlan(lotC.fulfillmentId, lotC.shipmentId, `${DAY(9)}T18:00:00+07:00`);
     assert.equal(r.replayed, false);
   });
 
   test('A2 re-saving the same row with the same rig is allowed (self excluded)', async () => {
-    const r = await patchPlan(lotA.fulfillmentId, lotA.shipmentId, `${DAY(2)}T06:00:00+07:00`);
+    const r = await patchPlan(lotA.fulfillmentId, lotA.shipmentId, `${DAY(2)}T18:00:00+07:00`);
     assert.equal(r.replayed, false);
   });
 });
