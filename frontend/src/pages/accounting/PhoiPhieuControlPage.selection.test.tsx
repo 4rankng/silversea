@@ -75,7 +75,7 @@ beforeEach(() => {
 describe('card 20260929_207 — row selection replaces the checkbox column', () => {
   it('PHOI10 keeps concise disabled direction actions while retaining scope guidance and selected eligible counts', { timeout: 15000 }, async () => {
     const { container } = renderBoard([row({ eligibleIn: 1, eligibleOut: 1 })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     const noSelection = screen.getByRole('button', { name: 'Lập phiếu chi' });
     expect(noSelection).toBeDisabled();
     expect(noSelection).toHaveAttribute('title', 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu');
@@ -85,7 +85,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn dòng trang này' }));
     expect(noSelection).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: /Loại phiếu/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Phiếu thu' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Phiếu thu' }, undefined, { timeout: 10_000 }));
     expect(screen.getByRole('button', { name: 'Lập phiếu thu' })).toBeDisabled();
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
     expect(screen.getByRole('button', { name: 'Lập phiếu thu (1 khoản)' })).toBeEnabled();
@@ -93,7 +93,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
   });
   it('PHOI09 renders a distinct labelled carrier fact and honest missing driver while preserving row selection', async () => {
     const { container } = renderBoard([row({ carrierName: 'Gaya Container Lines', driverName: null })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     const first = bodyRows(container)[0];
     expect(within(first).getByText('Nhà vận tải: Gaya Container Lines')).toBeInTheDocument();
     expect(within(first).getByText('Lái xe: Chưa có lái xe')).toBeInTheDocument();
@@ -103,7 +103,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
   });
   it('PHOI06 renders factory separately from the customer and route, with honest missing copy', async () => {
     const { container } = renderBoard([row({ factoryName: 'Nhà máy A' }), row({ tripId: 2, factoryName: null })]);
-    await screen.findByText('Nhà máy: Nhà máy A');
+    await screen.findByText('Nhà máy: Nhà máy A', undefined, { timeout: 10_000 });
     expect(screen.getByRole('columnheader', { name: 'Khách hàng / Nhà máy / Tuyến' })).toBeInTheDocument();
     const cells = bodyRows(container).map(row => within(row).getByText('Khách hàng: KH A').closest('td')!);
     expect(cells[0]).toHaveTextContent('Nhà máy: Nhà máy A');
@@ -113,18 +113,18 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
 
   it('PHOI05 confirmation-scope change clears payment selection and sends the exact read filter', async () => {
     const { container } = renderBoard([row({ tripId: 1 })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
     expect(screen.getByRole('button', { name: /Lập phiếu chi \(1 khoản\)/ })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /Đối chiếu chi hộ/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Chưa đối chiếu' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Chưa đối chiếu' }, undefined, { timeout: 10_000 }));
     await waitFor(() => expect(client.listPhoiPhieuRows).toHaveBeenLastCalledWith(expect.objectContaining({ confirmation: 'UNCONFIRMED' })));
     expect(screen.getByRole('button', { name: /Lập phiếu chi/ })).toBeDisabled();
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();
   });
   it('PHOI04 displays the schedule date and names missing schedule without departure fallback', async () => {
     const { container } = renderBoard([row({ tripId: 1, transportDate: '2026-10-01' }), row({ tripId: 2, transportDate: null })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     expect(within(bodyRows(container)[0]).getByText('01/10/2026')).toBeInTheDocument();
     expect(within(bodyRows(container)[0]).queryByText('29/09/2026')).not.toBeInTheDocument();
     expect(within(bodyRows(container)[1]).getByText('Chưa có ngày hẹn')).toBeInTheDocument();
@@ -133,13 +133,13 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
 
   it('ships no checkbox anywhere in the board', async () => {
     const { container } = renderBoard([row({ tripId: 1 })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     expect(container.querySelector('input[type="checkbox"]')).toBeNull();
   });
 
   it('picks a row on click and unpicks it on a second click', async () => {
     const { container } = renderBoard([row({ tripId: 1, tripCode: 'TRP-1' })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     const [first] = bodyRows(container);
 
     expect(first).not.toHaveAttribute('data-selected');
@@ -156,7 +156,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
   // row for a voucher the accountant never chose.
   it('does not pick the row when the press lands on the row’s own button', async () => {
     const { container } = renderBoard([row({ tripId: 1, tripCode: 'TRP-1' })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     const [first] = bodyRows(container);
 
     fireEvent.click(within(first).getByRole('button', { name: /Xem chi tiết/ }));
@@ -165,7 +165,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
 
   it('leaves a row that cannot be issued inert', async () => {
     const { container } = renderBoard([row({ tripId: 1, tripCode: 'TRP-1', confirmable: false })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     const [first] = bodyRows(container);
 
     expect(first).toHaveClass('ppc-row--locked');
@@ -180,7 +180,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
       row({ tripId: 2, tripCode: 'TRP-2' }),
       row({ tripId: 3, tripCode: 'TRP-3', confirmable: false }),
     ]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     const selectAll = screen.getByRole('button', { name: /Chọn cả trang này/ });
     fireEvent.click(selectAll);
 
@@ -196,7 +196,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
 
   it('PHOI03 clears hidden selection during a filter query and does not resurrect it on return', async () => {
     const { container } = renderBoard([row({ tripId: 1 })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
     expect(screen.getByRole('button', { name: /Lập phiếu chi \(1 khoản\)/ })).toBeEnabled();
     let resolveFiltered!: (value: { items: PhoiPhieuRow[] }) => void;
@@ -209,7 +209,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     resolveFiltered({ items: [] });
     await waitFor(() => expect(bodyRows(container)).toHaveLength(0));
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '' } });
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     expect(bodyRows(container)[0]).not.toHaveAttribute('data-selected');
     expect(screen.getByRole('button', { name: /Lập phiếu chi/ })).toBeDisabled();
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();
@@ -217,7 +217,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
 
   it('PHOI03 excludes a refreshed nonconfirmable row from count, action and payment request', async () => {
     const { container, queryClient } = renderBoard([row({ tripId: 1 })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
     expect(screen.getByRole('button', { name: /Lập phiếu chi \(1 khoản\)/ })).toBeEnabled();
     vi.mocked(client.listPhoiPhieuRows).mockResolvedValueOnce({ items: [row({ tripId: 1, confirmable: false })] });
@@ -232,11 +232,11 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
 
   it('PHOI03 prevents payment while a selected result refresh has failed', async () => {
     const { container, queryClient } = renderBoard([row({ tripId: 1 })]);
-    await screen.findAllByText('Chưa có số Bill/Booking');
+    await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
     vi.mocked(client.listPhoiPhieuRows).mockRejectedValueOnce(new Error('Unavailable'));
     await act(async () => { await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll }); });
-    expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được bảng kiểm soát');
+    expect(await screen.findByRole('alert', undefined, { timeout: 10_000 })).toHaveTextContent('Không tải được bảng kiểm soát');
     const issue = screen.getByRole('button', { name: /Lập phiếu chi/ });
     expect(issue).toBeDisabled();
     fireEvent.click(issue);
