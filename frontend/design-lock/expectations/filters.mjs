@@ -17,19 +17,24 @@
 // back past 2 is a regression.
 const WIDTHS = [1440, 1187, 1024, 768, 594, 500, 460];
 
+// 2026-10-03 (card 20261002_282, owner decision 2026-10-02 recorded in
+// docs/design-guidelines.md + 7cc800b0): from 1280 up the band's row
+// budget is 3, so the w1440 pins become `rows-budget` (max 3) — a
+// `max-two-rows` name carrying max 3 would be a landed lie. Pins below
+// 1280 keep the two-row name and budget; neverInline escapes unchanged.
 const TWO_ROWS = 'the strip packs to at most 2 visual rows — the operator counted 3-4 on /shipments and ruled "max 2 rows only" at every device size';
 const VALUE_WIDTH = 'a control is as wide as the value it holds; a short-value select that owns a full row is the operator\'s "why the fuck it does take full row" defect';
 const NOT_OVERSIZED = 'a 12px text field is ≤40px tall (the operator\'s /shipments screenshot: a coarse pointer inflated every filter control to 44px = "component size too oversize compared to text")';
 
 export default [
   ...WIDTHS.map((width) => ({
-    id: `filters/w${width}/max-two-rows`,
+    id: `filters/w${width}/${width >= 1280 ? 'rows-budget' : 'max-two-rows'}`,
     role: 'cus',
     path: '/shipments',
     width,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: width >= 1280 ? 3 : 2,
     note: TWO_ROWS,
   })),
 
@@ -167,13 +172,13 @@ export default [
     ['config-customers', 'admin', '/config/customers', [1440, 768]],
   ].flatMap(([label, role, path, widths]) =>
     widths.map((width) => ({
-      id: `filters/${label}/w${width}/max-two-rows`,
+      id: `filters/${label}/w${width}/${width >= 1280 ? 'rows-budget' : 'max-two-rows'}`,
       role,
       path,
       width,
       kind: 'rows',
       selector: '.filter-bar > *',
-      max: 2,
+      max: width >= 1280 ? 3 : 2,
       note: `${TWO_ROWS} — measured on /${label} (this surface failed the 2026-09-27 pre-cutover audit)`,
     })),
   ),
@@ -183,13 +188,13 @@ export default [
   // 135 bars / 0 flagged); 768 is the width where the old page-local toolbars
   // packed 3-4 rows.
   {
-    id: 'filters/trips/w1440/max-two-rows',
+    id: 'filters/trips/w1440/rows-budget',
     role: 'ketoan',
     path: '/trips',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /trips`,
   },
   {
@@ -213,13 +218,13 @@ export default [
     note: `${TWO_ROWS} — measured on /trips`,
   },
   {
-    id: 'filters/dispatch-detail/w1440/max-two-rows',
+    id: 'filters/dispatch-detail/w1440/rows-budget',
     role: 'dieuvan',
     path: '/dispatch-detail',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /dispatch-detail`,
   },
   {
@@ -243,13 +248,13 @@ export default [
     note: `${TWO_ROWS} — measured on /dispatch-detail`,
   },
   {
-    id: 'filters/fleet-vehicles/w1440/max-two-rows',
+    id: 'filters/fleet-vehicles/w1440/rows-budget',
     role: 'dieuvan',
     path: '/fleet/vehicles',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /fleet-vehicles`,
   },
   {
@@ -273,13 +278,13 @@ export default [
     note: `${TWO_ROWS} — measured on /fleet-vehicles`,
   },
   {
-    id: 'filters/fleet-drivers/w1440/max-two-rows',
+    id: 'filters/fleet-drivers/w1440/rows-budget',
     role: 'dieuvan',
     path: '/fleet/drivers',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /fleet-drivers`,
   },
   {
@@ -303,13 +308,13 @@ export default [
     note: `${TWO_ROWS} — measured on /fleet-drivers`,
   },
   {
-    id: 'filters/fleet-external/w1440/max-two-rows',
+    id: 'filters/fleet-external/w1440/rows-budget',
     role: 'dieuvan',
     path: '/fleet/external',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /fleet-external`,
   },
   {
@@ -333,13 +338,13 @@ export default [
     note: `${TWO_ROWS} — measured on /fleet-external`,
   },
   {
-    id: 'filters/suppliers/w1440/max-two-rows',
+    id: 'filters/suppliers/w1440/rows-budget',
     role: 'ketoan',
     path: '/suppliers',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /suppliers`,
   },
   {
@@ -363,13 +368,13 @@ export default [
     note: `${TWO_ROWS} — measured on /suppliers`,
   },
   {
-    id: 'filters/payables/w1440/max-two-rows',
+    id: 'filters/payables/w1440/rows-budget',
     role: 'ketoan',
     path: '/payables',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /payables`,
   },
   {
@@ -393,13 +398,13 @@ export default [
     note: `${TWO_ROWS} — measured on /payables`,
   },
   {
-    id: 'filters/fuel-evidence/w1440/max-two-rows',
+    id: 'filters/fuel-evidence/w1440/rows-budget',
     role: 'ketoan',
     path: '/accounting/fuel-evidence',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /fuel-evidence`,
   },
   {
@@ -423,13 +428,13 @@ export default [
     note: `${TWO_ROWS} — measured on /fuel-evidence`,
   },
   {
-    id: 'filters/accounting-register/w1440/max-two-rows',
+    id: 'filters/accounting-register/w1440/rows-budget',
     role: 'ketoan',
     path: '/accounting?view=transport',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /accounting-register`,
   },
   {
@@ -453,13 +458,13 @@ export default [
     note: `${TWO_ROWS} — measured on /accounting-register`,
   },
   {
-    id: 'filters/salary/w1440/max-two-rows',
+    id: 'filters/salary/w1440/rows-budget',
     role: 'ketoan',
     path: '/salary',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /salary`,
   },
   {
@@ -483,13 +488,13 @@ export default [
     note: `${TWO_ROWS} — measured on /salary`,
   },
   {
-    id: 'filters/users/w1440/max-two-rows',
+    id: 'filters/users/w1440/rows-budget',
     role: 'admin',
     path: '/users',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /users`,
   },
   {
@@ -513,13 +518,13 @@ export default [
     note: `${TWO_ROWS} — measured on /users`,
   },
   {
-    id: 'filters/audit-logs/w1440/max-two-rows',
+    id: 'filters/audit-logs/w1440/rows-budget',
     role: 'admin',
     path: '/audit-logs',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /audit-logs`,
   },
   {
@@ -543,13 +548,13 @@ export default [
     note: `${TWO_ROWS} — measured on /audit-logs`,
   },
   {
-    id: 'filters/customers/w1440/max-two-rows',
+    id: 'filters/customers/w1440/rows-budget',
     role: 'admin',
     path: '/customers',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /customers`,
   },
   {
@@ -573,13 +578,13 @@ export default [
     note: `${TWO_ROWS} — measured on /customers`,
   },
   {
-    id: 'filters/config-home/w1440/max-two-rows',
+    id: 'filters/config-home/w1440/rows-budget',
     role: 'admin',
     path: '/config',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /config-home`,
   },
   {
@@ -603,13 +608,13 @@ export default [
     note: `${TWO_ROWS} — measured on /config-home`,
   },
   {
-    id: 'filters/config-routes/w1440/max-two-rows',
+    id: 'filters/config-routes/w1440/rows-budget',
     role: 'admin',
     path: '/config/routes',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /config-routes`,
   },
   {
@@ -633,13 +638,13 @@ export default [
     note: `${TWO_ROWS} — measured on /config-routes`,
   },
   {
-    id: 'filters/config-ports/w1440/max-two-rows',
+    id: 'filters/config-ports/w1440/rows-budget',
     role: 'admin',
     path: '/config/ports',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /config-ports`,
   },
   {
@@ -663,13 +668,13 @@ export default [
     note: `${TWO_ROWS} — measured on /config-ports`,
   },
   {
-    id: 'filters/config-factories/w1440/max-two-rows',
+    id: 'filters/config-factories/w1440/rows-budget',
     role: 'admin',
     path: '/config/factories',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /config-factories`,
   },
   {
@@ -693,13 +698,13 @@ export default [
     note: `${TWO_ROWS} — measured on /config-factories`,
   },
   {
-    id: 'filters/config-penalty-reasons/w1440/max-two-rows',
+    id: 'filters/config-penalty-reasons/w1440/rows-budget',
     role: 'admin',
     path: '/config/penalty-reasons',
     width: 1440,
     kind: 'rows',
     selector: '.filter-bar > *',
-    max: 2,
+    max: 3,
     note: `${TWO_ROWS} — measured on /config-penalty-reasons`,
   },
   {

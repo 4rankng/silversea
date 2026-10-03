@@ -1,7 +1,8 @@
 import { useId, useRef, type ReactNode, type RefObject, type InputHTMLAttributes } from 'react';
 import { Search } from 'lucide-react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { ColumnPicker } from '../components/ColumnPicker';
-import { FilterDropdown } from '../components/FilterDropdown';
+import { FilterDropdown, type FilterDropdownResetScope } from '../components/FilterDropdown';
 import {
   FilterBarModeProvider,
   FilterBarViewControlsProvider,
@@ -57,6 +58,9 @@ export interface FilterBarSearchProps {
   error?: string | null;
 }
 
+/** What the fold's `Đặt lại` clears — see `FilterBarFoldProps.onReset`. */
+export type FilterBarResetScope = FilterDropdownResetScope;
+
 export interface FilterBarFoldProps {
   /**
    * The criteria the band owns. They render inline on the bar while the strip
@@ -66,8 +70,12 @@ export interface FilterBarFoldProps {
   criteria: ReactNode;
   /** How many of the criteria are currently applied (0 hides the badge). */
   count: number;
-  /** Clear every folded criterion (`Đặt lại` in the dialog). */
-  onReset: () => void;
+  /**
+   * Clear the folded criteria (`Đặt lại` in the dialog). The scope says what
+   * the dialog showed: `'folded'` while `primary` rides the bar (leave those
+   * alone), `'all'` once they are inside the dialog too.
+   */
+  onReset: (scope: FilterBarResetScope) => void;
   /** Accessible name of the trigger. */
   ariaLabel: string;
   /** Accessible name of the dialog. */
@@ -80,6 +88,15 @@ export interface FilterBarFoldProps {
    * shape and the criteria never render inline.
    */
   neverInline?: boolean;
+  /**
+   * The basic criteria of a `neverInline` surface — dates/status/direction
+   * (card 20261002_282, R17). They ride the bar ahead of the trigger while the
+   * strip holds two rows and join the dialog when it does not, so a wide
+   * screen never hides them behind `Bộ lọc` beside an empty toolbar.
+   * Included in `count`; `primaryCount` says how many of them are applied.
+   */
+  primary?: ReactNode;
+  primaryCount?: number;
 }
 
 export interface FilterBarProps {
@@ -128,9 +145,20 @@ export interface FilterBarColumns {
 export function FilterBar({ search, children, fold, columns, presets, quickFilters, quickFiltersLabel, status, actions }: FilterBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   const searchErrorId = useId();
-  // Keep every criterion inline while the strip still fits two rows; fold them
-  // into `Bộ lọc` only when the width leaves no other choice.
-  const mode = useFilterBarFit(barRef);
+  // Owner decision 2026-10-02 (law anchor 7cc800b0): filters stay visible when
+  // width permits — from 1280 up the budget allows a third inline row, so the
+  // criteria leave `Bộ lọc` where the space genuinely exists. The measured
+  // ladder below 1280, the retry/clamp behavior, and `neverInline` are all
+  // untouched; design lock: the w1440 pins become `rows-budget` (max 3).
+  // Measured backstop note (card 20261002_282): on current shells the bar's
+  // clientWidth caps around 1127px regardless of viewport, so on today's dense
+  // bars this curve is a measured no-op until composition compacts — it stands
+  // as the owner-default for genuinely-wide bars; the R17 named screens own
+  // their follow-up card.
+  const wideBudget = useMediaQuery('(min-width: 1280px)');
+  // Keep every criterion inline while the strip still fits its row budget; fold
+  // them into `Bộ lọc` only when the width leaves no other choice.
+  const mode = useFilterBarFit(barRef, wideBudget ? 3 : 2);
   // The picker is ONE node in TWO possible homes: rendered here while the strip
   // is inline, and published to `FilterDropdown` (which renders it in the dialog
   // panel) once the width folds the criteria there. Exactly one instance exists
@@ -184,6 +212,8 @@ export function FilterBar({ search, children, fold, columns, presets, quickFilte
             dialogLabel={fold.dialogLabel}
             onReset={fold.onReset}
             inlineWhenRoom={!fold.neverInline}
+            primary={fold.primary}
+            primaryCount={fold.primaryCount}
           >
             {fold.criteria}
           </FilterDropdown>
