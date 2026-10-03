@@ -446,7 +446,10 @@
   .confirm-overlay {
     padding: 0;
     align-items: flex-end;
-    background: rgba(10, 10, 10, 0.45);
+    /* Card 20261002_277 sweep (03/10): the phone band kept its own lighter
+       rgba after the scrim went to the shared token — same too-light defect
+       class on the same surface. Blur stays per-family. */
+    background: var(--scrim-modal);
     backdrop-filter: blur(6px);
   }
   .confirm-box {

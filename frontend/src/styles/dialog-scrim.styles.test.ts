@@ -42,4 +42,13 @@ describe('dialog scrim dim (card 20261002_277)', () => {
         .not.toMatch(/background:\s*rgba\(\s*10,\s*10,\s*10,\s*0?\.\d+\s*\)/);
     }
   });
+
+  it('keeps the phone-band confirm-overlay on the token too (sweep 03/10 — the missed site)', () => {
+    // responsive.css re-declares .confirm-overlay in the phone band with its
+    // own blur — the scrim half drifted back to a raw rgba(10,10,10,0.45)
+    // after the token migration and was caught by the 277 state matrix.
+    const css = read('src/styles/responsive.css');
+    expect(css).toMatch(/\.confirm-overlay\s*\{[^}]*background:\s*var\(--scrim-modal\)/);
+    expect(css).not.toContain('rgba(10, 10, 10, 0.45)');
+  });
 });
