@@ -21,7 +21,7 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 
-import { and, asc, eq, ilike, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, Role, TripStatus, type DispatchClassification } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -1144,6 +1144,47 @@ export async function updateFulfillmentEstimates(
  * (issueOrderCreateOrUpdate) owns the driver notification.
  */
 
+async function assertPlanRowRigAvailable(
+  tx: Tx,
+  args: { fulfillmentId: number; plate: string; windowStart: Date; windowEnd: Date | null },
+): Promise<void> {
+  const plate = args.plate.trim();
+  if (!plate) return;
+  // The row's own window: start = its container's closing appointment; end =
+  // the saved Giờ trả hàng, defaulting to an 8-hour shift when unsaved.
+  const windowEnd = args.windowEnd ?? new Date(args.windowStart.getTime() + 8 * 3600_000);
+  // Pre-dispatch plan rows planned onto the same rig with an overlapping
+  // window. A row without its own appointment cannot prove overlap and is
+  // skipped rather than guessed into a conflict.
+  const planConflicts = await tx.select({ id: s.shipmentFulfillments.id })
+    .from(s.shipmentFulfillments)
+    .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+    .where(and(
+      ne(s.shipmentFulfillments.id, args.fulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
+      isNotNull(s.shipmentContainers.customerAppointmentAt),
+      lt(s.shipmentContainers.customerAppointmentAt, windowEnd),
+      or(isNull(s.shipmentFulfillments.plannedEndAt), gt(s.shipmentFulfillments.plannedEndAt, args.windowStart)),
+    ));
+  // Dispatched trips riding the same rig: the plate is the pre-dispatch key,
+  // the truck's license plate is the dispatched key — one physical tractor.
+  const tripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+    .from(s.trips)
+    .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .where(and(
+      eq(s.trucks.licensePlate, plate),
+      ne(s.trips.status, 'CANCELED'),
+      isNull(s.trips.deletedAt),
+      isNotNull(s.trips.plannedStartAt),
+      lt(s.trips.plannedStartAt, windowEnd),
+      or(isNull(s.trips.plannedEndAt), gt(s.trips.plannedEndAt, args.windowStart)),
+    ));
+  if (planConflicts.length > 0 || tripConflicts.length > 0) {
+    throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+  }
+}
+
 export async function updateDispatchDetailPlan(input: UpdateDispatchDetailPlanInput): Promise<DispatchDetailPlanMutationResult & { replayed: boolean }> {
   assertDispatchActor(input.actor);
   const outcome = await runIdempotent<DispatchDetailPlanMutationResult>({
@@ -1285,6 +1326,27 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
 
   // Fulfillment row: assignment snapshot + estimates + classification.
   // Without a vehicle block the stored vehicle columns keep their values.
+  if (vehicleSelected && vehicle?.plannedVehiclePlateNumber != null && vehicle.plannedVehiclePlateNumber.trim() !== '') {
+    // Card 20261003_317: the plan-row edit assigns rigs BEFORE dispatch — the
+    // same physical tractor must not be planned onto two fulfillments whose
+    // windows overlap. The plate is the pre-dispatch rig identity (no planned
+    // truck id is persisted); dispatched trips join by license plate.
+    const containerId = fulfillment.shipmentContainerId;
+    if (containerId == null) throw new ApiError(409, 'Lô hàng không có container để gán xe.');
+    const [plannedContainer] = await tx.select({ appointment: s.shipmentContainers.customerAppointmentAt })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, containerId))
+      .limit(1);
+    const windowStart = plannedContainer?.appointment ?? null;
+    if (windowStart != null) {
+      await assertPlanRowRigAvailable(tx, {
+        fulfillmentId: input.fulfillmentId,
+        plate: vehicle.plannedVehiclePlateNumber,
+        windowStart,
+        windowEnd: nextPlannedEndAt,
+      });
+    }
+  }
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
     plannedCarrierType: input.carrierType,
     plannedExternalCarrierId,
