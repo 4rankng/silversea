@@ -29,9 +29,12 @@ describe('dialog density contract', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('keeps every owned overlay family on the shared modal backdrop (0.56 + 2px blur)', () => {
-    // Modal.css itself is the contract source; these are the families that
-    // must not drift from it.
+  it('keeps every owned overlay family on the shared modal scrim token', () => {
+    // Card 20261002_277 moved the dialog scrim to the one --scrim-modal token
+    // (the 0.56 literals were hard-coded in five places and could drift);
+    // dialog-scrim.styles.test.ts owns the token's darkness. This contract
+    // keeps the owned overlay families ROUTED through that token — the blur
+    // half stays per-family as before.
     const overlayFiles = [
       'src/components/ConfirmDialog.css',
       'src/components/Drawer.css',
@@ -40,7 +43,7 @@ describe('dialog density contract', () => {
 
     for (const file of overlayFiles) {
       const css = readFileSync(resolve(process.cwd(), file), 'utf8');
-      expect(css, `${file} backdrop opacity`).toContain('rgba(10, 10, 10, 0.56)');
+      expect(css, `${file} backdrop token`).toContain('var(--scrim-modal)');
       expect(css, `${file} backdrop blur`).toContain('blur(2px)');
     }
   });

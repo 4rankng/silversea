@@ -203,13 +203,12 @@ export default function FuelConfigPage() {
           </div>
         ) : (
           <div className="table-scroll">
-            <div className="record-table-wrap">
+            <div className="record-table-wrap record-table-wrap--table">
             <table className="record-table ops-table">
               <thead>
                 <tr>
                   <SortHeader label="Ngày hiệu lực" sortKey="effectiveDate" sort={historySort} onSortChange={handleHistorySort} />
                   <SortHeader className="num" label="Đơn giá (₫/lít)" sortKey="unitPrice" sort={historySort} onSortChange={handleHistorySort} />
-                  <th>Người thay đổi</th>
                   <SortHeader label="Ghi chú" sortKey="note" sort={historySort} onSortChange={handleHistorySort} />
                 </tr>
               </thead>
@@ -218,7 +217,6 @@ export default function FuelConfigPage() {
                   <tr key={row.id}>
                     <td data-label="Ngày hiệu lực" style={{ whiteSpace: 'nowrap' }}>{new Date(row.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                     <td data-label="Đơn giá (₫/lít)" className="num" style={{ fontWeight: 600 }}>{formatMoney(Number(row.unitPrice))}</td>
-                    <td data-label="Người thay đổi" style={{ color: 'var(--ink-3)' }}>—</td>
                     <td data-label="Ghi chú" style={{ color: 'var(--ink-3)' }}>{row.note || '—'}</td>
                   </tr>
                 ))}
