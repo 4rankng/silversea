@@ -81,7 +81,7 @@ Work down it before the code leaves your editor.
 6. **Vietnamese copy, real data.** Tailkit ships English lorem; the product is Vietnamese
    (`"lang": "vi"` in `public/manifest.json`).
 7. **Guardrails.** New files stay ≤ 400 LOC or take a reviewed entry in
-   `frontend/src/tests/structure.guard.test.ts`. Raw hex, off-ladder radii, raw shadows and new
+   `frontend/frontend/scripts/check-structure.mjs`. Raw hex, off-ladder radii, raw shadows and new
    `@media` widths are ratcheted by `pnpm --dir frontend design:drift` — the baseline may fall,
    never rise.
 

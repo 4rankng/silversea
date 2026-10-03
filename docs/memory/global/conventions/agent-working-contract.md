@@ -43,7 +43,7 @@ Every task runs: **Understand → Plan → Implement → QA → Fix → Re-QA �
 
 Scope to what the change touches — never skip a gate it could affect. Shared contracts, Drizzle schemas, financial calculations (`shared/src/calculations/`), or RBAC changes → full set including E2E.
 
-**Mechanical compile gate:** versioned pre-commit hook (`scripts/githooks/pre-commit`, wired via `git config core.hooksPath scripts/githooks`, auto-wired on `pnpm install`) runs the typecheck table + the frontend `structure.guard.test.ts` LOC-ratchet whenever staged files touch a project, refusing the commit on failure. Escape hatch: `git commit --no-verify` (justify in the commit body — a red `main` is worse than a delayed commit). Origin incidents: 2026-09-05 corrupted-JSX sweep commit; 2026-09-08 LOC-ceiling breach.
+**Mechanical compile gate:** versioned pre-commit hook (`scripts/githooks/pre-commit`, wired via `git config core.hooksPath scripts/githooks`, auto-wired on `pnpm install`) runs the typecheck table + the frontend `scripts/check-structure.mjs` LOC-ratchet whenever staged files touch a project, refusing the commit on failure. Escape hatch: `git commit --no-verify` (justify in the commit body — a red `main` is worse than a delayed commit). Origin incidents: 2026-09-05 corrupted-JSX sweep commit; 2026-09-08 LOC-ceiling breach.
 
 ## QA artifacts (`qa/` — mandatory)
 
