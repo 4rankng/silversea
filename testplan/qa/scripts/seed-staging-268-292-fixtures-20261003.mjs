@@ -122,6 +122,8 @@ const containers = [{
   operationalSiteId: factory.id,
   shippingLineName: 'QA Line',
   cargoWeightKg: '11000',
+  // The dispatch queue is DATE-GROUPED: a dateless lot never lists there.
+  customerAppointmentAt: new Date(new Date(new Date().getTime() + 2 * 86400_000).toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })).toISOString(),
 }];
 const reconciled = await api('PUT', `/shipments/${shipmentId}/containers`, { expectedVersion: version, containers });
 if (reconciled.status !== 200) throw new Error(`containers failed: ${reconciled.status} ${JSON.stringify(reconciled.body)}`);
