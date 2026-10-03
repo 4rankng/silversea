@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import type { ShipmentAllocationFilter } from '../../../api/shipmentClient';
-import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
-import { DateRangeFields, FilterBar, SearchableMultiSelect, type DateRangeValue } from '../../../design-system';
+import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableMultiSelect, type DateRangeValue, type FilterBarResetScope } from '../../../design-system';
 import { listZonePortFacets } from '../../../api/shipmentClient';
 import { configClient } from '../../../api/configClient';
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
@@ -199,9 +198,11 @@ function portZoneFacetLabel(zoneLabel: string): string {
  *  page's own action — and every master-plan criterion beyond them (Xuất/Nhập,
  *  Phân xe, the zone facets, Nhà xe) is handed to the band's `fold` slot, which
  *  owns the `Bộ lọc` trigger, the applied count it reports and the reset. The
- *  criteria never render inline here (`neverInline`): this surface mints one
- *  facet per active dispatch zone, so the set can never hold the bar's two-row
- *  budget at any width. */
+ *  zone facets and Nhà xe never render inline (`neverInline`): this surface
+ *  mints one facet per active dispatch zone, so that set can never hold the
+ *  bar's two-row budget. Xuất/Nhập and Phân xe are the fold's `primary`
+ *  criteria (card 20261002_282, R17): on the bar while it has room, inside the
+ *  dialog once the width folds it. */
 export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFiltersProps) {
   const [zones, setZones] = useState<Array<{ code: string; label: string; showPortFacet?: boolean }>>([]);
   const [zonesError, setZonesError] = useState(false);
@@ -219,12 +220,16 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   // `MasterPlanPage` has no bar-level reset to fall back on. Declared up here
   // (it was below, where the count could not see it).
   const rangeFieldsOnCoarsePointer = useCoarsePointer();
-  // The criteria behind `Bộ lọc`: the count feeds the trigger badge and `Đặt
-  // lại` clears exactly these. The delivery dates are NOT among them — they are
-  // the bar's own control now, and the field itself clears its value.
-  const secondaryCount = [
+  // The fold's criteria: the count feeds the trigger badge and `Đặt lại` clears
+  // exactly what the dialog shows. Direction + allocation are `primary` (card
+  // 20261002_282): on the bar while it has room — then the band leaves them out
+  // of the badge and the reset — and inside the dialog once the bar folds. The
+  // delivery dates are the bar's own control on fine pointers.
+  const primaryCount = [
     filters.tradeDirection !== '',
     filters.allocationStatus !== '',
+  ].filter(Boolean).length;
+  const secondaryCount = primaryCount + [
     filters.portIds.length > 0,
     filters.carrierKeys.length > 0,
     ...(rangeFieldsOnCoarsePointer
@@ -232,10 +237,9 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
       : []),
   ].filter(Boolean).length;
 
-  const clearSecondaryFilters = () => {
+  const clearSecondaryFilters = (scope: FilterBarResetScope) => {
     onChange({
-      tradeDirection: '',
-      allocationStatus: '',
+      ...(scope === 'all' ? { tradeDirection: '', allocationStatus: '' } : {}),
       portIds: [],
       carrierKeys: [],
       ...(rangeFieldsOnCoarsePointer
@@ -280,30 +284,36 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
       }}
       actions={action}
       fold={{
-        criteria: (
+        // Card 20261002_282 (R17): direction and allocation status are the
+        // basic criteria — they ride the bar while it has room, beside the
+        // trigger that keeps the zone facets, and fold in with them otherwise.
+        primary: (
           <>
-            <UUISelect
-              size="sm"
+            <InlineLabelSelect
+              id="master-plan-trade-direction"
               label="Xuất / Nhập"
+              ariaLabel="Xuất / Nhập"
               selectedKey={filters.tradeDirection || 'ALL_DIRECTIONS'}
               onSelectionChange={(key) => onChange({
                 tradeDirection: key === 'ALL_DIRECTIONS' ? '' : key as FilterState['tradeDirection'],
               })}
               items={TRADE_DIRECTION_OPTIONS}
-            >
-              {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
-            </UUISelect>
-            <UUISelect
-              size="sm"
+            />
+            <InlineLabelSelect
+              id="master-plan-allocation-status"
               label="Phân xe"
+              ariaLabel="Phân xe"
               selectedKey={filters.allocationStatus || 'ALL_ALLOCATIONS'}
               onSelectionChange={(key) => onChange({
                 allocationStatus: key === 'ALL_ALLOCATIONS' ? '' : key as FilterState['allocationStatus'],
               })}
               items={ALLOCATION_OPTIONS}
-            >
-              {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
-            </UUISelect>
+            />
+          </>
+        ),
+        primaryCount: primaryCount,
+        criteria: (
+          <>
             {visibleZones.map((zone) => (
               <FacetMultiSelect
                 key={zone.code}

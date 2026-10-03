@@ -43,13 +43,27 @@ export interface FilterDropdownProps {
   /** The secondary criteria — labelled controls, packed into as few rows as the dialog holds. */
   children: ReactNode;
   /**
+   * The basic criteria of a surface whose remaining criteria can never show
+   * (card 20261002_282, R17: "do not group all filters into one Bộ lọc button
+   * on a screen with enough room"). They render as bar items, ahead of the
+   * trigger, while the bar is `inline` — even when `inlineWhenRoom` is false —
+   * and join the dialog once the bar folds. One copy at any moment.
+   */
+  primary?: ReactNode;
+  /** How many of `primary` are applied; left out of the badge while they sit on the bar. */
+  primaryCount?: number;
+  /**
    * Quick ranges, rendered INSIDE the dialog only while the bar has folded them
    * (`dialog-presets`, the phone shape). The caller passes the same node to the
    * bar, and exactly one of the two renders it.
    */
   presets?: ReactNode;
-  /** Clear every secondary criterion (footer, left). */
-  onReset: () => void;
+  /**
+   * Clear the criteria the dialog holds (footer, left). `'folded'` while the
+   * `primary` criteria sit on the bar (the dialog does not show them, so it
+   * must not clear them); `'all'` otherwise.
+   */
+  onReset: (scope: FilterDropdownResetScope) => void;
   /**
    * Render the criteria inline in the bar while the strip fits two rows, and
    * collapse them behind the trigger only when the width leaves no other choice
@@ -64,12 +78,16 @@ export interface FilterDropdownProps {
   className?: string;
 }
 
+export type FilterDropdownResetScope = 'all' | 'folded';
+
 export function FilterDropdown({
   count,
   label = 'Bộ lọc',
   ariaLabel,
   dialogLabel = 'Bộ lọc nâng cao',
   children,
+  primary,
+  primaryCount = 0,
   presets,
   onReset,
   inlineWhenRoom = true,
@@ -120,13 +138,17 @@ export function FilterDropdown({
     return () => cancelAnimationFrame(frame);
   }, [isOpen]);
 
-  const applied = count > 0;
+  // The primary criteria are bar items while the bar is inline; the badge then
+  // speaks only for what the trigger actually hides.
+  const primaryOnBar = barMode === 'inline' && primary != null;
+  const hiddenCount = primaryOnBar ? Math.max(0, count - primaryCount) : count;
+  const applied = hiddenCount > 0;
   const rootClass = ['filter-dropdown', applied ? 'is-applied' : '', className].filter(Boolean).join(' ');
 
   // Room for everything: the criteria ARE bar items, so they need no wrapper —
   // a fragment keeps them direct children of the bar row, which is what the
   // row's own measurement and line packing read.
-  if (barMode === 'inline' && inlineWhenRoom) return <>{children}</>;
+  if (barMode === 'inline' && inlineWhenRoom) return <>{primary}{children}</>;
 
   const panel = isOpen ? (
     <div
@@ -156,13 +178,16 @@ export function FilterDropdown({
         {presets && barMode === 'dialog-presets' ? (
           <div className="filter-dropdown__presets">{presets}</div>
         ) : null}
+        {/* Primary criteria are here only once the bar has folded them; while
+            it is inline they are bar items ahead of the trigger. */}
+        {primaryOnBar ? null : primary}
         {children}
         {/* The bar's view controls (card 20260928_193) fold in beside the
             criteria: the bar publishes them, the bar renders them itself only
             while it is `inline`, so this is the one instance at this width. */}
         {viewControls}
         <div className="filter-dropdown__actions">
-          <button type="button" className="filter-dropdown__reset" onClick={onReset}>
+          <button type="button" className="filter-dropdown__reset" onClick={() => onReset(primaryOnBar ? 'folded' : 'all')}>
             Đặt lại
           </button>
           <button type="button" className="filter-dropdown__apply" onClick={close}>
@@ -174,25 +199,28 @@ export function FilterDropdown({
   ) : null;
 
   return (
-    <div className={rootClass} data-component="filter-dropdown">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="filter-dropdown__trigger"
-        data-uui-control="button"
-        data-control-size="sm"
-        onClick={() => (isOpen ? close() : setIsOpen(true))}
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-        aria-controls={isOpen ? dialogId : undefined}
-        aria-label={applied ? `${ariaLabel}, ${count} đang áp dụng` : ariaLabel}
-      >
-        <ListFilter size={14} aria-hidden="true" />
-        <span className="filter-dropdown__label">{label}</span>
-        {applied ? <span className="filter-dropdown__count" aria-hidden="true">{count}</span> : null}
-        <ChevronDown size={14} className="filter-dropdown__chevron" aria-hidden="true" />
-      </button>
-      {typeof document !== 'undefined' ? createPortal(panel, document.body) : panel}
-    </div>
+    <>
+      {primaryOnBar ? primary : null}
+      <div className={rootClass} data-component="filter-dropdown">
+        <button
+          ref={triggerRef}
+          type="button"
+          className="filter-dropdown__trigger"
+          data-uui-control="button"
+          data-control-size="sm"
+          onClick={() => (isOpen ? close() : setIsOpen(true))}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          aria-controls={isOpen ? dialogId : undefined}
+          aria-label={applied ? `${ariaLabel}, ${hiddenCount} đang áp dụng` : ariaLabel}
+        >
+          <ListFilter size={14} aria-hidden="true" />
+          <span className="filter-dropdown__label">{label}</span>
+          {applied ? <span className="filter-dropdown__count" aria-hidden="true">{hiddenCount}</span> : null}
+          <ChevronDown size={14} className="filter-dropdown__chevron" aria-hidden="true" />
+        </button>
+        {typeof document !== 'undefined' ? createPortal(panel, document.body) : panel}
+      </div>
+    </>
   );
 }

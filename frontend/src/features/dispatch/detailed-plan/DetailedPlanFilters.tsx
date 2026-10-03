@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from 'lucide-react';
 import { useCoarsePointer } from '../useCoarsePointer';
-import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, Tabs, type DateRangeValue } from '../../../design-system';
+import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, Tabs, type DateRangeValue, type FilterBarResetScope } from '../../../design-system';
 import type { TabItem } from '../../../design-system';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
@@ -148,7 +148,8 @@ const DATE_SCOPE_TABS: TabItem[] = [
  *
  * `neverInline` is set because this surface mints fifteen criteria plus three
  * searchable facet pickers: the set can never hold the bar's two-row budget at
- * any width.
+ * any width. Xuất / Nhập is the fold's `primary` criterion (card 20261002_282,
+ * R17): on the bar while it has room, inside the dialog once it folds.
  *
  * The page therefore declares NO filter layout of its own: one wrapping line,
  * the search the only grower, every other control as wide as the value it
@@ -236,7 +237,7 @@ export function DetailedPlanFilters({
    *  `applyRange` are last-writer-wins between them. Preserving only `date`
    *  meant a preset survived the dialog reset while an identically-scoped
    *  custom range was silently wiped by it. Both now ride through. */
-  const clearSecondaryFilters = () => {
+  const clearSecondaryFilters = (scope: FilterBarResetScope) => {
     setDraftResetKey((key) => key + 1);
     onChange({
       ...createDefaultDetailedPlanFilters(),
@@ -244,6 +245,9 @@ export function DetailedPlanFilters({
       date: filters.date,
       dateFrom: filters.dateFrom,
       dateTo: filters.dateTo,
+      // Card 20261002_282: while Xuất / Nhập rides the bar the dialog does not
+      // show it, so its `Đặt lại` leaves it alone.
+      ...(scope === 'folded' ? { direction: filters.direction } : {}),
     });
   };
 
@@ -339,6 +343,20 @@ export function DetailedPlanFilters({
           </>
         )}
         fold={{
+          // Card 20261002_282 (R17): direction is a basic criterion — on the
+          // bar while it has room (status rides the quick tabs, dates the
+          // from/to group), inside the dialog once the width folds it.
+          primary: (
+            <InlineLabelSelect
+              id="detailed-plan-direction"
+              label="Xuất / Nhập"
+              items={DIRECTION_OPTIONS}
+              selectedKey={filters.direction || 'ALL_DIRECTIONS'}
+              onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })}
+              ariaLabel="Xuất / Nhập"
+            />
+          ),
+          primaryCount: filters.direction !== '' ? 1 : 0,
           criteria: (
             <div className="detailed-plan-filter-panel">
             {/* The four quick facets live HERE, not on the bar (operator,
@@ -361,14 +379,6 @@ export function DetailedPlanFilters({
                   clearable
                   clearLabel="Khách: Tất cả"
                   size="sm"
-                />
-                <InlineLabelSelect
-                  id="detailed-plan-direction"
-                  label="Xuất / Nhập"
-                  items={DIRECTION_OPTIONS}
-                  selectedKey={filters.direction || 'ALL_DIRECTIONS'}
-                  onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })}
-                  ariaLabel="Xuất / Nhập"
                 />
                 <InlineLabelSelect
                   id="detailed-plan-assignment"

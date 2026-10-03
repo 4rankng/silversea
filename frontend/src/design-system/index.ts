@@ -39,6 +39,7 @@ export type {
   FilterBarProps,
   FilterBarSearchProps,
   FilterBarFoldProps,
+  FilterBarResetScope,
   FilterBarColumns,
 } from './FilterBar';
 

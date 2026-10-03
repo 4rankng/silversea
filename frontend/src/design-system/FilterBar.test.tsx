@@ -234,8 +234,10 @@ describe('FilterBar fold — the law is structural (card 20260930_229)', () => {
     // from quietly turning the slot back into "children the page wires itself".
     expect(bandSource).toMatch(/\{fold && \(\s*<FilterDropdown/);
     expect(bandSource).toMatch(/inlineWhenRoom=\{!fold\.neverInline\}/);
-    // The row budget is the band's own measurement — default two lines.
-    expect(bandSource).toContain('useFilterBarFit(barRef)');
+    // The row budget is the band's own measurement. The call takes the budget
+    // explicitly, so pin the call — not an exact arity — or widening the band
+    // to three lines reads as a regression here.
+    expect(bandSource).toMatch(/useFilterBarFit\(barRef,\s*wideBudget\s*\?\s*3\s*:\s*2\)/);
     // Signature-agnostic: what the law needs is the TWO-line default, not the
     // absence of a type annotation on the ref parameter.
     expect(modeSource).toMatch(/useFilterBarFit\([^)]*maxLines = 2\)/);
@@ -390,6 +392,83 @@ describe('FilterBar fold — the law is structural (card 20260930_229)', () => {
     // (the CSS keeps it hidden; a hardcoded origin is the "jumps over the
     // header" defect family).
     expect(panel.hasAttribute('data-positioned')).toBe(false);
+  });
+
+  // Card 20261002_282 (R17): a `neverInline` remainder must not drag the basic
+  // criteria into the dialog with it. `primary` rides the bar while the strip is
+  // inline — beside the trigger — and joins the dialog once the bar folds.
+  it('keeps primary criteria on the bar beside a neverInline trigger, and the badge counts only what is folded', () => {
+    const onReset = vi.fn();
+    const { container } = render(
+      <FilterBar
+        fold={{
+          primary: <select aria-label="Xuất / Nhập"><option>Tất cả</option></select>,
+          primaryCount: 1,
+          criteria: <select aria-label="Khu vực"><option>Tất cả</option></select>,
+          count: 3,
+          onReset,
+          ariaLabel: 'Bộ lọc',
+          dialogLabel: 'Bộ lọc nâng cao',
+          neverInline: true,
+        }}
+      />,
+    );
+    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+    // A direct bar child: the row measurement counts it like any other item.
+    expect(screen.getByRole('combobox', { name: 'Xuất / Nhập' }).parentElement).toBe(bar);
+    expect(screen.queryByRole('combobox', { name: 'Khu vực' })).toBeNull();
+    // 3 applied, 1 of them visible on the bar → the trigger reports 2.
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 2 đang áp dụng' }));
+    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc nâng cao' });
+    expect(within(dialog).getByRole('combobox', { name: 'Khu vực' })).toBeTruthy();
+    // One copy: the primary criterion is NOT repeated inside the dialog.
+    expect(within(dialog).queryByRole('combobox', { name: 'Xuất / Nhập' })).toBeNull();
+    expect(screen.getAllByRole('combobox', { name: 'Xuất / Nhập' })).toHaveLength(1);
+    // `Đặt lại` clears exactly what the dialog holds.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt lại' }));
+    expect(onReset).toHaveBeenLastCalledWith('folded');
+  });
+
+  it('moves primary criteria into the dialog when the strip exceeds two rows, with the full count and reset', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const row = Number(this.getAttribute('data-row') ?? 0);
+      const top = row * 50;
+      return { top, bottom: top + 30, height: 30, width: 100, left: 0, right: 100, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    });
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => 600,
+    });
+    const onReset = vi.fn();
+    const { container } = render(
+      <FilterBar
+        search={{ value: '', onChange: () => {}, placeholder: 'Tìm', ariaLabel: 'Tìm' }}
+        fold={{
+          primary: (
+            <>
+              <div data-row={1}>Xuất / Nhập</div>
+              <div data-row={2}>Phân xe</div>
+            </>
+          ),
+          primaryCount: 1,
+          criteria: <div>Khu vực</div>,
+          count: 3,
+          onReset,
+          ariaLabel: 'Bộ lọc',
+          dialogLabel: 'Bộ lọc nâng cao',
+          neverInline: true,
+        }}
+      />,
+    );
+    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
+    await waitFor(() => expect(bar.textContent).not.toContain('Phân xe'));
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 3 đang áp dụng' }));
+    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc nâng cao' });
+    expect(within(dialog).getByText('Xuất / Nhập')).toBeTruthy();
+    expect(within(dialog).getByText('Phân xe')).toBeTruthy();
+    expect(within(dialog).getByText('Khu vực')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt lại' }));
+    expect(onReset).toHaveBeenLastCalledWith('all');
   });
 });
 

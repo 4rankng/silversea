@@ -126,8 +126,12 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     const quick = within(dialog).getByRole('heading', { name: 'Bộ lọc nhanh' }).parentElement as HTMLElement;
     expect(quick.className).toContain('detailed-plan-filter-panel__group');
     expect(within(quick).getByRole('button', { name: 'Khách: Tất cả' })).toBeTruthy();
-    expect(within(quick).getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(within(quick).getByRole('button', { name: 'Điều xe: Tất cả' })).toBeTruthy();
+    // Card 20261002_282 (R17): Xuất / Nhập rides the bar while it has room —
+    // a direct bar item ahead of the trigger, never repeated in the dialog.
+    expect(within(dialog).queryByRole('button', { name: /^Xuất \/ Nhập/ })).toBeNull();
+    const direction = within(bar).getByRole('button', { name: 'Xuất / Nhập: Tất cả' });
+    expect(direction.closest('.inline-label-select')?.parentElement).toBe(bar);
     expect(within(quick).getByRole('button', { name: 'Dữ liệu: Tất cả' })).toBeTruthy();
   });
 
@@ -228,12 +232,12 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
   it('maps the drawer facet selects to their filter patches and keeps labels in the triggers', () => {
     const onChange = vi.fn();
     renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
-    openFilterDialog();
-
+    // Xuất / Nhập is a bar item (card 20261002_282); the rest live in the dialog.
     fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     expect(onChange).toHaveBeenCalledWith({ direction: 'IMPORT' });
 
+    openFilterDialog();
     fireEvent.click(screen.getByRole('button', { name: 'Điều xe: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Chưa điều xe' }));
     expect(onChange).toHaveBeenCalledWith({ assignmentStatus: 'UNASSIGNED' });
@@ -460,5 +464,27 @@ describe('DetailedPlanFilters — quick assignment chips (card 20261002_274, A07
     const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
     expect(within(group).getByRole('tab', { name: 'Đã gán xe' }).getAttribute('aria-selected')).toBe('true');
     expect(within(group).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('false');
+  });
+});
+
+describe('DetailedPlanFilters — Xuất / Nhập on the bar (card 20261002_282)', () => {
+  it('leaves the bar direction out of the badge and out of the dialog reset', () => {
+    const onChange = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps(onChange)}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, direction: 'IMPORT', zone: 'HP' }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Xuất / Nhập: Nhập' })).toBeTruthy();
+    // direction is visible on the bar; only the zone is behind the trigger.
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 1 đang áp dụng' }));
+    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt lại' }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...EMPTY_DETAILED_PLAN_FILTERS,
+      date: '',
+      direction: 'IMPORT',
+    });
   });
 });
