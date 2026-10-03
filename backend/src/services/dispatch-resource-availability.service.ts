@@ -52,28 +52,44 @@ export async function assertResourceAvailability(tx: Tx, args: {
 
   let blocking = conflicts;
   const partner = conflicts.length === 1 ? conflicts[0] : undefined;
-  if (partner && args.kepContext?.classification === 'DOUBLE'
-    && args.kepContext.issuingContainerIsTwentyFoot
-    && args.kepContext.departureDate != null
-    && partner.classification === 'DOUBLE'
+  // A declared clamp (Kẹp: two 20' boxes sharing one mooc simultaneously)
+  // or declared sequence (Kết hợp: the rig runs its two orders back-to-back
+  // inside one business day) may share its OWN rig — never a third load.
+  // Both sides must carry the matching declaration: an unrelated single
+  // overlap on the rig stays a conflict, and a partner already paired to a
+  // third load stays a conflict. Pairs are created after both trips exist,
+  // so an unpaired partner passes the linkage conjunct.
+  const kep = args.kepContext;
+  const declaredMode: 'KEP' | 'KET_HOP' | null = kep?.classification === 'COMBINED'
+    ? 'KET_HOP'
+    : kep?.classification === 'DOUBLE' && kep.issuingContainerIsTwentyFoot ? 'KEP' : null;
+  if (partner && kep != null && declaredMode != null
+    && kep.departureDate != null
+    && partner.classification === (declaredMode === 'KEP' ? 'DOUBLE' : 'COMBINED')
     && args.truckId != null && partner.truckId === args.truckId
     && args.trailerId != null && partner.trailerId === args.trailerId
     && args.driverId != null && partner.driverId === args.driverId
     && partner.plannedStartAt != null
-    && localDateInBusinessZone(partner.plannedStartAt) === args.kepContext.departureDate
+    && localDateInBusinessZone(partner.plannedStartAt) === kep.departureDate
     && (partner.activePairId == null || (args.tripId != null
       && (partner.pairFirstTripId === args.tripId || partner.pairSecondTripId === args.tripId)))
   ) {
-    const containers = await tx.select({ code: s.containerTypes.code, weight: s.tripContainers.cargoWeightKg })
-      .from(s.tripContainers)
-      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
-      .where(eq(s.tripContainers.tripId, partner.id));
-    if (containers.length === 1 && containers[0].code?.startsWith('20')) {
-      const weights = [args.cargoWeightKg, containers[0].weight];
-      if (args.vehicleCapacityKg != null && weights.every((weight) => weight != null && Number.isFinite(Number(weight)))
-        && weights.reduce((sum, weight) => sum + Number(weight), 0) > Number(args.vehicleCapacityKg)) {
-        throw new ApiError(409, 'Tổng trọng lượng hai container kẹp vượt quá tải trọng xe.');
+    if (declaredMode === 'KEP') {
+      const containers = await tx.select({ code: s.containerTypes.code, weight: s.tripContainers.cargoWeightKg })
+        .from(s.tripContainers)
+        .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
+        .where(eq(s.tripContainers.tripId, partner.id));
+      if (containers.length === 1 && containers[0].code?.startsWith('20')) {
+        const weights = [args.cargoWeightKg, containers[0].weight];
+        if (args.vehicleCapacityKg != null && weights.every((weight) => weight != null && Number.isFinite(Number(weight)))
+          && weights.reduce((sum, weight) => sum + Number(weight), 0) > Number(args.vehicleCapacityKg)) {
+          throw new ApiError(409, 'Tổng trọng lượng hai container kẹp vượt quá tải trọng xe.');
+        }
+        blocking = [];
       }
+    } else {
+      // Kết hợp: sequential reuse — the two loads never sit on the mooc at
+      // the same instant, so neither the 20' probe nor the weight sum applies.
       blocking = [];
     }
   }
