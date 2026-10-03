@@ -178,6 +178,48 @@ describe('UI55 DateInput hook-caller compatibility', () => {
     expect(hidden).toHaveValue('2026-10-01');
     expect(changes).toEqual([]);
   });
+
+  // Card 20261002_284 (R19): a day/month pair that is SEGMENT-valid but
+  // CALENDAR-invalid must not roll into the next month. 31/09 and 31/04 pass
+  // every per-segment range check (31 <= 31, 09 <= 12) — only the UTC
+  // round-trip in parseDateTime24 can reject them, so these rows are the
+  // regression lock for that round-trip. Before it existed, 31/09 silently
+  // committed as 01/10 and 29/02 of a common year as 01/03.
+  describe('calendar round-trip, segment-valid but calendar-invalid (card 20261002_284)', () => {
+    it.each([
+      ['29/02/2028', '2028-02-29'], // leap year — the one 29/02 that exists
+      ['31/12/2026', '2026-12-31'], // 31-day month
+      ['30/04/2026', '2026-04-30'], // last real day of a 30-day month
+      ['31/04/2026', null],         // April has 30 days
+      ['31/09/2026', null],         // September has 30 days
+      ['29/02/2026', null],         // 2026 is not a leap year
+      ['29/02/1900', null],         // century non-leap year
+      ['00/10/2026', null],         // below the segment floor
+      ['32/01/2026', null],         // above the segment ceiling
+    ] as const)('%s → %s', (draft, expected) => {
+      const changes: string[] = [];
+      const { input, hidden } = renderNativeControlled(changes, []);
+      edit(input, draft);
+      fireEvent.keyDown(input, { key: 'Enter' });
+      leave(input);
+
+      if (expected) {
+        expect(screen.queryByRole('alert'), `${draft} is a real date`).toBeNull();
+        expect(changes).toEqual([expected]);
+        expect(hidden).toHaveValue(expected);
+        return;
+      }
+      // The typed draft survives, the control is invalid, and nothing is
+      // committed — above all the committed value never becomes the
+      // rolled-over next-month date that AC2 forbids.
+      expect(input).toHaveValue(draft);
+      expect(input.checkValidity()).toBe(false);
+      expect(screen.getByRole('alert').textContent?.replace(/\s/g, ''))
+        .toBe('Nhậpngàyhợp lệtheoDD/MM/YYYY.'.replace(/\s/g, ''));
+      expect(changes).toEqual([]);
+      expect(hidden).toHaveValue('2026-10-01');
+    });
+  });
 });
 
 describe.each(['native', 'segmented'] as const)('UI55 %s calendar draft boundaries', (caller) => {
