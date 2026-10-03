@@ -8,7 +8,7 @@ import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { createAccountingExpense } from '../services/expense-accounting-create.service';
-import { getPhoiPhieuChiHo } from '../services/phoi-phieu-control.service';
+import { getPhoiPhieuChiHo, listPhoiPhieuRows } from '../services/phoi-phieu-control.service';
 
 // Card 20261002_292 rework (ruling A, lead 2026-10-03): the chi-hộ detail
 // dialog must show EVERY recorded chi-hộ source of the shipment — including
@@ -93,6 +93,23 @@ test('chi-hộ read shows a COMPANY-paid (TRIP-kind) entry created for the trip'
   assert.equal(Number(row.amountThu), 150000);
   assert.equal(row.invoiceNumber, 'INV-CHIHO292');
   assert.equal(row.confirmed, false);
+});
+
+test('board projection keeps the trip row while the shipment lives, and drops it only when the shipment is soft-deleted (lead adjudication 2026-10-03)', async () => {
+  // The dd9fb0d5 widening must never drop a row the pre-fix shape matched:
+  // an alive shipment with ONLY a TRIP-kind source still projects its row.
+  const withRow = await listPhoiPhieuRows({});
+  const projected = withRow.find(row => row.tripId === tripIds[0]);
+  assert.ok(projected, 'the alive shipment projects its board row');
+  assert.equal(Number(projected.chiHoTripTra), 150000);
+  assert.equal(Number(projected.chiHoTripThu), 150000);
+  assert.ok(Number(projected.chiHoTra) >= 150000, 'the widened total includes the TRIP slice');
+
+  // The vanish mechanism (staging trip 108): soft-delete the shipment and the
+  // documented orphan contract excludes the row — a data event, not the code.
+  await db.update(s.shipments).set({ deletedAt: new Date() }).where(inArray(s.shipments.id, shipmentIds));
+  const afterDelete = await listPhoiPhieuRows({});
+  assert.ok(!afterDelete.some(row => row.tripId === tripIds[0]), 'a soft-deleted shipment hides its live trip (documented orphan contract)');
 });
 
 after(async () => {
