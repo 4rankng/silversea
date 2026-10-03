@@ -50,38 +50,37 @@ const LOT_DELETE_BLOCK_MESSAGES = {
 // Card 20260926_47 — Row 1 status tabs. Each tab is a lens over the current
 // page, matching the pageSummary vocabulary the API already reports (the
 // workspace list endpoint has no server-side status param — the slice is
-// client-side over the loaded page). Only "Tất cả" counts the whole filtered
-// set (`total`); the three readiness counts are page-scoped, so their labels
-// name that basis — a 1206 total beside 20/20/20 must not read as one scale.
+// client-side over the loaded page). Only "Tất cả" counts, and it counts the
+// whole filtered set (`total`): the three readiness counts used to render
+// page-scoped numbers beside that total, which read as one scale when they
+// were not (a 1206 total next to 20/20/20). `countOf` is therefore optional —
+// a tab with no countOf simply shows no count.
 const LOT_STATUS_TABS = [
   {
     id: 'all',
     label: 'Tất cả',
     countTone: undefined,
-    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary'], total: number) => total,
+    countOf: (_summary: ShipmentCusWorkspaceListResponse['pageSummary'], total: number) => total,
     matches: () => true,
   },
   {
     id: 'needsSchedule',
-    label: 'Chưa chốt lịch (trang)',
+    label: 'Chưa chốt lịch',
     countTone: undefined,
-    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.needsSchedule,
     matches: (item: ShipmentCusWorkspaceListItem) => item.operational.scheduleReadiness === 'WAITING_DATE',
   },
   {
     id: 'needsVehicle',
-    label: 'Chờ điều xe (trang)',
+    label: 'Chờ điều xe',
     countTone: 'warning' as const,
-    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.needsVehicle,
     matches: (item: ShipmentCusWorkspaceListItem) => (
       item.operational.vehicleReadiness === 'WAITING_CARRIER' || item.operational.vehicleReadiness === 'WAITING_PLATE'
     ),
   },
   {
     id: 'waitingAccounting',
-    label: 'Chờ đối soát (trang)',
+    label: 'Chờ đối soát',
     countTone: 'info' as const,
-    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.waitingAccounting,
     matches: (item: ShipmentCusWorkspaceListItem) => (
       item.activeLock == null
       && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
@@ -440,21 +439,6 @@ export default function ShipmentsPage() {
       <header className="shipments-control">
         <div className="shipments-control__row shipments-control__row--primary">
           <h1 className="shipments-control__title">Tổng quan lô hàng</h1>
-          {ws.data ? (
-            <Tabs
-              className="shipments-control__tabs"
-              variant="boxed"
-              ariaLabel="Trạng thái lô hàng"
-              value={statusTab || 'all'}
-              onChange={(id) => updateParam('status', id === 'all' ? null : id)}
-              tabs={LOT_STATUS_TABS.map((tab) => ({
-                id: tab.id,
-                label: tab.label,
-                count: tab.countOf(ws.data!.pageSummary, total),
-                countTone: tab.countTone,
-              }))}
-            />
-          ) : null}
           <div className="shipments-control__actions">
             <UUIButton
               size="sm"
@@ -504,6 +488,22 @@ export default function ShipmentsPage() {
             inputProps: { title: 'Nhấn / để tìm kiếm · Esc để xóa' },
           }}
           presets={presetNode}
+          quickFilters={ws.data ? (
+            <Tabs
+              className="shipments-control__tabs"
+              variant="boxed"
+              ariaLabel="Trạng thái lô hàng"
+              value={statusTab || 'all'}
+              onChange={(id) => updateParam('status', id === 'all' ? null : id)}
+              tabs={LOT_STATUS_TABS.map((tab) => ({
+                id: tab.id,
+                label: tab.label,
+                count: tab.countOf?.(ws.data!.pageSummary, total),
+                countTone: tab.countTone,
+              }))}
+            />
+          ) : undefined}
+          quickFiltersLabel="Trạng thái lô hàng"
           columns={{
             items: CUS_ROW_COLUMNS,
             hidden: rowColumns.hidden,

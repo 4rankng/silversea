@@ -436,7 +436,9 @@ const FROZEN_MAX_LOC: Record<string, number> = {
   // Bumped 759 -> 779: 2026-09-28 card 20260928_193 — the workboard's column
   // picker wiring: the `useHiddenColumns` call with its data predicate, the
   // conditional `<col>`/`SortHeader` triple, and the `columns` prop on the bar.
-  'src/pages/ShipmentsPage.tsx': 779,
+  // 2026-10-03 tree settlement: audit-session chunk +1 (status filter),
+  //  refrozen 779→780 at landing c5*; shrink debt on the tech-debt ledger.
+  'src/pages/ShipmentsPage.tsx': 780,
   'src/pages/SupplierListPage.tsx': 626,
   'src/pages/TripDetailPage.tsx': 438,
   // Bumped 540 -> 554: ticket 7a74d6eb - fetch-error branch (alert + retry)

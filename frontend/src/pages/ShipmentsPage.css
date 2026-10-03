@@ -123,6 +123,21 @@
    plan combobox keeps a page rule, because 320px is the dialog's own body
    width ceiling and the pool of bucket names can outgrow the trigger. */
 
+/* Inside the filter card, the status dropdown sits beside the date presets
+   on mobile instead of claiming a full row (user request 2026-10-03). */
+.list-filter-bar .shipments-control__tabs {
+  width: auto;
+  min-width: 0;
+}
+
+@media (max-width: 575px) {
+  .list-filter-bar .list-filter-bar__quick:has(.shipments-control__tabs) {
+    width: auto;
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+}
+
 /* The plan combobox is sized by the value it holds, never by the row
    (card 20260927_152, operator 2026-09-27: a two-word value must not take a
    full row). The old `width: 100%` made it a whole-line item — measured 1480px
@@ -1443,16 +1458,22 @@
  * — the drawer caps at 1180px, so an 11th column is only affordable by
  * letting the wrapping columns wrap, which §4's no-truncation doctrine
  * already allows. */
-.cus-container-col__identity { width: 11%; }
+.cus-container-col__identity { width: 12%; }
 .cus-container-col__type { width: 7%; }
-.cus-container-col__route { width: 10%; }
+.cus-container-col__route { width: 12%; }
 .cus-container-col__dispatch { width: 7%; }
 .cus-container-col__carrier { width: 8%; }
 .cus-container-col__plate { width: 7%; }
 .cus-container-col__site { width: 10%; }
 .cus-container-col__weight { width: 8%; }
-.cus-container-col__appointment { width: 13%; }
-.cus-container-col__actions { width: 9%; }
+.cus-container-col__appointment { width: 15%; }
+.cus-container-col__actions { width: 4%; }
+
+.cus-container-table th.cus-container-cell--actions,
+.cus-container-table td.cus-container-cell--actions {
+  text-align: center;
+  padding: 4px 2px;
+}
 
 .cus-container-table th,
 .cus-container-table td {
@@ -2534,20 +2555,15 @@
 }
 
 /* Per-row remove — lives in the row's own Thao tác cell (card 20260923_9).
-   Keeps the hover-reveal contract (fine pointers) with the danger hover; the
-   cell is the anchor, so the icon never overlaps the container code. */
+   Action icon is always visible and centered in the cell per user request. */
 .cus-container-row__remove {
-  visibility: hidden;
-  position: absolute;
-  top: 50%;
-  right: 8px;
-  transform: translateY(-50%);
-  z-index: 2;
+  visibility: visible;
   display: inline-flex;
   width: 26px;
   height: 26px;
   align-items: center;
   justify-content: center;
+  margin: 0 auto;
   padding: 0;
   border: 1px solid var(--line-2);
   border-radius: 8px;
@@ -2557,6 +2573,8 @@
 }
 .cus-container-row__remove:hover { border-color: color-mix(in srgb, var(--danger) 58%, var(--line-2)); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--danger-text); }
 .cus-container-row__remove:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--danger) 18%, transparent); outline-offset: 1px; }
+.cus-container-row__remove:disabled { opacity: 0.35; cursor: not-allowed; }
+.cus-container-row__remove:disabled:hover { border-color: var(--line-2); background: var(--surface); color: var(--ink-3); }
 .cus-container-row:hover .cus-container-row__remove,
 .cus-container-row:focus-within .cus-container-row__remove { visibility: visible; }
 /* Touch viewports never hover. The copy affordance already reveals itself for

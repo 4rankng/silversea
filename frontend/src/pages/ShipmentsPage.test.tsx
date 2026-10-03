@@ -381,7 +381,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     for (const label of ['Tất cả', 'Chưa chốt lịch', 'Chờ điều xe', 'Chờ đối soát']) {
       expect(within(tablist).getByRole('tab', { name: new RegExp(label) })).toBeTruthy();
     }
-    expect(within(tablist).getAllByText('1')).toHaveLength(4);
+    expect(within(tablist).getByRole('tab', { name: /Tất cả/ }).textContent).toContain('1');
+    expect(tablist.textContent).not.toContain('(trang)');
     expect(tablist.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -2584,13 +2585,13 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
     await screen.findByRole('table');
     // The old decision rail is dead — its four numbers live in the tabs now.
     expect(document.querySelector('.cus-workspace-summary')).toBeNull();
-    // One 36px primary row carries the heading + tabs + actions; export is one
+    // One 36px primary row carries the heading + actions; export is one
     // of its actions. On a phone the heading is the a11y-tree copy only — the
     // topbar prints the visible title (the same split `PageHeader` uses).
     expect(document.querySelector('.shipments-control__row--primary')).toBeTruthy();
     const primaryRow = document.querySelector('.shipments-control__row--primary') as HTMLElement;
     expect(primaryRow.querySelector('h1')?.textContent).toBe('Tổng quan lô hàng');
-    expect(primaryRow.querySelector('[role="tablist"]')).toBeTruthy();
+    expect(document.querySelector('.list-filter-bar [role="tablist"]')).toBeTruthy();
     expect(Array.from(primaryRow.querySelectorAll('button')).some((b) => b.textContent?.includes('Tải XLSX'))).toBe(true);
     expect(primaryRow.textContent).toContain('Tạo lô mới');
     // The 36px lock is CSS law, not accident.
@@ -2604,22 +2605,17 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
     expect(source).not.toContain('PageHeader');
   });
 
-  it('renders the four segmented tabs with counts — Tất cả from total, readiness tabs from pageSummary', async () => {
+  it('renders the four segmented tabs with counts — Tất cả from total, readiness tabs clean without page scope suffixes', async () => {
     apiGet.mockResolvedValue({ ...listResponse(tabbedItems), total: 72, totalPages: 4 });
     renderPage();
     const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
     const all = within(tablist).getByRole('tab', { name: /Tất cả/ });
     expect(all.getAttribute('aria-selected')).toBe('true');
     expect(all.textContent).toContain('72');
-    expect(within(tablist).getByRole('tab', { name: /Chưa chốt lịch/ }).textContent).toContain('1');
-    expect(within(tablist).getByRole('tab', { name: /Chờ điều xe/ }).textContent).toContain('1');
-    expect(within(tablist).getByRole('tab', { name: /Chờ đối soát/ }).textContent).toContain('1');
-    // The whole-set total shares no basis with the three page-scoped counts,
-    // so each readiness label names its scope — and "Tất cả" does not.
     for (const label of ['Chưa chốt lịch', 'Chờ điều xe', 'Chờ đối soát']) {
-      expect(within(tablist).getByRole('tab', { name: new RegExp(`${label} \\(trang\\)`) })).toBeTruthy();
+      expect(within(tablist).getByRole('tab', { name: new RegExp(`^${label}$`) })).toBeTruthy();
     }
-    expect(all.textContent).not.toContain('(trang)');
+    expect(tablist.textContent).not.toContain('(trang)');
   });
 
   it('clicking a readiness tab writes ?status= and slices the table without a reload', async () => {
