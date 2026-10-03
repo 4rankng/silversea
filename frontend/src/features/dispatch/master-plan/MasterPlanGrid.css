@@ -105,8 +105,12 @@
 
 /* Schedule carries the variable-length appointment groups and cutoff. Two
    independent port columns make lift/drop scanning explicit without changing
-   the authoritative per-container projection. */
-.master-plan-grid__col--schedule { width: 15%; }
+   the authoritative per-container projection. PM 2026-10-03 (card
+   20261003_303): 10% — the column's unbreakable tokens (date, hour, count)
+   fit with room; the freed 5% flows to the value-starved columns (notes,
+   cargo, allocation). Long factory names in the sub line wrap at word
+   boundaries as they already did at 15%. */
+.master-plan-grid__col--schedule { width: 10%; }
 /* Schedule lines carry time+date+factory+count; extra width avoids mid-value wraps. */
 .master-plan-grid__col--customer { width: 14%; }
 .master-plan-grid__cell[data-label="Khách hàng & nhà máy"] > .master-plan-grid__line--strong:first-child {
@@ -115,9 +119,9 @@
 .master-plan-grid__col--route-shipping { width: 16%; }
 .master-plan-grid__col--lift-port { width: 11%; }
 .master-plan-grid__col--drop-port { width: 11%; }
-.master-plan-grid__col--cargo { width: 10%; }
-.master-plan-grid__col--notes { width: 11%; }
-.master-plan-grid__col--allocation { width: 12%; }
+.master-plan-grid__col--cargo { width: 11%; }
+.master-plan-grid__col--notes { width: 14%; }
+.master-plan-grid__col--allocation { width: 13%; }
 
 .master-plan-grid thead th {
   position: sticky;

@@ -370,13 +370,16 @@ describe('MasterPlanGrid', () => {
     const scheduleWidth = widthFor('schedule');
     const widths = ['schedule', 'customer', 'route-shipping', 'lift-port', 'drop-port', 'cargo', 'notes', 'allocation'].map(widthFor);
 
-    // 2b023521 rebalanced the grid toward route/shipping (16%) +
-    // allocation (12%); schedule is now 15% (was 22%) — the trip window
-    // still gets dedicated room but route/shipping wins on the wireframe.
-    expect(scheduleWidth).toBe(15);
+    // 2b023521 rebalanced the grid toward route/shipping (16%) — schedule
+    // went 22% → 15%. Card 20261003_303 (PM 03/10) slims schedule further to
+    // 10% — its date/hour/count tokens fit — and feeds the freed width to
+    // the starved columns (notes 14%, allocation 13%, cargo 11%).
+    expect(scheduleWidth).toBe(10);
     expect(widthFor('route-shipping')).toBe(16);
-    expect(widthFor('allocation')).toBe(12);
-    expect(scheduleWidth).toBeGreaterThan(widthFor('allocation'));
+    expect(widthFor('allocation')).toBe(13);
+    expect(widthFor('notes')).toBe(14);
+    expect(widthFor('cargo')).toBe(11);
+    expect(scheduleWidth).toBeLessThan(widthFor('allocation'));
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
   });
 
