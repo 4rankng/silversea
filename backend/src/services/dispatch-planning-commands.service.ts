@@ -7,7 +7,7 @@ import { assertResourceAvailability } from './dispatch-resource-availability.ser
 export { assertResourceAvailability } from './dispatch-resource-availability.service';
 import { LiveTripRow } from './dispatch-planning-utils.service';
 import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
-import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferTrailerTypeFromContainerCode, inferredVehicleCapacityKg, parseIsoWithZone, routeServiceDurationMinutes, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
+import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferredVehicleCapacityKg, parseIsoWithZone, requiredTrailerTypeForFulfillment, routeServiceDurationMinutes, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
 import { db } from '../db';
 import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { ApiError } from '../errors';
@@ -400,12 +400,12 @@ export async function issueOrderCreateOrUpdate(
         .limit(1);
       // Master-data imports usually leave Loại Moóc blank (see trailers.type
       // comment) — only block on a mismatch we can actually prove, not on
-      // missing data.
+      // missing data. LCL_PICKUP and DOUBLE both run on a 40' moóc whatever
+      // the lot's own 20' code says (see requiredTrailerTypeForFulfillment).
       if (
         container?.code
         && resolvedTrailerType != null
-        && resolvedTrailerType !== (fulfillment.dispatchClassification === 'DOUBLE' && container.code.startsWith('20')
-          ? '40FT' : inferTrailerTypeFromContainerCode(container.code))
+        && resolvedTrailerType !== requiredTrailerTypeForFulfillment(container.code, fulfillment.dispatchClassification)
       ) {
         throw new ApiError(409, 'Rơ-moóc không phù hợp với loại container.');
       }

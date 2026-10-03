@@ -796,7 +796,7 @@ export interface Port {
 
 // Domain vocabularies live in constants (single source); re-exported here for
 // the established `import { ... } from '@tingting/shared'` surface.
-export { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '../constants';
+export { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS, LCL_PICKUP_TRAILER_TYPE, LCL_PICKUP_SHELL_TASK_TAG } from '../constants';
 export type { DispatchClassification } from '../constants';
 
 /** Carrier key for master-plan filtering: own fleet, a specific external

@@ -872,10 +872,22 @@ export const DEFAULT_SHIPPING_LINES = Object.freeze([
 
 /**
  * Fulfillment-owned operational classification: SINGLE (Đơn), DOUBLE (Kẹp),
- * COMBINED (Kết hợp), LCL (Lẻ). A label only — it never infers trip pairing,
- * vehicle sharing, or shipment-level `Đóng kết hợp`.
+ * COMBINED (Kết hợp), LCL (Lẻ), LCL_PICKUP (Lấy Lẻ). A label only — it never
+ * infers trip pairing, vehicle sharing, or shipment-level `Đóng kết hợp`.
+ *
+ * The four cont models describe how many shells a run moves and in how many
+ * legs: Đơn = one 40' shell, closed then dropped at the port, one way. Kẹp =
+ * two 20' shells. Kết hợp = deliver the return load first, then close the
+ * outbound load on the way back, two ways.
+ *
+ * LCL_PICKUP is the LCL-specific fourth case: the truck takes an EMPTY shell
+ * (one already emptied, or one whose previous load was delivered), runs a
+ * combined leg to close LCL cargo into it for the warehouse transfer, then
+ * either comes back with the shell empty OR closes it and returns to the
+ * port. The ending is a dispatcher's task-tag choice, not a second
+ * classification — see `LCL_PICKUP_SHELL_TASK_TAG`.
  */
-export const DISPATCH_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED', 'LCL'] as const;
+export const DISPATCH_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED', 'LCL', 'LCL_PICKUP'] as const;
 export type DispatchClassification = (typeof DISPATCH_CLASSIFICATIONS)[number];
 
 /** Vietnamese operator labels for each classification. */
@@ -884,4 +896,20 @@ export const DISPATCH_CLASSIFICATION_LABELS: Record<DispatchClassification, stri
   DOUBLE: 'Kẹp',
   COMBINED: 'Kết hợp',
   LCL: 'Lẻ',
+  LCL_PICKUP: 'Lấy Lẻ',
 };
+
+/**
+ * The Lảy Lẻ run always moves one 40' empty shell, whatever the row's own
+ * container code says — the shell is the truck's, not the lot's.
+ */
+export const LCL_PICKUP_TRAILER_TYPE = '40FT' as const;
+
+/**
+ * Task tag pre-selected when a row is classified Lấy Lẻ: the run's defining
+ * move is taking an already-empty shell and closing LCL cargo into it
+ * (canonical pool label, migration 0066). The dispatcher then adds the
+ * ending tag — `HẠ VỎ ...` to come back with the shell empty, or a
+ * port/bãi tag to close it and return to the port.
+ */
+export const LCL_PICKUP_SHELL_TASK_TAG = 'ĐẢO VỎ';

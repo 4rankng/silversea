@@ -52,6 +52,9 @@ function tagLabelFor(card: DriverJourneyCard): string {
   if (card.classification === 'DOUBLE') return 'KẸP';
   if (card.classification === 'COMBINED') return 'KẾT HỢP';
   if (card.classification === 'LCL') return 'LẺ';
+  // Lấy Lẻ must beat the `linked` fallback below: an LCL row is never a kẹp
+  // member, so without its own branch it would read as KẸP on the driver app.
+  if (card.classification === 'LCL_PICKUP') return 'LẤY LẺ';
   return card.linked ? 'KẸP' : 'ĐƠN';
 }
 

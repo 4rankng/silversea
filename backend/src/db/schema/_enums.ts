@@ -19,8 +19,11 @@ export const trailerTypeEnum = applicationEnum(['20FT', '40FT']);
 
 // Dispatch classification of a fulfillment — an operational label only. It
 // never infers trip pairing or `Đóng kết hợp`; historical rows stay null
-// until an operator classifies them in a detailed-plan save.
-export const dispatchClassificationEnum = applicationEnum(['SINGLE', 'DOUBLE', 'COMBINED', 'LCL']);
+// until an operator classifies them in a detailed-plan save. LCL_PICKUP
+// ('Lấy Lẻ') is the empty-shell LCL run: take an already-empty shell, close
+// LCL cargo into it for the warehouse transfer, then return it empty or
+// return to the port. Additive text value — no migration.
+export const dispatchClassificationEnum = applicationEnum(['SINGLE', 'DOUBLE', 'COMBINED', 'LCL', 'LCL_PICKUP']);
 
 export const truckStatusEnum = applicationEnum(['ACTIVE', 'MAINTENANCE', 'INACTIVE']);
 

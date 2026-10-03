@@ -9,8 +9,8 @@
 
 export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
 
-/** Raw fulfillment-owned classification (ĐƠN/KẸP/KẾT HỢP/LẺ labels). */
-export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
+/** Raw fulfillment-owned classification (ĐƠN/KẸP/KẾT HỢP/LẺ/LẤY LẺ labels). */
+export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | 'LCL_PICKUP';
 
 export interface DriverJourneyCard {
   fulfillmentId: number;

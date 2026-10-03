@@ -22,15 +22,14 @@ import {
   OWN_CARRIER_VALUE,
   SUGGESTION_LABELS,
   carrierValueForRow,
-  classificationOptionsForRow,
   normalizePlate,
   parseCarrier,
   plateCompareKey,
   vehiclePlateKey,
   vehicleValueForRow,
 } from './DispatchPlanCellValues';
-import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
+import { DispatchClassificationField } from './DispatchClassificationField';
 import { IssueOrderFields } from './IssueOrderFields';
 import { useIssueOrder } from './useIssueOrder';
 import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, vehicleWarningSuffix, type VehicleFit } from './trailerFit';
@@ -795,18 +794,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 </button>
               </p>
             ) : null}
-            <UuiSelectField
-              label="Phân loại"
-              width="content"
-              wrapperClassName="dispatch-assignment-dialog__classification"
-              value={draft.classification}
-              options={classificationOptionsForRow(row.classification)}
-              onChange={(event) => {
-                setDraft((current) => ({ ...current, classification: event.target.value as DispatchClassification }));
+            <DispatchClassificationField
+              row={row}
+              classification={draft.classification}
+              operationalNotes={draft.operationalNotes}
+              onChange={(next, nextNotes) => {
+                setDraft((current) => ({ ...current, classification: next, operationalNotes: nextNotes }));
                 setError(null);
               }}
-              disabled={saving || row.classification === 'LCL'}
-              hint={row.classification === 'LCL' ? 'Hàng lẻ giữ phân loại Lẻ — gắn với hình thức lô hàng' : undefined}
+              disabled={saving}
             />
             <NumberField
               id={`dispatch-revenue-${row.fulfillmentId}`}

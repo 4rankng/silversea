@@ -1,5 +1,11 @@
 import type { DispatchClassification } from '@tingting/shared';
-import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
+import {
+  DISPATCH_CLASSIFICATIONS,
+  DISPATCH_CLASSIFICATION_LABELS,
+  LCL_PICKUP_SHELL_TASK_TAG,
+  parseDriverTaskNote,
+  composeDriverTaskNote,
+} from '@tingting/shared';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import type { SearchableSelectOption } from '../../../design-system';
 
@@ -63,20 +69,77 @@ export function vehiclePlateKey(value: string, options: SearchableSelectOption[]
   return label ? plateCompareKey(label.split(' — ')[0]) : value;
 }
 
-/** Cont rows offer the three cont models (Đơn/Kẹp/Kết hợp) — the dispatcher's
- *  call since 2026-09-08. LCL rows are cargo-mode bound: the select shows Lẻ,
- *  locked (PRD §2b keeps Lẻ separate from the three cont models). */
-
-export function classificationOptionsForRow(classification: DispatchClassification): Array<{
+/** Classification choices for one plan row, keyed on the row's CARGO MODE —
+ *  never on its stored classification. Once a dispatcher picks `LCL_PICKUP`
+ *  the stored value is no longer `LCL`, so a classification-keyed lookup
+ *  would silently promote an LCL lot into the cont models (Đơn/Kẹp/Kết
+ *  hợp) on the next reopen.
+ *
+ *  - LCL lots keep the cargo-mode-bound pair: `Lẻ` (the plain LCL run) and
+ *    `Lấy Lẻ` (the empty-shell run). Neither is a cont model, so neither can
+ *    become Đơn/Kẹp/Kết hợp — PRD §2b keeps Lẻ out of the cont taxonomy.
+ *  - Cont lots offer the three cont models plus `Lấy Lẻ`: the empty-shell
+ *    LCL run is a dispatcher's own call, and the run moves the truck's shell
+ *    rather than the lot's. */
+export function classificationOptionsForRow(cargoMode: 'FCL' | 'LCL'): Array<{
   value: DispatchClassification;
   label: string;
 }> {
-  if (classification === 'LCL') {
-    return [{ value: 'LCL', label: DISPATCH_CLASSIFICATION_LABELS.LCL }];
+  if (cargoMode === 'LCL') {
+    return [
+      { value: 'LCL', label: DISPATCH_CLASSIFICATION_LABELS.LCL },
+      { value: 'LCL_PICKUP', label: DISPATCH_CLASSIFICATION_LABELS.LCL_PICKUP },
+    ];
   }
   return DISPATCH_CLASSIFICATIONS
     .filter((value) => value !== 'LCL')
     .map((value) => ({ value, label: DISPATCH_CLASSIFICATION_LABELS[value] }));
+}
+
+/** True for the empty-shell LCL run — the only classification that overrides
+ *  the row's own container code when the trailer type is inferred. */
+export function isLclPickup(classification: DispatchClassification | null | undefined): boolean {
+  return classification === 'LCL_PICKUP';
+}
+
+/** Operator-facing note under the Phân loại select. Carries the two rules a
+ *  dispatcher cannot infer from the option list alone: an LCL lot is bound to
+ *  the cargo-mode pair and never becomes a cont model, and a Lấy Lẻ run ends
+ *  with a task-tag choice (back empty vs. closed, back to the port) rather
+ *  than a second classification. */
+export function classificationHint(
+  cargoMode: 'FCL' | 'LCL',
+  classification: DispatchClassification | null | undefined,
+): string | undefined {
+  if (classification === 'LCL_PICKUP') {
+    return 'Lấy Lẻ: lấy vỏ cont rỗng 40ft, đi kết hợp đóng hàng lẻ chuyển kho. '
+      + 'Kết thúc chuyến chọn bằng thẻ tác vụ: hạ vỏ rỗng, hoặc đóng hàng về hạ cảng.';
+  }
+  if (cargoMode === 'LCL') {
+    return 'Hàng lẻ chỉ chọn Lẻ hoặc Lấy Lẻ — gắn với hình thức lô hàng.';
+  }
+  return undefined;
+}
+
+/**
+ * Pre-select the Lấy Lẻ shell tag the moment the row is classified, so the
+ * driver's task note already carries the run's defining move. Idempotent and
+ * non-destructive: an existing tag (or one the dispatcher typed by hand) is
+ * left alone, the manual text is preserved verbatim, and a note that is
+ * already only free text keeps that text as the second line.
+ *
+ * Never removes the tag when the dispatcher switches classification back —
+ * the tag may have been chosen deliberately, and silently deleting a note
+ * segment is worse than leaving one extra chip.
+ */
+export function withLclPickupShellTag(
+  note: string | null,
+  knownLabels: ReadonlyArray<string>,
+): string | null {
+  if (note != null && note.split('\n')[0]?.split('; ').includes(LCL_PICKUP_SHELL_TASK_TAG)) return note;
+  const { selectedLabels, manualText } = parseDriverTaskNote(note, knownLabels);
+  const composed = composeDriverTaskNote([...selectedLabels, LCL_PICKUP_SHELL_TASK_TAG], manualText);
+  return composed === '' ? null : composed;
 }
 
 

@@ -1250,9 +1250,12 @@ export const atomicDispatchPlanEditSchema = z.object({
    *  null/'' clears it. No after-start rule here — the FE owns the
    *  'Giờ trả hàng phải sau giờ chạy' check (card _15, 2026-09-26). */
   plannedEndAt: z.string().nullish(),
-  /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ). The dispatcher's call for cont
-   *  rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake and LCL
-   *  rows keep Lẻ. Undefined = unchanged. */
+  /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ/Lấy Lẻ). The dispatcher's call for
+   *  cont rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake. LCL
+   *  rows are bound to the cargo-mode pair Lẻ / Lấy Lẻ (Lấy Lẻ = the
+   *  empty-shell run: take an empty 40' shell, close LCL cargo into it for the
+   *  warehouse transfer, then back empty or back to the port). Undefined =
+   *  unchanged. */
   classification: dispatchClassificationSchema.optional(),
   /** Lot-level `shipments.is_combined`. Owned by the CUS create/quick-edit
    *  surface, not by this per-container dispatch editor: one container's

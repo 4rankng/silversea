@@ -280,6 +280,18 @@ describe('DriverTripsPage', () => {
     expect(screen.getByText('LẺ')).toBeTruthy();
   });
 
+  it('tags LCL_PICKUP as LẤY LẺ, and keeps it off the KẸP linked fallback', async () => {
+    // An LCL row is never a kẹp member, so without its own branch the
+    // `linked` fallback would mislabel the empty-shell run as KẸP.
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 22, classification: 'LCL_PICKUP', linked: true }),
+    ]));
+    renderPage();
+
+    expect(await screen.findByText('LẤY LẺ')).toBeTruthy();
+    expect(screen.queryByText('KẸP')).toBeNull();
+  });
+
   it('shows the KẾT HỢP sequencing lock note on the second card until Lệnh 1 completes', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ fulfillmentId: 60, pairId: 7, pairKind: 'KET_HOP', pairOrder: 1, pairLocked: false }),

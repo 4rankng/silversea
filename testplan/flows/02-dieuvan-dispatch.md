@@ -885,11 +885,13 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 
 ---
 
-## 2.13 — Phân loại chuyến: Điều vận được chọn Đơn / Kẹp / Kết hợp; cờ Đóng kết hợp cấp lô vẫn thuộc CUS (cập nhật 2026-09-08)
+## 2.13 — Phân loại chuyến: Điều vận được chọn Đơn / Kẹp / Kết hợp / Lấy Lẻ; cờ Đóng kết hợp cấp lô vẫn thuộc CUS (cập nhật 2026-10-03)
 
-> **Ranh giới nghiệp vụ chuẩn (chốt mới 2026-09-08 — đảo một phần quyết định buổi sáng cùng ngày):**
+> **Ranh giới nghiệp vụ chuẩn (cập nhật 2026-10-03 — bổ sung "Lấy Lẻ", giữ nguyên các ranh giới 2026-09-08):**
 > - **Điều vận ĐƯỢC quyền chọn/đổi phân loại chuyến Đơn (`SINGLE`) / Kẹp (`DOUBLE`) / Kết hợp (`COMBINED`)** cho từng dòng vận chuyển trong dialog "Chỉnh sửa điều phối" (Kế hoạch chi tiết), lưu chung bước phân xe qua `/dispatch-detail-plan-rows/:fulfillmentId/plan`. CUS vẫn thiết lập phân loại ban đầu khi tạo lô (`01-cus-create-shipment.md §1.19`).
-> - **Dòng hàng lẻ (LCL) giữ cố định phân loại Lẻ (`LCL`)** — phân loại này gắn với hình thức lô hàng, không phải lựa chọn theo cont, nên select "Phân loại" ở dòng LCL hiển thị "Lẻ" ở dạng đọc (disabled).
+> - **Dòng hàng lẻ (LCL) chỉ được chọn trong cặp Lẻ (`LCL`) / Lấy Lẻ (`LCL_PICKUP`)** — cả hai gắn với hình thức lô hàng, nên dòng LCL **không** có mô hình cont (Đơn/Kẹp/Kết hợp) trong select. Trước 2026-10-03 select này bị **khóa cứng** ở Lẻ; nay đã mở khóa để điều vận chuyển qua lại Lẻ ↔ Lấy Lẻ.
+> - **Lấy Lẻ (`LCL_PICKUP`) là chuyến lấy vỏ cont rỗng:** dùng vỏ đã trả rỗng (vỏ đã đóng, hoặc đã trả xong hàng) đi kết hợp đóng hàng lẻ chuyển kho. Chuyến này **luôn chạy rơ-moóc 40FT** bất kể mã cont của lô là 20 hay 40 (vỏ là của xe, không phải của lô) — áp dụng cả ở picker xe lẫn ở cổng phát lệnh. Chọn "Lấy Lẻ" **tự bật thẻ tác vụ `ĐẢO VỎ`** vào Ghi chú tác vụ, giữ nguyên ghi chú tay của điều vận ở dòng 2; hệ thống **không** tự xoá thẻ khi đổi phân loại ngược lại (điều vận có thể đã chọn thủ công).
+> - **Hai kiểu kết thúc chuyến Lấy Lẻ KHÔNG tách thành phân loại riêng** — điều vận chọn bằng thẻ tác vụ: về hạ rỗng (thẻ `HẠ VỎ ...`) hoặc đóng hàng rồi về hạ cảng (thẻ bãi/cảng tương ứng).
 > - **Cờ "Đóng kết hợp" (`isCombined`) cấp lô vẫn thuộc CUS** (tạo lô + sửa nhanh). Dialog "Chỉnh sửa điều phối" **không** có checkbox này — chọn phân loại **Kết hợp** đã đủ thể hiện ghép chuyến ở cấp dòng, nên checkbox là dư thừa đối với điều vận; API vẫn loại bỏ (strip) `isCombined` khỏi request điều vận kể cả khi gọi thẳng.
 > - Trước 2026-09-08 (sáng): editor điều vận bị tước cả hai trường (TC-DV-DISPATCH-041 bản cũ). Quyết định mới trả lại quyền chọn Phân loại cho điều vận, giữ cờ cấp lô cho CUS.
 
@@ -963,8 +965,8 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 - **Mức độ:** P1
 - **Các bước:**
   1. Mở /dispatch-detail → "Chỉnh sửa điều phối" một dòng FCL.
-  2. Xác nhận dialog **CÓ** select "Phân loại" với đúng 3 lựa chọn: Đơn, Kẹp, Kết hợp (giá trị hiện tại
-     được chọn sẵn).
+  2. Xác nhận dialog **CÓ** select "Phân loại" với đúng 4 lựa chọn: Đơn, Kẹp, Kết hợp, Lấy Lẻ (giá trị hiện
+     tại được chọn sẵn). Dòng LCL chỉ có 2 lựa chọn: Lẻ, Lấy Lẻ.
   3. Xác nhận dialog **KHÔNG** còn checkbox "Đóng kết hợp (kẹp chuyến)" ở bất kỳ đâu.
   4. Đổi phân loại sang "Kẹp", sửa thêm cước/ghi chú → Lưu → thành công; cột Phân loại trên grid phản
      ánh giá trị mới.
@@ -976,7 +978,38 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
   version bump đúng luật.
 - **Bằng chứng:** backend test dispatch-detail-plan.test.ts "dispatch save persists the dispatcher's
   classification and still strips the lot-level isCombined flag"; frontend test
-  DispatchPlanEditorCell.test.tsx (select Phân loại 3 lựa chọn, không có checkbox).
+  DispatchPlanEditorCell.test.tsx (select Phân loại 4 lựa chọn, không có checkbox).
+
+### TC-DV-DISPATCH-053 — Phân loại "Lấy Lẻ": lấy vỏ cont rỗng, đóng hàng lẻ chuyển kho (2026-10-03)
+
+- **Mã PRD:** O2C Bước 2b + quyết định bổ sung "Lấy Lẻ" (2026-10-03)
+- **Vai trò:** `DISPATCHER`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô LCL `READY_FOR_DISPATCH`; OWN fleet có một xe rơ-moóc 40FT rảnh. Dòng LCL
+  hiện đang phân loại Lẻ.
+- **Các bước:**
+  1. Mở `/dispatch-detail` → "Chỉnh sửa điều phối" dòng LCL. Xác nhận select "Phân loại" **mở khóa**
+     và chỉ có 2 lựa chọn: Lẻ, Lấy Lẻ (không có Đơn/Kẹp/Kết hợp).
+  2. Chọn "Lấy Lẻ" → kiểm tra thẻ tác vụ `ĐẢO VỎ` **tự được bật** trong Ghi chú tác vụ; nếu điều vận đã
+     gõ ghi chú tay thì ghi chú đó vẫn nằm ở dòng 2, không bị ghi đè.
+  3. Gán xe. Xác nhận "Loại xe bắt buộc" là **40FT** kể cả khi dòng không có mã cont hoặc mã cont
+     20DC — chuyến Lấy Lẻ chạy vỏ rỗng của xe, không phải cont của lô.
+  4. Thêm thẻ kết thúc: `HẠ VỎ ...` (về hạ rỗng) hoặc thẻ bãi/cảng (đóng hàng rồi về hạ cảng). Lưu.
+  5. Lưu → cột "Phân loại" trên grid hiện "Lấy Lẻ"; mở lại dialog giữ đúng giá trị.
+  6. Phát lệnh với xe rơ-moóc 20FT → phải bị chặn 409 với lý do rơ-moóc không phù hợp.
+  7. Mở app Lái xe → thẻ chuyến hiện **LẤY LẺ** (không rơi về KẸP/ĐƠN).
+- **Kết quả mong đợi (Pass):**
+  - Dòng LCL chỉ chọn được Lẻ/Lấy Lẻ; dòng FCL có thêm Lấy Lẻ cạnh 3 mô hình cont.
+  - Chuyến Lấy Lẻ luôn yêu cầu rơ-moóc 40FT ở cả picker lẫn cổng phát lệnh.
+  - Thẻ `ĐẢO VỎ` được seed đúng một lần, idempotent khi mở lại dialog; hệ thống không tự xoá thẻ khi
+    đổi phân loại ngược lại.
+  - App Lái xe hiện LẤY LẺ.
+- **Kỳ vọng sai (Fail nếu):** dòng LCL hiện mô hình cont; rơ-moóc 20FT được cho qua cổng phát lệnh;
+  chọn Lấy Lẻ xoá mất ghi chú tay; thẻ `ĐẢO VỎ` bị nhân đôi sau mở lại dialog; app Lái xe hiện
+  KẸP/ĐƠN cho chuyến Lấy Lẻ.
+- **Bằng chứng:** ảnh dialog LCL với 2 lựa chọn + thẻ ĐẢO VỎ đã bật; ảnh "Loại xe bắt buộc 40FT";
+  ảnh grid cột Phân loại = "Lấy Lẻ"; ảnh app Lái xe thẻ LẤY LẺ; log 409 khi phát lệnh xe 20FT.
 
 ### TC-DV-DISPATCH-042 — Chip trạng thái điều vận 5 trạng thái (quyết định KH 2026-09-08, bổ sung tối cùng ngày)
 
@@ -1300,3 +1333,4 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 | __/__/__ | TC-DV-DISPATCH-047 | | | Kế hoạch chi tiết cập nhật trạng thái "Đã hoàn thành" khi chuyến kết thúc (2026-09-08) | |
 | __/__/__ | TC-DV-DISPATCH-049 | | | Dòng COMPLETED khóa ô Điều phối — tooltip "đã chốt", editor không mở (2026-09-09) | |
 | __/__/__ | TC-DV-DISPATCH-050 | | | Chuyến IN_TRANSIT bấm ô Điều phối → dialog Phân xe lại (2026-09-09) | |
+| __/__/__ | TC-DV-DISPATCH-053 | | | Phân loại "Lấy Lẻ": vỏ cont rỗng 40FT, tự bật thẻ ĐẢO VỎ, app Lái xe LẤY LẺ (2026-10-03) | |

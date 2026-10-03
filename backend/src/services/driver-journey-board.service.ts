@@ -14,10 +14,10 @@ import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 // separate from driverWorkInbox — zero risk to that shared query or its
 // existing callers/tests.
 export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
-// Spec tags are ĐƠN/KẸP/KẾT HỢP (+LCL's LẺ): the raw fulfillment-owned
+// Spec tags are ĐƠN/KẸP/KẾT HỢP (+LCL's LẺ, and LCL_PICKUP's LẤY LẺ): the raw fulfillment-owned
 // dispatchClassification carries that label; `linked` carries the pairing
 // signal (kẹp/kết-hợp cards stick together), derived below from the shipment.
-export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
+export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | 'LCL_PICKUP';
 
 export interface DriverJourneyCard {
   fulfillmentId: number;

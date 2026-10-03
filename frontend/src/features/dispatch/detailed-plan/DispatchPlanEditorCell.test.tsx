@@ -23,6 +23,9 @@ vi.mock('./useDispatchTaskTags', () => ({
       { id: 1, label: 'Đặt đầu' },
       { id: 2, label: 'Đặt đuôi' },
       { id: 3, label: 'Lấy vỏ ICD đi đóng' },
+      // Canonical pool label (migration 0066) that the Lấy Lẻ auto-seed
+      // writes into the driver note.
+      { id: 4, label: 'ĐẢO VỎ' },
     ],
     isLoading: false,
     error: null,
@@ -577,7 +580,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.queryByText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
   });
 
-  it('locks Phân loại to Lẻ on LCL rows (cargo-mode bound, not a per-cont choice)', async () => {
+  it('offers Lẻ + Lấy Lẻ on LCL rows and never the cont models (cargo-mode bound)', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
       shipmentVersion: 6,
@@ -596,18 +599,60 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     }), { onAtomicSave });
     await openDialog();
 
+    // The select is no longer hard-locked: Lẻ ↔ Lấy Lẻ is a dispatcher's call.
     const trigger = screen.getByRole('button', { name: 'Lẻ Phân loại' }) as HTMLButtonElement;
-    expect(trigger.disabled).toBe(true);
-    // Locked select never opens a list offering the cont models.
+    expect(trigger.disabled).toBe(false);
     fireEvent.click(trigger);
+    expect(screen.getByRole('option', { name: 'Lấy Lẻ' })).toBeTruthy();
+    // The cont models stay off an LCL lot — it is bound to its cargo mode.
     expect(screen.queryByRole('option', { name: 'Đơn' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Kẹp' })).toBeNull();
     expect(screen.queryByRole('option', { name: 'Kết hợp' })).toBeNull();
 
+    // Re-pick the current value to close the list (an open listbox replaces
+    // the dialog's save row) and leave the draft untouched.
+    fireEvent.click(screen.getByRole('option', { name: 'Lẻ' }));
     fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
     expect(onAtomicSave).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ classification: 'LCL' }),
+    );
+  });
+
+  it('seeds the ĐẢO VỎ shell tag when the row is set to Lấy Lẻ, keeping manual text', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'LCL_PICKUP',
+      isCombined: false,
+      operationalNotes: 'ĐẢO VỎ\nhọp chị An 8h',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(row({
+      cargoMode: 'LCL',
+      fulfillmentType: 'LCL_SHIPMENT',
+      container: { containerNumber: null, containerTypeLabel: null, cargoWeightKg: null } as never,
+      classification: 'LCL' as never,
+      notes: { vehicleNote: 'họp chị An 8h', customerNote: null },
+    }), { onAtomicSave });
+    await openDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lẻ Phân loại' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Lấy Lẻ' }));
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        classification: 'LCL_PICKUP',
+        // The run's defining move is pre-selected; the dispatcher's own
+        // text survives on the second line.
+        operationalNotes: 'ĐẢO VỎ\nhọp chị An 8h',
+      }),
     );
   });
 });
