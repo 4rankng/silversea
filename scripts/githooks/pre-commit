@@ -50,10 +50,12 @@ if [ "$fe" -eq 1 ]; then
   (cd "$root/frontend" && pnpm exec tsc --noEmit --incremental false) || fail=1
   # Structure ratchet (incident 2026-09-08: allocation workstream landed two
   # api-client files over their frozen LOC ceilings because this hook only
-  # typechecked). ~1s: the ratchet must gate mechanically, like the compile
-  # bar above, not rely on a full-suite run catching it later.
+  # typechecked). ~0.1s as a plain node script (card 20261003_308): the
+  # ratchet must gate mechanically, like the compile bar above, not rely on a
+  # full-suite run catching it later. The vitest boot it replaced held
+  # .git/index.lock for ~11s+ per commit and caused both 03-10 stale locks.
   echo "[pre-commit] structure guard (LOC ceilings)…"
-  (cd "$root/frontend" && pnpm vitest run src/tests/structure.guard.test.ts) || fail=1
+  (cd "$root/frontend" && node scripts/check-structure.mjs) || fail=1
   # Design-drift ratchet (operator 2026-09-27: "UI UX are all random piecemeals
   # per page"). ~0.2s, no browser: counts raw hex / off-ladder radii / raw
   # shadows / raw z-index / untokenized transitions / distinct breakpoints in
