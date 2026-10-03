@@ -63,6 +63,16 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     source: 'Card 20260921_3',
   },
   {
+    resource: 'shipments',
+    methods: ['DELETE'],
+    pathPattern: /^\/operational-sites\/\d+$/,
+    roles: [Role.CUS, Role.DISPATCHER],
+    effect: 'bypass',
+    reason:
+      'Card 20261002_263 (R29): operational-sites rows are factory/warehouse master data managed by Chứng từ and Điều vận — the config screen removes a row via DELETE /operational-sites/:id. The route\'s own requireRoles keeps the permitted role set; this casbin bridge stays scoped to exactly that path so general shipment delete stays closed.',
+    source: 'Card 20261002_263 (R29)',
+  },
+  {
     resource: 'config',
     methods: ['POST'],
     pathPattern: /^\/routes\/?$/,

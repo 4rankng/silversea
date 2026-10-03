@@ -556,6 +556,54 @@ export async function updateOperationalSiteForAdmin(
   });
 }
 
+/**
+ * Soft-delete of a customer-owned site from the admin config surface (R29:
+ * Chứng từ/Điều vận manage the factory catalog end to end). A site any live
+ * shipment still points at (its own factory pointer or a container's
+ * warehouse pointer) refuses deletion with a business message — deactivate
+ * instead. Historical shipments keep their integer pointers either way; the
+ * list joins match by id without a deletedAt filter, so past rows keep
+ * showing the factory name.
+ */
+export async function deleteOperationalSiteForAdmin(siteId: number, actor: AuthUser) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền xóa danh mục nhà máy.');
+  }
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(s.operationalSites)
+      .where(and(eq(s.operationalSites.id, siteId), isNull(s.operationalSites.deletedAt)))
+      .limit(1);
+    if (!row) throw new ApiError(404, 'Không tìm thấy nhà máy / kho.');
+
+    const [liveShipment] = await tx.select({ id: s.shipments.id })
+      .from(s.shipments)
+      .where(and(
+        eq(s.shipments.operationalSiteId, siteId),
+        isNull(s.shipments.deletedAt),
+      ))
+      .limit(1);
+    const [liveContainer] = await tx.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+      .where(and(
+        eq(s.shipmentContainers.operationalSiteId, siteId),
+        isNull(s.shipments.deletedAt),
+      ))
+      .limit(1);
+    if (liveShipment || liveContainer) {
+      throw new ApiError(409, 'Không thể xóa: nhà máy đang có lô hàng còn hiệu lực sử dụng. Hãy ngưng hoạt động thay vì xóa.');
+    }
+
+    const [deleted] = await tx.update(s.operationalSites).set({
+      deletedAt: new Date(),
+      updatedBy: actor.userId,
+      updatedAt: new Date(),
+    }).where(eq(s.operationalSites.id, siteId)).returning();
+    if (!deleted) throw new Error('Không thể xóa nhà máy / kho.');
+    return { ok: true as const };
+  });
+}
+
 async function assertReferenceIsActive(
   tx: Tx,
   shipment: typeof s.shipments.$inferSelect,
