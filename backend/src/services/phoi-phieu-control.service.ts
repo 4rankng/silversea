@@ -20,7 +20,7 @@ import { createExpenseVoucher, getExpenseCashTotalsBatch } from './expense-accou
 import { FUND_SOURCES } from './treasury-fund-book.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
-import { expenseVndSchema, sumExcludingNegative, TripStatus } from '@tingting/shared';
+import { expenseVndSchema, round2dp, sumExcludingNegative, TripStatus } from '@tingting/shared';
 void expenseVndSchema;
 
 const carrierCustomer = aliasedTable(s.customers, 'carrier_customer');
@@ -70,6 +70,11 @@ export interface PhoiPhieuRow {
   chiHoTra: number | null;
   /** Chi hộ Phải thu = what is collected from the customer (Σ charges). */
   chiHoThu: number | null;
+  /** Card 20261002_292: per-kind composition of the totals — the COMPANY-paid
+   *  (TRIP-kind) slice labeled separately so the widening is visible to the
+   *  operator instead of silently blending kinds. Null when no TRIP slice. */
+  chiHoTripTra: number | null;
+  chiHoTripThu: number | null;
   tienDuong: number | null;
   /** Case QA-2026-09-24-01: per-direction eligible-entry counts (approved ∧
    *  remaining>0) — the toolbar counter previews exactly what the voucher
@@ -112,12 +117,20 @@ export async function listPhoiPhieuRows(query: {
   if (query.dateFrom) tripConditions.push(gte(transportDate, query.dateFrom));
   if (query.dateTo) tripConditions.push(lte(transportDate, query.dateTo));
   if (query.status) tripConditions.push(eq(s.trips.status, query.status as TripStatus));
-  if (query.confirmation) tripConditions.push(exists(db.select({ id: s.expenseAccountingSources.id })
-    .from(s.expenseAccountingSources)
-    .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
-    .where(and(eq(s.expenseAccountingSources.shipmentId, s.shipments.id),
-      eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED'),
-      confirmationCondition(query.confirmation)))));
+  if (query.confirmation) tripConditions.push(or(
+    exists(db.select({ id: s.expenseAccountingSources.id })
+      .from(s.expenseAccountingSources)
+      .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
+      .where(and(eq(s.expenseAccountingSources.shipmentId, s.shipments.id),
+        eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+        confirmationCondition(query.confirmation)))),
+    exists(db.select({ id: s.expenseAccountingSources.id })
+      .from(s.expenseAccountingSources)
+      .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.expenseAccountingSources.sourceId))
+      .where(and(eq(s.expenseAccountingSources.shipmentId, s.shipments.id),
+        eq(s.expenseAccountingSources.sourceKind, 'TRIP'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+        confirmationCondition(query.confirmation)))),
+  )!);
   const search = query.search?.trim();
   if (search) {
     const needle = `%${search}%`;
@@ -133,6 +146,12 @@ export async function listPhoiPhieuRows(query: {
           eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED'),
           confirmationCondition(query.confirmation),
           or(ilike(s.opsExpenseEntries.feeName, needle), ilike(s.opsExpenseEntries.invoiceNumber, needle))))),
+      exists(db.select({ id: s.expenseAccountingSources.id }).from(s.expenseAccountingSources)
+        .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.expenseAccountingSources.sourceId))
+        .where(and(eq(s.expenseAccountingSources.shipmentId, s.shipments.id),
+          eq(s.expenseAccountingSources.sourceKind, 'TRIP'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+          confirmationCondition(query.confirmation),
+          or(ilike(s.tripExpenses.feeName, needle), ilike(s.tripExpenses.invoiceNumber, needle))))),
       exists(db.select({ id: s.expenseAccountingSources.id }).from(s.expenseAccountingSources)
         .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
         .where(and(eq(s.driverIncidentalCosts.tripId, s.trips.id),
@@ -221,8 +240,9 @@ export async function listPhoiPhieuRows(query: {
   const tripIds = rows.map((row) => row.tripId);
 
   // Chi hộ sums + open sources per shipment: the SAME rows the voucher reads.
-  const sources = await db.select({
+  const opsSources = await db.select({
     id: s.expenseAccountingSources.id,
+    sourceKind: s.expenseAccountingSources.sourceKind,
     shipmentId: s.expenseAccountingSources.shipmentId,
     version: s.expenseAccountingSources.version,
     confirmedAt: s.expenseAccountingSources.confirmedAt,
@@ -235,6 +255,24 @@ export async function listPhoiPhieuRows(query: {
     .where(and(inArray(s.expenseAccountingSources.shipmentId, shipmentIds),
       eq(s.expenseAccountingSources.status, 'RECORDED'), eq(s.expenseAccountingSources.sourceKind, 'OPS'),
       confirmationCondition(query.confirmation)));
+
+  const tripSources = await db.select({
+    id: s.expenseAccountingSources.id,
+    sourceKind: s.expenseAccountingSources.sourceKind,
+    shipmentId: s.expenseAccountingSources.shipmentId,
+    version: s.expenseAccountingSources.version,
+    confirmedAt: s.expenseAccountingSources.confirmedAt,
+    allocatedAdvanceAmount: s.expenseAccountingSources.allocatedAdvanceAmount,
+    amount: s.tripExpenses.buyAmount,
+    customerChargeAmount: s.tripExpenses.sellAmount,
+  })
+    .from(s.expenseAccountingSources)
+    .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.expenseAccountingSources.sourceId))
+    .where(and(inArray(s.expenseAccountingSources.shipmentId, shipmentIds),
+      eq(s.expenseAccountingSources.status, 'RECORDED'), eq(s.expenseAccountingSources.sourceKind, 'TRIP'),
+      confirmationCondition(query.confirmation)));
+
+  const sources = [...opsSources, ...tripSources];
   // Card 20260921_14 rework: the parent Tien-duong cell sums CONFIRMED
   // driver-entered costs for the trip — the same spine the detail dialog reads.
   const confirmedRoad = await db.select({
@@ -319,6 +357,15 @@ export async function listPhoiPhieuRows(query: {
     const chiHoThu = shipmentSources.length
       ? shipmentSources.reduce((sum, source) => sum + Number(source.customerChargeAmount ?? 0), 0)
       : null;
+    // Card 20261002_292 guardrail 1: the COMPANY-paid (TRIP-kind) slice is
+    // labeled separately — the widening must be visible, never a silent blend.
+    const tripSlice = shipmentSources.filter((source) => source.sourceKind === 'TRIP');
+    const chiHoTripTra = tripSlice.length
+      ? round2dp(tripSlice.reduce((sum, source) => sum + Number(source.amount ?? 0), 0))
+      : null;
+    const chiHoTripThu = tripSlice.length
+      ? round2dp(tripSlice.reduce((sum, source) => sum + Number(source.customerChargeAmount ?? 0), 0))
+      : null;
     const openSources: PhoiPhieuRow['openSources'] = [];
     for (const source of shipmentSources) {
       if (!source.confirmedAt) continue;
@@ -361,6 +408,8 @@ export async function listPhoiPhieuRows(query: {
       tripStatus: row.tripStatus,
       chiHoTra,
       chiHoThu,
+      chiHoTripTra,
+      chiHoTripThu,
       eligibleIn,
       eligibleOut,
       tienDuong: confirmedRoadByTrip.has(row.tripId)
@@ -543,10 +592,14 @@ export async function listPhoiPhieuStk(): Promise<Array<{ id: number; code: stri
 // ── Card 20260921_13: the accountant chi-ho detail dialog ──────────────────
 
 export interface PhoiPhieuFeeRow {
-  /** The OPS EXPENSE entry id — the id space every mutation route keys on. */
+  /** The OPS EXPENSE entry id — the id space every mutation route keys on.
+   *  TRIP-kind rows carry the trip_expenses id and render read-only. */
   entryId: number;
   sourceId: number;
   version: number;
+  /** Card 20261002_292: per-kind display — OPS rows mutate through this
+   *  dialog, TRIP rows are read-only here. */
+  sourceKind: 'OPS' | 'TRIP';
   feeName: string | null;
   invoiceNumber: string | null;
   amountTra: number;
@@ -569,39 +622,89 @@ export async function getPhoiPhieuChiHo(tripId: number, confirmation?: ChiHoConf
   if (!trip || trip.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chuyến.');
   const [state] = await db.select({ taken: s.tripFinancialState.phoiTakenDate, status: s.tripFinancialState.phoiTakeStatus })
     .from(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, tripId)).limit(1);
-  const rows = await db.select({
-    entryId: s.opsExpenseEntries.id,
-    sourceId: s.expenseAccountingSources.id,
-    feeName: s.opsExpenseEntries.feeName,
-    invoiceNumber: s.opsExpenseEntries.invoiceNumber,
-    amountTra: s.opsExpenseEntries.amount,
-    amountThu: s.opsExpenseEntries.customerChargeAmount,
-    paidById: s.opsExpenseEntries.paidById,
-    payerName: s.users.fullName,
+  // Card 20261002_292 rework (ruling A): the dialog reads every RECORDED
+  // chi-hộ source of the shipment — OPS entries AND TRIP-kind rows the
+  // dialog's own ＋Thêm dòng panel creates through the COMPANY-payer branch.
+  // Per-kind hydration keeps each row's native id space: `entryId` stays the
+  // OPS expense id for OPS rows (the mutation routes key on it), while TRIP
+  // rows carry `sourceKind: 'TRIP'` and render read-only (their corrections
+  // live in the expense-accounting workspace routes).
+  const sources = await db.select({
+    id: s.expenseAccountingSources.id,
+    sourceKind: s.expenseAccountingSources.sourceKind,
+    sourceId: s.expenseAccountingSources.sourceId,
     confirmedAt: s.expenseAccountingSources.confirmedAt,
     version: s.expenseAccountingSources.version,
   })
     .from(s.expenseAccountingSources)
-    .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
-    .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
     .where(and(eq(s.expenseAccountingSources.shipmentId, trip.shipmentId),
-      eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+      inArray(s.expenseAccountingSources.sourceKind, ['OPS', 'TRIP']),
+      eq(s.expenseAccountingSources.status, 'RECORDED'),
       confirmationCondition(confirmation)))
     .orderBy(asc(s.expenseAccountingSources.id));
-  const feeRows: PhoiPhieuFeeRow[] = rows.map((row, index) => ({
-    entryId: row.entryId,
-    sourceId: row.sourceId,
-    version: row.version,
-    feeName: row.feeName,
-    invoiceNumber: row.invoiceNumber,
-    amountTra: Number(row.amountTra ?? 0),
-    amountThu: row.amountThu == null ? null : Number(row.amountThu),
-    payerName: row.payerName,
-    payerUserId: row.paidById,
-    confirmed: row.confirmedAt != null,
-    ...({} as Record<string, never>),
-    ordinal: index + 1,
-  } as PhoiPhieuFeeRow & { ordinal: number }));
+  const feeRows: PhoiPhieuFeeRow[] = [];
+  for (const source of sources) {
+    if (source.sourceKind === 'OPS') {
+      const [entry] = await db.select({
+        entryId: s.opsExpenseEntries.id,
+        feeName: s.opsExpenseEntries.feeName,
+        invoiceNumber: s.opsExpenseEntries.invoiceNumber,
+        amountTra: s.opsExpenseEntries.amount,
+        amountThu: s.opsExpenseEntries.customerChargeAmount,
+        paidById: s.opsExpenseEntries.paidById,
+        payerName: s.users.fullName,
+      })
+        .from(s.opsExpenseEntries)
+        .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
+        .where(eq(s.opsExpenseEntries.id, source.sourceId)).limit(1);
+      if (!entry) continue;
+      feeRows.push({
+        entryId: entry.entryId,
+        sourceId: source.id,
+        version: source.version,
+        sourceKind: 'OPS',
+        feeName: entry.feeName,
+        invoiceNumber: entry.invoiceNumber,
+        amountTra: Number(entry.amountTra ?? 0),
+        amountThu: entry.amountThu == null ? null : Number(entry.amountThu),
+        payerName: entry.payerName,
+        payerUserId: entry.paidById,
+        confirmed: source.confirmedAt != null,
+        ordinal: feeRows.length + 1,
+      } as PhoiPhieuFeeRow & { ordinal: number });
+      continue;
+    }
+    // TRIP-kind: the COMPANY/SUPPLIER-payer branch writes trip_expenses and
+    // mirrors it here. Read-only in this dialog — the entryId space above is
+    // not theirs.
+    const [expense] = await db.select({
+      expenseId: s.tripExpenses.id,
+      feeName: s.tripExpenses.feeName,
+      invoiceNumber: s.tripExpenses.invoiceNumber,
+      amountTra: s.tripExpenses.buyAmount,
+      amountThu: s.tripExpenses.sellAmount,
+      forwarderId: s.tripExpenses.forwarderId,
+      forwarderName: s.users.fullName,
+    })
+      .from(s.tripExpenses)
+      .leftJoin(s.users, eq(s.users.id, s.tripExpenses.forwarderId))
+      .where(eq(s.tripExpenses.id, source.sourceId)).limit(1);
+    if (!expense) continue;
+    feeRows.push({
+      entryId: expense.expenseId,
+      sourceId: source.id,
+      version: source.version,
+      sourceKind: 'TRIP',
+      feeName: expense.feeName,
+      invoiceNumber: expense.invoiceNumber,
+      amountTra: Number(expense.amountTra ?? 0),
+      amountThu: expense.amountThu == null ? null : Number(expense.amountThu),
+      payerName: expense.forwarderName ?? 'Công ty',
+      payerUserId: expense.forwarderId,
+      confirmed: source.confirmedAt != null,
+      ordinal: feeRows.length + 1,
+    } as PhoiPhieuFeeRow & { ordinal: number });
+  }
   return {
     tripId, tripCode: trip.tripCode, shipmentId: trip.shipmentId,
     ngayLayPhoi: state?.taken ?? null,

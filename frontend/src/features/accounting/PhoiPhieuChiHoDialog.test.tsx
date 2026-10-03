@@ -283,3 +283,47 @@ describe('one modal surface at a time in the chi-hộ flow (card 20260923_11)', 
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 });
+
+describe('card 20261002_292 — Chi Hộ dialog renders TRIP sourceKind as read-only', () => {
+  it('renders TRIP sourceKind row as static formatted values with Chi phí chuyến label and skips it on save', async () => {
+    const tripRow = {
+      entryId: 99,
+      sourceId: 101,
+      sourceKind: 'TRIP' as const,
+      version: 1,
+      feeName: 'Cược vỏ cont',
+      amountThu: 2500000,
+      amountTra: 2000000,
+      payerName: 'Công ty',
+      confirmed: false,
+    };
+    api.detail.mockResolvedValue({
+      tripId: 7,
+      rows: [rows[0], tripRow],
+    });
+
+    page();
+    await screen.findByText('Cược vỏ cont');
+
+    // Row 1 (OPS) has input fields and Xóa button
+    expect(screen.getByLabelText('Số tiền thu dòng 1')).toHaveValue('60.000');
+    expect(screen.getByRole('button', { name: 'Xóa' })).toBeInTheDocument();
+
+    // Row 2 (TRIP) does not have input fields for amounts; it renders text
+    expect(screen.queryByLabelText('Số tiền thu dòng 2')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Số tiền trả dòng 2')).not.toBeInTheDocument();
+    expect(screen.getByText('2.500.000 ₫')).toBeInTheDocument();
+    expect(screen.getByText('2.000.000 ₫')).toBeInTheDocument();
+    expect(screen.getByText('Chi phí chuyến')).toBeInTheDocument();
+
+    // Edit row 1 and save
+    fireEvent.change(screen.getByLabelText('Số tiền thu dòng 1'), { target: { value: '65000' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+
+    await waitFor(() => expect(api.update).toHaveBeenCalledOnce());
+    expect(api.update).toHaveBeenCalledWith(7, 23, expect.objectContaining({ customerChargeAmount: 65000 }));
+    // Row 2 (TRIP) was not updated
+    expect(api.correct).not.toHaveBeenCalled();
+  });
+});
+

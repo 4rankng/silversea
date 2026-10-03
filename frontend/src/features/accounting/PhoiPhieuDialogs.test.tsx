@@ -506,5 +506,12 @@ describe('PHOI13 Chi hộ dialog keeps its content readable (card 20261002_278)'
     // modifier) collapses the vertical overflow the header pins inside and
     // would silently un-pin the header instead.
     expect(table.closest('.record-table-wrap--scroll')).toBeNull();
+
+    // The scrollport's top gutter is removed via `.modal__body:has(> .phoi-detail-body)`.
+    // That selector keys on the content root being the DIRECT child of the shell
+    // body; inserting a wrapper element between them silently un-matches the
+    // rule and the clipped-row defect returns with no test failure anywhere.
+    const body = document.querySelector('.modal__body');
+    expect(body?.firstElementChild).toHaveClass('phoi-detail-body');
   });
 });

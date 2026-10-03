@@ -6,6 +6,7 @@ import {
   updatePhoiPhieuRowAmounts, voidPhoiPhieuRow, type PhoiPhieuFeeRow, type ChiHoConfirmation,
 } from '../../api/phoiPhieuClient';
 import { billBookingReference } from '../../lib/business-reference';
+import { formatMoney } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { Btn, useConfirm } from '../../components/UI';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
@@ -72,6 +73,7 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
     ...(trangThaiLay !== null && (trangThaiLay.trim() || null) !== (detail.data?.trangThaiLay || null) ? { trangThaiLay: trangThaiLay.trim() || null } : {}),
   };
   const dirty = Object.keys(meta).length > 0 || rows.some(row => {
+    if (row.sourceKind === 'TRIP') return false;
     const edit = edits[row.entryId];
     return edit && (edit.thu !== (row.amountThu ?? '') || edit.tra !== (row.amountTra ?? ''));
   });
@@ -107,6 +109,7 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
     setError('');
     try {
       for (const row of rows) {
+        if (row.sourceKind === 'TRIP') continue;
         const edit = edits[row.entryId];
         if (!edit) continue;
         const thu = edit.thu === '' ? null : edit.thu;
@@ -189,15 +192,34 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
               </tr></thead>
               <tbody>
                 {detail.data.rows.map((row, index) => {
+                  const isTrip = row.sourceKind === 'TRIP';
                   return (
                     <tr key={row.sourceId}>
                       <td data-label="STT" className="phoi-detail-col--ordinal">{index + 1}</td>
                       <td data-label="Nội dung phí" className="phoi-detail-col--description">{row.feeName ?? '—'}</td>
                       <td data-label="Hóa đơn" className="phoi-detail-col--identity">{row.invoiceNumber ?? '—'}</td>
-                      <td data-label="Số tiền thu" className="phoi-detail-col--money"><NumberField aria-label={`Số tiền thu dòng ${index + 1}`} suffix="₫" grouped value={edits[row.entryId]?.thu ?? row.amountThu ?? ''} onChange={(n) => setEdit(row, 'thu', n)} /></td>
-                      <td data-label="Số tiền trả" className="phoi-detail-col--money"><NumberField aria-label={`Số tiền trả dòng ${index + 1}`} suffix="₫" grouped signed value={edits[row.entryId]?.tra ?? row.amountTra ?? ''} onChange={(n) => setEdit(row, 'tra', n)} /></td>
+                      <td data-label="Số tiền thu" className="phoi-detail-col--money">
+                        {isTrip ? (
+                          <span style={{ fontWeight: 600 }}>{row.amountThu != null ? `${formatMoney(row.amountThu)} ₫` : '—'}</span>
+                        ) : (
+                          <NumberField aria-label={`Số tiền thu dòng ${index + 1}`} suffix="₫" grouped value={edits[row.entryId]?.thu ?? row.amountThu ?? ''} onChange={(n) => setEdit(row, 'thu', n)} />
+                        )}
+                      </td>
+                      <td data-label="Số tiền trả" className="phoi-detail-col--money">
+                        {isTrip ? (
+                          <span style={{ fontWeight: 600 }}>{`${formatMoney(row.amountTra)} ₫`}</span>
+                        ) : (
+                          <NumberField aria-label={`Số tiền trả dòng ${index + 1}`} suffix="₫" grouped signed value={edits[row.entryId]?.tra ?? row.amountTra ?? ''} onChange={(n) => setEdit(row, 'tra', n)} />
+                        )}
+                      </td>
                       <td data-label="Người thanh toán" className="phoi-detail-col--identity">{row.payerName ?? '—'}</td>
-                      <td data-label="Thao tác" className="phoi-detail-col--action"><Btn size="sm" disabled={saving || row.confirmed} title={row.confirmed ? 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa' : undefined} onClick={() => void removeRow(row)}>Xóa</Btn></td>
+                      <td data-label="Thao tác" className="phoi-detail-col--action">
+                        {isTrip ? (
+                          <span style={{ color: 'var(--ink-3)', fontSize: 'var(--text-caption-size)' }}>Chi phí chuyến</span>
+                        ) : (
+                          <Btn size="sm" disabled={saving || row.confirmed} title={row.confirmed ? 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa' : undefined} onClick={() => void removeRow(row)}>Xóa</Btn>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

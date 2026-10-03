@@ -30,6 +30,11 @@ export interface PhoiPhieuRow {
   tripStatus: string | null;
   chiHoThu: number | null;
   chiHoTra: number | null;
+  /** Card 20261002_292: the COMPANY-paid (TRIP-kind) slice of the chi-hộ
+   *  totals, labeled separately in the cell. Optional so an older in-flight
+   *  backend payload still renders. */
+  chiHoTripThu?: number | null;
+  chiHoTripTra?: number | null;
   tienDuong: number | null;
   /** Per-direction eligible-entry counts (approved ∧ remaining>0) — the
    *  toolbar counter previews exactly what the voucher will consume. */
@@ -80,6 +85,7 @@ export interface PhoiPhieuFeeRow {
   entryId: number;
   sourceId: number;
   version: number;
+  sourceKind?: 'OPS' | 'TRIP';
   feeName: string | null;
   invoiceNumber: string | null;
   amountTra: number;
