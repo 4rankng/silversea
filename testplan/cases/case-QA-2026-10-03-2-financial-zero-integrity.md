@@ -31,3 +31,20 @@ renders without decimals at the display edge.
 The law test fails on any future `x ? formatCurrency(x) : '—'` /
 `x > 0 ? formatMoney(x) : '—'` self-suppression introduced outside the
 allowlisted structural case.
+
+## AC3 addendum — D02 nonnegative trip inputs (QA-AUDIT-POLICY-245)
+
+Ruling source: docs/adr/2026-10-01-audit-todo-policy-rulings.md (accepted,
+canon in AGENTS.md §1) — trip quantity, rate and allowance fields stay
+nonnegative; no runtime behavior change was required because the enforcement
+already exists.
+
+Evidence:
+- Mechanism pin: `frontend/src/components/trip/InputWithPrefix.test.tsx` —
+  the money-mode input strips a leading or embedded minus at the keystroke
+  layer, valid digits and an explicit 0 survive.
+- UI DRIVEN: `/trips/new` (admin), Nhiên liệu/vé đường & doanh thu card,
+  typing "-999" via real CDP input leaves the field at "999" — no minus
+  reaches the stored raw string (qa/2026-10-03_card293/dom-negative-blocked.json,
+  ui-trip-negative-blocked.png).
+- Quantity: `containerCount` is type=number min=1 max=10 (TripInfoCard).
