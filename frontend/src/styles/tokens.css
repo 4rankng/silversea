@@ -397,6 +397,15 @@
   --fs-display: var(--text-metric-size);
   --fs-display-lg: var(--text-metric-size);
 
+  /* --- Modal / drawer scrim (card 20261002_277) ---
+     PM ruling 2026-10-03: darker than the previous hard-coded
+     rgba(10,10,10,0.56), which sat too light behind a dialog. One value now,
+     so the next dim change is a single edit instead of the five call sites
+     that each carried their own copy of 0.56. The dark page-mode value is
+     used verbatim by Modal, Drawer, ConfirmDialog and the page-level
+     TruckTires overlay, so those surfaces stay in step. */
+  --scrim-modal: rgba(10, 10, 10, 0.72);
+
   /* --- Z-index scale --- */
   --z-base: 0;
   --z-dropdown: 50;

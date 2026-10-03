@@ -469,7 +469,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(10, 10, 10, 0.56);
+  background: var(--scrim-modal);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
 }

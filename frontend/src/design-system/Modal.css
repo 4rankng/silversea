@@ -8,7 +8,7 @@
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
-  background: rgba(10, 10, 10, 0.56);
+  background: var(--scrim-modal);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   display: flex;
@@ -260,7 +260,7 @@
   .modal {
     padding: 0;
     align-items: flex-end;
-    background: rgba(10, 10, 10, 0.56);
+    background: var(--scrim-modal);
     backdrop-filter: blur(6px);
   }
 
