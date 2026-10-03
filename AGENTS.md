@@ -17,8 +17,14 @@ product decisions; `HANDOFF.md` records local continuity, never product truth.
 6. Handoff history; verify branch, data, runtime and QA claims before reuse.
 
 Final audit policies are in `docs/adr/2026-10-01-audit-todo-policy-rulings.md`:
-restricted CUS fee access, nonnegative trip inputs, DRAFT shipment creation with
-later progression. Do not reopen an owner decision without a new instruction.
+nonnegative trip inputs, DRAFT shipment creation with later progression, and
+CUS **read** access to the active quotation-fee catalog. The last SUPERSEDES
+that ADR's original "CUS access stays restricted" clause (amended 2026-10-03;
+landed `c27875f5`) — read the ADR, not a summary of it, or you will revert a
+superseded decision. Cite these rulings by ADR name rather than a `D` number:
+`D02` already names a different owner law (card 20261002_293, a computed
+financial zero is a value). Do not reopen an owner decision without a new
+instruction.
 
 ## 2. Non-negotiables
 
