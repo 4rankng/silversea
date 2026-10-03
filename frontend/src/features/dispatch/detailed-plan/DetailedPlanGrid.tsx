@@ -28,13 +28,7 @@ import { useDispatchTaskTags } from './useDispatchTaskTags';
 
 import '../../../styles/operational-table-typography.css';
 import './DetailedPlanGrid.css';
-
-function formatWeight(kg: string | null | undefined): string {
-  if (kg == null || kg === '') return '—';
-  const value = Number(kg);
-  if (!Number.isFinite(value)) return kg;
-  return `${new Intl.NumberFormat('vi-VN').format(value)} kg`;
-}
+import { formatWeight } from '../../../lib/format';
 
 interface DetailedPlanGridProps {
   filters: DetailedPlanFilterState;

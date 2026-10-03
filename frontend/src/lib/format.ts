@@ -212,6 +212,25 @@ export function formatPercent(n: number | null | undefined, options?: FormatValu
   return n.toFixed(1).replace('.', ',');
 }
 
+/**
+ * Cargo weight with locale grouping and the "kg" unit, e.g. "24.000 kg".
+ *
+ * Accepts the string column value the grids read as well as a number: the
+ * dispatch grids carry weight from the API as a decimal string, while report
+ * surfaces hold a parsed number. Both grids had their own copy with a slightly
+ * different signature, so a caller could not share one helper between them.
+ *
+ * A non-numeric non-empty value is echoed back verbatim rather than becoming
+ * "NaN kg" — a bad cell should show what the record says.
+ */
+export function formatWeight(kg: string | number | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (kg == null || kg === '') return empty;
+  const value = Number(kg);
+  if (!Number.isFinite(value)) return String(kg);
+  return `${value.toLocaleString('vi-VN')} kg`;
+}
+
 /** Month key ("YYYY-MM-…") rendered as "MM/YYYY", e.g. "06/2026". */
 export function formatViMonth(value: string, options?: FormatValueOptions): string {
   const empty = options?.empty ?? '—';

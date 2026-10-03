@@ -17,7 +17,7 @@ import { useSuppliers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { SUPPLIER_TYPE_LABELS } from '@tingting/shared';
 import { nextTableSort, type TableSortState } from '../../../lib/table-sort';
-import { SupplierFormModal } from '../../../pages/SupplierListPage';
+import { SupplierFormModal } from '../../suppliers/SupplierFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
 import { Pagination } from '../../../design-system';
 import { useCatalogCreate } from './useCatalogCreate';

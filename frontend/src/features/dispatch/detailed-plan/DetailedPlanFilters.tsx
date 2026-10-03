@@ -1,8 +1,8 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from 'lucide-react';
 import { useCoarsePointer } from '../useCoarsePointer';
-import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableMultiSelect, SearchableSelect, Tabs, type DateRangeValue, type FilterBarResetScope } from '../../../design-system';
+import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableSelect, Tabs, type DateRangeValue, type FilterBarResetScope } from '../../../design-system';
 import type { TabItem } from '../../../design-system';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
@@ -18,7 +18,7 @@ export interface FacetItem {
   name: string;
 }
 
-type FacetLoader = (q?: string) => Promise<FacetItem[]>;
+export type FacetLoader = (q?: string) => Promise<FacetItem[]>;
 
 interface DetailedPlanFiltersProps {
   filters: DetailedPlanFilterState;
@@ -61,62 +61,7 @@ const DATA_STATUS_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'COMPLETE', label: 'Đầy đủ' },
   { id: 'MISSING', label: 'Thiếu dữ liệu' },
 ];
-
-/**
- * Multi-select facet block (spec §2: Điểm Nâng / Hạ / Trả), backed by the
- * shared `SearchableMultiSelect` — portal + flip positioning from the
- * dropdown-flip sweep, so the picker never clips or covers lower controls.
- */
-function FacetMultiSelect({
-  label,
-  selected,
-  onSelectionChange,
-  loadFacets,
-}: {
-  label: string;
-  selected: number[];
-  onSelectionChange: (ids: number[]) => void;
-  loadFacets: FacetLoader;
-}) {
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [facets, setFacets] = useState<FacetItem[]>([]);
-  const [search, setSearch] = useState('');
-  const pickerId = useId();
-
-  useEffect(() => {
-    if (!isPickerOpen) return;
-    let cancelled = false;
-    loadFacets(search || undefined)
-      .then((items) => { if (!cancelled) setFacets(items); })
-      .catch(() => { if (!cancelled) setFacets([]); });
-    return () => { cancelled = true; };
-  }, [isPickerOpen, search, loadFacets]);
-
-  return (
-    <div className="detailed-plan-filters__points">
-      <div className="detailed-plan-filters__field">
-        <span className="detailed-plan-filters__label">{label}</span>
-        <SearchableMultiSelect
-          id={pickerId}
-          values={selected.map(String)}
-          onChange={(values) => onSelectionChange(values.map(Number))}
-          options={facets.map((facet) => ({ value: String(facet.id), label: facet.name }))}
-          placeholder={`Chọn ${label.toLowerCase()}…`}
-          searchPlaceholder={`Tìm ${label.toLowerCase()}…`}
-          emptyMessage="Không tìm thấy điểm phù hợp."
-          selectionLabel={label.toLowerCase()}
-          size="sm"
-          clearAllLabel="Bỏ chọn tất cả"
-          onOpenChange={(open) => {
-            setIsPickerOpen(open);
-            if (!open) setSearch('');
-          }}
-          onSearchChange={setSearch}
-        />
-      </div>
-    </div>
-  );
-}
+import { FacetMultiSelect } from './DetailedPlanFacetMultiSelect';
 
 /**
  * Quick day scope of the strip: Hôm nay / Hôm sau / Tất cả.

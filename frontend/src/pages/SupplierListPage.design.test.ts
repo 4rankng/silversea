@@ -32,37 +32,41 @@ describe('SupplierListPage dispatch worksheet styling', () => {
   });
 
   it('builds the edit modal on the untitled-ui kit with sectioned fields', () => {
-    const page = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.tsx'), 'utf8');
+    // The modal is a shared component (the dispatch suppliers view imports it),
+    // so it lives in features/suppliers/SupplierFormModal — the same
+    // LOC-ceiling-driven extraction that moved the type picker out of the page.
+    const modal = readFileSync(resolve(process.cwd(), 'src/features/suppliers/SupplierFormModal.tsx'), 'utf8');
     const picker = readFileSync(resolve(process.cwd(), 'src/features/suppliers/SupplierTypePicker.tsx'), 'utf8');
 
-    expect(page).toContain('maxWidth={960}');
+    expect(modal).toContain('maxWidth={960}');
     // Untitled-UI react-aria inputs (label + icon live on the component), not
     // the raw .field/.input skin.
-    expect(page).toContain("import { Input } from '../components/untitled-ui/base/input/input';");
-    expect(page).toContain("import { TextArea } from '../components/untitled-ui/base/textarea/textarea';");
-    expect(page).not.toContain('pairedFieldGridStyle');
-    expect(page).not.toContain("from '../utils/formStyles'");
+    expect(modal).toContain("import { Input } from '../../components/untitled-ui/base/input/input';");
+    expect(modal).toContain("import { TextArea } from '../../components/untitled-ui/base/textarea/textarea';");
+    expect(modal).not.toContain('pairedFieldGridStyle');
+    expect(modal).not.toContain("from '../../utils/formStyles'");
     // Sectioned form: the shared EntityFormSection primitive (icon chip +
     // uppercase label + hairline divider, 2-col field grid) groups the
     // profile, payment-term, and note fields; the footer carries the shared
-    // required-field hint. The type section lives in its own component —
-    // SupplierListPage sits under a frozen LOC ceiling (scripts/check-structure.mjs).
-    expect(page).toContain("import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';");
-    expect((page.match(/<EntityFormSection icon=\{[A-Za-z2]+\} label=/g) ?? []).length).toBe(3);
-    expect(page).toContain('Thông tin nhà cung cấp');
-    expect(page).toContain('Điều khoản thanh toán');
-    expect(page).toContain('Ghi chú');
-    expect(page).toContain('<SupplierTypePicker types={types} onChange={setTypes} />');
+    // required-field hint. The type section lives in its own component, and
+    // the modal itself is off the page for the same reason
+    // (scripts/check-structure.mjs).
+    expect(modal).toContain("import { EntityFormSection, UnitInput, RequiredHint } from '../../components/shared/EntityFormParts';");
+    expect((modal.match(/<EntityFormSection icon=\{[A-Za-z2]+\} label=/g) ?? []).length).toBe(3);
+    expect(modal).toContain('Thông tin nhà cung cấp');
+    expect(modal).toContain('Điều khoản thanh toán');
+    expect(modal).toContain('Ghi chú');
+    expect(modal).toContain('<SupplierTypePicker types={types} onChange={setTypes} />');
     expect(picker).toContain('<EntityFormSection icon={Truck} label="Phân loại — quyết định nhà xe">');
-    expect(page).toContain('<RequiredHint />');
+    expect(modal).toContain('<RequiredHint />');
     // The required name gates the submit; the section primitive owns the
     // responsive 2-col field grid.
-    expect(page).toContain('isRequired');
-    expect(page).toContain('placeholder="Ví dụ: 0312…"');
-    expect(page).toContain('placeholder="Ví dụ: 15"');
-    expect(page).toContain('placeholder="Ví dụ: 30"');
+    expect(modal).toContain('isRequired');
+    expect(modal).toContain('placeholder="Ví dụ: 0312…"');
+    expect(modal).toContain('placeholder="Ví dụ: 15"');
+    expect(modal).toContain('placeholder="Ví dụ: 30"');
     // Footer keeps the shared button contract.
-    expect(page).toContain('btn btn--secondary btn--sm');
-    expect(page).toContain('btn btn--primary btn--sm');
+    expect(modal).toContain('btn btn--secondary btn--sm');
+    expect(modal).toContain('btn btn--primary btn--sm');
   });
 });

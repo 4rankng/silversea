@@ -7,7 +7,7 @@ import {
   displayNote,
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
-import { formatDateTimeShort, formatISODate } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate, formatWeight } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
 import {
   isNoteLong,
@@ -74,10 +74,6 @@ function cutoffUrgency(iso: string | null | undefined): 'none' | 'soon' | 'urgen
   return 'none';
 }
 
-function formatWeight(kg: number | null): string {
-  if (kg == null) return '—';
-  return `${new Intl.NumberFormat('vi-VN').format(kg)} kg`;
-}
 
 /**
  * The API uses ` + ` to keep the grouped container demand machine-readable.
