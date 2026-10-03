@@ -40,7 +40,9 @@ describe('the band owns the two-row law by construction', () => {
     // trigger — the shape `rowExempt` used to excuse is unreachable.
     expect(band).toMatch(/\{fold && \(\s*<FilterDropdown/);
     expect(band).toMatch(/inlineWhenRoom=\{!fold\.neverInline\}/);
-    expect(band).toContain('useFilterBarFit(barRef)');
+    // The landed call carries the wide-surface budget curve (card 20261002_282:
+    // 3 rows where the surface opts in, 2 elsewhere — the default stays law).
+    expect(band).toContain('useFilterBarFit(barRef, wideBudget ? 3 : 2)');
   });
 
   it('measures against a TWO-line budget — the default is the law, not a parameter pages tune', () => {
