@@ -58,7 +58,15 @@ export default function TreasuryPositionPage() {
   }, [sort]);
 
   const totals = useMemo(
-    () => data?.accounts.reduce((acc, account) => { acc[account.type] += account.bookBalance; return acc; }, { CASH: 0, BANK: 0 }) ?? { CASH: 0, BANK: 0 },
+    () => data?.accounts.reduce((acc, account) => {
+      acc.CASH += account.type === 'CASH' ? account.bookBalance : 0;
+      acc.BANK += account.type === 'BANK' ? account.bookBalance : 0;
+      acc.opening += account.openingBalance;
+      acc.totalIn += account.totalIn;
+      acc.totalOut += account.totalOut;
+      acc.bookBalance += account.bookBalance;
+      return acc;
+    }, { CASH: 0, BANK: 0, opening: 0, totalIn: 0, totalOut: 0, bookBalance: 0 }) ?? { CASH: 0, BANK: 0, opening: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
     [data],
   );
   const accounts = data?.accounts ?? [];
@@ -106,13 +114,20 @@ export default function TreasuryPositionPage() {
 
       {/* ── Summary rail — the shared workboard strip, not a page-local KPI
              block. It carries no numbers until the read lands, so the pending
-             state is the shared skeleton below, never an em-dash placeholder. */}
+             state is the shared skeleton below, never an em-dash placeholder.
+             Card 20261002_291: the five core fund figures in ONE bar — the
+             cash/bank split lives in the table rows below. */}
       {!loading && data && (
         <SummaryRail
           ariaLabel="Tóm tắt số dư ghi sổ"
           items={[
-            { label: 'Tiền mặt — Số dư ghi sổ', value: formatCurrency(totals.CASH) },
-            { label: 'Ngân hàng — Số dư ghi sổ', value: formatCurrency(totals.BANK) },
+            { label: 'Đầu kỳ', value: formatCurrency(totals.opening) },
+            { label: 'Thu', value: formatCurrency(totals.totalIn) },
+            { label: 'Chi', value: formatCurrency(totals.totalOut) },
+            { label: 'Số dư ghi sổ', value: formatCurrency(totals.bookBalance) },
+            ...(data.opsAdvance
+              ? [{ label: 'Tạm ứng OPS còn tồn', value: formatCurrency(data.opsAdvance.totalOutstanding) }]
+              : []),
           ]}
         />
       )}
@@ -159,9 +174,18 @@ export default function TreasuryPositionPage() {
                     <td data-label="Tài khoản">
                       <div className="treasury-table__account">
                         <strong>{sanitizeAccountDisplayName(account.name)}</strong>
-                        <span>{account.code} · {account.type === 'CASH' ? 'Tiền mặt' : 'Ngân hàng'}</span>
+                        {/* Card 20261002_291: the business identity is bank
+                           name + account number; the technical `code` is
+                           never a display label. Until the position read
+                           exposes the bank columns the caption carries the
+                           type and fund alone. */}
                         <span>
-                          {account.fundCode === 'COMPANY' ? 'Quỹ công ty' : account.fundCode === 'TM' ? 'Quỹ TM' : 'Chưa phân nguồn quỹ'}
+                          {[
+                            account.bankName,
+                            account.bankAccountNumber,
+                            account.type === 'CASH' ? 'Tiền mặt' : 'Ngân hàng',
+                            account.fundCode === 'COMPANY' ? 'Quỹ công ty' : account.fundCode === 'TM' ? 'Quỹ TM' : 'Chưa phân nguồn quỹ',
+                          ].filter(Boolean).join(' · ')}
                         </span>
                         {canConfigure && (
                           <button

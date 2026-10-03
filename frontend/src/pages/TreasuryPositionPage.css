@@ -15,14 +15,18 @@
 
 /* Account records — the record-table base owns chrome, stickiness, hover,
    the .num right alignment, and the ≤1100px card handoff. These rules only
-   map treasury roles onto the shared type scale. */
+   map treasury roles onto the shared type scale. The identity line pairs
+   with its action on one row so a record costs three lines, not five. */
 .treasury-table__account {
   display: grid;
-  gap: 2px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  align-items: center;
   min-width: 0;
 }
 
 .treasury-table__account strong {
+  grid-column: 1 / -1;
   font-size: var(--ops-table-primary-size);
   font-weight: var(--ops-table-primary-weight);
   line-height: var(--ops-table-primary-line-height);
@@ -34,9 +38,11 @@
   font-size: var(--ops-table-supporting-size);
   line-height: var(--ops-table-supporting-line-height);
   color: var(--fg-3);
+  overflow-wrap: anywhere;
 }
 
 .treasury-table__account small {
+  grid-column: 1 / -1;
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
   color: var(--fg-3);
@@ -49,7 +55,9 @@
 }
 
 .treasury-table__account > button {
-  justify-self: start;
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
 }
 
 /* Treasury account drawer (features/treasury) — field pairs ride one row and

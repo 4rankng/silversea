@@ -63,3 +63,49 @@ describe('TreasuryPositionPage server-side column sort', () => {
     expect(screen.getByRole('columnheader', { name: 'Thu' }).getAttribute('aria-sort')).toBe('descending');
   });
 });
+
+describe('TreasuryPositionPage fund summary bar and account identity (card 20261002_291)', () => {
+  it('sums the five core fund figures into one bar, without the technical code anywhere', async () => {
+    getTreasuryPositionMock.mockReset().mockResolvedValue({
+      asOf: '2026-10-03T08:00:00.000Z',
+      currency: 'VND',
+      coverage: 'COMPLETE',
+      opsAdvance: { totalOutstanding: 750 },
+      accounts: [
+        { ...account(1, 'Tiền mặt quỹ', 900), type: 'CASH', bankName: null, bankAccountNumber: null },
+        { ...account(2, 'VCB chính', 500), type: 'BANK', bankName: 'Vietcombank', bankAccountNumber: '0221000123456' },
+      ],
+    });
+    render(<TreasuryPositionPage />);
+
+    const rail = await screen.findByRole('region', { name: 'Tóm tắt số dư ghi sổ' });
+    const railText = rail.textContent;
+    // Sums across accounts: opening 1000×2, in 2000×2, out 500×2, balance 900+500.
+    expect(railText).toContain('Đầu kỳ');
+    expect(railText).toContain('2.000');
+    expect(railText).toContain('Thu');
+    expect(railText).toContain('4.000');
+    expect(railText).toContain('Chi');
+    expect(railText).toContain('1.000');
+    expect(railText).toContain('1.400');          // book balance
+    expect(railText).toContain('Tạm ứng OPS còn tồn');
+    expect(railText).toContain('750');
+
+    // The bank identity names the row's caption; the technical code (ACC-…)
+    // never renders as a business label.
+    const row = screen.getByText('VCB chính').closest('td')!;
+    expect(row.textContent).toContain('Vietcombank');
+    expect(row.textContent).toContain('0221000123456');
+    expect(row.textContent).not.toContain('ACC-2');
+    // Accounts without a bank still read type + fund, never the code.
+    const cashRow = screen.getByText('Tiền mặt quỹ').closest('td')!;
+    expect(cashRow.textContent).not.toContain('ACC-1');
+  });
+
+  it('keeps the rail to four items while the read carries no ops advance', async () => {
+    render(<TreasuryPositionPage />);
+    const rail = await screen.findByRole('region', { name: 'Tóm tắt số dư ghi sổ' });
+    await waitFor(() => expect(rail.textContent).toContain('Số dư ghi sổ'));
+    expect(rail.textContent).not.toContain('Tạm ứng OPS');
+  });
+});
