@@ -193,7 +193,9 @@ export default function PhoiPhieuControlPage() {
           { key: 'date', label: 'Ngày hẹn', value: formatDate(row.transportDate ?? null, { empty: 'Chưa có ngày hẹn' }), primary: true },
           { key: 'status', label: 'Trạng thái', value: row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—', primary: true },
           { key: 'chiHoThu', label: 'Chi hộ phải thu', value: money(row.chiHoThu), primary: true },
-          { key: 'chiHoTra', label: 'Chi hộ phải trả', value: money(row.chiHoTra), primary: true },
+          { key: 'chiHoTra', label: 'Chi hộ phải trả', value: row.chiHoTripTra != null || row.chiHoTripThu != null
+            ? <>{money(row.chiHoTra)}<div className="row-meta">Công ty: {money(row.chiHoTripTra)} / thu {money(row.chiHoTripThu)}</div></>
+            : money(row.chiHoTra), primary: true },
           { key: 'road', label: 'Tiền đường', value: money(row.tienDuong), primary: true },
           { key: 'capacity', label: 'Trọng tải container', value: row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + ' kg' : '—' },
           { key: 'weight', label: 'Trọng lượng hàng', value: row.cargoWeightKg != null ? formatNumber(row.cargoWeightKg) + ' kg' : 'Chưa có' },
