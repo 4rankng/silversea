@@ -725,15 +725,12 @@ describe('MasterPlanFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '2026-09-15', deliveryDateTo: '' });
     expect(screen.queryByRole('dialog')).toBeNull();
 
-    // The categorical criteria live behind `Bộ lọc` (card 20260927_152).
-    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
-    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Tất cả Xuất / Nhập' }));
+    // The basic criteria live on the bar while zone/carrier facets live behind `Bộ lọc` (card 20261002_282).
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Tất cả trạng thái Phân xe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Phân xe: Tất cả trạng thái' }));
     fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
   });

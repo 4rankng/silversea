@@ -324,19 +324,21 @@ export function DetailedPlanGrid({
                     );
                   })()}
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường" data-label-short="Tuyến">
-                    {row.customerRoute.routeName ? (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{row.customerRoute.routeName}</div>
-                    ) : row.customerRoute.deliveryPoint ? (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{row.customerRoute.deliveryPoint}</div>
-                    ) : (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">Chưa có tuyến đường</div>
-                    )}
-                    <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
-                      {row.docs.tradeDirection === 'IMPORT' ? (
-                        <span>Nhập</span>
-                      ) : row.docs.tradeDirection === 'EXPORT' ? (
-                        <span>Xuất</span>
-                      ) : '—'}
+                    <div className="detailed-plan-grid__route-direction">
+                      {row.customerRoute.routeName ? (
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{row.customerRoute.routeName}</div>
+                      ) : row.customerRoute.deliveryPoint ? (
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{row.customerRoute.deliveryPoint}</div>
+                      ) : (
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">Chưa có tuyến đường</div>
+                      )}
+                      <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
+                        {row.docs.tradeDirection === 'IMPORT' ? (
+                          <span>Nhập</span>
+                        ) : row.docs.tradeDirection === 'EXPORT' ? (
+                          <span>Xuất</span>
+                        ) : '—'}
+                      </div>
                     </div>
                     {row.isCombined && (
                       <span className="detailed-plan-grid__combined-note" title="Đóng kết hợp">

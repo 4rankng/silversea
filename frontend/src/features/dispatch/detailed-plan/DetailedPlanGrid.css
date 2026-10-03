@@ -286,7 +286,7 @@
 }
 
 .detailed-plan-grid td {
-  padding: 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
@@ -365,6 +365,18 @@
 .detailed-plan-grid__documents-bill { grid-area: bill; }
 .detailed-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }
 
+.detailed-plan-grid__route-direction {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+}
+
+.detailed-plan-grid__route-direction .detailed-plan-grid__documents-direction {
+  margin-top: 0;
+  display: inline-flex;
+}
+
 .detailed-plan-grid__combined-note {
   grid-area: combined;
   align-self: end;
@@ -427,7 +439,9 @@
   align-items: center;
   justify-content: center;
   width: max-content;
-  min-height: 24px;
+  min-height: 26px;
+  height: 28px;
+  max-height: 36px;
   margin-top: 6px;
   padding: 0 10px;
   color: var(--fg-inverse);
@@ -457,9 +471,13 @@
 
 @media (max-width: 767px) {
   .detailed-plan-grid__note-action {
-    display: flex;
-    width: 100%;
-    min-height: var(--control-max-h);
+    display: inline-flex;
+    width: auto;
+    max-width: max-content;
+    min-height: 28px;
+    height: 30px;
+    max-height: 36px;
+    padding: 0 10px;
   }
 }
 
@@ -571,7 +589,7 @@
   td.detailed-plan-grid__cell {
     display: block;
     min-width: 0;
-    padding: 5px 10px;
+    padding: 4px 8px;
     border: 0;
   }
 
@@ -737,7 +755,7 @@
    names or leaving separators at the start of a wrapped field. */
 @container (max-width: 640px) {
   .detailed-plan-grid tbody {
-    gap: 8px;
+    gap: 6px;
   }
 
   .detailed-plan-grid__row {
@@ -746,7 +764,7 @@
 
   .detailed-plan-grid__cell {
     min-width: 0;
-    padding: 6px 10px;
+    padding: 4px 8px;
   }
 
   .detailed-plan-grid__cell + .detailed-plan-grid__cell {
@@ -860,6 +878,12 @@
 .detailed-plan-grid__pair-btn {
   margin-top: 6px;
   white-space: nowrap;
+  min-height: 26px;
+  height: 28px;
+  max-height: 36px;
+  padding: 0 10px;
+  font-size: var(--text-caption-size);
+  line-height: 1;
 }
 
 /* Keep the two port cells and two cargo cells paired after the schedule and
