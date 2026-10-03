@@ -8,7 +8,7 @@
 // staging build/WIP delta, not the landed service.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -23,7 +23,6 @@ const ids: Record<string, number[]> = {
   trips: [], tripContainers: [],
 };
 let driverRowId = 0;
-let driverUserId = 0;
 const tomorrow = new Date(Date.now() + 24 * 3600_000).toISOString().slice(0, 10);
 
 before(async () => {
@@ -31,7 +30,6 @@ before(async () => {
     username: `jboard-${suffix.slice(-10)}`, passwordHash: 'test-only', role: 'DRIVER',
   }).returning();
   ids.users.push(user.id);
-  driverUserId = user.id;
   const [trailer] = await db.insert(s.trailers).values({
     licensePlate: `51R-${suffix.slice(-6)}`.slice(0, 20), type: '20FT',
   }).returning();
