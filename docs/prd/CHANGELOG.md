@@ -4,6 +4,16 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-02 — Tờ khai của lô chỉ còn Số tờ khai, bỏ Luồng hải quan
+
+Chủ sản phẩm phủ nhận trường **Luồng hải quan** (đỏ/vàng/xanh) là phạm vi tự
+thêm ngoài yêu cầu gốc 21/09: "there's no such thing". Yêu cầu gốc chỉ là cho
+phép **nhiều tờ khai cho mỗi lô hàng**. Trường đã bị bỏ khỏi màn hình, khỏi API và
+khỏi cơ sở dữ liệu; số tờ khai vẫn thêm/xóa tự do theo lô, cột CHỨNG Từ và tệp
+XLSX hiện **đủ số**, nối bằng ", ". Ô nhập Luồng trong khóa lô và câu chữ luồng
+trong tài liệu vận hành cũng dọn theo. Quyết định chủ sản phẩm trong nhóm chat
+TingTing 02/10/2026 (thẻ 20261002_262).
+
 ## 2026-10-01 — Giữ chính sách hiện tại cho các đề xuất220/245/252
 
 Chủ sản phẩm chọn giữ phạm vi CUS đối với danh mục phí báo giá, các trường số

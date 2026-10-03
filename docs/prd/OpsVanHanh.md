@@ -208,10 +208,10 @@ Một khoản chi giữ riêng **Thực chi** (tiền Ops đã trả khi làm h�
 | Chi hộ có hóa đơn — nâng | Nâng vỏ, nâng hàng, lưu bãi tại điểm nâng | Mặc định có thu khách; số thu và số chi vẫn sửa độc lập theo quyền |
 | Chi hộ có hóa đơn — hạ | Hạ vỏ, hạ hàng, lưu vỏ, lưu bãi tại điểm hạ | Như nhóm nâng |
 | Chi hộ có hóa đơn — khác | Hạ tầng công nghệ, gia hạn, vệ sinh, soi chiếu, kiểm hóa, bốc xếp, công nhân, cơ sở hạ tầng, lưu kho | Có tên phí cụ thể, số hóa đơn và số tiền |
-| Giao nhận Ops không hóa đơn | Làm hàng luồng xanh/vàng/đỏ, chọn vỏ, chi hải quan và khoản chi ngoài liên quan | Thực chi và số thu khách độc lập; giữ được khoản công ty chịu |
+| Giao nhận Ops không hóa đơn | Làm hàng, chọn vỏ, chi hải quan và khoản chi ngoài liên quan | Thực chi và số thu khách độc lập; giữ được khoản công ty chịu |
 | Phát sinh Ops không hóa đơn | Sửa tờ khai, ship Lạch Huyện, công nhân, ngoài giờ, nợ phơi, xe nâng, kẹp chì hải quan, bóc tem nguy hiểm | Ghi tên phí; CUS/kế toán xác định khoản thu thêm khách theo thỏa thuận |
 
-Khoản chi lưu ngay, không qua gửi duyệt. Ops ghi thực tế chi và chứng từ; CUS/kế toán có quyền xác định số thu khách và lý do công ty chịu hoặc thu khác thực chi. Khoản đã nằm trong đơn giá trọn gói vẫn là chi phí nhưng không tự thu thêm lần nữa. Không tự lấy màu luồng hải quan làm mức tiền nếu chưa có bảng giá được xác định.
+Khoản chi lưu ngay, không qua gửi duyệt. Ops ghi thực tế chi và chứng từ; CUS/kế toán có quyền xác định số thu khách và lý do công ty chịu hoặc thu khác thực chi. Khoản đã nằm trong đơn giá trọn gói vẫn là chi phí nhưng không tự thu thêm lần nữa. Không tự đặt mức tiền cho khoản chưa có bảng giá được xác định.
 
 Mỗi **loại chi phí** trong danh mục có một **Nhóm quyết toán** do người có quyền đặt (Hải quan giám sát, Phát sinh, Khác, Nâng, Hạ, CSHT — sửa chữa hạ tầng, ...). Bảng quyết toán của lô nhóm tiền theo Nhóm quyết toán này; loại nào chưa được phân nhóm hiển thị trong nhóm **Chưa phân loại** trên bảng và **tổng các nhóm luôn khớp tổng chi phí của lô** — không để mất một đồng nào khỏi bảng. Đổi Nhóm quyết toán của một loại chỉ ảnh hưởng quyết toán sau đó; chứng từ đã phát hành giữ nguyên cấu trúc tại thời điểm phát hành. Phí cân hàng mặc định thuộc nhóm **Phát sinh**.
 

@@ -83,6 +83,21 @@ describe('mapCusWorksheetRow', () => {
     expect(row[6]).toContain('Đang chạy');
   });
 
+  it('carries EVERY tờ khai of the lot in the Chứng từ column', () => {
+    // Card 262 AC3: a lot stores many tờ khai — the sheet must not drop the
+    // ones past the first, or the export contradicts the board cell.
+    const row = mapCusWorksheetRow(makeItem({
+      declarationNumber: 'TK-FIRST',
+      declarationNumbers: ['TK-FIRST', 'TK-SECOND', 'TK-THIRD'],
+    }));
+    expect(row[1]).toBe('BL123\nTK-FIRST, TK-SECOND, TK-THIRD');
+  });
+
+  it('falls back to the single number when the wire carries no declarationNumbers', () => {
+    const row = mapCusWorksheetRow(makeItem({ declarationNumber: 'TK-ONLY', declarationNumbers: undefined }));
+    expect(row[1]).toBe('BL123\nTK-ONLY');
+  });
+
   it('uses the fine-grained status label for NEW-bucket rows', () => {
     const row = mapCusWorksheetRow(makeItem({ bucket: 'NEW', status: 'AWAITING_DISPATCH' }));
     expect(row[6]).not.toContain('Đang chạy');

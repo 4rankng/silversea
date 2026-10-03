@@ -69,7 +69,11 @@ export async function collectCusWorksheetItems(filters: CusWorksheetFilters): Pr
 export function mapCusWorksheetRow(item: ShipmentCusWorkspaceListItem): string[] {
   return [
     [item.customerName ?? '—', item.effectiveFactoryNames.length > 0 ? item.effectiveFactoryNames.join(' + ') : item.factoryName ?? '', item.routeName ?? item.deliveryLocation ?? ''].filter(Boolean).join('\n'),
-    [item.billOrBookNumber ?? '', item.declarationNumber ?? ''].filter(Boolean).join('\n'),
+    // Card 262 AC3: a lot holds MANY tờ khai, so the Chứng từ column carries
+    // every number joined with ', ' — the same string the board cell shows.
+    // Older wire payloads without `declarationNumbers` fall back to the single
+    // number. Emitting one number per lot silently dropped the rest.
+    [item.billOrBookNumber ?? '', declarationNumbersFor(item).join(', ')].filter(Boolean).join('\n'),
     [directionLabel(item.direction), item.shippingLineName ?? '', item.isCombined ? 'Đóng kết hợp' : ''].filter(Boolean).join('\n'),
     [cargoModeLabel(item.cargoMode), item.containerSummary || worksheetQuantity(item), item.weightKg != null ? `${formatQuantity(item.weightKg)} kg` : '', item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
     // A lot whose readiness is WAITING_DATE is officially "chưa chốt ngày"
@@ -79,6 +83,12 @@ export function mapCusWorksheetRow(item: ShipmentCusWorkspaceListItem): string[]
     [item.customerNotes ?? '', item.operationalNotes ?? ''].filter((line) => line.trim() !== '').join('\n'),
     [item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel, derivePrimaryShipmentSignal(item)?.label ?? ''].filter(Boolean).join('\n'),
   ];
+}
+
+/** Every tờ khai number of a lot, oldest first; older payloads carry one. */
+function declarationNumbersFor(item: ShipmentCusWorkspaceListItem): string[] {
+  if (item.declarationNumbers?.length) return item.declarationNumbers;
+  return item.declarationNumber ? [item.declarationNumber] : [];
 }
 
 /** Collect + download the worksheet. Returns the exported row count. */
