@@ -444,3 +444,6 @@ export * from './schemas/shipment-debit-detail';
 
 export { operationalSiteContacts } from './operational-site-contacts';
 export type { OperationalSiteContact } from './operational-site-contacts';
+
+export * from './types/fleet-productivity';
+export * from './schemas/fleet-productivity';

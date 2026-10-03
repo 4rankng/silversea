@@ -53,6 +53,7 @@ import accountingDebitRoutes from './routes/accounting-debit';
 import salaryRoutes from './routes/salary';
 import geotagRoutes from './routes/geotag';
 import recoverableCostRoutes from './routes/recoverable-costs';
+import fleetProductivityRoutes from './routes/fleet-productivity.routes';
 import { dashboardWorkInboxRouter, driverWorkInboxRouter, financialWorkInboxRouter, forwarderWorkInboxRouter, portalWorkInboxRouter, systemWorkInboxRouter } from './routes/work-inbox';
 
 await initAuditService();
@@ -235,6 +236,7 @@ app.use('/api/audit-logs', authMiddleware, casbinAuthz('audit_logs'), auditLogRo
 // at /api/fleet/tires; these dedicated endpoints need the same auth + config
 // gating + MANAGER/ADMIN role (enforced inside the router).
 app.use('/api/fleet/tires', authMiddleware, casbinAuthz('config'), tireLifecycleRouter);
+app.use('/api/fleet/productivity', authMiddleware, fleetProductivityRoutes);
 app.use('/api/salary', authMiddleware, casbinAuthz('salary'), salaryRoutes);
 
 // Boot-time material-write coverage gate: a mounted write route that declares

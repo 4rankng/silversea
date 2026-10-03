@@ -87,6 +87,7 @@ const DispatchSuppliersPage = lazy(() => import('./pages/DispatchSuppliersPage')
 const ProfitPage = lazy(() => import('./pages/ProfitPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const FleetPage = lazy(() => import('./pages/FleetPage'));
+const FleetProductivityPage = lazy(() => import('./pages/FleetProductivityPage'));
 const TruckTiresPage = lazy(() => import('./pages/TruckTiresPage'));
 const TrucksConfigPage = lazy(() => import('./pages/config/TrucksConfigPage'));
 const TruckOwnersConfigPage = lazy(() => import('./pages/config/TruckOwnersConfigPage'));
@@ -283,7 +284,8 @@ export function AppRoutes() {
           <Route path="/fleet/external" element={dispatchOnly(page(<ExternalFleetPage />))} />
           <Route path="/fleet/drivers" element={dispatchOnly(page(<FleetDriversPage />))} />
           <Route path="/fleet" element={officeStaffOnly(page(<FleetPage />))} />
-<Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
+          <Route path="/fleet/productivity" element={officeStaffOnly(page(<FleetProductivityPage />))} />
+          <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
 <Route path="/fleet/trailers/:id/tires" element={officeStaffOnly(page(<TruckTiresPage vehicle="trailer" />))} />
           <Route path="/trips" element={tripDetailOnly(page(<TripListPage />))} />
           <Route path="/trips/new" element={adminOnly(page(<TripCreatePage />))} />

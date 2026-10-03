@@ -39,4 +39,11 @@ export const pageQueryKeys = {
    *  numbers. */
   customerDebtSummary: (customerIds: string, excludeOwnFleet: boolean) =>
     ['customer-debt-summary', customerIds, excludeOwnFleet] as const,
+  /** Internal fleet productivity reporting (daily and monthly operational breakdowns). */
+  fleetProductivity: {
+    all: ['fleet-productivity'] as const,
+    daily: (date: string) => ['fleet-productivity', 'daily', date] as const,
+    monthly: (year: number, month: number, truckId?: number) =>
+      ['fleet-productivity', 'monthly', year, month, truckId ?? 'ALL'] as const,
+  },
 };

@@ -1,0 +1,169 @@
+/* ─── Fleet Productivity Page Styles ─── */
+
+.fleet-productivity-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  max-width: 100%;
+}
+
+.fleet-productivity-tabs {
+  display: inline-flex;
+  background: var(--bg-muted);
+  padding: 4px;
+  border-radius: 8px;
+  gap: 4px;
+  width: fit-content;
+}
+
+.fleet-productivity-tab-btn {
+  padding: 6px 14px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--t-fast);
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fleet-productivity-tab-btn--active {
+  background: var(--color-base-100);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-xs, none);
+  font-weight: 600;
+}
+
+.fleet-productivity-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3, 12px);
+}
+
+.fleet-kpi-card {
+  background: var(--color-base-100);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fleet-kpi-card__label {
+  font-size: var(--text-caption-size);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.fleet-kpi-card__value {
+  font-size: var(--text-h3);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.fleet-kpi-card__sub {
+  font-size: var(--text-caption-size);
+  color: var(--text-muted);
+}
+
+.fleet-kpi-card--highlight {
+  border-color: var(--color-accent);
+  background: var(--color-base-200);
+}
+
+.fleet-kpi-card--highlight .fleet-kpi-card__value {
+  color: var(--color-primary);
+}
+
+.fleet-productivity-table-wrap {
+  background: var(--color-base-100);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: auto;
+}
+
+.fleet-productivity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  text-align: left;
+}
+
+.fleet-productivity-table th {
+  background: var(--bg-muted);
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.fleet-productivity-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.fleet-productivity-table tbody tr:hover td {
+  background: var(--color-base-200);
+}
+
+.fleet-productivity-table tfoot td {
+  background: var(--bg-muted);
+  font-weight: 700;
+  border-top: 2px solid var(--border-subtle);
+  border-bottom: none;
+}
+
+.fleet-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.fleet-badge--kep {
+  background: var(--color-base-300);
+  color: var(--color-info);
+}
+
+.fleet-badge--kethop {
+  background: var(--color-base-200);
+  color: var(--color-success);
+}
+
+.fleet-badge--layle {
+  background: var(--color-base-300);
+  color: var(--color-warning);
+}
+
+.fleet-badge--don {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+.fleet-trip-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fleet-trip-chip {
+  font-size: 11px;
+  font-family: monospace;
+  padding: 2px 6px;
+  background: var(--bg-muted);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}

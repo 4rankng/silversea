@@ -61,6 +61,11 @@ export const PAGE_CATALOG = {
     title: 'Đội xe',
     path: '/fleet',
   },
+  fleetProductivity: {
+    title: 'Hiệu quả Năng suất Xe',
+    path: '/fleet/productivity',
+    section: 'resources',
+  },
   // Dispatcher resource-catalog views: read-only lookups of internal tractors
   // and drivers for staffing dispatch plans (separate from the admin /fleet
   // CRUD workspace).
