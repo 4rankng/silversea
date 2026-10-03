@@ -475,7 +475,9 @@ export function ContainerLedger({
               <th scope="col">Hạ</th>
               <th scope="col">Trọng lượng (kg)</th>
               <th scope="col">Giờ hẹn đóng/trả</th>
-              <th scope="col">Thao tác</th>
+              <th scope="col" className="cus-container-cell--actions" aria-label="Thao tác">
+                <span className="sr-only">Thao tác</span>
+              </th>
             </tr></thead>
             <tbody>
               {detail.containers.map((line) => (

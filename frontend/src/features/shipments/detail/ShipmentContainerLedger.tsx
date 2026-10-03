@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { Button as AriaButton } from 'react-aria-components';
 import { CalendarOff } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
@@ -791,17 +790,6 @@ export function ShipmentContainerLedger({
                         <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
                       </div>
                       <span className="shipment-container-ledger__classification"><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b><span>· {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span></span>
-                      {row.shipmentId && (
-                        <Link
-                          to={`/shipments/${row.shipmentId}`}
-                          className="shipment-container-ledger__shipment-link"
-                          title="Xem chi tiết lô hàng"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ fontSize: '12px', color: 'var(--color-primary, #059669)', textDecoration: 'underline', marginTop: '2px', display: 'inline-block' }}
-                        >
-                          Chi tiết lô hàng →
-                        </Link>
-                      )}
                     </div>)}
                   </td>
                   <td data-label="Thông số container" className={cellClassName(containerEditable, 'container')}>
