@@ -78,14 +78,12 @@ for (const row of workboard.body.items) {
   }
 }
 if (!proven) throw new Error('no live container row carries a factory assignment');
-const referenceRow = workboard.body.items.find((row) => row.shipmentId === proven.shipmentId);
 const sites = await api('GET', '/shipments/operational-sites/admin');
 if (sites.status !== 200) throw new Error(`sites failed: ${sites.status}`);
 const factory = sites.body.items.find((s) => s.id === proven.operationalSiteId);
 if (!factory) throw new Error(`proven site ${proven.operationalSiteId} not in catalog`);
 log('proven pair', { customerId: proven.customerId, siteId: factory.id, siteCode: factory.code, siteName: factory.name, fromLot: proven.shipmentId });
 
-const reference = await api('GET', `/shipments/cus-workspace/${proven.shipmentId}`);
 const referenceContainer = proven.container;
 const taxonomy = {
   customerId: proven.customerId,
