@@ -13,7 +13,6 @@ vi.mock('../../../api/shipmentClient', () => ({
 
 import { configClient } from '../../../api/configClient';
 import { listZonePortFacets } from '../../../api/shipmentClient';
-import { businessDateISO } from '../../../lib/format';
 import { MasterPlanFilters } from './MasterPlanFilters';
 
 const EMPTY_FILTERS = {
@@ -86,34 +85,12 @@ describe('MasterPlanFilters', () => {
     });
   });
 
-  it('carries the quick delivery-date scope on the bar (operator 2026-10-02 — card 20261002_258)', () => {
-    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
-    const onChange = vi.fn();
-    const view = render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={onChange} />);
+  it('drops the redundant date preset shortcuts (filter-bar law §5 — the date inputs cover them)', () => {
+    render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={vi.fn()} />);
 
-    // The quick scope rides the bar beside the dates it sets — the same three
-    // segments the Chi tiết screen carries (operator, 2026-10-02: "làm như bên
-    // Chi tiết, để nút truy cập nhanh Hôm nay/sau/tất cả"). It supersedes the
-    // old §5 exemption ("the date inputs cover them") on THIS surface only.
-    const today = businessDateISO();
-    const tomorrow = businessDateISO(new Date(Date.now() + 86_400_000));
-    expect(screen.getByRole('tab', { name: 'Hôm nay' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Hôm sau' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Tất cả' })).toBeTruthy();
-
-    // Segments set the same state the from/to fields set; Tất cả clears it.
-    fireEvent.click(screen.getByRole('tab', { name: 'Hôm nay' }));
-    expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: today, deliveryDateTo: today });
-    fireEvent.click(screen.getByRole('tab', { name: 'Hôm sau' }));
-    expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: tomorrow, deliveryDateTo: tomorrow });
-    fireEvent.click(screen.getByRole('tab', { name: 'Tất cả' }));
-    expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '', deliveryDateTo: '' });
-
-    // The active segment mirrors the applied filter; a custom range picks none.
-    view.rerender(<MasterPlanFilters filters={{ ...EMPTY_FILTERS, deliveryDateFrom: today, deliveryDateTo: today }} onChange={onChange} />);
-    expect(screen.getByRole('tab', { name: 'Hôm nay' }).getAttribute('aria-selected')).toBe('true');
-    view.rerender(<MasterPlanFilters filters={{ ...EMPTY_FILTERS, deliveryDateFrom: '2026-08-01', deliveryDateTo: '2026-08-10' }} onChange={onChange} />);
-    expect(screen.getByRole('tab', { name: 'Hôm nay' }).getAttribute('aria-selected')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Tất cả các ngày' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hôm nay' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hôm sau' })).toBeNull();
   });
 
   it('hosts the page primary action inside the same toolbar row as the filters (case QA-2026-09-27-02)', () => {

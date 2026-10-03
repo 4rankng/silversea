@@ -391,18 +391,3 @@ Owner Nhập/Xuất screenshot: informational shipment direction and combined-ca
 labels render plain text with no border, fill, radius or button semantics. Real
 edit/filter actions keep control chrome. This supersedes the earlier
 outlined-classification treatment.
-
-### 2026-10-03 — /dispatch quick delivery-date scope (card 20261002_258)
-
-Operator (TingTing Group 02/10): the /dispatch toolbar wastes its free width
-while the Chi tiết screen carries quick access — "làm như bên Chi tiết, để nút
-truy cập nhanh Hôm nay/sau/tất cả". /dispatch now rides the `FilterBar` band's
-`presets` slot with `DateRangePresets` — `Hôm nay / Hôm sau / Tất cả` — the same
-boxed segmented group as /dispatch-detail and /shipments-detail (§263 global
-button group; §265 quick ranges beside the fields they set). This supersedes
-the earlier §5 exemption ("the date inputs cover them") that kept /dispatch
-chipless; the dialog keeps no preset copy, the from/to fields remain the
-full-capability control, and segments write the same state the fields write
-(last writer wins). Pins: `MasterPlanFilters.test.tsx` (bar contract + active
-segment), catalog consult recorded (untitledui v8 date-picker-modal /
-range-calendar rejected — the banned merged-picker shape).
