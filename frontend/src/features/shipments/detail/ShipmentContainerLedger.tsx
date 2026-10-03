@@ -28,6 +28,10 @@ import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { formatISODate } from '../../../lib/format';
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
+// Card 20261002_275 AC4: the last native `type="time"` in the app. The date
+// above is its own field, so this surface could not mount the segmented time
+// entry until there was a time-only mount of it.
+import { TimeSegmentsField } from '../../../design-system/forms/TimeSegmentsField';
 import '../../../styles/table-sort.css';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 
@@ -554,7 +558,7 @@ function AddContainerRowForm({ shipmentId, expectedShipmentVersion, submitting, 
       <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={weight} onChange={(event) => setWeight(event.target.value)} disabled={busy} /></label>
       <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={volume} onChange={(event) => setVolume(event.target.value)} disabled={busy} /></label>
       <BufferedUuiDateInput label="Ngày đóng/trả" value={appointmentDate} onChange={setAppointmentDate} isDisabled={busy} />
-      <label><span>Giờ đóng/trả</span><input aria-label="Giờ đóng/trả mới" type="time" value={appointmentTime} onChange={(event) => setAppointmentTime(event.target.value)} disabled={busy} /></label>
+      <TimeSegmentsField label="Giờ đóng/trả" value={appointmentTime} onChange={setAppointmentTime} disabled={busy} />
       {error && <span role="alert">{error}</span>}
       <div>
         <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void submit()}>Lưu dòng mới</button>

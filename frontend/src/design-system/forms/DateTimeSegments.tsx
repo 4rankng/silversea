@@ -104,8 +104,15 @@ export function DateTimeSegments({
     const node = segRefs.current[index];
     if (!node) return;
     node.focus();
+    // Select the digits the caret just landed on, not park the caret after
+    // them. Card 20261002_275 AC2: "Backspace on an empty minute returns to the
+    // hour and SELECTS it so it can be retyped." This call used to place the
+    // caret at the end, which silently defeated the `onFocus → select()` the
+    // component already does — arriving with a selection is also what makes
+    // auto-advance and paste distribution type-over rather than append-into a
+    // field that is already full.
     const end = node.value.length;
-    if (end > 0) node.setSelectionRange(end, end);
+    if (end > 0) node.setSelectionRange(0, end);
   };
 
   // Focus moves land after the controlled re-render so the target segment
