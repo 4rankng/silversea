@@ -14,6 +14,10 @@ selected the current policies during the2026-10-01 audit:
 - CUS quotation-fee catalog access stays restricted. Do not widen catalog
   permissions or invent fee-price columns. Existing authorized roles and
   separate debit-detail/export permissions remain governed by their contracts.
+  (Amended 2026-10-03: the "stays restricted" clause is SUPERSEDED by the
+  newer PM ruling of 03/10 — CUS DOES read the active quotation-fee catalog;
+  landed c27875f5. One line per the append-only rule; the clause above is
+  retained as history.)
 - Trip quantity, rate and allowance fields stay nonnegative. This does not
   change signed expense rows, which remain visible and excluded from totals
   under the accepted expense rule.
