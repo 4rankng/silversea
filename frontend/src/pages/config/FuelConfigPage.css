@@ -2,8 +2,17 @@
    The card's Vietnamese verbatim pins the row band at "khoảng 36px đến 40px"
    (owner-voice task scope, lead ruling 2026-10-03) — this sizes the shared
    table's rows inside THIS table's cells only; shape, chrome and type stay
-   the shared record-table recipe. */
-.fuel-history-table tbody td {
+   the shared record-table recipe.
+
+   The selector is TWO classes on purpose. `.fuel-history-table tbody td`
+   and the shared `.record-table tbody td` tie on specificity (each is one
+   class), so stylesheet order decided the winner — and `record-table.css`
+   loads later, so its `padding: 10px 12px` beat this rule and the rows
+   measured 29px instead of 36px (QA 2026-10-03, card 290). Naming both
+   classes raises this rule above the shared one without touching the
+   shared recipe, which every other table still reads. */
+.fuel-history-table tbody td,
+.record-table.fuel-history-table tbody td {
   /* 18px line + 2×8.5px padding + 1px border = 36px rendered. */
   padding-block: 8.5px;
 }
