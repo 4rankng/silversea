@@ -230,7 +230,7 @@ export default function FactoriesConfigPage() {
           <table className="record-table ops-table factories-table">
             <caption className="sr-only">Danh mục nhà máy / kho theo khách hàng</caption>
             <colgroup>
-              {[4, 10, 9, 17, 7, 12, 27, 7, 7].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+              {[4, 10, 9, 16, 7, 11, 22, 10, 11].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
             </colgroup>
             <thead>
               <tr>

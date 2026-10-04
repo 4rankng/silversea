@@ -564,9 +564,23 @@
 .factories-table thead th:nth-child(5) { width: 70px; }
 .factories-table thead th:nth-child(6) { width: 200px; }
 .factories-table thead th:nth-child(7) { width: 150px; }
-.factories-table thead th:nth-child(8) { width: 90px; }
+.factories-table thead th:nth-child(8) { width: 104px; }
 .factories-table thead th:nth-child(9),
-.factories-table td.record-table__action { width: 76px; }
+.factories-table td.record-table__action { width: 112px; }
+/* Card 20261004_324: the desktop action run (2 × row-action + gap + padding)
+   used to overflow its frozen column and — flex-end overflow — escape out the
+   cell's start edge over the TRẠNG THÁI pill (the stray pencil glyph). The
+   budgets above and in the colgroup now hold the run at the 1120px floor; the
+   `safe` fallback keeps any future run growth spilling toward the table's
+   right edge (clipped by .table-scroll) instead. Desktop band only — the
+   ≤1100px card band's absolute 44px action box intentionally spills into the
+   Tên cell's reserved 48px gutter and must keep flex-end. */
+@container (min-width: 1101px) {
+  .factories-table .row-actions {
+    justify-content: flex-end;
+    justify-content: safe flex-end;
+  }
+}
 .factory-record-details summary { cursor: pointer; min-height: var(--control-max-h); align-content: center; font-size: var(--text-control-size); }
 .factory-record-details dl { display: grid; gap: 6px; margin: 4px 0; }
 .factory-record-details dt { color: var(--ink-3); font-size: var(--text-label-size); }

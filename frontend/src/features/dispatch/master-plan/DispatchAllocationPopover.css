@@ -364,8 +364,11 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 8px;
-  padding-top: 10px;
+  /* Card 20261004_322: the footer follows the content directly — the hairline
+   * is the separator (house .modal__foot rhythm), no dead seam under the
+   * green allocation note. */
+  margin-top: 4px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-1);
 }
 
