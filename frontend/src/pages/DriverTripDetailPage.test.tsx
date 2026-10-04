@@ -861,6 +861,8 @@ describe('DriverTripDetailPage', () => {
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    // Card 20261003_320: when khoPhone is absent, Gọi kho is hidden and never dials contactPhone
+    expect(screen.queryByRole('link', { name: /Gọi kho/ })).toBeNull();
   });
 
   it('offers named factory telephone choices with the default first and retains direct single-number calls', async () => {
