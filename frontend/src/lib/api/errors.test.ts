@@ -4,7 +4,7 @@
 // save banner. Three separate faults — raw path fallback, no grouping, and Zod's
 // English vocabulary passing through — so each is pinned here.
 import { describe, expect, it } from 'vitest';
-import { formatErrorMessage } from './errors';
+import { ApiError, formatErrorMessage } from './errors';
 
 const issue = (path: Array<string | number>, message: string) => ({ code: 'custom', path, message });
 
@@ -51,5 +51,24 @@ describe('formatErrorMessage — no internal vocabulary on screen', () => {
     expect(formatErrorMessage({ error: { message: 'Không thể khóa lô.' } })).toBe('Không thể khóa lô.');
     expect(formatErrorMessage({ error: 'Không thể lưu lô hàng.' })).toBe('Không thể lưu lô hàng.');
     expect(formatErrorMessage(undefined)).toBe('Lỗi không xác định');
+  });
+});
+
+describe('ApiError.fromResponse — non-JSON body names the status (card 348)', () => {
+  // The flaky "Lỗi không xác định" behind a real validation message came
+  // from a non-JSON response body (HTML error page / gateway failure) being
+  // swallowed into {} — the status is always known and must reach the user.
+  it('a 500 with an HTML body yields a status-aware message, never the bare generic', async () => {
+    const res = new Response('<html>502</html>', { status: 500, headers: { 'content-type': 'text/html' } });
+    const err = await ApiError.fromResponse(res);
+    expect(err.message).toContain('500');
+    expect(err.message).not.toBe('Lỗi không xác định');
+  });
+
+  it('a JSON error body still surfaces its own message untouched', async () => {
+    const res = new Response(JSON.stringify({ error: 'Xe chưa gán tài xế.' }), { status: 400, headers: { 'content-type': 'application/json' } });
+    const err = await ApiError.fromResponse(res);
+    expect(err.message).toBe('Xe chưa gán tài xế.');
+    expect(err.status).toBe(400);
   });
 });

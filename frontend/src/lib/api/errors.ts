@@ -21,10 +21,20 @@ export class ApiError extends Error {
    * Parse a failed fetch response and produce a typed `ApiError`. The message
    * is the user-facing string already translated to Vietnamese where
    * applicable — callers should surface it as-is in toasts / inline errors.
+   *
+   * Card 348: a non-JSON body (HTML error page, proxy/gateway failure, crash
+   * mid-response) used to collapse into the bare "Lỗi không xác định" — the
+   * same flaky generic the user saw behind a real validation message. The
+   * status is always known even when the body is not, so the fallback names
+   * it instead of shrugging.
    */
   static async fromResponse(res: Response): Promise<ApiError> {
-    const body = await res.json().catch(() => ({}));
-    return new ApiError(res.status, body, formatErrorMessage(body));
+    const parsed = await res.json().catch(() => undefined);
+    const body = parsed ?? {};
+    const message = parsed === undefined && formatErrorMessage(body) === 'Lỗi không xác định'
+      ? `Máy chủ trả về phản hồi không hợp lệ (mã ${res.status}). Vui lòng thử lại.`
+      : formatErrorMessage(body);
+    return new ApiError(res.status, body, message);
   }
 }
 

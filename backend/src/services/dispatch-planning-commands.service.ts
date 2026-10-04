@@ -321,7 +321,11 @@ export async function issueOrderCreateOrUpdate(
 
   if (input.carrierType === 'OWN') {
     if (input.truckId == null || input.driverId == null) {
-      throw new ApiError(400, 'Điều xe nội bộ phải chọn xe và tài xế.');
+      // Card 348: every path answers with the SAME actionable sentence the
+      // frontend pre-check throws — a user must never see a different or
+      // generic message for this validation depending on which layer caught
+      // it (the flaky "Lỗi không xác định" report 04/10).
+      throw new ApiError(400, 'Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
     }
     const [truck] = await tx.select({
       id: s.trucks.id,

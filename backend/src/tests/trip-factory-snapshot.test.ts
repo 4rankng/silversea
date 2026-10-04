@@ -331,3 +331,49 @@ describe('F6 factory-site snapshot at dispatch', () => {
     assert.equal(trip.routeId, route.id, 'trip inherited shipment routeId');
   });
 });
+
+describe('issue guard message contract (card 348)', () => {
+  // User report 04/10: "Phát lệnh" on an own truck without a driver showed
+  // the right validation message 2/3 times and a generic "Lỗi không xác định"
+  // 1/3. The right message was a FRONTEND pre-check; when the pre-check is
+  // bypassed (cold catalog after reload / carrierType race) the BACKEND guard
+  // answered with a DIFFERENT sentence ("Điều xe nội bộ phải chọn xe và tài
+  // xế."). Contract: every path answers with the same actionable message.
+  test('an OWN issue with a truck but no driver rejects with the actionable "Xe chưa gán tài xế" message', async () => {
+    const [customer] = await db.insert(s.customers)
+      .values({ name: `T8c348 customer ${suffix}` }).returning();
+    createdCustomerIds.push(customer.id);
+    const [route] = await db.insert(s.routes)
+      .values({ name: `T8c348 route ${suffix}` }).returning();
+    createdRouteIds.push(route.id);
+    const shipmentSite = await mkSite('Nhà máy mức lô', 'XƯỞNG 348', customer.id);
+    const fixture = await mkDispatchableShipment({
+      customerId: customer.id,
+      routeId: route.id,
+      shipmentSiteId: shipmentSite.id,
+    });
+    const fleet = await mkFleet();
+
+    await assert.rejects(
+      () => db.transaction((tx) => issueOrderCreateOrUpdate(tx, {
+        shipmentId: fixture.shipment.id,
+        fulfillmentId: fixture.fulfillment.id,
+        expectedVersion: fixture.fulfillment.version,
+        plannedStartAt: '2026-08-01T08:00:00+07:00',
+        plannedEndAt: '2026-08-01T18:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: fleet.truck.id,
+        driverId: null,
+        trailerId: null,
+        idempotencyKey: `t8c-guard-${suffix}-${fixture.fulfillment.id}`,
+        actor: { ...admin, role: Role.ADMIN },
+      })),
+      (err: Error) => {
+        assert.match(err.message, /Xe chưa gán tài xế\. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh\./,
+          'mọi đường về cùng một thông báo validation có thể hành động');
+        return true;
+      },
+    );
+  });
+});
