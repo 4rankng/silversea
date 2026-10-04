@@ -5,6 +5,7 @@ import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import { ApiError } from '../../../lib/api';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ContainerLedger } from './CusContainerLedger';
+import { getOffsetDateString } from './cusAppointmentUtils';
 
 const { updateCusShipmentContainerLine, removeCusShipmentContainerRow } = vi.hoisted(() => ({
   updateCusShipmentContainerLine: vi.fn(),
@@ -440,6 +441,40 @@ describe('ContainerLedger confirm affordances', () => {
 
     resolveSave!({ line: { id: 10, shipmentVersion: 5 } });
     await waitFor(() => expect(onAppointmentSavedAndExit).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  });
+
+  // 20261004_325: preset picks + Enter converge on the SAME commit path as
+  // typed entry (commitAppointment → POST → close), and the dirty banner
+  // stays truthful: the pick is a real unsaved draft until the saved line
+  // lands — never papered over, never stuck after the save. The fix landed
+  // in 4bfba1c6 (popover unit test covers the Enter routing); this pins the
+  // ledger-level convergence and dirty semantics.
+  it('_325: preset picks + Enter from the focused pill commit and clear dirtiness only once the saved line lands', async () => {
+    const onDirtyChange = vi.fn();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-04T09:00:00+07:00'));
+    const expectedDay = getOffsetDateString(2, new Date()); // Ngày kia
+    const view = renderLedger({ onDirtyChange });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ngày kia' }));
+    fireEvent.click(screen.getByRole('button', { name: '13:30' }));
+    // The pick marks a genuinely unsaved container draft (banner truthfully on).
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
+
+    // Enter with the browser's post-click focus: the target is the pill button.
+    fireEvent.keyDown(screen.getByRole('button', { name: '13:30' }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const payload = updateCusShipmentContainerLine.mock.calls[0][2] as { customerAppointmentAt: string };
+    expect(payload.customerAppointmentAt).toBe(`${expectedDay}T13:30:00+07:00`);
+    // Popover closes after the save — same close path as typed entry.
+    await waitFor(() => expect(document.querySelector('.cus-appointment-popover')).toBeNull());
+    // Dirtiness clears only when the saved line actually lands (host refetch).
+    view.rerenderWithSavedLine();
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+    vi.useRealTimers();
   });
 });
 

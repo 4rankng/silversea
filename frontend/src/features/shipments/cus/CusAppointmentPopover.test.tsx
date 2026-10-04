@@ -486,5 +486,35 @@ describe('CusAppointmentPopover', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     vi.useRealTimers();
   });
+
+  // 20261004_325 semantic pin: a quick pill is a VALUE control — keyboard
+  // activation (Enter on the focused pill) applies the preset AND confirms it
+  // through the same commit path as typed entry. Pre-fix (before 4bfba1c6)
+  // Enter on a pill target early-returned and never committed; that red is no
+  // longer reproducible at HEAD, so this pins the fixed semantics.
+  it('_325: Enter alone on a quick pill picks it and commits that slot', async () => {
+    const onCommit = vi.fn().mockResolvedValue(true);
+    const onClose = vi.fn();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-04T09:00:00+07:00'));
+    const expectedDay = getOffsetDateString(2, new Date()); // Ngày kia
+    render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value={null}
+        containerLabel="MSKU1234567"
+        onClose={onClose}
+        onChange={vi.fn()}
+        onCommit={onCommit}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Ngày kia' }), { key: 'Enter' });
+    await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
+    // The pill's own slot commits: picked day + default 08:00 slot.
+    expect(onCommit).toHaveBeenCalledWith(`${expectedDay}T08:00`);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    vi.useRealTimers();
+  });
 });
 
