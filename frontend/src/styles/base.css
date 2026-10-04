@@ -3,6 +3,7 @@
  * ========================================================================== */
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; }
+html { background: var(--bg); }
 
 /* The authenticated shell owns scrolling through .app-body. Clip prevents
    focused portal content from programmatically scrolling these viewport layers;
