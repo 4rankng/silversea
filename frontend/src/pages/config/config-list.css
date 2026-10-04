@@ -168,3 +168,28 @@
     font-size: 14px;
   }
 }
+
+/* Two-tier column groups (thẻ 349, user mockup 04/10): a slim uppercase band
+   over the sortable row — KHÁCH HÀNG / LIÊN HỆ / THANH TOÁN. Bands are tinted
+   like the header (surface-2) but smaller and quieter (ink-3) so the sortable
+   row stays the reading anchor. Card mode hides thead wholesale
+   (record-table.css), so the band disappears there for free. */
+.cfg-customer-table thead tr.cfg-customer-group-row th {
+  height: 26px;
+  padding: 4px 12px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+.cfg-customer-table thead tr.cfg-customer-group-row th + th {
+  border-inline-start: 1px solid var(--line);
+}
+/* Sticky two-row header: record-table pins every thead th at the same top,
+   so the sort row must ride exactly one group-band (26px) below the band or
+   the two rows overlap while .app-body scrolls. Keep in sync with the height
+   above. */
+.cfg-customer-table thead tr.cfg-customer-sort-row th {
+  top: calc(var(--sticky-thead-top, -24px) + 26px);
+}

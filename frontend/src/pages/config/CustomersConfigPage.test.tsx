@@ -166,7 +166,7 @@ describe('CustomersConfigPage dispatcher edit/delete access', () => {
     await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
 
     expect(screen.getByRole('button', { name: /Thêm khách hàng/ })).toBeInTheDocument();
-    expect(container.querySelectorAll('.cfg-customer-table thead th')).toHaveLength(13);
+    expect(container.querySelectorAll('.cfg-customer-table thead tr.cfg-customer-sort-row th')).toHaveLength(13);
     expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 
@@ -174,7 +174,7 @@ describe('CustomersConfigPage dispatcher edit/delete access', () => {
     const { container } = renderPage();
     await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
 
-    expect(container.querySelectorAll('.cfg-customer-table thead th')).toHaveLength(13);
+    expect(container.querySelectorAll('.cfg-customer-table thead tr.cfg-customer-sort-row th')).toHaveLength(13);
     expect(container.querySelector('.record-table__action')).not.toBeNull();
   });
 });
@@ -261,5 +261,60 @@ describe('ListFilterBar adoption (card 20260922_38)', () => {
     renderPage();
     const face = await screen.findByText('Chưa có khách hàng');
     expect(face.closest('.ds-empty-state')).not.toBeNull();
+  });
+});
+
+describe('CustomersConfigPage column group headers (thẻ 349, user mockup 04/10)', () => {
+  // The mockup groups the flat 13-column header into KHÁCH HÀNG / LIÊN HỆ /
+  // THANH TOÁN spans. Colspans must follow colPresence exactly — a hidden
+  // optional column must not leave a dead span, and a fully hidden group must
+  // disappear instead of rendering an empty band.
+  const groupCells = (container: HTMLElement) => {
+    const row = container.querySelector('.cfg-customer-table thead tr.cfg-customer-group-row');
+    expect(row, 'group header row should render').not.toBeNull();
+    return Array.from(row!.querySelectorAll('th')).map((th) => ({
+      label: (th.textContent ?? '').trim(),
+      span: Number(th.getAttribute('colspan') ?? '1'),
+    }));
+  };
+
+  it('renders group bands with colspans matching the full column set (5/5/2 + actions)', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    const cells = groupCells(container);
+    // Full fixture: identity 5 (name, shortName, code, taxCode, address),
+    // contact 5 (person, phone, accountant, accountantPhone, other), payment 2.
+    expect(cells.map((c) => [c.label, c.span])).toEqual([
+      ['KHÁCH HÀNG', 5],
+      ['LIÊN HỆ', 5],
+      ['THANH TOÁN', 2],
+      ['Thao tác', 1],
+    ]);
+  });
+
+  it('shrinks group colspans for hidden columns and drops empty groups', async () => {
+    const sparse = {
+      ...makeCustomer(9, 'Khách hàng Sparse', '0'),
+      shortName: '', code: '', taxCode: '', address: '', contactPerson: '', phone: '',
+      accountantName: '', accountantPhone: '', contactInfo: '',
+    } as unknown as Customer;
+    getAllCustomers.mockResolvedValue([sparse]);
+    const { container } = renderPage();
+    await screen.findByText('Khách hàng Sparse', { selector: '.cfg-customer-full-name' });
+    const cells = groupCells(container);
+    // Only the mandatory name column + the 2 payment columns are present:
+    // LIÊN HỆ disappears entirely; KHÁCH HÀNG shrinks to 1.
+    expect(cells.map((c) => [c.label, c.span])).toEqual([
+      ['KHÁCH HÀNG', 1],
+      ['THANH TOÁN', 2],
+      ['Thao tác', 1],
+    ]);
+  });
+
+  it('keeps the sortable column row at its 13-column contract beneath the group row', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    expect(container.querySelectorAll('.cfg-customer-table thead tr.cfg-customer-sort-row th')).toHaveLength(13);
+    expect(container.querySelector('.cfg-customer-table thead tr:first-child')).toHaveClass('cfg-customer-group-row');
   });
 });
