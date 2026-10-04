@@ -238,4 +238,13 @@ describe('DateTimeSegments — type-over restart (thẻ 326 revocation, user ret
     expect(hhSeg.selectionStart).toBe(0);
     expect(hhSeg.selectionEnd).toBe(2);
   });
+
+  it('single-digit type-over replaces a full segment without scattering across parts (mobile virtual keyboard fallback)', () => {
+    render(<Harness part="time" value="13:30" />);
+    // Simulate mobile virtual keyboard emitting '138' (1 digit added to full segment)
+    type('hh', '138');
+    expect(seg('hh')).toHaveValue('8');
+    expect(seg('mm')).toHaveValue('30');
+  });
 });
+

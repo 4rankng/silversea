@@ -118,10 +118,13 @@ export function DateTimeSegments({
   // Hand focus to a segment without depending on the controlled re-render: a
   // same-string update bails out of rendering — and with it the effect below —
   // but the caret must still move (card 326: the hand-off is the requirement).
+  // Calling focusSegment synchronously is required for iOS Safari / WebKit, which
+  // blocks programmatic .focus() outside the synchronous user activation frame.
   // Consuming `pendingFocus` at microtask time also lets a later queued
-  // hand-off win over an earlier one.
+  // hand-off re-assert selection after React renders.
   const scheduleFocus = (index: number) => {
     pendingFocus.current = index;
+    focusSegment(index);
     queueMicrotask(() => {
       if (pendingFocus.current != null) {
         const targetIdx = pendingFocus.current;
@@ -145,6 +148,16 @@ export function DateTimeSegments({
     const digits = incoming.replace(/\D+/g, '');
     const next = [...texts];
     if (incoming.length > specs[index].maxLength || /[:/]/.test(incoming)) {
+      // Single-digit type-over fallback for mobile virtual keyboards where
+      // onKeyDown might not fire or emit standard keys: typing 1 extra digit into
+      // a full segment replaces it with the newly typed digit.
+      if (incoming.length === specs[index].maxLength + 1 && !/[:/]/.test(incoming) && texts[index].length >= specs[index].maxLength) {
+        const newDigit = digits.slice(-1);
+        next[index] = newDigit;
+        onValueChange(next.some(Boolean) ? next.join(separator) : '');
+        return;
+      }
+
       // Paste/multi-char entry: fill from this segment forward, overflow flows
       // on, and segments the stream does not reach are cleared (the pasted
       // text defines everything from this segment onward).
