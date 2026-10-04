@@ -383,15 +383,22 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         {formatWeight(item.totalCargoWeightKg)}
                       </div>
                     </div>
-                    <UUIButton
-                      size="xs"
-                      color="link-color"
-                      className="master-plan-grid__container-detail-trigger"
-                      aria-label={`Xem chi tiết container của ${billBookingReference(item.blNumber, item.bookingRef)}`}
-                      onPress={(event) => onViewContainers(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
-                    >
-                      Chi tiết
-                    </UUIButton>
+                    {Boolean(
+                      (item.containerTotal != null
+                        ? item.containerTotal > 0
+                        : ((item.containerCount20 ?? 0) + (item.containerCount40 ?? 0) > 0)) &&
+                      item.containerTypeSummary !== 'Chưa có cont'
+                    ) && (
+                      <UUIButton
+                        size="xs"
+                        color="link-color"
+                        className="master-plan-grid__container-detail-trigger"
+                        aria-label={`Xem chi tiết container của ${billBookingReference(item.blNumber, item.bookingRef)}`}
+                        onPress={(event) => onViewContainers(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
+                      >
+                        Chi tiết
+                      </UUIButton>
+                    )}
                   </div>
                 </td>
                 <td
@@ -521,7 +528,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                                     });
                                   }}
                                 >
-                                  Chi tiết
+                                  Xem thêm
                                 </UUIButton>
                           )}
                         </div>
@@ -549,7 +556,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                                   });
                                 }}
                               >
-                                Chi tiết
+                                Xem thêm
                               </UUIButton>
                             </>
                           ) : (

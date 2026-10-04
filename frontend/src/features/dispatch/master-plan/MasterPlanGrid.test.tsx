@@ -500,7 +500,7 @@ describe('MasterPlanGrid', () => {
     // The "Xem chi tiết" button is visible
     const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
     expect(detailBtn).toBeTruthy();
-    expect(detailBtn).toHaveTextContent('Chi tiết');
+    expect(detailBtn).toHaveTextContent('Xem thêm');
 
     // Click "Chi tiết" to open the modal
     fireEvent.click(detailBtn);
@@ -788,7 +788,37 @@ describe('MasterPlanFilters', () => {
     expect(page).toContain('action={(');
     expect(page).toContain('dispatch-plan-page--wide');
     expect(css).toContain('max-width: 1400px');
-    // Card 20260930_246: 12 → 8 — the advisory strips tighten so the first\n    // record meets its chrome budget at every width.\n    expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 8px;\n  max-width: none;');
+    expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 8px;\n  max-width: none;');
     expect(css).toContain('.app-main:not(.driver-mode) .app-body > .dispatch-plan-page--wide');
   });
+
+  it('card 20261004_321: gates container detail on containerTotal > 0 and uses Xem thêm for notes without duplicate Chi tiết', () => {
+    const { rerender } = render(
+      <MasterPlanGrid
+        items={[item({ containerTotal: 0, containerCount20: 0, containerCount40: 0, containerTypeSummary: 'Chưa có cont', factoryNotes: 'Short' })]}
+        onAllocate={vi.fn()}
+      />,
+    );
+    // When containerTotal is 0, no "Chi tiết" link is rendered in the cargo cell
+    expect(screen.queryByRole('button', { name: /Xem chi tiết container/ })).toBeNull();
+
+    // When containerTotal > 0 and note is long
+    const longNote = '1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890';
+    rerender(
+      <MasterPlanGrid
+        items={[item({ containerTotal: 1, factoryNotes: longNote })]}
+        onAllocate={vi.fn()}
+      />,
+    );
+    const containerBtn = screen.getByRole('button', { name: /Xem chi tiết container/ });
+    expect(containerBtn).toHaveTextContent('Chi tiết');
+
+    const noteBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
+    expect(noteBtn).toHaveTextContent('Xem thêm');
+
+    // Exactly one "Chi tiết" button in the entire row
+    const chiTietButtons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === 'Chi tiết');
+    expect(chiTietButtons).toHaveLength(1);
+  });
 });
+

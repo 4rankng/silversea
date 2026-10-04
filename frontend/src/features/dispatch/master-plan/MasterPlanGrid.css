@@ -396,7 +396,7 @@
   border: 0;
   font-size: var(--ops-table-meta-size, 11px);
   font-weight: var(--fw-semibold, 600);
-  line-height: 1.35;
+  line-height: 1.2;
   text-decoration: none;
   white-space: nowrap;
   box-shadow: none;
@@ -475,9 +475,11 @@
 /* Keep the semantic Untitled UI button behavior while presenting the existing
    values as a flat, full-cell editor trigger instead of a second action. */
 .master-plan-grid__allocation-trigger {
-  display: block;
+  display: flex;
+  align-items: flex-start;
   width: 100%;
-  padding: 12px;
+  min-height: 100%;
+  padding: 8px 10px;
   border: 0;
   border-radius: 0;
   background: transparent;
