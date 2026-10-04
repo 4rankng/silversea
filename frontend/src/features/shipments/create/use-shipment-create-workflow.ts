@@ -31,6 +31,7 @@ interface SaveAttempt {
   rootSignature?: string;
   declarationId?: number;
   declarationSignature?: string;
+  extraDeclarationSignature?: string;
   containerSignature?: string;
   submitSignature?: string;
   pendingCreatePayload?: QuickCreateShipmentRequest;
@@ -160,6 +161,22 @@ export function useShipmentCreateWorkflow({
           : await updateShipmentDeclaration(shipmentId, attempt.declarationId, declarationPayload);
         attempt.declarationId = declaration.id;
         attempt.declarationSignature = declarationSignature;
+      }
+
+      const extraDeclarations = (form.declarationNumbers && form.declarationNumbers.length > 1)
+        ? Array.from(new Set(
+            form.declarationNumbers
+              .slice(1)
+              .map((s) => s.trim())
+              .filter((s) => Boolean(s) && s !== declarationSignature)
+          ))
+        : [];
+      const extraSignature = signature(extraDeclarations);
+      if (attempt.extraDeclarationSignature !== extraSignature && extraDeclarations.length > 0) {
+        for (const declNum of extraDeclarations) {
+          await createShipmentDeclaration(shipmentId, { declarationNumber: declNum, scope: 'SINGLE' });
+        }
+        attempt.extraDeclarationSignature = extraSignature;
       }
 
       const mustReconcileContainers = containerPayload.length > 0

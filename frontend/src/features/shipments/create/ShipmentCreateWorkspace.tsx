@@ -213,13 +213,33 @@ export function ShipmentCreateWorkspace() {
   }, [form.customerId, sitesVersion, reportError]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((current) => key === 'tradeDirection'
-      ? {
-        ...current,
-        tradeDirection: value as FormState['tradeDirection'],
-        ...(value === 'IMPORT' ? { bookingRef: '' } : value === 'EXPORT' ? { blNumber: '' } : {}),
+    setForm((current) => {
+      if (key === 'tradeDirection') {
+        return {
+          ...current,
+          tradeDirection: value as FormState['tradeDirection'],
+          ...(value === 'IMPORT' ? { bookingRef: '' } : value === 'EXPORT' ? { blNumber: '' } : {}),
+        };
       }
-      : { ...current, [key]: value });
+      if (key === 'declarationNumber') {
+        const strVal = (value as string) || '';
+        const currentRest = (current.declarationNumbers ?? []).slice(1);
+        return {
+          ...current,
+          declarationNumber: strVal,
+          declarationNumbers: [strVal, ...currentRest],
+        };
+      }
+      if (key === 'declarationNumbers') {
+        const listVal = (value as string[]) || [];
+        return {
+          ...current,
+          declarationNumbers: listVal,
+          declarationNumber: listVal[0] ?? '',
+        };
+      }
+      return { ...current, [key]: value };
+    });
     clearFeedback();
   }
 
@@ -484,6 +504,7 @@ export function ShipmentCreateWorkspace() {
             billConflict={billConflict}
             bookingConflict={bookingConflict}
             declarationConflict={declarationConflict}
+            getDeclarationConflict={(decl) => getReferenceConflict('declaration', decl)}
             customerAddButtonRef={customerAddButtonRef}
             shippingLineAddButtonRef={shippingLineAddButtonRef}
             onOpenCustomerDialog={() => setCustomerDialogOpen(true)}

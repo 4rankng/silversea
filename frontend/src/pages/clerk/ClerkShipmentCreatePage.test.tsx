@@ -543,6 +543,38 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(mocks.updateDeclaration).not.toHaveBeenCalled();
   });
 
+  it('supports adding multiple declaration numbers and persists additional declarations (card 328)', async () => {
+    mocks.quickCreate.mockResolvedValue({ id: 91, version: 1, initialDeclarationId: 78 });
+    mocks.createDeclaration.mockResolvedValue({ id: 79, declarationNumber: 'TK-SECOND', scope: 'SINGLE' });
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-FIRST' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
+    const secondDeclInput = screen.getByRole('textbox', { name: 'Số tờ khai 2' });
+    expect(secondDeclInput).toBeTruthy();
+    fireEvent.change(secondDeclInput, { target: { value: 'TK-SECOND' } });
+
+    // Can add a third row and remove it
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
+    const thirdDeclInput = screen.getByRole('textbox', { name: 'Số tờ khai 3' });
+    expect(thirdDeclInput).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 3' }));
+    expect(screen.queryByRole('textbox', { name: 'Số tờ khai 3' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ declarationNumber: 'TK-FIRST' }),
+      expect.any(String),
+    ));
+    await waitFor(() => expect(mocks.createDeclaration).toHaveBeenCalledWith(
+      91,
+      { declarationNumber: 'TK-SECOND', scope: 'SINGLE' },
+    ));
+  });
+
   it('hides the FCL volume field and copies the previous container when adding a row', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });

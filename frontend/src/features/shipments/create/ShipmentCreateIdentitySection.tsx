@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import {
   USearchableField as SearchableField,
   USelectField as SelectField,
@@ -24,6 +24,7 @@ export interface ShipmentCreateIdentitySectionProps {
   billConflict?: ShipmentReferenceConflict | null;
   bookingConflict?: ShipmentReferenceConflict | null;
   declarationConflict?: ShipmentReferenceConflict | null;
+  getDeclarationConflict?: (value: string) => ShipmentReferenceConflict | undefined;
   customerAddButtonRef: RefObject<HTMLButtonElement | null>;
   shippingLineAddButtonRef: RefObject<HTMLButtonElement | null>;
   onOpenCustomerDialog: () => void;
@@ -42,11 +43,15 @@ export function ShipmentCreateIdentitySection({
   billConflict,
   bookingConflict,
   declarationConflict,
+  getDeclarationConflict,
   customerAddButtonRef,
   shippingLineAddButtonRef,
   onOpenCustomerDialog,
   onOpenShippingLineDialog,
 }: ShipmentCreateIdentitySectionProps) {
+  const declarationList = form.declarationNumbers && form.declarationNumbers.length > 0
+    ? form.declarationNumbers
+    : [form.declarationNumber || ''];
   return (
     <ShipmentCreateSection
       id="identity"
@@ -165,18 +170,57 @@ export function ShipmentCreateIdentitySection({
 
         {/* SỐ TỜ KHAI */}
         <div className="csc-identity-grid__declaration">
-          <TextField
-            label="Số tờ khai"
-            value={form.declarationNumber}
-            onChange={(event) => update('declarationNumber', event.target.value)}
-            maxLength={50}
+          {declarationList.map((decl, index) => {
+            const conflict = getDeclarationConflict
+              ? getDeclarationConflict(decl)
+              : (index === 0 ? declarationConflict : undefined);
+            return (
+              <div key={index} className="csc-declaration-row">
+                <TextField
+                  label={index === 0 ? 'Số tờ khai' : `Số tờ khai ${index + 1}`}
+                  hideLabel={index > 0}
+                  value={decl}
+                  onChange={(event) => {
+                    const next = [...declarationList];
+                    next[index] = event.target.value;
+                    update('declarationNumbers', next);
+                  }}
+                  maxLength={50}
+                  disabled={saving}
+                  placeholder={index > 0 ? `Số tờ khai ${index + 1}` : undefined}
+                  warning={
+                    conflict ? (
+                      <ShipmentReferenceConflictWarning conflict={conflict} fieldLabel="Số tờ khai" />
+                    ) : undefined
+                  }
+                />
+                {declarationList.length > 1 && (
+                  <button
+                    type="button"
+                    className="csc-icon-button csc-icon-button--danger csc-declaration-row__remove"
+                    aria-label={`Xóa tờ khai ${index + 1}`}
+                    onClick={() => {
+                      const next = declarationList.filter((_, i) => i !== index);
+                      update('declarationNumbers', next.length > 0 ? next : ['']);
+                    }}
+                    disabled={saving}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => {
+              update('declarationNumbers', [...declarationList, '']);
+            }}
             disabled={saving}
-            warning={
-              declarationConflict ? (
-                <ShipmentReferenceConflictWarning conflict={declarationConflict} fieldLabel="Số tờ khai" />
-              ) : undefined
-            }
-          />
+            className="csc-utility-button csc-utility-button--dashed csc-declaration-picker__add"
+          >
+            <Plus size={15} aria-hidden="true" />Thêm tờ khai
+          </button>
         </div>
       </div>
 
