@@ -38,15 +38,6 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
      */
     onEnterCommit?: (typedText: string) => { id: string; label: string } | null;
     /**
-     * Initial placement hint for the popover relative to the trigger. Useful
-     * when the picker sits inside a column that has a sibling action button
-     * (e.g. "+ Thêm") right below — request "top" so the popover opens
-     * upward and never covers the sibling. `shouldFlip` stays on, so when the
-     * trigger is jammed against the top edge the popover still flips back
-     * down rather than clipping off-screen.
-     */
-    popoverPlacement?: 'top' | 'bottom' | 'left' | 'right' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'start' | 'end';
-    /**
      * Hands the caller a programmatic open handle once the combobox state
      * exists (card 20261002_272). For a PAIRED-FIELD Tab hand-off: the
      * sibling field's Tab keydown focuses this input and calls `open()` —
@@ -373,7 +364,6 @@ export const ComboBox = ({
     onClear,
     onEnterCommit,
     className,
-    popoverPlacement,
     onReady,
     ...otherProps
 }: ComboBoxProps) => {
@@ -459,7 +449,7 @@ export const ComboBox = ({
                             onPointerEnter={onResize}
                         />
 
-                        <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName} placement={popoverPlacement}>
+                        <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName}>
                             <AriaListBox
                                 items={items}
                                 className="size-full outline-hidden"

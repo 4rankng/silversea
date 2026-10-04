@@ -88,7 +88,6 @@ export function ShipmentCreateIdentitySection({
             optionClassName="csc-customer-option"
             searchable
             {...(form.isAdHoc && customerCustomText ? { onCustomValue: customerCustomText } : {})}
-            popoverPlacement="top"
           />
           <button
             ref={customerAddButtonRef as RefObject<HTMLButtonElement>}
@@ -154,7 +153,6 @@ export function ShipmentCreateIdentitySection({
               disabled={saving}
               error={issueByField.get('shipment-shipping-line')}
               searchable
-              popoverPlacement="top"
             />
             <button
               ref={shippingLineAddButtonRef as RefObject<HTMLButtonElement>}

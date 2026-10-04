@@ -68,7 +68,6 @@ export function ShipmentCreateLclCargoFields({
             ) : undefined
           }
           searchable
-          popoverPlacement="top"
         />
         {!sitesLoading && form.customerId ? (
           <button

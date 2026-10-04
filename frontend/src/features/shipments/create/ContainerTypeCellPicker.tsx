@@ -67,7 +67,6 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
           placeholder="Chọn loại"
           disabled={Boolean(saving)}
           error={error}
-          popoverPlacement="top"
           createOption={{
             label: (typed) => (typed.trim() ? `＋ Thêm loại “${typed.trim()}”…` : '＋ Thêm loại container…'),
             onSelect: (typed) => {

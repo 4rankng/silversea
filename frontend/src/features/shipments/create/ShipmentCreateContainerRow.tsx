@@ -232,7 +232,6 @@ export function ShipmentCreateContainerRow({
             searchable
             allowsCustomValue={isAdHoc}
             {...(isAdHoc ? { onCustomValue: (text: string) => containerRouteCustomText(row.key, text) } : {})}
-            popoverPlacement="top"
             createOption={{
               label: (typed) => (typed.trim() ? `＋ Thêm tuyến “${typed.trim()}”…` : '＋ Thêm tuyến mới…'),
               onSelect: (typed) => {
@@ -267,7 +266,6 @@ export function ShipmentCreateContainerRow({
             error={issueByField.get(`container-${row.key}-pickup-port`)}
             searchable
             {...(isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'pickupPortId', 'rawPickupPortName', text) } : {})}
-            popoverPlacement="top"
             createOption={{
               label: (typed) => (typed.trim() ? `＋ Thêm cảng “${typed.trim()}”…` : '＋ Thêm cảng mới…'),
               onSelect: (typed) => {
@@ -299,7 +297,6 @@ export function ShipmentCreateContainerRow({
             error={issueByField.get(`container-${row.key}-dropoff-port`)}
             searchable
             {...(isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'dropoffPortId', 'rawDropoffPortName', text) } : {})}
-            popoverPlacement="top"
             createOption={{
               label: (typed) => (typed.trim() ? `＋ Thêm cảng “${typed.trim()}”…` : '＋ Thêm cảng mới…'),
               onSelect: (typed) => {

@@ -46,14 +46,6 @@ interface USearchableFieldProps {
   onCustomValue?: (text: string) => void;
   hideLabel?: boolean;
   /**
-   * Initial placement hint for the dropdown. Pass `"top"` for pickers whose
-   * sibling action (e.g. the "+ Thêm" inline-create button) sits directly
-   * below the trigger — the dropdown opens upward and never covers that
-   * sibling. `shouldFlip` stays on, so the dropdown still falls back below
-   * when the trigger is jammed against the viewport top.
-   */
-  popoverPlacement?: 'top' | 'bottom' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'left' | 'right' | 'start' | 'end';
-  /**
    * Open the suggestion menu when the user TYPES into the field
    * (menuTrigger "input") instead of only on click/arrow keys. Unlike
    * `searchable` (focus trigger) the menu stays closed while the user merely
@@ -99,7 +91,6 @@ export function USearchableField({
   openOnType,
   onCustomValue,
   hideLabel,
-  popoverPlacement,
   createOption,
   openApiRef,
 }: USearchableFieldProps) {
@@ -164,7 +155,6 @@ export function USearchableField({
         menuTrigger={searchable ? 'focus' : openOnType ? 'input' : 'manual'}
         openOnPress
         selectedKey={searchable && allowsCustomValue ? chosenKey : (value || null)}
-        popoverPlacement={popoverPlacement}
         inputValue={
           searchable
             ? inputValue

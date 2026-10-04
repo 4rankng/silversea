@@ -66,7 +66,6 @@ export function ShipmentCreateLclRouteSection({
             searchable
             allowsCustomValue={form.isAdHoc}
             {...(form.isAdHoc && routeCustomText ? { onCustomValue: routeCustomText } : {})}
-            popoverPlacement="top"
           />
           {selectedOperationalSite?.routeId == null && (
             <button
@@ -131,7 +130,6 @@ export function ShipmentCreateLclRouteSection({
               ) : undefined
             }
             searchable
-            popoverPlacement="top"
           />
           <div className="csc-site-picker__actions">
             {form.operationalSiteId && (

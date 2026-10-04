@@ -111,3 +111,23 @@ describe('ContainerTypeCellPicker — paired-field Tab hand-off (card 20261002_2
     await waitFor(() => expect(document.querySelector('[role=listbox]')).toBeTruthy());
   });
 });
+
+describe('ContainerTypeCellPicker — suggestion menu placement (thẻ 344, feedback Zalo 04/10)', () => {
+  it('opens the suggestion menu BELOW the input, never upward over the row above', async () => {
+    const onChange = vi.fn();
+    render(
+      <ContainerTypeCellPicker value="" onChange={onChange} options={OPTIONS} fieldId="probe-type-placement" saving={false} />,
+    );
+
+    const combo = screen.getByRole('combobox', { name: 'Loại container' });
+    fireEvent.click(combo);
+    await screen.findByRole('option', { name: '20DC' });
+
+    // RAC stamps the computed placement on the popover wrapper. The customer
+    // report ("dropdown ~200px above the field, over the Loại hàng row") was a
+    // popover opening upward — the contract is bottom, flipping upward only
+    // via shouldFlip when there is no room below.
+    const popover = document.querySelector('[data-placement]');
+    expect(popover?.getAttribute('data-placement')).toMatch(/^bottom/);
+  });
+});
