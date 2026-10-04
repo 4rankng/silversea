@@ -15,7 +15,10 @@ import { useToast } from '../../../components/shared/Toast';
 interface UseShipmentReferenceDuplicateGuardArgs {
   blNumber: string;
   bookingRef: string;
-  declarationNumber: string;
+  /** Every entered declaration row (20261004_328): the check API is
+   *  single-value, so each row's value must ride its own lookup — a warning
+   *  under row 2 can never appear if only the first row is ever checked. */
+  declarationNumbers: string[];
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   /** Debounce window in ms — short enough to feel live, long enough to
    *  avoid one request per keystroke. */
@@ -37,13 +40,15 @@ export interface ShipmentReferenceDuplicateGuardResult {
 export function useShipmentReferenceDuplicateGuard({
   blNumber,
   bookingRef,
-  declarationNumber,
+  declarationNumbers,
   tradeDirection,
   debounceMs = 350,
   minChars = 3,
 }: UseShipmentReferenceDuplicateGuardArgs): ShipmentReferenceDuplicateGuardResult {
   const [conflicts, setConflicts] = useState<ShipmentReferenceConflict[]>([]);
   const { toast } = useToast();
+  // Keyed by content: a fresh array identity per render must not thrash the debounce timer.
+  const declarationKey = declarationNumbers.join('\n');
 
   useEffect(() => {
     // Cleanup invalidates this request when the input changes or unmounts.
@@ -51,20 +56,30 @@ export function useShipmentReferenceDuplicateGuard({
     const eligible = (value: string) => value.trim().length >= minChars ? value.trim() : undefined;
     const trimmedBl = eligible(blNumber);
     const trimmedBooking = eligible(bookingRef);
-    const trimmedDeclaration = eligible(declarationNumber);
-    if (!trimmedBl && !trimmedBooking && !trimmedDeclaration) {
+    const trimmedDeclarations = Array.from(new Set(
+      declarationKey.split('\n').map(eligible).filter((value): value is string => Boolean(value)),
+    ));
+    if (!trimmedBl && !trimmedBooking && trimmedDeclarations.length === 0) {
       setConflicts([]);
       return;
     }
     const handle = setTimeout(() => {
-      checkShipmentReferenceDuplicate({
-        blNumber: trimmedBl || undefined,
-        bookingRef: trimmedBooking || undefined,
-        declarationNumber: trimmedDeclaration || undefined,
-      })
-        .then((next) => {
+      // The first declaration rides the combined call; every extra row is a
+      // single-value lookup of its own (20261004_328), merged below.
+      const requests = [
+        checkShipmentReferenceDuplicate({
+          blNumber: trimmedBl || undefined,
+          bookingRef: trimmedBooking || undefined,
+          declarationNumber: trimmedDeclarations[0] || undefined,
+        }),
+        ...trimmedDeclarations.slice(1).map((declarationNumber) => (
+          checkShipmentReferenceDuplicate({ declarationNumber })
+        )),
+      ];
+      Promise.all(requests)
+        .then((responses) => {
           if (!active) return;
-          setConflicts(next);
+          setConflicts(responses.flat());
         })
         .catch(() => {
           if (!active) return;
@@ -78,7 +93,7 @@ export function useShipmentReferenceDuplicateGuard({
       clearTimeout(handle);
       active = false;
     };
-  }, [blNumber, bookingRef, declarationNumber, tradeDirection, debounceMs, minChars]);
+  }, [blNumber, bookingRef, declarationKey, tradeDirection, debounceMs, minChars]);
 
   const reportServerConflict = useCallback((conflict: ShipmentReferenceConflict) => {
     setConflicts((current) => (

@@ -76,7 +76,7 @@ export function ShipmentCreateWorkspace() {
   const { getConflict: getReferenceConflict, reportServerConflict } = useShipmentReferenceDuplicateGuard({
     blNumber: form.blNumber,
     bookingRef: form.bookingRef,
-    declarationNumber: form.declarationNumber,
+    declarationNumbers: form.declarationNumbers && form.declarationNumbers.length > 0 ? form.declarationNumbers : [form.declarationNumber],
     tradeDirection: form.tradeDirection,
   });
   const [routeDialogTargetKey, setRouteDialogTargetKey] = useState<string | null>(null);
@@ -181,7 +181,10 @@ export function ShipmentCreateWorkspace() {
         : key === 'isCombined' ? value !== EMPTY_FORM.isCombined
         : key === 'isAdHoc' ? value !== EMPTY_FORM.isAdHoc
         : key === 'hasDeposit' ? value !== EMPTY_FORM.hasDeposit
-        : Array.isArray(value) ? value.length > 0
+        // Arrays diff against their pristine shape: a non-empty array is not
+        // automatically data (declarationNumbers starts as [''], and a
+        // pristine form must not report dirty — regression of 73286319).
+        : Array.isArray(value) ? JSON.stringify(value) !== JSON.stringify(EMPTY_FORM[key as keyof typeof EMPTY_FORM])
         : value !== ''
     ));
     const hasContainerData = containers.some((row) => (

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   saveContainers: vi.fn(),
   createDeclaration: vi.fn(),
   updateDeclaration: vi.fn(),
+  deleteDeclaration: vi.fn(),
   updateShipment: vi.fn(),
   getShipmentDetail: vi.fn(),
   // Customer feedback 2026-09-07 — duplicate Bill/Booking guard. The
@@ -45,8 +46,15 @@ vi.mock('../../api/shipmentClient', () => ({
   saveShipmentContainers: mocks.saveContainers,
   createShipmentDeclaration: mocks.createDeclaration,
   updateShipmentDeclaration: mocks.updateDeclaration,
+  deleteShipmentDeclaration: mocks.deleteDeclaration,
   updateShipment: mocks.updateShipment,
   getShipmentDetail: mocks.getShipmentDetail,
+  checkShipmentReferenceDuplicate: mocks.checkDuplicate,
+}));
+
+// The duplicate guard reads its own thin client (kept off shipmentClient to
+// hold that file's frozen ceiling) — route its lookup through the same mock.
+vi.mock('../../api/shipmentDuplicateClient', () => ({
   checkShipmentReferenceDuplicate: mocks.checkDuplicate,
 }));
 
@@ -147,6 +155,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     mocks.saveContainers.mockResolvedValue({ shipmentVersion: 2, items: [], upsertedIds: [], changeMode: 'DIRECT', changeRequestId: null });
     mocks.createDeclaration.mockResolvedValue({ id: 1 });
     mocks.updateDeclaration.mockResolvedValue({ id: 1 });
+    // The guard's lookup is a plain promise consumer — after the blanket
+    // mockReset it must keep resolving to [] or the form crashes on .then.
+    mocks.checkDuplicate.mockResolvedValue([]);
     mocks.updateShipment.mockResolvedValue({ id: 90, version: 2 });
     mocks.getShipmentDetail.mockResolvedValue({ shipment: { id: 90, version: 1 } });
     mocks.createRoute.mockResolvedValue({
@@ -573,6 +584,66 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       91,
       { declarationNumber: 'TK-SECOND', scope: 'SINGLE' },
     ));
+  });
+
+  it('_328: the duplicate warning lands under the matching declaration row', async () => {
+    mocks.checkDuplicate.mockImplementation(async (params: { declarationNumber?: string }) => (
+      params.declarationNumber === 'TK-SECOND'
+        ? [{ shipmentId: 55, shipmentCode: 'SHP-55', field: 'declaration', reference: 'TK-SECOND', createdBy: { id: 2, username: 'lanh', fullName: null }, createdAt: '2026-10-01T00:00:00Z' }]
+        : []
+    ));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-FIRST' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai 2' }), { target: { value: 'TK-SECOND' } });
+
+    // Row 2's value is checked on its own (the check API is single-value)
+    // and the warning renders under that row's field.
+    await waitFor(
+      () => expect(mocks.checkDuplicate).toHaveBeenCalledWith(expect.objectContaining({ declarationNumber: 'TK-SECOND' })),
+      { timeout: 3000 },
+    );
+    await waitFor(() => expect(screen.getAllByText(/đã được nhập bởi/)).toHaveLength(1), { timeout: 3000 });
+  });
+
+  it('_328: retries never duplicate declarations and removed rows are deleted (N rows = N declarations)', async () => {
+    mocks.quickCreate.mockResolvedValue({ id: 91, version: 1, initialDeclarationId: 78 });
+    mocks.createDeclaration
+      .mockResolvedValueOnce({ id: 79, declarationNumber: 'TK-SECOND', scope: 'SINGLE' })
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(new Error('network'));
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-FIRST' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai 2' }), { target: { value: 'TK-SECOND' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai 3' }), { target: { value: 'TK-THIRD' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    // TK-SECOND lands (id 79); TK-THIRD fails mid-extras — the attempt is
+    // preserved for retry, TK-SECOND exists server-side.
+    await waitFor(() => expect(mocks.createDeclaration).toHaveBeenCalledTimes(2));
+    await screen.findByRole('alert');
+
+    // Retry with unchanged rows: TK-THIRD (never landed) is retried — the
+    // third call is TK-THIRD again, TK-SECOND is never replayed.
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.createDeclaration).toHaveBeenCalledTimes(3));
+    expect(mocks.createDeclaration).toHaveBeenNthCalledWith(3, 91, { declarationNumber: 'TK-THIRD', scope: 'SINGLE' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tạo lô hàng' })).toBeEnabled());
+
+    // Clerk removes TK-THIRD and TK-SECOND and retries: one declaration row
+    // remains → the written TK-SECOND is deleted, nothing is re-created.
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.deleteDeclaration).toHaveBeenCalledWith(91, 79));
+    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
+    expect(mocks.createDeclaration).toHaveBeenCalledTimes(3);
   });
 
   it('hides the FCL volume field and copies the previous container when adding a row', async () => {
