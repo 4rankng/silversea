@@ -2,22 +2,18 @@
  * Base
  * ========================================================================== */
 *, *::before, *::after { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+/* Card 20261004_327 rework (device QA failed on the fixed-root build): the
+   shell chain must be a plain 100%-height, overflow-hidden stack — NO
+   position:fixed root. A fixed root is sized to the LAYOUT viewport, which on
+   iOS Safari stays at the small-viewport height when the bottom toolbar
+   collapses; `.app`'s 100dvh then outgrows the root and gets clipped, and the
+   revealed strip below is dead canvas. The nepocorp checkout of this product
+   runs the plain chain on the same device with no band: overflow:hidden on
+   every layer keeps the "shell owns scrolling" guarantee (focused portal
+   content cannot programmatically scroll these layers), while height:100%
+   lets the dvh-sized shell reach whatever the dynamic viewport becomes. */
+html, body, #root { height: 100%; overflow: hidden; }
 html { background: var(--bg); }
-
-/* The authenticated shell owns scrolling through .app-body. Clip prevents
-   focused portal content from programmatically scrolling these viewport layers;
-   overflow:hidden would still make each one a scroll container. */
-html:has(body .app),
-body:has(.app) {
-  overflow: clip;
-}
-
-body:has(.app) #root {
-  position: fixed;
-  inset: 0;
-  overflow: clip;
-}
 
 body {
   margin: 0;

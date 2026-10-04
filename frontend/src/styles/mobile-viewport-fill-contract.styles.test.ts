@@ -12,28 +12,28 @@ const nav = read('src/components/layout/bottom-nav.css');
 const responsive = read('src/styles/responsive.css');
 
 /* Card 20261004_327 — user iPhone screenshot, /shipments ("Tổng quan lô
- * hàng", Tháng 10/2026): below the last lot card (customer card LONG MINH) a
- * large white band / void ran to the physical screen bottom. Two compounding
- * holes, the card-20260927_149 family (layout viewport vs visual viewport on
- * iOS — the same "dải trắng" that card fixed below the tab bar):
+ * hàng", Tháng 10/2026): below the last lot card a light band ran to the
+ * physical screen bottom, cutting the visible list short.
  *
- *  1. the background layer stopped at the app's boxes, so any strip the
- *     browser reveals beyond the layout viewport (toolbar collapse, in-app
- *     WebView retaining a bottom strip, PWA standalone) painted the WebKit
- *     default — foreign WHITE — to the physical bottom. The proven mechanism
- *     (card 20260927_1, retired for the tab-bar geometry by 149 only because
- *     a fixed bar's own box covers the bottom — there is no bar on the
- *     admin/CUS shell) is the ROOT CANVAS paint plus a band painted past the
- *     layout-viewport bottom edge (`top: 100%`).
- *  2. the content container (`.shipments-page`) did not fill the shell
- *     scrollport, so below the last lot card the page surface ended in a void.
+ * History: 581309b6 painted the box chain (html/body/.app/.app-body/.page)
+ * and 8f6ad2d8 added a past-the-edge ::after band. Device QA on build
+ * 7215b2dd FAILED anyway (user iPhone, 17:26 capture): the real mechanism is
+ * the FIXED `#root` — `position: fixed; inset: 0` is sized to the LAYOUT
+ * viewport, which on iOS Safari stays at the small-viewport height when the
+ * bottom toolbar collapses; `.app`'s 100dvh then outgrows the root and
+ * `overflow: clip` cuts it at the layout-viewport bottom, leaving dead canvas
+ * below the app's visual end.
  *
- * Pre-fix pixel behavior is device-verified only (no desktop engine can replay
- * the iOS visual viewport); these pins hold the CSS contract that makes the
- * band impossible at every viewport state. Rungs 1–2 were already landed at
- * HEAD by 581309b6 before this test existed and are pinned read-only here;
- * the red this test was observed failing on is the residual holes (the ≤560
- * viewport-locked overshoot, the missing band, the undirected fill leftover).
+ * The rework adopts the nepocorp checkout's architecture (same product
+ * family, verified by the owner on the same device with NO band): a plain
+ * `height: 100%; overflow: hidden` stack — html/body/#root, then the dvh
+ * shell — so the shell always reaches whatever the dynamic viewport becomes.
+ * The ::after band is retired (nothing left to paint).
+ *
+ * The red for this rework is the DEVICE capture recorded in the card (no
+ * desktop engine can replay the iOS dynamic toolbar); these pins hold the
+ * architecture that makes the band impossible and forbid the fixed root from
+ * coming back.
  */
 
 /* The page root rule (first `.shipments-page { … }`, the base rule). */
@@ -42,9 +42,36 @@ const pageRootRule = page.match(/^\.shipments-page\s*\{[^}]*\}/m)?.[0] ?? '';
    the first ≤560 band). */
 const phoneTierRule =
   page.match(/@media \(max-width: 560px\)\s*\{[\s\S]*?\.shipments-page\s*\{[^}]*\}/)?.[0]?.match(/\.shipments-page\s*\{[^}]*\}/)?.[0] ?? '';
-const slackBandRule = nav.match(/\.app:not\(\.is-driver\)::after\s*\{[^}]*\}/)?.[0] ?? '';
 
 describe('mobile viewport-fill contract (card 20261004_327)', () => {
+  it('the shell chain is a plain 100% stack with NO fixed root', () => {
+    // The nepocorp-proven chain: every viewport layer is height:100% +
+    // overflow:hidden. overflow:hidden keeps the shell-owns-scrolling
+    // guarantee (focused portal content cannot programmatically scroll these
+    // layers); nothing here may re-introduce `position: fixed` — a fixed root
+    // is layout-viewport-sized and clips the dvh shell on iOS (the failed
+    // device rung this card reworks).
+    expect(base).toMatch(/html, body, #root \{ height: 100%; overflow: hidden; \}/);
+    expect(base).not.toMatch(/#root\s*\{[^}]*position:\s*fixed;/);
+    expect(base).not.toMatch(/body:has\(\.app\)\s*#root/);
+  });
+
+  it('the dvh shell reaches the dynamic viewport bottom and paints the page tone', () => {
+    expect(shell).toMatch(/grid-template-rows: 100vh;\s*grid-template-rows: 100dvh;/);
+    expect(shell).toMatch(/height: 100%;\s*height: 100dvh;/);
+    expect(shell).toMatch(/\.app\s*\{[\s\S]*?background:\s*var\(--bg\);/);
+    expect(shell).toMatch(/\.app-body,[\s\S]*?background:\s*var\(--bg\);/);
+    // The root canvas paint stays as defense in depth for genuine overscroll.
+    expect(base).toMatch(/html\s*\{[^}]*background:\s*var\(--bg\);/);
+  });
+
+  it('the retired slack band does not come back', () => {
+    // Under the plain chain there is no revealed strip to paint; the
+    // past-the-edge pseudo is dead mechanism (device QA failed with it).
+    expect(nav).not.toMatch(/\.app:not\(\.is-driver\)::after/);
+    expect(nav).not.toMatch(/top:\s*100%;/);
+  });
+
   it('the lot list page surface fills the shell scrollport and paints the page tone', () => {
     const rule = pageRootRule;
     expect(rule, '.shipments-page base rule exists').not.toBe('');
@@ -79,40 +106,16 @@ describe('mobile viewport-fill contract (card 20261004_327)', () => {
     expect(page).not.toMatch(/min-height:\s*100(?:dvh|vh)\s*;/);
   });
 
-  it('the background layer covers the physical bottom: root canvas + past-the-edge band', () => {
-    // Rung landed by 581309b6 (card 20260927_1's mechanism): the ROOT canvas
-    // paints whatever strip the browser reveals beyond the layout viewport.
-    expect(base).toMatch(/html\s*\{[^}]*background:\s*var\(--bg\);/);
-    // Defense in depth for the bar-less shells: nothing in CSS can re-anchor a
-    // fixed box to the larger viewport, so the page tone is painted INTO the
-    // strip — `top: 100%` starts exactly at the layout-viewport bottom edge
-    // (the pseudo's containing block) and extends past any revealed slack.
-    // Scoped `:not(.is-driver)`: card 20260927_149's measured driver end state
-    // (fixed bar + `--surface` canvas) is untouched.
-    const band = slackBandRule;
-    expect(band, 'non-driver slack band exists').not.toBe('');
-    expect(band).toMatch(/position:\s*fixed;/);
-    expect(band).toMatch(/top:\s*100%;/);
-    expect(band).toMatch(/background:\s*var\(--bg\);/);
-  });
-
-  it('every shell layer paints the page tone and the safe area is cleared once per scroll', () => {
-    // Read-only pins of the 581309b6 rungs + the responsive.css clearance —
-    // the chain the fill relies on.
-    expect(shell).toMatch(/\.app\s*\{[\s\S]*?background:\s*var\(--bg\);/);
-    expect(shell).toMatch(/\.app-body,[\s\S]*?background:\s*var\(--bg\);/);
+  it('the safe area is cleared once per scroll (responsive clearance pin)', () => {
     expect(responsive).toMatch(
       /\.app-body, \.content \{ padding: var\(--app-body-pad-t, 14px\) var\(--app-body-pad-x\) calc\(28px \+ env\(safe-area-inset-bottom, 0px\)\);/,
     );
-    expect(shell).toMatch(/grid-template-rows: 100vh;\s*grid-template-rows: 100dvh;/);
-    expect(shell).toMatch(/height: 100%;\s*height: 100dvh;/);
   });
 
   /* AC2 evidence — 390×844, 414×896 and 375×667 all land in the ≤560 tier and
    * every declaration the chain relies on is unit-relative (100% of the
-   * scrollport, env() safe area, top:100% of the layout viewport, dvh shell
-   * with a 100% fallback), so one chain serves all three viewports with no
-   * per-size branch to drift. */
+   * scrollport, env() safe area, dvh shell with a 100% fallback), so one chain
+   * serves all three viewports with no per-size branch to drift. */
   it.each([
     [390, 844],
     [414, 896],
@@ -122,6 +125,5 @@ describe('mobile viewport-fill contract (card 20261004_327)', () => {
     expect(pageRootRule).toMatch(/min-height:\s*100%;/);
     expect(page).not.toMatch(/min-height:\s*(?:844|896|667)px/);
     expect(phoneTierRule).toMatch(/env\(safe-area-inset-bottom, 0px\)/);
-    expect(slackBandRule).toMatch(/top:\s*100%;/);
   });
 });
