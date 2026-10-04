@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { Loader2, Save, ScanLine, ShieldCheck } from 'lucide-react';
 import { Panel } from '../../components/UI';
+import { Alert } from '../../components/shared/Alert';
 import type { useOcrSettings, useSaveOcrSettings } from '../../hooks/useOcrSettings';
 import { FeatureSwitch } from './FeatureSwitch';
 import { SecretField } from './SecretField';
@@ -38,6 +39,21 @@ export function OcrSection({
       subtitle="Bật hoặc tắt nhận dạng hình ảnh và quản lý API key riêng cho OCR"
       action={<ScanLine size={18} className="cfg-panel-action-icon" />}
     >
+      {ocrSettings.isError && (
+        <div style={{ marginBottom: 12 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              <button type="button" className="btn btn--sm" onClick={() => void ocrSettings.refetch()}>
+                Thử lại
+              </button>
+            }
+          >
+            Không tải được cài đặt nhận dạng OCR.
+          </Alert>
+        </div>
+      )}
       <FeatureSwitch
         icon={<ScanLine size={19} />}
         label="Sử dụng OCR"

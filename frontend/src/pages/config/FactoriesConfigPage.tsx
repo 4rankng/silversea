@@ -495,8 +495,14 @@ export default function FactoriesConfigPage() {
       <OperationalSiteCreateDialog
         isOpen={createOpen}
         customers={(customersQuery.data ?? []).map((customer) => ({ id: customer.id, name: customer.name }))}
+        customersError={customersQuery.isError}
+        onRetryCustomers={() => void customersQuery.refetch()}
+        isCustomersLoading={customersQuery.isLoading}
         defaultSiteType="FACTORY"
         routes={routes}
+        routesError={routesQuery.isError}
+        onRetryRoutes={() => void routesQuery.refetch()}
+        isRoutesLoading={routesQuery.isLoading}
         onClose={() => setCreateOpen(false)}
         onCreated={async () => {
           setCreateOpen(false);

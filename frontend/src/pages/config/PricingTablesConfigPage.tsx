@@ -6,14 +6,49 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { Alert } from '../../components/shared/Alert';
 import { useAllCustomers, useContainerTypes, useRoutesDropdown } from '../../hooks/useCatalogQueries';
 import type { PricingTable, Customer, Route as RouteType, ContainerType } from '@tingting/shared';
 import { DateInput } from '../../design-system/forms/DateInput';
 
-function PricingForm({ saving, item, onsave, oncancel, customers, routes, containerTypes, onDelete, deleting }: {
-  saving: boolean; item?: PricingTable; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
-  customers: Customer[]; routes: RouteType[]; containerTypes: ContainerType[];
-  onDelete?: () => Promise<void>; deleting?: boolean;
+function PricingForm({
+  saving,
+  item,
+  onsave,
+  oncancel,
+  customers,
+  customersError,
+  customersLoading,
+  onRetryCustomers,
+  routes,
+  routesError,
+  routesLoading,
+  onRetryRoutes,
+  containerTypes,
+  containerTypesError,
+  containerTypesLoading,
+  onRetryContainerTypes,
+  onDelete,
+  deleting,
+}: {
+  saving: boolean;
+  item?: PricingTable;
+  onsave: (d: Record<string, unknown>) => void;
+  oncancel: () => void;
+  customers: Customer[];
+  customersError?: boolean;
+  customersLoading?: boolean;
+  onRetryCustomers?: () => void;
+  routes: RouteType[];
+  routesError?: boolean;
+  routesLoading?: boolean;
+  onRetryRoutes?: () => void;
+  containerTypes: ContainerType[];
+  containerTypesError?: boolean;
+  containerTypesLoading?: boolean;
+  onRetryContainerTypes?: () => void;
+  onDelete?: () => Promise<void>;
+  deleting?: boolean;
 }) {
   const [customerId, setCustomerId] = useState(item?.customerId || 0);
   const [routeId, setRouteId] = useState(item?.routeId || 0);
@@ -23,13 +58,72 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
   const [effectiveDate, setEffectiveDate] = useState(item?.effectiveDate || new Date().toISOString().slice(0, 10));
   return (
     <InlineForm colSpan={7}>
+      {customersError && (
+        <div style={{ flex: '1 1 100%', marginBottom: 8 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              onRetryCustomers ? (
+                <button type="button" className="btn btn--sm" onClick={onRetryCustomers}>
+                  Thử lại
+                </button>
+              ) : undefined
+            }
+          >
+            Không thể tải danh sách khách hàng.
+          </Alert>
+        </div>
+      )}
+      {routesError && (
+        <div style={{ flex: '1 1 100%', marginBottom: 8 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              onRetryRoutes ? (
+                <button type="button" className="btn btn--sm" onClick={onRetryRoutes}>
+                  Thử lại
+                </button>
+              ) : undefined
+            }
+          >
+            Không thể tải danh mục tuyến đường.
+          </Alert>
+        </div>
+      )}
+      {containerTypesError && (
+        <div style={{ flex: '1 1 100%', marginBottom: 8 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              onRetryContainerTypes ? (
+                <button type="button" className="btn btn--sm" onClick={onRetryContainerTypes}>
+                  Thử lại
+                </button>
+              ) : undefined
+            }
+          >
+            Không thể tải danh mục loại container.
+          </Alert>
+        </div>
+      )}
       <div style={{ flex: 2, minWidth: 180 }}>
         <UuiSelectField
           label="Khách hàng"
           value={String(customerId)}
           onChange={e => setCustomerId(Number(e.target.value))}
+          disabled={customersLoading || customersError}
           options={[
-            { value: '0', label: '-- Chọn --' },
+            {
+              value: '0',
+              label: customersError
+                ? 'Lỗi tải khách hàng — thử lại'
+                : customersLoading
+                ? 'Đang tải khách hàng…'
+                : '-- Chọn --',
+            },
             ...customers.map(c => ({ value: String(c.id), label: c.shortName || c.name })),
           ]}
         />
@@ -39,8 +133,16 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
           label="Tuyến đường"
           value={String(routeId)}
           onChange={e => setRouteId(Number(e.target.value))}
+          disabled={routesLoading || routesError}
           options={[
-            { value: '0', label: '-- Chọn --' },
+            {
+              value: '0',
+              label: routesError
+                ? 'Lỗi tải danh mục tuyến đường — thử lại'
+                : routesLoading
+                ? 'Đang tải danh mục tuyến đường…'
+                : '-- Chọn --',
+            },
             ...routes.map(r => ({ value: String(r.id), label: r.shortName || r.name })),
           ]}
         />
@@ -56,8 +158,16 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
           label="Loại container"
           value={containerTypeId}
           onChange={e => { setContainerTypeId(e.target.value); if (e.target.value) setRateKey(''); }}
+          disabled={containerTypesLoading || containerTypesError}
           options={[
-            { value: '', label: '— Không áp dụng —' },
+            {
+              value: '',
+              label: containerTypesError
+                ? 'Lỗi tải loại container — thử lại'
+                : containerTypesLoading
+                ? 'Đang tải loại container…'
+                : '— Không áp dụng —',
+            },
             ...containerTypes.map((type) => ({ value: String(type.id), label: `${type.code} — ${type.name}` })),
           ]}
         />
@@ -71,9 +181,12 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
 }
 
 export default function PricingTablesConfigPage() {
-  const { data: customers = [] } = useAllCustomers();
-  const { data: routes = [] } = useRoutesDropdown();
-  const { data: containerTypes = [] } = useContainerTypes();
+  const customersQuery = useAllCustomers();
+  const routesQuery = useRoutesDropdown();
+  const containerTypesQuery = useContainerTypes();
+  const { data: customers = [], isError: customersError, isLoading: customersLoading, refetch: refetchCustomers } = customersQuery;
+  const { data: routes = [], isError: routesError, isLoading: routesLoading, refetch: refetchRoutes } = routesQuery;
+  const { data: containerTypes = [], isError: containerTypesError, isLoading: containerTypesLoading, refetch: refetchContainerTypes } = containerTypesQuery;
   const customerMap = useMemo(() => {
     const m = new Map<number, string>();
     customers.forEach(c => m.set(c.id, c.name));
@@ -104,7 +217,28 @@ export default function PricingTablesConfigPage() {
         { header: 'Hiệu lực từ', render: (pt) => pt.effectiveDate || '—' },
         { header: 'Giá', className: 'num', render: (pt) => <span className="data-token" style={{ color: 'var(--fg-1)' }}>{formatCurrency(pt.price)}</span> },
       ]}
-      renderForm={(p) => <PricingForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} customers={customers} routes={routes} containerTypes={containerTypes} onDelete={p.onDelete} deleting={p.deleting} />}
+      renderForm={(p) => (
+        <PricingForm
+          saving={p.saving}
+          item={p.item}
+          onsave={p.onSave}
+          oncancel={p.onCancel}
+          customers={customers}
+          customersError={customersError}
+          customersLoading={customersLoading}
+          onRetryCustomers={() => void refetchCustomers()}
+          routes={routes}
+          routesError={routesError}
+          routesLoading={routesLoading}
+          onRetryRoutes={() => void refetchRoutes()}
+          containerTypes={containerTypes}
+          containerTypesError={containerTypesError}
+          containerTypesLoading={containerTypesLoading}
+          onRetryContainerTypes={() => void refetchContainerTypes()}
+          onDelete={p.onDelete}
+          deleting={p.deleting}
+        />
+      )}
     />
     </div>
   );

@@ -7,6 +7,7 @@ import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { useRoutesDropdown } from '../../hooks/useCatalogQueries';
 import type { Route as RouteType } from '@tingting/shared';
+import { Alert } from '../../components/shared/Alert';
 import { DateInput } from '../../design-system/forms/DateInput';
 
 interface FuelNorm {
@@ -48,13 +49,28 @@ function validate(input: {
   return errors;
 }
 
-function FuelNormForm({ saving, item, onsave, oncancel, routes, onDelete, deleting }: {
+function FuelNormForm({
+  saving,
+  item,
+  onsave,
+  oncancel,
+  routes,
+  routesError,
+  routesLoading,
+  onRetryRoutes,
+  onDelete,
+  deleting,
+}: {
   saving: boolean;
   item?: FuelNorm;
   onsave: (d: Record<string, unknown>) => void;
   oncancel: () => void;
   routes: RouteType[];
-  onDelete?: () => Promise<void>; deleting?: boolean;
+  routesError?: boolean;
+  routesLoading?: boolean;
+  onRetryRoutes?: () => void;
+  onDelete?: () => Promise<void>;
+  deleting?: boolean;
 }) {
   const [routeId, setRouteId] = useState(item?.routeId ?? 0);
   const [loaded, setLoaded] = useState(item?.loadedLitersPer100Km || '');
@@ -91,13 +107,38 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes, onDelete, deleti
 
   return (
     <InlineForm colSpan={6}>
+      {routesError && (
+        <div style={{ flex: '1 1 100%', marginBottom: 8 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              onRetryRoutes ? (
+                <button type="button" className="btn btn--sm" onClick={onRetryRoutes}>
+                  Thử lại
+                </button>
+              ) : undefined
+            }
+          >
+            Không thể tải danh mục tuyến đường.
+          </Alert>
+        </div>
+      )}
       <div style={{ flex: 2, minWidth: 180 }}>
         <UuiSelectField
           label="Tuyến đường"
           value={String(routeId)}
           onChange={e => setRouteId(Number(e.target.value))}
+          disabled={routesLoading || routesError}
           options={[
-            { value: '0', label: '-- Áp dụng chung --' },
+            {
+              value: '0',
+              label: routesError
+                ? 'Lỗi tải danh mục tuyến đường — thử lại'
+                : routesLoading
+                ? 'Đang tải danh mục tuyến đường…'
+                : '-- Áp dụng chung --',
+            },
             ...routes.map(r => ({ value: String(r.id), label: r.shortName || r.name })),
           ]}
         />
@@ -165,7 +206,8 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes, onDelete, deleti
 }
 
 export default function FuelNormsConfigPage() {
-  const { data: routes = [] } = useRoutesDropdown();
+  const routesQuery = useRoutesDropdown();
+  const { data: routes = [], isError: routesError, isLoading: routesLoading, refetch: refetchRoutes } = routesQuery;
   const routeMap = useMemo(() => {
     const m = new Map<number, string>();
     routes.forEach(r => m.set(r.id, r.name));
@@ -195,6 +237,9 @@ export default function FuelNormsConfigPage() {
             onsave={p.onSave}
             oncancel={p.onCancel}
             routes={routes}
+            routesError={routesError}
+            routesLoading={routesLoading}
+            onRetryRoutes={() => void refetchRoutes()}
             onDelete={p.onDelete}
             deleting={p.deleting}
           />

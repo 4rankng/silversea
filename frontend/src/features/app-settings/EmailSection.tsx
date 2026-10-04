@@ -1,5 +1,6 @@
 import { Loader2, Mail, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import { Panel } from '../../components/UI';
+import { Alert } from '../../components/shared/Alert';
 import type { useEmailSettings, useSaveEmailSettings } from '../../hooks/useAppSettings';
 import { SecretField } from './SecretField';
 
@@ -28,6 +29,21 @@ export function EmailSection({
       subtitle="API key dùng để gửi email hệ thống"
       action={<Mail size={18} className="cfg-panel-action-icon" />}
     >
+      {emailSettings.isError && (
+        <div style={{ marginBottom: 12 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              <button type="button" className="btn btn--sm" onClick={() => void emailSettings.refetch()}>
+                Thử lại
+              </button>
+            }
+          >
+            Không tải được cấu hình gửi email.
+          </Alert>
+        </div>
+      )}
       <div className="cfg-security-note">
         <ShieldCheck size={16} aria-hidden="true" />
         <span>API key được mã hóa khi lưu. Giá trị đầy đủ không bao giờ gửi lại trình duyệt. Thay đổi có hiệu lực ngay.</span>

@@ -3,6 +3,7 @@ import { Loader2, Save, ShieldCheck } from 'lucide-react';
 import type { AppSettings } from '@tingting/shared';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Panel } from '../../components/UI';
+import { Alert } from '../../components/shared/Alert';
 import { formatCurrency } from '../../lib/format';
 import { UuiSelectField } from '../../design-system';
 import type { BusinessUnit } from '../users/utils';
@@ -46,6 +47,36 @@ export function OperationalPolicySection({
       action={<ShieldCheck size={18} className="cfg-panel-action-icon" />}
     >
       <div className="cfg-section" style={{ display: 'grid', gap: 14 }}>
+        {appSettings.isError && (
+          <div style={{ marginBottom: 12 }}>
+            <Alert
+              variant="error"
+              style="soft"
+              action={
+                <button type="button" className="btn btn--sm" onClick={() => void appSettings.refetch()}>
+                  Thử lại
+                </button>
+              }
+            >
+              Không tải được cài đặt ứng dụng.
+            </Alert>
+          </div>
+        )}
+        {businessUnits.isError && (
+          <div style={{ marginBottom: 12 }}>
+            <Alert
+              variant="error"
+              style="soft"
+              action={
+                <button type="button" className="btn btn--sm" onClick={() => void businessUnits.refetch()}>
+                  Thử lại
+                </button>
+              }
+            >
+              Không tải được danh sách đơn vị kinh doanh.
+            </Alert>
+          </div>
+        )}
         <div className="field">
           <label htmlFor="credit-warning-threshold-default">Ngưỡng cảnh báo công nợ mặc định (%)</label>
           <input
@@ -91,7 +122,14 @@ export function OperationalPolicySection({
             || saveAppSettings.isPending
           }
           options={[
-            { value: '', label: 'Toàn công ty' },
+            {
+              value: '',
+              label: businessUnits.isError
+                ? 'Lỗi tải đơn vị kinh doanh — thử lại'
+                : businessUnits.isLoading
+                ? 'Đang tải đơn vị kinh doanh…'
+                : 'Toàn công ty',
+            },
             ...(businessUnits.data?.items ?? [])
               .filter((unit) => unit.status === 'ACTIVE')
               .map((unit) => ({

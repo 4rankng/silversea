@@ -3,6 +3,7 @@ import { Plus, MapPin, Building2, Phone } from 'lucide-react';
 import type { Route, OperationalSiteContact } from '@tingting/shared';
 import { OperationalSiteContactsEditor } from './OperationalSiteContactsEditor';
 import { Modal } from '../UI';
+import { Alert } from '../shared/Alert';
 import { SelectField, TextField } from '../../design-system';
 import { EntityFormSection } from '../../components/shared/EntityFormParts';
 import { createOperationalSite, type OperationalSite } from '../../api/shipmentClient';
@@ -18,9 +19,15 @@ interface OperationalSiteCreateDialogProps {
   customerId?: number;
   /** Customer options for picker mode; ignored when `customerId` is given. */
   customers?: Array<{ id: number; name: string }>;
+  customersError?: boolean | string | null;
+  onRetryCustomers?: () => void;
+  isCustomersLoading?: boolean;
   /** Default site type preselected when the dialog opens. */
   defaultSiteType?: 'FACTORY' | 'WAREHOUSE';
   routes: Array<{ id: number; name: string }>;
+  routesError?: boolean | string | null;
+  onRetryRoutes?: () => void;
+  isRoutesLoading?: boolean;
   onClose: () => void;
   /** Called with the newly-created site so the parent can refresh + auto-select it. */
   onCreated: (site: OperationalSite) => void;
@@ -68,8 +75,14 @@ export function OperationalSiteCreateDialog({
   isOpen,
   customerId,
   customers,
+  customersError,
+  onRetryCustomers,
+  isCustomersLoading,
   defaultSiteType = 'FACTORY',
   routes,
+  routesError,
+  onRetryRoutes,
+  isRoutesLoading,
   onClose,
   onCreated,
   onRouteCreated,
@@ -244,13 +257,36 @@ export function OperationalSiteCreateDialog({
         <EntityFormSection icon={MapPin} label="Điểm vận hành">
           {customerId == null && (
             <div className="col-span-full">
+              {customersError && (
+                <div style={{ marginBottom: 12 }}>
+                  <Alert
+                    variant="error"
+                    style="soft"
+                    action={
+                      onRetryCustomers ? (
+                        <button type="button" className="btn btn--sm" onClick={onRetryCustomers}>
+                          Thử lại
+                        </button>
+                      ) : undefined
+                    }
+                  >
+                    Không tải được danh sách khách hàng.
+                  </Alert>
+                </div>
+              )}
               <SelectField
                 label="Khách hàng"
                 value={customerChoice}
                 onChange={(event) => { setCustomerChoice(event.target.value); setError(null); }}
-                disabled={saving}
+                disabled={saving || Boolean(customersError) || isCustomersLoading}
               >
-                <option value="">— Chọn khách hàng —</option>
+                <option value="">
+                  {customersError
+                    ? '— Lỗi tải danh sách khách hàng —'
+                    : isCustomersLoading
+                    ? '— Đang tải danh sách khách hàng… —'
+                    : '— Chọn khách hàng —'}
+                </option>
                 {(customers ?? []).map((customer) => (
                   <option key={customer.id} value={customer.id}>{customer.name}</option>
                 ))}
@@ -276,14 +312,37 @@ export function OperationalSiteCreateDialog({
           </SelectField>
           {form.siteType === 'FACTORY' && (
             <div className="col-span-full">
+              {routesError && (
+                <div style={{ marginBottom: 12 }}>
+                  <Alert
+                    variant="error"
+                    style="soft"
+                    action={
+                      onRetryRoutes ? (
+                        <button type="button" className="btn btn--sm" onClick={onRetryRoutes}>
+                          Thử lại
+                        </button>
+                      ) : undefined
+                    }
+                  >
+                    Không tải được danh sách tuyến đường.
+                  </Alert>
+                </div>
+              )}
               <div className="operational-site-create__route-picker">
                 <SelectField
                   label="Tuyến đường"
                   value={form.routeId}
                   onChange={(event) => update('routeId', event.target.value)}
-                  disabled={saving}
+                  disabled={saving || Boolean(routesError) || isRoutesLoading}
                 >
-                  <option value="">— Chọn tuyến đường —</option>
+                  <option value="">
+                    {routesError
+                      ? '— Lỗi tải danh sách tuyến đường —'
+                      : isRoutesLoading
+                      ? '— Đang tải danh sách tuyến đường… —'
+                      : '— Chọn tuyến đường —'}
+                  </option>
                   {routeOptions.map((route) => <option key={route.id} value={route.id}>{route.name}</option>)}
                 </SelectField>
                 <button
