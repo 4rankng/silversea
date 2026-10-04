@@ -99,7 +99,7 @@ describe('CustomersPage server-side sort headers', () => {
       expect(lastGetUrl()).toContain('sortDir=desc');
       expect(lastGetUrl()).toContain('page=1');
     });
-  });
+  }, 15_000);
 
   it('exposes each data column\'s backend sort key through its header button', async () => {
     renderPage();

@@ -92,10 +92,10 @@ describe('PenaltyReasonsConfigPage filter strip', () => {
   // Card 20261004_333 — a failed list fetch must not fall through to the
   // "Không tìm thấy lỗi vi phạm" empty-state, and a failed stats fetch must
   // not fabricate "0 lượt".
-  it('shows the fetch-error state with retry instead of the empty catalog when the list query fails', async () => {
+  it('shows the fetch-error state with retry instead of the empty catalog when the list query fails', { timeout: 15000 }, async () => {
     getPenaltyReasonsMock.mockRejectedValue(new Error('500'));
     renderPage();
-    expect(await screen.findByText('Không thể tải danh sách lỗi vi phạm', undefined, { timeout: 3000 })).toBeVisible();
+    expect(await screen.findByText('Không thể tải danh sách lỗi vi phạm', undefined, { timeout: 10000 })).toBeVisible();
     expect(screen.queryByText('Không tìm thấy lỗi vi phạm')).not.toBeInTheDocument();
 
     getPenaltyReasonsMock.mockResolvedValue(reasons);

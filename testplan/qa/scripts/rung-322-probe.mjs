@@ -1,5 +1,5 @@
 // Rung 322 phase 1: open allocation dialog with REAL input, dump structure.
-import { launch, login, tap, probe, shot, domText } from './lead-qa-lib.mjs';
+import { launch, login, tap, probe, shot } from './lead-qa-lib.mjs';
 
 const E = process.env.EVID_DIR;
 const { browser, page, base } = await launch({ width: 1440, height: 900 });

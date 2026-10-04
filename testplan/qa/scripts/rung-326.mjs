@@ -1,6 +1,6 @@
 // Rung 326: segmented date/time auto-advance in "Chỉnh sửa điều phối" (Giờ trả hàng) — real typing + focus assertions.
 // mutates: none (types but never saves; dialog closed via Hủy)
-import { launch, tap, probe, shot, setViewport } from './lead-qa-lib.mjs';
+import { launch, probe, shot, setViewport } from './lead-qa-lib.mjs';
 
 const base = process.env.QA_BASE || 'http://localhost:7175';
 const E = process.env.EVID_DIR;
@@ -16,11 +16,11 @@ await new Promise((r) => setTimeout(r, 4000));
 
 // open "Chỉnh sửa điều phối" on the first row that has the trigger
 const trigInfo = await page.evaluate(() => {
-  const btns = [...document.querySelectorAll('button')].filter((b) => /Chỉnh sửa điều phối/i.test(b.getAttribute('aria-label') || b.innerText || ''));
+  const btns = [...document.querySelectorAll('button')].filter((b) => /Sửa ô điều phối/i.test(b.getAttribute('aria-label') || ''));
   return { count: btns.length };
 });
 console.log('TRIGGERS', JSON.stringify(trigInfo));
-const el = await page.$('button[aria-label="Chỉnh sửa điều phối"], button[aria-label*="Chỉnh sửa điều phối"]');
+const el = await page.$('button[aria-label^="Sửa ô điều phối"]');
 if (!el) { console.log('FAIL: no editor trigger — dump:', await page.evaluate(() => document.body.innerText.slice(0, 200))); await browser.close(); process.exit(1); }
 await el.click(); // real CDP click
 await new Promise((r) => setTimeout(r, 1500));

@@ -1,6 +1,6 @@
 // Rung 322 (full): allocation-dialog footer seam — real taps, state matrix, seam crop.
 // mutates: none (draft-only dialog interactions; closed via Huỷ)
-import { launch, tap, probe, shot, setViewport, typeInto } from './lead-qa-lib.mjs';
+import { launch, tap, probe, shot, setViewport } from './lead-qa-lib.mjs';
 
 const base = process.env.QA_BASE || 'http://localhost:7175';
 const E = process.env.EVID_DIR;

@@ -52,7 +52,10 @@ beforeEach(() => {
 });
 
 describe('QuotationConfigPage (card 20260922_56)', () => {
-  it('lists frames, filters by customer and date window, and opens the grid', async () => {
+  // The customer-filter select chain (button → react-aria option) flakes over
+  // the 5s default on a loaded box (5.1–6.9s in full runs) — the house
+  // drawer-interaction deadline contract from card 20260930_237 applies.
+  it('lists frames, filters by customer and date window, and opens the grid', { timeout: 15000 }, async () => {
     render(<QuotationConfigPage />, { wrapper: makeWrapper() });
     const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
     expect(await within(framesRegion).findByText('Công ty A')).toBeTruthy();
@@ -70,7 +73,9 @@ describe('QuotationConfigPage (card 20260922_56)', () => {
     expect(within(framesRegion).getByText('Công ty B')).toBeTruthy();
   });
 
-  it('opens all ten class rows in file order with their groups and five metric columns', async () => {
+  // Select/grid interaction chain — same loaded-box flake contract as the test
+  // above (card 20260930_237 precedent).
+  it('opens all ten class rows in file order with their groups and five metric columns', { timeout: 15000 }, async () => {
     render(<QuotationConfigPage />, { wrapper: makeWrapper() });
     const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
     fireEvent.click(await within(framesRegion).findByText('Công ty A'));
