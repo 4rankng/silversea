@@ -198,6 +198,30 @@ describe('DriverTaskInfoSections', () => {
 
     expect(valueOf('SĐT kho')).toBe('—');
     expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    // Card 20261003_320: with khoPhone absent, Gọi kho is hidden and never dials contactPhone
+    expect(screen.queryByRole('link', { name: /Gọi kho/ })).toBeNull();
+  });
+
+  it('card 20261003_320: does NOT dial contactPhone from Gọi kho button when khoPhone is empty', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0900000001' } })} />);
+
+    expect(valueOf('SĐT kho')).toBe('—');
+    expect(valueOf('SĐT liên hệ')).toBe('0900000001');
+    // AC1: SĐT kho trống → không có nút 'Gọi kho' bấm được
+    expect(screen.queryByRole('link', { name: /Gọi kho/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Gọi kho/ })).toBeNull();
+    // AC3: SĐT liên hệ vẫn hiển thị bình thường
+    expect(screen.getByText('0900000001')).toBeTruthy();
+  });
+
+  it('card 20261003_320: dials the kho phone from Gọi kho button when khoPhone exists', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0900000001' } })} />);
+
+    expect(valueOf('SĐT kho')).toBe('0901234567');
+    expect(valueOf('SĐT liên hệ')).toBe('0900000001');
+    // AC2: SĐT kho có dữ liệu → nút Gọi kho gọi đúng số kho
+    const callBtn = screen.getByRole('link', { name: /Gọi kho/ });
+    expect(callBtn.getAttribute('href')).toBe('tel:0901234567');
   });
 
   it('QA-2026-09-26-27 never duplicates when whitespace differs between the two fields', () => {

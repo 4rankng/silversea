@@ -129,7 +129,9 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   const [callOpen, setCallOpen] = useState(false);
   const khoPhone = fulfillment?.khoPhone?.trim() || null;
   const contactPhone = fulfillment?.contactPhone?.trim() || null;
-  const callContacts = operationalSiteContacts({ contacts: fulfillment?.factoryContacts, contactName: fulfillment?.contactName, contactPhone: khoPhone ?? contactPhone });
+  // Card 20261003_320: do NOT fall back to contactPhone — when khoPhone is
+  // empty, the Gọi kho button must NOT dial the general order contact.
+  const callContacts = operationalSiteContacts({ contacts: fulfillment?.factoryContacts, contactName: fulfillment?.contactName, contactPhone: khoPhone });
   const showContactPhoneRow = Boolean(contactPhone) && contactPhone !== khoPhone;
 
   // Card 20260926_27 item 5: the abbrev "Nhà máy" row is gone (the factory
