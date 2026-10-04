@@ -115,6 +115,22 @@ export function DateTimeSegments({
     if (end > 0) node.setSelectionRange(0, end);
   };
 
+  // Hand focus to a segment without depending on the controlled re-render: a
+  // same-string update bails out of rendering — and with it the effect below —
+  // but the caret must still move (card 326: the hand-off is the requirement).
+  // Consuming `pendingFocus` at microtask time also lets a later queued
+  // hand-off win over an earlier one.
+  const scheduleFocus = (index: number) => {
+    pendingFocus.current = index;
+    queueMicrotask(() => {
+      if (pendingFocus.current != null) {
+        const targetIdx = pendingFocus.current;
+        pendingFocus.current = null;
+        focusSegment(targetIdx);
+      }
+    });
+  };
+
   // Focus moves land after the controlled re-render so the target segment
   // already shows its next text (auto-advance, paste distribution).
   useEffect(() => {
@@ -141,21 +157,14 @@ export function DateTimeSegments({
           stop = cursor;
         } else next[cursor] = '';
       }
-      pendingFocus.current = stop;
+      scheduleFocus(stop);
     } else {
       next[index] = digits.slice(0, specs[index].maxLength);
       // Auto-advance only on a complete in-range value; flagged values stay
       // put. Completing the final segment ends the entry naturally.
       if (next[index].length === specs[index].maxLength && !isOutOfRange(specs[index], next[index])) {
         if (index + 1 < specs.length) {
-          pendingFocus.current = index + 1;
-          queueMicrotask(() => {
-            if (pendingFocus.current != null) {
-              const targetIdx = pendingFocus.current;
-              pendingFocus.current = null;
-              focusSegment(targetIdx);
-            }
-          });
+          scheduleFocus(index + 1);
         } else {
           onComplete?.();
         }

@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { DateTimeSegments } from './DateTimeSegments';
@@ -73,6 +73,27 @@ describe('DateTimeSegments', () => {
     expect(seg('hh')).toHaveValue('08');
     expect(seg('mm')).toHaveValue('30');
     expect(activeLabel()).toBe('Phút — test');
+  });
+
+  // Card 326 class: the hand-off to the next segment must not depend on the
+  // controlled re-render. A parent that keeps the draft as a primitive string
+  // bails out of rendering when the update leaves the string unchanged — and
+  // with the render goes the effect that used to be the only thing moving
+  // focus. The typed path cannot produce a same-string draft (React drops a
+  // change event whose value matches the tracked input), so the reachable
+  // instance is the multi-char path: a full paste over the same text
+  // (re-pasting the current value, autofill/undo/IME commits).
+  it('hands focus to the next segment when a full paste leaves the draft string unchanged', async () => {
+    function BailHarness() {
+      const [current, setCurrent] = useState('08:30');
+      return <DateTimeSegments id="t" part="time" groupAriaLabel="test" value={current} onValueChange={setCurrent} onOpenPicker={() => {}} />;
+    }
+    render(<BailHarness />);
+    act(() => seg('hh').focus());
+    type('hh', '08:30');
+    expect(seg('hh')).toHaveValue('08');
+    expect(seg('mm')).toHaveValue('30');
+    await waitFor(() => expect(activeLabel()).toBe('Phút — test'));
   });
 
   it.each([
