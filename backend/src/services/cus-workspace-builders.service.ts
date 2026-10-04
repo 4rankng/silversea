@@ -275,6 +275,7 @@ function buildListItem(
     containers,
     row.shipment,
     support.factoryNameBySiteId,
+    support.assignmentsByContainer,
   );
   // Multi-factory display (SILVER L1 P3): distinct effective factory labels
   // across containers — never a false single factory. Falls back to the
@@ -790,11 +791,14 @@ function buildAppointmentGroups(
   containers: ContainerRow[],
   shipment: ShipmentRow,
   factoryNameBySiteId: Map<number, { shortName: string; fullName: string }>,
+  assignmentsByContainer?: Map<number, AssignmentRow>,
 ): Array<{ at: string; localDate: string; factoryName: string | null; factoryShortName: string | null; factoryFullName: string | null; containerSummary: string }> {
   const byKey = new Map<string, { at: string; localDate: string; factoryName: string | null; factoryShortName: string | null; factoryFullName: string | null; group: ContainerRow[] }>();
   for (const container of containers) {
-    if (container.customerAppointmentAt == null) continue;
-    const localDate = localDateInBusinessZone(container.customerAppointmentAt) ?? '0000-00-00';
+    const assignment = assignmentsByContainer?.get(container.id);
+    const effectiveAt = assignment?.tripPlannedEndAt ?? assignment?.plannedEndAt ?? container.customerAppointmentAt;
+    if (effectiveAt == null) continue;
+    const localDate = localDateInBusinessZone(effectiveAt) ?? '0000-00-00';
     const factorySiteId = container.operationalSiteId ?? shipment.operationalSiteId ?? null;
     const factorySite = factorySiteId != null
       ? factoryNameBySiteId.get(factorySiteId)
@@ -806,7 +810,7 @@ function buildAppointmentGroups(
     const factoryKey = factorySite != null && factorySiteId != null
       ? `site:${factorySiteId}`
       : `legacy:${factoryFullName ?? ''}`;
-    const at = container.customerAppointmentAt.toISOString();
+    const at = effectiveAt.toISOString();
     const key = `${at}|${factoryKey}`;
     const entry = byKey.get(key);
     if (entry) {

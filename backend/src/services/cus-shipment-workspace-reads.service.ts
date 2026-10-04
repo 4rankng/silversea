@@ -141,6 +141,7 @@ export type AssignmentRow = {
   plannedExternalCarrierId: number | null;
   plannedExternalCarrierVehicleId: number | null;
   plannedVehiclePlateNumber: string | null;
+  plannedEndAt: Date | null;
   plannedCarrierName: string | null;
   plannedCarrierShortName: string | null;
   tripId: number | null;
@@ -390,6 +391,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
       plannedExternalCarrierVehicleId: s.shipmentFulfillments.plannedExternalCarrierVehicleId,
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+      plannedEndAt: s.shipmentFulfillments.plannedEndAt,
       plannedCarrierName: plannedCarrier.name,
       plannedCarrierShortName: plannedCarrier.shortName,
       tripId: s.trips.id,

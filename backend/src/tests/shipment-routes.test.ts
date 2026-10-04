@@ -1249,6 +1249,54 @@ describe('GET /', () => {
     }
   });
 
+  test('CARD-343: appointment groups reflect dispatch plannedEndAt over customerAppointmentAt', async () => {
+    // Multi-container lot: container has an original customer appointment (e.g. 10:00 05/10/2026),
+    // but dispatch updated "Giờ trả hàng" (plannedEndAt = 13:00 04/10/2026) on the active fulfillment.
+    // The master plan / list summaries must surface the dispatch-planned time in appointmentGroups.
+    const lotSuffix = `MPLAN-P343-${suffix}-${Date.now().toString(36)}`;
+    const createRes = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        customerId,
+        blNumber: lotSuffix,
+        cargoMode: 'FCL',
+        expectedDeliveryDate: '2026-10-04',
+        tradeDirection: 'IMPORT',
+        factoryName: `Nhà máy ${lotSuffix}`,
+      },
+    });
+    assert.equal(createRes.status, 201);
+    const shipmentId = createRes.data.id;
+    createdShipmentIds.push(shipmentId);
+
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId,
+      containerTypeId,
+      containerNumber: `C343-${Date.now().toString(36)}`,
+      customerAppointmentAt: new Date('2026-10-05T03:00:00.000Z'), // 10:00 05/10/2026
+    }).returning();
+
+    // Create an active fulfillment with plannedEndAt = 13:00 04/10/2026 (+07)
+    await db.insert(s.shipmentFulfillments).values({
+      shipmentId,
+      shipmentContainerId: container.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      sourceShipmentVersion: 1,
+      plannedCarrierType: 'OWN',
+      plannedEndAt: new Date('2026-10-04T06:00:00.000Z'), // 13:00 04/10/2026 (+07)
+    });
+
+    const listRes = await testFetch(`/?searchSuffix=${lotSuffix.slice(-5)}&limit=20`, { token: adminToken });
+    assert.equal(listRes.status, 200);
+    const lot = listRes.data.items.find((row: { id: number }) => row.id === shipmentId);
+    assert.ok(lot, `seeded lot ${shipmentId} must appear in /api/shipments`);
+    assert.equal(lot.appointmentGroups.length, 1);
+    assert.equal(lot.appointmentGroups[0].at, '2026-10-04T06:00:00.000Z', 'appointmentGroups must reflect plannedEndAt over customerAppointmentAt');
+    assert.equal(lot.appointmentGroups[0].localDate, '2026-10-04', 'localDate must reflect plannedEndAt date');
+  });
+
   test('appointment groups use a factory short name for operational lists', async () => {
     const lotSuffix = `MPLAN-SHORT-${suffix}-${Date.now().toString(36)}`;
     const fullFactoryName = `Nhà máy Biển Bạc tại Khu công nghiệp Yên Phong, Bắc Ninh ${lotSuffix}`;
