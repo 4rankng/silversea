@@ -27,17 +27,6 @@
   padding: 32px 16px;
 }
 
-/* ── Footer pagination ────────────────────────────────────────────────── */
-.trip-list-page .table-foot {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px;
-  border-top: 1px solid var(--line);
-  font-size: var(--fs-sm); color: var(--ink-3);
-  gap: 16px;
-  flex-wrap: wrap;
-}
-.trip-list-page .page-info { display: flex; align-items: center; gap: 6px; }
-.trip-list-page .page-info b { color: var(--ink); font-weight: 700; }
 .trip-list-page .pagination { display: flex; align-items: center; gap: 6px; }
 .trip-list-page .page-btn {
   min-width: var(--control-max-h); min-height: var(--control-max-h);

@@ -709,27 +709,6 @@
   color: var(--ink-2);
   font-size: var(--fs-2xs);
 }
-/* Mobile action buttons */
-.as-page .as-mcard__actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-  gap: 8px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-}
-.as-page .as-mcard__actions .btn {
-  justify-content: center;
-  min-height: var(--control-compact-h);
-}
-.as-page .as-mcard__reject {
-  border: 1px solid color-mix(in srgb, var(--danger) 34%, var(--line));
-  background: var(--surface);
-  color: var(--danger);
-}
-.as-page .as-mcard__reject:hover {
-  border-color: var(--danger);
-  background: var(--danger-soft);
-}
 .as-page .as-mcard__reviewer {
   display: flex;
   align-items: baseline;

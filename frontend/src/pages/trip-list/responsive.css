@@ -60,12 +60,6 @@
     margin-bottom: 0;
     min-width: 0;
   }
-  .trip-list-page .table-foot {
-    margin-top: 12px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-  }
   .trip-list-page .quick-edit-toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -103,11 +97,6 @@
   }
   .trip-list-page .quick-edit-toolbar__main .btn {
     min-height: var(--control-max-h);
-  }
-  .trip-list-page .table-foot {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
   }
   .trip-list-page .pagination {
     justify-content: center;

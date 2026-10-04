@@ -328,31 +328,6 @@
   display: none;
 }
 
-.ancillary-fee-card__actions {
-  display: flex;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-  margin-top: 8px;
-}
-.ancillary-fee-card__btn--approve {
-  background: var(--accent-soft);
-  color: var(--accent-2);
-  border-color: var(--accent);
-}
-.ancillary-fee-card__btn--approve:hover {
-  background: var(--brand);
-  color: var(--fg-on-brand);
-  border-color: var(--brand);
-}
-.ancillary-fee-card__btn--reject {
-  color: var(--ink-3);
-}
-.ancillary-fee-card__btn--reject:hover {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-
 /* Mobile totals bar */
 .ancillary-fees__mobile-totals {
   display: flex;
