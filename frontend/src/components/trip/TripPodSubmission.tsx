@@ -334,7 +334,7 @@ export function TripPodSubmission({
                       <li key={file.id} className="trip-pod__file">
                         <button type="button" className="trip-pod__file-meta trip-pod__file-download" onClick={() => void downloadFile(file)} disabled={downloadingId != null} aria-label={`Tải chứng từ ${file.originalFileName}`}>
                           {(file.mimeType ?? '').startsWith('image/') ? <FileImage size={15} /> : <FileText size={15} />}
-                          <span className="trip-pod__file-name" title={file.originalFileName}>{file.originalFileName}</span>
+                          <span className="trip-pod__file-name">{file.originalFileName}</span>
                           {downloadingId === file.id ? <Loader2 size={15} className="spin" /> : <Download size={15} />}
                         </button>
                         <span className="trip-pod__file-time">Tải lên {formatDateTime(file.createdAt)}</span>

@@ -269,12 +269,13 @@
 .trip-pod__file-name {
   font-size: var(--text-data-size);
   color: var(--ink);
-  /* Long file names (e.g. "TRP-2026-07-0001-YARD_OR_DROP_RECEIPT.pdf")
-     truncate with ellipsis on a single line. The full name is still
-     available via the title attribute and the download action. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* File names are WRAPPING text: display the full name at every width —
+     no ellipsis and no title crutch (law book §4 no-truncation doctrine,
+     card 20261004_338). Long unbroken name runs (e.g.
+     "TRP-2026-07-0001-YARD_OR_DROP_RECEIPT.pdf") break via the house
+     emergency break instead of clipping. */
+  white-space: normal;
+  overflow-wrap: anywhere;
   min-width: 0;
   max-width: 100%;
   display: block;
