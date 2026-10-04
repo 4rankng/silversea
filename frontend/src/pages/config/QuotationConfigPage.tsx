@@ -289,7 +289,7 @@ export default function QuotationConfigPage() {
               })}
             </ul>
           )}
-          {!frames.isLoading && filteredFrames.length === 0 && (
+          {!frames.isLoading && !frames.isError && filteredFrames.length === 0 && (
             <EmptyState context="search" title="Không có báo giá khớp bộ lọc." />
           )}
         </section>
@@ -326,6 +326,21 @@ export default function QuotationConfigPage() {
             <BufferedUuiDateInput label="Từ ngày (phiên bản)" size="sm" value={versionFilterFrom} onChange={setVersionFilterFrom} />
             <BufferedUuiDateInput label="Đến ngày (phiên bản)" size="sm" value={versionFilterTo} onChange={setVersionFilterTo} />
           </div>
+          {versionsQuery.isError && (
+            // Card 20261004_333 — a failed versions fetch must not render as a
+            // silent blank table where the empty copy claims "Chưa có phiên bản".
+            <p className="quotation-status" role="alert">
+              Không thể tải lịch sử phiên bản.{' '}
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={versionsQuery.isFetching}
+                onClick={() => { void versionsQuery.refetch(); }}
+              >
+                {versionsQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+              </button>
+            </p>
+          )}
           {versionsQuery.isLoading && <p className="quotation-status">Đang tải phiên bản…</p>}
           {versionsQuery.data && versionsQuery.data.items.length === 0 && (
             <p className="quotation-status">Chưa có phiên bản nào được ghi nhận.</p>

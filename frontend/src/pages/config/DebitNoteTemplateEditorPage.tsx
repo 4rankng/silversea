@@ -9,6 +9,7 @@ import { useToast } from '../../components/shared/Toast';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { useTemplateLeaveGuard } from './use-template-leave-guard';
+import { Alert } from '../../components/shared/Alert';
 import { type DebitNoteTemplate, type DebitNoteTemplateColumn, type DebitNoteTemplateInput } from '@tingting/shared';
 import { blankTemplate, buildAccountTerms, cloneStarterColumns, EDITOR_SECTIONS, getAccountTerms, normalizeTemplateColumns, sectionFromTarget, templateDefaultsForType, toForm, type EditorSection, type SelectedTarget } from './debit-note-template-editor-utils';
 import { Field, TemplatePreview } from './debit-note-template-preview';
@@ -35,7 +36,9 @@ export default function DebitNoteTemplateEditorPage() {
   const backToList = () => navigate('/config/debit-note-templates');
   const requestBack = useTemplateLeaveGuard({ dirty: isDirty, saving, confirm, onBack: backToList });
 
-  const { data: template, isLoading } = useQuery<DebitNoteTemplate>({
+  // Card 20261004_333: a failed detail fetch must render the error state —
+  // falling through shows the blank new-template editor for an existing id.
+  const { data: template, isLoading, isError: loadFailed, isFetching, refetch: reloadTemplate } = useQuery<DebitNoteTemplate>({
     queryKey: qk.catalogs.debitNoteTemplate(id),
     queryFn: () => configClient.getDebitNoteTemplate(id as number),
     enabled: !isNew,
@@ -303,6 +306,46 @@ export default function DebitNoteTemplateEditorPage() {
     );
   };
 
+  if (!isNew && loadFailed) {
+    return (
+      <div className="cfg-page debit-editor-page">
+        <header className="debit-editor-topbar">
+          <div className="debit-editor-title">
+            <button type="button" className="billing-builder__close" onClick={backToList} aria-label="Quay lại">
+              <ArrowLeft size={21} />
+            </button>
+            <div className="billing-builder__icon">
+              <AssetIcon name="debit-note-template" size={34} />
+            </div>
+            <div>
+              <p className="billing-builder__eyebrow">Chỉnh sửa mẫu</p>
+              <h1 className="debit-editor-title__text" style={{ margin: 0, fontSize: 'var(--text-lg-size, 18px)' }}>Mẫu giấy báo nợ #{id}</h1>
+            </div>
+          </div>
+        </header>
+        <main className="debit-editor-loading">
+          <Alert
+            variant="error"
+            style="soft"
+            action={(
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={isFetching}
+                onClick={() => { void reloadTemplate(); }}
+              >
+                {isFetching ? 'Đang thử lại…' : 'Thử lại'}
+              </button>
+            )}
+          >
+            Không thể tải mẫu giấy báo nợ
+          </Alert>
+        </main>
+        {confirmDialog}
+      </div>
+    );
+  }
+
   return (
     <div className="cfg-page debit-editor-page">
       <header className="debit-editor-topbar">
@@ -356,6 +399,27 @@ export default function DebitNoteTemplateEditorPage() {
         <main className="debit-editor-loading">
           <Loader2 size={28} className="spin" />
           <span>Đang tải mẫu</span>
+        </main>
+      ) : loadFailed ? (
+        // Card 20261004_333 — a failed fetch must not render the blank
+        // new-template editor over an existing template.
+        <main className="debit-editor-loading">
+          <Alert
+            variant="error"
+            style="soft"
+            action={(
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={isFetching}
+                onClick={() => { void reloadTemplate(); }}
+              >
+                {isFetching ? 'Đang thử lại…' : 'Thử lại'}
+              </button>
+            )}
+          >
+            Không thể tải mẫu giấy báo nợ
+          </Alert>
         </main>
       ) : (
         <main className="debit-editor-workspace">

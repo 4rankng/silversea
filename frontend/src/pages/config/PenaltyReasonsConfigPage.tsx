@@ -12,6 +12,7 @@ import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/pe
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
 import type { PenaltyReason } from '@tingting/shared';
 import { EmptyState, FilterBar } from '../../design-system';
+import { Alert } from '../../components/shared/Alert';
 import { formatMoney } from '../../lib/format';
 
 /* ─── Page-scoped styles ─── */
@@ -285,12 +286,12 @@ export default function PenaltyReasonsConfigPage() {
     s.innerHTML = pageStyles;
   }, []);
 
-  const { data, refetch, isLoading } = useQuery({
+  const { data, refetch, isLoading, isFetching, isError } = useQuery({
     queryKey: qk.penalties.list,
     queryFn: () => configClient.getPenaltyReasons(),
   });
 
-  const { data: statsData, refetch: refetchStats } = useQuery({
+  const { data: statsData, refetch: refetchStats, isError: statsFailed } = useQuery({
     queryKey: qk.penalties.stats,
     queryFn: async () =>
       await api.get<{
@@ -339,8 +340,10 @@ export default function PenaltyReasonsConfigPage() {
 
   const fmt = (n: number) => formatMoney(n);
 
-  /* ─── Derived stats ─── */
+  /* ── Derived stats ── */
   const totalTypes = items.length;
+  // Card 20261004_333: a failed stats fetch must not fabricate zeros — the
+  // tiles render "—" and name the failure instead (null-coalesced-to-zero class).
   const totalCount = statsData?.totalCount || 0;
   const totalAmount = statsData?.totalAmount || 0;
   const topEntry = statsData?.countsByReason
@@ -350,6 +353,7 @@ export default function PenaltyReasonsConfigPage() {
     ? items.find((x) => x.id === Number(topEntry[0]))?.reasonText || '---'
     : '---';
   const topReasonCount = topEntry ? topEntry[1] : 0;
+  const statsMeta = statsFailed ? 'Không tải được thống kê' : null;
 
   return (
     <div ref={pageRef} className="penalty-reasons-page" style={{ minHeight: '100%' }}>
@@ -386,9 +390,9 @@ export default function PenaltyReasonsConfigPage() {
             <div className="kpi__icon kpi--warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10M12 20V4M6 20v-6" /></svg></div>
           </div>
           <div className="kpi__value">
-            {totalCount}<span className="kpi__value-unit">lượt</span>
+            {statsFailed ? '—' : <>{totalCount}<span className="kpi__value-unit">lượt</span></>}
           </div>
-          <div className="kpi__meta">{totalCount > 0 ? 'Tháng hiện tại' : 'Chưa có dữ liệu'}</div>
+          <div className="kpi__meta">{statsMeta ?? (totalCount > 0 ? 'Tháng hiện tại' : 'Chưa có dữ liệu')}</div>
         </div>
 
         <div className="kpi kpi--success">
@@ -397,9 +401,9 @@ export default function PenaltyReasonsConfigPage() {
             <div className="kpi__icon kpi--success"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg></div>
           </div>
           <div className="kpi__value" style={{ fontFamily: 'var(--font-data)' }}>
-            {fmt(totalAmount)}<span className="kpi__value-unit">đ</span>
+            {statsFailed ? '—' : <>{fmt(totalAmount)}<span className="kpi__value-unit">đ</span></>}
           </div>
-          <div className="kpi__meta">Đã ghi nhận trong tháng</div>
+          <div className="kpi__meta">{statsMeta ?? 'Đã ghi nhận trong tháng'}</div>
         </div>
 
         <div className="kpi">
@@ -411,7 +415,7 @@ export default function PenaltyReasonsConfigPage() {
             {topReasonText}
           </div>
           <div className="kpi__meta" style={{ fontFamily: 'var(--font-data)' }}>
-            {topReasonCount > 0 ? `${topReasonCount} lượt vi phạm` : 'Chưa có thống kê'}
+            {statsMeta ?? (topReasonCount > 0 ? `${topReasonCount} lượt vi phạm` : 'Chưa có thống kê')}
           </div>
         </div>
       </div>
@@ -462,6 +466,25 @@ export default function PenaltyReasonsConfigPage() {
           <div className="pr-spinner" />
           <div>Đang tải dữ liệu...</div>
         </div>
+      ) : isError ? (
+        // Card 20261004_333 — a failed fetch must not fall through to the
+        // "Không tìm thấy lỗi vi phạm" empty-state.
+        <Alert
+          variant="error"
+          style="soft"
+          action={(
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              disabled={isFetching}
+              onClick={() => { void refetch(); }}
+            >
+              {isFetching ? 'Đang thử lại…' : 'Thử lại'}
+            </button>
+          )}
+        >
+          Không thể tải danh sách lỗi vi phạm
+        </Alert>
       ) : filteredItems.length === 0 ? (
         <EmptyState
           variant="compact"
@@ -473,7 +496,9 @@ export default function PenaltyReasonsConfigPage() {
         <div className="pr-grid">
           {filteredItems.map((d, i) => {
             const sev = d.severity || 'mid';
-            const count = statsData?.countsByReason?.[d.id] || 0;
+            // Card 20261004_333: a failed stats fetch must not fabricate "0 lượt" —
+            // zero is a real value here and error has to stay distinguishable.
+            const count = statsFailed ? null : (statsData?.countsByReason?.[d.id] || 0);
             return (
               <div className="pr-card" key={d.id} style={{ animationDelay: `${i * 0.04}s` }}>
                 <div className="pr-card-top">
@@ -493,7 +518,7 @@ export default function PenaltyReasonsConfigPage() {
                   </div>
                   <div className={`pr-usage ${count === 0 ? 'zero' : ''}`}>
                     <div className="k">Áp dụng tháng này</div>
-                    <div className="v"><b>{count}</b> lượt</div>
+                    <div className="v">{count === null ? '—' : <><b>{count}</b> lượt</>}</div>
                   </div>
                 </div>
               </div>

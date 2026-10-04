@@ -202,10 +202,16 @@ export default function FactoriesConfigPage() {
               <button className="btn btn--primary" onClick={() => setCreateOpen(true)} disabled={customersQuery.isLoading}>
                 <Plus size={14} /> Tạo mới
               </button>
-              <span className="cfg-page__summary">
-                <strong>{filtered.length}</strong> mục
-                {sites.length !== filtered.length && ` / ${sites.length}`}
-              </span>
+              {/* A failed list fetch is not an empty catalog (card 20261004_333):
+                  the "0 mục" counter and the empty-state copy must never claim
+                  data absence while the query is in error — the Alert below
+                  carries the state instead. */}
+              {!sitesQuery.isError && (
+                <span className="cfg-page__summary">
+                  <strong>{filtered.length}</strong> mục
+                  {sites.length !== filtered.length && ` / ${sites.length}`}
+                </span>
+              )}
             </>
           )}
         >
@@ -246,7 +252,33 @@ export default function FactoriesConfigPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && (
+              {/* Card 20261004_333 — query state maps to render explicitly:
+                  error renders the Alert + retry (never "0 mục"/empty-state),
+                  loading renders "Đang tải…", and only a SUCCESSFUL empty
+                  result may claim the catalog is empty. */}
+              {sitesQuery.isError && (
+                <tr className="cfg-empty-row">
+                  <td colSpan={9} data-label="" style={{ textAlign: 'center', padding: '28px 12px' }}>
+                    <Alert
+                      variant="error"
+                      style="soft"
+                      action={(
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm"
+                          disabled={sitesQuery.isFetching}
+                          onClick={() => { void sitesQuery.refetch(); }}
+                        >
+                          {sitesQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+                        </button>
+                      )}
+                    >
+                      Không thể tải danh sách nhà máy / kho
+                    </Alert>
+                  </td>
+                </tr>
+              )}
+              {!sitesQuery.isError && filtered.length === 0 && (
                 <tr className="cfg-empty-row">
                   <td colSpan={9} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
                     {sitesQuery.isLoading
@@ -325,15 +357,38 @@ export default function FactoriesConfigPage() {
                   onChange={(e) => setDraft({ ...draft, shortName: e.target.value })} />
               </Field>
               {isFactory ? (
-                <UuiSelectField
-                  label="Tuyến đường chuẩn"
-                  value={draft.routeId == null ? '' : String(draft.routeId)}
-                  onChange={(e) => setDraft({ ...draft, routeId: e.target.value ? Number(e.target.value) : null })}
-                  options={[
-                    { value: '', label: '— Chọn tuyến —' },
-                    ...routes.map((route) => ({ value: String(route.id), label: route.name })),
-                  ]}
-                />
+                <>
+                  {/* Card 20261004_333: a failed routes feed must not look like
+                      "no routes configured" — same class as the list bug. */}
+                  {routesQuery.isError && (
+                    <Alert
+                      variant="error"
+                      style="soft"
+                      wrapperStyle={{ gridColumn: '1 / -1' }}
+                      action={(
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm"
+                          disabled={routesQuery.isFetching}
+                          onClick={() => { void routesQuery.refetch(); }}
+                        >
+                          {routesQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+                        </button>
+                      )}
+                    >
+                      Không thể tải danh sách tuyến đường
+                    </Alert>
+                  )}
+                  <UuiSelectField
+                    label="Tuyến đường chuẩn"
+                    value={draft.routeId == null ? '' : String(draft.routeId)}
+                    onChange={(e) => setDraft({ ...draft, routeId: e.target.value ? Number(e.target.value) : null })}
+                    options={[
+                      { value: '', label: '— Chọn tuyến —' },
+                      ...routes.map((route) => ({ value: String(route.id), label: route.name })),
+                    ]}
+                  />
+                </>
               ) : (
                 <Field label="Loại">
                   <input className="input" value="Kho lấy hàng (không dùng tuyến)" disabled />

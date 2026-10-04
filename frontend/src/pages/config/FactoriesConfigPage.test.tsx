@@ -173,6 +173,49 @@ describe('FactoriesConfigPage', () => {
     expect(await screen.findByText(/Dùng nút "Tạo mới" hoặc form nhận lô của CUS/)).toBeTruthy();
   });
 
+  // Card 20261004_333 — a failed list fetch must never masquerade as an empty
+  // catalog. Before the fix the page coalesced `sitesQuery.data ?? []` and
+  // branched on `isLoading` only, so a query error fell through to "0 mục" +
+  // "Chưa có nhà máy / kho nào…" — indistinguishable from a genuinely empty
+  // catalog. The error state names the failure and offers "Thử lại" → refetch.
+  it('shows the fetch-error state with retry instead of the empty catalog when the list query fails', async () => {
+    listMock.mockRejectedValueOnce(new Error('GET /api/shipments/operational-sites/admin failed'));
+    renderPage();
+
+    expect(await screen.findByText('Không thể tải danh sách nhà máy / kho', undefined, { timeout: 3000 })).toBeVisible();
+    // Never the "0 mục" summary nor the true-empty copy while the query errors.
+    expect(document.querySelector('.cfg-page__summary')).toBeNull();
+    expect(screen.queryByText(/Chưa có nhà máy \/ kho nào/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Không tìm thấy nhà máy/)).not.toBeInTheDocument();
+
+    // "Thử lại" calls refetch — the next successful fetch renders the rows.
+    listMock.mockResolvedValue([factory]);
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText('Nhà máy A')).toBeVisible();
+    expect(listMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps the true-empty state only when the query succeeded with zero items', async () => {
+    listMock.mockResolvedValue([]);
+    renderPage();
+    expect(await screen.findByText(/Chưa có nhà máy \/ kho nào/)).toBeVisible();
+    // Success + 0 items is NOT an error: no error alert, summary reads "0 mục".
+    expect(screen.queryByText('Không thể tải danh sách nhà máy / kho')).not.toBeInTheDocument();
+    expect(document.querySelector('.cfg-page__summary')?.textContent).toContain('0');
+  });
+
+  it('keeps "Đang tải…" while the list query is still pending', async () => {
+    // Never-settling query. Executor form is required here: the repo's tsconfig
+    // lib predates `Promise.withResolvers` (TS2550), and the resolvers are
+    // deliberately never invoked.
+    const pendingForever = new Promise<never>(() => {});
+    listMock.mockReturnValue(pendingForever);
+    renderPage();
+    expect(await screen.findByText('Đang tải…')).toBeVisible();
+    expect(screen.queryByText(/Chưa có nhà máy \/ kho nào/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Không thể tải danh sách nhà máy / kho')).not.toBeInTheDocument();
+  });
+
   it('matches Vietnamese terms without accents and recovers from no results', async () => {
     renderPage();
     await screen.findByText('Nhà máy A');

@@ -83,6 +83,26 @@ describe('FuelPricePeriodsConfigPage — TC-CUOC-002 fuel price entry', () => {
     expect(screen.getByTestId('crud-table')).toBeTruthy();
   });
 
+  // Card 20261004_333 — a failed pending-approvals fetch must surface the
+  // error with retry, not render as "no pending work".
+  it('shows the fetch-error state with retry instead of silence when the pending query fails', async () => {
+    listFuelApprovalsMock.mockRejectedValue(new Error('500'));
+    renderPage();
+    expect(await screen.findByText('Không thể tải danh sách chờ xác nhận cập nhật báo giá', undefined, { timeout: 3000 })).toBeVisible();
+
+    listFuelApprovalsMock.mockResolvedValue({ items: [], total: 0 });
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await waitFor(() => expect(screen.queryByText('Không thể tải danh sách chờ xác nhận cập nhật báo giá')).not.toBeInTheDocument());
+    expect(listFuelApprovalsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps the pending banner hidden without any error copy when the query succeeded empty', async () => {
+    renderPage();
+    await waitFor(() => expect(listFuelApprovalsMock).toHaveBeenCalled());
+    expect(screen.queryByText('Không thể tải danh sách chờ xác nhận cập nhật báo giá')).not.toBeInTheDocument();
+    expect(screen.queryByText('Không còn dòng chờ xác nhận.')).not.toBeInTheDocument();
+  });
+
   it('blocks save when date/price empty or price is not positive', () => {
     renderPage();
     const onSave = vi.fn();

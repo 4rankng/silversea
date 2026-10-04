@@ -7,6 +7,9 @@ const { companyInfoState, saveCompanyInfoMock } = vi.hoisted(() => ({
   companyInfoState: {
     data: undefined as CompanyInfo | undefined,
     isLoading: false,
+    isError: false,
+    isFetching: false,
+    refetch: vi.fn(),
   },
   saveCompanyInfoMock: vi.fn(),
 }));
@@ -53,6 +56,9 @@ describe('CompanyInfoConfigPage save readiness', () => {
   beforeEach(() => {
     saveCompanyInfoMock.mockReset();
     companyInfoState.isLoading = false;
+    companyInfoState.isError = false;
+    companyInfoState.isFetching = false;
+    companyInfoState.refetch = vi.fn();
     companyInfoState.data = validCompanyInfo;
   });
 
@@ -154,6 +160,20 @@ describe('CompanyInfoConfigPage save readiness', () => {
     companyInfoState.data = { ...validCompanyInfo, shortName: 'Dữ liệu mới từ máy khác' };
     rerender(<MemoryRouter><CompanyInfoConfigPage /></MemoryRouter>);
     expect(screen.getByLabelText('Tên đầy đủ')).toHaveValue('Tên đang chỉnh');
+  });
+
+  // Card 20261004_333 — a failed read must not render the "Chưa cấu hình"
+  // first-save form (the same class as FuelConfigPage's pinned fix).
+  it('shows the fetch-error state with retry instead of the unconfigured first-save form', () => {
+    companyInfoState.data = undefined;
+    companyInfoState.isError = true;
+    renderPage();
+    expect(screen.getByRole('alert')).toHaveTextContent('Không thể tải thông tin công ty');
+    expect(screen.queryByText(/Chưa cấu hình thông tin công ty/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Lưu thông tin' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(companyInfoState.refetch).toHaveBeenCalledOnce();
   });
 
 });

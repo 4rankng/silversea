@@ -56,7 +56,9 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
   const [status, setStatus] = useState(item?.status || 'ACTIVE');
   const [debitNoteMode, setDebitNoteMode] = useState<Customer['debitNoteMode']>(item?.debitNoteMode ?? 'MONTHLY');
   const [debitNoteTemplateId, setDebitNoteTemplateId] = useState<number | null>(item?.debitNoteTemplateId ?? null);
-  const { data: templates } = useQuery<DebitNoteTemplate[]>({
+  // Card 20261004_333: a failed templates feed must not render as "no templates
+  // to pick" — surface the error with retry next to the field.
+  const { data: templates, isError: templatesFailed, isFetching: templatesFetching, refetch: reloadTemplates } = useQuery<DebitNoteTemplate[]>({
     queryKey: qk.catalogs.debitNoteTemplates,
     queryFn: () => configClient.getDebitNoteTemplates(),
     enabled: canEditTemplate,
@@ -157,6 +159,19 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
         <textarea className="input" value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="SĐT, email, địa chỉ khác…" rows={3} style={{ resize: 'vertical' }} />
       </Field>
 
+      {canEditTemplate && templatesFailed && (
+        <p className="cfg-form-error" role="alert" style={{ gridColumn: '1 / -1' }}>
+          Không thể tải danh sách mẫu giấy báo nợ.{' '}
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={templatesFetching}
+            onClick={() => { void reloadTemplates(); }}
+          >
+            {templatesFetching ? 'Đang thử lại…' : 'Thử lại'}
+          </button>
+        </p>
+      )}
       {canEditTemplate ? <UuiSelectField
         label="Mẫu giấy báo nợ"
         value={debitNoteTemplateId === null || debitNoteTemplateId === undefined ? '' : String(debitNoteTemplateId)}

@@ -322,3 +322,47 @@ describe('QuotationConfigPage master list + detail states (card 20261002_288)', 
       .findByText('Báo giá chưa có biểu giá theo tuyến.')).toBeTruthy();
   });
 });
+
+// Card 20261004_333 — query errors must not render as empty data: the frames
+// list drops its "Không có báo giá khớp bộ lọc" empty-state while the fetch
+// failed, and the version history surfaces the failure with retry instead of
+// a silent blank table.
+describe('QuotationConfigPage fetch-error states (card 20261004_333)', () => {
+  it('keeps the empty-state out of the frames list while the frames fetch failed', async () => {
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/quotations') return Promise.reject(new Error('500'));
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    expect(await screen.findByRole('alert', undefined, { timeout: 3000 })).toBeVisible();
+    expect(screen.queryByText('Không có báo giá khớp bộ lọc.')).not.toBeInTheDocument();
+  });
+
+  it('surfaces the version-history failure with retry instead of the empty-history copy', async () => {
+    let versionsFail = true;
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/quotations') return Promise.resolve(frames);
+      if (path === '/quotations/1') return Promise.resolve({
+        id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null,
+        cells: gridCells,
+        fees: [],
+      });
+      if (path.startsWith('/quotations/1/versions')) {
+        return versionsFail ? Promise.reject(new Error('500')) : Promise.resolve({ items: [], total: 0 });
+      }
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
+    fireEvent.click(await within(framesRegion).findByText('Công ty A'));
+
+    const history = await screen.findByRole('region', { name: 'Lịch sử phiên bản báo giá' });
+    expect(await within(history).findByText(/Không thể tải lịch sử phiên bản/, undefined, { timeout: 3000 })).toBeVisible();
+    expect(within(history).queryByText('Chưa có phiên bản nào được ghi nhận.')).not.toBeInTheDocument();
+
+    versionsFail = false;
+    fireEvent.click(within(history).getByRole('button', { name: 'Thử lại' }));
+    expect(await within(history).findByText('Chưa có phiên bản nào được ghi nhận.')).toBeVisible();
+    expect(within(history).queryByText(/Không thể tải lịch sử phiên bản/)).not.toBeInTheDocument();
+  });
+});
