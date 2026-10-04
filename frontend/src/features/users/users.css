@@ -401,10 +401,6 @@
   margin-bottom: 0;
 }
 
-.users-form-cards--driver {
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-}
-
 /* ── Password Toggle ──────────────────────────────────────────────────────── */
 
 .pw-toggle {
@@ -538,49 +534,6 @@
   color: var(--ink-4);
 }
 
-.users-mobile-card__actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-}
-
-.users-mobile-card__action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  min-height: var(--control-max-h);
-  border-radius: 8px;
-  font-size: var(--text-control-size);
-  font-weight: var(--fw-semibold);
-  background: var(--surface-2);
-  color: var(--ink-2);
-  border: 1px solid var(--line);
-  cursor: pointer;
-  transition: background 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
-}
-
-.users-mobile-card__action-btn:hover {
-  background: var(--surface);
-  color: var(--ink);
-  border-color: var(--line-2);
-}
-
-.users-mobile-card__action-btn--danger {
-  color: var(--danger);
-  border-color: var(--danger-soft);
-}
-
-.users-mobile-card__action-btn--danger:hover {
-  background: var(--danger-soft);
-  color: var(--danger);
-  border-color: var(--danger-soft);
-}
-
-
 /* ── Mobile card enhancements ───────────────────────────────────────────── */
 
 @media (max-width: 640px) {
@@ -651,10 +604,6 @@
   .users-form-cards {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
-  }
-
-  .users-form-cards--driver {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .users-form-card {
