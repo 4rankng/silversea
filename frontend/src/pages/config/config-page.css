@@ -211,7 +211,8 @@
 }
 
 .cfg-page .cfg-form-actions {
-  margin-top: 18px;
+  margin-top: 4px;
+  padding-top: 8px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -253,7 +254,6 @@
 
 .cfg-page--company-info .company-info-form .cfg-row { margin: 0; }
 .cfg-page--company-info .company-info-form .field { margin-bottom: 0; }
-.cfg-page--company-info .cfg-form-actions { margin-top: 12px; }
 .company-info-comparison { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
 .company-info-comparison > summary { cursor: pointer; min-height: var(--control-max-h); display: list-item; align-content: center; font-size: var(--text-control-size); font-weight: 600; }
 .company-info-comparison > p { font-size: var(--text-caption-size); color: var(--ink-3); margin: 0 0 8px; }

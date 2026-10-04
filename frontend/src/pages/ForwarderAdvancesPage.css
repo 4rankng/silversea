@@ -182,7 +182,8 @@
 .fadv-form-panel__actions {
   display: flex;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 4px;
+  padding-top: 8px;
   justify-content: flex-end;
 }
 

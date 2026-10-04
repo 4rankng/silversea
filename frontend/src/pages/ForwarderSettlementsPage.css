@@ -170,7 +170,7 @@
 
 /* Footer — checker/approver */
 .fset-card__footer {
-  margin-top: 8px;
+  margin-top: 4px;
   padding-top: 6px;
   border-top: 1px solid var(--line);
   display: flex;
@@ -810,7 +810,7 @@
   gap: 10px;
   justify-content: flex-end;
   flex-wrap: wrap;
-  padding-top: 20px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
 }
 

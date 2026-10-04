@@ -266,7 +266,7 @@
 
 .tc-rail-actions {
   margin-top: 0;
-  padding: 14px;
+  padding: 8px 14px 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface);

@@ -18,10 +18,11 @@ import { describe, expect, it } from 'vitest';
 // The hairlines each rule already carries keep their separator role, so the
 // seam shrinks to the .modal__foot rhythm and nothing else changes.
 //
-// Declarations are pinned here; the browser seam measurement is the lead's
-// render rung. The phone-band `.trip-hero__actions` override in
-// styles/responsive.css belongs to ANOTHER lane and is deliberately not pinned
-// here — its padding-top: 10px is reported in the card REPORT instead.
+// Card 20261004_332 deleted the `.users-mobile-card__actions` and
+// `.trip-hero__actions` rules outright (zero TSX renderers, including the
+// responsive.css phone-band override) together with this file's pins for them.
+// `.month-picker__footer` is the remaining live pin. Declarations are pinned
+// here; the browser seam measurement is the lead's render rung.
 
 function read(relativePath: string) {
   const direct = resolve(process.cwd(), relativePath);
@@ -30,8 +31,6 @@ function read(relativePath: string) {
 }
 
 const topbarCss = read('src/components/layout/topbar.css');
-const usersCss = read('src/features/users/users.css');
-const tripHeroCss = read('src/components/TripHero.css');
 
 const ruleBodies = (source: string): Array<{ selector: string; body: string }> =>
   [...source.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
@@ -41,8 +40,7 @@ const ruleBodies = (source: string): Array<{ selector: string; body: string }> =
 
 // Parsed declaration map: keys are the property names the rule actually
 // declares (exact match, so `padding` never shadows `padding-top`). A repeated
-// property keeps the LAST declaration — CSS cascade inside one block — so the
-// dead-duplicate check below counts raw occurrences instead.
+// property keeps the LAST declaration — CSS cascade inside one block.
 function decls(body: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const part of body.split(';')) {
@@ -67,17 +65,9 @@ function effectiveTop(d: Record<string, string>, long: 'margin-top' | 'padding-t
   return value === undefined ? undefined : px(value, `${long} (effective)`);
 }
 
-function countDeclarations(body: string, prop: string): number {
-  return [...body.matchAll(new RegExp(`(^|[;{\\s])${prop}\\s*:`, 'g'))].length;
-}
-
 const topbarRules = ruleBodies(topbarCss);
-const usersRules = ruleBodies(usersCss);
-const tripHeroRules = ruleBodies(tripHeroCss);
 
 const monthFooter = topbarRules.find((rule) => rule.selector === '.month-picker__footer');
-const usersActions = usersRules.find((rule) => rule.selector === '.users-mobile-card__actions');
-const tripActions = tripHeroRules.find((rule) => rule.selector === '.trip-hero__actions');
 
 // One shared seam assertion per surface (AC1): the footer/action row follows
 // its content directly — margin-top ≤ 4px, padding-top ≤ 8px — and keeps its
@@ -97,21 +87,102 @@ describe('popover/action-row seams hug their content (card 20261004_330)', () =>
     // 20px seam in the month popover (margin 10 + padding 10) — instance 1.
     expectGluedSeam(monthFooter, 'src/components/layout/topbar.css');
   });
+});
 
-  it('users mobile card actions: margin-top ≤ 4px, padding-top ≤ 8px, hairline kept', () => {
-    // 20px seam on the mobile-card button row — instance 2.
-    expectGluedSeam(usersActions, 'src/features/users/users.css');
-  });
+// ---------------------------------------------------------------------------
+// Card 20261004_334 — residual batch: the over-ceiling seams card 330's AC4
+// mechanical sweep left behind (qa/2026-10-04_330_ac4-class-sweep.txt, seams
+// 14–20px). LIVE instances (real TSX renderers) clamp to the same ceiling —
+// `margin-top ≤ 4px` + `padding-top ≤ 8px` — and keep their hairline where one
+// existed. DEAD selectors (no TSX render anywhere) belong to card 332's
+// delete-vs-wire sweep and are deliberately NOT pinned here:
+// `.ancillary-fee-card__actions` (Table.css),
+// `.as-page .as-mcard__actions` (AdminAdvanceSettlementsPage.css),
+// `.credit-override-queue__toolbar` (CreditOverrideQueuePage.css),
+// `.trip-list-page .table-foot` (table-extras.css) — plus the phone-band
+// `.trip-hero__actions` override already deleted by card 332.
+//
+// Red-first: every fixed row below failed at pre-fix HEAD (each named rule
+// carried its over-ceiling margin/padding) before the clamps landed. An absent
+// declaration counts as 0 — a row may carry its seam in margin only, padding
+// only, or neither — and a bare `0` is a legal "no seam component".
+// ---------------------------------------------------------------------------
 
-  it('trip hero actions: margin-top ≤ 4px, padding-top ≤ 8px, hairline kept', () => {
-    // 18px seam (margin-top 4 + padding-top 14) under the hero chips — instance 3.
-    expectGluedSeam(tripActions, 'src/components/TripHero.css');
-  });
+const residualSources: Record<string, string> = {
+  'src/pages/ForwarderSettlementsPage.css': read('src/pages/ForwarderSettlementsPage.css'),
+  'src/pages/LoginPage.css': read('src/pages/LoginPage.css'),
+  'src/pages/ForwarderAdvancesPage.css': read('src/pages/ForwarderAdvancesPage.css'),
+  'src/pages/config/config-page.css': read('src/pages/config/config-page.css'),
+  'src/components/trip/ContainerInstancesCard.css': read('src/components/trip/ContainerInstancesCard.css'),
+  'src/pages/TruckTiresPage.css': read('src/pages/TruckTiresPage.css'),
+  'src/pages/penalty/violation-types.css': read('src/pages/penalty/violation-types.css'),
+  'src/components/billing/BillingDocumentBuilder.css': read('src/components/billing/BillingDocumentBuilder.css'),
+  'src/components/layout/sidebar.css': read('src/components/layout/sidebar.css'),
+  'src/components/trip/ActionBar.css': read('src/components/trip/ActionBar.css'),
+  'src/pages/SettlementPrintPage.css': read('src/pages/SettlementPrintPage.css'),
+  'src/pages/TripEditPage.css': read('src/pages/TripEditPage.css'),
+};
 
-  it('trip hero actions block carries no shadowed padding-top duplicate (AC2)', () => {
-    // AC2 — the pre-fix block declared padding-top twice (4px dead, 14px live);
-    // a shadowed declaration is how the 4px "dead" value survived review.
-    expect(tripActions).toBeTruthy();
-    expect(countDeclarations(tripActions!.body, 'padding-top')).toBe(1);
-  });
+function seamTop(body: string, long: 'margin-top' | 'padding-top', shorthand: 'margin' | 'padding'): number {
+  const d = decls(body);
+  const explicit = d[long];
+  const short = d[shorthand];
+  const value = explicit ?? (short ? short.trim().split(/\s+/)[0] : undefined);
+  if (value === undefined) return 0;
+  if (/^0(?:\.0+)?$/.test(value)) return 0;
+  return px(value, `${long} (effective)`);
+}
+
+type ResidualRow = {
+  file: string;
+  selector: string;
+  nth: number; // occurrence index among rules with this exact selector (@media children count in file order)
+  hairline?: RegExp; // separator the fixed rule must keep
+  allowMissing?: boolean; // composed guard: an absent rule passes
+  note: string;
+};
+
+const residualRows: Array<ResidualRow & { rules: Array<{ selector: string; body: string }> }> = (
+  [
+    { file: 'src/pages/ForwarderSettlementsPage.css', selector: '.fset-card__footer', nth: 0, hairline: /border-top:\s*1px\b/, note: 'checker/approver footer 14px → ≤12px' },
+    { file: 'src/pages/ForwarderSettlementsPage.css', selector: '.fset-form-actions', nth: 0, hairline: /border-top:\s*1px\b/, note: 'settlement create form actions 20px → ≤12px' },
+    { file: 'src/pages/LoginPage.css', selector: '.login-footer', nth: 0, hairline: /border-top:\s*1px\b/, note: 'login footer 20px → ≤12px' },
+    { file: 'src/pages/LoginPage.css', selector: '.login-footer', nth: 1, note: 'login footer phone band 16px → ≤12px (safe-area bottom kept)' },
+    { file: 'src/pages/ForwarderAdvancesPage.css', selector: '.fadv-form-panel__actions', nth: 0, note: 'advance form panel actions 18px → ≤12px' },
+    { file: 'src/pages/config/config-page.css', selector: '.cfg-page .cfg-form-actions', nth: 0, note: 'config form actions 18px → ≤12px' },
+    { file: 'src/pages/config/config-page.css', selector: '.cfg-page--company-info .cfg-form-actions', nth: 0, allowMissing: true, note: 'composed guard: company-info override must not re-inflate the seam' },
+    { file: 'src/components/trip/ContainerInstancesCard.css', selector: '.ci-editor__footer', nth: 0, note: 'container-instance editor footer 16px → ≤12px' },
+    { file: 'src/pages/TruckTiresPage.css', selector: '.ttp-dialog-actions', nth: 0, note: 'tire dialog actions 16px → ≤12px' },
+    { file: 'src/pages/penalty/violation-types.css', selector: '.penalty-empty-actions', nth: 0, note: 'penalty empty-state actions 16px → ≤12px' },
+    { file: 'src/components/billing/BillingDocumentBuilder.css', selector: '.billing-builder__footer', nth: 0, hairline: /border-top:\s*1px\b/, note: 'billing builder footer 14px → ≤12px' },
+    { file: 'src/components/layout/sidebar.css', selector: '.sidebar-footer', nth: 0, hairline: /border-top:\s*1px\b/, note: 'sidebar footer 14px → ≤12px' },
+    { file: 'src/components/trip/ActionBar.css', selector: '.tc-action-bar', nth: 0, hairline: /border-top:\s*1px\b/, note: 'trip create sticky action bar 14px → ≤12px' },
+    { file: 'src/pages/SettlementPrintPage.css', selector: '.settlement-expense-actions', nth: 0, note: 'settlement expense actions 14px → ≤12px' },
+    { file: 'src/pages/TripEditPage.css', selector: '.tc-rail-actions', nth: 0, hairline: /border(?:-top)?:\s*1px\b/, note: 'trip edit rail action card 14px → ≤12px (sides/bottom padding kept)' },
+  ] as ResidualRow[]
+).map((row) => ({
+  ...row,
+  rules: ruleBodies(residualSources[row.file]).filter((rule) => rule.selector === row.selector),
+}));
+
+describe('residual action-row seams hug their content (card 20261004_334)', () => {
+  for (const row of residualRows) {
+    const where = `${row.selector} @ ${row.file} #${row.nth}`;
+
+    it(`${where}: ${row.note}`, () => {
+      const rule = row.rules[row.nth];
+      if (row.allowMissing && !rule) return;
+      expect(rule, `${where}: rule missing`).toBeTruthy();
+      expect(seamTop(rule!.body, 'margin-top', 'margin'), `${where} margin-top`).toBeLessThanOrEqual(4);
+      expect(seamTop(rule!.body, 'padding-top', 'padding'), `${where} padding-top`).toBeLessThanOrEqual(8);
+      if (row.hairline) expect(rule!.body, `${where} keeps its hairline separator`).toMatch(row.hairline);
+    });
+
+    it(`${where}: no rule of this selector exceeds the 12px seam ceiling`, () => {
+      for (const [index, rule] of row.rules.entries()) {
+        const seam = seamTop(rule.body, 'margin-top', 'margin') + seamTop(rule.body, 'padding-top', 'padding');
+        expect(seam, `${row.selector} @ ${row.file} #${index} seam`).toBeLessThanOrEqual(12);
+      }
+    });
+  }
 });
