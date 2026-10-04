@@ -28,22 +28,48 @@ function defaultIssueTimes(): { plannedStartAt: string; plannedEndAt: string } {
  *  available, use the full instant (preserving minutes — KP-037). Fall back to
  *  `deliveryDate` + `runHour` for older rows, then wall clock as last resort. */
 function draftIssueTimesFor(row: DispatchDetailPlanRow): { plannedStartAt: string; plannedEndAt: string } {
+  const resolveEndAt = (fallbackEnd: Date): Date => {
+    if (row.plannedEndAt) {
+      const stored = new Date(row.plannedEndAt);
+      if (!Number.isNaN(stored.getTime())) return stored;
+    }
+    return fallbackEnd;
+  };
+
   // Prefer the full appointment instant when available — preserves minutes
   // that the integer runHour approach loses (20:45 vs 20:00).
   const runAt = row.time?.runAt;
   if (runAt) {
     const instant = new Date(runAt);
     if (!Number.isNaN(instant.getTime())) {
-      const endAt = new Date(instant.getTime() + 2 * 60 * 60_000);
+      const endAt = resolveEndAt(new Date(instant.getTime() + 2 * 60 * 60_000));
       return { plannedStartAt: toDatetimeLocalValue(instant), plannedEndAt: toDatetimeLocalValue(endAt) };
     }
   }
   const date = row.time?.deliveryDate;
   const hour = row.time?.runHour;
-  if (!date || hour == null || hour < 0 || hour > 23) return defaultIssueTimes();
+  if (!date || hour == null || hour < 0 || hour > 23) {
+    const def = defaultIssueTimes();
+    if (row.plannedEndAt) {
+      const stored = new Date(row.plannedEndAt);
+      if (!Number.isNaN(stored.getTime())) {
+        def.plannedEndAt = toDatetimeLocalValue(stored);
+      }
+    }
+    return def;
+  }
   const startAt = new Date(`${date}T${pad2(hour)}:00+07:00`);
-  if (Number.isNaN(startAt.getTime())) return defaultIssueTimes();
-  const endAt = new Date(startAt.getTime() + 2 * 60 * 60_000);
+  if (Number.isNaN(startAt.getTime())) {
+    const def = defaultIssueTimes();
+    if (row.plannedEndAt) {
+      const stored = new Date(row.plannedEndAt);
+      if (!Number.isNaN(stored.getTime())) {
+        def.plannedEndAt = toDatetimeLocalValue(stored);
+      }
+    }
+    return def;
+  }
+  const endAt = resolveEndAt(new Date(startAt.getTime() + 2 * 60 * 60_000));
   return { plannedStartAt: toDatetimeLocalValue(startAt), plannedEndAt: toDatetimeLocalValue(endAt) };
 }
 

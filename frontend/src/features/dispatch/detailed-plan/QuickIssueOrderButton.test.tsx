@@ -142,3 +142,32 @@ describe('VID-DSP-02 direct release', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
+
+describe('issue payload carries the saved "Giờ trả hàng" (card 350)', () => {
+  // User report 04/10 (P1): after Phát lệnh the /dispatch overview showed a
+  // phantom 14:44 (= runAt 12:44 + 2h) while /dispatch-detail kept the saved
+  // 14:30. The issue draft synthesized plannedEndAt and never read
+  // row.plannedEndAt ("Giờ trả hàng — staged pre-issuance on the
+  // fulfillment"); since card 343 the overview column prefers the trip's end,
+  // so the synthetic value became visible and persisted.
+  it('the issued plannedEndAt is the stored return time, not runAt + 2h', async () => {
+    const original = row('EXTERNAL');
+    original.plannedEndAt = '2026-09-15T08:30:00.000Z';
+    const issue = vi.fn().mockResolvedValue({});
+    render(<QuickIssueOrderButton row={original} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
+    await waitFor(() => expect(issue).toHaveBeenCalledTimes(1));
+    expect(issue.mock.calls[0][1].plannedEndAt).toBe('2026-09-15T08:30:00.000Z');
+    expect(issue.mock.calls[0][1].plannedStartAt).toBe('2026-09-15T07:17:00.000Z');
+  });
+
+  it('rows without a stored return keep the runAt + 2h estimate', async () => {
+    const original = row('EXTERNAL');
+    original.plannedEndAt = null;
+    const issue = vi.fn().mockResolvedValue({});
+    render(<QuickIssueOrderButton row={original} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
+    await waitFor(() => expect(issue).toHaveBeenCalledTimes(1));
+    expect(issue.mock.calls[0][1].plannedEndAt).toBe('2026-09-15T09:17:00.000Z');
+  });
+});
