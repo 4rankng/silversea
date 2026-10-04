@@ -542,8 +542,8 @@
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 4px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
 }
 

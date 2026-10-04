@@ -87,10 +87,9 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding-top: 4px;
   border-top: 1px dashed var(--line);
   margin-top: 4px;
-  padding-top: 14px;
+  padding-top: 8px;
 }
 .trip-hero__actions-spacer { flex: 1; min-width: 0; }
 .trip-hero__actions-divider {
