@@ -474,6 +474,17 @@ export async function softDeleteShipment(
       );
     }
 
+    // Cards 351/352: Cancel any uncancelled fulfillments for this shipment to cleanly cascade
+    await tx.update(s.shipmentFulfillments).set({
+      canceledAt: new Date(),
+      canceledBy: options.deletedBy ?? null,
+      cancellationReason: 'Shipment deleted',
+      updatedAt: new Date(),
+    }).where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ));
+
     const [updated] = await tx.update(s.shipments).set({
       deletedAt: new Date(),
       version: sql`${s.shipments.version} + 1`,

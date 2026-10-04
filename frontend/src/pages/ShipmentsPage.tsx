@@ -41,9 +41,10 @@ import './ShipmentsPage.css';
 // Card 20260923_1 — the drawer's Xóa lô answers with a reason instead of
 // vanishing. The dispatched wording is the lifecycle guard's own message
 // (shipment-lifecycle softDeleteShipment), so the inline banner and the 409
-// the API would raise say the same thing.
+// the API would raise say the same thing. Cards 351/352: eliminate the
+// containers block deadlock (a lot is deleted with all its containers cascade;
+// only live trips block deletion).
 const LOT_DELETE_BLOCK_MESSAGES = {
-  containers: 'Chưa xoá hết container — hãy xoá bớt/xoá hết container trước khi xoá lô',
   dispatched: 'Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh.',
 } as const;
 
@@ -142,7 +143,7 @@ export default function ShipmentsPage() {
   // answers with a reason instead of vanishing. The stored value is the BLOCK
   // KIND (not a message) so the banner self-heals: once the blocking condition
   // stops holding, the derived message is empty without an extra effect.
-  const [deleteLotBlock, setDeleteLotBlock] = useState<{ shipmentId: number; kind: 'containers' | 'dispatched' } | null>(null);
+  const [deleteLotBlock, setDeleteLotBlock] = useState<{ shipmentId: number; kind: 'dispatched' } | null>(null);
   const [exporting, setExporting] = useState(false);
   const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
   // Card 20260922_42: the toolbar's draft state moved page-side — search
@@ -270,23 +271,18 @@ export default function ShipmentsPage() {
     void loadDetail(shipmentId);
   }, [loadDetail]);
 
-  // Card 20260923_1: Xóa lô lives in the drawer header — blocked with an
-  // inline error while any container remains (ruling: clear the containers
-  // first), and with the lifecycle guard's own reason when a trip already left
-  // the lot (deletable=false). Only the clear case routes into the existing
-  // confirmed delete flow with its API guards (đã điều xe / đã phát sinh).
+  // Cards 351 & 352: Xóa lô lives in the drawer header. It is blocked with the
+  // lifecycle guard's reason when a trip already left the lot (deletable=false).
+  // When deletable is true, it routes directly into confirmed delete (deleting
+  // the lot cascades all its containers, resolving the 0-container deadlock).
   const requestDeleteLot = useCallback((item: ShipmentCusWorkspaceListItem) => {
-    if ((ws.details[item.id]?.containers.length ?? 0) > 0) {
-      setDeleteLotBlock({ shipmentId: item.id, kind: 'containers' });
-      return;
-    }
     if (!item.operational.deletable) {
       setDeleteLotBlock({ shipmentId: item.id, kind: 'dispatched' });
       return;
     }
     setDeleteLotBlock(null);
     actions.openAction(item, 'delete');
-  }, [actions, ws.details]);
+  }, [actions]);
 
   const requestCloseMobileDetail = useCallback(() => {
     if (drawerId != null && savingDetailIds.has(drawerId)) {
@@ -345,15 +341,10 @@ export default function ShipmentsPage() {
   });
   const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / pageSize));
   const drawerItem = items.find((item) => item.id === drawerId) ?? (drawerId != null ? ws.details[drawerId]?.summary : null) ?? null;
-  // Derived, not stored: the banner clears itself the moment the blocking
-  // condition stops holding (e.g. the last container is removed).
-  const drawerContainerCount = drawerId != null ? ws.details[drawerId]?.containers.length ?? 0 : 0;
   const lotDeleteBlockKind = deleteLotBlock != null && deleteLotBlock.shipmentId === drawerItem?.id ? deleteLotBlock.kind : null;
-  const lotDeleteMessage = lotDeleteBlockKind === 'containers' && drawerContainerCount > 0
-    ? LOT_DELETE_BLOCK_MESSAGES.containers
-    : lotDeleteBlockKind === 'dispatched' && drawerItem != null && !drawerItem.operational.deletable
-      ? LOT_DELETE_BLOCK_MESSAGES.dispatched
-      : null;
+  const lotDeleteMessage = lotDeleteBlockKind === 'dispatched' && drawerItem != null && !drawerItem.operational.deletable
+    ? LOT_DELETE_BLOCK_MESSAGES.dispatched
+    : null;
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;

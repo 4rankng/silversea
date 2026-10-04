@@ -1437,45 +1437,24 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText(/Container đã gắn chuyến xe TRIP-9/)).toBeTruthy();
   });
 
-  it('blocks Xóa lô while containers remain; deletes with the confirmed flow when clear (card 20260923_1)', { timeout: 15000 }, async () => {
-    // Trip-attached rows are blocked in the UI (card 20260923_1), so the
-    // clear-all path is exercised on detached lines — the guard itself is
-    // pinned by the dedicated trip-attached test above.
-    let containers = manageDetail.containers.map((line) => ({ ...line, tripId: null, tripStatus: null }));
+  it('allows Xóa lô directly when deletable=true even with containers remaining, resolving Catch-22 deadlock (cards 351, 352)', { timeout: 15000 }, async () => {
+    // Cards 351 & 352: Previously, "Xóa lô" required deleting all containers first,
+    // but deleting the last container was blocked by "Lô hàng phải có ít nhất một container".
+    // Now, clicking "Xóa lô" on a deletable lot immediately opens the confirmed delete modal
+    // (cascading all containers), eliminating the deadlock.
+    const containers = manageDetail.containers.map((line) => ({ ...line, tripId: null, tripStatus: null }));
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve({ ...manageDetail, containers })
         : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: { ...row.operational, deletable: true } }]))
     ));
-    apiPost.mockImplementation(((url: string) => {
-      const match = String(url).match(/\/containers\/(\d+)\/remove/);
-      if (match) {
-        const removedId = Number(match[1]);
-        containers = containers.filter((line) => line.id !== removedId);
-        return Promise.resolve({ removedId, shipmentVersion: 4 });
-      }
-      return Promise.resolve({});
-    }) as typeof apiPost);
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
     await screen.findByText('Trạng thái lô');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
-    // Containers present → inline error, no delete API call.
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa lô' }));
-    expect(await screen.findByText('Chưa xoá hết container — hãy xoá bớt/xoá hết container trước khi xoá lô')).toBeTruthy();
-
-    // Clear all three containers via the drawer removes → detail refetches empty.
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU1234567' }));
-    await waitFor(() => expect(within(drawer).queryByText('MSKU1234567')).toBeNull());
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' }));
-    await waitFor(() => expect(within(drawer).queryByText('MSKU7654321')).toBeNull());
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU2222333' }));
-    await waitFor(() => expect(within(drawer).queryByText('MSKU2222333')).toBeNull());
-
-    // Zero containers → the confirmed delete flow takes over (the action
-    // modal's reason textarea is the modal's stable signature).
+    // Containers present (3 containers) → no deadlock; confirmed delete flow opens immediately
     fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa lô' }));
     await waitFor(() => expect(document.querySelector('.cus-action-reason textarea')).toBeTruthy());
   });
