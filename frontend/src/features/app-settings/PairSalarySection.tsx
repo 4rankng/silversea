@@ -5,6 +5,7 @@ import { Loader2, Save, Truck } from 'lucide-react';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { Panel } from '../../components/UI';
+import { Alert } from '../../components/shared/Alert';
 import { formatCurrency } from '../../lib/format';
 
 interface PairSalarySettings {
@@ -65,6 +66,23 @@ export function PairSalarySection() {
       subtitle="Lương cặp ghép = cuốc cơ bản + phụ phí — áp dụng cho cả Kẹp và Kết hợp"
       action={<Truck size={18} className="cfg-panel-action-icon" />}
     >
+      {/* Card 20261004_337: a failed settings read must show a banner with
+          retry — never just a silently disabled form over the '0' defaults. */}
+      {settings.isError && (
+        <div style={{ marginBottom: 12 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              <button type="button" className="btn btn--sm" onClick={() => void settings.refetch()}>
+                Thử lại
+              </button>
+            }
+          >
+            Không tải được cài đặt phụ phí ghép chuyến.
+          </Alert>
+        </div>
+      )}
       <div className="cfg-section" style={{ display: 'grid', gap: 14 }}>
         <div className="field">
           <label htmlFor="pair-surcharge-kep">Phụ phí Kẹp (VND)</label>

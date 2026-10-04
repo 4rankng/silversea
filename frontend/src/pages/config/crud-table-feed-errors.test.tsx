@@ -102,4 +102,38 @@ describe('CrudTable dropdown feeds error handling (card 20261004_337 Group 3)', 
     fireEvent.click(retryBtn);
     expect(mocks.routesQuery.refetch).toHaveBeenCalled();
   });
+
+  it('LiftPricingConfigPage: renders a separate alert for the container-types feed', () => {
+    mocks.containerTypesQuery.isError = true;
+    render(<LiftPricingConfigPage />, { wrapper: makeWrapper() });
+    expect(screen.getByText('Không thể tải danh mục loại container.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(mocks.containerTypesQuery.refetch).toHaveBeenCalled();
+  });
+
+  it('PricingTablesConfigPage: renders alerts for the routes and container-types feeds', () => {
+    mocks.routesQuery.isError = true;
+    mocks.containerTypesQuery.isError = true;
+    render(<PricingTablesConfigPage />, { wrapper: makeWrapper() });
+    expect(screen.getByText('Không thể tải danh mục tuyến đường.')).toBeInTheDocument();
+    expect(screen.getByText('Không thể tải danh mục loại container.')).toBeInTheDocument();
+    const retryButtons = screen.getAllByRole('button', { name: 'Thử lại' });
+    fireEvent.click(retryButtons[0]!);
+    expect(mocks.routesQuery.refetch).toHaveBeenCalled();
+    fireEvent.click(retryButtons[1]!);
+    expect(mocks.containerTypesQuery.refetch).toHaveBeenCalled();
+  });
+
+  it('FreightRateTermsConfigPage: renders a separate alert for the customers feed', () => {
+    mocks.customersQuery.isError = true;
+    render(<FreightRateTermsConfigPage />, { wrapper: makeWrapper() });
+    expect(screen.getByText('Không thể tải danh sách khách hàng.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(mocks.customersQuery.refetch).toHaveBeenCalled();
+  });
+
+  it('keeps the plain form render when the feeds are healthy', () => {
+    render(<FuelNormsConfigPage />, { wrapper: makeWrapper() });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import type {
   EmailSettingsResponse,
 } from '@tingting/shared';
 import type { BusinessUnit } from '../../features/users/utils';
+import type * as ConfigClientModule from '../../api/configClient';
 import AppSettingsConfigPage from './AppSettingsConfigPage';
 
 const mocks = vi.hoisted(() => ({
@@ -117,6 +118,16 @@ vi.mock('../../api/userClient', () => ({
   },
 }));
 
+const pairSalaryMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../api/configClient', async (importOriginal) => {
+  const original = await importOriginal<typeof ConfigClientModule>();
+  return {
+    ...original,
+    configClient: { ...original.configClient, getPairSalarySettings: pairSalaryMock },
+  };
+});
+
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>();
   return {
@@ -146,6 +157,7 @@ function renderPage() {
 describe('AppSettingsConfigPage read failure error states (card 20261004_337 Group 2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pairSalaryMock.mockReset().mockResolvedValue({ kepSurcharge: 0, ketHopSurcharge: 0 });
     mocks.appSettingsState.isError = false;
     mocks.appSettingsState.error = null;
     mocks.appSettingsState.refetch = mocks.refetchAppSettings;
@@ -211,5 +223,36 @@ describe('AppSettingsConfigPage read failure error states (card 20261004_337 Gro
     const retryButtons = screen.getAllByRole('button', { name: 'Thử lại' });
     fireEvent.click(retryButtons[0]!);
     expect(mocks.refetchEmailSettings).toHaveBeenCalled();
+  });
+
+  it('renders an explicit Alert with retry button when the pair-salary query fails', async () => {
+    pairSalaryMock.mockRejectedValueOnce(new Error('boom'));
+    renderPage();
+    expect(await screen.findByText('Không tải được cài đặt phụ phí ghép chuyến.', undefined, { timeout: 3000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await waitFor(() => expect(pairSalaryMock).toHaveBeenCalledTimes(2));
+  });
+
+  it('keeps the retry affordance in the financial-policy error block when the policy query fails', () => {
+    mocks.financialPolicyState.error = new Error('boom');
+    renderPage();
+    expect(screen.getByText('boom')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(mocks.refetchFinancialPolicy).toHaveBeenCalled();
+  });
+
+  it('keeps the retry affordance in the truck-profile error block when the truck query fails', () => {
+    mocks.truckProfilesState.error = new Error('boom');
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ tài chính xe' }));
+    expect(screen.getByText('boom')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(mocks.refetchTruckProfiles).toHaveBeenCalled();
+  });
+
+  it('shows no read-error banner when every feed is healthy', () => {
+    renderPage();
+    expect(screen.queryByText(/Không tải được/)).toBeNull();
+    expect(screen.queryByText(/Không thể tải/)).toBeNull();
   });
 });

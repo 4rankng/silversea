@@ -51,4 +51,17 @@ describe('OperationalSiteCreateDialog feed error states (card 20261004_337 Group
     const routeSelect = screen.getByRole('button', { name: /Lỗi tải danh sách tuyến đường/i });
     expect(routeSelect).toBeDisabled();
   });
+
+  it('keeps the plain picker render when both feeds are healthy', () => {
+    render(
+      <OperationalSiteCreateDialog
+        isOpen
+        customers={[{ id: 9, name: 'Công ty Biển Bạc' }]}
+        routes={[{ id: 11, name: 'Tuyến Kiểm thử' }]}
+        onClose={vi.fn()}
+        onCreated={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });
