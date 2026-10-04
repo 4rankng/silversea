@@ -185,13 +185,17 @@
 }
 
 .shipment-detail__doc-key {
+  /* Storage keys are DATA VALUES (long unbroken tokens): display them in
+     full at every width via the house emergency break — no ellipsis clip
+     (law book §4 no-truncation doctrine, card 20261004_338). Stays the
+     shrinkable middle column of the doc row. */
   color: var(--fg-3);
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .shipment-detail__doc-date {

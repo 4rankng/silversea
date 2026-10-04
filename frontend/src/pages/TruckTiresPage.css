@@ -774,12 +774,13 @@
 }
 
 .ttp-position-name span {
+  /* Position names are DATA VALUES: display them in full at every width —
+     no ellipsis clip (law book §4 no-truncation doctrine, card 20261004_338). */
   color: var(--ink, var(--fg-1));
   font-size: var(--text-data-size);
   font-weight: 750;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .ttp-position-name small {
@@ -970,11 +971,6 @@
   .ttp-position-row--editing > .ttp-icon-actions {
     justify-self: start;
     justify-content: flex-start;
-  }
-
-  .ttp-position-name span,
-  .ttp-position-name small {
-    white-space: normal;
   }
 
   .ttp-position-list {

@@ -391,13 +391,15 @@
 .truck-maintenance-item__main { min-width: 0; }
 .truck-maintenance-item__main strong { display: block; font-size: var(--fs-xs); }
 .truck-maintenance-item__main small {
+  /* Vehicle · supplier · date · note is DATA: display the line in full at
+     every width — no ellipsis clip (law book §4 no-truncation doctrine,
+     card 20261004_338). */
   display: block;
-  overflow: hidden;
   margin-top: 2px;
   color: var(--fg-3);
   font-size: var(--text-caption-size);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .truck-maintenance-item__amount {
   display: inline-flex;
