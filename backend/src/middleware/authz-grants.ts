@@ -69,8 +69,18 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     roles: [Role.CUS, Role.DISPATCHER],
     effect: 'bypass',
     reason:
-      'Card 20261002_263 (R29): operational-sites rows are factory/warehouse master data managed by Chứng từ and Điều vận — the config screen removes a row via DELETE /operational-sites/:id. The route\'s own requireRoles keeps the permitted role set; this casbin bridge stays scoped to exactly that path so general shipment delete stays closed.',
+      'Card 20261002_263 (R29): operational-sites rows are factory/warehouse master data managed by Chứng từ and Điều vận — the config screen removes a row via DELETE /operational-sites/:id. The route\'s own requireRoles keeps the permitted role set; this casbin bridge stays scoped to exactly this path so general shipment delete stays closed.',
     source: 'Card 20261002_263 (R29)',
+  },
+  {
+    resource: 'shipments',
+    methods: ['DELETE'],
+    pathPattern: /^\/cus-workspace\/\d+$/,
+    roles: [Role.CUS],
+    effect: 'bypass',
+    reason:
+      'Cards 351/352 (QA gap found 05/10): the Xóa lô flow is the CUS DIRECT delete — 2026-09-10 user directive removed the approval flow (requestShipmentDelete) and the route\'s own requireRoles(Role.CUS) admits the CUS user, but the mount-level casbinAuthz(\'shipments\') had no DELETE grant here so every confirm tap died 403. Bridge scoped to exactly this path; general shipment delete stays closed.',
+    source: 'Cards 351/352; user directive 2026-09-10 (direct CUS delete)',
   },
   {
     resource: 'config',

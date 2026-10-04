@@ -330,8 +330,11 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
       // grant must be reachable at each gate the request actually passes.
       // Card 20261002_220 added one more bypass (CUS reads the active
       // quotation fee catalog) on the PM ruling of 2026-10-03.
-      assert.equal(ROUTE_GRANT_RULES.length, 15);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 13);
+      // Cards 351/352 (05/10, QA gap): one more bypass — the CUS delete-
+      // request path (DELETE /cus-workspace/:id), the 2026-09-10 direct-CUS-
+      // delete ruling that the casbin layer never had a row for.
+      assert.equal(ROUTE_GRANT_RULES.length, 16);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 14);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 
@@ -497,5 +500,27 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
         statusCode: 403,
       });
     });
+  });
+});
+
+describe('CUS delete-request bridge (cards 351/352)', () => {
+  // QA-discovered gap (05/10 staging rung): the Xóa lô flow is the CUS
+  // DIRECT delete (2026-09-10 user directive — requestShipmentDelete removed
+  // the approval flow), and the route's own requireRoles(Role.CUS) admits the
+  // CUS user — but the mount-level casbinAuthz('shipments') has no DELETE
+  // policy for this path, so every confirm tap died with 403 "Không có quyền
+  // truy cập". The house pattern for exactly this situation is a path-scoped
+  // bypass bridge (declarations 20260921_3, operational-sites 20261002_263):
+  // the route keeps the role set, the bridge opens only this path, general
+  // shipment delete stays closed.
+  it('bridges DELETE /cus-workspace/:id for CUS only', () => {
+    assert.ok(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.CUS));
+    // patterns are strict (no trailing-slash normalization in the matcher)
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313/', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.DISPATCHER), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.ADMIN), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/abc', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'POST', '/cus-workspace/313', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/313', Role.CUS), undefined);
   });
 });
