@@ -20,16 +20,23 @@ const trigInfo = await page.evaluate(() => {
   return { count: btns.length };
 });
 console.log('TRIGGERS', JSON.stringify(trigInfo));
-const el = await page.$('button[aria-label^="Sửa ô điều phối"]');
-if (!el) { console.log('FAIL: no editor trigger — dump:', await page.evaluate(() => document.body.innerText.slice(0, 200))); await browser.close(); process.exit(1); }
-await el.click(); // real CDP click
-await new Promise((r) => setTimeout(r, 1500));
+let dlg = null;
+for (let attempt = 0; attempt < 6 && !dlg; attempt++) {
+  const handles = await page.$$('button[aria-label^="Sửa ô điều phối"]');
+  const el = handles[attempt];
+  if (!el) break;
+  await el.click(); // real CDP click
+  await new Promise((r) => setTimeout(r, 2600));
+  dlg = await page.$('[role=dialog] input[aria-label="Giờ — Giờ trả hàng"]');
+  if (!dlg) { await page.keyboard.press('Escape'); await new Promise((r) => setTimeout(r, 700)); }
+}
+if (!dlg) { console.log('FAIL: no editor dialog opened across 6 triggers'); await browser.close(); process.exit(1); }
 
-const dlg = await page.evaluate(() => {
+const dlgInfo = await page.evaluate(() => {
   const d = document.querySelector('[role=dialog]');
   return { open: !!d, hasEndGroup: /Giờ trả hàng/.test(d?.innerText || ''), text: (d?.innerText || '').replace(/\n/g, ' | ').slice(0, 240) };
 });
-console.log('DIALOG', JSON.stringify(dlg));
+console.log('DIALOG', JSON.stringify(dlgInfo));
 
 async function activeLabel() {
   return page.evaluate(() => {
@@ -39,8 +46,7 @@ async function activeLabel() {
 }
 
 // AC1a: hour "08" → focus advances to PHÚT
-const hour = await page.$('input[aria-label="Giờ — Giờ trả hàng"]');
-if (!hour) { console.log('FAIL: no hour segment'); await browser.close(); process.exit(1); }
+const hour = dlg;
 await hour.click();
 await page.keyboard.type('08', { delay: 120 });
 await new Promise((r) => setTimeout(r, 500));
