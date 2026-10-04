@@ -93,6 +93,7 @@ async function mkDispatchableShipment(args: {
   containerSiteId?: number | null;
   shipmentSiteId?: number | null;
   factoryName?: string | null;
+  containerRouteId?: number | null;
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: args.customerId,
@@ -116,7 +117,7 @@ async function mkDispatchableShipment(args: {
 
   const [container] = await db.insert(s.shipmentContainers).values({
     shipmentId: shipment.id,
-    routeId: args.routeId,
+    routeId: args.containerRouteId !== undefined ? args.containerRouteId : args.routeId,
     containerTypeId: containerType.id,
     operationalSiteId: args.containerSiteId ?? null,
     createdBy: admin.userId,
@@ -307,5 +308,26 @@ describe('F6 factory-site snapshot at dispatch', () => {
     const view = await getTripFactorySiteView(outcome.trip.id);
     assert.equal(view?.source, 'LIVE', 'null snapshot falls back to the live join');
     assert.equal(view?.name, 'LEGACY-RENAMED', 'live join sees current master data');
+  });
+
+  test('card 319 — issue order succeeds when container routeId is null by falling back to shipment routeId', async () => {
+    const [customer] = await db.insert(s.customers)
+      .values({ name: `T8d customer ${suffix}` }).returning();
+    createdCustomerIds.push(customer.id);
+    const [route] = await db.insert(s.routes)
+      .values({ name: `T8d route ${suffix}`, distanceKm: 120 }).returning();
+    createdRouteIds.push(route.id);
+    const site = await mkSite('Nhà máy Quế Võ', 'QUE-VO', customer.id);
+
+    const fixture = await mkDispatchableShipment({
+      customerId: customer.id,
+      routeId: route.id,
+      containerRouteId: null,
+      containerSiteId: site.id,
+    });
+    const outcome = await dispatch(fixture.shipment, fixture.fulfillment);
+    assert.ok(outcome.trip.id, 'trip created successfully');
+    const [trip] = await db.select().from(s.trips).where(eq(s.trips.id, outcome.trip.id));
+    assert.equal(trip.routeId, route.id, 'trip inherited shipment routeId');
   });
 });

@@ -275,8 +275,9 @@ export async function issueOrderCreateOrUpdate(
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
       .limit(1);
+  // FCL route falls back container -> shipment (mirroring detail plan and CUS workspace)
   const effectiveRouteId = fulfillment.cargoMode === CARGO_MODE.FCL
-    ? containerRoute?.routeId ?? null
+    ? (containerRoute?.routeId ?? shipment.routeId ?? null)
     : shipment.routeId;
   const [route] = effectiveRouteId == null
     ? []
