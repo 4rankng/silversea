@@ -434,3 +434,25 @@ counts rows and picks `inline → dialog`. The measured reconciliation between
 the ≥1280 inline expectation (R17) and the two-row cap is card
 20261002_282's open scope; the owning lane brings measured options before
 the shared band moves. No implementation pins yet — they land with 282.
+
+### 2026-10-04 — Popover footers hug their content (cards 20261004_322, 20261004_330)
+
+The gap between a popover/dialog's last content block and its footer/action
+row is a seam, not whitespace: `margin-top ≤ 4px` + `padding-top ≤ 8px`
+(~13px visual), with a hairline `border-top` when the footer needs a
+separator. No filling spacer, no auto-margin stretch above the actions — a
+detached popover's footer always hugs its content (allocation dialog fixed
+33px → 13px, card 20261004_322). Class sweep 04/10 (card 20261004_330's
+scope): `.month-picker__footer` (topbar), `.users-mobile-card__actions`,
+`.trip-hero__actions`. Pins: each surface's styles-contract test.
+
+### 2026-10-04 — Fixed-column icon runs never bleed onto neighbours (cards 20261004_324, 20261004_331)
+
+In a `table-layout: fixed` table a row-action icon run stays inside its
+frozen column: the column budget must admit the full run at the coarse-pointer
+40px button floor, and the run uses `justify-content: safe flex-end` so a run
+that cannot fit keeps its start edge inside its own cell instead of painting
+leftward over the previous cell (the pencil-glued-to-the-pill defect, card
+20261004_324). A status pill and an action run never share one frozen cell.
+Class sweep 04/10 (card 20261004_331's scope): shared root cause
+`components/Table.css .row-actions` and `.ancillary-fees__table`.
