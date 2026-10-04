@@ -30,7 +30,10 @@ export const fleetProductivityClient = {
     return res.data;
   },
 
-  getMonthlyExportUrl(year: number, month: number): string {
-    return `/api/fleet/productivity/monthly/export?year=${year}&month=${month}`;
+  getMonthlyExportBlob(year: number, month: number): Promise<Blob> {
+    // Authenticated download (card 346): api.getBlob carries the Bearer token —
+    // the old getMonthlyExportUrl + window.open navigation sent NO Authorization
+    // header and the export always failed with "Token không hợp lệ".
+    return api.getBlob(`/fleet/productivity/monthly/export?year=${year}&month=${month}`);
   },
 };

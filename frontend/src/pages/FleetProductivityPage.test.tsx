@@ -6,13 +6,13 @@ import type { DailyFleetProductivityResponse, MonthlyFleetProductivityResponse }
 
 const getDailyMock = vi.hoisted(() => vi.fn());
 const getMonthlyMock = vi.hoisted(() => vi.fn());
-const getMonthlyExportUrlMock = vi.hoisted(() => vi.fn());
+const exportMonthlyBlobMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/fleetProductivityClient', () => ({
   fleetProductivityClient: {
     getDaily: getDailyMock,
     getMonthly: getMonthlyMock,
-    getMonthlyExportUrl: getMonthlyExportUrlMock,
+    getMonthlyExportBlob: exportMonthlyBlobMock,
   },
 }));
 
@@ -156,7 +156,7 @@ describe('FleetProductivityPage', () => {
     vi.clearAllMocks();
     getDailyMock.mockResolvedValue(mockDailyData);
     getMonthlyMock.mockResolvedValue(mockMonthlyData);
-    getMonthlyExportUrlMock.mockReturnValue('/api/fleet/productivity/monthly/export?year=2026&month=10');
+    exportMonthlyBlobMock.mockResolvedValue(new Blob(['xlsx-bytes'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   });
 
   it('renders daily view by default with KPIs and active truck breakdown', async () => {
@@ -195,8 +195,17 @@ describe('FleetProductivityPage', () => {
     expect(screen.getByText('Xuất Excel')).toBeTruthy();
   });
 
-  it('handles monthly excel export click', async () => {
+  it('handles monthly excel export click through the authenticated blob download (card 346)', async () => {
+    // The old contract opened the bare /api URL in a new tab — a navigation
+    // that carries NO Authorization header, so the export died with
+    // {"error":"Token không hợp lệ"} (P1, user report 04/10). The contract is
+    // the house export pattern: authenticated blob → anchor download.
     const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:export-346'),
+      revokeObjectURL: vi.fn(),
+    }));
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     renderPage();
 
@@ -209,9 +218,27 @@ describe('FleetProductivityPage', () => {
     const exportBtn = screen.getByText('Xuất Excel');
     fireEvent.click(exportBtn);
 
-    expect(getMonthlyExportUrlMock).toHaveBeenCalled();
-    expect(windowOpenSpy).toHaveBeenCalledWith('/api/fleet/productivity/monthly/export?year=2026&month=10', '_blank');
+    await waitFor(() => expect(exportMonthlyBlobMock).toHaveBeenCalledWith(2026, 10));
+    expect(windowOpenSpy).not.toHaveBeenCalled();
+    expect(anchorClickSpy).toHaveBeenCalled();
+    const anchor = anchorClickSpy.mock.instances[0] as HTMLAnchorElement;
+    expect(anchor.download).toBe('bao-cao-nang-suat-xe-noi-bo-10-2026.xlsx');
 
+    anchorClickSpy.mockRestore();
     windowOpenSpy.mockRestore();
+  });
+
+  it('surfaces an error when the export download fails (no silent failure)', async () => {
+    exportMonthlyBlobMock.mockRejectedValue(new Error('network'));
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    renderPage();
+    fireEvent.click(screen.getByText('Từng xe trong 1 tháng'));
+    expect(await screen.findByText('Biển số xe')).toBeTruthy();
+    fireEvent.click(screen.getByText('Xuất Excel'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Không xuất được báo cáo/);
+    expect(anchorClickSpy).not.toHaveBeenCalled();
+    anchorClickSpy.mockRestore();
   });
 });

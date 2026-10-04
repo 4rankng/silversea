@@ -49,8 +49,26 @@ export function MonthlyProductivityView() {
     ];
   }, [monthlyData?.trucks]);
 
-  function handleExportExcel() {
-    window.open(fleetProductivityClient.getMonthlyExportUrl(monthlyYear, monthlyMonth), '_blank');
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function handleExportExcel() {
+    // Authenticated blob download (card 346) — the house export pattern. The
+    // old window.open(bare URL) navigation carried no Authorization header and
+    // the API answered {"error":"Token không hợp lệ"} every time.
+    setExportError(null);
+    try {
+      const blob = await fleetProductivityClient.getMonthlyExportBlob(monthlyYear, monthlyMonth);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `bao-cao-nang-suat-xe-noi-bo-${monthlyMonth}-${monthlyYear}.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError('Không xuất được báo cáo năng suất. Vui lòng thử lại.');
+    }
   }
 
   return (
@@ -96,6 +114,10 @@ export function MonthlyProductivityView() {
           </div>
         </div>
       </FilterBar>
+
+      {exportError && (
+        <div role="alert" style={{ margin: '8px 0', color: 'var(--danger)' }}>{exportError}</div>
+      )}
 
       {monthlyQuery.isLoading ? (
         <SkeletonTable rows={8} />
