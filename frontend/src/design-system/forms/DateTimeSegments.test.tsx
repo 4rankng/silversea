@@ -192,3 +192,50 @@ describe('DateTimeSegments', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('DateTimeSegments — type-over restart (thẻ 326 revocation, user retest 04/10/2026)', () => {
+  // User retest on build 813a2b0d: "auto-advance is still broken". The engine
+  // advances correctly ONLY while the segment keeps its select-on-focus
+  // selection; with a collapsed caret the input's maxLength silently swallows
+  // every digit (value can never change → never completes → never advances).
+  // The contract is the standard segmented-input one: typing a digit into a
+  // FULL segment restarts it (replace-first), regardless of selection state.
+  it('typing a digit into a full segment with a collapsed caret restarts the segment (replace-first)', () => {
+    render(<Harness part="time" value="13:30" />);
+    const mmSeg = seg('mm');
+    act(() => {
+      mmSeg.focus();
+      mmSeg.setSelectionRange(2, 2); // collapsed caret at end — the broken state
+    });
+    fireEvent.keyDown(mmSeg, { key: '0' });
+    // Native input would reject this keystroke (maxLength reached) and no
+    // onChange would fire — pre-fix the segment stayed "30" and focus stuck.
+    expect(seg('mm')).toHaveValue('0');
+  });
+
+  it('a full hour restarted by typing still completes and auto-advances', () => {
+    render(<Harness part="time" value="13:30" />);
+    const hhSeg = seg('hh');
+    act(() => {
+      hhSeg.focus();
+      hhSeg.setSelectionRange(2, 2);
+    });
+    fireEvent.keyDown(hhSeg, { key: '1' });
+    expect(seg('hh')).toHaveValue('1');
+    type('hh', '13');
+    expect(seg('hh')).toHaveValue('13');
+    expect(activeLabel()).toBe('Phút — test');
+  });
+
+  it('clicking a segment re-selects its digits even when focus does not change', () => {
+    render(<Harness part="time" value="13:30" />);
+    const hhSeg = seg('hh');
+    act(() => {
+      hhSeg.focus();
+      hhSeg.setSelectionRange(2, 2); // e.g. a second click parked the caret
+    });
+    fireEvent.click(hhSeg);
+    expect(hhSeg.selectionStart).toBe(0);
+    expect(hhSeg.selectionEnd).toBe(2);
+  });
+});

@@ -176,6 +176,19 @@ export function DateTimeSegments({
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
     inputProps?.onKeyDown?.(event);
     if (event.defaultPrevented || disabled || readOnly || event.altKey || event.ctrlKey || event.metaKey) return;
+    // Type-over restart (thẻ 326 revocation, user retest 04/10/2026): a digit
+    // typed into a FULL segment with a collapsed caret must restart the
+    // segment (standard segmented-input contract). Without this, the input's
+    // maxLength silently swallows the keystroke — the value can never change,
+    // so the segment never completes and auto-advance is dead for every
+    // path that loses the select-on-focus selection (second click, render
+    // timing after scheduleFocus, IME/autofill landings).
+    const collapsed = (event.currentTarget.selectionStart ?? 0) === (event.currentTarget.selectionEnd ?? 0);
+    if (/^[0-9]$/.test(event.key) && collapsed && texts[index].length >= specs[index].maxLength) {
+      event.preventDefault();
+      write(index, event.key);
+      return;
+    }
     const empty = segRefs.current[index]?.value === '';
     const first = index === 0;
     const last = index === specs.length - 1;
@@ -226,6 +239,11 @@ export function DateTimeSegments({
           onChange={(event) => write(index, event.target.value)}
           onKeyDown={(event) => handleKeyDown(event, index)}
           onFocus={(event) => { inputProps?.onFocus?.(event); event.target.select(); }}
+          // Re-select on click even when the segment already holds focus —
+          // onFocus does not re-fire for an already-focused input, and a
+          // caret parked mid-digit leaves a full segment untypeable (same
+          // 326 type-over contract as the keydown guard above).
+          onClick={(event) => { inputProps?.onClick?.(event); event.currentTarget.select(); }}
           isDisabled={disabled} disabled={disabled} readOnly={readOnly} isRequired={required}
           inputClassName={['date-seg', outOfRange ? 'date-seg--invalid' : '', inputProps?.className].filter(Boolean).join(' ')}
           wrapperClassName="date-seg-wrapper" />
