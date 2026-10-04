@@ -280,11 +280,12 @@
   }
   .customer-shell__scope-error { padding: 10px 16px; }
   .customer-shell__main { padding: 12px 8px 12px; }
-  /* In flow: the bar is the last flex item of the shell column, so it sits at
-     the end of the VISUAL viewport at every toolbar state and its own surface
-     paints to the physical bottom (safe-area padding kept below). Nothing has to
-     reserve space for it — an overlay is the only thing that needs a padding
-     compensation, and a wrong compensation is what hides the last row. */
+  /* Fixed layer (docs/design-guidelines.md 2026-10-03 §5 mechanism revision,
+     card 20260927_149 — the proven phone pattern; the 2026-09-28 in-flow
+     interim is retired): the bar is pinned to the viewport bottom and its own
+     opaque box paints the home-indicator strip. The scrolling
+     .customer-shell__content pays the bar's height ONCE as bottom clearance,
+     so the last row parks above the bar instead of under it. */
   .customer-shell__bottom-nav {
     position: fixed;
     left: 0;

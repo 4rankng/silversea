@@ -93,6 +93,7 @@ export function DailyProductivityView() {
 
           {dailyData.trucks.length === 0 ? (
             <EmptyState
+              context="trucks"
               title="Không có dữ liệu"
               description="Không tìm thấy chuyến xe nội bộ nào trong ngày đã chọn."
             />
