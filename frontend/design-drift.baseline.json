@@ -1,15 +1,15 @@
 {
   "note": "Ratchet: counts may fall, never rise. Regenerate with `pnpm design:drift --update` after a deliberate cleanup.",
   "measured": {
-    "scannedFiles": 182,
-    "hexDirect": 196,
-    "hexFallback": 14,
+    "scannedFiles": 188,
+    "hexDirect": 169,
+    "hexFallback": 13,
     "radiusOffLadder": 0,
-    "rawShadow": 59,
-    "rawZIndex": 80,
-    "untokenizedTransition": 132,
+    "rawShadow": 49,
+    "rawZIndex": 76,
+    "untokenizedTransition": 129,
     "mediaWidthValues": 47,
-    "containerWidthValues": 20
+    "containerWidthValues": 21
   },
   "worstFiles": [
     {
@@ -19,10 +19,6 @@
     {
       "file": "src/pages/salary-attendance/calendar.css",
       "score": 67
-    },
-    {
-      "file": "src/components/billing/BillingDocumentBuilder.css",
-      "score": 46
     },
     {
       "file": "src/pages/payables-fuel-invoices.css",
@@ -37,20 +33,24 @@
       "score": 31
     },
     {
-      "file": "src/pages/TruckTiresPage.css",
-      "score": 31
-    },
-    {
       "file": "src/pages/ShipmentDetailPage.css",
-      "score": 30
-    },
-    {
-      "file": "src/pages/SettlementPrintPage.css",
-      "score": 29
+      "score": 27
     },
     {
       "file": "src/pages/FleetPage.css",
       "score": 25
+    },
+    {
+      "file": "src/pages/FinancePage.css",
+      "score": 21
+    },
+    {
+      "file": "src/pages/TruckTiresPage.css",
+      "score": 21
+    },
+    {
+      "file": "src/pages/CustomersPage.css",
+      "score": 19
     }
   ]
 }

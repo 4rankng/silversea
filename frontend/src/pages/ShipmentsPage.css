@@ -222,8 +222,8 @@
 
 .cus-drawer-workflow {
   display: grid;
-  gap: 8px;
-  padding: 12px 20px 10px;
+  gap: 12px;
+  padding: 14px 20px 12px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
@@ -257,8 +257,7 @@
 .cus-drawer-decision-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.88fr) minmax(240px, 1.15fr);
-  border-block: 1px solid var(--line);
-  background: var(--surface-2);
+  background: var(--surface);
 }
 
 .cus-drawer-decision {
@@ -327,36 +326,20 @@
 }
 
 .cus-drawer-workflow__action {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px;
-  border-block: 1px solid var(--line);
-  background: var(--surface-2);
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
 }
 
-.cus-drawer-workflow__action::before {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: var(--status-strip-width);
-  height: var(--status-strip-height);
-  border-radius: var(--status-strip-radius);
-  background: var(--accent-2);
-  transform: translateY(-50%);
-  content: '';
-  pointer-events: none;
-}
-
-.cus-drawer-workflow__action--blocked::before {
-  background: var(--warning);
-}
-
-.cus-drawer-workflow__action--idle::before {
-  background: var(--ink-3);
-}
+/* Card 20261004 drawer restyle (Untitled UI PRO consult — application/
+   slideout-menus project-details-menu): the decorative status rail and the
+   tinted action box are retired; the drawer reads as flat white sections
+   divided by hairlines. Blocked-state semantics stay in the reason text
+   (aria-describedby) and the secondary-toned action button. */
 
 .cus-drawer-workflow__action > div {
   display: grid;
@@ -1405,7 +1388,18 @@
 }
 
 .cus-shipment-drawer .drawer__body {
-  padding: 0 0 72px;
+  /* The footer is a flex sibling of the scrolling body (Drawer.css) — no
+     overlap, so the old 72px phantom clearance is gone (20261004 drawer
+     restyle; it read as a dead band above the Huỷ/Lưu bar). */
+  padding: 0;
+}
+
+/* Untitled UI slideout Footer pattern: the action bar sits on the same white
+   panel surface as the content, separated only by the hairline top border
+   (Drawer.css .drawer__foot supplies the border) — not a tinted second
+   surface. */
+.cus-shipment-drawer .drawer__foot {
+  background: var(--surface);
 }
 
 .cus-container-ledger {
@@ -1972,7 +1966,7 @@
   }
 
   .cus-shipment-drawer .drawer__body {
-    padding: 0 0 56px;
+    padding: 0;
   }
 
   .cus-drawer-workflow {
@@ -2007,7 +2001,7 @@
   .cus-drawer-workflow__action {
     align-items: stretch;
     flex-direction: column;
-    padding: 13px 14px;
+    padding: 12px 0 0;
   }
 
   .cus-drawer-primary-action {

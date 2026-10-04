@@ -2319,7 +2319,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('keeps the shipment drawer flat, compact, and honest about blocked actions', () => {
     expect(css).toMatch(/\.cus-shipment-drawer\s*\{[^}]*background:\s*var\(--surface\);/);
     expect(css).toMatch(/\.cus-container-table\s*\{[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
-    expect(css).toMatch(/\.cus-drawer-workflow__action--blocked::before\s*\{[^}]*background:\s*var\(--warning\);/);
+    // 20261004 drawer restyle (Untitled UI PRO consult, application/slideout-menus):
+    // the action row is a flat white section divided by a hairline — the old
+    // decorative ::before status rail and the tinted action box are retired.
+    // Blocked semantics stay in the reason text + the secondary-toned button.
+    expect(css).not.toMatch(/\.cus-drawer-workflow__action[^{]*::before/);
+    expect(css).toMatch(/\.cus-drawer-workflow__action\s*\{[^}]*border-top:\s*1px solid var\(--line\);[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.cus-shipment-drawer \.drawer__foot\s*\{[^}]*background:\s*var\(--surface\);/);
+    expect(css).not.toMatch(/\.cus-shipment-drawer \.drawer__body\s*\{[^}]*padding:\s*0 0 \d+px/);
     expect(source).toContain("color={item.action.enabled ? 'primary' : 'secondary'}");
   });
 
