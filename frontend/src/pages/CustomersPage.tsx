@@ -655,14 +655,21 @@ export default function CustomersPage() {
       <div className="desktop-only table-wrap">
         <div className="record-table-wrap">
           <table className="record-table ops-table" style={{ tableLayout: 'fixed' }}>
+              {/* Card 20261004_335: the action column budgets the worst-case
+                  row-action run (2 × coarse 40px square + 6px gap = 86px + 24px
+                  cell padding → 112px, card-324 idiom). The +32px grant is
+                  funded from the wrap-yield "Liên hệ & SĐT" column so the
+                  fixed set still sums 808px and the auto identity column is
+                  pixel-identical to before at every width (no-truncation law;
+                  styles test: action-column-width-budget). */}
               <colgroup>
                 <col style={{ width: 140 }} />
                 <col />
                 <col style={{ width: 120 }} />
-                <col style={{ width: 200 }} />
+                <col style={{ width: 168 }} />
                 <col style={{ width: 110 }} />
                 <col style={{ width: 158 }} />
-                <col style={{ width: 80 }} />
+                <col style={{ width: 112 }} />
               </colgroup>
               <thead>
                 <tr>
@@ -672,7 +679,7 @@ export default function CustomersPage() {
                   <SortHeader label="Liên hệ & SĐT" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
                   <th>Trạng thái</th>
                   <th>Cước thu / trả</th>
-                  <th></th>
+                  <th style={{ width: 112 }}></th>
                 </tr>
               </thead>
             <tbody>

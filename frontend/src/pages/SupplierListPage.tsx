@@ -339,15 +339,24 @@ export default function SupplierListPage() {
       <div className="desktop-only table-wrap suppliers-page__workspace">
         <div className="record-table-wrap suppliers-page__grid-wrapper">
           <table className="record-table ops-table suppliers-page__grid" style={{ tableLayout: 'fixed' }}>
+            {/* Card 20261004_335: the action column budgets the worst-case
+                row-action run (2 × coarse 40px square + 6px gap = 86px + 24px
+                cell padding → 112px, card-324 idiom). The data shares sum to
+                89% so 89% × 1100px + 112px fits the table-mode floor — the
+                shared record-table card band starts below 1100px — and the
+                frozen column can never be squeezed below its budget. The
+                grant is funded from the wrap-yield name / Mã NCC / contact
+                columns; the tax-code, phone and money token columns keep
+                their widths (styles test: action-column-width-budget). */}
             <colgroup>
-              <col style={{ width: '22%' }} />
+              <col style={{ width: '21%' }} />
               <col style={{ width: '12%' }} />
+              <col style={{ width: '11%' }} />
               <col style={{ width: '12%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '12%' }} />
+              <col style={{ width: '11%' }} />
               <col style={{ width: '12%' }} />
               <col style={{ width: '10%' }} />
-              <col style={{ width: 60 }} />
+              <col style={{ width: 112 }} />
             </colgroup>
             <thead>
               <tr>
@@ -358,7 +367,7 @@ export default function SupplierListPage() {
                 <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
                 <SortHeader label="SĐT" sortKey="phone" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Công nợ" sortKey="payable" sort={sort} onSortChange={applySort} style={thMoneyStyle} />
-                <th style={{ width: 60 }}></th>
+                <th style={{ width: 112 }}></th>
               </tr>
             </thead>
             <tbody>
