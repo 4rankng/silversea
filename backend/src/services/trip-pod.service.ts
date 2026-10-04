@@ -299,6 +299,13 @@ export async function loadOwnedFulfillmentTrip(
       ...(includeCanceled ? [] : [isNull(s.shipmentFulfillments.canceledAt)]),
       eq(s.trips.driverId, driverId),
     ))
+    // Card 347 rework (staging probe 05/10): a fulfillment can hold several
+    // trips — a CANCELED original plus a live replacement after reassignment.
+    // The old unordered .limit(1) let the canceled sibling win, so a live
+    // order's detail showed "Chuyến đã hủy". Live trips resolve first
+    // (newest first); a canceled trip resolves only when it is all that
+    // remains (20260916_7's canceled-trip banner contract).
+    .orderBy(asc(sql`(${s.trips.status} = 'CANCELED')`), desc(s.trips.id))
     .limit(1);
 
   const rows = options.forUpdate ? await query.for('update') : await query;

@@ -27,6 +27,7 @@ import * as s from '../db/schema';
 import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
 import { getDriverCompletionEvidenceStatus } from '../services/trip-pod.service';
 import { getDriverFulfillmentDetail } from '../services/driver.service';
+import { loadOwnedFulfillmentTrip } from '../services/trip-pod.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const NOTES = 'LẤY SỐ; GÓI CUỘN';
@@ -389,6 +390,39 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
     assert.equal(bucketByTrip.get(tripC.id), 'NEW', 'CREATED → Lệnh mới (unchanged)');
 
     await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, tripB.id));
+  });
+
+  // Card 347 rework (QA FAILED 05/10, staging probe): a fulfillment with a
+  // CANCELED trip (older, trip 14) and a LIVE replacement (trip 79, CREATED
+  // after reassignment) made the detail show "Chuyến đã hủy" for a live order
+  // — loadOwnedFulfillmentTrip's `.limit(1)` has no ORDER BY, so the canceled
+  // sibling won the pick. Contract: the LIVE trip resolves first; a canceled
+  // trip resolves only when it is all that remains (20260916_7's canceled
+  // banner must keep working).
+  test('fulfillment trip resolution prefers the LIVE trip over a canceled sibling (card 347 rework)', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Resolve');
+
+    // Trip A (older id) is cancelled; trip B (newer) is the live replacement.
+    const chain = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+    });
+    await db.update(s.trips).set({ status: 'CANCELED' }).where(eq(s.trips.id, chain.trip.id));
+    const { id: _omitId, ...tripBase } = chain.trip;
+    const [liveTrip] = await db.insert(s.trips).values({
+      ...tripBase,
+      tripCode: `${chain.trip.tripCode ?? 'T'}-LIVE`,
+      status: 'CREATED',
+    }).returning();
+
+    const resolved = await loadOwnedFulfillmentTrip(db, chain.fulfillment.id, driver.id, { includeCanceled: true });
+    assert.equal(resolved.tripId, liveTrip.id, 'detail resolves the live replacement, not the canceled sibling');
+
+    // Only-cancelled fallback (20260916_7): the canceled trip still resolves.
+    await db.delete(s.trips).where(eq(s.trips.id, liveTrip.id));
+    const fallback = await loadOwnedFulfillmentTrip(db, chain.fulfillment.id, driver.id, { includeCanceled: true });
+    assert.equal(fallback.tripId, chain.trip.id, 'canceled trip still resolves when it is all that remains');
   });
 
   // Card 20261004_347 (user report 04/10): a cancelled trip showed in the
