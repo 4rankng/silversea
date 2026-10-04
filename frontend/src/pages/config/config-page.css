@@ -565,7 +565,8 @@
 .factories-table thead th:nth-child(6) { width: 200px; }
 .factories-table thead th:nth-child(7) { width: 150px; }
 .factories-table thead th:nth-child(8) { width: 90px; }
-.factories-table thead th:nth-child(9) { width: 44px; }
+.factories-table thead th:nth-child(9),
+.factories-table td.record-table__action { width: 76px; }
 .factory-record-details summary { cursor: pointer; min-height: var(--control-max-h); align-content: center; font-size: var(--text-control-size); }
 .factory-record-details dl { display: grid; gap: 6px; margin: 4px 0; }
 .factory-record-details dt { color: var(--ink-3); font-size: var(--text-label-size); }

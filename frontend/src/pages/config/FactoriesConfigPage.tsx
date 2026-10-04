@@ -230,7 +230,7 @@ export default function FactoriesConfigPage() {
           <table className="record-table ops-table factories-table">
             <caption className="sr-only">Danh mục nhà máy / kho theo khách hàng</caption>
             <colgroup>
-              {[4, 10, 9, 17, 7, 12, 31, 7, 3].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+              {[4, 10, 9, 17, 7, 12, 27, 7, 7].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
             </colgroup>
             <thead>
               <tr>
@@ -242,7 +242,7 @@ export default function FactoriesConfigPage() {
                 <th>Tuyến</th>
                 <SortHeader label="Địa chỉ / Liên hệ" sortKey="address" sort={sort} onSortChange={handleSort} />
                 <th>Trạng thái</th>
-                <th style={{ width: 56 }}></th>
+                <th style={{ width: 76 }}></th>
               </tr>
             </thead>
             <tbody>
