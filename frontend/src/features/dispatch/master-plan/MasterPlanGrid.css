@@ -363,8 +363,16 @@
   gap: 2px 8px;
 }
 
+/* Card 20261004_321 (repair of the 03/10 law's misfire, not the law): these
+   two `flex` values were HORIZONTAL sizing in the pre-302 wrapping row — a
+   56px summary basis that grew to push the action right, and a note line whose
+   first child grew to push its trigger right. The 03/10 column flip left them
+   behind, where they became vertical inflation: a short summary was forced to
+   56px and the footnote dropped 22–39px below the values ("khoảng trống dọc
+   lớn … ghim xuống đáy ô"). Both blocks are content-height now, so the
+   footnote hugs its values 2px below and the row keeps its dense rhythm. */
 .master-plan-grid__cargo-summary {
-  flex: 1 1 56px;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
@@ -376,7 +384,7 @@
 }
 
 .master-plan-grid__line--notes:has(> .master-plan-grid__note-detail-trigger) > :first-child {
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
