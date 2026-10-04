@@ -245,4 +245,23 @@ describe('SplitDateTimeField', () => {
     expect(hour()).toHaveValue('13');
     expect(onChange).toHaveBeenCalledTimes(1);
   });
+
+  it('card 326: auto-advances from hour to minute, minute to date, day to month, and month to year', async () => {
+    render(<Harness value="" />);
+    act(() => hour().focus());
+    expect(hour()).toHaveFocus();
+
+    fireEvent.change(hour(), { target: { value: '08' } });
+    await waitFor(() => expect(minute()).toHaveFocus());
+
+    fireEvent.change(minute(), { target: { value: '30' } });
+    await waitFor(() => expect(day()).toHaveFocus());
+
+    fireEvent.change(day(), { target: { value: '02' } });
+    await waitFor(() => expect(screen.getByLabelText('Tháng — Hẹn')).toHaveFocus());
+
+    fireEvent.change(screen.getByLabelText('Tháng — Hẹn'), { target: { value: '10' } });
+    await waitFor(() => expect(screen.getByLabelText('Năm — Hẹn')).toHaveFocus());
+  });
 });
+

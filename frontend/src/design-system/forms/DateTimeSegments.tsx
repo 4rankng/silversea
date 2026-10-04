@@ -147,8 +147,18 @@ export function DateTimeSegments({
       // Auto-advance only on a complete in-range value; flagged values stay
       // put. Completing the final segment ends the entry naturally.
       if (next[index].length === specs[index].maxLength && !isOutOfRange(specs[index], next[index])) {
-        if (index + 1 < specs.length) pendingFocus.current = index + 1;
-        else onComplete?.();
+        if (index + 1 < specs.length) {
+          pendingFocus.current = index + 1;
+          queueMicrotask(() => {
+            if (pendingFocus.current != null) {
+              const targetIdx = pendingFocus.current;
+              pendingFocus.current = null;
+              focusSegment(targetIdx);
+            }
+          });
+        } else {
+          onComplete?.();
+        }
       }
     }
     onValueChange(next.some(Boolean) ? next.join(separator) : '');

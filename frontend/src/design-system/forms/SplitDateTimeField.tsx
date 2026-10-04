@@ -156,6 +156,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
               anchorRef={part === 'time' ? timeRef : dateRef}
               lastSegmentRef={part === 'time' ? lastTimeRef : undefined}
               onOpenPicker={() => openPanel(part)}
+              onComplete={part === 'time' ? () => dateRef.current?.focus() : undefined}
               onBackFromStart={part === 'date' ? () => lastTimeRef.current?.focus() : undefined}
               onForwardFromEnd={part === 'time' ? () => dateRef.current?.focus() : undefined}
               popupExpanded={active && open === part} popupControls={active && open === part ? `${id}-picker` : undefined}

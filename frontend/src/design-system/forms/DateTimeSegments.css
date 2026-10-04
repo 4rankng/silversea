@@ -63,6 +63,11 @@
   text-align: center;
 }
 
+.date-seg-group .date-seg-wrapper .date-seg:focus {
+  background-color: var(--color-bg-secondary, #F3F4F6);
+  border-radius: 4px;
+}
+
 .date-seg-group .date-seg-wrapper .date-seg[data-seg='dd'] { width: 1.706em; }
 .date-seg-group .date-seg-wrapper .date-seg[data-seg='mm2'] { width: 1.956em; }
 .date-seg-group .date-seg-wrapper .date-seg[data-seg='yyyy'] { width: 2.91em; }
