@@ -83,7 +83,10 @@ function bucketForStatus(
   status: typeof s.trips.$inferSelect.status,
   acknowledged: boolean,
 ): DriverJourneyBucket {
-  if (status === 'COMPLETED') return 'HISTORY';
+  // DRV-LIST-02 (card 347): Lịch sử means completed OR cancelled. The
+  // cancelled half was missing — CANCELED fell through to the 'NEW' default
+  // and a user saw a cancelled order under "Lệnh mới".
+  if (status === 'COMPLETED' || status === 'CANCELED') return 'HISTORY';
   if (status === 'IN_TRANSIT') {
     // Docx4 BUG2: ops "Phát lệnh" can flip a trip to IN_TRANSIT before the
     // driver acknowledges (the same premise as the reassignment relaxation).
@@ -192,7 +195,10 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       // 4 of a driver's 5 cards came from the QA-fixture purge, so the driver
       // saw purged lots they can no longer act on).
       isNull(s.shipments.deletedAt),
-      inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED']),
+      // DRV-LIST-02 (card 347): cancelled trips belong in Lịch sử — they are
+      // bucketed HISTORY below. The old filter dropped them from EVERY tab,
+      // so the driver lost the record entirely.
+      inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED']),
     ))
     .orderBy(desc(s.trips.plannedStartAt));
 

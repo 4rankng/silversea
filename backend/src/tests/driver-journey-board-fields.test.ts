@@ -115,7 +115,7 @@ async function mkLeg(tripId: number, sequence: number, loadingType: 'HANG' | 'VO
 async function mkContainerTrip(args: {
   driverId: number; customerId: number; routeId: number; cargoTypeId: number;
   containerTypeId: number; siteId: number; notes: string | null; factoryName: string | null;
-  tripStatus?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
+  tripStatus?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
   tradeDirection?: 'IMPORT' | 'EXPORT';
   /** Dispatcher free-text delivery override (shipments.deliveryLocation). */
   deliveryLocation?: string | null;
@@ -389,6 +389,34 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
     assert.equal(bucketByTrip.get(tripC.id), 'NEW', 'CREATED → Lệnh mới (unchanged)');
 
     await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, tripB.id));
+  });
+
+  // Card 20261004_347 (user report 04/10): a cancelled trip showed in the
+  // driver's "Lệnh mới". This file's own contract — DRV-LIST-02, quoted in
+  // driver-journey-board.service.ts — says Lịch sử means completed OR
+  // cancelled. At HEAD the classifier only implemented the completed half
+  // (CANCELED fell through to the 'NEW' default) and the board query excluded
+  // cancelled trips from EVERY tab. Contract: CANCELED → HISTORY, visible in
+  // Lịch sử, never in Lệnh mới; live siblings unaffected.
+  test('a CANCELED trip buckets HISTORY — never Lệnh mới (card 347, DRV-LIST-02)', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Cancel');
+
+    const { trip: tripCancelled } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tripStatus: 'CANCELED',
+    });
+    const { trip: tripLive } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+    });
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const bucketByTrip = new Map(board.items.map((card) => [card.tripId, card.bucket]));
+    assert.equal(bucketByTrip.has(tripCancelled.id), true, 'chuyến hủy vẫn review được — nằm ở Lịch sử');
+    assert.equal(bucketByTrip.get(tripCancelled.id), 'HISTORY', 'CANCELED → Lịch sử (DRV-LIST-02), không bao giờ Lệnh mới');
+    assert.equal(bucketByTrip.get(tripLive.id), 'NEW', 'chuyến sống bên cạnh không bị ảnh hưởng');
   });
 
   // TC-LX-TIENDO-022 / DRV-LIST-02: a card reaches Lịch sử when the trip is
