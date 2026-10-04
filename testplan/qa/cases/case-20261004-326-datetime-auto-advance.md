@@ -22,3 +22,19 @@
 ## Status
 - [x] local visual rung executed (lead) — 04/10
 - [ ] staging rung executed (lead)
+
+## Addendum 04/10 (revocation + rework — hợp đồng type-over)
+
+QA verdict đầu bị THU HỒI (user retest: "auto-advance is still broken").
+Nguyên nhân deterministic mới: segment MẤT select-on-focus → maxLength nuốt
+phím gõ → value không đổi → không nhảy. Hợp đồng bổ sung (pin red-first):
+
+- Gõ chữ số vào segment ĐẦY với caret collapsed = REPLACE ký tự đầu (restart).
+- Click vào segment (kể cả khi focus không đổi) = select lại toàn bộ nội dung.
+- Mobile fallback: input event +1 chữ số trên segment đầy = thay bằng chữ số mới.
+
+Rungs: red trên staging 813a2b0d (phút sel[1,1] — gõ "0" bị nuốt, focus kẹt)
+→ green trên a5a5f82c (giờ/phút/ngày type-over + nhảy focus cả ba, VERDICT true).
+DateTimeSegments.test.tsx 20/20 · forms 175/175 · hosts 104/104 · FE tsc 0.
+
+- [x] staging rung executed (lead) — 04/10, build a5a5f82c

@@ -456,3 +456,32 @@ leftward over the previous cell (the pencil-glued-to-the-pill defect, card
 20261004_324). A status pill and an action run never share one frozen cell.
 Class sweep 04/10 (card 20261004_331's scope): shared root cause
 `components/Table.css .row-actions` and `.ancillary-fees__table`.
+
+### 2026-10-04 — Suggestion popovers open below their trigger (card 20261004_344)
+
+A combobox/suggestion menu renders directly BELOW its input
+(`data-placement="bottom"`, trigger-anchored). Never flip a menu upward by
+default to keep a sibling action visible — an upward menu covers the row
+above and lands out of the user's sightline ("gõ không gợi ý" reports twice,
+04/10). The `+ Thêm` sibling being overlaid while the menu is open is
+standard dropdown behavior; `shouldFlip` still lifts the menu only when the
+trigger is jammed against the viewport bottom. Class sweep 04/10 (card
+344's scope): the `popoverPlacement="top"` override removed from all 9
+create-form pickers and the dead prop API removed from shared ComboBox —
+TypeScript now rejects re-introduction. Pins: combobox house-default test +
+ContainerTypeCellPicker placement test.
+
+### 2026-10-04 — Segmented date/time inputs restart on type-over (card 20261004_326)
+
+Typing a digit into a FULL segment with a collapsed caret restarts the
+segment (the typed digit replaces the content) — the standard segmented-input
+contract. Without it the input's `maxLength` silently swallows every
+keystroke: the value can never change, so the segment never completes and
+auto-advance dies for every path that loses the select-on-focus selection
+(second click on a just-advanced segment, render timing after the focus
+hand-off, IME/autofill/mobile-keyboard landings — user retest 04/10 revoked
+the first QA verdict). A click on a segment re-selects its digits even when
+focus does not change. Class = the shared `DateTimeSegments` engine, so every
+host (dispatch editor, appointment popover, schedule editor, buffered
+inputs) inherits the contract. Pins: type-over restart tests in
+DateTimeSegments.test.tsx (red-first, observed failing).
