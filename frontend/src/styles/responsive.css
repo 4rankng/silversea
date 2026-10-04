@@ -198,10 +198,8 @@
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .page-title { font-size: var(--text-title-size); }
 
-  /* ── Trip hero / metric-strip on tablet ── */
+  /* ── Metric strip on tablet ── */
   .metric-strip--cols-3 { grid-template-columns: 1fr; }
-  .trip-hero__title { font-size: var(--text-title-size); }
-  .trip-hero__actions { flex-wrap: wrap; }
   .detail-grid { grid-template-columns: 1fr; gap: 0; }
 }
 
@@ -568,17 +566,6 @@
   .subsection-card { padding: 12px 14px; border-radius: 10px; }
   .subsection-card__title { font-size: var(--fs-2xs); }
 
-  /* ── trip-hero (new) — tighter padding, smaller title ── */
-  .trip-hero { padding: 14px 16px 12px; border-radius: 14px; gap: 10px; margin-bottom: 12px; }
-  .trip-hero__title { font-size: var(--text-title-size); }
-  .trip-hero__crumb { font-size: var(--fs-2xs); }
-  .trip-hero__chip { font-size: var(--fs-xs); padding: 4px 9px; }
-  .trip-hero__chip svg { width: 13px; height: 13px; }
-  .trip-hero__actions { padding-top: 10px; gap: 6px; }
-  .trip-hero__actions .btn { flex: 1 1 auto; min-width: 0; justify-content: center; min-height: var(--control-touch-h); }
-  .trip-hero__actions-divider { display: none; }
-  .trip-hero__actions-spacer { display: none; }
-  .trip-hero__warn { font-size: var(--fs-2xs); padding: 3px 7px; }
 
   /* ── detail-grid (new) — single col on phone ── */
   .detail-grid { grid-template-columns: 1fr; gap: 0; }

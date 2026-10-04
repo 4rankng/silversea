@@ -38,16 +38,11 @@ const ordinaryOwners: Record<string, string[]> = {
     ".users-admin-page .btn-page",
     ".icon-input",
     ".pw-toggle",
-    ".users-mobile-card__action-btn",
     ".drawer:has(.users-form-cards) .input,\n  .drawer:has(.users-form-cards) select.input",
     ".kebab-btn",
     ".users-mobile-card__dropdown button",
     ".users-customer-scope__search",
     ".users-customer-scope__search input"
-  ],
-  "src/components/TripHero.css": [
-    ".trip-hero__back",
-    ".trip-hero__actions .btn--sm"
   ],
   "src/components/layout/topbar.css": [
     ".month-picker__cell"
