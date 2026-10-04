@@ -146,6 +146,27 @@ describe('FactoriesConfigPage', () => {
     expect(listMock).toHaveBeenCalledOnce();
   });
 
+  // Card 20261004_324: the TRẠNG THÁI pill wore a stray pencil glyph at its
+  // right edge — the action run's start-edge overflow painting over the status
+  // cell (mechanism + budgets pinned in config-action-glyph-bleed.styles.test.ts).
+  // These DOM pins hold the two cells' contents apart: the status cell is clean
+  // text and nothing else, and both real action affordances stay whole in the
+  // action cell (no clipping fix — design law §4).
+  it('keeps the status cell clean text and both row actions whole in their own cell', async () => {
+    renderPage();
+    await screen.findByText('Nhà máy A');
+    const rows = document.querySelectorAll('.factories-table tbody tr:not(.cfg-empty-row)');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const statusCell = row.querySelector('td[data-label="Trạng thái"]') as HTMLElement;
+      expect(statusCell.querySelector('svg, button, .row-action, .row-actions')).toBeNull();
+      expect(['Đang dùng', 'Đã ngưng']).toContain(statusCell.textContent?.trim());
+      const actionCell = row.querySelector('td.record-table__action') as HTMLElement;
+      expect(actionCell.querySelector('button[title="Sửa điểm vận hành"] svg')).not.toBeNull();
+      expect(actionCell.querySelector('button[title="Xóa nhà máy / kho"] svg')).not.toBeNull();
+    }
+  });
+
   it('explains how to create the first site when the catalog is empty', async () => {
     listMock.mockResolvedValue([]);
     renderPage();
