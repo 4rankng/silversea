@@ -1,6 +1,6 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
@@ -75,6 +75,14 @@ test('supplier-backed detail resolves linked customer identity and retains histo
     assert.ok(collision, 'seed must provide distinct customer namespaces for an owned collision fixture');
     [supplier] = await db.insert(s.suppliers).values({ id: collision.id, name: carrier.name, linkedCustomerId: carrier.id }).returning();
     supplierIds.push(supplier.id);
+    // A hand-claimed native id never moves suppliers_id_seq. On a clean
+    // migrate + one-pass-seed catalog the sequence sits exactly at max(id)
+    // (seed allocates supplier and customer ids in lockstep from 1), so the
+    // claimed id equals the next nextval and the DEFAULT-id insert below
+    // re-mints it — 23505 duplicate key on suppliers_pkey. Realign past the
+    // claimed id, never rewinding a sequence that has run ahead on a
+    // long-lived database, so the inserts below always allocate fresh ids.
+    await db.execute(sql`SELECT setval(pg_get_serial_sequence('suppliers', 'id'), GREATEST((SELECT max(id) FROM suppliers), COALESCE(pg_sequence_last_value(pg_get_serial_sequence('suppliers', 'id')), 0)))`);
   }
   const linked = customers.find(row => row.id === supplier.linkedCustomerId)!;
   const [route] = await db.select().from(s.routes).limit(1);
