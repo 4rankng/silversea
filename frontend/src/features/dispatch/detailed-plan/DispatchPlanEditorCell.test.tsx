@@ -238,6 +238,36 @@ describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)'
     expect(hourSeg().value).toBe('15');
   });
 
+  it('bug #316 prefills Giờ trả hàng from inherited runAt when plannedEndAt is null', async () => {
+    mockFleetResources();
+    renderCell(row({
+      plannedEndAt: null,
+      time: { deliveryDate: '2026-10-10', runAt: '2026-10-10T03:00:00.000Z', runHour: 10 },
+    }), {});
+    await openDialog();
+    expect(endField()).toBeTruthy();
+    expect(daySeg().value).toBe('10');
+    expect(hourSeg().value).toBe('10');
+  });
+
+  it('bug #316 keeps plannedEndAt omitted when prefilled runAt is untouched', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.83' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+    });
+    mockFleetResources();
+    renderCell(row({
+      plannedEndAt: null,
+      time: { deliveryDate: '2026-10-10', runAt: '2026-10-10T03:00:00.000Z', runHour: 10 },
+    }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect('plannedEndAt' in onAtomicSave.mock.calls[0]![1]).toBe(false);
+  });
+
   it('sends zone-aware ISO on save (15:30 +07:00 → 08:30Z)', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,

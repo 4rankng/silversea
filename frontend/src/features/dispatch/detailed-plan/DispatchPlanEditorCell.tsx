@@ -132,6 +132,36 @@ function vietnamLocalInputToIso(local: string): string | null {
   return new Date(`${local}:00+07:00`).toISOString();
 }
 
+/**
+ * Resolves the effective schedule datetime string for a row.
+ * Precedence matches DetailedPlanGrid schedule display:
+ * 1. Stored plannedEndAt (explicit dispatch override)
+ * 2. Inherited runAt (customer appointment, closing, planned return)
+ * 3. Fallback deliveryDate + runHour
+ */
+function effectiveStoredEndIso(row: DispatchDetailPlanRow): string | null {
+  if (row.plannedEndAt) return row.plannedEndAt;
+  if (row.time.runAt) return row.time.runAt;
+  if (row.time.runHour != null && row.time.deliveryDate && /^\d{4}-\d{2}-\d{2}$/.test(row.time.deliveryDate)) {
+    return vietnamLocalInputToIso(`${row.time.deliveryDate}T${String(row.time.runHour).padStart(2, '0')}:00`);
+  }
+  return null;
+}
+
+function effectivePlanEndLocal(row: DispatchDetailPlanRow): string {
+  const iso = effectiveStoredEndIso(row);
+  return iso ? isoToVietnamLocalInput(iso) : '';
+}
+
+function sameInstantMinute(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  const tA = new Date(a).getTime();
+  const tB = new Date(b).getTime();
+  if (Number.isNaN(tA) || Number.isNaN(tB)) return false;
+  return Math.floor(tA / 60000) === Math.floor(tB / 60000);
+}
+
 /** Stored estimates are digit strings; NumberField drafts hold number | ''. */
 const estimateToDraft = (value: string | null): number | '' => (value && value.trim() ? Number(value) : '');
 
@@ -141,7 +171,7 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
     vehicleValue: vehicleValueForRow(row),
     plannedRevenue: estimateToDraft(row.estimates.plannedRevenue),
     plannedCarrierCost: estimateToDraft(row.estimates.plannedCarrierCost),
-    plannedEndAt: isoToVietnamLocalInput(row.plannedEndAt),
+    plannedEndAt: effectivePlanEndLocal(row),
     classification: row.classification,
     operationalNotes: row.notes.vehicleNote,
   };
@@ -246,7 +276,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     || (draft.operationalNotes ?? '') !== (row.notes.vehicleNote ?? '')
     || !storedRevenue.valid || !storedCarrierCost.valid
     || draftRevenue !== storedRevenue.value
-    || draftCarrierCost !== storedCarrierCost.value;
+    || draftCarrierCost !== storedCarrierCost.value
+    || draft.plannedEndAt !== effectivePlanEndLocal(row);
   const canIssue = issueStatus === 'PLATED_NOT_ISSUED' && !planDirty;
 
   const {
@@ -555,7 +586,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     // mirroring the backend's atomic-save contract exactly. The completeness
     // ref distinguishes an intentional clear (all segments emptied) from a
     // half-typed edit, which must never reach the wire as a clear.
-    const storedEnd = row.plannedEndAt ?? null;
+    const storedEnd = effectiveStoredEndIso(row);
     if (endCompletenessRef.current === 'incomplete') {
       setError('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.');
       return;
@@ -567,6 +598,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       setError('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.');
       return;
     }
+    const endTouched = !sameInstantMinute(draftEndIso, storedEnd);
     setSaving(true);
     setError(null);
     try {
@@ -580,7 +612,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         plannedCarrierCost: draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost,
         // Same touch-gating as the vehicle block: an untouched field must
         // never reach the wire and clobber a value another editor saved.
-        ...(draftEndIso !== storedEnd ? { plannedEndAt: draftEndIso } : {}),
+        ...(endTouched ? { plannedEndAt: draftEndIso } : {}),
         classification: draft.classification,
         operationalNotes: draft.operationalNotes,
       });
