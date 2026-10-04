@@ -454,4 +454,37 @@ describe('CusAppointmentPopover', () => {
     expect(handleChange).toHaveBeenCalledWith('');
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
+
+  it('card 325: pressing Enter on a preset pill commits the appointment and closes', async () => {
+    const onCommit = vi.fn().mockResolvedValue(true);
+    const onClose = vi.fn();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-04T09:00:00+07:00'));
+    const expectedDay = getOffsetDateString(2, new Date()); // Ngày kia
+
+    render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value={null}
+        containerLabel="MSKU9999999"
+        onClose={onClose}
+        onChange={vi.fn()}
+        onCommit={onCommit}
+      />,
+    );
+
+    const dayAfterPill = screen.getByRole('button', { name: 'Ngày kia' });
+    fireEvent.click(dayAfterPill);
+
+    const timePill = screen.getByRole('button', { name: '13:30' });
+    fireEvent.click(timePill);
+
+    // Focus is on the 13:30 button when pressing Enter
+    fireEvent.keyDown(timePill, { key: 'Enter' });
+
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(`${expectedDay}T13:30`));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    vi.useRealTimers();
+  });
 });
+

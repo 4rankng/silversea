@@ -196,10 +196,15 @@ export function CusAppointmentPopover({
       dismissWithoutCommit();
     } else if (event.key === 'Enter') {
       event.stopPropagation();
-      // Buttons retain native keyboard activation (including date/time presets).
-      if ((event.target as HTMLElement).closest('button')) return;
+      const target = event.target as HTMLElement;
+      // Close and clear buttons retain their own click behavior on Enter
+      if (target.closest('.cus-appointment-popover__close, .cus-appointment-popover__clear')) return;
+      const pill = target.closest<HTMLButtonElement>('.cus-quick-pill, .cus-time-pill');
+      if (pill) {
+        pill.click();
+      }
       event.preventDefault();
-      commit();
+      commit(lastPublishedValue.current || undefined);
     }
   };
 
