@@ -109,7 +109,18 @@ async function choose(label: string, value: string) {
     fireEvent.change(nativeSelect, { target: { value } });
     return;
   }
-  const selectButton = screen.queryByRole('button', { name: new RegExp(label) });
+  // The field's own dropdown trigger: a LISTBOX-opening button named for the
+  // field (RAC Select's trigger is value text + label). The name alone cannot
+  // disambiguate — the factory detail-peek action ("Xem chi tiết nhà máy Nhà
+  // máy Long Minh", aria-haspopup="dialog", 20261002_268) also carries the
+  // field label, and once a factory was picked the loose name regex chose IT:
+  // choose() opened the detail dialog instead of the listbox and the option
+  // wait below timed out with the factory catalog intact but never opened
+  // (TC-CUS-FACTORY-SEARCH-07). Only a listbox trigger can satisfy this
+  // branch's own contract — it is what renders [role="option"].
+  const selectButton = screen
+    .queryAllByRole('button', { name: new RegExp(label) })
+    .find((button) => button.getAttribute('aria-haspopup') === 'listbox');
   if (selectButton) {
     fireEvent.click(selectButton);
     const option = await waitFor(() => {
