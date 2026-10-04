@@ -2,7 +2,7 @@
 // Split from UserForm.tsx in the 2026-09-01 structural wave (move-only).
 import { useState } from 'react';
 import {
-  Check, Truck as TruckIcon, Building2, Search,
+  Check, Building2, Search,
 } from 'lucide-react';
 import type { Customer } from '@tingting/shared';
 // ── Icon Input ─────────────────────────────────────────────────────────────
@@ -47,33 +47,6 @@ export function IconInput({ id, icon, value, onChange, placeholder, type = 'text
       )}
       {rightElement}
     </div>
-  );
-}
-
-// ── Driver Fields (shared by Add/Edit panels, shown when role === DRIVER) ───
-
-export function DriverFields({ baseSalary, socialInsurance }: {
-  baseSalary: string;
-  socialInsurance: string;
-}) {
-  return (
-    <>
-      <div className="users-form-divider" />
-      <div className="users-form-section__title"><TruckIcon size={12} /> Thông tin lái xe</div>
-      <div className="users-form-cards users-form-cards--driver">
-        <div className="users-form-card">
-          <div className="users-customer-scope__help">
-            Lương cơ bản và BHXH của lái xe được quản lý ở Cấu hình lái xe với quyền quản trị tài chính và lịch sử thay đổi. Trang Người dùng chỉ đổi tài khoản. Phân công xe cho lái xe nằm ở Danh mục Xe nội bộ (Điều vận).
-          </div>
-          {(baseSalary || socialInsurance) && (
-            <div className="users-customer-scope__summary">
-              {baseSalary ? `Lương hiện tại: ${baseSalary}` : 'Chưa có lương cấu hình'}
-              {socialInsurance ? ` · BHXH/BHYT: ${socialInsurance}` : ''}
-            </div>
-          )}
-        </div>
-      </div>
-    </>
   );
 }
 

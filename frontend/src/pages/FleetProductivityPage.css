@@ -161,7 +161,7 @@
 
 .fleet-trip-chip {
   font-size: 11px;
-  font-family: monospace;
+  font-family: var(--font-data);
   padding: 2px 6px;
   background: var(--bg-muted);
   border-radius: 4px;
