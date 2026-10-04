@@ -722,7 +722,7 @@ export default function CustomersPage() {
                         aria-label={`Mở hồ sơ ${c.name}`}
                         onClick={() => openCustomerDrawer(c.id)}
                       >
-                        <span className="customers-name-cell" title={c.name}>{c.name}</span>
+                        <span className="customers-name-cell">{c.name}</span>
                       </button>
                     </td>
                     <td data-label="Mã số thuế" className="customers-mono-cell">
