@@ -1,8 +1,24 @@
+/* Card 20261004_327 (user iPhone capture: below the last lot card a white band
+   ran to the physical bottom; mechanism vs card 20260927_149 in the evidence
+   report). The page surface fills the shell scrollport AND paints the page
+   tone, so below the last lot card the surface continues to the bottom edge —
+   no void, and nothing foreign to show in any iOS viewport state.
+   `min-height: 100%` is the scrollport-relative fill (the same answer
+   .notif-page / .driver-journey / .app.is-driver ship): this page lives inside
+   the main.app-body scrollport (100dvh minus topbar and shell paddings), so a
+   viewport-locked `100dvh` overshoots the scrollport by topbar + paddings
+   (≈130–180px at 390×844) and that overshoot IS a scrollable gap below the
+   last card — the symptom this card closes. `align-content: start` parks any
+   leftover BELOW the last grid row (the last lot card); default grid stretch
+   divides the leftover into the auto rows and opens voids between the
+   breadcrumbs, control surface and workspace instead. */
 .shipments-page {
   display: grid;
   gap: 12px;
   min-width: 0;
   min-height: 100%;
+  align-content: start;
+  background: var(--bg);
   padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -1920,8 +1936,12 @@
 @media (max-width: 560px) {
   .shipments-page {
     gap: 14px;
-    min-height: 100%;
-    min-height: 100dvh;
+    /* The fill stays scrollport-relative (base rule above): a `min-height:
+       100dvh` here measured as a 130–180px scrollable void below the last
+       card at 390×844 (topbar 56 + safe-top + shell paddings 14 + 28 + safe
+       all stack below a viewport-locked page). Only the trailing clearance is
+       re-tuned for the phone; the safe area applies once here, the shell
+       scrollport keeps its own counted-once clearance. */
     padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   }
 

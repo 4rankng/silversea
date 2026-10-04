@@ -26,13 +26,10 @@ describe('mobile gutter contract', () => {
     expect(shipmentDetail).toMatch(/\.shipments-detail-workspace \.summary-rail\s*\{[^}]*margin-inline:\s*0;/);
   });
 
-  it('card 20261004_327: paints html and app-body with var(--bg) and guarantees safe-area clearance without white bottom gap', () => {
-    const base = readFileSync(resolve(root, 'src/styles/base.css'), 'utf8');
-    const shipments = readFileSync(resolve(root, 'src/pages/ShipmentsPage.css'), 'utf8');
-    expect(base).toMatch(/html\s*\{[^}]*background:\s*var\(--bg\);/);
-    expect(shell).toMatch(/\.app\s*\{[\s\S]*?background:\s*var\(--bg\);/);
-    expect(shell).toMatch(/\.app-body,[\s\S]*?background:\s*var\(--bg\);/);
-    expect(shipments).toMatch(/\.shipments-page\s*\{[\s\S]*?min-height:\s*100%;[\s\S]*?padding-bottom:\s*calc\(40px \+ env\(safe-area-inset-bottom, 0px\)\);/);
-    expect(shipments).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.shipments-page\s*\{[\s\S]*?min-height:\s*100dvh;[\s\S]*?padding-bottom:\s*calc\(24px \+ env\(safe-area-inset-bottom, 0px\)\);/);
-  });
+  /* Card 20261004_327's rung moved to styles/mobile-viewport-fill-contract
+     (its owning contract): the copy here pinned a `min-height: 100dvh` phone
+     fill on .shipments-page — a viewport-locked height on a child of the
+     main.app-body scrollport, which overshoots the scrollport and opens a
+     scrollable void below the last card. The gutter contract stays a gutter
+     contract. */
 });

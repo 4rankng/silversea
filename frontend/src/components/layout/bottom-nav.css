@@ -43,6 +43,32 @@ html:has(body .app.is-driver) {
   background: var(--surface);
 }
 
+/* Card 20261004_327 — the same strip on the bar-less shells (admin/CUS:
+   Layout.tsx renders .bottom-nav for DRIVER only). Card 20260927_1 painted
+   past the layout-viewport bottom edge with the .bottom-nav::after band; card
+   20260927_149 retired that band only because the FIXED tab bar's own opaque
+   box covers the physical bottom at every viewport state — with no bar there
+   is nothing to make that guarantee, so the obligation falls back to the
+   20260927_1 mechanism: nothing in CSS can re-anchor a fixed box to the larger
+   (visual) viewport, so the page tone is painted INTO the revealed strip
+   instead. `top: 100%` resolves against the viewport (the pseudo's containing
+   block — the overflow:clip shell layers do not clip a fixed box whose
+   containing block lies outside them), so the band starts exactly at the
+   layout viewport's bottom edge and extends past any collapsed-toolbar /
+   in-app-WebView slack (the "dải màu trắng" of the user capture). Scoped
+   :not(.is-driver) so card 149's measured driver end state is untouched.
+   Invisible in every browser whose viewport matches its layout viewport. */
+.app:not(.is-driver)::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 160px;
+  background: var(--bg);
+  z-index: -1;
+}
+
 .app.is-driver .app-body {
   background: var(--surface);
 }
