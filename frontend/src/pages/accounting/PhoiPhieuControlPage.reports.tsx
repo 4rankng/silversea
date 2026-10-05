@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { round2dp } from '@tingting/shared';
 import { LedgerRecordList, type LedgerRecord } from '../../components/shared/LedgerRecordList';
 import { useQuery } from '@tanstack/react-query';
 import { getPhoiPhieuReport } from '../../api/phoiPhieuClient';
@@ -22,13 +24,21 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
   /** Card 20260921_8: omitted = server default (accountant → self). */
   scope?: 'SELF' | 'ALL' | 'UNASSIGNED';
 }) {
+  // Card 374 — the two summary tables are the "bảng con tổng hợp thu/trả" the
+  // spec names: a settled party (Còn phải thu/trả = 0) hides by default and the
+  // toggle below is the way back. Only an exact 0 hides — an overpaid party
+  // (negative remaining, the overpay annotation) always stays visible.
+  const [showZero, setShowZero] = useState(false);
   const report = useQuery({
     queryKey: qk.phoiPhieu.report(kind, dateFrom, dateTo, scope),
     queryFn: () => getPhoiPhieuReport(kind, { dateFrom, dateTo, scope }),
   });
-  const rows = report.data?.rows ?? [];
+  const allRows = report.data?.rows ?? [];
+  const zeroRemaining = allRows.filter((row) => round2dp(row.conLai) === 0);
+  const rows = showZero ? allRows : allRows.filter((row) => round2dp(row.conLai) !== 0);
   const grand = report.data?.grand;
   const caption = kind === 'THU' ? 'Báo cáo Phải thu (theo khách hàng)' : 'Báo cáo Phải trả (theo nhà xe)';
+  const zeroTerm = kind === 'THU' ? 'còn phải thu' : 'còn phải trả';
   const recordOf = (row: NonNullable<typeof grand>, title: string): LedgerRecord => ({
     key: row === grand ? 'grand' : `party:${title}`, title, subtitle: caption, facts: [
       { key: 'total', label: kind === 'THU' ? 'Tổng phải thu' : 'Tổng phải trả', value: <Money value={row.tongPhaiThuTra} />, primary: true },
@@ -42,6 +52,21 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope }: {
     ],
   });
   return (<>
+    <p style={{ margin: '8px 0' }}>
+      <button
+        type="button"
+        className="btn btn--secondary btn--sm"
+        aria-pressed={showZero}
+        aria-label={showZero
+          ? `Ẩn các dòng ${zeroTerm} = 0`
+          : `Hiện các dòng ${zeroTerm} = 0 đã ẩn (${zeroRemaining.length})`}
+        title={zeroRemaining.length === 0 ? `Không có dòng ${zeroTerm} = 0 trong kỳ này` : undefined}
+        disabled={zeroRemaining.length === 0}
+        onClick={() => setShowZero((current) => !current)}
+      >
+        {showZero ? 'Ẩn các dòng còn 0' : `Hiện dòng đã ẩn (${zeroRemaining.length})`}
+      </button>
+    </p>
     <LedgerRecordList rows={[...rows.map((row) => recordOf(row, row.party)), ...(grand ? [recordOf(grand, 'TỔNG CỘNG')] : [])]} />
     <div className="ppc-board-wrap ledger-desktop" role="region" aria-label={caption} tabIndex={0}>
     <table className="tt-table ops-table ppc-report">
