@@ -91,4 +91,15 @@ describe('invoice save lifecycle', () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
   }
+
+  // Card 367 (already-compliant record, not a red-first pin): the save catch
+  // already surfaces the API message for Error-shaped rejections — the shape
+  // the api client throws (ApiError extends Error). Pinned so the surface can
+  // never silently regress to generic copy.
+  it('card 367: a 4xx save refusal surfaces the API reason verbatim', async () => {
+    api.update.mockRejectedValueOnce(Object.assign(new Error('Số hóa đơn đã tồn tại trong hệ thống.'), { status: 409 }));
+    render(<InvoiceTrackingFormModal mode="edit" row={row} onClose={vi.fn()} onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    expect(await screen.findByText('Số hóa đơn đã tồn tại trong hệ thống.')).toBeTruthy();
+  });
 });

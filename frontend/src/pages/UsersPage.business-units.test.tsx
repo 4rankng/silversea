@@ -156,10 +156,22 @@ describe('UsersPage business-unit lifecycle', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lưu đơn vị' }));
 
     await waitFor(() => expect(refetchUsers).toHaveBeenCalled());
-    expect(screen.getByText(/Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất/)).toBeTruthy();
+    // Card 367 law: the backend's precise 428 reason renders verbatim — the
+    // recovery copy is the fallback for refusals with no business reason.
+    expect(screen.getByText('Thiếu phiên bản đơn vị phụ trách. Vui lòng tải lại trước khi cập nhật.')).toBeTruthy();
     // Draft preserved for review: the admin's text survives the failed save.
     expect((nameInput as HTMLInputElement).value).toBe('Đơn vị Đối Tượng');
     expect(screen.getByRole('button', { name: 'Lưu đơn vị' })).toBeTruthy();
+  });
+
+  it('a conflict with no business reason keeps the recovery copy and refetches', async () => {
+    updateBusinessUnit.mockRejectedValueOnce({ status: 428 });
+    render(<UsersPage />);
+    fireEvent.click(within(unitCard('Đơn vị A')).getByRole('button', { name: 'Sửa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu đơn vị' }));
+
+    await waitFor(() => expect(refetchUsers).toHaveBeenCalled());
+    expect(screen.getByText(/Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất/)).toBeTruthy();
   });
 
   it('deactivates with the loaded row version token', async () => {
