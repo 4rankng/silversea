@@ -70,6 +70,7 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     containerNumber: 'MSCU1234561',
     containerTypeName: "40'HC",
     sealNumber: 'SL001',
+    cargoWeightKg: null,
     loadingType: null,
     tradeDirection: null,
     contactName: 'Nguyễn Văn A',
@@ -92,6 +93,22 @@ function renderPage() {
 }
 
 describe('DriverTripsPage', () => {
+  it('journey card shows the container weight when the payload carries it (card 356)', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ cargoWeightKg: '15000' }),
+    ]));
+    renderPage();
+    const weight = screen.getByTestId('cont-weight');
+    expect(weight.textContent).toBe('15.000 kg');
+  });
+
+  it('journey card omits the weight segment when the container is unweighted (card 356)', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ cargoWeightKg: null }),
+    ]));
+    renderPage();
+    expect(screen.queryByTestId('cont-weight')).toBeNull();
+  });
   it('journey card leads with the bill/booking code and never shows the internal TRP code (CHIEF 26/09)', () => {
     // The document number rides blNumber/bookingRef; shipmentCode is our
     // internal SHP-/QADRV- key and must never surface on a driver screen.

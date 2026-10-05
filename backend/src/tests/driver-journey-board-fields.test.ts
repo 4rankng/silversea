@@ -124,6 +124,9 @@ async function mkContainerTrip(args: {
   dropoffPortId?: number | null;
   /** Snapshot deliverySite display name (the structured fallback). */
   deliverySiteName?: string | null;
+  /** Container payload (shipments_containers.cargo_weight_kg) for the
+   *  driver-facing weight render (card 356). */
+  cargoWeightKg?: string | null;
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: args.customerId,
@@ -143,6 +146,7 @@ async function mkContainerTrip(args: {
     containerNumber: `JB${String(400000 + shipment.id).slice(-6)}`,
     operationalSiteId: args.siteId,
     ...(args.dropoffPortId == null ? {} : { dropoffPortId: args.dropoffPortId }),
+    ...(args.cargoWeightKg === undefined ? {} : { cargoWeightKg: args.cargoWeightKg }),
   }).returning();
   createdContainerIds.push(container.id);
   const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
@@ -689,6 +693,30 @@ describe('driver fulfillment photo wire (biên bản = DELIVERY_NOTE)', () => {
     );
   });
 });
+
+
+  // Card 20261004_356 — the driver journey card renders the container
+  // weight ("… · 20DC · 15.000 kg"); the board payload must carry it per
+  // card, null when the container has no weight so the FE omits cleanly.
+  test('cards carry the container weight, null when unassigned', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const weightedSite = await mkSite(customer.id, 'Nhà máy Có Trọng lượng');
+    const { fulfillment: weighted } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: weightedSite.id, notes: null, factoryName: null,
+      cargoWeightKg: '15000',
+    });
+    const unweightedSite = await mkSite(customer.id, 'Nhà máy Không Trọng lượng');
+    const { fulfillment: unweighted } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: unweightedSite.id, notes: null, factoryName: null,
+    });
+    const board = await getDriverJourneyBoard(driver.id);
+    const weightedCard = board.items.find((c) => c.fulfillmentId === weighted.id)!;
+    const unweightedCard = board.items.find((c) => c.fulfillmentId === unweighted.id)!;
+    assert.equal(weightedCard.cargoWeightKg, '15000');
+    assert.equal(unweightedCard.cargoWeightKg, null);
+  });
 
 after(async () => {
   try {

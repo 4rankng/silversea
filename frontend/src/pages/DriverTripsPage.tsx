@@ -6,7 +6,7 @@ import { useMonth } from '../hooks/useMonth';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
-import { formatDateTimeShort } from '../lib/format';
+import { formatDateTimeShort, formatNumber } from '../lib/format';
 import { PageHeader } from '../components/UI';
 import { EmptyState } from '../design-system';
 import { Tabs } from '../design-system/Tabs';
@@ -175,6 +175,11 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
               )}
               {isPresent(card.containerTypeName) ? (
                 <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
+              ) : null}
+              {/* Card 20261004_356 — payload ("15.000 kg") rides the cont row
+                  as its next segment; omitted when the container is unweighted. */}
+              {isPresent(card.cargoWeightKg) ? (
+                <span className="driver-journey-card__cont-weight" data-testid="cont-weight">{formatNumber(card.cargoWeightKg)} kg</span>
               ) : null}
               {/* 3rd column — trade-direction ĐÓNG/TRẢ, em-dash when unknown. */}
               <span className="driver-journey-card__cont-type" data-testid="load-type">{tradeLabel ?? '—'}</span>

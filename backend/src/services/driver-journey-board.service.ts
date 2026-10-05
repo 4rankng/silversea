@@ -56,6 +56,9 @@ export interface DriverJourneyCard {
   containerNumber: string | null;
   containerTypeName: string | null;
   sealNumber: string | null;
+  /** Container payload (shipments_containers.cargo_weight_kg) — the driver
+   *  card and detail render it as "· 15.000 kg" (card 20261004_356). */
+  cargoWeightKg: string | null;
   // 3a0bd5af: loại hình cell — the trip's LAST leg ĐÓNG/TRẢ (destination
   // semantics, same rule the billing draft applies); null when no legs.
   loadingType: string | null;
@@ -152,6 +155,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeName: s.containerTypes.name,
     sealNumber: s.shipmentContainers.sealNumber,
+    cargoWeightKg: s.shipmentContainers.cargoWeightKg,
     // 3a0bd5af: HÀNG ĐÓNG/TRẢ badge source — the trip's last leg loadingType.
     // Scalar subquery keeps one row per fulfillment (a trip_legs join would
     // fan out multi-leg trips into duplicate cards).
@@ -308,6 +312,9 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       containerNumber: row.containerNumber,
       containerTypeName: row.containerTypeName,
       sealNumber: row.sealNumber,
+      // PG numeric arrives "15000.00" — display-ready form (Number → "15000");
+      // null/blank passthrough stays null so the FE segment omits cleanly.
+      cargoWeightKg: row.cargoWeightKg == null || row.cargoWeightKg === '' ? null : String(Number(row.cargoWeightKg)),
       loadingType: row.loadingType,
       tradeDirection: row.tradeDirection,
       contactName: row.contactName,

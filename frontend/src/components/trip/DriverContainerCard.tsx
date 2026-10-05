@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Camera, Loader2, Save, Package, AlertCircle, Pencil, X, Check } from 'lucide-react';
 import { api, fileCommandFingerprint } from '../../lib/api';
+import { formatNumber } from '../../lib/format';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useToast } from '../shared/Toast';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
@@ -373,6 +374,9 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                 {containers[0]?.containerTypeName && (
                   <div className="dcc-bento__hero-meta">
                     {containers[0].containerTypeName}
+                    {/* Card 20261004_356 — payload beside the type in the
+                        read-only bento; omitted when unweighted. */}
+                    {containers[0].cargoWeightKg ? <> · {formatNumber(containers[0].cargoWeightKg)} kg</> : null}
                   </div>
                 )}
               </div>
