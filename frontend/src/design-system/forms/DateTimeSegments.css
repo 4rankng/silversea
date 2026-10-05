@@ -66,6 +66,14 @@
 .date-seg-group .date-seg-wrapper .date-seg:focus {
   background-color: var(--color-bg-secondary, #F3F4F6);
   border-radius: 4px;
+  /* Positional hand-off cue: auto-advance lands on an EMPTY segment whose
+     placeholder renders identically focused or not, so a two-digit entry
+     reads as "dead" — nothing visibly moved. The group outline above is
+     position-blind (identical for every segment) and the pale background
+     alone is invisible at phone widths. A flat brand underline marks the
+     focused slot; same flat inset mechanic as .date-seg--invalid, never a
+     3D elevation. */
+  box-shadow: inset 0 -2px 0 var(--color-border-brand);
 }
 
 .date-seg-group .date-seg-wrapper .date-seg[data-seg='dd'] { width: 1.706em; }
