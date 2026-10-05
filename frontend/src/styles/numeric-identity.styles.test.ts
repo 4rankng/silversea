@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -17,6 +17,41 @@ describe('QA-AUDIT-UI-22 numeric identity values', () => {
     expect(stack).toBeDefined();
     expect(stack).toMatch(/white-space:\s*nowrap/);
     expect(stack).not.toMatch(/ellipsis|overflow:\s*hidden|max-width/);
+  });
+
+  // The source-level pin above held while PRODUCTION broke: a page-level rule
+  // (higher specificity than the shared law) re-allowed wrapping on the two
+  // amount cells, and minification/chunk-splitting meant the built sheets were
+  // the only place the conflict was visible. This contract reads the BUILT
+  // assets: the shared law must survive minification, and NO rule in the
+  // page's emitted CSS may set a numeric cell to anything but nowrap.
+  it('the production bundle holds the numeric law on the amount cells', () => {
+    const distAssets = resolve(process.cwd(), 'dist/assets');
+    if (!existsSync(distAssets)) {
+      throw new Error('dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.');
+    }
+    const sharedChunk = readdirSync(distAssets).find((f) => f.startsWith('record-table-') && f.endsWith('.css'));
+    expect(sharedChunk).toBeDefined();
+    const sharedCss = readFileSync(resolve(distAssets, sharedChunk!), 'utf8');
+    const numRule = sharedCss.match(/\.record-table \.num\s*\{[^}]*\}/);
+    expect(numRule).toBeTruthy();
+    expect(numRule![0]).toMatch(/white-space:\s*nowrap/);
+    expect(numRule![0]).toMatch(/overflow-wrap:\s*normal/);
+
+    const pageChunks = readdirSync(distAssets).filter((f) => f.startsWith('AccountingInvoiceTrackingPage') && f.endsWith('.css'));
+    expect(pageChunks.length).toBeGreaterThan(0);
+    for (const chunk of pageChunks) {
+      const css = readFileSync(resolve(distAssets, chunk), 'utf8');
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selector = m[1];
+        const body = m[2];
+        const targetsNumericCell = /data-label=["']?(Số tiền trả|Chênh lệch)/.test(selector) || /\.ivt-stack__sub/.test(selector);
+        if (!targetsNumericCell) continue;
+        if (/white-space:\s*(?!nowrap)/.test(body)) {
+          throw new Error(`built rule un-wraps a numeric cell in ${chunk}: ${selector.trim()} { ${body.slice(0, 140)} }`);
+        }
+      }
+    }
   });
 
   it('QA-AUDIT-UI-26 keeps semantic row ordinals whole without changing prose wrapping', () => {

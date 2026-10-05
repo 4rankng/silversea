@@ -40,22 +40,13 @@
   overflow-wrap: normal;
 }
 
-/* Amount cells keep their digits whole — "8.000.000" wrapped against its "₫"
-   (the shared Money sub-caption rhythm) rather than "8.000 / .000 / ₫".
-   Measured on the 1112px desktop canvas (1440 viewport): under the base's
-   break-anywhere the two amount columns land at 61/74px and the
-   thousand-separated digits split mid-number, which reads as a wrong figure
-   on an accounting board. Breaking only at word boundaries costs +15px of row
-   height (measured 111/142 → 126/157) and needs ~100px of min-content per
-   amount column, which the 1112px canvas has. Scoped by `data-label` to the
-   two amount cells — the shape the container ledger uses for its non-wrapping
-   container code — so no `nth-child` column floor comes back. */
-.invoice-tracking-page .record-table td[data-label="Số tiền trả"],
-.invoice-tracking-page .record-table td[data-label="Chênh lệch"] {
-  white-space: normal;
-  overflow-wrap: normal;
-  word-break: keep-all;
-}
+/* Amount cells belong to the shared numeric law (styles/record-table.css
+   `.record-table .num`): a formatted VND amount is atomic — one line, never
+   broken between the digits and the ₫. This file once re-allowed breaking at
+   word boundaries ("14.000.000" / "₫") as a narrower mitigation; the shared
+   law's no-break acceptance is stronger and supersedes it, so this file must
+   carry NO amount-cell rule — a page-scoped override here out-specifies the
+   shared law and silently un-wraps the cells in the production bundle. */
 
 .invoice-tracking-alert {
   margin: 0;
