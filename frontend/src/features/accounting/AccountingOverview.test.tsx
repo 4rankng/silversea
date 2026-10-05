@@ -10,7 +10,7 @@
  * (the block mounts the chart with the queried weeks), while the chart's own
  * rendering is covered by its component tests.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -159,13 +159,19 @@ const moneyAlertsData: MoneyAlertsSummary = {
 // The component reads data, dataUpdatedAt and refetch off each query result;
 // the cast keeps the fixture honest without reproducing react-query's whole
 // UseQueryResult surface.
-function queryResult<T>(data: T, dataUpdatedAt: number, refetch: Mock) {
+function queryResult<T>(
+  data: T | undefined,
+  dataUpdatedAt: number,
+  refetch: Mock,
+  state: { isLoading?: boolean; isError?: boolean; data?: undefined } = {},
+) {
   return {
     data,
     isLoading: false,
     isError: false,
     dataUpdatedAt,
     refetch,
+    ...state,
   } as unknown as UseQueryResult<T, Error>;
 }
 
@@ -446,5 +452,164 @@ describe('overview drill-down links initialize the bucket filter', () => {
 
     const calls = getPayablesSummary.mock.calls;
     expect(calls[calls.length - 1]?.[0]).toMatchObject({ bucket: 'overdue', asOfDate: '2026-10-02' });
+  });
+});
+
+/* ─── Card 051026231511: the two count rails are drill-downs ──────────────── */
+
+/**
+ * SPEC 5.10 §A item 1 — "Khách hàng" and "Nhà cung cấp / nhà xe" were static
+ * text. They now link into the list that owns each count, using the same
+ * query-string convention the due-group cards use (`<path>?asOf=<date>`, both
+ * list pages read `?filter=` and `?asOf=`).
+ *
+ * Both counts are the FULL set of debtors / payables, and both list pages only
+ * accept *narrowing* filter values — so the links carry `?asOf=` (snapshot
+ * parity) and deliberately omit `?filter=`: unfiltered IS the whole set.
+ */
+describe('AccountingOverview — count rails drill down (card 051026231511)', () => {
+  const OVERVIEW_DATE = '2026-10-05';
+
+  /** Same wiring as renderOverview, but able to pin loading/error state. */
+  function renderOverviewWithState(
+    receivables: { isLoading?: boolean; isError?: boolean; data?: undefined } = {},
+    payables: { isLoading?: boolean; isError?: boolean; data?: undefined } = {},
+  ) {
+    return render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/accounting']}>
+          <AccountingOverview
+            to={OVERVIEW_DATE}
+            transportViewHref="/accounting?view=transport"
+            receivables={queryResult(receivablesData, AS_OF_MS, vi.fn(), receivables)}
+            payables={queryResult(payablesData, AS_OF_MS, vi.fn(), payables)}
+            depositWeekly={queryResult(depositWeeklyData, AS_OF_MS, vi.fn())}
+            moneyAlerts={queryResult(moneyAlertsData, MONEY_AS_OF_MS, vi.fn())}
+            profitability={queryResult(profitabilityData, AS_OF_MS, vi.fn())}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  /** The shared SummaryRail strip only — the page has other links below it. */
+  function rail() {
+    return screen.getByRole('region', { name: 'Chỉ số kế toán' });
+  }
+
+  function railRow(label: string) {
+    return within(rail()).getByText(label).closest('.summary-rail__item') as HTMLElement;
+  }
+
+  it("makes 'Khách hàng' and 'Nhà cung cấp / nhà xe' real links", () => {
+    renderOverviewWithState();
+
+    const customers = within(rail()).getByRole('link', { name: /Khách hàng/ });
+    const suppliers = within(rail()).getByRole('link', { name: /Nhà cung cấp \/ nhà xe/ });
+    expect(customers.getAttribute('href')).toBe(`${routes.debt}?asOf=${OVERVIEW_DATE}`);
+    expect(suppliers.getAttribute('href')).toBe(`${routes.payables}?asOf=${OVERVIEW_DATE}`);
+    // The count still reads as the count, not just a label.
+    expect(customers.querySelector('dd')?.textContent).toBe('8');
+    expect(suppliers.querySelector('dd')?.textContent).toBe('30');
+  });
+
+  it('uses the due-group drill-down convention: the same list path, ?asOf= pinned, ?filter= omitted', () => {
+    renderOverviewWithState();
+
+    // Same base destinations the DueGroupCard links use…
+    expect(railRow('Khách hàng').getAttribute('href'))
+      .toMatch(new RegExp(`^${routes.debt}\\?`));
+    expect(railRow('Nhà cung cấp / nhà xe').getAttribute('href'))
+      .toMatch(new RegExp(`^${routes.payables}\\?`));
+    // …and the same `?asOf=` param DueGroupCard builds.
+    expect(railRow('Khách hàng').getAttribute('href')).toContain(`?asOf=${OVERVIEW_DATE}`);
+    expect(railRow('Nhà cung cấp / nhà xe').getAttribute('href')).toContain(`?asOf=${OVERVIEW_DATE}`);
+    // No narrowing value: both counts are the whole set, and neither list page
+    // declares an "all" filter — omitting the param is the honest link.
+    for (const label of ['Khách hàng', 'Nhà cung cấp / nhà xe']) {
+      expect(railRow(label).getAttribute('href')).not.toContain('filter=');
+    }
+  });
+
+  it('leaves the money rails (Phải thu / Quá hạn / Phải trả / Lợi nhuận kỳ) inert', () => {
+    renderOverviewWithState();
+    for (const label of ['Phải thu', 'Quá hạn', 'Phải trả', 'Lợi nhuận kỳ']) {
+      expect(railRow(label).tagName).toBe('DIV');
+    }
+    expect(within(rail()).getAllByRole('link')).toHaveLength(2);
+  });
+
+  it('does not render a still-loading count as a working link', () => {
+    renderOverviewWithState({ isLoading: true, data: undefined });
+    expect(railRow('Khách hàng').textContent).toContain('—');
+    expect(railRow('Khách hàng').tagName).toBe('DIV');
+    expect(within(rail()).queryByRole('link', { name: /Khách hàng/ })).toBeNull();
+    // The payable rail loaded fine, so its link is present.
+    expect(railRow('Nhà cung cấp / nhà xe').tagName).toBe('A');
+  });
+
+  it('does not render a failed count as a working link either', () => {
+    renderOverviewWithState({}, { isError: true, data: undefined });
+    expect(railRow('Nhà cung cấp / nhà xe').textContent).toContain('—');
+    expect(railRow('Nhà cung cấp / nhà xe').tagName).toBe('DIV');
+    expect(within(rail()).queryByRole('link', { name: /Nhà cung cấp/ })).toBeNull();
+    expect(railRow('Khách hàng').tagName).toBe('A');
+  });
+
+  it('lands on the FULL unfiltered list pinned to the workspace date, not a subset', async () => {
+    getCustomerAging.mockReset().mockResolvedValue({
+      customers: [], page: 1, limit: 25, total: 0, totalPages: 1,
+      totals: {
+        total: 0, current: 0, d30: 0, d60: 0, over90: 0,
+        currentCusts: 0, d30Custs: 0, d60Custs: 0, over90Custs: 0,
+        overdueCount: 0, highRiskCount: 0,
+      },
+    });
+    getPayablesSummary.mockReset().mockResolvedValue({
+      items: [], totalOutstanding: '0', totalSuppliers: 0, overdueSuppliers: 0,
+      page: 1, limit: 25, total: 0, totalPages: 1,
+      totals: { current: 0, d30: 0, d60: 0, over90: 0, currentCount: 0, d30Count: 0, d60Count: 0, over90Count: 0 },
+    });
+    listTrips.mockReset().mockResolvedValue({ items: [], page: 1, limit: 50, total: 0, totalPages: 0 });
+
+    // The exact href the overview renders…
+    renderOverviewWithState();
+    const href = railRow('Khách hàng').getAttribute('href') as string;
+    expect(href).toBe(`${routes.debt}?asOf=${OVERVIEW_DATE}`);
+
+    // …lands on /debt with NO bucket narrowing and the snapshot date pinned,
+    // which is the row set `totalCustomers` was counted over.
+    renderPage(<DebtListPage />, href);
+    await waitFor(() => expect(getCustomerAging).toHaveBeenCalled());
+    const debtCall = getCustomerAging.mock.calls.at(-1)?.[0];
+    expect(debtCall).toMatchObject({ asOfDate: OVERVIEW_DATE });
+    expect(debtCall?.bucket).toBeUndefined();
+  });
+
+  it('the suppliers href lands on /payables unfiltered and date-pinned', async () => {
+    getCustomerAging.mockReset().mockResolvedValue({
+      customers: [], page: 1, limit: 25, total: 0, totalPages: 1,
+      totals: {
+        total: 0, current: 0, d30: 0, d60: 0, over90: 0,
+        currentCusts: 0, d30Custs: 0, d60Custs: 0, over90Custs: 0,
+        overdueCount: 0, highRiskCount: 0,
+      },
+    });
+    getPayablesSummary.mockReset().mockResolvedValue({
+      items: [], totalOutstanding: '0', totalSuppliers: 0, overdueSuppliers: 0,
+      page: 1, limit: 25, total: 0, totalPages: 1,
+      totals: { current: 0, d30: 0, d60: 0, over90: 0, currentCount: 0, d30Count: 0, d60Count: 0, over90Count: 0 },
+    });
+    listTrips.mockReset().mockResolvedValue({ items: [], page: 1, limit: 50, total: 0, totalPages: 0 });
+
+    renderOverviewWithState();
+    const href = railRow('Nhà cung cấp / nhà xe').getAttribute('href') as string;
+    expect(href).toBe(`${routes.payables}?asOf=${OVERVIEW_DATE}`);
+
+    renderPage(<PayableListPage />, href);
+    await waitFor(() => expect(getPayablesSummary).toHaveBeenCalled());
+    const payableCall = getPayablesSummary.mock.calls.at(-1)?.[0];
+    expect(payableCall).toMatchObject({ asOfDate: OVERVIEW_DATE });
+    expect(payableCall?.bucket).toBeUndefined();
   });
 });

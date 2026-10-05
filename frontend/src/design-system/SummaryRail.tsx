@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import './SummaryRail.css';
 
 export type SummaryRailTone = 'warning' | 'info';
@@ -17,6 +18,14 @@ export interface SummaryRailItem {
   onClick?: () => void;
   /** Pairs with onClick for the pressed look on filter cards. */
   pressed?: boolean;
+  /**
+   * Drill-down destination (card 051026231511). When present the item renders
+   * as a real link into the list that owns the count, using the same
+   * query-string convention the due-group cards deep-link with. Omit it — or
+   * omit it while the count is still loading — and the item stays inert text,
+   * so a placeholder value never presents as a working destination.
+   */
+  href?: string;
 }
 
 /**
@@ -25,6 +34,9 @@ export interface SummaryRailItem {
  * A ruled decision strip, not cards: labels left, values right on a shared
  * baseline, tones color the number only. Distilled from the /shipments
  * workboard summary; hero-KPI surfaces keep the separate hero contract.
+ * An item may stay inert text, act as an in-place filter (`onClick`), or
+ * drill down into the list that owns its count (`href`) — never more than one
+ * mode at a time.
  */
 export function SummaryRail({ items, ariaLabel }: { items: SummaryRailItem[]; ariaLabel: string }) {
   return (
@@ -48,6 +60,17 @@ export function SummaryRail({ items, ariaLabel }: { items: SummaryRailItem[]; ar
               >
                 {content}
               </button>
+            );
+          }
+          if (item.href) {
+            return (
+              <Link
+                key={item.label}
+                to={item.href}
+                className={`summary-rail__item summary-rail__item--link${item.tone ? ` summary-rail__item--${item.tone}` : ''}`}
+              >
+                {content}
+              </Link>
             );
           }
           return (

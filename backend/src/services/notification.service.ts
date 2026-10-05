@@ -96,6 +96,8 @@ function normalizeNotificationType(input: NotificationType | string): Notificati
       return 'ADVANCE_SETTLEMENT_APPROVED';
     case 'SHIPMENT_HANDOFF':
       return 'SHIPMENT_HANDOFF';
+    case 'FUND_NEGATIVE':
+      return 'FUND_NEGATIVE';
     default:
       throw new Error(`Unsupported notification type: ${input}`);
   }
@@ -351,6 +353,11 @@ export function notificationUrlForRole(payload: NotificationPayload, role: Role)
         : (id ? `/settlements/${id}` : '/payables/forwarder-advances');
     case 'shipments':
       return id ? `/dispatch?shipmentId=${id}` : '/dispatch';
+    case 'funds':
+      // Card 051026231511 — the fund alert carries no row id; both surfaces of
+      // the money snapshot (the 'Sổ quỹ / ngân hàng' position page and the
+      // accounting overview that raised it) live behind the same workspace.
+      return '/finance/treasury';
     default:
       return undefined;
   }

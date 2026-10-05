@@ -759,6 +759,8 @@ export enum NotificationType {
   SYSTEM_ANNOUNCEMENT = 'SYSTEM_ANNOUNCEMENT',
   ADVANCE_SETTLEMENT_APPROVED = 'ADVANCE_SETTLEMENT_APPROVED',
   SHIPMENT_HANDOFF = 'SHIPMENT_HANDOFF',
+  /** Card 051026231511 — the bell counterpart of the overview 'Quỹ âm' strip. */
+  FUND_NEGATIVE = 'FUND_NEGATIVE',
 }
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
@@ -775,6 +777,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   [NotificationType.SYSTEM_ANNOUNCEMENT]: 'Thông báo hệ thống',
   [NotificationType.ADVANCE_SETTLEMENT_APPROVED]: 'Phiếu hoàn ứng đã duyệt',
   [NotificationType.SHIPMENT_HANDOFF]: 'Lô hàng được giao cho điều vận',
+  [NotificationType.FUND_NEGATIVE]: 'Quỹ âm',
 };
 
 /**
@@ -801,6 +804,9 @@ export const PUSH_RULES: Partial<Record<NotificationType, PushAudience>> = {
   // PRD push MVP: settlement-approved is Driver + Điều vận only. Previously
   // pushed to every role ('all'), which violated the MVP scope.
   [NotificationType.ADVANCE_SETTLEMENT_APPROVED]: 'driver',
+  // FUND_NEGATIVE is deliberately absent — in-app only, like OVERDUE_PAYMENT
+  // (the receivable reminder it sits beside). A negative balance is a
+  // same-day accounting warning, not a "stop what you are doing" device wake.
 };
 
 export * from './api-paths';

@@ -48,37 +48,53 @@ export function AccountingOverview({
   // fails — the workspace banner already names the failing source.
   const dash = '—';
   const overdueAmount = receivables.data?.overdueAmount ?? 0;
+  // Card 051026231511 — the two count rails drill down into the list that owns
+  // them. `asOf` pins the list to this workspace's snapshot date so the rows
+  // match the clicked number, the same way the due-group cards pin theirs.
+  // There is deliberately NO `filter=` value here: both counts are the FULL
+  // set, and /debt + /payables only accept narrowing values (current, d30,
+  // d60, over90, overdue) — unfiltered IS the whole set, so adding a filter
+  // would silently show a different one. `?filter=all` would also land on the
+  // unfiltered default, but only via the param's fallthrough, so the honest
+  // link omits the param instead of naming a filter the pages never declared.
+  const receivablesReady = !receivables.isLoading && !receivables.isError;
+  const payablesReady = !payables.isLoading && !payables.isError;
+  // A count that is still loading is not a destination: the link is withheld
+  // until the number is real, so the em dash never looks clickable.
+  const asOfParam = `asOf=${encodeURIComponent(to)}`;
   const summaryItems: SummaryRailItem[] = [
     {
       label: 'Phải thu',
-      value: receivables.isLoading || receivables.isError
-        ? dash
-        : formatCurrency(receivables.data?.totalOutstanding ?? 0),
+      value: receivablesReady
+        ? formatCurrency(receivables.data?.totalOutstanding ?? 0)
+        : dash,
     },
     {
       label: 'Khách hàng',
-      value: receivables.isLoading || receivables.isError
-        ? dash
-        : (receivables.data?.totalCustomers ?? 0),
+      value: receivablesReady
+        ? (receivables.data?.totalCustomers ?? 0)
+        : dash,
+      href: receivablesReady ? `${routes.debt}?${asOfParam}` : undefined,
     },
     {
       label: 'Quá hạn',
-      value: receivables.isLoading || receivables.isError
-        ? dash
-        : formatCurrency(overdueAmount),
+      value: receivablesReady
+        ? formatCurrency(overdueAmount)
+        : dash,
       tone: overdueAmount > 0 ? 'warning' : undefined,
     },
     {
       label: 'Phải trả',
-      value: payables.isLoading || payables.isError
-        ? dash
-        : formatCurrency(Number(payables.data?.totalOutstanding ?? 0)),
+      value: payablesReady
+        ? formatCurrency(Number(payables.data?.totalOutstanding ?? 0))
+        : dash,
     },
     {
       label: 'Nhà cung cấp / nhà xe',
-      value: payables.isLoading || payables.isError
-        ? dash
-        : (payables.data?.totalSuppliers ?? 0),
+      value: payablesReady
+        ? (payables.data?.totalSuppliers ?? 0)
+        : dash,
+      href: payablesReady ? `${routes.payables}?${asOfParam}` : undefined,
     },
     {
       label: 'Lợi nhuận kỳ',

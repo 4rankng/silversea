@@ -24,6 +24,10 @@ import {
   runReceivableReminders,
 } from './services/receivable-reminder.service';
 import {
+  FUND_NEGATIVE_ALERT_CRON,
+  runFundNegativeAlerts,
+} from './services/fund-negative-alert.service';
+import {
   logDurableEffectRunSummary,
   processDueDurableEffectJobs,
 } from './services/durable-effect.service';
@@ -99,6 +103,20 @@ if (schedulerEnabled) {
     handler: async () => {
       const stats = await runReceivableReminderRetries();
       console.log(`[scheduler] receivable-reminder-retry: ${stats.retried} retried, ${stats.suppressed} suppressed, ${stats.escalated} escalated, ${stats.failed} failed`);
+    },
+  });
+
+  // Card 051026231511 — the bell's quick fund notice. Reads the same money-alerts
+  // authority as the overview's "Quỹ âm" strip and notifies financial roles once
+  // per Vietnam business date while both funds are negative.
+  registerJob({
+    name: 'fund-negative-alert',
+    cron: FUND_NEGATIVE_ALERT_CRON,
+    handler: async () => {
+      const stats = await runFundNegativeAlerts();
+      if (stats.alerted > 0) {
+        console.log(`[scheduler] fund-negative-alert: ${stats.alerted} alerted`);
+      }
     },
   });
 
