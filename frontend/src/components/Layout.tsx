@@ -130,6 +130,7 @@ export function getNavItems(
         // Nhân sự (HR) — Lương & Chấm công is a KHÁC danh mục item per
         // spec §5.10, so only Kỷ luật stays in the HR group.
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'accounting-khac' as SectionName },
+        { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'accounting-khac' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
         // Danh mục (Master Data) per spec
@@ -181,6 +182,7 @@ export function getNavItems(
         // Nhân sự (HR) — Lương & Chấm công is a KHÁC danh mục item per
         // spec §5.10, so only Kỷ luật stays in the HR group.
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'accounting-khac' as SectionName },
+        { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'accounting-khac' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
         // Danh mục (Master Data) per spec
@@ -238,6 +240,7 @@ export function getNavItems(
         // App.tsx guards /salary with `officeStaffOnly`, which admits
         // ACCOUNTANT, so this is a real destination — not a dead link.
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'accounting-khac' as SectionName },
+        { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'accounting-khac' as SectionName },
 
         // Pricing config entry points (docx §5-1): accountant fuel-price entry + per-customer×route rate terms.
         // Master data, not one of the 4 spec danh mục — they live in the

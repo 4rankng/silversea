@@ -32,6 +32,7 @@ describe('getNavItems', () => {
       ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
       ['Kế toán chốt debit', '/accounting/chot-debit'],
       ['Lương & Chấm công', '/salary'],
+      ['Danh sách nhân sự', '/hr/roster'],
       ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'],
       ['Nhà xe / Nhà cung cấp', '/suppliers'],
@@ -60,6 +61,7 @@ describe('getNavItems', () => {
       ['Tạm ứng & Hoàn ứng', '/advances'],
       ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Lương & Chấm công', '/salary'],
+      ['Danh sách nhân sự', '/hr/roster'],
       ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'],
       ['Nhà xe / Nhà cung cấp', '/suppliers'],
@@ -84,6 +86,7 @@ describe('getNavItems', () => {
       ['Tạm ứng & Hoàn ứng', '/advances'],
       ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Lương & Chấm công', '/salary'],
+      ['Danh sách nhân sự', '/hr/roster'],
       ['Giá dầu theo kỳ', '/config/fuel-price-periods'],
       ['Điều khoản cước theo tuyến', '/config/freight-rate-terms'],
       ['Báo cáo Lãi lỗ', '/finance'],
@@ -198,7 +201,7 @@ describe('getNavItems', () => {
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary',
+      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/hr/roster',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/shipments', '/audit-logs',
     ]);
@@ -349,12 +352,14 @@ describe('kế toán danh mục (spec 5.10)', () => {
     ]);
     expect(itemsFor(Role.ADMIN, CÔNG_NỢ)).toEqual(['debt', 'payables']);
     expect(itemsFor(Role.ADMIN, QUỸ)).toEqual(['treasury']);
-    expect(itemsFor(Role.ADMIN, KHÁC)).toEqual(['salary']);
+    expect(itemsFor(Role.ADMIN, KHÁC)).toEqual(['salary', 'hr-roster']);
 
     expect(itemsFor(Role.MANAGER, PHƠI_PHIEU)).toEqual(['expenses', 'advances', 'hoan-ung']);
     expect(itemsFor(Role.MANAGER, CÔNG_NỢ)).toEqual(['debt', 'payables']);
     expect(itemsFor(Role.MANAGER, QUỸ)).toEqual(['treasury']);
-    expect(itemsFor(Role.MANAGER, KHÁC)).toEqual(['salary']);
+    expect(itemsFor(Role.MANAGER, KHÁC)).toEqual(['salary', 'hr-roster']);
+
+    expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual(['salary', 'hr-roster']);
 
     expect(itemsFor(Role.ACCOUNTANT, PHƠI_PHIEU)).toEqual([
       'invoice-tracking', 'deposit-tracker', 'phoi-phieu', 'chot-debit',
@@ -368,14 +373,14 @@ describe('kế toán danh mục (spec 5.10)', () => {
     const expected: Record<string, string[]> = {
       [Role.ADMIN]: [
         'phoi-phieu', 'expenses', 'invoice-tracking', 'deposit-tracker', 'advances',
-        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury', 'salary',
+        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury', 'salary', 'hr-roster',
       ],
       [Role.MANAGER]: [
-        'expenses', 'advances', 'hoan-ung', 'debt', 'payables', 'treasury', 'salary',
+        'expenses', 'advances', 'hoan-ung', 'debt', 'payables', 'treasury', 'salary', 'hr-roster',
       ],
       [Role.ACCOUNTANT]: [
         'phoi-phieu', 'expenses', 'invoice-tracking', 'deposit-tracker', 'advances',
-        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury', 'salary',
+        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury', 'salary', 'hr-roster',
       ],
     };
     for (const [role, expectedKeys] of Object.entries(expected)) {
@@ -427,11 +432,12 @@ describe('kế toán danh mục (spec 5.10)', () => {
       .filter((item) => item.section === QUỸ)).toEqual([]);
   });
 
-  it('gives ACCOUNTANT a non-empty Khác danh mục holding only Lương & Chấm công', () => {
+  it('gives ACCOUNTANT a non-empty Khác danh mục holding Lương & Chấm công and Danh sách nhân sự', () => {
     // Spec §5.10 puts bảng chấm công + bảng lương in KHÁC. /salary is guarded
     // by `officeStaffOnly` in App.tsx, which admits ACCOUNTANT, so the entry is
     // a real destination and the danh mục must not render empty for them.
-    expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual(['salary']);
+    // /hr/roster joins it with the same guard (card 385 rework).
+    expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual(['salary', 'hr-roster']);
     expect(getNavSections(Role.ACCOUNTANT).map((section) => section.key)).toContain(KHÁC);
   });
 });
