@@ -4,6 +4,18 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-05 — Toàn bộ PRD nội dung chuyển sang .docx; bổ sung PhanHeKeToan (phân hệ Kế toán)
+
+Theo chỉ đạo của chủ sản phẩm, 9 tài liệu PRD nội dung chuyển từ .md sang .docx
+(pandoc; bảng, tiêu đề và số mục §n.m giữ nguyên; sơ đồ mermaid trong
+QuyTrinhO2C và OpsVanHanh được render PNG nhúng). README.md và CHANGELOG.md
+giữ định dạng .md làm bề mặt chỉ mục và lịch sử. Tham chiếu tên tài liệu ở mã
+nguồn, testplan/flows, testplan/roles, docs/adr và BACKLOG.md được cập nhật
+phần mở rộng; các bản ghi lịch sử có ngày (testplan/cycles, docs/memory,
+script một lần) giữ nguyên như thời điểm ghi. Tài liệu mới `PhanHeKeToan.docx`
+tổng hợp yêu cầu phân hệ Kế toán từ `5.10 - CHI TIẾT CÁC BỘ PHẬN.docx` Phần 1,
+kèm 12 ảnh mockup gốc. Bổ sung thêm hàng BaoGia còn thiếu ở README §4.
+
 ## 2026-10-02 — Tờ khai của lô chỉ còn Số tờ khai, bỏ Luồng hải quan
 
 Chủ sản phẩm phủ nhận trường **Luồng hải quan** (đỏ/vàng/xanh) là phạm vi tự

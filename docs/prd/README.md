@@ -119,6 +119,8 @@ Chủ sản phẩm chốt giữ các quy tắc này ngày2026-10-01; xem
 | [CuocPhiPhuPhiDau.docx](CuocPhiPhuPhiDau.docx) | Công thức cước, tham số hợp đồng, bảng số tham chiếu và quy tắc làm tròn | Trải nghiệm cấu hình giá, luồng nhập kỳ giá |
 | [CuocPhiThietKeDB.docx](CuocPhiThietKeDB.docx) | Yêu cầu đối với dữ liệu cước, ngày hiệu lực, giải thích số tiền và bảo toàn lịch sử | Công thức tính cước |
 | [PhuongAnTinhCuocTuDong.docx](PhuongAnTinhCuocTuDong.docx) | Trải nghiệm cấu hình, tính cước theo ngày vận chuyển, xử lý thiếu giá và điều chỉnh giá trên bảng kê | Công thức gốc và bảng giá hợp đồng |
+| [BaoGia.docx](BaoGia.docx) | Phân hệ báo giá: khung giá theo khách hàng, lưới giá nhà máy × tuyến × hạng xe, phụ phí theo kỳ giá dầu, nhập/xuất Excel, lịch sử phiên bản | Cách tính cước áp cho lô khi phát lệnh (ở QuyTrinhO2C.docx §7) |
+| [PhanHeKeToan.docx](PhanHeKeToan.docx) | Giao diện và quy tắc phân hệ Kế toán: dashboard tiền/cược/quỹ/cảnh báo, phơi phiếu, công nợ vận tải, quỹ, chấm công/lương/nhân sự | Các phân hệ khác (Điều độ, Lái xe, CUS, Quản lý); quy trình O2C chung; công thức cước |
 
 ## 5. Nguồn yêu cầu gốc
 
@@ -132,6 +134,8 @@ Chủ sản phẩm chốt giữ các quy tắc này ngày2026-10-01; xem
 | CuocPhiThietKeDB.docx | Yêu cầu cước và phương án khách hàng |
 | PhuongAnTinhCuocTuDong.docx | `Phương án tính cước tự động.docx` |
 | QuyTrinhO2C.docx | Tổng hợp yêu cầu nghiệp vụ |
+| BaoGia.docx | `22.9 - BÁO GIÁ MẪU 1.xlsx`, `các chi phí.pdf` (21/09) |
+| PhanHeKeToan.docx | `5.10 - CHI TIẾT CÁC BỘ PHẬN.docx` Phần 1 (PHÂN HỆ KẾ TOÁN) |
 
 Các file nguồn là bản minh hoạ logic, không phải bộ dữ liệu đầy đủ: ô trống trong file
 nguồn là bình thường và không ảnh hưởng công thức. Khi nguồn và quy tắc đã chốt khác
@@ -147,7 +151,7 @@ nhau, quy tắc đã chốt trong tài liệu tương ứng thắng — xem
   không do SilverSea tạo ra — xem [MasterDataNhaMay.docx](MasterDataNhaMay.docx) §4.
 - **Một quy tắc chỉ có một nơi định nghĩa.** Tài liệu khác tham chiếu, không chép
   lại; khi cần sửa, sửa tại nơi định nghĩa.
-- **Số mục ổn định.** Mã tham chiếu dạng `Tài liệu.md §n.m` được dùng trong mã nguồn;
+- **Số mục ổn định.** Mã tham chiếu dạng `Tài liệu.docx §n.m` được dùng trong mã nguồn;
   không đánh số lại mục khi sửa nội dung.
 - **Không ghi lịch sử trong tài liệu.** Quyết định đã chốt, việc đã bỏ và lý do nằm ở
   [CHANGELOG.md](CHANGELOG.md) hoặc hồ sơ công việc, không nằm trong yêu cầu sản phẩm.
