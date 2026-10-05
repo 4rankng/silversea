@@ -87,6 +87,20 @@ describe('adaptive time entry', () => {
       unregisterOverlayToken(parentToken);
     });
 
+    // Card 326 (user retest 05/10): clicking a segment opens the mobile
+    // sheet, whose react-aria Dialog autofocuses its content — the popup
+    // "stole focus" and swallowed the digits the user typed next. A
+    // POINTER-opened sheet must leave focus on the anchor segment so fast
+    // typing never breaks; a keyboard-invoked sheet keeps the dialog focus.
+    it('pointer-opened sheet leaves focus on the anchor segment (no popup focus steal)', async () => {
+      render(<><SplitHarness /><input aria-label="Outside" /></>);
+      const time = screen.getByLabelText('Giờ — Hẹn');
+      act(() => time.focus());
+      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+      await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
+      expect(time).toHaveFocus();
+    });
+
     it('keeps exact entry inside the modal, applies without premature pair error and restores the original field', async () => {
       render(<><SplitHarness /><input aria-label="Outside" /></>);
       const time = screen.getByLabelText('Giờ — Hẹn');

@@ -29,6 +29,20 @@ export function TimePickerSurface({ id, label, value, onPick, onApply, onDismiss
   useFocusTrap(panelRef, !mobile && keyboard);
   useClickOutside(panelRef, onExit, { enabled: !mobile && !inline, additionalRefs: [anchorRef, ...additionalRefs] });
 
+  // Card 326 (user retest 05/10): a POINTER-opened mobile sheet must never
+  // take focus — the react-aria Dialog below autofocuses its content on
+  // mount, which swallowed the digits the user typed next ("the popup stole
+  // focus"). One frame after the mount commit, the anchor segment takes
+  // focus back so fast typing continues; a keyboard-invoked sheet
+  // (Alt+ArrowDown) keeps the dialog focus for its exact-entry field.
+  useEffect(() => {
+    if (!mobile || keyboard || inline) return;
+    const frame = requestAnimationFrame(() => {
+      if (anchorRef.current?.isConnected) anchorRef.current.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [mobile, keyboard, inline, anchorRef]);
+
   // Card 20260915_6 + _8: while the picker surface is open — sheet, popover,
   // or inline — register an overlay token so the PARENT dialog's window-level
   // shortcuts (Escape / Enter in useConfirmShortcuts) yield to the picker,
