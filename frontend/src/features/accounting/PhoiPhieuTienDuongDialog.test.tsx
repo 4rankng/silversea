@@ -17,11 +17,11 @@ describe('driver cost confirmation uses current source version', () => {
     mount(); await screen.findByDisplayValue('-20.000');
     const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
     expect(screen.getByLabelText('Thực chi dòng 2')).toHaveValue('-10.000');
-    expect(totals()).toEqual(['75.000₫', '75.000₫']);
+    expect(totals()).toEqual(['75.000 ₫', '75.000 ₫']);
     fireEvent.change(screen.getByLabelText('Thực chi dòng 1'), { target: { value: '-1' } });
-    expect(totals()).toEqual(['0₫', '0₫']);
+    expect(totals()).toEqual(['0 ₫', '0 ₫']);
     fireEvent.change(screen.getByLabelText('Thực chi dòng 1'), { target: { value: '75000' } });
-    expect(totals()).toEqual(['75.000₫', '75.000₫']);
+    expect(totals()).toEqual(['75.000 ₫', '75.000 ₫']);
     expect(api.confirm).not.toHaveBeenCalled(); expect(saved).not.toHaveBeenCalled();
   });
   it('submits the current source version and refreshes after confirmation', async () => {
@@ -41,7 +41,7 @@ describe('driver cost confirmation uses current source version', () => {
   it('shows the current amount and configured label alongside the original value', async () => {
     mount(); await screen.findByText('Phụ cấp cấu hình');
     // The "Lái xe nhập ban đầu" cell is read-only, formatted currency.
-    expect(screen.getByText('73.000')).toHaveClass('money__num');
+    expect(screen.getByText('73.000 ₫')).toBeTruthy();
     // "Thực chi hiện tại" became an EDITABLE input in 18db820e so the accountant
     // can adjust the amount inline; NumberField renders grouped vi-VN digits
     // (card 20260930_224), so the control's display value carries separators.
@@ -204,7 +204,7 @@ describe('card 051026231617 — the tiền-đường footer says it excludes neg
     mount();
     await screen.findByDisplayValue('-20.000');
     const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
-    expect(totals()).toEqual(['75.000₫', '75.000₫']);
+    expect(totals()).toEqual(['75.000 ₫', '75.000 ₫']);
     const note = screen.getByText(/khoản tiền đường âm/, { selector: 'p.phoi-detail-note' });
     expect(note).toHaveTextContent('Có 2 khoản tiền đường âm, tổng -30.000 ₫ — không tính vào Tổng phát sinh.');
   });

@@ -87,18 +87,17 @@ describe('direct settlement creation from actual funded advances', () => {
     const refund = screen.getAllByText('Tiền hoàn lại').find(label => label.classList.contains('fset-summary__label'))!.closest('.fset-summary__row')!.querySelector('.fset-summary__value')!;
     for (const row of [expense, refund]) {
       expect(row).toHaveTextContent('0');
-      expect(row.querySelector('.money__sign')).not.toBeInTheDocument();
+      expect(row.querySelector('.money')?.textContent).toBe('0 ₫');
     }
     expect(expense).not.toHaveClass('fset-summary__value--expense');
     expect(refund).not.toHaveClass('fset-summary__value--refund');
     fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '125000' } });
     expect(refund).toHaveClass('fset-summary__value--refund');
-    expect(refund.querySelector('.money__sign')).toHaveTextContent('−');
-    expect(refund.querySelector('.money__num')).toHaveTextContent('125.000');
-    expect(expense.querySelector('.money__sign')).not.toBeInTheDocument();
-    expect(document.querySelector('.fset-summary__total--negative')?.querySelector('.money__num')).toHaveTextContent('-125.000');
+    expect(refund.querySelector('.money')?.textContent).toBe('−125.000 ₫');
+    expect(expense.querySelector('.money')?.textContent).toBe('0 ₫');
+    expect(document.querySelector('.fset-summary__total--negative')?.querySelector('.money')).toHaveTextContent('-125.000');
     fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '0' } });
-    expect(refund.querySelector('.money__sign')).not.toBeInTheDocument();
+    expect(refund.querySelector('.money')?.textContent).toBe('0 ₫');
     expect(refund).not.toHaveClass('fset-summary__value--refund');
     expect(mutateAsync).not.toHaveBeenCalled();
   });

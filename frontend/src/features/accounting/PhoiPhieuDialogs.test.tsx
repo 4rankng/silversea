@@ -319,17 +319,16 @@ describe('card 20260928_171 — chi tiết tiền đường: sửa số tiền, 
     render(<PhoiPhieuControlPage />, { wrapper: makeWrapper() });
     const row = await findBoardRow('BILL-002');
     const boardMoney = row.querySelector('.ppc-col--money .money')!;
-    expect(boardMoney.querySelector('.money__num')?.textContent).toBe('2.000.000');
-    expect(boardMoney.querySelector('.money__unit')?.textContent).toBe('₫');
+    expect(boardMoney.textContent).toBe('2.000.000 ₫');
 
     fireEvent.click(within(row).getByRole('button', { name: 'Xem chi tiết' }));
     const dialog = await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
     await within(dialog).findByLabelText('Thực chi dòng 1');
     const footer = within(dialog).getByRole('region', { name: 'Tổng cộng' });
     // the same string the board cell shows, now inside the detail
-    expect(within(footer).getByText('2.000.000')).toHaveClass('money__num');
+    expect(within(footer).getByText('2.000.000 ₫')).toBeTruthy();
     // the gross stays visible, but under the label that says it is the gross
-    expect(within(footer).getByText('2.050.000')).toHaveClass('money__num');
+    expect(within(footer).getByText('2.050.000 ₫')).toBeTruthy();
     expect(within(footer).getByText('Tổng phát sinh')).toBeInTheDocument();
     expect(within(footer).getByText('Đã duyệt')).toBeInTheDocument();
     expect(within(dialog).getByText(/chỉ dòng đã duyệt mới được lập phiếu chi/)).toBeInTheDocument();

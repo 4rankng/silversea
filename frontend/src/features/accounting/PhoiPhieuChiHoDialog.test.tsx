@@ -203,11 +203,11 @@ describe('phơi chi-hộ row identity', () => {
     page(); await screen.findByText('Confirmed fee');
     const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
     expect(screen.getByLabelText('Số tiền trả dòng 2')).toHaveValue('-80.000');
-    expect(totals()).toEqual(['140.000₫', '50.000₫']);
+    expect(totals()).toEqual(['140.000 ₫', '50.000 ₫']);
     fireEvent.change(screen.getByLabelText('Số tiền trả dòng 1'), { target: { value: '-1' } });
-    expect(totals()).toEqual(['140.000₫', '0₫']);
+    expect(totals()).toEqual(['140.000 ₫', '0 ₫']);
     fireEvent.change(screen.getByLabelText('Số tiền trả dòng 1'), { target: { value: '50000' } });
-    expect(totals()).toEqual(['140.000₫', '50.000₫']);
+    expect(totals()).toEqual(['140.000 ₫', '50.000 ₫']);
     expect(api.update).not.toHaveBeenCalled(); expect(api.correct).not.toHaveBeenCalled();
   });
   it('keeps native entry and source IDs distinct and preserves the untouched amount', async () => {
@@ -217,8 +217,8 @@ describe('phơi chi-hộ row identity', () => {
     expect(screen.getByLabelText('Số tiền trả dòng 1')).toHaveValue('50.000');
     expect(screen.getByLabelText('Số tiền thu dòng 2')).toHaveValue('80.000');
     const totalCells = screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd');
-    expect(totalCells[0]!.textContent).toBe('146.000₫');
-    expect(totalCells[1]!.textContent).toBe('130.000₫');
+    expect(totalCells[0]!.textContent).toBe('146.000 ₫');
+    expect(totalCells[1]!.textContent).toBe('130.000 ₫');
     expect(screen.getByRole('status')).toHaveTextContent('Có thay đổi chưa lưu');
     fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
     await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
@@ -380,7 +380,7 @@ describe('card 051026231617 — the footer says it excludes negative chi-hộ ro
     page();
     await screen.findByText('Điều chỉnh trừ 1');
     const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
-    expect(totals()).toEqual(['140.000₫', '100.000₫']);
+    expect(totals()).toEqual(['140.000 ₫', '100.000 ₫']);
     const note = screen.getByText(/khoản chi âm/, { selector: 'p.phoi-detail-note' });
     expect(note).toHaveTextContent('Có 3 khoản chi âm, tổng -150.000 ₫ — không tính vào Tổng trả.');
   });

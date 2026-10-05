@@ -16,7 +16,7 @@ describe('driver deduction summary known versus unavailable amount', () => {
   }
   it('renders zero currency for a successfully loaded period with no deductions', () => {
     render(<DriverPenaltyPage />);
-    expect(deductionValue()?.textContent).toBe('0₫');
+    expect(deductionValue()?.textContent).toBe('0 ₫');
   });
   it('keeps an unknown amount distinct when the period read fails', () => {
     queries.useSalaryPeriod.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch: vi.fn() });

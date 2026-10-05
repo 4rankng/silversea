@@ -155,8 +155,8 @@ describe('ProfitPage governance request UX', () => {
     render(<MemoryRouter><ProfitPage /></MemoryRouter>);
     const row = screen.getByText('Chi phí chung công ty').closest('.calc-row')!;
     const amount = row.querySelector('.calc-row__value')!;
-    expect(within(amount as HTMLElement).getByText('0')).toBeVisible();
-    expect(amount.querySelector('.money__sign')).toBeNull();
+    expect(within(amount as HTMLElement).getByText('0 ₫')).toBeVisible();
+    expect((amount.querySelector('.money')?.textContent ?? '').startsWith('−')).toBe(false);
     expect(amount).not.toHaveClass('calc-row__value--neg');
   });
 

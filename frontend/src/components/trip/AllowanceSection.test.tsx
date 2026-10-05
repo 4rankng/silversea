@@ -78,23 +78,21 @@ describe('AllowanceSection return-cargo control', () => {
     for (const label of ['Vé đường (1 trạm)', 'Tiền kết hợp', 'Chi phí nhiên liệu', 'Chi phí đường bộ', 'Tiền lương lái xe']) {
       const row = screen.getByText(label).closest('.tc-summary-row,.tc-totals-row')!;
       const amount = row.querySelector('.money')!;
-      expect(within(amount as HTMLElement).getByText('0')).toBeVisible();
-      expect(amount.querySelector('.money__sign')).toBeNull();
+      expect(within(amount as HTMLElement).getByText('0 ₫')).toBeVisible();
+      expect(amount.textContent?.trim()).toBe('0 ₫');
       expect(row.querySelector('.tc-summary-row__val--neutral,.tc-totals-row__val--neutral')).not.toBeNull();
     }
     const station = screen.getByText(/Trạm BOT/).closest('.tc-totals-breakdown__row')!;
-    expect(station.querySelector('.money__sign')).toBeNull();
+    expect((station.querySelector('.money')?.textContent ?? '').startsWith('−')).toBe(false);
     expect(station.querySelector('.tc-totals-row__val--neutral')).not.toBeNull();
     tripFormContextMock.mockReturnValue(summaryForm('OWN', 55_000));
     rerender(<><TripSummaryCard /><TotalsPanel /></>);
     for (const label of ['Vé đường (1 trạm)', 'Tiền kết hợp', 'Tiền lương lái xe']) {
       const row = screen.getByText(label).closest('.tc-summary-row,.tc-totals-row')!;
-      expect(within(row as HTMLElement).getByText('55.000')).toBeVisible();
-      expect(within(row as HTMLElement).getByText('−')).toBeVisible();
+      expect(within(row as HTMLElement).getByText('−55.000 ₫')).toBeVisible();
     }
     const profit = screen.getByText('Lợi nhuận dự kiến', { selector: '.tc-summary-row__lbl' }).closest('.tc-summary-row')!;
-    expect(within(profit as HTMLElement).getByText('110.000')).toBeVisible();
-    expect(within(profit as HTMLElement).getByText('−')).toBeVisible();
+    expect(within(profit as HTMLElement).getByText('−110.000 ₫')).toBeVisible();
     expect(profit.querySelector('.tc-summary-row__val--neg')).not.toBeNull();
   });
 
@@ -103,20 +101,19 @@ describe('AllowanceSection return-cargo control', () => {
     const { rerender } = render(<><TripSummaryCard /><TotalsPanel /></>);
     const rows = () => screen.getAllByText('Cước thuê ngoài (gồm VAT)').map(label => label.closest('.tc-summary-row,.tc-totals-row')!);
     for (const row of rows()) {
-      expect(row.querySelector('.money__sign')).toBeNull();
+      expect((row.querySelector('.money')?.textContent ?? '').startsWith('−')).toBe(false);
       expect(row.querySelector('.tc-summary-row__val--neutral,.tc-totals-row__val--neutral')).not.toBeNull();
     }
     tripFormContextMock.mockReturnValue(summaryForm('EXTERNAL', 55_000));
     rerender(<><TripSummaryCard /><TotalsPanel /></>);
     for (const row of rows()) {
-      expect(within(row as HTMLElement).getByText('55.000')).toBeVisible();
-      expect(within(row as HTMLElement).getByText('−')).toBeVisible();
+      expect(within(row as HTMLElement).getByText('−55.000 ₫')).toBeVisible();
     }
   });
 
   it('preserves Money explicit sign even for zero; its caller owns subtraction semantics', () => {
     const { container } = render(<Money value={0} sign="−" />);
-    expect(container.querySelector('.money__sign')?.textContent).toBe('−');
+    expect(container.querySelector('.money')?.textContent).toBe('−0 ₫');
   });
 
   it('uses the compact shared checkbox card instead of an oversized inline control', () => {

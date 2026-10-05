@@ -15,12 +15,18 @@ interface MoneyProps {
 }
 
 /**
- * Money value with a subtitle-sized currency unit.
+ * Money value — THE numeric law's rendering: the whole formatted amount
+ * ("14.000.000 ₫", or "12.5 tr ₫" compact, sign prefixed) is ONE text node
+ * inside one inline element, so a narrow cell can never break the number from
+ * its unit and no rendering can stack them into two line-boxes (the QA v2
+ * staging measurement that bounced this card twice traced to the retired
+ * `.money__num` + `.money__unit` sibling-span split — a two-box mechanism no
+ * CSS law could have fixed).
  *
- * The digits inherit the surrounding font-size/weight/color; the unit ("₫", or
- * "tr ₫" / "tỷ ₫" when compact) uses the shared readable caption scale.
- * The numeric value retains its table or metric context. Replaces inline
- * `{formatCurrency(x)}` wherever the unit was rendering at full size.
+ * Design tradeoff, recorded: the caption-sized unit retires INSIDE this
+ * component — the unit renders in the same run as the digits at the
+ * surrounding font size. The public API (value/compact/sign/noUnit/className)
+ * is unchanged; compact keeps the "tr ₫" / "tỷ ₫" formatting.
  *
  * Note: for counter-animated hero values, keep the manual number + unit split
  * (the counter writes textContent directly and cannot target a sub-span).
@@ -29,9 +35,7 @@ export function Money({ value, compact = false, sign, className, noUnit }: Money
   const { num, unit } = moneyParts(value, compact);
   return (
     <span className={`money${className ? ` ${className}` : ''}`}>
-      {sign && <span className="money__sign">{sign}</span>}
-      <span className="money__num">{num}</span>
-      {!noUnit && <span className="money__unit">{unit}</span>}
+      {`${sign ?? ''}${num}${noUnit ? '' : ` ${unit}`}`}
     </span>
   );
 }

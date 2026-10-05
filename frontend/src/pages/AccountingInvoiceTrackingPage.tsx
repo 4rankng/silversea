@@ -402,14 +402,21 @@ export default function AccountingInvoiceTrackingPage() {
                   <td data-label="Nhà cung cấp">{formatBusinessRef(row.supplierName)}</td>
                   <td data-label="Hóa đơn">
                     <span className="ivt-stack">
-                      <span>Số hóa đơn: {formatBusinessRef(row.invoiceNumber)}</span>
-                      <span>Số tiền: {formatMoney(Number(row.invoiceAmount))} ₫</span>
+                      <span className="ivt-stack__primary">Số hóa đơn: {formatBusinessRef(row.invoiceNumber)}</span>
+                      {/* The money line is the shared law's business: one text
+                          node, one line — the sub class carries the nowrap. */}
+                      <span className="ivt-stack__sub">{`Số tiền: ${formatMoney(Number(row.invoiceAmount))} ₫`}</span>
                     </span>
                   </td>
-                  <td data-label="Số tiền trả" className="num">{formatMoney(Number(row.supplierPayment))} ₫</td>
+                  {/* The numeric law's rendering: the whole amount + unit is
+                      ONE template-literal text node — two adjacent JSX text
+                      children give the browser two text nodes, and the ₫ can
+                      break onto its own line under wrapping pressure (the
+                      staging defect's token-walker signature). */}
+                  <td data-label="Số tiền trả" className="num">{`${formatMoney(Number(row.supplierPayment))} ₫`}</td>
                   <td data-label="COM" className="num">{comCellContent(row)}</td>
                   <td data-label="Chênh lệch" className="num" title="Số tiền hóa đơn − Số tiền trả">
-                    {formatMoney(Number(row.invoiceAmount) - Number(row.supplierPayment))} ₫
+                    {`${formatMoney(Number(row.invoiceAmount) - Number(row.supplierPayment))} ₫`}
                   </td>
                   <td data-label="Ngày gửi" className="num">{formatISODate(row.invoiceSentAt)}</td>
                   <td data-label="Ghi chú">{formatBusinessRef(row.note)}</td>

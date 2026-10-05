@@ -65,6 +65,18 @@ describe('QA-AUDIT-UI-22 numeric identity values', () => {
     if (!existsSync(distAssets)) {
       throw new Error('dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.');
     }
+    // The Money component itself is the law's rendering: the built `.money`
+    // rule must stay a plain inline run — `display: inline-flex` (or any
+    // split into sub-boxes) is the two-line-box mechanism the QA v2 staging
+    // measurement traced the invoice defect to.
+    const moneyChunk = readdirSync(distAssets).find((f) => f.startsWith('Money-') && f.endsWith('.css'));
+    expect(moneyChunk).toBeDefined();
+    const moneyCss = readFileSync(resolve(distAssets, moneyChunk!), 'utf8');
+    const moneyRule = moneyCss.match(/\.money\s*\{[^}]*\}/);
+    expect(moneyRule).toBeTruthy();
+    expect(moneyRule![0]).not.toMatch(/inline-flex/);
+    expect(moneyRule![0]).toMatch(/white-space:\s*nowrap/);
+
     const expenseChunks = readdirSync(distAssets).filter((f) => f.endsWith('.css') && readFileSync(resolve(distAssets, f), 'utf8').includes('.expense-register-table'));
     expect(expenseChunks.length).toBeGreaterThan(0);
     for (const chunk of expenseChunks) {

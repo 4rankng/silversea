@@ -107,8 +107,7 @@ describe('ProfitPage inspection reminders', () => {
     render(<MemoryRouter><ProfitPage /></MemoryRouter>);
     const row = screen.getByText('Chi phí chung công ty').closest('.calc-row')!;
     const amount = row.querySelector('.calc-row__value')!;
-    expect(within(amount as HTMLElement).getByText('100.000')).toBeVisible();
-    expect(within(amount as HTMLElement).getByText('-')).toBeVisible();
+    expect(within(amount as HTMLElement).getByText('-100.000 ₫')).toBeVisible();
     expect(amount).toHaveClass('calc-row__value--neg');
   });
 
