@@ -410,6 +410,7 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
     });
     await db.update(s.trips).set({ status: 'CANCELED' }).where(eq(s.trips.id, chain.trip.id));
     const { id: _omitId, ...tripBase } = chain.trip;
+    void _omitId;
     const [liveTrip] = await db.insert(s.trips).values({
       ...tripBase,
       tripCode: `${chain.trip.tripCode ?? 'T'}-LIVE`,

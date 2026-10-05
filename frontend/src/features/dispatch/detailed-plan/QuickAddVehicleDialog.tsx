@@ -65,7 +65,8 @@ export function QuickAddVehicleDialog({ isOpen, carrierId, carrierName, onClose,
         <p className="quick-add-vehicle__hint">Xe được lưu vào danh sách Xe ngoài của nhà xe này (giống đăng ký ở menu Danh mục).</p>
         {error && <div role="alert" className="quick-add-vehicle__error">{error}</div>}
         <div className="quick-add-vehicle__field">
-          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- htmlFor wired */}
+          {/* Plain <label htmlFor> is wired to the input below; the a11y rule
+              this disable once targeted is not registered in the flat config. */}
           <label htmlFor="quick-add-vehicle-plate">Biển số xe</label>
           <input
             id="quick-add-vehicle-plate"
