@@ -2,7 +2,7 @@
 
 **Dự án:** TTransport — Silver Sea
 
-Tài liệu mô tả nhu cầu và hành vi sản phẩm cần đáp ứng cho nhân viên hiện trường, gọi tắt là **Ops**, trong [Quy trình O2C](QuyTrinhO2C.md).
+Tài liệu mô tả nhu cầu và hành vi sản phẩm cần đáp ứng cho nhân viên hiện trường, gọi tắt là **Ops**, trong [Quy trình O2C](QuyTrinhO2C.docx).
 
 ## 1. Vấn đề cần giải quyết
 
@@ -272,8 +272,8 @@ Lô nào khách khai "có cược" (kèm số tiền dự kiến, có thể bỏ
 
 ## 10. Tài liệu liên quan
 
-- [Quy trình O2C](QuyTrinhO2C.md).
-- [Màn hình lái xe](ManHinhLaiXe.md).
+- [Quy trình O2C](QuyTrinhO2C.docx).
+- [Màn hình lái xe](ManHinhLaiXe.docx).
 
 ## 11. Kết nối và thử lại
 

@@ -162,9 +162,10 @@ const runState = async (name) => {
     } catch (e) { tapError = e.message; }
     await settle(800);
     const urlAfter = page.url();
-    const post = await khoState(page);
+    let post = null;
+    try { post = await khoState(page); } catch (e) { post = { readError: e.message }; }
     const shotAfter = `${OUT}/${name}-after-tap-fullpage.png`;
-    await shot(page, shotAfter, { full: true });
+    try { await shot(page, shotAfter, { full: true }); } catch (e) { console.log('after-tap shot failed', e.message); }
 
     results.states[name] = {
       ok: true, tripId: pick.tripId, fulfillmentId: pick.fulfillmentId, code: pick.code, bucket: pick.bucket,

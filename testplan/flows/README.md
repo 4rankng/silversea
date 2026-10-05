@@ -11,12 +11,12 @@
 >
 > | PRD | Phạm vi | Luồng tương ứng |
 > |-----|---------|-----------------|
-> | [`QuyTrinhO2C.md`](../../docs/prd/QuyTrinhO2C.md) | Quy trình O2C end-to-end | 1, 2, 3, 4, 6 |
-> | [`MasterDataNhaMay.md`](../../docs/prd/MasterDataNhaMay.md) | Khách hàng–Nhà máy–Tuyến–Vị trí; lệnh chạy ngoài | 1 (§1.10, §1.11) |
-> | [`LoHangKepKetHop.md`](../../docs/prd/LoHangKepKetHop.md) | Lô hàng Kẹp & Kết hợp | 9 |
-> | [`OpsVanHanh.md`](../../docs/prd/OpsVanHanh.md) | 3 màn hình Ops hiện trường | 5 |
-> | [`ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md) | App Lái xe: thẻ 2 lớp, e-POD | 3, 4 |
-> | [`CuocPhiPhuPhiDau.md`](../../docs/prd/CuocPhiPhuPhiDau.md) + [`CuocPhiThietKeDB.md`](../../docs/prd/CuocPhiThietKeDB.md) | Cước = giá gốc × (1+%) + phụ phí dầu; 4 quy tắc đã chốt 09/09 | 12 |
+> | [`QuyTrinhO2C.docx`](../../docs/prd/QuyTrinhO2C.docx) | Quy trình O2C end-to-end | 1, 2, 3, 4, 6 |
+> | [`MasterDataNhaMay.docx`](../../docs/prd/MasterDataNhaMay.docx) | Khách hàng–Nhà máy–Tuyến–Vị trí; lệnh chạy ngoài | 1 (§1.10, §1.11) |
+> | [`LoHangKepKetHop.docx`](../../docs/prd/LoHangKepKetHop.docx) | Lô hàng Kẹp & Kết hợp | 9 |
+> | [`OpsVanHanh.docx`](../../docs/prd/OpsVanHanh.docx) | 3 màn hình Ops hiện trường | 5 |
+> | [`ManHinhLaiXe.docx`](../../docs/prd/ManHinhLaiXe.docx) | App Lái xe: thẻ 2 lớp, e-POD | 3, 4 |
+> | [`CuocPhiPhuPhiDau.docx`](../../docs/prd/CuocPhiPhuPhiDau.docx) + [`CuocPhiThietKeDB.docx`](../../docs/prd/CuocPhiThietKeDB.docx) | Cước = giá gốc × (1+%) + phụ phí dầu; 4 quy tắc đã chốt 09/09 | 12 |
 >
 > ⚠️ Các nguồn cũ từng được trích ở đây — `docs/prd/O2C Flow.md`,
 > `docs/prd/quytrinh-o2c-qa-test-plan.md`, `docs/regression-testing/*.md`,

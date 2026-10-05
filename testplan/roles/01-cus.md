@@ -138,7 +138,7 @@ applies (silent redirect to `/shipments`).
      factory record and rendered **read-only**; the factory dropdown lists
      **only** that customer's factories; changing customer resets the
      factory choice.
-   - **Spec**: `docs/prd/MasterDataNhaMay.md` §3.
+   - **Spec**: `docs/prd/MasterDataNhaMay.docx` §3.
    - **Cases**: `TC-CUS-CREATE-021` … `-024`.
    - **Evidence**: screenshot of the two locked fields after selection.
 
@@ -160,7 +160,7 @@ applies (silent redirect to `/shipments`).
       re-picked from the catalogue — typed data is **not** silently wiped.
     - The flag persists on the shipment (`is_ad_hoc`) and is still checked
       when the shipment is reopened for editing.
-    - **Spec**: `docs/prd/MasterDataNhaMay.md` §4.1; `testplan/cycles/2026-09/2026-09-18-adhoc-definition.md`.
+    - **Spec**: `docs/prd/MasterDataNhaMay.docx` §4.1; `testplan/cycles/2026-09/2026-09-18-adhoc-definition.md`.
     - **Cases**: `TC-CUS-CREATE-026`, `-027`, `-028`, `-036`, `TC-ADHOC-DEF-01`.
     - **Evidence**: screenshots of the flag off → on → off sequence.
 
@@ -191,7 +191,7 @@ applies (silent redirect to `/shipments`).
       is **unchanged**.
     - ID and free text are **mutually exclusive per field**, and a single
       shipment may mix both modes across different fields.
-    - **Spec**: `docs/prd/MasterDataNhaMay.md` §2.1.
+    - **Spec**: `docs/prd/MasterDataNhaMay.docx` §2.1.
     - **Cases**: `TC-CUS-CREATE-030`, `-031`, `-032`.
     - **Evidence**: before/after `count(*)` queries + the shipment row.
 

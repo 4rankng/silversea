@@ -1,5 +1,5 @@
 /**
- * Ops cash expenses (docs/prd/OpsVanHanh.md §3.3, §5.3): context-first entry
+ * Ops cash expenses (docs/prd/OpsVanHanh.docx §3.3, §5.3): context-first entry
  * per lô, receipt photos, author-scoped edits, accounting decisions, and the
  * pure grouping used by settlements + exports.
  */

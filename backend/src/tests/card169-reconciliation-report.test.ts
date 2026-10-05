@@ -5,7 +5,7 @@
  *
  * Coverage (rulings: docs/adr/2026-09-28-kanban-pm-open-questions-rulings.md
  * "Card 169", superseded on the remaining formula by the 2026-09-29 PM ruling
- * in the card-168 board block "RULING PM" câu 1; docs/prd/OpsVanHanh.md §9.2):
+ * in the card-168 board block "RULING PM" câu 1; docs/prd/OpsVanHanh.docx §9.2):
  *   AC1 — the đợt filter returns only that lot's costs and allocated advances;
  *         a same-window cost of the same staff that the lot does NOT own never
  *         leaks in ("một khoản chi không được tính toàn bộ vào nhiều đợt");

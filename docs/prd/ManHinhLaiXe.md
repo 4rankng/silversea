@@ -2,7 +2,7 @@
 
 Tài liệu xác định sản phẩm phục vụ lái xe từ lúc nhận lệnh đến khi hoàn thành công việc. Lái xe cần biết đi đâu, làm gì, liên hệ ai và nộp chứng từ nào; Điều vận, CUS và Ops cần theo dõi đúng tiến độ của phần việc liên quan.
 
-Xem thêm: [Tổng quan PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Kẹp và Kết hợp](LoHangKepKetHop.md), [Master data nhà máy](MasterDataNhaMay.md), [Vận hành Ops](OpsVanHanh.md).
+Xem thêm: [Tổng quan PRD](README.md), [Quy trình O2C](QuyTrinhO2C.docx), [Kẹp và Kết hợp](LoHangKepKetHop.docx), [Master data nhà máy](MasterDataNhaMay.docx), [Vận hành Ops](OpsVanHanh.docx).
 
 ## 1. Phạm vi và nguyên tắc vận hành
 
@@ -92,7 +92,7 @@ Tác vụ và ghi chú lái xe đặt ngay sau thông tin công việc, trước
 
 Lịch kế hoạch trên thẻ và chi tiết phải thống nhất. Khi chưa có ngày giờ kế hoạch xác định, hiển thị **Chưa chốt lịch**; không suy ra giờ hẹn từ một ngày xuất phát không có giờ.
 
-Nhà máy, khách hàng và đơn vị xuất hóa đơn là các chủ thể riêng. Không lấy tên/mã số thuế khách hàng thay cho hồ sơ nhà máy đang thiếu. Các nhóm hóa đơn nâng, hạ, vệ sinh dùng hồ sơ tương ứng theo [Master data nhà máy](MasterDataNhaMay.md); không âm thầm gộp các hồ sơ khác nhau. Thiếu hồ sơ phải được thể hiện rõ, kể cả khi toàn bộ nhóm chưa có dữ liệu.
+Nhà máy, khách hàng và đơn vị xuất hóa đơn là các chủ thể riêng. Không lấy tên/mã số thuế khách hàng thay cho hồ sơ nhà máy đang thiếu. Các nhóm hóa đơn nâng, hạ, vệ sinh dùng hồ sơ tương ứng theo [Master data nhà máy](MasterDataNhaMay.docx); không âm thầm gộp các hồ sơ khác nhau. Thiếu hồ sơ phải được thể hiện rõ, kể cả khi toàn bộ nhóm chưa có dữ liệu.
 
 Các phần dài có thể thu gọn độc lập. Tiêu đề phần có tóm tắt đủ nhận diện, biểu thị trạng thái mở/đóng và điều khiển được bằng bàn phím. Thông tin cốt lõi về công việc không bị đẩy xuống dưới một vùng minh họa hoặc thẻ dịch vụ rỗng lớn.
 

@@ -4,7 +4,7 @@
 > **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `DRIVER` → username phù hợp (local: `DRIVER`; staging: prod-mirror như `bqhuong`). Khi cần 2 driver khác nhau cho cùng 1 test, dùng 2 user bất kỳ trong cùng role.
 > **Route chính:** `/my-trips`, `/my-trips/:id`, `/my-earnings`, `/my-payslips`, `/my-penalties`
 > **Thiết bị mặc định:** Mobile (iPhone SE 375×667) — ứng dụng lái xe trên điện thoại
-> **PRD nguồn:** `docs/prd/ManHinhLaiXe.md` hiện hành; Module 08 (`docs/prd/Module8.docx`), O2C Bước 3, TC-MO2C-05
+> **PRD nguồn:** `docs/prd/ManHinhLaiXe.docx` hiện hành; Module 08 (`docs/prd/Module8.docx`), O2C Bước 3, TC-MO2C-05
 >
 > **Tổng quan luồng:** Lái xe nhận lệnh điều động từ Điều vận qua ứng dụng mobile, xem chi tiết
 > lệnh (thời gian, tuyến, container, chứng từ), xác nhận nhận lệnh gốc để kích hoạt chuyến từ
@@ -212,7 +212,7 @@
 
 ## 3.x — Cặp ghép KẸP / KẾT HỢP trên App Lái xe (đặc tả 2026-09-06)
 
-> **Nguồn:** đặc tả khách hàng 2026-09-06 (PHẦN 2) + PRD `QuyTrinhO2C.md` Bước 3. Hai lệnh cont
+> **Nguồn:** đặc tả khách hàng 2026-09-06 (PHẦN 2) + PRD `QuyTrinhO2C.docx` Bước 3. Hai lệnh cont
 > chung mã ghép chuyến hiển thị **2 thẻ dính liền kề nhau** + nhãn [KẸP]/[KẾT HỢP]; hàng kết hợp
 > khóa tiến độ lệnh 2 đến khi lệnh 1 hoàn thành trả hàng.
 
@@ -263,7 +263,7 @@
 ## 3.7 — Cấu trúc thẻ 2 lớp & điều hướng (đặc tả app lái xe 2026-08-27)
 
 > **Nguồn:** `2026.8.27_Man_hinh_lai_xe.docx` · PRD
-> [`docs/prd/ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md) §1–§3.
+> [`docs/prd/ManHinhLaiXe.docx`](../../docs/prd/ManHinhLaiXe.docx) §1–§3.
 >
 > Bộ case này nghiệm thu **cấu trúc UI** mà đặc tả quy định chi tiết (Lớp 1 thẻ tổng
 > quát, Lớp 2 thẻ chi tiết 7 khối, nút sticky, tab điều hướng) — phần chưa được phủ bởi
@@ -390,7 +390,7 @@
 ### TC-LX-NHANLENH-019 — Nhập chi phí lái xe theo PRD hiện hành
 
 - **Vai trò:** DRIVER; **Mức độ:** P0.
-- **Nguồn:** `ManHinhLaiXe.md` §8, AC-CP-LX-01..10. Yêu cầu ẩn module của giai đoạn trial đã được thay thế; giữ mã TC để truy vết.
+- **Nguồn:** `ManHinhLaiXe.docx` §8, AC-CP-LX-01..10. Yêu cầu ẩn module của giai đoạn trial đã được thay thế; giữ mã TC để truy vết.
 - **Các bước:** mở chuyến của mình; nhập một phí lô hàng có hóa đơn và một khoản tiền đường/chi công ty; thử thiếu số tiền, lỗi API rồi thử lại; mở lại khoản đã lưu và bổ sung ảnh.
 - **Pass:** phân nhóm đúng; không đặt thực thu/thanh toán thay CUS/kế toán; khoản không thu khách không tạo phải thu; chỉ một nguồn chi phí, ảnh bổ sung không ghi tiền lần nữa. Định mức chỉ gợi ý; thiếu không giả thành 0đ. Đối chiếu chi phí không chặn hoàn thành vận chuyển.
 - **Bằng chứng:** UI, request/response và nguồn chi phí trước/sau; các nghiệp vụ đối chiếu tài chính được kiểm tra tại kế hoạch chi phí riêng.

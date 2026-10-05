@@ -12,7 +12,7 @@
 > - `/my-settlements` — `frontend/src/pages/ForwarderSettlementsPage.tsx` (Phiếu thanh toán / Hoàn ứng)
 > - `/my-settlements/new` — `frontend/src/pages/ForwarderSettlementCreatePage.tsx`
 > - `/my-settlements/:id` — `frontend/src/pages/SettlementPrintPage.tsx` (print view)
-> - `/ops/orders` — `frontend/src/pages/OpsOrdersPage.tsx` (Kế hoạch làm hàng — ghim + khai chi phí; PRD `OpsVanHanh.md` §3)
+> - `/ops/orders` — `frontend/src/pages/OpsOrdersPage.tsx` (Kế hoạch làm hàng — ghim + khai chi phí; PRD `OpsVanHanh.docx` §3)
 > - `/ops/fleet-tracking` — `frontend/src/pages/OpsFleetTrackingPage.tsx` (theo dõi xe phụ trách — read-only; PRD §4)
 > - `/ops/wallet` — `frontend/src/pages/OpsWalletPage.tsx` (Ví tạm ứng & chi phí; PRD §5; bản in phiếu = panel + `@media print`, không có route in riêng — xem OPS-WAL-07)
 >
@@ -27,7 +27,7 @@
 ## Đặc tả Ops 2026-09-06 — 3 màn hình mới
 
 Nguồn: `2026.9.6_Man_hinh_ops.docx` → PRD
-[`docs/prd/OpsVanHanh.md`](../../docs/prd/OpsVanHanh.md).
+[`docs/prd/OpsVanHanh.docx`](../../docs/prd/OpsVanHanh.docx).
 Bộ test case đầy đủ: [`../flows/05-ops-quy-chi-phi.md`](../flows/05-ops-quy-chi-phi.md).
 
 | Màn hình (spec) | Route spec | Route hiện tại | Trạng thái |
@@ -258,7 +258,7 @@ common access pattern is a phone browser.
 **Route**: `/ops/orders`
 **Component**: `frontend/src/pages/OpsOrdersPage.tsx`
 **Allow**: `OPS` only (`opsOnly`).
-**PRD nguồn**: `docs/prd/OpsVanHanh.md` §3
+**PRD nguồn**: `docs/prd/OpsVanHanh.docx` §3
 
 ### Acceptance criteria
 
@@ -297,7 +297,7 @@ common access pattern is a phone browser.
 **Route**: `/ops/fleet-tracking`
 **Component**: `frontend/src/pages/OpsFleetTrackingPage.tsx`
 **Allow**: `OPS` only. **Read-only.**
-**PRD nguồn**: `OpsVanHanh.md` §4
+**PRD nguồn**: `OpsVanHanh.docx` §4
 
 ### Acceptance criteria
 
@@ -331,7 +331,7 @@ common access pattern is a phone browser.
 **Allow**: `OPS` only. Printing uses the print-stylesheet panel (`window.print()`
 + `@media print` A4 sheet with signature cells in `OpsSettlementsPanel.tsx`) —
 there is no dedicated print route or `OpsSettlementPrintPage.tsx`.
-**PRD nguồn**: `OpsVanHanh.md` §5
+**PRD nguồn**: `OpsVanHanh.docx` §5
 
 ### Acceptance criteria
 

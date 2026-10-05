@@ -464,7 +464,7 @@ export const PAGE_CATALOG = {
     requiresParams: ['id'],
   },
 
-  /* ── Ops field operations (docs/prd/OpsVanHanh.md) ─────────────────── */
+  /* ── Ops field operations (docs/prd/OpsVanHanh.docx) ─────────────────── */
 
   opsOrders: {
     title: 'Kế hoạch làm hàng',

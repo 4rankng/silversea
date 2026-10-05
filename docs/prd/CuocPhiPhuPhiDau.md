@@ -4,7 +4,7 @@ Công thức cước, tham số hợp đồng, định mức dầu, bảng giá 
 của khách hàng Long Minh trên ba tuyến NEWEB, ASKEY và SUNRISE + SJ. Tài liệu định
 nghĩa phần tĩnh của cước; phụ phí dầu là tham số động gắn thêm lên trên (§1.1, §7).
 
-Xem thêm: [lịch sử thay đổi](CHANGELOG.md) · [mục lục PRD](README.md) · [dữ liệu và lịch sử cước](CuocPhiThietKeDB.md) · [phương án tính cước tự động](PhuongAnTinhCuocTuDong.md).
+Xem thêm: [lịch sử thay đổi](CHANGELOG.md) · [mục lục PRD](README.md) · [dữ liệu và lịch sử cước](CuocPhiThietKeDB.docx) · [phương án tính cước tự động](PhuongAnTinhCuocTuDong.docx).
 
 ---
 
@@ -315,7 +315,7 @@ Chỉ khác kỳ 18/7/2026 ở phần **phụ phí dầu**; `GIÁ GỐC`, `% chi
 Ngày vận chuyển là mốc chọn kỳ giá dầu và thời điểm khóa cước. Không hồi tố cước đã
 chốt khi giá dầu đổi. NEWEB áp giá dầu sau **1 ngày** kể từ Ngày vận chuyển; độ trễ
 của ASKEY và SUNRISE + SJ chưa xác định — xem §9 và
-[phương án tính cước](PhuongAnTinhCuocTuDong.md).
+[phương án tính cước](PhuongAnTinhCuocTuDong.docx).
 
 ## 8. Thông tin người dùng cần xem và sửa
 
@@ -336,7 +336,7 @@ của ASKEY và SUNRISE + SJ chưa xác định — xem §9 và
   nhãn và thao tác không bị cắt trên điện thoại/máy tính bảng. Thông tin phụ có
   thể mở thêm; không đặt nhiều lớp thẻ hoặc hướng dẫn dài trước dữ liệu chính.
 
-Chi tiết tại [yêu cầu dữ liệu và lịch sử cước](CuocPhiThietKeDB.md).
+Chi tiết tại [yêu cầu dữ liệu và lịch sử cước](CuocPhiThietKeDB.docx).
 
 ## 9. Phân biệt thiếu dữ liệu và giá hợp lệ
 
@@ -367,8 +367,8 @@ không tự chọn giá trị thay thế.
 
 Đây là các điều khoản/dữ liệu khách hàng cần làm rõ, không phải phê duyệt nội bộ.
 Bỏ bước duyệt không cho phép tự chọn giá hoặc thay đổi hợp đồng chưa được khách xác
-nhận. Xem [đầu vào nghiệp vụ còn mở](CuocPhiThietKeDB.md#8-đầu-vào-nghiệp-vụ-còn-mở) và
-[quy trình tính cước](PhuongAnTinhCuocTuDong.md).
+nhận. Xem [đầu vào nghiệp vụ còn mở](CuocPhiThietKeDB.docx#8-đầu-vào-nghiệp-vụ-còn-mở) và
+[quy trình tính cước](PhuongAnTinhCuocTuDong.docx).
 
 ## 11. Tiêu chí chấp nhận
 

@@ -150,7 +150,7 @@
 
 ## 2.6 — Kẹp hàng: hai container20FT đồng thời
 
-Nguồn hiện hành: `docs/prd/LoHangKepKetHop.md` §1/3/5 và `QuyTrinhO2C.md` §5.4. Không dùng mô tả hai chiều nối tiếp cũ để đánh giá Kẹp.
+Nguồn hiện hành: `docs/prd/LoHangKepKetHop.docx` §1/3/5 và `QuyTrinhO2C.docx` §5.4. Không dùng mô tả hai chiều nối tiếp cũ để đánh giá Kẹp.
 
 ### TC-DV-DISPATCH-007 — Kẹp hợp lệ giữ hai công việc và không nhân phí chung
 
@@ -446,14 +446,14 @@ Nguồn hiện hành: `docs/prd/LoHangKepKetHop.md` §1/3/5 và `QuyTrinhO2C.md`
 
 ## 2.9 — Quy tắc cấp dữ liệu & tự động hóa (PRD Bước 2a / 2b)
 
-Các case dưới đây mã hóa các quy tắc nền tảng trong `docs/prd/QuyTrinhO2C.md` Bước 2a / 2b — rút ra từ
+Các case dưới đây mã hóa các quy tắc nền tảng trong `docs/prd/QuyTrinhO2C.docx` Bước 2a / 2b — rút ra từ
 tài liệu `1. Processes/Dispatch_Screen.docx`, `1. Processes/Dispatch_detail_screen.docx`,
 `1. Processes/(TK) Product Spec.md` và `5. Archive/Sidebar_update.md`. Nếu sau này màn `/dispatch`
 hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các case này phải được cập nhật trước.
 
 ### TC-DV-DISPATCH-020 — Màn `/dispatch` (Kế hoạch tổng quát) hiển thị theo LÔ HÀNG, không theo container
 
-- **Mã PRD:** O2C Bước 2a (PRD: QuyTrinhO2C.md §2a)
+- **Mã PRD:** O2C Bước 2a (PRD: QuyTrinhO2C.docx §2a)
 - **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
@@ -549,7 +549,7 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 
 ### TC-DV-DISPATCH-024 — Màn `/dispatch-detail` (Kế hoạch chi tiết) hiển thị theo CONTAINER, không theo lô
 
-- **Mã PRD:** O2C Bước 2b (PRD: QuyTrinhO2C.md §2b)
+- **Mã PRD:** O2C Bước 2b (PRD: QuyTrinhO2C.docx §2b)
 - **Vai trò:** `DISPATCHER`
 - **Mức độ:** P0
 - **Thiết bị:** Desktop (1440×900)
@@ -660,7 +660,7 @@ hoặc `/dispatch-detail` thay đổi cấp dữ liệu hoặc trigger, các cas
 
 ## 2.10 — Phân loại chuyến: Đơn / Kẹp / Kết hợp
 
-Đánh giá theo `docs/prd/QuyTrinhO2C.md` §5.4 và `LoHangKepKetHop.md`. Mã case được giữ; mô tả cũ ghép nhiều container thành một chuyến đã được thay bằng yêu cầu hai công việc/cặp có nguồn riêng.
+Đánh giá theo `docs/prd/QuyTrinhO2C.docx` §5.4 và `LoHangKepKetHop.docx`. Mã case được giữ; mô tả cũ ghép nhiều container thành một chuyến đã được thay bằng yêu cầu hai công việc/cặp có nguồn riêng.
 
 ### TC-DV-DISPATCH-029 — Kẹp hai container20FT cùng lô
 

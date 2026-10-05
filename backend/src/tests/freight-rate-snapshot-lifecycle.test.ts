@@ -2,7 +2,7 @@
  * Freight rate snapshot lifecycle — T1 wiring tests.
  *
  * Locks the engine-integration contracts from
- * `Phương án tính cước tự động.docx` §2-D/§3 (see PRD CuocPhiThietKeDB.md):
+ * `Phương án tính cước tự động.docx` §2-D/§3 (see PRD CuocPhiThietKeDB.docx):
  *   - FCL container intake (type + appointment arriving together) locks an
  *     AUTO snapshot with all 4 trace ids and the frozen amounts.
  *   - Transport-date change supersedes: a NEW snapshot row is inserted and

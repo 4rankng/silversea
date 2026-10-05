@@ -102,7 +102,7 @@ export const qk = {
     pairSalary: ['config', 'pair-salary-settings'] as const,
   },
 
-  /** Ops portal (docs/prd/OpsVanHanh.md) — self-contained ops surface. */
+  /** Ops portal (docs/prd/OpsVanHanh.docx) — self-contained ops surface. */
   ops: {
     /** Broad prefix — matches every ops query for one-shot invalidation. */
     root: ['ops'] as const,

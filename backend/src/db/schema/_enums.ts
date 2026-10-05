@@ -48,7 +48,7 @@ export const advanceRequestStatusEnum = applicationEnum(['RECORDED', 'DRAFT', 'V
 
 export const advanceSettlementStatusEnum = applicationEnum(['DRAFT', 'RECORDED', 'VOIDED', 'REVERSED']);
 
-// Ops cash-expense approval lifecycle (docs/prd/OpsVanHanh.md §5.5): PENDING →
+// Ops cash-expense approval lifecycle (docs/prd/OpsVanHanh.docx §5.5): PENDING →
 // APPROVED (locked) | REJECTED (author fixes evidence and resends → PENDING).
 export const opsExpenseStatusEnum = applicationEnum(['DRAFT', 'RECORDED', 'VOIDED', 'PENDING', 'APPROVED', 'REJECTED']);
 

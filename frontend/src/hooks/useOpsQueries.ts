@@ -1,5 +1,5 @@
 /**
- * React-query hooks for the Ops portal (docs/prd/OpsVanHanh.md). Local key
+ * React-query hooks for the Ops portal (docs/prd/OpsVanHanh.docx). Local key
  * factory keeps the ops surface self-contained; mutations invalidate the
  * wallet + lists so the optimistic patches reconcile against the server.
  */

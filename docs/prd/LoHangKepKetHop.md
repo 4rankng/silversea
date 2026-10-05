@@ -2,7 +2,7 @@
 
 **Dự án:** TTransport — Silver Sea
 
-Xem thêm: [mục lục PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Màn hình lái xe](ManHinhLaiXe.md).
+Xem thêm: [mục lục PRD](README.md), [Quy trình O2C](QuyTrinhO2C.docx), [Màn hình lái xe](ManHinhLaiXe.docx).
 
 Điều vận cần ghép các công việc phù hợp để tận dụng xe, moóc và hành trình. Lái xe cần hiểu hai công việc chạy đồng thời hay nối tiếp. CUS và Kế toán cần giữ đúng lô hàng, chứng từ, doanh thu và chi phí của từng công việc khi ghép.
 
@@ -79,7 +79,7 @@ Mọi thao tác cần Internet. Khi chưa thể xác định đã lưu hay chưa
 
 Nhãn **KẸP/KẾT HỢP** nằm cạnh đúng công việc/container và phản ánh cặp đang có hiệu lực. Khi bỏ ghép, nhãn ghép ngừng hiển thị; trạng thái hiện hành của từng công việc vẫn đọc được.
 
-Trên app lái xe, hai thẻ đứng liền kề, có dấu hiệu cùng cặp. Mỗi thẻ vẫn thể hiện container, loại, lịch và thao tác riêng. KẸP thể hiện chạy đồng thời; KẾT HỢP thể hiện phần trước/phần sau cùng lý do chưa thể bắt đầu phần sau. Xem [Màn hình lái xe](ManHinhLaiXe.md).
+Trên app lái xe, hai thẻ đứng liền kề, có dấu hiệu cùng cặp. Mỗi thẻ vẫn thể hiện container, loại, lịch và thao tác riêng. KẸP thể hiện chạy đồng thời; KẾT HỢP thể hiện phần trước/phần sau cùng lý do chưa thể bắt đầu phần sau. Xem [Màn hình lái xe](ManHinhLaiXe.docx).
 
 Ở Điều vận, từng công việc giữ thông tin cảng nâng/hạ đúng chiều nhập/xuất. Dấu hiệu dùng chung xe không che số container, loại hoặc trạng thái của từng công việc.
 

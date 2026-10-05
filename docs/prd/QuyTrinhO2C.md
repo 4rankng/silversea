@@ -4,7 +4,7 @@
 
 Tài liệu xác định trải nghiệm từ khi tiếp nhận nhu cầu vận chuyển đến khi hoàn thành công việc, đủ hồ sơ và thu tiền. Mỗi bên cần biết phần việc của mình, thông tin còn thiếu và bước tiếp theo, không phải nhập lại dữ liệu đã có hoặc dò qua nhiều màn hình để biết một lô đang ở đâu.
 
-Xem thêm: [mục lục PRD](README.md), [danh mục khách hàng/nhà máy](MasterDataNhaMay.md), [vận hành hiện trường](OpsVanHanh.md), [màn hình lái xe](ManHinhLaiXe.md).
+Xem thêm: [mục lục PRD](README.md), [danh mục khách hàng/nhà máy](MasterDataNhaMay.docx), [vận hành hiện trường](OpsVanHanh.docx), [màn hình lái xe](ManHinhLaiXe.docx).
 
 ## 1. Mục tiêu, người sử dụng và phạm vi
 
@@ -120,7 +120,7 @@ Một khách hàng có nhiều nhà máy. Nhà máy có tuyến cố định và
 
 Cước được xác định theo điều khoản của từng hợp đồng. Khi hợp đồng cho phép các nguồn giá này, ưu tiên giá gốc theo kg, sau đó giá theo container/loại xe, cuối cùng là nhập hoặc điều chỉnh thủ công bởi người có quyền khi cần. Thứ tự này không cho phép lấy giá của hợp đồng khác hoặc coi dữ liệu thiếu là giá 0. Giá dự kiến phải phân biệt với giá đã phát hành; quyền sửa lô không tự cho phép sửa giá.
 
-Đối với mô hình Long Minh trong [Cước và phụ phí dầu](CuocPhiPhuPhiDau.md):
+Đối với mô hình Long Minh trong [Cước và phụ phí dầu](CuocPhiPhuPhiDau.docx):
 
 - **Cước điều chỉnh = Giá gốc × (1 + Tỷ lệ chia sẻ / 100).** Tỷ lệ thuộc cặp khách hàng–tuyến.
 - **Phụ phí dầu = (Giá dầu kỳ − Giá dầu mốc) × Lít định mức khứ hồi**, nhưng không nhỏ hơn 0. Tỷ lệ chia sẻ không nhân thêm vào phụ phí dầu.
@@ -132,7 +132,7 @@ Không áp mô hình này cho hợp đồng khác khi chưa có căn cứ. Các 
 
 **Lệnh chạy ngoài** cho chọn dữ liệu danh mục hoặc nhập thông tin tự do được phép. Ban đầu tùy chọn này tắt; bật/tắt không làm mất nội dung đang nhập. Tên nhập cho một lệnh không tự trở thành danh mục mới. Các màn liên quan hiển thị đúng tên đã lưu. Danh sách và chi tiết có nhãn **Chạy ngoài** gọn tại vị trí nhận diện lô, cùng cách lọc riêng các lệnh này; không lặp nhãn cạnh từng trường.
 
-Bản chất của loại lô này — nguồn hàng, cước do khách báo và phí chi hộ, các thao tác/chi phí được bỏ qua — định nghĩa tại [MasterDataNhaMay.md](MasterDataNhaMay.md) §4; công thức cước tại [Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.md). Mục này chỉ quy định cách lô chạy ngoài đi qua quy trình O2C.
+Bản chất của loại lô này — nguồn hàng, cước do khách báo và phí chi hộ, các thao tác/chi phí được bỏ qua — định nghĩa tại [MasterDataNhaMay.docx](MasterDataNhaMay.docx) §4; công thức cước tại [Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.docx). Mục này chỉ quy định cách lô chạy ngoài đi qua quy trình O2C.
 
 Chạy ngoài không bỏ qua tải trọng, lịch, quyền hoặc hạn mức tín dụng. Nếu có ngoại lệ tín dụng được phép, người có thẩm quyền ghi trực tiếp đúng hạn mức, lý do và thời gian hiệu lực; không tạo yêu cầu chờ duyệt.
 
@@ -179,7 +179,7 @@ Hai lệnh trong cặp được nhận diện nhất quán ở kế hoạch, mà
 
 **Kết hợp:** tái dùng đúng vỏ qua hai lệnh nối tiếp. Chưa biết số vỏ có thể lưu kế hoạch để bổ sung, nhưng hai số khác nhau không được coi là cùng vỏ. Hoàn thành trả hàng Lệnh 1 rồi mới bắt đầu đóng hàng Lệnh 2; khi chưa thể bắt đầu, nêu rõ phần việc trước đang chặn.
 
-Hủy, tháo cặp hoặc đổi một thành viên không làm mất phần còn hiệu lực hoặc bỏ qua xung đột phương tiện. Phí chung và thu nhập của cặp tính đúng một lần theo định mức đã xác định, không trả thành hai cuốc đơn. Điều chỉnh giữ lịch sử và không tự thay đổi kỳ đã khóa. Chi tiết tại [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.md).
+Hủy, tháo cặp hoặc đổi một thành viên không làm mất phần còn hiệu lực hoặc bỏ qua xung đột phương tiện. Phí chung và thu nhập của cặp tính đúng một lần theo định mức đã xác định, không trả thành hai cuốc đơn. Điều chỉnh giữ lịch sử và không tự thay đổi kỳ đã khóa. Chi tiết tại [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.docx).
 
 ## 6. Lái xe thực hiện, hoàn thành và ghi nhận thu nhập
 
@@ -222,7 +222,7 @@ Hoàn thành cập nhật đúng công việc và tổng hợp lô cho các vai 
 
 Lái xe ghi chi trực tiếp theo quyền và danh mục, gắn đúng chuyến. Tiền đường và phụ cấp dùng định mức phù hợp; giá trị 0 được nhập rõ khác với chưa nhập. Đổi moóc phải dùng đúng định mức mới; nếu thiếu thì nói rõ, không giữ giá cũ như thể đã tính đúng.
 
-Nhận dạng ảnh cột bơm đề xuất lít, đơn giá và tiền để người dùng kiểm tra, sửa và lưu. Hóa đơn nhiên liệu phải phân bổ đúng số lít, không trùng và có tổng tiền hợp lệ; đây là yêu cầu dữ liệu, không phải cấp duyệt. Khoản chi đã ghi, chứng từ còn thiếu, thanh toán và quyết toán được theo dõi riêng. Chi phí hiện trường và quỹ Ops theo [Vận hành Ops](OpsVanHanh.md).
+Nhận dạng ảnh cột bơm đề xuất lít, đơn giá và tiền để người dùng kiểm tra, sửa và lưu. Hóa đơn nhiên liệu phải phân bổ đúng số lít, không trùng và có tổng tiền hợp lệ; đây là yêu cầu dữ liệu, không phải cấp duyệt. Khoản chi đã ghi, chứng từ còn thiếu, thanh toán và quyết toán được theo dõi riêng. Chi phí hiện trường và quỹ Ops theo [Vận hành Ops](OpsVanHanh.docx).
 
 ## 7. Hồ sơ, bảng kê và công nợ
 
@@ -254,7 +254,7 @@ Kế toán phơi phiếu quản lý một danh sách xe được phân công; m�
 
 Nơi làm việc kế toán có hai bảng liên kết nguồn:
 
-1. **Chi phí Ops và hoàn ứng:** theo lô/nhân viên, xem khoản thực chi, giấy tờ, người/ngày đối chiếu và nghĩa vụ hoàn ứng theo [Vận hành Ops](OpsVanHanh.md).
+1. **Chi phí Ops và hoàn ứng:** theo lô/nhân viên, xem khoản thực chi, giấy tờ, người/ngày đối chiếu và nghĩa vụ hoàn ứng theo [Vận hành Ops](OpsVanHanh.docx).
 2. **Phơi phiếu và tiền đường:** mỗi dòng nhận diện công việc/lô/container, lịch, khách hàng/nhà máy/tuyến, nơi nâng/hạ, nhà vận tải, biển số/tài xế, số chi hộ phải thu/phải trả, tiền đường, trạng thái chứng từ/thanh toán và ngày liên quan. Các dòng cùng biển số đứng liền nhau khi dùng chế độ nhóm xe, kể cả kẹp/kết hợp; vẫn truy được từng nguồn, không nhân đôi tiền dùng chung. Ghi chú CUS/điều vận và ghi chú lái xe là hai nội dung riêng.
 
 Bộ lọc lịch của phơi phiếu sử dụng đúng ngày hẹn đang hiển thị, theo giờ Việt Nam; không âm thầm lọc theo ngày xuất phát khác. Tìm kiếm nhận cả tên phí và số hóa đơn. Khi lọc đã/chưa đối chiếu, chỉ các khoản phù hợp xuất hiện trong chi tiết thu/trả và tổng tương ứng. Khách hàng, nhà máy và tuyến là ba thông tin riêng, không dùng tên khách thay nhà máy.
@@ -449,9 +449,9 @@ Giới hạn có chủ ý: tick **không ẩn khách hàng nào khỏi danh sác
 
 ## 10. Tài liệu liên quan và điểm cần làm rõ
 
-- [Màn hình lái xe](ManHinhLaiXe.md), [Vận hành Ops](OpsVanHanh.md), [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.md).
-- [Master data nhà máy](MasterDataNhaMay.md).
-- [Cước và phụ phí dầu](CuocPhiPhuPhiDau.md), [Phương án tính cước tự động](PhuongAnTinhCuocTuDong.md), [Mô hình và quy tắc cước](CuocPhiThietKeDB.md).
+- [Màn hình lái xe](ManHinhLaiXe.docx), [Vận hành Ops](OpsVanHanh.docx), [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.docx).
+- [Master data nhà máy](MasterDataNhaMay.docx).
+- [Cước và phụ phí dầu](CuocPhiPhuPhiDau.docx), [Phương án tính cước tự động](PhuongAnTinhCuocTuDong.docx), [Mô hình và quy tắc cước](CuocPhiThietKeDB.docx).
 
 Bộ chứng từ bắt buộc cho LCL thay phiếu hạ container cần được chốt với người phụ trách nghiệp vụ. Điều kiện hợp đồng hoặc nguồn thông tin còn chưa rõ cần được xác định trước khi áp dụng; không tự đặt giá, giấy tờ mới hoặc thêm phê duyệt để thay thế câu trả lời.
 

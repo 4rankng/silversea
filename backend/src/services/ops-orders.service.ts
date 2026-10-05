@@ -1,5 +1,5 @@
 /**
- * Ops "Kế hoạch làm hàng" (docs/prd/OpsVanHanh.md §3): company-wide shipment
+ * Ops "Kế hoạch làm hàng" (docs/prd/OpsVanHanh.docx §3): company-wide shipment
  * list by expected delivery date with per-user pins.
  */
 import { db } from '../db';

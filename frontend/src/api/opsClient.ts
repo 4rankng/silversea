@@ -1,6 +1,6 @@
 /**
 /**
- * API client for the Ops field-operations portal (docs/prd/OpsVanHanh.md),
+ * API client for the Ops field-operations portal (docs/prd/OpsVanHanh.docx),
  * backed by backend/src/routes/ops.ts.
  */
 import { api, fileCommandFingerprint } from '../lib/api';

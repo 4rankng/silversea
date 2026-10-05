@@ -1,5 +1,5 @@
 import { expenseMetadataColumns } from './expense-metadata';
-// ─── Ops field-operations module (docs/prd/OpsVanHanh.md) ───────────────────
+// ─── Ops field-operations module (docs/prd/OpsVanHanh.docx) ───────────────────
 // Personal shipment pins, per-truck ops oversight, cash expenses with receipt
 // photos, and settlement batches. Money is numeric(15,0) VND, no decimals.
 // Cross-table FKs are application-level per project convention (no

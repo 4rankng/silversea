@@ -1011,7 +1011,7 @@ describe('operational site admin maintenance', () => {
     );
   });
 
-  // Trilogy gap F7 / MDN-7 — MasterDataNhaMay.md §3.3: nhà máy bị vô hiệu hoá
+  // Trilogy gap F7 / MDN-7 — MasterDataNhaMay.docx §3.3: nhà máy bị vô hiệu hoá
   // (`is_active = false`) không được xuất hiện trong dropdown tạo lô. Backend
   // service đã filter ở shipment-intake.service.ts:289; test này chặn hồi quy.
   test('MDN-7: hides inactive factories from intake listing (trilogy F7)', async () => {
@@ -1039,7 +1039,7 @@ describe('operational site admin maintenance', () => {
       items.some((site) => site.id === ref.site.id),
       'active factory should appear in intake listing',
     );
-    // Inactive factory must NOT be present (MasterDataNhaMay.md §3.3).
+    // Inactive factory must NOT be present (MasterDataNhaMay.docx §3.3).
     assert.equal(
       items.some((site) => site.id === inactiveFactory.id),
       false,

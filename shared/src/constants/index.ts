@@ -9,7 +9,7 @@ export enum TripStatus {
  *  (giấy báo nợ) and carrier payment statements.
  *
  *  `COMPLETED` is the single terminal / posting state (O2C reconciliation, 01/08/2026 —
- *  `docs/prd/QuyTrinhO2C.md`). Revenue/AP posts via `postTripCompletion` on the
+ *  `docs/prd/QuyTrinhO2C.docx`). Revenue/AP posts via `postTripCompletion` on the
  *  `IN_TRANSIT → COMPLETED` transition, carrying the migrated photo / zero-revenue /
  *  e-POD gates. The former `LOCKED` milestone has been dropped: costs stay editable
  *  after completion (no hard-freeze); an AR snapshot + dirty-flag on `trips` surfaces
@@ -773,7 +773,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
  * (still recorded in the notification drawer) so low-signal events don't spam
  * every role. Absent types => no push. This is the single knob to tune.
  *
- * Audiences (per `docs/prd/QuyTrinhO2C.md` push MVP — scoped to Driver + Điều vận):
+ * Audiences (per `docs/prd/QuyTrinhO2C.docx` push MVP — scoped to Driver + Điều vận):
  *  - 'driver'      → DRIVER role only.
  *  - 'dispatcher'  → Điều vận authority (MANAGER/ADMIN in the dispatcher seat).
  *  - 'financial'   → ACCOUNTANT + MANAGER/ADMIN (financial office action).

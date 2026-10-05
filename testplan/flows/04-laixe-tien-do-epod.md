@@ -4,7 +4,7 @@
 > **Tài khoản test:** chọn theo môi trường qua [`../testaccounts.txt`](../testaccounts.txt) — runner tự map role `DRIVER` → username phù hợp (local: `DRIVER`; staging: prod-mirror như `bqhuong`).
 > **Route chính:** `/my-trips/:tripId` (chi tiết), `/my-trips/:fulfillmentId/pod` (e-POD, hoàn thành), `/shipments/:id` (e-POD panel)
 > **Thiết bị mặc định:** Mobile (iPhone SE 375×667)
-> **PRD nguồn:** `docs/prd/ManHinhLaiXe.md` hiện hành; Module 08, O2C Bước 3, TC-MO2C-05, TC-MO2C-07
+> **PRD nguồn:** `docs/prd/ManHinhLaiXe.docx` hiện hành; Module 08, O2C Bước 3, TC-MO2C-05, TC-MO2C-07
 >
 > **Tổng quan luồng:** Sau khi nhận lệnh (IN_TRANSIT), lái xe nộp e-POD (2 slot bắt buộc) rồi
 > bấm "HOÀN THÀNH CHUYẾN" để chốt chuyến — lô tự động chuyển `Hoàn thành` (full-close path,
@@ -250,7 +250,7 @@
 ## 4.5 — Cổng e-POD bắt buộc & xử lý ảnh (đặc tả app lái xe 2026-08-27)
 
 > **Nguồn:** `2026.8.27_Man_hinh_lai_xe.docx` Phần 4 · PRD
-> [`docs/prd/ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md) §4.
+> [`docs/prd/ManHinhLaiXe.docx`](../../docs/prd/ManHinhLaiXe.docx) §4.
 >
 > Đặc tả yêu cầu: bấm `Hoàn tất lệnh vận chuyển` **không** kết thúc chuyến ngay mà
 > **nhảy bắt buộc** sang màn Upload E-POD; ảnh phải **tự nén trên máy** và **gắn

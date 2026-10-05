@@ -6,7 +6,7 @@ Tài liệu này là trang PRD của phân hệ **báo giá**: khung giá theo k
 tuyến × hạng xe, phụ phí theo kỳ giá dầu, nhập/xuất file Excel, và lịch sử phiên bản. Các quy tắc
 chốt theo file yêu cầu của khách (`22.9 - BÁO GIÁ MẪU 1.xlsx`, `các chi phí.pdf` 21/09); bảng kiểm
 nghiệm thu đầy đủ (ca TC-BG-01…60) nằm ở `testplan/cycles/2026-09/2026-09-22-bao-gia-chi-phi-requirements.md`.
-Cách tính cước áp cho lô khi phát lệnh nằm ở [QuyTrinhO2C.md](QuyTrinhO2C.md) §7.
+Cách tính cước áp cho lô khi phát lệnh nằm ở [QuyTrinhO2C.docx](QuyTrinhO2C.docx) §7.
 
 ## 1. Vấn đề cần giải quyết
 
@@ -46,7 +46,7 @@ Excel của khách — nhập tay từng ô, không có phiên bản, không có
   mang số liệu cước; danh mục phí là cấu trúc quản lý mang theo giữa các hợp đồng, không reset về
   rỗng mỗi lần nhập. Lần nhập đầu tiên bắt đầu với danh mục rỗng; cấu hình phí sau đó như bình
   thường, thiếu cấu hình không tự thay giá minh họa. Phí kế thừa là phí bình thường — sửa được,
-  áp dụng và lưu lịch sử theo khung. Chi tiết quy tắc kế thừa: [PhuongAnTinhCuocTuDong.md](PhuongAnTinhCuocTuDong.md) §4.4.
+  áp dụng và lưu lịch sử theo khung. Chi tiết quy tắc kế thừa: [PhuongAnTinhCuocTuDong.docx](PhuongAnTinhCuocTuDong.docx) §4.4.
 - **Xem trước = lần ghi thật**: bảng ánh xạ hiện đúng những gì lần ghi sẽ tạo; bộ kiểm chứng của
   lần xem trước chính là bộ kiểm chứng của lần ghi thật (preview = commit). Hủy trước khi ghi không
   để lại vết.
@@ -114,6 +114,6 @@ liệu**, không phải sửa mã. Lạch Huyện là dữ liệu cơ sở, khô
 ## 10. Ngoài phạm vi (khách ghi rõ để lại)
 
 - **Kế toán chốt debit chi tiết** (Debit tab, xuất biểu mẫu) — vẫn ĐỂ LẠI chờ đặc tả hoàn chỉnh;
-  phần đã land (popup Chọn Debit) xem [QuyTrinhO2C.md](QuyTrinhO2C.md) §7.
+  phần đã land (popup Chọn Debit) xem [QuyTrinhO2C.docx](QuyTrinhO2C.docx) §7.
 - **Định mức Lạch Huyện theo dải giá dầu** — chờ khách chốt; khi khách chốt, bổ sung quy tắc vào
   trang này trước khi code.

@@ -1,12 +1,12 @@
 /**
  * Freight Pricing Engine — Automatic freight calculation per docx PRD.
  *
- * Implements the 3-step pricing engine from CuocPhiThietKeDB.md §4.1:
+ * Implements the 3-step pricing engine from CuocPhiThietKeDB.docx §4.1:
  *   1. Determine target date (transport_date − lag_days)
  *   2. Retrieve & check fuel price against threshold
  *   3. Lock freight price (system_calculated_freight, read-only)
  *
- * Source: `Phương án tính cước tự động.docx` + PRD `CuocPhiThietKeDB.md`.
+ * Source: `Phương án tính cước tự động.docx` + PRD `CuocPhiThietKeDB.docx`.
  */
 
 import { db, type Executor } from '../db';
@@ -132,7 +132,7 @@ function applySurchargeRounding(mode: string, value: number): number {
 /**
  * Resolve the freight rate for a trip/shipment per the automatic pricing engine.
  *
- * Implements CuocPhiThietKeDB.md §4.1:
+ * Implements CuocPhiThietKeDB.docx §4.1:
  *   Step 1: Lookup freight_rate_terms (contract terms per customer × route)
  *   Step 2: Lookup pricing_tables (base price per customer × route × vehicle class)
  *   Step 3: Lookup fuel_consumption_norms (liters per km per vehicle class)
@@ -283,7 +283,7 @@ export async function resolveFreightRate(
   }
 
   // ── Surcharge-pending path (freight-grounds vs surcharge-grounds split).
-  // PRD CuocPhiThietKeDB.md §8 (via 20260917_11): unconfirmed surcharge
+  // PRD CuocPhiThietKeDB.docx §8 (via 20260917_11): unconfirmed surcharge
   // grounds must NEVER auto-apply a fuel-period price — so surcharge stays 0
   // and no period is consumed. But freight grounds (rate terms + base price)
   // are COMPLETE here, so the freight itself computes from its own grounds

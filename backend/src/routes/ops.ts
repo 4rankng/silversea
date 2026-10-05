@@ -1,5 +1,5 @@
 /**
- * Ops field-operations portal (docs/prd/OpsVanHanh.md), mounted at /api/ops
+ * Ops field-operations portal (docs/prd/OpsVanHanh.docx), mounted at /api/ops
  * behind authMiddleware. Role gates per PRD §2: portal routes are OPS-only,
  * financial reconciliation is ADMIN/MANAGER/ACCOUNTANT, truck ops
  * assignment is ADMIN-only.

@@ -206,7 +206,7 @@ export const roadConfig = pgTable('road_config', {
 // ─── Auto Freight Pricing Engine (2026-09-09) ──────────────────────────────
 //
 // 6 new tables for the automatic freight calculation engine.
-// Source: `Phương án tính cước tự động.docx` + `CuocPhiThietKeDB.md` §3.
+// Source: `Phương án tính cước tự động.docx` + `CuocPhiThietKeDB.docx` §3.
 // Formula: freight = basePrice × (1 + sharePct/100)
 //        + MAX(0, (fuelPrice − baseFuelPrice) × billedKm × litersPerKm)
 
@@ -237,16 +237,16 @@ export const freightRateTerms = pgTable('freight_rate_terms', {
   billingKmMultiplier: numeric('billing_km_multiplier', { precision: 4, scale: 2 })
     .notNull().default('2'),
   // Base fuel price (F) already embedded in contract base price.
-  // Excel: 19270 / 1.08 = 17842.5926. Scale ≥ 4 required — see CuocPhiThietKeDB.md §3.2.1.
+  // Excel: 19270 / 1.08 = 17842.5926. Scale ≥ 4 required — see CuocPhiThietKeDB.docx §3.2.1.
   baseFuelPrice: numeric('base_fuel_price', { precision: 12, scale: 4 }).notNull(),
   // Lag days before new fuel price applies (NEWEB = 1; others TBD).
   fuelLagDays: integer('fuel_lag_days').notNull().default(0),
   // Whether the lag above is a customer-confirmed term. False = the value is
   // provisional (the API forces an explicit input, but the stored 0 must not
-  // be read as an agreed term). See CuocPhiThietKeDB.md §8 (20260917_11).
+  // be read as an agreed term). See CuocPhiThietKeDB.docx §8 (20260917_11).
   fuelLagConfirmed: boolean('fuel_lag_confirmed').notNull().default(false),
   // Surcharge threshold confirmation state — three states per 20260917_11
-  // criterion 1 (PRD CuocPhiThietKeDB.md §8 forbids reading an empty cell as
+  // criterion 1 (PRD CuocPhiThietKeDB.docx §8 forbids reading an empty cell as
   // "always adjust"):
   //   'UNSET'  — no customer confirmation yet (the historical NULL rows).
   //   'NONE'   — customer confirmed NO threshold (always adjust).
@@ -274,7 +274,7 @@ export const freightRateTerms = pgTable('freight_rate_terms', {
 
 // Fuel consumption norms — per vehicle size class.
 // This is REVENUE-side (lít/km for customer billing), NOT cost-side (fuel_norms).
-// See CuocPhiThietKeDB.md §3.3 — intentionally separate from fuel_norms.
+// See CuocPhiThietKeDB.docx §3.3 — intentionally separate from fuel_norms.
 export const fuelConsumptionNorms = pgTable('fuel_consumption_norms', {
   id: serial('id').primaryKey(),
   vehicleSizeClassId: integer('vehicle_size_class_id').notNull(),

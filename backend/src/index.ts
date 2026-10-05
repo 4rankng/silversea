@@ -182,7 +182,7 @@ app.use('/api/salary-periods', authMiddleware, salaryPeriodsRouter);
 app.use('/api/salary-periods', authMiddleware, casbinAuthz('config'), salaryPeriodsAdminRouter);
 app.use('/api/driver/me', authMiddleware, casbinAuthz('driver_portal'), driverWorkInboxRouter, driverRoutes);
 app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), forwarderWorkInboxRouter, forwarderRoutes);
-// Ops field-operations portal (docs/prd/OpsVanHanh.md): role gates live inside
+// Ops field-operations portal (docs/prd/OpsVanHanh.docx): role gates live inside
 // the router (OPS portal routes / ADMIN·MANAGER·ACCOUNTANT approvals /
 // ADMIN-only truck assignment), so no Casbin resource is introduced here.
 app.use('/api/ops', authMiddleware, opsRoutes);

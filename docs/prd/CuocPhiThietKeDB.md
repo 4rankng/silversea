@@ -18,8 +18,8 @@ Sản phẩm phải hỗ trợ:
 - Nhận biết dữ liệu còn thiếu; không nhầm ô trống, số 0 và giá minh hoạ.
 
 Công thức và toàn bộ bảng số Long Minh nằm tại
-[Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.md). Quy trình sử dụng nằm tại
-[Phương án tính cước tự động](PhuongAnTinhCuocTuDong.md).
+[Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.docx). Quy trình sử dụng nằm tại
+[Phương án tính cước tự động](PhuongAnTinhCuocTuDong.docx).
 
 ## 2. Thông tin cần quản lý
 

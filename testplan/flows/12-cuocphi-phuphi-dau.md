@@ -3,9 +3,9 @@
 > **Vai trò sở hữu:** Kế toán (ACCOUNTANT)
 > **Vai trò tham gia:** Admin (cấu hình giá dầu / điều khoản cước), CUS (màn tạo lô xem cước)
 > **Phạm vi hiện hành:** giá dầu, điều khoản cước, tính giá khi nhập Ngày vận chuyển và giá cuối trên chứng từ.
-> **PRD nguồn:** [Quy tắc cước](../../docs/prd/CuocPhiPhuPhiDau.md),
-> [Dữ liệu và lịch sử](../../docs/prd/CuocPhiThietKeDB.md),
-> [Phương án tính cước](../../docs/prd/PhuongAnTinhCuocTuDong.md).
+> **PRD nguồn:** [Quy tắc cước](../../docs/prd/CuocPhiPhuPhiDau.docx),
+> [Dữ liệu và lịch sử](../../docs/prd/CuocPhiThietKeDB.docx),
+> [Phương án tính cước](../../docs/prd/PhuongAnTinhCuocTuDong.docx).
 >
 > **Đối chiếu lại ngày17/09/2026:** các mã TC được giữ nguyên. Những lần PASS bên dưới là
 > lịch sử, không chứng minh mã hiện tại đã chạy. Không còn yêu cầu thiết kế5bảng hoặc
@@ -33,7 +33,7 @@
   1. Với từng tổ hợp (3 tuyến × 8 loại xe có giá gốc × 2 kỳ giá dầu), gọi
      `resolveFreightRate()` với `date` tương ứng mỗi kỳ.
   2. So `freight`, `surcharge`, `total` với cột `J`, `H`, `K` đọc trực tiếp từ file
-     `18.7 - BG Long Minh T7.xlsx` (bảng thành phẩm tại `CuocPhiPhuPhiDau.md` §6).
+     `18.7 - BG Long Minh T7.xlsx` (bảng thành phẩm tại `CuocPhiPhuPhiDau.docx` §6).
 - **Kết quả mong đợi (Pass):**
   - **48/48 mức cước khớp tuyệt đối, sai số 0 đ** — kể cả dòng CONT20 NEWEB 83,2 L
     (nhạy sai số `base_fuel_price` scale 4, xem TC-CUOC-008).
@@ -161,13 +161,13 @@
 
 ## 12.4 — Tính giá, giữ lịch sử và giá cuối
 
-> **Mục đích:** neo [`PhuongAnTinhCuocTuDong.md`](../../docs/prd/PhuongAnTinhCuocTuDong.md)
+> **Mục đích:** neo [`PhuongAnTinhCuocTuDong.docx`](../../docs/prd/PhuongAnTinhCuocTuDong.docx)
 > §3–7 (ngày áp giá, giá cuối, lịch sử và lỗi) vào tiêu chí nghiệm thu.
 > Kết quả chạy 2026-09-10: **PASS** (a–e) + **PARTIAL** (f — CUS workboard row-level
 > screenshot gap; data layer + bundle verified). Chi tiết claim ladder:
 > `testplan/qa/evidence/2026-09-10_flows12-pricing-regression/RUN-SUMMARY.md`.
 >
-> **Quy tắc snapshot (kế thừa `CuocPhiThietKeDB.md` §5):** mỗi lần `transport_date`
+> **Quy tắc snapshot (kế thừa `CuocPhiThietKeDB.docx` §5):** mỗi lần `transport_date`
 > được set hoặc đổi, hệ thống **insert** row mới vào `freight_rate_snapshots` với
 > `supersedes_id` trỏ về row cũ. Row cũ **không bao giờ** bị UPDATE — chỉ đọc.
 

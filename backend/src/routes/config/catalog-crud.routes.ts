@@ -43,7 +43,7 @@ const router = Router()
 
 /**
  * Three-state surcharge threshold confirmation (20260917_11, PRD
- * CuocPhiThietKeDB.md §8): the stored mode and the stored values must agree.
+ * CuocPhiThietKeDB.docx §8): the stored mode and the stored values must agree.
  *   UNSET → both values null (nothing customer-confirmed yet);
  *   NONE  → both values null (customer confirmed "no threshold");
  *   PCT   → pct set, abs null;

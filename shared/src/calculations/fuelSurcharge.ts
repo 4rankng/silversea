@@ -25,7 +25,7 @@ export interface FuelSurchargeSnapshot {
  * @deprecated Use computeFreightRate() for new code. This function applies sharePct
  * to the fuel surcharge (wrong per Excel PRD). The correct formula applies sharePct
  * to the base freight price and charges 100% of fuel surcharge.
- * See CuocPhiThietKeDB.md §1.1.
+ * See CuocPhiThietKeDB.docx §1.1.
  */
 export function computeFuelSurcharge(input: ComputeFuelSurchargeInput): ComputeFuelSurchargeResult {
   const currentPrice = input.currentPrice;
@@ -81,7 +81,7 @@ export interface ComputeFreightRateResult {
 }
 
 /**
- * Compute the correct freight rate per Excel formula (CuocPhiThietKeDB.md §4.1).
+ * Compute the correct freight rate per Excel formula (CuocPhiThietKeDB.docx §4.1).
  * Each component is rounded separately to VND (HALF_UP) per §4.2.
  * fuelDelta and liters are NOT rounded (they are formula parameters).
  */
