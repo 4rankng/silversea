@@ -559,6 +559,12 @@ export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMa
   // contradictory requiresInvoice:false + substituteEvidenceAllowed:false state
   // card 20260928_181 fixed for CUSTOMS/ZONE_SURCHARGE.
   ROAD_REPAIR:    { name: 'Phí sửa chữa dọc đường',      defaultMarkup: false, billingLabel: 'Phí sửa chữa dọc đường', category: ExpenseTypeCategory.REPAIR_ADVANCE },
+  // Card 20261004_355 — fuel spend gets its own row so OPS Khai chi phí stops
+  // filing diesel under "Phí chi hộ khác" and the fuel class vanishes from
+  // reports. No-invoice class (see the seed policy): the driver-side analog is
+  // the refill-report flow, and OPS fuel claims ride receipts; the admin
+  // surface can reclassify if the owner wants the invoice gate instead.
+  FUEL:           { name: 'Phí nhiên liệu / dầu',        defaultMarkup: false, billingLabel: 'Phí nhiên liệu', category: ExpenseTypeCategory.KHAC },
 };
 
 export const NO_INVOICE_EVIDENCE_TYPES = [
