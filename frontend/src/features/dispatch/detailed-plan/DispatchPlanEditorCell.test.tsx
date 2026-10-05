@@ -651,7 +651,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     );
   });
 
-  it('seeds the ĐẢO VỎ shell tag when the row is set to Lấy Lẻ, keeping manual text', async () => {
+  it('choosing Lấy Lẻ seeds NO tag — the note stays the dispatcher\'s own (card 362)', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
       shipmentVersion: 6,
@@ -680,9 +680,9 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
       expect.anything(),
       expect.objectContaining({
         classification: 'LCL_PICKUP',
-        // The run's defining move is pre-selected; the dispatcher's own
-        // text survives on the second line.
-        operationalNotes: 'ĐẢO VỎ\nhọp chị An 8h',
+        // Card 20261005_362: no shell-tag seed — the note is untouched; the
+        // dispatcher picks task tags manually.
+        operationalNotes: 'họp chị An 8h',
       }),
     );
   });
@@ -1066,5 +1066,65 @@ describe('DispatchPlanEditorCell — quick-add plate for the selected carrier (c
     expect(await screen.findByText('Biển số xe đã tồn tại')).toBeTruthy();
     // Dialog stays open for correction.
     expect(screen.getByText('Thêm nhanh biển số xe')).toBeTruthy();
+  });
+});
+
+describe('DispatchPlanEditorCell — "Bổ sung sau" deferred plate (card 20261004_359)', () => {
+  const deferredRow = () => row({
+    taskStatus: 'READY',
+    dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: null },
+  });
+
+  it('leads the EXTERNAL vehicle list with "Bổ sung sau"; absent for OWN', async () => {
+    mockFleetResources();
+    renderCell(deferredRow());
+    await openDialog();
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn hoặc nhập biển số'))!);
+    const listbox = await screen.findAllByRole('listbox');
+    void listbox;
+    const option = screen.getAllByText('Bổ sung sau')[0];
+    expect(option).toBeTruthy();
+    // First among the vehicle options rendered inside the dropdown panel.
+    const dropdownOptions = [...document.querySelectorAll('[role=option], .searchable-select__option')].map((el) => el.textContent?.trim());
+    expect(dropdownOptions[0]).toBe('Bổ sung sau');
+  });
+
+  it('saves the deferred choice as carrier-with-no-vehicle-fields (no plate on the wire)', async () => {
+    mockFleetResources();
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'SINGLE',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(deferredRow(), { onAtomicSave });
+    await openDialog();
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn hoặc nhập biển số'))!);
+    fireEvent.click((await screen.findAllByText('Bổ sung sau'))[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.carrierType).toBe('EXTERNAL');
+    expect(body.externalCarrierId).toBe(9);
+    expect(body.externalCarrierVehicleId).toBeUndefined();
+    expect(body.plateNumber).toBeUndefined();
+    expect(body.truckId).toBeUndefined();
+  });
+
+  it('shows the Phát lệnh section for a saved deferred row (AWAITING_PLATE is issuable)', async () => {
+    mockFleetResources();
+    renderCell(deferredRow());
+    await openDialog();
+
+    // AWAITING_PLATE (carrier assigned, no plate) — the issue section and its
+    // Phát lệnh button are reachable exactly like a plated row.
+    expect(screen.getByText('Phát lệnh cho tài xế')).toBeTruthy();
   });
 });

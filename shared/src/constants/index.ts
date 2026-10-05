@@ -891,7 +891,8 @@ export const DEFAULT_SHIPPING_LINES = Object.freeze([
  * combined leg to close LCL cargo into it for the warehouse transfer, then
  * either comes back with the shell empty OR closes it and returns to the
  * port. The ending is a dispatcher's task-tag choice, not a second
- * classification — see `LCL_PICKUP_SHELL_TASK_TAG`.
+ * classification — the ending is purely the dispatcher's manual tag choice
+ * (card 20261005_362 removed the shell-tag auto-seed).
  */
 export const DISPATCH_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED', 'LCL', 'LCL_PICKUP'] as const;
 export type DispatchClassification = (typeof DISPATCH_CLASSIFICATIONS)[number];
@@ -918,4 +919,3 @@ export const LCL_PICKUP_TRAILER_TYPE = '40FT' as const;
  * ending tag — `HẠ VỎ ...` to come back with the shell empty, or a
  * port/bãi tag to close it and return to the port.
  */
-export const LCL_PICKUP_SHELL_TASK_TAG = 'ĐẢO VỎ';

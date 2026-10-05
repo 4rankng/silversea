@@ -4,17 +4,14 @@ import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient'
 import {
   classificationHint,
   classificationOptionsForRow,
-  isLclPickup,
-  withLclPickupShellTag,
 } from './DispatchPlanCellValues';
-import { useDispatchTaskTags } from './useDispatchTaskTags';
 
 /**
  * The Phân loại control of the dispatch assignment dialog.
  *
  * Split out of `DispatchPlanEditorCell`, which sits on a frozen LOC ceiling.
- * It also owns the one behaviour here that is not a plain read/write of the
- * draft: choosing Lấy Lẻ pre-selects the shell tag in the driver task note.
+ * Card 20261005_362: the classification choice no longer seeds any task tag —
+ * tag selection is fully manual (the old shell-tag auto-seed is gone).
  *
  * The option set keys on the row's CARGO MODE, never on the stored
  * classification — once a dispatcher saves LCL_PICKUP the stored value is no
@@ -38,7 +35,6 @@ export function DispatchClassificationField({
   // request. An unloaded pool simply skips the seed — the chip stays absent
   // and the classification plus the 40FT gate still stand on their own —
   // rather than writing a note segment that would parse back as free text.
-  const { tags } = useDispatchTaskTags();
 
   return (
     <UuiSelectField
@@ -49,13 +45,10 @@ export function DispatchClassificationField({
       options={classificationOptionsForRow(row.cargoMode)}
       onChange={(event) => {
         const next = event.target.value as DispatchClassification;
-        const labels = tags.map((tag) => tag.label);
-        onChange(
-          next,
-          isLclPickup(next) && labels.length > 0
-            ? withLclPickupShellTag(operationalNotes, labels)
-            : operationalNotes,
-        );
+        // Card 20261005_362 (REQ-03): choosing Lấy Lẻ seeds NOTHING — the
+        // driver task tags are the dispatcher's manual choice (the previous
+        // auto-seed of the shell tag was removed by owner-acked request).
+        onChange(next, operationalNotes);
       }}
       disabled={disabled}
       hint={classificationHint(row.cargoMode, classification)}

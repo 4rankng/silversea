@@ -2,7 +2,6 @@ import type { DispatchClassification } from '@tingting/shared';
 import {
   DISPATCH_CLASSIFICATIONS,
   DISPATCH_CLASSIFICATION_LABELS,
-  LCL_PICKUP_SHELL_TASK_TAG,
   parseDriverTaskNote,
   composeDriverTaskNote,
 } from '@tingting/shared';
@@ -124,26 +123,6 @@ export function classificationHint(
   return undefined;
 }
 
-/**
- * Pre-select the Lấy Lẻ shell tag the moment the row is classified, so the
- * driver's task note already carries the run's defining move. Idempotent and
- * non-destructive: an existing tag (or one the dispatcher typed by hand) is
- * left alone, the manual text is preserved verbatim, and a note that is
- * already only free text keeps that text as the second line.
- *
- * Never removes the tag when the dispatcher switches classification back —
- * the tag may have been chosen deliberately, and silently deleting a note
- * segment is worse than leaving one extra chip.
- */
-export function withLclPickupShellTag(
-  note: string | null,
-  knownLabels: ReadonlyArray<string>,
-): string | null {
-  if (note != null && note.split('\n')[0]?.split('; ').includes(LCL_PICKUP_SHELL_TASK_TAG)) return note;
-  const { selectedLabels, manualText } = parseDriverTaskNote(note, knownLabels);
-  const composed = composeDriverTaskNote([...selectedLabels, LCL_PICKUP_SHELL_TASK_TAG], manualText);
-  return composed === '' ? null : composed;
-}
 
 
 export function parseCarrier(value: string): { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId?: number } | null {
