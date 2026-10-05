@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, type ReactElement } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SearchProvider } from './context/SearchContext';
 import { MonthProvider } from './hooks/useMonth';
@@ -141,6 +141,15 @@ function PageLoader() {
       <span style={{ fontSize: 'var(--text-body-size)' }}>Đang tải…</span>
     </div>
   );
+}
+
+/** Card 20261004_358 (criterion 2): guessed /shipments/:id/edit URLs used to
+ *  404 — no separate edit route ever existed; the shipment edit surface IS the
+ *  detail page's inline editors. The alias lands them there, where the detail
+ *  route's own reader gate still applies. */
+function ShipmentEditRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/shipments/${id}`} replace />;
 }
 
 export function AppRoutes() {
@@ -339,6 +348,11 @@ export function AppRoutes() {
           <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentContainersPage />))} />
           <Route path="/shipments-debit" element={shipmentDebitReaderOnly(page(<ShipmentDebitPage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
+          {/* Card 20261004_358 (criterion 2): /shipments/:id/edit used to 404 —
+              no separate edit route ever existed; the shipment edit surface IS
+              the detail page's inline editors. Guessed URLs land there instead
+              of the dead end; the detail route's own reader gate still applies. */}
+          <Route path="/shipments/:id/edit" element={<ShipmentEditRedirect />} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />
