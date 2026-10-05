@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Role } from '@tingting/shared';
+import { Role, treasuryFundLabel } from '@tingting/shared';
 import { AlertCircle, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { TreasuryAccountDrawer } from '../features/treasury/TreasuryAccountDrawer';
@@ -182,7 +182,14 @@ export default function TreasuryPositionPage() {
                             account.bankName,
                             account.bankAccountNumber,
                             account.type === 'CASH' ? 'Tiền mặt' : 'Ngân hàng',
-                            account.fundCode === 'COMPANY' ? 'Quỹ công ty' : account.fundCode === 'TM' ? 'Quỹ TM' : 'Chưa phân nguồn quỹ',
+                            // Card 2026-10-05_381: label comes from the shared
+                            // fund constant. The check stays explicit rather than a
+                            // bare truthiness test, so an unexpected code degrades to
+                            // the same "Chưa phân nguồn quỹ" prompt as a null one
+                            // instead of silently dropping the fund segment.
+                            account.fundCode === 'COMPANY' || account.fundCode === 'TM'
+                              ? treasuryFundLabel(account.fundCode)
+                              : 'Chưa phân nguồn quỹ',
                           ].filter(Boolean).join(' · ')}
                         </span>
                         {canConfigure && (

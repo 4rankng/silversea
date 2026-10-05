@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import { treasuryAccountFundSchema, treasuryAccountSetupSchema } from '@tingting/shared';
+import { treasuryAccountFundSchema, treasuryAccountSetupSchema, treasuryFundLabel } from '@tingting/shared';
 import { Drawer } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
 import { DateField, NumberField, TextField, UuiSelectField } from '../../design-system';
@@ -46,7 +46,7 @@ export function TreasuryAccountDrawer({ account, onClose, onSaved }: { account?:
     <form id={id} className="treasury-account-form" noValidate onSubmit={event => void save(event)}>
       {error && <Alert variant="error">{error}</Alert>}
       <p>{account ? 'Chỉ thay đổi nguồn quỹ của tài khoản; giữ nguyên số dư và lịch sử giao dịch.' : 'Thiết lập tài khoản thực tế để ghi thu / chi. Không gửi tiền qua ngân hàng.'}</p>
-      <UuiSelectField label="Nguồn quỹ" required value={fundCode} disabled={busy} onChange={event => setFundCode(event.target.value)} options={[{ value: '', label: 'Chọn nguồn quỹ' }, { value: 'COMPANY', label: 'Quỹ công ty' }, { value: 'TM', label: 'Quỹ TM' }]} />
+      <UuiSelectField label="Nguồn quỹ" required value={fundCode} disabled={busy} onChange={event => setFundCode(event.target.value)} options={[{ value: '', label: 'Chọn nguồn quỹ' }, { value: 'COMPANY', label: treasuryFundLabel('COMPANY') }, { value: 'TM', label: treasuryFundLabel('TM') }]} />
       {!account && <>
         <div className="treasury-account-fields">
           <TextField controlSize="sm" label="Mã tài khoản" required maxLength={50} value={code} disabled={busy} onChange={event => setCode(event.target.value)} />

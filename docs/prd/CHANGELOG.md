@@ -4,6 +4,15 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-05 — Tên hiển thị nguồn quỹ theo đặc tả khách hàng 5.10: Quỹ TM → Quỹ tiền mặt
+
+Theo đặc tả giao diện 5.10 của khách hàng nhận ngày 05/10/2026, hai nguồn quỹ được
+gọi tên là **Quỹ tiền mặt** và **Quỹ công ty**. Tên hiển thị cũ **Quỹ TM** trong tài
+liệu và trên giao diện được đổi thành **Quỹ tiền mặt**; phạm vi quy tắc nguồn quỹ
+theo dòng chi tại [QuyTrinhO2C.docx §7.5](QuyTrinhO2C.md#75-nguồn-quỹ-và-phiếu-thuchi)
+và tiêu chí AC-CP-KT-07 giữ nguyên. Đây chỉ là đổi tên hiển thị: mã nội bộ
+`COMPANY` / `TM` gắn với dòng tài khoản quỹ và bút toán không đổi.
+
 ## 2026-10-05 — Toàn bộ PRD nội dung chuyển sang .docx; bổ sung PhanHeKeToan (phân hệ Kế toán)
 
 Theo chỉ đạo của chủ sản phẩm, 9 tài liệu PRD nội dung chuyển từ .md sang .docx
@@ -50,7 +59,7 @@ lý do và phạm vi ở [ADR220/245/252](../adr/2026-10-01-audit-todo-policy-ru
   toán và trên danh sách phơi phiếu cho CUS/kế toán — chỉ nội dung lý do, không kèm số tiền hay
   thông tin quỹ. Trước đó trường lý do được lưu nhưng không nơi nào đọc. (card 20260928_162)
 - **Nguồn quỹ của phiếu phải khớp với dòng chi phí trên phiếu** (QuyTrinhO2C.docx §7.5): dòng chi
-  hộ có hóa đơn (kể cả chi phí hóa đơn) phải chi từ Quỹ TM; ứng Ops, chi phí lô hàng không hóa
+  hộ có hóa đơn (kể cả chi phí hóa đơn) phải chi từ Quỹ tiền mặt; ứng Ops, chi phí lô hàng không hóa
   đơn, phát sinh Ops, tiền đường và cược container phải chi từ Quỹ công ty. Chọn sai nguồn thì
   phiếu bị từ chối kèm tên dòng sai quỹ; phiếu trộn dòng của hai nguồn bị từ chối và yêu cầu tách
   phiếu. Trước đó chỉ kiểm tài khoản đã được phân nguồn hay chưa, chưa so nguồn với dòng chi.
