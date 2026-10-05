@@ -262,3 +262,12 @@ Kẹp phụ phí dầu về 0 khi giá dầu kỳ thấp hơn giá mốc (Câu 1
 hồi theo hợp đồng, kể cả chuyến một chiều (Câu 4 = A); chọn **Ngày vận chuyển** làm
 mốc áp giá; không hồi tố cước đã chốt. Giá trị, phạm vi và điều kiện cụ thể nằm
 trong các tài liệu cước.
+
+## 2026-10-05 — Điều phối: bổ sung cảng sau điều xe + danh mục nhiên liệu
+
+Cảng nâng / Cảng hạ được phép bổ sung sau khi điều xe (khóa kế toán vẫn chặn);
+tuyến đường vẫn khóa. Danh mục Khai chi phí OPS thêm "Phí nhiên liệu / dầu"
+(không yêu cầu hóa đơn). Trọng lượng container hiển thị bỏ số 0 thập phân dư.
+Chọn phân loại "Lấy Lẻ" không còn tự gắn tag "ĐẢO VỎ" — tác vụ là lựa chọn
+thủ công của điều vận. Ô ngày-giờ phân đoạn: popup chọn giờ không còn cướp
+focus khi gõ; gõ phím số đầu tiên đóng popup để gõ tay.

@@ -23,6 +23,10 @@ Xe đưa container đến trả hàng Lệnh 1, giữ lại vỏ để đi đón
 
 **Cảng nâng → trả hàng tại Nhà máy 1 → giữ vỏ → đóng hàng tại Nhà máy 2 → Cảng hạ.**
 
+Cảng nâng / Cảng hạ có thể bổ sung SAU khi điều xe (quyết định 05/10/2026, card
+20261005_358): ghép chuyến cần đủ hai cảng để qua kiểm tra, nên điều vận bổ sung
+trên Chi tiết lô hàng mà không phải gỡ phân xe. Tuyến đường vẫn khóa sau điều xe.
+
 Chỉ được bắt đầu đóng hàng Lệnh 2 sau khi hoàn thành phần trả hàng Lệnh 1. Tiết kiệm hành trình rỗng không làm gộp chứng từ hoặc doanh thu của hai công việc.
 
 ## 2. Lô hàng và quan hệ ghép
