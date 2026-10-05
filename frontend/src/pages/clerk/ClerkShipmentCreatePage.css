@@ -263,7 +263,7 @@
   .csc-container-row { grid-template-columns: minmax(0, 112px) minmax(0, 1fr); }
   .csc-container-row > * { grid-column: 1 / -1; }
   .csc-container-row > .csc-container-cell--weight { grid-column: 1; }
-  .csc-container-row > .csc-container-cell--appointment { grid-column: 2; }
+  .csc-container-row > .csc-container-cell--appointment { grid-column: 1 / -1; }
   .csc-page {
     padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px));
     /* The trailing safe-area padding must read as part of the worksheet, not
@@ -336,12 +336,32 @@
 .csc-field-warning__link:hover { color: var(--warning-text); }
 
 /* Separate time/date controls remain usable in the repeatable desktop grid.
- * 176px is the control's measured floor: the two segment groups carry
- * min-width:max-content (a cramped segment clips its digits), so the pair
- * cannot render below ~171px. At 170px the date half spilled out of the cell
- * and the container table's scroll box sheared it off, leaving only "HH :".
- * The other three auto columns absorb the 6px. */
-.csc-container-col__appointment { width: 176px; }
+ * 240px is the control's measured floor at the create-form segment font (16px):
+ * the two segment groups carry min-width:max-content (a cramped segment clips
+ * its digits), so the pair cannot render below ~233px. At narrower widths the
+ * date half spills out of the cell and the container table's scroll box shears
+ * it off (the old 176px floor was computed for the 12px control font and left
+ * the five segments 20–35px wide — user report 2026-10-05, card 051026230627:
+ * "5 ô spinbox riêng lẻ tí hon, chật, khó bấm"). The other three auto columns
+ * absorb the difference. */
+.csc-container-col__appointment { width: 240px; }
+
+/* Card 051026230627 — the appointment cluster is a tap surface first (its
+ * whole group opens the picker): give the segments touch height and a
+ * readable font at THIS page only. The base UUI geometry derives every inner
+ * height from --uui-control-h and the segments read their font through
+ * --text-control-compact-size, so the fix overrides those variables on the
+ * cluster's control boundaries (specificity above the base size rules) — no
+ * per-element heights, and the em-based segment widths in DateTimeSegments.css
+ * scale with the font automatically. Compact hosts (filter bars) keep the
+ * shared defaults; 40px stays inside the design-lock band. */
+.csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control],
+.csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] [data-uui-control] {
+  --uui-control-h: var(--control-touch-h);
+}
+.csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] {
+  --text-control-compact-size: 16px;
+}
 
 /* Stacked records are forms, not spreadsheet previews. Show their controls
  * continuously and keep catalog creation beside its selector so invisible
