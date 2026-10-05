@@ -474,19 +474,19 @@ function buildListItem(
 // selector IDs, so creating a delivery snapshot cannot relabel a port.
 function resolveLiftSite(
   support: WorkspaceSupport,
-  container: ContainerRow,
+  container: Pick<ContainerRow, 'pickupPortId'> | null,
   assignment: AssignmentRow | null,
 ) {
-  if (container.pickupPortId != null) return support.portsById.get(container.pickupPortId) ?? null;
+  if (container?.pickupPortId != null) return support.portsById.get(container.pickupPortId) ?? null;
   return readPortSnapshot(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
 }
 
 function resolveDropoffSite(
   support: WorkspaceSupport,
-  container: ContainerRow,
+  container: Pick<ContainerRow, 'dropoffPortId'> | null,
   assignment: AssignmentRow | null,
 ) {
-  if (container.dropoffPortId != null) return support.portsById.get(container.dropoffPortId) ?? null;
+  if (container?.dropoffPortId != null) return support.portsById.get(container.dropoffPortId) ?? null;
   return readPortSnapshot(assignment?.siteSnapshot ?? null, 'deliverySite');
 }
 
@@ -654,7 +654,7 @@ function countContainerTypes(rows: ContainerRow[]): string {
 export {
   buildOperationalSummary, deriveCusBucket, buildListItem, resolveLiftSite,
   resolveDropoffSite, buildContainerLine, containerMissingFields,
-  shipmentFieldAccess, countContainerTypes,
+  shipmentFieldAccess, countContainerTypes, currentAssignmentIdentity,
 };
 
 const allShipmentFieldKeys = [

@@ -688,12 +688,17 @@ export function ShipmentContainerLedger({
     enabled: boolean,
     children: ReactNode,
   ) => {
+    // Lot-level rows (card 365 — container-less LCL lots) are display-only on
+    // this workboard: there is no container line behind them to open an edit
+    // session against, so every cell renders read-only regardless of the
+    // field's authority (shipment-level edits happen on Tổng quan lô hàng).
+    const canEdit = enabled && row.isLotLevel !== true;
     const triggerId = `shipment-detail-edit-${mode}-${row.id}`;
     const editorId = `${triggerId}-editor`;
     const busy = editLoadingRowId === row.id;
     const expanded = activeEdit?.row.id === row.id && activeEdit.mode === mode;
-    const className = `shipment-container-ledger__cell-trigger${enabled ? '' : ' shipment-container-ledger__cell-trigger--read-only'}`;
-    if (!enabled) return <div className={className}>{children}</div>;
+    const className = `shipment-container-ledger__cell-trigger${canEdit ? '' : ' shipment-container-ledger__cell-trigger--read-only'}`;
+    if (!canEdit) return <div className={className}>{children}</div>;
     return (
       <div className={`shipment-container-ledger__cell-editor${expanded ? ' shipment-container-ledger__cell-editor--expanded' : ''}`} data-mode={mode}>
         <AriaButton
@@ -798,8 +803,8 @@ export function ShipmentContainerLedger({
                   </td>
                   <td data-label="Thông số container" className={cellClassName(containerEditable, 'container')}>
                     {editableCell(row, 'container', containerEditable, <div className="shipment-container-ledger__multiline">
-                      <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
-                      <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
+                      <strong className="shipment-container-ledger__code">{row.isLotLevel ? 'Lô hàng lẻ' : fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
+                      <span>{row.isLotLevel ? 'Không có container' : fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
                       <span className="shipment-container-ledger__container-classification">{DISPATCH_CLASSIFICATION_LABELS[row.classification]}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
                     </div>)}
@@ -855,6 +860,9 @@ export function ShipmentContainerLedger({
                   </td>)}
                   {canMutateRows && (
                     <td data-label="Thao tác" className="shipment-container-ledger__cell--actions">
+                      {/* Lot-level rows own no container line — add/remove are
+                          container-set writes and never apply to them. */}
+                      {row.isLotLevel !== true && (
                       <div className="shipment-container-ledger__multiline">
                         <button
                           type="button"
@@ -873,6 +881,7 @@ export function ShipmentContainerLedger({
                           }}
                         >Xóa</button>
                       </div>
+                      )}
                     </td>
                   )}
                 </tr>

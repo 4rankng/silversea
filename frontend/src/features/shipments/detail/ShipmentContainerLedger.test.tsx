@@ -661,3 +661,77 @@ describe('external-vendor plate quick-select (card 20260925_6)', () => {
     expect(externalVendorPlateOptions(carriers, vehicles, '')).toEqual([]);
   });
 });
+
+describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
+  it('renders a container-less LCL lot read-only — no edit triggers, no add/remove actions', () => {
+    const onStartEdit = vi.fn();
+    // Even with DIRECT field authority everywhere, a lot-level row (the
+    // single row a container-less LCL lot gets on the Chi Tiết workboard)
+    // must stay display-only: there is no container line to edit.
+    const lotRow = baseRow({
+      id: -7,
+      isLotLevel: true,
+      containerNumber: null,
+      containerTypeLabel: null,
+      classification: 'LCL',
+    });
+    render(
+      <ShipmentContainerLedger
+        rows={[lotRow]}
+        totalContainers={1}
+        today="2026-09-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={null}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={onStartEdit}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={vi.fn(async () => {})}
+        onSaveSchedule={vi.fn(async () => {})}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+        onAddContainer={vi.fn(async () => {})}
+        onRemoveContainer={vi.fn(async () => {})}
+      />,
+      { wrapper: MemoryRouter },
+    );
+    expect(screen.getByText('Lô hàng lẻ')).toBeTruthy();
+    expect(screen.getByText('Không có container')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Thêm container cùng lô/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
+  });
+
+  it('a regular container row keeps its add/remove actions (the lot gate is scoped to isLotLevel)', () => {
+    render(
+      <ShipmentContainerLedger
+        rows={[baseRow()]}
+        totalContainers={1}
+        today="2026-09-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={null}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={vi.fn()}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={vi.fn(async () => {})}
+        onSaveSchedule={vi.fn(async () => {})}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+        onAddContainer={vi.fn(async () => {})}
+        onRemoveContainer={vi.fn(async () => {})}
+      />,
+      { wrapper: MemoryRouter },
+    );
+    expect(screen.getByRole('button', { name: /Thêm container cùng lô/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Xóa container/ })).toBeTruthy();
+  });
+});

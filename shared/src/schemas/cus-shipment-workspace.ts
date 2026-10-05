@@ -708,7 +708,16 @@ export const shipmentRecoveryRecordResultSchema = z.object({
 }).strict();
 
 export const shipmentCusContainerFlatRowSchema = z.object({
-  id: z.number().int().positive(),
+  // Row identity for the workboard's edit sessions and React keys. Positive =
+  // the real shipment_containers id. Negative = a lot-level row for a
+  // container-less LCL lot (card 365), carrying `-shipmentId` so it can never
+  // collide with a container id on the same page; container-scoped writes
+  // always miss it (the writer matches id + shipmentId of a real container).
+  id: z.number().int().refine((value) => value !== 0, { message: 'Row id is a container id or -shipmentId' }),
+  // True for those lot-level rows (absent/false = real container row). LCL
+  // lots are forbidden from owning containers, so the Chi Tiết workboard
+  // surfaces the LOT itself as one read-only row.
+  isLotLevel: z.boolean().optional(),
   shipmentId: z.number().int().positive(),
   shipmentVersion: z.number().int().positive(),
   ordinal: z.number().int().positive(),
