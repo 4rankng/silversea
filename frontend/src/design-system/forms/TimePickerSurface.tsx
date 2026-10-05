@@ -29,20 +29,6 @@ export function TimePickerSurface({ id, label, value, onPick, onApply, onDismiss
   useFocusTrap(panelRef, !mobile && keyboard);
   useClickOutside(panelRef, onExit, { enabled: !mobile && !inline, additionalRefs: [anchorRef, ...additionalRefs] });
 
-  // Card 326 (user retest 05/10): a POINTER-opened mobile sheet must never
-  // take focus — the react-aria Dialog below autofocuses its content on
-  // mount, which swallowed the digits the user typed next ("the popup stole
-  // focus"). One frame after the mount commit, the anchor segment takes
-  // focus back so fast typing continues; a keyboard-invoked sheet
-  // (Alt+ArrowDown) keeps the dialog focus for its exact-entry field.
-  useEffect(() => {
-    if (!mobile || keyboard || inline) return;
-    const frame = requestAnimationFrame(() => {
-      if (anchorRef.current?.isConnected) anchorRef.current.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [mobile, keyboard, inline, anchorRef]);
-
   // Card 20260915_6 + _8: while the picker surface is open — sheet, popover,
   // or inline — register an overlay token so the PARENT dialog's window-level
   // shortcuts (Escape / Enter in useConfirmShortcuts) yield to the picker,
@@ -61,6 +47,21 @@ export function TimePickerSurface({ id, label, value, onPick, onApply, onDismiss
     if (event.key === 'Enter') event.stopPropagation();
   };
   const header = <header className="time-picker__header"><strong>Chọn giờ (24h)</strong><button type="button" aria-label="Đóng" onClick={onDismiss}><X size={14} aria-hidden="true" /></button></header>;
+  if (mobile && !keyboard) {
+    // Card 326 (user retest 05/10): a POINTER-opened sheet renders as a
+    // plain styled portal — NO react-aria Modal, whose focus containment
+    // pulled every typed digit into the sheet ("the popup stole focus").
+    // Focus stays in the segments, fast typing advances, taps still work,
+    // and a tap on the backdrop closes it. A keyboard-invoked sheet keeps
+    // the focus-trapping Modal below (deliberate picker use).
+    return createPortal(<div className="time-picker__overlay" data-time-picker-overlay
+      onClick={(event) => { if (event.target === event.currentTarget) onExit(); }}>
+      <div id={id} ref={panelRef} role="dialog" aria-label={label} className="time-picker__sheet" data-escape-boundary="true"
+        onKeyDown={keyDown} onClick={(event) => event.stopPropagation()}>
+        <div className="time-picker__dialog">{header}{content}</div>
+      </div>
+    </div>, document.body);
+  }
   if (mobile) return <ModalOverlay isOpen isDismissable onOpenChange={(open) => { if (!open) onDismiss(); }} className="time-picker__overlay" data-time-picker-overlay>
     <Modal className="time-picker__sheet">
       <Dialog id={id} ref={panelRef} aria-label={label} className="time-picker__dialog" data-escape-boundary="true">

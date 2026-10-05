@@ -108,7 +108,9 @@ describe('adaptive time entry', () => {
       click(trigger);
       const dialog = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       expect(dialog.closest('.time-picker__sheet')).toBeInTheDocument();
-      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+      // Card 326: a pointer-opened sheet leaves focus on the segment — the
+      // user keeps typing (HH then MM) instead of the sheet swallowing it.
+      expect(time).toHaveFocus();
       const exact = within(dialog).getByLabelText('Giờ chính xác (HH:mm)');
       click(exact);
       fireEvent.change(exact, { target: { value: '1417' } });
@@ -160,20 +162,22 @@ describe('adaptive time entry', () => {
       expect(time).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it('keeps background focus out and dismisses through the backdrop without rounding an exact value', async () => {
+    it('pointer sheet keeps background focus where it is and still dismisses through the backdrop', async () => {
       render(<><SplitHarness value="2026-09-19T20:46" /><input aria-label="Outside" /></>);
       const time = screen.getByLabelText('Giờ — Hẹn');
       click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
       const dialog = await screen.findByRole('dialog');
-      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+      // Card 326: no focus containment on the pointer sheet — the segments
+      // keep focus; moving focus outside stays outside (the sheet is a
+      // passive popup for pointer users).
+      expect(time).toHaveFocus();
       act(() => screen.getByLabelText('Outside').focus());
-      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+      expect(document.activeElement).toBe(screen.getByLabelText('Outside'));
       const overlay = document.querySelector<HTMLElement>('[data-time-picker-overlay]')!;
       fireEvent.pointerDown(overlay); fireEvent.mouseDown(overlay); fireEvent.pointerUp(overlay); fireEvent.mouseUp(overlay); fireEvent.click(overlay);
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(time).toHaveValue('20');
       expect(screen.getByLabelText('Phút — Hẹn')).toHaveValue('46');
-      await waitFor(() => expect(time).toHaveFocus());
     });
 
     it('nested picker Escape closes only the picker and preserves the buffered value', async () => {
