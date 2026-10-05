@@ -71,7 +71,7 @@ function renderCard(overrides: Partial<Parameters<typeof DriverContainerCard>[0]
       containers={[]}
       contPhotoKey={null}
       sealPhotoKey={null}
-      deliveryNotePhotoKey={null}
+      deliveryNotePhotoKeys={[]}
       tradeDirection="IMPORT"
       onSaved={onSaved}
       {...overrides}
@@ -172,7 +172,7 @@ describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => 
 
   it('VID-DRV-04 deletes only the displayed delivery-note storage key and refreshes', async () => {
     vi.clearAllMocks();
-    const { onSaved } = renderCard({ deliveryNotePhotoKey: 'trips/55/note.jpg' });
+    const { onSaved } = renderCard({ deliveryNotePhotoKeys: ['trips/55/note.jpg'] });
     vi.mocked(api.post).mockResolvedValueOnce({ ok: true });
     fireEvent.click(screen.getByRole('button', { name: 'Xóa ảnh biên bản' }));
 
@@ -184,7 +184,7 @@ describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => 
   });
 
   it('uploads through /upload with type DELIVERY_NOTE and refreshes via onSaved', async () => {
-    const { onSaved } = renderCard({ deliveryNotePhotoKey: null });
+    const { onSaved } = renderCard({ deliveryNotePhotoKeys: [] });
     uploadMock.mockResolvedValueOnce({ ok: true, storageKey: 'k', url: '/api/photos/k' } as never);
 
     const input = document.querySelector('input[aria-label="Chọn ảnh biên bản"]') as HTMLInputElement;
@@ -206,7 +206,7 @@ describe('DriverContainerCard — 40f3ae15 biên bản giao hàng photo', () => 
 
   it('renders the thumbnail with a remove action when a biên bản photo exists', async () => {
     stubPhotoTransport();
-    renderCard({ deliveryNotePhotoKey: 'trips/55/other-note.jpg' });
+    renderCard({ deliveryNotePhotoKeys: ['trips/55/other-note.jpg'] });
 
     const img = await screen.findByAltText('Ảnh biên bản giao hàng');
     expect(img.getAttribute('src')).toBe('blob:authed-photo');
@@ -235,7 +235,7 @@ describe('DriverContainerCard — unified photo block', () => {
       containers: [declaredContainer('MSKU1234567')],
       contPhotoKey: 'trips/55/cont.jpg',
       sealPhotoKey: 'trips/55/seal.jpg',
-      deliveryNotePhotoKey: 'trips/55/note.jpg',
+      deliveryNotePhotoKeys: ['trips/55/note.jpg'],
     });
 
     expect(await screen.findByAltText('Ảnh cont')).toBeTruthy();
@@ -247,6 +247,30 @@ describe('DriverContainerCard — unified photo block', () => {
     expect(screen.queryByText('Biên bản giao hàng')).toBeNull();
     expect(document.querySelector('.dcc-note')).toBeNull();
     expect(screen.queryByText(/tùy chọn/)).toBeNull();
+  });
+
+  // P1 051026230645 — the driver uploads several biên bản photos; every one of
+  // them stays a visible, individually deletable tile, and the viewer walks
+  // them all. Delete targets the EXACT storage key (never "the latest").
+  it('renders every biên bản photo as its own tile with per-photo delete', async () => {
+    stubPhotoTransport();
+    const postMock = vi.mocked(api.post).mockResolvedValue({ ok: true } as never);
+    renderCard({
+      containers: [declaredContainer('MSKU1234567')],
+      deliveryNotePhotoKeys: ['trips/55/note-1.jpg', 'trips/55/note-2.jpg'],
+    });
+
+    expect(await screen.findByRole('button', { name: 'Xem ảnh biên bản 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xem ảnh biên bản 2' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản 2' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa ảnh biên bản 1' }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith(
+      '/upload/trips/55/photos/delivery_note/delete',
+      { storage_key: 'trips/55/note-1.jpg' },
+      expect.objectContaining({ idempotencyKey: expect.stringContaining('note-1.jpg') }),
+    ));
   });
 
   it('renders one canonical container-type value on the hero (no raw-code duplicate)', () => {
@@ -272,7 +296,7 @@ describe('DriverContainerCard — full-image viewer', () => {
       containers: [declaredContainer('MSKU1234567')],
       contPhotoKey: 'trips/55/cont.jpg',
       sealPhotoKey: 'trips/55/seal.jpg',
-      deliveryNotePhotoKey: 'trips/55/note.jpg',
+      deliveryNotePhotoKeys: ['trips/55/note.jpg'],
     });
 
     const opener = await screen.findByRole('button', { name: 'Xem ảnh biên bản' });

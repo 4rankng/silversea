@@ -1297,6 +1297,47 @@ describe('DriverTripDetailPage', () => {
       vi.unstubAllGlobals();
     }
   });
+
+  // P1 051026230645 — the driver uploaded two biên bản photos; both rows ride
+  // the wire (the backend keeps one trip_photos row per upload), so BOTH must
+  // render. The old derivation collapsed the list with `.find()` and silently
+  // hid every upload before the latest — the driver-visible data loss.
+  it('two persisted biên bản uploads both stay visible — no silent replace', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          containerSealPhotos: [
+            { id: 4, type: 'DELIVERY_NOTE', storageKey: 'trips/55/note-old.jpg', uploadedAt: '2026-08-01T01:00:00.000Z' },
+            { id: 3, type: 'DELIVERY_NOTE', storageKey: 'trips/55/note-new.jpg', uploadedAt: '2026-08-01T02:00:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['note'], { type: 'image/jpeg' }));
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:note'),
+      revokeObjectURL: vi.fn(),
+    }));
+    renderPage();
+
+    try {
+      expect(await screen.findByRole('button', { name: 'Xem ảnh biên bản 1' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Xem ảnh biên bản 2' })).toBeTruthy();
+      // Both persisted storage keys are actually read for display — the older
+      // upload is not just missing from the count, its bytes still render.
+      await waitFor(() => expect(getBlob).toHaveBeenCalledWith('/photos/trips%2F55%2Fnote-old.jpg'));
+      expect(getBlob).toHaveBeenCalledWith('/photos/trips%2F55%2Fnote-new.jpg');
+      expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản 1' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản 2' })).toBeTruthy();
+    } finally {
+      getBlob.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 

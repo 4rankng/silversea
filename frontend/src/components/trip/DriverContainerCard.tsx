@@ -48,8 +48,11 @@ interface Props {
   contPhotoKey: string | null;
   /** Storage key of the latest seal photo — shown as a thumbnail once saved. */
   sealPhotoKey: string | null;
-  /** 40f3ae15: latest biên bản giao hàng photo (trip_photos type OTHER). */
-  deliveryNotePhotoKey: string | null;
+  /** Every biên bản giao hàng photo (trip_photos DELIVERY_NOTE), newest
+   *  first. Each upload is its own row in storage — the card renders ALL of
+   *  them, because collapsing to the latest silently hid the driver's earlier
+   *  uploads (P1 data loss). */
+  deliveryNotePhotoKeys: string[];
   /** Shipment trade direction. IMPORT (trả hàng) scans are cross-checked
    *  against the declared container number (spec A6, advisory only). */
   tradeDirection: string | null;
@@ -58,7 +61,7 @@ interface Props {
 
 // AuthedPhotoImg + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
 // (structure-guard split shared across the driver photo surfaces).
-export function DriverContainerCard({ tripId, readOnly = false, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKey, tradeDirection, onSaved }: Props) {
+export function DriverContainerCard({ tripId, readOnly = false, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKeys, tradeDirection, onSaved }: Props) {
   const { toast } = useToast();
   const [draft, setDraft] = useState({ containerNumber: '', sealNumber: '', containerTypeId: '' });
   const [lastPhotos, setLastPhotos] = useState<{ cont: string | null; seal: string | null }>({ cont: null, seal: null });
@@ -76,7 +79,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
   // Biên bản giao hàng upload/delete — independent of the form lifecycle
   // (always reachable, saved row or not), same as before the unification.
   const [uploadingNote, setUploadingNote] = useState(false);
-  const [removingNote, setRemovingNote] = useState(false);
+  const [removingNote, setRemovingNote] = useState<string | null>(null);
   // Full-image viewer over the populated slots (same PhotoViewer the e-POD
   // flow uses): the opener tile is remembered so closing returns focus to it.
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -240,19 +243,22 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
   // Targeted per-photo delete (exact storage key) — unlike the delete-all-of-
   // type driver route, it can never sweep unrelated rows (incidental-cost
   // receipts still ride OTHER).
-  const removeDeliveryNote = async () => {
-    if (!deliveryNotePhotoKey) return;
-    setRemovingNote(true);
+  // Targeted per-photo delete (exact storage key) — unlike the delete-all-of-
+  // type driver route, it can never sweep unrelated rows (incidental-cost
+  // receipts still ride OTHER). With several biên bản photos on file each
+  // tile deletes only its own row.
+  const removeDeliveryNote = async (storageKey: string) => {
+    setRemovingNote(storageKey);
     try {
-      await api.post(`/upload/trips/${tripId}/photos/delivery_note/delete`, { storage_key: deliveryNotePhotoKey }, {
-        idempotencyKey: `driver-delivery-note-delete:${tripId}:${deliveryNotePhotoKey}`,
+      await api.post(`/upload/trips/${tripId}/photos/delivery_note/delete`, { storage_key: storageKey }, {
+        idempotencyKey: `driver-delivery-note-delete:${tripId}:${storageKey}`,
       });
       toast({ kind: 'success', message: 'Đã xóa ảnh biên bản.' });
       onSaved();
     } catch (e) {
       toast({ kind: 'error', message: e instanceof Error ? e.message : 'Không xóa được ảnh biên bản.' });
     } finally {
-      setRemovingNote(false);
+      setRemovingNote(null);
     }
   };
 
@@ -263,13 +269,12 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
   };
 
   // Populated slots only — gallery order follows the tile strip (cont, seal,
-  // biên bản). Empty slots never imply an openable image.
-  const viewerKeys = [contPhotoKey, sealPhotoKey, deliveryNotePhotoKey].filter((key): key is string => key != null);
+  // then every biên bản). Empty slots never imply an openable image.
+  const viewerKeys = [contPhotoKey, sealPhotoKey, ...deliveryNotePhotoKeys].filter((key): key is string => key != null);
   const viewerUrls = useAuthedPhotoUrls(viewerKeys);
 
-  const openViewer = (label: string, opener: HTMLButtonElement) => {
-    const slot = label === 'Cont' ? contPhotoKey : label === 'Seal' ? sealPhotoKey : deliveryNotePhotoKey;
-    const index = viewerKeys.indexOf(slot ?? '');
+  const openViewer = (photoKey: string, opener: HTMLButtonElement) => {
+    const index = viewerKeys.indexOf(photoKey);
     if (index < 0) return;
     viewerOpenerRef.current = opener;
     setViewerIndex(index);
@@ -282,7 +287,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
       type="button"
       className="dcc-bento__tile-btn"
       aria-label={`Xem ảnh ${label.toLowerCase()}`}
-      onClick={(e) => openViewer(label, e.currentTarget)}
+      onClick={(e) => openViewer(photoKey, e.currentTarget)}
     >
       {renderThumb(photoKey, label)}
     </button>
@@ -405,22 +410,37 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
               <div className="dcc-bento__thumbs">
                 {attachmentTile(contPhotoKey, 'Cont')}
                 {attachmentTile(sealPhotoKey, 'Seal')}
-                {/* Biên bản slot carries its own delete — the photo block is
-                    the single display + management surface for all 3 types. */}
-                <div className="dcc-bento__slot">
-                  {attachmentTile(deliveryNotePhotoKey, 'Biên bản')}
-                  {deliveryNotePhotoKey && !readOnly && (
-                    <button
-                      type="button"
-                      className="dcc-photo-remove"
-                      onClick={() => void removeDeliveryNote()}
-                      disabled={removingNote || uploadingNote}
-                      aria-label="Xóa ảnh biên bản"
-                    >
-                      {removingNote ? <Loader2 size={12} className="spin" /> : <X size={12} />}
-                    </button>
-                  )}
-                </div>
+                {/* Every biên bản photo is its own slot with its own delete —
+                    the photo block is the single display + management surface
+                    for all 3 types, and an upload never replaces its
+                    predecessors. Labels gain an index only when there is more
+                    than one, so the single-photo names stay stable. */}
+                {deliveryNotePhotoKeys.map((noteKey, index) => {
+                  const suffix = deliveryNotePhotoKeys.length > 1 ? ` ${index + 1}` : '';
+                  return (
+                    <div className="dcc-bento__slot" key={noteKey}>
+                      <button
+                        type="button"
+                        className="dcc-bento__tile-btn"
+                        aria-label={`Xem ảnh biên bản${suffix}`}
+                        onClick={(e) => openViewer(noteKey, e.currentTarget)}
+                      >
+                        {renderThumb(noteKey, 'Biên bản')}
+                      </button>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          className="dcc-photo-remove"
+                          onClick={() => void removeDeliveryNote(noteKey)}
+                          disabled={removingNote !== null || uploadingNote}
+                          aria-label={`Xóa ảnh biên bản${suffix}`}
+                        >
+                          {removingNote === noteKey ? <Loader2 size={12} className="spin" /> : <X size={12} />}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               {/* Ghost retake affordances under the saved slots — one style,
                   ≥44px touch on coarse pointers (design spec photo block). */}
@@ -529,7 +549,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                 before pressing Save. In edit mode this is seeded with the
                 currently-saved photos so the driver can see what was on file
                 before deciding to re-capture. */}
-            {(lastPhotos.cont || lastPhotos.seal || deliveryNotePhotoKey) && (
+            {(lastPhotos.cont || lastPhotos.seal || deliveryNotePhotoKeys.length > 0) && (
               <div className="dcc-photos">
                 {lastPhotos.cont && (
                   <figure className="dcc-photo-fig">
@@ -561,23 +581,27 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                     <figcaption>Ảnh seal</figcaption>
                   </figure>
                 )}
-                {/* Biên bản preview in the same strip — keeps the empty-state
-                    capture flow verifiable before the first container save. */}
-                {deliveryNotePhotoKey && (
-                  <figure className="dcc-photo-fig">
-                    <button
-                      type="button"
-                      className="dcc-photo-remove"
-                      onClick={() => void removeDeliveryNote()}
-                      disabled={removingNote || uploadingNote}
-                      aria-label="Xóa ảnh biên bản"
-                    >
-                      {removingNote ? <Loader2 size={12} className="spin" /> : <X size={12} />}
-                    </button>
-                    <AuthedPhotoImg photoKey={deliveryNotePhotoKey} className="dcc-photo" alt="Ảnh biên bản giao hàng" />
-                    <figcaption>Ảnh biên bản</figcaption>
-                  </figure>
-                )}
+                {/* Biên bản previews in the same strip — one per photo on file,
+                    keeping the empty-state capture flow verifiable before the
+                    first container save, and never hiding earlier uploads. */}
+                {deliveryNotePhotoKeys.map((noteKey, index) => {
+                  const suffix = deliveryNotePhotoKeys.length > 1 ? ` ${index + 1}` : '';
+                  return (
+                    <figure className="dcc-photo-fig" key={noteKey}>
+                      <button
+                        type="button"
+                        className="dcc-photo-remove"
+                        onClick={() => void removeDeliveryNote(noteKey)}
+                        disabled={removingNote !== null || uploadingNote}
+                        aria-label={`Xóa ảnh biên bản${suffix}`}
+                      >
+                        {removingNote === noteKey ? <Loader2 size={12} className="spin" /> : <X size={12} />}
+                      </button>
+                      <AuthedPhotoImg photoKey={noteKey} className="dcc-photo" alt="Ảnh biên bản giao hàng" />
+                      <figcaption>Ảnh biên bản</figcaption>
+                    </figure>
+                  );
+                })}
               </div>
             )}
 

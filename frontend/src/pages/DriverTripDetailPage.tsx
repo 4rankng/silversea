@@ -324,9 +324,13 @@ function DriverTripDetailContent() {
   const containerSealPhotos = fulfillment?.containerSealPhotos ?? [];
   const contPhotoKey = containerSealPhotos.find((p) => p.type === 'CONTAINER')?.storageKey ?? null;
   const sealPhotoKey = containerSealPhotos.find((p) => p.type === 'SEAL')?.storageKey ?? null;
-  // 40f3ae15: biên bản giao hàng photo rides the same wire as type
-  // DELIVERY_NOTE (latest row wins — the query orders by uploadedAt desc).
-  const deliveryNotePhotoKey = containerSealPhotos.find((p) => p.type === 'DELIVERY_NOTE')?.storageKey ?? null;
+  // EVERY biên bản giao hàng photo rides the same wire (the query orders by
+  // uploadedAt desc). The old `.find()` kept only the latest row and silently
+  // hid the driver's earlier uploads — each upload is its own trip_photos row,
+  // so all of them render.
+  const deliveryNotePhotoKeys = containerSealPhotos
+    .filter((p) => p.type === 'DELIVERY_NOTE')
+    .map((p) => p.storageKey);
   const accountingLock = trip.accountingLock ?? null;
   // Spec (Phần 4): the completion gate lives on the e-POD screen
   // (/my-trips/:id/pod) — this page only links there. The footer still
@@ -472,7 +476,7 @@ function DriverTripDetailContent() {
           containers={trip.containers}
           contPhotoKey={contPhotoKey}
           sealPhotoKey={sealPhotoKey}
-          deliveryNotePhotoKey={deliveryNotePhotoKey}
+          deliveryNotePhotoKeys={deliveryNotePhotoKeys}
           tradeDirection={trip.tradeDirection ?? null}
           onSaved={handleContainerSaved}
         />
