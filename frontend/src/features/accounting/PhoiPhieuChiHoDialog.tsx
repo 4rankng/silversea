@@ -8,7 +8,8 @@ import {
 import { billBookingReference } from '../../lib/business-reference';
 import { formatMoney } from '../../lib/format';
 import { qk } from '../../api/keys';
-import { Btn, useConfirm } from '../../components/UI';
+import { Btn } from '../../components/UI';
+import { useReasonPrompt } from '../../components/reason-prompt';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { EmptyState, Modal, NumberField, TextField } from '../../design-system';
@@ -40,7 +41,14 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
   const [ngayLayPhoi, setNgayLayPhoi] = useState<string | null>(null);
   const [trangThaiLay, setTrangThaiLay] = useState<string | null>(null);
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
-  const { confirm, dialog } = useConfirm();
+  // Card 20261005_373: the void now REQUIRES a reason and the audit log stores
+  // it, so the old hardcoded sentence ("Kế toán xóa dòng trong xem chi tiết chi
+  // hộ") said nothing about why the row was dropped. The accountant types the
+  // grounds through the ONE house reason prompt (components/reason-prompt) — the
+  // same surface the tiền-đường reject uses. Its Confirm button stays disabled
+  // while the trimmed reason is empty, and a cancel resolves to null, so no
+  // request is sent without a reason.
+  const { prompt, dialog } = useReasonPrompt();
 
   // Card 20260923_11: this dialog and the "Thêm khoản chi" panel are two
   // aria-modal surfaces. `adding` used to mount the drawer *beside* the still
@@ -140,12 +148,13 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
   }
 
   async function removeRow(row: PhoiPhieuFeeRow) {
-    const ok = await confirm(`Xóa dòng "${row.feeName ?? 'phí'}"? Khoản đã đối chiếu sẽ không xóa được.`, { variant: 'danger', confirmLabel: 'Xóa' });
-    if (!ok) return;
+    if (saving || detail.isFetching) return;
+    const reason = await prompt(`Xóa dòng "${row.feeName ?? 'phí'}"? Khoản đã đối chiếu sẽ không xóa được.`, { confirmLabel: 'Xóa' });
+    if (!reason) return;
     setSaving(true);
     setError('');
     try {
-      await voidPhoiPhieuRow(tripId, row.sourceId, 'Kế toán xóa dòng trong xem chi tiết chi hộ');
+      await voidPhoiPhieuRow(tripId, row.sourceId, reason);
       await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) });
     } catch (voidError) {
       setError(voidError instanceof Error ? voidError.message : 'Không xóa được dòng.');

@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const api = vi.hoisted(() => ({ get: vi.fn(), confirm: vi.fn() }));
-vi.mock('../../api/phoiPhieuClient', () => ({ getPhoiPhieuTienDuong: api.get, confirmPhoiPhieuTienDuong: api.confirm }));
+const api = vi.hoisted(() => ({ get: vi.fn(), confirm: vi.fn(), remove: vi.fn() }));
+vi.mock('../../api/phoiPhieuClient', () => ({ getPhoiPhieuTienDuong: api.get, confirmPhoiPhieuTienDuong: api.confirm, voidPhoiPhieuRow: api.remove }));
 import { PhoiPhieuTienDuongDialog } from './PhoiPhieuTienDuongDialog';
-const row = { sourceId: 7, version: 4, costType: 'OTHER', feeName: 'Phụ cấp cấu hình', driverEnteredAmount: 73000, amount: 75000, confirmed: false, driverName: 'Lái xe kiểm thử', occurredAt: '2026-09-22' };
+const row = { sourceId: 7, version: 4, costType: 'OTHER', feeName: 'Phụ cấp cấu hình', driverEnteredAmount: 73000, amount: 75000, confirmed: false, driverName: 'Lái xe kiểm thử', payerName: 'Kế toán kiểm thử', occurredAt: '2026-09-22' };
 const detail = { tripId: 8, tripCode: 'TRP-TEST', rows: [row], totals: { total: 75000, confirmed: 0 } };
 const saved = vi.fn();
 function mount() { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PhoiPhieuTienDuongDialog tripId={8} onClose={vi.fn()} onSaved={saved} /></QueryClientProvider>); }
@@ -55,7 +55,7 @@ describe('driver cost confirmation uses current source version', () => {
   });
 });
 
-// Inside the 640px modal the tt-table's fixed layout equal-shares 7 columns
+// Inside the 640px modal the tt-table's fixed layout equal-shares 8 columns
 // and thead th pins nowrap, so "LÁI XE NHẬP BAN ĐẦU (Đ)" and "THỰC CHI HIỆN
 // (Đ)" clip mid-token (case QA-2026-09-24-01). Design law §4: table text wraps
 // at spaces or the column expands — it never clips. Mirrors the board's pinned
@@ -75,7 +75,7 @@ describe('modal table headers never clip (case QA-2026-09-24-01; design law §4)
       expect(screen.getByRole('columnheader', { name }).closest('table')).toHaveClass('phoi-detail-matrix');
     }
   });
-  it('the modal shell budgets the 7-column table — no 640px equal-share squeeze', async () => {
+  it('the modal shell budgets the 8-column table — no 640px equal-share squeeze', async () => {
     mount();
     await screen.findByRole('columnheader', { name: 'Thực chi hiện tại (đ)' });
     const content = screen.getByRole('dialog', { name: 'Chi tiết tiền đường' }).querySelector('.modal__content');
@@ -84,7 +84,105 @@ describe('modal table headers never clip (case QA-2026-09-24-01; design law §4)
     const table = screen.getByRole('columnheader', { name: 'Thực chi hiện tại (đ)' }).closest('table')!;
     expect(table).toHaveClass('record-table');
     expect(table.parentElement).toHaveClass('record-table-wrap');
-    expect([...table.querySelectorAll('tbody td')].map(cell => (cell as HTMLElement).dataset.label)).toEqual(['STT', 'Khoản lái xe nhập', 'Ngày', 'Lái xe', 'Lái xe nhập ban đầu (đ)', 'Thực chi hiện tại (đ)', 'Kế toán duyệt']);
+    expect([...table.querySelectorAll('tbody td')].map(cell => (cell as HTMLElement).dataset.label)).toEqual(['STT', 'Khoản lái xe nhập', 'Ngày', 'Lái xe', 'Lái xe nhập ban đầu (đ)', 'Thực chi hiện tại (đ)', 'Người thanh toán', 'Kế toán duyệt']);
     expect(table.closest('.table-scroll')).toBeNull();
+  });
+});
+
+// Card 20261005_373: the tiền-đường grid gained the "Người thanh toán" column the
+// chi-hộ grid already had. Same cell contract as chi-hộ — `data-label` for the
+// responsive phone layout, the shared `phoi-detail-col--identity` width class,
+// and `—` for a row nobody has attributed.
+describe('the tiền-đường grid names the payer like the chi-hộ grid (card 20261005_373)', () => {
+  beforeEach(() => { vi.clearAllMocks(); api.get.mockResolvedValue(detail); api.confirm.mockResolvedValue({}); });
+  it('shows the payer name, and `—` for a row the backend leaves unattributed', async () => {
+    api.get.mockResolvedValue({ ...detail, rows: [row, { ...row, sourceId: 9, payerName: null }] });
+    mount();
+    await screen.findByText('Kế toán kiểm thử');
+    const payerCells = screen.getAllByText('Kế toán kiểm thử');
+    expect(payerCells).toHaveLength(1);
+    expect(payerCells[0].tagName).toBe('TD');
+    expect(payerCells[0]).toHaveAttribute('data-label', 'Người thanh toán');
+    expect(payerCells[0]).toHaveClass('phoi-detail-col--identity');
+    const rowWithoutPayer = screen.getByLabelText('Thực chi dòng 2').closest('tr')!;
+    const emptyPayer = rowWithoutPayer.querySelector('td[data-label="Người thanh toán"]')!;
+    expect(emptyPayer).toHaveTextContent('—');
+    expect(screen.getByRole('columnheader', { name: 'Người thanh toán' }).closest('table')).toHaveClass('phoi-detail-matrix');
+  });
+});
+
+// Card 20261005_373 (the rejection half): the tiền-đường grid offered the
+// accountant "Tích duyệt" and nothing else, so a driver-entered cost the
+// accountant rejects could only be left sitting on the phơi phiếu. The
+// rejection now states its grounds through the ONE house reason prompt
+// (components/reason-prompt — the same surface the chi-hộ remove uses) and
+// voids the row. A row already confirmed offers no rejection, because the
+// backend refuses a confirmed row.
+describe('tiền-đường rejects a driver-entered cost with a stated reason (card 20261005_373)', () => {
+  beforeEach(() => { vi.clearAllMocks(); api.get.mockResolvedValue(detail); api.confirm.mockResolvedValue({}); api.remove.mockResolvedValue({ ok: true }); });
+
+  it('offers "Từ chối" on an unconfirmed row only — a confirmed row keeps its existing state', async () => {
+    api.get.mockResolvedValue({ ...detail, rows: [{ ...row, confirmed: false }, { ...row, sourceId: 9, feeName: 'Phụ cấp cầu đường', confirmed: true }] });
+    mount();
+    const unconfirmed = (await screen.findByText('Phụ cấp cấu hình')).closest('tr')!;
+    const confirmed = screen.getByText('Phụ cấp cầu đường').closest('tr')!;
+    expect(within(unconfirmed).getByRole('button', { name: 'Tích duyệt' })).toBeEnabled();
+    expect(within(unconfirmed).getByRole('button', { name: 'Từ chối' })).toBeEnabled();
+    expect(within(confirmed).queryByRole('button', { name: 'Từ chối' })).not.toBeInTheDocument();
+    expect(within(confirmed).getByText('Đã duyệt')).toBeInTheDocument();
+  });
+
+  it('keeps the rejection unavailable until a non-empty reason is typed', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Từ chối' }));
+    const prompt = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    const field = prompt.getByLabelText('Lý do từ chối (bắt buộc)');
+    expect(prompt.getByRole('button', { name: 'Từ chối' })).toBeDisabled();
+    fireEvent.change(field, { target: { value: '   ' } });
+    expect(prompt.getByRole('button', { name: 'Từ chối' })).toBeDisabled();
+    fireEvent.change(field, { target: { value: 'Lái xe ghi sai số tiền' } });
+    expect(prompt.getByRole('button', { name: 'Từ chối' })).toBeEnabled();
+    expect(api.remove).not.toHaveBeenCalled();
+  });
+
+  it('sends the typed reason and refetches, so the rejected row leaves the grid', async () => {
+    let authoritative = [row];
+    api.get.mockImplementation(() => Promise.resolve({ ...detail, rows: authoritative }));
+    api.remove.mockImplementation(async (_tripId: number, sourceId: number) => {
+      authoritative = authoritative.filter((candidate) => candidate.sourceId !== sourceId);
+      return { ok: true as const };
+    });
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Từ chối' }));
+    const prompt = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    fireEvent.change(prompt.getByLabelText('Lý do từ chối (bắt buộc)'), { target: { value: '  Lái xe nhập trùng phí cầu đường  ' } });
+    fireEvent.click(prompt.getByRole('button', { name: 'Từ chối' }));
+    await waitFor(() => expect(api.remove).toHaveBeenCalledWith(8, 7, 'Lái xe nhập trùng phí cầu đường'));
+    // The grid refetches after the void, so the rejected row is gone.
+    await waitFor(() => expect(screen.queryByText('Phụ cấp cấu hình')).not.toBeInTheDocument());
+    expect(api.get.mock.calls.length).toBeGreaterThan(1);
+    expect(saved).toHaveBeenCalled();
+  });
+
+  it('cancelling the reason prompt sends no void at all', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Từ chối' }));
+    const prompt = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    fireEvent.click(prompt.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).not.toBeInTheDocument());
+    expect(api.remove).not.toHaveBeenCalled();
+    expect(screen.getByText('Phụ cấp cấu hình')).toBeInTheDocument();
+  });
+
+  it('surfaces the backend refusal in the dialog alert and keeps the row', async () => {
+    api.remove.mockRejectedValueOnce(new Error('Xe ngoài không từ chối chi do tài xế nhập — kế toán nhập và sửa chi phí trực tiếp.'));
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Từ chối' }));
+    const prompt = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    fireEvent.change(prompt.getByLabelText('Lý do từ chối (bắt buộc)'), { target: { value: 'Không thuộc chi phí của lái xe' } });
+    fireEvent.click(prompt.getByRole('button', { name: 'Từ chối' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Xe ngoài không từ chối chi do tài xế nhập');
+    expect(screen.getByText('Phụ cấp cấu hình')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledOnce();
   });
 });

@@ -128,7 +128,13 @@ router.put('/phoi-phieu/:tripId/phoi-meta', declareMaterialWrite('expense-accoun
 router.delete('/phoi-phieu/:tripId/rows/:sourceId', declareMaterialWrite('expense-accounting.phoi-phieu.row-void', { method: 'DELETE', path: '/api/expense-accounting/phoi-phieu/:tripId/rows/:sourceId' }),  requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   const sourceId = parse(idSchema, req.params.sourceId);
-  const reason = parse(z.object({ reason: z.string().trim().min(1).max(500) }).strict(), req.body ?? {}).reason;
+  // Card 2026-10-05_373: a rejection without a reason is refused as a 400, and
+  // the message is Vietnamese because it surfaces in the confirm dialog verbatim
+  // (zod's default "String must contain at least 1 character(s)" must not).
+  const reason = parse(z.object({
+    reason: z.string({ required_error: 'Lý do từ chối là bắt buộc.', invalid_type_error: 'Lý do từ chối là bắt buộc.' })
+      .trim().min(1, 'Lý do từ chối không được để trống.').max(500, 'Lý do từ chối không được vượt quá 500 ký tự.'),
+  }).strict(), req.body ?? {}).reason;
   const user = getUser(req);
   requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const outcome = await runIdempotent({

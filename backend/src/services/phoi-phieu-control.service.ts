@@ -778,14 +778,62 @@ export async function updatePhoiPhieuMeta(tripId: number, input: {
   };
   return outer ? run(outer) : db.transaction(run);
 }
+/** Card 2026-10-05_373 — a DRIVER row is a value the DRIVER entered, and the
+ *  accountant rejecting it is exactly the "Từ chối" action: the row leaves the
+ *  dialog while the driver's own cost record (including `driverEnteredAmount`)
+ *  is kept for history. Carrier type lives on `tripCarrierInfo` (1:1 per trip;
+ *  `trips.carrier_type` was dropped in migration 0056), and a trip with no
+ *  carrier row is in-house by the column default. */
+async function assertDriverCostOnOwnCarrier(tx: Tx, tripId: number | null) {
+  if (tripId == null) throw new ApiError(404, 'Khoản chi của tài xế không thuộc chuyến nào.');
+  const [info] = await tx.select({ carrierType: s.tripCarrierInfo.carrierType })
+    .from(s.trips)
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .where(eq(s.trips.id, tripId)).limit(1);
+  if (!info) throw new ApiError(404, 'Không tìm thấy chuyến.');
+  // No carrier row = the `OWN` column default, so an un-migrated trip is not
+  // silently treated as xe ngoài and blocked from rejection.
+  if ((info.carrierType ?? 'OWN') !== 'OWN') {
+    throw new ApiError(409, 'Xe ngoài không từ chối chi do tài xế nhập — kế toán nhập và sửa chi phí trực tiếp.');
+  }
+}
+
 /** Remove a fee row from the dialog: VOID the source (history kept — the
- *  accounting rule) and void the entry, never a hard delete. */
+ *  accounting rule) and void the entry, never a hard delete.
+ *
+ *  Card 2026-10-05_373 — the void accepts an OPS row (chi hộ) or a DRIVER row
+ *  (chi tiền đường do tài xế nhập). The two are modelled on different native
+ *  tables, so the per-table work is split by `sourceKind`:
+ *
+ *  - OPS: `opsExpenseEntries.approvalStatus = 'VOIDED'`, exactly as before.
+ *  - DRIVER: `driver_incidental_costs` has NO status/approval column of its own
+ *    (see costs.ts) — unlike ops_expense_entries there is no second flag to
+ *    flip. `expense_accounting_sources.status` IS the row's status of record,
+ *    and `getPhoiPhieuTienDuong` already filters on it (`ne(status,'VOIDED')`),
+ *    so voiding the source is the complete and correct model: the cost row and
+ *    the driver's original amount stay for history while the row leaves the
+ *    dialog and its amount leaves the road-fee totals.
+ *
+ *  CONFIRMED rows (either kind) stay refused with a pointer to
+ *  `correctAccountingExpense`: that path preserves the original and records a
+ *  linked replacement, so it is the sanctioned way to fix an amount that has
+ *  already been đối chiếu. Building an "un-confirm" flow here would let a
+ *  settled amount be erased, which is why this card does not add one.
+ *
+ *  `propagateRecordedExpense` stays keyed on `linkedTripExpenseId` rather than
+ *  on `sourceKind`: only confirmation mints that link, and a confirmed row is
+ *  refused above, so for an unconfirmed DRIVER row it is simply null. */
 export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: AuthUser, reason: string, outer?: Tx) {
+  // The reason is the accountant's stated grounds for a rejection and is written
+  // to the audit log below, so it is mandatory even for a direct service caller
+  // that never passed through the route's zod guard.
+  const trimmedReason = (reason ?? '').trim();
+  if (!trimmedReason) throw new ApiError(400, 'Lý do từ chối là bắt buộc.');
   const run = async (tx: Tx) => {
     const [source] = await tx.select().from(s.expenseAccountingSources)
       .where(and(eq(s.expenseAccountingSources.id, sourceId),
-        eq(s.expenseAccountingSources.sourceKind, 'OPS'))).limit(1).for('update');
-    if (!source) throw new ApiError(404, 'Không tìm thấy khoản phí chi hộ OPS.');
+        inArray(s.expenseAccountingSources.sourceKind, ['OPS', 'DRIVER']))).limit(1).for('update');
+    if (!source) throw new ApiError(404, 'Không tìm thấy khoản phí chi hộ.');
     await assertShipmentAccountingUnlocked(tx, source.shipmentId);
     if (source.shipmentId !== null) {
       const [linked] = await tx.select({ id: s.trips.id }).from(s.trips)
@@ -793,10 +841,17 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
       if (!linked) throw new ApiError(404, 'Khoản phí không thuộc chuyến này.');
     }
     if (source.confirmedAt) throw new ApiError(409, 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa.');
+    // Rejecting a driver-entered cost is an xe nhà action only: on xe ngoài the
+    // driver never enters the cost, so the accountant keeps owning the row.
+    if (source.sourceKind === 'DRIVER') await assertDriverCostOnOwnCarrier(tx, source.tripId);
     await tx.update(s.expenseAccountingSources).set({ status: 'VOIDED', updatedAt: new Date() })
       .where(eq(s.expenseAccountingSources.id, sourceId));
-    await tx.update(s.opsExpenseEntries).set({ approvalStatus: 'VOIDED', updatedAt: new Date() })
-      .where(eq(s.opsExpenseEntries.id, source.sourceId));
+    // Only the OPS table carries a native approval flag; running this for a
+    // DRIVER source would target an unrelated ops_expense_entries row id.
+    if (source.sourceKind === 'OPS') {
+      await tx.update(s.opsExpenseEntries).set({ approvalStatus: 'VOIDED', updatedAt: new Date() })
+        .where(eq(s.opsExpenseEntries.id, source.sourceId));
+    }
     if (source.linkedTripExpenseId) {
       await tx.update(s.tripExpenses).set({ approvalStatus: 'VOIDED', updatedAt: new Date() })
         .where(eq(s.tripExpenses.id, source.linkedTripExpenseId));
@@ -804,7 +859,7 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
     }
     await tx.insert(s.auditLogs).values({
       userId: actor.userId, entityType: 'expense_accounting_source', entityId: sourceId,
-      message: 'VOID phoi-phieu fee row', payload: { reason, tripId },
+      message: 'VOID phoi-phieu fee row', payload: { reason: trimmedReason, tripId, sourceKind: source.sourceKind },
     });
     return { ok: true };
   };
@@ -822,6 +877,11 @@ export interface PhoiPhieuTienDuongRow {
   amount: number;
   confirmed: boolean;
   driverName: string | null;
+  /** Card 20261005_373: who is accountable for paying this road cost, so the
+   *  tiền-đường grid can name the payer the way the chi-hộ grid already does.
+   *  `null` = nobody to name (company paid, or the driver has no linked user)
+   *  and the grid renders `—`. */
+  payerName: string | null;
   occurredAt: string | null;
 }
 
@@ -840,11 +900,19 @@ export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor =
     amount: s.driverIncidentalCosts.amount,
     occurredAt: s.driverIncidentalCosts.occurredAt,
     driverName: s.drivers.name,
+    payerKind: s.driverIncidentalCosts.payerKind,
+    payerName: s.users.fullName,
     confirmedAt: s.expenseAccountingSources.confirmedAt,
     version: s.expenseAccountingSources.version,
   })
     .from(s.driverIncidentalCosts)
     .leftJoin(s.drivers, eq(s.drivers.id, s.driverIncidentalCosts.driverId))
+    // Card 20261005_373: the payer of a DRIVER cost is the driver's own user
+    // account (`hydrateExpenseAccountingSource`'s DRIVER branch, expense-
+    // accounting-source.service.ts:83 — `payerUserId = d.userId`). Joined from
+    // `drivers.userId`, never from the cost row, and left-joined so a driver
+    // with no linked user still yields its row with a `—` payer.
+    .leftJoin(s.users, eq(s.users.id, s.drivers.userId))
     .leftJoin(s.expenseAccountingSources, and(
       eq(s.expenseAccountingSources.sourceKind, 'DRIVER'),
       eq(s.expenseAccountingSources.sourceId, s.driverIncidentalCosts.id),
@@ -863,6 +931,11 @@ export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor =
     amount: Number(row.amount ?? 0),
     confirmed: row.confirmedAt != null,
     driverName: row.driverName,
+    // Card 20261005_373: a COMPANY payer means the company fronted the money,
+    // so naming the driver's user account would be a lie — the same gate the
+    // DRIVER hydration applies. A null/absent payerKind is a legacy row, and
+    // the hydration defaults those to USER, so they keep the name.
+    payerName: row.payerKind === 'COMPANY' ? null : row.payerName ?? null,
     occurredAt: row.occurredAt,
   }));
   const confirmedRows = feeRows.filter((row) => row.confirmed);

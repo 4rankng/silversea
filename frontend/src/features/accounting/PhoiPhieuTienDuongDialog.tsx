@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { confirmPhoiPhieuTienDuong, getPhoiPhieuTienDuong } from '../../api/phoiPhieuClient';
+import { confirmPhoiPhieuTienDuong, getPhoiPhieuTienDuong, voidPhoiPhieuRow } from '../../api/phoiPhieuClient';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { formatCurrency } from '../../lib/format';
@@ -8,6 +8,7 @@ import { billBookingReference } from '../../lib/business-reference';
 import { DRIVER_INCIDENTAL_COST_LABELS, sumExcludingNegative } from '@tingting/shared';
 import { EmptyState, Modal, NumberField } from '../../design-system';
 import { Btn } from '../../components/UI';
+import { useReasonPrompt } from '../../components/reason-prompt';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
 import { Money } from '../../components/shared/Money';
 import { PhoiPhieuDetailSummary } from './PhoiPhieuDetailSummary';
@@ -31,6 +32,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
     queryFn: () => getPhoiPhieuTienDuong(tripId),
   });
   const [confirming, setConfirming] = useState<number | null>(null);
+  const [rejecting, setRejecting] = useState<number | null>(null);
   const [edits, setEdits] = useState<Record<number, number | ''>>({});
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -38,6 +40,14 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
   const [refreshRequired, setRefreshRequired] = useState(false);
   const confirmLock = useRef(false);
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
+  // Card 20261005_373: a reject needs a reason (the service requires a non-blank
+  // one and writes it to the audit log), and the shared confirm hook cannot
+  // collect text — so the rejection asks through the ONE house reason prompt
+  // (components/reason-prompt), the same surface Ops chi phí and the debit
+  // workspace use. Its Confirm button stays disabled until the trimmed reason
+  // is non-empty and a cancel resolves to null, so no request is ever sent
+  // without grounds.
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
 
   // Memoized so the `totals` memo below keeps a stable `rows` identity: the
   // `?? []` fallback would otherwise hand it a new array every render and
@@ -85,6 +95,30 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
     setEdits((current) => ({ ...current, [sourceId]: value }));
   }
 
+  /** Card 20261005_373: reject a driver-entered cost. Only offered on an
+   *  unconfirmed row — the backend refuses a confirmed one (409, "dùng điều
+   *  chỉnh"), and a xe ngoài driver row is refused too; both messages land in
+   *  the same `error` alert the confirm path uses. */
+  async function rejectRow(row: (typeof rows)[number]) {
+    if (busy || detail.isFetching || refreshRequired) return;
+    const reason = await prompt(
+      `Từ chối khoản chi "${row.feeName || DRIVER_INCIDENTAL_COST_LABELS[row.costType as keyof typeof DRIVER_INCIDENTAL_COST_LABELS] || row.costType}" do lái xe nhập? Dòng này sẽ bị bỏ khỏi phơi phiếu.`,
+      { confirmLabel: 'Từ chối', reasonLabel: 'Lý do từ chối (bắt buộc)' },
+    );
+    if (!reason) return;
+    setRejecting(row.sourceId);
+    setError('');
+    try {
+      await voidPhoiPhieuRow(tripId, row.sourceId, reason);
+      await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.tienDuong(tripId) });
+      onSaved();
+    } catch (rejectError) {
+      setError(rejectError instanceof Error ? rejectError.message : 'Không từ chối được khoản.');
+    } finally {
+      setRejecting(null);
+    }
+  }
+
   /** The chi hộ dialog's save loop, for driver rows: unapproved money goes
    *  through the plain update, approved money through the correction path that
    *  keeps the original amount in history. */
@@ -123,7 +157,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
     }
   }
 
-  const busy = saving || confirming !== null;
+  const busy = saving || confirming !== null || rejecting !== null;
   const dirty = rows.some(row => edits[row.sourceId] !== undefined && edits[row.sourceId] !== row.amount);
 
   return (
@@ -162,6 +196,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
                 <th className="phoi-detail-col--identity">Lái xe</th>
                 <th className="phoi-detail-col--money">Lái xe nhập ban đầu (đ)</th>
                 <th className="phoi-detail-col--money">Thực chi hiện tại (đ)</th>
+                <th className="phoi-detail-col--identity">Người thanh toán</th>
                 <th className="phoi-detail-col--action">Kế toán duyệt</th>
               </tr></thead>
               <tbody>
@@ -183,10 +218,14 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
                         onChange={(n) => setAmount(row.sourceId, n)}
                       />
                     </td>
+                    <td data-label="Người thanh toán" className="phoi-detail-col--identity">{row.payerName ?? '—'}</td>
                     <td data-label="Kế toán duyệt" className="phoi-detail-col--action">
                       {row.confirmed
                         ? <span>Đã duyệt</span>
-                        : <Btn size="sm" disabled={busy || detail.isFetching || refreshRequired} onClick={() => void tickConfirm(row)}>Tích duyệt</Btn>}
+                        : <>
+                            <Btn size="sm" disabled={busy || detail.isFetching || refreshRequired} onClick={() => void tickConfirm(row)}>Tích duyệt</Btn>{' '}
+                            <Btn size="sm" disabled={busy || detail.isFetching || refreshRequired} title="Bỏ dòng lái xe nhập khỏi phơi phiếu, kèm lý do" onClick={() => void rejectRow(row)}>Từ chối</Btn>
+                          </>}
                     </td>
                   </tr>
                 ))}
@@ -204,6 +243,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
         )}
         {adding && catalog.isPending && <p role="status">Đang tải loại phí và nhân viên…</p>}
         {adding && catalog.isError && <p role="alert">{catalog.error.message} <button type="button" onClick={() => void catalog.refetch()}>Thử lại</button><button type="button" onClick={() => setAdding(false)}>Hủy</button></p>}
+        {reasonDialog}
       </div>
     </Modal>}
       {addPanelOpen && catalog.data && <ExpenseCreateDrawer

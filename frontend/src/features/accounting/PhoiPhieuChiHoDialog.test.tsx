@@ -232,9 +232,44 @@ describe('phơi chi-hộ row identity', () => {
     expect(first.getByRole('button', { name: 'Xóa' })).toBeEnabled();
     expect(confirmed.getByRole('button', { name: 'Xóa' })).toBeDisabled();
     fireEvent.click(first.getByRole('button', { name: 'Xóa' }));
-    const dialog = within(await screen.findByRole('dialog', { name: 'Xác nhận thao tác' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    // Card 20261005_373: the reason is REQUIRED, so the confirm button stays
+    // disabled until the accountant states the grounds for the void.
+    expect(dialog.getByRole('button', { name: 'Xóa' })).toBeDisabled();
+    fireEvent.change(dialog.getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: '  ' } });
+    expect(dialog.getByRole('button', { name: 'Xóa' })).toBeDisabled();
+    fireEvent.change(dialog.getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Nhập trùng biểu phí cảng' } });
     fireEvent.click(dialog.getByRole('button', { name: 'Xóa' }));
-    await waitFor(() => expect(api.remove).toHaveBeenCalledWith(7, 5, expect.any(String)));
+    await waitFor(() => expect(api.remove).toHaveBeenCalledWith(7, 5, 'Nhập trùng biểu phí cảng'));
+  });
+  it('card 20261005_373: sends the accountant\'s stated grounds, never a fixed sentence', async () => {
+    page(); await screen.findByText('First fee');
+    fireEvent.click(within(screen.getByText('First fee').closest('tr')!).getByRole('button', { name: 'Xóa' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    fireEvent.change(dialog.getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: '  Kế toán không công nhận biểu phí này  ' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Xóa' }));
+    await waitFor(() => expect(api.remove).toHaveBeenCalledOnce());
+    // The trimmed, user-typed reason — the old hardcoded
+    // "Kế toán xóa dòng trong xem chi tiết chi hộ" is gone from the payload.
+    expect(api.remove.mock.calls[0]![2]).toBe('Kế toán không công nhận biểu phí này');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).not.toBeInTheDocument());
+  });
+  it('card 20261005_373: a cancelled reason prompt sends no void at all', async () => {
+    page(); await screen.findByText('First fee');
+    fireEvent.click(within(screen.getByText('First fee').closest('tr')!).getByRole('button', { name: 'Xóa' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).not.toBeInTheDocument());
+    expect(api.remove).not.toHaveBeenCalled();
+  });
+  it('card 20261005_373: a backend refusal is surfaced in the dialog alert', async () => {
+    api.remove.mockRejectedValueOnce(new Error('Khoản đã được đối chiếu — dùng điều chỉnh.'));
+    page(); await screen.findByText('First fee');
+    fireEvent.click(within(screen.getByText('First fee').closest('tr')!).getByRole('button', { name: 'Xóa' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    fireEvent.change(dialog.getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Sai chứng từ' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Xóa' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Khoản đã được đối chiếu — dùng điều chỉnh.');
   });
   it('labels every fact for the shared phone record and clears the draft label after restoration', async () => {
     page(); await screen.findByText('First fee');

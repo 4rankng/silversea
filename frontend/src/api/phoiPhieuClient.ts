@@ -156,6 +156,10 @@ export interface PhoiPhieuTienDuongRow {
   amount: number;
   confirmed: boolean;
   driverName: string | null;
+  /** Card 20261005_373: the accountable person behind the payment, matching the
+   *  chi-hộ row's `payerName`. The tiền-đường grid reads it only for display —
+   *  no mutation, no aria/tooltip. `null` renders `—`. */
+  payerName: string | null;
   occurredAt: string | null;
 }
 

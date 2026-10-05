@@ -224,6 +224,51 @@ describe('card 20260921_14 — tien duong detail dialog', () => {
     assert.equal(adjusted.rows[0]!.amount, 350000);
     assert.equal(adjusted.rows[0]!.driverEnteredAmount, 300000, 'the driver original is retained for comparison');
   });
+
+  /** Card 2026-10-05_373 — the tiền-đường grid names the person accountable for
+   *  paying the road cost, the way the chi-hộ grid already does. Two rules have
+   *  to hold together, so both are pinned here against the real database rather
+   *  than only through a frontend mock: a USER payer is named, and a COMPANY
+   *  payer is NOT (the company fronted the money, so naming the driver would
+   *  misattribute it). */
+  test('names the driver as payer when a person paid, and stays blank when the company paid', async () => {
+    const fixture = await mkBoardFixture();
+    const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
+    const [custRow] = await db.select({ customerId: s.shipments.customerId }).from(s.shipments).where(eq(s.shipments.id, fixture.shipment.id));
+    // A dedicated user, not accountantId: `drivers_active_user_uniq_idx` allows
+    // only one active driver per user, and the fixtures above already claim it.
+    const [payerUser] = await db.insert(s.users).values({
+      username: `c373-${suffix}-${cleanup.length}`, passwordHash: 't', role: Role.DRIVER, status: 'ACTIVE',
+      fullName: 'Tài xế trả tiền 373',
+    }).returning({ id: s.users.id, fullName: s.users.fullName });
+    track(s.users, payerUser.id);
+    const [driver] = await db.insert(s.drivers).values({
+      name: 'Tài xế Payer 373', userId: payerUser.id, status: 'ACTIVE',
+    }).returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+
+    const mkCost = async (suffixKey: string, payerKind: 'USER' | 'COMPANY') => {
+      const [cost] = await db.insert(s.driverIncidentalCosts).values({
+        tripId: fixture.trip.id, driverId: driver.id, costType: 'OTHER',
+        amount: '150000', driverEnteredAmount: '150000', occurredAt: '2026-09-23', payerKind,
+      }).returning({ id: s.driverIncidentalCosts.id });
+      track(s.driverIncidentalCosts, cost.id);
+      const source = await upsertExpenseAccountingSource(db as never, { sourceKind: 'DRIVER', sourceId: cost.id,
+        shipmentId: fixture.shipment.id, tripId: fixture.trip.id, customerId: custRow.customerId!, expenseTypeCode: 'OTHER', costGroup: 'OPS_INCIDENTAL',
+        feeName: `Tiền đường ${suffixKey}`, amount: 150000, customerChargeAmount: 0, expenseDate: '2026-09-23',
+        payerKind, payableEntityType: 'DRIVER', payableEntityId: driver.id, recordedById: accountantId });
+      track(s.expenseAccountingSources, source.id);
+    };
+    await mkCost('payer USER', 'USER');
+    await mkCost('payer COMPANY', 'COMPANY');
+
+    const rows = (await getPhoiPhieuTienDuong(fixture.trip.id)).rows;
+    const byFee = new Map(rows.map(r => [r.feeName, r]));
+    assert.equal(byFee.get('Tiền đường payer USER')!.payerName, payerUser.fullName,
+      'a person payer is named so the accountant sees who actually advanced the money');
+    assert.equal(byFee.get('Tiền đường payer COMPANY')!.payerName, null,
+      'a company payer stays blank — naming the driver would misattribute the payment');
+  });
 });
 
 describe('card 20260921_16 — same-truck rows group consecutively', () => {
@@ -675,45 +720,32 @@ describe('card 20260921_12/13 rework — authorization + id-space', () => {
     // additionally gates writers through requireExpenseFinance on vouchers.
   });
 
-  test('void only ever touches OPS sources of the linked trip', async () => {
+  test('void only ever touches OPS/DRIVER sources of the linked trip', async () => {
     const { voidPhoiPhieuRow } = await import('../services/phoi-phieu-control.service');
     const fixture = await mkBoardFixture();
-    const [driverUser] = await db.insert(s.users).values({
-      username: `c13f4-${suffix}`, passwordHash: 't', role: Role.DRIVER, status: 'ACTIVE',
-    }).returning({ id: s.users.id });
-    track(s.users, driverUser.id);
-    const [driver] = await db.insert(s.drivers).values({
-      name: `C13F4 ${suffix}`, userId: driverUser.id, status: 'ACTIVE',
-    }).returning({ id: s.drivers.id });
-    track(s.drivers, driver.id);
-    const [cost] = await db.insert(s.driverIncidentalCosts).values({
-      tripId: fixture.trip.id, driverId: driver.id, costType: 'OTHER',
-      amount: '1000', occurredAt: '2026-09-22',
-    }).returning({ id: s.driverIncidentalCosts.id });
-    track(s.driverIncidentalCosts, cost.id);
-    // Card 20260928_173 (flake fix): probe with the trip's REAL DRIVER-kind
-    // source id. `expenseAccountingSources` has ONE primary key, so a DRIVER
-    // row's id can never also be an OPS row's id — the refusal is structural,
-    // not lucky. The old probe passed the raw `driverIncidentalCosts.id`, which
-    // only missed the OPS-filtered lookup when the shared DB's id arithmetic
-    // happened to line up: with identical code it went red on one run and green
-    // on the next, because every other suite moves those sequences.
-    const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
-    const [custRow] = await db.select({ customerId: s.shipments.customerId }).from(s.shipments).where(eq(s.shipments.id, fixture.shipment.id));
-    const driverSource = await upsertExpenseAccountingSource(db as never, { sourceKind: 'DRIVER', sourceId: cost.id,
-      shipmentId: fixture.shipment.id, tripId: fixture.trip.id, customerId: custRow.customerId!, expenseTypeCode: 'OTHER',
-      costGroup: 'OPS_INCIDENTAL', feeName: 'C13F4 cross-kind probe', amount: 1000, customerChargeAmount: 0,
-      expenseDate: '2026-09-22', payerKind: 'USER', payableEntityType: 'DRIVER', payableEntityId: driver.id,
-      recordedById: accountantId });
-    track(s.expenseAccountingSources, driverSource.id);
+    // Card 2026-10-05_373 opened the void to DRIVER kinds (rejecting a cost the
+    // driver entered), so the cross-kind probe moves to `TRIP` — a kind the card
+    // deliberately left closed. The isolation being pinned is unchanged: a
+    // source id outside the {OPS, DRIVER} allowlist still never voids here.
+    const [cost] = await db.insert(s.tripExpenses).values({
+      tripId: fixture.trip.id, expenseType: 'OTHER', buyAmount: '1000', sellAmount: '0', approvalStatus: 'RECORDED',
+    }).returning({ id: s.tripExpenses.id });
+    track(s.tripExpenses, cost.id);
+    // Probe with the trip's REAL TRIP-kind source id. `expenseAccountingSources`
+    // has ONE primary key, so a TRIP row's id can never also be an OPS/DRIVER
+    // row's id — the refusal is structural, not lucky.
+    const [tripSource] = await db.insert(s.expenseAccountingSources).values({
+      sourceKind: 'TRIP', sourceId: cost.id, shipmentId: fixture.shipment.id, tripId: fixture.trip.id, version: 1,
+    }).returning({ id: s.expenseAccountingSources.id });
+    track(s.expenseAccountingSources, tripSource.id);
     await assert.rejects(
-      () => voidPhoiPhieuRow(fixture.trip.id, driverSource.id, { userId: accountantId } as never, 'cross-kind probe'),
-      /Không tìm thấy khoản phí chi hộ OPS/,
-      'a DRIVER-kind source id must never void through the chi-ho dialog',
+      () => voidPhoiPhieuRow(fixture.trip.id, tripSource.id, { userId: accountantId } as never, 'cross-kind probe'),
+      /Không tìm thấy khoản phí chi hộ/,
+      'a TRIP-kind source id must never void through the chi-ho dialog',
     );
     const [intact] = await db.select({ status: s.expenseAccountingSources.status })
-      .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, driverSource.id));
-    assert.equal(intact!.status, 'RECORDED', 'the refused void never touched the driver source');
+      .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, tripSource.id));
+    assert.equal(intact!.status, 'RECORDED', 'the refused void never touched the trip source');
   });
 });
 
@@ -1150,6 +1182,141 @@ describe('card 20260927_147 — a multi-source phiếu reads each source own cas
     assert.equal(bySource.get(fixture.source.id), '60000', 'nguồn 1: 100000 phải thu − 40000 đã thu');
     assert.equal(bySource.get(fixture.extras[0]!.sourceId), '15000', 'nguồn 2 giữ 15000 của chính nó, không dùng totals của nguồn 1');
     assert.equal(result.total, 75000, 'tổng phiếu = tổng hai phần còn lại độc lập');
+  });
+});
+
+/**
+ * Card 2026-10-05_373 — "Từ chối" on a driver-entered cost.
+ *
+ * `voidPhoiPhieuRow` used to hard-filter `sourceKind = 'OPS'`, so a row the
+ * DRIVER entered could never be rejected. These pin the widened behaviour AND
+ * the two things that must not move: the OPS path is unchanged, and the row
+ * keeps its history (voided, never deleted).
+ */
+describe('card 2026-10-05_373 — từ chối khoản lái xe nhập (xe nhà only)', () => {
+  const actor = () => ({ userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' }) as never;
+
+  /** One DRIVER cost + its accounting source on `tripId`, unconfirmed. */
+  const mkDriverSource = async (tripId: number, shipmentId: number, driverId: number, amount: string) => {
+    const [cost] = await db.insert(s.driverIncidentalCosts).values({
+      tripId, driverId, costType: 'OTHER', amount, driverEnteredAmount: amount, occurredAt: '2026-09-22',
+    }).returning({ id: s.driverIncidentalCosts.id });
+    track(s.driverIncidentalCosts, cost.id);
+    const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
+    const [tripRow] = await db.select({ customerId: s.trips.customerId }).from(s.trips).where(eq(s.trips.id, tripId));
+    const source = await upsertExpenseAccountingSource(db as never, { sourceKind: 'DRIVER', sourceId: cost.id,
+      shipmentId, tripId, customerId: tripRow!.customerId!, expenseTypeCode: 'OTHER', costGroup: 'OPS_INCIDENTAL',
+      feeName: 'Tiền đường 373', amount: Number(amount), customerChargeAmount: 0, expenseDate: '2026-09-22',
+      payerKind: 'USER', payableEntityType: 'DRIVER', payableEntityId: driverId, recordedById: accountantId });
+    track(s.expenseAccountingSources, source.id);
+    return { cost, source };
+  };
+
+  const mkDriver = async () => {
+    // `drivers_active_user_uniq_idx` allows one active driver per user, and the
+    // card 20260921_14 test above already owns `accountantId` — so each helper
+    // call mints its own user rather than colliding with it.
+    const [driverUser] = await db.insert(s.users).values({
+      username: `c373-drv-${suffix}-${cleanup.length}`, passwordHash: 't', role: Role.DRIVER, status: 'ACTIVE',
+    }).returning({ id: s.users.id });
+    track(s.users, driverUser.id);
+    const [driver] = await db.insert(s.drivers).values({
+      name: `Tài xế 373 ${suffix}`, userId: driverUser.id, status: 'ACTIVE',
+    }).returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+    return driver;
+  };
+
+  test('an OPS chi-ho row still voids exactly as before', async () => {
+    const { voidPhoiPhieuRow } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture({ charge: 100000 });
+    // Unconfirmed, so the void is reachable at all (the shared fixture confirms).
+    await db.update(s.expenseAccountingSources).set({ confirmedAt: null })
+      .where(eq(s.expenseAccountingSources.id, fixture.source.id));
+    const [entry] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: fixture.shipment.id, expenseTypeCode: 'OTHER', amount: '120000', customerChargeAmount: '0',
+      costGroup: 'OPS_INCIDENTAL', payerKind: 'USER', paidById: accountantId, paidAt: '2026-09-22',
+    }).returning({ id: s.opsExpenseEntries.id });
+    track(s.opsExpenseEntries, entry.id);
+    const [source] = await db.insert(s.expenseAccountingSources).values({
+      sourceKind: 'OPS', sourceId: entry.id, shipmentId: fixture.shipment.id, tripId: fixture.trip.id, version: 1,
+    }).returning({ id: s.expenseAccountingSources.id });
+    track(s.expenseAccountingSources, source.id);
+
+    await voidPhoiPhieuRow(fixture.trip.id, source.id, actor(), 'chi hộ dư thừa');
+    assert.equal((await db.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id)))[0]!.status, 'VOIDED');
+    assert.equal((await db.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, entry.id)))[0]!.approvalStatus, 'VOIDED',
+      'the OPS native flag still flips — this is the behaviour the card must not regress');
+  });
+
+  test('a DRIVER row is now voidable, keeps its history, and leaves the dialog', async () => {
+    const { voidPhoiPhieuRow, getPhoiPhieuTienDuong } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture();
+    const driver = await mkDriver();
+    const { cost, source } = await mkDriverSource(fixture.trip.id, fixture.shipment.id, driver.id, '300000');
+
+    const before = await getPhoiPhieuTienDuong(fixture.trip.id);
+    assert.equal(before.rows.length, 1, 'the driver cost is a dialog row before rejection');
+    assert.equal(before.totals.total, 300000);
+
+    await voidPhoiPhieuRow(fixture.trip.id, source.id, actor(), 'tài xế nhập vượt định mức');
+    assert.equal((await db.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id)))[0]!.status, 'VOIDED');
+    // History kept: the cost row and the driver's original figure are NOT deleted.
+    const kept = (await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)))[0]!;
+    assert.equal(kept.amount, '300000');
+    assert.equal(kept.driverEnteredAmount, '300000');
+    const after = await getPhoiPhieuTienDuong(fixture.trip.id);
+    assert.equal(after.rows.length, 0, 'a voided source leaves the tiền đường dialog');
+    assert.equal(after.totals.total, 0, 'and its amount leaves the road-fee total');
+
+    // The rejection reason is mandatory and rides the audit log.
+    const [log] = await db.select().from(s.auditLogs)
+      .where(and(eq(s.auditLogs.entityType, 'expense_accounting_source'), eq(s.auditLogs.entityId, source.id)));
+    assert.equal((log!.payload as { reason?: string } | null)?.reason, 'tài xế nhập vượt định mức');
+  });
+
+  test('a DRIVER row on an xe ngoài trip is refused (the accountant owns those costs)', async () => {
+    const { voidPhoiPhieuRow } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture();
+    const [carrierInfo] = await db.insert(s.tripCarrierInfo).values({ tripId: fixture.trip.id, carrierType: 'EXTERNAL' })
+      .returning({ id: s.tripCarrierInfo.id });
+    track(s.tripCarrierInfo, carrierInfo.id);
+    const driver = await mkDriver();
+    const { source } = await mkDriverSource(fixture.trip.id, fixture.shipment.id, driver.id, '250000');
+
+    await assert.rejects(
+      () => voidPhoiPhieuRow(fixture.trip.id, source.id, actor(), 'xe ngoài'),
+      /Xe ngoài/,
+      'xe ngoài costs are entered by the accountant, so rejection is refused',
+    );
+    assert.equal((await db.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id)))[0]!.status, 'RECORDED',
+      'a refused rejection must not have voided anything');
+  });
+
+  test('a blank or missing reason is refused as a 400', async () => {
+    const { voidPhoiPhieuRow } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture();
+    const driver = await mkDriver();
+    const { source } = await mkDriverSource(fixture.trip.id, fixture.shipment.id, driver.id, '180000');
+    for (const reason of ['', '   ']) {
+      await assert.rejects(() => voidPhoiPhieuRow(fixture.trip.id, source.id, actor(), reason), /Lý do từ chối/);
+    }
+    assert.equal((await db.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id)))[0]!.status, 'RECORDED');
+  });
+
+  test('a confirmed driver row is still refused and points at điều chỉnh', async () => {
+    const { voidPhoiPhieuRow } = await import('../services/phoi-phieu-control.service');
+    const { confirmAccountingExpenses } = await import('../services/expense-accounting-write.service');
+    const fixture = await mkBoardFixture();
+    const driver = await mkDriver();
+    const { source } = await mkDriverSource(fixture.trip.id, fixture.shipment.id, driver.id, '420000');
+    await confirmAccountingExpenses(db as never, actor(), [{ sourceKind: 'DRIVER', sourceId: source.sourceId, expectedVersion: source.version }]);
+
+    await assert.rejects(
+      () => voidPhoiPhieuRow(fixture.trip.id, source.id, actor(), 'sai số tiền đường'),
+      /đối chiếu[\s\S]*điều chỉnh/,
+      'a confirmed amount is corrected (original preserved + linked replacement), never un-confirmed',
+    );
   });
 });
 
