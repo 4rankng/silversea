@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { sumExcludingNegative } from '@tingting/shared';
+import { round2dp, sumExcludingNegative } from '@tingting/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   correctPhoiPhieuRow, getPhoiPhieuChiHo, updatePhoiPhieuMeta,
@@ -23,6 +23,18 @@ interface Props {
   confirmation?: ChiHoConfirmation;
   onClose: () => void;
   onSaved: () => void;
+}
+
+/** The row amount a footer figure sees right now: the draft edit when one
+ *  exists, else the stored column; '' (cleared draft) counts as 0. */
+function liveAmount(
+  edits: Record<number, { thu: number | ''; tra: number | '' }>,
+  row: PhoiPhieuFeeRow,
+  key: 'thu' | 'tra',
+): number {
+  const edit = edits[row.entryId];
+  const value = edit ? edit[key] : row[key === 'thu' ? 'amountThu' : 'amountTra'] ?? 0;
+  return value === '' ? 0 : value;
 }
 
 export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onClose, onSaved }: Props) {
@@ -65,17 +77,17 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
   // `?? []` fallback would otherwise hand it a new array every render and
   // recompute the footer figures on every keystroke.
   const rows = useMemo(() => detail.data?.rows ?? [], [detail.data]);
-  const totals = useMemo(() => {
-    const live = (row: PhoiPhieuFeeRow, key: 'thu' | 'tra') => {
-      const edit = edits[row.entryId];
-      const value = edit ? edit[key] : row[key === 'thu' ? 'amountThu' : 'amountTra'] ?? 0;
-      return value === '' ? 0 : value;
-    };
-    return {
-      thu: rows.reduce((sum, row) => sum + live(row, 'thu'), 0),
-      tra: sumExcludingNegative(rows, row => live(row, 'tra')),
-    };
-  }, [rows, edits]);
+  const totals = useMemo(() => ({
+    thu: rows.reduce((sum, row) => sum + liveAmount(edits, row, 'thu'), 0),
+    tra: sumExcludingNegative(rows, row => liveAmount(edits, row, 'tra')),
+  }), [rows, edits]);
+  // Card 051026231617 — the PM rule (card 20260928_181) keeps negative rows out
+  // of every total, but the rows stay visible in the table above, so the
+  // footer must SAY the exclusion instead of silently contradicting them: the
+  // note names the count and the excluded amount so
+  // Tổng trả + các khoản âm = tổng thật của các dòng.
+  const negativeTraRows = rows.filter(row => liveAmount(edits, row, 'tra') < 0);
+  const negativeTraTotal = round2dp(negativeTraRows.reduce((sum, row) => sum + liveAmount(edits, row, 'tra'), 0));
   const meta = {
     ...(ngayLayPhoi !== null && (ngayLayPhoi || null) !== (detail.data?.ngayLayPhoi || null) ? { ngayLayPhoi: ngayLayPhoi || null } : {}),
     ...(trangThaiLay !== null && (trangThaiLay.trim() || null) !== (detail.data?.trangThaiLay || null) ? { trangThaiLay: trangThaiLay.trim() || null } : {}),
@@ -236,6 +248,11 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
             </table>
             </div>}
             <PhoiPhieuDetailSummary items={[{ label: 'Tổng thu', amount: totals.thu }, { label: 'Tổng trả', amount: totals.tra }]} />
+            {negativeTraRows.length > 0 && (
+              <p className="phoi-detail-note">
+                Có {negativeTraRows.length} khoản chi âm, tổng {formatMoney(negativeTraTotal)} ₫ — không tính vào Tổng trả.
+              </p>
+            )}
             {dirty && <p role="status" className="phoi-detail-note">Có thay đổi chưa lưu</p>}
             <label className="phoi-detail-linked">
               <input type="checkbox" checked={linked} onChange={(e) => setEquality(e.target.checked)} />

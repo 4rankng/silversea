@@ -362,3 +362,32 @@ describe('card 20261002_292 — Chi Hộ dialog renders TRIP sourceKind as read-
   });
 });
 
+
+// Card 051026231617 — the PM rule (card 20260928_181) keeps negative chi-hộ
+// rows OUT of "Tổng trả", but the rows stay visible in the table, so the
+// footer contradicted them silently (E2E: rows summed −50.000, footer said
+// 100.000). The math is governed and stays; the dialog must SAY the exclusion
+// with count + excluded amount so Tổng trả + các khoản âm = tổng các dòng.
+describe('card 051026231617 — the footer says it excludes negative chi-hộ rows', () => {
+  it('keeps the gross Tổng trả and names the excluded negative rows beside it', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows: [
+      { ...rows[0] },
+      { ...rows[1], confirmed: false, amountTra: 50000 },
+      { entryId: 31, sourceId: 11, version: 1, feeName: 'Điều chỉnh trừ 1', amountThu: null, amountTra: -50000, confirmed: false },
+      { entryId: 32, sourceId: 12, version: 1, feeName: 'Điều chỉnh trừ 2', amountThu: null, amountTra: -50000, confirmed: true },
+      { entryId: 33, sourceId: 13, version: 1, feeName: 'Điều chỉnh trừ 3', amountThu: null, amountTra: -50000, confirmed: false },
+    ] });
+    page();
+    await screen.findByText('Điều chỉnh trừ 1');
+    const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
+    expect(totals()).toEqual(['140.000₫', '100.000₫']);
+    const note = screen.getByText(/khoản chi âm/, { selector: 'p.phoi-detail-note' });
+    expect(note).toHaveTextContent('Có 3 khoản chi âm, tổng -150.000 ₫ — không tính vào Tổng trả.');
+  });
+
+  it('stays silent while every payable row is non-negative', async () => {
+    page();
+    await screen.findByText('First fee');
+    expect(screen.queryByText(/khoản chi âm/)).toBeNull();
+  });
+});

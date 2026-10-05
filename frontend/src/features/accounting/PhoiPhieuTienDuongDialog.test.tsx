@@ -186,3 +186,32 @@ describe('tiền-đường rejects a driver-entered cost with a stated reason (c
     expect(api.get).toHaveBeenCalledOnce();
   });
 });
+
+// Card 051026231617 — same ruling, same duty to say it: "Tổng phát sinh"
+// excludes negative tiền-đường rows (card 20260928_181) while the rows stay
+// on screen, so the footer names the exclusion instead of contradicting them.
+describe('card 051026231617 — the tiền-đường footer says it excludes negative rows', () => {
+  // This describe sits outside the first block's scoped beforeEach, so it
+  // seeds its own default detail — no implementation leaks in from earlier
+  // describes (clearAllMocks keeps implementations; it only drops calls).
+  beforeEach(() => { api.get.mockResolvedValue(detail); });
+  it('keeps the gross totals and names the excluded negative rows beside them', async () => {
+    api.get.mockResolvedValue({ ...detail, rows: [
+      { ...row, confirmed: true },
+      { ...row, sourceId: 9, amount: -10000, confirmed: true },
+      { ...row, sourceId: 10, amount: -20000 },
+    ] });
+    mount();
+    await screen.findByDisplayValue('-20.000');
+    const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
+    expect(totals()).toEqual(['75.000₫', '75.000₫']);
+    const note = screen.getByText(/khoản tiền đường âm/, { selector: 'p.phoi-detail-note' });
+    expect(note).toHaveTextContent('Có 2 khoản tiền đường âm, tổng -30.000 ₫ — không tính vào Tổng phát sinh.');
+  });
+
+  it('stays silent while every row is non-negative', async () => {
+    mount();
+    await screen.findByDisplayValue('75.000');
+    expect(screen.queryByText(/khoản tiền đường âm/)).toBeNull();
+  });
+});

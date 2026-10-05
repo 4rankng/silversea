@@ -5,7 +5,7 @@ import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { formatCurrency } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
-import { DRIVER_INCIDENTAL_COST_LABELS, sumExcludingNegative } from '@tingting/shared';
+import { DRIVER_INCIDENTAL_COST_LABELS, round2dp, sumExcludingNegative } from '@tingting/shared';
 import { EmptyState, Modal, NumberField } from '../../design-system';
 import { Btn } from '../../components/UI';
 import { useReasonPrompt } from '../../components/reason-prompt';
@@ -24,6 +24,16 @@ interface Props {
 /** The reason every tiền-đường amount edit carries into the audit trail
  *  (EXPENSE_ACCOUNTING_UPDATED / _CORRECTED payload.reason). */
 const EDIT_REASON = 'Kế toán sửa số tiền trong xem chi tiết tiền đường';
+
+/** The amount a footer figure sees right now: the draft edit when one exists,
+ *  else the stored amount; '' (cleared draft) counts as 0. */
+function liveAmount(
+  edits: Record<number, number | ''>,
+  row: { sourceId: number; amount: number | null },
+): number {
+  const edit = edits[row.sourceId];
+  return edit === undefined ? row.amount ?? 0 : edit === '' ? 0 : edit;
+}
 
 export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
@@ -56,17 +66,16 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
   // Card 20260928_171: the dialog now edits amounts, so both footer figures are
   // computed from the live rows+edits — the same "live" recompute the chi hộ
   // dialog uses, so a typed amount is what the accountant sees before saving.
-  const totals = useMemo(() => {
-    const live = (row: (typeof rows)[number]) => {
-      const edit = edits[row.sourceId];
-      return edit === undefined ? row.amount : edit === '' ? 0 : edit;
-    };
-    return {
-      total: sumExcludingNegative(rows, live),
-      approved: sumExcludingNegative(rows.filter((row) => row.confirmed), live),
-    };
-  }, [rows, edits]);
+  const totals = useMemo(() => ({
+    total: sumExcludingNegative(rows, row => liveAmount(edits, row)),
+    approved: sumExcludingNegative(rows.filter((row) => row.confirmed), row => liveAmount(edits, row)),
+  }), [rows, edits]);
   const unapproved = totals.total - totals.approved;
+  // Card 051026231617 — same rule as the chi hộ dialog: the PM ruling (card
+  // 20260928_181) excludes negative rows from every total, and this footer must
+  // SAY so instead of silently contradicting the visible rows.
+  const negativeRows = rows.filter(row => liveAmount(edits, row) < 0);
+  const negativeTotal = round2dp(negativeRows.reduce((sum, row) => sum + liveAmount(edits, row), 0));
 
   // Card 20260923_11 rule, carried here: the dialog and the "Thêm khoản chi"
   // panel are two aria-modal surfaces and exactly ONE may be on screen. Once the
@@ -233,6 +242,11 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
             </table>
             </div>}
             <PhoiPhieuDetailSummary items={[{ label: 'Tổng phát sinh', amount: totals.total }, { label: 'Đã duyệt', amount: totals.approved }]} />
+            {negativeRows.length > 0 && (
+              <p className="phoi-detail-note">
+                Có {negativeRows.length} khoản tiền đường âm, tổng {formatCurrency(negativeTotal)} — không tính vào Tổng phát sinh.
+              </p>
+            )}
             {dirty && <p role="status" className="phoi-detail-note">Có thay đổi chưa lưu</p>}
             <p className="phoi-detail-note">
               Tổng phát sinh là tất cả dòng; chỉ dòng đã duyệt mới được lập phiếu chi thanh toán cho lái xe
