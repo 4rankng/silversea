@@ -142,7 +142,7 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
           value={partnerTripId}
           onChange={(event) => setPartnerTripId(event.target.value)}
           disabled={saving}
-          hint="Chọn lệnh cont còn lại của cặp (cùng xe, cùng tài xế)."
+          hint="Chọn lệnh cont còn lại của cặp — các lệnh cùng lô được xếp trước (Kẹp), hoặc chọn lệnh khác cho Kết hợp."
           options={[
             { value: '', label: '— Chọn lệnh ghép —' },
             ...partnerOptions,

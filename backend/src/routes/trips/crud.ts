@@ -101,7 +101,7 @@ router.get('/summary', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 
-router.post('/pairs', declareMaterialWrite('trips.pairs.create', { method: 'POST', path: '/api/trips/pairs' }),  requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/pairs', declareMaterialWrite('trips.pairs.create', { method: 'POST', path: '/api/trips/pairs' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER), asyncHandler(async (req: Request, res: Response) => {
   const payload = createTripPairSchema.parse(req.body);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
