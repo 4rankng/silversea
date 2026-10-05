@@ -11,6 +11,11 @@ export function formatRelativeTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   const now = Date.now();
   const then = new Date(iso).getTime();
+  // Card 2026-10-05_1628: an unparsable timestamp made every `diff*` NaN, so all
+  // the range checks fell through and the date branch rendered the literal
+  // "NaN/NaN". The two local copies this replaced both guarded with isNaN, so
+  // the guard has to live here or consolidating them would have regressed it.
+  if (Number.isNaN(then)) return '—';
   const diffMs = now - then;
   const diffSec = Math.floor(diffMs / 1000);
   const diffMin = Math.floor(diffSec / 60);

@@ -8,21 +8,12 @@ import { useAuth } from '../../hooks/useAuth';
 import type { Notification } from '@tingting/shared';
 import { resolveNotificationRoute } from '../../lib/notificationClient';
 import { notificationDisplayMessage } from '../../lib/notificationText';
-
-/** Relative time in Vietnamese, e.g. "5 phút trước". */
-function timeAgo(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  const s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (s < 60) return 'vừa xong';
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m} phút trước`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} giờ trước`;
-  const days = Math.floor(h / 24);
-  if (days < 30) return `${days} ngày trước`;
-  return d.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-}
+// Card 2026-10-05_1628: this bell had its own near-duplicate relative-time
+// helper, so its wording drifted from the rest of the app (no "Hôm qua", and a
+// full locale date once past 30 days). Use the one shared formatter so a
+// timestamp reads the same everywhere and stays unambiguous (compact DD/MM
+// rather than a long date).
+import { formatRelativeTime } from '../../lib/date';
 
 /**
  * Topbar notification bell — the entry point for in-app + push notifications.
@@ -113,7 +104,7 @@ export function NotificationBell() {
                   <div className="notif-item__body">
                     <div className="notif-item__title">{n.title}</div>
                     {n.message && <div className="notif-item__msg">{notificationDisplayMessage(n.message)}</div>}
-                    <div className="notif-item__time">{timeAgo(n.createdAt)}</div>
+                    <div className="notif-item__time">{formatRelativeTime(n.createdAt)}</div>
                   </div>
                 </button>
               ))
