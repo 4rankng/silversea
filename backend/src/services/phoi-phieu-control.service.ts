@@ -903,6 +903,12 @@ export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor =
     payerName: s.users.fullName,
     confirmedAt: s.expenseAccountingSources.confirmedAt,
     version: s.expenseAccountingSources.version,
+    // QA (card 20261005_373, lần 2): every mutation route keys on
+    // `expense_accounting_sources.id`, NOT on the driver cost id. Without this
+    // projection the tiền-đường row reported the COST id as its `sourceId`, so
+    // "Từ chối" from the dialog sent the wrong id and always 404'd — the
+    // backend was correct, the row was mislabelled.
+    sourceTableId: s.expenseAccountingSources.id,
   })
     .from(s.driverIncidentalCosts)
     .leftJoin(s.drivers, eq(s.drivers.id, s.driverIncidentalCosts.driverId))
@@ -922,7 +928,9 @@ export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor =
     .orderBy(asc(s.driverIncidentalCosts.id));
   void s.trips;
   const feeRows: PhoiPhieuTienDuongRow[] = rows.map((row) => ({
-    sourceId: row.id,
+    // Fall back to the cost id only for a genuinely unlinked legacy cost (no
+    // accounting source at all), which is the pre-existing display behaviour.
+    sourceId: row.sourceTableId ?? row.id,
     version: row.version ?? 1,
     costType: row.costType,
     feeName: row.feeName,

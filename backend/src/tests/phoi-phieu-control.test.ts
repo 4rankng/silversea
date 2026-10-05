@@ -225,6 +225,47 @@ describe('card 20260921_14 — tien duong detail dialog', () => {
     assert.equal(adjusted.rows[0]!.driverEnteredAmount, 300000, 'the driver original is retained for comparison');
   });
 
+  /** QA (card 2026-10-05_373, lần 2) — the tiền-đường row used to report the
+   *  DRIVER COST id as its `sourceId`, but every mutation route keys on
+   *  `expense_accounting_sources.id`. So "Từ chối" from the dialog sent the wrong
+   *  id and 404'd every time, while the same call with the right id returned 200.
+   *  Lead found it by network capture on staging; this pins the id identity and
+   *  the end-to-end reject so it cannot drift back. */
+  test('the tiền-đường row reports the ACCOUNTING SOURCE id, so Từ chối from the UI reaches the row', async () => {
+    const fixture = await mkBoardFixture();
+    const [driver] = await db.insert(s.drivers).values({ name: 'Tài xế QA373 id', status: 'ACTIVE' })
+      .returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+    const [cost] = await db.insert(s.driverIncidentalCosts).values({
+      tripId: fixture.trip.id, driverId: driver.id, costType: 'LIFT_FEE',
+      amount: '300000', driverEnteredAmount: '300000', occurredAt: '2026-09-24',
+    }).returning({ id: s.driverIncidentalCosts.id });
+    track(s.driverIncidentalCosts, cost.id);
+    const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
+    const { voidPhoiPhieuRow } = await import('../services/phoi-phieu-control.service');
+    const [custRow] = await db.select({ customerId: s.shipments.customerId }).from(s.shipments).where(eq(s.shipments.id, fixture.shipment.id));
+    const source = await upsertExpenseAccountingSource(db as never, { sourceKind: 'DRIVER', sourceId: cost.id,
+      shipmentId: fixture.shipment.id, tripId: fixture.trip.id, customerId: custRow.customerId!, expenseTypeCode: 'OTHER', costGroup: 'OPS_INCIDENTAL',
+      feeName: 'Tiền đường QA id', amount: 300000, customerChargeAmount: 0, expenseDate: '2026-09-24',
+      payerKind: 'USER', payableEntityType: 'DRIVER', payableEntityId: driver.id, recordedById: accountantId });
+    track(s.expenseAccountingSources, source.id);
+
+    const read = await getPhoiPhieuTienDuong(fixture.trip.id);
+    assert.equal(read.rows[0]!.sourceId, source.id,
+      'the row carries the accounting-source id, NOT the driver cost id');
+
+    // Exactly what the dialog sends.
+    const actor = { userId: accountantId, role: Role.ACCOUNTANT, username: 'k2', email: 'k2@x', fullName: 'k2' } as never;
+    await voidPhoiPhieuRow(fixture.trip.id, read.rows[0]!.sourceId, actor, 'Lái xe nhập trùng phí nâng hạ');
+
+    const [after] = await db.select({ status: s.expenseAccountingSources.status })
+      .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id));
+    assert.equal(after!.status, 'VOIDED', 'the reject reaches the row the dialog was showing');
+    const [costRow] = await db.select({ amount: s.driverIncidentalCosts.amount })
+      .from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
+    assert.equal(Number(costRow!.amount), 300000, 'the driver cost itself is never deleted');
+  });
+
   /** Card 2026-10-05_373 — the tiền-đường grid names the person accountable for
    *  paying the road cost, the way the chi-hộ grid already does. Two rules have
    *  to hold together, so both are pinned here against the real database rather
