@@ -86,6 +86,7 @@ const FleetDriversPage = lazy(() => import('./pages/FleetDriversPage'));
 const DispatchSuppliersPage = lazy(() => import('./pages/DispatchSuppliersPage'));
 const ProfitPage = lazy(() => import('./pages/ProfitPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
+const HrRosterPage = lazy(() => import('./pages/HrRosterPage'));
 const FleetPage = lazy(() => import('./pages/FleetPage'));
 const FleetProductivityPage = lazy(() => import('./pages/FleetProductivityPage'));
 const TruckTiresPage = lazy(() => import('./pages/TruckTiresPage'));
@@ -416,6 +417,7 @@ export function AppRoutes() {
           <Route path="/payables/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/salary" element={officeStaffOnly(page(<SalaryAttendancePage />))} />
           <Route path="/users" element={officeStaffOnly(page(<UsersPage />))} />
+          <Route path="/hr/roster" element={officeStaffOnly(page(<HrRosterPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />
           <Route path="/audit-log" element={<Navigate to="/audit-logs" replace />} />
           <Route path="/admin/audit-logs" element={<Navigate to="/audit-logs" replace />} />

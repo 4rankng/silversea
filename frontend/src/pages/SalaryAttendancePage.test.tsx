@@ -315,3 +315,140 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
   });
 
 });
+
+const officeRosterMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../api/userClient', () => ({
+  userClient: {
+    getUsers: officeRosterMock,
+  },
+}));
+
+describe('SalaryAttendancePage group split (Văn phòng / Lái xe)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    salaryQueriesMock.useSalaryList.mockReturnValue({
+      data: {
+        items: [{ id: 1, name: 'Nguyen Van A', status: 'ACTIVE', salary: { ...baseSalary } }],
+      },
+      isLoading: false,
+    });
+    salaryQueriesMock.useDriverSalary.mockReturnValue({ data: { ...baseSalary }, isLoading: false });
+    salaryQueriesMock.useDriverWorkDays.mockReturnValue({ data: { workDays: [] }, isLoading: false });
+    salaryQueriesMock.useUpdateWorkDays.mockReturnValue(mutationStub());
+    salaryQueriesMock.useConfirmSalary.mockReturnValue(mutationStub());
+    salaryQueriesMock.useUnconfirmSalary.mockReturnValue(mutationStub());
+    salaryQueriesMock.useCloseSalaryPeriod.mockReturnValue(mutationStub());
+    salaryQueriesMock.useReopenSalaryPeriod.mockReturnValue(mutationStub());
+    salaryQueriesMock.useIssueSalaryPeriod.mockReturnValue(mutationStub());
+    salaryQueriesMock.usePostSalaryPeriod.mockReturnValue(mutationStub());
+    salaryQueriesMock.useRequestPostCloseAdjustment.mockReturnValue(mutationStub());
+    salaryQueriesMock.useSalaryPeriodOverview.mockReturnValue({
+      data: {
+        lifecycle: {
+          period: '2026-07',
+          status: 'OPEN',
+          closeId: null,
+          version: null,
+          ledgerEntryId: null,
+          closedBy: null,
+          closedAt: null,
+          note: null,
+          payslipIssuedBy: null,
+          payslipIssuedAt: null,
+          payslipIssuedNote: null,
+          officialPostedBy: null,
+          officialPostedAt: null,
+          officialPostingNote: null,
+          hasDriverPayout: false,
+          canReopen: false,
+          reopenBlockers: ['Kỳ lương chưa được chốt'],
+        },
+        adjustments: [],
+      },
+      isLoading: false,
+    });
+    officeRosterMock.mockResolvedValue({
+      items: [
+        {
+          id: 21,
+          username: 'vanphong01',
+          fullName: 'Trần Văn Bình',
+          employeeCode: 'NV001',
+          email: 'binh@example.com',
+          phone: '0901',
+          role: 'OPS',
+          status: 'ACTIVE',
+          createdAt: '',
+          driverId: null,
+          assignedTruckId: null,
+          baseSalary: null,
+          socialInsurance: null,
+          businessUnitIds: [7],
+        },
+        {
+          id: 22,
+          username: 'laixe01',
+          fullName: 'Lái xe B',
+          employeeCode: 'TX002',
+          email: null,
+          phone: null,
+          role: 'DRIVER',
+          status: 'ACTIVE',
+          createdAt: '',
+          driverId: 5,
+          assignedTruckId: null,
+          baseSalary: null,
+          socialInsurance: null,
+          businessUnitIds: [],
+        },
+      ],
+      total: 2,
+      businessUnits: [
+        { id: 7, code: 'KT', name: 'Bộ phận kế toán', status: 'ACTIVE', createdAt: '', updatedAt: '' },
+      ],
+    });
+  });
+
+  it('defaults to the Lái xe group, leaves the driver surface intact and defers the office fetch', async () => {
+    renderPage();
+    expect(await screen.findByText('Nguyen Van A')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Lái xe' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Văn phòng' })).toBeInTheDocument();
+    expect(officeRosterMock).not.toHaveBeenCalled();
+    expect(screen.queryByText('Chưa có dữ liệu chấm công/lương văn phòng')).not.toBeInTheDocument();
+  });
+
+  it('renders real office personnel with honestly empty attendance/salary cells', async () => {
+    renderPage();
+    await screen.findByText('Nguyen Van A');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Văn phòng' }));
+    expect(await screen.findByText('Chưa có dữ liệu chấm công/lương văn phòng')).toBeInTheDocument();
+    expect(await screen.findByText('Trần Văn Bình')).toBeInTheDocument();
+    // Drivers and customer portal accounts are not office personnel.
+    expect(screen.queryByText('Lái xe B')).not.toBeInTheDocument();
+    // The driver surface (search, month cluster, driver grid) is absent here.
+    expect(screen.queryByLabelText('Tìm lái xe trong bảng lương')).not.toBeInTheDocument();
+    // Attendance and salary cells stay honestly empty for every office row.
+    const officeRow = screen.getByText('Trần Văn Bình').closest('tr');
+    expect(officeRow).not.toBeNull();
+    const officeCells = Array.from(officeRow!.querySelectorAll('td'));
+    expect(officeCells.map((c) => c.getAttribute('data-label')))
+      .toEqual(['Mã NV', 'Họ tên', 'Bộ phận', 'Chấm công', 'Lương']);
+    expect(officeCells.map((c) => c.textContent)).toContain('—');
+  });
+
+  it('restores the driver surface intact when switching back to Lái xe', async () => {
+    renderPage();
+    await screen.findByText('Nguyen Van A');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Văn phòng' }));
+    await screen.findByText('Trần Văn Bình');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Lái xe' }));
+    expect(await screen.findByText('Nguyen Van A')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tìm lái xe trong bảng lương')).toBeInTheDocument();
+    expect(screen.queryByText('Chưa có dữ liệu chấm công/lương văn phòng')).not.toBeInTheDocument();
+  });
+});

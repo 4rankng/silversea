@@ -191,6 +191,15 @@ export const PAGE_CATALOG = {
     path: '/users',
     section: 'system',
   },
+  hrRoster: {
+    // Read-only personnel directory (hồ sơ nhân sự) — a different surface from
+    // the permission-administration /users screen. Bộ phận derives exactly the
+    // way /users derives it (business units); office attendance/salary fields
+    // are deliberately not modeled until the customer confirms them.
+    title: 'Danh sách nhân sự',
+    path: '/hr/roster',
+    section: 'hr',
+  },
   auditLogs: {
     title: 'Nhật ký người dùng',
     path: '/audit-logs',

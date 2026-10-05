@@ -1,10 +1,16 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Role } from '@tingting/shared';
 import '../design-system/forms/TextField.css';
 import { ChevronLeft, ChevronRight, Loader2, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
 import { formatDateTimeVN, formatCurrency } from '../lib/format';
 import { Panel } from '../components/UI';
-import { EmptyState, FilterBar, SummaryRail } from '../design-system';
+import { EmptyState, FilterBar, SummaryRail, Tabs } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { userClient } from '../api/userClient';
+import { qk } from '../api/keys';
+import '../styles/record-table.css';
+import '../styles/operational-table-typography.css';
 import {
   CalCell,
   DriverPayoutModal,
@@ -20,6 +26,20 @@ import { BaseSalaryEditModal } from '../features/salary-attendance/base-salary-e
 
 export default function SalaryAttendancePage() {
   const [searchTerm, setSearchTerm] = useState('');
+  // Group split: the driver surface stays exactly as-is under "Lái xe";
+  // "Văn phòng" renders the office group's own view.
+  const [salaryGroup, setSalaryGroup] = useState<'lai-xe' | 'van-phong'>('lai-xe');
+  // Office group data rides the same whole-roster fetch the /hr/roster page
+  // uses (bare ['users'] key; /users caches under ['users', appliedParams]).
+  const officeRosterQuery = useQuery({
+    queryKey: qk.catalogs.users,
+    queryFn: () => userClient.getUsers({ limit: 500 }),
+    // The office fetch is deferred until the group is actually opened.
+    enabled: salaryGroup === 'van-phong',
+  });
+  const officeStaff = (officeRosterQuery.data?.items ?? [])
+    .filter((u) => u.role !== Role.DRIVER && u.role !== Role.CUSTOMER);
+  const officeUnits = officeRosterQuery.data?.businessUnits ?? [];
   const {
     month, year, goPrev, goNext,
     selectedDriverId, setSelectedDriverId,
@@ -47,6 +67,21 @@ export default function SalaryAttendancePage() {
           { label: 'Lương & Chấm công' },
         ]}
       />
+      {/* ── Group switcher: the driver surface below is the existing content,
+          untouched; "Văn phòng" renders the office group's own view. ── */}
+      <Tabs
+        variant="boxed"
+        ariaLabel="Nhóm chấm công và bảng lương"
+        value={salaryGroup}
+        onChange={(id) => setSalaryGroup(id as 'lai-xe' | 'van-phong')}
+        tabs={[
+          { id: 'lai-xe', label: 'Lái xe' },
+          { id: 'van-phong', label: 'Văn phòng' },
+        ]}
+      />
+
+      {salaryGroup === 'lai-xe' && (
+        <>
       {/* ── Period summary rail ── */}
       <section className="hero">
         <div className="hero-top fade-up-2">
@@ -633,6 +668,89 @@ export default function SalaryAttendancePage() {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {/* ── Office group: real office personnel with the attendance/salary
+          fields honestly empty — the office field set is not modeled yet. ── */}
+      {salaryGroup === 'van-phong' && (
+        <Panel>
+          <EmptyState
+            context="salary"
+            title="Chưa có dữ liệu chấm công/lương văn phòng"
+            description="Chờ chốt trường dữ liệu với khách hàng"
+          />
+          {officeRosterQuery.isLoading && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+              <Loader2 size={20} className="spin" />
+            </div>
+          )}
+          {officeRosterQuery.isError && (
+            <EmptyState
+              context="salary"
+              title="Không thể tải danh sách nhân sự văn phòng"
+              description="Đã xảy ra lỗi khi tải dữ liệu. Thử lại."
+            />
+          )}
+          {!officeRosterQuery.isLoading && !officeRosterQuery.isError && (
+            <div className="record-table-wrap">
+              <table className="record-table ops-table">
+                <caption className="sr-only">Nhân sự văn phòng</caption>
+                <thead>
+                  <tr>
+                    <th>Mã NV</th>
+                    <th>Họ tên</th>
+                    <th>Bộ phận</th>
+                    <th>Chấm công</th>
+                    <th>Lương</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {officeStaff.length === 0 && (
+                    <tr>
+                      <td colSpan={5} data-label="">
+                        <div style={{ padding: '24px 0' }}>
+                          <EmptyState
+                            variant="compact"
+                            context="users"
+                            title="Không có nhân sự văn phòng"
+                            description="Chưa có tài khoản nhân sự nào ngoài lái xe."
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {officeStaff.map((u) => {
+                    const unitIds = u.businessUnitIds ?? [];
+                    const unitNames = unitIds.length > 0
+                      ? unitIds.map((id) => officeUnits.find((unit) => unit.id === id)?.name ?? '').filter(Boolean).join(', ')
+                      : null;
+                    return (
+                      <tr key={u.id}>
+                        <td data-label="Mã NV">
+                          <span style={{ fontFamily: 'var(--font-data)', fontSize: 'var(--text-data-size)' }}>{u.employeeCode ?? '—'}</span>
+                        </td>
+                        <td data-label="Họ tên">{u.fullName || '—'}</td>
+                        <td data-label="Bộ phận">
+                          {unitNames
+                            ? <span style={{ fontSize: 'var(--text-data-size)' }}>{unitNames}</span>
+                            : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+                        </td>
+                        <td data-label="Chấm công">
+                          <span style={{ color: 'var(--ink-4)' }}>—</span>
+                        </td>
+                        <td data-label="Lương">
+                          <span style={{ color: 'var(--ink-4)' }}>—</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      )}
       {canPostPayout && (
         <DriverPayoutModal
           isOpen={payoutOpen}
