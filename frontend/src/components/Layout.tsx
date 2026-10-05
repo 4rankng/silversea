@@ -69,7 +69,7 @@ import { requestAppNavigation } from '../lib/app-navigation';
 export const PRIMARY_SECTION_BY_ROLE: Record<string, SectionName | undefined> = {
   ADMIN: 'operations',
   MANAGER: 'operations',
-  ACCOUNTANT: 'financials',
+  ACCOUNTANT: 'accounting-phoi-phieu',
   DISPATCHER: 'dispatch-planning',
   CUS: 'document-ops',
   OPS: 'my-work',
@@ -107,27 +107,29 @@ export function getNavItems(
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
 
-        // Công nợ & Dòng tiền (AR/AP) per spec
+        // Kế toán (Accounting) per spec §5.10 — the former single
+        // "Công nợ & Dòng tiền" area, split into the 4 spec danh mục.
         ...(hasCapability('treasury.read') ? [
-          { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
+          { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'accounting-quy' as SectionName },
         ] : []),
-        { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'financials' as SectionName },
-        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
-        { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
-        { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
-        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'financials' as SectionName },
+        { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'accounting-cong-no' as SectionName },
+        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'accounting-cong-no' as SectionName },
+        { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
         // Theo dõi hóa đơn kết hợp (card 20260921_18) — kế toán + quản trị write,
         // CUS read-only on the same page.
-        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
-        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'financials' as SectionName },
+        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'accounting-phoi-phieu' as SectionName },
         // Kiểm soát phơi phiếu / tiền đường (card 20260922_5) — the dedicated
         // control page built by card 20260921_12; discoverability only, the
         // route and its financeReader gate already existed.
-        { key: 'phoi-phieu', label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu', icon: FileText, section: 'financials' as SectionName },
-        { key: 'chot-debit', label: 'Kế toán chốt debit', path: '/accounting/chot-debit', icon: Calculator, section: 'financials' as SectionName },
+        { key: 'phoi-phieu', label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'chot-debit', label: 'Kế toán chốt debit', path: '/accounting/chot-debit', icon: Calculator, section: 'accounting-phoi-phieu' as SectionName },
 
-        // Nhân sự (HR)
-        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
+        // Nhân sự (HR) — Lương & Chấm công is a KHÁC danh mục item per
+        // spec §5.10, so only Kỷ luật stays in the HR group.
+        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'accounting-khac' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
         // Danh mục (Master Data) per spec
@@ -166,18 +168,19 @@ export function getNavItems(
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
 
-        // Công nợ & Dòng tiền (AR/AP) per spec
+        // Kế toán (Accounting) per spec §5.10 — split into the 4 danh mục.
         ...(hasCapability('treasury.read') ? [
-          { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
+          { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'accounting-quy' as SectionName },
         ] : []),
-        { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'financials' as SectionName },
-        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
-        { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
-        { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
-        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'financials' as SectionName },
+        { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'accounting-cong-no' as SectionName },
+        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'accounting-cong-no' as SectionName },
+        { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
 
-        // Nhân sự (HR)
-        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
+        // Nhân sự (HR) — Lương & Chấm công is a KHÁC danh mục item per
+        // spec §5.10, so only Kỷ luật stays in the HR group.
+        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'accounting-khac' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
         // Danh mục (Master Data) per spec
@@ -210,36 +213,48 @@ export function getNavItems(
         // Tổng Quan Kế Toán (Accounting Dashboard) - first item, per spec
         { key: 'accounting', label: 'Tổng Quan Kế Toán', path: routes.accounting, icon: Calculator, section: undefined },
 
+        // Kế toán (Accounting) per spec §5.10 — the old single "Công nợ &
+        // Dòng tiền" area, split into the 4 spec danh mục.
         // Theo dõi hóa đơn kết hợp (card 20260921_18) — same read-only-for-CUS
         // page as the accountant entry; writes stay server-gated.
-        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'financials' as SectionName },
-        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'financials' as SectionName },
+        { key: 'invoice-tracking', label: 'Theo dõi hóa đơn', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'deposit-tracker', label: 'Theo dõi hoàn cược', path: '/accounting/deposit-tracker', icon: Coins, section: 'accounting-phoi-phieu' as SectionName },
         // Kiểm soát phơi phiếu / tiền đường (card 20260922_5) — ADMIN+ACCOUNTANT only.
-        { key: 'phoi-phieu', label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu', icon: FileText, section: 'financials' as SectionName },
-        { key: 'chot-debit', label: 'Kế toán chốt debit', path: '/accounting/chot-debit', icon: Calculator, section: 'financials' as SectionName },
+        { key: 'phoi-phieu', label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'chot-debit', label: 'Kế toán chốt debit', path: '/accounting/chot-debit', icon: Calculator, section: 'accounting-phoi-phieu' as SectionName },
 
-        // Công nợ & Dòng tiền (AR/AP) - PRIMARY SECTION per spec
+        // Công nợ vận tải (AR/AP) + Quỹ per spec §5.10
         ...(hasCapability('treasury.read') ? [
-          { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
+          { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'accounting-quy' as SectionName },
         ] : []),
-        { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'financials' as SectionName },
-        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
-        { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
-        { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
-        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'financials' as SectionName },
+        { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'accounting-cong-no' as SectionName },
+        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'accounting-cong-no' as SectionName },
+        { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'accounting-phoi-phieu' as SectionName },
+        { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
+
+        // Khác (spec §5.10) — Lương & Chấm công is the one Khác danh mục item
+        // this role carries; Kỷ luật is HR-only and never appeared here.
+        // App.tsx guards /salary with `officeStaffOnly`, which admits
+        // ACCOUNTANT, so this is a real destination — not a dead link.
+        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'accounting-khac' as SectionName },
 
         // Pricing config entry points (docx §5-1): accountant fuel-price entry + per-customer×route rate terms.
-        { key: 'config-fuel-price-periods', label: 'Giá dầu theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'financials' as SectionName },
-        { key: 'config-freight-rate-terms', label: 'Điều khoản cước theo tuyến', path: routes.configFreightRateTerms, icon: DollarSign, section: 'financials' as SectionName },
+        // Master data, not one of the 4 spec danh mục — they live in the
+        // accountant's 'Danh mục' group so no destination is left outside a
+        // rendered section.
+        { key: 'config-fuel-price-periods', label: 'Giá dầu theo kỳ', path: routes.configFuelPricePeriods, icon: Fuel, section: 'master-data' as SectionName },
+        { key: 'config-freight-rate-terms', label: 'Điều khoản cước theo tuyến', path: routes.configFreightRateTerms, icon: DollarSign, section: 'master-data' as SectionName },
 
         // Báo cáo (Reports)
         { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
 
         // Vận hành liên quan (Operations - View-only/Audit) per spec.
-        // Trips/fleet/salary/penalties/customers/suppliers/pricing were removed:
+        // Trips/fleet/penalties/customers/suppliers/pricing were removed:
         // App.tsx bounces ACCOUNTANT off every adminOnly route, so each was a
-        // silent dead link that re-rendered /accounting unchanged.
+        // silent dead link that re-rendered /accounting unchanged. (/salary is
+        // not in that set — `officeStaffOnly` admits ACCOUNTANT.)
         { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
 
         // Hệ thống (System) per spec — accountant has ONLY audit-logs in this section
@@ -359,7 +374,10 @@ export function getNavSections(role: Role | string): NavSection[] {
       return [
         { key: 'operations', label: 'Vận hành' },
         { key: 'reports', label: 'Báo cáo' },
-        { key: 'financials', label: 'Công nợ & Dòng tiền' },
+        { key: 'accounting-phoi-phieu', label: 'Phơi phiếu' },
+        { key: 'accounting-cong-no', label: 'Công nợ vận tải' },
+        { key: 'accounting-quy', label: 'Quỹ' },
+        { key: 'accounting-khac', label: 'Khác' },
         { key: 'hr', label: 'Nhân sự' },
         { key: 'master-data', label: 'Danh mục' },
         { key: 'system', label: 'Hệ thống' },
@@ -368,14 +386,26 @@ export function getNavSections(role: Role | string): NavSection[] {
       return [
         { key: 'operations', label: 'Vận hành' },
         { key: 'reports', label: 'Báo cáo' },
-        { key: 'financials', label: 'Công nợ & Dòng tiền' },
+        { key: 'accounting-phoi-phieu', label: 'Phơi phiếu' },
+        { key: 'accounting-cong-no', label: 'Công nợ vận tải' },
+        { key: 'accounting-quy', label: 'Quỹ' },
+        { key: 'accounting-khac', label: 'Khác' },
         { key: 'hr', label: 'Nhân sự' },
         { key: 'master-data', label: 'Danh mục' },
         { key: 'system', label: 'Hệ thống' },
       ];
     case Role.ACCOUNTANT:
       return [
-        { key: 'financials', label: 'Công nợ & Dòng tiền' },
+        { key: 'accounting-phoi-phieu', label: 'Phơi phiếu' },
+        { key: 'accounting-cong-no', label: 'Công nợ vận tải' },
+        { key: 'accounting-quy', label: 'Quỹ' },
+        { key: 'accounting-khac', label: 'Khác' },
+        // Pricing master data (Giá dầu theo kỳ, Điều khoản cước theo
+        // tuyến) belongs to no spec danh mục, so it gets its own group.
+        // Named "Giá & cước" rather than "Danh mục": the spec's own vocabulary
+        // for the 4 groups above already uses the word "danh mục", and reusing
+        // it for a 5th, different thing in the same menu reads as a duplicate.
+        { key: 'master-data', label: 'Giá & cước' },
         { key: 'reports', label: 'Báo cáo' },
         { key: 'operations', label: 'Vận hành liên quan' },
         { key: 'system', label: 'Hệ thống' },

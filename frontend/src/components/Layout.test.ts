@@ -83,6 +83,7 @@ describe('getNavItems', () => {
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
       ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
+      ['Lương & Chấm công', '/salary'],
       ['Giá dầu theo kỳ', '/config/fuel-price-periods'],
       ['Điều khoản cước theo tuyến', '/config/freight-rate-terms'],
       ['Báo cáo Lãi lỗ', '/finance'],
@@ -158,20 +159,27 @@ describe('getNavItems', () => {
   });
 
   it('orders sidebar sections around each office role workflow per spec', () => {
+    // Spec §5.10 — the single "Công nợ & Dòng tiền" group is split into the
+    // 4 spec danh mục, in the slot the old group occupied (after Báo cáo,
+    // before Nhân sự).
     // Spec §III.1 — ADMIN/MANAGER section order:
-    // Vận hành → Báo cáo → Công nợ & Dòng tiền → Nhân sự → Danh mục → Hệ thống
+    // Vận hành → Báo cáo → Phơi phiếu → Công nợ vận tải → Quỹ → Khác →
+    // Nhân sự → Danh mục → Hệ thống
     expect(getNavSections(Role.ADMIN).map((section) => section.label)).toEqual([
-      'Vận hành', 'Báo cáo', 'Công nợ & Dòng tiền', 'Nhân sự', 'Danh mục', 'Hệ thống',
+      'Vận hành', 'Báo cáo', 'Phơi phiếu', 'Công nợ vận tải', 'Quỹ', 'Khác',
+      'Nhân sự', 'Danh mục', 'Hệ thống',
     ]);
     expect(getNavSections(Role.MANAGER).map((section) => section.label)).toEqual([
-      'Vận hành', 'Báo cáo', 'Công nợ & Dòng tiền', 'Nhân sự', 'Danh mục', 'Hệ thống',
+      'Vận hành', 'Báo cáo', 'Phơi phiếu', 'Công nợ vận tải', 'Quỹ', 'Khác',
+      'Nhân sự', 'Danh mục', 'Hệ thống',
     ]);
-    // Spec §III.2 — ACCOUNTANT:
-    // Công nợ & Dòng tiền → Báo cáo → Vận hành liên quan → Hệ thống.
-    // Nhân sự + Danh mục are gone: all their ACCOUNTANT items were
-    // adminOnly-bounced dead links, so the sections went with them.
+    // Spec §III.2 — ACCOUNTANT: the 4 danh mục first, then "Giá & cước" (the
+    // pricing master data), Báo cáo → Vận hành liên quan → Hệ thống.
+    // "Giá & cước" is deliberately NOT "Danh mục": the spec's own 4 groups
+    // already use that word, so a 5th group sharing it reads as a duplicate.
     expect(getNavSections(Role.ACCOUNTANT).map((section) => section.label)).toEqual([
-      'Công nợ & Dòng tiền', 'Báo cáo', 'Vận hành liên quan', 'Hệ thống',
+      'Phơi phiếu', 'Công nợ vận tải', 'Quỹ', 'Khác',
+      'Giá & cước', 'Báo cáo', 'Vận hành liên quan', 'Hệ thống',
     ]);
   });
 
@@ -179,7 +187,10 @@ describe('getNavItems', () => {
     // App.tsx bounces ACCOUNTANT off every adminOnly route (and the
     // non-dispatcher /suppliers branch). Each of these nav keys used to be a
     // silent dead link that re-rendered /accounting unchanged.
-    const deadKeys = ['trips', 'fleet', 'penalties', 'customers', 'salary', 'suppliers', 'config-pricing'];
+    // 'salary' is NOT in this set: /salary is guarded by `officeStaffOnly`,
+    // which admits ACCOUNTANT (App.tsx), and GET /api/salary answers 200 for
+    // an accountant session. Do not re-add it here.
+    const deadKeys = ['trips', 'fleet', 'penalties', 'customers', 'suppliers', 'config-pricing'];
     const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read']);
     for (const key of deadKeys) {
       expect(items.some((item) => item.key === key), key).toBe(false);
@@ -187,7 +198,7 @@ describe('getNavItems', () => {
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung',
+      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/shipments', '/audit-logs',
     ]);
@@ -311,6 +322,120 @@ describe('getNavItems', () => {
   });
 });
 
+describe('kế toán danh mục (spec 5.10)', () => {
+  const PHƠI_PHIEU = 'accounting-phoi-phieu';
+  const CÔNG_NỢ = 'accounting-cong-no';
+  const QUỸ = 'accounting-quy';
+  const KHÁC = 'accounting-khac';
+  const DANH_MỤC = [PHƠI_PHIEU, CÔNG_NỢ, QUỸ, KHÁC] as const;
+
+  const itemsFor = (role: Role, section: string) =>
+    getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read'])
+      .filter((item) => item.section === section)
+      .map((item) => item.key);
+
+  it('gives the 4 danh mục their exact spec labels for every accounting role', () => {
+    for (const role of [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT]) {
+      const labelled = getNavSections(role)
+        .filter((section) => (DANH_MỤC as readonly string[]).includes(section.key))
+        .map((section) => section.label);
+      expect(labelled, role).toEqual(['Phơi phiếu', 'Công nợ vận tải', 'Quỹ', 'Khác']);
+    }
+  });
+
+  it('routes every spec screen to its spec danh mục', () => {
+    expect(itemsFor(Role.ADMIN, PHƠI_PHIEU)).toEqual([
+      'expenses', 'advances', 'hoan-ung', 'invoice-tracking', 'deposit-tracker', 'phoi-phieu', 'chot-debit',
+    ]);
+    expect(itemsFor(Role.ADMIN, CÔNG_NỢ)).toEqual(['debt', 'payables']);
+    expect(itemsFor(Role.ADMIN, QUỸ)).toEqual(['treasury']);
+    expect(itemsFor(Role.ADMIN, KHÁC)).toEqual(['salary']);
+
+    expect(itemsFor(Role.MANAGER, PHƠI_PHIEU)).toEqual(['expenses', 'advances', 'hoan-ung']);
+    expect(itemsFor(Role.MANAGER, CÔNG_NỢ)).toEqual(['debt', 'payables']);
+    expect(itemsFor(Role.MANAGER, QUỸ)).toEqual(['treasury']);
+    expect(itemsFor(Role.MANAGER, KHÁC)).toEqual(['salary']);
+
+    expect(itemsFor(Role.ACCOUNTANT, PHƠI_PHIEU)).toEqual([
+      'invoice-tracking', 'deposit-tracker', 'phoi-phieu', 'chot-debit',
+      'expenses', 'advances', 'hoan-ung',
+    ]);
+    expect(itemsFor(Role.ACCOUNTANT, CÔNG_NỢ)).toEqual(['debt', 'payables']);
+    expect(itemsFor(Role.ACCOUNTANT, QUỸ)).toEqual(['treasury']);
+  });
+
+  it('loses no spec screen and double-places none across the 4 danh mục', () => {
+    const expected: Record<string, string[]> = {
+      [Role.ADMIN]: [
+        'phoi-phieu', 'expenses', 'invoice-tracking', 'deposit-tracker', 'advances',
+        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury', 'salary',
+      ],
+      [Role.MANAGER]: [
+        'expenses', 'advances', 'hoan-ung', 'debt', 'payables', 'treasury', 'salary',
+      ],
+      [Role.ACCOUNTANT]: [
+        'phoi-phieu', 'expenses', 'invoice-tracking', 'deposit-tracker', 'advances',
+        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury', 'salary',
+      ],
+    };
+    for (const [role, expectedKeys] of Object.entries(expected)) {
+      const union = DANH_MỤC.flatMap((section) => itemsFor(role as Role, section));
+      expect([...union].sort(), role).toEqual([...expectedKeys].sort());
+      // No screen may be counted twice (or thrice) by the split.
+      expect(new Set(union).size, role).toBe(union.length);
+    }
+  });
+
+  it('keeps each role’s pricing master data out of the 4 danh mục but still rendered', () => {
+    // config-fuel-price-periods / config-freight-rate-terms are ACCOUNTANT-only
+    // pricing master data, not a spec danh mục — they sit in 'Giá & cước'.
+    for (const section of DANH_MỤC) {
+      expect(itemsFor(Role.ACCOUNTANT, section)).not.toContain('config-fuel-price-periods');
+      expect(itemsFor(Role.ACCOUNTANT, section)).not.toContain('config-freight-rate-terms');
+    }
+    expect(itemsFor(Role.ACCOUNTANT, 'master-data')).toEqual([
+      'config-fuel-price-periods', 'config-freight-rate-terms',
+    ]);
+  });
+
+  it('leaves the CUS invoice-tracking entry in the CUS reconciliation group', () => {
+    // CUS is not an accounting role: the read-only invoice page stays where
+    // it was, and the CUS menu must not gain any accounting danh mục.
+    const cusInvoice = getNavItems(Role.CUS).find((item) => item.key === 'invoice-tracking');
+    expect(cusInvoice).toEqual(expect.objectContaining({ path: '/accounting/invoice-tracking' }));
+    expect(cusInvoice?.section).toBe('reconciliation');
+    for (const section of DANH_MỤC) {
+      expect(itemsFor(Role.CUS, section), section).toEqual([]);
+    }
+  });
+
+  it('grants the 4 danh mục only to the roles that own accounting screens', () => {
+    for (const role of [Role.CUS, Role.DISPATCHER, Role.OPS, Role.DRIVER, Role.CUSTOMER]) {
+      const keys = getNavSections(role).map((section) => section.key);
+      for (const section of DANH_MỤC) {
+        expect(keys, `${role}/${section}`).not.toContain(section);
+      }
+    }
+  });
+
+  it('renders nothing for a danh mục the role has no item in', () => {
+    // The section stays listed for the role, but filters to zero items, which
+    // Sidebar skips. Reachable via the capability gate: without
+    // `treasury.read` the Quỹ danh mục owns no item.
+    expect(getNavSections(Role.ADMIN).map((section) => section.key)).toContain(QUỸ);
+    expect(getNavItems(Role.ADMIN, undefined, undefined, [])
+      .filter((item) => item.section === QUỸ)).toEqual([]);
+  });
+
+  it('gives ACCOUNTANT a non-empty Khác danh mục holding only Lương & Chấm công', () => {
+    // Spec §5.10 puts bảng chấm công + bảng lương in KHÁC. /salary is guarded
+    // by `officeStaffOnly` in App.tsx, which admits ACCOUNTANT, so the entry is
+    // a real destination and the danh mục must not render empty for them.
+    expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual(['salary']);
+    expect(getNavSections(Role.ACCOUNTANT).map((section) => section.key)).toContain(KHÁC);
+  });
+});
+
 describe('getPageTitle', () => {
   it('uses dispatcher language for the shared supplier route', () => {
     expect(getPageTitle('/suppliers', Role.DISPATCHER)).toBe('Nhà thầu');
@@ -320,13 +445,14 @@ describe('getPageTitle', () => {
 
 describe('getDefaultOpenSection / PRIMARY_SECTION_BY_ROLE', () => {
   it('covers every supported role with a primary section per spec §II', () => {
-    // ADMIN/MANAGER → Vận hành; ACCOUNTANT → Công nợ & Dòng tiền;
-    // DISPATCHER → Điều độ Phương tiện; CUS → Nghiệp vụ Chứng từ;
+    // ADMIN/MANAGER → Vận hành; ACCOUNTANT → Phơi phiếu (the first of the
+    // 4 accounting danh mục, spec §5.10 — the old 'financials' group is
+    // gone); DISPATCHER → Điều độ Phương tiện; CUS → Nghiệp vụ Chứng từ;
     // OPS/DRIVER → Công việc của tôi; CUSTOMER → Portal.
     expect(PRIMARY_SECTION_BY_ROLE).toEqual({
       ADMIN: 'operations',
       MANAGER: 'operations',
-      ACCOUNTANT: 'financials',
+      ACCOUNTANT: 'accounting-phoi-phieu',
       DISPATCHER: 'dispatch-planning',
       CUS: 'document-ops',
       OPS: 'my-work',
@@ -338,7 +464,7 @@ describe('getDefaultOpenSection / PRIMARY_SECTION_BY_ROLE', () => {
   it.each([
     [Role.ADMIN, 'operations'],
     [Role.MANAGER, 'operations'],
-    [Role.ACCOUNTANT, 'financials'],
+    [Role.ACCOUNTANT, 'accounting-phoi-phieu'],
     [Role.DISPATCHER, 'dispatch-planning'],
     [Role.CUS, 'document-ops'],
     [Role.OPS, 'my-work'],
@@ -346,6 +472,14 @@ describe('getDefaultOpenSection / PRIMARY_SECTION_BY_ROLE', () => {
     [Role.CUSTOMER, 'portal'],
   ] as const)('returns the spec-defined primary section for %s', (role, expected) => {
     expect(getDefaultOpenSection(role)).toBe(expected);
+  });
+
+  it('keeps every role primary section inside that role’s rendered section list', () => {
+    for (const role of Object.values(Role)) {
+      const primary = getDefaultOpenSection(role);
+      if (!primary) continue;
+      expect(getNavSections(role).map((section) => section.key), role).toContain(primary);
+    }
   });
 
   it('returns undefined for unknown / empty role so callers can fall back', () => {
