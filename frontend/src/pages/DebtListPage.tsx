@@ -83,9 +83,11 @@ interface AgingBucket {
 /**
  * One filter mode per bucket. The four aging buckets must filter independently
  * so clicking "31–60 ngày" shows only customers in that bucket, etc.
- * `'all'` is the unfiltered default.
+ * `'all'` is the unfiltered default. `'overdue'` has no lane card — it is the
+ * cross-bucket "any overdue portion" aggregate the overview cards deep-link
+ * to (?filter=overdue).
  */
-type BucketFilterMode = 'all' | 'current' | 'd30' | 'd60' | 'over90';
+type BucketFilterMode = 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue';
 
 const AGING_BUCKETS: AgingBucket[] = [
   // Per P0-W6, the four age buckets are now surfaced as semantic O2C state
@@ -111,18 +113,22 @@ const BUCKET_ICONS: Record<string, typeof CalendarCheck2> = {
 export default function DebtListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  // Bucket filter can arrive via ?filter= (aging-card deep links).
+  // Bucket filter can arrive via ?filter= (aging-card and overview due-group
+  // deep links; `overdue` = any overdue portion).
   const urlBucket = searchParams.get('filter') === 'current' ? 'current'
     : searchParams.get('filter') === 'd30' ? 'd30'
     : searchParams.get('filter') === 'd60' ? 'd60'
     : searchParams.get('filter') === 'over90' ? 'over90'
+    : searchParams.get('filter') === 'overdue' ? 'overdue'
     : undefined;
   // Server-side pagination + bucket filter + debounced search + column sort;
   // totals are full-set. Search input, page-reset-on-filter and caching live in
-  // the hook.
+  // the hook. `?asOf=` (from the accounting overview due-group deep links)
+  // pins the aging snapshot date so the list matches the clicked counts.
+  const urlAsOf = searchParams.get('asOf') ?? undefined;
   const table = useTableQueryState<
     CustomerAging,
-    { bucket?: 'current' | 'd30' | 'd60' | 'over90'; sortBy?: string; sortDir?: 'asc' | 'desc' },
+    { bucket?: 'current' | 'd30' | 'd60' | 'over90' | 'overdue'; asOfDate?: string; sortBy?: string; sortDir?: 'asc' | 'desc' },
     CustomerAgingResponse & { items: CustomerAging[] }
   >({
     endpoint: async (params) => {
@@ -131,7 +137,7 @@ export default function DebtListPage() {
     },
     queryKey: qk.financial.customerAgingAll,
     defaultPageSize: 25,
-    initialFilters: urlBucket ? { bucket: urlBucket } : {},
+    initialFilters: urlBucket || urlAsOf ? { bucket: urlBucket, asOfDate: urlAsOf } : {},
   });
   const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
   const filterMode: BucketFilterMode = (table.filters.bucket as BucketFilterMode | undefined) ?? 'all';

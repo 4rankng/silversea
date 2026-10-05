@@ -5,6 +5,7 @@ import { billBookingReference } from '../lib/business-reference';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
 import { ChevronRight, Gift } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -212,17 +213,27 @@ export function CommissionModal({
 type PayablesSummaryEnvelope = Awaited<ReturnType<typeof financialClient.getPayablesSummary>>;
 
 export default function PayableListPage() {
+  // Due-group deep links (?filter=current|overdue from the accounting
+  // overview) initialize the bucket filter the same way the /debt page does;
+  // afterwards the bucket rides the filters bag alongside category and sort.
+  // `?asOf=` pins the aging snapshot date so the list matches the clicked counts.
+  const [searchParams] = useSearchParams();
+  const urlBucket = searchParams.get('filter') === 'current' ? 'current'
+    : searchParams.get('filter') === 'overdue' ? 'overdue'
+    : undefined;
+  const urlAsOf = searchParams.get('asOf') ?? undefined;
   // Server-side search + pagination + column sort; headline numbers and totals
   // are full-set. Search input, page-reset-on-filter and caching live in the
   // table hook.
   const table = useTableQueryState<
     PayableSummary,
-    { category?: PayablesCategory; sortBy?: string; sortDir?: 'asc' | 'desc' },
+    { category?: PayablesCategory; bucket?: 'current' | 'overdue'; asOfDate?: string; sortBy?: string; sortDir?: 'asc' | 'desc' },
     PayablesSummaryEnvelope
   >({
     endpoint: (params) => financialClient.getPayablesSummary(params),
     queryKey: qk.financial.payablesSummaryAll,
     defaultPageSize: 25,
+    initialFilters: urlBucket || urlAsOf ? { bucket: urlBucket, asOfDate: urlAsOf } : {},
   });
   const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
   const category = table.filters.category as PayablesCategory | undefined;

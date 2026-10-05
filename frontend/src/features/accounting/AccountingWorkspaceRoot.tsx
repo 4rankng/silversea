@@ -103,6 +103,7 @@ export function AccountingWorkspaceRoot() {
           transportViewHref={viewHref('transport')}
           receivables={queries.receivables}
           payables={queries.payables}
+          depositWeekly={queries.depositWeekly}
           profitability={queries.profitability}
         />
       ) : (

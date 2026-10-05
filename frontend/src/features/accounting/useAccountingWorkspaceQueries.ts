@@ -5,6 +5,7 @@ import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import type { AccountingWorkspaceUrlState } from './accountingWorkspaceTypes';
 import type {
+  DepositWeeklySummary,
   PayablesSummary,
   ProfitabilitySummary,
   ReceivablesSummary,
@@ -25,6 +26,18 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
       api.get<PayablesSummary>(
         `/reports/payables-summary?asOfDate=${encodeURIComponent(state.to)}`,
       ),
+  });
+
+  // Card 369 — weekly container-deposit series for the overview chart. Keyed
+  // on the full selected range so a range change refetches chart and cards
+  // together; only the overview view renders it.
+  const depositWeekly = useQuery({
+    queryKey: qk.accounting.depositWeekly(state.from, state.to),
+    queryFn: () =>
+      api.get<DepositWeeklySummary>(
+        `/accounting/deposits/weekly-summary?from=${encodeURIComponent(state.from)}&to=${encodeURIComponent(state.to)}`,
+      ),
+    enabled: state.activeView === 'overview',
   });
 
   const profitability = useQuery({
@@ -87,11 +100,13 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
   return {
     receivables,
     payables,
+    depositWeekly,
     profitability,
     transportRegister,
     transportCustomers,
     transportCarriers,
     hasOverviewError:
-      receivables.isError || payables.isError || profitability.isError,
+      receivables.isError || payables.isError || profitability.isError
+      || depositWeekly.isError,
   };
 }

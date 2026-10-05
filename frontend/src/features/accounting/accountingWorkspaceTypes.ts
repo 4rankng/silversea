@@ -2,6 +2,30 @@ import type {
   AccountingTransportOwnership,
   AccountingTransportReadiness,
 } from '@tingting/shared';
+import type { DepositWeekRow } from '../../components/charts/DepositWeeklyChart';
+
+export type { DepositWeekRow };
+
+/**
+ * One due-group of an aging summary. `count` is presence-based (entities with
+ * any amount in the group), so the drill-down lists behind the overview cards
+ * match the displayed counts exactly.
+ */
+export interface DueGroup {
+  amount: number;
+  count: number;
+}
+
+/**
+ * Card 369 — the due-group split the overview cards render:
+ * `inTerm` = aging.current > 0, `overdue` = any overdue portion > 0.
+ * Amounts are rounded server-side (round2dp), and
+ * inTerm.amount + overdue.amount ≈ totalOutstanding (≤ 0.02 raw).
+ */
+export interface DueGroups {
+  inTerm: DueGroup;
+  overdue: DueGroup;
+}
 
 export interface ReceivablesSummary {
   buckets: Array<{ range: string; label: string; count: number; amount: number }>;
@@ -9,6 +33,8 @@ export interface ReceivablesSummary {
   totalCustomers: number;
   overdueCustomers: number;
   overdueAmount: number;
+  /** Optional: older cached payloads predate the due-group split. */
+  dueGroups?: DueGroups;
   asOf?: string;
   timezone?: string;
   definitionVersion?: string;
@@ -19,10 +45,18 @@ export interface PayablesSummary {
   totalOutstanding: number | string;
   totalSuppliers: number;
   overdueSuppliers: number;
+  /** Optional: older cached payloads predate the due-group split. */
+  dueGroups?: DueGroups;
   asOf?: string;
   timezone?: string;
   definitionVersion?: string;
   checksum?: string;
+}
+
+/** GET /api/accounting/deposits/weekly-summary response. */
+export interface DepositWeeklySummary {
+  weeks: DepositWeekRow[];
+  totals: { count: number; depositAmount: number; refundedAmount: number };
 }
 
 export interface ProfitabilitySummary {

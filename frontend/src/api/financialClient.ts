@@ -159,6 +159,10 @@ export const financialClient = {
 
   getPayablesSummary: (params?: {
     category?: PayablesCategory;
+    /** Due-group drill-down from the accounting overview (?filter=). */
+    bucket?: 'current' | 'overdue';
+    /** As-of date for the drill-down so lists match the clicked card counts. */
+    asOfDate?: string;
     search?: string;
     page?: number;
     limit?: number;
@@ -213,10 +217,10 @@ export const financialClient = {
   postCommission: (data: { supplierId: number; amount: number; tripId?: number; note?: string }) =>
     api.post<{ ok: true }>(FINANCIAL.COMMISSIONS, data),
 
-  getCustomerAging: (params?: { search?: string; page?: number; limit?: number; bucket?: 'all' | 'current' | 'd30' | 'd60' | 'over90'; sortBy?: string; sortDir?: 'asc' | 'desc' }) => {
+  getCustomerAging: (params?: { search?: string; page?: number; limit?: number; bucket?: 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue'; asOfDate?: string; sortBy?: string; sortDir?: 'asc' | 'desc' }) => {
     const search = params?.search?.trim() || undefined;
     return api.get<CustomerAgingResponse>(
-      `${REPORTS.RECEIVABLES_AGING}${toQuery({ search, page: params?.page, limit: params?.limit, bucket: params?.bucket && params.bucket !== 'all' ? params.bucket : undefined, sortBy: params?.sortBy, sortDir: params?.sortDir })}`,
+      `${REPORTS.RECEIVABLES_AGING}${toQuery({ search, page: params?.page, limit: params?.limit, bucket: params?.bucket && params.bucket !== 'all' ? params.bucket : undefined, asOfDate: params?.asOfDate, sortBy: params?.sortBy, sortDir: params?.sortDir })}`,
     );
   },
 

@@ -376,6 +376,9 @@ export const qk = {
       ['accounting', 'work-inbox', view, page, sortBy ?? '', sortDir ?? ''] as const,
     receivables: (asOf: string) => ['accounting', 'receivables', asOf] as const,
     payables: (asOf: string) => ['accounting', 'payables', asOf] as const,
+    /** Weekly container-deposit series — one key per requested from/to range. */
+    depositWeekly: (from: string, to: string) =>
+      ['accounting', 'deposit-weekly', from, to] as const,
     profitability: (month: number, year: number) => ['accounting', 'profitability', month, year] as const,
     transportRegister: (params: {
       from: string;
