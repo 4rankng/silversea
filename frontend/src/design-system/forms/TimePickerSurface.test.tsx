@@ -92,6 +92,37 @@ describe('adaptive time entry', () => {
     // "stole focus" and swallowed the digits the user typed next. A
     // POINTER-opened sheet must leave focus on the anchor segment so fast
     // typing never breaks; a keyboard-invoked sheet keeps the dialog focus.
+    // Card 20261005_366: typing into a segment while a POINTER-opened sheet
+    // is up closes the sheet — the sheet covers the field at narrow widths,
+    // so manual entry must reclaim the view. Picker selections do NOT close
+    // it (2026-09-16 ruling: only explicit apply closes); a keyboard-opened
+    // sheet is unaffected (its focus lives in the exact-entry field).
+    it('first digit typed into a segment closes the pointer-opened sheet', async () => {
+      render(<><SplitHarness /><input aria-label="Outside" /></>);
+      const time = screen.getByLabelText('Giờ — Hẹn');
+      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+      await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
+      fireEvent.keyDown(time, { key: '1' });
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(time).toHaveFocus();
+      // The keydown closes the sheet; the keystroke itself still lands.
+      fireEvent.change(time, { target: { value: '1' } });
+      expect(time).toHaveValue('1');
+    });
+
+    it('a picker selection keeps the pointer sheet open (explicit apply still rules)', async () => {
+      render(<><SplitHarness /><input aria-label="Outside" /></>);
+      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
+      fireEvent.keyDown(screen.getByLabelText('Giờ — Hẹn'), { key: '1' });
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      // Reopen and pick from the listbox: the selection must NOT close it.
+      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+      const reopened = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
+      click(within(reopened).getByRole('option', { name: '07' }));
+      expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).toBeInTheDocument();
+    });
+
     it('pointer-opened sheet leaves focus on the anchor segment (no popup focus steal)', async () => {
       render(<><SplitHarness /><input aria-label="Outside" /></>);
       const time = screen.getByLabelText('Giờ — Hẹn');

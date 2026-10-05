@@ -167,7 +167,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
                 'aria-invalid': invalid || inputProps?.['aria-invalid'],
                 'aria-describedby': [inputProps?.['aria-describedby'], message ? `${id}-error` : undefined].filter(Boolean).join(' ') || undefined,
                 onInvalid: () => setTouched(true),
-                onKeyDown: (event) => { inputProps?.onKeyDown?.(event); if (!event.defaultPrevented && event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); openPanel(part, true); } },
+                onKeyDown: (event) => { inputProps?.onKeyDown?.(event); if (!event.defaultPrevented && event.altKey && event.key === 'ArrowDown') { event.preventDefault(); event.stopPropagation(); openPanel(part, true); } else if (!event.defaultPrevented && open === part && !keyboardPicker && /^[0-9]$/.test(event.key)) { setOpen(null); } },
               } as ComponentProps<typeof DateTimeSegments>['inputProps']} />
           </div>
         </div>;

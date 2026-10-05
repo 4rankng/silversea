@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { DateTimeSegments } from './DateTimeSegments';
 import { TimePickerSurface } from './TimePickerSurface';
 import './SplitDateTimeField.css';
@@ -95,6 +95,17 @@ export function TimeSegmentsField({ id, label, value, onChange, disabled, readOn
               popupExpanded={active}
               popupControls={active ? `${fieldId}-picker` : undefined}
               onComplete={() => anchorRef.current?.focus()}
+              inputProps={{
+                onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
+                  // Card 20261005_366: typing a digit while the pointer-opened
+                  // picker is up closes it — the sheet covers the field at
+                  // narrow widths, and manual entry must reclaim the view.
+                  // Selections keep the picker open (2026-09-16 ruling); a
+                  // keyboard-invoked picker keeps focus in its exact-entry
+                  // field, so those flows never see this hook.
+                  if (!event.defaultPrevented && open && /^[0-9]$/.test(event.key)) setOpen(false);
+                },
+              }}
             />
           </div>
         </div>
