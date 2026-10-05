@@ -33,7 +33,11 @@
 .expense-register-table td { overflow-wrap: anywhere; }
 .expense-register-table .num { text-align: end; white-space: nowrap; }
 .expense-register-open { justify-content: flex-start; text-align: inherit; }
-.expense-register-money { justify-content: flex-end; text-align: inherit; }
+/* The amounts render inside ghost buttons whose own skin resets
+   white-space — the money element re-asserts the shared numeric law so a
+   narrow cell can never break the number from its ₫ (the .btn reset would
+   otherwise defeat the td's nowrap). */
+.expense-register-money { justify-content: flex-end; text-align: inherit; white-space: nowrap; }
 
 /* Matrix titles keep their complete label in the shared compact control.
    The existing local table rail owns any wider intrinsic track. */
@@ -91,7 +95,11 @@
   .expense-register-table td[data-label]::before { content: attr(data-label); display: block; color: var(--fg-2); font-size: var(--text-label-size); margin-bottom: 3px; }
   .expense-register-table .expense-register-context, .expense-register-table td[data-label="Khoản chi"], .expense-register-table .expense-work-identity, .expense-register-table .expense-work-notes { grid-column: 1 / -1; min-width: 0; max-width: none; }
   .expense-register-table tr[data-vehicle-start="true"] td { border-top: 0; }
-  .expense-register-table .num { white-space: normal; text-align: start; }
+  /* Card mode re-aligns the numeric cells (label above value, start edge) but
+     must NOT re-allow wrapping: a formatted amount stays atomic under the
+     shared record-table law — one line, never broken between digits and ₫.
+     Only the alignment is this band's business. */
+  .expense-register-table .num { text-align: start; }
   .expense-accounting-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-size: var(--text-label-size); }
   .expense-accounting-summary > div { overflow-wrap: anywhere; }
   .expense-accounting-drawer, .expense-accounting-drawer * { scrollbar-width: none; }

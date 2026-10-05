@@ -54,6 +54,38 @@ describe('QA-AUDIT-UI-22 numeric identity values', () => {
     }
   });
 
+  // Card 388 — the expense register's card mode carried the same class of
+  // page-rule override (`.expense-register-table .num { white-space: normal }`
+  // in the ≤767px band), out-specifying the shared law for money cells. The
+  // built bundle must keep the law there too: any rule targeting the register's
+  // numeric cells may align them, never un-wrap them. Card-mode stacking of
+  // NON-numeric cells (`td { white-space: normal }`) stays legal.
+  it('the production bundle holds the numeric law on the expense register cells', () => {
+    const distAssets = resolve(process.cwd(), 'dist/assets');
+    if (!existsSync(distAssets)) {
+      throw new Error('dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.');
+    }
+    const expenseChunks = readdirSync(distAssets).filter((f) => f.endsWith('.css') && readFileSync(resolve(distAssets, f), 'utf8').includes('.expense-register-table'));
+    expect(expenseChunks.length).toBeGreaterThan(0);
+    for (const chunk of expenseChunks) {
+      const css = readFileSync(resolve(distAssets, chunk), 'utf8');
+      // The register's amounts render inside ghost buttons; the .btn skin
+      // resets white-space, so the money element must re-assert the law or a
+      // narrow cell breaks the number exactly like the invoice defect.
+      const moneyBtn = css.match(/\.expense-register-money\s*\{[^}]*\}/);
+      expect(moneyBtn, 'the built expense chunk must carry .expense-register-money { white-space: nowrap }').toBeTruthy();
+      expect(moneyBtn![0]).toMatch(/white-space:\s*nowrap/);
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selector = m[1];
+        const body = m[2];
+        if (!/\.expense-register-table\s+\.num/.test(selector) && !/\.expense-register-table\.num/.test(selector)) continue;
+        if (/white-space:\s*(?!nowrap)/.test(body)) {
+          throw new Error(`built rule un-wraps the expense register's numeric cells in ${chunk}: ${selector.trim()} { ${body.slice(0, 140)} }`);
+        }
+      }
+    }
+  });
+
   it('QA-AUDIT-UI-26 keeps semantic row ordinals whole without changing prose wrapping', () => {
     const css = read('styles/record-table.css');
     const rule = css.match(/\.record-table tbody td\[data-label=['"]STT['"]\]\s*\{([^}]*)\}/)?.[1];
