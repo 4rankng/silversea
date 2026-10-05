@@ -318,10 +318,13 @@
   line-height: var(--ops-table-primary-line-height);
 }
 
-/* Container codes never render bold and never wrap (user ruling 2026-09-16). */
+/* Container codes never wrap. Weight: the 2026-09-16 no-bold ruling is
+ * SUPERSEDED 2026-10-05 by card 20261005_361 (REQ-02, owner-acked) —
+ * dispatchers scan container codes first, so they carry the primary weight
+ * while the port columns dropped theirs. */
 .detailed-plan-grid__cell--container .detailed-plan-grid__line--strong {
   font-size: var(--text-caption-size);
-  font-weight: 400;
+  font-weight: var(--ops-table-primary-weight);
   white-space: nowrap;
 }
 
