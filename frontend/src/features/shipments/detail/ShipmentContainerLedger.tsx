@@ -10,7 +10,7 @@ import type {
 } from '@tingting/shared';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { useConfirm } from '../../../components/UI';
-import { displayNote } from '../cus/cusUtils';
+import { displayNote, stripDecimalTrailingZeros } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
@@ -187,7 +187,7 @@ function InlineEditor({
   const [shippingLineName, setShippingLineName] = useState(detail.summary.raw.shippingLineName ?? '');
   const [containerNumber, setContainerNumber] = useState(line.raw.containerNumber ?? '');
   const [containerTypeId, setContainerTypeId] = useState(line.raw.containerTypeId ? String(line.raw.containerTypeId) : '');
-  const [cargoWeightKg, setCargoWeightKg] = useState(line.raw.cargoWeightKg ?? '');
+  const [cargoWeightKg, setCargoWeightKg] = useState(stripDecimalTrailingZeros(line.raw.cargoWeightKg));
   const [cargoVolumeCbm, setCargoVolumeCbm] = useState(line.raw.cargoVolumeCbm ?? '');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);

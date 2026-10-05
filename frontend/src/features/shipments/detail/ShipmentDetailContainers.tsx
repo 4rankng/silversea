@@ -1,3 +1,4 @@
+import { formatQuantity } from '../cus/cusUtils';
 import { Container } from 'lucide-react';
 import type { ShipmentDetail } from '../../../api/shipmentClient';
 import { LedgerRecordList, type LedgerRecordFact } from '../../../components/shared/LedgerRecordList';
@@ -19,7 +20,7 @@ function containerFacts(container: ContainerRow, assignment?: Assignment): Ledge
     { key: 'vehicle', label: 'Xe đã gán', value: container.plannedVehiclePlate ?? '—', primary: true },
     { key: 'seal', label: 'Số seal', value: container.sealNumber ?? '—' },
     { key: 'appointment', label: 'Lịch giao', value: formatDateTimeShort(container.customerAppointmentAt) },
-    { key: 'weight', label: 'Trọng lượng (kg)', value: container.cargoWeightKg ?? '—' },
+    { key: 'weight', label: 'Trọng lượng (kg)', value: formatQuantity(container.cargoWeightKg) },
     { key: 'notes', label: 'Ghi chú', value: container.notes ?? '—' },
   ];
 }

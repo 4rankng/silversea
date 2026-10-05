@@ -38,7 +38,8 @@ describe('QA-AUDIT-UI-36 shipment container reading', () => {
     expect(within(record).getByText('[KẸP]')).toBeTruthy();
     expect(within(record).getByText('SEAL-01')).toBeTruthy();
     expect(within(record).getByText('08:30 01/10/2026')).toBeTruthy();
-    expect(within(record).getByText('1000.00')).toBeTruthy();
+    // Card 20261005_360: the stored numeric renders vi-VN formatted (dead decimals gone).
+    expect(within(record).getByText('1.000')).toBeTruthy();
     expect(within(record).getByText('Giao tại kho theo lịch')).toBeTruthy();
     expect(within(record).queryByRole('checkbox')).toBeNull();
     expect(within(record).queryByRole('link')).toBeNull();
@@ -52,7 +53,7 @@ describe('QA-AUDIT-UI-36 shipment container reading', () => {
     expect(screen.queryByRole('article')).toBeNull();
     const table = screen.getByRole('table');
     expect(within(table).getAllByRole('columnheader')).toHaveLength(8);
-    for (const value of ['TGHU1234567', 'Gaya Container Lines', '15H-154.98', 'SEAL-01', '08:30 01/10/2026', '1000.00', 'Giao tại kho theo lịch', '[KẸP]']) {
+    for (const value of ['TGHU1234567', 'Gaya Container Lines', '15H-154.98', 'SEAL-01', '08:30 01/10/2026', '1.000', 'Giao tại kho theo lịch', '[KẸP]']) {
       expect(within(table).getByText(value)).toBeTruthy();
     }
   });
