@@ -421,3 +421,49 @@ describe('card 2026-10-05_373 — the chi-hộ "Nội dung phí" cell carries th
     expect(within(cell).getByText('—')).toBeInTheDocument();
   });
 });
+
+/* ─── Card 051026231533 — "Ngày lấy phơi" tự set khi tích nhận phơi ────────
+ * Đặc tả 5.10: "Nếu đã nhận phơi, ngày là ngày tích chọn nhận phơi trên
+ * desktop" — the date must stamp itself at the tick, not require manual
+ * DD/MM/YYYY entry. The checkbox drives the same ngayLayPhoi draft the manual
+ * input uses, so the PHOI08 draft-until-save contract holds unchanged. */
+describe('phơi nhận-phơi auto-date (card 051026231533)', () => {
+  const todayIso = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  it('ticking "Đã nhận phơi" stamps Ngày lấy phơi with the tick day and saves it', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows, ngayLayPhoi: null, trangThaiLay: null });
+    page(); await screen.findByText('First fee');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Đã nhận phơi/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+
+    await waitFor(() => expect(api.meta).toHaveBeenCalledWith(7, expect.objectContaining({ ngayLayPhoi: todayIso() })));
+  });
+
+  it('unticking clears the recorded date (saves null)', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows, ngayLayPhoi: '2026-09-22', trangThaiLay: null });
+    page(); await screen.findByText('First fee');
+
+    expect(screen.getByRole('checkbox', { name: /Đã nhận phơi/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Đã nhận phơi/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+
+    await waitFor(() => expect(api.meta).toHaveBeenCalledWith(7, expect.objectContaining({ ngayLayPhoi: null })));
+  });
+
+  it('leaves the manual date field editable after the tick', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows, ngayLayPhoi: null, trangThaiLay: null });
+    page(); await screen.findByText('First fee');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Đã nhận phơi/ }));
+    // The day segment is the data-seg seam (the field label names the group);
+    // editing it must flow through the same draft as before the tick.
+    const day = document.querySelector('input[data-seg="dd"]') as HTMLInputElement;
+    expect(day).toBeTruthy();
+    fireEvent.change(day, { target: { value: '15' } });
+    expect(day.value).toBe('15');
+  });
+});

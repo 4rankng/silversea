@@ -25,6 +25,13 @@ interface Props {
   onSaved: () => void;
 }
 
+/** Card 051026231533 — "ngày tích chọn nhận phơi" is the operator's local
+ *  calendar day at the tick, never a UTC slice (VN evenings would shift). */
+function tickDayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** The row amount a footer figure sees right now: the draft edit when one
  *  exists, else the stored column; '' (cleared draft) counts as 0. */
 function liveAmount(
@@ -270,6 +277,18 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
             </label>
             {linkNotice && <p role="status" className="phoi-detail-note">{linkNotice}</p>}
             <div className="phoi-detail-meta">
+              {/* Card 051026231533 — the tick is the source of truth per spec
+                  5.10 ("ngày là ngày tích chọn nhận phơi trên desktop"): it
+                  stamps the date draft; the manual field stays editable for
+                  corrections and drives the same save diff. */}
+              <label className="phoi-detail-linked">
+                <input
+                  type="checkbox"
+                  checked={(ngayLayPhoi ?? detail.data.ngayLayPhoi ?? '') !== ''}
+                  onChange={(e) => setNgayLayPhoi(e.target.checked ? tickDayIso() : '')}
+                />
+                Đã nhận phơi
+              </label>
               <BufferedUuiDateInput label="Ngày lấy phơi" size="sm" value={ngayLayPhoi ?? (detail.data.ngayLayPhoi ?? '')} onChange={setNgayLayPhoi} />
               <TextField label="Trạng thái lấy" value={trangThaiLay ?? detail.data.trangThaiLay ?? ''} onChange={(e) => setTrangThaiLay(e.target.value)} />
             </div>
