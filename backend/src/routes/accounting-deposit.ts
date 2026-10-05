@@ -52,8 +52,10 @@ router.post('/', declareMaterialWrite('accounting.deposit-tracker.create', { met
     customerName: z.string().trim().min(1).max(255),
     carrierName: z.string().trim().min(1).max(255),
     depositAmount: z.union([z.number(), z.string()]),
+    depositDate: dateInput.nullable().optional(),
     cvSubmittedDate: dateInput.nullable().optional(),
     expectedRefundDate: dateInput.nullable().optional(),
+    status: z.enum(['CHUA_HOAN_CUOC', 'DA_HOAN_CUOC']).optional(),
     note: z.string().max(500).nullable().optional(),
   }).strict(), req.body);
   const outcome = await runIdempotent({

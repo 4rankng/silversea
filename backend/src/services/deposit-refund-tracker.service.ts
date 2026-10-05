@@ -72,16 +72,21 @@ export interface CvOverdueRow {
   status: string;
   cvSubmittedDate: string | null;
   createdAt: Date;
+  /** Ngày cược (card 051026231522) — the 7-day anchor when the row carries
+   *  one; rows predating the column fall back to createdAt. */
+  depositDate?: string | null;
 }
 
 export function isCvOverdue(row: CvOverdueRow, now: Date = new Date()): boolean {
   if (row.status !== 'CHUA_HOAN_CUOC' || row.cvSubmittedDate != null) return false;
-  const createdDay = vnCalendarDate(row.createdAt);
+  // Card 051026231522: anchor = row.depositDate ?? row.createdAt — the deposit
+  // day when known, the legacy createdAt day otherwise (unchanged old math).
+  const anchorDay = row.depositDate ?? vnCalendarDate(row.createdAt);
   const todayDay = vnCalendarDate(now);
   const diff = Math.round((Date.UTC(
     Number(todayDay.slice(0, 4)), Number(todayDay.slice(5, 7)) - 1, Number(todayDay.slice(8, 10)),
   ) - Date.UTC(
-    Number(createdDay.slice(0, 4)), Number(createdDay.slice(5, 7)) - 1, Number(createdDay.slice(8, 10)),
+    Number(anchorDay.slice(0, 4)), Number(anchorDay.slice(5, 7)) - 1, Number(anchorDay.slice(8, 10)),
   )) / 86_400_000);
   return diff > CV_OVERDUE_DAYS;
 }
@@ -218,23 +223,43 @@ export async function getDepositWeeklySummary(actor: ExpenseActor, filters: { fr
 export async function createDepositTracker(actor: ExpenseActor, input: {
   shipmentId?: number | null; billNumber: string; customerName: string; carrierName: string;
   depositAmount: number | string; cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
+  /** Ngày cược (card 051026231522) — dd/mm/yy or ISO; nullable. */
+  depositDate?: string | null;
+  /** Default CHUA_HOAN_CUOC. DA_HOAN_CUOC at create composes the ĐÃ-hoàn-cược
+   *  tick below in the same tx — the treasury posting runs exactly once. */
+  status?: DepositStatus;
 }, conn: typeof db | Tx = db): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
   const amount = Number(input.depositAmount);
   if (!expenseVndSchema.safeParse(amount).success || amount <= 0) throw new ApiError(400, 'Số tiền cược phải là số nguyên dương.');
   const cvDate = input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : null;
   const expectedDate = input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : (cvDate ? addDays(cvDate, 14) : null);
-  const [row] = await conn.insert(s.depositRefundTrackers).values({
-    shipmentId: input.shipmentId ?? null,
-    billNumber: input.billNumber.trim(),
-    customerName: input.customerName.trim(),
-    carrierName: input.carrierName.trim(),
-    depositAmount: String(amount),
-    cvSubmittedDate: cvDate,
-    expectedRefundDate: expectedDate,
-    note: input.note?.trim() || null,
-  }).returning();
-  return row;
+  const depositDate = input.depositDate ? normalizeDepositDate(input.depositDate) : null;
+  const run = async (tx: Tx) => {
+    const [row] = await tx.insert(s.depositRefundTrackers).values({
+      shipmentId: input.shipmentId ?? null,
+      billNumber: input.billNumber.trim(),
+      customerName: input.customerName.trim(),
+      carrierName: input.carrierName.trim(),
+      depositAmount: String(amount),
+      depositDate,
+      cvSubmittedDate: cvDate,
+      expectedRefundDate: expectedDate,
+      note: input.note?.trim() || null,
+    }).returning();
+    // Trạng thái ĐÃ hoàn cược at create: the collection posts into the
+    // company fund through the standing treasury engine — never a hand-rolled
+    // money movement. Insert + posting share one transaction, and the
+    // movement guard inside markDepositRefunded keeps it exactly-once.
+    return input.status === 'DA_HOAN_CUOC'
+      ? markDepositRefunded(actor, row.id, tx, amount)
+      : row;
+  };
+  // Invariant: a non-default `conn` is always a caller transaction (the only
+  // call shapes are `createDepositTracker(actor, input)` and `…(actor, input,
+  // tx)`), so the DA composition joins that transaction; the pool default
+  // opens one to keep insert + posting atomic.
+  return conn === db ? db.transaction(run) : run(conn as Tx);
 }
 
 /** KT fills/edits the CV date; the expected refund date defaults to CV + 14
@@ -287,6 +312,10 @@ export async function recordDepositFromIntake(input: {
     customerName: input.customerName.trim(),
     carrierName: input.carrierName.trim(),
     depositAmount: String(amount),
+    // Ngày cược = the VN calendar day the row lands (card 051026231522) — the
+    // intake day is the deposit day; KT may correct it later if the customer
+    // deposited on another day.
+    depositDate: vnCalendarDate(new Date()),
   }).returning();
   if (Number(row.depositAmount) === 0) {
     await conn.update(s.depositRefundTrackers).set({ depositAmount: '0' }).where(eq(s.depositRefundTrackers.id, row.id));

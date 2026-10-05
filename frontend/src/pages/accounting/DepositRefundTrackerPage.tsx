@@ -355,14 +355,20 @@ function CreateForm({ onSaved }: {
   const [customerName, setCustomerName] = useState('');
   const [carrierName, setCarrierName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
+  const [depositDate, setDepositDate] = useState('');
   const [cvDate, setCvDate] = useState('');
+  const [expected, setExpected] = useState('');
+  const [status, setStatus] = useState<DepositStatus>('CHUA_HOAN_CUOC');
   const [note, setNote] = useState('');
   const createMutation = useMutation({
     mutationFn: () => createDepositTracker({
       billNumber, customerName, carrierName,
       depositAmount: parseDepositAmount(amount === '' ? '' : String(amount)),
       cvSubmittedDate: cvDate || null,
+      expectedRefundDate: expected || null,
       note: note || null,
+      depositDate: depositDate || null,
+      status,
     }),
     onSuccess: () => {
       onSaved();
@@ -374,7 +380,22 @@ function CreateForm({ onSaved }: {
       <FormGroup label="Khách hàng"><input className="input" value={customerName} onChange={(event) => setCustomerName(event.target.value)} required /></FormGroup>
       <FormGroup label="Hãng tàu"><input className="input" value={carrierName} onChange={(event) => setCarrierName(event.target.value)} required /></FormGroup>
       <NumberField label="Số tiền cược (₫)" grouped value={amount} onChange={setAmount} />
-      <BufferedUuiDateInput label="Ngày nộp CV (tùy chọn)" value={cvDate} onChange={setCvDate} />
+      <BufferedUuiDateInput label="Ngày cược" value={depositDate} onChange={setDepositDate} />
+      <BufferedUuiDateInput label="Ngày nộp CV (tùy chọn)" value={cvDate} onChange={(value) => {
+        if (!expected || expected === nextExpectedRefundDefault(cvDate)) setExpected(nextExpectedRefundDefault(value) ?? '');
+        setCvDate(value);
+      }} />
+      <BufferedUuiDateInput label="Ngày dự kiến hoàn cược" value={expected} onChange={setExpected} />
+      <p className="deposit-tracker-form__hint">Bỏ trống ngày dự kiến để hệ thống tự điền ngày nộp CV + 14 ngày.</p>
+      <UuiSelectField
+        label="Trạng thái"
+        value={status}
+        onChange={(event) => setStatus(event.target.value as DepositStatus)}
+        options={[
+          { value: 'CHUA_HOAN_CUOC', label: 'Chưa hoàn cược' },
+          { value: 'DA_HOAN_CUOC', label: 'Đã hoàn cược' },
+        ]}
+      />
       <FormGroup label="Ghi chú"><input className="input" value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} /></FormGroup>
       {createMutation.isError && <p role="alert">{createMutation.error.message}</p>}
       <Btn type="submit" variant="primary" size="sm" disabled={createMutation.isPending || !billNumber || !customerName || !carrierName}>Lưu dòng</Btn>
