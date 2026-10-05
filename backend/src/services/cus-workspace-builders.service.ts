@@ -576,8 +576,10 @@ function buildContainerLine(
       carrierEditable: canEditOperational,
       plateEditable,
       containerTypeEditable: canEditOperational,
-      liftSiteEditable: canEditOperational,
-      dropoffSiteEditable: canEditOperational,
+      // Card 20261005_358 decision (a): ports stay editable post-dispatch
+      // (pre-lock) — the writer's port carve-out is the matching authority.
+      liftSiteEditable: editableBase,
+      dropoffSiteEditable: editableBase,
       customerAppointmentEditable: canEditOperational,
       routeEditable: canEditOperational,
     },
@@ -750,6 +752,24 @@ function containerFieldAccess(
     // changes. Removing approval flows does not bypass that trip restriction.
     if (key === 'containerNumber' && (actor.role === Role.CUS || actor.role === Role.DISPATCHER) && !hasActiveLock) {
       return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' };
+    }
+    // Card 20261005_358 decision (a): the lift/dropoff PORTS backfill after
+    // dispatch (the Kẹp pair validation needs them); the writer's carve-out
+    // for these two fields is what makes this access real. The gate is the
+    // role+lock base WITHOUT the trip condition. routeId keeps the generic
+    // trip split — trip legs/pricing derive from it.
+    if (key === 'liftSiteId' || key === 'dropoffSiteId') {
+      const portBackfillAllowed = !hasActiveLock && (
+        actor.role === Role.ADMIN
+        || actor.role === Role.MANAGER
+        || actor.role === Role.CUS
+        || actor.role === Role.DISPATCHER
+      );
+      return portBackfillAllowed
+        ? { mode: 'DIRECT', reason: 'Bạn có thể bổ sung cảng nâng/hạ sau khi điều xe.' }
+        : readOnly(hasActiveLock
+          ? 'Lô hàng đã khóa kế toán; không thể thay đổi container.'
+          : 'Vai trò hiện tại chỉ được xem dữ liệu container.');
     }
     return { mode, reason };
   };

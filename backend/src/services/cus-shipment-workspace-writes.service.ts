@@ -382,8 +382,12 @@ export async function updateCusShipmentContainerLine(args: {
       || (args.input.cargoWeightKg !== undefined && args.input.cargoWeightKg !== container.cargoWeightKg)
       || (args.input.cargoVolumeCbm !== undefined && args.input.cargoVolumeCbm !== container.cargoVolumeCbm)
       || (args.input.routeId !== undefined && args.input.routeId !== container.routeId)
-      || (args.input.liftSiteId !== undefined && args.input.liftSiteId !== container.pickupPortId)
-      || (args.input.dropoffSiteId !== undefined && args.input.dropoffSiteId !== container.dropoffPortId)
+      // Card 20261005_358 decision (a): lift/dropoff PORTS are backfillable
+      // after dispatch — the Kẹp pair validation needs them and the ports
+      // firm up closer to pickup — so they no longer trip this denial. The
+      // port write path below already validates against the active catalog
+      // and realigns the fulfillment snapshot. routeId stays gated: the
+      // trip's legs and pricing derive from it.
       || appointmentChanged
       || (args.input.carrierType !== undefined && args.input.carrierType !== fulfillment.plannedCarrierType)
       || (args.input.externalCarrierId !== undefined && args.input.externalCarrierId !== fulfillment.plannedExternalCarrierId)
