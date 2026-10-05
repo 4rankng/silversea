@@ -114,6 +114,25 @@ describe('DispatchAllocationPopover', () => {
     }), undefined, 'partial');
   });
 
+  it('surfaces the backend refusal verbatim on 409 instead of a generic conflict (354 freeze)', async () => {
+    // The per-container freeze refuses with 'Không thể đổi nhà xe…'. The
+    // dialog must show THAT reason — the generic 'Lô hàng đã thay đổi' text
+    // hides the real cause, the exact complaint behind the old whole-row lock.
+    vi.mocked(saveShipmentCarrierAllocations).mockRejectedValue(
+      Object.assign(new Error('Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.'), { status: 409 }),
+    );
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Thêm nhà xe/ })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: /Thêm nhà xe/ }));
+    await waitFor(() => screen.getByLabelText(/Nhà xe dòng 2/));
+    fireEvent.change(screen.getByLabelText("Số container 20' dòng 2"), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+
+    expect(await screen.findByText('Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.')).toBeTruthy();
+    expect(screen.queryByText(/Lô hàng đã thay đổi/)).toBeNull();
+  });
+
   it('blocks save on over-allocation (MAX mode)', async () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 

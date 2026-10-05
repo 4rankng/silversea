@@ -28,9 +28,9 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   containerTypeSummary: '2 x 40HC + 1 x 20DC',
   totalCargoWeightKg: 41000.75,
   allocationStatus: 'NOT_ALLOCATED',
-  // The master plan's allocation trigger is gated on READY_FOR_DISPATCH, which
-  // is the only status the backend accepts a carrier assignment for. The
-  // fixture models a dispatchable lot, so the trigger is live in these tests.
+  // The backend accepts carrier assignment for READY_FOR_DISPATCH and, since
+  // card 354's per-container freeze, also post-dispatch statuses. The fixture
+  // models a dispatchable lot, so the trigger is live in these tests.
   status: ShipmentStatus.READY_FOR_DISPATCH,
   carrierAllocationSummary: [],
   appointmentGroups: [],
@@ -432,11 +432,33 @@ describe('MasterPlanGrid', () => {
     expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
   });
 
-  it('locks the allocation trigger for every status the backend refuses (READY_FOR_DISPATCH is the only assignable one)', () => {
-    // assignShipmentCarriers 409s for any status ≠ READY_FOR_DISPATCH, and again
-    // when the lot already carries a live trip. The trigger used to stay live on
-    // DISPATCHED / IN_TRANSIT rows, so the dispatcher's save came back as a bare
-    // "Lô hàng đã thay đổi" conflict that hid the real reason.
+  it('locks the allocation trigger only for statuses the backend refuses outright', () => {
+    // assignShipmentCarriers 409s intake-phase lots (NEW / PENDING_DATE) and
+    // CANCELED lots. Those rows must not offer the trigger: the dispatcher's
+    // save would come back as a bare conflict that hid the real reason.
+    const onAllocate = vi.fn();
+    render(<MasterPlanGrid
+      items={[
+        item({ status: ShipmentStatus.PENDING_DATE }),
+        item({ id: 2, status: ShipmentStatus.CANCELED }),
+      ]}
+      onAllocate={onAllocate}
+    />);
+
+    const triggers = screen.getAllByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
+    expect(triggers).toHaveLength(2);
+    for (const trigger of triggers) {
+      expect(trigger).toBeDisabled();
+      fireEvent.click(trigger);
+    }
+    expect(onAllocate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the allocation trigger live on post-dispatch rows so unallocated containers can be filled (354)', () => {
+    // The allocation freeze is per-container: a trip-bound container keeps its
+    // carrier while its unallocated siblings still accept fills. Locking the
+    // whole row on DISPATCHED / IN_TRANSIT / COMPLETED starved those siblings
+    // ("Chưa phân nhà xe / CUS sẽ bổ sung" never became allocatable).
     const onAllocate = vi.fn();
     render(<MasterPlanGrid
       items={[
@@ -450,10 +472,10 @@ describe('MasterPlanGrid', () => {
     const triggers = screen.getAllByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
     expect(triggers).toHaveLength(3);
     for (const trigger of triggers) {
-      expect(trigger).toBeDisabled();
-      fireEvent.click(trigger);
+      expect(trigger).toBeEnabled();
     }
-    expect(onAllocate).not.toHaveBeenCalled();
+    fireEvent.click(triggers[1]!);
+    expect(onAllocate).toHaveBeenCalledTimes(1);
   });
 
   it('hides the "Ghi chú" column when both operationalNotes and factoryNotes are empty', () => {

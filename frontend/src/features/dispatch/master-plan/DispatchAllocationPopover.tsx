@@ -194,11 +194,16 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
       });
       onClose();
     } catch (err) {
-      const status = (err as { status?: number }).status;
+      const status = err && typeof err === 'object' && 'status' in err && typeof err.status === 'number' ? err.status : null;
+      const raw = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? err.message.trim() : '';
+      // Business refusals (4xx) carry the precise reason from the backend —
+      // e.g. the per-container freeze 'Không thể đổi nhà xe…'. Show it verbatim
+      // instead of a generic conflict text that hides the real cause.
+      const detail = status != null && status >= 400 && status < 500 ? raw : '';
       if (status === 409) {
-        setError('Lô hàng đã thay đổi. Vui lòng đóng và mở lại để lấy số liệu mới.');
+        setError(detail || 'Lô hàng đã thay đổi. Vui lòng đóng và mở lại để lấy số liệu mới.');
       } else {
-        setError('Không thể lưu phân bổ. Vui lòng thử lại.');
+        setError(detail || 'Không thể lưu phân bổ. Vui lòng thử lại.');
       }
       setSaving(false);
     }

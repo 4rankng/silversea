@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
-import { ShipmentStatus } from '@tingting/shared';
+import { canonicalShipmentStatus, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import {
@@ -257,14 +257,21 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
           {items.map((item) => {
             const urgency = cutoffUrgency(item.customsCutoffAt);
             const portGroupLines = aggregateContainerPortGroupLines(item, scheduleDate);
-            // A lot's allocation is editable ONLY while it sits in
-            // READY_FOR_DISPATCH: `assignShipmentCarriers` 409s for every other
-            // status ("Chỉ được gán lại nhà xe khi lô đang sẵn sàng điều xe.")
-            // and again when the lot already has a live trip. Locking on
-            // COMPLETED alone left the trigger live on DISPATCHED / IN_TRANSIT
-            // rows, so the dispatcher's save came back as a bare conflict
-            // ("Lô hàng đã thay đổi") that hid the real reason.
-            const allocationLocked = item.status !== ShipmentStatus.READY_FOR_DISPATCH;
+            // A lot's allocation is editable whenever the backend can accept
+            // the save at all: `assignShipmentCarriers` refuses only intake
+            // phase (NEW / PENDING_DATE) and CANCELED lots. Past READY the
+            // freeze is PER-CONTAINER (card 354): trip-bound containers keep
+            // their carrier while unallocated / untripped siblings accept
+            // fills — so DISPATCHED / IN_TRANSIT / COMPLETED rows must stay
+            // editable, and the dialog's per-container guard carries the
+            // precise "Không thể đổi nhà xe…" message when a change would
+            // touch a container that already has an order.
+            const canonical = canonicalShipmentStatus(item.status);
+            const allocationLocked = canonical == null
+              || (canonical !== ShipmentStatus.READY_FOR_DISPATCH
+                && canonical !== ShipmentStatus.DISPATCHED
+                && canonical !== ShipmentStatus.IN_TRANSIT
+                && canonical !== ShipmentStatus.COMPLETED);
             // Same stage rule for the note trigger: outside the intake window a
             // dispatcher's save is a 403, so the affordance is not offered there.
             const notesLocked = notesIntakeOnly && !DISPATCHER_INTAKE_STATUSES[item.status];

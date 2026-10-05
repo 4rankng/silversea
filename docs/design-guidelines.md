@@ -485,3 +485,19 @@ focus does not change. Class = the shared `DateTimeSegments` engine, so every
 host (dispatch editor, appointment popover, schedule editor, buffered
 inputs) inherits the contract. Pins: type-over restart tests in
 DateTimeSegments.test.tsx (red-first, observed failing).
+
+### 2026-10-05 — Save errors show the backend's precise reason (card 20261005_354)
+
+A save failure surfaces the API's `error` message verbatim for 4xx business
+refusals — e.g. the per-container allocation freeze 'Không thể đổi nhà xe
+sau khi đã phát hành lệnh điều xe.' Generic fallback copy is only for
+refusals with no business reason. Generic text over a precise refusal hides
+the real cause: 354's rung caught the mismatch live (the wire carried the
+freeze reason while the dialog said 'Lô hàng đã thay đổi — mở lại'), the
+exact complaint class behind the old whole-row allocation lock. Class =
+every catch that maps API failures to UI copy (sweep card 20261005_367
+covers CusAppointmentPopover, InvoiceTrackingFormModal,
+MonthlyProductivityView, base-salary-edit-modal, DispatchContainerDetailDrawer,
+BusinessUnitsManager, ShipmentCreateWorkspace, RoleWorkInbox). Pin:
+DispatchAllocationPopover 409-surfaces-verbatim test (red-first, observed
+failing before the catch fix).
