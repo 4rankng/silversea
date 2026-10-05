@@ -197,6 +197,7 @@ export default function MasterPlanPage() {
       <DispatchContainerDetailDrawer
         shipment={containerDetailShipment}
         onClose={() => setContainerDetailShipment(null)}
+        onSaved={() => masterPlan.refetch()}
       />
     </div>
   );
