@@ -12,6 +12,11 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
   };
 });
 
+const getTrailersMock = vi.fn();
+vi.mock('../../../api/configClient', () => ({
+  configClient: { getTrailers: (...args: Array<unknown>) => getTrailersMock(...args) },
+}));
+
 import { createCarrierFleetVehicle, listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
@@ -38,6 +43,9 @@ vi.mock('./useDispatchTaskTags', () => ({
 }));
 
 const listResourcesMock = vi.mocked(listDispatchFleetResources);
+// Default trailer catalog for every describe: an empty list keeps the
+// coupling-only default; the card-20261005_387 describe overrides per test.
+getTrailersMock.mockResolvedValue([]);
 
 const PAIRED_TRUCK = {
   id: 154,
@@ -1126,5 +1134,72 @@ describe('DispatchPlanEditorCell — "Bổ sung sau" deferred plate (card 202610
     // AWAITING_PLATE (carrier assigned, no plate) — the issue section and its
     // Phát lệnh button are reachable exactly like a plated row.
     expect(screen.getByText('Phát lệnh cho tài xế')).toBeTruthy();
+  });
+});
+
+// Card 20261005_387 — per-trip trailer override on the EXISTING issue API
+// (POST /shipments/:id/dispatch already accepts trailerId; until now no FE
+// sent it, so every trip rode the tractor's current coupling). Default stays
+// the coupling (trailerId omitted from the body); a picked trailer rides as
+// trailerId with a comparison note naming both plates; the backend's three
+// 409 trailer gates surface through the issue error line untouched.
+describe('DispatchPlanEditorCell — trailer override on phát lệnh (card 20261005_387)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFleetResources();
+    getTrailersMock.mockResolvedValue([
+      { id: 2, licensePlate: '15R-182.06', type: '20FT', status: 'ACTIVE' },
+      { id: 7, licensePlate: '30R-555.55', type: '40FT', status: 'ACTIVE' },
+      { id: 8, licensePlate: 'OLD-TRAILER', type: null, status: 'INACTIVE' },
+    ]);
+  });
+
+  const issueOk = () => vi.fn().mockResolvedValue({
+    fulfillmentId: 101, version: 4,
+    trip: { id: 55, version: 1, tripCode: 'TRP-1', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null },
+    notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },
+    replayed: false,
+  });
+
+  it('shows the tractor coupling and omits trailerId when no override is picked', async () => {
+    const onIssueOrder = issueOk();
+    renderCell(row(), { onIssueOrder });
+    await openDialog();
+    expect(await screen.findByText(/Moóc đang ghép: 15R-182\.06/)).toBeTruthy();
+    fireEvent.click(issueButton());
+    await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
+    const [, body] = onIssueOrder.mock.calls[0];
+    expect(body.trailerId).toBeUndefined();
+  });
+
+  it('sends trailerId and names both plates when an override is picked', async () => {
+    const onIssueOrder = issueOk();
+    renderCell(row(), { onIssueOrder });
+    await openDialog();
+    // UuiSelectField is React Aria: click the trigger, then the portalled
+    // option (the PhoiPhieuControlPage.selection idiom).
+    fireEvent.click(await screen.findByRole('button', { name: /Moóc cho chuyến \(ghi đè\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /30R-555\.55 · 40FT/ }, { timeout: 10_000 }));
+    expect(screen.getByText(/Ghi đè moóc: 30R-555\.55/)).toBeTruthy();
+    expect(screen.getByText(/thay cho moóc đang ghép 15R-182\.06/)).toBeTruthy();
+    fireEvent.click(issueButton());
+    await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
+    expect(onIssueOrder.mock.calls[0][1].trailerId).toBe(7);
+  });
+
+  it('keeps an inactive trailer out of the override options', async () => {
+    renderCell(row());
+    await openDialog();
+    fireEvent.click(await screen.findByRole('button', { name: /Moóc cho chuyến \(ghi đè\)/ }));
+    expect(await screen.findByRole('option', { name: /30R-555\.55 · 40FT/ }, { timeout: 10_000 })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /OLD-TRAILER/ })).toBeNull();
+  });
+
+  it('surfaces the backend 409 trailer gate message on issue', async () => {
+    const onIssueOrder = vi.fn().mockRejectedValue(new Error('Rơ-moóc không phù hợp với loại container.'));
+    renderCell(row(), { onIssueOrder });
+    await openDialog();
+    fireEvent.click(issueButton());
+    expect(await screen.findByText('Rơ-moóc không phù hợp với loại container.')).toBeTruthy();
   });
 });

@@ -4,6 +4,7 @@ import {
   type DispatchDetailPlanRow,
   type DispatchTruck,
 } from '../../../api/dispatchPlanningClient';
+import { configClient } from '../../../api/configClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 
 function pad2(value: number): string {
@@ -76,12 +77,21 @@ function draftIssueTimesFor(row: DispatchDetailPlanRow): { plannedStartAt: strin
 export interface IssueOrderDraft {
   externalDriverName: string;
   externalDriverPhone: string;
+  /** Per-trip trailer override (card 20261005_387): null = ride the tractor's
+   *  current coupling — the body then omits trailerId exactly as before. */
+  trailerId: number | null;
 }
 
 export interface OwnTruckDriver {
   id: number;
   driverId: number | null;
   driverName: string | null;
+  /** The tractor's current coupling (card 20261005_387) — the default trailer
+   *  an issue rides when no per-trip override is picked, shown beside the
+   *  override select so the comparison is auditable on sight. */
+  currentTrailerId: number | null;
+  currentTrailerPlate: string | null;
+  trailerType: string | null;
 }
 
 interface UseIssueOrderArgs {
@@ -110,6 +120,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
   const [issueDraft, setIssueDraft] = useState<IssueOrderDraft>({
     externalDriverName: '',
     externalDriverPhone: '',
+    trailerId: null,
   });
   const [issuing, setIssuing] = useState(false);
   const issueInFlight = useRef(false);
@@ -127,7 +138,14 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
         if (cancelled) return;
         const match = (response.items as DispatchTruck[])
           .find((truck) => truck.licensePlate === row.dispatch.assignedPlate);
-        setOwnTruck(match ? { id: match.id, driverId: match.assignedDriverId, driverName: match.assignedDriverName } : null);
+        setOwnTruck(match ? {
+          id: match.id,
+          driverId: match.assignedDriverId,
+          driverName: match.assignedDriverName,
+          currentTrailerId: match.currentTrailerId,
+          currentTrailerPlate: match.currentTrailerPlate,
+          trailerType: match.trailerType,
+        } : null);
       })
       .catch(() => { if (!cancelled) setOwnTruck(null); })
       .finally(() => { if (!cancelled) setLoadingOwnTruck(false); });
@@ -136,10 +154,30 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
 
   useEffect(() => {
     if (open) {
-      setIssueDraft({ externalDriverName: '', externalDriverPhone: '' });
+      setIssueDraft({ externalDriverName: '', externalDriverPhone: '', trailerId: null });
       setIssueError(null);
     }
   }, [open, row.fulfillmentId, row.version]);
+
+  // Card 20261005_387 — ACTIVE trailer options for the per-trip override.
+  // Own-fleet issues only (external carriers bring their own equipment and the
+  // backend ignores trailerId for them). Same plain-fetch idiom as the
+  // ownTruck lookup; a failed catalog load leaves the coupling default usable.
+  const [trailerOptions, setTrailerOptions] = useState<Array<{ id: number; licensePlate: string; type: string | null }>>([]);
+  useEffect(() => {
+    if (!open || !canIssue || row.dispatch.carrierType !== 'OWN') return undefined;
+    let cancelled = false;
+    configClient.getTrailers().then((trailers) => {
+      if (cancelled) return;
+      // A malformed payload must never crash the issue section — degrade to
+      // "no override options" (the coupling default still issues).
+      const list = Array.isArray(trailers) ? trailers : [];
+      setTrailerOptions(list
+        .filter((trailer) => trailer.status === 'ACTIVE' && !trailer.deletedAt)
+        .map((trailer) => ({ id: trailer.id, licensePlate: trailer.licensePlate, type: trailer.type })));
+    }).catch(() => { if (!cancelled) setTrailerOptions([]); });
+    return () => { cancelled = true; };
+  }, [open, canIssue, row.dispatch.carrierType]);
 
   async function issue() {
     if (issueInFlight.current || !canIssue) return;
@@ -174,7 +212,14 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
         const response = await listDispatchFleetResources('TRUCK', { limit: 5, q: row.dispatch.assignedPlate ?? '' });
         const truck = (response.items as DispatchTruck[])
           .find((item) => item.licensePlate === row.dispatch.assignedPlate);
-        resolvedTruck = truck ? { id: truck.id, driverId: truck.assignedDriverId, driverName: truck.assignedDriverName } : null;
+        resolvedTruck = truck ? {
+          id: truck.id,
+          driverId: truck.assignedDriverId,
+          driverName: truck.assignedDriverName,
+          currentTrailerId: truck.currentTrailerId,
+          currentTrailerPlate: truck.currentTrailerPlate,
+          trailerType: truck.trailerType,
+        } : null;
       }
       if (isOwn && resolvedTruck?.driverId == null) {
         throw new Error('Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
@@ -186,6 +231,10 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
         carrierType: row.dispatch.carrierType as 'OWN' | 'EXTERNAL',
         truckId: isOwn ? resolvedTruck!.id : undefined,
         driverId: isOwn ? resolvedTruck!.driverId : undefined,
+        // Card 20261005_387 — the per-trip override rides only when picked;
+        // omitted otherwise, so the backend resolves the tractor's current
+        // coupling exactly as before this card.
+        trailerId: isOwn && issueDraft.trailerId != null ? issueDraft.trailerId : undefined,
         externalCarrierId: isOwn ? undefined : row.dispatch.externalCarrierId,
         externalCarrierVehicleId: isOwn ? undefined : row.dispatch.externalCarrierVehicleId,
         externalPlateNumber: isOwn || row.dispatch.externalCarrierVehicleId != null
@@ -207,5 +256,5 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
     }
   }
 
-  return { ownTruck, loadingOwnTruck, issueDraft, setIssueDraft, issuing, issueError, setIssueError, issue };
+  return { ownTruck, loadingOwnTruck, trailerOptions, issueDraft, setIssueDraft, issuing, issueError, setIssueError, issue };
 }

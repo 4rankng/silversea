@@ -311,6 +311,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const {
     ownTruck,
     loadingOwnTruck,
+    trailerOptions,
     issueDraft,
     setIssueDraft,
     issuing,
@@ -946,6 +947,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                   row={row}
                   ownTruck={ownTruck}
                   loadingOwnTruck={loadingOwnTruck}
+                  trailerOptions={trailerOptions}
                   issueDraft={issueDraft}
                   setIssueDraft={setIssueDraft}
                   onFieldTouched={() => setIssueError(null)}
