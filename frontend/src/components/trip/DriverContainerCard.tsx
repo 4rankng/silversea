@@ -145,6 +145,10 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
         tripId,
       ].join(':');
       const result = await api.upload('/ocr', formData, { retryFingerprint }) as OcrResponse;
+      // The photo persists inside the OCR call (saveTripPhoto); refetch the
+      // parent so the read-only bento reflects it immediately — same contract
+      // as removePhoto (card 051026230636).
+      onSaved();
 
       if (_type === 'CONTAINER') {
         const cn = result.containerNumbers?.[0];
@@ -268,9 +272,15 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
     e.target.value = '';
   };
 
+  // Fresh captures land in lastPhotos before the parent refetch delivers new
+  // props (card 051026230636 — uploads from the saved bento); tiles and the
+  // viewer share these effective keys so openViewer resolves the right index.
+  const effectiveContKey = lastPhotos.cont ?? contPhotoKey;
+  const effectiveSealKey = lastPhotos.seal ?? sealPhotoKey;
+
   // Populated slots only — gallery order follows the tile strip (cont, seal,
   // then every biên bản). Empty slots never imply an openable image.
-  const viewerKeys = [contPhotoKey, sealPhotoKey, ...deliveryNotePhotoKeys].filter((key): key is string => key != null);
+  const viewerKeys = [effectiveContKey, effectiveSealKey, ...deliveryNotePhotoKeys].filter((key): key is string => key != null);
   const viewerUrls = useAuthedPhotoUrls(viewerKeys);
 
   const openViewer = (photoKey: string, opener: HTMLButtonElement) => {
@@ -408,8 +418,8 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             <div className="dcc-bento__photos">
               <div className="dcc-bento__eyebrow">Hình ảnh</div>
               <div className="dcc-bento__thumbs">
-                {attachmentTile(contPhotoKey, 'Cont')}
-                {attachmentTile(sealPhotoKey, 'Seal')}
+                {attachmentTile(effectiveContKey, 'Cont')}
+                {attachmentTile(effectiveSealKey, 'Seal')}
                 {/* Every biên bản photo is its own slot with its own delete —
                     the photo block is the single display + management surface
                     for all 3 types, and an upload never replaces its
@@ -443,7 +453,32 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                 })}
               </div>
               {/* Ghost retake affordances under the saved slots — one style,
-                  ≥44px touch on coarse pointers (design spec photo block). */}
+                  ≥44px touch on coarse pointers (design spec photo block).
+                  Card 051026230636: all three zones get the entry here — the
+                  photo block is the single management surface, and Cont/Seal
+                  previously uploaded ONLY from the (unmounted) edit form. */}
+              {!readOnly && (
+                <>
+                  <button
+                    type="button"
+                    className="dcc-capture-btn dcc-capture-btn--primary dcc-capture-btn--note"
+                    disabled={uploading.cont}
+                    onClick={() => setSheetType('CONTAINER')}
+                  >
+                    {uploading.cont ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                    <span>Thêm ảnh cont</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="dcc-capture-btn dcc-capture-btn--primary dcc-capture-btn--note"
+                    disabled={uploading.seal}
+                    onClick={() => setSheetType('SEAL')}
+                  >
+                    {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                    <span>Thêm ảnh seal</span>
+                  </button>
+                </>
+              )}
               {!readOnly && (
                 <button
                   type="button"
@@ -495,18 +530,6 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                   {uploading.cont ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
                   <span>Thêm ảnh cont</span>
                 </button>
-                <input
-                  ref={(el) => { fileInputs.current.CONTAINER = el; }}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  disabled={uploading.cont}
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    void onPick(file, 'CONTAINER');
-                    e.target.value = '';
-                  }}
-                />
               </div>
               <div className="dcc-capture-group">
                 <button
@@ -518,18 +541,6 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                   {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
                   <span>Thêm ảnh seal</span>
                 </button>
-                <input
-                  ref={(el) => { fileInputs.current.SEAL = el; }}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  disabled={uploading.seal}
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    void onPick(file, 'SEAL');
-                    e.target.value = '';
-                  }}
-                />
               </div>
               <div className="dcc-capture-group">
                 <button
@@ -715,6 +726,35 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
         )}
       </div>
 
+      {/* Gallery inputs (card _28: reachable from the action sheet). Cont/Seal
+          live here, outside the edit form, so the sheet's gallery path works
+          in the saved bento too (card 051026230636). */}
+      <input
+        ref={(el) => { fileInputs.current.CONTAINER = el; }}
+        type="file"
+        accept="image/*"
+        hidden
+        aria-label="Chọn ảnh cont"
+        disabled={uploading.cont}
+        onChange={e => {
+          const file = e.target.files?.[0];
+          void onPick(file, 'CONTAINER');
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={(el) => { fileInputs.current.SEAL = el; }}
+        type="file"
+        accept="image/*"
+        hidden
+        aria-label="Chọn ảnh seal"
+        disabled={uploading.seal}
+        onChange={e => {
+          const file = e.target.files?.[0];
+          void onPick(file, 'SEAL');
+          e.target.value = '';
+        }}
+      />
       {/* Biên bản gallery input (card _28: reachable from the action sheet). */}
       <input
         ref={(el) => { fileInputs.current.DELIVERY_NOTE = el; }}

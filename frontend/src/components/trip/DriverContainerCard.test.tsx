@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverContainerCard } from './DriverContainerCard';
 
@@ -396,5 +396,70 @@ describe('DriverContainerCard — local container validation', () => {
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(opener).toHaveFocus();
+  });
+});
+
+/* ─── Card 051026230636 — bento cont/seal upload (P2) ─────────────────────
+ * The saved bento "Hình ảnh" block is the single display + management surface
+ * for all three photo types, but only biên bản had a Thêm-ảnh entry: Cont and
+ * Seal uploads were reachable ONLY from the edit form (unmounted once saved),
+ * and the gallery inputs were form-bound so the shared action sheet clicked
+ * null in the bento. The saved view must offer the same upload path for all
+ * three zones, and the gallery inputs must stay mounted outside the form. */
+describe('DriverContainerCard — 051026230636 bento cont/seal upload', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('offers Thêm-ảnh entries for cont and seal beside biên bản in the saved bento', async () => {
+    stubPhotoTransport();
+    renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    expect(await screen.findByRole('button', { name: 'Thêm ảnh cont' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thêm ảnh seal' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thêm ảnh biên bản' })).toBeTruthy();
+  });
+
+  it('keeps the cont/seal gallery inputs mounted outside the edit form', async () => {
+    stubPhotoTransport();
+    renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    await screen.findByRole('button', { name: 'Thêm ảnh cont' });
+    expect(screen.queryByLabelText('Chọn ảnh cont')).toBeTruthy();
+    expect(screen.queryByLabelText('Chọn ảnh seal')).toBeTruthy();
+  });
+
+  it('bento cont entry opens the shared action sheet titled for the zone', async () => {
+    stubPhotoTransport();
+    renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Thêm ảnh cont' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain('Thêm ảnh cont');
+    expect(within(dialog).getByRole('button', { name: /Chụp ảnh/ })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: /Chọn từ thư viện/ })).toBeTruthy();
+  });
+
+  it('uploads a picked cont photo through the gallery input in the saved view', async () => {
+    stubPhotoTransport();
+    // Cont/Seal captures persist through the OCR pipeline (saveTripPhoto), not
+    // the generic /upload route — the photo lands with the extraction call.
+    uploadMock.mockResolvedValue({ ok: true, photoUrl: '/api/photos/cont.jpg' } as never);
+    const { onSaved } = renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    await screen.findByRole('button', { name: 'Thêm ảnh cont' });
+    const input = document.querySelector('input[aria-label="Chọn ảnh cont"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['x'], 'cont.jpg', { type: 'image/jpeg' })] } });
+    const uploadCall = await waitFor(() => {
+      const call = uploadMock.mock.calls.find(([path]) => path === '/ocr');
+      expect(call).toBeTruthy();
+      return call!;
+    });
+    expect((uploadCall[1] as FormData).get('type')).toBe('CONTAINER');
+    expect((uploadCall[1] as FormData).get('trip_id')).toBe('55');
+    // The bento tile must reflect the fresh capture — the upload refetches the
+    // parent (same contract as removePhoto) so the read-only view stays right.
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(await screen.findByAltText('Ảnh cont')).toBeTruthy();
   });
 });
