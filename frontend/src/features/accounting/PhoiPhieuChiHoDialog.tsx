@@ -217,7 +217,17 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
                   return (
                     <tr key={row.sourceId}>
                       <td data-label="STT" className="phoi-detail-col--ordinal">{index + 1}</td>
-                      <td data-label="Nội dung phí" className="phoi-detail-col--description">{row.feeName ?? '—'}</td>
+                      {/* Card 2026-10-05_373 spec table 1.1.3 — "Nội dung phải/đã đưa (kèm mã đơn)".
+                          The house `record-cell-stack` (styles/utilities.css) is the one shared
+                          primary-line/secondary-line pattern the other record tables use, so this
+                          cell adds no page-local CSS. A lot with no code prints "—", the table's
+                          existing empty-value convention. */}
+                      <td data-label="Nội dung phí" className="phoi-detail-col--description">
+                        <div className="record-cell-stack">
+                          <span>{row.feeName ?? '—'}</span>
+                          <small>{row.shipmentCode ?? '—'}</small>
+                        </div>
+                      </td>
                       <td data-label="Hóa đơn" className="phoi-detail-col--identity">{row.invoiceNumber ?? '—'}</td>
                       <td data-label="Số tiền thu" className="phoi-detail-col--money">
                         {isTrip ? (

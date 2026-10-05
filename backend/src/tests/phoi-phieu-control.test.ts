@@ -1321,6 +1321,130 @@ describe('card 2026-10-05_373 — từ chối khoản lái xe nhập (xe nhà on
 });
 
 /**
+ * Card 2026-10-05_373 — spec table 1.1.3: the chi-hộ "Nội dung phí" cell is
+ * "nội dung phải/đã đưa (kèm mã đơn)". The table already has a "Hóa đơn"
+ * column, so "mã đơn" here is the LOT code (`shipments.shipmentCode`).
+ */
+describe('card 2026-10-05_373 — chi-hộ row carries the lot code', () => {
+  test('the fee row exposes shipmentCode, and null when the lot has no code yet', async () => {
+    const { getPhoiPhieuChiHo } = await import('../services/phoi-phieu-control.service');
+    const fixture = await mkBoardFixture({ feeName: 'Cước cầu 373' });
+
+    // The fixture ships pre-date the shipment_code generator, so the lot has no
+    // code — the cell must read "we looked and there is none", not invent one.
+    const before = await getPhoiPhieuChiHo(fixture.trip.id);
+    assert.equal(before.rows.length, 1);
+    assert.equal(before.rows[0]!.feeName, 'Cước cầu 373');
+    assert.equal(before.rows[0]!.shipmentCode, null);
+
+    const code = `LO373-${suffix}`;
+    await db.update(s.shipments).set({ shipmentCode: code }).where(eq(s.shipments.id, fixture.shipment.id));
+    const after = await getPhoiPhieuChiHo(fixture.trip.id);
+    assert.equal(after.rows[0]!.shipmentCode, code, 'every fee row of the lot carries the same mã đơn');
+  });
+});
+
+/**
+ * Card 2026-10-05_373 — the xe-nhà rule on the CONFIRM path.
+ *
+ * Scoped to `sourceKind === 'DRIVER'` exactly like the void-path guard: the
+ * driver-entered cost is the one row the accountant must not đối chiếu on xe
+ * ngoài. The last test is the regression guard — OPS/TRIP costs are the
+ * accountant's own entries and confirm on EVERY carrier type, so gating the
+ * whole function would have broken existing work.
+ */
+describe('card 2026-10-05_373 — đối chiếu khoản lái xe nhập (xe nhà only, DRIVER kinds only)', () => {
+  const actor = () => ({ userId: accountantId, role: Role.ACCOUNTANT, username: 'k', email: 'k@x', fullName: 'k' }) as never;
+
+  const mkDriverSource = async (tripId: number, shipmentId: number, driverId: number, amount: string) => {
+    const [cost] = await db.insert(s.driverIncidentalCosts).values({
+      tripId, driverId, costType: 'OTHER', amount, driverEnteredAmount: amount, occurredAt: '2026-09-22',
+    }).returning({ id: s.driverIncidentalCosts.id });
+    track(s.driverIncidentalCosts, cost.id);
+    const { upsertExpenseAccountingSource } = await import('../services/expense-accounting-source.service');
+    const [tripRow] = await db.select({ customerId: s.trips.customerId }).from(s.trips).where(eq(s.trips.id, tripId));
+    const source = await upsertExpenseAccountingSource(db as never, { sourceKind: 'DRIVER', sourceId: cost.id,
+      shipmentId, tripId, customerId: tripRow!.customerId!, expenseTypeCode: 'OTHER', costGroup: 'OPS_INCIDENTAL',
+      feeName: 'Tiền đường 373', amount: Number(amount), customerChargeAmount: 0, expenseDate: '2026-09-22',
+      payerKind: 'USER', payableEntityType: 'DRIVER', payableEntityId: driverId, recordedById: accountantId });
+    track(s.expenseAccountingSources, source.id);
+    return { cost, source };
+  };
+
+  const mkDriver = async () => {
+    const [driverUser] = await db.insert(s.users).values({
+      username: `c373cf-drv-${suffix}-${cleanup.length}`, passwordHash: 't', role: Role.DRIVER, status: 'ACTIVE',
+    }).returning({ id: s.users.id });
+    track(s.users, driverUser.id);
+    const [driver] = await db.insert(s.drivers).values({
+      name: `Tài xế CF 373 ${suffix}`, userId: driverUser.id, status: 'ACTIVE',
+    }).returning({ id: s.drivers.id });
+    track(s.drivers, driver.id);
+    return driver;
+  };
+
+  const setCarrier = async (tripId: number, carrierType: 'OWN' | 'EXTERNAL') => {
+    const [info] = await db.insert(s.tripCarrierInfo).values({ tripId, carrierType }).returning({ id: s.tripCarrierInfo.id });
+    track(s.tripCarrierInfo, info.id);
+  };
+
+  test('a DRIVER source on an xe ngoài trip is refused with a 409 naming the rule', async () => {
+    const { confirmAccountingExpenses } = await import('../services/expense-accounting-write.service');
+    const fixture = await mkBoardFixture();
+    await setCarrier(fixture.trip.id, 'EXTERNAL');
+    const driver = await mkDriver();
+    const { source } = await mkDriverSource(fixture.trip.id, fixture.shipment.id, driver.id, '260000');
+
+    await assert.rejects(
+      () => confirmAccountingExpenses(db as never, actor(), [{ sourceKind: 'DRIVER', sourceId: source.sourceId, expectedVersion: source.version }]),
+      /Xe ngoài không đối chiếu chi do tài xế nhập[\s\S]*kế toán nhập và sửa chi phí trực tiếp/,
+      'on xe ngoài the accountant enters the cost themselves, so the driver row is not theirs to confirm',
+    );
+    const [kept] = await db.select({ confirmedAt: s.expenseAccountingSources.confirmedAt })
+      .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id));
+    assert.equal(kept!.confirmedAt, null, 'a refused confirmation must not mark the row đã đối chiếu');
+  });
+
+  test('the same DRIVER source confirms on an xe nhà trip', async () => {
+    const { confirmAccountingExpenses } = await import('../services/expense-accounting-write.service');
+    const fixture = await mkBoardFixture();
+    await setCarrier(fixture.trip.id, 'OWN');
+    const driver = await mkDriver();
+    const { source } = await mkDriverSource(fixture.trip.id, fixture.shipment.id, driver.id, '270000');
+
+    const confirmed = await confirmAccountingExpenses(db as never, actor(),
+      [{ sourceKind: 'DRIVER', sourceId: source.sourceId, expectedVersion: source.version }]);
+    assert.equal(confirmed.length, 1);
+    assert.ok(confirmed[0]!.confirmedAt, 'xe nhà is exactly where the driver cost is đối chiếu được');
+  });
+
+  test('REGRESSION: an OPS chi-hộ source on an xe ngoài trip still confirms', async () => {
+    const { confirmAccountingExpenses } = await import('../services/expense-accounting-write.service');
+    const fixture = await mkBoardFixture({ charge: 100000 });
+    await setCarrier(fixture.trip.id, 'EXTERNAL');
+    // Unconfirmed OPS entry — the accountant's own cost, entered on an xe ngoài trip.
+    const [entry] = await db.insert(s.opsExpenseEntries).values({
+      shipmentId: fixture.shipment.id, expenseTypeCode: 'OTHER', amount: '150000', customerChargeAmount: '0',
+      costGroup: 'OPS_INCIDENTAL', payerKind: 'USER', paidById: accountantId, paidAt: '2026-09-22',
+      feeName: 'Phí xe ngoài 373',
+    }).returning({ id: s.opsExpenseEntries.id });
+    track(s.opsExpenseEntries, entry.id);
+    const [source] = await db.insert(s.expenseAccountingSources).values({
+      sourceKind: 'OPS', sourceId: entry.id, shipmentId: fixture.shipment.id, tripId: fixture.trip.id, version: 1,
+    }).returning({ id: s.expenseAccountingSources.id });
+    track(s.expenseAccountingSources, source.id);
+
+    const confirmed = await confirmAccountingExpenses(db as never, actor(),
+      [{ sourceKind: 'OPS', sourceId: entry.id, expectedVersion: 1 }]);
+    assert.equal(confirmed.length, 1, 'the xe-nhà rule must NOT touch OPS/TRIP sources');
+    assert.ok(confirmed[0]!.confirmedAt);
+    const [row] = await db.select({ confirmedAt: s.expenseAccountingSources.confirmedAt })
+      .from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.id, source.id));
+    assert.ok(row!.confirmedAt, 'the accountant-entered OPS cost is đã đối chiếu on an xe ngoài trip');
+  });
+});
+
+/**
  * This file tracked every row it created and then never deleted any of them.
  *
  * The symptom looked like flake and was not: a run left `C12 customer N` rows

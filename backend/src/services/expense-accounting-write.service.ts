@@ -4,6 +4,7 @@ import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
 import type { Executor, Tx } from './trip-shared';
 import { ApiError } from '../errors';
+import { assertDriverCostOnOwnCarrier } from './trip-carrier-scope';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertExpenseSourceMutable, ensureLegacyExpenseSource, assertActiveExpensePayer, hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 import { propagateRecordedExpense } from './source-change.service';
@@ -180,6 +181,20 @@ export async function syncShipmentExpenseSources(tx: Tx, shipmentId: number, act
   }
 }
 
+/** Card 2026-10-05_373 — the CONFIRM-side twin of `assertDriverCostOnOwnCarrier`
+ *  (phoi-phieu-control.service.ts, the "Từ chối" / void path).
+ *
+ *  Spec: đối chiếu / từ chối / sửa a driver-entered cost is an XE NHÀ action; on
+ *  XE NGOÀI the driver never enters the cost, so the accountant owns the row and
+ *  must record it themselves. No carrier gate existed when a driver cost was
+ *  recorded (`expense-accounting-source.service.ts` never reads `carrierType`),
+ *  so such a row can exist on an external-carrier trip today — this closes it.
+ *
+ *  It is deliberately a SEPARATE guard from the void one rather than a shared
+ *  export: the two paths are owned in different files and each refusal names its
+ *  own action ("đối chiếu" here, "từ chối" there), so one message cannot serve
+ *  both. Carrier type lives on `tripCarrierInfo` (1:1 per trip) and a trip with
+ *  no carrier row is in-house by the column default. */
 export async function confirmAccountingExpenses(tx: Tx, actor: ExpenseActor, entries: ExpenseSourceRef[]) {
   requireExpenseFinance(actor);
   const keys = entries.map(ref => `${ref.sourceKind}:${ref.sourceId}`);
@@ -201,6 +216,11 @@ export async function confirmAccountingExpenses(tx: Tx, actor: ExpenseActor, ent
     await assertShipmentAccountingUnlocked(tx, before.shipmentId);
     if (before.paymentHistoryUnattributed) throw new ApiError(409, 'Lịch sử thu/chi chưa được phân bổ cho khoản chi cũ; không thể tạo nghĩa vụ thanh toán mới.');
     if (before.confirmedAt) throw new ApiError(409, `Khoản ${ref.sourceKind}-${ref.sourceId} đã đối chiếu.`);
+    // Card 2026-10-05_373: the xe-nhà rule is scoped to DRIVER-entered costs
+    // ONLY. OPS/TRIP rows are the accountant's own entries and confirm normally
+    // on every carrier type — gating the whole function would block legitimate
+    // work on xe ngoài trips.
+    if (before.sourceKind === 'DRIVER') await assertDriverCostOnOwnCarrier(tx, before.tripId, 'đối chiếu');
     if (before.sourceKind === 'TRIP' && before.payableEntityType === 'FORWARDER') {
       const [legacySettlement] = await tx.select({ id: s.settlementExpenses.id }).from(s.settlementExpenses)
         .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))

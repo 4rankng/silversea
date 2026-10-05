@@ -391,3 +391,33 @@ describe('card 051026231617 — the footer says it excludes negative chi-hộ ro
     expect(screen.queryByText(/khoản chi âm/)).toBeNull();
   });
 });
+
+// Card 2026-10-05_373 spec table 1.1.3 — "Nội dung phải/đã đưa (kèm mã đơn)".
+// The chi-hộ table's "Hóa đơn" column already shows the invoice number, so the
+// mã đơn under the fee name is the LOT code, stacked with the house
+// `record-cell-stack` pattern (no page-local CSS).
+describe('card 2026-10-05_373 — the chi-hộ "Nội dung phí" cell carries the lot code', () => {
+  it('stacks the fee name and the lot code through the shared stack class', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows: [
+      { ...rows[0], shipmentCode: 'LO-2026-0912' },
+      { ...rows[1], shipmentCode: 'LO-2026-0912' },
+    ] });
+    page();
+    await screen.findByText('First fee');
+    const cell = screen.getByText('First fee').closest('td')!;
+    expect(cell).toHaveClass('phoi-detail-col--description');
+    expect(cell.dataset.label).toBe('Nội dung phí');
+    const lotCode = within(cell).getByText('LO-2026-0912');
+    expect(lotCode.tagName).toBe('SMALL');
+    expect(lotCode.parentElement).toHaveClass('record-cell-stack');
+    expect(within(lotCode.parentElement!).getByText('First fee')).toBeInTheDocument();
+  });
+
+  it('falls back to — when the lot has no code', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows: [{ ...rows[0], shipmentCode: null }] });
+    page();
+    await screen.findByText('First fee');
+    const cell = screen.getByText('First fee').closest('td')!;
+    expect(within(cell).getByText('—')).toBeInTheDocument();
+  });
+});

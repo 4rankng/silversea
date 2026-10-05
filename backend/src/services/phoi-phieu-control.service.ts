@@ -12,6 +12,7 @@ import { operationalName } from '../db/master-data-name';
 import { billBookingTitle } from '../lib/business-keys';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import { assertDriverCostOnOwnCarrier } from './trip-carrier-scope';
 import type { AuthUser } from '../middleware/auth';
 import type { Executor, Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
@@ -634,6 +635,11 @@ export interface PhoiPhieuFeeRow {
    *  dialog, TRIP rows are read-only here. */
   sourceKind: 'OPS' | 'TRIP';
   feeName: string | null;
+  /** Card 2026-10-05_373 spec table 1.1.3 — the "Nội dung phí" cell is
+   *  "nội dung phải/đã đưa kèm mã đơn". The table's own "Hóa đơn" column
+   *  already carries the invoice number, so "mã đơn" here is the LOT /
+   *  shipment code (`shipments.shipmentCode`), read once per dialog. */
+  shipmentCode: string | null;
   invoiceNumber: string | null;
   amountTra: number;
   amountThu: number | null;
@@ -651,7 +657,12 @@ export async function getPhoiPhieuChiHo(tripId: number, confirmation?: ChiHoConf
     tripId: s.trips.id,
     tripCode: s.trips.tripCode,
     shipmentId: s.trips.shipmentId,
-  }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    shipmentCode: s.shipments.shipmentCode,
+  }).from(s.trips)
+    // LEFT join so the "no shipment" 404 below stays exactly the one this
+    // function has always thrown, instead of turning into "no trip row".
+    .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+    .where(eq(s.trips.id, tripId)).limit(1);
   if (!trip || trip.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chuyến.');
   const [state] = await db.select({ taken: s.tripFinancialState.phoiTakenDate, status: s.tripFinancialState.phoiTakeStatus })
     .from(s.tripFinancialState).where(eq(s.tripFinancialState.tripId, tripId)).limit(1);
@@ -697,6 +708,7 @@ export async function getPhoiPhieuChiHo(tripId: number, confirmation?: ChiHoConf
         version: source.version,
         sourceKind: 'OPS',
         feeName: entry.feeName,
+        shipmentCode: trip.shipmentCode,
         invoiceNumber: entry.invoiceNumber,
         amountTra: Number(entry.amountTra ?? 0),
         amountThu: entry.amountThu == null ? null : Number(entry.amountThu),
@@ -729,6 +741,7 @@ export async function getPhoiPhieuChiHo(tripId: number, confirmation?: ChiHoConf
       version: source.version,
       sourceKind: 'TRIP',
       feeName: expense.feeName,
+      shipmentCode: trip.shipmentCode,
       invoiceNumber: expense.invoiceNumber,
       amountTra: Number(expense.amountTra ?? 0),
       amountThu: expense.amountThu == null ? null : Number(expense.amountThu),
@@ -784,20 +797,6 @@ export async function updatePhoiPhieuMeta(tripId: number, input: {
  *  is kept for history. Carrier type lives on `tripCarrierInfo` (1:1 per trip;
  *  `trips.carrier_type` was dropped in migration 0056), and a trip with no
  *  carrier row is in-house by the column default. */
-async function assertDriverCostOnOwnCarrier(tx: Tx, tripId: number | null) {
-  if (tripId == null) throw new ApiError(404, 'Khoản chi của tài xế không thuộc chuyến nào.');
-  const [info] = await tx.select({ carrierType: s.tripCarrierInfo.carrierType })
-    .from(s.trips)
-    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
-    .where(eq(s.trips.id, tripId)).limit(1);
-  if (!info) throw new ApiError(404, 'Không tìm thấy chuyến.');
-  // No carrier row = the `OWN` column default, so an un-migrated trip is not
-  // silently treated as xe ngoài and blocked from rejection.
-  if ((info.carrierType ?? 'OWN') !== 'OWN') {
-    throw new ApiError(409, 'Xe ngoài không từ chối chi do tài xế nhập — kế toán nhập và sửa chi phí trực tiếp.');
-  }
-}
-
 /** Remove a fee row from the dialog: VOID the source (history kept — the
  *  accounting rule) and void the entry, never a hard delete.
  *
@@ -843,7 +842,7 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
     if (source.confirmedAt) throw new ApiError(409, 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa.');
     // Rejecting a driver-entered cost is an xe nhà action only: on xe ngoài the
     // driver never enters the cost, so the accountant keeps owning the row.
-    if (source.sourceKind === 'DRIVER') await assertDriverCostOnOwnCarrier(tx, source.tripId);
+    if (source.sourceKind === 'DRIVER') await assertDriverCostOnOwnCarrier(tx, source.tripId, 'từ chối');
     await tx.update(s.expenseAccountingSources).set({ status: 'VOIDED', updatedAt: new Date() })
       .where(eq(s.expenseAccountingSources.id, sourceId));
     // Only the OPS table carries a native approval flag; running this for a
