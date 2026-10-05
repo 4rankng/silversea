@@ -8,10 +8,11 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
   return {
     ...actual,
     listDispatchFleetResources: vi.fn(),
+    createCarrierFleetVehicle: vi.fn(),
   };
 });
 
-import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
+import { createCarrierFleetVehicle, listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
 
@@ -998,5 +999,72 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
     const options = await openVehicleDropdown();
 
     expect(options.some((label) => label.includes('60C-123.45 — Hạ tại khu vực D-1 — ⚠ rơ-moóc 40FT, cần 20FT'))).toBe(true);
+  });
+});
+
+describe('DispatchPlanEditorCell — quick-add plate for the selected carrier (card 20261004_357)', () => {
+  const createVehicleMock = vi.mocked(createCarrierFleetVehicle);
+
+  beforeEach(() => {
+    createVehicleMock.mockReset();
+  });
+
+  // Carrier-less rows render the 'Chọn nhà xe' placeholder — the same trigger
+  // pattern the vehicle combobox tests drive.
+  const carrierLessRow = () => row({ dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } });
+
+  async function selectExternalCarrier() {
+    // Open the Nhà xe combobox and pick the mocked external carrier (EXT:9).
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn nhà xe'))!);
+    const carrierOption = await screen.findAllByText('Carrier QA');
+    fireEvent.click(carrierOption[carrierOption.length - 1]);
+    await waitFor(() => expect(screen.getByText('Carrier QA')).toBeTruthy());
+  }
+
+  it('offers "+ Thêm nhanh" only while an external carrier is selected, and absent for OWN', async () => {
+    mockFleetResources();
+    renderCell(carrierLessRow());
+    await openDialog();
+
+    // No carrier yet: no affordance.
+    expect(screen.queryByText('Thêm nhanh')).toBeNull();
+
+    await selectExternalCarrier();
+    expect(screen.getByText('Thêm nhanh')).toBeTruthy();
+  });
+
+  it('creates the plate through the Xe ngoài API and preselects it', async () => {
+    mockFleetResources();
+    createVehicleMock.mockResolvedValue({ id: 77, carrierId: 9, licensePlate: '29C-111.22', isActive: true });
+    renderCell(carrierLessRow());
+    await openDialog();
+    await selectExternalCarrier();
+
+    fireEvent.click(screen.getByText('Thêm nhanh'));
+    expect(await screen.findByText('Thêm nhanh biển số xe')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Biển số xe'), { target: { value: '29c 111.22' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+
+    await waitFor(() => expect(createVehicleMock).toHaveBeenCalledWith({ carrierId: 9, licensePlate: '29C 111.22' }));
+    // Dialog closes; the new plate is preselected in the combobox trigger.
+    await waitFor(() => expect(screen.queryByText('Thêm nhanh biển số xe')).toBeNull());
+    await waitFor(() => expect(screen.getAllByText('29C-111.22').length).toBeGreaterThan(0));
+  });
+
+  it('surfaces the API error inline instead of closing', async () => {
+    mockFleetResources();
+    createVehicleMock.mockRejectedValue(new Error('Biển số xe đã tồn tại'));
+    renderCell(carrierLessRow());
+    await openDialog();
+    await selectExternalCarrier();
+
+    fireEvent.click(screen.getByText('Thêm nhanh'));
+    fireEvent.change(screen.getByLabelText('Biển số xe'), { target: { value: '29C-111.22' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+
+    expect(await screen.findByText('Biển số xe đã tồn tại')).toBeTruthy();
+    // Dialog stays open for correction.
+    expect(screen.getByText('Thêm nhanh biển số xe')).toBeTruthy();
   });
 });

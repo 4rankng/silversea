@@ -1,6 +1,6 @@
 import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Save } from 'lucide-react';
+import { Plus, Save } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
 import {
   listDispatchFleetResources,
@@ -32,6 +32,7 @@ import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
 import { DispatchClassificationField } from './DispatchClassificationField';
 import { IssueOrderFields } from './IssueOrderFields';
 import { useIssueOrder } from './useIssueOrder';
+import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
 import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, vehicleWarningSuffix, type VehicleFit } from './trailerFit';
 import './DispatchPlanEditorCell.css';
 
@@ -245,12 +246,34 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [carrierError, setCarrierError] = useState(false);
   const [vehicleError, setVehicleError] = useState(false);
   const [fleetRetryNonce, setFleetRetryNonce] = useState(0);
+  // Card 20261004_357 — quick-add plate for the selected external carrier.
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  // Manually added vehicles ride the option list until the refetch lands them.
+  const [manualVehicles, setManualVehicles] = useState<Map<number, string>>(() => new Map());
   // Branch-row decompose in flight (fulfillment-less rows must decompose
   // before the editor can target a fulfillment identity).
   const [ensuring, setEnsuring] = useState(false);
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
+  const quickAddCarrierName = selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null
+    ? carrierOptions.find((option) => option.value === `${EXTERNAL_CARRIER_PREFIX}${selectedCarrier.externalCarrierId}`)?.label
+      ?? row.dispatch.carrierName ?? ''
+    : '';
+
+  const handleVehicleCreated = (vehicleId: number, licensePlate: string) => {
+    // Card 20261004_357 — preselect the new plate and let the refetch fold it
+    // into the fetched list (manualVehicles covers the interim).
+    setManualVehicles((current) => {
+      const next = new Map(current);
+      next.set(vehicleId, licensePlate);
+      return next;
+    });
+    setFleetRetryNonce((nonce) => nonce + 1);
+    setDraft((current) => ({ ...current, vehicleValue: `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}` }));
+    setError(null);
+    setQuickAddOpen(false);
+  };
 
   const issueStatus = deriveDispatchIssueStatus({
     vehicleAssigned: row.dispatch.assignedPlate != null,
@@ -396,7 +419,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         && !mapped.some((option) => option.label === normalizedSearch)
         ? [{ value: `${FREE_TEXT_PREFIX}${normalizedSearch}`, label: `Dùng biển số: ${normalizedSearch}` }]
         : [];
-      setVehicleOptions([...freeTextOption, ...mapped]);
+      // Card 20261004_357 — plates added through the quick-add dialog ride the
+      // list immediately (before the refetch returns them from the server).
+      const manualOptions = isOwnFleet
+        ? []
+        : [...manualVehicles.entries()]
+          .filter(([vehicleId]) => !mapped.some((option) => option.value === `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}`))
+          .map(([vehicleId, plate]) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}`, label: plate }));
+      setVehicleOptions([...freeTextOption, ...manualOptions, ...mapped]);
       setVehicleCursor(response.nextCursor);
       setSuggestions(isOwnFleet ? response.suggestedItems ?? [] : []);
       setVehicleError(false);
@@ -412,7 +442,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     // `selectedCarrier` is a fresh object every render (parseCarrier of the
     // draft); the effect keys on the two primitives it actually consumes so
     // the vehicle list doesn't reload on every keystroke elsewhere.
-  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch, rowIsCarrierLess, fleetRetryNonce, draft.classification]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch, rowIsCarrierLess, fleetRetryNonce, draft.classification, manualVehicles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectableCarrierOptions = useMemo(() => {
     const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
@@ -747,7 +777,25 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               </p>
             ) : null}
             <label htmlFor={`dispatch-vehicle-${row.fulfillmentId}`} className="dispatch-assignment-dialog__vehicle">
-              <span>Xe / biển số</span>
+              <span className="dispatch-assignment-dialog__vehicle-head">
+                <span>Xe / biển số</span>
+                {/* Card 20261004_357 — quick-add registers a plate under the
+                    selected external carrier (same Xe ngoài API). Own fleet is
+                    fleet-managed, so the affordance is external-only. */}
+                {selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null && (
+                  <button
+                    type="button"
+                    className="dispatch-assignment-dialog__quick-add"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setQuickAddOpen(true);
+                    }}
+                    disabled={saving}
+                  >
+                    <Plus size={14} aria-hidden="true" />Thêm nhanh
+                  </button>
+                )}
+              </span>
               <SearchableSelect
                 id={`dispatch-vehicle-${row.fulfillmentId}`}
                 value={draft.vehicleValue}
@@ -900,6 +948,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           )}
         </form>
       </Modal>
+      {quickAddOpen && selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null && (
+        <QuickAddVehicleDialog
+          isOpen
+          carrierId={selectedCarrier.externalCarrierId}
+          carrierName={quickAddCarrierName}
+          onClose={() => setQuickAddOpen(false)}
+          onCreated={handleVehicleCreated}
+        />
+      )}
     </div>
   );
 }

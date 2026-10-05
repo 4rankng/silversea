@@ -139,6 +139,39 @@
   grid-area: vehicle;
 }
 
+/* Card 20261004_357 — label row carries the quick-add affordance (same
+   accent borderless pattern as the create form's "Thêm khách hàng"). */
+.dispatch-assignment-dialog__vehicle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dispatch-assignment-dialog__quick-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--control-compact-h, 34px);
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold, 600);
+  cursor: pointer;
+}
+
+.dispatch-assignment-dialog__quick-add svg {
+  color: var(--accent);
+}
+
+.dispatch-assignment-dialog__quick-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .dispatch-assignment-dialog__classification {
   grid-area: classification;
   width: min(168px, 100%);
