@@ -116,8 +116,8 @@ router.get('/reports/receivables-aging', requireRoles(Role.ADMIN, Role.MANAGER, 
   const asOfDate = typeof req.query.asOfDate === 'string' ? req.query.asOfDate : undefined;
   const { page, limit } = parsePagination(req, { limit: 500, maxLimit: 500 });
   const rawBucket = typeof req.query.bucket === 'string' ? req.query.bucket : undefined;
-  const bucket = rawBucket && ['current', 'd30', 'd60', 'over90'].includes(rawBucket)
-    ? (rawBucket as 'current' | 'd30' | 'd60' | 'over90')
+  const bucket = rawBucket && ['current', 'd30', 'd60', 'over90', 'overdue'].includes(rawBucket)
+    ? (rawBucket as 'current' | 'd30' | 'd60' | 'over90' | 'overdue')
     : 'all';
   // Sort params are whitelist-validated separately so the rest of this route's
   // hand-parsed query surface (search/asOfDate/bucket) stays untouched.

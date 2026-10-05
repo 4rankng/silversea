@@ -1,9 +1,9 @@
-import { and, asc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { insertTreasuryMovement } from './treasury.service';
 import { ApiError } from '../errors';
-import { expenseDateSchema, expenseVndSchema, TxnType } from '@tingting/shared';
+import { expenseDateSchema, expenseVndSchema, round2dp, TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { requireExpenseFinance } from './expense-accounting-write.service';
@@ -124,6 +124,94 @@ function buildWarnings(rows: Array<typeof s.depositRefundTrackers.$inferSelect>)
   return {
     cvOverdueCount: cvOverdue.length,
     unrefundedTotal: unrefunded.reduce((sum, row) => sum + Number(row.depositAmount), 0),
+  };
+}
+
+export interface DepositWeekRow {
+  weekStart: string;
+  label: string;
+  count: number;
+  depositAmount: number;
+  refundedAmount: number;
+}
+
+export interface DepositWeeklySummary {
+  weeks: DepositWeekRow[];
+  totals: { count: number; depositAmount: number; refundedAmount: number };
+}
+
+/** Monday (YYYY-MM-DD) of the ISO calendar day's Mon–Sun week. */
+function mondayOf(isoDay: string): string {
+  const date = new Date(`${isoDay}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+  return date.toISOString().slice(0, 10);
+}
+
+/** "Tổng quát về tiền" weekly container-deposit series (REQ-5.10-01): one row
+ *  per Mon–Sun calendar week covering [from,to], empty weeks zeroed. The weeks
+ *  run full (weekStart stays the true Monday) but INCLUSION is clamped to the
+ *  range edges per series' own day: count + depositAmount bucket by createdAt,
+ *  refundedAmount (only ĐÃ-hoàn-cược rows) buckets by
+ *  COALESCE(refundPostedAt, updatedAt) — each counted only when that day falls
+ *  inside [from,to]. Totals are exactly the sums of the week rows. */
+export async function getDepositWeeklySummary(actor: ExpenseActor, filters: { from: string; to: string }): Promise<DepositWeeklySummary> {
+  requireExpenseFinance(actor);
+  expenseDateSchema.parse(filters.from);
+  expenseDateSchema.parse(filters.to);
+  if (filters.from > filters.to) throw new ApiError(400, 'Ngày từ phải trước hoặc bằng ngày đến.');
+  const { from, to } = filters;
+  const fromStart = new Date(`${from}T00:00:00Z`);
+  const toEnd = new Date(`${to}T23:59:59.999Z`);
+  const rows = await db.select().from(s.depositRefundTrackers).where(or(
+    and(gte(s.depositRefundTrackers.createdAt, fromStart), lte(s.depositRefundTrackers.createdAt, toEnd)),
+    and(
+      eq(s.depositRefundTrackers.status, 'DA_HOAN_CUOC'),
+      or(
+        and(gte(s.depositRefundTrackers.refundPostedAt, fromStart), lte(s.depositRefundTrackers.refundPostedAt, toEnd)),
+        and(isNull(s.depositRefundTrackers.refundPostedAt), gte(s.depositRefundTrackers.updatedAt, fromStart), lte(s.depositRefundTrackers.updatedAt, toEnd)),
+      ),
+    ),
+  ));
+  const weeks: DepositWeekRow[] = [];
+  const firstWeekStart = mondayOf(from);
+  const lastWeekStart = mondayOf(to);
+  for (let weekStart = firstWeekStart; weekStart <= lastWeekStart; weekStart = addDays(weekStart, 7)) {
+    weeks.push({
+      weekStart,
+      label: `Tuần ${weekStart.slice(8, 10)}/${weekStart.slice(5, 7)}`,
+      count: 0, depositAmount: 0, refundedAmount: 0,
+    });
+  }
+  // Week position of a day inside [from,to]: whole days since the first Monday
+  // divided by 7 — the sorted weeks array IS the lookup table.
+  const dayIndex = (isoDay: string) => Date.parse(`${isoDay}T00:00:00Z`) / 86_400_000;
+  const firstWeekIndex = dayIndex(firstWeekStart);
+  for (const row of rows) {
+    const amount = Number(row.depositAmount);
+    const createdDay = row.createdAt.toISOString().slice(0, 10);
+    if (createdDay >= from && createdDay <= to) {
+      const week = weeks[Math.floor((dayIndex(createdDay) - firstWeekIndex) / 7)]!;
+      week.count += 1;
+      week.depositAmount += amount;
+    }
+    if (row.status === 'DA_HOAN_CUOC') {
+      const postedDay = (row.refundPostedAt ?? row.updatedAt).toISOString().slice(0, 10);
+      if (postedDay >= from && postedDay <= to) {
+        weeks[Math.floor((dayIndex(postedDay) - firstWeekIndex) / 7)]!.refundedAmount += amount;
+      }
+    }
+  }
+  for (const week of weeks) {
+    week.depositAmount = round2dp(week.depositAmount);
+    week.refundedAmount = round2dp(week.refundedAmount);
+  }
+  return {
+    weeks,
+    totals: {
+      count: weeks.reduce((sum, week) => sum + week.count, 0),
+      depositAmount: round2dp(weeks.reduce((sum, week) => sum + week.depositAmount, 0)),
+      refundedAmount: round2dp(weeks.reduce((sum, week) => sum + week.refundedAmount, 0)),
+    },
   };
 }
 

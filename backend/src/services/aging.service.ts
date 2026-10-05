@@ -4,7 +4,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { cacheGet } from '../lib/redis';
 import { eq, and, or, sql, inArray, like, isNull, lt } from 'drizzle-orm';
-import { computeFifoAging, TxnType } from '@tingting/shared';
+import { computeFifoAging, round2dp, TxnType } from '@tingting/shared';
 import { ENTITY_RESULTS_KEY_PREFIX } from '../lib/report-cache';
 import type { PayableSummary, PayablesCategory, Supplier } from '@tingting/shared';
 import {
@@ -90,8 +90,8 @@ export interface CustomerAgingListResult {
   totals: AgingListTotals;
 }
 
-/** Aging-bucket filter matching the /debt page's bucket pills. */
-export type AgingBucketFilter = 'all' | 'current' | 'd30' | 'd60' | 'over90';
+/** Aging-bucket filter matching the /debt page's bucket pills ('overdue' = any overdue portion). */
+export type AgingBucketFilter = 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue';
 
 export interface AgingListTotals {
   total: number;
@@ -135,13 +135,48 @@ export function summarizeAgingTotals(rows: Array<{ totalOutstanding: number; max
   return totals;
 }
 
-/** Bucket filter matching the /debt page's pills (each bucket requires outstanding). */
+/** Bucket filter matching the /debt page's pills (each bucket requires outstanding).
+ * `'overdue'` selects rows carrying ANY overdue portion; the four single-bucket
+ * values keep their exact prior semantics. */
 export function filterAgingByBucket<
   T extends { totalOutstanding: number; aging: { current: number; d30: number; d60: number; over90: number } },
 >(rows: T[], bucket: AgingBucketFilter): T[] {
   if (bucket === 'all') return rows;
+  if (bucket === 'overdue') {
+    return rows.filter(r => r.totalOutstanding > 0 && (r.aging.d30 > 0 || r.aging.d60 > 0 || r.aging.over90 > 0));
+  }
   const hasBucket = (r: T) => r.totalOutstanding > 0 && r.aging[bucket] > 0;
   return rows.filter(hasBucket);
+}
+
+/** Due-group card aggregate behind the overview's "Tổng quát về tiền" block.
+ * `inTerm` = the not-yet-overdue portion (aging.current); `overdue` = the
+ * d30/d60/over90 portions. One entity with both portions counts in BOTH groups. */
+export interface DueGroups {
+  inTerm: { amount: number; count: number };
+  overdue: { amount: number; count: number };
+}
+
+/** Aggregate rows into the due-group cards. Amounts pass through `round2dp`;
+ * counts use the SAME presence predicate as `filterAgingByBucket` so a card's
+ * count and its drill-down list agree row-for-row. */
+export function computeDueGroups(
+  rows: ReadonlyArray<{ totalOutstanding: number; aging: { current: number; d30: number; d60: number; over90: number } }>,
+): DueGroups {
+  let inTermAmount = 0;
+  let overdueAmount = 0;
+  let inTermCount = 0;
+  let overdueCount = 0;
+  for (const row of rows) {
+    inTermAmount += row.aging.current;
+    overdueAmount += row.aging.d30 + row.aging.d60 + row.aging.over90;
+    if (row.totalOutstanding > 0 && row.aging.current > 0) inTermCount++;
+    if (row.totalOutstanding > 0 && (row.aging.d30 > 0 || row.aging.d60 > 0 || row.aging.over90 > 0)) overdueCount++;
+  }
+  return {
+    inTerm: { amount: round2dp(inTermAmount), count: inTermCount },
+    overdue: { amount: round2dp(overdueAmount), count: overdueCount },
+  };
 }
 
 // ─── Column sorting (server-side, pre-pagination) ────────────────────────────
@@ -522,6 +557,9 @@ export async function getReceivablesSummary(opts: { asOfDate?: string } = {}) {
     totalCustomers,
     overdueCustomers: totalCustomers - buckets[0].count,
     overdueAmount: buckets.slice(1).reduce((sum, bucket) => sum + bucket.amount, 0),
+    // "Tổng quát về tiền" cards — computed over the same snapshot rows the
+    // buckets above aggregate, so the counts match the /debt drill-down lists.
+    dueGroups: computeDueGroups(results),
   };
   return {
     ...payload,
@@ -789,6 +827,8 @@ export interface PayablesListTotals {
 }
 
 export interface PaginatedPayablesSummary extends PayablesSummaryResult {
+  /** Full-set due-group cards (KPI strip) — never bucket/search/page scoped. */
+  dueGroups: DueGroups;
   page: number;
   limit: number;
   total: number;
@@ -812,7 +852,7 @@ export function summarizePayablesTotals(items: PayableSummary[]): PayablesListTo
 }
 
 export function paginatePayablesSummary(
-  result: PayablesSummaryResult,
+  result: PayablesSummaryResult & { dueGroups?: DueGroups },
   opts: { search?: string; page?: number; limit?: number; sortBy?: PayablesSummarySortKey; sortDir?: AgingSortDir } = {},
 ): PaginatedPayablesSummary {
   const q = opts.search?.trim().toLowerCase();
@@ -832,6 +872,10 @@ export function paginatePayablesSummary(
     totalOutstanding: result.totalOutstanding,
     totalSuppliers: result.totalSuppliers,
     overdueSuppliers: result.overdueSuppliers,
+    // Same invariant for the due-group cards: getPayablesSummary computes them
+    // over the merged full item set and they pass through untouched; the
+    // fallback derives them from the set a caller hands over when it carries none.
+    dueGroups: result.dueGroups ?? computeDueGroups(result.items),
     totals,
     items: page.rows,
     page: page.page,
@@ -862,7 +906,10 @@ export async function getPayablesSummary(opts: { asOfDate?: string; category?: P
       getPayablesForScope(vendorScope, opts.asOfDate),
       getPayablesForScope(carrierScope, opts.asOfDate),
     ]);
-    const payload = mergePayablesSummaries(summaries);
+    // "Tổng quát về tiền" cards aggregate the merged full item set (suppliers
+    // + carriers) and land in the checksummed payload like every other field.
+    const merged = mergePayablesSummaries(summaries);
+    const payload = { ...merged, dueGroups: computeDueGroups(merged.items) };
     return {
       ...payload,
       ...historicalReportMetadata(opts.asOfDate, 'payables-summary-v2', payload),
@@ -882,7 +929,8 @@ export async function getPayablesSummary(opts: { asOfDate?: string; category?: P
     }
   })();
 
-  const payload = await getPayablesForScope(scope, opts.asOfDate);
+  const scopeResult = await getPayablesForScope(scope, opts.asOfDate);
+  const payload = { ...scopeResult, dueGroups: computeDueGroups(scopeResult.items) };
   return {
     ...payload,
     ...historicalReportMetadata(opts.asOfDate, `payables-${opts.category}-v2`, payload),

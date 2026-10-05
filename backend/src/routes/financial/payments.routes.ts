@@ -32,7 +32,7 @@ import {
 } from '../../services/statement.service';
 import { formatLocalDate } from '../../lib/format';
 import { invalidateReportCaches } from '../../lib/report-cache';
-import { getPayablesSummary, paginatePayablesSummary, payablesSummarySortQuerySchema } from '../../services/aging.service';
+import { getPayablesSummary, paginatePayablesSummary, payablesSummarySortQuerySchema, filterAgingByBucket } from '../../services/aging.service';
 import { parsePagination } from '../utils/pagination';
 import { throwValidation } from '../../lib/validation';
 import { requestCommissionGovernance } from '../../services/commission.service';
@@ -334,13 +334,21 @@ router.get('/reports/payables-summary', asyncHandler(async (req: Request, res: R
   const category: PayablesCategory | undefined =
     rawCategory && PAYABLES_CATEGORIES.has(rawCategory) ? (rawCategory as PayablesCategory) : undefined;
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+  const rawBucket = typeof req.query.bucket === 'string' ? req.query.bucket : undefined;
+  const bucket = rawBucket && ['current', 'd30', 'd60', 'over90', 'overdue'].includes(rawBucket)
+    ? (rawBucket as 'current' | 'd30' | 'd60' | 'over90' | 'overdue')
+    : 'all';
   const { page, limit } = parsePagination(req, { limit: 500, maxLimit: 500 });
   // Sort params are whitelist-validated separately so the rest of this route's
-  // hand-parsed query surface (asOfDate/category/search) stays untouched.
+  // hand-parsed query surface (asOfDate/category/search/bucket) stays untouched.
   const sort = payablesSummarySortQuerySchema.safeParse(req.query);
   if (!sort.success) throwValidation(sort.error);
   const summary = await getPayablesSummary({ asOfDate, category });
-  res.json(paginatePayablesSummary(summary, { search, page, limit, ...sort.data }));
+  // /payables bucket pills narrow the item list BEFORE search/pagination, so
+  // `totals` scopes to the filtered+searched set; headline and due-group
+  // numbers stay full-set (KPI strip invariant) via the pass-through envelope.
+  const items = filterAgingByBucket(summary.items, bucket);
+  res.json(paginatePayablesSummary({ ...summary, items }, { search, page, limit, ...sort.data }));
 }));
 
 // ─── Commission (manual posting) ────────────────────────────────────────────
