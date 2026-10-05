@@ -26,6 +26,7 @@ import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.servi
 import { resolveDispatchFactorySnapshot } from './trip-factory-site.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 import { syncShipmentExpenseSources } from './expense-accounting-write.service';
+import { canonicalLocationsFromContainerRow, containerLocationColumns } from './trip-shared';
 
 
 import { and, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
@@ -270,11 +271,20 @@ export async function issueOrderCreateOrUpdate(
     : await tx.select({
       routeId: s.shipmentContainers.routeId,
       containerTypeCode: s.containerTypes.code,
+      ...containerLocationColumns,
     })
       .from(s.shipmentContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
       .limit(1);
+  // Card 353: trips.canonical_origin / canonical_destination record the
+  // điểm đi / điểm đến — the container's Cảng nâng / Cảng hạ at issue time
+  // (catalog port operational name, raw free-text name for ad-hoc orders).
+  // Without these the pairing dialog (draftFor) and POST /trips/pairs
+  // (buildTripPairSnapshot → MISSING_LOCATION) hard-block every ghép.
+  const canonicalLocations = containerRoute
+    ? canonicalLocationsFromContainerRow(containerRoute)
+    : { origin: null, destination: null };
   // FCL route falls back container -> shipment (mirroring detail plan and CUS workspace)
   const effectiveRouteId = fulfillment.cargoMode === CARGO_MODE.FCL
     ? (containerRoute?.routeId ?? shipment.routeId ?? null)
@@ -573,6 +583,8 @@ export async function issueOrderCreateOrUpdate(
       sourceShipmentVersion: shipment.version,
       plannedStartAt,
       plannedEndAt,
+      canonicalOrigin: canonicalLocations.origin,
+      canonicalDestination: canonicalLocations.destination,
       truckId,
       trailerId,
       driverId,
@@ -637,6 +649,8 @@ export async function issueOrderCreateOrUpdate(
     const { ops: updatedTripOps, carrier: updatedTripCarrier } = splitTripPatch({
       plannedStartAt,
       plannedEndAt,
+      canonicalOrigin: canonicalLocations.origin,
+      canonicalDestination: canonicalLocations.destination,
       truckId,
       trailerId,
       driverId,
