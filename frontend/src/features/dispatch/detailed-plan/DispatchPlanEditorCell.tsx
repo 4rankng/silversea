@@ -16,6 +16,7 @@ import { billBookingReference } from '../../../lib/business-reference';
 import { DateTimeField, NumberField, SearchableSelect, type SearchableSelectOption } from '../../../design-system';
 import {
   CURRENT_PLATE_PREFIX,
+  DEFERRED_PLATE_PREFIX,
   EXTERNAL_VEHICLE_PREFIX,
   EXTERNAL_CARRIER_PREFIX,
   FREE_TEXT_PREFIX,
@@ -195,13 +196,15 @@ interface VehicleBody {
 }
 
 /** Vehicle body for the atomic save. '' → explicit clear (Bỏ gán biển số);
- *  CURRENT_PLATE → keep stored columns (the snapshot is the stored value). */
+ *  CURRENT_PLATE → keep stored columns (the snapshot is the stored value);
+ *  DEFERRED → carrier stays, plate ships empty (Bổ sung sau — card 20261004_359). */
 function vehicleBody(value: string): VehicleBody | null {
   if (!value) return { clearVehicle: true };
   if (value.startsWith(OWN_TRUCK_PREFIX)) return { truckId: Number(value.slice(OWN_TRUCK_PREFIX.length)) };
   if (value.startsWith(EXTERNAL_VEHICLE_PREFIX)) return { externalCarrierVehicleId: Number(value.slice(EXTERNAL_VEHICLE_PREFIX.length)) };
   if (value.startsWith(FREE_TEXT_PREFIX)) return { plateNumber: value.slice(FREE_TEXT_PREFIX.length) };
   if (value.startsWith(CURRENT_PLATE_PREFIX)) return {};
+  if (value === DEFERRED_PLATE_PREFIX) return {};
   return null;
 }
 
@@ -277,6 +280,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   const issueStatus = deriveDispatchIssueStatus({
     vehicleAssigned: row.dispatch.assignedPlate != null,
+    carrierAssigned: row.dispatch.externalCarrierId != null,
     issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
     completed: row.taskStatus === 'COMPLETED',
     driverAccepted: row.dispatch.driverAccepted === true,
@@ -301,7 +305,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     || draftRevenue !== storedRevenue.value
     || draftCarrierCost !== storedCarrierCost.value
     || draft.plannedEndAt !== effectivePlanEndLocal(row);
-  const canIssue = issueStatus === 'PLATED_NOT_ISSUED' && !planDirty;
+  // Card 20261004_359 — a deferred-plate external assignment is issuable too.
+  const canIssue = (issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && !planDirty;
 
   const {
     ownTruck,
@@ -426,7 +431,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         : [...manualVehicles.entries()]
           .filter(([vehicleId]) => !mapped.some((option) => option.value === `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}`))
           .map(([vehicleId, plate]) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}`, label: plate }));
-      setVehicleOptions([...freeTextOption, ...manualOptions, ...mapped]);
+      // Card 20261004_359 — "Bổ sung sau" leads the EXTERNAL list (CTO
+      // direction): issue now, plate rides in later. OWN keeps no such choice.
+      const deferredOption = isOwnFleet ? [] : [{ value: DEFERRED_PLATE_PREFIX, label: 'Bổ sung sau' }];
+      setVehicleOptions([...deferredOption, ...freeTextOption, ...manualOptions, ...mapped]);
       setVehicleCursor(response.nextCursor);
       setSuggestions(isOwnFleet ? response.suggestedItems ?? [] : []);
       setVehicleError(false);
@@ -720,7 +728,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               <Save size={16} aria-hidden="true" />
               {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
             </button>
-            {issueStatus === 'PLATED_NOT_ISSUED' && (
+            {(issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && (
               <button
                 type="button"
                 className="btn btn--primary dispatch-assignment-dialog__issue-btn"
@@ -926,7 +934,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           />
           {error && <p className="dispatch-assignment-dialog__error" role="alert">{error}</p>}
 
-          {issueStatus === 'PLATED_NOT_ISSUED' && (
+          {(issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && (
             <fieldset className="dispatch-assignment-dialog__issue" disabled={issuing}>
               <legend>Phát lệnh cho tài xế</legend>
               {planDirty ? (

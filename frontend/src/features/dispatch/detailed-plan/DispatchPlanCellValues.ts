@@ -18,6 +18,9 @@ export const OWN_CARRIER_VALUE = 'carrier:own';
 export const FREE_TEXT_PREFIX = 'free:';
 export const CURRENT_PLATE_PREFIX = 'current:';
 export const EXTERNAL_VEHICLE_PREFIX = 'vehicle:';
+/** Card 20261004_359 — "Bổ sung sau": issue the order for an external carrier
+ *  before the plate is known (carrier stays, plate ships empty). */
+export const DEFERRED_PLATE_PREFIX = 'defer:';
 
 // Zone-agnostic wording: suggestions derive from whichever zone the order's
 // own ports sit in (not just Lạch Huyện), so the tag must not hard-code "LH".

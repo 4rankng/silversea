@@ -248,10 +248,13 @@ export function DetailedPlanGrid({
                 // all (an all-empty notes cell collapses on phones).
                 const issueStatus = deriveDispatchIssueStatus({
                   vehicleAssigned: row.dispatch.assignedPlate != null,
+                  carrierAssigned: row.dispatch.externalCarrierId != null,
                   issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
                   completed: row.taskStatus === 'COMPLETED',
                 });
-                const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED';
+                // Card 20261004_359 — deferred-plate external rows quick-issue
+                // exactly like plated ones (the issue body ships no plate).
+                const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE';
                 const canCompleteExternal = row.dispatch.carrierType === 'EXTERNAL'
                   && row.dispatch.tripId != null
                   && row.taskStatus === 'DISPATCHED';

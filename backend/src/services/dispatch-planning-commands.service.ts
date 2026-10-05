@@ -468,9 +468,11 @@ export async function issueOrderCreateOrUpdate(
     // is completed by dispatch/CUS on the driver's behalf (trips complete-external).
     externalDriverName = trimBounded(input.externalDriverName, 'Tên tài xế ngoài', 100);
     externalDriverPhone = trimBounded(input.externalDriverPhone, 'Số điện thoại tài xế ngoài', 20);
-    if (!externalPlateNumber) {
-      throw new ApiError(400, 'Điều xe ngoài phải có biển số xe.');
-    }
+    // Card 20261004_359: a plate is NO LONGER required to issue an external
+    // dispatch — dispatch may issue before the plate is known ("Bổ sung sau",
+    // the plan-save path already shipped this contract) and the plate rides in
+    // later through the reassign flow. Completion (trip-external-close)
+    // carries the new mandatory-plate gate instead.
   }
 
   const lockIds = [truckId, trailerId, driverId].filter((id): id is number => id != null);

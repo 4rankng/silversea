@@ -7,10 +7,11 @@
  */
 import { StatusText, type StatusVariant } from '../../../components/shared/StatusText';
 
-export type DispatchIssueStatus = 'UNASSIGNED' | 'PLATED_NOT_ISSUED' | 'ISSUED' | 'ACCEPTED' | 'COMPLETED';
+export type DispatchIssueStatus = 'UNASSIGNED' | 'AWAITING_PLATE' | 'PLATED_NOT_ISSUED' | 'ISSUED' | 'ACCEPTED' | 'COMPLETED';
 
 export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> = {
   UNASSIGNED: 'Chưa điều xe',
+  AWAITING_PLATE: 'Chờ bổ sung biển',
   PLATED_NOT_ISSUED: 'Đã điều xe',
   ISSUED: 'Đã phát lệnh cho tài xế',
   ACCEPTED: 'Đã nhận lệnh',
@@ -31,6 +32,9 @@ export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> =
  */
 export function deriveDispatchIssueStatus(input: {
   vehicleAssigned: boolean;
+  /** Card 20261004_359 — an external carrier may be assigned while its plate
+   *  is deferred ("Bổ sung sau"): issuable, but visibly awaiting the plate. */
+  carrierAssigned?: boolean;
   issued: boolean;
   completed?: boolean;
   driverAccepted?: boolean;
@@ -38,6 +42,7 @@ export function deriveDispatchIssueStatus(input: {
   if (input.completed) return 'COMPLETED';
   if (input.issued) return input.driverAccepted ? 'ACCEPTED' : 'ISSUED';
   if (input.vehicleAssigned) return 'PLATED_NOT_ISSUED';
+  if (input.carrierAssigned) return 'AWAITING_PLATE';
   return 'UNASSIGNED';
 }
 
@@ -49,7 +54,8 @@ export function dispatchIssueStatusVariant(status: DispatchIssueStatus): StatusV
   switch (status) {
     case 'ISSUED':
     case 'COMPLETED': return 'success';
-    case 'PLATED_NOT_ISSUED': return 'warning';
+    case 'PLATED_NOT_ISSUED':
+    case 'AWAITING_PLATE': return 'warning';
     default: return 'neutral';
   }
 }
