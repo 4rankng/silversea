@@ -39,6 +39,13 @@ export const invoiceTrackingRowSchema = z.object({
   shipmentId: z.number().int().positive(),
   tripId: z.number().int().positive(),
   containerNumber: z.string().nullable(),
+  /** Card 20261005_383 — DERIVED, not a stored column: the container type name
+   *  of the same first container that produced `containerNumber`. Null when
+   *  the trip has no container or the container has no type. */
+  containerType: z.string().nullable(),
+  /** Card 20261005_383 — `shipments.tradeDirection` verbatim (IMPORT/EXPORT);
+   *  the board maps it through TRADE_DIRECTION_LABELS. Null when unset. */
+  tradeDirection: z.enum(['IMPORT', 'EXPORT']).nullable(),
   shipmentCode: z.string().nullable(),
   customerName: z.string().nullable(),
   invoiceNumber: z.string().nullable(),

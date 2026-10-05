@@ -8,6 +8,7 @@ import { Download, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
   INVOICE_TRACKING_PROGRESS,
   INVOICE_TRACKING_PROGRESS_LABELS,
+  TRADE_DIRECTION_LABELS,
   Role,
   type InvoiceTrackingProgress,
   type InvoiceTrackingRow,
@@ -138,13 +139,17 @@ export default function AccountingInvoiceTrackingPage() {
   const presetDialogNode = <DateRangePresetSelect presets={periodPresets} value={period} onChange={setPeriod} ariaLabel="Kỳ theo dõi nhanh" />;
 
   const exportExcel = () => {
-    const headers = ['STT', 'Ngày', 'Lô hàng', 'Khách hàng', 'Cont', 'MST', 'Nhà cung cấp', 'Số hóa đơn', 'Số tiền hóa đơn', 'Số tiền trả', 'COM', 'Chênh lệch', 'Ngày gửi hđ', 'Ghi chú', 'Tiến độ'];
+    // Card 20261005_383: "Loại cont" and "Xuất/Nhập" are derived beside the
+    // container number, so the sheet carries the same three facts as the cell.
+    const headers = ['STT', 'Ngày', 'Lô hàng', 'Khách hàng', 'Cont', 'Loại cont', 'Xuất/Nhập', 'MST', 'Nhà cung cấp', 'Số hóa đơn', 'Số tiền hóa đơn', 'Số tiền trả', 'COM', 'Chênh lệch', 'Ngày gửi hđ', 'Ghi chú', 'Tiến độ'];
     const body = filtered.map((row, index) => [
       index + 1,
       formatISODate(row.expenseDate),
       row.shipmentCode ?? '',
       row.customerName ?? '',
       row.containerNumber ?? '',
+      row.containerType ?? '',
+      row.tradeDirection ? TRADE_DIRECTION_LABELS[row.tradeDirection] : '',
       row.taxCode ?? '',
       row.supplierName ?? '',
       row.invoiceNumber ?? '',
@@ -343,7 +348,17 @@ export default function AccountingInvoiceTrackingPage() {
                       <span className="ivt-stack__sub">{formatBusinessRef(row.customerName)}</span>
                     </span>
                   </td>
-                  <td data-label="Cont">{formatBusinessRef(row.containerNumber)}</td>
+                  {/* Card 20261005_383: three derived facts, one column — số
+                      cont / loại cont / xuất–nhập. The stacked furniture is the
+                      same one the lot and invoice cells already use, and every
+                      missing part falls back to the house `—`. */}
+                  <td data-label="Cont">
+                    <span className="ivt-stack">
+                      <span className="ivt-stack__primary">{formatBusinessRef(row.containerNumber)}</span>
+                      <span className="ivt-stack__sub">{formatBusinessRef(row.containerType)}</span>
+                      <span className="ivt-stack__sub">{row.tradeDirection ? TRADE_DIRECTION_LABELS[row.tradeDirection] : '—'}</span>
+                    </span>
+                  </td>
                   <td data-label="MST">{formatBusinessRef(row.taxCode)}</td>
                   <td data-label="Nhà cung cấp">{formatBusinessRef(row.supplierName)}</td>
                   <td data-label="Hóa đơn">

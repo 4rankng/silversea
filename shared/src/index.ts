@@ -26,6 +26,7 @@ export {
   CarrierType, SettlementMethod, DebitNoteMode,
   TruckCapRole,
   CARRIER_TYPE_LABELS, SETTLEMENT_METHOD_LABELS,
+  TRADE_DIRECTION_LABELS,
   TRUCK_CAP_ROLE_LABELS,
   FINANCIAL_ROLES, isFinancialRole,
   TIRES,
@@ -36,7 +37,7 @@ export {
   ExpenseTypeCategory,
 } from './constants';
 
-export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification } from './constants';
+export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification, TradeDirection } from './constants';
 export { workInboxItemBaseSchema, workInboxResponseSchema, workInboxPartySchema, workInboxNextActionSchema, workInboxStateSchema, customerDeliveryResponseSchema, operationsWorkInboxItemSchema, driverWorkInboxItemSchema, customerWorkInboxItemSchema, accountantWorkInboxItemSchema, managerWorkInboxItemSchema, adminHealthInboxItemSchema } from './schemas/work-inbox';
 export type {
   WorkInboxItemBase,

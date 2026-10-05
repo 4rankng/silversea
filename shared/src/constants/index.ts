@@ -678,6 +678,16 @@ export const CARRIER_TYPE_LABELS: Record<CarrierType, string> = {
   [CarrierType.EXTERNAL]: 'Xe ngoài',
 };
 
+/** `shipments.tradeDirection` (backend/src/db/schema/shipments.ts) — nhập khẩu
+ *  / xuất khẩu, NOT trong nước. The wire value is the raw enum; the board
+ *  paints the label from this map (card 20261005_383). */
+export type TradeDirection = 'IMPORT' | 'EXPORT';
+
+export const TRADE_DIRECTION_LABELS: Record<TradeDirection, string> = {
+  IMPORT: 'Nhập',
+  EXPORT: 'Xuất',
+};
+
 export const SETTLEMENT_METHOD_LABELS: Record<SettlementMethod, string> = {
   [SettlementMethod.COMPANY_DIRECT]: 'Công ty trả trực tiếp',
   [SettlementMethod.OPS_ADVANCE]: 'Chi hộ tạm ứng',

@@ -7,7 +7,7 @@
 // shipmentCode / customerName verbatim. Design law 2026-09-19 (cards
 // 20260919_38/39): internal ids and machine-generated codes never render as
 // visible text — the cell shows the house empty value instead.
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,6 +19,8 @@ const client = vi.hoisted(() => ({
 }));
 vi.mock('../api/invoiceTrackingClient', () => client);
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'ADMIN' } }) }));
+const csv = vi.hoisted(() => ({ downloadCSV: vi.fn() }));
+vi.mock('../lib/csv', () => csv);
 
 import AccountingInvoiceTrackingPage from './AccountingInvoiceTrackingPage';
 import { businessDateISO } from '../lib/format';
@@ -31,6 +33,8 @@ const leakedRow: InvoiceTrackingRow = {
   shipmentId: 1201,
   tripId: 679,
   containerNumber: 'QATU1234569',
+  containerType: null,
+  tradeDirection: null,
   shipmentCode: 'Q10-1790165053059-q10-8h9x64-3',
   customerName: 'Q10 customer 1790165053059-q10-8h9x64 3',
   invoiceNumber: 'INV-EMPTY-1790165053059-q10-8h9x64',
@@ -56,6 +60,9 @@ const realRow: InvoiceTrackingRow = {
   invoiceNumber: 'HD-C18-01',
   progress: 'CO_HD',
   expenseDate: '2026-09-22',
+  containerNumber: 'TGHU7654321',
+  containerType: "40'HC",
+  tradeDirection: 'IMPORT',
 };
 
 function renderBoard(rows: InvoiceTrackingRow[]) {
@@ -154,5 +161,66 @@ describe('invoice-tracking period is a resettable filter condition (card 2026100
       expect(calls[calls.length - 1]?.[1]).toBe(today);
     });
     expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeDisabled();
+  });
+});
+
+// Card 20261005_383 — the "Cont" cell carries three DERIVED facts in one
+// column (số cont / loại cont / xuất–nhập) and the export sheet grows the
+// matching two Vietnamese columns. The form is untouched: these are properties
+// of the container/shipment, never re-entered per invoice.
+describe('invoice-tracking container facts (card 20261005_383)', () => {
+  beforeEach(() => {
+    Object.values(client).forEach((fn) => fn.mockReset());
+    csv.downloadCSV.mockReset();
+  });
+
+  it('stacks số cont / loại cont / xuất–nhập in the single Cont cell', async () => {
+    renderBoard([realRow]);
+    await screen.findByText('Số hóa đơn: HD-C18-01');
+
+    const contCell = screen.getByText('TGHU7654321').closest('td')!;
+    expect(contCell).toHaveAttribute('data-label', 'Cont');
+    expect(within(contCell).getByText("40'HC")).toBeInTheDocument();
+    // IMPORT is painted as the Vietnamese label, never the raw enum.
+    expect(within(contCell).getByText('Nhập')).toBeInTheDocument();
+    expect(contCell.textContent).not.toContain('IMPORT');
+  });
+
+  it('falls back to the house empty value for every missing part', async () => {
+    renderBoard([{ ...realRow, containerNumber: null, containerType: null, tradeDirection: null }]);
+    await screen.findByText('Số hóa đơn: HD-C18-01');
+
+    const contCells = [...document.querySelectorAll('td[data-label="Cont"]')];
+    expect(contCells).toHaveLength(1);
+    // One "—" per missing part: the number, the type and the direction.
+    expect(contCells[0].querySelectorAll('.ivt-stack > span')).toHaveLength(3);
+    expect(contCells[0].textContent).toBe('———');
+  });
+
+  it('exports the two new columns with Vietnamese headers, right after Cont', async () => {
+    renderBoard([realRow]);
+    await screen.findByText('Số hóa đơn: HD-C18-01');
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+
+    const [filename, headers, body] = csv.downloadCSV.mock.calls[0] as [string, string[], unknown[][]];
+    expect(filename).toBe('theo-doi-hoa-don.xlsx');
+    const contIndex = headers.indexOf('Cont');
+    expect(headers[contIndex + 1]).toBe('Loại cont');
+    expect(headers[contIndex + 2]).toBe('Xuất/Nhập');
+    // The pre-existing columns survive, in order.
+    expect(headers.slice(contIndex + 3, contIndex + 6)).toEqual(['MST', 'Nhà cung cấp', 'Số hóa đơn']);
+    expect(body[0][contIndex + 1]).toBe("40'HC");
+    expect(body[0][contIndex + 2]).toBe('Nhập');
+  });
+
+  it('exports the raw empty string — not a dash — for a missing part', async () => {
+    renderBoard([{ ...realRow, containerType: null, tradeDirection: null }]);
+    await screen.findByText('Số hóa đơn: HD-C18-01');
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+
+    const [, headers, body] = csv.downloadCSV.mock.calls[0] as [string, string[], unknown[][]];
+    const contIndex = headers.indexOf('Cont');
+    expect(body[0][contIndex + 1]).toBe('');
+    expect(body[0][contIndex + 2]).toBe('');
   });
 });

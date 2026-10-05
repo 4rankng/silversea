@@ -29,6 +29,8 @@ const tripIds: number[] = [];
 const userIds: number[] = [];
 const trackIds: number[] = [];
 const expenseIds: number[] = [];
+const containerIds: number[] = [];
+const containerTypeIds: number[] = [];
 let accountantToken = '';
 let cusToken = '';
 let server: http.Server;
@@ -50,16 +52,26 @@ function tokenFor(role: Role, id: number, username: string | null): string {
   }, config.jwtSecret);
 }
 
-async function mkLot(tag: string): Promise<{ shipmentId: number; tripId: number }> {
+/** `tradeDirection` / the trip's container are what card 20261005_383 derives
+ *  the "Xuất/Nhập" and "loại cont" cells from, so both are opt-in per lot. The
+ *  defaults reproduce the pre-card fixture (EXPORT, no container). */
+async function mkLot(tag: string, opts: {
+  tradeDirection?: 'IMPORT' | 'EXPORT' | null;
+  container?: { number: string; typeId: number | null } | null;
+} = {}): Promise<{ shipmentId: number; tripId: number }> {
   const [customer] = await db.insert(s.customers).values({ name: `InvTrk ${suffix} ${tag}` }).returning();
   customerIds.push(customer.id);
+  // The DB check (drizzle/0011) pairs the document ref with the direction:
+  // an IMPORT lot carries the bill number, an EXPORT lot the booking ref.
+  const direction = 'tradeDirection' in opts ? opts.tradeDirection ?? null : 'EXPORT';
   const [shipment] = await db.insert(s.shipments).values({
     customerId: customer.id,
     cargoMode: 'FCL',
     shipmentCode: `INV-${suffix}-${shipmentIds.length}`,
-    bookingRef: `BOOK-${suffix}-${shipmentIds.length}`,
+    bookingRef: direction === 'IMPORT' ? null : `BOOK-${suffix}-${shipmentIds.length}`,
+    blNumber: direction === 'IMPORT' ? `BL-${suffix}-${shipmentIds.length}` : null,
     status: 'READY_FOR_DISPATCH',
-    tradeDirection: 'EXPORT',
+    tradeDirection: direction,
   }).returning();
   shipmentIds.push(shipment.id);
   const [route] = await db.insert(s.routes).values({ name: `InvTrk route ${suffix} ${tag}` }).returning();
@@ -72,6 +84,14 @@ async function mkLot(tag: string): Promise<{ shipmentId: number; tripId: number 
     status: 'COMPLETED',
   }).returning();
   tripIds.push(trip.id);
+  if (opts.container) {
+    const [container] = await db.insert(s.tripContainers).values({
+      tripId: trip.id,
+      containerNumber: opts.container.number,
+      containerTypeId: opts.container.typeId,
+    }).returning();
+    containerIds.push(container.id);
+  }
   return { shipmentId: shipment.id, tripId: trip.id };
 }
 
@@ -117,6 +137,8 @@ after(async () => {
   try {
     await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.tripId, tripIds));
     await db.delete(s.invoiceTracking).where(inArray(s.invoiceTracking.id, trackIds));
+    if (containerIds.length > 0) await db.delete(s.tripContainers).where(inArray(s.tripContainers.id, containerIds));
+    if (containerTypeIds.length > 0) await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, containerTypeIds));
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
     await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
     await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
@@ -214,5 +236,99 @@ describe('invoice tracking (card 20260921_18)', () => {
     // tried to restore it.
     assert.equal(expense?.approvalStatus, 'VOIDED', 'the mirrored expense is voided with the row, not erased');
     assert.equal(expense?.deletionReason, 'card 18 cleanup', 'the mandatory reason is recorded on the void');
+  });
+});
+
+// Card 20261005_383 — "loại cont" and "Xuất/Nhập" are DERIVED beside the
+// existing container number: no new column, no migration, no form field. The
+// container type comes from the container-types catalog through the SAME
+// first container that already governed the displayed number; the direction is
+// `shipments.tradeDirection` verbatim.
+describe('invoice tracking derived container facts (card 20261005_383)', () => {
+  type DerivedRow = {
+    id: number;
+    invoiceNumber: string | null;
+    containerNumber: string | null;
+    containerType: string | null;
+    tradeDirection: 'IMPORT' | 'EXPORT' | null;
+  };
+
+  /** A whole-year window plus an invoice-number lookup: leftovers from an
+   *  earlier failed run can never make this block's assertions ambiguous. */
+  async function rowFor(invoiceNumber: string): Promise<DerivedRow | undefined> {
+    const list = await api(accountantToken, 'GET', '/invoice-tracking?from=2026-01-01&to=2026-12-31');
+    assert.equal(list.status, 200, `list returned ${list.status}`);
+    const { rows } = list.data as { rows: DerivedRow[] };
+    return rows.find((r) => r.invoiceNumber === invoiceNumber);
+  }
+
+  async function track(lot: { shipmentId: number; tripId: number }, invoiceNumber: string) {
+    const res = await api(accountantToken, 'POST', '/invoice-tracking', {
+      shipmentId: lot.shipmentId, tripId: lot.tripId,
+      invoiceNumber, invoiceAmount: 1_000_000, supplierPayment: 1_000_000,
+      progress: 'CHUA_GUI', expenseDate: '2026-09-30',
+    });
+    assert.equal(res.status, 201, `create ${invoiceNumber} → ${res.status}`);
+    const id = (res.data as { id?: number }).id;
+    if (id != null) trackIds.push(id);
+  }
+
+  test('derives the type of the winning container and the raw trade direction', async () => {
+    const [type] = await db.insert(s.containerTypes)
+      .values({ code: `C383-${suffix}`.slice(0, 20), name: `40'HC ${suffix}`.slice(0, 50) })
+      .returning();
+    containerTypeIds.push(type.id);
+    const lot = await mkLot('TYPE', { tradeDirection: 'IMPORT', container: { number: `CONT383A${suffix}`, typeId: type.id } });
+    await track(lot, `HD-383-DERIVED-${suffix}`);
+
+    const row = await rowFor(`HD-383-DERIVED-${suffix}`);
+    assert.ok(row, 'the tracked row must be on the list');
+    assert.equal(row.containerNumber, `CONT383A${suffix}`);
+    assert.equal(row.containerType, type.name, 'the type is the catalog NAME, resolved through the first container');
+    assert.equal(row.tradeDirection, 'IMPORT', 'the raw enum rides the wire; the client paints the label');
+  });
+
+  test('the type rides the FIRST container, exactly as the container number does', async () => {
+    const [firstType] = await db.insert(s.containerTypes)
+      .values({ code: `C383A-${suffix}`.slice(0, 20), name: `20'DC ${suffix}`.slice(0, 50) }).returning();
+    const [secondType] = await db.insert(s.containerTypes)
+      .values({ code: `C383B-${suffix}`.slice(0, 20), name: `40'OT ${suffix}`.slice(0, 50) }).returning();
+    containerTypeIds.push(firstType.id, secondType.id);
+    const lot = await mkLot('MULTI', { tradeDirection: 'EXPORT', container: { number: `CONT383B${suffix}`, typeId: secondType.id } });
+    // A second container inserted after the first must not steal the display.
+    const [later] = await db.insert(s.tripContainers).values({
+      tripId: lot.tripId,
+      containerNumber: `CONT383C${suffix}`,
+      containerTypeId: firstType.id,
+    }).returning();
+    containerIds.push(later.id);
+    await track(lot, `HD-383-FIRSTWINS-${suffix}`);
+
+    const row = await rowFor(`HD-383-FIRSTWINS-${suffix}`);
+    assert.ok(row, 'the tracked row must be on the list');
+    assert.equal(row.containerNumber, `CONT383B${suffix}`, 'the first container still owns the number');
+    assert.equal(row.containerType, secondType.name, 'and the type is read off that same first container');
+    assert.equal(row.tradeDirection, 'EXPORT');
+  });
+
+  test('missing container, missing type and null direction derive null — the row survives', async () => {
+    // (a) no container at all, (b) a container with no type, both with a null
+    // tradeDirection. The board paints each part as "—"; nothing throws.
+    const bare = await mkLot('BARE', { tradeDirection: null, container: null });
+    const untyped = await mkLot('UNTYPED', { tradeDirection: null, container: { number: `CONT383D${suffix}`, typeId: null } });
+    await track(bare, `HD-383-BARE-${suffix}`);
+    await track(untyped, `HD-383-UNTYPED-${suffix}`);
+
+    const bareRow = await rowFor(`HD-383-BARE-${suffix}`);
+    assert.ok(bareRow, 'a trip with no container still renders its row');
+    assert.equal(bareRow.containerNumber, null);
+    assert.equal(bareRow.containerType, null);
+    assert.equal(bareRow.tradeDirection, null);
+
+    const untypedRow = await rowFor(`HD-383-UNTYPED-${suffix}`);
+    assert.ok(untypedRow, 'a container without a type still renders its row');
+    assert.equal(untypedRow.containerNumber, `CONT383D${suffix}`);
+    assert.equal(untypedRow.containerType, null, 'a container with no type yields a null type, never an error');
+    assert.equal(untypedRow.tradeDirection, null);
   });
 });
