@@ -59,6 +59,42 @@ export interface DepositWeeklySummary {
   totals: { count: number; depositAmount: number; refundedAmount: number };
 }
 
+/**
+ * Card 370 — one bucket of the 4-group due-debt chart. Groups are disjoint by
+ * obligation effective due date (processingDueDate ?? originalDueDate) vs the
+ * as-of date; `customers` is the distinct-customer count within the group.
+ */
+export type MoneyAlertsDueGroupKey =
+  | 'dueSoon5d'
+  | 'overdue1to10'
+  | 'overdue11to30'
+  | 'overdue30plus';
+
+export interface MoneyAlertsDueGroup {
+  key: MoneyAlertsDueGroupKey;
+  label: string;
+  amount: number;
+  customers: number;
+}
+
+/**
+ * Card 370 — GET /api/accounting/money-alerts response: fund balances, the
+ * due-debt group split and the three always-on alerts in one snapshot. Every
+ * field is optional so an older cached payload that lags the contract degrades
+ * its own block instead of dropping the whole panel.
+ */
+export interface MoneyAlertsSummary {
+  /** reserve = (tm + company) − payablesDue5d, all round2dp server-side. */
+  funds?: { tm: number; company: number; reserve: number };
+  dueDebtGroups?: MoneyAlertsDueGroup[];
+  /** deposit_refund_trackers status='CHUA_HOAN_CUOC' rows. */
+  unrefundedDeposits?: { count: number; amount: number };
+  /** Equals the receivables dueGroups.overdue row totals exactly. */
+  overdueDebt?: { customers: number; amount: number };
+  /** True only when tm < 0 AND company < 0 — the sole 'Quỹ âm' condition. */
+  fundNegative?: boolean;
+}
+
 export interface ProfitabilitySummary {
   totals: {
     revenue: number;

@@ -68,12 +68,22 @@ vi.mock('../../components/charts/DepositWeeklyChart', () => ({
   ),
 }));
 
+// Card 370 — stubbed at the boundary like the deposit chart: this file owns
+// the block contract (the queried groups reach the chart), the chart's own
+// rendering is covered by its component tests.
+vi.mock('../../components/charts/DueDebtBarChart', () => ({
+  DueDebtBarChart: ({ groups }: { groups: Array<{ key: string; label: string }> }) => (
+    <div data-testid="due-debt-bar-chart" data-groups={groups.map((group) => group.key).join(',')} />
+  ),
+}));
+
 import { AccountingOverview } from './AccountingOverview';
 import DebtListPage from '../../pages/DebtListPage';
 import PayableListPage from '../../pages/PayableListPage';
 import { routes } from '../../lib/routes';
 import type {
   DepositWeeklySummary,
+  MoneyAlertsSummary,
   PayablesSummary,
   ProfitabilitySummary,
   ReceivablesSummary,
@@ -124,6 +134,26 @@ const depositWeeklyData: DepositWeeklySummary = {
   totals: { count: 4, depositAmount: 35_000_000, refundedAmount: 10_000_000 },
 };
 
+// The money-alerts snapshot is its own request with its own response time
+// (15:15 Vietnam) — pinned separately from AS_OF_MS so the default render
+// keeps exactly the two card-369 'Số liệu tính đến 14:45' footers.
+const MONEY_AS_OF_MS = Date.parse('2026-10-05T08:15:00.000Z');
+
+const moneyAlertsData: MoneyAlertsSummary = {
+  funds: { tm: 12_000_000, company: 34_000_000, reserve: 21_000_000 },
+  dueDebtGroups: [
+    { key: 'dueSoon5d', label: 'Sắp đến hạn (≤ 5 ngày)', amount: 25_000_000, customers: 4 },
+    { key: 'overdue1to10', label: 'Quá hạn 1–10 ngày', amount: 9_000_000, customers: 2 },
+    { key: 'overdue11to30', label: 'Quá hạn 30 ngày', amount: 6_000_000, customers: 1 },
+    { key: 'overdue30plus', label: 'Quá hạn 60 ngày', amount: 5_000_000, customers: 1 },
+  ],
+  unrefundedDeposits: { count: 3, amount: 30_000_000 },
+  // The contract pins this to the receivables dueGroups.overdue row totals —
+  // same rows as the card-369 'Quá hạn' line (20M over 3 customers).
+  overdueDebt: { customers: 3, amount: 20_000_000 },
+  fundNegative: false,
+};
+
 /* ─── Harness ─────────────────────────────────────────────────────────────── */
 
 // The component reads data, dataUpdatedAt and refetch off each query result;
@@ -142,9 +172,12 @@ function queryResult<T>(data: T, dataUpdatedAt: number, refetch: Mock) {
 function renderOverview(
   receivables: ReceivablesSummary = receivablesData,
   payables: PayablesSummary = payablesData,
+  moneyAlerts: MoneyAlertsSummary = moneyAlertsData,
+  moneyAlertsUpdatedAt: number = MONEY_AS_OF_MS,
 ) {
   const refetchReceivables = vi.fn();
   const refetchPayables = vi.fn();
+  const refetchMoneyAlerts = vi.fn();
   const view = render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={['/accounting']}>
@@ -154,12 +187,13 @@ function renderOverview(
           receivables={queryResult(receivables, AS_OF_MS, refetchReceivables)}
           payables={queryResult(payables, AS_OF_MS, refetchPayables)}
           depositWeekly={queryResult(depositWeeklyData, AS_OF_MS, vi.fn())}
+          moneyAlerts={queryResult(moneyAlerts, moneyAlertsUpdatedAt, refetchMoneyAlerts)}
           profitability={queryResult(profitabilityData, AS_OF_MS, vi.fn())}
         />
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  return { ...view, refetchReceivables, refetchPayables };
+  return { ...view, refetchReceivables, refetchPayables, refetchMoneyAlerts };
 }
 
 function renderPage(element: ReactElement, entry: string) {
@@ -281,6 +315,61 @@ describe('AccountingOverview — Tổng quát về tiền (card 369)', () => {
     renderOverview();
     expect(screen.getByText('Biểu đồ cột cược container theo tuần')).toBeInTheDocument();
     expect(screen.getByTestId('deposit-weekly-chart').getAttribute('data-weeks')).toBe('Tuần 28/09,Tuần 05/10');
+  });
+});
+
+/* ─── Overview: fund notice, due-debt chart, alert strips (card 370) ─────── */
+
+describe('AccountingOverview — cảnh báo quỹ và công nợ (card 370)', () => {
+  it('renders the fund quick-notice with both balances, the reserve line and its own as-of footer', () => {
+    const { refetchMoneyAlerts } = renderOverview(
+      receivablesData,
+      payablesData,
+      moneyAlertsData,
+      AS_OF_MS,
+    );
+
+    const card = screen.getByText('Thông báo Quỹ').closest('section') as HTMLElement;
+    expect(within(card).getByText('Quỹ TM')).toBeInTheDocument();
+    expect(within(card).getByText('12.000.000 ₫')).toBeInTheDocument();
+    expect(within(card).getByText('Quỹ công ty')).toBeInTheDocument();
+    expect(within(card).getByText('34.000.000 ₫')).toBeInTheDocument();
+    expect(within(card).getByText('Dự phòng dòng tiền')).toBeInTheDocument();
+    expect(within(card).getByText('21.000.000 ₫')).toBeInTheDocument();
+
+    // Same footer contract as the debt cards: its Tải lại refetches only the
+    // money-alerts snapshot.
+    expect(within(card).getByText('Số liệu tính đến 14:45')).toBeInTheDocument();
+    fireEvent.click(within(card).getByRole('button', { name: 'Tải lại' }));
+    expect(refetchMoneyAlerts).toHaveBeenCalledTimes(1);
+  });
+
+  it('mounts the due-debt chart block with the queried groups', () => {
+    renderOverview();
+    expect(screen.getByText('Cảnh báo nợ đến hạn / quá hạn')).toBeInTheDocument();
+    expect(screen.getByTestId('due-debt-bar-chart').getAttribute('data-groups'))
+      .toBe('dueSoon5d,overdue1to10,overdue11to30,overdue30plus');
+  });
+
+  it('renders the deposit and overdue alert strips with their counts and amounts', () => {
+    renderOverview();
+    expect(screen.getByText('Container chưa hoàn cược')).toBeInTheDocument();
+    expect(screen.getByText('Số lượng: 3 · Tổng tiền: 30.000.000 ₫')).toBeInTheDocument();
+    expect(screen.getByText('Nợ quá hạn')).toBeInTheDocument();
+    // Pinned to the receivables dueGroups.overdue totals (3 khách / 20M).
+    expect(screen.getByText('Số khách: 3 · Tổng tiền: 20.000.000 ₫')).toBeInTheDocument();
+  });
+
+  it("keeps the 'Quỹ âm' strip out of the DOM while fundNegative is false", () => {
+    renderOverview(receivablesData, payablesData, { ...moneyAlertsData, fundNegative: false });
+    expect(screen.queryByText('Quỹ âm')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cả hai quỹ đều âm — cần bổ sung dòng tiền ngay')).not.toBeInTheDocument();
+  });
+
+  it("renders the 'Quỹ âm' strip when fundNegative is true", () => {
+    renderOverview(receivablesData, payablesData, { ...moneyAlertsData, fundNegative: true });
+    expect(screen.getByText('Quỹ âm')).toBeInTheDocument();
+    expect(screen.getByText('Cả hai quỹ đều âm — cần bổ sung dòng tiền ngay')).toBeInTheDocument();
   });
 });
 

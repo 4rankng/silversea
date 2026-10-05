@@ -6,6 +6,7 @@ import { qk } from '../../api/keys';
 import type { AccountingWorkspaceUrlState } from './accountingWorkspaceTypes';
 import type {
   DepositWeeklySummary,
+  MoneyAlertsSummary,
   PayablesSummary,
   ProfitabilitySummary,
   ReceivablesSummary,
@@ -36,6 +37,18 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
     queryFn: () =>
       api.get<DepositWeeklySummary>(
         `/accounting/deposits/weekly-summary?from=${encodeURIComponent(state.from)}&to=${encodeURIComponent(state.to)}`,
+      ),
+    enabled: state.activeView === 'overview',
+  });
+
+  // Card 370 — one aggregated money-alerts snapshot (fund balances, due-debt
+  // groups, the three alert strips) for the overview money block; only the
+  // overview view renders it.
+  const moneyAlerts = useQuery({
+    queryKey: qk.accounting.moneyAlerts(state.to),
+    queryFn: () =>
+      api.get<MoneyAlertsSummary>(
+        `/accounting/money-alerts?asOfDate=${encodeURIComponent(state.to)}`,
       ),
     enabled: state.activeView === 'overview',
   });
@@ -101,12 +114,13 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
     receivables,
     payables,
     depositWeekly,
+    moneyAlerts,
     profitability,
     transportRegister,
     transportCustomers,
     transportCarriers,
     hasOverviewError:
       receivables.isError || payables.isError || profitability.isError
-      || depositWeekly.isError,
+      || depositWeekly.isError || moneyAlerts.isError,
   };
 }

@@ -104,6 +104,7 @@ export function AccountingWorkspaceRoot() {
           receivables={queries.receivables}
           payables={queries.payables}
           depositWeekly={queries.depositWeekly}
+          moneyAlerts={queries.moneyAlerts}
           profitability={queries.profitability}
         />
       ) : (

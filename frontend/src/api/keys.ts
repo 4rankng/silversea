@@ -379,6 +379,8 @@ export const qk = {
     /** Weekly container-deposit series — one key per requested from/to range. */
     depositWeekly: (from: string, to: string) =>
       ['accounting', 'deposit-weekly', from, to] as const,
+    /** Card 370 — money-alerts snapshot (funds, due-debt groups, alerts). */
+    moneyAlerts: (asOf: string) => ['accounting', 'money-alerts', asOf] as const,
     profitability: (month: number, year: number) => ['accounting', 'profitability', month, year] as const,
     transportRegister: (params: {
       from: string;

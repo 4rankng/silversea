@@ -14,9 +14,11 @@ import { formatCurrency } from '../../lib/format';
 import { routes } from '../../lib/routes';
 import { SummaryRail, type SummaryRailItem } from '../../design-system';
 import { DepositWeeklyChart } from '../../components/charts/DepositWeeklyChart';
+import { DueDebtBarChart } from '../../components/charts/DueDebtBarChart';
 import type {
   DepositWeeklySummary,
   DueGroups,
+  MoneyAlertsSummary,
   PayablesSummary,
   ProfitabilitySummary,
   ReceivablesSummary,
@@ -29,6 +31,7 @@ type AccountingOverviewProps = {
   receivables: UseQueryResult<ReceivablesSummary, Error>;
   payables: UseQueryResult<PayablesSummary, Error>;
   depositWeekly: UseQueryResult<DepositWeeklySummary, Error>;
+  moneyAlerts: UseQueryResult<MoneyAlertsSummary, Error>;
   profitability: UseQueryResult<ProfitabilitySummary, Error>;
 };
 
@@ -38,6 +41,7 @@ export function AccountingOverview({
   receivables,
   payables,
   depositWeekly,
+  moneyAlerts,
   profitability,
 }: AccountingOverviewProps) {
   // Rail values degrade to an em dash while loading or when an authority
@@ -84,6 +88,13 @@ export function AccountingOverview({
     },
   ];
 
+  // Card 370 — the money-alerts snapshot drives the fund quick-notice, the
+  // 4-group due-debt chart and the alert strips. Values degrade to an em dash
+  // while loading or when the source fails, like the debt cards above.
+  const moneyAlertsReady = !moneyAlerts.isLoading && !moneyAlerts.isError;
+  const unrefundedDeposits = moneyAlerts.data?.unrefundedDeposits ?? { count: 0, amount: 0 };
+  const overdueDebt = moneyAlerts.data?.overdueDebt ?? { customers: 0, amount: 0 };
+
   return (
     <>
       <SummaryRail ariaLabel="Chỉ số kế toán" items={summaryItems} />
@@ -125,6 +136,48 @@ export function AccountingOverview({
           <h3 className="accounting-deposit-chart__title">Biểu đồ cột cược container theo tuần</h3>
           <DepositWeeklyChart weeks={depositWeekly.data?.weeks ?? []} />
         </section>
+
+        {/* Card 370 — the 4-group due-debt chart with the fund quick-notice
+            beside it (right on wide screens, stacked full-width on phones),
+            then the three always-on alert strips. 'Quỹ âm' renders only while
+            both funds are negative: when the condition is false the strip is
+            absent from the DOM, never hidden. */}
+        <div className="accounting-money-alerts">
+          <section
+            className="accounting-due-debt-chart"
+            aria-label="Cảnh báo nợ đến hạn / quá hạn"
+          >
+            <h3 className="accounting-due-debt-chart__title">Cảnh báo nợ đến hạn / quá hạn</h3>
+            <DueDebtBarChart groups={moneyAlerts.data?.dueDebtGroups ?? []} />
+          </section>
+          <FundQuickNotice
+            funds={moneyAlerts.data?.funds}
+            ready={moneyAlertsReady}
+            dataUpdatedAt={moneyAlerts.dataUpdatedAt}
+            onRefetch={() => { void moneyAlerts.refetch(); }}
+          />
+        </div>
+        <ul className="accounting-alert-strips" aria-label="Cảnh báo quỹ và công nợ">
+          <AlertStrip
+            title="Container chưa hoàn cược"
+            detail={moneyAlertsReady
+              ? `Số lượng: ${unrefundedDeposits.count} · Tổng tiền: ${formatCurrency(unrefundedDeposits.amount)}`
+              : '—'}
+          />
+          <AlertStrip
+            title="Nợ quá hạn"
+            detail={moneyAlertsReady
+              ? `Số khách: ${overdueDebt.customers} · Tổng tiền: ${formatCurrency(overdueDebt.amount)}`
+              : '—'}
+          />
+          {moneyAlerts.data?.fundNegative === true && (
+            <AlertStrip
+              tone="critical"
+              title="Quỹ âm"
+              detail="Cả hai quỹ đều âm — cần bổ sung dòng tiền ngay"
+            />
+          )}
+        </ul>
       </section>
 
       <section className="accounting-workflows" aria-label="Nghiệp vụ kế toán">
@@ -314,5 +367,87 @@ function DueGroupCard({
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * Card 370 — the fund quick-notice: Quỹ TM / Quỹ công ty balances and the
+ * 'Dự phòng dòng tiền' reserve line, with the same as-of + Tải lại footer as
+ * the debt cards. Values degrade to an em dash while loading or when the
+ * source fails — the workspace banner names the failing source.
+ */
+function FundQuickNotice({
+  funds,
+  ready,
+  dataUpdatedAt,
+  onRefetch,
+}: {
+  funds: MoneyAlertsSummary['funds'];
+  ready: boolean;
+  dataUpdatedAt: number;
+  onRefetch: () => void;
+}) {
+  const dash = '—';
+  const balances = funds ?? { tm: 0, company: 0, reserve: 0 };
+  return (
+    <section className="accounting-fund-notice">
+      <h3 className="accounting-fund-notice__title">Thông báo Quỹ</h3>
+      <dl className="accounting-due-card__rows">
+        <div className="accounting-due-card__row">
+          <dt>Quỹ TM</dt>
+          <dd>
+            <span className="accounting-due-card__amount">
+              {ready ? formatCurrency(balances.tm) : dash}
+            </span>
+          </dd>
+        </div>
+        <div className="accounting-due-card__row">
+          <dt>Quỹ công ty</dt>
+          <dd>
+            <span className="accounting-due-card__amount">
+              {ready ? formatCurrency(balances.company) : dash}
+            </span>
+          </dd>
+        </div>
+        <div className="accounting-due-card__row accounting-fund-notice__row--reserve">
+          <dt>Dự phòng dòng tiền</dt>
+          <dd>
+            <span className="accounting-due-card__amount">
+              {ready ? formatCurrency(balances.reserve) : dash}
+            </span>
+          </dd>
+        </div>
+      </dl>
+      <div className="accounting-due-card__footer">
+        <small>Số liệu tính đến {formatAsOfTime(dataUpdatedAt)}</small>
+        <button type="button" className="accounting-due-card__refresh" onClick={onRefetch}>
+          Tải lại
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** Card 370 — one compact alert strip: title plus its count/money detail. */
+function AlertStrip({
+  title,
+  detail,
+  tone,
+}: {
+  title: string;
+  detail: string;
+  tone?: 'critical';
+}) {
+  return (
+    <li
+      className={
+        tone === 'critical'
+          ? 'accounting-alert-strip accounting-alert-strip--critical'
+          : 'accounting-alert-strip'
+      }
+    >
+      <strong>{title}</strong>
+      <span>{detail}</span>
+    </li>
   );
 }
