@@ -2108,6 +2108,107 @@ describe('dispatch fulfillment workflow routes', () => {
       assert.equal(storedFulfillment.plannedVehiclePlateNumber, carrierVehicle.licensePlate);
     });
 
+    // Card 20261006_389 — per-trip trailer override on REASSIGN: the route must
+    // map data.trailerId into reassignIssuedDispatchWriteCommand so a
+    // dispatcher can move a trip onto a different trailer than the (new)
+    // tractor's coupling. Same three trailer gates as issue; omitted
+    // trailerId keeps resolving the coupling exactly as before.
+    test('reassign maps trailerId: explicit trailer records on the trip, omission keeps coupling, invalid trailer 409s', async () => {
+      const accepted = await createAcceptedFulfillment();
+      const resources = await createOwnedResources();
+      const other = await createOwnedResources();
+
+      const first = await apiFetch<{ trip: { id: number; version: number; trailerId: number | null } }>(`/${accepted.shipmentId}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-06T08:00:00+07:00',
+          plannedEndAt: '2026-08-06T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'OWN',
+          truckId: resources.truck.id,
+          driverId: resources.driver.id,
+          trailerId: resources.trailer.id,
+        },
+      });
+      assert.equal(first.status, 201, JSON.stringify(first.data));
+      createdTripIds.push(first.data.trip.id);
+      assert.equal(first.data.trip.trailerId, resources.trailer.id);
+
+      // 1) Explicit override: same tractor, DIFFERENT trailer → trips.trailer_id
+      //    records the override (route must forward data.trailerId).
+      const override = await fetch(`${baseUrl}/api/trips/${first.data.trip.id}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-trailer-override-${suffix}-${accepted.fulfillmentId}`,
+        },
+        body: JSON.stringify({
+          reason: 'qa: trailer override on reassign',
+          expectedVersion: first.data.trip.version,
+          carrierType: 'OWN',
+          truckId: resources.truck.id,
+          driverId: resources.driver.id,
+          trailerId: other.trailer.id,
+        }),
+      });
+      const overrideData = await override.json() as { trip: { trailerId: number | null } };
+      assert.equal(override.status, 201, JSON.stringify(overrideData));
+      assert.equal(overrideData.trip.trailerId, other.trailer.id);
+
+      // 2) Omitted trailerId → the (new) tractor's coupling resolves as before.
+      const coupling = await fetch(`${baseUrl}/api/trips/${first.data.trip.id}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-trailer-coupling-${suffix}-${accepted.fulfillmentId}`,
+        },
+        body: JSON.stringify({
+          reason: 'qa: reassign to other tractor keeps coupling',
+          // One reassign already bumped the trip version.
+          expectedVersion: first.data.trip.version + 1,
+          carrierType: 'OWN',
+          truckId: other.truck.id,
+          driverId: other.driver.id,
+        }),
+      });
+      const couplingData = await coupling.json() as { trip: { truckId: number | null; trailerId: number | null; version: number } };
+      assert.equal(coupling.status, 201, JSON.stringify(couplingData));
+      assert.equal(couplingData.trip.truckId, other.truck.id);
+      assert.equal(couplingData.trip.trailerId, other.trailer.id);
+
+      // 3) Invalid (non-ACTIVE) trailer → the same 409 gate as issue.
+      const [parked] = await db.insert(s.trailers).values({
+        licensePlate: `51R-${suffix.slice(-6)}-PARKED`.slice(0, 20),
+        type: '20FT',
+        status: 'MAINTENANCE',
+      }).returning();
+      createdTrailerIds.push(parked.id);
+      const invalid = await fetch(`${baseUrl}/api/trips/${first.data.trip.id}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-trailer-invalid-${suffix}-${accepted.fulfillmentId}`,
+        },
+        body: JSON.stringify({
+          reason: 'qa: invalid trailer must 409',
+          expectedVersion: couplingData.trip.version,
+          carrierType: 'OWN',
+          truckId: other.truck.id,
+          driverId: other.driver.id,
+          trailerId: parked.id,
+        }),
+      });
+      const invalidData = await invalid.json() as { error?: string };
+      assert.equal(invalid.status, 409, JSON.stringify(invalidData));
+      assert.match(String(invalidData.error ?? ''), /Rơ-moóc không còn hiệu lực/);
+    });
+
     test('reissue switches EXTERNAL→OWN and clears the external assignment', async () => {
       const accepted = await createAcceptedFulfillment();
       const carrier = await createCustomer(`Switch back carrier ${suffix}-${createdCustomerIds.length}`);

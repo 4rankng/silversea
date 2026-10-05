@@ -40,6 +40,9 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
   const [externalPlateNumber, setExternalPlateNumber] = useState('');
   const [externalDriverName, setExternalDriverName] = useState('');
   const [externalDriverPhone, setExternalDriverPhone] = useState('');
+  // Card 20261006_389 — per-trip trailer override; '' = the (selected)
+  // tractor's current coupling, resolved server-side exactly as before.
+  const [trailerOverride, setTrailerOverride] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -67,6 +70,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     setExternalPlateNumber(trip.externalPlateNumber ?? '');
     setExternalDriverName(trip.externalDriverName ?? '');
     setExternalDriverPhone(trip.externalDriverPhone ?? '');
+    setTrailerOverride('');
     setReason('');
     setError('');
   }, [trip, tripId]);
@@ -98,6 +102,9 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
         carrierType,
         truckId: truckId ? Number(truckId) : null,
         driverId: driverId ? Number(driverId) : null,
+        // Card 20261006_389 — the override rides only when picked; omitted
+        // otherwise so the backend resolves the tractor's coupling as before.
+        ...(carrierType === 'OWN' && trailerOverride ? { trailerId: Number(trailerOverride) } : {}),
         externalCarrierId: externalCarrierId ? Number(externalCarrierId) : null,
         externalPlateNumber,
         externalDriverName,
@@ -221,6 +228,57 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
                 options={[{ value: '', label: '-- Chọn lái xe --' }, ...drivers.map((d) => ({ value: String(d.id), label: d.name }))]}
                 wrapperClassName="field"
               />
+              {/* Card 20261006_389 — the tractor's coupling is the default
+                  trailer; the override names both plates when it differs. */}
+              {(() => {
+                const selectedTruck = trucks.find((t) => String(t.id) === truckId) ?? null;
+                const couplingId = selectedTruck?.currentTrailerId ?? null;
+                const catalogTrailers = catalogData?.trailers ?? [];
+                const activeTrailers = catalogTrailers.filter((t) => t.status === 'ACTIVE');
+                const coupling = couplingId != null
+                  ? {
+                    id: couplingId,
+                    plate: catalogTrailers.find((t) => t.id === couplingId)?.licensePlate ?? 'chưa rõ biển số',
+                    type: catalogTrailers.find((t) => t.id === couplingId)?.type ?? selectedTruck?.trailerType ?? null,
+                  }
+                  : null;
+                const overridePlate = trailerOverride
+                  ? catalogTrailers.find((t) => t.id === Number(trailerOverride))?.licensePlate ?? 'moóc đã chọn'
+                  : null;
+                return (
+                  <>
+                    <p style={{ margin: 0, fontSize: 'var(--text-data-size)', color: 'var(--ink-3)' }}>
+                      Moóc đang ghép: {coupling
+                        ? `${coupling.plate}${coupling.type ? ` · ${coupling.type}` : ''}`
+                        : 'chưa ghép moóc — chọn moóc bên dưới'}
+                    </p>
+                    <UuiSelectField
+                      label="Moóc cho chuyến (ghi đè)"
+                      value={trailerOverride}
+                      onChange={(event) => setTrailerOverride(event.target.value)}
+                      disabled={saving}
+                      options={[
+                        { value: '', label: coupling
+                          ? `Dùng moóc đang ghép (${coupling.plate})`
+                          : '— Chọn moóc —' },
+                        ...activeTrailers.map((t) => ({
+                          value: String(t.id),
+                          label: `${t.licensePlate}${t.type ? ` · ${t.type}` : ''}`,
+                        })),
+                        ...(coupling && !activeTrailers.some((t) => t.id === coupling.id)
+                          ? [{ value: String(coupling.id), label: `${coupling.plate} (moóc đang ghép)` }]
+                          : []),
+                      ]}
+                      wrapperClassName="field"
+                    />
+                    {overridePlate && coupling && Number(trailerOverride) !== coupling.id && (
+                      <p style={{ margin: 0, fontSize: 'var(--text-data-size)', color: 'var(--ink-3)' }}>
+                        Ghi đè moóc: {overridePlate} thay cho moóc đang ghép {coupling.plate}.
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </>
           ) : (
             <>
