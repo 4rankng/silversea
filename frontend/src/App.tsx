@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, type ReactElement } from 'react';
+import React, { useEffect, lazy, Suspense, type ReactElement } from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SearchProvider } from './context/SearchContext';
@@ -156,9 +156,24 @@ function ShipmentEditRedirect() {
 export function AppRoutes() {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
+  // The phoi-phieu board is a lazy route. A click navigates inside a React
+  // transition, and a SUSPENDING transition keeps the previous page painted at
+  // the new URL — the Suspense loader never shows (reproduced: the workspace
+  // title painted under /accounting/phoi-phieu for the whole chunk fetch).
+  // Warm the chunk once for the roles the route admits, so the first click
+  // paints the board. Residual: a click landing before the warm fetch
+  // completes can still show the previous page — the warm fetch starts at app
+  // mount, long before any human click. The effect lives above the loading
+  // early-return: hooks run unconditionally.
+  const canReadPhoiPhieu = getModernRole(user?.role ?? '') === Role.ADMIN
+    || getModernRole(user?.role ?? '') === Role.MANAGER
+    || getModernRole(user?.role ?? '') === Role.ACCOUNTANT;
+  useEffect(() => {
+    if (!canReadPhoiPhieu) return;
+    void import('./pages/accounting/PhoiPhieuControlPage');
+  }, [canReadPhoiPhieu]);
 
   if (loading) return <PageLoader />;
-
   if (!isAuthenticated) return (
     <>
       {location.pathname !== '/login' && <Navigate to="/login" replace />}
