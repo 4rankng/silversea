@@ -577,7 +577,7 @@ export async function assertVoucherFundMatches(
 
   // Card 2026-10-05_381: one display source for both fund names — the wording
   // lives in the shared constant, never inline here. The local alias is kept
-  // only so the message call sites below stay readable.
+  // only so the remaining `name(...)` call site below stays readable.
   const name = treasuryFundLabel;
   const [account] = await executor.select({ fundCode: s.treasuryAccounts.fundCode }).from(s.treasuryAccounts)
     .where(eq(s.treasuryAccounts.id, accountId)).limit(1);
