@@ -67,7 +67,8 @@
 
 /* Stacked cell furniture: the lot cell (mã lô over khách hàng) and the
    invoice cell (số hóa đơn over số tiền) stack two facts in one cell.
-   Wrapping is the shared base's business — no cell here may declare it. */
+   Identity facts wrap with the shared base; the money line is atomic —
+   money never breaks mid-number, same law as the base's numeric cells. */
 .ivt-stack {
   display: grid;
   gap: 1px;
@@ -81,6 +82,8 @@
 .ivt-stack__sub {
   color: var(--ink-2);
   font-size: var(--text-caption-size, 12px);
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* Sizes the shared progress select inside its cell; the control's own skin is

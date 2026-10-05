@@ -5,6 +5,20 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(resolve(process.cwd(), 'src', path), 'utf8');
 
 describe('QA-AUDIT-UI-22 numeric identity values', () => {
+  it('keeps money cells on one line without clipping — numeric cells are atomic', () => {
+    const css = read('styles/record-table.css');
+    const rule = css.match(/\.record-table \.num\s*\{([^}]*)\}/)?.[1];
+    expect(rule).toBeDefined();
+    expect(rule).toMatch(/white-space:\s*nowrap/);
+    expect(rule).toMatch(/overflow-wrap:\s*normal/);
+    expect(rule).not.toMatch(/ellipsis|overflow:\s*hidden|max-width/);
+    const page = read('pages/AccountingInvoiceTrackingPage.css');
+    const stack = page.match(/\.ivt-stack__sub\s*\{([^}]*)\}/)?.[1];
+    expect(stack).toBeDefined();
+    expect(stack).toMatch(/white-space:\s*nowrap/);
+    expect(stack).not.toMatch(/ellipsis|overflow:\s*hidden|max-width/);
+  });
+
   it('QA-AUDIT-UI-26 keeps semantic row ordinals whole without changing prose wrapping', () => {
     const css = read('styles/record-table.css');
     const rule = css.match(/\.record-table tbody td\[data-label=['"]STT['"]\]\s*\{([^}]*)\}/)?.[1];

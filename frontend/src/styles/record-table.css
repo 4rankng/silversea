@@ -115,10 +115,15 @@
 
 /* Numeric columns pair with the <Money>/formatCurrency conventions. The
    bundled Be Vietnam Pro carries proportional figures only — align by
-   right edge, never force tabular-nums (font-family contract test). */
+   right edge, never force tabular-nums (font-family contract test). A
+   formatted VND value is atomic: it never breaks mid-number (the base's
+   overflow-wrap:anywhere serves identity/notes columns, never numeric
+   ones). */
 .record-table .num {
   text-align: right;
   font-family: var(--font-data);
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* Row ordinals are atomic numeric values, including compact record headers. */
