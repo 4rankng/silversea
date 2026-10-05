@@ -163,7 +163,17 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
               the call affordance is the row's leading phone icon. */}
           {/* Card 20260926_41 V2 (CHIEF): the info card is pure data — the
               call affordance lives in the action bar beneath the card. */}
-          <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT kho" value={khoPhone ?? '—'} />
+          {/* Card 20261005_364 (REQ-05, SUPERSEDES V2's pure-data ruling FOR
+              THIS ROW): the number itself is the tap-to-call control — a tel:
+              link per the house pattern (.fwd-instructions__link /
+              a.tdp-instructions-value). The URI strips whitespace so the
+              webview dialer accepts it; the visible number keeps its digits.
+              Plain "—" when the site has no phone. */}
+          <TaskFact
+            icon={<Phone size={16} aria-hidden="true" />}
+            label="SĐT kho"
+            value={khoPhone ? <a href={`tel:${khoPhone.replace(/\s+/g, '')}`} className="driver-task-fact__tel">{khoPhone}</a> : '—'}
+          />
           {/* Card 20260926_27 item 7: the named-contact number renders only
               when it DIFFERS from the kho number — identical numbers never
               render twice. */}

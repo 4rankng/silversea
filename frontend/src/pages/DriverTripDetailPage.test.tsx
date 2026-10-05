@@ -905,6 +905,30 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByRole('link', { name: /Gọi kho/ })).toBeTruthy();
   });
 
+  // Card 20261005_364 (REQ-05): through the full page render the warehouse
+  // number is itself the tap-to-call control (lockstep with the component
+  // suite's AC1-AC3 pins).
+  it('card 20261005_364: the SĐT kho value is a tel: link in the full page render', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: { ...makeTaskDetail().fulfillment!, khoPhone: '0989130345' },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const khoValue = Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT kho')
+      ?.querySelector('.driver-task-fact__value');
+    const link = khoValue?.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toBe('tel:0989130345');
+    expect(link!.textContent).toBe('0989130345');
+  });
+
   // TC-DA-005: customer master-data invoice rows render with the exact
   // Vietnamese labels and per-row graceful hide. 2a618442: head follows the
   // mockup copy "Thông tin xuất hóa đơn", row order company → address → MST.
