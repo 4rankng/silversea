@@ -15,6 +15,10 @@ export interface InvoiceTrackingTotals {
   invoice: number;
   paid: number;
   difference: number;
+  /** Card 2026-10-05_384 — Σ COM over the returned rows, independent of the
+   *  three above. The board recomputes it client-side for the FILTERED set, so
+   *  the strip agrees with what is on screen; this field is the server total. */
+  com: number;
 }
 
 export interface InvoiceTrackingListResponse {

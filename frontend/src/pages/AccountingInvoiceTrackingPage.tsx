@@ -2,7 +2,7 @@
 // tracking rows per lot trip; CUS reaches the same page read-only (server-enforced).
 // Header Tổng band recomputes over the filtered rows (worked example in the card plan).
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
@@ -10,6 +10,7 @@ import {
   INVOICE_TRACKING_PROGRESS_LABELS,
   TRADE_DIRECTION_LABELS,
   Role,
+  round2dp,
   type InvoiceTrackingProgress,
   type InvoiceTrackingRow,
 } from '@tingting/shared';
@@ -39,19 +40,26 @@ const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
 
 /** Σ hóa đơn / Σ trả NCC / chênh lệch over the rows currently on screen —
  *  the header band recomputes on every period filter change (card worked
- *  example: 12.000.000/8.000.000 + 5.500.000/6.000.000 → 17.500.000 / 14.000.000 / 3.500.000). */
-export function computeTotals(rows: ReadonlyArray<{ invoiceAmount: string; supplierPayment: string }>): {
+ *  example: 12.000.000/8.000.000 + 5.500.000/6.000.000 → 17.500.000 / 14.000.000 / 3.500.000).
+ *  Card 2026-10-05_384 adds Σ COM as a FOURTH, independent box: COM is a
+ *  customer-side deduction, so it is deliberately NOT folded into `difference`,
+ *  which stays `invoice − paid`. A row with no `comAmount` (every pre-card row)
+ *  contributes 0, never `NaN`. */
+export function computeTotals(rows: ReadonlyArray<{ invoiceAmount: string; supplierPayment: string; comAmount?: string | null }>): {
   invoice: number;
   paid: number;
   difference: number;
+  com: number;
 } {
   let invoice = 0;
   let paid = 0;
+  let com = 0;
   for (const row of rows) {
     invoice += Number(row.invoiceAmount);
     paid += Number(row.supplierPayment);
+    com += row.comAmount == null ? 0 : Number(row.comAmount);
   }
-  return { invoice, paid, difference: invoice - paid };
+  return { invoice, paid, difference: invoice - paid, com: round2dp(com) };
 }
 
 /** First-of-month..today, Vietnam business timezone (house date helpers). */
@@ -79,6 +87,25 @@ function buildPeriodPresets(): DateRangePreset[] {
       return { from: iso(y, qStart, 1), to: today };
     } },
   ];
+}
+
+/** Card 2026-10-05_384 — the COM cell carries the AMOUNT, and never hides the
+ *  legacy note. A row created before the card has text in `comNote` and a null
+ *  `comAmount`; a row created after it has the number and may still carry a
+ *  note. So: amount first (the money is what the column is now for), note
+ *  underneath whenever there is one, and the house `—` only when both are
+ *  empty. Neither field is ever dropped because the other is present. */
+function comCellContent(row: { comAmount: string | null; comNote: string | null }): ReactNode {
+  const amount = row.comAmount == null ? null : `${formatMoney(Number(row.comAmount))} ₫`;
+  const note = formatBusinessRef(row.comNote);
+  if (amount == null && note === '—') return '—';
+  if (note === '—') return amount;
+  return (
+    <span className="ivt-stack">
+      <span className="ivt-stack__primary">{amount ?? '—'}</span>
+      <span className="ivt-stack__sub">{note}</span>
+    </span>
+  );
 }
 
 export default function AccountingInvoiceTrackingPage() {
@@ -141,7 +168,10 @@ export default function AccountingInvoiceTrackingPage() {
   const exportExcel = () => {
     // Card 20261005_383: "Loại cont" and "Xuất/Nhập" are derived beside the
     // container number, so the sheet carries the same three facts as the cell.
-    const headers = ['STT', 'Ngày', 'Lô hàng', 'Khách hàng', 'Cont', 'Loại cont', 'Xuất/Nhập', 'MST', 'Nhà cung cấp', 'Số hóa đơn', 'Số tiền hóa đơn', 'Số tiền trả', 'COM', 'Chênh lệch', 'Ngày gửi hđ', 'Ghi chú', 'Tiến độ'];
+    // Card 2026-10-05_384: the pre-existing `COM` column is now the AMOUNT, and
+    // the legacy free text moves to its own `Ghi chú COM` column right beside
+    // it — so an old note is never lost and the amount is never a word.
+    const headers = ['STT', 'Ngày', 'Lô hàng', 'Khách hàng', 'Cont', 'Loại cont', 'Xuất/Nhập', 'MST', 'Nhà cung cấp', 'Số hóa đơn', 'Số tiền hóa đơn', 'Số tiền trả', 'COM', 'Ghi chú COM', 'Chênh lệch', 'Ngày gửi hđ', 'Ghi chú', 'Tiến độ'];
     const body = filtered.map((row, index) => [
       index + 1,
       formatISODate(row.expenseDate),
@@ -155,7 +185,11 @@ export default function AccountingInvoiceTrackingPage() {
       row.invoiceNumber ?? '',
       Number(row.invoiceAmount),
       Number(row.supplierPayment),
+      // A row with no COM amount exports the raw empty string — never a `0`,
+      // which would read as "no commission" instead of "not recorded".
+      row.comAmount == null ? '' : Number(row.comAmount),
       row.comNote ?? '',
+      // Card 2026-10-05_384: `Chênh lệch` is UNCHANGED — COM is not folded in.
       Number(row.invoiceAmount) - Number(row.supplierPayment),
       formatISODate(row.invoiceSentAt),
       row.note ?? '',
@@ -231,6 +265,11 @@ export default function AccountingInvoiceTrackingPage() {
         items={[
           { label: 'Hóa đơn', value: `${formatMoney(totals.invoice)} ₫` },
           { label: 'Trả NCC', value: `${formatMoney(totals.paid)} ₫` },
+          // Card 2026-10-05_384: the strip grew from 3 boxes to 4 with Σ COM.
+          // It sits between Trả NCC and Chênh lệch — the three pre-existing
+          // boxes keep their values and their relative order (Hóa đơn → Trả NCC
+          // → Chênh lệch) unchanged.
+          { label: 'Tổng COM', value: `${formatMoney(totals.com)} ₫` },
           {
             label: 'Chênh lệch',
             value: `${formatMoney(totals.difference)} ₫`,
@@ -368,7 +407,7 @@ export default function AccountingInvoiceTrackingPage() {
                     </span>
                   </td>
                   <td data-label="Số tiền trả" className="num">{formatMoney(Number(row.supplierPayment))} ₫</td>
-                  <td data-label="COM">{formatBusinessRef(row.comNote)}</td>
+                  <td data-label="COM" className="num">{comCellContent(row)}</td>
                   <td data-label="Chênh lệch" className="num" title="Số tiền hóa đơn − Số tiền trả">
                     {formatMoney(Number(row.invoiceAmount) - Number(row.supplierPayment))} ₫
                   </td>

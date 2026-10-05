@@ -174,10 +174,12 @@ describe('invoice tracking (card 20260921_18)', () => {
     const rowB = byInvoice.get('HD-5500000')!;
     assert.equal(rowA.difference, '4000000');
     assert.equal(rowB.difference, '-500000');
-    assert.deepEqual(totals, { invoice: 17500000, paid: 14000000, difference: 3500000 });
+    // Card 2026-10-05_384: totals gained a 4th field (COM). These rows carry no
+    // COM, so it is 0 — and `difference` is byte-for-byte the old expectation.
+    assert.deepEqual(totals, { invoice: 17500000, paid: 14000000, difference: 3500000, com: 0 });
     const filtered = await api(accountantToken, 'GET', '/invoice-tracking?from=2026-08-01&to=2026-08-01');
     const ft = (filtered.data as { totals: { invoice: number } }).totals;
-    assert.deepEqual(ft, { invoice: 12000000, paid: 8000000, difference: 4000000 });
+    assert.deepEqual(ft, { invoice: 12000000, paid: 8000000, difference: 4000000, com: 0 });
   });
 
   test('nonexistent calendar date in the range is a 400, never a 500', async () => {
@@ -330,5 +332,90 @@ describe('invoice tracking derived container facts (card 20261005_383)', () => {
     assert.equal(untypedRow.containerNumber, `CONT383D${suffix}`);
     assert.equal(untypedRow.containerType, null, 'a container with no type yields a null type, never an error');
     assert.equal(untypedRow.tradeDirection, null);
+  });
+});
+
+/** Card 2026-10-05_384 (REQ-5.10-08) — COM is the amount deducted from the
+ *  CUSTOMER, so it gets its own amount field and its own box in the totals strip.
+ *
+ *  Two decisions have to stay true together, and both are pinned here:
+ *   1. COM is DISPLAY-ONLY. `Chênh lệch` keeps reconciling invoice vs supplier
+ *      payment and must not absorb a customer-side deduction — otherwise every
+ *      report quoting that number silently changes meaning; and
+ *   2. a legacy row carrying only the free-text `comNote` still reads back
+ *      cleanly, because that text is real data on rows that already exist. */
+describe('card 2026-10-05_384 — COM as money, totals strip grows a 4th box', () => {
+  test('totals.com sums the COM amounts while Chênh lệch stays invoice − supplier payment', async () => {
+    const lot = await mkLot('COM');
+    const mk = async (invoice: number, paid: number, com: number | null, note: string | null) => {
+      const res = await api(accountantToken, 'POST', '/invoice-tracking', {
+        shipmentId: lot.shipmentId, tripId: lot.tripId,
+        invoiceNumber: `HD-COM-${suffix}-${invoice}-${com ?? 'note'}`,
+        invoiceAmount: invoice, supplierPayment: paid,
+        comAmount: com, comNote: note, expenseDate: '2026-07-05',
+      });
+      assert.equal(res.status, 201, `create com=${com} note=${note} → ${res.status}`);
+      const body = res.data as { id: number; expenseId: number | null };
+      trackIds.push(body.id);
+      if (body.expenseId != null) expenseIds.push(body.expenseId);
+      return body;
+    };
+    await mk(10_000_000, 6_000_000, 1_500_000, null);
+    await mk(4_000_000, 4_000_000, 250_000, null);
+    // Legacy shape: text note only, no amount. Must survive untouched.
+    await mk(2_000_000, 1_000_000, null, 'Trừ khách 500000');
+
+    const list = await api(accountantToken, 'GET', '/invoice-tracking?from=2026-07-01&to=2026-07-31');
+    assert.equal(list.status, 200);
+    const { rows, totals: serverTotals } = list.data as {
+      rows: Array<{ id: number; invoiceNumber: string; comAmount: number | null; comNote: string | null; difference: string; invoiceAmount: string; supplierPayment: string }>;
+      totals: { invoice: number; paid: number; difference: number; com: number };
+    };
+    // Scope to THIS run's invoices. The month window is shared with other rows,
+    // so a blanket total over the window would assert on someone else's money.
+    const mine = rows.filter((r) => r.invoiceNumber.includes(suffix));
+
+    const withAmount = mine.filter((r) => r.comAmount != null);
+    assert.equal(withAmount.length, 2, 'both amount-carrying rows come back');
+    // The window may hold rows from other specs, so assert COM landed on OUR
+    // rows rather than on a window-wide sum.
+    assert.deepEqual(withAmount.map((r) => r.comAmount).sort(), ['1500000', '250000']);
+
+    // THE decision under test — two independent pins, both reading SERVER output
+    // and both immune to whatever else lives in the period window.
+    //
+    // (1) Row level: a row carrying COM must still report Chênh lệch as
+    //     invoice − trả NCC. Subtracting COM here would fail every such row.
+    for (const r of withAmount) {
+      assert.equal(r.difference, String(Number(r.invoiceAmount) - Number(r.supplierPayment)),
+        `row ${r.invoiceNumber} carries COM ${r.comAmount} yet Chênh lệch must stay invoice − trả NCC`);
+    }
+    // (2) Window level: the identity holds over whatever rows are present, and
+    //     fails the moment anyone folds COM in. Verified by mutation: editing
+    //     the backend to subtract comAmount turns this suite red.
+    assert.ok(serverTotals.com >= 1_750_000, 'the server sums COM into totals.com');
+    assert.equal(serverTotals.difference, serverTotals.invoice - serverTotals.paid,
+      'COM is deliberately NOT subtracted: Chênh lệch and a customer deduction are different questions');
+    const byNote = mine.find((r) => r.comNote === 'Trừ khách 500000');
+    assert.ok(byNote, 'the legacy text-only row still comes back');
+    assert.equal(byNote.comAmount, null, 'a legacy row has no amount, and that is not an error');
+    assert.equal(byNote.difference, '1000000', 'and its Chênh lệch is untouched too');
+  });
+
+  test('a negative or fractional COM amount is rejected — COM is whole dong like the other money fields', async () => {
+    const lot = await mkLot('COMNEG');
+    const res = await api(accountantToken, 'POST', '/invoice-tracking', {
+      shipmentId: lot.shipmentId, tripId: lot.tripId,
+      invoiceNumber: `HD-COMNEG-${suffix}`, invoiceAmount: 1_000_000, supplierPayment: 0,
+      comAmount: -1, expenseDate: '2026-07-06',
+    });
+    assert.equal(res.status, 400, `expected 400 for a negative COM amount, got ${res.status}`);
+    // numeric(15,0) + the sibling fields' `.int()`: COM is whole dong too.
+    const frac = await api(accountantToken, 'POST', '/invoice-tracking', {
+      shipmentId: lot.shipmentId, tripId: lot.tripId,
+      invoiceNumber: `HD-COMFRAC-${suffix}`, invoiceAmount: 1_000_000, supplierPayment: 0,
+      comAmount: 250_000.4, expenseDate: '2026-07-06',
+    });
+    assert.equal(frac.status, 400, `expected 400 for a fractional COM amount, got ${frac.status}`);
   });
 });

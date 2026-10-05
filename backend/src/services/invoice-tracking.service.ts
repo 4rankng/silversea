@@ -14,6 +14,7 @@ import { and, asc, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import type { InvoiceTrackingCreateInput, InvoiceTrackingPatchInput } from '@tingting/shared';
+import { round2dp } from '@tingting/shared';
 
 const CHI_PHI_HOA_DON = 'Chi phí hóa đơn';
 
@@ -41,6 +42,10 @@ type TrackerRow = {
   difference: string;
   taxCode: string | null;
   supplierName: string | null;
+  /** Card 2026-10-05_384 — the COM amount, DISPLAY-ONLY. `difference` above is
+   *  untouched: COM is a customer-side deduction, while `difference` reconciles
+   *  the invoice against the supplier payment — two different questions. */
+  comAmount: string | null;
   comNote: string | null;
   invoiceSentAt: string | null;
   note: string | null;
@@ -49,7 +54,7 @@ type TrackerRow = {
   expenseId: number | null;
 };
 
-export async function listInvoiceTracking(from: string, to: string): Promise<{ rows: TrackerRow[]; totals: { invoice: number; paid: number; difference: number } }> {
+export async function listInvoiceTracking(from: string, to: string): Promise<{ rows: TrackerRow[]; totals: { invoice: number; paid: number; difference: number; com: number } }> {
   const rows = await db.select({
     id: s.invoiceTracking.id,
     shipmentId: s.invoiceTracking.shipmentId,
@@ -59,6 +64,7 @@ export async function listInvoiceTracking(from: string, to: string): Promise<{ r
     supplierPayment: s.invoiceTracking.supplierPayment,
     taxCode: s.invoiceTracking.taxCode,
     supplierName: s.invoiceTracking.supplierName,
+    comAmount: s.invoiceTracking.comAmount,
     comNote: s.invoiceTracking.comNote,
     invoiceSentAt: s.invoiceTracking.invoiceSentAt,
     note: s.invoiceTracking.note,
@@ -120,6 +126,7 @@ export async function listInvoiceTracking(from: string, to: string): Promise<{ r
       difference: String(Number(r.invoiceAmount) - Number(r.supplierPayment)),
       taxCode: r.taxCode,
       supplierName: r.supplierName,
+      comAmount: r.comAmount == null ? null : String(Number(r.comAmount)),
       comNote: r.comNote,
       invoiceSentAt: r.invoiceSentAt,
       note: r.note,
@@ -132,6 +139,10 @@ export async function listInvoiceTracking(from: string, to: string): Promise<{ r
     invoice: wire.reduce((sum, r) => sum + Number(r.invoiceAmount), 0),
     paid: wire.reduce((sum, r) => sum + Number(r.supplierPayment), 0),
     difference: wire.reduce((sum, r) => sum + (Number(r.invoiceAmount) - Number(r.supplierPayment)), 0),
+    // Card 2026-10-05_384: COM is additive and independent of the three above.
+    // A pre-card row contributes 0 (its `comAmount` is null, not `NaN`), and
+    // the sum is rounded through the house helper like every other money total.
+    com: round2dp(wire.reduce((sum, r) => sum + (r.comAmount == null ? 0 : Number(r.comAmount)), 0)),
   };
   return { rows: wire, totals };
 }
@@ -196,6 +207,7 @@ export async function createInvoiceTracking(
       supplierPayment: money(input.supplierPayment),
       taxCode: input.taxCode ?? null,
       supplierName: input.supplierName ?? null,
+      comAmount: input.comAmount == null ? null : money(input.comAmount),
       comNote: input.comNote ?? null,
       invoiceSentAt: input.invoiceSentAt ?? null,
       note: input.note ?? null,
@@ -241,6 +253,7 @@ export async function updateInvoiceTracking(
       ...(patch.supplierPayment !== undefined ? { supplierPayment: money(patch.supplierPayment) } : {}),
       ...(patch.taxCode !== undefined ? { taxCode: patch.taxCode ?? null } : {}),
       ...(patch.supplierName !== undefined ? { supplierName: patch.supplierName ?? null } : {}),
+      ...(patch.comAmount !== undefined ? { comAmount: patch.comAmount == null ? null : money(patch.comAmount) } : {}),
       ...(patch.comNote !== undefined ? { comNote: patch.comNote ?? null } : {}),
       ...(patch.invoiceSentAt !== undefined ? { invoiceSentAt: patch.invoiceSentAt ?? null } : {}),
       ...(patch.note !== undefined ? { note: patch.note ?? null } : {}),

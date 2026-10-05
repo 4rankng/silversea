@@ -422,6 +422,14 @@ export const invoiceTracking = pgTable('invoice_tracking', {
   supplierPayment: numeric('supplier_payment', { precision: 15, scale: 0 }).notNull(),
   taxCode: varchar('tax_code', { length: 20 }),
   supplierName: varchar('supplier_name', { length: 200 }),
+  // Card 2026-10-05_384: COM (hoa hồng) is a MONEY field, and it is NOT a
+  // repurposing of `comNote` — legacy rows carry free text there, so the note
+  // stays a note and the amount gets its own sibling column. Nullable with no
+  // default: pre-card rows simply have no COM amount and the board falls back
+  // to the note (then to the house "—"). DISPLAY-ONLY: the `Chênh lệch` formula
+  // stays `invoice − paid`; a customer-side deduction is a different question
+  // from reconciling an invoice against its supplier payment.
+  comAmount: numeric('com_amount', { precision: 15, scale: 0 }),
   comNote: varchar('com_note', { length: 200 }),
   invoiceSentAt: date('invoice_sent_at'),
   note: text('note'),

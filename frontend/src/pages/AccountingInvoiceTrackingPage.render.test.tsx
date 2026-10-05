@@ -43,6 +43,9 @@ const leakedRow: InvoiceTrackingRow = {
   difference: '4000000',
   taxCode: '0301234567',
   supplierName: 'CÔNG TY TNHH VẬN TẢI BIỂN ĐÔNG',
+  // Card 2026-10-05_384: the row this fixture was captured from predates the
+  // COM amount column, so it rides the null path like every pre-card row.
+  comAmount: null,
   comNote: null,
   invoiceSentAt: null,
   note: null,
@@ -68,7 +71,7 @@ const realRow: InvoiceTrackingRow = {
 function renderBoard(rows: InvoiceTrackingRow[]) {
   client.listInvoiceTracking.mockResolvedValue({
     rows,
-    totals: { invoice: 12000000, paid: 8000000, difference: 4000000 },
+    totals: { invoice: 12000000, paid: 8000000, difference: 4000000, com: 0 },
   });
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -222,5 +225,58 @@ describe('invoice-tracking container facts (card 20261005_383)', () => {
     const contIndex = headers.indexOf('Cont');
     expect(body[0][contIndex + 1]).toBe('');
     expect(body[0][contIndex + 2]).toBe('');
+  });
+});
+
+/** Card 2026-10-05_384 — COM becomes money, and the totals strip gains a 4th
+ *  box. Two acceptance criteria live here and had no coverage before:
+ *   1. a LEGACY row that only carries the free-text `comNote` must still show
+ *      that text — adding an amount column must not quietly drop the note that
+ *      real existing rows depend on; and
+ *   2. the strip renders `Tổng COM` from the server's `totals.com`. */
+describe('invoice-tracking COM cell and totals strip (card 2026-10-05_384)', () => {
+  beforeEach(() => {
+    Object.values(client).forEach((fn) => fn.mockReset());
+  });
+
+  const withCom = (over: Partial<InvoiceTrackingRow>): InvoiceTrackingRow => ({
+    ...leakedRow, id: 500, comAmount: null, comNote: null, ...over,
+  });
+
+  it('shows the COM amount, and keeps the legacy note underneath when there is one', async () => {
+    renderBoard([withCom({ comAmount: '1750000', comNote: 'Trừ khách 500000' })]);
+    await screen.findByText('Số hóa đơn: —');
+    // Assert the CELL's rendered text, so the amount and the note are checked
+    // as the pair the column actually shows (stacked), not as separate lookups.
+    const comCell = () => document.querySelector('td[data-label="COM"]')?.textContent ?? '';
+    expect(comCell()).toContain('1.750.000');
+    expect(comCell()).toContain('Trừ khách 500000');
+    expect(screen.getByText('Trừ khách 500000')).toBeInTheDocument();
+  });
+
+  it('still renders a legacy text-only COM row, with no amount', async () => {
+    renderBoard([withCom({ comAmount: null, comNote: 'Trừ khách 500000' })]);
+    await screen.findByText('Số hóa đơn: —');
+    expect(screen.getByText('Trừ khách 500000')).toBeInTheDocument();
+  });
+
+  it('falls back to the house empty value only when both are empty', async () => {
+    renderBoard([withCom({ comAmount: null, comNote: null })]);
+    await screen.findByText('Số hóa đơn: —');
+    // No amount and no note → the row shows the house '—' placeholder.
+    expect(screen.getByText('Số hóa đơn: —')).toBeInTheDocument();
+  });
+
+  it('renders a 4th totals box: Tổng COM, alongside the three pre-existing ones', async () => {
+    renderBoard([withCom({ comAmount: '1750000' })]);
+    // The strip grew from 3 boxes to 4. The VALUE arithmetic is pinned in
+    // AccountingInvoiceTrackingPage.totals.test.ts (computeTotals is client-side
+    // over the period-filtered rows); what matters here is that the box renders.
+    await screen.findByText('Tổng COM');
+    expect(screen.getByText('Tổng COM')).toBeInTheDocument();
+    // The three pre-existing labels are still there.
+    expect(screen.getByText('Hóa đơn')).toBeInTheDocument();
+    expect(screen.getByText('Trả NCC')).toBeInTheDocument();
+    expect(screen.getByText('Chênh lệch')).toBeInTheDocument();
   });
 });

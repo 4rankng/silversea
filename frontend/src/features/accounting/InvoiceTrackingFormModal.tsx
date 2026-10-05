@@ -35,6 +35,10 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
   const [supplierPayment, setSupplierPayment] = useState(mode === 'edit' && row ? String(Number(row.supplierPayment)) : '');
   const [taxCode, setTaxCode] = useState(row?.taxCode ?? '');
   const [supplierName, setSupplierName] = useState(row?.supplierName ?? '');
+  // Card 2026-10-05_384: COM enters as MONEY (`comAmount`), while `comNote`
+  // stays the free-text note it has always been. Both remain editable — a row
+  // that only has the legacy note must still be openable and savable.
+  const [comAmount, setComAmount] = useState(mode === 'edit' && row && row.comAmount != null ? String(Number(row.comAmount)) : '');
   const [comNote, setComNote] = useState(row?.comNote ?? '');
   const [expenseDate, setExpenseDate] = useState(row?.expenseDate ?? today);
   const [progress, setProgress] = useState<InvoiceTrackingProgress>(row?.progress ?? 'CHUA_GUI');
@@ -115,10 +119,15 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
     const trimmedInvoiceNumber = invoiceNumber.trim();
     const invoiceAmountValue = Number(invoiceAmount);
     const supplierPaymentValue = Number(supplierPayment);
+    // Card 2026-10-05_384: blank COM means "not recorded" (null), NOT zero —
+    // the same distinction the board and the export both preserve.
+    const comAmountTrimmed = comAmount.trim();
+    const comAmountValue = comAmountTrimmed === '' ? null : Number(comAmountTrimmed);
     const problems: string[] = [];
     if (!trimmedInvoiceNumber) problems.push('Số hóa đơn là bắt buộc.');
     if (!Number.isInteger(invoiceAmountValue) || invoiceAmountValue < 0) problems.push('Số tiền hóa đơn phải là số nguyên không âm.');
     if (!Number.isInteger(supplierPaymentValue) || supplierPaymentValue < 0) problems.push('Số tiền trả NCC phải là số nguyên không âm.');
+    if (comAmountValue !== null && (!Number.isInteger(comAmountValue) || comAmountValue < 0)) problems.push('COM phải là số nguyên không âm.');
     if (problems.length > 0) {
       setFormError(problems.join(' '));
       return;
@@ -130,6 +139,7 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
       supplierPayment: supplierPaymentValue,
       taxCode: taxCode.trim() || null,
       supplierName: supplierName.trim() || null,
+      comAmount: comAmountValue,
       comNote: comNote.trim() || null,
       expenseDate,
       progress,
@@ -223,7 +233,10 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
           <FormGroup label="Nhà cung cấp" htmlFor="ivt-supplier-name">
             <input id="ivt-supplier-name" className="input" value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
           </FormGroup>
-          <FormGroup label="COM" htmlFor="ivt-com-note">
+          <FormGroup label="COM (₫)" htmlFor="ivt-com-amount">
+            <input id="ivt-com-amount" className="input" type="number" min="0" step="1" value={comAmount} onChange={(event) => setComAmount(event.target.value)} />
+          </FormGroup>
+          <FormGroup label="Ghi chú COM" htmlFor="ivt-com-note">
             <input id="ivt-com-note" className="input" value={comNote} onChange={(event) => setComNote(event.target.value)} />
           </FormGroup>
           <UuiSelectField
