@@ -229,31 +229,42 @@ export async function listPhoiPhieuRows(query: {
     .limit(300);
   if (rows.length === 0) return [];
 
-  // Card 20260928_172 criteria 2+3: repeated plates adjacent, date order kept
-  // INSIDE each plate group. This sorts the already-selected window, so the row
-  // identity SET is identical to `sortBy='date'` — the property criterion 3 asks
-  // to be proven, and the reason the grouping cannot live in the query. A
-  // comparator returning 0 leans on V8's stable sort, i.e. the window's own date
-  // order within a group; null plates go last, matching the `asc` NULLS-LAST the
-  // SQL used before.
+  // The DEFAULT view's sort key order: plate → container → newest inside the
+  // equal group. It runs whenever the request carries no sort instruction
+  // (the programmatic default) or the explicit `grouped` pick; only a
+  // user-selected `date` overrides the grouping. The sort applies to the
+  // already-selected window, so the row identity SET is identical to
+  // `sortBy='date'` — the property the window test proves, and the reason the
+  // grouping cannot live in the query's own ORDER BY before the LIMIT.
+  const groupKeyOf = (value: string | null) => (value ?? '').trim().toUpperCase();
   const displayRows = query.sortBy === 'date' ? rows : [...rows].sort((a, b) => {
-    const aPlate = a.plateNumber;
-    const bPlate = b.plateNumber;
+    // Keys are normalized: registry rows store plates/containers in raw
+    // variants (case, surrounding whitespace) and one truck's lots must land
+    // in ONE group despite that — a raw-string compare scattered the same
+    // displayed plate rows apart. Unplated rows group last.
+    const aPlate = groupKeyOf(a.plateNumber);
+    const bPlate = groupKeyOf(b.plateNumber);
     if (aPlate !== bPlate) {
-      if (aPlate == null) return 1;
-      if (bPlate == null) return -1;
+      if (aPlate === '') return 1;
+      if (bPlate === '') return -1;
       return aPlate < bPlate ? -1 : 1;
     }
-    // Same plate (or both unplated): the container number is the next grouping
-    // key, so paired handovers of one container land adjacent inside the truck
-    // group. A comparator returning 0 still leans on V8's stable sort, i.e. the
-    // window's own date order inside the finest equal group.
-    const aContainer = a.containerNumber;
-    const bContainer = b.containerNumber;
-    if (aContainer === bContainer) return 0;
-    if (aContainer == null) return 1;
-    if (bContainer == null) return -1;
-    return aContainer < bContainer ? -1 : 1;
+    // Same plate (or both unplated): the container number is the next
+    // grouping key, so paired handovers of one container land adjacent
+    // inside the truck group.
+    const aContainer = groupKeyOf(a.containerNumber);
+    const bContainer = groupKeyOf(b.containerNumber);
+    if (aContainer !== bContainer) {
+      if (aContainer === '') return 1;
+      if (bContainer === '') return -1;
+      return aContainer < bContainer ? -1 : 1;
+    }
+    // Newest first inside the finest equal group, deterministic down to the
+    // trip id (no reliance on the input order staying date-sorted).
+    const aDate = a.transportDate ?? '';
+    const bDate = b.transportDate ?? '';
+    if (aDate !== bDate) return aDate < bDate ? 1 : -1;
+    return b.tripId - a.tripId;
   });
 
   const shipmentIds = [...new Set(rows.map((row) => row.shipmentId))];

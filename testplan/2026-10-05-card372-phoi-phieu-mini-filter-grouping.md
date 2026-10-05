@@ -24,9 +24,15 @@ Thẻ ghi hiện trạng là `AccountingTransportRegister.tsx`; đối chiếu m
   - "rows carry the phoi-take state and date the register renders" — `phoiTakenDate` / `phoiTakeStatus` về tới dòng bảng.
 
 ## Quy tắc nhóm ở tầng dữ liệu
-Gom nhóm là display sort trên cửa sổ 300 dòng đã chọn theo ngày (không đổi tập dòng giữa hai chế độ — pin cũ "grouping never changes the row SET" giữ nguyên). Khóa: biển số → số container → thứ tự ngày (ổn định) trong nhóm nhỏ nhất bằng nhau.
+Gom nhóm là display sort trên cửa sổ 300 dòng đã chọn theo ngày (không đổi tập dòng giữa hai chế độ — pin cũ "grouping never changes the row SET" giữ nguyên). Khóa: biển số → số container → mới nhất trong nhóm bằng nhau (tie-break tripId, tất định).
+
+## Rework 2026-10-05 (QA FAILED → fix)
+- **Phát hiện staging (build 18395596, 107 dòng, view mặc định):** cùng biển số hiển thị (15C-167.31) xuất hiện ở dòng 0 và dòng 38. Nguyên nhân: dữ liệu lưu biển số/raw dạng biến thể (chữ hoa/thường, khoảng trắng thừa — projection lấy `externalPlateNumber`/`licensePlate` không chuẩn hóa), comparator so chuỗi thô nên cùng xe rơi vào khác nhóm. Repro unit: "default view keeps one truck (raw plate variants) in one group, newest first" — ĐỎ trước fix (khoảng cách 2 dòng), XANH sau fix.
+- **Quyết định lane (ghi trên thẻ):** nhóm là khóa sort CHÍNH ở view mặc định — không có sort instruction (mặc định chương trình) hoặc chọn "Gom theo số xe" → nhóm chạy; chỉ chọn TƯỜNG MINH "Theo ngày" mới ghi đè. Contract API: KHÔNG gửi `sortBy` = view mặc định (kênh mặc định chương trình); `sortBy=grouped` = nhóm như đã chọn; `sortBy=date` = người dùng ghi đè. FE mặc định gửi `grouped`, chỉ gửi `date` khi người dùng chọn.
+- **Khóa chuẩn hóa:** plate/container so sánh sau `trim().toUpperCase()`; dòng không biển số nhóm cuối; trong nhóm bằng nhau mới nhất lên đầu (tie-break `transportDate` desc → `tripId` desc).
 
 ## Not covered bởi hồ sơ này
 - Bằng chứng UI DRIVEN (rung 3) trên app thật: do lane chính chạy sau deploy staging (đúng phân công thẻ).
+- **Nhóm khi dữ liệu vượt cửa sổ (>300 dòng, nhiều trang):** nhóm là display sort TRÊN cửa sổ 300 dòng đã chọn theo ngày; chưa kiểm chứng được trên staging (107 dòng < 300) — cần QA riêng với dữ liệu >300 dòng trước khi coi quy tắc đúng xuyên trang.
 - Bộ lọc nhiều giá trị cùng lúc: thẻ để mở câu hỏi "Cần chốt với khách hàng" — hiện tại mỗi cột một giá trị "chứa".
 - Áp dụng quy tắc nhóm cho các bảng chi tiết bên dưới: chưa thuộc phạm vi thẻ.

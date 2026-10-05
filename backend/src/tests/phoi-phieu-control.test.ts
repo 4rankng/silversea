@@ -431,6 +431,61 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
     assert.equal(row.phoiTakenDate, '2026-09-23');
     assert.equal(row.phoiTakeStatus, 'Đã nhận phơi');
   });
+
+  // The default view (no sort instruction) is where the acceptance lives: one
+  // truck's lots must land together even when the registry stores the plate in
+  // raw variants (case / trailing whitespace) — staging showed the same
+  // DISPLAYED plate twice, rows apart, because the comparator compared raw
+  // strings. Inside the group the newest lot leads.
+  test('default view keeps one truck (raw plate variants) in one group, newest first', async () => {
+    const mk = async (plate: string, day: string) => {
+      const [customer] = await db.insert(s.customers).values({ name: `C16d customer ${suffix}-${cleanup.length}` }).returning({ id: s.customers.id });
+      track(s.customers, customer.id);
+      const [route] = await db.insert(s.routes).values({ name: 'C16d route' }).returning({ id: s.routes.id });
+      track(s.routes, route.id);
+      const [shipment] = await db.insert(s.shipments).values({
+        customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED', expectedDeliveryDate: day,
+      }).returning({ id: s.shipments.id });
+      track(s.shipments, shipment.id);
+      const [known] = await db.select({ id: s.trucks.id }).from(s.trucks)
+        .where(eq(s.trucks.licensePlate, plate)).limit(1);
+      const truckId = known?.id ?? (await db.insert(s.trucks).values({
+        licensePlate: plate, status: 'ACTIVE',
+      }).returning({ id: s.trucks.id })).at(0)!.id;
+      if (!known) track(s.trucks, truckId);
+      const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+        shipmentId: shipment.id, fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL', sourceShipmentVersion: 1,
+      }).returning({ id: s.shipmentFulfillments.id });
+      track(s.shipmentFulfillments, fulfillment.id);
+      const [trip] = await db.insert(s.trips).values({
+        fulfillmentId: fulfillment.id, shipmentId: shipment.id, customerId: customer.id, routeId: route.id,
+        truckId, departureDate: day, status: 'IN_TRANSIT',
+      }).returning({ id: s.trips.id });
+      track(s.trips, trip.id);
+      return trip.id;
+    };
+
+    const plate = `QA-E-${suffix.slice(-8)}`;
+    const rawVariant = `${plate.toLowerCase()}  `; // same displayed plate, raw variant
+    const other = `QA-F-${suffix.slice(-8)}`;
+    const early = await mk(rawVariant, '2026-09-01');
+    const mid = await mk(other, '2026-09-15');
+    const late = await mk(plate, '2026-09-27');
+
+    const rows = (await listPhoiPhieuRows({ search: 'C16d customer' }))
+      .filter((row) => [early, mid, late].includes(row.tripId));
+    const order = rows.map((row) => row.tripId);
+    assert.equal(Math.abs(order.indexOf(late) - order.indexOf(early)), 1,
+      'the same truck (raw plate variants aside) occupies one group at the default view');
+    assert.ok(order.indexOf(late) < order.indexOf(mid) && order.indexOf(early) < order.indexOf(mid),
+      'the truck group precedes the unrelated plate');
+    assert.ok(order.indexOf(late) < order.indexOf(early), 'the newest lot leads inside the group');
+
+    const byDate = (await listPhoiPhieuRows({ search: 'C16d customer', sortBy: 'date' as const }))
+      .filter((row) => [early, mid, late].includes(row.tripId));
+    assert.deepEqual(byDate.map((row) => row.tripId), [late, mid, early],
+      'an explicitly picked date sort still overrides the grouping');
+  });
 });
 
 describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
