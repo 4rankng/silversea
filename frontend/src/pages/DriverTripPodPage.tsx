@@ -13,6 +13,7 @@
  * that used to live on the trip detail is the footer button of THIS page.
  */
 import { useCallback, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -32,6 +33,7 @@ import { usePageLeaveGuard } from '../hooks/usePageLeaveGuard';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
+import { qk } from '../api/keys';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
@@ -43,6 +45,7 @@ export function DriverTripPodPage() {
   const { id: fulfillmentIdParam } = useParams<{ id: string }>();
   useDriverScreenEntry(fulfillmentIdParam);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [pendingFiles, setPendingFiles] = useState(false);
@@ -200,6 +203,14 @@ export function DriverTripPodPage() {
         'driver', 'task', validFulfillmentId, 'complete', 'version', trip.version,
       );
       await driverClient.completeTrip(validFulfillmentId, { expectedVersion: trip.version }, idempotencyKey);
+      // Card 051026230654 — completion moves the trip NEW/RUNNING → HISTORY.
+      // The journey board (list + tab counts) and the day-view chip keep their
+      // cached pre-completion data otherwise: the app-wide 5-minute staleTime
+      // masks the remount refetch on /my-trips, so both consumers must be
+      // invalidated BEFORE navigating back for the badge and list to refresh
+      // immediately.
+      await queryClient.invalidateQueries({ queryKey: qk.driver.journeyBoard });
+      await queryClient.invalidateQueries({ queryKey: qk.driver.twoOrders });
       toast({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
       navigate('/my-trips', { replace: true });
     } catch (error) {

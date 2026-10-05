@@ -1,8 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TripPodStatus, TripStatus } from '@tingting/shared';
 import type { TripPodSubmissionProps } from '../components/trip/TripPodSubmission';
+import { qk } from '../api/keys';
 
 /**
  * DriverTripPodPage — Phần 4 ticket 2026-08-28: e-POD is its own screen the
@@ -113,14 +115,16 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderPage() {
+function renderPage(client: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
-    <MemoryRouter initialEntries={['/my-trips/88/pod']}>
-      <Routes>
-        <Route path="/my-trips/:id/pod" element={<DriverTripPodPage />} />
-        <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/my-trips/88/pod']}>
+        <Routes>
+          <Route path="/my-trips/:id/pod" element={<DriverTripPodPage />} />
+          <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -404,6 +408,61 @@ describe('DriverTripPodPage', () => {
     expect(submitPodMock).not.toHaveBeenCalled();
     expect(completeTripMock).not.toHaveBeenCalled();
     expect(screen.getByTestId('trip-pod-submission')).toBeInTheDocument();
+  });
+
+  // Card 051026230654 — completion moves the trip NEW/RUNNING → HISTORY, but
+  // the journey board (list + "Lệnh mới" badge) and the day-view chip kept
+  // their pre-completion cache: the global 5-minute staleTime masked the
+  // remount refetch, so the driver saw stale counts until the 15 s poll or a
+  // manual tab flip. The completion must invalidate its consumers BEFORE
+  // navigating back so /my-trips refetches on mount.
+  it('invalidates the journey board and day view when the trip completes', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: makePod([
+          { fileType: 'YARD_OR_DROP_RECEIPT' },
+          { fileType: 'SIGNED_DELIVERY_NOTE' },
+        ]),
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    renderPage(client);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
+    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
+  });
+
+  it('does not invalidate the board when the completion fails', async () => {
+    completeTripMock.mockRejectedValueOnce(new Error('Không thể hoàn thành chuyến.'));
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: makePod([
+          { fileType: 'YARD_OR_DROP_RECEIPT' },
+          { fileType: 'SIGNED_DELIVERY_NOTE' },
+        ]),
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    renderPage(client);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith({ kind: 'error', message: 'Không thể hoàn thành chuyến.' }));
+    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
   });
 
 });
