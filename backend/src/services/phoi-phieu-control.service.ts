@@ -66,6 +66,13 @@ export interface PhoiPhieuRow {
   departureDate: string | null;
   transportDate: string | null;
   tripStatus: string | null;
+  /** The day the POD paper was taken (ngày lấy phơi), as entered on the
+   *  desktop detail dialog — the register's "đã nhận phơi" state and its date
+   *  read from this pair. Null = the paper has not been taken yet. */
+  phoiTakenDate: string | null;
+  /** The accountant's free-text take status ("Trạng thái lấy"); ride-along
+   *  detail under the binary phoi state, never a second state machine. */
+  phoiTakeStatus: string | null;
   /** Chi hộ Phải trả = what SS pays the field (Σ source amount). */
   chiHoTra: number | null;
   /** Chi hộ Phải thu = what is collected from the customer (Σ charges). */
@@ -166,6 +173,8 @@ export async function listPhoiPhieuRows(query: {
     departureDate: s.trips.departureDate,
     transportDate,
     tripStatus: s.trips.status,
+    phoiTakenDate: s.tripFinancialState.phoiTakenDate,
+    phoiTakeStatus: s.tripFinancialState.phoiTakeStatus,
     tienDuong: s.tripFinancialState.totalRoadAllowance,
     tripNotes: s.trips.notes,
     shipmentId: s.shipments.id,
@@ -230,10 +239,21 @@ export async function listPhoiPhieuRows(query: {
   const displayRows = query.sortBy === 'date' ? rows : [...rows].sort((a, b) => {
     const aPlate = a.plateNumber;
     const bPlate = b.plateNumber;
-    if (aPlate === bPlate) return 0;
-    if (aPlate == null) return 1;
-    if (bPlate == null) return -1;
-    return aPlate < bPlate ? -1 : 1;
+    if (aPlate !== bPlate) {
+      if (aPlate == null) return 1;
+      if (bPlate == null) return -1;
+      return aPlate < bPlate ? -1 : 1;
+    }
+    // Same plate (or both unplated): the container number is the next grouping
+    // key, so paired handovers of one container land adjacent inside the truck
+    // group. A comparator returning 0 still leans on V8's stable sort, i.e. the
+    // window's own date order inside the finest equal group.
+    const aContainer = a.containerNumber;
+    const bContainer = b.containerNumber;
+    if (aContainer === bContainer) return 0;
+    if (aContainer == null) return 1;
+    if (bContainer == null) return -1;
+    return aContainer < bContainer ? -1 : 1;
   });
 
   const shipmentIds = [...new Set(rows.map((row) => row.shipmentId))];
@@ -406,6 +426,8 @@ export async function listPhoiPhieuRows(query: {
       departureDate: row.departureDate,
       transportDate: row.transportDate,
       tripStatus: row.tripStatus,
+      phoiTakenDate: row.phoiTakenDate,
+      phoiTakeStatus: row.phoiTakeStatus,
       chiHoTra,
       chiHoThu,
       chiHoTripTra,

@@ -28,6 +28,13 @@ export interface PhoiPhieuRow {
   /** Appointment day in Vietnam, or the established shipment schedule fallback. */
   transportDate?: string | null;
   tripStatus: string | null;
+  /** The day the POD paper was taken (ngày lấy phơi) as entered on the desktop
+   *  detail dialog — the board's "đã nhận phơi / chưa nhận phơi" state and its
+   *  date read from this pair. Optional so an older in-flight payload renders. */
+  phoiTakenDate?: string | null;
+  /** The accountant's free-text take status, ride-along detail under the
+   *  binary phoi state. */
+  phoiTakeStatus?: string | null;
   chiHoThu: number | null;
   chiHoTra: number | null;
   /** Card 20261002_292: the COMPANY-paid (TRIP-kind) slice of the chi-hộ

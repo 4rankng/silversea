@@ -352,6 +352,85 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
       'trips of one truck must be contiguous in grouped mode',
     );
   });
+
+  // The register's second grouping key: inside one truck group the CONTAINER
+  // number decides adjacency, so paired handovers of one container land
+  // together. The dates below are chosen against that rule — a plain date
+  // tie-break inside the plate group lands the latest (unshared) container
+  // first, so this fails while the grouping is plate-only.
+  test('same container number lands adjacent within a truck group', async () => {
+    const mk = async (plate: string | null, day: string, containerNumber: string) => {
+      const [customer] = await db.insert(s.customers).values({ name: `C16b customer ${suffix}-${cleanup.length}` }).returning({ id: s.customers.id });
+      track(s.customers, customer.id);
+      const [route] = await db.insert(s.routes).values({ name: 'C16b route' }).returning({ id: s.routes.id });
+      track(s.routes, route.id);
+      const [shipment] = await db.insert(s.shipments).values({
+        customerId: customer.id, routeId: route.id, cargoMode: 'FCL', status: 'DISPATCHED', expectedDeliveryDate: day,
+      }).returning({ id: s.shipments.id });
+      track(s.shipments, shipment.id);
+      let truckId: number | null = null;
+      if (plate) {
+        const [known] = await db.select({ id: s.trucks.id }).from(s.trucks)
+          .where(eq(s.trucks.licensePlate, plate)).limit(1);
+        if (known) {
+          truckId = known.id;
+        } else {
+          const [truck] = await db.insert(s.trucks).values({
+            licensePlate: plate!, status: 'ACTIVE',
+          }).returning({ id: s.trucks.id });
+          track(s.trucks, truck.id);
+          truckId = truck.id;
+        }
+      }
+      const [container] = await db.insert(s.shipmentContainers).values({
+        shipmentId: shipment.id, containerNumber,
+      }).returning({ id: s.shipmentContainers.id });
+      track(s.shipmentContainers, container.id);
+      const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+        shipmentId: shipment.id, shipmentContainerId: container.id,
+        fulfillmentType: 'FCL_CONTAINER', cargoMode: 'FCL', sourceShipmentVersion: 1,
+      }).returning({ id: s.shipmentFulfillments.id });
+      track(s.shipmentFulfillments, fulfillment.id);
+      const [trip] = await db.insert(s.trips).values({
+        fulfillmentId: fulfillment.id, shipmentId: shipment.id, customerId: customer.id, routeId: route.id,
+        truckId, departureDate: day, status: 'IN_TRANSIT',
+      }).returning({ id: s.trips.id });
+      track(s.trips, trip.id);
+      return trip.id;
+    };
+
+    const truck = `QA-C-${suffix.slice(-8)}`;
+    const shared = `CSQU${suffix.slice(-6).toUpperCase()}X`;
+    const single = `CSQU${suffix.slice(-6).toUpperCase()}Y`;
+    const sharedEarly = await mk(truck, '2026-09-20', shared);
+    const singleLate = await mk(truck, '2026-09-27', single);
+    const sharedLate = await mk(truck, '2026-09-26', shared);
+
+    const grouped = (await listPhoiPhieuRows({ search: 'C16b customer' }))
+      .filter((row) => [sharedEarly, singleLate, sharedLate].includes(row.tripId));
+    assert.deepEqual(
+      grouped.map((row) => row.containerNumber), [shared, shared, single],
+      'within one truck group the shared container pair lands adjacent, ahead of the singleton',
+    );
+
+    const byDate = (await listPhoiPhieuRows({ search: 'C16b customer', sortBy: 'date' as const }))
+      .filter((row) => [sharedEarly, singleLate, sharedLate].includes(row.tripId));
+    assert.deepEqual(
+      byDate.map((row) => row.tripId), [singleLate, sharedLate, sharedEarly],
+      'the explicit date sort (newest first) still overrides the container grouping',
+    );
+  });
+
+  test('rows carry the phoi-take state and date the register renders', async () => {
+    const fixture = await mkBoardFixture();
+    await db.insert(s.tripFinancialState).values({
+      tripId: fixture.trip.id, phoiTakenDate: '2026-09-23', phoiTakeStatus: 'Đã nhận phơi',
+    });
+    const rows = await listPhoiPhieuRows({ search: suffix });
+    const row = rows.find((candidate) => candidate.tripId === fixture.trip.id)!;
+    assert.equal(row.phoiTakenDate, '2026-09-23');
+    assert.equal(row.phoiTakeStatus, 'Đã nhận phơi');
+  });
 });
 
 describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
