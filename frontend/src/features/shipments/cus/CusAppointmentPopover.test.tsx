@@ -275,6 +275,15 @@ describe('CusAppointmentPopover', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('card 367: a plain {status: 409, message} commit refusal shows that message', async () => {
+    const onCommit = vi.fn().mockRejectedValueOnce({ status: 409, message: 'Nhà máy vừa đổi lịch đóng — khung giờ này đã được giữ cho chuyến khác.' });
+    render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={vi.fn()} onChange={vi.fn()} onCommit={onCommit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nhà máy vừa đổi lịch đóng — khung giờ này đã được giữ cho chuyến khác.');
+    expect(screen.queryByText(/Chưa lưu được giờ hẹn/)).toBeNull();
+  });
+
   it('does not confirm an incomplete typed date using Enter', () => {
     const onCommit = vi.fn();
     const { container } = render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={vi.fn()} onChange={vi.fn()} onCommit={onCommit} />);

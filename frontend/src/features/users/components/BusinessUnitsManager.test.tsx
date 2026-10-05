@@ -43,7 +43,7 @@ describe('BusinessUnitsManager save errors surface the API reason', () => {
     expect(onRefresh).not.toHaveBeenCalled();
   });
 
-  it('a version conflict keeps the recovery copy and refetches a fresh token', async () => {
+  it('a version conflict surfaces the API reason and refetches a fresh token', async () => {
     updateBusinessUnit.mockRejectedValueOnce(
       new ApiError(409, { error: 'Phiên bản đã thay đổi' }, 'Phiên bản đã thay đổi'),
     );
@@ -53,7 +53,45 @@ describe('BusinessUnitsManager save errors surface the API reason', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sửa' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu đơn vị' }));
 
+    // Card 367 law: the backend's precise 409 reason renders verbatim; the
+    // recovery copy is the fallback for refusals without a business reason.
+    await screen.findByText('Phiên bản đã thay đổi');
+    await waitFor(() => expect(onRefresh).toHaveBeenCalled());
+  });
+
+  it('a conflict with no business reason keeps the recovery copy and refetches', async () => {
+    updateBusinessUnit.mockRejectedValueOnce({ status: 409 });
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    render(<BusinessUnitsManager businessUnits={units} onRefresh={onRefresh} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu đơn vị' }));
+
     await screen.findByText('Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Kiểm tra thông tin rồi lưu lại.');
     await waitFor(() => expect(onRefresh).toHaveBeenCalled());
+  });
+
+  it('card 367 prescribed shape: a plain {status: 409, message} refusal shows that message', async () => {
+    updateBusinessUnit.mockRejectedValueOnce({ status: 409, message: 'Đơn vị này đang được duyệt bởi Phòng Tài chính.' });
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    render(<BusinessUnitsManager businessUnits={units} onRefresh={onRefresh} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu đơn vị' }));
+
+    await screen.findByText('Đơn vị này đang được duyệt bởi Phòng Tài chính.');
+  });
+
+  it('a duplicate refusal in plain shape shows the backend message and is not misfiled', async () => {
+    updateBusinessUnit.mockRejectedValueOnce({ status: 409, code: 'DUPLICATE_CODE', message: 'Mã BP-01 đã tồn tại trong hệ thống.' });
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    render(<BusinessUnitsManager businessUnits={units} onRefresh={onRefresh} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu đơn vị' }));
+
+    await screen.findByText('Mã BP-01 đã tồn tại trong hệ thống.');
+    expect(screen.queryByText(/Đơn vị đã được cập nhật ở nơi khác/)).toBeNull();
+    expect(onRefresh).not.toHaveBeenCalled();
   });
 });

@@ -207,6 +207,18 @@ describe('RoleWorkInbox', () => {
     expect((draft as HTMLTextAreaElement).value).toBe('Thiếu một kiện hàng');
   });
 
+  it('card 367: a plain {status: 409, message} refusal surfaces that message', async () => {
+    apiGet.mockResolvedValue(response([customerItem]));
+    apiPost.mockRejectedValue({ status: 409, message: 'Phiên bản đơn hàng đã thay đổi do điều độ vừa cập nhật.' });
+    renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} />);
+    await screen.findByText('Tài xế báo đã giao');
+    fireEvent.click(screen.getByRole('button', { name: 'Báo sai lệch' }));
+    fireEvent.change(screen.getByLabelText('Lý do sai lệch'), { target: { value: 'Thiếu một kiện hàng' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi báo sai lệch' }));
+    expect(await screen.findByText('Phiên bản đơn hàng đã thay đổi do điều độ vừa cập nhật.')).toBeTruthy();
+    expect(screen.queryByText(/Dữ liệu nháp vẫn được giữ/)).toBeNull();
+  });
+
   it('keeps the full-row dispute draft locked until the save completes', async () => {
     apiGet.mockResolvedValue(response([customerItem]));
     let finish: (() => void) | undefined;
