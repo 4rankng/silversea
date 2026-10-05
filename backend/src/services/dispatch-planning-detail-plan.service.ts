@@ -21,7 +21,7 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 
-import { and, asc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, Role, TripStatus, type DispatchClassification } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -1155,7 +1155,9 @@ async function assertPlanRowRigAvailable(
   const windowEnd = args.windowEnd ?? new Date(args.windowStart.getTime() + 8 * 3600_000);
   // Pre-dispatch plan rows planned onto the same rig with an overlapping
   // window. A row without its own appointment cannot prove overlap and is
-  // skipped rather than guessed into a conflict.
+  // skipped rather than guessed into a conflict. Card 363: a row without a
+  // saved end is bounded by one 8-hour shift (the same default the saving row
+  // uses above) instead of counting as occupying the rig forever.
   const planConflicts = await tx.select({ id: s.shipmentFulfillments.id })
     .from(s.shipmentFulfillments)
     .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
@@ -1165,20 +1167,23 @@ async function assertPlanRowRigAvailable(
       eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
       isNotNull(s.shipmentContainers.customerAppointmentAt),
       lt(s.shipmentContainers.customerAppointmentAt, windowEnd),
-      or(isNull(s.shipmentFulfillments.plannedEndAt), gt(s.shipmentFulfillments.plannedEndAt, args.windowStart)),
+      sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, ${s.shipmentContainers.customerAppointmentAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
     ));
   // Dispatched trips riding the same rig: the plate is the pre-dispatch key,
   // the truck's license plate is the dispatched key — one physical tractor.
+  // Card 363: only ACTIVE trips occupy the rig (a COMPLETED trip released it —
+  // back-to-back 'chạy gối đầu' assignments were false-blocked), and an
+  // open-ended trip is bounded by one 8-hour shift from its start.
   const tripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
     .from(s.trips)
     .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
     .where(and(
       eq(s.trucks.licensePlate, plate),
-      ne(s.trips.status, 'CANCELED'),
+      notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
       isNull(s.trips.deletedAt),
       isNotNull(s.trips.plannedStartAt),
       lt(s.trips.plannedStartAt, windowEnd),
-      or(isNull(s.trips.plannedEndAt), gt(s.trips.plannedEndAt, args.windowStart)),
+      sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
     ));
   if (planConflicts.length > 0 || tripConflicts.length > 0) {
     throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
