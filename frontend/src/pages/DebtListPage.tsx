@@ -31,6 +31,7 @@ import {
   useCounterAnimation,
 } from '../hooks/animations';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import { PartyMonthlyProductionSummary } from '../features/accounting/PartyMonthlyProductionSummary';
 import './DebtListPage.css';
 import '../styles/table-sort.css';
 import '../styles/record-table.css';
@@ -536,6 +537,14 @@ export default function DebtListPage() {
           </>
         )}
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+        *  ZONE 4 — Card 380: monthly transport production summary. The ledger
+        *  table above stays primary; this band reuses the page's own card skin
+        *  and its còn-nợ column reconciles with the table's Tổng nợ (same
+        *  ledger endpoint — pinned by the summary's component tests).
+        * ══════════════════════════════════════════════════════════════════════ */}
+      <PartyMonthlyProductionSummary variant="receivable" className="debt-data-card" />
     </div>
   );
 }

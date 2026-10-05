@@ -1,0 +1,160 @@
+/* Card 380 — bảng tổng hợp sản lượng vận tải theo tháng on /debt + /payables.
+   The record-table base (record-table.css + operational-table-typography.css)
+   owns the table skin; this file only adds the section header band, the grouped
+   two-row header, the wide-matrix scroll box and per-column min-widths (law
+   2026-09-29: a board too wide for the canvas scrolls on purpose — per-column
+   min-widths so the header wraps inside its own cell, never a nowrap header). */
+
+.pm-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.pm-summary__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+}
+
+.pm-summary__title {
+  margin: 0;
+  font-size: var(--text-body-size, 14px);
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.pm-summary__sub {
+  margin: 2px 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--fg-3);
+}
+
+/* Two native date fields at the shared control ceiling — no bespoke field skin
+   (the `.input` primitive owns control geometry). */
+.pm-summary__period {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+  align-items: flex-end;
+}
+
+.pm-summary__period-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pm-summary__period-field > span {
+  font-size: var(--text-caption-size);
+  color: var(--fg-3);
+}
+
+.pm-summary__period-field .input {
+  height: var(--control-max-h);
+  min-height: auto;
+  width: auto;
+}
+
+/* Wide money matrix: explicit scroll boundary + per-column min-widths. */
+.pm-summary__scroll {
+  border-top: 1px solid var(--line);
+}
+
+.pm-summary__table {
+  table-layout: auto;
+}
+
+.pm-summary__table thead th {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+/* The group band reads as one label spanning its columns. */
+.pm-summary__table thead .pm-summary__group {
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.pm-summary__table thead .pm-summary__money-head,
+.pm-summary__table thead .pm-summary__invoice-head,
+.pm-summary__table thead .pm-summary__act-head {
+  text-align: center;
+}
+
+.pm-summary__stt {
+  min-width: 44px;
+}
+
+.pm-summary__party {
+  min-width: 180px;
+  font-weight: 600;
+}
+
+.pm-summary__sl {
+  min-width: 48px;
+}
+
+.pm-summary__table td.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.pm-summary__conno {
+  font-weight: 700;
+}
+
+.pm-summary__conno-head {
+  border-bottom: 0;
+}
+
+/* A named-gap cell stays visibly 'not yet tracked', not an accidental blank. */
+.pm-summary__gap {
+  color: var(--fg-3);
+}
+
+.pm-summary__act {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pm-summary__act .btn {
+  height: var(--control-max-h);
+}
+
+/* Totals band: the month's money line, visually pinned under the columns. */
+.pm-summary__table tfoot td {
+  border-top: 1px solid var(--line-2);
+  font-weight: 700;
+  background: var(--surface-2);
+}
+
+.pm-summary__vat-note {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+.pm-summary__loading,
+.pm-summary__error {
+  padding: var(--space-md) 0;
+  font-size: var(--text-caption-size);
+  color: var(--fg-3);
+}
+
+.pm-summary__error {
+  color: var(--danger, #E32434);
+}
+
+@media (max-width: 640px) {
+  /* The period band drops under the title and the date fields fill the row. */
+  .pm-summary__period {
+    width: 100%;
+  }
+
+  .pm-summary__period-field {
+    flex: 1 1 140px;
+  }
+}

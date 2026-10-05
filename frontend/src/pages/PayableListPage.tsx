@@ -15,6 +15,7 @@ import { financialClient } from '../api/financialClient';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useAuth } from '../hooks/useAuth';
+import { PartyMonthlyProductionSummary } from '../features/accounting/PartyMonthlyProductionSummary';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import {
   usePageAnimations,
@@ -632,6 +633,12 @@ export default function PayableListPage() {
           </>
         )}
       </div>
+
+      {/* ── Card 380: monthly transport production summary — the ledger table
+          above stays primary; the section reuses this page's card skin and its
+          còn-nợ column reconciles with the table's Tổng nợ (same ledger
+          endpoint — pinned by the summary's component tests). ── */}
+      <PartyMonthlyProductionSummary variant="payable" className="payables-data-card" />
 
       {/* ── Fuel invoices: secondary capture/lookup, collapsed by default so
           debt totals, search and the payable queue lead the initial view ── */}
