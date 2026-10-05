@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../../../lib/api';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 import { getOffsetDateString } from './cusAppointmentUtils';
 
@@ -252,6 +253,26 @@ describe('CusAppointmentPopover', () => {
     await screen.findByRole('alert');
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled();
+  });
+
+  // Card 367 law pin (docs/design-guidelines.md §2026-10-05): a 4xx save
+  // refusal surfaces the API's error message verbatim; non-4xx failures keep
+  // the generic retry hint so raw internal error text never leaks.
+  it('card 367: a 4xx save refusal surfaces the API reason instead of the generic hint', async () => {
+    const onClose = vi.fn();
+    const onCommit = vi.fn()
+      .mockRejectedValueOnce(new ApiError(409, { error: 'Phiên bản dữ liệu đã thay đổi' }, 'Phiên bản dữ liệu đã thay đổi'))
+      .mockRejectedValueOnce(new Error('network unavailable'));
+    render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={onClose} onChange={vi.fn()} onCommit={onCommit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Phiên bản dữ liệu đã thay đổi');
+    expect(screen.queryByText(/Chưa lưu được giờ hẹn/)).toBeNull();
+
+    // A non-4xx rejection keeps the generic fallback — no raw error leak.
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Chưa lưu được giờ hẹn. Vui lòng thử lại.');
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('does not confirm an incomplete typed date using Enter', () => {

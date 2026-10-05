@@ -169,8 +169,15 @@ export function CusAppointmentPopover({
       try {
         const ok = await onCommit(composed);
         if (session.current === saveSession && ok !== false) onClose();
-      } catch {
-        if (session.current === saveSession) setSaveError('Chưa lưu được giờ hẹn. Vui lòng thử lại.');
+      } catch (commitError) {
+        if (session.current === saveSession) {
+          // Business refusals (4xx) carry the precise reason from the backend —
+          // show it verbatim instead of the generic retry hint that hides it.
+          const status = commitError && typeof commitError === 'object' && 'status' in commitError && typeof commitError.status === 'number' ? commitError.status : null;
+          const raw = commitError && typeof commitError === 'object' && 'message' in commitError && typeof commitError.message === 'string' ? commitError.message.trim() : '';
+          const detail = status != null && status >= 400 && status < 500 ? raw : '';
+          setSaveError(detail || 'Chưa lưu được giờ hẹn. Vui lòng thử lại.');
+        }
       } finally {
         if (session.current === saveSession) {
           committing.current = false;

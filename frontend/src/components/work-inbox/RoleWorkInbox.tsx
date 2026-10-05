@@ -279,7 +279,10 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
       await load();
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
-        setResponseMessage({ kind: 'conflict', text: 'Phản hồi đang xung đột với phiên bản mới. Dữ liệu nháp vẫn được giữ; hãy tải lại trước khi gửi.' });
+        // The backend's 409 names the exact refusal (stale version, superseded
+        // event, already answered) — surface it verbatim instead of one fixed
+        // conflict line that hides which case fired.
+        setResponseMessage({ kind: 'conflict', text: error.message || 'Phản hồi đang xung đột với phiên bản mới. Dữ liệu nháp vẫn được giữ; hãy tải lại trước khi gửi.' });
       } else {
         setResponseMessage({ kind: 'error', text: error instanceof Error ? error.message : 'Không thể gửi phản hồi.' });
       }

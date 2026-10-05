@@ -41,7 +41,11 @@ export function BusinessUnitsManager({
   }
 
   function isDuplicateCode(err: unknown): boolean {
-    return (err as { code?: string }).code === 'DUPLICATE_CODE';
+    // The duplicate marker rides the parsed body (err.raw.code) — the same
+    // shape lib/api/client.ts checks for VERSION_TOKEN_REQUIRED. err.code is
+    // never set, so the old read never fired and every duplicate 409 fell
+    // into the version-conflict branch with the wrong copy.
+    return (err as { raw?: { code?: string } | null } | null)?.raw?.code === 'DUPLICATE_CODE';
   }
 
   async function handleSaveBusinessUnit() {
@@ -70,7 +74,9 @@ export function BusinessUnitsManager({
       await onRefresh();
     } catch (err) {
       if (editingUnitId != null && isDuplicateCode(err)) {
-        setUnitError('Mã hoặc tên đơn vị phụ trách đã tồn tại. Vui lòng chọn mã/tên khác.');
+        // 4xx business refusal — the backend's message is the precise reason;
+        // show it verbatim, keep the composed copy only as fallback.
+        setUnitError(err instanceof Error && err.message.trim() ? err.message : 'Mã hoặc tên đơn vị phụ trách đã tồn tại. Vui lòng chọn mã/tên khác.');
       } else if (editingUnitId != null && isVersionConflict(err)) {
         // Conflict: reload the authoritative rows for a fresh token but keep
         // the admin's draft for review — never a blind retry loop.
@@ -97,7 +103,8 @@ export function BusinessUnitsManager({
       await onRefresh();
     } catch (err) {
       if (isDuplicateCode(err)) {
-        setUnitError('Mã hoặc tên đơn vị phụ trách đã tồn tại.');
+        // 4xx business refusal — the backend's message is the precise reason.
+        setUnitError(err instanceof Error && err.message.trim() ? err.message : 'Mã hoặc tên đơn vị phụ trách đã tồn tại.');
       } else if (isVersionConflict(err)) {
         setUnitError('Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Thử lại sau khi kiểm tra.');
         await onRefresh();

@@ -188,7 +188,7 @@ describe('RoleWorkInbox', () => {
     expect(await screen.findByText('Đã ghi nhận xác nhận nhận hàng.')).toBeTruthy();
   });
 
-  it('requires a dispute reason and preserves the draft on a 409 conflict', async () => {
+  it('requires a dispute reason, surfaces the 409 API reason, and preserves the draft', async () => {
     apiGet.mockResolvedValue(response([customerItem]));
     apiPost.mockRejectedValue(new ApiError(409, { error: 'version' }, 'Phiên bản đã thay đổi'));
     renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} />);
@@ -199,7 +199,11 @@ describe('RoleWorkInbox', () => {
     const draft = screen.getByLabelText('Lý do sai lệch');
     fireEvent.change(draft, { target: { value: 'Thiếu một kiện hàng' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi báo sai lệch' }));
-    expect(await screen.findByText(/Dữ liệu nháp vẫn được giữ/)).toBeTruthy();
+    // Card 367 law: the backend's precise 409 reason renders verbatim — the
+    // old fixed copy hid which refusal fired (stale version vs superseded vs
+    // already-answered). The dispute draft still survives the refusal.
+    expect(await screen.findByText('Phiên bản đã thay đổi')).toBeTruthy();
+    expect(screen.queryByText(/Dữ liệu nháp vẫn được giữ/)).toBeNull();
     expect((draft as HTMLTextAreaElement).value).toBe('Thiếu một kiện hàng');
   });
 

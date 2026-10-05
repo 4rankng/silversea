@@ -66,8 +66,13 @@ export function MonthlyProductivityView() {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-    } catch {
-      setExportError('Không xuất được báo cáo năng suất. Vui lòng thử lại.');
+    } catch (exportError) {
+      // Business refusals (4xx) carry the precise reason from the backend —
+      // show it verbatim instead of the generic retry hint that hides it.
+      const status = exportError && typeof exportError === 'object' && 'status' in exportError && typeof exportError.status === 'number' ? exportError.status : null;
+      const raw = exportError && typeof exportError === 'object' && 'message' in exportError && typeof exportError.message === 'string' ? exportError.message.trim() : '';
+      const detail = status != null && status >= 400 && status < 500 ? raw : '';
+      setExportError(detail || 'Không xuất được báo cáo năng suất. Vui lòng thử lại.');
     }
   }
 
