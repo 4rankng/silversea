@@ -72,6 +72,37 @@ beforeEach(() => {
   getWorkInboxMock.mockReset().mockImplementation((_view: string, _page: number) => Promise.resolve(envelope(_view)));
 });
 
+/**
+ * Card 061026043646 — the WAITING lane ("Đang bị chặn") loading announcement
+ * extracted as "Đang tảiđang bị chặn…": the message was built from separate
+ * JSX text children ("Đang tải ", label, "…") and node-boundary extraction
+ * (accessibility snapshots, QA probes) trims each text node and joins with no
+ * separator, eating the boundary space. Same law as OpsQueryFeedback
+ * (card 051026230609): the message must be ONE text node.
+ */
+
+/** Mimics name-from-contents extraction: per TEXT-NODE trim, join with no
+ *  separator — the path that produced the glued announcement in the report. */
+function extractedText(el: Element): string {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const parts: string[] = [];
+  while (walker.nextNode()) parts.push((walker.currentNode.textContent ?? '').trim());
+  return parts.join('');
+}
+
+describe('AccountingWorkInbox loading announcement (card 061026043646)', () => {
+  it('keeps the space between "Đang tải" and the "Đang bị chặn" lane label under node-boundary extraction', () => {
+    getWorkInboxMock.mockImplementation((view: string) =>
+      view === 'WAITING' ? new Promise(() => {}) : Promise.resolve(envelope(view)));
+    renderInbox();
+    const lane = document.querySelector('.accounting-work-inbox__lane.is-waiting');
+    expect(lane).toBeTruthy();
+    const status = lane!.querySelector('[role="status"]');
+    expect(status).toBeTruthy();
+    expect(extractedText(status!)).toBe('Đang tải đang bị chặn…');
+  });
+});
+
 describe('AccountingWorkInbox server-side column sort', () => {
   it('QA-101: an empty lane renders as a compact status row, not a tall empty panel', async () => {
     renderInbox();

@@ -28,7 +28,7 @@ export function ForwarderSettlementSection({ step, title, icon: Icon, query, chi
         </div>
       </div>
       <div className="fset-step-body" aria-busy={query.isFetching}>
-        {(query.isPending || query.isFetching) && <p role="status"><Loader2 size={14} className="spin" /> Đang tải {title.replace(/^Chọn /, '').toLocaleLowerCase('vi')}…</p>}
+        {(query.isPending || query.isFetching) && <p role="status"><Loader2 size={14} className="spin" aria-hidden="true" /> <span>{`Đang tải ${title.replace(/^Chọn /, '').toLocaleLowerCase('vi')}…`}</span></p>}
         {Boolean(query.error) && (
           <div className="fset-error-banner" role="alert">
             <span>{query.error instanceof Error ? query.error.message : `Không thể tải ${title.replace(/^Chọn /, '').toLocaleLowerCase('vi')}.`}</span>

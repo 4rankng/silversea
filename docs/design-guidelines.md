@@ -177,6 +177,12 @@ the date. A ruling row should name the test or `design-lock` entry that now enfo
 - **Port and place names are data, not code.** Port/place names live in CRUD data, never hard-coded in identifiers or
   UI logic; no backcompat shims — direct migration.
   *Source:* 2026-09-19 operator ruling, card 20260919_6.
+- **Composed status/live-region copy renders as ONE text node.** An announcement built from a prefix plus a dynamic
+  label ("Đang tải <label>…") must render the whole phrase as a single template-literal text node (or one child
+  `<span>`), never adjacent JSX text children — node-boundary extraction (accessibility snapshots, live-region
+  announcements, QA probes) trims each node and joins with no separator, gluing "Đang tải" and the label into
+  "Đang tảikế hoạch…". *Source:* cards 051026230609 (/ops), 061026043646 (/accounting lanes + forwarder settlement);
+  pin pattern: `extractedText` helper in `OpsQueryFeedback.test.tsx`.
 
 ## 9. Design process
 
@@ -501,3 +507,17 @@ MonthlyProductivityView, base-salary-edit-modal, DispatchContainerDetailDrawer,
 BusinessUnitsManager, ShipmentCreateWorkspace, RoleWorkInbox). Pin:
 DispatchAllocationPopover 409-surfaces-verbatim test (red-first, observed
 failing before the catch fix).
+
+### 2026-10-06 — Composed live-region copy renders as ONE text node (cards 051026230609, 061026043646)
+
+An announcement assembled from a prefix plus a dynamic label ("Đang tải
+<label>…") must render the whole phrase as one template-literal text node
+(or one child `<span>`), never adjacent JSX text children — node-boundary
+extraction (accessibility snapshots, live-region announcements, QA probes)
+trims each node and joins with no separator, gluing "Đang tải" + "đang bị
+chặn" into "Đang tảiđang bị chặn…" on /accounting, the same mechanism card
+051026230609 fixed on /ops. Class sweep found exactly one further site
+(forwarder settlement step panels); both render single nodes now. Pins:
+`AccountingWorkInbox.test.tsx` + `ForwarderSettlementSection.test.tsx`
+`extractedText` assertions (red-first, observed failing with the reporter's
+verbatim glued string before the fix).
