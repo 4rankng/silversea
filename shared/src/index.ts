@@ -324,6 +324,8 @@ export type {
 
 export { round2dp, roundInt, roundHalfAwayFromZero } from './calculations/round';
 export { sumExcludingNegative } from './calculations/expenseTotals';
+export { vatForAmount, debitRoundVatTotals } from './calculations/vat';
+export type { DebitRoundVatInput, DebitPeriodVatTotals } from './calculations/vat';
 export { computeFuelSurcharge, computeFreightRate } from './calculations/fuelSurcharge';
 export {
   CONTAINER_PRICE_CLASS_LABELS,

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { round2dp } from '@tingting/shared';
+import { debitRoundVatTotals, round2dp } from '@tingting/shared';
+import { listSettlementRounds, DEBIT_SETTLEMENT_ROUNDS_KEY } from '../../api/accountingDebitClient';
 import { financialClient } from '../../api/financialClient';
 import { getPhoiPhieuReport, type PhoiPhieuReportRow } from '../../api/phoiPhieuClient';
 import { useAuth } from '../../hooks/useAuth';
@@ -161,10 +162,25 @@ export function PartyMonthlyProductionSummary({
     queryFn: () => fetchLedgerOutstandingMap(variant),
     enabled: allowed,
   });
+  // Card 051026231555 — the period VAT line. The VAT dimension of the monthly
+  // debt summary is the recorded `vatRate` (0/5/8/10) on each chốt-debit
+  // settlement round (PRD QuyTrinhO2C; PM 24/09 law) — the same rounds the
+  // debit board chốt popup writes, totals composed by the ONE shared
+  // implementation (`debitRoundVatTotals`) so the summary can never drift
+  // from the chốt-time money.
+  const rounds = useQuery({
+    queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY,
+    queryFn: listSettlementRounds,
+    enabled: allowed,
+  });
 
   const rows = useMemo(
     () => mergeSummaryRows(thu.data?.rows ?? [], tra.data?.rows ?? [], ledger.data, variant),
     [thu.data, tra.data, ledger.data, variant],
+  );
+  const vatTotals = useMemo(
+    () => debitRoundVatTotals(rounds.data?.items ?? [], from.slice(0, 7), to.slice(0, 7)),
+    [rounds.data, from, to],
   );
   const loading = thu.isLoading || tra.isLoading || ledger.isLoading;
   const error = [thu.error, tra.error, ledger.error].find(Boolean) as Error | undefined;
@@ -178,10 +194,16 @@ export function PartyMonthlyProductionSummary({
   const primaryGrand = variant === 'receivable' ? grandThu : grandTra;
   const tongConNo = round2dp(rows.reduce((sum, row) => sum + row.conNo, 0));
 
-  const vatNote =
-    'Tổng hợp công nợ theo tháng — Phải thu: ' +
-    `${formatCurrency(round2dp(grandThu?.tongPhaiThuTra ?? 0))} · Phải trả: ` +
-    `${formatCurrency(round2dp(grandTra?.tongPhaiThuTra ?? 0))} · VAT: ${DASH} (chưa có dữ liệu hóa đơn trong kỳ)`;
+  const vatNote = vatTotals.hasRounds
+    ? 'Tổng hợp công nợ theo tháng — Phải thu: ' +
+      `${formatCurrency(round2dp(grandThu?.tongPhaiThuTra ?? 0))} · Phải trả: ` +
+      `${formatCurrency(round2dp(grandTra?.tongPhaiThuTra ?? 0))} · VAT: ` +
+      `${formatCurrency(vatTotals.totalVat)} (VAT các đợt chốt công nợ trong kỳ — ` +
+      `thu: ${formatCurrency(vatTotals.thuVat)} · trả: ${formatCurrency(vatTotals.traVat)})`
+    : 'Tổng hợp công nợ theo tháng — Phải thu: ' +
+      `${formatCurrency(round2dp(grandThu?.tongPhaiThuTra ?? 0))} · Phải trả: ` +
+      `${formatCurrency(round2dp(grandTra?.tongPhaiThuTra ?? 0))} · ` +
+      'VAT: — (chưa có đợt chốt công nợ trong kỳ)';
 
   return (
     <section className={`pm-summary${className ? ` ${className}` : ''}`} aria-label="Tổng hợp sản lượng vận tải theo tháng">
@@ -305,7 +327,7 @@ export function PartyMonthlyProductionSummary({
                   <td className="num typo-mono">{formatCurrency(round2dp(grandThu?.conLai ?? 0))}</td>
                   <td className="num typo-mono">{formatCurrency(round2dp(grandTra?.conLai ?? 0))}</td>
                   <td className="num typo-mono pm-summary__conno">{formatCurrency(tongConNo)}</td>
-                  <td colSpan={3} className="pm-summary__gap">VAT: {DASH}</td>
+                  <td colSpan={3} className="pm-summary__gap">VAT: {vatTotals.hasRounds ? formatCurrency(vatTotals.totalVat) : DASH}</td>
                 </tr>
               </tfoot>
             </table>

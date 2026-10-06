@@ -13,10 +13,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getPhoiPhieuReport = vi.hoisted(() => vi.fn());
 const getCustomerAging = vi.hoisted(() => vi.fn());
 const getPayablesSummary = vi.hoisted(() => vi.fn());
+const listSettlementRounds = vi.hoisted(() => vi.fn());
 const authRole = vi.hoisted(() => ({ role: 'ACCOUNTANT' as string | undefined }));
 
 vi.mock('../../api/phoiPhieuClient', () => ({
   getPhoiPhieuReport: (...args: unknown[]) => getPhoiPhieuReport(...args),
+}));
+
+vi.mock('../../api/accountingDebitClient', () => ({
+  DEBIT_SETTLEMENT_ROUNDS_KEY: [['accounting-debit-settlement-rounds']] as const,
+  listSettlementRounds: (...args: unknown[]) => listSettlementRounds(...args),
 }));
 
 vi.mock('../../api/financialClient', () => ({
@@ -99,6 +105,7 @@ beforeEach(() => {
   getPhoiPhieuReport.mockReset();
   getCustomerAging.mockReset();
   getPayablesSummary.mockReset();
+  listSettlementRounds.mockReset();
   authRole.role = 'ACCOUNTANT';
   getPhoiPhieuReport.mockImplementation((kind: string) => {
     if (kind === 'THU') return Promise.resolve(thuEnvelope);
@@ -106,6 +113,7 @@ beforeEach(() => {
   });
   getCustomerAging.mockResolvedValue(agingEnvelope);
   getPayablesSummary.mockResolvedValue(payablesEnvelope);
+  listSettlementRounds.mockResolvedValue({ items: [] });
 });
 
 describe('PartyMonthlyProductionSummary', () => {
@@ -173,6 +181,37 @@ describe('PartyMonthlyProductionSummary', () => {
     expect(foot.getAllByText('31.300.000 ₫').length).toBeGreaterThanOrEqual(1);
     // Còn nợ total = 12M + 8M + 0 (the absent party).
     expect(foot.getAllByText('20.000.000 ₫').length).toBeGreaterThanOrEqual(1);
+    expect(foot.getAllByText('VAT: —').length).toBeGreaterThanOrEqual(1);
+    const vatNote = screen.getByText(/Tổng hợp công nợ theo tháng/);
+    expect(vatNote.textContent).toContain('VAT: —');
+    expect(vatNote.textContent).toContain('chưa có đợt chốt công nợ trong kỳ');
+  });
+
+  it('card 051026231555: the period VAT line totals the recorded chốt-debit rounds', async () => {
+    const bounds = calendarMonthBounds();
+    const periodKey = bounds.from.slice(0, 7);
+    listSettlementRounds.mockResolvedValue({
+      items: [
+        { id: 1, periodKey, direction: 'THU', amount: 570000, vatRate: 8 },
+        { id: 2, periodKey, direction: 'TRA', amount: 570000, vatRate: 8 },
+      ],
+    });
+    renderSummary();
+    const table = await screen.findByRole('table');
+    const foot = within(table.querySelector('tfoot') as HTMLElement);
+    // 570.000 × 8% on each side → 45.600 + 45.600 = 91.200.
+    expect(foot.getAllByText('VAT: 91.200 ₫').length).toBeGreaterThanOrEqual(1);
+    const vatNote = screen.getByText(/Tổng hợp công nợ theo tháng/);
+    expect(vatNote.textContent).toContain('VAT: 91.200 ₫');
+    expect(vatNote.textContent).toContain('thu: 45.600 ₫');
+    expect(vatNote.textContent).toContain('trả: 45.600 ₫');
+  });
+
+  it('keeps the honest dash when the rounds readout itself fails', async () => {
+    listSettlementRounds.mockRejectedValue(new Error('rounds endpoint down'));
+    renderSummary();
+    const table = await screen.findByRole('table');
+    const foot = within(table.querySelector('tfoot') as HTMLElement);
     expect(foot.getAllByText('VAT: —').length).toBeGreaterThanOrEqual(1);
     const vatNote = screen.getByText(/Tổng hợp công nợ theo tháng/);
     expect(vatNote.textContent).toContain('VAT: —');

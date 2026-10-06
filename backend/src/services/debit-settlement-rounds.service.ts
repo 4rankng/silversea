@@ -12,6 +12,7 @@
 // → 400 (lot-overlap guard); pending rate adjustment → 409 (the same guard
 // the debit-issuance routes run).
 import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { vatForAmount } from '@tingting/shared';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { ApiError } from '../errors';
@@ -269,6 +270,6 @@ function carrierKeyLabel(carrierKey: string, names: Map<number, string>): string
   return null;
 }
 
-function vatForAmount(amount: string, vatRate: number): number {
-  return Math.round(Number(amount) * vatRate) / 100;
-}
+// vatForAmount lives in @tingting/shared (single implementation — the FE
+// period summary composes the same math); behavior byte-identical to the
+// former local copy: round(base × rate)/100, base is pre-VAT.
