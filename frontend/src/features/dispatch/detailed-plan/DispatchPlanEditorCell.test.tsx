@@ -619,7 +619,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.queryByText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
   });
 
-  it('offers Lẻ + Lấy Lẻ on LCL rows and never the cont models (cargo-mode bound)', async () => {
+  it('offers Lẻ ONLY on LCL rows — never Lấy Lẻ, never the cont models (card 20261006_392)', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
       shipmentVersion: 6,
@@ -638,11 +638,16 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     }), { onAtomicSave });
     await openDialog();
 
-    // The select is no longer hard-locked: Lẻ ↔ Lấy Lẻ is a dispatcher's call.
     const trigger = screen.getByRole('button', { name: 'Lẻ Phân loại' }) as HTMLButtonElement;
     expect(trigger.disabled).toBe(false);
     fireEvent.click(trigger);
-    expect(screen.getByRole('option', { name: 'Lấy Lẻ' })).toBeTruthy();
+    // Card 20261006_392: an LCL lot is ONE whole-lot LCL_SHIPMENT fulfillment and
+    // shipment_fulfillments_lcl_dispatch_classification_check pins its
+    // classification to 'LCL'. Offering 'Lấy Lẻ' here produced a save that died
+    // on that constraint as a raw 23514 surfaced as HTTP 500 — the option list
+    // must not offer a value the row can never store.
+    expect(screen.getByRole('option', { name: 'Lẻ' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'Lấy Lẻ' })).toBeNull();
     // The cont models stay off an LCL lot — it is bound to its cargo mode.
     expect(screen.queryByRole('option', { name: 'Đơn' })).toBeNull();
     expect(screen.queryByRole('option', { name: 'Kẹp' })).toBeNull();
@@ -659,7 +664,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     );
   });
 
-  it('choosing Lấy Lẻ seeds NO tag — the note stays the dispatcher\'s own (card 362)', async () => {
+  it('choosing Lấy Lẻ seeds NO tag on a CONTAINER row — the note stays the dispatcher\'s own (card 362)', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
       shipmentVersion: 6,
@@ -670,16 +675,20 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
       estimates: { plannedRevenue: null, plannedCarrierCost: null },
       lotFullyPlated: false,
     });
+    // Card 20261006_392 moved this case off the LCL lot: 'Lấy Lẻ' is the 40'
+    // empty-shell pickup run and belongs on a CONTAINER row. It cannot be stored
+    // on an LCL_SHIPMENT row at all. Card 362's intent — no shell-tag seed — is
+    // preserved, on the row type where the option is legal.
     renderCell(row({
-      cargoMode: 'LCL',
-      fulfillmentType: 'LCL_SHIPMENT',
-      container: { containerNumber: null, containerTypeLabel: null, cargoWeightKg: null } as never,
-      classification: 'LCL' as never,
+      cargoMode: 'FCL',
+      fulfillmentType: 'FCL_CONTAINER',
+      container: { containerNumber: 'MSKU1234565', containerTypeLabel: "20'DC", cargoWeightKg: null } as never,
+      classification: 'SINGLE' as never,
       notes: { vehicleNote: 'họp chị An 8h', customerNote: null },
     }), { onAtomicSave });
     await openDialog();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lẻ Phân loại' }));
+    fireEvent.click(screen.getByRole('button', { name: /Phân loại/ }));
     fireEvent.click(screen.getByRole('option', { name: 'Lấy Lẻ' }));
     fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
 

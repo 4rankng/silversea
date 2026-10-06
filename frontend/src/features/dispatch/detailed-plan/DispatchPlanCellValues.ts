@@ -2,8 +2,6 @@ import type { DispatchClassification } from '@tingting/shared';
 import {
   DISPATCH_CLASSIFICATIONS,
   DISPATCH_CLASSIFICATION_LABELS,
-  parseDriverTaskNote,
-  composeDriverTaskNote,
 } from '@tingting/shared';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import type { SearchableSelectOption } from '../../../design-system';
@@ -77,9 +75,10 @@ export function vehiclePlateKey(value: string, options: SearchableSelectOption[]
  *  would silently promote an LCL lot into the cont models (Đơn/Kẹp/Kết
  *  hợp) on the next reopen.
  *
- *  - LCL lots keep the cargo-mode-bound pair: `Lẻ` (the plain LCL run) and
- *    `Lấy Lẻ` (the empty-shell run). Neither is a cont model, so neither can
- *    become Đơn/Kẹp/Kết hợp — PRD §2b keeps Lẻ out of the cont taxonomy.
+ *  - LCL lots offer ONLY `Lẻ`: the lot is one whole-lot task, and the
+ *    persistence constraint pins it to that value. Not a cont model either, so
+ *    it cannot become Đơn/Kẹp/Kết hợp — PRD §2b keeps Lẻ out of the cont
+ *    taxonomy.
  *  - Cont lots offer the three cont models plus `Lấy Lẻ`: the empty-shell
  *    LCL run is a dispatcher's own call, and the run moves the truck's shell
  *    rather than the lot's. */
@@ -88,9 +87,16 @@ export function classificationOptionsForRow(cargoMode: 'FCL' | 'LCL'): Array<{
   label: string;
 }> {
   if (cargoMode === 'LCL') {
+    // Card 20261006_392: `LCL_PICKUP` is OFFERED HERE BUT CANNOT BE STORED.
+    // An LCL lot is one whole-lot LCL_SHIPMENT fulfillment, and
+    // shipment_fulfillments_lcl_dispatch_classification_check pins its
+    // classification to 'LCL' — saving 'Lấy Lẻ' hit that constraint and answered
+    // the dispatcher with a raw 23514 surfaced as HTTP 500. 'Lấy Lẻ' is the
+    // 40'-trailer empty-shell pickup run and stays legal on a CONTAINER row
+    // (requiredTrailerTypeForFulfillment); it is not an LCL-lot label. A lot row
+    // must not offer a value its own persistence layer forbids.
     return [
       { value: 'LCL', label: DISPATCH_CLASSIFICATION_LABELS.LCL },
-      { value: 'LCL_PICKUP', label: DISPATCH_CLASSIFICATION_LABELS.LCL_PICKUP },
     ];
   }
   return DISPATCH_CLASSIFICATIONS

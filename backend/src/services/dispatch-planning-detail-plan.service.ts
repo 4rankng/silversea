@@ -1401,6 +1401,18 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       });
     }
   }
+  // Card 20261006_392: an LCL lot is ONE whole-lot LCL_SHIPMENT fulfillment, so
+  // its only legal classification is 'LCL'. The DB enforces that with
+  // shipment_fulfillments_lcl_dispatch_classification_check, and a save that
+  // reached it answered the dispatcher with a raw PostgresError 23514 surfaced as
+  // HTTP 500 'Lỗi máy chủ'. Refuse it as the business error it is, before the
+  // write. 'LCL_PICKUP' ("Lấy Lẻ") stays legal on a CONTAINER row — it is the
+  // 40'-trailer pickup run (see requiredTrailerTypeForFulfillment), and no
+  // fulfillment row in the database has ever carried it.
+  if (input.classification && fulfillment.fulfillmentType === 'LCL_SHIPMENT'
+    && input.classification !== 'LCL') {
+    throw new ApiError(409, 'Phân loại không hợp lệ cho lô Hàng lẻ. Lô hàng lẻ là một tác vụ cả lô nên chỉ dùng phân loại "Lẻ".');
+  }
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
     plannedCarrierType: input.carrierType,
     plannedExternalCarrierId,
