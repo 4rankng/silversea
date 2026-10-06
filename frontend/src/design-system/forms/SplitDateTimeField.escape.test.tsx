@@ -29,7 +29,7 @@ const pathNow = () => screen.getByTestId('escape-path-probe').textContent;
 describe('SplitDateTimeField Escape behavior (card _13 regression lock)', () => {
   it('closes the open time picker without navigating', () => {
     render(<Harness />);
-    fireEvent.click(document.querySelector('[data-seg-part="time"]'));
+    fireEvent.click(document.querySelector('[data-seg-part="time"]')!);
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -38,7 +38,7 @@ describe('SplitDateTimeField Escape behavior (card _13 regression lock)', () => 
 
   it('closes the open date picker without navigating', () => {
     render(<Harness />);
-    fireEvent.click(document.querySelector('[data-seg-part="date"]'));
+    fireEvent.click(document.querySelector('[data-seg-part="date"]')!);
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();

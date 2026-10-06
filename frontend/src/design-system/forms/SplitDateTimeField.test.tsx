@@ -110,7 +110,7 @@ describe('SplitDateTimeField', () => {
     expect(hour()).not.toHaveAttribute('aria-invalid', 'true');
     // Clicking the field's frame (not a digit) still opens the part's picker —
     // the pointer path to the picker survives without an icon trigger.
-    fireEvent.click(document.querySelector('[data-seg-part="time"]'));
+    fireEvent.click(document.querySelector('[data-seg-part="time"]')!);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 

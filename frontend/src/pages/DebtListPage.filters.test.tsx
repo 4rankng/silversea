@@ -240,3 +240,47 @@ describe('DebtListPage monthly production summary (card 380)', () => {
     expect(vatNote.textContent).toContain('VAT: —');
   });
 });
+
+describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
+  const overdueRow = (id: number, name: string, total: number, d30Share: number) => ({
+    customerId: id,
+    customerName: name,
+    contactInfo: null,
+    linkedSupplierId: null,
+    linkedSupplierApBalance: 0,
+    netBalance: total,
+    totalOutstanding: total,
+    aging: { current: total - d30Share, d30: d30Share, d60: 0, over90: 0 },
+    maxOverdueDays: 22,
+  });
+
+  it('in the Quá hạn 1–30 view each row shows its share of the bucket, so rows sum to the card amount', async () => {
+    getCustomerAging.mockResolvedValue({
+      ...envelope,
+      customers: [
+        overdueRow(1, 'LONG MINH', 4_219_000, 2_200_000),
+        overdueRow(2, 'Biển Bạc', 1_800_000, 1_600_000),
+        overdueRow(3, 'LOGCOM', 900_000, 1_000_000),
+      ],
+      totals: { ...envelope.totals, d30: 4_800_000, d30Custs: 3 },
+    });
+    renderPage('/?filter=d30');
+    await screen.findAllByText('LONG MINH');
+    // The share column carries the bucket's own label (desktop header + the
+    // mobile card lines render both in jsdom — assert presence, not count).
+    expect(screen.getAllByText('Nợ 1–30 ngày').length).toBeGreaterThan(0);
+    // ...and each row shows exactly its d30 share (2.2M + 1.6M + 1.0M = 4.8M
+    // = the card amount).
+    expect(screen.getAllByText('2.200.000 ₫').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('1.600.000 ₫').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('1.000.000 ₫').length).toBeGreaterThan(0);
+    // The customer's full outstanding stays visible beside it.
+    expect(screen.getAllByText('4.219.000 ₫').length).toBeGreaterThan(0);
+  });
+
+  it('without a bucket filter the share column is absent', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty A');
+    expect(screen.queryByText('Nợ 1–30 ngày')).toBeNull();
+  });
+});

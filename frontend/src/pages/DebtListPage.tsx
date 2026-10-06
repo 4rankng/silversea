@@ -142,6 +142,22 @@ export default function DebtListPage() {
   });
   const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
   const filterMode: BucketFilterMode = (table.filters.bucket as BucketFilterMode | undefined) ?? 'all';
+  // Card 061026172807: inside a bucket view each row carries its SHARE of that
+  // bucket (the same value the bucket card sums), so the drill-down rows sum to
+  // the card amount — the card sums band shares while the rows previously
+  // displayed total outstanding, and the two disagreed on every mixed row.
+  const activeBucket = AGING_BUCKETS.find((bucket) => bucket.filterMode === filterMode) ?? null;
+  const isOverdueAggregate = filterMode === 'overdue';
+  const bucketShareOf = (d: { aging: { current: number; d30: number; d60: number; over90: number } }) =>
+    filterMode === 'current' ? d.aging.current
+      : filterMode === 'd30' ? d.aging.d30
+        : filterMode === 'd60' ? d.aging.d60
+          : filterMode === 'over90' ? d.aging.over90
+            : isOverdueAggregate ? d.aging.d30 + d.aging.d60 + d.aging.over90
+              : 0;
+  const bucketShareLabel = activeBucket
+    ? `Nợ ${activeBucket.subLabel}`
+    : isOverdueAggregate ? 'Nợ quá hạn' : null;
   // Sort rides in the hook's filters bag: setFilter resets the page to 1 and
   // the queryKey stays keyed on the primitive param values (no refetch loops).
   const sortState: TableSortState | null = table.filters.sortBy != null && table.filters.sortDir != null
@@ -422,6 +438,12 @@ export default function DebtListPage() {
                             {formatCurrency(d.totalOutstanding)}
                           </span>
                         </div>
+                        {bucketShareLabel && (
+                          <div className="m-card__row">
+                            <span className="m-card__row-label">{bucketShareLabel}</span>
+                            <span className="m-card__row-value" style={{ color: 'var(--warning-text)' }}>{formatCurrency(bucketShareOf(d))}</span>
+                          </div>
+                        )}
                         {d.totalOutstanding > 0 && (
                           <>
                             {d.contactInfo && (
@@ -458,6 +480,7 @@ export default function DebtListPage() {
                     <thead>
                       <tr>
                         <SortHeader label="Khách hàng" sortKey="customerName" sort={sortState} onSortChange={handleSortChange} />
+                        {bucketShareLabel && <th className="num">{bucketShareLabel}</th>}
                         <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
                         <SortHeader label="Net công nợ" sortKey="netBalance" sort={sortState} onSortChange={handleSortChange} className="num" />
                         <SortHeader label="Quá hạn" sortKey="maxOverdueDays" sort={sortState} onSortChange={handleSortChange} className="num" style={{ textAlign: 'center' }} />
@@ -494,6 +517,12 @@ export default function DebtListPage() {
                                 : (d.totalOutstanding < 0 ? "Trả trước" : "Cân bằng")}
                             </div>
                           </td>
+
+                          {bucketShareLabel && (
+                            <td data-label={bucketShareLabel} className="num typo-mono" style={{ color: 'var(--warning-text)' }}>
+                              {formatCurrency(bucketShareOf(d))}
+                            </td>
+                          )}
 
                           <td data-label="Tổng nợ" className="num typo-mono" style={{
                             fontWeight: 700,
