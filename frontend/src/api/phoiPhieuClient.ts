@@ -94,6 +94,10 @@ export interface PhoiPhieuFeeRow {
   version: number;
   sourceKind?: 'OPS' | 'TRIP';
   feeName: string | null;
+  /** Card 2026-10-05_373 spec table 1.1.3 — "Nội dung phí kèm mã đơn". The
+   *  table's own "Hóa đơn" column carries the invoice number, so this is the
+   *  lot / shipment code. */
+  shipmentCode?: string | null;
   invoiceNumber: string | null;
   amountTra: number;
   amountThu: number | null;

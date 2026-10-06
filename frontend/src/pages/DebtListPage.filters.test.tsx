@@ -13,9 +13,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getCustomerAging = vi.fn();
 const getBlob = vi.fn();
+const getPhoiPhieuReport = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/financialClient', () => ({
   financialClient: { getCustomerAging: (...args: unknown[]) => getCustomerAging(...args) },
+}));
+
+// Card 380 — the monthly production summary section fetches the phoi-phieu
+// period reports; the page tests mock it so the section renders without it.
+vi.mock('../api/phoiPhieuClient', () => ({
+  getPhoiPhieuReport: (...args: unknown[]) => getPhoiPhieuReport(...args),
+}));
+
+vi.mock('../hooks/useAuth', () => ({
+  useAuth: () => ({ user: { userId: 7, role: 'ACCOUNTANT' } }),
 }));
 
 vi.mock('../lib/api', () => ({
@@ -75,13 +86,28 @@ function renderPage(entry = '/') {
 }
 
 function lastCallParams() {
-  const calls = getCustomerAging.mock.calls;
+  // The card-380 summary section fetches the same endpoint with limit 500 for
+  // its còn-nợ join; those calls are not the page's own paging behaviour.
+  const calls = getCustomerAging.mock.calls.filter(
+    (call) => (call[0] as { limit?: number } | undefined)?.limit !== 500,
+  );
   return calls[calls.length - 1]?.[0] as Record<string, unknown> | undefined;
 }
+
+const summaryReportEnvelope = {
+  rows: [
+    { party: 'Công ty A', soLuong: 2, tongPhaiThuTra: 5_000_000, daThuTra: 1_000_000, conLai: 4_000_000 },
+    { party: 'Công ty B', soLuong: 1, tongPhaiThuTra: 2_000_000, daThuTra: 0, conLai: 2_000_000 },
+  ],
+  grand: { party: 'TỔNG CỘNG', soLuong: 3, tongPhaiThuTra: 7_000_000, daThuTra: 1_000_000, conLai: 6_000_000 },
+};
+
+const emptyReportEnvelope = { rows: [], grand: null };
 
 beforeEach(() => {
   getCustomerAging.mockReset().mockResolvedValue(envelope);
   getBlob.mockReset();
+  getPhoiPhieuReport.mockReset().mockResolvedValue(emptyReportEnvelope);
 });
 
 describe('DebtListPage filter strip', () => {
@@ -121,5 +147,58 @@ describe('DebtListPage filter strip', () => {
     fireEvent.click(screen.getByRole('button', { name: /Tất cả/ }));
 
     await waitFor(() => expect(lastCallParams()?.bucket).toBeUndefined());
+  });
+});
+
+// Card 380 — the monthly production summary rides this page for /debt: its
+// còn-nợ column must print the SAME number the ledger table prints as Tổng nợ
+// for the same party (same endpoint, same field — month-close reconciliation).
+describe('DebtListPage monthly production summary (card 380)', () => {
+  beforeEach(() => {
+    getCustomerAging.mockReset().mockResolvedValue(envelope);
+    getPhoiPhieuReport.mockReset().mockImplementation((kind: string) => {
+      if (kind === 'THU') return Promise.resolve(summaryReportEnvelope);
+      return Promise.resolve(emptyReportEnvelope);
+    });
+  });
+
+  it('renders the summary whose còn nợ equals the page Tổng nợ per party', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty A');
+
+    const mainCell = screen.getAllByText('Công ty A')
+      .map((el) => el.closest('td'))
+      .find((td) => td?.dataset.label === 'Khách hàng');
+    expect(mainCell).toBeDefined();
+    const tongNo = mainCell!.closest('tr')!.querySelector('td[data-label="Tổng nợ"]')!.textContent;
+    expect(tongNo).toBe('12.000.000 ₫');
+
+    const summaryCell = screen.getAllByText('Công ty A')
+      .map((el) => el.closest('td'))
+      .find((td) => td?.dataset.label === 'Chủ xe');
+    expect(summaryCell).toBeDefined();
+    const conNo = summaryCell!.closest('tr')!.querySelector('td[data-label="Còn nợ"]')!.textContent;
+    expect(conNo).toBe(tongNo);
+  });
+
+  it('keeps every Lập Phiếu button disabled with the gap reason', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty A');
+
+    const buttons = screen.getAllByRole('button', { name: /Lập phiếu cho/ });
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect((button as HTMLButtonElement).disabled).toBe(true);
+      expect(button.getAttribute('title')).toContain('chưa có');
+    }
+  });
+
+  it('renders the month totals band with the VAT gap named', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty A');
+
+    const vatNote = screen.getByText(/Tổng hợp công nợ theo tháng/);
+    expect(vatNote.textContent).toContain('Phải thu: 7.000.000 ₫');
+    expect(vatNote.textContent).toContain('VAT: —');
   });
 });
