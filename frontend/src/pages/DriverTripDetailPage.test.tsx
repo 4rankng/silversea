@@ -819,6 +819,26 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByRole('dialog', { name: 'Thêm ảnh cont' })).toBeNull();
   });
 
+  it('card 061026043643: the photo counter counts uploaded photos, not filled zones', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          containerSealPhotos: [
+            { id: 11, type: 'DELIVERY_NOTE', storageKey: 'n1', uploadedAt: '2026-10-06T00:00:00.000Z' },
+            { id: 12, type: 'DELIVERY_NOTE', storageKey: 'n2', uploadedAt: '2026-10-06T00:00:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const strip = screen.getByTestId('driver-task-progress');
+    expect(strip.textContent).toContain('Ảnh 2/3');
+  });
+
   it('card _30: progress summary counts saved POD files, photos and reported cost entries', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({

@@ -344,6 +344,10 @@ function DriverTripDetailContent() {
   const missingDocs = 2 - podHave;
   const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
   const photoHave = ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].filter((type) => photoTypes.has(type as never)).length;
+  // Card 061026043643: the counter reports UPLOADED PHOTOS, not filled zones —
+  // two biên bản uploads read "Ảnh 2/3", not "1/3". Denominator stays 3 (the
+  // three capture zones); done state keeps the zones-full meaning.
+  const photoCount = containerSealPhotos.length;
 
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
@@ -363,7 +367,7 @@ function DriverTripDetailContent() {
           ok. */}
       <div className="driver-task-progress" data-testid="driver-task-progress">
         <span className={`driver-task-progress__item${podHave >= 2 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-pod">Chứng từ {podHave}/2</span>
-        <span className={`driver-task-progress__item${photoHave >= 3 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-photos">Ảnh {photoHave}/3</span>
+        <span className={`driver-task-progress__item${photoHave >= 3 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-photos">Ảnh {photoCount}/3</span>
         <span className="driver-task-progress__item" data-testid="progress-costs">Chi phí {costEntryCount}</span>
       </div>
 
