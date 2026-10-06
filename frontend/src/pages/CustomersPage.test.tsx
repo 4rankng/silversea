@@ -39,6 +39,7 @@ const customer = {
   phone: '0901234567',
   creditLimit: 50000000,
   status: 'ACTIVE',
+  updatedAt: '2026-10-06T03:45:00.000Z',
 };
 
 function renderPage() {
@@ -121,5 +122,19 @@ describe('CustomersPage CSV export feedback (card 20261006_391)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Xuất CSV đã chọn' }));
 
     await waitFor(() => expect(toast).toHaveBeenCalledWith({ kind: 'error', message: 'Chưa xuất được danh sách đã chọn — vui lòng thử lại.' }));
+  });
+});
+
+describe('CustomersPage Cập nhật column (card 061026172805 — FB-007 regression)', () => {
+  it('the table carries the Cập nhật column and the row shows its last-updated timestamp', async () => {
+    renderPage();
+    // The header regressed out of the staging build (FB-007 round-3 retest):
+    // the column must render again, and the seeded row must carry its
+    // formatted last-updated value rather than an em-dash placeholder.
+    expect(await screen.findByText('Cập nhật')).toBeTruthy();
+    const row = await nameRow();
+    // formatDateTimeVN renders "HH:mm:ss D/M/YYYY" (time part is TZ-dependent;
+    // 03:45Z stays on 6/10 in every VN-adjacent zone, so pin the date alone).
+    expect(row.textContent).toContain('6/10/2026');
   });
 });

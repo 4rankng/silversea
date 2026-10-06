@@ -24,7 +24,7 @@ import {
 } from '../features/customers/customer-debt-projection';
 import { CustomerDrawerHistories } from '../features/customers/CustomerDrawerHistories';
 import { useToast } from '../components/shared/Toast';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, formatDateTimeVN } from '../lib/format';
 import type { Customer, LedgerEntry } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import { useCustomerLedgerEntries } from '../hooks/useQueries';
@@ -695,6 +695,7 @@ export default function CustomersPage() {
                 <col style={{ width: 168 }} />
                 <col style={{ width: 110 }} />
                 <col style={{ width: 158 }} />
+                <col style={{ width: 150 }} />
                 <col style={{ width: 112 }} />
               </colgroup>
               <thead>
@@ -705,24 +706,29 @@ export default function CustomersPage() {
                   <SortHeader label="Liên hệ & SĐT" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
                   <th>Trạng thái</th>
                   <th>Cước thu / trả</th>
+                  {/* Card 061026172805 (FB-007 regression): the last-updated
+                      column is back. Non-sortable by design — the list
+                      endpoint's sort enum covers business keys only; the
+                      sibling Trạng thái / Cước columns are plain th too. */}
+                  <th>Cập nhật</th>
                   <th style={{ width: 112 }}></th>
                 </tr>
               </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
                   <p style={{ fontSize: 'var(--text-data-size)' }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
-                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
+                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
                   <p>{error}</p>
                   <button className="btn btn--secondary btn--sm" style={{ marginTop: 8 }} onClick={() => refetchCustomers()}>Thử lại</button>
                 </td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <EmptyState variant="compact" context="clients" title={search || filter !== 'all' ? 'Không có khách hàng phù hợp.' : 'Chưa có dữ liệu'} />
                 </td></tr>
               )}
@@ -799,6 +805,9 @@ export default function CustomersPage() {
                           </span>
                         );
                       })()}
+                    </td>
+                    <td data-label="Cập nhật" className="customers-muted">
+                      {formatDateTimeVN(c.updatedAt)}
                     </td>
                     <td data-label="" className="record-table__action customers-actions-cell">
                       <div className="row-actions">
