@@ -1,0 +1,63 @@
+/* ============================================================================
+ * CrudTable-owned stylesheet (card 061026221226, owner directive 22:07 06/10).
+ *
+ * Config catalogue tables keep the tabular frame at every width: the generic
+ * ≤1100px record-table card handoff glues each column's header label into
+ * every cell ("KHÁCH HÀNG —", "% CHIA SẺ 2%"), which the owner rejected for
+ * the config catalogue class. Per the UUI PRO application/table pattern
+ * (application/table.json, v8 — consulted 07/10): column labels live ONLY in
+ * the header row; the single column frame holds at every width; text wraps
+ * (never clips) and genuine width excess rides the shared
+ * `.record-table-wrap--scroll` boundary CrudTable adopts on its wrap.
+ *
+ * Specificity is bumped one class above the generic record-table rules so
+ * stylesheet load order can never flip the exemption. Every CrudTable
+ * catalogue (freight-rate-terms, ports, fuel norms, cap table, weight tiers,
+ * pricing tables, expense categories, forwarder expense types, ancillary
+ * revenue) inherits this file with the component.
+ * ========================================================================== */
+
+@container (max-width: 1100px) {
+  .record-table.record-table--config {
+    display: table;
+    font-size: var(--ops-table-supporting-size, 12px);
+  }
+  .record-table.record-table--config colgroup,
+  .record-table.record-table--config thead {
+    display: table-header-group;
+  }
+  .record-table.record-table--config tbody {
+    display: table-row-group;
+  }
+  .record-table.record-table--config tbody tr {
+    display: table-row;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .record-table.record-table--config tbody tr:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
+  .record-table.record-table--config tbody tr.is-selected {
+    background: var(--surface);
+    box-shadow: inset 3px 0 0 var(--ink);
+  }
+  .record-table.record-table--config tbody td,
+  .record-table.record-table--config thead th {
+    display: table-cell;
+    /* Compact catalogue density: the tabular frame reads tighter than the
+       generic record band. */
+    padding: 7px 12px;
+    white-space: normal;
+    /* The generic card handoff strips cell borders; the tabular frame needs
+       its row rule back. */
+    border-bottom: 1px solid var(--line);
+  }
+  /* Labels stay in the thead alone — never glued into cells. */
+  .record-table.record-table--config tbody td::before { content: none; }
+  .record-table.record-table--config tbody td.record-table__text { min-width: 0; }
+  /* Readable columns: identity text keeps a scan-friendly floor so names wrap
+     at phrase level, while the scroll boundary carries the width excess. */
+  .record-table.record-table--config tbody td { min-width: 96px; }
+  .record-table.record-table--config tbody td.num { min-width: 72px; }
+}

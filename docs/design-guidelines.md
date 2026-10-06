@@ -533,3 +533,15 @@ shape: the FinancePage export handler (card 061026174602). Pins:
 `FuelCard.test.tsx`, `CustomersPage.test.tsx`,
 `MonthlyProductivityView.test.tsx` export-feedback assertions (red-first,
 observed failing at HEAD before the fix).
+
+### 2026-10-07 — Config catalogue tables keep the tabular frame at every width (card 061026221226)
+
+A config catalogue table (the shared `CrudTable` scaffold) never switches to
+the generic ≤1100px label-per-cell card handoff: column labels live only in
+the header row — gluing each cell's label ("KHÁCH HÀNG —", "% CHIA SẺ 2%")
+into the row destroys the catalogue reading pattern and was rejected by the
+owner. Text wraps, never clips; genuine width excess rides the shared
+`.record-table-wrap--scroll` boundary. Reference pattern: Untitled UI PRO v8
+`application/table` (consulted 07/10). Pins:
+`CrudTable.discovery.test.tsx` presentation contract (red-first, observed
+failing at HEAD), rung captures `qa/2026-10-07_card061026221226_ui-*`.

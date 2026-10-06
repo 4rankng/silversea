@@ -302,11 +302,11 @@ export default function FreightRateTermsConfigPage() {
         columns={[
           { header: 'Khách hàng', render: r => customerNames.get(r.customerId) ?? '—' },
           { header: 'Tuyến', render: r => routeNames.get(r.routeId) ?? '—' },
-          { header: '% chia sẻ', render: r => `${fmtShare(r.sharePct)}%` },
-          { header: 'Km 1 chiều', render: r => formatNumber(r.billingKmOneWay) },
-          { header: 'Giá gốc dầu F', render: r => fmtFuel(r.baseFuelPrice) },
+          { header: '% chia sẻ', className: 'num', render: r => `${fmtShare(r.sharePct)}%` },
+          { header: 'Km 1 chiều', className: 'num', render: r => formatNumber(r.billingKmOneWay) },
+          { header: 'Giá gốc dầu F', className: 'num', render: r => fmtFuel(r.baseFuelPrice) },
           { header: 'Ngưỡng', render: r => renderThreshold(r) },
-          { header: 'Trễ (ngày)', render: r => String(r.fuelLagDays) },
+          { header: 'Trễ (ngày)', className: 'num', render: r => String(r.fuelLagDays) },
           { header: 'Ngày hiệu lực', render: r => formatDate(r.effectiveDate) },
         ]}
         renderForm={p => (
