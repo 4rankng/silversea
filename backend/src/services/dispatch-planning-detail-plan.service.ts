@@ -21,7 +21,7 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 
-import { and, asc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, Role, TripStatus, type DispatchClassification } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -1144,6 +1144,35 @@ export async function updateFulfillmentEstimates(
  * (issueOrderCreateOrUpdate) owns the driver notification.
  */
 
+/**
+ * The window a plan row occupies its rig for, resolved per cargo mode
+ * (card 061026174603). FCL rows carry a container appointment; an LCL lot has
+ * no container by design, so its window is the lot-level closing/return date —
+ * the same `coalesce(appointment, closingAt, plannedReturnAt)` the dispatch
+ * list reads at line 224. Null means "no window to prove overlap with", which
+ * callers treat as skip, never as a refusal.
+ */
+async function resolvePlanRowWindowStart(
+  tx: Tx,
+  fulfillment: { shipmentId: number; shipmentContainerId: number | null },
+): Promise<Date | null> {
+  if (fulfillment.shipmentContainerId != null) {
+    const [row] = await tx.select({ appointment: s.shipmentContainers.customerAppointmentAt })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
+      .limit(1);
+    return row?.appointment ?? null;
+  }
+  const [lot] = await tx.select({
+    closingAt: s.shipments.closingAt,
+    plannedReturnAt: s.shipments.plannedReturnAt,
+  })
+    .from(s.shipments)
+    .where(eq(s.shipments.id, fulfillment.shipmentId))
+    .limit(1);
+  return lot?.closingAt ?? lot?.plannedReturnAt ?? null;
+}
+
 async function assertPlanRowRigAvailable(
   tx: Tx,
   args: { fulfillmentId: number; plate: string; windowStart: Date; windowEnd: Date | null },
@@ -1169,6 +1198,23 @@ async function assertPlanRowRigAvailable(
       lt(s.shipmentContainers.customerAppointmentAt, windowEnd),
       sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, ${s.shipmentContainers.customerAppointmentAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
     ));
+  // Card 061026174603: an LCL row is a plan unit too, but it has no container,
+  // so the branch above (which inner-joins shipmentContainers) cannot see it.
+  // Without this the same tractor could ride two overlapping LCL rows, or an
+  // LCL row and an FCL row — the guard would protect FCL and silently exempt
+  // Hàng lẻ. Same overlap rule, same 8-hour default, LCL window from the lot.
+  const lclPlanConflicts = await tx.select({ id: s.shipmentFulfillments.id })
+    .from(s.shipmentFulfillments)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+    .where(and(
+      ne(s.shipmentFulfillments.id, args.fulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
+      eq(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
+      sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) is not null`,
+      sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) < ${windowEnd.toISOString()}::timestamptz`,
+      sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
+    ));
   // Dispatched trips riding the same rig: the plate is the pre-dispatch key,
   // the truck's license plate is the dispatched key — one physical tractor.
   // Card 363: only ACTIVE trips occupy the rig (a COMPLETED trip released it —
@@ -1185,7 +1231,7 @@ async function assertPlanRowRigAvailable(
       lt(s.trips.plannedStartAt, windowEnd),
       sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
     ));
-  if (planConflicts.length > 0 || tripConflicts.length > 0) {
+  if (planConflicts.length > 0 || lclPlanConflicts.length > 0 || tripConflicts.length > 0) {
     throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
   }
 }
@@ -1336,13 +1382,16 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     // same physical tractor must not be planned onto two fulfillments whose
     // windows overlap. The plate is the pre-dispatch rig identity (no planned
     // truck id is persisted); dispatched trips join by license plate.
-    const containerId = fulfillment.shipmentContainerId;
-    if (containerId == null) throw new ApiError(409, 'Lô hàng không có container để gán xe.');
-    const [plannedContainer] = await tx.select({ appointment: s.shipmentContainers.customerAppointmentAt })
-      .from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.id, containerId))
-      .limit(1);
-    const windowStart = plannedContainer?.appointment ?? null;
+    //
+    // Card 061026174603: the window is resolved PER CARGO MODE. An FCL row's
+    // window is its container's closing appointment; an LCL lot has no
+    // container BY DESIGN — it decomposes into one LCL_SHIPMENT fulfillment —
+    // so its window is the lot-level closing/return date, the same coalesce the
+    // dispatch list itself reads. Resolving the window per mode is what lets
+    // the Hàng lẻ dispatch flow run at all; a row whose window cannot be
+    // resolved is skipped (the existing "cannot prove overlap" law), never
+    // refused with a container error.
+    const windowStart = await resolvePlanRowWindowStart(tx, fulfillment);
     if (windowStart != null) {
       await assertPlanRowRigAvailable(tx, {
         fulfillmentId: input.fulfillmentId,
