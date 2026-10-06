@@ -270,6 +270,11 @@ export default function CustomersPage() {
   const [notifyMessage, setNotifyMessage] = useState('');
   const [notifySending, setNotifySending] = useState(false);
   const [bulkStatusBusy, setBulkStatusBusy] = useState(false);
+  // Card 20261006_391 — export feedback contract (FinancePage pattern): the
+  // CSV buttons report busy/success/failure; a failed download must not die
+  // as an unhandled rejection. Keyed per handler; the two exports never run
+  // concurrently from one user.
+  const [exporting, setExporting] = useState<'all' | 'selected' | null>(null);
   // Row kebab menus join the global click-away / Escape dismissal layer.
   useDropdownDismiss(menuOpenId !== null, () => setMenuOpenId(null));
   const navigate = useNavigate();
@@ -455,27 +460,57 @@ export default function CustomersPage() {
    *  freight columns come from the server projection under the same
    *  `excludeOwnFleet` filter, so the sheet matches the screen. */
   async function exportCustomers() {
-    const headers = ['Tên KH', 'MST', 'Người liên hệ', 'Điện thoại', 'Hạn mức TD', 'Trạng thái', 'Số chuyến', 'Cước thu', 'Cước trả'];
-    const rows = filtered.map(c => {
-      const freight = freightByCustomer.get(c.id);
-      return [
-        c.name,
-        c.taxCode || '',
-        c.contactPerson || '',
-        c.phone || '',
-        c.creditLimit || '',
-        STATUS_LABELS[c.status] || c.status,
-        freight?.tripCount ?? 0,
-        freight?.freightRevenue ?? 0,
-        freight?.freightPayable ?? 0,
-      ];
-    });
-    await downloadCSV(`khach-hang-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
-      title: 'DANH SÁCH KHÁCH HÀNG',
-      subtitle: `${filtered.length} khách hàng đang quản lý${excludeOwnFleet ? ' · đã bỏ xe công ty' : ''}`,
-      columnTypes: ['text', 'text', 'text', 'text', 'currency', 'text', 'number', 'currency', 'currency'],
-    });
-    toast({ kind: 'success', message: 'Đã xuất danh sách khách hàng' });
+    if (exporting) return;
+    setExporting('all');
+    try {
+      const headers = ['Tên KH', 'MST', 'Người liên hệ', 'Điện thoại', 'Hạn mức TD', 'Trạng thái', 'Số chuyến', 'Cước thu', 'Cước trả'];
+      const rows = filtered.map(c => {
+        const freight = freightByCustomer.get(c.id);
+        return [
+          c.name,
+          c.taxCode || '',
+          c.contactPerson || '',
+          c.phone || '',
+          c.creditLimit || '',
+          STATUS_LABELS[c.status] || c.status,
+          freight?.tripCount ?? 0,
+          freight?.freightRevenue ?? 0,
+          freight?.freightPayable ?? 0,
+        ];
+      });
+      await downloadCSV(`khach-hang-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
+        title: 'DANH SÁCH KHÁCH HÀNG',
+        subtitle: `${filtered.length} khách hàng đang quản lý${excludeOwnFleet ? ' · đã bỏ xe công ty' : ''}`,
+        columnTypes: ['text', 'text', 'text', 'text', 'currency', 'text', 'number', 'currency', 'currency'],
+      });
+      toast({ kind: 'success', message: 'Đã xuất danh sách khách hàng' });
+    } catch {
+      toast({ kind: 'error', message: 'Chưa xuất được danh sách khách hàng — vui lòng thử lại.' });
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  /** Card _37 bulk selection bar — same export contract as the strip export. */
+  async function exportSelectedCustomers() {
+    if (exporting) return;
+    setExporting('selected');
+    try {
+      const chosen = filtered.filter(c => selected.has(c.id));
+      const headers = ['Tên KH', 'Tên ngắn', 'MST', 'Người liên hệ', 'Điện thoại', 'Trạng thái', 'Số chuyến', 'Cước thu', 'Cước trả'];
+      await downloadCSV(`khach-hang-chon-${new Date().toISOString().slice(0, 10)}.csv`, headers, chosen.map(c => {
+        const freight = freightByCustomer.get(c.id);
+        return [
+          c.name, c.shortName || '', c.taxCode || '', c.contactPerson || '', c.phone || '', STATUS_LABELS[c.status] || c.status,
+          freight?.tripCount ?? 0, freight?.freightRevenue ?? 0, freight?.freightPayable ?? 0,
+        ];
+      }), { title: 'KHÁCH HÀNG ĐÃ CHỌN' });
+      toast({ kind: 'success', message: 'Đã xuất khách hàng đã chọn' });
+    } catch {
+      toast({ kind: 'error', message: 'Chưa xuất được danh sách đã chọn — vui lòng thử lại.' });
+    } finally {
+      setExporting(null);
+    }
   }
 
   return (
@@ -507,6 +542,7 @@ export default function CustomersPage() {
         resultCount={filtered.length}
         concentration={concentration}
         onExport={exportCustomers}
+        exporting={exporting === 'all'}
         onAdd={() => { setShowAddForm(true); setEditingId(null); }}
         onReset={() => { setSearch(''); setFilter('all'); setExcludeOwnFleet(false); }}
         hasActiveFilters={hasActiveFilters}
@@ -600,20 +636,10 @@ export default function CustomersPage() {
           <strong>Đã chọn {selected.size}</strong>
           <button
             className="btn btn--secondary btn--sm"
-            onClick={async () => {
-              const chosen = filtered.filter(c => selected.has(c.id));
-              const headers = ['Tên KH', 'Tên ngắn', 'MST', 'Người liên hệ', 'Điện thoại', 'Trạng thái', 'Số chuyến', 'Cước thu', 'Cước trả'];
-              await downloadCSV(`khach-hang-chon-${new Date().toISOString().slice(0, 10)}.csv`, headers, chosen.map(c => {
-                const freight = freightByCustomer.get(c.id);
-                return [
-                  c.name, c.shortName || '', c.taxCode || '', c.contactPerson || '', c.phone || '', STATUS_LABELS[c.status] || c.status,
-                  freight?.tripCount ?? 0, freight?.freightRevenue ?? 0, freight?.freightPayable ?? 0,
-                ];
-              }), { title: 'KHÁCH HÀNG ĐÃ CHỌN' });
-              toast({ kind: 'success', message: 'Đã xuất khách hàng đã chọn' });
-            }}
+            onClick={() => void exportSelectedCustomers()}
+            disabled={exporting !== null}
           >
-            <Download size={14} /> Xuất CSV đã chọn
+            <Download size={14} /> {exporting === 'selected' ? 'Đang xuất…' : 'Xuất CSV đã chọn'}
           </button>
           <button className="btn btn--secondary btn--sm" onClick={() => setNotifyOpen(true)}>
             Gửi thông báo

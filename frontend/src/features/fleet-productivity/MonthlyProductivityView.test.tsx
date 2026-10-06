@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../lib/api';
 import { MonthlyProductivityView } from './MonthlyProductivityView';
 
@@ -8,10 +8,12 @@ const { getMonthly, getMonthlyExportBlob } = vi.hoisted(() => ({
   getMonthly: vi.fn(),
   getMonthlyExportBlob: vi.fn(),
 }));
+const toast = vi.hoisted(() => vi.fn());
 
 vi.mock('../../api/fleetProductivityClient', () => ({
   fleetProductivityClient: { getMonthly, getMonthlyExportBlob },
 }));
+vi.mock('../../components/shared/Toast', () => ({ useToast: () => ({ toast }) }));
 
 const monthly = {
   trucks: [{
@@ -56,6 +58,12 @@ function renderView() {
   );
 }
 
+beforeEach(() => {
+  toast.mockReset();
+  (URL as unknown as { createObjectURL: unknown }).createObjectURL = vi.fn(() => 'blob:mock');
+  (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = vi.fn();
+});
+
 // Card 367 law pin (docs/design-guidelines.md §2026-10-05): a 4xx business
 // refusal renders the API's error message verbatim — never copy that hides it.
 describe('MonthlyProductivityView export errors surface the API reason', () => {
@@ -84,5 +92,27 @@ describe('MonthlyProductivityView export errors surface the API reason', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Không xuất được báo cáo năng suất. Vui lòng thử lại.');
+  });
+});
+
+// Card 20261006_391 — the monthly export reported failures but stayed silent
+// on the happy path: no busy label, no success toast. Same export contract as
+// FinancePage (QA PASSED 06/10).
+describe('MonthlyProductivityView export success feedback (card 20261006_391)', () => {
+  it('shows a busy label while building the xlsx and toasts success when the download starts', async () => {
+    getMonthly.mockResolvedValue(monthly);
+    let resolveBlob: (b: Blob) => void = () => {};
+    getMonthlyExportBlob.mockImplementationOnce(
+      () => new Promise<Blob>((resolve) => { resolveBlob = resolve; }),
+    );
+    renderView();
+
+    await screen.findByText('Tổng chuyến trong tháng');
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+    expect(screen.getByRole('button', { name: 'Đang xuất…' })).toBeTruthy();
+
+    resolveBlob(new Blob(['bc']));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeTruthy());
+    expect(toast).toHaveBeenCalledWith({ kind: 'success', message: 'Đã xuất báo cáo năng suất xe ra tệp Excel.' });
   });
 });

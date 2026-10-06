@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Fuel, AlertTriangle, Printer, FileSpreadsheet } from 'lucide-react';
 import { FUEL_MODE_LABELS, roundInt } from '@tingting/shared';
 import { Money } from '../../../components/shared/Money';
+import { useToast } from '../../../components/shared/Toast';
 import { api } from '../../../lib/api';
 import type { TripDetail } from '@tingting/shared';
 import type { TripDerivedData } from '../types';
@@ -19,6 +20,9 @@ const fmtLiters = (v: number) => roundInt(v).toString();
 
 export function FuelCard({ trip, derived, fuelPriceConfig }: FuelCardProps) {
   const { fuelLiters, computedLiters, ttbq, fuelVarianceLiters, fuelVarianceOver } = derived;
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   // Effective price applied to this trip: the per-trip pump price when one was
   // recorded, else the trip's frozen config snapshot (fuelPriceApplied), else
@@ -34,6 +38,8 @@ export function FuelCard({ trip, derived, fuelPriceConfig }: FuelCardProps) {
     : (snapshotPrice != null ? snapshotPrice : fuelPriceConfig);
 
   const handlePrintVoucher = async () => {
+    if (printing) return;
+    setPrinting(true);
     // Open window synchronously before await to avoid popup blocker
     const win = window.open('', '_blank');
     try {
@@ -42,12 +48,18 @@ export function FuelCard({ trip, derived, fuelPriceConfig }: FuelCardProps) {
         win.document.write(html);
         win.document.close();
       }
+      toast({ kind: 'success', message: 'Đã mở phiếu cấp dầu để in.' });
     } catch {
       win?.close();
+      toast({ kind: 'error', message: 'Không mở được phiếu cấp dầu — vui lòng thử lại.' });
+    } finally {
+      setPrinting(false);
     }
   };
 
   const handleExportXlsx = async () => {
+    if (exporting) return;
+    setExporting(true);
     try {
       const blob = await api.getBlob(`/trips/${trip.id}/fuel-voucher/xlsx`);
       const url = URL.createObjectURL(blob);
@@ -56,7 +68,12 @@ export function FuelCard({ trip, derived, fuelPriceConfig }: FuelCardProps) {
       a.download = `phieu-cap-nhien-lieu-${trip.tripCode ?? 'chuyen-chua-co-ma'}.xlsx`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch { /* download failed */ }
+      toast({ kind: 'success', message: 'Đã xuất phiếu cấp nhiên liệu ra tệp Excel.' });
+    } catch {
+      toast({ kind: 'error', message: 'Chưa xuất được tệp Excel — vui lòng thử lại.' });
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -95,16 +112,18 @@ export function FuelCard({ trip, derived, fuelPriceConfig }: FuelCardProps) {
             <button
               className="btn btn--secondary btn--sm"
               onClick={handlePrintVoucher}
+              disabled={printing}
               title="In phiếu cấp dầu"
             >
-              <Printer size={14} /> In phiếu cấp dầu
+              <Printer size={14} /> {printing ? 'Đang mở…' : 'In phiếu cấp dầu'}
             </button>
             <button
               className="btn btn--secondary btn--sm"
               onClick={handleExportXlsx}
+              disabled={exporting}
               title="Xuất Excel"
             >
-              <FileSpreadsheet size={14} /> Xuất Excel
+              <FileSpreadsheet size={14} /> {exporting ? 'Đang xuất…' : 'Xuất Excel'}
             </button>
           </div>
         )}

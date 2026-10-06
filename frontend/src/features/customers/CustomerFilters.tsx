@@ -26,6 +26,9 @@ export interface CustomerFiltersProps {
   resultCount: number;
   concentration: CustomerConcentration;
   onExport: () => void;
+  /** Card 20261006_391 — while the page's export runs, the strip's export
+   *  button reports busy ("Đang xuất…") instead of staying clickable. */
+  exporting?: boolean;
   onAdd: () => void;
   /** Clears exactly the strip's own criteria (search + status + tick). */
   onReset: () => void;
@@ -59,7 +62,7 @@ export function CustomerFilters({
   search, onSearch, searchInputRef,
   filter, onFilter,
   total, resultCount, concentration,
-  onExport, onAdd, onReset, hasActiveFilters,
+  onExport, exporting = false, onAdd, onReset, hasActiveFilters,
   excludeOwnFleet, onExcludeOwnFleetChange,
 }: CustomerFiltersProps) {
   return (
@@ -106,8 +109,8 @@ export function CustomerFilters({
       )}
       actions={(
         <>
-          <button className="btn btn--secondary btn--sm" onClick={onExport}>
-            <Download size={14} /> Xuất Excel
+          <button className="btn btn--secondary btn--sm" onClick={onExport} disabled={exporting}>
+            <Download size={14} /> {exporting ? 'Đang xuất…' : 'Xuất Excel'}
           </button>
           <button className="btn btn--primary btn--sm" onClick={onAdd}>
             <Plus size={14} /> Thêm khách hàng

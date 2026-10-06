@@ -521,3 +521,15 @@ chặn" into "Đang tảiđang bị chặn…" on /accounting, the same mechanis
 `AccountingWorkInbox.test.tsx` + `ForwarderSettlementSection.test.tsx`
 `extractedText` assertions (red-first, observed failing with the reporter's
 verbatim glued string before the fix).
+
+### 2026-10-06 — Every file export/download action reports busy, success, and failure (card 20261006_391)
+
+A control that produces a file (CSV/xlsx download, voucher fetch, print
+window) shows a busy label on itself while the file builds, announces success
+when the file is ready, and announces failure when the download dies — a
+silent download hides real breakage, and on /customers a swallowed download
+error died as an unhandled rejection with zero user feedback. Reference
+shape: the FinancePage export handler (card 061026174602). Pins:
+`FuelCard.test.tsx`, `CustomersPage.test.tsx`,
+`MonthlyProductivityView.test.tsx` export-feedback assertions (red-first,
+observed failing at HEAD before the fix).

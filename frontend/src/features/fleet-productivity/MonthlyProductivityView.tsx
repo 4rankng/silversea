@@ -6,6 +6,7 @@ import { qk } from '../../api/keys';
 import { Btn } from '../../components/UI';
 import { EmptyState, FilterBar, UuiSelectField } from '../../design-system';
 import { SkeletonTable } from '../../components/shared/Skeleton';
+import { useToast } from '../../components/shared/Toast';
 
 export function MonthlyProductivityView() {
   const currentYear = useMemo(() => new Date().getFullYear(), []);
@@ -50,12 +51,18 @@ export function MonthlyProductivityView() {
   }, [monthlyData?.trucks]);
 
   const [exportError, setExportError] = useState<string | null>(null);
+  // Card 20261006_391 — export feedback contract (FinancePage pattern): the
+  // happy path must not stay silent after the failure surface already exists.
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
 
   async function handleExportExcel() {
     // Authenticated blob download (card 346) — the house export pattern. The
     // old window.open(bare URL) navigation carried no Authorization header and
     // the API answered {"error":"Token không hợp lệ"} every time.
+    if (exporting) return;
     setExportError(null);
+    setExporting(true);
     try {
       const blob = await fleetProductivityClient.getMonthlyExportBlob(monthlyYear, monthlyMonth);
       const url = URL.createObjectURL(blob);
@@ -66,6 +73,7 @@ export function MonthlyProductivityView() {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
+      toast({ kind: 'success', message: 'Đã xuất báo cáo năng suất xe ra tệp Excel.' });
     } catch (exportError) {
       // Business refusals (4xx) carry the precise reason from the backend —
       // show it verbatim instead of the generic retry hint that hides it.
@@ -73,6 +81,8 @@ export function MonthlyProductivityView() {
       const raw = exportError && typeof exportError === 'object' && 'message' in exportError && typeof exportError.message === 'string' ? exportError.message.trim() : '';
       const detail = status != null && status >= 400 && status < 500 ? raw : '';
       setExportError(detail || 'Không xuất được báo cáo năng suất. Vui lòng thử lại.');
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -111,10 +121,10 @@ export function MonthlyProductivityView() {
             <Btn
               variant="secondary"
               onClick={handleExportExcel}
-              disabled={!monthlyData || monthlyData.trucks.length === 0}
+              disabled={!monthlyData || monthlyData.trucks.length === 0 || exporting}
             >
               <Download size={14} style={{ marginRight: 6 }} />
-              Xuất Excel
+              {exporting ? 'Đang xuất…' : 'Xuất Excel'}
             </Btn>
           </div>
         </div>
