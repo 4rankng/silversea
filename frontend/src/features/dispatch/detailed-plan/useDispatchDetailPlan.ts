@@ -224,8 +224,11 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
+      // Card 0610261732 — the backend's reason is the actionable one
+      // ("Lô hàng đã kết thúc, không thể gán biển số."); a blanket reload
+      // banner cannot fix it. Keep the reload copy for a message-less 409.
       if (status === 409) {
-        setAssignmentError('Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+        setAssignmentError((mutationError as { message?: string }).message || 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
       } else {
         setAssignmentError('Không thể lưu biển số xe. Vui lòng thử lại.');
       }
@@ -274,7 +277,7 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       setAssignmentError((mutationError as { status?: number }).status === 409
-        ? 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.'
+        ? ((mutationError as { message?: string }).message || 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.')
         : 'Không thể đổi nhà xe. Vui lòng thử lại.');
       throw mutationError;
     }
@@ -415,8 +418,15 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
+      // Card 0610261732 — the backend refuses an issue for many concrete,
+      // un-retriable business reasons (overweight cargo, no valid route, a
+      // canceled task, an inactive truck/driver). A blanket "data changed,
+      // reload" banner advises an action that cannot fix any of them and
+      // hides the real cause behind the page-level alert. Surface the
+      // ApiError message, exactly as savePlan does, and keep the reload copy
+      // only for a 409 that carries no usable text.
       setAssignmentError(status === 409
-        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+        ? ((mutationError as { message?: string }).message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
         : 'Không thể phát lệnh. Vui lòng thử lại.');
       throw mutationError;
     }
@@ -442,7 +452,7 @@ export function useDispatchDetailPlan() {
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
       setAssignmentError(status === 409
-        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+        ? ((mutationError as { message?: string }).message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
         : status === 403
           ? 'Bạn không có quyền hoàn thành chuyến xe ngoài.'
           : 'Không thể hoàn thành chuyến. Vui lòng thử lại.');
