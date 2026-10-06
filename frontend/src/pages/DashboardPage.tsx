@@ -299,11 +299,12 @@ export default function DashboardPage() {
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
-  // Critical-receivables banner — surfaces ONLY customers in the worst aging
-  // bucket (>90 days overdue). Lesser overdue tiers (31–60, 61–90) are
-  // routine and don't warrant a page-top banner. dismissKey ties dismissal to
-  // the active period so a new month re-surfaces the banner.
-  // Backend bucket ranges: '0-30' | '31-60' | '61-90' | '90+' (see
+  // Critical-receivables banner — surfaces ONLY customers in the worst overdue
+  // band (>90 days past their effective due date — card 061026221213 makes the
+  // bands contractual, so this text is literal). Lesser overdue tiers (1–30,
+  // 31–90) are routine and don't warrant a page-top banner. dismissKey ties
+  // dismissal to the active period so a new month re-surfaces the banner.
+  // Backend bucket ranges: 'chua-den-han' | '1-30' | '31-90' | '90+' (see
   // backend/src/services/aging.service.ts).
   const over90Bucket = receivablesSummary?.buckets?.find(b => b.range === '90+');
   const over90Count = over90Bucket?.count ?? 0;

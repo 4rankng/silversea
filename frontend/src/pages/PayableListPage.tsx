@@ -347,7 +347,7 @@ export default function PayableListPage() {
 
   /* ── CSV export ── */
   const handleExport = async () => {
-    const headers = ['Nhà cung cấp', 'Tổng nợ', '0-30 ngày', '31-60 ngày', '61-90 ngày', '>90 ngày'];
+    const headers = ['Nhà cung cấp', 'Tổng nợ', 'Chưa đến hạn', 'Quá hạn 1-30', 'Quá hạn 31-90', 'Quá hạn >90'];
     const rows = payables.map(d => [
       d.supplier.name,
       d.totalOutstanding,
@@ -409,15 +409,15 @@ export default function PayableListPage() {
         ]}
       />
 
-      <AgingDisclosure label="Tuổi nợ nhà cung cấp · mở chi tiết">
+      <AgingDisclosure label="Hạn nợ nhà cung cấp · mở chi tiết">
       <div className="payables-aging-grid">
-        {/* Trong hạn (0–30) */}
+        {/* Trong hạn (chưa đến hạn) */}
         <div className="aging-card aging-card--ok">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--ok" />
             <span className="aging-card__label">
               <strong>Trong hạn</strong>
-              <small>0–30 ngày</small>
+              <small>chưa đến hạn</small>
             </span>
           </div>
           <span className="aging-card__value">
@@ -429,13 +429,13 @@ export default function PayableListPage() {
           </div>
         </div>
 
-        {/* Quá hạn 31–60 */}
+        {/* Quá hạn 1–30 */}
         <div className="aging-card aging-card--warn">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--warn" />
             <span className="aging-card__label">
               <strong>Quá hạn</strong>
-              <small>31–60 ngày</small>
+              <small>1–30 ngày</small>
             </span>
           </div>
           <span className="aging-card__value">
@@ -447,13 +447,13 @@ export default function PayableListPage() {
           </div>
         </div>
 
-        {/* Quá hạn 61–90 */}
+        {/* Quá hạn 31–90 */}
         <div className="aging-card aging-card--deep">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--deep" />
             <span className="aging-card__label">
               <strong>Quá hạn</strong>
-              <small>61–90 ngày</small>
+              <small>31–90 ngày</small>
             </span>
           </div>
           <span className="aging-card__value">
@@ -581,10 +581,10 @@ export default function PayableListPage() {
                     <tr>
                       <SortHeader label="Nhà cung cấp" sortKey="supplierName" sort={sortState} onSortChange={handleSortChange} />
                       <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
-                      <SortHeader label="0-30 ngày" sortKey="current" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label="31-60 ngày" sortKey="d30" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label="61-90 ngày" sortKey="d60" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label=">90 ngày" sortKey="over90" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="Chưa đến hạn" sortKey="current" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="Quá hạn 1-30" sortKey="d30" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="Quá hạn 31-90" sortKey="d60" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="Quá hạn >90" sortKey="over90" sort={sortState} onSortChange={handleSortChange} />
                       <th></th>
                     </tr>
                   </thead>
@@ -611,16 +611,16 @@ export default function PayableListPage() {
                         </td>
                         {/* Card 20261002_293: a computed 0 bucket renders "0 ₫"
                             (quietly toned), never a dash that reads as no data. */}
-                        <td data-label="0-30 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
+                        <td data-label="Chưa đến hạn" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
                           {d.aging.current != null ? formatCurrency(d.aging.current) : '—'}
                         </td>
-                        <td data-label="31-60 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
+                        <td data-label="Quá hạn 1-30" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
                           {d.aging.d30 != null ? formatCurrency(d.aging.d30) : '—'}
                         </td>
-                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
+                        <td data-label="Quá hạn 31-90" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
                           {d.aging.d60 != null ? formatCurrency(d.aging.d60) : '—'}
                         </td>
-                        <td data-label=">90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
+                        <td data-label="Quá hạn >90" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
                           {d.aging.over90 != null ? formatCurrency(d.aging.over90) : '—'}
                         </td>
                         <td data-label="" className="record-table__action" style={{ textAlign: 'right' }}>

@@ -169,7 +169,7 @@ describe('PayableListPage server-side column sorting', () => {
     expect(lastCallParams()).toMatchObject({ page: 1, limit: 25 });
     expect(lastCallParams()?.sortBy).toBeUndefined();
     expect(lastCallParams()?.sortDir).toBeUndefined();
-    for (const name of ['Nhà cung cấp', 'Tổng nợ', '0-30 ngày', '31-60 ngày', '61-90 ngày', '>90 ngày']) {
+    for (const name of ['Nhà cung cấp', 'Tổng nợ', 'Chưa đến hạn', 'Quá hạn 1-30', 'Quá hạn 31-90', 'Quá hạn >90']) {
       expect(screen.getByRole('columnheader', { name }).getAttribute('aria-sort')).toBe('none');
     }
   });
@@ -193,7 +193,7 @@ describe('PayableListPage server-side column sorting', () => {
     expect(totalHeader.getAttribute('aria-sort')).toBe('descending');
 
     // An aging bucket column starts fresh ascending.
-    fireEvent.click(screen.getByRole('button', { name: '31-60 ngày' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quá hạn 1-30' }));
     await waitFor(() => expect(lastCallParams()).toMatchObject({
       sortBy: 'd30', sortDir: 'asc',
     }));

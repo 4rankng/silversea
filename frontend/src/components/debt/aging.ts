@@ -5,13 +5,15 @@ import type { AgingBucket } from '@tingting/shared';
  * (PayableDetailPage) statement pages. Both render the same four ranges,
  * the same bar/grid markup (dd-aging-*), and derive the highlighted bucket
  * the same way — only the statement queries and txn-type metadata differ.
+ * Card 061026221213: the bands are contractual due-status bands (days past
+ * the effective due date, cut at 30/90 — see computeFifoAging), never age.
  */
 
 export const AGING_RANGES = [
-  { label: '0–30 NGÀY',  dotColor: 'var(--accent)',  index: 0 },
-  { label: '31–60 NGÀY', dotColor: 'var(--warning)', index: 1 },
-  { label: '61–90 NGÀY', dotColor: 'var(--warning-deep, #914A16)', index: 2 },
-  { label: 'TRÊN 90 NGÀY', dotColor: 'var(--danger)', index: 3 },
+  { label: 'CHƯA ĐẾN HẠN',        dotColor: 'var(--accent)',  index: 0 },
+  { label: 'QUÁ HẠN 1–30 NGÀY',   dotColor: 'var(--warning)', index: 1 },
+  { label: 'QUÁ HẠN 31–90 NGÀY',  dotColor: 'var(--warning-deep, #914A16)', index: 2 },
+  { label: 'QUÁ HẠN TRÊN 90 NGÀY', dotColor: 'var(--danger)', index: 3 },
 ] as const;
 
 /** Map backend agingBuckets (ordered 0→90+) to a fixed 4-slot amount array. */

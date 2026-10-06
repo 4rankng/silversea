@@ -34,6 +34,8 @@ async function mkLedger(opts: {
   credit?: number;
   receiptId?: string | null;
   daysAgo?: number;
+  /** Frozen contractual due date (YYYY-MM-DD); null = legacy row due at issue. */
+  dueDate?: string | null;
 }) {
   const timestamp = new Date(Date.now() - (opts.daysAgo ?? 0) * 24 * 60 * 60 * 1000);
   const debit = opts.debit ?? 0;
@@ -48,6 +50,7 @@ async function mkLedger(opts: {
     credit: String(credit),
     balance: String(debit - credit),
     timestamp,
+    originalDueDate: opts.dueDate ?? null,
     note: null,
   }).returning();
   createdLedgerIds.push(e.id);
@@ -185,21 +188,26 @@ describe('M6.3 — getApAgingDetail', () => {
     assert.ok(!ids.includes(supB.id));
   });
 
-  test('aging buckets assign outstanding by the original payable age', async () => {
+  test('aging buckets assign outstanding by contractual due status (card 061026221213)', async () => {
     const sup = await mkSupplier();
-    // 100 days old payable → over90 bucket.
+    // Un-dated legacy rows are due at issue (house fallback): the 100-day-old
+    // payable is 100 days past due → over90; 45 days → d60 (31–90); 10 days →
+    // d30 (1–30). Debt AGE no longer drives the bands.
     await mkLedger({ entityId: sup.id, txnType: TxnType.VENDOR_EXPENSE, credit: 1_000_000, daysAgo: 100 });
-    // 45 days old payable → d30 bucket.
     await mkLedger({ entityId: sup.id, txnType: TxnType.VENDOR_EXPENSE, credit: 500_000, daysAgo: 45 });
-    // 10 days old payable → current bucket.
     await mkLedger({ entityId: sup.id, txnType: TxnType.VENDOR_EXPENSE, credit: 200_000, daysAgo: 10 });
+    // A payable whose due date is still ahead is in-term whatever its age.
+    await mkLedger({
+      entityId: sup.id, txnType: TxnType.VENDOR_EXPENSE, credit: 300_000, daysAgo: 10,
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    });
 
     const report = await getApAgingDetail({ supplierId: sup.id });
     const row = report.suppliers.find(r => r.supplierId === sup.id);
     assert.ok(row);
-    assert.equal(row!.aging.current, 200_000);
-    assert.equal(row!.aging.d30, 500_000);
-    assert.equal(row!.aging.d60, 0);
+    assert.equal(row!.aging.current, 300_000);
+    assert.equal(row!.aging.d30, 200_000);
+    assert.equal(row!.aging.d60, 500_000);
     assert.equal(row!.aging.over90, 1_000_000);
     // maxOverdueDays ≈ 100 (within ±2 for midnight-vs-now boundary).
     assert.ok(row!.maxOverdueDays > 90 && row!.maxOverdueDays <= 102,

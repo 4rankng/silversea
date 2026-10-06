@@ -201,7 +201,7 @@ export function AccountingOverview({
           to={routes.debt}
           icon={ReceiptText}
           title="Công nợ phải thu"
-          description="Theo dõi tuổi nợ, số đã thu, số còn lại và khách hàng quá hạn."
+          description="Theo dõi hạn nợ, số đã thu, số còn lại và khách hàng quá hạn."
           metric={`${receivables.data?.overdueCustomers ?? 0} cần chú ý`}
         />
         <WorkflowLink

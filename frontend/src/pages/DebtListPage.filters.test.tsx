@@ -150,6 +150,44 @@ describe('DebtListPage filter strip', () => {
   });
 });
 
+// Card 061026221213 — the row chip and the "Quá hạn" cell must tell the SAME
+// story: `maxOverdueDays` is the contractual overdue span (days past the
+// effective due date), so ANY overdue span means "Nợ quá hạn" — a 22-day
+// overdue customer may never read "Trong hạn" next to "22 ngày".
+describe('DebtListPage hạn-status chip (card 061026221213)', () => {
+  beforeEach(() => {
+    getCustomerAging.mockReset().mockResolvedValue({
+      ...envelope,
+      customers: [
+        { ...customer(1, 'Công ty A', 12_000_000), maxOverdueDays: 22 },
+        { ...customer(2, 'Công ty B', 8_000_000), maxOverdueDays: 0 },
+      ],
+    });
+    getPhoiPhieuReport.mockReset().mockResolvedValue(emptyReportEnvelope);
+  });
+
+  it('labels an overdue row "Nợ quá hạn" and an in-term row "Trong hạn"', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty A');
+
+    const cellFor = (name: string) => {
+      const mainCell = screen.getAllByText(name)
+        .map((el) => el.closest('td'))
+        .find((td) => td?.dataset.label === 'Khách hàng');
+      expect(mainCell).toBeDefined();
+      return mainCell!.closest('tr')!;
+    };
+
+    const overdueRow = cellFor('Công ty A');
+    expect(overdueRow.textContent).toContain('Nợ quá hạn');
+    expect(overdueRow.querySelector('td[data-label="Quá hạn"]')!.textContent).toContain('22 ngày');
+
+    const inTermRow = cellFor('Công ty B');
+    expect(inTermRow.textContent).toContain('Trong hạn');
+    expect(inTermRow.querySelector('td[data-label="Quá hạn"]')!.textContent).not.toContain('ngày');
+  });
+});
+
 // Card 380 — the monthly production summary rides this page for /debt: its
 // còn-nợ column must print the SAME number the ledger table prints as Tổng nợ
 // for the same party (same endpoint, same field — month-close reconciliation).

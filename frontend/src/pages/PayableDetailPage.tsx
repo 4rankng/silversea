@@ -361,8 +361,8 @@ export default function PayableDetailPage() {
               <div className="dd-sum-note">
                 <AlertTriangle size={17} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                 {activeAgingIdx <= 0
-                  ? 'Toàn bộ công nợ đang trong hạn 30 ngày.'
-                  : `Có công nợ quá hạn ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thanh toán.`
+                  ? 'Toàn bộ công nợ chưa đến hạn.'
+                  : `Có công nợ ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thanh toán.`
                 }
               </div>
             )}
@@ -384,7 +384,7 @@ export default function PayableDetailPage() {
             leads the page; every bucket, amount and share stays available on
             expand. Summary line shows the active bucket + amount. */}
         <details className="dd-aging-disclosure">
-          <summary>Phân bổ tuổi nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${formatCurrency(activeAgingAmount).replace(' ₫', '')}đ` : 'Không còn nợ'}</span></summary>
+          <summary>Phân bổ hạn nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${formatCurrency(activeAgingAmount).replace(' ₫', '')}đ` : 'Không còn nợ'}</span></summary>
           <div className="dd-aging-bar">
             {effectiveAging.map((amt, i) => {
               const pct = agingTotal > 0 ? (amt / agingTotal) * 100 : 0;

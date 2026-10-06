@@ -358,7 +358,11 @@ export { applyCommittedLegacyFuelFreeze } from './calculations/committedLegacyFu
 export type { CommittedLegacyFuelInput } from './calculations/committedLegacyFuel';
 export { computeTripTotals, computeRoadAllowance } from './calculations/tripTotals';
 export type { ComputeTripTotalsInput, ComputeTripTotalsOutput } from './calculations/tripTotals';
-export { computeFifoAging } from './calculations/fifoAging';
+export {
+  computeFifoAging,
+  calendarDaysPastDue,
+  maxOverdueDaysOf,
+} from './calculations/fifoAging';
 export type { FifoAgingInput, AgingBuckets, OpenInvoice } from './calculations/fifoAging';
 export { computeVehicleAlerts, VEHICLE_ALERT_LABELS } from './calculations/vehicleAlerts';
 export type { VehicleAlertInput } from './calculations/vehicleAlerts';

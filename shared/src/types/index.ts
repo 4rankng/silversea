@@ -711,6 +711,8 @@ export interface PayableSummary {
     d60: number;
     over90: number;
   };
+  /** Contractual overdue span (card 061026221213): days past the effective due
+   * date of the oldest open obligation; 0 = not yet due. Never the debt age. */
   maxOverdueDays: number;
   /**
    * Origin of the payable row.

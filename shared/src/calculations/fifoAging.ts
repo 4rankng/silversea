@@ -2,18 +2,65 @@ export interface FifoAgingInput {
   timestamp: string | null;
   debit: string | number;
   credit: string | number;
+  /**
+   * Effective payment due date (YYYY-MM-DD) — the payment-term authority's
+   * `processingDueDate ?? originalDueDate`, or absent/null for legacy rows that
+   * froze neither (then the entry is due at its issue date, the house fallback).
+   */
+  dueDate?: string | null;
 }
 
 export interface AgingBuckets {
+  /** Not yet due (0 days past the effective due date). */
   current: number;
+  /** 1–30 days past due. */
   d30: number;
+  /** 31–90 days past due. */
   d60: number;
+  /** Beyond 90 days past due. */
   over90: number;
 }
 
 export interface OpenInvoice {
   ts: string;
   open: number;
+  /** Effective due date carried from the source entry (null = due at issue). */
+  dueDate: string | null;
+  /**
+   * Contractual overdue span (card 061026221213): whole calendar days past the
+   * effective due date at the reference date; 0 = not yet due. Never the debt
+   * age — age lives in the aging buckets above.
+   */
+  overdueDays: number;
+}
+
+/** Day index of a YYYY-MM-DD (or ISO timestamp) date, UTC calendar. */
+function utcDayNumber(date: string): number {
+  return Date.UTC(
+    Number(date.slice(0, 4)),
+    Number(date.slice(5, 7)) - 1,
+    Number(date.slice(8, 10)),
+  ) / 86_400_000;
+}
+
+/** Calendar days past `dueDate` at `referenceDate`; 0 while not yet due. */
+export function calendarDaysPastDue(dueDate: string | null, issueTs: string, referenceDate: Date): number {
+  const due = dueDate ?? issueTs.slice(0, 10);
+  const asOf = Date.UTC(
+    referenceDate.getUTCFullYear(),
+    referenceDate.getUTCMonth(),
+    referenceDate.getUTCDate(),
+  ) / 86_400_000;
+  return Math.max(0, Math.floor(asOf - utcDayNumber(due)));
+}
+
+/** Largest contractual overdue span among open invoices; 0 = nobody past due. */
+export function maxOverdueDaysOf(openInvoices: OpenInvoice[]): number {
+  let max = 0;
+  for (const inv of openInvoices) {
+    if (inv.open > 0 && inv.overdueDays > max) max = inv.overdueDays;
+  }
+  return max;
 }
 
 export function computeFifoAging(
@@ -47,7 +94,12 @@ export function computeFifoAging(
       }
       if (debitRemaining > 0) {
         const ts = entry.timestamp ?? referenceDate.toISOString();
-        openInvoices.push({ ts, open: debitRemaining });
+        openInvoices.push({
+          ts,
+          open: debitRemaining,
+          dueDate: entry.dueDate ?? null,
+          overdueDays: calendarDaysPastDue(entry.dueDate ?? null, ts, referenceDate),
+        });
       }
     }
 
@@ -68,13 +120,16 @@ export function computeFifoAging(
 
   const aging: AgingBuckets = { current: 0, d30: 0, d60: 0, over90: 0 };
 
+  // Card 061026221213: the bands are CONTRACTUAL due-status bands, cut at 30
+  // and 90 days past the effective due date — `current` = not yet due, `d30` =
+  // 1–30 days past due, `d60` = 31–90, `over90` = beyond 90. Debt age never
+  // enters; legacy rows without a frozen due date are due at issue.
   for (const inv of openInvoices) {
     if (inv.open <= 0) continue;
-    const ageDays = (referenceDate.getTime() - new Date(inv.ts).getTime()) / (1000 * 60 * 60 * 24);
     // Round each bucket addition to avoid floating-point drift across hundreds of entries.
-    if (ageDays <= 30) aging.current += Math.round(inv.open);
-    else if (ageDays <= 60) aging.d30 += Math.round(inv.open);
-    else if (ageDays <= 90) aging.d60 += Math.round(inv.open);
+    if (inv.overdueDays === 0) aging.current += Math.round(inv.open);
+    else if (inv.overdueDays <= 30) aging.d30 += Math.round(inv.open);
+    else if (inv.overdueDays <= 90) aging.d60 += Math.round(inv.open);
     else aging.over90 += Math.round(inv.open);
   }
 

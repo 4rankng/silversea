@@ -82,7 +82,7 @@ interface AgingBucket {
 
 /**
  * One filter mode per bucket. The four aging buckets must filter independently
- * so clicking "31–60 ngày" shows only customers in that bucket, etc.
+ * so clicking "Quá hạn 1–30" shows only customers in that band, etc.
  * `'all'` is the unfiltered default. `'overdue'` has no lane card — it is the
  * cross-bucket "any overdue portion" aggregate the overview cards deep-link
  * to (?filter=overdue).
@@ -90,13 +90,14 @@ interface AgingBucket {
 type BucketFilterMode = 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue';
 
 const AGING_BUCKETS: AgingBucket[] = [
-  // Per P0-W6, the four age buckets are now surfaced as semantic O2C state
-  // lanes — "Trong hạn" / "Quá hạn 31–60" / "Quá hạn 61–90" / "Quá hạn >90" —
-  // so the accountant sees the AR workflow state (current vs overdue) at a
-  // glance instead of having to translate day ranges into a status.
-  { key: 'current', label: 'Trong hạn (0–30)', shortLabel: 'Trong hạn', subLabel: '0–30 ngày', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: 'var(--success, #177448)', filterMode: 'current' },
-  { key: 'd30', label: 'Quá hạn 31–60', shortLabel: 'Quá hạn', subLabel: '31–60 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
-  { key: 'd60', label: 'Quá hạn 61–90', shortLabel: 'Quá hạn', subLabel: '61–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
+  // Card 061026221213: the four bands are CONTRACTUAL due-status lanes (days
+  // past the effective due date, cut at 30/90 — see computeFifoAging) — "Trong
+  // hạn" / "Quá hạn 1–30" / "Quá hạn 31–90" / "Quá hạn trên 90", so every
+  // "Trong hạn"/"Quá hạn" word on the page means the same thing as the row
+  // chip and the KPI tiles. (P0-W6's lane intent, now truthful about bands.)
+  { key: 'current', label: 'Trong hạn (chưa đến hạn)', shortLabel: 'Trong hạn', subLabel: 'chưa đến hạn', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: 'var(--success, #177448)', filterMode: 'current' },
+  { key: 'd30', label: 'Quá hạn 1–30', shortLabel: 'Quá hạn', subLabel: '1–30 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
+  { key: 'd60', label: 'Quá hạn 31–90', shortLabel: 'Quá hạn', subLabel: '31–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
   { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', dotClass: 'debt-aging__dot--danger', color: 'var(--danger, #E32434)', filterMode: 'over90' },
 ];
 
@@ -302,7 +303,7 @@ export default function DebtListPage() {
         ]}
       />
 
-      <AgingDisclosure label="Nhóm tuổi nợ khách hàng · mở chi tiết">
+      <AgingDisclosure label="Nhóm hạn nợ khách hàng · mở chi tiết">
       <div className="debt-aging-grid" data-tour-id="debt-aging">
         {AGING_BUCKETS.map((bucket) => {
           const amount = totals[bucket.amountKey];
@@ -489,7 +490,7 @@ export default function DebtListPage() {
                             </div>
                             <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginLeft: 16 }}>
                               {d.totalOutstanding > 0
-                                ? (d.maxOverdueDays > 30 ? "Nợ quá hạn" : "Trong hạn")
+                                ? (d.maxOverdueDays > 0 ? "Nợ quá hạn" : "Trong hạn")
                                 : (d.totalOutstanding < 0 ? "Trả trước" : "Cân bằng")}
                             </div>
                           </td>

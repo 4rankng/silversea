@@ -209,6 +209,10 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const AS_OF = '2042-01-01';
 const REF = Date.UTC(2042, 0, 1, 16, 59, 59, 999);
 const daysBefore = (days: number) => new Date(REF - days * 86_400_000);
+// Contractual due dates (card 061026221213): the bands are days past due, so
+// the fixture stamps due dates to express in-term vs overdue, never age.
+const dueAfter = (days: number) => new Date(REF + days * 86_400_000).toISOString().slice(0, 10);
+const dueBefore = (days: number) => new Date(REF - days * 86_400_000).toISOString().slice(0, 10);
 
 let server: http.Server;
 let baseUrl: string;
@@ -230,8 +234,9 @@ before(async () => {
     });
   });
 
-  // Receivables fixture: customer A carries BOTH an in-term (12d) and an
-  // overdue (103d) portion; customer B is overdue-only (47d → d30).
+  // Receivables fixture: customer A carries BOTH an in-term (due +7d) and a
+  // deeply overdue (103d past due → over90) portion; customer B is overdue-only
+  // (20d past due → d30).
   const [customerA] = await db.insert(s.customers).values({ name: `Tổng quát both ${suffix}` }).returning();
   const [customerB] = await db.insert(s.customers).values({ name: `Tổng quát overdue ${suffix}` }).returning();
   customerIds.push(customerA.id, customerB.id);
@@ -247,31 +252,31 @@ before(async () => {
   const rows = await db.insert(s.ledger).values([
     {
       entityType: 'CUSTOMER', entityId: customerA.id, txnType: TxnType.TRIP_REVENUE, txnId: 9_500_001,
-      debit: '1000', credit: '0', balance: '1000', timestamp: daysBefore(12),
+      debit: '1000', credit: '0', balance: '1000', timestamp: daysBefore(12), originalDueDate: dueAfter(7),
     },
     {
       entityType: 'CUSTOMER', entityId: customerA.id, txnType: TxnType.TRIP_REVENUE, txnId: 9_500_002,
-      debit: '2000', credit: '0', balance: '2000', timestamp: daysBefore(103),
+      debit: '2000', credit: '0', balance: '2000', timestamp: daysBefore(103), originalDueDate: dueBefore(103),
     },
     {
       entityType: 'CUSTOMER', entityId: customerB.id, txnType: TxnType.TRIP_REVENUE, txnId: 9_500_003,
-      debit: '3000', credit: '0', balance: '3000', timestamp: daysBefore(47),
+      debit: '3000', credit: '0', balance: '3000', timestamp: daysBefore(47), originalDueDate: dueBefore(20),
     },
     {
       entityType: 'VENDOR', entityId: supplierP1.id, txnType: TxnType.VENDOR_EXPENSE, txnId: 9_500_004,
-      debit: '0', credit: '10000', balance: '-10000', timestamp: daysBefore(12),
+      debit: '0', credit: '10000', balance: '-10000', timestamp: daysBefore(12), originalDueDate: dueAfter(7),
     },
     {
       entityType: 'VENDOR', entityId: supplierP1.id, txnType: TxnType.VENDOR_EXPENSE, txnId: 9_500_005,
-      debit: '0', credit: '20000', balance: '-20000', timestamp: daysBefore(103),
+      debit: '0', credit: '20000', balance: '-20000', timestamp: daysBefore(103), originalDueDate: dueBefore(103),
     },
     {
       entityType: 'VENDOR', entityId: supplierP2.id, txnType: TxnType.VENDOR_EXPENSE, txnId: 9_500_006,
-      debit: '0', credit: '5000', balance: '-5000', timestamp: daysBefore(12),
+      debit: '0', credit: '5000', balance: '-5000', timestamp: daysBefore(12), originalDueDate: dueAfter(7),
     },
     {
       entityType: 'VENDOR', entityId: supplierP3.id, txnType: TxnType.VENDOR_EXPENSE, txnId: 9_500_007,
-      debit: '0', credit: '7000', balance: '-7000', timestamp: daysBefore(47),
+      debit: '0', credit: '7000', balance: '-7000', timestamp: daysBefore(47), originalDueDate: dueBefore(20),
     },
   ]).returning({ id: s.ledger.id });
   ledgerIds.push(...rows.map((row) => row.id));
