@@ -10,6 +10,12 @@ function clickWithFocus(element: HTMLElement) {
   fireEvent.click(element);
 }
 
+function openViaFrame(part: 'time' | 'date' = 'time') {
+  const group = document.querySelector(`[data-seg-part="${part}"]`);
+  if (!group) throw new Error(`segments group (${part}) not found`);
+  fireEvent.click(group);
+}
+
 function Harness({ value = '', onChange }: { value?: string; onChange?: (value: string) => void }) {
   const [current, setCurrent] = useState(value);
   return <form><DateTimeField label="Giờ trả hàng" value={current} onChange={(next) => { setCurrent(next); onChange?.(next); }} /></form>;
@@ -56,7 +62,7 @@ describe('segmented datetime advances and retains siblings', () => {
     render(<Harness value="2026-10-06T14:45" onChange={onChange} />);
     expect(hour()).toHaveValue('14');
     expect(minute()).toHaveValue('45');
-    clickWithFocus(hour());
+    clickWithFocus(hour()); openViaFrame();
     await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Giờ trả hàng' });
     expect(hour()).toHaveFocus();
     typeInto(hour(), ['0', '8']);
@@ -73,7 +79,7 @@ describe('segmented datetime advances and retains siblings', () => {
     mobileWidth();
     const onChange = vi.fn();
     render(<Harness value="2026-10-06T14:45" onChange={onChange} />);
-    clickWithFocus(hour());
+    clickWithFocus(hour()); openViaFrame();
     await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Giờ trả hàng' });
     typeInto(hour(), ['0', '8']);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -85,7 +91,7 @@ describe('segmented datetime advances and retains siblings', () => {
   it('typing two digits into an empty field advances even though the target segment is empty', async () => {
     const onChange = vi.fn();
     render(<Harness value="" onChange={onChange} />);
-    clickWithFocus(hour());
+    clickWithFocus(hour()); openViaFrame();
     await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Giờ trả hàng' });
     typeInto(hour(), ['0', '8']);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

@@ -10,6 +10,12 @@ function clickWithFocus(element: HTMLElement) {
   fireEvent.click(element);
 }
 
+function openViaFrame(part: 'time' | 'date' = 'time') {
+  const group = document.querySelector(`[data-seg-part="${part}"]`);
+  if (!group) throw new Error(`segments group (${part}) not found`);
+  fireEvent.click(group);
+}
+
 // Segmented entry contract: each part is several [data-seg] inputs plus one
 // icon trigger that opens the picker. Full-string changes still work on the
 // first segment (paste distribution fills the following segments).
@@ -52,7 +58,7 @@ describe('SplitDateTimeField', () => {
   it('disabling during picker editing closes the portal and refuses further changes', () => {
     const onChange = vi.fn();
     const { rerender } = render(<SplitDateTimeField label="Hẹn" value="2026-09-19T08:00" onChange={onChange} />);
-    fireEvent.click(timeTrigger());
+    act(() => timeTrigger().focus()); openViaFrame();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     rerender(<SplitDateTimeField label="Hẹn" value="2026-09-19T08:00" onChange={onChange} disabled />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -66,7 +72,7 @@ describe('SplitDateTimeField', () => {
   it('opens independent date and 24h time pickers and restores focus after selection', async () => {
     const onChange = vi.fn();
     render(<Harness value="2026-09-19T08:00" onChange={onChange} />);
-    fireEvent.click(dateTrigger());
+    act(() => dateTrigger().focus()); openViaFrame('date');
     let dialog = screen.getByRole('dialog', { name: 'Chọn ngày — Hẹn' });
     expect(within(dialog).queryByRole('listbox', { name: 'Giờ 00–23' })).not.toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: '20 Tháng 9 2026' }));
@@ -74,7 +80,7 @@ describe('SplitDateTimeField', () => {
     expect(screen.getByLabelText('Tháng — Hẹn')).toHaveValue('09');
     expect(screen.getByLabelText('Năm — Hẹn')).toHaveValue('2026');
     expect(day()).toHaveFocus();
-    fireEvent.click(timeTrigger());
+    act(() => timeTrigger().focus()); openViaFrame();
     dialog = screen.getByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
     fireEvent.click(within(within(dialog).getByRole('listbox', { name: 'Giờ 00–23' })).getByRole('option', { name: '23' }));
     fireEvent.click(within(within(dialog).getByRole('listbox', { name: 'Phút 00–59' })).getByRole('option', { name: '45' }));
@@ -89,35 +95,28 @@ describe('SplitDateTimeField', () => {
     await waitFor(() => expect(hour()).toHaveFocus());
   });
 
-  it('segment clicks open the picker while typing stays in the segments', () => {
-    const onChange = vi.fn();
-    render(<Harness onChange={onChange} />);
+  it('clicking a segment places the caret and keeps the picker closed; typing 08 auto-advances (card 061026172803)', () => {
+    render(<Harness />);
     clickWithFocus(hour());
     expect(hour()).toHaveFocus();
-    // Segment click opens the part's picker (2026-09-20 ruling: no icon
-    // trigger on the segmented fields); typing continues in the segment.
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    fireEvent.change(hour(), { target: { value: '13:30' } });
-    expect(hour()).toHaveValue('13');
-    expect(minute()).toHaveValue('30');
-    expect(hour()).not.toHaveAttribute('aria-invalid', 'true');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    clickWithFocus(dateTrigger());
-    expect(dateTrigger()).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    fireEvent.change(day(), { target: { value: '19/09/2026' } });
-    expect(onChange).toHaveBeenLastCalledWith('2026-09-19T13:30');
-    fireEvent.keyDown(day(), { key: 'Escape' });
+    // Card 061026172803 (FB-030, owner word 2026-10-06, superseding the
+    // 2026-09-20 ruling for digit clicks): a segment click is a CARET click —
+    // the picker must stay closed so direct entry works.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(day()).toHaveFocus();
-    expect(day()).toHaveValue('19');
-    expect(screen.getByLabelText('Tháng — Hẹn')).toHaveValue('09');
-    expect(screen.getByLabelText('Năm — Hẹn')).toHaveValue('2026');
+    fireEvent.change(hour(), { target: { value: '08' } });
+    // Two hour digits are complete → focus auto-advances to the minute.
+    expect(minute()).toHaveFocus();
+    expect(hour()).toHaveValue('08');
+    expect(hour()).not.toHaveAttribute('aria-invalid', 'true');
+    // Clicking the field's frame (not a digit) still opens the part's picker —
+    // the pointer path to the picker survives without an icon trigger.
+    fireEvent.click(document.querySelector('[data-seg-part="time"]'));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('picking time first preserves the incomplete pair without red feedback until group exit', async () => {
     render(<><Harness /><button type="button">Outside</button></>);
-    clickWithFocus(timeTrigger());
+    act(() => timeTrigger().focus()); openViaFrame();
     clickWithFocus(within(screen.getByRole('listbox', { name: 'Giờ 00–23' })).getByRole('option', { name: '13' }));
     clickWithFocus(within(screen.getByRole('listbox', { name: 'Phút 00–59' })).getByRole('option', { name: '30' }));
     // Selections apply and keep the panel open (2026-09-16 ruling); Xong
@@ -141,7 +140,7 @@ describe('SplitDateTimeField', () => {
     const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
     try {
       render(<><Harness /><input aria-label="Outside field" /></>);
-      clickWithFocus(timeTrigger());
+      act(() => timeTrigger().focus()); openViaFrame();
       clickWithFocus(within(screen.getByRole('listbox', { name: 'Phút 00–59' })).getByRole('option', { name: '05' }));
       clickWithFocus(within(screen.getByRole('listbox', { name: 'Giờ 00–23' })).getByRole('option', { name: '01' }));
       expect(hour()).toHaveValue('01');
@@ -197,7 +196,7 @@ describe('SplitDateTimeField', () => {
 
   it('keeps picker hour synchronized with manual edits while open', () => {
     render(<Harness value="2026-09-19T08:00" />);
-    clickWithFocus(timeTrigger());
+    act(() => timeTrigger().focus()); openViaFrame();
     fireEvent.change(hour(), { target: { value: '20:46' } });
     const hours = screen.getByRole('listbox', { name: 'Giờ 00–23' });
     expect(within(hours).getByRole('option', { name: '20' })).toHaveAttribute('aria-selected', 'true');
@@ -209,7 +208,7 @@ describe('SplitDateTimeField', () => {
   it('keyboard group exit closes the picker without reclaiming focus and starts a fresh edit baseline', () => {
     render(<><Harness value="2026-09-19T08:00" /><input aria-label="Next field" /></>);
     const next = screen.getByLabelText('Next field');
-    clickWithFocus(timeTrigger());
+    act(() => timeTrigger().focus()); openViaFrame();
     fireEvent.change(hour(), { target: { value: '13:30' } });
     act(() => next.focus());
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

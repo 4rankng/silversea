@@ -227,7 +227,16 @@ export function DateTimeSegments({
   };
 
   return <div id={id} role="group" data-seg-part={part} data-uui-control="segments" data-control-size={size}
-    onClick={() => { if (!disabled && !readOnly) onOpenPicker(); }}
+    // Card 061026172803 (FB-030; owner word 2026-10-06, superseding the
+    // 2026-09-20 no-icon ruling for digit clicks): a click on a SEGMENT is a
+    // caret click — typing must start there, so the bubble must not open the
+    // picker. The pointer path to the picker survives on the field's frame
+    // (any non-input part of the group).
+    onClick={(event) => {
+      if (disabled || readOnly) return;
+      if (event.target instanceof HTMLElement && event.target.tagName === 'INPUT') return;
+      onOpenPicker();
+    }}
     className={['date-seg-group', error ? 'date-seg-group--error' : '', className].filter(Boolean).join(' ')}>
     {specs.map((spec, index) => {
       const outOfRange = isOutOfRange(spec, texts[index]);

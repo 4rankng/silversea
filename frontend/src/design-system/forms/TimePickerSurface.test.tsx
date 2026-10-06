@@ -12,6 +12,12 @@ function click(element: HTMLElement) {
   fireEvent.pointerDown(element); fireEvent.mouseDown(element);
   act(() => element.focus()); fireEvent.click(element);
 }
+
+function openViaFrame(part: 'time' | 'date' = 'time') {
+  const group = document.querySelector(`[data-seg-part="${part}"]`);
+  if (!group) throw new Error(`segments group (${part}) not found`);
+  fireEvent.click(group);
+}
 function SplitHarness({ value = '' }: { value?: string }) {
   const [current, setCurrent] = useState(value);
   return <SplitDateTimeField label="Hẹn" value={current} onChange={setCurrent} />;
@@ -100,7 +106,7 @@ describe('adaptive time entry', () => {
     it('first digit typed into a segment closes the pointer-opened sheet', async () => {
       render(<><SplitHarness /><input aria-label="Outside" /></>);
       const time = screen.getByLabelText('Giờ — Hẹn');
-      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+      act(() => screen.getByRole('textbox', { name: 'Giờ — Hẹn' }).focus()); openViaFrame();
       await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       fireEvent.keyDown(time, { key: '1' });
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -112,12 +118,12 @@ describe('adaptive time entry', () => {
 
     it('a picker selection keeps the pointer sheet open (explicit apply still rules)', async () => {
       render(<><SplitHarness /><input aria-label="Outside" /></>);
-      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
-      const dialog = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
+      act(() => screen.getByRole('textbox', { name: 'Giờ — Hẹn' }).focus()); openViaFrame();
+      await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       fireEvent.keyDown(screen.getByLabelText('Giờ — Hẹn'), { key: '1' });
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       // Reopen and pick from the listbox: the selection must NOT close it.
-      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+      act(() => screen.getByRole('textbox', { name: 'Giờ — Hẹn' }).focus()); openViaFrame();
       const reopened = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       click(within(reopened).getByRole('option', { name: '07' }));
       expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).toBeInTheDocument();
@@ -127,7 +133,7 @@ describe('adaptive time entry', () => {
       render(<><SplitHarness /><input aria-label="Outside" /></>);
       const time = screen.getByLabelText('Giờ — Hẹn');
       act(() => time.focus());
-      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+      act(() => screen.getByRole('textbox', { name: 'Giờ — Hẹn' }).focus()); openViaFrame();
       await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       expect(time).toHaveFocus();
     });
@@ -136,7 +142,7 @@ describe('adaptive time entry', () => {
       render(<><SplitHarness /><input aria-label="Outside" /></>);
       const time = screen.getByLabelText('Giờ — Hẹn');
       const trigger = screen.getByRole('textbox', { name: 'Giờ — Hẹn' });
-      click(trigger);
+      act(() => trigger.focus()); openViaFrame();
       const dialog = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       expect(dialog.closest('.time-picker__sheet')).toBeInTheDocument();
       // Card 326: a pointer-opened sheet leaves focus on the segment — the
@@ -159,7 +165,7 @@ describe('adaptive time entry', () => {
     it('keeps minute-first blank selection partial, and completes without inventing the hour', async () => {
       render(<SplitHarness />);
       const time = screen.getByLabelText('Giờ — Hẹn');
-      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+      act(() => screen.getByRole('textbox', { name: 'Giờ — Hẹn' }).focus()); openViaFrame();
       const dialog = await screen.findByRole('dialog');
       click(within(within(dialog).getByRole('listbox', { name: 'Phút 00–59' })).getByRole('option', { name: '05' }));
       expect(time).toHaveValue('');
@@ -196,8 +202,8 @@ describe('adaptive time entry', () => {
     it('pointer sheet keeps background focus where it is and still dismisses through the backdrop', async () => {
       render(<><SplitHarness value="2026-09-19T20:46" /><input aria-label="Outside" /></>);
       const time = screen.getByLabelText('Giờ — Hẹn');
-      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
-      const dialog = await screen.findByRole('dialog');
+      act(() => screen.getByRole('textbox', { name: 'Giờ — Hẹn' }).focus()); openViaFrame();
+      await screen.findByRole('dialog');
       // Card 326: no focus containment on the pointer sheet — the segments
       // keep focus; moving focus outside stays outside (the sheet is a
       // passive popup for pointer users).
@@ -214,7 +220,7 @@ describe('adaptive time entry', () => {
     it('nested picker Escape closes only the picker and preserves the buffered value', async () => {
       const onChange = vi.fn();
       render(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T20:46" onChange={onChange} />);
-      click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+      act(() => screen.getByRole('textbox', { name: 'Giờ — Hẹn' }).focus()); openViaFrame();
       const sheet = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
       const exact = within(sheet).getByLabelText('Giờ chính xác (HH:mm)');
       click(exact); fireEvent.change(exact, { target: { value: '1417' } });
