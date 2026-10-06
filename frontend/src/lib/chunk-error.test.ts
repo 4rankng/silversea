@@ -22,6 +22,28 @@ describe('chunk recovery evidence', () => {
     for (const message of ['Loading chunk 5 failed', 'Failed to fetch dynamically imported module', 'Importing a module script failed', 'ChunkLoadError', 'error loading dynamically imported module']) expect(isChunkFailureMessage(message)).toBe(true);
     expect(isChunkFailureMessage('Cannot read properties of null')).toBe(false);
   });
+
+  // Card 061026221813 — React.lazy resolves a route chunk and then reads
+  // `moduleObject.default` (react.development.js, lazyInitializer). When the
+  // dynamic import settles with `undefined` — the first-load race a stale
+  // asset manifest produces — that read throws
+  // "Cannot read properties of undefined (reading 'default')". None of the
+  // existing variants match, so the verified-deployment recovery never
+  // engaged and the dispatcher was stranded on a dead-end error whose only
+  // exit was a manual retry. It is the same class of asset failure.
+  it('recognizes the React.lazy undefined-module resolution as an asset failure', () => {
+    expect(isChunkFailureMessage("Cannot read properties of undefined (reading 'default')")).toBe(true);
+    expect(isChunkFailureMessage("Cannot read properties of undefined (reading 'default') — lazy: Expected the result of a dynamic import() call.")).toBe(true);
+  });
+
+  // Guard the blast radius: only the lazy-module signature joins the class.
+  // A genuine null-deref in app code must still be an ordinary bug, not a
+  // licence to spend the one automatic reload.
+  it('does not admit an unrelated null-deref into the asset-failure class', () => {
+    expect(isChunkFailureMessage('Cannot read properties of undefined (reading "name")')).toBe(false);
+    expect(isChunkFailureMessage("Cannot read properties of undefined (reading 'default') while saving")).toBe(true);
+    expect(isChunkFailureMessage('')).toBe(false);
+  });
   it('unchanged-build failures do not reload, purge caches or spend the allowance', async () => {
     const remove = vi.fn();
     vi.stubGlobal('caches', { keys: vi.fn().mockResolvedValue(['unrelated']), delete: remove });
