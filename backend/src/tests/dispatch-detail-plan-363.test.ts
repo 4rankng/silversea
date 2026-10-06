@@ -134,7 +134,7 @@ function saveInput(fx: Fixture, windowEnd: Date) {
 }
 
 describe('card 363 rig-conflict overlap', () => {
-  test('363: a COMPLETED trip no longer blocks the rig (back-to-back assignments)', async () => {
+  test('363: a COMPLETED trip no longer BLOCKS the rig; the save warns once and the confirmed retry proceeds (card 061026172804)', async () => {
     const t0 = new Date('2026-10-05T08:00:00.000Z');
     const fx = await makeFixture(t0);
     await insertTrip({
@@ -148,9 +148,23 @@ describe('card 363 rig-conflict overlap', () => {
       status: 'COMPLETED',
       createdBy: fx.actor.userId,
     });
-    // RED at HEAD: tripConflicts only skips CANCELED — a finished COMPLETED
-    // trip still blocks ('Đầu xe … đã được gán cho lô/tác vụ khác…').
-    const saved = await updateDispatchDetailPlan(saveInput(fx, new Date('2026-10-05T10:00:00.000Z')));
+    // Card 061026172804 (FB-038 / REQ-04): a COMPLETED overlap must not be
+    // silent (FB-038's report) nor a hard block (card 363's false-block fix) —
+    // it refuses once with the RIG_OVERLAP_COMPLETED warning payload.
+    await assert.rejects(
+      () => updateDispatchDetailPlan(saveInput(fx, new Date('2026-10-05T10:00:00.000Z'))),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string } };
+        assert.equal(e.statusCode, 409);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED');
+        return true;
+      },
+    );
+    // The dispatcher confirms in the dialog; the retry rides the flag.
+    const saved = await updateDispatchDetailPlan({
+      ...saveInput(fx, new Date('2026-10-05T10:00:00.000Z')),
+      rigOverlapCompletedConfirmed: true,
+    });
     const [row] = await db.select({ plate: s.shipmentFulfillments.plannedVehiclePlateNumber })
       .from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fx.fulfillmentId));
     assert.equal(row?.plate, fx.truckPlate);

@@ -11,7 +11,7 @@ import {
 } from '../../../api/dispatchPlanningClient';
 import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
-import { Modal } from '../../../components/UI';
+import { Modal, useConfirm } from '../../../components/UI';
 import { billBookingReference } from '../../../lib/business-reference';
 import { DateTimeField, NumberField, SearchableSelect, type SearchableSelectOption } from '../../../design-system';
 import {
@@ -243,6 +243,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const truckCarrierLinksRef = useRef(new Map<number, { plate: string; carrierId: number; carrierName: string }>());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Card 061026172804 (FB-038): the completed-trip overlap warning rides a
+  // confirm dialog — the house confirm idiom, not an inline alert.
+  const { confirm, dialog: overlapConfirmDialog } = useConfirm();
   // Fleet fetches must never masquerade as "no data": a failed list load
   // renders a retry affordance instead of the misleading empty message
   // (debug order #2 — QA's combobox evidence came from this swallow).
@@ -640,31 +643,59 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     const endTouched = !sameInstantMinute(draftEndIso, storedEnd);
     setSaving(true);
     setError(null);
+    const saveBody = {
+      carrierType: carrier.carrierType,
+      externalCarrierId: carrier.carrierType === 'EXTERNAL' ? carrier.externalCarrierId ?? null : null,
+      // Send the vehicle block only when the editor actually touches it —
+      // an estimates/classification-only save must not disturb stored columns.
+      ...(vehicleChanged ? body : {}),
+      plannedRevenue: draft.plannedRevenue === '' ? null : draft.plannedRevenue,
+      plannedCarrierCost: draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost,
+      // Same touch-gating as the vehicle block: an untouched field must
+      // never reach the wire and clobber a value another editor saved.
+      ...(endTouched ? { plannedEndAt: draftEndIso } : {}),
+      classification: draft.classification,
+      operationalNotes: draft.operationalNotes,
+    };
+    const attemptSave = async (extra: { rigOverlapCompletedConfirmed?: boolean }) => {
+      await onAtomicSave(row, { ...saveBody, ...extra });
+    };
     try {
-      await onAtomicSave(row, {
-        carrierType: carrier.carrierType,
-        externalCarrierId: carrier.carrierType === 'EXTERNAL' ? carrier.externalCarrierId ?? null : null,
-        // Send the vehicle block only when the editor actually touches it —
-        // an estimates/classification-only save must not disturb stored columns.
-        ...(vehicleChanged ? body : {}),
-        plannedRevenue: draft.plannedRevenue === '' ? null : draft.plannedRevenue,
-        plannedCarrierCost: draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost,
-        // Same touch-gating as the vehicle block: an untouched field must
-        // never reach the wire and clobber a value another editor saved.
-        ...(endTouched ? { plannedEndAt: draftEndIso } : {}),
-        classification: draft.classification,
-        operationalNotes: draft.operationalNotes,
-      });
+      await attemptSave({});
       restoreFocusRef.current = true;
       setOpen(false);
     } catch (saveError) {
       // The grid-level banner renders behind this modal, so the dialog must
-      // speak for itself: show the backend's specific 409 reason (version
-      // conflict, live-trip guard) inline instead of a generic retry hint.
-      const err = saveError as { status?: number; message?: string };
-      setError(err.status === 409 && err.message
-        ? err.message
-        : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+      // speak for itself: show the backend's specific 409+payload confirm path.
+      const err = saveError as {
+        status?: number;
+        message?: string;
+        raw?: { code?: string };
+      };
+      if (err.status === 409 && err.raw?.code === 'RIG_OVERLAP_COMPLETED') {
+        // Card 061026172804 (FB-038 / REQ-04): a completed-trip overlap warns
+        // instead of silently passing — the dispatcher confirms and the same
+        // save rides the confirm flag. Declining keeps the editor open with
+        // the explanation inline.
+        const proceed = await confirm(err.message
+          ?? 'Đầu xe có chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?');
+        if (proceed) {
+          try {
+            await attemptSave({ rigOverlapCompletedConfirmed: true });
+            restoreFocusRef.current = true;
+            setOpen(false);
+          } catch (retryError) {
+            const retry = retryError as { status?: number; message?: string };
+            setError(retry.status === 409 && retry.message ? retry.message : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+          }
+        } else {
+          setError(err.message ?? 'Đã huỷ lưu.');
+        }
+      } else {
+        setError(err.status === 409 && err.message
+          ? err.message
+          : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+      }
     } finally {
       setSaving(false);
     }
@@ -958,6 +989,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           )}
         </form>
       </Modal>
+      {overlapConfirmDialog}
       {quickAddOpen && selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null && (
         <QuickAddVehicleDialog
           isOpen

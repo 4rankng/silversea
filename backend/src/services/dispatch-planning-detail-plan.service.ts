@@ -108,6 +108,10 @@ export interface UpdateDispatchDetailPlanInput {
    *  now always sends: a per-container dispatcher must not rewrite a flag
    *  that spans every container in the lot. */
   isCombined?: boolean;
+  /** Card 061026172804 (FB-038 / REQ-04): the dispatcher confirmed the save
+   *  may ride a COMPLETED trip's window — the 409 RIG_OVERLAP_COMPLETED
+   *  warning was acknowledged in the dialog before this retry. */
+  rigOverlapCompletedConfirmed?: boolean;
   /** Driver-facing note (shipments.operational_notes). Undefined = note
    *  untouched by this save. '' clears; null ≡ '' for change detection. */
   operationalNotes?: string | null;
@@ -1175,7 +1179,15 @@ async function resolvePlanRowWindowStart(
 
 async function assertPlanRowRigAvailable(
   tx: Tx,
-  args: { fulfillmentId: number; plate: string; windowStart: Date; windowEnd: Date | null },
+  args: {
+    fulfillmentId: number;
+    plate: string;
+    windowStart: Date;
+    windowEnd: Date | null;
+    /** Card 061026172804 (FB-038 / REQ-04): the dispatcher confirmed the save
+     *  may ride a COMPLETED trip's window. */
+    confirmCompletedOverlap?: boolean;
+  },
 ): Promise<void> {
   const plate = args.plate.trim();
   if (!plate) return;
@@ -1233,6 +1245,31 @@ async function assertPlanRowRigAvailable(
     ));
   if (planConflicts.length > 0 || lclPlanConflicts.length > 0 || tripConflicts.length > 0) {
     throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+  }
+  // Card 061026172804 (FB-038 / REQ-04): a COMPLETED trip of the same rig no
+  // longer blocks (card 363 released the rig on completion) but the overlap is
+  // not silent either — the save is refused once with a warning payload the
+  // editor turns into a confirm dialog; the confirmed retry proceeds (chạy
+  // gối đầu onto a finished trip is legal). Same overlap rule and 8-hour
+  // default as the active-trip scan above.
+  if (!args.confirmCompletedOverlap) {
+    const completedTripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+      .from(s.trips)
+      .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+      .where(and(
+        eq(s.trucks.licensePlate, plate),
+        eq(s.trips.status, TripStatus.COMPLETED),
+        isNull(s.trips.deletedAt),
+        isNotNull(s.trips.plannedStartAt),
+        lt(s.trips.plannedStartAt, windowEnd),
+        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
+      ));
+    if (completedTripConflicts.length > 0) {
+      throw new ApiError(409,
+        `Đầu xe ${plate} có ${completedTripConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
+        undefined,
+        { code: 'RIG_OVERLAP_COMPLETED' });
+    }
   }
 }
 
@@ -1398,6 +1435,7 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
         plate: vehicle.plannedVehiclePlateNumber,
         windowStart,
         windowEnd: nextPlannedEndAt,
+        confirmCompletedOverlap: input.rigOverlapCompletedConfirmed === true,
       });
     }
   }

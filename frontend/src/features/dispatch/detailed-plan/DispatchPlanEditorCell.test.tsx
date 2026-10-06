@@ -1212,3 +1212,36 @@ describe('DispatchPlanEditorCell — trailer override on phát lệnh (card 2026
     expect(await screen.findByText('Rơ-moóc không phù hợp với loại container.')).toBeTruthy();
   });
 });
+
+describe('DispatchPlanEditorCell — completed-trip overlap confirm (card 061026172804)', () => {
+  it('a 409 RIG_OVERLAP_COMPLETED warns via confirm; confirming retries the save with the flag', async () => {
+    const apiError = Object.assign(new Error('Đầu xe 15H-052.82 có 1 chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?'), {
+      status: 409,
+      raw: { code: 'RIG_OVERLAP_COMPLETED' },
+    });
+    const onAtomicSave = vi.fn()
+      .mockRejectedValueOnce(apiError)
+      .mockResolvedValue({
+        fulfillmentVersion: 5,
+        shipmentVersion: 7,
+        classification: 'SINGLE',
+        isCombined: false,
+        operationalNotes: null,
+        dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+        estimates: { plannedRevenue: null, plannedCarrierCost: null },
+        lotFullyPlated: false,
+      });
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    // The warning surfaces as the house confirm dialog, not an inline error.
+    expect(await screen.findByText('Xác nhận')).toBeTruthy();
+    expect(screen.getByText(/chuyến đã hoàn thành trùng khung giờ/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(2));
+    const retryBody = onAtomicSave.mock.calls[1][1] as { rigOverlapCompletedConfirmed?: boolean };
+    expect(retryBody.rigOverlapCompletedConfirmed).toBe(true);
+    // The retry closed the dialog (save succeeded).
+    await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
+  });
+});

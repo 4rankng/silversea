@@ -1263,6 +1263,12 @@ export const atomicDispatchPlanEditSchema = z.object({
    *  Optional and omitted by the editor — the stored value is left untouched.
    *  The dispatch route strips it even when a caller sends it explicitly. */
   isCombined: z.boolean().optional(),
+  /** Card 061026172804 (FB-038 / REQ-04): a save whose rig window overlaps a
+   *  COMPLETED trip of the same tractor is refused once with 409 payload code
+   *  RIG_OVERLAP_COMPLETED; the dispatcher's confirmation re-sends the save
+   *  with this flag and it proceeds (chạy gối đầu onto a finished trip is
+   *  legal). An ACTIVE (CREATED/IN_TRANSIT) overlap still blocks outright. */
+  rigOverlapCompletedConfirmed: z.boolean().optional(),
   /** Driver-facing note (shipments.operational_notes). Optional: an editor
    *  save that touches only plan fields omits it and the stored note stays
    *  untouched. '' clears the note; null ≡ '' for change detection. */
