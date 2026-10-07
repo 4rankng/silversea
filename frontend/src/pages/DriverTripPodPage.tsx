@@ -13,7 +13,7 @@
  * that used to live on the trip detail is the footer button of THIS page.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -42,21 +42,39 @@ import './DriverTripDetailPage.css';
 import './DriverTripPodPage.css';
 
 export function DriverTripPodPage() {
-  const { id: fulfillmentIdParam } = useParams<{ id: string }>();
-  useDriverScreenEntry(fulfillmentIdParam);
+  const { id: tripIdParam } = useParams<{ id: string }>();
+  useDriverScreenEntry(tripIdParam);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [pendingFiles, setPendingFiles] = useState(false);
 
-  const fulfillmentId = Number(fulfillmentIdParam);
-  const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
+  const tripId = Number(tripIdParam);
+  const validTripId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
+
+  // Card 071026141570: the route `/my-trips/:id/pod` carries a TRIP id, but every
+  // e-POD endpoint is FULFILLMENT-scoped. This page used to feed the route id
+  // straight into `useDriverTaskDetail`, so every trip 404'd on
+  // `/driver/me/fulfillments/{id}` and the screen fell into the hard-error
+  // branch. Resolve the fulfillment id from the trip payload first — the same
+  // shape the sibling DriverTripDetailPage uses since card 20260915_1.
+  // Ad-hoc trips carry `fulfillmentId: null` and correctly render the
+  // no-fulfillment guard instead.
+  const tripQuery = useQuery({
+    queryKey: qk.driver.tripBasic(validTripId),
+    queryFn: () => driverClient.getDriverTrip(validTripId as number),
+    enabled: validTripId != null,
+  });
+  const fulfillmentId = tripQuery.data?.fulfillmentId ?? undefined;
+  const validFulfillmentId = Number.isInteger(fulfillmentId) && Number(fulfillmentId) > 0
+    ? fulfillmentId
+    : undefined;
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
 
   const { rootRef } = usePageAnimations({
-    ready: !taskDetail.isLoading,
+    ready: !tripQuery.isLoading && !taskDetail.isLoading,
   });
 
   const [creatingDraft, setCreatingDraft] = useState(false);
@@ -241,6 +259,19 @@ export function DriverTripPodPage() {
     confirm: (message) => confirm(message, { variant: 'warning', confirmLabel: 'Bỏ tệp và rời trang' }),
     onBack: navigateBack,
   });
+
+  // While the trip is still resolving we do not yet know whether this trip has
+  // a fulfillment, so show the loader rather than flashing either the
+  // no-fulfillment guard or the hard error.
+  if (!validTripId || tripQuery.isLoading) {
+    return (
+      <div className="driver-task-screen driver-task-screen--feedback">
+        <div className="driver-task-feedback"><Loader2 size={24} className="spin" />
+          <p>Đang tải chuyến…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!validFulfillmentId) {
     return (
