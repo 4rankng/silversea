@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Truck as TruckIcon } from 'lucide-react';
 import { useConfirm } from '../components/UI';
+import { useToast } from '../components/shared/Toast';
 import { SupplierCarrierTrucksSection } from '../features/suppliers/SupplierCarrierTrucksSection';
 import { api } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
@@ -65,7 +66,10 @@ export default function SupplierListPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+  // Card 071026211100: export feedback parity with /finance and /payables.
+  const [exporting, setExporting] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  const { toast } = useToast();
   // Card 20260926_2: expanded carrier row showing its 'Xe của nhà thầu' section.
   const [trucksOpenId, setTrucksOpenId] = useState<number | null>(null);
   // Row kebab menus join the global click-away / Escape dismissal layer.
@@ -186,24 +190,33 @@ export default function SupplierListPage() {
         description={`${total} nhà cung cấp đang quản lý`}
         action={
           <>
-            <button className="btn btn--secondary" onClick={async () => {
-              const headers = ['Tên NCC', 'Người liên hệ', 'Điện thoại', 'MST', 'Là nhà CC nhiên liệu', 'Trạng thái'];
-              const rows = filtered.map(s => [
-                s.name,
-                s.contactPerson || '',
-                s.phone || '',
-                s.taxCode || '',
-                s.isFuelSupplier ? 'Có' : 'Không',
-                STATUS_LABELS[s.status] || s.status,
-              ]);
-              await downloadCSV(`nha-cung-cap-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
-                title: 'DANH SÁCH NHÀ CUNG CẤP',
-                subtitle: `${filtered.length} nhà cung cấp đang quản lý`,
-                columnTypes: ['text', 'text', 'text', 'text', 'text', 'text'],
-                hideTotals: true,
-              });
+            <button className="btn btn--secondary" disabled={exporting} onClick={async () => {
+              if (exporting) return;
+              setExporting(true);
+              try {
+                const headers = ['Tên NCC', 'Người liên hệ', 'Điện thoại', 'MST', 'Là nhà CC nhiên liệu', 'Trạng thái'];
+                const rows = filtered.map(s => [
+                  s.name,
+                  s.contactPerson || '',
+                  s.phone || '',
+                  s.taxCode || '',
+                  s.isFuelSupplier ? 'Có' : 'Không',
+                  STATUS_LABELS[s.status] || s.status,
+                ]);
+                await downloadCSV(`nha-cung-cap-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
+                  title: 'DANH SÁCH NHÀ CUNG CẤP',
+                  subtitle: `${filtered.length} nhà cung cấp đang quản lý`,
+                  columnTypes: ['text', 'text', 'text', 'text', 'text', 'text'],
+                  hideTotals: true,
+                });
+                toast({ kind: 'success', message: 'Đã xuất danh sách nhà cung cấp ra tệp Excel.' });
+              } catch {
+                toast({ kind: 'error', message: 'Chưa xuất được tệp Excel — vui lòng thử lại.' });
+              } finally {
+                setExporting(false);
+              }
             }}>
-              <Download size={14} /> Xuất Excel
+              <Download size={14} /> {exporting ? 'Đang xuất…' : 'Xuất Excel'}
             </button>
             <button className="btn btn--primary" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
               <Plus size={14} /> Thêm nhà cung cấp

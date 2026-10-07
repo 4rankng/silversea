@@ -25,6 +25,7 @@ vi.mock('../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
 }));
 
+import { ToastProvider } from '../components/shared/Toast';
 import SupplierListPage from './SupplierListPage';
 
 function supplierFixture(id: number, name: string): Supplier {
@@ -57,7 +58,7 @@ function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <SupplierListPage />
+        <ToastProvider>{/* card 071026211100: the page answers exports with the house toast */}<SupplierListPage /></ToastProvider>
         <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
