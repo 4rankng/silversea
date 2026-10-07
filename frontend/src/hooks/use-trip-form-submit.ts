@@ -619,7 +619,8 @@ const handleSubmit = useCallback(
   [
     isEditMode, existingTrip, requiredFieldsFilled, s.containerRows,
     s.customerId, s.routeId, s.truckId, s.trailerType,
-    s.driverId, s.cargoTypeId, s.departureDate, s.customerReference, s.containerCount,
+    s.driverId, s.cargoTypeId, s.departureDate, s.completedAt, s.customerReference, s.containerCount,
+    governanceReason,
     s.plannedContainerTypeId,
     hasOptionalData, legs, s.fuelMode, s.fuelLitersOverride,
     s.fuelSupplementLiters, s.fuelSupplementReason, s.tollsDiscount,
