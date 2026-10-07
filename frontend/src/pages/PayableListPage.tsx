@@ -256,6 +256,9 @@ export default function PayableListPage() {
   const apiSupplierCount = data?.totalSuppliers ?? 0;
   const apiOverdueCount = data?.overdueSuppliers ?? 0;
   const error = queryError ? (queryError as Error).message : null;
+  // Card 071026141620: the summary rail's values are only real once the query
+  // settled — before that it degrades to an em dash, like the accounting rail.
+  const payablesReady = !loading && !error;
   const prefersReduced = usePrefersReducedMotion();
   const compact = false; // full VND everywhere — no short form (e.g. "12,5 tr")
 
@@ -417,12 +420,16 @@ export default function PayableListPage() {
       />
 
       {/* ── Zone 1: Summary rail — one ruled row before the aging lanes ── */}
+      {/* Card 071026141620: same contract as the accounting overview rail —
+          every label carries a value; while the query is not settled the value
+          is an explicit em dash (never a blank, never a fake 0), and a loaded
+          empty set is a real "0". */}
       <SummaryRail
         ariaLabel="Tóm tắt công nợ phải trả"
         items={[
-          { label: 'Tổng công nợ phải trả', value: `${heroMoney.num} ${heroMoney.unit}` },
-          { label: 'Nhà cung cấp', value: totals.supplierCount },
-          { label: 'Quá hạn', value: totals.overdueCount, tone: totals.overdueCount > 0 ? 'warning' : undefined },
+          { label: 'Tổng công nợ phải trả', value: payablesReady ? `${heroMoney.num} ${heroMoney.unit}` : '—' },
+          { label: 'Nhà cung cấp', value: payablesReady ? totals.supplierCount : '—' },
+          { label: 'Quá hạn', value: payablesReady ? totals.overdueCount : '—', tone: payablesReady && totals.overdueCount > 0 ? 'warning' : undefined },
         ]}
       />
 
