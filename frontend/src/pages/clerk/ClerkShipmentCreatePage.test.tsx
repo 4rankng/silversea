@@ -284,6 +284,16 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(mocks.quickCreate.mock.calls[0][0]).not.toHaveProperty('operationalNotes');
   });
 
+  it('keeps a whitespace seam between the section title and the first sub-label (card 071026204720)', async () => {
+    // Text-level flattens (textContent) carry no block boundaries — the
+    // schedule section's title and first field label must not run on as
+    // "Lịch & ghi chúGhi chú cho khách hàng" the way the staging retest read.
+    const { container } = renderPage();
+    await screen.findByRole('heading', { name: 'Lịch & ghi chú' });
+    const section = container.querySelector('#shipment-section-schedule');
+    expect(section?.textContent).toContain('Lịch & ghi chú Ghi chú cho khách hàng');
+  });
+
   it('renders long customer names in the customer-specific dropdown treatment', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });

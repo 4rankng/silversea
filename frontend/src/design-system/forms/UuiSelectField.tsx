@@ -118,7 +118,7 @@ export function UuiSelectField({
   const isSearchable = searchable ?? options.length >= SEARCH_THRESHOLD;
 
   return (
-    <div className={classes}>
+    <div className={classes} data-aria-label-override={ariaLabel != null ? 'true' : undefined}>
       {isSearchable ? (
         <UUISelect.ComboBox
           id={id}

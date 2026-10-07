@@ -1789,6 +1789,23 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
   });
 
+  it('names the custody select by its label alone, not value-then-label (card 071026204720)', async () => {
+    // The staging retest lot (TEST-LCL-362) rides null custody: the '' sentinel
+    // option is genuinely selected, so RAC composites the button name as
+    // value+label — "Chưa xác định Phơi phiếu". The null-state text stays the
+    // visible trigger content; the NAME must remain the field label.
+    apiGet.mockResolvedValueOnce(listResponse([{
+      ...row,
+      documentCustody: { status: null, label: null, available: true, editable: true },
+    }]));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(masterRowDetailButton());
+    const dialog = await screen.findByRole('dialog');
+    const trigger = await within(dialog).findByRole('button', { name: 'Phơi phiếu' });
+    expect(trigger.textContent).toContain('Chưa xác định');
+  });
+
   it('states unavailable financial confirmation honestly instead of presenting it as pending', async () => {
     apiGet.mockResolvedValueOnce(listResponse([{
       ...row,

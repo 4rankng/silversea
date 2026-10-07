@@ -731,6 +731,7 @@ export default function ShipmentsPage() {
                   <div className="cus-drawer-decision cus-drawer-decision--custody">
                     <UuiSelectField
                       label="Phơi phiếu"
+                      ariaLabel="Phơi phiếu"
                       value={drawerItem.documentCustody.status ?? ''}
                       disabled={drawerItem.bucket === ShipmentCusBucket.LOCKED || !drawerItem.documentCustody.available || !drawerItem.documentCustody.editable}
                       onChange={(event) => void actions.updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}
