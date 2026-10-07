@@ -1458,8 +1458,12 @@ describe('20260915_1: trip → fulfillmentId resolution', () => {
 
 describe('driver completed-trip footer height contract (card 071026103226 — FB-055 regression)', () => {
   it('the closed card renders the summary and the button side by side with no hint line', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: 'COMPLETED' }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
     renderPage();
-    await screen.findByText('Thông tin lệnh');
+    await screen.findByText('Chuyến đã hoàn thành');
     // The card must not stack a hint line under the title in the closed
     // state — that line is what re-inflated the card to ~115px.
     const hint = document.querySelector('.driver-task-footer__hint');
