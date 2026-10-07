@@ -165,10 +165,13 @@ router.post('/bulk-figures', declareMaterialWrite('trips.bulk-figures', { method
           const current = await loadTripStatusVersion(tx, update.tripId);
           if (!current) throw new ApiError(404, 'Không tìm thấy chuyến đi');
           if (current.status === TripStatus.COMPLETED) {
-            const governanceReason = update.governanceReason?.trim() ?? '';
-            if (!governanceReason) {
-              throw new ApiError(400, 'Lý do đề nghị thay đổi chuyến đã hoàn thành là bắt buộc');
-            }
+            // Owner ruling 07/10 (card 393): a completed-trip correction is
+            // no longer gated on a typed reason. A reason the caller does
+            // supply is still recorded on the financial action for audit; an
+            // absent one is stored as null (shipment_finance_actions.reason
+            // is nullable). Previously this rejected every correction with
+            // "Lý do đề nghị thay đổi chuyến đã hoàn thành là bắt buộc".
+            const governanceReason = update.governanceReason?.trim() || null;
             // 2026-09-11 maker-checker removal: completed-trip bulk edits
             // apply directly in-request.
             const action = await autoApplyGovernanceAction({
