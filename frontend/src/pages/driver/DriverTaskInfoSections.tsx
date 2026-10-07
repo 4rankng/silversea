@@ -107,7 +107,9 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   const [infoOpen, setInfoOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   const plannedAt = fulfillment?.plannedAt ?? trip.plannedStartAt;
-  const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
+  // Card 071026205810: named fallback, same treatment as Cảng hạ's
+  // "Chưa có nơi trả rỗng" — a bare dash read as a render error.
+  const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? 'Chưa có cảng nâng';
 
   // KP-063: direction-aware destination mapping. For IMPORT the required
   // Cảng hạ is the empty-container return depot (where the driver returns

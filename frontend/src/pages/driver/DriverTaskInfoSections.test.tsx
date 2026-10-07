@@ -425,6 +425,16 @@ describe('DriverTaskInfoSections', () => {
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
+  it('gives Cảng nâng the named fallback like Cảng hạ when the pickup chain is empty (card 071026205810)', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'IMPORT',
+      fulfillment: { pickupPortName: null, pickupWarehouseName: null, lclWarehouseName: null },
+    })} />);
+
+    expect(valueOf('Cảng nâng')).toBe('Chưa có cảng nâng');
+    expect(valueOf('Cảng hạ')).toBe('Chưa có nơi trả rỗng');
+  });
+
   it('hides the return depot row when returnDepotName is null', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: null } })} />);
 
