@@ -106,6 +106,14 @@ export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER; // ADMIN/MANAGER/CUS/DISPATCHER — mirrors the shipmentCreatorOnly route guard (testplan/roles/01-cus.md)
+  // Card 071026204710: DELETE /shipments/cus-workspace/:id is `requireRoles(Role.CUS)`
+  // with no implicit ADMIN, alongside lock / reopen / document-custody. The
+  // `operational.deletable` flag behind the button is a data-state check (no live
+  // trip left on the lot) and carries no role, so without this gate ADMIN was shown
+  // a destructive action that could only ever answer 403 — the dialog stayed open
+  // with the banner behind it, which read as a hang. The affordance now mirrors
+  // the guard instead of the guard being widened to fit the button.
+  const canDeleteLot = user?.role === Role.CUS;
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const pageSize = readCusPageSize(searchParams.get('limit'));
@@ -688,13 +696,15 @@ export default function ShipmentsPage() {
                 >
                   <ExternalLink size={14} /> Chi tiết lô hàng
                 </Link>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm cus-drawer-lot-delete"
-                  onClick={() => requestDeleteLot(drawerItem)}
-                >
-                  Xóa lô
-                </button>
+                {canDeleteLot && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm cus-drawer-lot-delete"
+                    onClick={() => requestDeleteLot(drawerItem)}
+                  >
+                    Xóa lô
+                  </button>
+                )}
                 {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
               </div>
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">

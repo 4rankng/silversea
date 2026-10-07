@@ -1459,6 +1459,48 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(document.querySelector('.cus-action-reason textarea')).toBeTruthy());
   });
 
+  it('offers the lot-delete affordance to CUS on a deletable lot (card 071026204710)', async () => {
+    // The write guard is `requireRoles(Role.CUS)`, so CUS is the role the
+    // affordance is meant for.
+    const deletable = { ...row.operational, deletable: true };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers: [] })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
+    ));
+    authState.user.role = Role.CUS;
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
+  });
+
+  it('hides the lot-delete affordance from ADMIN, which the delete route refuses (card 071026204710)', async () => {
+    // DELETE /shipments/cus-workspace/:id is gated `requireRoles(Role.CUS)` —
+    // no implicit ADMIN (backend/src/middleware/casbin.ts) — and the sibling
+    // lifecycle routes (lock / reopen / document-custody) are CUS-only the same
+    // way, so the narrow list reads as the intended policy. But
+    // `operational.deletable` is a data-state flag (no live trip left on the
+    // lot) that says nothing about the caller, so ADMIN was offered a button
+    // whose every click ends in 403 "Không có quyền truy cập" with the dialog
+    // left standing. The read model must not advertise what the guard refuses.
+    const deletable = { ...row.operational, deletable: true };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers: [] })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
+    ));
+    authState.user.role = Role.ADMIN;
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    expect(within(drawer).queryByRole('button', { name: 'Xóa lô' })).toBeNull();
+  });
+
   it('keeps Xóa lô reachable and states why a dispatched lot cannot be deleted (card 20260923_1)', async () => {
     // deletable:false = a trip already left on this lot (orderIssuedContainers /
     // direct live trip). The affordance stays visible and answers with the
