@@ -89,7 +89,11 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('textbox', { name: 'Ngày — Giờ hẹn đóng/trả' }));
+    // Card 061026172803 semantics (owner word 2026-10-06): a segment click is
+    // a caret click and keeps the picker closed — the pointer path to the
+    // picker is the field's FRAME. This suite predates the ruling and opened
+    // the panel by clicking the segment group.
+    fireEvent.click(document.querySelector('[data-seg-part="date"]')!);
     const dayCell = document.querySelector<HTMLButtonElement>('.dtp-grid button[data-idx="15"]');
     expect(dayCell).toBeTruthy();
     fireEvent.click(dayCell!);
