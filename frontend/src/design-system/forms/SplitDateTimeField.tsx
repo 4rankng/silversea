@@ -1,10 +1,80 @@
 import { useEffect, useId, useRef, useState, type ComponentProps, type InputHTMLAttributes, type Ref } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import { formatDateTime24, parseDateTime24 } from '../../lib/format';
 import { DatePickerSurface } from './DatePickerSurface';
+import { DatePanel } from './DateTimePickerPanels';
+import { TimePanel } from './TimePanel';
 import { DateTimeSegments } from './DateTimeSegments';
 import { TimePickerSurface, TIME_PICKER_MOBILE_QUERY } from './TimePickerSurface';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { usePopoverPosition } from '../../hooks/usePopoverPosition';
+import { useClickOutside } from '../../hooks/useClickOutside';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { registerOverlayToken, unregisterOverlayToken } from '../../hooks/useAnimatedOverlay';
 import './SplitDateTimeField.css';
+
+/**
+ * Card 071026204700 (FB-001): one popup carrying BOTH the calendar and the
+ * 24h time grid — the "popup chọn ngày + giờ kết hợp". Composes the same
+ * DatePanel/TimePanel content as the per-part surfaces; the wrapper owns
+ * positioning and dismissal (its children are inline panels). Opt-in via
+ * `combinedPicker`; hosts without it keep the per-part popups untouched.
+ */
+function CombinedDateTimeSurface({ id, label, dateValue, timeValue, min, max, onDatePick, onTimePick, onApply, onDismiss, onExit, panelRef, anchorRef, additionalRefs = [], keyboard = false }: {
+  id?: string; label: string; dateValue: string; timeValue: string; min?: string; max?: string;
+  onDatePick: (date: string) => void; onTimePick: (time: string) => void; onApply: (time: string) => void;
+  onDismiss: () => void; onExit: () => void;
+  panelRef: React.RefObject<HTMLDivElement | null>; anchorRef: React.RefObject<HTMLElement | null>;
+  additionalRefs?: React.RefObject<HTMLElement | null>[]; keyboard?: boolean;
+}) {
+  const position = usePopoverPosition(panelRef, anchorRef, true, 680, 360);
+  const blurFrame = useRef<number | null>(null);
+  useFocusTrap(panelRef, keyboard);
+  useClickOutside(panelRef, onExit, { escapeKey: true, onEscape: onDismiss, additionalRefs: [anchorRef, ...additionalRefs] });
+  // Same overlay token as the per-part surfaces: a parent dialog's window-level
+  // Escape/Enter must yield to the open picker (card 20260915_6 + _8).
+  const tokenRef = useRef<number | null>(null);
+  useEffect(() => {
+    const token = registerOverlayToken();
+    tokenRef.current = token;
+    return () => unregisterOverlayToken(token);
+  }, []);
+  useEffect(() => () => { if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current); }, []);
+  const closeWhenFocusLeaves = (next: Node | null) => {
+    if (![panelRef, anchorRef, ...additionalRefs].some((ref) => ref.current?.contains(next))) onExit();
+  };
+  return createPortal(
+    <div id={id} ref={panelRef} className="date-picker__popup combined-datetime__popup"
+      data-positioned={position ? 'true' : undefined}
+      style={{ top: position?.top ?? 0, left: position?.left ?? 0, maxHeight: position?.maxHeight }}
+      role="dialog" aria-label={label} data-date-picker="true" data-time-picker-overlay="true" data-escape-boundary="true"
+      onClick={(event) => event.stopPropagation()}
+      onFocusCapture={() => {
+        if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
+        blurFrame.current = null;
+      }}
+      onBlurCapture={(event) => {
+        if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
+        const next = event.relatedTarget as Node | null;
+        if (next) closeWhenFocusLeaves(next);
+        else blurFrame.current = requestAnimationFrame(() => {
+          blurFrame.current = null;
+          closeWhenFocusLeaves(document.activeElement);
+        });
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onDismiss(); }
+        if (event.key === 'Enter') event.stopPropagation();
+      }}>
+      <header><strong>Chọn ngày giờ</strong><button type="button" aria-label="Đóng lịch" onClick={onDismiss}><X size={14} aria-hidden="true" /></button></header>
+      <div className="combined-datetime__body">
+        <div className="combined-datetime__date"><DatePanel value={dateValue} min={min} max={max} onChange={onDatePick} /></div>
+        <div className="combined-datetime__time"><TimePanel value={timeValue} onPick={onTimePick} onApply={onApply} /></div>
+      </div>
+    </div>, document.body,
+  );
+}
 
 function splitValue(value: string) {
   const formatted = formatDateTime24(value);
@@ -14,7 +84,7 @@ function splitValue(value: string) {
 /** Independent, editable 24h time/date controls with one complete datetime
  * contract. Partial drafts stay visible and invalidate their form inputs;
  * they never silently preserve an older complete timestamp for submission. */
-export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onCommit, onCompletenessChange, disabled, readOnly, required, error, hideLabel, className, min, max, name, groupRef: externalGroupRef, inputProps, inputClassName, wrapperClassName, size = 'sm' }: {
+export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onCommit, onCompletenessChange, disabled, readOnly, required, error, hideLabel, className, min, max, name, groupRef: externalGroupRef, inputProps, inputClassName, wrapperClassName, size = 'sm', combinedPicker = false }: {
   id?: string; label: string; value: string; onChange: (value: string) => void;
   onCommit?: (value: string) => void;
   /** 'complete' = parsed datetime; 'empty' = all segments cleared;
@@ -24,6 +94,10 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
   disabled?: boolean; readOnly?: boolean; required?: boolean; error?: string; hideLabel?: boolean; className?: string;
   min?: string; max?: string; name?: string; groupRef?: Ref<HTMLDivElement>; size?: 'sm' | 'md' | 'lg';
   inputClassName?: string; wrapperClassName?: string;
+  /** Card 071026204700 (FB-001): open ONE popup carrying both the calendar
+   *  and the 24h time grid instead of one popup per segment group. Default
+   *  off — every existing host keeps its current pickers byte for byte. */
+  combinedPicker?: boolean;
   inputProps?: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'defaultValue' | 'onChange' | 'id' | 'name' | 'min' | 'max' | 'size'>;
 }) {
   const generatedId = useId();
@@ -159,7 +233,8 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
               onComplete={part === 'time' ? () => dateRef.current?.focus() : undefined}
               onBackFromStart={part === 'date' ? () => lastTimeRef.current?.focus() : undefined}
               onForwardFromEnd={part === 'time' ? () => dateRef.current?.focus() : undefined}
-              popupExpanded={active && open === part} popupControls={active && open === part ? `${id}-picker` : undefined}
+              popupExpanded={active && (combinedPicker ? open != null : open === part)}
+              popupControls={active && (combinedPicker ? open != null : open === part) ? `${id}-picker` : undefined}
               firstSegmentId={`${id}-${part}`} className={wrapperClassName} required={required}
               inputProps={{
                 ...inputProps,
@@ -175,11 +250,17 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
     </div>
     {name && <input type="hidden" name={name} form={inputProps?.form} value={parsed ?? ''} disabled={disabled} />}
     {message && <small id={`${id}-error`} className="split-datetime__error" role="alert">{message}</small>}
-    {active && open === 'date' && <DatePickerSurface id={`${id}-picker`} label={`Chọn ngày — ${label}`} value={dateValue} min={min?.slice(0, 10)} max={max?.slice(0, 10)}
+    {active && open && combinedPicker && <CombinedDateTimeSurface id={`${id}-picker`} label={`Chọn ngày giờ — ${label}`}
+      dateValue={dateValue} timeValue={draft.time} min={min?.slice(0, 10)} max={max?.slice(0, 10)}
+      panelRef={panelRef} anchorRef={trigger} additionalRefs={[groupRef]} keyboard={keyboardPicker}
+      onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }}
+      onDatePick={(next) => { update('date', `${next.slice(8, 10)}/${next.slice(5, 7)}/${next.slice(0, 4)}`); }}
+      onTimePick={(next) => update('time', next)} onApply={() => close()} />}
+    {!combinedPicker && active && open === 'date' && <DatePickerSurface id={`${id}-picker`} label={`Chọn ngày — ${label}`} value={dateValue} min={min?.slice(0, 10)} max={max?.slice(0, 10)}
       panelRef={panelRef} anchorRef={dateRef} additionalRefs={[groupRef]} keyboard={keyboardPicker}
       onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }}
       onPick={(next) => { update('date', `${next.slice(8, 10)}/${next.slice(5, 7)}/${next.slice(0, 4)}`); close(); }} />}
-    {active && open === 'time' && <TimePickerSurface id={`${id}-picker`} label={`Chọn giờ (24h) — ${label}`} value={draft.time}
+    {!combinedPicker && active && open === 'time' && <TimePickerSurface id={`${id}-picker`} label={`Chọn giờ (24h) — ${label}`} value={draft.time}
       panelRef={panelRef} anchorRef={timeRef} additionalRefs={[groupRef]} keyboard={keyboardPicker}
       onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }}
       onPick={(next) => update('time', next)} onApply={() => close()} />}

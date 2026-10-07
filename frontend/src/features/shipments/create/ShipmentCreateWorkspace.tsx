@@ -641,9 +641,9 @@ export function ShipmentCreateWorkspace() {
           >
             {form.cargoMode === 'LCL' && (
               <div style={gridStyle}>
-                <DateTimeField label="Hạn hoàn tất hải quan" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
-                <DateTimeField label="Hạn hạ container tại cảng" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
-                <DateTimeField label="Thời điểm trả container" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
+                <DateTimeField label="Hạn hoàn tất hải quan" combinedPicker value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
+                <DateTimeField label="Hạn hạ container tại cảng" combinedPicker value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
+                <DateTimeField label="Thời điểm trả container" combinedPicker value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
                 <div data-field-id="shipment-expected-delivery">
                   <DateField id="shipment-expected-delivery" label="Ngày giao dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} />
                 </div>

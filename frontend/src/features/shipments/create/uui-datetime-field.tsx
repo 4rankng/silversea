@@ -14,6 +14,8 @@ interface UDateTimeFieldProps {
   disabled?: boolean;
   error?: string;
   hideLabel?: boolean;
+  /** Card 071026204700 (FB-001): one combined ngày+giờ popup. */
+  combinedPicker?: boolean;
 }
 
 /** Two independent 24h time/date controls share the existing complete ISO
@@ -26,6 +28,7 @@ export function UDateTimeField({
   disabled,
   error,
   hideLabel,
+  combinedPicker,
 }: UDateTimeFieldProps) {
   return (
     <SplitDateTimeField
@@ -36,6 +39,7 @@ export function UDateTimeField({
       onChange={(next) => onChange(asEvent(next))}
       disabled={disabled}
       error={error}
+      combinedPicker={combinedPicker}
       className="csc-uui-field"
     />
   );
