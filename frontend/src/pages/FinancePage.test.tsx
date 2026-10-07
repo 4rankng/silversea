@@ -79,6 +79,34 @@ beforeEach(() => {
   toast.mockReset();
 });
 
+// Card 071026104800 reported finance strings rendered glued to their values —
+// "5chuyến × giá cước chặng", ".Sau khi kết chuyển". Neither reproduces on this
+// branch, and unlike the driver/penalty pairs these two had NO gate, so a real
+// regression could have slipped through. This pins the contract so the glue
+// fails a build instead of surviving to the next QA sweep.
+describe('FinancePage label–value spacing (card 071026104800)', () => {
+  it('keeps the trip-count line readable as "<n> chuyến × giá cước chặng"', async () => {
+    renderPage();
+    await screen.findByText(/chuyến × giá cước chặng/);
+    expect(screen.getByText('0 chuyến × giá cước chặng')).toBeTruthy();
+    // The reported signature: the count glued straight to the word.
+    expect(screen.queryByText(/\dchuyến ×/)).toBeNull();
+  });
+
+  it('does not leave a bare period glued to the sentence that follows it', async () => {
+    renderPage();
+    // The prose line ends with a full stop and continues into the cap-table
+    // sentence. With an empty cap table the reachable branch renders
+    // "…0 ₫. Chưa cấu hình bảng cổ phần." — the reported ".Sau khi kết chuyển"
+    // shape would show up here as a period followed immediately by a letter.
+    await waitFor(() => expect(document.body.textContent).toContain('bảng cổ phần'));
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/\.\sChưa cấu hình bảng cổ phần/);
+    expect(text).not.toMatch(/\.Chưa cấu hình/);
+  });
+
+});
+
 describe('FinancePage Excel export feedback (card 061026174602)', () => {
   it('shows a busy label while exporting and toasts success when the file is ready', async () => {
     renderPage();
