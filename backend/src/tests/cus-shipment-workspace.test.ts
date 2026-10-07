@@ -3339,6 +3339,86 @@ describe('container line vehicle plate clear (20260916_6)', () => {
     assert.equal(after.plannedExternalCarrierId, carrier.id, 'the external carrier itself stays');
   });
 
+  test('an EXTERNAL carrier with NO plate saves — "Bổ sung sau" (card 071026205330 / REQ-07 #359)', async () => {
+    // Workflow REQ-07 / card 20261004_359: an external carrier may be planned
+    // before its plate is known — CUS fills it later. The issue path already
+    // accepts that shape (trip-factory-snapshot.test.ts, "issue external carrier
+    // without a plate"), and the OWN branch right here already stores a null
+    // plate. Only this EXTERNAL branch still refused, so the CUS container-line
+    // editor could not save a row whose plate combobox was simply empty —
+    // which is exactly what QA hit, and it turned "bổ sung sau" into a hard
+    // block. A container that never had a plate also had no clearVehicle flag
+    // to send (there was nothing to clear), so the clearVehicle affordance
+    // added in 9393f108 could not reach this case either.
+    const carrier = await seedCustomer({
+      name: `Nhà xe chưa có biển ${suffix}`.slice(0, 255),
+      isCarrier: true,
+      status: 'ACTIVE',
+    });
+    const shipment = await seedShipment({
+      blNumber: `PBL${lettersTag(5)}`.slice(0, 100),
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `PBL${lettersTag(4)}1`.slice(0, 50),
+    });
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+
+    const saved = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+        plateNumber: null,
+      },
+      actor: cusActor,
+    });
+
+    assert.equal(saved.line.carrierType, 'EXTERNAL');
+    assert.equal(saved.line.plateNumber, null, 'a deferred plate is stored as null, not refused');
+
+    const [after] = await db.select({
+      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+      plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+      plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+    }).from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal(after?.plannedCarrierType, 'EXTERNAL');
+    assert.equal(after?.plannedExternalCarrierId, carrier.id, 'the carrier assignment itself is kept');
+    assert.equal(after?.plannedVehiclePlateNumber, null);
+
+    // A carrier is still mandatory — dropping the plate requirement must not
+    // turn into dropping the carrier requirement. Checked on a fresh row: once a
+    // carrier is planned, an explicit `externalCarrierId: null` falls back to
+    // the stored one by design, so it would never reach the guard.
+    const bareShipment = await seedShipment({
+      blNumber: `PBC${lettersTag(5)}`.slice(0, 100),
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+    });
+    const bareContainer = await seedContainer(bareShipment.id, {
+      containerNumber: `PBC${lettersTag(4)}1`.slice(0, 50),
+    });
+    await seedFulfillment(bareShipment.id, bareContainer.id);
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: bareShipment.id,
+        containerId: bareContainer.id,
+        input: {
+          expectedShipmentVersion: bareShipment.version,
+          carrierType: 'EXTERNAL',
+          plateNumber: null,
+        },
+        actor: cusActor,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 400,
+    );
+  });
+
   test('clearVehicle cannot ride along with a vehicle selection or an inline new carrier', () => {
     const base = { expectedShipmentVersion: 1, carrierType: 'EXTERNAL' as const };
     const withVehicle = shipmentCusContainerLineUpdateSchema.safeParse({

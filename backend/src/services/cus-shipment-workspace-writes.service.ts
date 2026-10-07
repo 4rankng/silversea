@@ -651,9 +651,16 @@ export async function updateCusShipmentContainerLine(args: {
           ? null
           : await loadCarrierVehicle(nextCarrierId, nextCarrierVehicleId, tx);
         const nextPlateNumber = requestedPlate ?? carrierVehicle?.licensePlate ?? null;
-        if (nextPlateNumber == null) {
-          throw new ApiError(400, 'Cần chọn xe nhà xe hoặc nhập biển số kế hoạch trước khi cập nhật.');
-        }
+        // REQ-07 / card 20261004_359 ("Bổ sung sau"): an external carrier may be
+        // planned before its plate is known — CUS adds it later. This branch
+        // used to refuse a plateless save with a 400, which contradicted the
+        // issue path (already null-tolerant, pinned by trip-factory-snapshot
+        // "issue external carrier without a plate") and the OWN branch right
+        // below (already stores null). The refusal made the CUS container-line
+        // editor unsavable whenever the plate combobox was simply empty, and a
+        // row that never had a plate had no clearVehicle flag to send either,
+        // so there was no way through — card 071026205330. Only the plate is
+        // deferred here; the carrier itself stays mandatory (guarded above).
         await tx.update(s.shipmentFulfillments).set({
           plannedCarrierType: 'EXTERNAL',
           plannedExternalCarrierId: nextCarrierId,
