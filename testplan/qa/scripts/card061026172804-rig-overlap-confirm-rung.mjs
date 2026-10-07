@@ -1,4 +1,4 @@
-// Card 061026172804 — staging rung on 2087fe5b: an assignment overlapping a
+// Card 061026172804 — staging rung on 21723617: an assignment overlapping a
 // COMPLETED trip of the same tractor now WARNS (house confirm dialog) and the
 // confirmed save proceeds. Fixture: LCL lot whose closingAt sits inside trip
 // 135's window (truck 23 = 15H-117.55, 01:00–04:22Z 07/10). UI flow:
@@ -20,8 +20,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let exitCode = 0;
 
 const health = await fetch(`${API}/health`).then((r) => r.json());
-log('health', { buildHash: health.buildHash, expect: '2087fe5b' });
-if (!String(health.buildHash || '').startsWith('2087fe5b')) { log('build-currency-FAIL'); process.exit(2); }
+log('health', { buildHash: health.buildHash, expect: '21723617' });
+if (!String(health.buildHash || '').startsWith('21723617')) { log('build-currency-FAIL'); process.exit(2); }
 
 const api = async (method, path, body, tok) => {
   const response = await fetch(`${API}${path}`, {
