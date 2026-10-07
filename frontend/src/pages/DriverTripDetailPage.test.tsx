@@ -11,14 +11,22 @@ const getDriverTripMock = vi.hoisted(() => vi.fn());
 // Synchronous trip payload for the page's first render — the trip →
 // fulfillmentId resolution is seeded into the query cache so existing
 // tests keep their synchronous shape.
+const TRIP_ID = 88;
+// Card 071026205800: this number must stay DIFFERENT from the trip id. The
+// `/my-trips/:id/pod` route carries a TRIP id (card 20260915_1), while every
+// e-POD endpoint is FULFILLMENT-scoped. With both ids equal, a component that
+// navigates with the wrong one still lands on a route stub carrying the same
+// number, so the test passes for the wrong reason — which is exactly how a link
+// that sends a fulfillment id into a trip-id route survived review.
+const FULFILLMENT_ID = 4242;
 const tripBasic88: Record<string, unknown> = {
-  id: 88, shipmentId: null, fulfillmentId: 88, tripCode: 'TRP-88',
+  id: TRIP_ID, shipmentId: null, fulfillmentId: FULFILLMENT_ID, tripCode: 'TRP-88',
   departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
   routeName: null, truckPlate: null, customerName: null, notes: null,
 };
 function freshClient() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(['driver-trip-basic', '88'], tripBasic88);
+  client.setQueryData(['driver-trip-basic', String(TRIP_ID)], tripBasic88);
   return client;
 }
 
@@ -218,7 +226,7 @@ function PodRouteStub() {
 describe('DriverTripDetailPage', () => {
   beforeEach(() => {
     getDriverTripMock.mockResolvedValue({
-      id: 88, shipmentId: null, fulfillmentId: 88, tripCode: 'TRP-88',
+      id: TRIP_ID, shipmentId: null, fulfillmentId: FULFILLMENT_ID, tripCode: 'TRP-88',
       departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
       routeName: null, truckPlate: null, customerName: null, notes: null,
     });
@@ -449,11 +457,14 @@ describe('DriverTripDetailPage', () => {
     const cta = await screen.findByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     fireEvent.click(cta);
 
-    // The driver lands on THIS trip's pod screen — the route param is the
-    // fulfillment id (88), not trip.id (55). Wrong-id navigation here would
-    // open another trip's e-POD screen.
-    expect(await screen.findByTestId('pod-route-stub-88')).toBeTruthy();
-    expect(screen.queryByTestId('pod-route-stub-55')).toBeNull();
+    // The driver lands on THIS trip's pod screen. Card 071026205800: the
+    // `/my-trips/:id/pod` route carries a TRIP id, so the param must be 88 —
+    // not the fulfillment id (4242). The two used to be the same number in
+    // this fixture, which is how navigating with the fulfillment id passed
+    // review; with them split, sending the fulfillment id lands the driver on
+    // a different trip's e-POD route and this assertion catches it.
+    expect(await screen.findByTestId(`pod-route-stub-${TRIP_ID}`)).toBeTruthy();
+    expect(screen.queryByTestId(`pod-route-stub-${FULFILLMENT_ID}`)).toBeNull();
 
   });
 

@@ -420,7 +420,15 @@ function DriverTripDetailContent() {
             )}
           </div>
           {closed && (
-            <Link className="driver-task-complete" to={`/my-trips/${validFulfillmentId}/pod`} style={{ textDecoration: 'none' }}>
+            // Card 071026205800: the `:id` in `/my-trips/:id/pod` is the SAME
+            // `:id` as `/my-trips/:id` above — a TRIP id (card 20260915_1). This
+            // link used to send `validFulfillmentId` instead, so the driver landed
+            // on a route param that is not a trip at all: DriverTripPodPage
+            // resolves the fulfillment from the TRIP payload, found nothing, and
+            // rendered the "Không thể xác định chuyến đi từ liên kết này" dead
+            // end. The e-POD screen still talks to fulfillment-scoped endpoints —
+            // it does that resolution itself.
+            <Link className="driver-task-complete" to={`/my-trips/${validTripId}/pod`} style={{ textDecoration: 'none' }}>
               <FileCheck2 size={18} />
               <span>Xem chứng từ giao hàng</span>
             </Link>
@@ -629,7 +637,7 @@ function DriverTripDetailContent() {
               type="button"
               className="driver-task-complete-sticky__btn"
               disabled={trip.status !== 'IN_TRANSIT'}
-              onClick={() => navigate(`/my-trips/${validFulfillmentId}/pod`)}
+              onClick={() => navigate(`/my-trips/${validTripId}/pod`)}
             >
               <FileCheck2 size={16} />
               {/* DRV-DET-06: "Hoàn tất lệnh vận chuyển" — this bar navigates
