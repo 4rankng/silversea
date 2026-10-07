@@ -377,8 +377,16 @@ export function ContainerLedger({
     let saved = false;
     try {
       const expectedVersion = detail.summary.version ?? (line.shipmentVersion ?? 1);
+      // Card 071026205310 (rework): the popover commit is a MERGED auto-save.
+      // A ports-only patch (expectedShipmentVersion + customerAppointmentAt)
+      // completed the partial save, the row read clean, and the save-exit
+      // hook closed the drawer with the unsaved port draft still in component
+      // state — the user's selection died silently. Sweep every dirty field
+      // of the line; the committed appointment wins the draft and stays
+      // unconditional so a no-change commit keeps its historical wire shape.
+      const draft: ContainerLineDraft = { ...(drafts[line.id] ?? lineDraft(line)), customerAppointmentAt: value };
       const patch = {
-        expectedShipmentVersion: expectedVersion,
+        ...buildContainerPatch(line, draft, detail, expectedVersion),
         customerAppointmentAt: value ? localDateTimeToIso(value) : null,
       };
       const signature = idempotencySignature('container', detail.summary.id, line.id, expectedVersion);
@@ -397,7 +405,7 @@ export function ContainerLedger({
     }
     if (saved) scheduleExit();
     return saved;
-  }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, scheduleExit, toast]);
+  }, [clearIdempotencyKey, detail, drafts, getIdempotencyKey, onLineSaved, scheduleExit, toast]);
 
 
   useEffect(() => {

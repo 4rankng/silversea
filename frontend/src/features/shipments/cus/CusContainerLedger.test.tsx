@@ -61,9 +61,9 @@ const detail = {
   selectors: { externalCarriers: [], ports: [], containerTypes: [], routes: [], carrierVehicles: [] },
 } as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyChange?: (dirty: boolean) => void } = {}) {
+function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyChange?: (dirty: boolean) => void; detail?: ShipmentCusWorkspaceDetail } = {}) {
   const props = {
-    detail,
+    detail: opts.detail ?? detail,
     onLineSaved: vi.fn(),
     getIdempotencyKey: () => 'test-key',
     clearIdempotencyKey: () => {},
@@ -274,6 +274,35 @@ describe('ContainerLedger confirm affordances', () => {
     await waitFor(() => expect(document.querySelector('.cus-appointment-popover')).toBeNull());
     const trigger = screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ });
     expect(trigger.getAttribute('aria-label')).toContain('09:00 11/09/2026');
+  });
+
+  it('card 071026205310: committing the appointment sweeps the row\'s other dirty fields into the same save', async () => {
+    const detailWithPorts = {
+      ...detail,
+      selectors: { ...detail.selectors, ports: [{ id: 3, label: 'Cảng Hải Phòng' }, { id: 8, label: 'Bãi Chân Thật - THT' }] },
+    } as unknown as ShipmentCusWorkspaceDetail;
+    renderLedger({ detail: detailWithPorts });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    // Dirty the lift port first, through the row's own select (base: Cảng Hải Phòng).
+    fireEvent.click(screen.getByLabelText(/Cảng nâng của container/));
+    const portFilter = document.querySelector<HTMLInputElement>('.searchable-select__popover input[role="combobox"]');
+    expect(portFilter).toBeTruthy();
+    fireEvent.change(portFilter!, { target: { value: 'Chan That' } });
+    fireEvent.click(screen.getByRole('option', { name: /Bãi Chân Thật - THT/ }));
+
+    // Then commit the appointment from the popover's Enter path — the same
+    // partial save that used to post ONLY the appointment.
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    setAppointment('09:00', '11/09/2026');
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
+    expect(payload.customerAppointmentAt).toBe('2026-09-11T09:00:00+07:00');
+    // The dirty port rides the same POST — a ports-only payload let the row
+    // read clean and the save-exit hook close the drawer over the draft.
+    expect(payload.liftSiteId).toBe(8);
   });
 
   it('Escape in the popover closes without saving', async () => {
