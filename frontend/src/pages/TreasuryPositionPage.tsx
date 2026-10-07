@@ -202,7 +202,13 @@ export default function TreasuryPositionPage() {
                             Phân nguồn quỹ
                           </button>
                         )}
-                        <small>{account.cutoverAt ? `Chuyển đổi: ${formatDateTimeVN(account.cutoverAt)}` : 'Chưa chuyển đổi đầy đủ'}</small>
+                        {/* Card 071026212020: the no-cutover fallback was a
+                           migration-state phrase leaking into the accountant's
+                           tile. The account's conversion state lives in the
+                           Trạng thái pill (Đầy đủ/Một phần/Chưa khả dụng);
+                           the caption carries the cutover timestamp only when
+                           one actually exists. */}
+                        {account.cutoverAt && <small>{`Chuyển đổi: ${formatDateTimeVN(account.cutoverAt)}`}</small>}
                       </div>
                     </td>
                     <td data-label="Đầu kỳ" className="num"><span className="data-token">{formatCurrency(account.openingBalance)}</span></td>

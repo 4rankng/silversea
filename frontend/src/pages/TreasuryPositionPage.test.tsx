@@ -105,6 +105,28 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
     expect(cashRow.textContent).not.toContain('ACC-1');
   });
 
+  it('card 071026212020: no migration phrase in an account caption without a cutover date, real cutover dates still shown', async () => {
+    getTreasuryPositionMock.mockReset().mockResolvedValue({
+      asOf: '2026-10-03T08:00:00.000Z',
+      currency: 'VND',
+      coverage: 'COMPLETE',
+      opsAdvance: { totalOutstanding: 0 },
+      accounts: [
+        account(1, 'Tiền mặt quỹ', 900),
+        { ...account(2, 'VCB chính', 500), cutoverAt: '2026-10-01T03:00:00.000Z' },
+      ],
+    });
+    render(<TreasuryPositionPage />);
+
+    const row = await screen.findByText('Tiền mặt quỹ');
+    const cell = row.closest('td')!;
+    // The migration-state phrase is a technical label — the account's
+    // conversion state lives in the Trạng thái pill, never in the caption.
+    expect(cell.textContent).not.toContain('Chưa chuyển đổi');
+    const cutRow = screen.getByText('VCB chính').closest('td')!;
+    expect(cutRow.textContent).toContain('Chuyển đổi:');
+  });
+
   it('carries the bank identity through the row caption from the read', async () => {
     getTreasuryPositionMock.mockReset().mockResolvedValue({
       asOf: '2026-10-03T08:00:00.000Z',
