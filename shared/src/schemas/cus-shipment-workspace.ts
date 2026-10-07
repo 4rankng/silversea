@@ -737,6 +737,10 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   containerTypeLabel: z.string().nullable(),
   dispatchStatus: z.enum(SHIPMENT_CUS_DISPATCH_STATUSES),
   carrierName: z.string().nullable(),
+  // The #359 deferred-plate semantics ride the row: "external carrier,
+  // plate arrives later" (CUS sẽ bổ sung) must be distinguishable from a
+  // genuinely unassigned vehicle (Chưa gán biển số).
+  carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   plateNumber: z.string().nullable(),
   liftSite: z.string().nullable(),
   dropoffSite: z.string().nullable(),

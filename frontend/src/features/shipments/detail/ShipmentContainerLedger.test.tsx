@@ -35,6 +35,7 @@ const baseRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}) => ({
   containerTypeLabel: "20'DC",
   dispatchStatus: 'AWAITING_VEHICLE',
   carrierName: 'SilverSea',
+  carrierType: null,
   plateNumber: null,
   liftSite: 'Cảng A',
   dropoffSite: 'KCN B',
@@ -606,6 +607,23 @@ describe('vehicle plate clear affordance (20260916_6)', () => {
   it('does not offer the clear action when no plate is assigned', () => {
     renderVehicleEditor({ plateNumber: null });
     expect(screen.queryByRole('button', { name: 'Xóa biển số' })).toBeNull();
+  });
+});
+
+describe('deferred-plate copy on the ledger (card 071026141560)', () => {
+  it('external carrier without plate reads CUS sẽ bổ sung, not the generic pending badge', () => {
+    const row = baseRow({ carrierType: 'EXTERNAL', carrierName: 'SilverSea', plateNumber: null });
+    renderLedger('notes', row);
+    expect(screen.getByText('CUS sẽ bổ sung')).toBeTruthy();
+    expect(screen.queryByText('Chưa gán biển số')).toBeNull();
+  });
+
+  it('OWN or unassigned rows keep the generic pending badge', () => {
+    const { unmount } = renderLedger('notes', baseRow({ carrierType: 'OWN' }));
+    expect(screen.getByText('Chưa gán biển số')).toBeTruthy();
+    unmount();
+    renderLedger('notes', baseRow({ carrierType: null }));
+    expect(screen.getByText('Chưa gán biển số')).toBeTruthy();
   });
 });
 

@@ -828,7 +828,7 @@ export function ShipmentContainerLedger({
                       <strong>{row.carrierName || <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}</strong>
                       {row.plateNumber
                         ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
-                        : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">Chưa gán biển số</BadgeWithDot>}
+                        : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">{row.carrierType === 'EXTERNAL' ? 'CUS sẽ bổ sung' : 'Chưa gán biển số'}</BadgeWithDot>}
                     </div>)}
                   </td>)}
 {!isHidden('notes') && (<td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
