@@ -46,6 +46,11 @@ vi.mock('../hooks/animations', () => ({
   useCounterAnimation: () => ({ animateCounters: vi.fn() }),
 }));
 
+const downloadCSV = vi.hoisted(() => vi.fn());
+const toast = vi.hoisted(() => vi.fn());
+vi.mock('../lib/csv', () => ({ downloadCSV }));
+vi.mock('../components/shared/Toast', () => ({ useToast: () => ({ toast }) }));
+
 vi.mock('../hooks/usePrefersReducedMotion', () => ({
   usePrefersReducedMotion: () => true,
 }));
@@ -332,5 +337,37 @@ describe('PayableListPage monthly production summary (card 380)', () => {
     expect(summaryCell).toBeDefined();
     const conNo = summaryCell!.closest('tr')!.querySelector('td[data-label="Còn nợ"]')!.textContent;
     expect(conNo).toBe(tongNo);
+  });
+});
+
+describe('PayableListPage export feedback (card 071026141590)', () => {
+  beforeEach(() => {
+    downloadCSV.mockReset().mockResolvedValue(undefined);
+    toast.mockReset();
+  });
+
+  it('the Xuất báo cáo button reports busy, then toasts success per the export contract', async () => {
+    const { fireEvent, waitFor } = await import('@testing-library/react');
+    const { default: PayableListPage } = await import('./PayableListPage');
+    const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query');
+    const { MemoryRouter } = await import('react-router-dom');
+    const { render, screen } = await import('@testing-library/react');
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let resolveCsv: () => void = () => {};
+    downloadCSV.mockImplementationOnce(() => new Promise<void>((resolve) => { resolveCsv = resolve; }));
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <PayableListPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const btn = await screen.findByRole('button', { name: /Xuất báo cáo/ });
+    fireEvent.click(btn);
+    // Busy label while the file builds (FinancePage export contract).
+    expect(await screen.findByRole('button', { name: /Đang xuất…/ })).toBeTruthy();
+    resolveCsv();
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' })));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Xuất báo cáo/ })).toBeTruthy());
   });
 });

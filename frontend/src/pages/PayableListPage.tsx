@@ -1,6 +1,7 @@
 import { AgingDisclosure } from '../components/finance/AgingDisclosure';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
+import { useToast } from '../components/shared/Toast';
 import { billBookingReference } from '../lib/business-reference';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
@@ -260,6 +261,10 @@ export default function PayableListPage() {
 
   /* ── Commission modal ── */
   const [commissionOpen, setCommissionOpen] = useState(false);
+  // Card 071026141590: the export rides the house feedback contract (busy label
+  // + success/failure toast) — the silent click hid real failures from kế toán.
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
   // Fuel-invoice capture/lookup is secondary here: debt lookup leads.
   const [fuelOpen, setFuelOpen] = useState(false);
   const postCommission = usePostCommission();
@@ -347,6 +352,18 @@ export default function PayableListPage() {
 
   /* ── CSV export ── */
   const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await runExport();
+      toast({ kind: 'success', message: 'Đã xuất công nợ phải trả ra tệp CSV.' });
+    } catch {
+      toast({ kind: 'error', message: 'Chưa xuất được báo cáo công nợ phải trả — vui lòng thử lại.' });
+    } finally {
+      setExporting(false);
+    }
+  };
+  const runExport = async () => {
     const headers = ['Nhà cung cấp', 'Tổng nợ', 'Chưa đến hạn', 'Quá hạn 1-30', 'Quá hạn 31-90', 'Quá hạn >90'];
     const rows = payables.map(d => [
       d.supplier.name,
@@ -391,9 +408,9 @@ export default function PayableListPage() {
                 Ghi hoa hồng
               </button>
             )}
-            <button className="btn btn--secondary btn--sm" onClick={handleExport}>
+            <button className="btn btn--secondary btn--sm" onClick={handleExport} disabled={exporting}>
+              {exporting ? 'Đang xuất…' : 'Xuất báo cáo'}
               <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Xuất báo cáo
             </button>
           </div>
         }
