@@ -531,15 +531,21 @@ export default function DebtListPage() {
                             {formatCurrency(d.totalOutstanding)}
                           </td>
 
+                          {/* Card 071026211110: the backend always computes netBalance
+                            (aging.service.ts:685 — the linked supplier's AP balance is 0 when
+                            none is linked, so net === outstanding), and this page's own export
+                            writes that number for every row (statement-customer.service.ts:483).
+                            Rendering an em dash here made the screen and its own export disagree
+                            about the same customer, and hid the overdue balances this page
+                            exists to show. The muted colour still marks "no linked supplier";
+                            only the digit is no longer swallowed. */}
                           <td data-label="Net công nợ" className="num typo-mono" style={{
                             fontWeight: 600,
                             color: d.linkedSupplierId == null
                               ? 'var(--fg-3)'
                               : (d.netBalance > 0 ? 'var(--warning-text)' : d.netBalance < 0 ? 'var(--success)' : 'var(--fg-3)')
                           }}>
-                            {d.linkedSupplierId == null
-                              ? <span style={{ color: 'var(--fg-3)' }}>&mdash;</span>
-                              : formatCurrency(d.netBalance)}
+                            {formatCurrency(d.netBalance)}
                           </td>
 
                           <td data-label="Quá hạn" className="num" style={{ textAlign: 'center', fontWeight: 600 }}>

@@ -82,6 +82,40 @@ beforeEach(() => {
 });
 
 describe('DebtListPage server-side column sorting', () => {
+  it('shows the net figure for a customer that has no linked supplier (card 071026211110)', async () => {
+    // The backend always computes netBalance — aging.service.ts:685 subtracts the
+    // linked supplier's AP balance from the receivable, and that balance is 0 when
+    // no supplier is linked, so netBalance === totalOutstanding for these rows.
+    // This page's OWN export (/reports/receivables-aging/export) writes that same
+    // number for every row (statement-customer.service.ts:483). Showing an em dash
+    // here made the screen and the export disagree about the same customer, and
+    // hid exactly the overdue balances an accountant reads this page for.
+    const unlinked = {
+      ...customer(3, 'Chưa liên kết NCC', 4_200_000),
+      linkedSupplierId: null,
+      linkedSupplierApBalance: 0,
+      netBalance: 4_200_000,
+      maxOverdueDays: 27,
+    };
+    getCustomerAging.mockResolvedValue({
+      ...envelope,
+      customers: [customer(1, 'Công ty A', 12_000_000), unlinked],
+      total: 2,
+      totalPages: 1,
+    });
+
+    renderPage();
+    expect((await screen.findAllByText('Chưa liên kết NCC')).length).toBeGreaterThan(0);
+
+    // The customer name also appears in the risk card, so pick the cell inside
+    // the table row rather than the first text match on the page.
+    const netCell = [...document.querySelectorAll('td[data-label="Net công nợ"]')]
+      .find((c) => c.closest('tr')?.textContent?.includes('Chưa liên kết NCC'));
+    expect(netCell).toBeTruthy();
+    expect(netCell?.textContent).not.toBe('—');
+    expect(netCell?.textContent).toContain('4.200.000');
+  });
+
   it('loads without sort params and marks every column header unsorted', async () => {
     renderPage();
     expect((await screen.findAllByText('Công ty A')).length).toBeGreaterThan(0);
