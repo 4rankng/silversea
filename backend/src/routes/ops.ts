@@ -11,6 +11,8 @@ import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { Role, createAdvanceRequestSchema } from '@tingting/shared';
+import { db } from '../db';
+import { opsExpenseWriteScope } from '../services/expense-owner-scope.service';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
@@ -179,6 +181,15 @@ const expensePatchSchema = z.object({
   note: z.string().max(1000).nullable().optional(),
 });
 
+
+// Card 071026210510: the expense dialog checks the grant BEFORE the operator
+// types anything — the verdict comes from the same assert the save runs, so
+// the open-time answer and the save-time refusal can never disagree.
+router.get('/expenses/write-scope', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const shipmentId = parseId(typeof req.query.shipmentId === 'string' ? req.query.shipmentId : undefined, 'Lô hàng');
+  res.json(await opsExpenseWriteScope(db, user.userId, shipmentId));
+}));
 
 router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);

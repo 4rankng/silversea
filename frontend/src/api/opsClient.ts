@@ -223,6 +223,10 @@ export const opsClient = {
   // ── Khoản chi ──
   getExpenseTypes: () =>
     api.get<{ items: OpsExpenseTypeOption[] }>('/ops/expense-types'),
+  // Card 071026210510: the dialog asks the grant BEFORE the operator types —
+  // the same predicate the save enforces, answered as a verdict, not a 403.
+  getExpenseWriteScope: (shipmentId: number) =>
+    api.get<{ writable: boolean; reason: string | null }>(`/ops/expenses/write-scope${qs({ shipmentId })}`),
   createExpense: (body: {
     shipmentId: number;
     shipmentContainerId?: number | null;
