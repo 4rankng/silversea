@@ -344,6 +344,14 @@ export function AppRoutes() {
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
           <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />
           <Route path="/debt" element={financeReaderOnly(page(<DebtListPage />))} />
+          {/* Card 071026211120: the spec, the report endpoint and the nav copy all
+              call this page "receivables" while the route has always been /debt, so
+              the documented link was a hard 404 for a signed-in accountant. Send the
+              legacy path to the real route instead of letting the catch-all answer
+              it. No guard here on purpose: /debt applies financeReaderOnly itself, so
+              an unauthorized role is still bounced exactly as before rather than
+              reaching the page by the back door. */}
+          <Route path="/receivables" element={<Navigate to={routes.debt} replace />} />
           <Route path="/debt/:id" element={financeReaderOnly(page(<DebtDetailPage />))} />
           <Route path="/debt/:id/billing/new" element={financeReaderOnly(page(<DebtDetailPage />))} />
           <Route path="/penalties" element={officeStaffOnly(page(<PenaltyPage />))} />
