@@ -1477,15 +1477,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
   });
 
-  it('hides the lot-delete affordance from ADMIN, which the delete route refuses (card 071026204710)', async () => {
-    // DELETE /shipments/cus-workspace/:id is gated `requireRoles(Role.CUS)` —
-    // no implicit ADMIN (backend/src/middleware/casbin.ts) — and the sibling
-    // lifecycle routes (lock / reopen / document-custody) are CUS-only the same
-    // way, so the narrow list reads as the intended policy. But
-    // `operational.deletable` is a data-state flag (no live trip left on the
-    // lot) that says nothing about the caller, so ADMIN was offered a button
-    // whose every click ends in 403 "Không có quyền truy cập" with the dialog
-    // left standing. The read model must not advertise what the guard refuses.
+  it('offers the lot-delete affordance to ADMIN, which the delete route now admits (card 071026204710)', async () => {
+    // The lead re-ruled this card: the delete is CUS **or** ADMIN — the route
+    // (cus-workspace.routes.ts:344) and the service guard
+    // (shipment-governance.service.ts:36) widened together. An earlier revision
+    // of this file hid the button from ADMIN to match the then-current guard,
+    // which would have left ADMIN able to delete via the API but unable to reach
+    // the control at all.
     const deletable = { ...row.operational, deletable: true };
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
@@ -1493,6 +1491,25 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
         : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
     ));
     authState.user.role = Role.ADMIN;
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
+  });
+
+  it('hides the lot-delete affordance from roles the delete route refuses (card 071026204710)', async () => {
+    // The point of gating on the role rather than on `operational.deletable`
+    // alone: that flag is a data-state check (no live trip left on the lot) and
+    // carries no role, so an unlisted role must not be offered the action.
+    const deletable = { ...row.operational, deletable: true };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers: [] })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
+    ));
+    authState.user.role = Role.ACCOUNTANT;
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));

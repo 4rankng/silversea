@@ -106,14 +106,14 @@ export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER; // ADMIN/MANAGER/CUS/DISPATCHER — mirrors the shipmentCreatorOnly route guard (testplan/roles/01-cus.md)
-  // Card 071026204710: DELETE /shipments/cus-workspace/:id is `requireRoles(Role.CUS)`
-  // with no implicit ADMIN, alongside lock / reopen / document-custody. The
-  // `operational.deletable` flag behind the button is a data-state check (no live
-  // trip left on the lot) and carries no role, so without this gate ADMIN was shown
-  // a destructive action that could only ever answer 403 — the dialog stayed open
-  // with the banner behind it, which read as a hang. The affordance now mirrors
-  // the guard instead of the guard being widened to fit the button.
-  const canDeleteLot = user?.role === Role.CUS;
+  // Card 071026204710, then re-ruled by the lead on the same card: the lot
+  // delete is now CUS **or** ADMIN (routes/shipments/cus-workspace.routes.ts:344
+  // and services/shipment-governance.service.ts:36 both widened together). This
+  // gate first hid the affordance from ADMIN because the route refused it — that
+  // half is obsolete now, and keeping it would have left ADMIN able to delete
+  // through the API but unable to reach the button. The affordance mirrors the
+  // guard; when the guard moves, this moves with it.
+  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const pageSize = readCusPageSize(searchParams.get('limit'));
