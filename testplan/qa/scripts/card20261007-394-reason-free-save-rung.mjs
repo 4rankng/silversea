@@ -1,4 +1,4 @@
-// Card 20261007_394 (supersedes 393) — staging rung on 0ea3b35d: correcting a
+// Card 20261007_394 (supersedes 393) — staging rung on b888d4ed: correcting a
 // COMPLETED trip no longer demands a typed governance reason. Flow on
 // /trips/135/edit (admin): set Ngày hoàn thành to a legal later date, save —
 // the old gate refused with 'Vui lòng nhập lý do điều chỉnh...' before the
@@ -19,8 +19,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let exitCode = 0;
 
 const health = await fetch(`${API}/health`).then((r) => r.json());
-log('health', { buildHash: health.buildHash, expect: '0ea3b35d' });
-if (!String(health.buildHash || '').startsWith('0ea3b35d')) { log('build-currency-FAIL'); process.exit(2); }
+log('health', { buildHash: health.buildHash, expect: 'b888d4ed' });
+if (!String(health.buildHash || '').startsWith('b888d4ed')) { log('build-currency-FAIL'); process.exit(2); }
 
 const login = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: 'admin', password: 'Abc123' }) });
 const token = (await login.json()).token;
@@ -39,6 +39,10 @@ try {
   await sleep(4500);
   await page.waitForSelector('#completedAt', { timeout: 20000 });
   const tap = async (pt) => { await page.mouse.move(pt.x, pt.y); await page.mouse.down(); await page.mouse.up(); };
+  // b888d4ed: the reason box is gone from the editor entirely (owner ruling,
+  // card letter finished) — assert absence instead of mere optionality.
+  const reasonBox = await page.evaluate(() => Boolean(document.getElementById('governanceReason')));
+  log('reason-box-absent', { reasonBox });
 
   // Tap + focus the completedAt segments, type the legal later date.
   const pt = await page.evaluate(() => { const el = document.getElementById('completedAt'); el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
@@ -81,7 +85,7 @@ try {
   const t1 = after.trip ?? after;
   const persisted = String(t1.completedAt || '').startsWith('2026-10-07');
   log('db-verify', { completedAt: t1.completedAt, departureDate: t1.departureDate, persisted });
-  const ok = sawConfirm && applied && !sawReasonRefusal && persisted;
+  const ok = sawConfirm && applied && !sawReasonRefusal && persisted && !reasonBox;
   log('verdict', { ok });
   if (!ok) exitCode = 1;
 } catch (err) {
