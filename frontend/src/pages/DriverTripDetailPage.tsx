@@ -401,17 +401,18 @@ function DriverTripDetailContent() {
           and the two-row bullet list restated what the sticky bar already says
           (Còn thiếu N chứng từ) and cost ~60px of the first screenful. */}
       <footer className="driver-task-footer">
-        <div className="driver-task-footer__body">
+        {/* Card 071026103226 (FB-055 regression): the closed card is ONE row —
+            title left, document button right, no hint line (the stacked hint
+            re-inflated the card to ~115px against the ≤60px contract). */}
+        <div className={`driver-task-footer__body${closed ? ' driver-task-footer__body--closed' : ''}`}>
           <div className="driver-task-footer__summary">
             <strong>{cancelled ? 'Chuyến đã hủy' : completed ? 'Chuyến đã hoàn thành' : 'Chứng từ giao hàng'}</strong>
-            {closed ? (
-              <p className="driver-task-footer__hint">Xem lại phiếu bãi và biên bản giao nhận đã lưu.</p>
-            ) : (!hasYardReceipt || !hasSignedNote) ? (
+            {!closed && (!hasYardReceipt || !hasSignedNote) ? (
               <p className="driver-task-footer__issues" role="list">
                 {!hasYardReceipt && <span role="listitem">Thiếu Phiếu bãi / phiếu hạ</span>}
                 {!hasSignedNote && <span role="listitem">Thiếu Biên bản giao nhận</span>}
               </p>
-            ) : (
+            ) : !closed && (
               <p className="driver-task-footer__ready">
                 <CheckCircle2 size={14} />
                 <span>Đủ chứng từ, chờ hoàn thành chuyến.</span>

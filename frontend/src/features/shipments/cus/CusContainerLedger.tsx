@@ -103,7 +103,7 @@ export function ContainerLedger({
   onAppointmentSavedAndExit,
 }: {
   detail: ShipmentCusWorkspaceDetail;
-  onLineSaved: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
+  onLineSaved: (line: ShipmentCusWorkspaceContainerLine | null) => Promise<void>;
   getIdempotencyKey: (signature: string) => string;
   clearIdempotencyKey: (signature: string) => void;
   idPrefix: string;
@@ -133,8 +133,14 @@ export function ContainerLedger({
   // Thêm container (form below the last row) and per-row Xóa ride the
   // cus-workspace APIs (card 20260921_2 lineage). Adds apply the returned
   // line through onLineSaved; removes refetch the detail (the line is gone,
-  // and the shipment version advances server-side).
+  // and the shipment version advances server-side) AND refresh the overview
+  // row through onLineSaved(null) — the list's containerSummary/cont count
+  // would otherwise stay stale until a manual reload (card 071026100800).
   const [addOpen, setAddOpen] = useState(false);
+  // Card 20261007_395 — only FCL can take a container row; an LCL lot is one
+  // containerless LCL_SHIPMENT. Mirrors the server guard so the UI never
+  // offers an action that is guaranteed to 409.
+  const canAddContainer = detail.summary.cargoMode !== 'LCL';
   const [addFields, setAddFields] = useState<AddContainerFields>(EMPTY_ADD_FIELDS);
   const [addError, setAddError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -185,6 +191,11 @@ export function ContainerLedger({
       }, getIdempotencyKey(signature));
       clearIdempotencyKey(signature);
       toast({ kind: 'success', message: `Đã xóa container ${line.containerNumber || line.ordinal}.` });
+      // Structural change: no line payload — applySavedContainerLine's null
+      // branch refreshes the list so the overview row drops the deleted
+      // container immediately (card 071026100800), and the force reload drops
+      // the line from the drawer.
+      await onLineSaved(null);
       onExternalTripCompleted?.();
     } catch (error) {
       toast({ kind: 'error', message: safeError(error, 'Không xóa được container.') });
@@ -517,12 +528,18 @@ export function ContainerLedger({
         </div>
       )}
       {/* Card 20260923_1: Thêm container — rides the ledger bottom (ruling:
-          the button sits right below the last container row). FCL and LCL
-          both manage containers here now. Card 20260923_9: the form itself is
-          the table's tfoot row (grid-aligned); this block keeps only the
-          trigger and the inline error. */}
+          the button sits right below the last container row). Card 20260923_9:
+          the form itself is the table's tfoot row (grid-aligned); this block
+          keeps only the trigger and the inline error.
+          Card 20261007_395: the comment above used to claim "FCL and LCL both
+          manage containers here now", but the server has ALWAYS refused a
+          non-FCL add (shipment-fulfillment.service.ts — "Chỉ lô hàng FCL mới
+          thêm được dòng container."). An LCL lot is one containerless
+          LCL_SHIPMENT by design, so the guard is right and the affordance was
+          wrong: staff were offered an action that could only ever fail. Hide
+          the trigger for LCL instead of letting them click into a dead end. */}
       <div className="cus-container-ledger__add">
-        {!addOpen && (
+        {!addOpen && canAddContainer && (
           <button
             type="button"
             className="btn btn--secondary btn--sm"

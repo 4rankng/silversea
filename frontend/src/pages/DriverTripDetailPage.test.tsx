@@ -1455,3 +1455,17 @@ describe('20260915_1: trip → fulfillmentId resolution', () => {
     expect(screen.queryByTestId('operation-chips')).toBeNull();
   });
 });
+
+describe('driver completed-trip footer height contract (card 071026103226 — FB-055 regression)', () => {
+  it('the closed card renders the summary and the button side by side with no hint line', async () => {
+    renderPage();
+    await screen.findByText('Thông tin lệnh');
+    // The card must not stack a hint line under the title in the closed
+    // state — that line is what re-inflated the card to ~115px.
+    const hint = document.querySelector('.driver-task-footer__hint');
+    expect(hint).toBeNull();
+    // The body carries the closed variant: one row, summary left + button right.
+    const body = document.querySelector('.driver-task-footer__body');
+    expect(body?.className).toContain('driver-task-footer__body--closed');
+  });
+});

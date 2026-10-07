@@ -25,7 +25,7 @@ export function ShipmentDetailContent({
   loading: boolean;
   error?: string;
   onRetry: () => void;
-  onLineSaved: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
+  onLineSaved: (line: ShipmentCusWorkspaceContainerLine | null) => Promise<void>;
   getIdempotencyKey: (signature: string) => string;
   clearIdempotencyKey: (withSignature: string) => void;
   idPrefix: string;

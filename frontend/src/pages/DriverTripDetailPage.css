@@ -1213,3 +1213,15 @@
     min-height: var(--control-touch-h);
   }
 }
+
+/* Card 071026103226 (FB-055 regression): the closed card is ONE row — summary
+   left, document button right — holding the card at the ≤60px contract; the
+   stacked hint line re-inflated it to ~115px on staging. */
+.driver-task-footer__body--closed {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.driver-task-footer__body--closed .driver-task-complete {
+  width: auto;
+}

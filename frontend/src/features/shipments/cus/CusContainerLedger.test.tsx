@@ -374,7 +374,7 @@ describe('ContainerLedger confirm affordances', () => {
       const [saving, setSaving] = useState(false);
       return <ToastProvider><ContainerLedger
         detail={current}
-        onLineSaved={async (line) => { setCurrent({ ...current, containers: [line] }); }}
+        onLineSaved={async (line) => { if (line) setCurrent({ ...current, containers: [line] }); }}
         getIdempotencyKey={() => 'typed-enter-current-state'}
         clearIdempotencyKey={() => {}}
         idPrefix="real-host"
@@ -608,5 +608,97 @@ describe('vendor-scoped plate datalist (card 20260925_6 sweep)', () => {
     const datalist = container.querySelector('datalist[id$="-plates-10"]');
     expect(Array.from(datalist!.querySelectorAll('option')).map((option) => option.value))
       .toEqual(['15C-184.62']);
+  });
+});
+
+// Card 071026100800 — after a container is removed from a lot, the OVERVIEW
+// row (containerSummary "2x40DC", container count) must refresh immediately:
+// the remove path refreshes the drawer (onExternalTripCompleted → force detail
+// reload) AND the list row (onLineSaved(null) → applySavedContainerLine's
+// no-line branch → loadList). Missing the list refresh kept the deleted row's
+// numbers on screen until a manual reload — the reported bug.
+describe('071026100800 — xóa container làm tươi hàng tổng quan', () => {
+  it('remove success refreshes the overview row AND the drawer detail', async () => {
+    const onLineSaved = vi.fn();
+    const onExternalTripCompleted = vi.fn();
+    removeCusShipmentContainerRow.mockClear();
+    removeCusShipmentContainerRow.mockResolvedValueOnce({});
+    render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={detail}
+          onLineSaved={onLineSaved}
+          onExternalTripCompleted={onExternalTripCompleted}
+          getIdempotencyKey={() => 'test-key'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="remove-refresh"
+        />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
+    // null = structural change (no line payload) → applySavedContainerLine
+    // refreshes the list, exactly like the add path does with a line.
+    await waitFor(() => expect(onLineSaved).toHaveBeenCalledWith(null));
+    expect(onExternalTripCompleted).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed remove refreshes nothing — the data did not change', async () => {
+    const onLineSaved = vi.fn();
+    const onExternalTripCompleted = vi.fn();
+    removeCusShipmentContainerRow.mockClear();
+    removeCusShipmentContainerRow.mockRejectedValueOnce(new ApiError(409, { error: 'Không xóa được container.' }, 'Không xóa được container.'));
+    render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={detail}
+          onLineSaved={onLineSaved}
+          onExternalTripCompleted={onExternalTripCompleted}
+          getIdempotencyKey={() => 'test-key'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="remove-fail"
+        />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
+    expect(onLineSaved).not.toHaveBeenCalled();
+    expect(onExternalTripCompleted).not.toHaveBeenCalled();
+  });
+  // Card 20261007_395 — an LCL lot is ONE containerless LCL_SHIPMENT by
+  // design; the server refuses a container add with 409 "Chỉ lô hàng FCL mới
+  // thêm được dòng container." The ledger used to offer "Thêm container" on
+  // LCL anyway (its own comment claimed LCL manages containers here), so staff
+  // could only ever walk into a dead end. FCL must still get the affordance.
+  it('offers the add-container action on FCL and withholds it on LCL', () => {
+    const onLineSaved = vi.fn();
+    const { unmount } = render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={{ ...detail, summary: { ...detail.summary, cargoMode: 'FCL' } }}
+          onLineSaved={onLineSaved}
+          onExternalTripCompleted={vi.fn()}
+          getIdempotencyKey={() => 'k'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="fcl-add"
+        />
+      </ToastProvider>,
+    );
+    expect(screen.getByRole('button', { name: 'Thêm container' })).toBeTruthy();
+    unmount();
+
+    render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={{ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } }}
+          onLineSaved={onLineSaved}
+          onExternalTripCompleted={vi.fn()}
+          getIdempotencyKey={() => 'k'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="lcl-add"
+        />
+      </ToastProvider>,
+    );
+    expect(screen.queryByRole('button', { name: 'Thêm container' })).toBeNull();
   });
 });
