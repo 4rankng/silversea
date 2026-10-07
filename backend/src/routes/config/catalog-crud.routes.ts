@@ -932,9 +932,13 @@ router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, { mat
 // ('ĐANG HOẠT ĐỘNG (TRANG NÀY)' was the reported anti-pattern). One grouped
 // census + per-carrier assigned-vehicle counts (trucks.carrier_id = the
 // supplier's linked customer), both scoped to live rows.
+// Card 071026141610: the ACCOUNTANT nav branch serves BOTH /customers and
+// /suppliers, but ACCOUNTANT was missing from this guard, so an accountant
+// loaded the directory and then got 403 on the counts — the KPI/stat cards
+// fell back to their 'Không thể tải số liệu' hint. Read-only census.
 router.get(
   '/suppliers/status-counts',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.DISPATCHER, Role.CUS),
   asyncHandler(async (_req: Request, res: Response) => {
     const [statusRows, vehicleRows] = await Promise.all([
       db.select({ status: s.suppliers.status, count: sql<number>`count(*)::int` })
