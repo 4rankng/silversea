@@ -55,6 +55,7 @@ const DRIVER_TASK = {
   EVIDENCE: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/evidence-status`,
   PODS: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod`,
   POD_FILES: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/files`,
+  POD_FILE: (fulfillmentId: number, submissionId: number, fileId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/files/${fileId}`,
   POD_SUBMIT: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/submit`,
   COMPLETE: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/complete`,
   INCIDENTAL_COSTS: (tripId: number) => `/driver/me/trips/${tripId}/incidental-costs`,
@@ -582,6 +583,35 @@ export const driverClient = {
   /** e-POD file blob — authenticated fetch for thumbnails + fullscreen viewer. */
   downloadPodFile: async (fulfillmentId: number, fileId: number): Promise<Blob> => {
     return api.getBlob(`/driver/me/fulfillments/${fulfillmentId}/pod-files/${fileId}`);
+  },
+
+  /**
+   * Card 071026212500 — take back a photo from the driver's own DRAFT
+   * submission. The server refuses this once the submission is submitted, so
+   * the button is a draft-only affordance and the 409 is not a surprise here.
+   */
+  removePodFile: async (args: {
+    fulfillmentId: number;
+    submissionId: number;
+    fileId: number;
+    expectedVersion: number;
+    idempotencyKey: string;
+  }) => {
+    const fingerprint = [
+      'driver-pod-file-remove',
+      args.fulfillmentId,
+      args.submissionId,
+      args.fileId,
+      args.expectedVersion,
+    ].join(':');
+    return api.delete<DriverTaskPodSubmission>(
+      DRIVER_TASK.POD_FILE(args.fulfillmentId, args.submissionId, args.fileId),
+      {
+        body: JSON.stringify({ expectedVersion: args.expectedVersion }),
+        headers: { 'Idempotency-Key': args.idempotencyKey },
+        retryFingerprint: fingerprint,
+      },
+    );
   },
 
   getFeeNorms: () => api.get<{ items: Array<{ code: string; label: string; amount: string | number }> }>('/driver/me/fee-norms'),

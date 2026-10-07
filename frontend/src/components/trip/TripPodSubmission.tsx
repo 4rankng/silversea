@@ -8,6 +8,7 @@ import {
   FileText,
   Loader2,
   Lock,
+  Trash2,
   Upload,
 } from 'lucide-react';
 import { TRIP_POD_REQUIRED_FILE_TYPES, TripPodFileType, TripPodStatus } from '@tingting/shared';
@@ -33,6 +34,9 @@ export interface TripPodSubmissionProps {
   onPendingChange?: (pending: boolean) => void;
   onEnsureDraft: () => Promise<DriverTaskPodSubmission>;
   onUploadFile: (submission: DriverTaskPodSubmission, fileType: TripPodFileType, file: File) => Promise<void>;
+  // Optional so a caller that has not wired removal simply shows no remove
+  // button rather than a dead control. The single page caller does wire it.
+  onRemoveFile?: (submission: DriverTaskPodSubmission, fileId: number) => Promise<void>;
 }
 
 const REQUIRED_FILE_TYPES = TRIP_POD_REQUIRED_FILE_TYPES;
@@ -97,9 +101,11 @@ export function TripPodSubmission({
   onPendingChange,
   onEnsureDraft,
   onUploadFile,
+  onRemoveFile,
 }: TripPodSubmissionProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [removingFileId, setRemovingFileId] = useState<number | null>(null);
   // Which required slot the fullscreen scanner captures for (live-camera overlay with torch + gallery, not a bare <input capture>).
   const [scanning, setScanning] = useState<TripPodFileType | null>(null);
 
@@ -173,6 +179,29 @@ export function TripPodSubmission({
   const busy = processing || uploading || creatingDraft;
   const missingRequired = REQUIRED_FILE_TYPES.filter((fileType) => groupedFiles[fileType].length === 0);
   const latestHistory = history.filter((submission) => submission.id !== currentSubmission?.id);
+  // Card 071026212500: take back a photo from the driver's own draft. The server
+  // refuses this once submitted, so the affordance is draft-only and the two
+  // agree rather than the UI hiding a rule the API enforces separately.
+  async function handleRemoveFile(fileId: number) {
+    if (!currentSubmission || removingFileId != null || !onRemoveFile) return;
+    const fulfillmentId = currentSubmission.fulfillmentId;
+    if (fulfillmentId == null) {
+      setUploadError('Chưa thể gỡ chứng từ của lệnh này. Vui lòng liên hệ điều vận.');
+      return;
+    }
+    setRemovingFileId(fileId);
+    setUploadError(null);
+    try {
+      await onRemoveFile(currentSubmission, fileId);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : 'Không thể gỡ chứng từ. Vui lòng thử lại.',
+      );
+    } finally {
+      setRemovingFileId(null);
+    }
+  }
+
   async function downloadFile(file: DriverTaskPodFile) {
     if (!currentSubmission || downloadingId != null) return;
     const fulfillmentId = currentSubmission.fulfillmentId;
@@ -315,6 +344,23 @@ export function TripPodSubmission({
                   {files.map((file) => {
                     const isImage = (file.mimeType ?? '').startsWith('image/');
                     const thumb = thumbUrls[file.id];
+                    // Card 071026212500: a draft is the driver's own editable
+                    // work, so the file can be taken back. `isLocked` is exactly
+                    // the submitted case the server refuses — same rule the
+                    // upload path already follows.
+                    const removeButton = !isLocked && !disabled && onRemoveFile ? (
+                      <button
+                        type="button"
+                        className="trip-pod__file-remove"
+                        onClick={() => void handleRemoveFile(file.id)}
+                        disabled={removingFileId != null}
+                        aria-label={`Xóa chứng từ ${file.originalFileName}`}
+                      >
+                        {removingFileId === file.id
+                          ? <Loader2 size={15} className="spin" />
+                          : <Trash2 size={15} />}
+                      </button>
+                    ) : null;
                     if (isImage && thumb) {
                       const fileIndex = viewableImages.findIndex((item) => item.id === file.id);
                       return (
@@ -327,6 +373,7 @@ export function TripPodSubmission({
                             <img src={thumb} alt={file.originalFileName} />
                           </button>
                           <span className="trip-pod__file-time">Tải lên {formatDateTime(file.createdAt)}</span>
+                          {removeButton}
                         </li>
                       );
                     }
@@ -338,6 +385,7 @@ export function TripPodSubmission({
                           {downloadingId === file.id ? <Loader2 size={15} className="spin" /> : <Download size={15} />}
                         </button>
                         <span className="trip-pod__file-time">Tải lên {formatDateTime(file.createdAt)}</span>
+                        {removeButton}
                       </li>
                     );
                   })}

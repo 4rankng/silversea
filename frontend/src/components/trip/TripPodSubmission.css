@@ -287,6 +287,35 @@
   white-space: nowrap;
 }
 
+/* Card 071026212500 — the remove affordance sits at the end of the file row and
+   keeps the row's single-line height; the danger tint is reserved for hover and
+   for keyboard focus so a driver never reaches for the wrong control by accident. */
+.trip-pod__file-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.trip-pod__file-remove:hover:not(:disabled),
+.trip-pod__file-remove:focus-visible {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.trip-pod__file-remove:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .trip-pod__empty {
   margin: 0;
   color: var(--ink-3);

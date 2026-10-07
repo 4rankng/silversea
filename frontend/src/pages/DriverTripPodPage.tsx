@@ -151,6 +151,39 @@ export function DriverTripPodPage() {
     }
   }
 
+  async function handleRemovePodFile(
+    submission: DriverTaskPodSubmission,
+    fileId: number,
+  ) {
+    if (!trip || !validFulfillmentId) {
+      throw new Error('Không tìm thấy chuyến để gỡ ảnh e-POD.');
+    }
+    if (documentReadOnlyReason) throw new Error(documentReadOnlyReason);
+    const target = submission.files.find((item) => item.id === fileId);
+    try {
+      await driverClient.removePodFile({
+        fulfillmentId: validFulfillmentId,
+        submissionId: submission.id,
+        fileId,
+        expectedVersion: submission.version,
+        idempotencyKey: buildIdempotencyKey(
+          'driver', 'pod-file', validFulfillmentId, submission.id, fileId,
+          'version', submission.version,
+        ),
+      });
+      await refreshAll();
+      toast({ kind: 'success', message: `Đã gỡ tệp ${target?.originalFileName ?? ''}.`.trim() });
+    } catch (error) {
+      // A submitted submission is frozen by design; say so in the driver's own
+      // words rather than surfacing a bare 409 they cannot act on.
+      const message = error instanceof Error ? error.message : '';
+      if (/trạng thái nháp/i.test(message)) {
+        throw new Error('Chỉ gỡ được chứng từ khi e-POD còn ở trạng thái nháp. Đã nộp thì không gỡ được nữa.');
+      }
+      throw error;
+    }
+  }
+
   async function handleUploadPodFile(
     submission: DriverTaskPodSubmission,
     fileType: TripPodFileType,
@@ -387,6 +420,7 @@ export function DriverTripPodPage() {
             onPendingChange={setPendingFiles}
             onEnsureDraft={handleEnsureDraft}
             onUploadFile={handleUploadPodFile}
+            onRemoveFile={handleRemovePodFile}
           />
         </section>
       </main>
