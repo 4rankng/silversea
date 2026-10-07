@@ -1,7 +1,7 @@
 // Card 061026172804 — staging rung on 21723617: an assignment overlapping a
 // COMPLETED trip of the same tractor now WARNS (house confirm dialog) and the
 // confirmed save proceeds. Fixture: LCL lot whose closingAt sits inside trip
-// 135's window (truck 23 = 15H-117.55, 01:00–04:22Z 07/10). UI flow:
+// 135's window (truck 39 = 15H-061.14, 10:30–13:52Z 04/10 (trip 117 COMPLETED; siblings CANCELED)). UI flow:
 // search → Sửa → pick 15H-117.55 → Lưu thay đổi → confirm dialog → accept →
 // row 'Đã điều xe'. Real taps throughout; screenshots per step.
 import puppeteer from 'puppeteer';
@@ -41,7 +41,7 @@ const created = await api('POST', '/shipments', { customerId: 1, cargoMode: 'LCL
 if (![200, 201].includes(created.status)) throw new Error(`create ${created.status} ${JSON.stringify(created.body).slice(0, 140)}`);
 const sid = created.body.id;
 log('lot-created', { shipmentId: sid, bl: BL });
-await api('PUT', `/shipments/${sid}`, { expectedVersion: created.body.version ?? 1, closingAt: '2026-10-07T02:00:00.000Z', expectedDeliveryDate: '2026-10-07' }, token);
+await api('PUT', `/shipments/${sid}`, { expectedVersion: created.body.version ?? 1, closingAt: '2026-10-04T12:00:00.000Z', expectedDeliveryDate: '2026-10-04' }, token);
 let h = await api('GET', `/shipments/${sid}/dispatch-handoff`, undefined, token);
 let row = h.body?.id ? h.body : h.body?.handoff;
 if (!row) { const nh = await api('POST', `/shipments/${sid}/dispatch-handoffs`, {}, token); row = nh.body?.handoff ?? nh.body; }
@@ -101,12 +101,12 @@ try {
   await tapPoint(veh, 'Chọn biển số xe');
   await sleep(700);
   await page.evaluate(() => { const c = [...document.querySelectorAll('input')].filter((i) => i.offsetParent !== null && !i.closest('.dispatch-assignment-dialog')).find((i) => i.type === 'text' || i.type === 'search'); if (c) c.focus(); });
-  await page.keyboard.type('15H-117.55', { delay: 70 });
+  await page.keyboard.type('15H-061.14', { delay: 70 });
   await sleep(1500);
   let opt = null;
   for (let o = 0; o < 5; o += 1) {
     opt = await page.evaluate(() => {
-      const el = [...document.querySelectorAll('[role="option"], [role="listbox"] *')].find((x) => (x.textContent || '').includes('15H-117.55') && x.offsetParent !== null);
+      const el = [...document.querySelectorAll('[role="option"], [role="listbox"] *')].find((x) => (x.textContent || '').includes('15H-061.14') && x.offsetParent !== null);
       if (!el) return null;
       el.scrollIntoView({ block: 'nearest' });
       const r = el.getBoundingClientRect();
@@ -117,7 +117,7 @@ try {
     await sleep(700);
   }
   if (!opt || opt.retry) throw new Error('truck option not tappable');
-  await tapPoint(opt, '15H-117.55');
+  await tapPoint(opt, '15H-061.14');
   log('truck-picked');
   await sleep(800);
   await page.screenshot({ path: `${QA}/${SCOPE}_ui-truck-picked.png`, fullPage: false });
