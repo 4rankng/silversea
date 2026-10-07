@@ -134,6 +134,85 @@ function saveInput(fx: Fixture, windowEnd: Date) {
 }
 
 describe('card 363 rig-conflict overlap', () => {
+  test('061026172804 rework: a completed trip that still rides its fulfillment row warns, not the generic block', async () => {
+    // QA FAILED rework spec (staging cut 2087fe5b): the generic plan-row block
+    // masked the completed tier whenever the completed trip still carries its
+    // plate on its own fulfillment row (the common FCL shape — the reported
+    // scenario). The plan-row scan must skip released-rig fulfillments so the
+    // completed tier's warning fires.
+    const t0 = new Date('2026-10-05T08:00:00.000Z');
+    const fx = await makeFixture(t0);
+    const other = await makeFixture(t0);
+    // The completed trip rides `other`'s fulfillment and wears the same plate
+    // the dispatcher is assigning — exactly the /trips/135-style FCL shape.
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: fx.truckPlate })
+      .where(eq(s.shipmentFulfillments.id, other.fulfillmentId));
+    await insertTrip({
+      tripCode: `TRP363-DONE-RIDE-${suffix}`,
+      customerId: other.customerId,
+      routeId: other.routeId,
+      departureDate: '2026-10-05',
+      truckId: fx.truckId,
+      fulfillmentId: other.fulfillmentId,
+      plannedStartAt: new Date('2026-10-05T07:00:00.000Z'),
+      plannedEndAt: new Date('2026-10-05T11:00:00.000Z'),
+      status: 'COMPLETED',
+      createdBy: fx.actor.userId,
+    });
+    await assert.rejects(
+      () => updateDispatchDetailPlan(saveInput(fx, new Date('2026-10-05T10:00:00.000Z'))),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED', `expected the completed-tier warning, got: ${e.message}`);
+        return true;
+      },
+    );
+    // Confirming still lands the assignment.
+    const saved = await updateDispatchDetailPlan({
+      ...saveInput(fx, new Date('2026-10-05T10:00:00.000Z')),
+      rigOverlapCompletedConfirmed: true,
+    });
+    assert.ok(saved);
+  });
+
+  test('061026172804 rework: a soft-deleted COMPLETED trip never releases the rig silently', async () => {
+    // Consistency delta: the released-rig exclusion and the warning tier must
+    // share ONE definition of "completed trip". A tombstoned trip is no
+    // evidence the rig was released — the row must fall back to the generic
+    // plan-row block (blocking is safe; a silent save is the bug class here).
+    const t0 = new Date('2026-10-05T08:00:00.000Z');
+    const fx = await makeFixture(t0);
+    const other = await makeFixture(t0);
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: fx.truckPlate })
+      .where(eq(s.shipmentFulfillments.id, other.fulfillmentId));
+    await insertTrip({
+      tripCode: `TRP363-DONE-DELETED-${suffix}`,
+      customerId: other.customerId,
+      routeId: other.routeId,
+      departureDate: '2026-10-05',
+      truckId: fx.truckId,
+      fulfillmentId: other.fulfillmentId,
+      plannedStartAt: new Date('2026-10-05T07:00:00.000Z'),
+      plannedEndAt: new Date('2026-10-05T11:00:00.000Z'),
+      status: 'COMPLETED',
+      deletedAt: new Date(),
+      createdBy: fx.actor.userId,
+    });
+    await assert.rejects(
+      () => updateDispatchDetailPlan(saveInput(fx, new Date('2026-10-05T10:00:00.000Z'))),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409);
+        assert.equal(e.payload?.code, undefined,
+          `a tombstoned trip must block with the generic message, not warn: ${e.message}`);
+        return true;
+      },
+    );
+  });
+
   test('363: a COMPLETED trip no longer BLOCKS the rig; the save warns once and the confirmed retry proceeds (card 061026172804)', async () => {
     const t0 = new Date('2026-10-05T08:00:00.000Z');
     const fx = await makeFixture(t0);

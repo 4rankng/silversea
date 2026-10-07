@@ -1209,6 +1209,11 @@ async function assertPlanRowRigAvailable(
       isNotNull(s.shipmentContainers.customerAppointmentAt),
       lt(s.shipmentContainers.customerAppointmentAt, windowEnd),
       sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, ${s.shipmentContainers.customerAppointmentAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
+      // QA rework 061026172804: a fulfillment whose trip is COMPLETED has
+      // released the rig (card 363) — it must fall through to the completed
+      // tier's warning below, not raise the generic plan-row block here
+      // (the masking the staging QA cut exposed).
+      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
     ));
   // Card 061026174603: an LCL row is a plan unit too, but it has no container,
   // so the branch above (which inner-joins shipmentContainers) cannot see it.
@@ -1226,6 +1231,8 @@ async function assertPlanRowRigAvailable(
       sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) is not null`,
       sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) < ${windowEnd.toISOString()}::timestamptz`,
       sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
+      // Same released-rig exclusion as the FCL scan above.
+      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
     ));
   // Dispatched trips riding the same rig: the plate is the pre-dispatch key,
   // the truck's license plate is the dispatched key — one physical tractor.

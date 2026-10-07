@@ -56,6 +56,17 @@ try {
     plannedEndAt: '2026-10-05T10:00:00.000Z',
   };
 
+  // QA-rework scenario (staging cut 2087fe5b): the completed trip RIDES its
+  // own fulfillment row wearing the same plate — at HEAD the generic plan-row
+  // block masked the completed tier. A second lot's fulfillment wears the
+  // plate and carries the completed trip; the save must reach the warning.
+  const [shipment2] = await q("INSERT INTO shipments (customer_id, route_id, cargo_mode, shipment_code, status, closing_at, created_by, created_at, updated_at) VALUES ($1,$2,'FCL',$3,'READY_FOR_DISPATCH',$4,$5, now(), now()) RETURNING id", [customer.id, route.id, `KB038B-${suffix}`, t0, admin.id]);
+  const [container2] = await q("INSERT INTO shipment_containers (shipment_id, route_id, operational_site_id, container_type_id, container_number, customer_appointment_at, created_by, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7, now(), now()) RETURNING id", [shipment2.id, route.id, site.id, ctype.id, `K38B${suffix.slice(-6)}`.toUpperCase(), t0, admin.id]);
+  const [ff2] = await q("INSERT INTO shipment_fulfillments (shipment_id, fulfillment_type, cargo_mode, shipment_container_id, source_shipment_version, planned_vehicle_plate_number, created_by, created_at, updated_at) VALUES ($1,'FCL_CONTAINER','FCL',$2,1,$3,$4, now(), now()) RETURNING id, version", [shipment2.id, container2.id, truck.license_plate, admin.id]);
+  const [trip2] = await q("INSERT INTO trips (trip_code, customer_id, route_id, departure_date, truck_id, fulfillment_id, planned_start_at, planned_end_at, status, created_by, created_at, updated_at) VALUES ($1,$2,$3,'2026-10-05',$4,$5,$6,$7,'COMPLETED',$8, now(), now()) RETURNING id", [`TRP-kb038b-${Date.now()}`, customer.id, route.id, truck.id, ff2.id, '2026-10-05T07:00:00Z', '2026-10-05T11:00:00Z', admin.id]);
+  ids.ff2 = ff2.id; ids.trip2 = trip2.id; ids.container2 = container2.id; ids.shipment2 = shipment2.id;
+  step('fixture-masked', { maskedFulfillment: ff2.id, maskedTrip: trip2.id });
+
   const first = await save(baseBody);
   step('first-save', { status: first.status, code: first.body?.code, error: first.body?.error, details: first.body?.details });
   if (first.status !== 409 || first.body?.code !== 'RIG_OVERLAP_COMPLETED') throw new Error('expected the 409 RIG_OVERLAP_COMPLETED warning');
@@ -70,8 +81,14 @@ try {
 } finally {
   // Purge fixtures (child tables first).
   try {
-    await sql.unsafe('DELETE FROM shipment_fulfillments WHERE id = $1', [ids.ff]);
+    await sql.unsafe('DELETE FROM trips WHERE id = $1', [ids.trip2]);
     await sql.unsafe('DELETE FROM trips WHERE id = $1', [ids.trip]);
+    await sql.unsafe('DELETE FROM shipment_fulfillments WHERE id = $1', [ids.ff2]);
+    await sql.unsafe('DELETE FROM shipment_fulfillments WHERE id = $1', [ids.ff]);
+    await sql.unsafe('DELETE FROM shipment_containers WHERE id = $1', [ids.container2]);
+    await sql.unsafe('DELETE FROM shipments WHERE id = $1', [ids.shipment2]);
+    await sql.unsafe('DELETE FROM shipment_containers WHERE id = $1', [ids.container]);
+    await sql.unsafe('DELETE FROM shipments WHERE id = $1', [ids.shipment]);
     await sql.unsafe('DELETE FROM trucks WHERE id = $1', [ids.truck]);
     await sql.unsafe('DELETE FROM shipment_containers WHERE id = $1', [ids.container]);
     await sql.unsafe('DELETE FROM shipments WHERE id = $1', [ids.shipment]);
