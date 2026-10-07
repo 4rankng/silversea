@@ -305,6 +305,39 @@ describe('ContainerLedger confirm affordances', () => {
     expect(payload.liftSiteId).toBe(8);
   });
 
+  it('card 071026205310 r2: the preset-pill path sweeps the dirty port like every other commit path', async () => {
+    const detailWithPorts = {
+      ...detail,
+      selectors: { ...detail.selectors, ports: [{ id: 3, label: 'Cảng Hải Phòng' }, { id: 8, label: 'Bãi Chân Thật - THT' }] },
+    } as unknown as ShipmentCusWorkspaceDetail;
+    renderLedger({ detail: detailWithPorts });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    // Dirty the lift port first (base: Cảng Hải Phòng).
+    fireEvent.click(screen.getByLabelText(/Cảng nâng của container/));
+    const portFilter = document.querySelector<HTMLInputElement>('.searchable-select__popover input[role="combobox"]');
+    expect(portFilter).toBeTruthy();
+    fireEvent.change(portFilter!, { target: { value: 'Chan That' } });
+    fireEvent.click(screen.getByRole('option', { name: /Bãi Chân Thật - THT/ }));
+
+    // Lead's failing sequence: tap Hôm nay, tap 08:00, Enter — no typing.
+    // Enter lands on the FOCUSED pill, so the popover re-clicks it and
+    // commits inside the SAME event — the exact cascade that must not read
+    // a stale drafts closure.
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
+    const pill = screen.getByRole('button', { name: '08:00' });
+    fireEvent.click(pill);
+    fireEvent.keyDown(pill, { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
+    // The pill-composed appointment (today + 08:00) reached the wire…
+    expect(String(payload.customerAppointmentAt)).toContain('T08:00');
+    // …and the dirty port rode the same POST.
+    expect(payload.liftSiteId).toBe(8);
+  });
+
   it('Escape in the popover closes without saving', async () => {
     renderLedger();
     updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });

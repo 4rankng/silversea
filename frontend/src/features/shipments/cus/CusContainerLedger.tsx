@@ -123,6 +123,14 @@ export function ContainerLedger({
   const [drafts, setDrafts] = useState<Record<number, ContainerLineDraft>>(() => (
     Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)]))
   ));
+  // Synchronous mirror of `drafts`. The popover's Enter-on-pill path runs
+  // pill.click() and commit() inside ONE event, so a commit can fire before
+  // React applies that cascade's setDrafts — a memoized commitAppointment
+  // would then read a one-step-stale closure. Any payload built from stale
+  // drafts can silently drop a dirty field (card 071026205310, round 2),
+  // so the merged save always reads the freshest state through the ref.
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
   const [editing, setEditing] = useState(true);
   const [saving, setSaving] = useState(false);
   const [completingLine, setCompletingLine] = useState<ShipmentCusWorkspaceContainerLine | null>(null);
@@ -296,10 +304,14 @@ export function ContainerLedger({
   ), []);
 
   const updateLineDraft = useCallback((lineId: number, patch: Partial<ContainerLineDraft>) => {
-    setDrafts((prev) => ({
-      ...prev,
-      [lineId]: { ...(prev[lineId] || lineDraft(detail.containers.find((c) => c.id === lineId)!)), ...patch },
-    }));
+    setDrafts((prev) => {
+      const next: Record<number, ContainerLineDraft> = {
+        ...prev,
+        [lineId]: { ...(prev[lineId] || lineDraft(detail.containers.find((c) => c.id === lineId)!)), ...patch },
+      };
+      draftsRef.current = next;
+      return next;
+    });
   }, [detail.containers]);
 
   // Bulk appointment entry (20260917_1): multi-container lots that deliver
@@ -382,9 +394,12 @@ export function ContainerLedger({
       // completed the partial save, the row read clean, and the save-exit
       // hook closed the drawer with the unsaved port draft still in component
       // state — the user's selection died silently. Sweep every dirty field
-      // of the line; the committed appointment wins the draft and stays
-      // unconditional so a no-change commit keeps its historical wire shape.
-      const draft: ContainerLineDraft = { ...(drafts[line.id] ?? lineDraft(line)), customerAppointmentAt: value };
+      // of the line, read from the synchronous drafts mirror so no commit
+      // path (including the popover's Enter-on-pill cascade) can build the
+      // payload from a stale closure; the committed appointment wins the
+      // draft and stays unconditional so a no-change commit keeps its
+      // historical wire shape.
+      const draft: ContainerLineDraft = { ...(draftsRef.current[line.id] ?? lineDraft(line)), customerAppointmentAt: value };
       const patch = {
         ...buildContainerPatch(line, draft, detail, expectedVersion),
         customerAppointmentAt: value ? localDateTimeToIso(value) : null,
@@ -405,7 +420,7 @@ export function ContainerLedger({
     }
     if (saved) scheduleExit();
     return saved;
-  }, [clearIdempotencyKey, detail, drafts, getIdempotencyKey, onLineSaved, scheduleExit, toast]);
+  }, [clearIdempotencyKey, detail, getIdempotencyKey, onLineSaved, scheduleExit, toast]);
 
 
   useEffect(() => {
