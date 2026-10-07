@@ -9,7 +9,7 @@ import { writeFileSync } from 'node:fs';
 const API = 'https://vantai.tingting.vip/api';
 const BASE = 'https://vantai.tingting.vip';
 const QA = '/Volumes/LexarSSD/projects/silversea-prod/qa';
-const SCOPE = '2026-10-08_kb205310-leadqa-r2';
+const SCOPE = '2026-10-08_kb205310-leadqa-pill';
 const LOG = [];
 const log = (step, obj) => { const e = { at: new Date().toISOString(), step, ...obj }; LOG.push(e); console.log(JSON.stringify(e)); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -139,34 +139,34 @@ try {
     if (!clicked || !dlg) throw new Error('appointment popover did not open for ' + num);
   };
 
-  const fillTodayAndTime = async () => {
-    const r = await page.evaluate(() => {
+  // PURE real-tap path: tap the Hôm nay pill, tap the 08:00 chip, real Enter.
+  // No evaluate-side clicks, no native-setter typing — the exact physics the
+  // round-2 failure named.
+  const realTapBtn = async (matchLabel) => {
+    const pt = await page.evaluate((label) => {
       const dlg = [...document.querySelectorAll('.cus-appointment-popover')].pop();
       if (!dlg) return { ok: false, why: 'no popover' };
-      const today = [...dlg.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Hôm nay');
-      if (!today) return { ok: false, why: 'no Hôm nay preset', btns: [...dlg.querySelectorAll('button')].map((b) => b.textContent.trim()) };
-      today.click();
-      return { ok: true };
-    });
-    if (!r.ok) throw new Error('preset failed: ' + JSON.stringify(r));
-    await sleep(600);
-    const seg = await page.evaluate(() => {
-      const dlg = [...document.querySelectorAll('.cus-appointment-popover')].pop();
-      const hh = dlg?.querySelector('input[data-seg="hh"]');
-      if (!hh) return { ok: false, why: 'no hh segment' };
-      const set = (el, v) => {
-        const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-        desc.set.call(el, v);
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-      };
-      set(hh, '08');
-      const mm = dlg.querySelector('input[data-seg="mm"]');
-      if (mm) set(mm, '00');
-      hh.focus();
-      return { ok: true, focused: document.activeElement === hh };
-    });
-    if (!seg.ok) throw new Error('segment fill failed: ' + JSON.stringify(seg));
-    await sleep(400);
+      const btn = [...dlg.querySelectorAll('button')]
+        .filter((b) => b.offsetParent !== null)
+        .find((b) => b.textContent.trim() === label || new RegExp('^' + label + '$', 'i').test(b.textContent.trim()));
+      if (!btn) return { ok: false, why: 'no button ' + label, btns: [...dlg.querySelectorAll('button')].map((b) => b.textContent.trim()).slice(0, 14) };
+      btn.scrollIntoView({ block: 'nearest' });
+      const r = btn.getBoundingClientRect();
+      const hit = document.elementsFromPoint(r.x + r.width / 2, r.y + r.height / 2)[0];
+      if (!hit || !(hit === btn || btn.contains(hit))) return { ok: false, why: 'covered', label };
+      return { ok: true, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), text: btn.textContent.trim() };
+    }, matchLabel);
+    if (!pt.ok) throw new Error('real tap target failed: ' + JSON.stringify(pt));
+    await page.mouse.move(pt.x, pt.y);
+    await page.mouse.down();
+    await page.mouse.up();
+    await sleep(700);
+    return pt;
+  };
+  const fillTodayAndTime = async () => {
+    const t1 = await realTapBtn('Hôm nay');
+    const t2 = await realTapBtn('08:00');
+    log('pill-taps', { today: t1.text, chip: t2.text });
   };
 
   const waitDrawerClosed = async () => {
