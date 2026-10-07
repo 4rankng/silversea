@@ -2,9 +2,10 @@ import { CardSection } from './CardSection';
 
 /**
  * Governance reason for completed-trip corrections (COMPLETED lots only).
- * Copy states the immediate-apply contract honestly instead of promising a
- * review flow that does not exist; the save button additionally confirms the
- * financial delta before commitment.
+ * Owner ruling 07/10 (card 394): the reason is OPTIONAL — it must never gate
+ * the save, not even via the native `required` attribute (constraint
+ * validation silently swallows the submit before React sees it). A reason the
+ * user does supply is still recorded for the audit trail.
  */
 export function CompletedTripReasonSection({ reason, onChange }: { reason: string; onChange: (value: string) => void }) {
   return (
@@ -16,7 +17,7 @@ export function CompletedTripReasonSection({ reason, onChange }: { reason: strin
     >
       <div className="tc-field">
         <label className="tc-field-label" htmlFor="governanceReason">
-          Lý do <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span>
+          Lý do
         </label>
         <textarea
           id="governanceReason"
@@ -24,8 +25,7 @@ export function CompletedTripReasonSection({ reason, onChange }: { reason: strin
           rows={3}
           value={reason}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Nêu căn cứ và nội dung cần thay đổi"
-          required
+          placeholder="Nêu căn cứ và nội dung cần thay đổi (tuỳ chọn)"
         />
       </div>
     </CardSection>
