@@ -71,9 +71,9 @@ export function OpsFundBookSection() {
                     <td data-label="Ngày">{formatDate(item.date)}</td>
                     <td className="ops-wallet__wide" data-label="Diễn giải">{item.label}</td>
                     <td data-label="Chứng từ">{item.reference ?? '—'}</td>
-                    <td className="ops-money" data-label="Thu (nhận)" style={{ textAlign: 'right' }}>{value > 0 ? formatMoney(value) : '—'}</td>
-                    <td className="ops-money" data-label="Chi (trả)" style={{ textAlign: 'right' }}>{value < 0 ? formatMoney(-value) : '—'}</td>
-                    <td className="ops-money" data-label="Số dư" style={{ textAlign: 'right' }}>{formatMoney(running)}</td>
+                    <td className="ops-money" data-label="Thu (nhận)" style={{ textAlign: 'right' }}>{value > 0 ? `${formatMoney(value)} ₫` : '—'}</td>
+                    <td className="ops-money" data-label="Chi (trả)" style={{ textAlign: 'right' }}>{value < 0 ? `${formatMoney(-value)} ₫` : '—'}</td>
+                    <td className="ops-money" data-label="Số dư" style={{ textAlign: 'right' }}>{`${formatMoney(running)} ₫`}</td>
                   </tr>
                 );
               })}
