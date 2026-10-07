@@ -124,6 +124,17 @@
   border-bottom: none;
 }
 
+/* Card 071026141600: a percentage is ONE number and must never break across
+   lines. The `.fleet-badge` span is inline-flex, which keeps its token intact,
+   but the bold, un-badged "% Năng suất cao" cell is a plain block — the
+   browser broke "66.67%" into "66." / "67%" at every viewport (900–1440px).
+   `.fleet-pct` marks that cell; nowrap keeps the value on one line and lets
+   the table's own `.fleet-productivity-table-wrap` scroll instead. */
+.fleet-badge,
+.fleet-pct {
+  white-space: nowrap;
+}
+
 .fleet-badge {
   display: inline-flex;
   align-items: center;

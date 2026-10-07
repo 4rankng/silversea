@@ -157,7 +157,7 @@ export function DailyProductivityView() {
                           '—'
                         )}
                       </td>
-                      <td style={{ fontWeight: 600, color: row.breakdown.highEfficiencyPct > 0 ? 'var(--color-primary)' : 'var(--text-muted)' }}>
+                      <td className="fleet-pct" style={{ fontWeight: 600, color: row.breakdown.highEfficiencyPct > 0 ? 'var(--color-primary)' : 'var(--text-muted)' }}>
                         {row.breakdown.highEfficiencyPct}%
                       </td>
                       <td>
@@ -192,7 +192,7 @@ export function DailyProductivityView() {
                     <td>
                       {dailyData.fleetBreakdown.donTrips} ({dailyData.fleetBreakdown.pctDon}%)
                     </td>
-                    <td>{dailyData.fleetBreakdown.highEfficiencyPct}%</td>
+                    <td className="fleet-pct">{dailyData.fleetBreakdown.highEfficiencyPct}%</td>
                     <td>
                       {dailyData.activeInternalTrucks} xe lăn bánh / {dailyData.totalInternalTrucks} xe
                     </td>

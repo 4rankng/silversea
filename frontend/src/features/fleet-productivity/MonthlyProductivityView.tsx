@@ -250,6 +250,7 @@ export function MonthlyProductivityView() {
                         </span>
                       </td>
                       <td
+                        className="fleet-pct"
                         style={{
                           fontWeight: 700,
                           color: row.breakdown.highEfficiencyPct > 0 ? 'var(--color-primary)' : 'var(--text-muted)',
@@ -265,14 +266,14 @@ export function MonthlyProductivityView() {
                     <td colSpan={3}>TỔNG CỘNG TOÀN ĐỘI</td>
                     <td>{monthlyData.fleetBreakdown.totalTrips}</td>
                     <td>{monthlyData.fleetBreakdown.kepTrips}</td>
-                    <td>{monthlyData.fleetBreakdown.pctKep}%</td>
+                    <td className="fleet-pct">{monthlyData.fleetBreakdown.pctKep}%</td>
                     <td>{monthlyData.fleetBreakdown.ketHopTrips}</td>
-                    <td>{monthlyData.fleetBreakdown.pctKetHop}%</td>
+                    <td className="fleet-pct">{monthlyData.fleetBreakdown.pctKetHop}%</td>
                     <td>{monthlyData.fleetBreakdown.layLeTrips}</td>
-                    <td>{monthlyData.fleetBreakdown.pctLayLe}%</td>
+                    <td className="fleet-pct">{monthlyData.fleetBreakdown.pctLayLe}%</td>
                     <td>{monthlyData.fleetBreakdown.donTrips}</td>
-                    <td>{monthlyData.fleetBreakdown.pctDon}%</td>
-                    <td>{monthlyData.fleetBreakdown.highEfficiencyPct}%</td>
+                    <td className="fleet-pct">{monthlyData.fleetBreakdown.pctDon}%</td>
+                    <td className="fleet-pct">{monthlyData.fleetBreakdown.highEfficiencyPct}%</td>
                   </tr>
                 </tfoot>
               </table>
