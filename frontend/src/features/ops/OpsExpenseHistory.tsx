@@ -55,6 +55,16 @@ const STATUS_LABELS: Record<OpsExpenseStatus, string> = {
 const isEditableExpense = (row: OpsExpenseRow) =>
   !row.confirmedAt && row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED' && row.opsSettlementId == null;
 
+// Card 071026210520: a locked row must state WHY its actions cell is empty —
+// the QA found "Đã ghi nhận" rows with a blank cell and no visible rule. The
+// rule order mirrors the guards that would reject the write anyway.
+const editBlockReason = (row: OpsExpenseRow): string | null => {
+  if (isEditableExpense(row)) return null;
+  if (row.opsSettlementId != null) return 'Đã quyết toán';
+  if (row.confirmedAt) return 'Đã đối chiếu';
+  return 'Đã hủy / từ chối';
+};
+
 /**
  * Lịch sử chi phí của Ops (OpsVanHanh §5.3): nhãn đỏ "Nợ chứng từ" khi chưa
  * có ảnh, lọc theo trạng thái, gửi lại khoản bị từ chối, xem/xóa ảnh.
@@ -101,7 +111,11 @@ export function OpsExpenseHistory() {
 
   const items = data?.items ?? [];
 
-  const hasEditableRow = items.some((row: OpsExpenseRow) => isEditableExpense(row));
+  // Card 20260921_26 hid the column when nothing was editable (an empty column
+  // read as a rendering bug). Card 071026210520: the column now carries the
+  // lock rule for non-editable rows, so it is never empty and renders whenever
+  // there are rows — a locked row must never show a silent blank cell.
+  const hasActionsColumn = items.length > 0;
 
   return (
     <section className="ops-wallet__section" aria-label="Lịch sử chi phí">
@@ -129,7 +143,7 @@ export function OpsExpenseHistory() {
               <th>Số tiền</th>
               <th>Chứng từ</th>
               <th>Trạng thái</th>
-              {hasEditableRow && <th aria-label="Thao tác" />}
+              {hasActionsColumn && <th aria-label="Thao tác" />}
             </tr>
           </thead>
           <tbody>
@@ -159,36 +173,46 @@ export function OpsExpenseHistory() {
                     <span className="ops-reject-reason" title={row.rejectionReason}> — {row.rejectionReason}</span>
                   )}
                 </td>
-                {hasEditableRow && (
+                {hasActionsColumn && (
                 <td className="ops-row-actions" aria-label="Thao tác">
-                  {isEditableExpense(row) && (
-                    <button
-                      type="button"
-                      className="btn btn--secondary"
-                      aria-label={`Sửa khoản chi ${opsBillReference(row.billRef)}`}
-                      onClick={() => (row.sourceKind === 'TRIP' ? setEditingLegacy(row) : setEditing(row))}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                  )}
+                  {isEditableExpense(row) ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        aria-label={`Sửa khoản chi ${opsBillReference(row.billRef)}`}
+                        onClick={() => (row.sourceKind === 'TRIP' ? setEditingLegacy(row) : setEditing(row))}
+                      >
+                        <Pencil size={13} />
+                      </button>
 
-                  {isEditableExpense(row) && (
-                    <button
-                      type="button"
-                      className="btn btn--secondary ops-danger"
-                      aria-label={`Xóa khoản chi ${opsBillReference(row.billRef)}`}
-                      disabled={deleting}
-                      onClick={() => void handleDelete(row)}
+                      <button
+                        type="button"
+                        className="btn btn--secondary ops-danger"
+                        aria-label={`Xóa khoản chi ${opsBillReference(row.billRef)}`}
+                        disabled={deleting}
+                        onClick={() => void handleDelete(row)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
+                  ) : (
+                    // Card 071026210520: never a silent empty cell — the rule
+                    // that locked the row is printed in place of the buttons.
+                    <span
+                      className="ops-row-lock"
+                      style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', whiteSpace: 'nowrap' }}
+                      title={`Khoản chi ${editBlockReason(row)?.toLowerCase()} — số liệu giữ nguyên để đối chiếu; chỉ bổ sung chứng từ được.`}
                     >
-                      <Trash2 size={13} />
-                    </button>
+                      {editBlockReason(row)}
+                    </span>
                   )}
                 </td>
                 )}
               </tr>
             ))}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={hasEditableRow ? 8 : 7} className="ops-wallet__empty">Chưa có khoản chi nào.</td></tr>
+              <tr><td colSpan={hasActionsColumn ? 8 : 7} className="ops-wallet__empty">Chưa có khoản chi nào.</td></tr>
             )}
           </tbody>
         </table>

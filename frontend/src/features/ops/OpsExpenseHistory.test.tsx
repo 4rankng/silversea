@@ -150,3 +150,31 @@ describe('trip-sourced wallet rows (card 071026141580)', () => {
     expect(confirmMock).not.toHaveBeenCalled();
   });
 });
+
+describe('locked rows state their rule (card 071026210520)', () => {
+  it('a đối-chiếu row prints "Đã đối chiếu" instead of a silent blank actions cell', () => {
+    renderHistory([
+      tripRow(),
+      tripRow({ id: -56, sourceId: 56, confirmedAt: '2026-10-07T11:00:00Z' }),
+    ]);
+    expect(screen.getByText('Đã đối chiếu')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Sửa khoản chi BK-1' })).toHaveLength(1);
+  });
+
+  it('a settled row prints "Đã quyết toán" — the rule order follows the write guards', () => {
+    renderHistory([
+      tripRow({ id: -57, sourceId: 57, opsSettlementId: 9, confirmedAt: '2026-10-07T11:00:00Z' }),
+    ]);
+    expect(screen.getByText('Đã quyết toán')).toBeTruthy();
+  });
+
+  it('keeps the actions column (with rules) even when every row is locked', () => {
+    renderHistory([
+      tripRow({ id: -58, sourceId: 58, confirmedAt: '2026-10-07T11:00:00Z' }),
+      tripRow({ id: -59, sourceId: 59, approvalStatus: 'VOIDED' }),
+    ]);
+    expect(screen.getAllByRole('cell', { name: 'Thao tác' })).toHaveLength(2);
+    expect(screen.getByText('Đã đối chiếu')).toBeTruthy();
+    expect(screen.getByText('Đã hủy / từ chối')).toBeTruthy();
+  });
+});
