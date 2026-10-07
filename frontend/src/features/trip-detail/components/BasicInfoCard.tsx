@@ -63,24 +63,20 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
     { icon: <Calendar size={17} />, label: 'Ngày khởi hành', value: formatDate(trip.departureDate), mono: true, isDate: true },
     { icon: <CheckCircle size={17} />, label: 'Ngày hoàn thành', value: trip.completedAt ? formatDate(trip.completedAt) : '—', mono: true },
     { icon: <Hash size={17} />, label: 'Mã tham chiếu', value: trip.customerReference ?? 'Chưa có', muted: !trip.customerReference, full: true },
+    // Card 071026141640: this row used to be pushed TWICE — once inline here and
+    // again in a trailing block below — so a trip with a shipment rendered two
+    // identical "Lô hàng" rows ("Chi tiết lô hàng (E2EROLE001)" and
+    // "Chi tiết lô hàng #326"). One shipment, one row, keyed by the shipment id.
+    // The customer reference already has its own "Mã tham chiếu" row above, so
+    // this row carries only the id and the navigation.
     ...(trip.shipmentId ? [{
-      icon: <Package size={17} />,
-      label: 'Lô hàng',
-      value: trip.customerReference ? `Chi tiết lô hàng (${trip.customerReference})` : 'Xem chi tiết lô hàng →',
-      link: `/shipments/${trip.shipmentId}`,
-      full: true,
-    }] : []),
-  ];
-
-  if (trip.shipmentId) {
-    rows.push({
       icon: <Package size={17} />,
       label: 'Lô hàng',
       value: `Chi tiết lô hàng #${trip.shipmentId} →`,
       link: `/shipments/${trip.shipmentId}`,
       full: true,
-    });
-  }
+    }] : []),
+  ];
 
   return (
     <div className="card">

@@ -95,4 +95,52 @@ describe('BasicInfoCard container summary', () => {
     expect(link).toBeTruthy();
     expect(link.getAttribute('href')).toBe('/shipments/42');
   });
+
+  // Card 071026141640: /trips/:id rendered TWO identical "Lô hàng" rows for one
+  // shipment — "Chi tiết lô hàng (E2EROLE001)" and "Chi tiết lô hàng #326" —
+  // because the row was pushed once inline and again in the trailing block.
+  // One shipment must yield exactly one row, keyed by the shipment id.
+  it('renders exactly ONE shipment row, keyed by the shipment id (card 071026141640)', () => {
+    useQueryMock.mockReturnValue({ data: { items: [] }, isLoading: false });
+
+    render(
+      <MemoryRouter>
+        <BasicInfoCard trip={{ ...baseTrip, shipmentId: 42 } as unknown as TripDetail} />
+      </MemoryRouter>
+    );
+
+    const links = screen.getAllByRole('link', { name: /lô hàng/i });
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute('href')).toBe('/shipments/42');
+    // The "Lô hàng" label must not appear twice either.
+    expect(screen.getAllByText('Lô hàng')).toHaveLength(1);
+  });
+
+  it('still renders exactly one shipment row when the trip has no customer reference (card 071026141640)', () => {
+    useQueryMock.mockReturnValue({ data: { items: [] }, isLoading: false });
+
+    render(
+      <MemoryRouter>
+        <BasicInfoCard
+          trip={{ ...baseTrip, customerReference: null, shipmentId: 42 } as unknown as TripDetail}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getAllByRole('link', { name: /lô hàng/i })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: /Chi tiết lô hàng #42/i }).getAttribute('href')).toBe('/shipments/42');
+  });
+
+  it('renders no shipment row at all when the trip has no shipment (card 071026141640)', () => {
+    useQueryMock.mockReturnValue({ data: { items: [] }, isLoading: false });
+
+    render(
+      <MemoryRouter>
+        <BasicInfoCard trip={{ ...baseTrip, shipmentId: null } as unknown as TripDetail} />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryAllByRole('link', { name: /lô hàng/i })).toHaveLength(0);
+    expect(screen.queryByText('Lô hàng')).toBeNull();
+  });
 });
