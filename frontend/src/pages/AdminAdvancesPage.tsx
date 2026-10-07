@@ -178,11 +178,15 @@ function AdvanceGridRow({
       <div className="adv-actions">
         {isDraft ? (
           <AdvanceDraftActions request={req} />
-        ) : req.approverName ? (
+        ) : (
+          // Card 071026141630: the line names the REQUESTER (who asked for the
+          // advance — the audit trail the report missed), '—' when the system
+          // created it. The legacy approver display rendered nothing on
+          // never-approved rows, leaving the card with no creator at all.
           <div className="adv-approver">
-            bởi <strong>{req.approverName}</strong>
+            bởi <strong>{req.requesterName || '—'}</strong>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );
