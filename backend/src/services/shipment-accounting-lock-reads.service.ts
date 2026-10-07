@@ -240,7 +240,17 @@ export async function assertTripShipmentAccountingUnlocked(executor: Executor, t
     .limit(1);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
   if (trip.shipmentId != null) {
-    await assertShipmentAccountingUnlocked(executor, trip.shipmentId);
+    // Card 20261007_396: an orphaned trip — its lot row soft-deleted by a
+    // fixture purge or lot delete — must stay transitionable. A deleted
+    // shipment has no active accounting lock to protect, so treat it as
+    // unlocked instead of letting lockShipment 404 the whole transition.
+    const [shipment] = await executor.select({ deletedAt: s.shipments.deletedAt })
+      .from(s.shipments)
+      .where(eq(s.shipments.id, trip.shipmentId))
+      .limit(1);
+    if (shipment && shipment.deletedAt == null) {
+      await assertShipmentAccountingUnlocked(executor, trip.shipmentId);
+    }
   }
   return trip.shipmentId;
 }
