@@ -42,6 +42,7 @@ import {
   createPodSubmission,
   getDriverPodFileForDownload,
   listPodSubmissionsForDriver,
+  removePodFile,
   submitPod,
 } from '../services/trip-pod.service';
 import {
@@ -489,6 +490,45 @@ router.post('/fulfillments/:fulfillmentId/pod/:submissionId/files', declareMater
       idempotencyKey: requireDriverIdempotencyKey(req),
       fileType: parsed.data.fileType,
       file,
+    }),
+  );
+  res.json(submission.submission);
+}));
+
+// Card 071026212500: a driver who uploaded the wrong photo had no way to take it
+// back — no delete path existed for an e-POD file at all. Scoped to the driver's
+// own submission and refused by the service once the submission is submitted,
+// mirroring attachPodFile's existing DRAFT-only rule.
+router.delete('/fulfillments/:fulfillmentId/pod/:submissionId/files/:fileId', declareMaterialWrite('trips.pod.files.delete', { method: 'DELETE', path: '/api/driver/me/fulfillments/:fulfillmentId/pod/:submissionId/files/:fileId' }),  asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  const submissionId = parseInt(req.params.submissionId as string, 10);
+  const fileId = parseInt(req.params.fileId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  if (!Number.isInteger(submissionId) || submissionId <= 0) {
+    throw new ApiError(400, 'ID phiên bản e-POD không hợp lệ');
+  }
+  if (!Number.isInteger(fileId) || fileId <= 0) {
+    throw new ApiError(400, 'ID tệp e-POD không hợp lệ');
+  }
+  const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throwValidation(parsed.error);
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const submission = await withMaterialWriteAuditContext(
+    req,
+    res,
+    'trips.pod.files.delete',
+    () => removePodFile({
+      driverId: driver.id,
+      actorUserId: getUser(req).userId,
+      fulfillmentId,
+      submissionId,
+      fileId,
+      expectedVersion: parsed.data.expectedVersion,
+      idempotencyKey: requireDriverIdempotencyKey(req),
     }),
   );
   res.json(submission.submission);

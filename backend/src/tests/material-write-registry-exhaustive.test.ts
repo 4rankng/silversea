@@ -135,6 +135,10 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/trip-pod.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_FILE_ATTACH',
   }],
+  ['driver.ts|DELETE|/fulfillments/:fulfillmentId/pod/:submissionId/files/:fileId', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/trip-pod.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_FILE_DELETE',
+  }],
   ['driver.ts|POST|/fulfillments/:fulfillmentId/pod/:submissionId/submit', {
     serviceFile: path.resolve(process.cwd(), 'src/services/trip-pod.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_SUBMIT',

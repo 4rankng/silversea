@@ -128,6 +128,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   DISPATCH_EXTERNAL_FULFILLMENT_COMPLETE: 'dispatch.external-fulfillment.complete',
   TRIP_POD_CREATE: 'trips.pod.create',
   TRIP_POD_FILE_ATTACH: 'trips.pod.files.attach',
+  TRIP_POD_FILE_DELETE: 'trips.pod.files.delete',
   TRIP_POD_SUBMIT: 'trips.pod.submit',
   DRIVER_INCIDENTAL_COST: 'driver.incidental-cost',
   DEBT_OFFSET_CREATE: 'debt-offsets.create',

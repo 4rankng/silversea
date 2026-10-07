@@ -1,6 +1,6 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, like } from 'drizzle-orm';
 
 import {
   DriverProgressEventType,
@@ -20,6 +20,7 @@ import { disconnectRedis } from '../lib/redis';
 import {
   attachPodFile,
   createPodSubmission,
+  removePodFile,
   submitPod,
 } from '../services/trip-pod.service';
 import {
@@ -639,6 +640,166 @@ describe('trip pod review workflow', () => {
       createdProgressEventIds.push(recorded.event.id);
       assert.equal(recorded.replayed, false);
     }
+  });
+});
+
+// Card 071026212500: a driver who uploaded the wrong photo had no way to take it
+// back — no delete endpoint existed anywhere (not for the driver, not for
+// admin/CUS), so the file stayed welded into its slot. The boundary this opens is
+// NOT invented: attachPodFile already refuses any status but DRAFT
+// (trip-pod.service.ts:644), so a draft is the driver's own editable work and a
+// submitted submission is a frozen record. Only the draft half is opened.
+describe('driver removes a file from their own DRAFT e-POD (card 071026212500)', () => {
+  async function draftWithOneFile(tag: string) {
+    const { user, driver } = await createDriverPrincipal(tag);
+    const fixture = await createShipmentFixture({ tag, cargoMode: 'LCL', fulfillmentCount: 1 });
+    const fulfillmentId = fixture.fulfillments[0]!.id;
+    const trip = await createFulfillmentTrip({
+      tag, shipmentId: fixture.shipment.id, fulfillmentId,
+      customerId: fixture.customer.id, routeId: fixture.route.id,
+      cargoTypeId: fixture.cargoType.id, driverId: driver.id,
+    });
+    const created = await createPodSubmission({
+      driverId: driver.id,
+      actorUserId: user.id,
+      fulfillmentId,
+      expectedVersion: trip.version,
+      idempotencyKey: `rm-create-${tag}-${suffix}`,
+    });
+    createdPodSubmissionIds.push(created.submission.id);
+    const attached = await attachPodFile({
+      driverId: driver.id,
+      actorUserId: user.id,
+      fulfillmentId,
+      submissionId: created.submission.id,
+      expectedVersion: created.submission.version,
+      idempotencyKey: `rm-attach-${tag}-${suffix}`,
+      fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+      file: {
+        buffer: samplePdfBuffer(`yard-${tag}`),
+        mimetype: 'application/pdf',
+        originalname: `yard-${tag}.pdf`,
+        size: samplePdfBuffer(`yard-${tag}`).length,
+      },
+    });
+    await rememberPodFiles(created.submission.id);
+    // submitPod refuses a submission missing a required slot, so the draft
+    // carries both; the file under test is the yard receipt.
+    const signed = await attachPodFile({
+      driverId: driver.id,
+      actorUserId: user.id,
+      fulfillmentId,
+      submissionId: created.submission.id,
+      expectedVersion: attached.submission.version,
+      idempotencyKey: `rm-attach-signed-${tag}-${suffix}`,
+      fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+      file: {
+        buffer: samplePdfBuffer(`signed-${tag}`),
+        mimetype: 'application/pdf',
+        originalname: `signed-${tag}.pdf`,
+        size: samplePdfBuffer(`signed-${tag}`).length,
+      },
+    });
+    await rememberPodFiles(created.submission.id);
+    const file = signed.submission.files.find(
+      (row) => row.fileType === TripPodFileType.YARD_OR_DROP_RECEIPT,
+    )!;
+    return { user, driver, fulfillmentId, trip, submission: signed.submission, file };
+  }
+
+  test('removes the file and frees its slot on a draft', async () => {
+    const tag = `rm-ok-${suffix}`;
+    const { user, driver, fulfillmentId, submission, file } = await draftWithOneFile(tag);
+
+    const removed = await removePodFile({
+      driverId: driver.id,
+      actorUserId: user.id,
+      fulfillmentId,
+      submissionId: submission.id,
+      fileId: file.id,
+      expectedVersion: submission.version,
+      idempotencyKey: `rm-del-${tag}-${suffix}`,
+    });
+
+    assert.deepEqual(
+      removed.submission.files.map((row) => row.fileType),
+      [TripPodFileType.SIGNED_DELIVERY_NOTE],
+      'the yard slot is empty again and the other file is untouched',
+    );
+    assert.ok(removed.submission.version > submission.version, 'the version moved so a stale client reloads');
+
+    // The row is gone for real: trip_pod_files has no deleted_at, and its
+    // (submission_id, file_type) unique index is exactly what makes a hard
+    // delete the only way to release the slot for a re-upload.
+    const rows = await db.select({ id: s.tripPodFiles.id })
+      .from(s.tripPodFiles)
+      .where(eq(s.tripPodFiles.submissionId, submission.id));
+    assert.equal(rows.length, 1, 'only the removed file is gone');
+
+    // The blob is removed by a durable job, not inside the transaction, so a
+    // rollback can neither lose it nor leave the row dangling. The job is keyed
+    // `trip-pod-file-final:<fileId>:<hash>`.
+    const jobs = await db.select({ dedupeKey: s.durableEffectJobs.dedupeKey })
+      .from(s.durableEffectJobs)
+      .where(like(s.durableEffectJobs.dedupeKey, `trip-pod-file-final:${file.id}:%`));
+    assert.equal(jobs.length, 1, 'exactly one storage cleanup is queued for the removed file');
+  });
+
+  test('refuses once the submission is submitted — evidence of record stays frozen', async () => {
+    const tag = `rm-sub-${suffix}`;
+    const { user, driver, fulfillmentId, submission, file } = await draftWithOneFile(tag);
+
+    const submitted = await submitPod({
+      driverId: driver.id,
+      actorUserId: user.id,
+      fulfillmentId,
+      submissionId: submission.id,
+      expectedVersion: submission.version,
+      idempotencyKey: `rm-submit-${tag}-${suffix}`,
+    });
+
+    await assert.rejects(
+      () => removePodFile({
+        driverId: driver.id,
+        actorUserId: user.id,
+        fulfillmentId,
+        submissionId: submission.id,
+        fileId: file.id,
+        expectedVersion: submitted.submission.version,
+        idempotencyKey: `rm-del-after-submit-${tag}-${suffix}`,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 409,
+      'a submitted submission must not shed evidence',
+    );
+
+    const rows = await db.select({ id: s.tripPodFiles.id })
+      .from(s.tripPodFiles)
+      .where(eq(s.tripPodFiles.submissionId, submission.id));
+    assert.equal(rows.length, 2, 'both files are still on record');
+  });
+
+  test('refuses a file id belonging to a different submission', async () => {
+    const tag = `rm-other-${suffix}`;
+    const first = await draftWithOneFile(`${tag}-a`);
+    const second = await draftWithOneFile(`${tag}-b`);
+
+    await assert.rejects(
+      () => removePodFile({
+        driverId: second.driver.id,
+        actorUserId: second.user.id,
+        fulfillmentId: second.fulfillmentId,
+        submissionId: second.submission.id,
+        fileId: first.file.id,
+        expectedVersion: second.submission.version,
+        idempotencyKey: `rm-cross-${tag}-${suffix}`,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
+    );
+
+    const rows = await db.select({ id: s.tripPodFiles.id })
+      .from(s.tripPodFiles)
+      .where(eq(s.tripPodFiles.id, first.file.id));
+    assert.equal(rows.length, 1, 'the other submission keeps its file');
   });
 });
 
