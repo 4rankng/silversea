@@ -30,8 +30,11 @@ export async function requestShipmentDelete(args: {
   actor: AuthUser;
   transaction?: Tx;
 }) {
-  if (args.actor.role !== Role.CUS) {
-    throw new ApiError(403, 'Chỉ CUS mới được yêu cầu xóa lô hàng.');
+  // Card 20261007_396/204710 lineage: ADMIN cleans up lots too (round-5
+  // retest re-confirmed the admin complaint at the audit-log level); the
+  // CUS-only refusal below the requireRoles gate was the last holdout.
+  if (args.actor.role !== Role.CUS && args.actor.role !== Role.ADMIN) {
+    throw new ApiError(403, 'Chỉ CUS hoặc Quản trị viên mới được yêu cầu xóa lô hàng.');
   }
 
   const execute = async (tx: Tx) => {
