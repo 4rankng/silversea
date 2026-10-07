@@ -22,6 +22,12 @@ export interface CustomerFiltersProps {
   filter: CustomerFilterKey;
   onFilter: (filter: CustomerFilterKey) => void;
   total: number;
+  /** Card 071026141610 — whole-dataset per-status census from
+   *  GET /customers/status-counts. Every status pill must carry a count so the
+   *  pills add up to `total`; they previously rendered with no numeral at all.
+   *  Stays undefined while in flight: the pills then simply carry no numeral,
+   *  which is honest. Defaulting to 0 here would print a WRONG zero. */
+  statusCounts?: { all: number; active: number; locked: number };
   /** Rows the current criteria leave — the bar's `n/total khách hàng` count. */
   resultCount: number;
   concentration: CustomerConcentration;
@@ -61,7 +67,7 @@ export interface CustomerFiltersProps {
 export function CustomerFilters({
   search, onSearch, searchInputRef,
   filter, onFilter,
-  total, resultCount, concentration,
+  total, statusCounts, resultCount, concentration,
   onExport, exporting = false, onAdd, onReset, hasActiveFilters,
   excludeOwnFleet, onExcludeOwnFleetChange,
 }: CustomerFiltersProps) {
@@ -79,9 +85,11 @@ export function CustomerFilters({
       quickFilters={(
         <Tabs variant="boxed"
           tabs={[
-            { id: 'all', label: 'Tất cả', count: total },
-            { id: 'active', label: 'Hoạt động' },
-            { id: 'locked', label: 'Tạm khoá' },
+            // While the census is in flight no pill carries a numeral yet — a
+            // provisional 0 would read as a real measurement.
+            { id: 'all', label: 'Tất cả', count: statusCounts?.all ?? total },
+            { id: 'active', label: 'Hoạt động', count: statusCounts?.active },
+            { id: 'locked', label: 'Tạm khoá', count: statusCounts?.locked },
           ]}
           value={filter}
           onChange={(id) => onFilter(id as CustomerFilterKey)}

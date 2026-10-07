@@ -63,6 +63,7 @@ export const qk = {
     customers: (page: number, search: string) => ['customers', page, search] as const,
     /** Base key for useTableQueryState-driven customer list pages. */
     customersTable: ['customers'],
+    customersStatusCounts: ['customers', 'status-counts'],
     allCustomers: ['all-customers'],
     users: ['users'],
     /** Admin-only drawer option list: shipments eligible for clerk-scope assignment. */

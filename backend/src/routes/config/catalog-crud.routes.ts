@@ -235,6 +235,41 @@ const supplierLinkedCustomerNameSortSql = sql`(
   where ${s.customers.id} = ${s.suppliers.linkedCustomerId}
 )`;
 
+// Card 071026141610: the customers status pills must count the WHOLE dataset.
+// The list endpoint is paginated and its envelope carries no statusCounts, so
+// the page could only ever show the loaded page's rows — the pills could not
+// add up to the total. Mirrors /suppliers/status-counts.
+//
+// Scoped EXACTLY like the customers list (card 2026-10-03: carriers are
+// administered on /suppliers, so the default list is the non-carrier
+// population). Without this `isCarrier: false` the counts would not reconcile
+// with the `total` the page already renders.
+//
+// Deliberately carries NO requireRoles guard, so its access is exactly the
+// casbin `config` read access the list itself has. Verified: DISPATCHER and
+// CUS both read GET /api/customers (200), so gating the census on the narrower
+// SCREEN_ROLES (ADMIN/MANAGER/ACCOUNTANT) would deny them the counts for a page
+// they can already open — recreating the very defect this card fixes.
+router.get(
+  '/customers/status-counts',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const rows = await db
+      .select({ status: s.customers.status, count: sql<number>`count(*)::int` })
+      .from(s.customers)
+      .where(and(isNull(s.customers.deletedAt), eq(s.customers.isCarrier, false)))
+      .groupBy(s.customers.status);
+    const byStatus: Record<string, number> = {};
+    let all = 0;
+    for (const row of rows) {
+      // status is nullable on the column; a NULL group still belongs to the
+      // whole-dataset total, so count it in `all` without inventing a key.
+      if (row.status != null) byStatus[row.status] = row.count;
+      all += row.count;
+    }
+    res.json({ all, active: byStatus['ACTIVE'] ?? 0, locked: byStatus['LOCKED'] ?? 0, byStatus });
+  }),
+);
+
 // Card _37 customers screen: drawer history + bulk ops resolve BEFORE the
 // CRUD sub-router; unhandled paths fall through via next().
 router.use('/customers', customersScreenRouter);

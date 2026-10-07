@@ -290,6 +290,15 @@ export default function CustomersPage() {
     debounceMs: 300,
   });
   const { page, setPage, pageSize, search, setSearch, rows: customers, total, isLoading: loading, error: queryError, setFilter: setSortFilter } = table;
+  // Card 071026141610: the status pills need WHOLE-dataset counts. The list is
+  // paginated and its envelope carries no status breakdown, so the pills used
+  // to show "Tất cả" alone and left the other two with no numeral. This
+  // census is scoped exactly like the list (non-carrier, live rows), so the
+  // per-status numbers reconcile with `total`.
+  const { data: customersStatusCounts } = useQuery({
+    queryKey: qk.catalogs.customersStatusCounts,
+    queryFn: () => api.get<{ all: number; active: number; locked: number }>('/customers/status-counts'),
+  });
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const hasActiveFilters = Boolean(search.trim() || filter !== 'all' || excludeOwnFleet);
 
@@ -539,6 +548,7 @@ export default function CustomersPage() {
         filter={filter}
         onFilter={setFilter}
         total={total}
+        statusCounts={customersStatusCounts}
         resultCount={filtered.length}
         concentration={concentration}
         onExport={exportCustomers}
