@@ -222,6 +222,16 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
       'Governed close-maker command required by the O2C PRD: only the CUS close-maker command is exposed on the trip surface; all other CUS trip operations remain denied.',
     source: 'O2C PRD (tripRouteAuthz doc comment)',
   },
+  {
+    resource: 'trips',
+    methods: ['PUT', 'DELETE'],
+    pathPattern: /^\/\d+\/expenses\/\d+\/?$/,
+    roles: [Role.OPS],
+    effect: 'bypass',
+    reason:
+      'Card 071026141580 ("fix all issues" ruling 2026-10-07): the wallet shows an Ops payer their own khai-chi-hô trip costs with Sửa/Xóa like every other editable row, and those buttons must WORK — the trips casbin resource grants OPS read-only, so the expense-mutation routes (PUT/DELETE /trips/:id/expenses/:eid, the exact surface the trip cost card uses) bridge OPS alone. Everyone else falls through to casbin unchanged; the routes keep their own state guards (locked/COMPLETED/cancelled rejections, canonical-write assertions).',
+    source: 'card 071026141580 + owner ruling 2026-10-07',
+  },
 ];
 
 function matchesRequestSurface(

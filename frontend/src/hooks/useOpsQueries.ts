@@ -39,7 +39,7 @@ export const opsKeys = {
   adminSettlement: (id: number) => ['ops', 'admin-settlement', id] as const,
 };
 
-function useInvalidateOps() {
+export function useInvalidateOps() {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: qk.ops.root });

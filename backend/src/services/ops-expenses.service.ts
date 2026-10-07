@@ -515,6 +515,9 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
 export interface OpsExpenseListRow {
   sourceKind?: 'OPS' | 'TRIP';
   sourceId?: number;
+  /** Trip id of a legacy (TRIP-sourced) row — the wallet's Sửa/Xóa route into
+   *  the chi-hô entry APIs (card 071026141580). */
+  tripId?: number | null;
   version: number;
   confirmedAt: string | null;
   costGroup: ExpenseCostGroup | null;

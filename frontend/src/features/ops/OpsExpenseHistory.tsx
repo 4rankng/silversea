@@ -8,13 +8,16 @@ import { Image as ImageIcon, Pencil, Trash2 } from 'lucide-react';
 import {
   useOpsWalletExpenses,
   useDeleteOpsExpense,
+  useInvalidateOps,
 } from '../../hooks/useOpsQueries';
+import { tripClient } from '../../api/tripClient';
 import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
 import { Drawer, useConfirm } from '../../components/UI';
 import { Tabs } from '../../design-system';
 import { useReasonPrompt } from '../../components/reason-prompt';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
+import { OpsLegacyExpenseEditModal } from './OpsLegacyExpenseEditModal';
 import { useToast } from '../../components/shared/Toast';
 import { formatMoney } from '../../lib/format';
 
@@ -45,8 +48,12 @@ const STATUS_LABELS: Record<OpsExpenseStatus, string> = {
   REJECTED: 'Đã từ chối (lịch sử)',
 };
 
+// Card 071026141580: trip-sourced (khai chi hộ) rows are editable from the
+// wallet too — same rule as the chi-hô dialog ("Khoản đã đối chiếu sẽ không
+// xóa được"): unconfirmed, unvoided, un-settled rows get Sửa/Xóa regardless of
+// source kind; their APIs differ, which the row actions route on.
 const isEditableExpense = (row: OpsExpenseRow) =>
-  row.sourceKind !== 'TRIP' && !row.confirmedAt && row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED' && row.opsSettlementId == null;
+  !row.confirmedAt && row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED' && row.opsSettlementId == null;
 
 /**
  * Lịch sử chi phí của Ops (OpsVanHanh §5.3): nhãn đỏ "Nợ chứng từ" khi chưa
@@ -59,21 +66,35 @@ export function OpsExpenseHistory() {
   const { toast } = useToast();
   const deleteLock = useRef(false);
   const [deleting, setDeleting] = useState(false);
-  const { dialog } = useConfirm();
+  const { confirm, dialog } = useConfirm();
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const [legacyFor, setLegacyFor] = useState<OpsExpenseRow | null>(null);
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [editing, setEditing] = useState<OpsExpenseRow | null>(null);
+  const [editingLegacy, setEditingLegacy] = useState<OpsExpenseRow | null>(null);
+  const invalidate = useInvalidateOps();
 
   async function handleDelete(row: OpsExpenseRow) {
     if (deleteLock.current) return;
     deleteLock.current = true; setDeleting(true);
     try {
-      // Q10 (card 20260922_78): the delete asks for a mandatory free-text
-      // reason — cancel/empty aborts without any request.
-      const reason = await prompt(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatMoney(row.amount)} ₫?`, { confirmLabel: 'Xóa' });
-      if (reason == null) return;
-      await deleteExpense.mutateAsync({ id: row.id, reason });
+      if (row.sourceKind === 'TRIP') {
+        // Card 071026141580: trip rows are deleted through their own API
+        // (DELETE /trips/:id/expenses/:eid — the same one the trip cost card
+        // uses). That contract takes no reason field, so the wallet shows a
+        // plain confirm here instead of the Q10 reason prompt the Ops-expense
+        // delete (which stores one) requires.
+        const ok = await confirm(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatMoney(row.amount)} ₫?`, { confirmLabel: 'Xóa', variant: 'danger' });
+        if (!ok) return;
+        await tripClient.deleteTripExpense(row.tripId ?? 0, row.sourceId ?? 0);
+        invalidate();
+      } else {
+        // Q10 (card 20260922_78): the Ops-expense delete asks for a mandatory
+        // free-text reason — cancel/empty aborts without any request.
+        const reason = await prompt(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatMoney(row.amount)} ₫?`, { confirmLabel: 'Xóa' });
+        if (reason == null) return;
+        await deleteExpense.mutateAsync({ id: row.id, reason });
+      }
     } catch (error) { toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được khoản chi. Vui lòng thử lại.' }); }
     finally { deleteLock.current = false; setDeleting(false); }
   }
@@ -145,7 +166,7 @@ export function OpsExpenseHistory() {
                       type="button"
                       className="btn btn--secondary"
                       aria-label={`Sửa khoản chi ${opsBillReference(row.billRef)}`}
-                      onClick={() => setEditing(row)}
+                      onClick={() => (row.sourceKind === 'TRIP' ? setEditingLegacy(row) : setEditing(row))}
                     >
                       <Pencil size={13} />
                     </button>
@@ -179,6 +200,9 @@ export function OpsExpenseHistory() {
       )}
       {editing && (
         <OpsExpenseEditModal entry={editing} onClose={() => setEditing(null)} />
+      )}
+      {editingLegacy && (
+        <OpsLegacyExpenseEditModal entry={editingLegacy} onClose={() => setEditingLegacy(null)} />
       )}
       {legacyFor && <OpsLegacyExpenseDetail row={legacyFor} onClose={() => setLegacyFor(null)} />}
       {dialog}

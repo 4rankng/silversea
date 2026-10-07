@@ -78,6 +78,9 @@ export type OpsExpenseStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'AP
 export interface OpsExpenseRow {
   sourceKind?: 'OPS' | 'TRIP';
   sourceId?: number;
+  /** Trip of a legacy (TRIP-sourced) row — the Sửa/Xóa route into the chi-hô
+   *  entry APIs (card 071026141580). */
+  tripId?: number | null;
   id: number;
   shipmentId: number;
   shipmentCode: string | null;

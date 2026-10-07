@@ -87,7 +87,11 @@ export function expenseEntryPage(rows: readonly ExpenseAccountingEntry[], actor:
 
 function legacySource(input: Partial<Source> & Pick<Source, 'sourceKind' | 'sourceId' | 'shipmentId' | 'customerId' | 'expenseTypeCode' | 'amount' | 'expenseDate'>): Source {
   return { id: -input.sourceId, version: 1, shipmentContainerId: null, tripId: null, truckId: null, costGroup: null,
-    feeName: input.expenseTypeCode, customerChargeAmount: null, invoiceNumber: null, invoiceDate: null,
+    // feeName is the operator's CUSTOM name, never the machine code (card
+    // 071026141580): a blank here makes consumers fall back to the catalog
+    // label, while a code ("OTHER") poisons every money table it reaches.
+    // Blank is the house sentinel (same as the create paths write).
+    feeName: '', customerChargeAmount: null, invoiceNumber: null, invoiceDate: null,
     payerKind: null, payerUserId: null, payableEntityType: null, payableEntityId: null, recordedById: null,
     confirmedById: null, confirmedAt: null, note: null, recoveryNote: null, photoStorageKeys: [], linkedTripExpenseId: null,
     reconciliationId: null, allocatedAdvanceAmount: '0', status: 'RECORDED', createdAt: new Date(0), updatedAt: new Date(0), paymentHistoryUnattributed: true, ...input, legacy: true };
@@ -161,10 +165,10 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
   const fallbacks: Source[] = [
     ...ops.flatMap(({ expense: e, customerId }) => customerId == null ? [] : [legacySource({ sourceKind: 'OPS', sourceId: e.id, shipmentId: e.shipmentId,
       shipmentContainerId: e.shipmentContainerId, customerId, expenseTypeCode: e.expenseTypeCode, amount: e.amount, expenseDate: e.paidAt,
-      payerKind: 'USER', payerUserId: e.paidById, payableEntityType: 'FORWARDER', payableEntityId: e.paidById, note: e.note })]),
+      feeName: e.feeName ?? '', payerKind: 'USER', payerUserId: e.paidById, payableEntityType: 'FORWARDER', payableEntityId: e.paidById, note: e.note })]),
     ...driver.flatMap(({ expense: e, trip: t, userId }) => t.shipmentId == null ? [] : [legacySource({ sourceKind: 'DRIVER', sourceId: e.id,
       shipmentId: t.shipmentId, tripId: t.id, truckId: t.truckId, customerId: t.customerId, expenseTypeCode: e.costType, amount: e.amount,
-      expenseDate: e.occurredAt, costGroup: e.costGroup, feeName: e.feeName ?? e.costType,
+      expenseDate: e.occurredAt, costGroup: e.costGroup, feeName: e.feeName ?? '',
       customerChargeAmount: e.customerChargeAmount, invoiceNumber: e.invoiceNumber, invoiceDate: e.invoiceDate,
       payerKind: e.payerKind ?? 'USER', payerUserId: e.payerKind === 'COMPANY' ? null : userId,
       payableEntityType: e.payerKind === 'COMPANY' ? null : 'DRIVER', payableEntityId: e.payerKind === 'COMPANY' ? null : e.driverId,
@@ -172,7 +176,7 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
       photoStorageKeys: e.photoStorageKeys.length ? e.photoStorageKeys : e.receiptStorageKey ? [e.receiptStorageKey] : [] })]),
     ...trip.flatMap(({ expense: e, trip: t }) => t.shipmentId == null ? [] : [legacySource({ sourceKind: 'TRIP', sourceId: e.id, version: e.version,
       shipmentId: t.shipmentId, tripId: t.id, truckId: t.truckId, customerId: t.customerId, expenseTypeCode: e.expenseType, amount: e.buyAmount,
-      customerChargeAmount: e.sellAmount, expenseDate: e.expenseDate ?? t.departureDate, invoiceNumber: e.invoiceNumber, invoiceDate: e.invoiceDate,
+      customerChargeAmount: e.sellAmount, expenseDate: e.expenseDate ?? t.departureDate, feeName: e.feeName ?? '', invoiceNumber: e.invoiceNumber, invoiceDate: e.invoiceDate,
       payerKind: e.settlementMethod === 'OPS_ADVANCE' && e.forwarderId != null ? 'USER' : null,
       payerUserId: e.forwarderId, payableEntityType: e.settlementMethod === 'OPS_ADVANCE' && e.forwarderId != null ? 'FORWARDER' : null,
       payableEntityId: e.settlementMethod === 'OPS_ADVANCE' ? e.forwarderId : null, recordedById: e.createdBy, note: e.note, linkedTripExpenseId: e.id })]),

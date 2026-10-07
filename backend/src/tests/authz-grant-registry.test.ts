@@ -315,7 +315,8 @@ const TRIP_PATHS = [
   '/',
 ] as const;
 
-// 'trips' has no bypass rows — a control that no grant leaks across resources.
+// Card 071026141580: 'trips' now carries ONE bypass row (wallet trip-expense
+// mutations for OPS) — every other trips route is still casbin-only.
 const BYPASS_RESOURCES = ['shipments', 'config', 'financial', 'trips'] as const;
 
 describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
@@ -324,7 +325,7 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
   });
 
   describe('registry integrity', () => {
-    it('carries the ported bypass rows (ten + the 253 mirror + the 220 fee read) and two exclusive rows', () => {
+    it('carries the ported bypass rows (ten + the 253 mirror + the 220 fee read + the 1580 wallet bridge) and two exclusive rows', () => {
       // Card 20261001_253 added one config-resource mirror of the financial
       // debit-note row: both bare-'/'api gates evaluate sequentially, so the
       // grant must be reachable at each gate the request actually passes.
@@ -333,8 +334,11 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
       // Cards 351/352 (05/10, QA gap): one more bypass — the CUS delete-
       // request path (DELETE /cus-workspace/:id), the 2026-09-10 direct-CUS-
       // delete ruling that the casbin layer never had a row for.
-      assert.equal(ROUTE_GRANT_RULES.length, 16);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 14);
+      // Card 071026141580 ("fix all issues" 2026-10-07): one more bypass —
+      // the wallet's trip-expense PUT/DELETE bridge for OPS (the payer edits/
+      // deletes their own khai-chi-hô rows; casbin grants OPS trips read only).
+      assert.equal(ROUTE_GRANT_RULES.length, 17);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 15);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 
