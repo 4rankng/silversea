@@ -42,9 +42,13 @@ describe('Money — one text node, one inline element', () => {
     expect([...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())).toHaveLength(1);
   });
 
-  it('keeps compact formatting in the same run', () => {
+  it('keeps compact formatting in the same run — the scale marker is the unit, no doubled ₫ (card 071026141650)', () => {
     render(<Money value={12_500_000} compact />);
-    expect(moneyNode().textContent).toBe('12.5 tr ₫');
+    // "19 tr ₫" doubled the unit: the scale marker ("tr"/"tỷ"/"k") IS the unit.
+    expect(moneyNode().textContent).toBe('12.5 tr');
+    // Unscaled compact numbers keep the ₫ ("Trả 0 ₫" in the report).
+    const second = render(<Money value={0} compact />);
+    expect(second.container.querySelector('.money')?.textContent).toBe('0 ₫');
   });
 
   it('noUnit drops the unit and keeps one node; className rides the span', () => {

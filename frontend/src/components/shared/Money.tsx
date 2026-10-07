@@ -33,9 +33,14 @@ interface MoneyProps {
  */
 export function Money({ value, compact = false, sign, className, noUnit }: MoneyProps) {
   const { num, unit } = moneyParts(value, compact);
+  // Card 071026141650: a compact scaled number's unit is the scale marker
+  // itself ("19 tr", "1,2 tỷ") — appending ₫ doubled the unit ("19 tr ₫").
+  // Unscaled numbers keep the plain ₫ ("0 ₫"). noUnit still drops everything.
+  const [scaleMarker, vnd] = unit.split(' ');
+  const label = scaleMarker && vnd ? `${num} ${scaleMarker}` : `${num} ${unit}`;
   return (
     <span className={`money${className ? ` ${className}` : ''}`}>
-      {`${sign ?? ''}${num}${noUnit ? '' : ` ${unit}`}`}
+      {`${sign ?? ''}${noUnit ? num : label}`}
     </span>
   );
 }
