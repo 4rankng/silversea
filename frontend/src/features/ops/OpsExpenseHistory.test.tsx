@@ -178,3 +178,20 @@ describe('locked rows state their rule (card 071026210520)', () => {
     expect(screen.getByText('Đã hủy / từ chối')).toBeTruthy();
   });
 });
+
+describe('negative adjusting entries (card 071026210530)', () => {
+  it('a negative RECORDED row labels itself as the adjusting entry; a positive row stays plain', () => {
+    renderHistory([
+      tripRow({ id: -61, amount: '-50000', expenseTypeName: 'Lưu bãi (lúc nâng)' }),
+      tripRow({ id: -62, amount: '50000', expenseTypeName: 'Phí chi hộ khác' }),
+    ]);
+    const negativeRow = screen.getByText('-50.000 ₫').closest('tr')!;
+    // Adjacent JSX text nodes concatenate without whitespace — assert the
+    // qualifier as its own substring, never a joined sentence.
+    expect(negativeRow.textContent).toContain('Đã ghi nhận');
+    expect(negativeRow.textContent).toContain('— bút toán điều chỉnh (dòng âm)');
+    const positiveRow = screen.getByText('50.000 ₫').closest('tr')!;
+    expect(positiveRow.textContent).toContain('Đã ghi nhận');
+    expect(positiveRow.textContent).not.toContain('bút toán điều chỉnh');
+  });
+});

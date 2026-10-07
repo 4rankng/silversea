@@ -65,6 +65,14 @@ const editBlockReason = (row: OpsExpenseRow): string | null => {
   return 'Đã hủy / từ chối';
 };
 
+// Card 071026210530: a negative recorded row IS the adjusting entry (the PM's
+// sanctioned "delete-equivalent" — card 20260928_197, dropped from the totals
+// by sumExcludingNegative), but the wallet labeled it plain "Đã ghi nhận",
+// indistinguishable from a real expense. Cancel-by-void shows "Đã hủy"; the
+// signed-adjustment mechanism must name itself just as plainly.
+const isAdjustingEntry = (row: OpsExpenseRow) =>
+  (row.approvalStatus === 'RECORDED' || row.approvalStatus === 'APPROVED') && Number(row.amount) < 0;
+
 /**
  * Lịch sử chi phí của Ops (OpsVanHanh §5.3): nhãn đỏ "Nợ chứng từ" khi chưa
  * có ảnh, lọc theo trạng thái, gửi lại khoản bị từ chối, xem/xóa ảnh.
@@ -169,6 +177,14 @@ export function OpsExpenseHistory() {
                   <span style={{ color: STATUS_COLORS[row.approvalStatus] }}>
                     {STATUS_LABELS[row.approvalStatus]}
                   </span>
+                  {isAdjustingEntry(row) && (
+                    <span
+                      className="ops-reject-reason"
+                      title="Dòng âm là bút toán điều chỉnh — tương đương bỏ/bớt khoản, đã được loại khỏi tổng sổ quỹ."
+                    >
+                      {' — bút toán điều chỉnh (dòng âm)'}
+                    </span>
+                  )}
                   {row.approvalStatus === 'REJECTED' && row.rejectionReason && (
                     <span className="ops-reject-reason" title={row.rejectionReason}> — {row.rejectionReason}</span>
                   )}
