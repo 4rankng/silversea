@@ -340,7 +340,7 @@ export default function FinancePage() {
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
                             <span style={{ width: 10, height: 10, background: a.fill, borderRadius: 2, flexShrink: 0 }} />
                             <span style={{ flex: 1, color: 'var(--ink-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
-                            <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)', marginRight: 4 }}>{formatNumber(a.value)}₫</span>
+                            <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)', marginRight: 4 }}>{formatNumber(a.value)} ₫</span>
                             <span style={{ color: 'var(--ink-3)', flexShrink: 0, fontFamily: 'var(--font-data)' }}>{a.pct.toFixed(0)}%</span>
                           </div>
                         ))}
@@ -408,7 +408,7 @@ export default function FinancePage() {
                           {minProfit < 0 && (
                             <line x1={zeroX} y1={0} x2={zeroX} y2={24} stroke="var(--line-2)" strokeWidth={1} strokeDasharray="2,2" />
                           )}
-                          <text x={280} y={15} fontSize="11" fill={isNegative ? 'var(--danger)' : 'var(--ink-2)'} fontWeight={isNegative ? 600 : 500} textAnchor="end">{formatNumber(val)}₫</text>
+                          <text x={280} y={15} fontSize="11" fill={isNegative ? 'var(--danger)' : 'var(--ink-2)'} fontWeight={isNegative ? 600 : 500} textAnchor="end">{formatNumber(val)} ₫</text>
                         </g>
                       );
                     })}
@@ -662,7 +662,7 @@ export default function FinancePage() {
                             {t.plate}
                           </span>
                           <span className={`truck-card__profit ${t.profit >= 0 ? 'truck-card__profit--up' : 'truck-card__profit--down'}`}>
-                            {formatNumber(t.profit)}₫
+                            {formatNumber(t.profit)} ₫
                           </span>
                         </div>
                         <div className="truck-card__stats">

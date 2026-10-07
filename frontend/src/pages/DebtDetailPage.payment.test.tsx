@@ -330,11 +330,12 @@ describe('DebtDetailPage payment flow', () => {
     expect(within(creditStrip).getByText('Đã ghi nhận, chưa thu')).toBeTruthy();
     expect(within(creditStrip).getByText('Tỷ lệ sử dụng')).toBeTruthy();
     expect(within(creditStrip).getByText('Hạn mức còn lại')).toBeTruthy();
-    expect(within(creditStrip).getByText('100.000.000đ')).toBeTruthy();
-    expect(within(creditStrip).getByText('90.000.000đ')).toBeTruthy();
-    expect(within(creditStrip).getByText('20.000.000đ')).toBeTruthy();
+    // Card 071026141540: the money idiom is spaced at the unit (house law FB-034).
+    expect(within(creditStrip).getByText('100.000.000 ₫')).toBeTruthy();
+    expect(within(creditStrip).getByText('90.000.000 ₫')).toBeTruthy();
+    expect(within(creditStrip).getByText('20.000.000 ₫')).toBeTruthy();
     expect(within(creditStrip).getByText('90%')).toBeTruthy();
-    expect(within(creditStrip).getByText('10.000.000đ')).toBeTruthy();
+    expect(within(creditStrip).getByText('10.000.000 ₫')).toBeTruthy();
     expect(within(creditStrip).queryByText('Dư nợ hiện tại')).toBeNull();
   });
 });

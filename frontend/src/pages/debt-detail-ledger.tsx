@@ -43,6 +43,6 @@ export function rowTypeLabel(row: LedgerEntry): string {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export function money(value: number): string {
-  return formatCurrency(value).replace(' ₫', '') + 'đ';
+  return formatCurrency(value);
 }
 
