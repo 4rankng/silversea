@@ -1,8 +1,8 @@
 // Card 081026072302 (FB-055 follow-up) — local width-sweep rung against HEAD:
 // the closed footer card must hold the <=60px contract at every measured
 // phone width (320..430) for BOTH closed title shapes, and stay unchanged at
-// 768/1440 and on the not-closed text variant. jsdom cannot pin layout; this
-// is the pixel-truth pin (repo idiom from card 071026103226).
+// 768/1280/1440 and on the not-closed text variant. jsdom cannot pin layout;
+// this is the pixel-truth pin (repo idiom from card 071026103226).
 // Fixtures (local demo DB): laixe 25216 (COMPLETED long title), laixe 25215
 // (CANCELED short title), dvthuc 37088 (IN_PROGRESS open variant).
 // NOTE: trip 25216 is flipped CANCELED->COMPLETED for this rung and restored
@@ -58,7 +58,10 @@ try {
   const jobs = [];
   for (const w of PHONE_WIDTHS) for (const c of CLOSED) jobs.push({ ...c, w, kind: 'closed' });
   jobs.push({ ...OPEN, w: 390, kind: 'open' });
+  // Desktop stops include the repo's standard sweep widths (design
+  // guidelines §9: 1280/1440/…) — the card must be identical at each.
   jobs.push({ ...CLOSED[0], w: 768, kind: 'desktop' });
+  jobs.push({ ...CLOSED[0], w: 1280, kind: 'desktop' });
   jobs.push({ ...CLOSED[0], w: 1440, kind: 'desktop' });
   for (const { user, trip, shape, w, kind } of jobs) {
     const page = await browser.newPage();
