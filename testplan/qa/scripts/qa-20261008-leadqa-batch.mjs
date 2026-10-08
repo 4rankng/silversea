@@ -3,7 +3,7 @@
 // gate refuses to score a build older than the freeze sha.
 import { launch, login, tap, hoverAndFocus, shot, step, watchNet, evidenceDir, BASE } from './lead-qa-harness.mjs';
 
-const FREEZE = 'dc599a82';
+const FREEZE = process.env.QA_FREEZE ?? 'dc599a82';
 const dir = evidenceDir('20261008-leadqa-batch');
 const log = `${dir}/driver.log`;
 const sha = (await (await fetch(`${BASE}/api/health`)).json()).buildHash;
