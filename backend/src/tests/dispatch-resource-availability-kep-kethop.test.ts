@@ -322,4 +322,53 @@ describe('dispatch resource availability — Kẹp / Kết hợp same-rig matrix
       vehicleCapacityKg: '20000',
     });
   });
+
+  // Card 081026230530 (FB-038 round 8): the availability scan demanded
+  // plannedEndAt on the CONFLICTING trip, so a running trip issued without an
+  // end time was invisible to the gate and the governed reassign saved a
+  // same-rig double-booking silently. The plan-row guard already bounds an
+  // open-ended window at one 8-hour shift from its start (card 061026172804
+  // law) — T8 pins that the issue/reassign gate must follow the same rule.
+  test('T8 ACTIVE trip without plannedEndAt still conflicts inside its 8h bound', async () => {
+    const partner = await mkLot({ tag: 't8-partner', dayIndex: 7, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({ plannedEndAt: null }).where(eq(s.trips.id, partner.trip.id));
+    const incoming = await mkLot({ tag: 't8-incoming', dayIndex: 7, classification: 'SINGLE', code: '20DC' });
+    await expectConflict('T8', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(7).incomingStart, end: windows(7).incomingEnd,
+    });
+  });
+
+  test('T9 ACTIVE trip without plannedStartAt stays skipped (cannot prove overlap)', async () => {
+    const partner = await mkLot({ tag: 't9-partner', dayIndex: 8, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({ plannedStartAt: null }).where(eq(s.trips.id, partner.trip.id));
+    const incoming = await mkLot({ tag: 't9-incoming', dayIndex: 8, classification: 'SINGLE', code: '20DC' });
+    await expectNoConflict('T9', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(8).incomingStart, end: windows(8).incomingEnd,
+    });
+  });
+
+  test('T10 open-ended trip releases the rig after its 8h default bound', async () => {
+    const partner = await mkLot({ tag: 't10-partner', dayIndex: 9, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({ plannedEndAt: null }).where(eq(s.trips.id, partner.trip.id));
+    const incoming = await mkLot({ tag: 't10-incoming', dayIndex: 9, classification: 'SINGLE', code: '20DC' });
+    // Partner start 02:00Z + 8h bound = 10:00Z; incoming 04:00–12:00Z overlaps
+    // the bound, so shift the incoming window to 12:00–20:00Z same day.
+    const day9 = windows(9).day;
+    await expectNoConflict('T10', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: new Date(`${day9}T12:00:00.000Z`), end: new Date(`${day9}T20:00:00.000Z`),
+    });
+    assert.ok(partner.trip.id > 0);
+  });
+
+  test('T11 a rig slot 7 days away stays allowed', async () => {
+    await mkLot({ tag: 't11-partner', dayIndex: 10, classification: 'SINGLE', code: '20DC' });
+    const incoming = await mkLot({ tag: 't11-incoming', dayIndex: 17, classification: 'SINGLE', code: '20DC' });
+    await expectNoConflict('T11', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(17).incomingStart, end: windows(17).incomingEnd,
+    });
+  });
 });

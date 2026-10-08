@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNotNull, isNull, lt, ne, or } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -26,6 +26,12 @@ export async function assertResourceAvailability(tx: Tx, args: {
   if (args.driverId != null) predicates.push(eq(s.trips.driverId, args.driverId));
   if (predicates.length === 0) return;
 
+  // Card 081026230530 (FB-038 round 8): an ACTIVE trip issued without an end
+  // time is a real rig occupant — the hard isNotNull(plannedEndAt) made it
+  // invisible here, so a governed reassign saved a same-rig double-booking
+  // silently. Follow the plan-row guard's law (card 061026172804): an
+  // open-ended window occupies the rig for one 8-hour shift from its start;
+  // a trip without a start still cannot prove overlap and stays skipped.
   const conflicts = await tx.select({
     id: s.trips.id,
     truckId: s.trips.truckId,
@@ -45,9 +51,8 @@ export async function assertResourceAvailability(tx: Tx, args: {
       inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
       args.tripId != null ? ne(s.trips.id, args.tripId) : undefined,
       isNotNull(s.trips.plannedStartAt),
-      isNotNull(s.trips.plannedEndAt),
       lt(s.trips.plannedStartAt, args.plannedEndAt),
-      gt(s.trips.plannedEndAt, args.plannedStartAt),
+      sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.plannedStartAt.toISOString()}::timestamptz`,
     ));
 
   let blocking = conflicts;
