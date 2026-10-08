@@ -18,6 +18,7 @@ import { fuelConfigSchema, companyInfoSchema, vatConfigSchema } from '@tingting/
 import { companyInfoFromSettings } from '../../services/company-info.service';
 import { requestOrApplyGovernedConfigAction, governedConfigVersionFromUpdatedAt } from '../../services/price-config-governance.service';
 import { declareMaterialWrite } from '../../middleware/material-write';
+import { cacheInvalidate } from '../../lib/redis';
 
 
 
@@ -123,8 +124,10 @@ router.get('/vat-config', asyncHandler(async (_req: Request, res: Response) => {
   if (!row) return res.json(null);
   res.json({
     id: row.id, vatRate: Number(row.vatRate),
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
+    // postgres.js hands back `timestamp` (no tz) columns as strings — coerce
+    // so both shapes serialize (staging 500: createdAt.toISOString)
+    createdAt: new Date(row.createdAt as unknown as string | Date).toISOString(),
+    updatedAt: new Date(row.updatedAt as unknown as string | Date).toISOString(),
   });
 }));
 
@@ -164,6 +167,11 @@ router.put('/vat-config', declareMaterialWrite('config.vat-config.update', { met
       })).action;
     },
   });
+  // The GET caches 'config:vat' for 5 minutes — a save that doesn't evict
+  // serves stale state (null after the first save, old rate after a change)
+  // for the whole TTL. Mirror the fuel-config eviction on every applied save;
+  // replays skip it (nothing changed).
+  if (!replayed) await cacheInvalidate('config:vat');
   res.status(replayed ? 200 : 201).json({ ...result, replayed });
 }));
 

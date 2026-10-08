@@ -232,7 +232,22 @@ export async function getVatConfig(): Promise<typeof s.vatConfig.$inferSelect | 
     const [r] = await db.select().from(s.vatConfig).limit(1);
     return r || null;
   });
-  return row;
+  if (!row) return null;
+  // Card 081026104400-511 — live 500 on staging, "row.createdAt.toISOString is
+  // not a function". cacheGet ends in `JSON.parse(cached) as T`, so a cache HIT
+  // hands the row back with createdAt/updatedAt as ISO STRINGS while the type
+  // (and every caller) assumes Date. The cast in redis.ts is what let it through.
+  // Re-hydrate so the declared contract holds on both the cold and warm path —
+  // fixing it here rather than at the route covers every consumer at once.
+  const hydrate = (value: Date | string | null | undefined): Date | null => {
+    if (value == null) return null;
+    return value instanceof Date ? value : new Date(value);
+  };
+  return {
+    ...row,
+    createdAt: hydrate(row.createdAt) ?? row.createdAt,
+    updatedAt: hydrate(row.updatedAt) ?? row.updatedAt,
+  } as typeof s.vatConfig.$inferSelect;
 }
 
 /**
