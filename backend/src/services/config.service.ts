@@ -7,7 +7,7 @@ import * as s from '../db/schema';
 import { eq, isNull, desc, and, lte, ne, inArray } from 'drizzle-orm';
 import { cacheGet, cacheInvalidate } from '../lib/redis';
 import { ApiError } from '../errors';
-import { DEFAULT_SHIPPING_LINES } from '@tingting/shared';
+import { DEFAULT_SHIPPING_LINES, DEFAULT_VAT_RATE } from '@tingting/shared';
 import { normalizeTaxCode } from './legal-partner.service';
 import { buildNoInvoicePolicySnapshot } from './no-invoice-disbursement.service';
 import { resolveTableFreightPrice } from './pricing.service';
@@ -223,6 +223,36 @@ export async function upsertFuelConfig(data: {
   await cacheInvalidate('config:fuel');
   await cacheInvalidate('config:fuel-price-history');
   return { result, status };
+}
+
+// ─── VAT config (card 081026104400-511) ─────────────────────────────────────
+
+export async function getVatConfig(): Promise<typeof s.vatConfig.$inferSelect | null> {
+  const row = await cacheGet('config:vat', 300, async () => {
+    const [r] = await db.select().from(s.vatConfig).limit(1);
+    return r || null;
+  });
+  return row;
+}
+
+/**
+ * The configured company VAT rate as a plain number — the fallback wherever a
+ * VAT computation has no explicit rate of its own. Unconfigured (no row yet)
+ * falls back to the shared DEFAULT_VAT_RATE (8%) so nothing ever bills VAT 0
+ * just because no admin saved the config yet.
+ */
+export async function getCompanyVatRate(): Promise<number> {
+  const row = await getVatConfig();
+  return row ? Number(row.vatRate) : DEFAULT_VAT_RATE;
+}
+
+export async function getVatConfigUpdatedAt(
+  q: typeof db | Tx = db,
+): Promise<string | null> {
+  const [row] = await q.select({ updatedAt: s.vatConfig.updatedAt })
+    .from(s.vatConfig)
+    .limit(1);
+  return row?.updatedAt?.toISOString() ?? null;
 }
 
 export async function getFuelPriceHistory(): Promise<Array<typeof s.fuelPriceHistory.$inferSelect & { changedByName: string | null }>> {

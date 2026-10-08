@@ -9,6 +9,7 @@ import type {
   FuelConfig, FuelPriceHistory,
   RoadConfig,
   CompanyInfo,
+  VatConfig,
   SalaryPeriodRange,
   CapTableHistory,
   Supplier,
@@ -71,6 +72,15 @@ export const configClient = {
     : undefined),
 
   getCompanyInfo: () => api.get<CompanyInfo>(CONFIG.COMPANY_INFO),
+
+  // Company VAT rate singleton (card 081026104400-511). null = not yet
+  // configured; the UI then offers the shared DEFAULT_VAT_RATE (8%).
+  getVatConfig: () => api.get<VatConfig | null>(CONFIG.VAT_CONFIG),
+
+  saveVatConfig: (data: { vatRate: number; expectedUpdatedAt?: string | null }) =>
+    api.put<VatConfig>(CONFIG.VAT_CONFIG, { vatRate: data.vatRate }, data.expectedUpdatedAt
+      ? { expectedUpdatedAt: data.expectedUpdatedAt }
+      : undefined),
 
   saveCompanyInfo: (data: CompanyInfo) =>
     api.put<CompanyInfo>(CONFIG.COMPANY_INFO, data),

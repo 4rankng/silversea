@@ -1,0 +1,18 @@
+.vat-rate-config { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.vat-rate-config > header { padding: 13px 15px; border-bottom: 1px solid var(--line); }
+.vat-rate-config > header h3 { margin: 0; color: var(--ink); font-size: var(--text-section-size); }
+.vat-rate-config > header p { margin: 3px 0 0; color: var(--ink-2); font-size: var(--text-body-size); }
+.vat-rate-config__state { display: flex; min-height: 72px; align-items: center; gap: 8px; padding: 18px; color: var(--ink-2); }
+.vat-rate-config__state.is-unavailable { color: var(--warning); }
+.vat-rate-config__state button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vat-rate-config__body { display: grid; gap: 10px; padding: 13px 15px; }
+.vat-rate-config__status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--ink-2); font-size: var(--text-caption-size); }
+.vat-rate-config__status strong { color: var(--ink); }
+.vat-rate-config__saved { color: var(--success); font-weight: var(--fw-bold); }
+.vat-rate-config__controls { display: grid; grid-template-columns: minmax(0, 320px) auto; align-items: start; gap: 10px; }
+.vat-rate-config__error { color: var(--danger); font-size: var(--text-caption-size); }
+.vat-rate-config button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .vat-rate-config__controls { grid-template-columns: 1fr; }
+}

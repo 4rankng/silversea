@@ -202,6 +202,17 @@ export const roadConfig = pgTable('road_config', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Company VAT rate singleton (card 081026104400-511). One row; the configured
+// rate is the fallback wherever a VAT computation has no explicit rate of its
+// own. Admin selects only within the policy whitelist {0, 5, 8, 10}% (LEAD
+// RULING 2026-10-08); the column stores the policy rate, e.g. 0.080.
+export const vatConfig = pgTable('vat_config', {
+  id: serial('id').primaryKey(),
+  vatRate: numeric('vat_rate', { precision: 5, scale: 3 }).notNull().default('0.080'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 
 // ─── Auto Freight Pricing Engine (2026-09-09) ──────────────────────────────
 //

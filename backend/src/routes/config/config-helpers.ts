@@ -20,6 +20,7 @@ import {
   NO_INVOICE_POLICY_DEFAULTS,
   fuelConfigSchema,
   companyInfoSchema,
+  vatConfigSchema,
   salaryPeriodSchema,
   salaryPeriodDefaultSchema,
 } from '@tingting/shared';
@@ -221,6 +222,7 @@ export const GOVERNED_SINGLETON_RESOURCES = {
   roadConfig: 'road-config',
   fuelConfig: 'fuel-config',
   companyInfo: 'company-info',
+  vatConfig: 'vat-config',
   salaryDefault: 'salary-period-default',
   salaryOverride: 'salary-period-override',
 } as const;
@@ -232,6 +234,7 @@ export const CONFIG_COMMANDS = {
   ROAD_CONFIG_UPDATE: 'config.road-config.update',
   FUEL_CONFIG_UPDATE: 'config.fuel-config.update',
   COMPANY_INFO_UPDATE: 'config.company-info.update',
+  VAT_CONFIG_UPDATE: 'config.vat-config.update',
   SALARY_DEFAULT_UPDATE: 'config.salary-periods.default.update',
   SALARY_OVERRIDE_CREATE: 'config.salary-periods.override.create',
   SALARY_OVERRIDE_UPDATE: 'config.salary-periods.override.update',
@@ -651,6 +654,40 @@ registerGovernedCustomResource({
         resultingVersion: governedConfigVersionFromUpdatedAt(now),
       },
       durableEffects: [cacheInvalidateEffect(action.id, 'catalogs:bootstrap')],
+    };
+  },
+});
+
+// Company VAT rate singleton (card 081026104400-511) — mirrors the road-config
+// singleton: row lock, snapshot-unchanged guard, monotonic updatedAt, direct
+// in-request apply, cache invalidation via durable effect.
+registerGovernedCustomResource({
+  resource: GOVERNED_SINGLETON_RESOURCES.vatConfig,
+  reasonLabel: 'thuế suất VAT của công ty',
+  apply: async (tx, action, before, after) => {
+    const payload = vatConfigSchema.parse(after.data);
+    const [existing] = await tx.select().from(s.vatConfig).limit(1).for('update');
+    assertGovernedSnapshotUnchanged(
+      GOVERNED_SINGLETON_RESOURCES.vatConfig,
+      before.fingerprint,
+      action.originalVersion!,
+      existing ?? null,
+      existing?.updatedAt ?? null,
+    );
+    const nextUpdatedAt = new Date(Math.max(Date.now(), (existing?.updatedAt?.getTime() ?? 0) + 1));
+    const values = { vatRate: String(payload.vatRate), updatedAt: nextUpdatedAt };
+    const [saved] = existing
+      ? await tx.update(s.vatConfig).set(values).where(eq(s.vatConfig.id, existing.id)).returning()
+      : await tx.insert(s.vatConfig).values(values).returning();
+    if (!saved) throw new ApiError(409, 'Không thể lưu cấu hình thuế suất VAT');
+    return {
+      applicationResult: {
+        resource: GOVERNED_SINGLETON_RESOURCES.vatConfig,
+        operation: existing ? 'UPDATE' : 'CREATE',
+        subjectId: saved.id,
+        resultingVersion: governedConfigVersionFromUpdatedAt(saved.updatedAt),
+      },
+      durableEffects: [cacheInvalidateEffect(action.id, 'config:vat')],
     };
   },
 });

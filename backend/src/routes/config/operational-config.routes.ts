@@ -13,8 +13,8 @@ import { getUser } from '../../middleware/auth';
 import { runIdempotent } from '../../services/idempotency.service';
 
 import * as H from './config-helpers';
-import { getFuelConfig, getFuelPriceHistory, getEffectiveFuelPrice } from '../../services/config.service';
-import { fuelConfigSchema, companyInfoSchema } from '@tingting/shared';
+import { getFuelConfig, getFuelPriceHistory, getEffectiveFuelPrice, getVatConfig } from '../../services/config.service';
+import { fuelConfigSchema, companyInfoSchema, vatConfigSchema } from '@tingting/shared';
 import { companyInfoFromSettings } from '../../services/company-info.service';
 import { requestOrApplyGovernedConfigAction, governedConfigVersionFromUpdatedAt } from '../../services/price-config-governance.service';
 import { declareMaterialWrite } from '../../middleware/material-write';
@@ -103,6 +103,58 @@ router.put('/fuel-config', declareMaterialWrite('config.fuel-config.update', { m
         operation: existing ? 'UPDATE' : 'CREATE',
         subjectId: existing?.id ?? null,
         subjectKey: H.GOVERNED_SINGLETON_RESOURCES.fuelConfig,
+        originalVersion: H.governedConfigVersion(existing ?? null),
+        beforeRow: existing ?? null,
+        afterData: data,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        transaction: tx,
+      })).action;
+    },
+  });
+  res.status(replayed ? 200 : 201).json({ ...result, replayed });
+}));
+
+// VAT config — singleton GET/PUT (card 081026104400-511). GET returns null
+// until the first save; the UI default offer for an unconfigured singleton
+// comes from shared DEFAULT_VAT_RATE (8%), applied client-side.
+router.get('/vat-config', asyncHandler(async (_req: Request, res: Response) => {
+  const row = await getVatConfig();
+  if (!row) return res.json(null);
+  res.json({
+    id: row.id, vatRate: Number(row.vatRate),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  });
+}));
+
+router.put('/vat-config', declareMaterialWrite('config.vat-config.update', { method: 'PUT', path: '/api/vat-config' }), asyncHandler(async (req: Request, res: Response) => {
+  const data = vatConfigSchema.parse(req.body);
+  const idempotencyKey = H.requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật cấu hình thuế suất VAT.');
+  const expectedUpdatedAt = H.readExpectedUpdatedAt(req);
+  const actor = getUser(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: H.CONFIG_COMMANDS.VAT_CONFIG_UPDATE,
+    idempotencyKey,
+    payload: {
+      body: data,
+      expectedUpdatedAt: expectedUpdatedAt?.toISOString() ?? null,
+    },
+    createdBy: actor.userId,
+    entityType: 'vat-config',
+    responseStatusCode: 201,
+    create: async (tx) => {
+      const [existing] = await tx.select().from(s.vatConfig).limit(1).for('update');
+      H.assertOptionalVersion(
+        existing?.updatedAt ?? null,
+        expectedUpdatedAt,
+        'Thiếu phiên bản cấu hình thuế suất VAT. Vui lòng tải lại trước khi cập nhật.',
+      );
+      return (await requestOrApplyGovernedConfigAction({
+        resource: H.GOVERNED_SINGLETON_RESOURCES.vatConfig,
+        operation: existing ? 'UPDATE' : 'CREATE',
+        subjectId: existing?.id ?? null,
+        subjectKey: H.GOVERNED_SINGLETON_RESOURCES.vatConfig,
         originalVersion: H.governedConfigVersion(existing ?? null),
         beforeRow: existing ?? null,
         afterData: data,

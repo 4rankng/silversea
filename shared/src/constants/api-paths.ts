@@ -89,6 +89,7 @@ export const CONFIG = {
   DRIVER: (id: number) => `/drivers/${id}`,
   FUEL_CONFIG: '/fuel-config',
   COMPANY_INFO: '/company-info',
+  VAT_CONFIG: '/vat-config',
   PAIR_SALARY_SETTINGS: '/pair-salary-settings',
   ROAD_CONFIG: '/road-config',
   SALARY_PERIODS: '/salary-periods',

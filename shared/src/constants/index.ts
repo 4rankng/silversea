@@ -859,6 +859,15 @@ export const SUPPLIER_TYPE_LABELS: Record<SupplierType, string> = {
 };
 
 /**
+ * Company VAT default (card 081026104400-511, LEAD RULING 2026-10-08): VN VAT
+ * standard 10%; the 2% reduction → 8% applies to eligible services
+ * 01/07/2025–31/12/2026 and transport/logistics qualifies. Admin-configurable
+ * within {0, 5, 8, 10}%; until configured (or after a future owner review past
+ * 31/12/2026) this is the fallback wherever a VAT computation has no rate.
+ */
+export const DEFAULT_VAT_RATE = 0.08;
+
+/**
  * Standard container shipping lines operating in Vietnam (Hải Phòng, Cát Lái, Cái Mép).
  * Used as standard suggestions for shipment creation and container tracking.
  */

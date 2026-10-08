@@ -3,6 +3,7 @@ import * as s from '../db/schema';
 import { eq, and, gte, lte, isNull, inArray, desc, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { getSupplierStatement } from './statement.service';
+import { getCompanyVatRate } from './config.service';
 import { customerTripReceivableAmount } from './ledger.service';
 import {
   BILLABLE_TRIP_STATUSES,
@@ -128,6 +129,10 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
   const containersByTrip = await loadContainersByTrip(tripIds);
   const legsByTrip = await loadLegRenderDataByTrip(tripIds);
   const feesByTrip = await loadApprovedFeesByTrip(tripIds);
+  // Card 081026104400-511: the configured company rate is the fallback for fee
+  // rows with no rate of their own (expense type matching no forwarder-expense-type
+  // → LEFT JOIN null). Explicit trip/fee rates still win — they are passed through.
+  const defaultVatRate = await getCompanyVatRate();
 
   const lines: BillingDraftLine[] = [];
   const blockedTrips: BillingDraftBlockedTrip[] = [];
@@ -210,7 +215,7 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     for (const fee of fees) {
       const amt = Number(fee.sellAmount ?? 0);
       if (amt <= 0) continue;
-      const vat = calculateVatSnapshot(amt, fee.vatRate);
+      const vat = calculateVatSnapshot(amt, fee.vatRate ?? defaultVatRate);
       lines.push({
         sourceType: 'EXPENSE', sourceId: fee.id, lineType: 'SERVICE_FEE',
         description: fee.billingLabel ?? fee.name ?? fee.expenseType,

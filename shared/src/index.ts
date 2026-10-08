@@ -34,6 +34,7 @@ export {
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
   LCL_PICKUP_TRAILER_TYPE,
   DEFAULT_SHIPPING_LINES,
+  DEFAULT_VAT_RATE,
   ExpenseTypeCategory,
 } from './constants';
 
@@ -54,7 +55,7 @@ export type {
 
 export type {
   User, UserPublic, Driver, Customer, Truck, Trailer, Route, CargoType,
-  PricingTable, RoadAllowance, FuelConfig, FuelPriceHistory, PenaltyReason, RoadConfig, AppSetting, CompanyInfo,
+  PricingTable, RoadAllowance, FuelConfig, FuelPriceHistory, PenaltyReason, RoadConfig, AppSetting, CompanyInfo, VatConfig,
   Trip, TripLeg, TripDetail, TripInstruction, ShipmentAccountingLockSummary, LedgerEntry, Penalty,
   TripPairSummary, TripPairRecord, TripPairStatus, TripPairBreakReason, TripPairKind, DriverOrderedPairView,
   CapTableHistory, TruckCapEntry, Distribution, ManagementFee, AuditLog, Notification, PushSubscriptionPayload,
@@ -123,6 +124,7 @@ export {
   truckSchema, trailerSchema, routeSchema,
   cargoTypeSchema, pricingTableSchema, roadAllowanceSchema,
   fuelConfigSchema, fuelPriceHistorySchema,
+  vatConfigSchema,
   fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,
   fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema, freightRateOverrideSchema,
   companyInfoSchema, penaltyReasonSchema, driverSchema,
@@ -290,7 +292,7 @@ export type {
   CreatePenaltyInput, CreateAdjustmentInput, LoginInput,
   CustomerInput, TruckInput, TrailerInput, TirePositionInput, RouteInput,
   CargoTypeInput, PricingTableInput, RoadAllowanceInput,
-  FuelConfigInput, CompanyInfoInput, PenaltyReasonInput, DriverInput,
+  FuelConfigInput, VatConfigInput, CompanyInfoInput, PenaltyReasonInput, DriverInput,
   ManagementFeeInput, CapTableInput, TruckCapInput,
   SalaryPeriodInput, SalaryPeriodDefaultInput,
   SupplierInput, ExpenseCategoryInput, ExpenseInput, VendorPaymentInput,

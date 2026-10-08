@@ -246,6 +246,16 @@ export interface FuelConfig {
   deletedAt: string | null;
 }
 
+// Company VAT rate singleton (card 081026104400-511). `vatRate` is the numeric
+// policy rate (0 | 0.05 | 0.08 | 0.10); the API returns it as a JSON number,
+// `updatedAt` feeds the optimistic-lock token.
+export interface VatConfig {
+  id: number;
+  vatRate: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RoadConfig {
   id: number;
   tollPerStation: string;

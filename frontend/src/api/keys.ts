@@ -550,6 +550,7 @@ export const qk = {
     roadAllowances: ['cfg-count', 'road-allowances'],
     drivers: ['cfg-count', 'drivers'],
     capTable: ['cfg-count', 'cap-table'],
+    vatConfig: ['cfg-count', 'vat-config'],
     customers: ['cfg-count', 'customers'],
     routes: ['cfg-count', 'routes'],
     trucks: ['cfg-count', 'trucks'],

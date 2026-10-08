@@ -899,6 +899,15 @@ export const fuelPriceHistorySchema = z.object({
   note: z.string().optional(),
 });
 
+// Company VAT rate singleton (card 081026104400-511): ADMIN selects ONLY within
+// the policy whitelist {0, 5, 8, 10}% (LEAD RULING 2026-10-08 — VN VAT standard
+// 10%; 2% reduction → 8% for eligible services 01/07/2025–31/12/2026). The
+// configured rate is the fallback wherever a VAT computation has no rate of its
+// own; explicit per-trip/fee rates still win.
+export const vatConfigSchema = z.object({
+  vatRate: z.union([z.literal(0), z.literal(0.05), z.literal(0.08), z.literal(0.10)]),
+});
+
 // ─── Wave 1: Pricing & Fuel catalog schemas ─────────────────────────────────
 
 export const fuelNormSchema = z.object({
@@ -2092,6 +2101,7 @@ export type CargoTypeInput = z.infer<typeof cargoTypeSchema>;
 export type PricingTableInput = z.infer<typeof pricingTableSchema>;
 export type RoadAllowanceInput = z.infer<typeof roadAllowanceSchema>;
 export type FuelConfigInput = z.infer<typeof fuelConfigSchema>;
+export type VatConfigInput = z.infer<typeof vatConfigSchema>;
 export type CompanyInfoInput = z.infer<typeof companyInfoSchema>;
 export type PenaltyReasonInput = z.infer<typeof penaltyReasonSchema>;
 export type DriverInput = z.infer<typeof driverSchema>;
