@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-10-08 (tối) — wave: fix-all take-over, retest round 7, VAT config
+
+Prod `b90beff2` → `371f297f` (staging-verified từng bước, cuối tại `371f297f`).
+
+### Shipped
+
+- **Toast lỗi theo chính sách trên toàn app** (20261008_6): 63 site còn echo nguyên body lỗi vào toast (27 file) chuyển hết qua module chính sách action-error — toast phân quyền chỉ khi thao tác thật sự bị từ chối và nêu tên thao tác; abort/race không bao giờ ra toast. Bảng disposition từng site trong card.
+- **Kế hoạch chi tiết lọc theo kỳ trên cả hai nhánh** (20261008_7): nhánh điều phối (container chưa phân tách tác vụ) trước đó bỏ qua khoảng tháng của topbar; giờ rows và số gán xe cùng tôn trọng kỳ như nhánh fulfillment, cùng cột ngày (ngày hẹn container theo giờ VN, fallback ngày giao dự kiến của lô).
+- **Card 'Chứng từ giao hàng' gọn một hàng trên phone** (081026072302; lead landed theo chỉ đạo 'fix all', credit MiMo): trạng thái closed ở ≤640px giữ title một dòng, nút co giãn thay vì title xuống dòng — 56–62px trên 320–430px (trước đây phình ~80px ở dải hẹp); desktop không đổi.
+- **Thuế suất VAT của công ty cấu hình được trong app** (081026104400-511): card mới tại /admin-center (0/5/8/10%; lần đầu chưa cấu hình đề xuất 8%), lưu vào bảng singleton mới (migration idx 138), đọc qua /api/vat-config. QA staging phát hiện và sửa 2 bug thật: GET 500 vì postgres.js trả cột timestamp dạng string, và cache 5 phút không evict sau khi lưu (giờ evict trên mỗi lần lưu thật).
+
+### Non-repro closes (retest round 7)
+
+- **'VI PHẠM T10/2026' dính chữ** (081026072301): không tái hiện ở bất kỳ build nào đo lại (local HEAD + staging, 1440/390) — JSX luôn có dấu cách thật; kết quả round 7 là artifact của phép đo text (nối text node kề nhau không chèn cách). Guard test pin nhãn đủ khoảng trắng.
+- **5 item dấu/khoảng trắng bề mặt Kế toán** (081026072303): 4/5 không tái hiện ('Theo dõi hoàn cược' đúng, 'Cố định đội xe' nhất quán banner/legend, dòng chia lợi nhuận đủ khoảng trắng); header 'LỆNH' viết hoa đúng skin header toàn app. Không cần sửa code.
+
+### Mở
+
+- Wording nav 'Phơi phiếu' (081026072303 mục 4): house term dùng nhất quán trên mọi bề mặt (nav, tab, route /accounting/phoi-phieu); đổi hay giữ là quyết định product của owner.
+
 ## 2026-10-08 (chiều) — wave: 20261008_1–_5 sweep batch
 
 Prod `7b1d0433` → `b90beff2` (staging-verified at `dc599a82`).
