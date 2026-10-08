@@ -6,6 +6,7 @@ import { AssetIcon } from '../../components/AssetIcon';
 import { useConfirm } from '../../components/UI';
 import { UuiSelectField } from '../../design-system';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { useTemplateLeaveGuard } from './use-template-leave-guard';
@@ -145,7 +146,7 @@ export default function DebitNoteTemplateEditorPage() {
       toast({ kind: 'success', message: 'Đã lưu mẫu giấy báo nợ.' });
       backToList();
     } catch (err) {
-      toast({ kind: 'error', message: (err as Error).message || 'Không lưu được mẫu.' });
+      toastActionError(toast, 'lưu mẫu giấy báo nợ', err, 'Không lưu được mẫu.');
     } finally {
       setSaving(false);
     }
@@ -162,7 +163,7 @@ export default function DebitNoteTemplateEditorPage() {
       toast({ kind: 'success', message: 'Đã xoá mẫu.' });
       backToList();
     } catch (err) {
-      toast({ kind: 'error', message: (err as Error).message || 'Không xoá được mẫu.' });
+      toastActionError(toast, 'xóa mẫu giấy báo nợ', err, 'Không xoá được mẫu.');
     } finally {
       setSaving(false);
     }

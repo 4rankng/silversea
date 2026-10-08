@@ -10,6 +10,7 @@ import { AlertTriangle, Phone, Building2, ArrowLeft, CreditCard, Download, FileS
 import { useSupplierStatement } from '../hooks/useQueries';
 import { api, ApiError } from '../lib/api';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError } from '../lib/api/action-error';
 import { useConfirm, Modal } from '../components/UI';
 import BillingDocumentsPanel from '../components/billing/BillingDocumentsPanel';
 import { TXN_META, DEFAULT_META, LedgerRow, FuelLedgerRow, ExpenseLedgerRow, FuelLedgerCard, ExpenseLedgerCard, PayableLedgerCard } from '../features/accounting/ledger-rows';
@@ -157,7 +158,7 @@ export default function PayableDetailPage() {
         URL.revokeObjectURL(url);
       }
     } catch (err) {
-      showToast({ kind: 'error', message: (err as Error).message || 'Lỗi xuất sao kê' });
+      toastActionError(showToast, 'xuất sao kê', err, 'Lỗi xuất sao kê');
     }
   };
 
@@ -231,7 +232,7 @@ export default function PayableDetailPage() {
           await handlePaymentSubmit(true);
         }
       } else {
-        showToast({ kind: 'error', message: (err as Error).message || 'Lỗi ghi thanh toán' });
+        toastActionError(showToast, 'ghi thanh toán', err, 'Lỗi ghi thanh toán');
       }
     } finally {
       setSubmitting(false);

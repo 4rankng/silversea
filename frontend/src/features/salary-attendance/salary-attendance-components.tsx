@@ -9,6 +9,7 @@ import type {
   SalaryPeriodAdjustmentItem,
 } from '../../api/salaryClient';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { UuiSelectField } from '../../design-system';
 import { DOW_LABELS, STATUS_CONFIG } from './salary-attendance-constants';
@@ -460,8 +461,7 @@ export function DriverPayoutModal({
           onClose();
         },
         onError: (err) => {
-          const msg = (err as Error)?.message ?? 'Không thể ghi thanh toán.';
-          toast({ kind: 'error', message: msg });
+          toastActionError(toast, 'ghi thanh toán lương cho lái xe', err, 'Không thể ghi thanh toán.');
         },
       },
     );

@@ -17,6 +17,7 @@ import { getProfitPreviewEmptyMessage } from '../lib/profit-preview';
 import { Money } from '../components/shared/Money';
 import { useCapTable, useDashboardWidgets, useDistributionHistory, usePnlReport } from '../hooks/useQueries';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError, toastBackgroundError } from '../lib/api/action-error';
 import { useMonth } from '../hooks/useMonth';
 import { usePageAnimations, useCounterAnimation } from '../hooks/animations';
 import type { TruckCapRole } from '@tingting/shared';
@@ -113,7 +114,7 @@ export default function ProfitPage() {
       });
       setPreview(res);
     } catch (err) {
-      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Lỗi khi xem trước phân phối.' });
+      toastActionError(showToast, 'xem trước phân phối', err, 'Lỗi khi xem trước phân phối.');
     } finally {
       setPreviewing(false);
     }
@@ -134,7 +135,9 @@ export default function ProfitPage() {
         if (active) setPreview(res);
       } catch (err) {
         if (active) {
-          showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Lỗi khi xem trước phân phối.' });
+          // Card 20261008_6: the auto-preview runs without a user gesture —
+          // background policy only (no named permission toast, abort silent).
+          toastBackgroundError(showToast, err, 'Lỗi khi xem trước phân phối.');
         }
       } finally {
         if (active) setPreviewing(false);
@@ -165,7 +168,7 @@ export default function ProfitPage() {
       void refetchHistory();
       showToast({ kind: 'success', message: 'Đã phân bổ lợi nhuận.' });
     } catch (err) {
-      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Lỗi khi phân bổ lợi nhuận.' });
+      toastActionError(showToast, 'phân bổ lợi nhuận', err, 'Lỗi khi phân bổ lợi nhuận.');
     } finally {
       setDistributing(false);
     }

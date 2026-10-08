@@ -14,6 +14,7 @@ import {
 import { completeDispatchExternalTrip } from '../../../api/dispatchPlanningClient';
 import { ConfirmDialog } from '../../../components/UI';
 import { useToast } from '../../../components/shared/Toast';
+import { toastActionError } from '../../../lib/api/action-error';
 import { CusContainerAddRow, EMPTY_ADD_FIELDS, type AddContainerFields } from './CusContainerAddRow';
 import {
   idempotencySignature,
@@ -206,7 +207,7 @@ export function ContainerLedger({
       await onLineSaved(null);
       onExternalTripCompleted?.();
     } catch (error) {
-      toast({ kind: 'error', message: safeError(error, 'Không xóa được container.') });
+      toastActionError(toast, 'xóa container', error, 'Không xóa được container.');
     } finally {
       setRemovingId(null);
     }
@@ -288,7 +289,7 @@ export function ContainerLedger({
       setCompletingLine(null);
       onExternalTripCompleted?.();
     } catch (error) {
-      toast({ kind: 'error', message: safeError(error, 'Không thể hoàn thành chuyến xe ngoài.') });
+      toastActionError(toast, 'hoàn thành chuyến xe ngoài', error, 'Không thể hoàn thành chuyến xe ngoài.');
     } finally {
       setCompleting(false);
     }
@@ -363,7 +364,7 @@ export function ContainerLedger({
       toast({ kind: 'success', message: 'Cập nhật dữ liệu container thành công!' });
       return true;
     } catch (error) {
-      toast({ kind: 'error', message: safeError(error, 'Không thể lưu dữ liệu container.') });
+      toastActionError(toast, 'lưu dữ liệu container', error, 'Không thể lưu dữ liệu container.');
       return false;
     } finally {
       setSaving(false);
@@ -414,7 +415,7 @@ export function ContainerLedger({
       toast({ kind: 'success', message: 'Đã lưu giờ hẹn.' });
       saved = true;
     } catch (error) {
-      toast({ kind: 'error', message: safeError(error, 'Không thể lưu giờ hẹn.') });
+      toastActionError(toast, 'lưu giờ hẹn', error, 'Không thể lưu giờ hẹn.');
     } finally {
       setSaving(false);
     }

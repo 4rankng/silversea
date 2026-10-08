@@ -10,6 +10,7 @@ import {
 } from '../../hooks/useOpsQueries';
 import { opsClient } from '../../api/opsClient';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { formatMoney } from '../../lib/format';
 
 import './ops-modal.css';
@@ -48,7 +49,7 @@ export function OpsSettlementsPanel() {
       toast({ kind: 'success', message: `Đã tạo phiếu quyết toán ${created.code}.` });
       setDetailId(created.id);
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tạo phiếu thất bại.' });
+      toastActionError(toast, 'tạo phiếu quyết toán', error, 'Tạo phiếu thất bại.');
     }
   }
 
@@ -87,8 +88,8 @@ export function OpsSettlementsPanel() {
                     <button type="button" className="btn btn--secondary" onClick={() => setDetailId(item.id)}>
                       Xem
                     </button>
-                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn btn--primary" disabled={finalizeSettlement.isPending} onClick={() => void finalizeSettlement.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã ghi nhận phiếu quyết toán.' })).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được phiếu.' }))}>Hoàn tất phiếu</button>}
-                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn btn--secondary" disabled={reopenDraft.isPending} onClick={() => void reopenDraft.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã mở các khoản chi. Vào Lịch sử chi để bổ sung và lập lại phiếu.' })).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được phiếu.' }))}>Mở khoản chi để bổ sung</button>}
+                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn btn--primary" disabled={finalizeSettlement.isPending} onClick={() => void finalizeSettlement.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã ghi nhận phiếu quyết toán.' })).catch((error: unknown) => toastActionError(toast, 'ghi nhận phiếu quyết toán', error, 'Không lưu được phiếu.'))}>Hoàn tất phiếu</button>}
+                    {(item.status === 'DRAFT' || item.status === 'PENDING') && <button type="button" className="btn btn--secondary" disabled={reopenDraft.isPending} onClick={() => void reopenDraft.mutateAsync(item.id).then(() => toast({ kind: 'success', message: 'Đã mở các khoản chi. Vào Lịch sử chi để bổ sung và lập lại phiếu.' })).catch((error: unknown) => toastActionError(toast, 'mở lại phiếu quyết toán', error, 'Không lưu được phiếu.'))}>Mở khoản chi để bổ sung</button>}
                   </td>
                 </tr>
               );
@@ -113,10 +114,7 @@ export function OpsSettlementsPanel() {
                   disabled={!detail.data}
                   onClick={() => detail.data && void opsClient
                     .downloadSettlementExport(detailId, detail.data.settlement.code)
-                    .catch((error: unknown) => toast({
-                      kind: 'error',
-                      message: error instanceof Error ? error.message : 'Tải Excel thất bại.',
-                    }))}
+                    .catch((error: unknown) => toastActionError(toast, 'tải Excel phiếu quyết toán', error, 'Tải Excel thất bại.'))}
                 >
                   <Download size={14} /> Excel
                 </button>

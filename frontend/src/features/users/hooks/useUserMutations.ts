@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Role } from '@tingting/shared';
 import { userClient } from '../../../api/userClient';
 import { useToast } from '../../../components/shared/Toast';
+import { toastActionError } from '../../../lib/api/action-error';
 import { useConfirm } from '../../../components/UI';
 import type { CreateData, EditData } from '../utils';
 
@@ -100,7 +101,7 @@ export function useUserMutations(refetch: () => void) {
       await userClient.deleteUser(id);
       refetch();
     } catch (e: unknown) {
-      showToast({ kind: 'error', message: e instanceof Error ? e.message : 'Lỗi khi xóa' });
+      toastActionError(showToast, 'xóa tài khoản', e, 'Lỗi khi xóa');
     } finally {
       setDeleting(null);
     }

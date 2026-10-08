@@ -8,6 +8,7 @@ import { updateShipment } from '../api/shipmentClient';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError } from '../lib/api/action-error';
 import { DisabledActionTip } from '../components/shared/DisabledActionTip';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import { useDispatchMasterPlan } from '../features/dispatch/master-plan/useDispatchMasterPlan';
@@ -58,13 +59,13 @@ export default function MasterPlanPage() {
       // Keep the server's own reason (the dispatcher intake-stage gate, a
       // version conflict, …): ApiError.message is already the output of the
       // shared Vietnamese formatter (lib/api/errors.ts), so surface it as-is
-      // and fall back only when the failure carries no message.
-      toast({
-        kind: 'error',
-        message: error instanceof ApiError && error.message
-          ? error.message
-          : 'Không lưu được ghi chú điều phối. Vui lòng thử lại.',
-      });
+      // and fall back only when the failure carries no message. Card
+      // 20261008_6: the policy gates denial/abort first; `describe` keeps
+      // this site's ApiError-only passthrough (validation messages verbatim,
+      // generic throwables down to the fallback).
+      const fallback = 'Không lưu được ghi chú điều phối. Vui lòng thử lại.';
+      toastActionError(toast, 'lưu ghi chú điều phối', error, fallback,
+        (e) => (e instanceof ApiError && e.message ? e.message : fallback));
       // The editor awaits this rejection to retain its draft for a retry.
       throw error;
     }

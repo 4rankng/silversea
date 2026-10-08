@@ -16,6 +16,7 @@ import { Tooltip } from '../components/shared/Tooltip';
 import AssetIcon from '../components/AssetIcon';
 import BillingDocumentsPanel from '../components/billing/BillingDocumentsPanel';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError } from '../lib/api/action-error';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -138,7 +139,7 @@ export default function DebtDetailPage() {
         URL.revokeObjectURL(url);
       }
     } catch (err) {
-      showToast({ kind: 'error', message: (err as Error).message || 'Lỗi xuất sao kê' });
+      toastActionError(showToast, 'xuất sao kê', err, 'Lỗi xuất sao kê');
     }
   };
 

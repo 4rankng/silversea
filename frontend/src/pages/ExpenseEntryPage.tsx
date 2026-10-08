@@ -9,6 +9,7 @@ import { useCatalogs } from '../hooks/useCatalogs';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError } from '../lib/api/action-error';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../hooks/animations';
 import { FINANCIAL, CONFIG, expenseSchema } from '@tingting/shared';
@@ -111,7 +112,7 @@ export default function ExpenseEntryPage() {
       toast({ kind: 'success', message: 'Đã xóa phiếu chi (lưu lý do).' });
       navigate('/expenses');
     } catch (e) {
-      toast({ kind: 'error', message: e instanceof Error ? e.message : 'Không xóa được phiếu chi. Vui lòng thử lại.' });
+      toastActionError(toast, 'xóa phiếu chi', e, 'Không xóa được phiếu chi. Vui lòng thử lại.');
     } finally {
       setDeletingVoucher(false);
     }
@@ -181,7 +182,7 @@ export default function ExpenseEntryPage() {
       setNewSupplierName('');
       toast({ kind: 'success', message: `Đã tạo nhà cung cấp "${created.name}".` });
     } catch (e: unknown) {
-      toast({ kind: 'error', message: e instanceof Error ? e.message : 'Lỗi tạo nhà cung cấp' });
+      toastActionError(toast, 'tạo nhà cung cấp', e, 'Lỗi tạo nhà cung cấp');
     } finally {
       setCreatingSupplier(false);
     }
@@ -209,7 +210,7 @@ export default function ExpenseEntryPage() {
       setNewCategoryName('');
       toast({ kind: 'success', message: `Đã tạo hạng mục "${created.name}".` });
     } catch (e: unknown) {
-      toast({ kind: 'error', message: e instanceof Error ? e.message : 'Lỗi tạo hạng mục' });
+      toastActionError(toast, 'tạo hạng mục', e, 'Lỗi tạo hạng mục');
     } finally {
       setCreatingCategory(false);
     }

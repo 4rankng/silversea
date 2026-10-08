@@ -3,6 +3,7 @@ import { tripClient } from '../../api/tripClient';
 import type { OpsExpenseRow } from '../../api/opsClient';
 import { Btn } from '../../components/UI';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { Modal, NumberField } from '../../design-system';
 import { useInvalidateOps } from '../../hooks/useOpsQueries';
 import { opsBillReference } from './opsStatus';
@@ -36,7 +37,7 @@ export function OpsLegacyExpenseEditModal({ entry, onClose }: { entry: OpsExpens
       toast({ kind: 'success', message: 'Đã cập nhật khoản chi.' });
       onClose();
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được thay đổi.' });
+      toastActionError(toast, 'cập nhật khoản chi', error, 'Không lưu được thay đổi.');
     } finally {
       setSaving(false);
     }

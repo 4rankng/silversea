@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Filter, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { useToast } from '../shared/Toast';
+import { toastActionError, toastBackgroundError } from '../../lib/api/action-error';
 import { AssetIcon } from '../AssetIcon';
 import { api } from '../../lib/api';
 import { formatCurrency } from '../../lib/format';
@@ -168,7 +169,15 @@ export default function BillingDocumentBuilder({
         showToast({ kind: 'info', message: 'Không có dòng công nợ trong khoảng ngày đã chọn.' });
       }
     } catch (err) {
-      showToast({ kind: 'error', message: (err as Error).message || 'Lỗi lọc dòng' });
+      // Dual-use catch (card 20261008_6): the button click is a user action and
+      // gets the named-action policy; the once-per-open auto-run (silent) is
+      // not, so it may only show the degrade fallback — never a permission
+      // toast, never an abort toast.
+      if (silent) {
+        toastBackgroundError(showToast, err, 'Lỗi lọc dòng');
+      } else {
+        toastActionError(showToast, 'lọc dòng công nợ', err, 'Lỗi lọc dòng');
+      }
     } finally {
       setLoading(false);
     }
@@ -302,7 +311,7 @@ export default function BillingDocumentBuilder({
       onSaved?.();
       return saved;
     } catch (err) {
-      showToast({ kind: 'error', message: (err as Error).message || 'Lỗi lưu tài liệu' });
+      toastActionError(showToast, 'lưu tài liệu', err, 'Lỗi lưu tài liệu');
       return null;
     } finally {
       setSaving(false);
@@ -325,7 +334,7 @@ export default function BillingDocumentBuilder({
       URL.revokeObjectURL(url);
       showToast({ kind: 'success', message: 'Đã lưu và xuất Excel.' });
     } catch (err) {
-      showToast({ kind: 'error', message: (err as Error).message || 'Lỗi xuất Excel' });
+      toastActionError(showToast, 'xuất Excel', err, 'Lỗi xuất Excel');
     } finally {
       setExporting(false);
     }

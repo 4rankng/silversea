@@ -20,6 +20,7 @@ import type {
 } from '../../api/salaryClient';
 import { useMonth } from '../../hooks/useMonth';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
@@ -144,8 +145,7 @@ export function useSalaryAttendancePage(searchTerm: string) {
       const label = STATUS_CONFIG[effectiveStatus]?.label ?? 'Đã cập nhật';
       toast({ kind: 'success', message: `Đã lưu: ${label}` });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Không thể cập nhật ngày công.';
-      toast({ kind: 'error', message: msg });
+      toastActionError(toast, 'cập nhật ngày công', err, 'Không thể cập nhật ngày công.');
     }
   }, [selectedDriverId, updateMutation, workdayEditLocked, toast]);
 

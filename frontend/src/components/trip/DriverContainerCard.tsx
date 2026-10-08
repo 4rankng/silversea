@@ -4,6 +4,7 @@ import { api, fileCommandFingerprint } from '../../lib/api';
 import { formatNumber } from '../../lib/format';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useToast } from '../shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import { PhotoViewer } from '../PhotoViewer';
 import { AuthedPhotoImg, renderThumb } from './DriverTripPhotos';
@@ -212,7 +213,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
       toast({ kind: 'success', message: type === 'CONTAINER' ? 'Đã xóa ảnh cont.' : 'Đã xóa ảnh seal.' });
       onSaved();
     } catch (e) {
-      toast({ kind: 'error', message: e instanceof Error ? e.message : 'Không xóa được ảnh.' });
+      toastActionError(toast, 'xóa ảnh cont hoặc seal', e, 'Không xóa được ảnh.');
     } finally {
       setRemovingPhoto(null);
     }
@@ -238,7 +239,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
       toast({ kind: 'success', message: 'Đã lưu ảnh biên bản giao hàng.' });
       onSaved();
     } catch (e) {
-      toast({ kind: 'error', message: e instanceof Error ? e.message : 'Không tải được ảnh biên bản.' });
+      toastActionError(toast, 'tải ảnh biên bản', e, 'Không tải được ảnh biên bản.');
     } finally {
       setUploadingNote(false);
     }
@@ -260,7 +261,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
       toast({ kind: 'success', message: 'Đã xóa ảnh biên bản.' });
       onSaved();
     } catch (e) {
-      toast({ kind: 'error', message: e instanceof Error ? e.message : 'Không xóa được ảnh biên bản.' });
+      toastActionError(toast, 'xóa ảnh biên bản', e, 'Không xóa được ảnh biên bản.');
     } finally {
       setRemovingNote(null);
     }

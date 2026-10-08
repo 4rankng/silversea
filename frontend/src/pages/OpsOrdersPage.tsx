@@ -10,6 +10,7 @@ import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 import { BufferedUuiDateInput, FilterBar } from '../design-system';
 import { formatDate } from '../lib/format';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError } from '../lib/api/action-error';
 
 /**
  * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty theo ngày giao
@@ -61,7 +62,7 @@ export default function OpsOrdersPage() {
       await togglePin.mutateAsync({ shipmentId: order.id, pinned: !order.pinned });
     } catch (error) {
       if (current) queryClient.setQueryData(cacheKey, current);
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không lưu được ghim. Vui lòng thử lại.' });
+      toastActionError(toast, 'ghim lệnh', error, 'Không lưu được ghim. Vui lòng thử lại.');
     } finally {
       pinSavingRef.current = false;
       setPendingPinId(null);

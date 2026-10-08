@@ -3,10 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { invalidateAllCatalogs } from '../api/keys';
 import { useToast } from '../components/shared/Toast';
-
-function getErrorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : 'Unknown error';
-}
+import { actionErrorMessage } from '../lib/api/action-error';
 
 type CrudMutationKind = 'create' | 'update' | 'delete';
 
@@ -65,11 +62,13 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       await refreshAll();
       handleMutationSuccess('create');
     } catch (e: unknown) {
-      const message = getErrorMessage(e) || 'Lỗi lưu';
-      setError(message);
-      // Card _11: a failed mutation must never be silent — the in-modal
-      // alert alone disappears with the dialog; the toast survives it.
-      toast({ kind: 'error', message });
+      const message = actionErrorMessage('thêm cấu hình', e, 'Lỗi lưu');
+      if (message !== null) {
+        setError(message);
+        // Card _11: a failed mutation must never be silent — the in-modal
+        // alert alone disappears with the dialog; the toast survives it.
+        toast({ kind: 'error', message });
+      }
     } finally { setSaving(false); }
   }, [apiPath, handleMutationSuccess, refreshAll, toast]);
 
@@ -84,9 +83,11 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       await refreshAll();
       handleMutationSuccess('update');
     } catch (e: unknown) {
-      const message = getErrorMessage(e) || 'Lỗi cập nhật';
-      setError(message);
-      toast({ kind: 'error', message });
+      const message = actionErrorMessage('cập nhật cấu hình', e, 'Lỗi cập nhật');
+      if (message !== null) {
+        setError(message);
+        toast({ kind: 'error', message });
+      }
     } finally { setSaving(false); }
   }, [apiPath, handleMutationSuccess, refreshAll, toast]);
 
@@ -97,9 +98,11 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
       await refreshAll();
       handleMutationSuccess('delete');
     } catch (e: unknown) {
-      const message = getErrorMessage(e) || 'Lỗi xóa';
-      setError(message);
-      toast({ kind: 'error', message });
+      const message = actionErrorMessage('xóa cấu hình', e, 'Lỗi xóa');
+      if (message !== null) {
+        setError(message);
+        toast({ kind: 'error', message });
+      }
     } finally { setDeleting(null); }
   }, [apiPath, handleMutationSuccess, refreshAll, toast]);
 

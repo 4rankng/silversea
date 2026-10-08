@@ -7,6 +7,7 @@ import {
 } from '../../hooks/useOpsQueries';
 import { opsClient } from '../../api/opsClient';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsSettlementSheet } from './OpsSettlementsPanel';
 import { useAdminOpsSettlement } from '../../hooks/useOpsQueries';
@@ -139,10 +140,7 @@ export function OpsAccountantTab() {
                   className="btn btn--secondary"
                   onClick={() => void opsClient
                     .downloadSettlementExport(detail.settlement.id, detail.settlement.code, true)
-                    .catch((error: unknown) => toast({
-                      kind: 'error',
-                      message: error instanceof Error ? error.message : 'Tải Excel thất bại.',
-                    }))}
+                    .catch((error: unknown) => toastActionError(toast, 'tải Excel phiếu quyết toán', error, 'Tải Excel thất bại.'))}
                 >
                   Excel
                 </button>}

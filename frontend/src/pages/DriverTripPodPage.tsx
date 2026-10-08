@@ -36,6 +36,7 @@ import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } fro
 import { qk } from '../api/keys';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError } from '../lib/api/action-error';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { podCompleteCtaLabel } from '../features/driver/driver-trip-model';
 import './DriverTripDetailPage.css';
@@ -223,10 +224,7 @@ export function DriverTripPodPage() {
       toast({ kind: 'success', message: 'Đã lưu chứng từ giao hàng.' });
       return true;
     } catch (error) {
-      toast({
-        kind: 'error',
-        message: error instanceof Error ? error.message : 'Không thể gửi e-POD. Vui lòng thử lại.',
-      });
+      toastActionError(toast, 'gửi chứng từ e-POD', error, 'Không thể gửi e-POD. Vui lòng thử lại.');
       return false;
     } finally {
       setSubmitting(false);
@@ -265,10 +263,7 @@ export function DriverTripPodPage() {
       toast({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
       navigate('/my-trips', { replace: true });
     } catch (error) {
-      toast({
-        kind: 'error',
-        message: error instanceof Error ? error.message : 'Không thể hoàn thành chuyến. Vui lòng thử lại.',
-      });
+      toastActionError(toast, 'hoàn thành chuyến', error, 'Không thể hoàn thành chuyến. Vui lòng thử lại.');
     } finally {
       setCompleting(false);
     }

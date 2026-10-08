@@ -6,6 +6,7 @@ import { ConfirmDialog } from "../components/UI";
 import { StatusSwatch } from "../components/shared/StatusStrip";
 import { useToast } from "../components/shared/Toast";
 import { formatErrorMessage } from "../lib/api";
+import { toastActionError } from "../lib/api/action-error";
 import { routes } from "../lib/routes";
 import { useBackShortcut } from "../hooks/useBackShortcut";
 import { buildPositionLabels, buildUsedPositionLabels, normalizedCatalogLabel, todayISO } from "../features/tires/tireUtils";
@@ -151,7 +152,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
       await deleteMut.mutateAsync(target.id);
       toast({ kind: "success", message: "Đã xóa lốp." });
     } catch (err) {
-      toast({ kind: "error", message: formatErrorMessage(err) });
+      toastActionError(toast, "xóa lốp", err, "Lỗi không xác định", formatErrorMessage);
     }
   };
 
@@ -195,7 +196,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
                 });
                 toast({ kind: "success", message: "Đã thêm lốp thành công" });
               } catch (err) {
-                toast({ kind: "error", message: formatErrorMessage(err) });
+                toastActionError(toast, "thêm lốp", err, "Lỗi không xác định", formatErrorMessage);
                 throw err;
               }
             }}
@@ -254,7 +255,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
               toast({ kind: "success", message: "Cập nhật lốp thành công" });
               setEditingTire(null);
             } catch (err) {
-              toast({ kind: "error", message: formatErrorMessage(err) });
+              toastActionError(toast, "cập nhật lốp", err, "Lỗi không xác định", formatErrorMessage);
               throw err;
             }
           }}
@@ -273,7 +274,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
               toast({ kind: "success", message: "Đã tháo lốp về kho" });
               setUnmountTarget(null);
             } catch (err) {
-              toast({ kind: "error", message: formatErrorMessage(err) });
+              toastActionError(toast, "tháo lốp", err, "Lỗi không xác định", formatErrorMessage);
             }
           }}
           ondispose={async (id, reason) => {
@@ -282,7 +283,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
               toast({ kind: "success", message: "Đã thanh lý lốp" });
               setUnmountTarget(null);
             } catch (err) {
-              toast({ kind: "error", message: formatErrorMessage(err) });
+              toastActionError(toast, "thanh lý lốp", err, "Lỗi không xác định", formatErrorMessage);
             }
           }}
         />
@@ -310,7 +311,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
               toast({ kind: "success", message: "Lắp lốp thành công" });
               setInstallTarget(null);
             } catch (err) {
-              toast({ kind: "error", message: formatErrorMessage(err) });
+              toastActionError(toast, "lắp lốp", err, "Lỗi không xác định", formatErrorMessage);
             }
           }}
         />
@@ -337,7 +338,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
               toast({ kind: "success", message: "Điều chuyển lốp thành công" });
               setTransferTarget(null);
             } catch (err) {
-              toast({ kind: "error", message: formatErrorMessage(err) });
+              toastActionError(toast, "điều chuyển lốp", err, "Lỗi không xác định", formatErrorMessage);
             }
           }}
         />

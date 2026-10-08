@@ -5,6 +5,7 @@ import { Loader2, Plus, Star, Trash2 } from 'lucide-react';
 import { AssetIcon } from '../../components/AssetIcon';
 import { PageHeader, useConfirm } from '../../components/UI';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { usePageAnimations } from '../../hooks/animations';
@@ -46,7 +47,7 @@ export default function DebitNoteTemplatesConfigPage() {
       });
       await refetch();
     } catch (err) {
-      toast({ kind: 'error', message: (err as Error).message || 'Không xoá được mẫu.' });
+      toastActionError(toast, 'xóa mẫu giấy báo nợ', err, 'Không xoá được mẫu.');
     }
   };
 

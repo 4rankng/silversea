@@ -7,6 +7,7 @@ import { opsClient, type OpsExpenseRow } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { NumberField } from '../../design-system/forms/NumberField';
@@ -108,7 +109,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
         remaining.shift(); setPendingFiles([...remaining]);
       }
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tải ảnh thất bại. Ảnh chưa tải vẫn được giữ để thử lại.' });
+      toastActionError(toast, 'tải ảnh', error, 'Tải ảnh thất bại. Ảnh chưa tải vẫn được giữ để thử lại.');
     } finally {
       setUploadingPhoto(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -135,7 +136,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
       toast({ kind: 'success', message: 'Đã cập nhật khoản chi.' });
       onClose();
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Cập nhật thất bại.' });
+      toastActionError(toast, 'cập nhật khoản chi', error, 'Cập nhật thất bại.');
     } finally {
       savingRef.current = false;
     }
@@ -221,7 +222,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
                   <li key={photo.storageKey}>
                     <PhotoImage src={serverPhotoUrls[photoIndex]} alt="Biên lai khoản chi" />
                     {/* Business key + position — never the DB row id (internal-ids law). */}
-                    <button type="button" aria-label={`Xóa ảnh biên lai ${opsBillReference(entry.billRef)} · ảnh ${photoIndex + 1}`} disabled={locked || deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được ảnh.' }))}><Trash2 size={14} /></button>
+                    <button type="button" aria-label={`Xóa ảnh biên lai ${opsBillReference(entry.billRef)} · ảnh ${photoIndex + 1}`} disabled={locked || deletePhoto.isPending} onClick={() => void deletePhoto.mutateAsync(photo.id).catch((error: unknown) => toastActionError(toast, 'xóa ảnh biên lai', error, 'Không xóa được ảnh.'))}><Trash2 size={14} /></button>
                   </li>
                 ))}
               </ul>

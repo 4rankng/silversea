@@ -22,6 +22,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { Alert } from '../../components/shared/Alert';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { usePageAnimations } from '../../hooks/animations';
@@ -163,7 +164,7 @@ export default function TruckOwnersConfigPage() {
       setShowAddForm(false);
       await refresh();
     } catch (e) {
-      showToast({ kind: 'error', message: e instanceof Error ? e.message : 'Lỗi lưu' });
+      toastActionError(showToast, 'thêm đối tác sở hữu', e, 'Lỗi lưu');
     } finally {
       setSaving(false);
     }
@@ -176,7 +177,7 @@ export default function TruckOwnersConfigPage() {
       setEditingId(null);
       await refresh();
     } catch (e) {
-      showToast({ kind: 'error', message: e instanceof Error ? e.message : 'Lỗi cập nhật' });
+      toastActionError(showToast, 'cập nhật đối tác sở hữu', e, 'Lỗi cập nhật');
     } finally {
       setSaving(false);
     }
@@ -190,7 +191,7 @@ export default function TruckOwnersConfigPage() {
       // Invalidate catalog caches so distribution preview picks up the change.
       await queryClient.invalidateQueries({ queryKey: qk.dashboard.distributionHistory });
     } catch (e) {
-      showToast({ kind: 'error', message: e instanceof Error ? e.message : 'Lỗi xóa' });
+      toastActionError(showToast, 'xóa đối tác sở hữu', e, 'Lỗi xóa');
     }
   };
 

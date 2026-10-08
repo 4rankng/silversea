@@ -19,6 +19,7 @@ import { DOW_LABELS, STATUS_CONFIG } from '../features/salary-attendance/salary-
 import './SalaryAttendancePage.css';
 import { useSalaryAttendancePage } from '../features/salary-attendance/useSalaryAttendancePage';
 import { BaseSalaryEditModal } from '../features/salary-attendance/base-salary-edit-modal';
+import { toastActionError } from '../lib/api/action-error';
 
 export default function SalaryAttendancePage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -222,10 +223,7 @@ export default function SalaryAttendancePage() {
                                 });
                               },
                               onError: (err: unknown) => {
-                                toast({
-                                  kind: 'error',
-                                  message: (err as Error)?.message || 'Không thể chốt toàn kỳ lương.',
-                                });
+                                toastActionError(toast, 'chốt kỳ lương', err, 'Không thể chốt toàn kỳ lương.');
                               },
                             });
                           }}
@@ -250,10 +248,7 @@ export default function SalaryAttendancePage() {
                                   });
                                 },
                                 onError: (err: unknown) => {
-                                  toast({
-                                    kind: 'error',
-                                    message: (err as Error)?.message || 'Không thể phát hành phiếu lương.',
-                                  });
+                                  toastActionError(toast, 'phát hành phiếu lương', err, 'Không thể phát hành phiếu lương.');
                                 },
                               },
                             );
@@ -280,10 +275,7 @@ export default function SalaryAttendancePage() {
                                   });
                                 },
                                 onError: (err: unknown) => {
-                                  toast({
-                                    kind: 'error',
-                                    message: (err as Error)?.message || 'Không thể đánh dấu hạch toán chính thức.',
-                                  });
+                                  toastActionError(toast, 'đánh dấu hạch toán chính thức kỳ lương', err, 'Không thể đánh dấu hạch toán chính thức.');
                                 },
                               },
                             );
@@ -342,10 +334,7 @@ export default function SalaryAttendancePage() {
                                     });
                                   },
                                   onError: (err: unknown) => {
-                                    toast({
-                                      kind: 'error',
-                                      message: (err as Error)?.message || 'Không thể mở lại kỳ lương.',
-                                    });
+                                    toastActionError(toast, 'mở lại kỳ lương', err, 'Không thể mở lại kỳ lương.');
                                   },
                                 },
                               );
@@ -437,9 +426,9 @@ export default function SalaryAttendancePage() {
 	                                        setReopenReasonError(null);
 	                                        toast({ kind: 'success', message: 'Đã mở lại bảng công và lương.' });
 	                                      },
-	                                      onError: (err: unknown) => {
-	                                        toast({ kind: 'error', message: (err as Error)?.message || 'Không thể gửi yêu cầu mở lại bảng công và lương.' });
-	                                      },
+                                      onError: (err: unknown) => {
+                                        toastActionError(toast, 'mở lại bảng công và lương', err, 'Không thể gửi yêu cầu mở lại bảng công và lương.');
+                                      },
 	                                    });
 	                                  }}
 	                                >
@@ -465,12 +454,9 @@ export default function SalaryAttendancePage() {
 	                                  onSuccess: () => {
 	                                    toast({ kind: 'success', message: 'Đã xác nhận bảng công và lương.' });
 	                                  },
-	                                  onError: (err: unknown) => {
-	                                    toast({
-	                                      kind: 'error',
-	                                      message: (err as Error)?.message || 'Không thể gửi yêu cầu xác nhận bảng công và lương.',
-	                                    });
-	                                  },
+                                  onError: (err: unknown) => {
+                                    toastActionError(toast, 'xác nhận bảng công và lương', err, 'Không thể gửi yêu cầu xác nhận bảng công và lương.');
+                                  },
 	                                });
 	                              }}
 	                            >
@@ -665,10 +651,7 @@ export default function SalaryAttendancePage() {
                 setAdjustmentModalOpen(false);
               },
               onError: (err: unknown) => {
-                toast({
-                  kind: 'error',
-                  message: (err as Error)?.message || 'Không thể tạo điều chỉnh hậu chốt.',
-                });
+                toastActionError(toast, 'tạo điều chỉnh hậu chốt', err, 'Không thể tạo điều chỉnh hậu chốt.');
               },
             },
           );

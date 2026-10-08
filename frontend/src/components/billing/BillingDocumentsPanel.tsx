@@ -3,6 +3,7 @@ import { useConfirm } from '../UI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, FileText, Download, History, Pencil, Plus, Receipt, Trash2 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { api } from '../../lib/api';
 import { formatCurrency } from '../../lib/format';
 import { financialClient } from '../../api/financialClient';
@@ -93,7 +94,7 @@ export default function BillingDocumentsPanel({
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      showToast({ kind: 'error', message: (err as Error).message || 'Lỗi xuất Excel' });
+      toastActionError(showToast, 'xuất Excel', err, 'Lỗi xuất Excel');
     }
   };
 
@@ -104,7 +105,7 @@ export default function BillingDocumentsPanel({
       showToast({ kind: 'success', message: 'Đã xóa.' });
       refresh();
     } catch (err) {
-      showToast({ kind: 'error', message: (err as Error).message || 'Lỗi xóa' });
+      toastActionError(showToast, 'xóa tài liệu', err, 'Lỗi xóa');
     }
   };
 

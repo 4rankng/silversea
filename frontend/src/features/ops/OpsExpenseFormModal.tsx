@@ -6,6 +6,7 @@ import { opsClient, type OpsOrderItem } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { useAuth } from '../../hooks/useAuth';
 import { localDateInputValue } from './opsStatus';
 import { formatMoney } from '../../lib/format';
@@ -146,7 +147,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         remaining.shift(); setPendingFiles([...remaining]);
       }
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Tải ảnh thất bại. Ảnh chưa tải vẫn được giữ để thử lại.' });
+      toastActionError(toast, 'tải ảnh', error, 'Tải ảnh thất bại. Ảnh chưa tải vẫn được giữ để thử lại.');
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -172,7 +173,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       toast({ kind: 'success', message: 'Đã ghi nhận khoản chi.' });
       onClose();
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Lưu khoản chi thất bại.' });
+      toastActionError(toast, 'lưu khoản chi', error, 'Lưu khoản chi thất bại.');
     } finally {
       savingRef.current = false;
     }

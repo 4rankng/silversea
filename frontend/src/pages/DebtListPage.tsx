@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency, moneyParts } from '../lib/format';
 import { api } from '../lib/api';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError } from '../lib/api/action-error';
 import { SortHeader } from '../components/shared/SortHeader';
 import {
   Users,
@@ -187,7 +188,7 @@ export default function DebtListPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      showToast({ kind: 'error', message: (err as Error).message || 'Lỗi xuất báo cáo' });
+      toastActionError(showToast, 'xuất báo cáo', err, 'Lỗi xuất báo cáo');
     } finally {
       setExporting(false);
     }

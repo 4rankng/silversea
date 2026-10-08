@@ -36,6 +36,7 @@ import { formatCurrency, formatDate } from '../lib/format';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError } from '../lib/api/action-error';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { ContainerScanner, dataUrlToFile } from '../components/shared/ContainerScanner';
 import './DriverTripDetailPage.css';
@@ -160,7 +161,7 @@ function DriverTripDetailContent() {
       } else {
         setBlockingTripCode(null);
       }
-      toast({ kind: 'error', message: msg });
+      toastActionError(toast, 'ghi nhận mốc tiến độ', error, 'Không thể gửi lệnh. Vui lòng thử lại.');
     } finally {
       setAccepting(false);
     }
@@ -186,7 +187,9 @@ function DriverTripDetailContent() {
       await refreshAll();
       toast({ kind: 'success', message: 'Đã lưu ảnh nhiên liệu. Số liệu OCR chỉ dùng để tham khảo.' });
     } catch (error) {
-      toast({ kind: 'error', message: fuelEvidenceUploadErrorMessage(error) });
+      // Card 20261008_6: policy gates denial/abort first; `describe` keeps the
+      // GPS-aware mapping (fuelEvidenceUploadErrorMessage) verbatim.
+      toastActionError(toast, 'tải ảnh chứng từ', error, 'Không thể tải ảnh nhiên liệu. Vui lòng thử lại.', fuelEvidenceUploadErrorMessage);
     } finally {
       setUploadingFuelEvidence(false);
     }

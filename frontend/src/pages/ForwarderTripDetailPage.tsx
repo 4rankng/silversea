@@ -17,6 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { forwarderClient } from '../api/forwarderClient';
 import { geotagClient } from '../api/geotagClient';
 import { useToast } from '../components/shared/Toast';
+import { toastActionError } from '../lib/api/action-error';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
@@ -133,10 +134,9 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       }
       await loadExpensePhotos(expenseId);
     } catch (error) {
-      toast({
-        kind: 'error',
-        message: expensePhotoUploadErrorMessage(error),
-      });
+      // Card 20261008_6: policy gates denial/abort first; `describe` keeps the
+      // GPS-aware mapping (expensePhotoUploadErrorMessage) verbatim.
+      toastActionError(toast, 'tải ảnh chứng từ', error, 'Không thể tải ảnh chứng từ. Vui lòng thử lại.', expensePhotoUploadErrorMessage);
     } finally {
       setUploadingExpenseId(null);
     }
@@ -188,10 +188,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripDetail(tripId) });
       toast({ kind: 'success', message: 'Máy chủ đã xác nhận giao lệnh gốc cho tài xế.' });
     } catch (error) {
-      toast({
-        kind: 'error',
-        message: error instanceof Error ? error.message : 'Không thể xác nhận giao lệnh gốc.',
-      });
+      toastActionError(toast, 'xác nhận giao lệnh gốc', error, 'Không thể xác nhận giao lệnh gốc.');
     } finally {
       setPaperOrderSubmitting(false);
     }

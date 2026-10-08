@@ -6,6 +6,7 @@ import { api, ApiError } from '../lib/api';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
 import { useToast } from '../components/shared/Toast';
+import { actionErrorMessage } from '../lib/api/action-error';
 import type { ContainerFormRow, SealFormRow } from './useTripFormState';
 import { resolveContainerCount } from './tripFormDispatchUtils';
 import type { PhotoUploadedHandler } from './useTripFormPhotos';
@@ -441,11 +442,13 @@ const handleSubmit = useCallback(
           });
         } catch (instErr) {
           console.error('Trip instructions upsert failed:', instErr);
-          const msg = instErr instanceof ApiError
-            ? `Instructions not saved: ${instErr.message}`
-            : 'Instructions not saved. Please try again.';
-          s.setError(msg);
-          showToast({ kind: 'error', message: msg });
+          const msg = actionErrorMessage('lưu hướng dẫn giao hàng', instErr,
+            'Instructions not saved. Please try again.',
+            (e) => (e instanceof ApiError ? `Instructions not saved: ${e.message}` : 'Instructions not saved. Please try again.'));
+          if (msg !== null) {
+            s.setError(msg);
+            showToast({ kind: 'error', message: msg });
+          }
           return undefined;
         }
         return existingTrip.id;
@@ -590,23 +593,24 @@ const handleSubmit = useCallback(
         });
       }
       if (isEditMode && err instanceof ApiError && err.status === 409) {
-        const msg = err.message || "Version conflict: your local data is stale. Please reload.";
-        s.setError(msg);
-        showToast({ kind: 'error', message: msg });
+        const msg = actionErrorMessage('cập nhật chuyến', err, 'Version conflict: your local data is stale. Please reload.');
+        if (msg !== null) {
+          s.setError(msg);
+          showToast({ kind: 'error', message: msg });
+        }
         throw err;
       }
-      let msg = "An error occurred. Please try again.";
-      if (err instanceof ApiError) {
-        msg = err.message;
-      } else if (err instanceof Error) {
-        msg = err.message;
+      const base = actionErrorMessage('lưu chuyến', err, 'An error occurred. Please try again.');
+      if (base !== null) {
+        // Partial-create context wraps the policy's mapped message (business
+        // key render; id never user-facing — the create response type carries
+        // only { id } (no tripCode)).
+        const msg = !isEditMode && createdTripRef.current
+          ? `Đã tạo chuyến, nhưng chưa lưu xong dữ liệu kèm theo. ${base} Bấm Lưu để tiếp tục trên chuyến này.`
+          : base;
+        s.setError(msg);
+        showToast({ kind: 'error', message: msg });
       }
-      if (!isEditMode && createdTripRef.current) {
-        // business key render; id never user-facing — the create response type carries only { id } (no tripCode)
-        msg = `Đã tạo chuyến, nhưng chưa lưu xong dữ liệu kèm theo. ${msg} Bấm Lưu để tiếp tục trên chuyến này.`;
-      }
-      s.setError(msg);
-      showToast({ kind: 'error', message: msg });
       return undefined;
     } finally {
       submittingRef.current = false;

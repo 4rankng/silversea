@@ -19,6 +19,7 @@ import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
 import { OpsLegacyExpenseEditModal } from './OpsLegacyExpenseEditModal';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { formatMoney } from '../../lib/format';
 
 import './ops-modal.css';
@@ -113,7 +114,7 @@ export function OpsExpenseHistory() {
         if (reason == null) return;
         await deleteExpense.mutateAsync({ id: row.id, reason });
       }
-    } catch (error) { toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được khoản chi. Vui lòng thử lại.' }); }
+    } catch (error) { toastActionError(toast, 'xóa khoản chi', error, 'Không xóa được khoản chi. Vui lòng thử lại.'); }
     finally { deleteLock.current = false; setDeleting(false); }
   }
 

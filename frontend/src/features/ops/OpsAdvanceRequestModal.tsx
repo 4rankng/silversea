@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { useCreateOpsAdvanceRequest } from '../../hooks/useOpsQueries';
 import { useToast } from '../../components/shared/Toast';
+import { toastActionError } from '../../lib/api/action-error';
 import { formatMoney } from '../../lib/format';
 import { NumberField } from '../../design-system/forms/NumberField';
 
@@ -31,7 +32,7 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
       toast({ kind: 'success', message: 'Đã lưu tạm ứng.' });
       onClose();
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể lưu tạm ứng.' });
+      toastActionError(toast, 'lưu tạm ứng', error, 'Không thể lưu tạm ứng.');
     } finally { saving.current = false; }
   }
 
