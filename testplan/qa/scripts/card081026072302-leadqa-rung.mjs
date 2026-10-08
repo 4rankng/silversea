@@ -8,7 +8,7 @@ const API = 'https://vantai.tingting.vip/api';
 const BASE = 'https://vantai.tingting.vip';
 const QA = '/Volumes/LexarSSD/projects/silversea-prod/qa';
 const SCOPE = '2026-10-08_card081026072302-leadqa';
-const EXPECT = 'cef4dec6';
+const EXPECT = '7db0c910';
 const LOG = [];
 const log = (step, obj) => { const e = { at: new Date().toISOString(), step, ...obj }; LOG.push(e); console.log(JSON.stringify(e)); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -33,7 +33,7 @@ try {
       await page.goto(`${BASE}/my-trips/${trip}`, { waitUntil: 'networkidle2', timeout: 90000 });
       await sleep(4000);
       const m = await page.evaluate(() => {
-        const label = [...document.querySelectorAll('h1,h2,h3,h4,div,section')].filter((e) => e.offsetParent !== null && /Chứng từ giao hàng/.test(e.textContent || '') && (e.textContent || '').length < 120)[0];
+        const label = [...document.querySelectorAll('h1,h2,h3,h4,div,section')].filter((e) => e.offsetParent !== null && /chứng từ giao hàng/i.test(e.textContent || '') && (e.textContent || '').length < 400)[0];
         if (!label) return { err: 'no card label' };
         // the closed footer body is the card's layout container
         const body = label.closest('[class*="driver-task-footer"], [class*="card"], section') ?? label.parentElement;

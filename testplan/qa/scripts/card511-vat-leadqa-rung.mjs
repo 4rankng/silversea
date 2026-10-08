@@ -8,7 +8,7 @@ const API = 'https://vantai.tingting.vip/api';
 const BASE = 'https://vantai.tingting.vip';
 const QA = '/Volumes/LexarSSD/projects/silversea-prod/qa';
 const SCOPE = '2026-10-08_card511-vat-leadqa';
-const EXPECT = 'cef4dec6';
+const EXPECT = '7db0c910';
 const LOG = [];
 const log = (step, obj) => { const e = { at: new Date().toISOString(), step, ...obj }; LOG.push(e); console.log(JSON.stringify(e)); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
