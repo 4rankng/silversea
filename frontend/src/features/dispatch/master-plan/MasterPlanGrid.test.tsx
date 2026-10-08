@@ -448,7 +448,13 @@ describe('MasterPlanGrid', () => {
     const triggers = screen.getAllByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
     expect(triggers).toHaveLength(2);
     for (const trigger of triggers) {
-      expect(trigger).toBeDisabled();
+      // Card 081026093510 sweep: the lock is aria-disabled (never the
+      // `disabled` attribute) so the reason stays reachable on hover AND
+      // keyboard focus; the guard still blocks the action.
+      expect(trigger).toHaveAttribute('aria-disabled', 'true');
+      const reasonId = trigger.getAttribute('aria-describedby');
+      expect(reasonId).toBeTruthy();
+      expect(document.getElementById(reasonId!)?.textContent).toBe('Lô chưa ở trạng thái có thể phân bổ nhà xe.');
       fireEvent.click(trigger);
     }
     expect(onAllocate).not.toHaveBeenCalled();

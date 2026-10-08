@@ -3,6 +3,7 @@ import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPl
 import { canonicalShipmentStatus, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import {
   displayNote,
   formatAppointmentGroupLine,
@@ -37,9 +38,9 @@ interface MasterPlanGridProps {
  *  canonical padded shape and the "factory · containers" line indents beneath
  *  it. No per-container appointments → ONE canonical lot-level datetime line
  *  (card 20260921_23: no more dateless "15H" fragments). */
-type ScheduleBlock = { head: string | null; sub: string | null };
+export type ScheduleBlock = { head: string | null; sub: string | null };
 
-function scheduleBlocks(item: ShipmentListItem, scheduleDate?: string | null): ScheduleBlock[] {
+export function scheduleBlocks(item: ShipmentListItem, scheduleDate?: string | null): ScheduleBlock[] {
   if (!item.appointmentGroups?.length) {
     // Lot-level fallback: the delivery date plus the close/return instant —
     // both in canonical shapes, never an hour-only fragment (card 20260921_23).
@@ -80,7 +81,7 @@ function cutoffUrgency(iso: string | null | undefined): 'none' | 'soon' | 'urgen
  * Render each type as its own operational line, while accepting summaries from
  * an older backend that still used `*` or `×` during a rolling deployment.
  */
-function formatContainerSummaryLines(summary: string | null): string[] {
+export function formatContainerSummaryLines(summary: string | null): string[] {
   // Missing cargo demand names the missing fact instead of a bare '—'
   // (design §1: empty values name the field).
   if (!summary) return ['Chưa có cont'];
@@ -127,7 +128,7 @@ function formatContainerTypeCounts(counts: ContainerTypeCounts): string {
     .join(' + ');
 }
 
-type ContainerPortGroupLine = {
+export type ContainerPortGroupLine = {
   direction: 'lift' | 'drop';
   label: 'Nâng' | 'Hạ';
   portName: string;
@@ -149,7 +150,7 @@ type ContainerPortGroupKey = string;
  * groups whose `localDate` matches are aggregated, so the cảng cells reflect
  * only the conts running on that day.
  */
-function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?: string | null): ContainerPortGroupLine[] {
+export function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?: string | null): ContainerPortGroupLine[] {
   const allGroups = item.containerPortGroups ?? [];
   const containerPortGroups = scheduleDate
     ? allGroups.filter((group) => group.localDate === scheduleDate)
@@ -203,6 +204,33 @@ function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?:
       { direction: 'drop' as const, label: 'Hạ' as const, portName: dropName, containerSummary: summary },
     ];
   });
+}
+
+/** Single-day cargo line (customer feedback L2): when a single-day filter is
+ * applied, the cargo cell shows that day's cont count merged from
+ * `appointmentGroups` instead of the master lô totals; null when the day has
+ * no groups or no parseable summary (caller falls back to the lot summary). */
+export function dayContainerSummary(item: ShipmentListItem, scheduleDate?: string | null): string | null {
+  const dayGroups = scheduleDate
+    ? (item.appointmentGroups ?? []).filter((g) => g.localDate === scheduleDate)
+    : [];
+  if (dayGroups.length === 0) return null;
+  const merged = new Map<string, number>();
+  for (const group of dayGroups) {
+    for (const piece of (group.containerSummary || '').split(/\s*\+\s*/)) {
+      const trimmed = piece.trim();
+      const match = trimmed.match(/^(\d+)\s*[x*×]\s*(.+)$/i);
+      if (match) {
+        const qty = Number(match[1]);
+        const label = match[2].trim();
+        merged.set(label, (merged.get(label) ?? 0) + qty);
+      }
+    }
+  }
+  if (merged.size === 0) return null;
+  return Array.from(merged.entries())
+    .map(([label, qty]) => `${qty} x ${label}`)
+    .join(' + ');
 }
 
 /** The statuses a DISPATCHER may write (`assertDispatcherCanMutateShipmentIntake`). */
@@ -352,40 +380,11 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa" data-label-short="Hàng">
                   <div className="master-plan-grid__cargo-content">
                     <div className="master-plan-grid__cargo-summary">
-                      {(() => {
-                        // Customer feedback L2 — when a single-day filter is
-                        // applied, show the per-day cont count from
-                        // appointmentGroups instead of the master lô totals.
-                        const dayGroups = scheduleDate
-                          ? (item.appointmentGroups ?? []).filter((g) => g.localDate === scheduleDate)
-                          : [];
-                        const daySummary = dayGroups.length > 0
-                          ? (() => {
-                              const merged = new Map<string, number>();
-                              for (const group of dayGroups) {
-                                for (const piece of (group.containerSummary || '').split(/\s*\+\s*/)) {
-                                  const trimmed = piece.trim();
-                                  const match = trimmed.match(/^(\d+)\s*[x*×]\s*(.+)$/i);
-                                  if (match) {
-                                    const qty = Number(match[1]);
-                                    const label = match[2].trim();
-                                    merged.set(label, (merged.get(label) ?? 0) + qty);
-                                  }
-                                }
-                              }
-                              if (merged.size === 0) return null;
-                              return Array.from(merged.entries())
-                                .map(([label, qty]) => `${qty} x ${label}`)
-                                .join(' + ');
-                            })()
-                          : null;
-                        const summaryToShow = daySummary ?? item.containerTypeSummary;
-                        return formatContainerSummaryLines(summaryToShow).map((summaryLine) => (
-                          <div key={summaryLine} className="master-plan-grid__line">
-                            {summaryLine}
-                          </div>
-                        ));
-                      })()}
+                      {formatContainerSummaryLines(dayContainerSummary(item, scheduleDate) ?? item.containerTypeSummary).map((summaryLine) => (
+                        <div key={summaryLine} className="master-plan-grid__line">
+                          {summaryLine}
+                        </div>
+                      ))}
                       <div className="master-plan-grid__line master-plan-grid__line--muted" data-empty={item.totalCargoWeightKg == null ? 'true' : undefined}>
                         {formatWeight(item.totalCargoWeightKg)}
                       </div>
@@ -421,17 +420,30 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     onAllocate(item, trigger);
                   }}
                 >
-                  <UUIButton
-                    size="sm"
-                    color="tertiary"
-                    noTextPadding
-                    aria-label="Chỉnh sửa phân bổ nhà xe"
-                    isDisabled={allocationLocked}
-                    className="master-plan-grid__allocation-trigger"
-                    // The press target may be button's inner text span — resolve
-                    // back to the button itself for focus restoration.
-                    onPress={(event) => onAllocate(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
+                  {/* Sweep (card 081026093510): the trigger used to disable
+                      silently. It now rides the aria-described + aria-disabled
+                      pattern (DisabledActionTip) so the lock reason is
+                      reachable on hover AND keyboard focus — `isDisabled`/the
+                      `disabled` attribute would take the button out of both. */}
+                  <DisabledActionTip
+                    id={`master-plan-allocation-${item.id}`}
+                    reason={allocationLocked ? 'Lô chưa ở trạng thái có thể phân bổ nhà xe.' : null}
                   >
+                    <UUIButton
+                      size="sm"
+                      color="tertiary"
+                      noTextPadding
+                      aria-label="Chỉnh sửa phân bổ nhà xe"
+                      aria-disabled={allocationLocked || undefined}
+                      className="master-plan-grid__allocation-trigger"
+                      // The press target may be button's inner text span — resolve
+                      // back to the button itself for focus restoration. The guard
+                      // replaces the removed `isDisabled` click block.
+                      onPress={(event) => {
+                        if (allocationLocked) return;
+                        onAllocate(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement);
+                      }}
+                    >
                     <span className="master-plan-grid__allocation-label" aria-hidden="true">Phân bổ nhà xe</span>
                     {item.carrierAllocationSummary.length > 0 ? (
                       <span className="master-plan-grid__chips">
@@ -453,7 +465,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     ) : (
                       <span className="master-plan-grid__allocation-empty">Chưa phân bổ</span>
                     )}
-                  </UUIButton>
+                    </UUIButton>
+                  </DisabledActionTip>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Ghi chú" data-label-short="Ghi chú">
                   {editingNotesId === item.id && !notesLocked ? (
@@ -488,14 +501,22 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         >
                           {savingNotes ? 'Đang lưu…' : 'Lưu'}
                         </button>
-                        <button
-                          type="button"
-                          className="master-plan-grid__notes-cancel"
-                          onClick={cancelNotesEdit}
-                          disabled={savingNotes}
+                        {/* Sweep (card 081026093510): the cancel used to disable
+                            silently while a save was in flight — same
+                            aria-described + aria-disabled explanation. */}
+                        <DisabledActionTip
+                          id={`master-plan-notes-cancel-${item.id}`}
+                          reason={savingNotes ? 'Đang lưu ghi chú — chưa hủy được.' : null}
                         >
-                          Hủy
-                        </button>
+                          <button
+                            type="button"
+                            className="master-plan-grid__notes-cancel"
+                            aria-disabled={savingNotes || undefined}
+                            onClick={() => { if (savingNotes) return; cancelNotesEdit(); }}
+                          >
+                            Hủy
+                          </button>
+                        </DisabledActionTip>
                       </div>
                     </div>
                   ) : (

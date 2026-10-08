@@ -36,6 +36,40 @@ export const EMPTY_MASTER_PLAN_FILTERS: MasterPlanFilters = {
   carrierKeys: [],
 };
 
+/** Shared list query for the master-plan board: the operational status range
+ * (READY_FOR_DISPATCH → COMPLETED — mirrors the dispatch queue / detail-plan
+ * gates so a lot never vanishes from the planning board mid-life; 2026-09-05
+ * customer report: fully completed 1-container lot missing) plus the screen's
+ * filters. The hook's page fetch and `masterPlanExport`'s all-pages walk both
+ * build their request here, so an exported worksheet can never diverge from
+ * the rows on screen. `q` is optional because the hook passes its debounced
+ * value instead of the raw `filters.q`. */
+export function masterPlanListParams(
+  filters: { q?: string } & Omit<MasterPlanFilters, 'q'>,
+  page: number,
+  limit: number,
+  includeDispatchSummary = false,
+): Parameters<typeof listShipments>[0] {
+  return {
+    status: [
+      ShipmentStatus.READY_FOR_DISPATCH,
+      ShipmentStatus.DISPATCHED,
+      ShipmentStatus.IN_TRANSIT,
+      ShipmentStatus.COMPLETED,
+    ],
+    page,
+    limit,
+    ...(filters.q ? { q: filters.q } : {}),
+    ...(filters.tradeDirection ? { tradeDirection: filters.tradeDirection } : {}),
+    ...(filters.allocationStatus ? { allocationStatus: filters.allocationStatus } : {}),
+    ...(filters.deliveryDateFrom ? { deliveryDateFrom: filters.deliveryDateFrom } : {}),
+    ...(filters.deliveryDateTo ? { deliveryDateTo: filters.deliveryDateTo } : {}),
+    ...(filters.portIds.length > 0 ? { portIds: filters.portIds } : {}),
+    ...(filters.carrierKeys.length > 0 ? { carrierKeys: filters.carrierKeys } : {}),
+    ...(includeDispatchSummary ? { includeDispatchSummary: true } : {}),
+  };
+}
+
 /**
  * Data hook for the dispatch master-plan screen ("Kế hoạch Tổng quát"):
  * the full operational range (READY_FOR_DISPATCH through COMPLETED) so a lot
@@ -102,27 +136,7 @@ export function useDispatchMasterPlan() {
     if (viewSignatureRef.current !== viewSignature) setLoading(true);
     viewSignatureRef.current = viewSignature;
     setError(null);
-    listShipments({
-      // Operational range — mirrors the dispatch queue / detail-plan gates so
-      // a lot never vanishes from the planning board mid-life (2026-09-05
-      // customer report: fully completed 1-container lot missing).
-      status: [
-        ShipmentStatus.READY_FOR_DISPATCH,
-        ShipmentStatus.DISPATCHED,
-        ShipmentStatus.IN_TRANSIT,
-        ShipmentStatus.COMPLETED,
-      ],
-      page,
-      limit: PAGE_SIZE,
-      ...(debouncedQ ? { q: debouncedQ } : {}),
-      ...(filters.tradeDirection ? { tradeDirection: filters.tradeDirection } : {}),
-      ...(filters.allocationStatus ? { allocationStatus: filters.allocationStatus } : {}),
-      ...(filters.deliveryDateFrom ? { deliveryDateFrom: filters.deliveryDateFrom } : {}),
-      ...(filters.deliveryDateTo ? { deliveryDateTo: filters.deliveryDateTo } : {}),
-      ...(filters.portIds.length > 0 ? { portIds: filters.portIds } : {}),
-      ...(filters.carrierKeys.length > 0 ? { carrierKeys: filters.carrierKeys } : {}),
-      includeDispatchSummary: true,
-    })
+    listShipments(masterPlanListParams({ ...filters, q: debouncedQ }, page, PAGE_SIZE, true))
       .then((response) => {
         if (requestIdRef.current !== requestId) return;
         setItems(response.items);

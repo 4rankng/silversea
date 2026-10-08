@@ -125,6 +125,26 @@ body [data-uui-control='button']:disabled [data-icon] {
   color: inherit;
 }
 
+/* aria-disabled look (card 081026093510): same visual state as `disabled`,
+ * but pointer + focus events stay ON — the control must remain hoverable and
+ * focusable so its DisabledActionTip explanation is reachable (the `disabled`
+ * rule above's `pointer-events: none` is exactly what made disabled actions
+ * silent). Hover repaint is pinned so the variant hovers never brighten it. */
+.btn[aria-disabled='true'],
+body [data-uui-control='button'][aria-disabled='true'],
+.btn[aria-disabled='true']:hover,
+body [data-uui-control='button'][aria-disabled='true']:hover {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--ink-3);
+  opacity: 1;
+  cursor: not-allowed;
+}
+.btn[aria-disabled='true'] [data-icon],
+body [data-uui-control='button'][aria-disabled='true'] [data-icon] {
+  color: inherit;
+}
+
 @media (max-width: 640px) {
   /* Labels keep the shared control scale while phone actions wrap naturally. */
   .btn {
