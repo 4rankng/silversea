@@ -56,10 +56,15 @@
      measures the actual glyph set. Card 20260924_10: the shared 1.8em box
      read "DD /MM/ YYYY" — 'DD' (17.47px @12px) left ~2.07px slack per side
      while 'MM' (20.47px) left 0.57px, so each slash hugged MM. Each box now
-     sizes to its own glyphs plus 0.125em slack per side (measured in
-     DateTimeSegments.styles.test.ts's header), keeping every separator
-     visually centered between its neighbors' glyphs. */
-  padding-inline: 1px;
+     sizes to its own glyphs (card 081026230520: measured at 16px Be Vietnam
+     Pro — HH 22.69, mm 28.58, DD 23.30, MM 27.30, YYYY 42.56px) plus ~2px
+     total slack, and carries NO padding: the ~1px per-side slack is the only
+     gap the separator glyphs get, so the placeholder reads "HH:mm" /
+     "DD/MM/YYYY" instead of the spaced "HH : mm" QA round 8 caught. The 0
+     must stay EXPLICIT — dropping the declaration lets InputBase's px
+     utility back in (10px per side), which squeezes the content box to a
+     few px and shaves the outer glyphs ('H'→'|', 'D'→'['). */
+  padding-inline: 0;
   text-align: center;
 }
 
@@ -76,26 +81,28 @@
   box-shadow: inset 0 -2px 0 var(--color-border-brand);
 }
 
-.date-seg-group .date-seg-wrapper .date-seg[data-seg='dd'] { width: 1.706em; }
-.date-seg-group .date-seg-wrapper .date-seg[data-seg='mm2'] { width: 1.956em; }
-.date-seg-group .date-seg-wrapper .date-seg[data-seg='yyyy'] { width: 2.91em; }
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='dd'] { width: 1.59em; }
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='mm2'] { width: 1.84em; }
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='yyyy'] { width: 2.79em; }
 /* Hours/minutes are two-glyph digits exactly like 'dd', so they carry the same
    box. They had NO width rule and fell back to the native <input> intrinsic
    width (~20ch ≈ 147px each): the time group measured ~307px, three times its
    date sibling, and pushed SplitDateTimeField's min-content to ~418px, past
    any narrow host (the CUS create-lot "Ngày giờ đóng trả" cell is ~170px, so
    the whole control was clipped by the container table's scroll box). */
-.date-seg-group .date-seg-wrapper .date-seg[data-seg='hh'] { width: 1.706em; }
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='hh'] { width: 1.55em; }
 /* 'mm' is the lowercase placeholder (minutes, kept distinct from the month
    'MM'), and lowercase m is wider than the uppercase glyphs the other boxes
-   were measured from: at 1.706em the placeholder measured 21.43px against an
-   18.47px content box, shaving the second m. 2.2em restores the same ~1.5px
-   slack per side the date boxes carry. */
-.date-seg-group .date-seg-wrapper .date-seg[data-seg='mm'] { width: 2.2em; }
+   were measured from: at 16px the 'mm' placeholder measures 28.58px, so the
+   same glyphs + ~2px slack contract gives it 1.92em. */
+.date-seg-group .date-seg-wrapper .date-seg[data-seg='mm'] { width: 1.92em; }
 
 .date-sep {
   flex: 0 0 auto;
-  margin-inline: 2px;
+  /* Card 081026230520 (FB-062): the old 2px inline margins stacked with the
+     segment slack into a ~5-6px gap per side around ':' '/' — wider than a
+     real space glyph, reading "HH : mm". The separators now sit flush at the
+     boxes' own slack; the glyphs' side bearings alone set the gap. */
   color: var(--fg-3);
   user-select: none;
 }
