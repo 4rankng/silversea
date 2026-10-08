@@ -293,7 +293,7 @@ export function TripPodSubmission({
                 </div>
                 <div className="trip-pod__state">
                   {files.length > 0 ? (
-                    <span className="trip-pod__state-ok"><CheckCircle2 size={15} /> {files.length} tệp</span>
+                    <span className="trip-pod__state-ok"><CheckCircle2 size={15} /><span className="trip-pod__state-count">{`${files.length} tệp`}</span></span>
                   ) : (
                     <span className="trip-pod__state-missing">Thiếu</span>
                   )}

@@ -177,6 +177,13 @@
   color: var(--ok);
 }
 
+/* Card 071026212510: the "N tệp" pair is one text node (template literal) and
+   never wraps — immune to flex/anonymous-item space trimming by construction.
+   Icon separation stays the gap above. */
+.trip-pod__state-count {
+  white-space: nowrap;
+}
+
 .trip-pod__state-missing {
   background: rgba(148, 163, 184, 0.16);
   color: var(--ink-3);
