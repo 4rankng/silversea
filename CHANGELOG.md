@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-09 (rạng sáng) — wave: retest round 8
+
+Prod `371f297f` → `e9339ad1` (staging-verified từng bước: `443f5c14` → `463712eb` → `e9339ad1`).
+
+### Shipped
+
+- **Placeholder ngày giờ gọn đúng format** (081026230520): ô phân đoạn đọc 'HH:mm' / 'DD/MM/YYYY' — bỏ khoảng trắng thừa quanh ':' và '/' ở đúng một chỗ dùng chung (DateTimeSegments.css), phủ mọi bề mặt dùng segmented dates (form lô, popover hẹn giờ, filter DD/MM/YYYY toàn app). Red-first + đo glyph thật. Verdict 09-25 của FB-062 bị lead thu hồi đúng luật (revocation) — placeholder-spacing đã bị phản chứng; re-verdict đi theo thẻ này.
+- **Guard chống double-booking xe phủ cả chuyến đang chạy** (081026230530): chuyến ACTIVE thiếu Giờ kết thúc từng VÔ HÌNH với guard phát lệnh/phân xe lại (đòi đủ 2 mốc giờ) — giờ chiếm xe trong 1 ca 8 giờ từ giờ chạy, đúng luật guard plan-row; cả 3 predicate đầu kéo/rơ-moóc/tài xế. Staging rung lead: tái tạo đúng kịch bản round 8 (seed occupant IN_TRANSIT thiếu end) → reassign 409 'Xe đầu kéo đã bị trùng lịch kế hoạch.', không ghi đột biến.
+- **Mọi SĐT trên app lái xe bấm gọi được** (081026230540): SĐT liên hệ trên chi tiết chuyến giờ là tel: link; 4 điểm hiển thị SĐT đi qua MỘT pattern chia sẻ TelLink (strip whitespace trong href, hiển thị giữ nguyên) — chốt luôn 2 bug tiềm ẩn href chứa khoảng trắng.
+- **Nút Xuất trên /debt + /profit có toast phản hồi** (081026230550 + đóng luôn regression FB-053 061026174602): 'Đã xuất báo cáo… ra tệp Excel.' đúng pattern /finance + /fleet/productivity — nhất quán toàn app.
+- **Ô NGÀY GIỜ ĐÓNG TRẢ mở picker từ toàn bộ thân ô** (081026230510): vùng bấm picker đã co còn ~3px (luật caret-click cố ý 20/09 + fix placeholder thu hẹp khung) — click vùng trống thân ô giờ mở 'Chọn ngày giờ' (lịch + lưới giờ); click segment vẫn là caret đúng luật owner. KHÔNG phải regression từ quét toast/date-filter — round 7 pass là may mắn trúng khung.
+- **Dọn seed QA khỏi invoice tracking** (081026230560, data staging): dòng fixture card 376 (NCC QA Lead 0510 / LEAD-QA-376-01) xóa qua API + UI verified sạch + đăng ký census. 2 tài khoản treasury ACB id 6/7 KHÔNG phải seed (tạo 29-09 bởi admin, trước wave seed) — giữ nguyên theo census của lead.
+
+### Closes & rulings
+
+- 20260925_46 (FB-062 gốc): verdict thu hồi 08/10 theo phản chứng round 8 — phần evidence 'không còn native date input' vẫn đúng; thẻ đã đóng lại trên evidence của fix.
+- Đóng nhầm-premise: 061026174601 (trần 360px topbar search là thiết kế đã QA PASS, không phải regression), 061026174602 (toast export P&L đã có từ fix lớp này — đóng theo evidence chung).
+- Còn mở (owner): wording nav 'Phơi phiếu' (072303 mục 4); 'Danh sách nhân sự' 5.10 chờ xác nhận scope (thẻ 051026231606 giữ ở LEAD/TODO); OPS không vào /fleet + /expenses là phân quyền thiết kế — mở quyền cần chỉ thị.
+
 ## 2026-10-08 (tối) — wave: fix-all take-over, retest round 7, VAT config
 
 Prod `b90beff2` → `371f297f` (staging-verified từng bước, cuối tại `371f297f`).
