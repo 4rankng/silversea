@@ -7,6 +7,7 @@ import { customerServiceFinanceClient, type ProfitabilityDimension } from '../..
 import { qk } from '../../api/keys';
 import { Pagination, SummaryRail } from '../../design-system';
 import { UuiSelectField } from '../../design-system';
+import { useToast } from '../../components/shared/Toast';
 import { ListFilterBar } from '../ListFilterBar';
 
 const DIMENSIONS: Array<{ value: ProfitabilityDimension; label: string }> = [
@@ -22,6 +23,7 @@ function calculationVersionLabel(value: string): string {
 }
 
 export function ProfitabilityReportPanel({ month, year }: { month: number; year: number }) {
+  const { toast } = useToast();
   const [dimension, setDimension] = useState<ProfitabilityDimension>('CUSTOMER');
   const [page, setPage] = useState(1);
   const [lowMarginOnly, setLowMarginOnly] = useState(false);
@@ -53,12 +55,16 @@ export function ProfitabilityReportPanel({ month, year }: { month: number; year:
       link.download = `loi-nhuan-${year}-${String(month).padStart(2, '0')}.xlsx`;
       link.click();
       URL.revokeObjectURL(url);
+      // Card 081026230550: the export stayed silent on success — every export
+      // button confirms like /finance and /fleet/productivity do. The failure
+      // path keeps the inline retry strip (setActionError) it already had.
+      toast({ kind: 'success', message: 'Đã xuất báo cáo lợi nhuận ra tệp Excel.' });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Không thể xuất báo cáo lợi nhuận.');
     } finally {
       setExporting(false);
     }
-  }, [dimension, lowMarginOnly, month, year]);
+  }, [dimension, lowMarginOnly, month, year, toast]);
   const margin = data && data.totals.revenue !== 0 ? (data.totals.profit / data.totals.revenue) * 100 : 0;
   return <section className="workflow-profitability" aria-labelledby="profitability-heading">
     <div className="workflow-profitability__head"><div><h2 id="profitability-heading">Lợi nhuận vận hành theo chiều phân tích</h2><p>Chỉ dùng các bản ghi tài chính đã chốt trong kỳ hoàn thành.</p></div></div>

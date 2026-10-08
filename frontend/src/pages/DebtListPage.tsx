@@ -187,6 +187,9 @@ export default function DebtListPage() {
       a.download = `cong-no-phai-thu-${new Date().toISOString().slice(0, 10)}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
+      // Card 081026230550: the export stayed silent on success — every export
+      // button confirms like /finance and /fleet/productivity do.
+      showToast({ kind: 'success', message: 'Đã xuất báo cáo công nợ phải thu ra tệp Excel.' });
     } catch (err) {
       toastActionError(showToast, 'xuất báo cáo', err, 'Lỗi xuất báo cáo');
     } finally {

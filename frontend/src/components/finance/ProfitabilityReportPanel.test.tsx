@@ -9,11 +9,17 @@ const { getProfitabilityMock, exportProfitabilityMock } = vi.hoisted(() => ({
   exportProfitabilityMock: vi.fn(),
 }));
 
+const toast = vi.fn();
+
 vi.mock('../../api/customerServiceFinanceClient', () => ({
   customerServiceFinanceClient: {
     getProfitability: getProfitabilityMock,
     exportProfitability: exportProfitabilityMock,
   },
+}));
+
+vi.mock('../../components/shared/Toast', () => ({
+  useToast: () => ({ toast }),
 }));
 
 function renderPanel(month: number, year: number) {
@@ -35,35 +41,39 @@ function renderPanel(month: number, year: number) {
   };
 }
 
+function reportFixture() {
+  return {
+    requestedPeriod: { month: 8, year: 2026 },
+    asOf: '2026-08-03T00:00:00.000Z',
+    definitionVersion: 'profitability-v4',
+    dimension: 'CUSTOMER', page: 1, limit: 50, totalGroups: 1, totalPages: 1,
+    items: [{
+      key: '1', label: 'Khách hàng A', attributionStatus: 'ATTRIBUTED',
+      revenue: 1_000_000, directCost: 830_000, sharedOverhead: 20_000,
+      allocatedFleetFixedCost: 20_000, profit: 150_000,
+      tripCount: 2, sourceTripIds: [101, 102], sourceTripReferences: [
+        { tripId: 101, reference: 'BL-2026-101' },
+        { tripId: 102, reference: 'BOOK-2026-102' },
+      ], marginRatio: 0.15, alertState: 'LOW_MARGIN',
+      attributionNote: 'Biên lợi nhuận gồm chi phí đội xe được phân bổ.',
+    }],
+    totals: { revenue: 1_000_000, directCost: 830_000, sharedOverhead: 20_000, profit: 150_000 },
+    lowMarginPolicy: {
+      status: 'CONFIGURED', source: 'APPROVED_GOVERNANCE', policyVersionId: 9,
+      publicVersion: 'policy-9', effectiveFrom: '2026-08-01', thresholdRatio: 0.2,
+      thresholdPercent: 20, filter: 'ALL', totals: { marginRatio: 0.15, alertState: 'LOW_MARGIN' },
+      note: 'Cảnh báo chỉ phân loại báo cáo.',
+    },
+    sourceCoverage: { snapshottedTrips: 2, pnlTrips: 2, missingAttribution: 0 },
+    reconciliation: { difference: 0, status: 'RECONCILED', note: '' },
+  };
+}
+
 describe('ProfitabilityReportPanel low-margin policy', () => {
   beforeEach(() => {
     getProfitabilityMock.mockReset();
     exportProfitabilityMock.mockReset();
-    getProfitabilityMock.mockResolvedValue({
-      requestedPeriod: { month: 8, year: 2026 },
-      asOf: '2026-08-03T00:00:00.000Z',
-      definitionVersion: 'profitability-v4',
-      dimension: 'CUSTOMER', page: 1, limit: 50, totalGroups: 1, totalPages: 1,
-      items: [{
-        key: '1', label: 'Khách hàng A', attributionStatus: 'ATTRIBUTED',
-        revenue: 1_000_000, directCost: 830_000, sharedOverhead: 20_000,
-        allocatedFleetFixedCost: 20_000, profit: 150_000,
-        tripCount: 2, sourceTripIds: [101, 102], sourceTripReferences: [
-          { tripId: 101, reference: 'BL-2026-101' },
-          { tripId: 102, reference: 'BOOK-2026-102' },
-        ], marginRatio: 0.15, alertState: 'LOW_MARGIN',
-        attributionNote: 'Biên lợi nhuận gồm chi phí đội xe được phân bổ.',
-      }],
-      totals: { revenue: 1_000_000, directCost: 830_000, sharedOverhead: 20_000, profit: 150_000 },
-      lowMarginPolicy: {
-        status: 'CONFIGURED', source: 'APPROVED_GOVERNANCE', policyVersionId: 9,
-        publicVersion: 'policy-9', effectiveFrom: '2026-08-01', thresholdRatio: 0.2,
-        thresholdPercent: 20, filter: 'ALL', totals: { marginRatio: 0.15, alertState: 'LOW_MARGIN' },
-        note: 'Cảnh báo chỉ phân loại báo cáo.',
-      },
-      sourceCoverage: { snapshottedTrips: 2, pnlTrips: 2, missingAttribution: 0 },
-      reconciliation: { difference: 0, status: 'RECONCILED', note: '' },
-    });
+    getProfitabilityMock.mockResolvedValue(reportFixture());
   });
 
   it('shows the configured threshold and requests the bounded low-margin filter', async () => {
@@ -133,5 +143,44 @@ describe('ProfitabilityReportPanel low-margin policy', () => {
 
     expect(await screen.findByLabelText('Không thể so sánh')).toHaveTextContent('—');
     expect(screen.queryByText('Không thể so sánh')).toBeNull();
+  });
+});
+
+describe('ProfitabilityReportPanel export feedback (card 081026230550)', () => {
+  beforeEach(() => {
+    getProfitabilityMock.mockReset();
+    exportProfitabilityMock.mockReset();
+    toast.mockReset();
+    window.URL.createObjectURL = vi.fn(() => 'blob:export-profit');
+    window.URL.revokeObjectURL = vi.fn();
+  });
+
+  it('toasts the house success copy once the XLSX downloads', async () => {
+    getProfitabilityMock.mockResolvedValue(reportFixture());
+    exportProfitabilityMock.mockResolvedValue(new Blob(['profit']));
+
+    renderPanel(8, 2026);
+    await screen.findByText('Khách hàng A');
+    const button = await screen.findByRole('button', { name: /Xuất XLSX/ });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(button);
+    await waitFor(() => expect(toast).toHaveBeenCalledWith({
+      kind: 'success',
+      message: 'Đã xuất báo cáo lợi nhuận ra tệp Excel.',
+    }));
+    expect(exportProfitabilityMock).toHaveBeenCalledWith({ month: 8, year: 2026, dimension: 'CUSTOMER', lowMarginOnly: false });
+  });
+
+  it('keeps the inline retry strip as the failure feedback instead of a success toast', async () => {
+    getProfitabilityMock.mockResolvedValue(reportFixture());
+    exportProfitabilityMock.mockRejectedValue(new Error('máy chủ bận'));
+
+    renderPanel(8, 2026);
+    await screen.findByText('Khách hàng A');
+    const button = await screen.findByRole('button', { name: /Xuất XLSX/ });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(button);
+    expect(await screen.findByRole('alert')).toHaveTextContent('máy chủ bận');
+    expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' }));
   });
 });
