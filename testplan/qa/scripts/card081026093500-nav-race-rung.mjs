@@ -40,6 +40,36 @@ try {
 
   // Tap by visible nav label, then hit-test before clicking — a stale hit test
   // is its own false positive and has burned this project before.
+  // The sidebar ships COLLAPSED: every nav item lives inside a
+  // <button class="sidebar-section-label" aria-expanded="false">, so a fresh
+  // session exposes zero item links. Expand all sections before tapping, with
+  // real taps — this is exactly why the earlier version of this rung found
+  // nothing to click and silently reported nothing.
+  const expanded = await page.evaluate(() => {
+    const heads = [...document.querySelectorAll('.sidebar-section-label')];
+    return heads.map((h) => ({ t: (h.textContent || '').trim(), x: null }));
+  });
+  log('sidebar-sections', { count: expanded.length, labels: expanded.map((e) => e.t) });
+  for (let i = 0; i < expanded.length; i++) {
+    const b = await page.evaluate((idx) => {
+      const h = [...document.querySelectorAll('.sidebar-section-label')][idx];
+      if (!h || h.getAttribute('aria-expanded') === 'true') return null;
+      const r = h.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }, i);
+    if (!b) continue;
+    await page.mouse.move(b.x, b.y);
+    await page.mouse.down();
+    await page.mouse.up();
+    await sleep(120);
+  }
+  const afterExpand = await page.evaluate(() => ({
+    navLinks: document.querySelectorAll('.sidebar a[href]').length,
+    expanded: [...document.querySelectorAll('.sidebar-section-label')].filter((h) => h.getAttribute('aria-expanded') === 'true').length,
+  }));
+  log('after-expand', afterExpand);
+  if (afterExpand.navLinks === 0) { log('FATAL', 'still no nav links after expanding every section'); failures++; }
+
   const tapNav = async (label) => {
     const box = await page.evaluate((lbl) => {
       const el = [...document.querySelectorAll('a,button')]
