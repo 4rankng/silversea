@@ -17,7 +17,7 @@ function listResponse(total: number): ShipmentCusWorkspaceListResponse {
     items: [],
     total,
     totalPages: 1,
-    pageSummary: { needsSchedule: 0, needsVehicle: 0, waitingAccounting: 0 },
+    statusCounts: { needsSchedule: 0, needsVehicle: 0, waitingAccounting: 0 },
   } as unknown as ShipmentCusWorkspaceListResponse;
 }
 

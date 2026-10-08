@@ -29,7 +29,8 @@ import { billOrBookNumberFor, trimOrNull } from './cus-workspace-mapping.service
 export * from './cus-workspace-sql.service';
 export * from './cus-workspace-mapping.service';
 
-import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite } from './cus-workspace-builders.service';
+import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite, indexAssignmentRows } from './cus-workspace-builders.service';
+import { loadCusShipmentStatusCounts } from './cus-shipment-status-census.service';
 
 // Executor comes from ../db (the one Executor seam).
 export type ShipmentRow = typeof s.shipments.$inferSelect;
@@ -501,20 +502,12 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     billingLinesByShipment.set(row.shipmentId, bucket);
   }
 
-  const assignmentsByContainer = new Map<number, AssignmentRow>();
   // Lot-level (LCL) allocations ride fulfillments with no container row —
   // keyed by shipment so lot-level readiness and carrier chips can read the
-  // allocation without any container line existing.
-  const assignmentsByShipment = new Map<number, AssignmentRow>();
-  for (const row of assignmentRows) {
-    if (row.shipmentContainerId == null) {
-      if (row.shipmentId == null || assignmentsByShipment.has(row.shipmentId)) continue;
-      assignmentsByShipment.set(row.shipmentId, row as AssignmentRow);
-      continue;
-    }
-    if (assignmentsByContainer.has(row.shipmentContainerId)) continue;
-    assignmentsByContainer.set(row.shipmentContainerId, row as AssignmentRow);
-  }
+  // allocation without any container line existing. Shared first-row-wins
+  // indexing with the status census (card 081026093520).
+  const { byContainer: assignmentsByContainer, byShipment: assignmentsByShipment } =
+    indexAssignmentRows(assignmentRows as readonly AssignmentRow[]);
 
   // Effective-factory labels for per-container authority + shipment fallback:
   // short name preferred, unique by site id (one lookup for the whole page).
@@ -858,9 +851,7 @@ async function buildShipmentPageConditions(
   return conditions;
 }
 
-async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUser) {
-  const conditions = await buildShipmentPageConditions(query, actor, 'shipment');
-
+async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, conditions: SQL[], executor: Executor = db) {
   const offset = (query.page - 1) * query.limit;
   // Explicit `nulls last` keeps empty cells at the bottom in both directions.
   // Cargo rank stays as a secondary key so sorting never scrambles the
@@ -883,7 +874,7 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
         desc(s.shipments.id),
       ];
   const [items, totalRows] = await Promise.all([
-    db.select({
+    executor.select({
       shipment: s.shipments,
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,
@@ -894,7 +885,7 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
       .orderBy(...sortOrder)
       .limit(query.limit)
       .offset(offset),
-    db.select({ value: count() }).from(s.shipments)
+    executor.select({ value: count() }).from(s.shipments)
       .where(and(...conditions)),
   ]);
 
@@ -924,7 +915,17 @@ export async function listCusShipmentWorkspace(
   query: ShipmentCusWorkspaceQuery,
   actor: AuthUser,
 ): Promise<ShipmentCusWorkspaceListResponse> {
-  const { items, total } = await loadShipmentPage(query, actor);
+  const conditions = await buildShipmentPageConditions(query, actor, 'shipment');
+  // Card 081026093520: the page, its `total`, and the status-tab counts read
+  // one REPEATABLE READ snapshot (the container list's precedent), so the tab
+  // numerals can never disagree with the list behind them. The counts are
+  // FULL-set over these conditions (the client-side status lens excluded,
+  // exactly like `total`), replacing the page-scoped `pageSummary` whose
+  // per-page figures could never read as one scale beside that total.
+  const [{ items, total }, statusCounts] = await db.transaction((tx) => Promise.all([
+    loadShipmentPage(query, conditions, tx),
+    loadCusShipmentStatusCounts(conditions, tx),
+  ]), { isolationLevel: 'repeatable read', accessMode: 'read only' });
   const support = await loadSupportRows(items.map((row) => row.shipment.id));
   const confirmations = await getShipmentFinanceConfirmationSummaries(
     items.map((row) => row.shipment.id),
@@ -939,32 +940,13 @@ export async function listCusShipmentWorkspace(
     confirmations.get(row.shipment.id)!,
     dateRange,
   ));
-  const needsSchedule = projectedItems.filter((item) => item.operational.scheduleReadiness === 'WAITING_DATE').length;
-  const needsVehicle = projectedItems.filter((item) => (
-    item.operational.vehicleReadiness === 'WAITING_CARRIER'
-    || item.operational.vehicleReadiness === 'WAITING_PLATE'
-  )).length;
-  const waitingAccounting = projectedItems.filter((item) => (
-    item.activeLock == null
-    && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
-  )).length;
-  const readyToLock = projectedItems.filter((item) => item.action.kind === 'LOCK' && item.action.enabled).length;
-  const needsAttention = projectedItems.filter((item) => (
-    item.operational.scheduleReadiness !== 'SCHEDULED'
-    || item.operational.vehicleReadiness === 'WAITING_CARRIER'
-    || item.operational.vehicleReadiness === 'WAITING_PLATE'
-    || item.finance.isLoss === true
-    || item.finance.hasPendingRecovery
-    || item.accountingConfirmation.status === 'UNAVAILABLE'
-    || item.accountingConfirmation.status === 'STALE'
-  )).length;
 
   return {
     page: query.page,
     limit: query.limit,
     total,
     totalPages: total === 0 ? 0 : Math.ceil(total / query.limit),
-    pageSummary: { needsSchedule, needsVehicle, waitingAccounting, readyToLock, needsAttention },
+    statusCounts,
     items: projectedItems,
   };
 }

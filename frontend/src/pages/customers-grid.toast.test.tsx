@@ -19,7 +19,7 @@ function UrlProbe() {
 describe('debug multi bucket', () => {
   afterEach(() => vi.restoreAllMocks());
   it('traces urls', async () => {
-    apiGet.mockResolvedValue({ items: [], total: 0, totalPages: 0, pageSummary: { needsSchedule: 0, needsVehicle: 0, waitingAccounting: 0, readyToLock: 0, needsAttention: 0 } });
+    apiGet.mockResolvedValue({ items: [], total: 0, totalPages: 0, statusCounts: { needsSchedule: 0, needsVehicle: 0, waitingAccounting: 0 } });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={qc}><ToastProvider><MemoryRouter initialEntries={['/shipments']}><Routes><Route path="/shipments" element={<><UrlProbe /><ShipmentsPage /></>} /></Routes></MemoryRouter></ToastProvider></QueryClientProvider>,

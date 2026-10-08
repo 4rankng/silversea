@@ -1611,13 +1611,20 @@ describe('GET /cus-workspace', () => {
       assert.ok(Array.isArray(row.customerAppointmentAts));
       assert.ok(Array.isArray(row.carrierAssignments));
       assert.equal(Object.hasOwn(row, 'customsCutoffAt'), true);
-      assert.equal(typeof ok.data.pageSummary.needsSchedule, 'number');
+      assert.equal(typeof ok.data.statusCounts.needsSchedule, 'number');
     }
 
-    const exportOnly = await testFetch('/cus-workspace?direction=EXPORT&page=1&limit=100', { token: adminToken });
+    // Direction probes scoped to this fixture's own booking ref (card
+    // 081026093520): unscoped, this asserted "the fixture lands on page 1 of
+    // the global EXPORT list", which the priority sort (unscheduled rows
+    // first) makes order-dependent on whatever else the shared dev DB holds —
+    // a populated DB can never satisfy it. The assertion's intent is the
+    // DIRECTION filter (EXPORT includes the lot, IMPORT excludes it), which
+    // the scoped form verifies deterministically.
+    const exportOnly = await testFetch(`/cus-workspace?searchSuffix=${fullBookingRef}&direction=EXPORT&page=1&limit=100`, { token: adminToken });
     assert.equal(exportOnly.status, 200);
     assert.ok(exportOnly.data.items.some((item: { id: number }) => item.id === shipment.id));
-    const importOnly = await testFetch('/cus-workspace?direction=IMPORT&page=1&limit=100', { token: adminToken });
+    const importOnly = await testFetch(`/cus-workspace?searchSuffix=${fullBookingRef}&direction=IMPORT&page=1&limit=100`, { token: adminToken });
     assert.equal(importOnly.status, 200);
     assert.equal(importOnly.data.items.some((item: { id: number }) => item.id === shipment.id), false);
 
@@ -1751,7 +1758,69 @@ describe('GET /cus-workspace', () => {
     assert.equal(row.operational.assignedContainers, 0);
     assert.equal(row.operational.plateAssignedContainers, 0);
     assert.equal(row.operational.missingPlateContainers, 1);
-    assert.equal(response.data.pageSummary.waitingAccounting, 1);
+    assert.equal(response.data.statusCounts.waitingAccounting, 1);
+  });
+
+  test('statusCounts size each status tab over the WHOLE filtered set — verified against the API (card 081026093520)', async () => {
+    // Two lots in one search scope: one undated (still "Chưa chốt lịch"), one
+    // with a locked transport date. limit=1 forces pagination — the tab counts
+    // must size the filtered SET, never the loaded page.
+    const probe = `CT${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const unscheduled = await mkShipmentViaService({
+      bookingRef: `BOOK-${suffix}-${probe}A`,
+      expectedDeliveryDate: null,
+      cargoMode: 'LCL',
+      tradeDirection: 'EXPORT',
+    });
+    const scheduled = await mkShipmentViaService({
+      bookingRef: `BOOK-${suffix}-${probe}B`,
+      expectedDeliveryDate: '2026-08-11',
+      cargoMode: 'LCL',
+      tradeDirection: 'EXPORT',
+    });
+
+    type WorkspaceProbeRow = {
+      id: number;
+      operational: { scheduleReadiness: string; vehicleReadiness: string };
+      accountingConfirmation: { status: string };
+      activeLock: unknown;
+    };
+    const walked: WorkspaceProbeRow[] = [];
+    let statusCounts: { needsSchedule: number; needsVehicle: number; waitingAccounting: number } | null = null;
+    for (let page = 1; ; page += 1) {
+      const response = await testFetch(`/cus-workspace?searchSuffix=${probe}&page=${page}&limit=1`, { token: adminToken });
+      assert.equal(response.status, 200);
+      statusCounts = response.data.statusCounts;
+      walked.push(...response.data.items);
+      if (walked.length >= response.data.total || response.data.items.length === 0) break;
+    }
+    assert.equal(walked.length, 2, 'the probe scope holds exactly the two seeded lots');
+    // AC1: every count equals what its tab's lens reveals over the filtered
+    // set — tallied here from the API's own projected fields (the same
+    // predicates the FE tab lens applies).
+    assert.deepEqual(statusCounts, {
+      needsSchedule: walked.filter((item) => item.operational.scheduleReadiness === 'WAITING_DATE').length,
+      needsVehicle: walked.filter((item) => (
+        item.operational.vehicleReadiness === 'WAITING_CARRIER' || item.operational.vehicleReadiness === 'WAITING_PLATE'
+      )).length,
+      waitingAccounting: walked.filter((item) => (
+        item.activeLock == null
+        && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
+      )).length,
+    });
+    // Absolute pins on the seeded pair: only the undated lot waits on a date;
+    // both fresh lots wait on a carrier and on accounting confirmation.
+    const byId = new Map(walked.map((item) => [item.id, item]));
+    assert.equal(byId.get(unscheduled.id)?.operational.scheduleReadiness, 'WAITING_DATE');
+    assert.equal(byId.get(scheduled.id)?.operational.scheduleReadiness, 'OVERDUE');
+    assert.deepEqual(statusCounts, { needsSchedule: 1, needsVehicle: 2, waitingAccounting: 2 });
+
+    // AC2: the counts follow the base search — a scope holding one lot shrinks
+    // them alongside `total`, never frozen at the wider figure.
+    const narrowed = await testFetch(`/cus-workspace?searchSuffix=${probe}A&page=1&limit=1`, { token: adminToken });
+    assert.equal(narrowed.status, 200);
+    assert.equal(narrowed.data.total, 1);
+    assert.deepEqual(narrowed.data.statusCounts, { needsSchedule: 1, needsVehicle: 1, waitingAccounting: 1 });
   });
 
   test('derives customer totals and loss only from attributable current Debit Note lines, never manual proposals', async () => {
@@ -1898,8 +1967,11 @@ describe('GET /cus-workspace', () => {
       `expected bounded query count, got one=${singleRow.queryCount} twenty=${twentyRows.queryCount}`,
     );
     // Constant per request, independent of page size — this fixed-count
-    // assertion is the anti-N+1 guarantee.
-    assert.ok(twentyRows.queryCount <= 21, `expected <= 21 SQL statements, got ${twentyRows.queryCount}`);
+    // assertion is the anti-N+1 guarantee. Card 081026093520: the status
+    // census adds a FIXED 7 statements (filtered-set read + 3 trimmed support
+    // reads + the 3-query confirmation batch) for the tab counts — still
+    // constant per request, and the page-size differential above is unchanged.
+    assert.ok(twentyRows.queryCount <= 28, `expected <= 28 SQL statements, got ${twentyRows.queryCount}`);
     t.diagnostic(`CUS workspace page: rows=20 total=${twentyRows.response.data.total} sqlStatements=${twentyRows.queryCount} durationMs=${twentyRows.durationMs.toFixed(2)}`);
   });
 

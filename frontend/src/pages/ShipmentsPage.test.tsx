@@ -257,14 +257,15 @@ function listResponse(items = [row]) {
     limit: 20,
     total: items.length,
     totalPages: items.length ? 1 : 0,
-    pageSummary: {
+    // Card 081026093520: FULL-set tab counts (same filtered set as `total`,
+    // status lens excluded). Tests that pin count semantics override these.
+    statusCounts: {
       needsSchedule: items.filter((item) => item.operational.scheduleReadiness === 'WAITING_DATE').length,
       needsVehicle: items.filter((item) => ['WAITING_CARRIER', 'WAITING_PLATE'].includes(item.operational.vehicleReadiness)).length,
       waitingAccounting: items.filter((item) => (
-        item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE'
+        item.activeLock == null
+        && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
       )).length,
-      readyToLock: items.filter((item) => item.action.kind === 'LOCK' && item.action.enabled).length,
-      needsAttention: items.filter((item) => item.finance.isLoss || item.finance.hasPendingRecovery).length,
     },
     items,
   };
@@ -375,8 +376,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
 
-    // Card 20260926_47: the priority rail is the tab strip now — the same
-    // pageSummary numbers ride the tab counts, and the strip precedes the table.
+    // Card 20260926_47: the priority rail is the tab strip now — the API's
+    // full-set statusCounts ride the tab counts, and the strip precedes the table.
     const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
     for (const label of ['Tất cả', 'Chưa chốt lịch', 'Chờ điều xe', 'Chờ đối soát']) {
       expect(within(tablist).getByRole('tab', { name: new RegExp(label) })).toBeTruthy();
@@ -2683,17 +2684,73 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
     expect(source).not.toContain('PageHeader');
   });
 
-  it('renders the four segmented tabs with counts — Tất cả from total, readiness tabs clean without page scope suffixes', async () => {
-    apiGet.mockResolvedValue({ ...listResponse(tabbedItems), total: 72, totalPages: 4 });
+  it('renders EVERY status tab with its full-set count — the API numbers, never the loaded page', async () => {
+    // Card 081026093520: the page holds 4 rows (one per bucket) while the
+    // filtered set holds 72 — the numerals wear the FULL-set statusCounts the
+    // API reports, each sizing exactly the rows its tab's lens reveals.
+    apiGet.mockResolvedValue({
+      ...listResponse(tabbedItems),
+      total: 72,
+      totalPages: 4,
+      statusCounts: { needsSchedule: 31, needsVehicle: 20, waitingAccounting: 3 },
+    });
     renderPage();
     const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
     const all = within(tablist).getByRole('tab', { name: /Tất cả/ });
     expect(all.getAttribute('aria-selected')).toBe('true');
-    expect(all.textContent).toContain('72');
-    for (const label of ['Chưa chốt lịch', 'Chờ điều xe', 'Chờ đối soát']) {
-      expect(within(tablist).getByRole('tab', { name: new RegExp(`^${label}$`) })).toBeTruthy();
-    }
+    // Exact text mapping: label + the statusCounts numeral for that tab id.
+    expect(all.textContent).toBe('Tất cả72');
+    expect(within(tablist).getByRole('tab', { name: /Chưa chốt lịch/ }).textContent).toBe('Chưa chốt lịch31');
+    expect(within(tablist).getByRole('tab', { name: /Chờ điều xe/ }).textContent).toBe('Chờ điều xe20');
+    expect(within(tablist).getByRole('tab', { name: /Chờ đối soát/ }).textContent).toBe('Chờ đối soát3');
+    // Never the loaded page's own slice (which would read 1/1/1 here)…
+    expect(document.querySelectorAll('tr.cus-dashboard-row').length).toBe(tabbedItems.length);
+    // …and never a page-scope suffix.
     expect(tablist.textContent).not.toContain('(trang)');
+  });
+
+  it('shows 0, never blank, when a status bucket is empty', async () => {
+    apiGet.mockResolvedValue({
+      ...listResponse([]),
+      total: 0,
+      totalPages: 0,
+      statusCounts: { needsSchedule: 0, needsVehicle: 0, waitingAccounting: 0 },
+    });
+    renderPage();
+    const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
+    for (const label of ['Tất cả', 'Chưa chốt lịch', 'Chờ điều xe', 'Chờ đối soát']) {
+      const tab = within(tablist).getByRole('tab', { name: new RegExp(label) });
+      expect(tab.textContent).toBe(`${label}0`);
+    }
+  });
+
+  it('keeps the counts consistent when the base search changes', async () => {
+    apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('searchSuffix=MSCU')
+      ? {
+        ...listResponse(tabbedItems),
+        total: 4,
+        totalPages: 1,
+        statusCounts: { needsSchedule: 2, needsVehicle: 1, waitingAccounting: 1 },
+      }
+      : {
+        ...listResponse(tabbedItems),
+        total: 72,
+        totalPages: 4,
+        statusCounts: { needsSchedule: 31, needsVehicle: 20, waitingAccounting: 3 },
+      }));
+    renderPage();
+    const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
+    expect(within(tablist).getByRole('tab', { name: /Chưa chốt lịch/ }).textContent).toBe('Chưa chốt lịch31');
+    const input = screen.getByLabelText('Tìm lô hàng');
+    fireEvent.change(input, { target: { value: 'MSCU6639870' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=MSCU6639870')));
+    // The strip re-numerals from the SAME response the filtered rows ride.
+    await waitFor(() => {
+      expect(within(tablist).getByRole('tab', { name: /Tất cả/ }).textContent).toBe('Tất cả4');
+    });
+    expect(within(tablist).getByRole('tab', { name: /Chưa chốt lịch/ }).textContent).toBe('Chưa chốt lịch2');
+    expect(within(tablist).getByRole('tab', { name: /Chờ điều xe/ }).textContent).toBe('Chờ điều xe1');
+    expect(within(tablist).getByRole('tab', { name: /Chờ đối soát/ }).textContent).toBe('Chờ đối soát1');
   });
 
   it('clicking a readiness tab writes ?status= and slices the table without a reload', async () => {

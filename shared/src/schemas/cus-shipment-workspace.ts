@@ -802,12 +802,15 @@ export const shipmentCusWorkspaceListResponseSchema = z.object({
   limit: z.number().int().min(1).max(100),
   total: z.number().int().nonnegative(),
   totalPages: z.number().int().nonnegative(),
-  pageSummary: z.object({
+  // Card 081026093520: the status-tab counts. FULL-set figures over the same
+  // filtered set `total` counts (status-tab lens excluded), so every tab's
+  // numeral sizes exactly the rows that tab's lens reveals — never the loaded
+  // page. Replaces the page-scoped `pageSummary` that fed the retired summary
+  // rail (a page's 20/20/20 beside a whole-set total never read as one scale).
+  statusCounts: z.object({
     needsSchedule: z.number().int().nonnegative(),
     needsVehicle: z.number().int().nonnegative(),
     waitingAccounting: z.number().int().nonnegative(),
-    readyToLock: z.number().int().nonnegative(),
-    needsAttention: z.number().int().nonnegative(),
   }).strict(),
   items: z.array(shipmentCusWorkspaceListItemSchema),
 }).strict();

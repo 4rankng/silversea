@@ -40,7 +40,22 @@ import { ShipmentRow, ShipmentListRow, WorkspaceSupport, ContainerRow, Assignmen
  * badge, counter, and Phân xe column still cannot disagree — they now all
  * derive from the same planned value.)
  */
-function currentAssignmentIdentity(assignment?: AssignmentRow | null): {
+/**
+ * The planned-allocation fields the carrier identity derives from. The row
+ * projection passes full AssignmentRow; the status census (card 081026093520)
+ * passes the same fields off trimmed fulfillment rows — both feed THIS
+ * derivation, so a tab count can never disagree with the row it sizes.
+ */
+export type AssignmentPlannedIdentity = Pick<AssignmentRow,
+  | 'plannedCarrierType'
+  | 'plannedExternalCarrierId'
+  | 'plannedExternalCarrierVehicleId'
+  | 'plannedVehiclePlateNumber'
+  | 'plannedCarrierShortName'
+  | 'plannedCarrierName'
+>;
+
+function currentAssignmentIdentity(assignment?: AssignmentPlannedIdentity | null): {
   carrierType: 'OWN' | 'EXTERNAL' | null;
   externalCarrierId: number | null;
   externalCarrierVehicleId: number | null;
@@ -61,6 +76,118 @@ function currentAssignmentIdentity(assignment?: AssignmentRow | null): {
   };
 }
 
+/** Carrier/plate facts one row contributes to the readiness derivations. */
+type ReadinessIdentity = {
+  carrierType: 'OWN' | 'EXTERNAL' | null;
+  plateNumber: string | null;
+};
+
+/**
+ * Vehicle readiness — THE rule, shared by the row projection below and the
+ * status census (card 081026093520) so the "Chờ điều xe" tab count sizes
+ * exactly the rows that tab's lens reveals. An LCL lot allocates at the
+ * fulfillment level: transport readiness is real even with zero container
+ * rows. No lot-level carrier = WAITING_CARRIER, carrier without a planned
+ * plate = WAITING_PLATE, both = READY. With container rows, the lot waits on
+ * its first carrierless container, else its first plateless one.
+ */
+function deriveVehicleReadiness(input: {
+  containerIdentities: readonly ReadinessIdentity[];
+  lotIdentity: ReadinessIdentity;
+}): 'WAITING_CARRIER' | 'WAITING_PLATE' | 'READY' {
+  if (input.containerIdentities.length === 0) {
+    return input.lotIdentity.carrierType == null
+      ? 'WAITING_CARRIER'
+      : input.lotIdentity.plateNumber == null
+        ? 'WAITING_PLATE'
+        : 'READY';
+  }
+  return input.containerIdentities.some((identity) => identity.carrierType == null)
+    ? 'WAITING_CARRIER'
+    : input.containerIdentities.some((identity) => identity.plateNumber == null)
+      ? 'WAITING_PLATE'
+      : 'READY';
+}
+
+/**
+ * Schedule readiness — THE rule, shared by the row projection below and the
+ * status census (card 081026093520). Customer feedback 2026-09-07 (BL
+ * `JJCTCHPDY260305`): FCL delivery date lives on
+ * `shipment_containers.customerAppointmentAt`, not on the shipment row's
+ * `expectedDeliveryDate`. The previous rule surfaced "Chưa chốt ngày" for FCL
+ * shipments whose containers already had an appointment, leaving the row
+ * unable to be edited and the detail page showing a different (correct) date.
+ * Treat the earliest container appointment as the effective schedule for FCL.
+ * Customer feedback 2026-09-08: the earliest-appointment rule let one dated
+ * cont mask its undated siblings — a 2-cont lot with a single appointment read
+ * "Sẵn sàng điều xe" with no warning. FCL readiness is per-container: the lot
+ * only counts as scheduled once EVERY cont has its ngày đóng/trả; any missing
+ * appointment keeps WAITING_DATE ("Chưa chốt ngày"), the same per-cont rule
+ * containerMissingFields() already applies to TRANSPORT_DATE. Lots without
+ * container rows keep the shipment-level expectedDeliveryDate fallback — and
+ * when that is unset, the lot-level closing/planned-return timestamp, which is
+ * exactly the field pair the "Chỉnh sửa Lịch trình" dialog writes (card
+ * 20260914_35, lead ruling: those timestamps ARE the lot's schedule for
+ * container-less lots).
+ */
+function deriveScheduleReadiness(input: {
+  cargoMode: string | null;
+  expectedDeliveryDate: string | null;
+  closingAt: Date | null;
+  plannedReturnAt: Date | null;
+  /** Every container row of the lot — NOT the date-range lens. */
+  containerAppointments: readonly (Date | null)[];
+  bucket: ShipmentCusBucket;
+}): 'WAITING_DATE' | 'OVERDUE' | 'SCHEDULED' {
+  const fclAppointmentValues = input.cargoMode === 'FCL' && input.containerAppointments.length > 0
+    ? [...input.containerAppointments]
+    : null;
+  const undatedFclContainers = fclAppointmentValues
+    ? fclAppointmentValues.filter((value) => value == null).length
+    : 0;
+  const earliestFclAppointment = fclAppointmentValues
+    ? fclAppointmentValues
+      .filter((value): value is Date => value != null)
+      .sort((left, right) => left.getTime() - right.getTime())[0]
+    : null;
+  const lotLevelTimestamp = input.closingAt ?? input.plannedReturnAt;
+  const effectiveScheduleDate = fclAppointmentValues != null
+    ? (undatedFclContainers === 0 && earliestFclAppointment != null
+      ? localDateInBusinessZone(earliestFclAppointment)
+      : null)
+    : input.expectedDeliveryDate
+      ?? (lotLevelTimestamp != null ? localDateInBusinessZone(lotLevelTimestamp) : null);
+  return effectiveScheduleDate == null
+    ? 'WAITING_DATE'
+    : input.bucket === ShipmentCusBucket.NEW && effectiveScheduleDate < businessDateNow()
+      ? 'OVERDUE'
+      : 'SCHEDULED';
+}
+
+/**
+ * First-row-wins indexing of fulfillment allocation rows: lot-level (LCL)
+ * allocations ride fulfillments with no container row and key by shipment, the
+ * rest key by container. Shared by the page's support load and the status
+ * census (card 081026093520) so both resolve "the current allocation" the
+ * same way.
+ */
+function indexAssignmentRows<T extends { shipmentContainerId: number | null; shipmentId: number | null }>(
+  rows: readonly T[],
+): { byContainer: Map<number, T>; byShipment: Map<number, T> } {
+  const byContainer = new Map<number, T>();
+  const byShipment = new Map<number, T>();
+  for (const row of rows) {
+    if (row.shipmentContainerId == null) {
+      if (row.shipmentId == null || byShipment.has(row.shipmentId)) continue;
+      byShipment.set(row.shipmentId, row);
+      continue;
+    }
+    if (byContainer.has(row.shipmentContainerId)) continue;
+    byContainer.set(row.shipmentContainerId, row);
+  }
+  return { byContainer, byShipment };
+}
+
 function buildOperationalSummary(
   row: ShipmentListRow,
   support: WorkspaceSupport,
@@ -68,6 +195,7 @@ function buildOperationalSummary(
   actor: AuthUser,
 ): ShipmentCusWorkspaceListItem['operational'] {
   const containers = support.containersByShipment.get(row.shipment.id) ?? [];
+  const containerIdentities: ReadinessIdentity[] = [];
   let assignedContainers = 0;
   let externalContainers = 0;
   let plateAssignedContainers = 0;
@@ -78,6 +206,7 @@ function buildOperationalSummary(
   for (const container of containers) {
     const assignment = support.assignmentsByContainer.get(container.id) ?? null;
     const { carrierType, plateNumber } = currentAssignmentIdentity(assignment);
+    containerIdentities.push({ carrierType, plateNumber });
     // "Issued" mirrors the driver-notification gate exactly: a live (not
     // canceled) trips row is the only thing the driver's task list and
     // tap-through match against — planned plates alone never count.
@@ -100,66 +229,19 @@ function buildOperationalSummary(
   }
 
   const totalContainers = containers.length;
-  // An LCL lot allocates at the fulfillment level: transport readiness is
-  // real even with zero container rows. No lot-level carrier = WAITING_CARRIER,
-  // carrier without a planned plate = WAITING_PLATE, both = READY. Only a row
-  // with no fulfillment at all keeps NO_CONTAINERS ("Không áp dụng điều xe").
   const lotLevelAssignment = row.shipment.cargoMode === CARGO_MODE.FCL
     ? null
     : support.assignmentsByShipment.get(row.shipment.id) ?? null;
   const lotIdentity = currentAssignmentIdentity(lotLevelAssignment);
-  const vehicleReadiness = totalContainers === 0
-    ? (lotIdentity.carrierType == null
-      ? 'WAITING_CARRIER' as const
-      : lotIdentity.plateNumber == null
-        ? 'WAITING_PLATE' as const
-        : 'READY' as const)
-    : missingCarrierContainers > 0
-      ? 'WAITING_CARRIER' as const
-      : missingPlateContainers > 0
-        ? 'WAITING_PLATE' as const
-        : 'READY' as const;
-  // Customer feedback 2026-09-07 (BL `JJCTCHPDY260305`): FCL delivery date
-  // lives on `shipment_containers.customerAppointmentAt`, not on the
-  // shipment row's `expectedDeliveryDate`. The previous rule surfaced
-  // "Chưa chốt ngày" for FCL shipments whose containers already had an
-  // appointment, leaving the row unable to be edited and the detail page
-  // showing a different (correct) date. Treat the earliest container
-  // appointment as the effective schedule for FCL.
-  // Customer feedback 2026-09-08: the earliest-appointment rule let one
-  // dated cont mask its undated siblings — a 2-cont lot with a single
-  // appointment read "Sẵn sàng điều xe" with no warning. FCL readiness is
-  // per-container: the lot only counts as scheduled once EVERY cont has its
-  // ngày đóng/trả; any missing appointment keeps WAITING_DATE ("Chưa chốt
-  // ngày"), the same per-cont rule containerMissingFields() already applies
-  // to TRANSPORT_DATE. Lots without container rows keep the shipment-level
-  // expectedDeliveryDate fallback — and when that is unset, the lot-level
-  // closing/planned-return timestamp, which is exactly the field pair the
-  // "Chỉnh sửa Lịch trình" dialog writes (card 20260914_35, lead ruling:
-  // those timestamps ARE the lot's schedule for container-less lots).
-  const fclAppointmentValues = row.shipment.cargoMode === 'FCL' && totalContainers > 0
-    ? containers.map((container) => container.customerAppointmentAt)
-    : null;
-  const undatedFclContainers = fclAppointmentValues
-    ? fclAppointmentValues.filter((value) => value == null).length
-    : 0;
-  const earliestFclAppointment = fclAppointmentValues
-    ? fclAppointmentValues
-      .filter((value): value is Date => value != null)
-      .sort((left, right) => left.getTime() - right.getTime())[0]
-    : null;
-  const lotLevelTimestamp = row.shipment.closingAt ?? row.shipment.plannedReturnAt;
-  const effectiveScheduleDate = fclAppointmentValues != null
-    ? (undatedFclContainers === 0 && earliestFclAppointment != null
-      ? localDateInBusinessZone(earliestFclAppointment)
-      : null)
-    : row.shipment.expectedDeliveryDate
-      ?? (lotLevelTimestamp != null ? localDateInBusinessZone(lotLevelTimestamp) : null);
-  const scheduleReadiness = effectiveScheduleDate == null
-    ? 'WAITING_DATE' as const
-    : bucket === ShipmentCusBucket.NEW && effectiveScheduleDate < businessDateNow()
-      ? 'OVERDUE' as const
-      : 'SCHEDULED' as const;
+  const vehicleReadiness = deriveVehicleReadiness({ containerIdentities, lotIdentity });
+  const scheduleReadiness = deriveScheduleReadiness({
+    cargoMode: row.shipment.cargoMode,
+    expectedDeliveryDate: row.shipment.expectedDeliveryDate,
+    closingAt: row.shipment.closingAt,
+    plannedReturnAt: row.shipment.plannedReturnAt,
+    containerAppointments: containers.map((container) => container.customerAppointmentAt),
+    bucket,
+  });
   // Quick-edit of schedule + notes opens to CUS, ADMIN and DISPATCHER
   // (product ruling 2026-09-20); an active accounting lock still closes both
   // for every role. The workboard triggers gate on this flag and the inline
@@ -655,6 +737,7 @@ export {
   buildOperationalSummary, deriveCusBucket, buildListItem, resolveLiftSite,
   resolveDropoffSite, buildContainerLine, containerMissingFields,
   shipmentFieldAccess, countContainerTypes, currentAssignmentIdentity,
+  deriveScheduleReadiness, deriveVehicleReadiness, indexAssignmentRows,
 };
 
 const allShipmentFieldKeys = [

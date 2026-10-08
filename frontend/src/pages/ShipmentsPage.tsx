@@ -49,31 +49,39 @@ const LOT_DELETE_BLOCK_MESSAGES = {
 } as const;
 
 // Card 20260926_47 — Row 1 status tabs. Each tab is a lens over the current
-// page, matching the pageSummary vocabulary the API already reports (the
-// workspace list endpoint has no server-side status param — the slice is
-// client-side over the loaded page). Only "Tất cả" counts, and it counts the
-// whole filtered set (`total`): the three readiness counts used to render
-// page-scoped numbers beside that total, which read as one scale when they
-// were not (a 1206 total next to 20/20/20). `countOf` is therefore optional —
-// a tab with no countOf simply shows no count.
-const LOT_STATUS_TABS = [
+// page (the workspace list endpoint has no server-side status param — the
+// slice is client-side over the loaded page). Card 081026093520: EVERY tab
+// carries a count, and the counts are the FULL-set figures the API reports in
+// `statusCounts` — the same filtered set `total` counts, status lens excluded.
+// Each numeral sizes exactly the rows that tab's `matches` lens reveals across
+// pages, so 'Tất cả 147' and its three siblings read as one scale (the old
+// page-scoped numbers never could: 20/20/20 beside a 1206 total).
+const LOT_STATUS_TABS: readonly {
+  id: 'all' | 'needsSchedule' | 'needsVehicle' | 'waitingAccounting';
+  label: string;
+  countTone: 'warning' | 'info' | undefined;
+  countOf: (counts: ShipmentCusWorkspaceListResponse['statusCounts'], total: number) => number;
+  matches: (item: ShipmentCusWorkspaceListItem) => boolean;
+}[] = [
   {
     id: 'all',
     label: 'Tất cả',
     countTone: undefined,
-    countOf: (_summary: ShipmentCusWorkspaceListResponse['pageSummary'], total: number) => total,
+    countOf: (_counts: ShipmentCusWorkspaceListResponse['statusCounts'], total: number) => total,
     matches: () => true,
   },
   {
     id: 'needsSchedule',
     label: 'Chưa chốt lịch',
     countTone: undefined,
+    countOf: (counts: ShipmentCusWorkspaceListResponse['statusCounts']) => counts.needsSchedule,
     matches: (item: ShipmentCusWorkspaceListItem) => item.operational.scheduleReadiness === 'WAITING_DATE',
   },
   {
     id: 'needsVehicle',
     label: 'Chờ điều xe',
     countTone: 'warning' as const,
+    countOf: (counts: ShipmentCusWorkspaceListResponse['statusCounts']) => counts.needsVehicle,
     matches: (item: ShipmentCusWorkspaceListItem) => (
       item.operational.vehicleReadiness === 'WAITING_CARRIER' || item.operational.vehicleReadiness === 'WAITING_PLATE'
     ),
@@ -82,12 +90,13 @@ const LOT_STATUS_TABS = [
     id: 'waitingAccounting',
     label: 'Chờ đối soát',
     countTone: 'info' as const,
+    countOf: (counts: ShipmentCusWorkspaceListResponse['statusCounts']) => counts.waitingAccounting,
     matches: (item: ShipmentCusWorkspaceListItem) => (
       item.activeLock == null
       && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
     ),
   },
-] as const;
+];
 
 // Valid plan buckets — same derivation the shared WorkboardFilters uses.
 const LOT_PLAN_BUCKETS = Object.values(ShipmentCusBucket);
@@ -127,7 +136,7 @@ export default function ShipmentsPage() {
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
   // Card 20260926_47: the status tabs are URL state. Values are the
-  // pageSummary keys — the same vocabulary the API reports counts in.
+  // statusCounts keys — the same vocabulary the API reports counts in.
   const rawStatus = searchParams.get('status');
   const statusTab = LOT_STATUS_TABS.find((tab) => tab.id === rawStatus)?.id ?? '';
   // Card 20260926_48: Kế hoạch is a multi-select combobox. The API keeps a
@@ -327,8 +336,9 @@ export default function ShipmentsPage() {
   const total = ws.data?.total ?? 0;
   // Card 20260926_47: the active status tab is a lens over the loaded page —
   // the list endpoint has no server-side status param, so the tab slices the
-  // current page locally and its counts are the pageSummary numbers the old
-  // summary rail displayed.
+  // current page locally. Its COUNT is the full-set `statusCounts` figure the
+  // API reports (card 081026093520): the size of this lens's slice across the
+  // whole filtered set, not of the loaded page.
   const statusTabDef = LOT_STATUS_TABS.find((tab) => tab.id === statusTab) ?? LOT_STATUS_TABS[0];
   // Plain filter, not useMemo: `items` is rebuilt every render (ws.data?.items
   // ?? []) so a memo here both buys nothing and trips exhaustive-deps.
@@ -497,7 +507,7 @@ export default function ShipmentsPage() {
               tabs={LOT_STATUS_TABS.map((tab) => ({
                 id: tab.id,
                 label: tab.label,
-                count: 'countOf' in tab ? tab.countOf(ws.data!.pageSummary, total) : undefined,
+                count: tab.countOf(ws.data!.statusCounts, total),
                 countTone: tab.countTone,
               }))}
             />
