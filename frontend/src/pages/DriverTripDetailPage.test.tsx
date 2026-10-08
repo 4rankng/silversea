@@ -1483,4 +1483,21 @@ describe('driver completed-trip footer height contract (card 071026103226 — FB
     const body = document.querySelector('.driver-task-footer__body');
     expect(body?.className).toContain('driver-task-footer__body--closed');
   });
+
+  // Card 081026072302 (FB-055 follow-up): the canceled closed card shares the
+  // exact one-row path ('Chuyến đã hủy' + the document button) — staging
+  // round 7 flagged it alongside the completed shape, so it is pinned too.
+  it('the canceled closed card keeps the same one-row shape with no hint line', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: 'CANCELED' }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+    await screen.findByText('Chuyến đã hủy');
+    const hint = document.querySelector('.driver-task-footer__hint');
+    expect(hint).toBeNull();
+    const body = document.querySelector('.driver-task-footer__body');
+    expect(body?.className).toContain('driver-task-footer__body--closed');
+    expect(screen.getByText('Xem chứng từ giao hàng')).toBeTruthy();
+  });
 });

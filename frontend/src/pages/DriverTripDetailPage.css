@@ -1153,6 +1153,16 @@
     padding-left: 8px;
     padding-right: 8px;
   }
+
+  /* Card 081026072302: at the 320px ladder stop the closed card's flexing
+     document button gets 121px and its label needs 77px of text measure to
+     hold two lines — 14px inline padding leaves 72px and the label breaks to
+     three, re-inflating the 40px control to 56px. 8px keeps the two-line
+     wrap inside the control-height law. */
+  .driver-task-footer__body--closed .driver-task-complete {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
 }
 
 /* ─── TC-DA-001/006: operation-task chips + close-status chip ──────────────
@@ -1224,4 +1234,25 @@
 }
 .driver-task-footer__body--closed .driver-task-complete {
   width: auto;
+}
+
+/* Card 081026072302 (FB-055 follow-up): at phone widths the button's auto
+   track always sizes to its max-content (~202px) and the minmax(0,1fr) title
+   column absorbs the squeeze — 'Chuyến đã hoàn thành' wrapped to three lines
+   at 320px and re-inflated the one-row card to ~81px. Below the tablet tier
+   the roles swap: the title takes an auto track held to one nowrap line and
+   the button becomes the flexing column; its label may wrap to a second line
+   inside the same 40px control row (responsive wrapping without clipping). */
+@media (max-width: 640px) {
+  .driver-task-footer__body--closed {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .driver-task-footer__body--closed .driver-task-footer__summary strong {
+    white-space: nowrap;
+  }
+
+  .driver-task-footer__body--closed .driver-task-complete {
+    width: 100%;
+  }
 }
