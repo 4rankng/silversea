@@ -450,9 +450,10 @@ describe('DetailedPlanFilters — quick assignment chips (card 20261002_274, A07
 
     const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
     expect(within(group).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('true');
-    fireEvent.click(within(group).getByRole('tab', { name: 'Chưa gán xe' }));
+    // Name prefix: each chip appends its count span (card 20261008_3).
+    fireEvent.click(within(group).getByRole('tab', { name: /^Chưa gán xe/ }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assignmentStatus: 'UNASSIGNED' }));
-    fireEvent.click(within(group).getByRole('tab', { name: 'Đã gán xe' }));
+    fireEvent.click(within(group).getByRole('tab', { name: /^Đã gán xe/ }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assignmentStatus: 'ASSIGNED' }));
   });
 
@@ -462,8 +463,52 @@ describe('DetailedPlanFilters — quick assignment chips (card 20261002_274, A07
     );
 
     const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
-    expect(within(group).getByRole('tab', { name: 'Đã gán xe' }).getAttribute('aria-selected')).toBe('true');
+    expect(within(group).getByRole('tab', { name: /^Đã gán xe/ }).getAttribute('aria-selected')).toBe('true');
     expect(within(group).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('false');
+  });
+});
+
+describe('DetailedPlanFilters — assignment chip counts (card 20261008_3)', () => {
+  it('maps the union count source onto the two chips — each count is what clicking shows', () => {
+    renderFilters(<DetailedPlanFilters {...baseProps()} assignmentCounts={{ UNASSIGNED: 3, ASSIGNED: 2 }} />);
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    const unassigned = within(group).getByRole('tab', { name: /^Chưa gán xe/ });
+    const assigned = within(group).getByRole('tab', { name: /^Đã gán xe/ });
+    const all = within(group).getByRole('tab', { name: 'Tất cả' });
+
+    // Chip → count mapping: the numbers come from the grid query's own
+    // `assignmentStatusCounts` — full-set over the UNION of both branches
+    // (fulfillment + điều phối), so each equals the total clicking that chip
+    // returns from the API (pinned server-side in
+    // dispatch-detail-plan-assignment-counts.test.ts).
+    expect(unassigned.querySelector('.ds-tabs__count')?.textContent).toBe('3');
+    expect(assigned.querySelector('.ds-tabs__count')?.textContent).toBe('2');
+    // 'Tất cả' is not one of the two chips — no count of its own.
+    expect(all.querySelector('.ds-tabs__count')).toBeNull();
+    // Status-tab count convention (ShipmentsPage precedent): tone rides the
+    // count — warning = còn phải gán, accent = đã gán xong.
+    expect(unassigned.querySelector('.ds-tabs__count--warning')).toBeTruthy();
+    expect(assigned.querySelector('.ds-tabs__count--accent')).toBeTruthy();
+  });
+
+  it('renders 0 as "0" on an empty row set — never blank', () => {
+    renderFilters(<DetailedPlanFilters {...baseProps()} assignmentCounts={{ UNASSIGNED: 0, ASSIGNED: 0 }} />);
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    for (const name of [/^Chưa gán xe/, /^Đã gán xe/]) {
+      const count = within(group).getByRole('tab', { name }).querySelector('.ds-tabs__count');
+      expect(count).not.toBeNull();
+      expect(count?.textContent).toBe('0');
+    }
+  });
+
+  it('defaults to 0 counts when no count source has arrived yet — still never blank', () => {
+    renderFilters(<DetailedPlanFilters {...baseProps()} />);
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    expect(within(group).getByRole('tab', { name: /^Chưa gán xe/ }).querySelector('.ds-tabs__count')?.textContent).toBe('0');
+    expect(within(group).getByRole('tab', { name: /^Đã gán xe/ }).querySelector('.ds-tabs__count')?.textContent).toBe('0');
   });
 });
 

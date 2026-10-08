@@ -1,7 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { PaginatedResponse } from '@tingting/shared';
-import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import type { DispatchDetailPlanAssignmentCounts, DispatchDetailPlanPage, DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDispatchDetailPlan } from './useDispatchDetailPlan';
 
 vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
@@ -49,11 +48,14 @@ import {
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
 
-const page = (items: DispatchDetailPlanRow[], total = items.length): PaginatedResponse<DispatchDetailPlanRow> => ({
+/** Fixture page in the API's response shape (card 20261008_3: the grid
+ *  response also carries the chips' union counts). */
+const page = (items: DispatchDetailPlanRow[], total = items.length, counts: DispatchDetailPlanAssignmentCounts = { UNASSIGNED: 0, ASSIGNED: 0 }): DispatchDetailPlanPage => ({
   items,
   total,
   page: 1,
   pageSize: 50,
+  assignmentStatusCounts: counts,
 });
 
 const listDispatchDetailPlanRowsMock = vi.mocked(listDispatchDetailPlanRows);
@@ -714,8 +716,8 @@ describe('useDispatchDetailPlan background refresh vs loading skeleton', () => {
   });
 
   function deferredResponse() {
-    let resolve!: (value: ReturnType<typeof page>) => void;
-    const promise = new Promise<ReturnType<typeof page>>((res) => { resolve = res; });
+    let resolve!: (value: DispatchDetailPlanPage) => void;
+    const promise = new Promise<DispatchDetailPlanPage>((res) => { resolve = res; });
     return { promise, resolve };
   }
 
@@ -902,5 +904,16 @@ describe('card 20260922_32 — topbar month scope actually filters', () => {
     expect(call.date).toBe('2026-09-22');
     expect(call.dateFrom).toBeUndefined();
     expect(call.dateTo).toBeUndefined();
+  });
+});
+
+describe('card 20261008_3 — chip counts ride the grid response', () => {
+  it('surfaces the fetched page union counts as assignmentStatusCounts (the chips read these)', async () => {
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1, { UNASSIGNED: 4, ASSIGNED: 2 }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Full-set over the union of both branches (fulfillment + điều phối),
+    // computed server-side per chip — equals what clicking each chip returns.
+    expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 4, ASSIGNED: 2 });
   });
 });

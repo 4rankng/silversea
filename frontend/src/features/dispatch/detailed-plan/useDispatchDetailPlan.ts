@@ -15,6 +15,7 @@ import {
   listZoneTruckPresence,
   updateDispatchDetailEstimates,
   updateDispatchDetailPlan,
+  type DispatchDetailPlanAssignmentCounts,
   type DispatchDetailPlanRow,
   type ZoneTruckPresenceItem,
 } from '../../../api/dispatchPlanningClient';
@@ -68,6 +69,9 @@ export function useDispatchDetailPlan() {
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<DispatchDetailPlanRow[]>([]);
   const [total, setTotal] = useState(0);
+  // Card 20261008_3 — the two assignment chips' counts ride the grid response
+  // (full-set over the union of both branches), so they refresh with the rows.
+  const [assignmentStatusCounts, setAssignmentStatusCounts] = useState<DispatchDetailPlanAssignmentCounts>({ UNASSIGNED: 0, ASSIGNED: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<DetailPlanSortKey>(null);
@@ -143,6 +147,7 @@ export function useDispatchDetailPlan() {
         if (requestIdRef.current !== requestId) return;
         setItems(response.items);
         setTotal(response.total);
+        setAssignmentStatusCounts(response.assignmentStatusCounts ?? { UNASSIGNED: 0, ASSIGNED: 0 });
         setPage((current) => Math.min(current, Math.max(1, Math.ceil(response.total / PAGE_SIZE))));
         setLoading(false);
       })
@@ -505,6 +510,7 @@ export function useDispatchDetailPlan() {
     page,
     totalPages,
     total,
+    assignmentStatusCounts,
     pageSize: PAGE_SIZE,
     setPage,
     sortKey,

@@ -10,6 +10,7 @@ import { businessDateISO } from '../../../lib/format';
 import { useMonth } from '../../../hooks/useMonth';
 import { useTripOptions } from '../../../hooks/useTripOptions';
 import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan';
+import type { DispatchDetailPlanAssignmentCounts } from '../../../api/dispatchPlanningClient';
 import { DispatchTimeFilterField } from './DispatchTimeFilterField';
 import { useVehicleRouteOptions, VehicleDriverSelect, FleetFilterFields } from './DetailedPlanVehicleFilters';
 
@@ -28,6 +29,9 @@ interface DetailedPlanFiltersProps {
   loadDropoffPortFacets: FacetLoader;
   /** Active zone taxonomy (code + label) from GET /dispatch-zones. */
   zones: Array<{ code: string; label: string }>;
+  /** Card 20261008_3 — the two assignment chips' counts from the grid query's
+   *  `assignmentStatusCounts` (full-set over the union of both branches). */
+  assignmentCounts?: DispatchDetailPlanAssignmentCounts;
 }
 
 const DIRECTION_OPTIONS: Array<{ id: string; label: string }> = [
@@ -50,10 +54,14 @@ const ASSIGNMENT_OPTIONS: Array<{ id: string; label: string }> = [
  * (the presets-and-fields precedent: one state, a quick control on the bar
  * and the full select in the dialog).
  */
-const ASSIGNMENT_QUICK_TABS: TabItem[] = [
+const ASSIGNMENT_QUICK_TABS: Array<TabItem & { countKey?: 'UNASSIGNED' | 'ASSIGNED' }> = [
   { id: 'ALL', label: 'Tất cả' },
-  { id: 'UNASSIGNED', label: 'Chưa gán xe' },
-  { id: 'ASSIGNED', label: 'Đã gán xe' },
+  // Counts (card 20261008_3): full-set over the UNION of both grid branches,
+  // each equal to the total clicking the chip returns. Status-tab count
+  // convention (ShipmentsPage precedent) — tone rides the count: warning =
+  // còn phải gán, accent = đã gán xong. '0' renders as 0, never blank.
+  { id: 'UNASSIGNED', label: 'Chưa gán xe', countKey: 'UNASSIGNED', countTone: 'warning' },
+  { id: 'ASSIGNED', label: 'Đã gán xe', countKey: 'ASSIGNED', countTone: 'accent' },
 ];
 
 const DATA_STATUS_OPTIONS: Array<{ id: string; label: string }> = [
@@ -109,6 +117,7 @@ export function DetailedPlanFilters({
   loadPickupPortFacets,
   loadDropoffPortFacets,
   zones,
+  assignmentCounts,
 }: DetailedPlanFiltersProps) {
   const [draftResetKey, setDraftResetKey] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -261,7 +270,9 @@ export function DetailedPlanFilters({
         quickFiltersLabel="Lọc nhanh gán xe"
         quickFilters={(
           <Tabs
-            tabs={ASSIGNMENT_QUICK_TABS}
+            tabs={ASSIGNMENT_QUICK_TABS.map(({ countKey, ...tab }) => (countKey
+              ? { ...tab, count: assignmentCounts?.[countKey] ?? 0 }
+              : tab))}
             value={filters.assignmentStatus || 'ALL'}
             onChange={(id) => onChange({ assignmentStatus: id === 'ALL' ? '' : id as DetailedPlanFilterState['assignmentStatus'] })}
             variant="boxed"

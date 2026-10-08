@@ -290,9 +290,21 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
   // client error, not an empty result (stale client, not silent nothing).
   if (input.zone != null) await requireDispatchZone(input.zone);
 
+  // Card 20261008_3 — 'gán xe' on the fulfillment branch = a planned plate on
+  // the row (OWN plate / carrier-vehicle plate / typed plate). Kept OUT of the
+  // shared filter below so one grouped scan can count both chips' halves of
+  // the union; pageKeys/rows still apply it through `rowFilters`.
+  const assignmentPredicate = input.assignmentStatus === 'UNASSIGNED'
+    ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`
+    : input.assignmentStatus === 'ASSIGNED'
+      ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
+      : undefined;
+
   return db.transaction(async (tx) => {
     // Shared filter so the rows page and the total count stay consistent
-    // within one transaction.
+    // within one transaction. The assignment split (card 20261008_3) is NOT
+    // part of it — `rowFilters` adds it for the page/rows selects while the
+    // count split below reads both halves from these same conditions.
     const filters = and(
       isNull(s.shipmentFulfillments.canceledAt),
       isNull(s.shipments.deletedAt),
@@ -324,12 +336,6 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         sql`exists (select 1 from ${s.ports} pz where pz.id = ${s.shipmentContainers.pickupPortId} and pz.dispatch_zone = ${input.zone} and pz.deleted_at is null)`,
         sql`exists (select 1 from ${s.ports} pz where pz.id = ${s.shipmentContainers.dropoffPortId} and pz.dispatch_zone = ${input.zone} and pz.deleted_at is null)`,
       ) : undefined,
-      input.assignmentStatus === 'UNASSIGNED'
-        ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`
-        : undefined,
-      input.assignmentStatus === 'ASSIGNED'
-        ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
-        : undefined,
       input.customerId ? eq(s.shipments.customerId, input.customerId) : undefined,
       input.dataStatus ? dispatchDetailDataStatusSql(input.dataStatus) : undefined,
       // Card 20260927_61 advanced filters. Plate equality is the effective
@@ -376,7 +382,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       trailerType: input.trailerType ?? null,
       routeId: input.routeId ?? null,
     };
-    const pageKeys = await listDetailPlanPageKeys(tx, filters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
+    const rowFilters = and(filters, assignmentPredicate);
+    const pageKeys = await listDetailPlanPageKeys(tx, rowFilters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
     const fulfillmentIds = pageKeys.flatMap((key) => key.fulfillmentId == null ? [] : [key.fulfillmentId]);
     const branchContainerIds = pageKeys.flatMap((key) => key.fulfillmentId == null && key.containerId != null ? [key.containerId] : []);
 
@@ -457,9 +464,14 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         eq(s.tripPairs.id, s.trips.activeTripPairId),
         eq(s.tripPairs.status, 'ACTIVE'),
       ))
-      .where(and(filters, pageKeyPredicate(s.shipmentFulfillments.id, fulfillmentIds)))
+      .where(and(rowFilters, pageKeyPredicate(s.shipmentFulfillments.id, fulfillmentIds)))
       .orderBy(...dispatchDetailPriorityOrderSql()),
-      tx.select({ total: sql<number>`count(*)` })
+      // Card 20261008_3 — chip counts, same scan as the old total: one grouped
+      // aggregate splits the fulfillment branch into both chips' halves.
+      tx.select({
+        unassigned: sql<number>`count(*) filter (where ${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`,
+        assigned: sql<number>`count(*) filter (where ${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`,
+      })
         .from(s.shipmentFulfillments)
         .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
         .innerJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
@@ -473,9 +485,12 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // dispatchers can see and allocate lots stuck before the write-path
     // fix. The global identity page has already selected both sources;
     // hydrate only those rows and retain the combined total.
-    const [unionRows, unionCount] = await Promise.all([
+    // Every điều phối (fulfillment-less) row is inherently unassigned, so the
+    // branch only ever contributes to the UNASSIGNED chip — counted with that
+    // side of the split regardless of the request's own chip filter.
+    const [unionRows, unionUnassignedCount] = await Promise.all([
       listFulfillmentLessReadyRows(tx, unionFilters, accountantCustomerIds, limit, 0, branchContainerIds),
-      countFulfillmentLessReadyRows(tx, unionFilters, accountantCustomerIds),
+      countFulfillmentLessReadyRows(tx, { ...unionFilters, assignmentStatus: 'UNASSIGNED' }, accountantCustomerIds),
     ]);
     const pageRows = [...rows, ...unionRows].sort(compareDetailPlanRows);
     const shipmentIds = pageRows.map((row) => row.shipmentId);
@@ -619,7 +634,18 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         };
       }),
       limit,
-      total: Number(totals[0]?.total ?? 0) + unionCount,
+      // Card 20261008_3 — chip counts over the UNION of both branches, full-set
+      // under every other active filter. The two halves partition the row set
+      // (planned plate set vs not), so their sum is the view's total.
+      assignmentStatusCounts: {
+        UNASSIGNED: Number(totals[0]?.unassigned ?? 0) + unionUnassignedCount,
+        ASSIGNED: Number(totals[0]?.assigned ?? 0),
+      },
+      total: input.assignmentStatus === 'ASSIGNED'
+        ? Number(totals[0]?.assigned ?? 0)
+        : input.assignmentStatus === 'UNASSIGNED'
+          ? Number(totals[0]?.unassigned ?? 0) + unionUnassignedCount
+          : Number(totals[0]?.unassigned ?? 0) + Number(totals[0]?.assigned ?? 0) + unionUnassignedCount,
       page,
       pageSize: limit,
     };

@@ -65,6 +65,7 @@ export default function DispatchDetailPlanPage() {
           onClearLotBanner={detailPlan.clearLotBanner}
           presence={detailPlan.presence}
           zones={detailPlan.zones}
+          assignmentCounts={detailPlan.assignmentStatusCounts}
           sortKey={detailPlan.sortKey}
           sortDirection={detailPlan.sortDirection}
           onToggleSort={detailPlan.toggleSort}

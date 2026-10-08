@@ -4,7 +4,7 @@ import { EmptyState } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
-import type { DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
+import type { DispatchDetailPlanAssignmentCounts, DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
 import { Modal } from '../../../components/UI';
 import {
   DispatchPlanEditorCell,
@@ -45,6 +45,9 @@ interface DetailedPlanGridProps {
   onClearLotBanner: () => void;
   presence: { zone: string; zoneLabel: string; date: string; items: ZoneTruckPresenceItem[] } | null;
   zones: Array<{ code: string; label: string }>;
+  /** Card 20261008_3 — the assignment chips' counts, forwarded to the filter
+   *  strip (both render sites share them). */
+  assignmentCounts?: DispatchDetailPlanAssignmentCounts;
   sortKey: DetailPlanSortKey;
   sortDirection: DetailPlanSortDirection;
   onToggleSort: (key: Exclude<DetailPlanSortKey, null>) => void;
@@ -105,6 +108,7 @@ export function DetailedPlanGrid({
   onClearLotBanner,
   presence,
   zones,
+  assignmentCounts,
   sortKey,
   sortDirection,
   onToggleSort,
@@ -132,7 +136,7 @@ export function DetailedPlanGrid({
   if (error && items.length === 0) {
     return (
       <>
-        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} />
+        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} />
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
           <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry} disabled={loading}>Thử lại</button>
@@ -143,7 +147,7 @@ export function DetailedPlanGrid({
 
   return (
     <>
-      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} />
+      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} />
 
       <ZoneTruckPresencePanel
         items={presence?.items ?? []}
