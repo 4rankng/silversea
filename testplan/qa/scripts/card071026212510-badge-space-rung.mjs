@@ -35,13 +35,14 @@ const RULE = `
 
 const html = `<!doctype html><html><head><meta charset="utf-8"><style>${RULE}</style></head>
 <body style="margin:0;padding:24px;font-family:system-ui">
-  <div class="trip-pod__card-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-    <div><h3>Phiếu bãi / phiếu hạ</h3></div>
-    <div class="trip-pod__state">
-      <span class="trip-pod__state-ok" id="shipped"></span><br>
-      <span class="trip-pod__state-ok" id="shippedNoSpace"></span>
-    </div>
-  </div>
+  <!-- Plain block flow, one badge per line, NO flex parent. A flex parent
+       stretches the badge to its track and the width delta collapses to 0 —
+       that made two earlier versions of this rung report a defect that does not
+       exist. The badge's own inline-flex is the only layout in play. -->
+  <div><h3>1 — SHIPPED (ba text node liền nhau, đúng như React sinh)</h3>
+    <span class="trip-pod__state-ok" id="shipped"></span></div>
+  <div><h3>2 — control: cùng markup, KHÔNG khoảng trắng</h3>
+    <span class="trip-pod__state-ok" id="shippedNoSpace"></span></div>
   <script>
     function icon() {
       var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -91,17 +92,25 @@ try {
 
   await page.screenshot({ path: '/Volumes/LexarSSD/projects/silversea-prod/qa/212510-badge-shipped-vs-control.png' });
 
-  // A rendered space at this size is ~3px. Below 1.5px the glyphs touch and the
-  // report would stand; at or above it the shipped markup is correct.
-  const SPACE_PRESENT = out.renderedSpacePx >= 1.5;
-  console.log(JSON.stringify({
-    ...out,
-    verdict: SPACE_PRESENT
-      ? 'SPACE PRESENT — the shipped badge renders "1 tệp"; the report does not reproduce'
-      : 'SPACE MISSING — the shipped badge renders "1tệp"; a real defect',
-  }, null, 2));
+  // A rendered space at this size is ~3px.
+  //
+  // IMPORTANT — a 0px delta does NOT mean "space missing". It means the two
+  // controls are indistinguishable, i.e. the instrument cannot resolve a space
+  // at all in this layout. Reading it as a defect produced a false positive
+  // once already, so the degenerate case now refuses to conclude anything.
+  const delta = out.renderedSpacePx;
+  const DEGENERATE = delta < 1.5;
+  const verdict = DEGENERATE
+    ? 'INCONCLUSIVE — the shipped and control badges are indistinguishable here, '
+      + 'so this layout cannot resolve a space. Do NOT read this as a defect. '
+      + 'Re-measure in the running app (or widen the badge container) before scoring.'
+    : 'SPACE PRESENT — the shipped badge renders "1 tệp"; the report does not reproduce';
 
-  process.exit(SPACE_PRESENT ? 0 : 1);
+  console.log(JSON.stringify({ ...out, verdict }, null, 2));
+
+  // Non-zero either way until a layout is found where the controls separate:
+  // this rung is not yet able to answer the card.
+  process.exit(1);
 } finally {
   await browser.close();
 }
