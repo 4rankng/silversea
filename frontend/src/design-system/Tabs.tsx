@@ -141,6 +141,10 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, pane
     <div ref={tablistRef} className={cls} data-control-group={variant === 'boxed' ? 'compact' : undefined} role="tablist" aria-label={ariaLabel}>
       {tabs.map((t) => {
         const isActive = t.id === value;
+        // The count renders as its own span (tone classes live there), so the
+        // button's content-derived name glues label and numeral ('Tất cả6').
+        // Name the button explicitly with the space; the visual stays as-is.
+        const accessibleName = t.count !== undefined ? `${labelText(t.label)} ${t.count}` : undefined;
         return (
           <button
             key={t.id}
@@ -149,6 +153,7 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, pane
             id={`ds-tab-${groupId}-${t.id}`}
             aria-selected={isActive}
             aria-controls={panelId}
+            aria-label={accessibleName}
             tabIndex={t.id === tabbableId ? 0 : -1}
             disabled={t.disabled}
             className={`ds-tabs__btn d-tab${isActive ? ' ds-tabs__btn--active' : ''}`}

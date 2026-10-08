@@ -137,4 +137,16 @@ describe('Tabs keyboard navigation', () => {
     fireEvent.keyDown(trigger, { key: 'ArrowDown' });
     expect(await screen.findByRole('option', { name: 'Giấy báo nợ Nhắc nợ theo mẫu' })).toBeVisible();
   });
+
+  it('reads the count into the accessible name with a space while the visual stays glued by the count span', () => {
+    render(<Tabs tabs={[
+      { id: 'all', label: 'Tất cả', count: 6 },
+      { id: 'none', label: 'Chờ điều xe', count: 103 },
+    ]} value="all" onChange={() => {}} ariaLabel="Lọc trạng thái" />);
+    expect(screen.getByRole('tab', { name: 'Tất cả 6' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Chờ điều xe 103' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Tất cả6' })).toBeNull();
+    // visual convention unchanged: label span and count span concatenate
+    expect(screen.getByRole('tab', { name: 'Tất cả 6' })).toHaveTextContent('Tất cả6');
+  });
 });
