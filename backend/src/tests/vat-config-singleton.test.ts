@@ -251,6 +251,31 @@ describe('vat-config singleton route', () => {
     assert.equal(read.body, null);
   });
 
+  it('survives a warm cache read (the timestamps come back as strings, not Dates)', async () => {
+    // Red-first for the live 500 seen on staging: "row.createdAt.toISOString is not
+    // a function". cacheGet ends in `JSON.parse(cached) as T`, so a cache HIT
+    // hands back createdAt/updatedAt as ISO strings while the route calls
+    // .toISOString() on them. The first read (cache miss) returns real Dates and
+    // answers 200, which is why it looked fine until the cache warmed.
+    await db.delete(s.vatConfig);
+    const created = await api('PUT', '/api/vat-config', { vatRate: 0.08 }, `vat511-warm-${suffix}`);
+    assert.ok(created.status === 200 || created.status === 201, `save failed: ${created.status}`);
+
+    const cold = await api('GET', '/api/vat-config');   // populates the cache
+    assert.equal(cold.status, 200);
+
+    // Second read is served from cache and must still be a 200 with usable
+    // ISO timestamps — not a 500 from calling .toISOString() on a string.
+    const warm = await api('GET', '/api/vat-config');
+    assert.equal(warm.status, 200);
+    assert.match(String(warm.body.createdAt), /^\d{4}-\d{2}-\d{2}T/);
+    assert.match(String(warm.body.updatedAt), /^\d{4}-\d{2}-\d{2}T/);
+
+    // Leave no state behind for the cases that run after this one.
+    await db.delete(s.vatConfig);
+    await cacheInvalidate('config:vat');
+  });
+
   it('rejects a missing Idempotency-Key on PUT', async () => {
     const saved = await api('PUT', '/api/vat-config', { vatRate: 0.08 });
     assert.equal(saved.status, 400);
