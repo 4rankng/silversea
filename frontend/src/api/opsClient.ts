@@ -75,6 +75,26 @@ export interface OpsFundBook {
 
 export type OpsExpenseStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
+/**
+ * Card 20261008_2 — full-set per-status counts for the "Lịch sử chi phí"
+ * status filter tabs (the envelope's `statusCounts`, never page-derived).
+ * Each bucket sizes exactly the rows that tab reveals across BOTH sources the
+ * list merges (native Ops rows + legacy trip-sourced rows), so the numeral
+ * always agrees with the list behind it. Buckets the legacy loader's
+ * asymmetry keeps out of a view (DRAFT/VOIDED/PENDING/REJECTED never see the
+ * legacy rows) stay honest by construction; every key is always present and
+ * an empty bucket is `0`, never absent.
+ */
+export interface OpsExpenseStatusCounts {
+  all: number;
+  DRAFT: number;
+  RECORDED: number;
+  VOIDED: number;
+  PENDING: number;
+  APPROVED: number;
+  REJECTED: number;
+}
+
 export interface OpsExpenseRow {
   sourceKind?: 'OPS' | 'TRIP';
   sourceId?: number;
@@ -240,7 +260,7 @@ export const opsClient = {
   getFundBook: (period?: OpsFundBookPeriod) =>
     api.get<OpsFundBook>(`/ops/wallet/fund-book${qs({ from: period?.from, to: period?.to })}`),
   getWalletExpenses: (status?: OpsExpenseStatus) =>
-    api.get<{ items: OpsExpenseRow[] }>(`/ops/wallet/expenses${qs({ status })}`),
+    api.get<{ items: OpsExpenseRow[]; statusCounts: OpsExpenseStatusCounts }>(`/ops/wallet/expenses${qs({ status })}`),
   createAdvanceRequest: (body: { amount: number; reason: string }) =>
     api.post<unknown>('/ops/wallet/advance-requests', body),
   getWalletAdvanceRequests: (params?: { status?: string; page?: number; limit?: number }) =>

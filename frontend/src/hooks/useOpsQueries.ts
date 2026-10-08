@@ -10,6 +10,7 @@ import {
   type OpsExpensePhoto,
   type OpsExpenseRow,
   type OpsExpenseStatus,
+  type OpsExpenseStatusCounts,
   type OpsFleetTruck,
   type OpsFundBook,
   type OpsFundBookPeriod,
@@ -91,7 +92,7 @@ export function useOpsFundBook(period?: OpsFundBookPeriod) {
 }
 
 export function useOpsWalletExpenses(status?: OpsExpenseStatus) {
-  return useQuery<{ items: OpsExpenseRow[] }>({
+  return useQuery<{ items: OpsExpenseRow[]; statusCounts: OpsExpenseStatusCounts }>({
     queryKey: opsKeys.walletExpenses(status),
     queryFn: () => opsClient.getWalletExpenses(status),
   });

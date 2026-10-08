@@ -11,7 +11,7 @@ import {
   useInvalidateOps,
 } from '../../hooks/useOpsQueries';
 import { tripClient } from '../../api/tripClient';
-import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
+import type { OpsExpenseRow, OpsExpenseStatus, OpsExpenseStatusCounts } from '../../api/opsClient';
 import { Drawer, useConfirm } from '../../components/UI';
 import { Tabs } from '../../design-system';
 import { useReasonPrompt } from '../../components/reason-prompt';
@@ -23,11 +23,11 @@ import { formatMoney } from '../../lib/format';
 
 import './ops-modal.css';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
-const STATUS_FILTERS: Array<{ value: OpsExpenseStatus | undefined; label: string }> = [
-  { value: undefined, label: 'Tất cả' },
-  { value: 'DRAFT', label: 'Cần bổ sung' },
-  { value: 'RECORDED', label: 'Đã ghi nhận' },
-  { value: 'VOIDED', label: 'Đã hủy' },
+const STATUS_FILTERS: Array<{ value: OpsExpenseStatus | undefined; label: string; countKey: keyof OpsExpenseStatusCounts }> = [
+  { value: undefined, label: 'Tất cả', countKey: 'all' },
+  { value: 'DRAFT', label: 'Cần bổ sung', countKey: 'DRAFT' },
+  { value: 'RECORDED', label: 'Đã ghi nhận', countKey: 'RECORDED' },
+  { value: 'VOIDED', label: 'Đã hủy', countKey: 'VOIDED' },
 ];
 
 const STATUS_COLORS: Record<OpsExpenseStatus, string> = {
@@ -118,6 +118,7 @@ export function OpsExpenseHistory() {
   }
 
   const items = data?.items ?? [];
+  const statusCounts = data?.statusCounts;
 
   // Card 20260921_26 hid the column when nothing was editable (an empty column
   // read as a rendering bug). Card 071026210520: the column now carries the
@@ -134,7 +135,15 @@ export function OpsExpenseHistory() {
           ariaLabel="Lọc theo trạng thái"
           value={status ?? 'all'}
           onChange={(id) => setStatus(id === 'all' ? undefined : id as OpsExpenseStatus)}
-          tabs={STATUS_FILTERS.map((filter) => ({ id: filter.value ?? 'all', label: filter.label }))}
+          tabs={STATUS_FILTERS.map((filter) => ({
+            id: filter.value ?? 'all',
+            label: filter.label,
+            // Card 20261008_2: every tab carries its FULL-set count (native +
+            // legacy rows, never the loaded page), so the numeral sizes
+            // exactly the rows that tab reveals. `?? 0` prints a visible zero
+            // for an empty bucket — never a blank chip.
+            count: statusCounts?.[filter.countKey] ?? 0,
+          }))}
         />
       </header>
 

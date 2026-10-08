@@ -35,6 +35,7 @@ import {
   listOpsExpenses,
   updateOpsExpense,
 } from '../services/ops-expenses.service';
+import { loadOpsExpenseStatusCounts } from '../services/ops-expense-status-census.service';
 import {
   createOpsSettlement,
   finalizeOpsSettlement,
@@ -112,9 +113,14 @@ router.get('/wallet/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: 
   const status = statusFilterSchema.parse(req.query.status);
   const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? '100'), 10) || 100, 1), 200);
   const offset = Math.max(Number.parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
-  res.json({
-    items: await listOpsExpenses({ paidById: user.userId, status, limit, offset }),
-  });
+  // Card 20261008_2: `statusCounts` sizes every status tab over the FULL set
+  // (native + legacy trip-sourced rows), never the loaded page — the envelope
+  // shape follows cus-shipment-workspace's statusCounts (card 081026093520).
+  const [items, statusCounts] = await Promise.all([
+    listOpsExpenses({ paidById: user.userId, status, limit, offset }),
+    loadOpsExpenseStatusCounts({ paidById: user.userId }),
+  ]);
+  res.json({ items, statusCounts });
 }));
 
 router.get('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {

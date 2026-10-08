@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OpsExpenseRow } from '../../api/opsClient';
+import type { OpsExpenseRow, OpsExpenseStatusCounts } from '../../api/opsClient';
 import { OpsExpenseHistory } from './OpsExpenseHistory';
 
 /**
@@ -193,5 +193,59 @@ describe('negative adjusting entries (card 071026210530)', () => {
     const positiveRow = screen.getByText('50.000 ₫').closest('tr')!;
     expect(positiveRow.textContent).toContain('Đã ghi nhận');
     expect(positiveRow.textContent).not.toContain('bút toán điều chỉnh');
+  });
+});
+
+describe('status filter tab counts (card 20261008_2)', () => {
+  function renderWithCounts(counts: OpsExpenseStatusCounts | undefined) {
+    useOpsWalletExpensesMock.mockReturnValue({
+      data: counts ? { items: [tripRow()], statusCounts: counts } : { items: [] },
+      isLoading: counts === undefined,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    return render(<OpsExpenseHistory />);
+  }
+
+  /** label → the numeral the tab renders (the count slot is its own span, so
+   *  the pin reads the mapping, not a concatenated string). */
+  function countsByTab(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const tab of document.querySelectorAll('[role="tab"]')) {
+      const label = tab.querySelector('.ds-tabs__label')!.textContent!;
+      out[label] = tab.querySelector('.ds-tabs__count')?.textContent ?? '';
+    }
+    return out;
+  }
+
+  it('maps every tab to its own bucket — the numeral is the tab lens, never a neighbor', () => {
+    renderWithCounts({ all: 6, DRAFT: 2, RECORDED: 3, VOIDED: 5, PENDING: 1, APPROVED: 4, REJECTED: 0 });
+    expect(countsByTab()).toEqual({
+      'Tất cả': '6', 'Cần bổ sung': '2', 'Đã ghi nhận': '3', 'Đã hủy': '5',
+    });
+  });
+
+  it('renders an empty bucket as a visible 0, never blank', () => {
+    renderWithCounts({ all: 1, DRAFT: 0, RECORDED: 1, VOIDED: 0, PENDING: 0, APPROVED: 0, REJECTED: 0 });
+    const counts = countsByTab();
+    expect(counts['Tất cả']).toBe('1');
+    expect(counts['Cần bổ sung']).toBe('0');
+    expect(counts['Đã hủy']).toBe('0');
+  });
+
+  it('prints 0 across the board before the envelope arrives — never a blank chip', () => {
+    renderWithCounts(undefined);
+    expect(countsByTab()).toEqual({
+      'Tất cả': '0', 'Cần bổ sung': '0', 'Đã ghi nhận': '0', 'Đã hủy': '0',
+    });
+  });
+
+  it('keeps the census in view when the status lens changes (counts are not page-derived)', () => {
+    renderWithCounts({ all: 6, DRAFT: 2, RECORDED: 3, VOIDED: 5, PENDING: 1, APPROVED: 4, REJECTED: 0 });
+    fireEvent.click(screen.getByRole('tab', { name: /Cần bổ sung/ }));
+    expect(useOpsWalletExpensesMock).toHaveBeenLastCalledWith('DRAFT');
+    expect(countsByTab()).toEqual({
+      'Tất cả': '6', 'Cần bổ sung': '2', 'Đã ghi nhận': '3', 'Đã hủy': '5',
+    });
   });
 });
