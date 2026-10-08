@@ -53,13 +53,13 @@ export function PenaltyScoreboardCards({ rows, avgStreak, driversOver90, onOpenD
                 <div className="mm">
                   <span className="lab">Chuỗi an toàn</span>
                   <span className={d.streakDays >= 90 ? 'val' : 'val empty'} style={d.streakDays >= 90 ? { color: 'var(--success-text)' } : undefined}>
-                    {d.streakDays} ngày
+                    {`${d.streakDays} ngày`}
                   </span>
                 </div>
                 <div className="mm">
                   <span className="lab">Vi phạm (kỳ lọc)</span>
                   <span className={vClass === 'zero' ? 'val empty' : `val ${vClass}`}>
-                    {d.violations} vụ
+                    {`${d.violations} vụ`}
                   </span>
                 </div>
                 <div className="mm">

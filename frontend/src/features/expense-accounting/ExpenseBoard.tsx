@@ -66,7 +66,7 @@ export function ExpenseBoard({ view, filters, catalog, setPage, onEdit, onWork, 
       </div>}
       <div className="expense-accounting-toolbar"><div className="expense-accounting-toolbar-actions">
         <button type="button" className="btn btn--secondary btn--sm" disabled={busy || !rows.length} onClick={() => setSelection(new Map(rows.filter(isConfirmableEntry).map(entry => [expenseKey(entry), entry])))}>Chọn trang này</button>
-        <button type="button" className="btn btn--ghost btn--sm" disabled={busy || !entries.data?.total} onClick={() => void selectAll()}>Chọn tất cả {entries.data?.total ?? 0} kết quả</button>
+        <button type="button" className="btn btn--ghost btn--sm" disabled={busy || !entries.data?.total} onClick={() => void selectAll()}>{`Chọn tất cả ${entries.data?.total ?? 0} kết quả`}</button>
         {selected.length > 0 && <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSelection(new Map())}>Bỏ chọn ({selected.length})</button>}
       </div><button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => { setSelection(new Map()); void query.refetch(); }}>Làm mới</button></div>
       {selected.length > 0 && <div className="expense-accounting-toolbar-actions" aria-label="Thao tác các khoản đã chọn">

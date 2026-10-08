@@ -376,7 +376,7 @@ export default function PayableDetailPage() {
           <div className="dd-sum-update">
             Cập nhật lần cuối
             <b>{new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</b>
-            {ledgerRows.length} giao dịch trong kỳ
+            {`${ledgerRows.length} giao dịch trong kỳ`}
           </div>
         </div>
 

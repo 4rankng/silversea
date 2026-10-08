@@ -208,8 +208,7 @@ export default function FactoriesConfigPage() {
                   carries the state instead. */}
               {!sitesQuery.isError && (
                 <span className="cfg-page__summary">
-                  <strong>{filtered.length}</strong> mục
-                  {sites.length !== filtered.length && ` / ${sites.length}`}
+                  <strong>{`${filtered.length} mục${sites.length !== filtered.length ? ` / ${sites.length}` : ''}`}</strong>
                 </span>
               )}
             </>

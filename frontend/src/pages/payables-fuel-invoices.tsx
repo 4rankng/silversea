@@ -731,8 +731,8 @@ export function FuelInvoicesPanel() {
                               </div>
                             )}
                           </td>
-                          <td className="num typo-mono">{formatNumber(completion.totalLiters)} l</td>
-                          <td className="num typo-mono">{formatNumber(completion.allocatedLiters)} l</td>
+                          <td className="num typo-mono">{`${formatNumber(completion.totalLiters)} l`}</td>
+                          <td className="num typo-mono">{`${formatNumber(completion.allocatedLiters)} l`}</td>
                           <td className="num typo-mono">{formatCurrency(invoice.unitPrice)}</td>
                           <td className="num typo-mono">{formatCurrency(invoice.totalAmount)}</td>
                           <td className="fuel-invoices-table__actions">

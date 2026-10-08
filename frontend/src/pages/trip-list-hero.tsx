@@ -60,7 +60,7 @@ export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit
                 {formatNumber(summary?.totalKm ?? 0)}
                 <span className="metric-unit">km</span>
               </div>
-              <div className="metric-delta delta-flat">{statusCounts.all} chuyến tháng này</div>
+              <div className="metric-delta delta-flat">{`${statusCounts.all} chuyến tháng này`}</div>
             </div>
             <div className="metric">
               <div className="metric-label">Tổng dầu tiêu thụ</div>

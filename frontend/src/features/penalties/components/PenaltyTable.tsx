@@ -460,7 +460,7 @@ export function PenaltyTable({
                       <td data-label="Vi phạm">
                         <span className={`penalty-violation-count ${vClass}`}>
                           <span className="dot" />
-                          {d.violations} vụ
+                          {`${d.violations} vụ`}
                         </span>
                       </td>
                       <td data-label="Phạt YTD" className="num">

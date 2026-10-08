@@ -228,7 +228,7 @@ export default function AccountingDebitClosePage() {
               title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để mở popup chốt đợt' : undefined}
               onClick={() => setSettlementOpen(true)}
             >
-              Chọn Debit ({selectedCount} dòng)
+              {`Chọn Debit (${selectedCount} dòng)`}
             </button>
           </>
         )}

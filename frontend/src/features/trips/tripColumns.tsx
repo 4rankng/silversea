@@ -356,7 +356,7 @@ export function buildTripColumns(
         }
         return (
           <div className="cons-cell" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <div className="cons-main">{cons.liters.toFixed(0)} L</div>
+            <div className="cons-main">{`${cons.liters.toFixed(0)} L`}</div>
             <div className="cons-rate-val">
               {cons.per100.toFixed(1).replace('.', ',')} L/100km
             </div>

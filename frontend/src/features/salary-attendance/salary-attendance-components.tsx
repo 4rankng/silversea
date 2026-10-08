@@ -156,7 +156,7 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { sa
 
         <div className="salary-summary-dark__row salary-summary-dark__row--muted">
           <span className="salary-summary-dark__row-lbl">
-            <Truck size={12} /> Lương chuyến ({salary.tripDays} ngày)
+            <Truck size={12} />{` Lương chuyến (${salary.tripDays} ngày)`}
           </span>
           <span className="salary-summary-dark__row-val">
             <Money value={salary.totalTripSalary} />
@@ -165,7 +165,7 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { sa
 
         <div className="salary-summary-dark__row salary-summary-dark__row--muted">
           <span className="salary-summary-dark__row-lbl">
-            <Coffee size={12} /> Lương chờ việc ({salary.standbyDays} ngày)
+            <Coffee size={12} />{` Lương chờ việc (${salary.standbyDays} ngày)`}
           </span>
           <span className="salary-summary-dark__row-val">
             <Money value={salary.supplementPay} />

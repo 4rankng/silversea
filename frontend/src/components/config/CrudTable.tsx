@@ -139,7 +139,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
               ? toolbarLeft({ totalItems: items.length, activeCount: activeIds.size })
               : items.length > 0 && (
                   <span className="cfg-page__summary">
-                    <strong>{visibleItems.length}{normalizedSearch ? ` / ${items.length}` : ''}</strong> mục
+                    <strong>{`${visibleItems.length}${normalizedSearch ? ` / ${items.length}` : ''} mục`}</strong>
                   </span>
                 )}
           </div>
