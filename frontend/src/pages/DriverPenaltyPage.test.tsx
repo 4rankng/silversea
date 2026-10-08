@@ -25,3 +25,21 @@ describe('driver deduction summary known versus unavailable amount', () => {
     expect(screen.getByRole('alert')).toBeTruthy();
   });
 });
+
+// The KPI labels compose a static word and the `T<month>/<year>` period as two
+// JSX text nodes; the separator space lives at the tail of the first node. A
+// refactor that drops it renders "VI PHẠMT10/2026" (FB-049) — pin the exact
+// composed text so the space cannot silently disappear again.
+describe('penalty KPI labels keep the separator space before the salary period', () => {
+  beforeEach(() => {
+    queries.useDriverPenalties.mockReturnValue({ data: [], isLoading: false, isError: false });
+    queries.useSalaryPeriod.mockReturnValue({ data: { start: '2026-09-01', end: '2026-09-30' }, isLoading: false, isError: false });
+  });
+  it('composes the period labels with the space intact', () => {
+    render(<DriverPenaltyPage />);
+    const texts = [...document.querySelectorAll('.kpi__label')].map((el) => el.textContent);
+    expect(texts.some((t) => /^Vi phạm T\d{2}\/\d{4}$/.test(t ?? ''))).toBe(true);
+    expect(texts.some((t) => /^Khấu trừ T\d{2}\/\d{4}$/.test(t ?? ''))).toBe(true);
+    expect(texts.some((t) => /phạmT\d|trừT\d/i.test(t ?? ''))).toBe(false);
+  });
+});
