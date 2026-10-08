@@ -917,3 +917,37 @@ describe('card 20261008_3 — chip counts ride the grid response', () => {
     expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 4, ASSIGNED: 2 });
   });
 });
+
+describe('card 20261008_7 — period change re-numerals the chips consistently', () => {
+  it('switching the topbar month refetches with the new range and the chips follow that response', async () => {
+    monthState.month = 9; monthState.year = 2026;
+    // Two period-scoped responses: September totals 6 (4 + 2), August totals
+    // 4 (1 + 3) — the counts differ per period so stale numbers would show.
+    listDispatchDetailPlanRowsMock.mockImplementation(async (query) => page(
+      [row()],
+      query?.dateFrom === '2026-09-01' ? 6 : 4,
+      query?.dateFrom === '2026-09-01' ? { UNASSIGNED: 4, ASSIGNED: 2 } : { UNASSIGNED: 1, ASSIGNED: 3 },
+    ));
+    const { result, rerender } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 4, ASSIGNED: 2 });
+    // Chips partition the fetched total — the consistency invariant the
+    // server keeps by construction (same builder for rows and counts).
+    expect(result.current.assignmentStatusCounts.UNASSIGNED + result.current.assignmentStatusCounts.ASSIGNED)
+      .toBe(result.current.total);
+
+    monthState.month = 8;
+    rerender();
+    await waitFor(() => expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 1, ASSIGNED: 3 }));
+    // The numbers came from the NEW period's query — the range rode the
+    // request that re-numeraled the chips …
+    const call = listDispatchDetailPlanRowsMock.mock.calls.at(-1)![0]!;
+    expect(call.dateFrom).toBe('2026-08-01');
+    expect(call.dateTo).toBe('2026-08-31');
+    // … and the chips still partition that response's total.
+    expect(result.current.total).toBe(4);
+    expect(result.current.assignmentStatusCounts.UNASSIGNED + result.current.assignmentStatusCounts.ASSIGNED)
+      .toBe(result.current.total);
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()]));
+  });
+});

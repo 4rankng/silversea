@@ -363,9 +363,18 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       shipmentQSearchPredicate(qPattern, { containerNumber: true }),
     );
 
+    // Card 20261008_7 — the topbar period must filter the điều phối branch
+    // too. dateFrom/dateTo ride the SAME normalized values the fulfillment
+    // branch filters on; the branch builder applies them to its own date
+    // column (identical formula: container appointment date in
+    // Asia/Ho_Chi_Minh, lot expectedDeliveryDate fallback, inclusive edges).
+    // One shared builder feeds pageKeys + rows + count, so rows and
+    // assignmentStatusCounts stay consistent by construction.
     const unionFilters = {
       q: input.q,
       date,
+      dateFrom,
+      dateTo,
       direction: input.direction ?? null,
       pickupIds,
       dropoffIds,
