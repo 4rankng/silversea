@@ -88,25 +88,29 @@ describe('VID-DSP-02 direct release', () => {
     const button = screen.getByRole('button');
     act(() => { button.click(); button.click(); });
     expect(listFleet).toHaveBeenCalledTimes(1);
-    expect(button).toBeDisabled();
-    expect(button).toHaveAccessibleName('Đang phát lệnh · CSQU3054383');
-    expect(button).toHaveAttribute('aria-busy', 'true');
-    expect(button.textContent).toBe('');
-    expect(button.querySelector('svg.tt-animate-spin')).not.toBeNull();
+    // Sweep card 20261008_1: the busy reason mounts the DisabledActionTip
+    // wrapper, which remounts the button — re-query instead of holding the
+    // stale node.
+    const issuingButton = screen.getByRole('button');
+    expect(issuingButton).toHaveAttribute('aria-disabled', 'true');
+    expect(issuingButton).toHaveAccessibleName('Đang phát lệnh · CSQU3054383');
+    expect(issuingButton).toHaveAttribute('aria-busy', 'true');
+    expect(issuingButton.textContent).toBe('');
+    expect(issuingButton.querySelector('svg.tt-animate-spin')).not.toBeNull();
     await act(async () => finishLookup({ items: [ownTruck] }));
     expect(issue).toHaveBeenCalledTimes(1);
-    expect(button).toBeDisabled();
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button'));
     await act(async () => finishIssue({
       fulfillmentId: 1, version: 4,
       trip: { id: 55, version: 1, tripCode: 'VID-DSP', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 12, trailerId: 2, driverId: 34, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null },
       notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true }, replayed: false,
     }));
     expect(issue).toHaveBeenCalledTimes(1);
-    expect(button).not.toBeDisabled();
-    expect(button).toHaveAccessibleName('Phát lệnh · CSQU3054383');
-    expect(button).toHaveAttribute('aria-busy', 'false');
-    expect(button.querySelector('svg.tt-animate-spin')).toBeNull();
+    const idleButton = screen.getByRole('button');
+    expect(idleButton).not.toBeDisabled();
+    expect(idleButton).toHaveAccessibleName('Phát lệnh · CSQU3054383');
+    expect(idleButton).toHaveAttribute('aria-busy', 'false');
+    expect(idleButton.querySelector('svg.tt-animate-spin')).toBeNull();
   });
 
   it('issues an external saved assignment without mandatory driver or extra confirmation', async () => {

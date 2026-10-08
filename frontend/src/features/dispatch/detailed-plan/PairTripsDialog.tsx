@@ -4,6 +4,7 @@ import type { TripDetail } from '@tingting/shared';
 
 import { tripClient } from '../../../api/tripClient';
 import { useTripDetail } from '../../../hooks/useTripQueries';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { Modal } from '../../../components/UI';
 import { UuiSelectField } from '../../../design-system';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
@@ -47,6 +48,22 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
+
+  // Sweep (card 20261008_1): the submit used to disable silently — every
+  // disable cause now carries its own aria-described reason
+  // (DisabledActionTip) instead of a bare `disabled`. The "Xong" acknowledge
+  // keeps NO disable at all: a new save starts with setWarnings([]), so the
+  // button unmounts instead of ever rendering disabled (its old
+  // `disabled={saving}` was unreachable) — always enabled when present.
+  const submitDisabledReason = saving
+    ? 'Đang ghép chuyến…'
+    : loadingBase
+      ? 'Đang tải dữ liệu lệnh ghép…'
+      : !baseTrip
+        ? 'Không tải được thông tin lệnh — thử mở lại.'
+        : !partnerTripId
+          ? 'Chọn lệnh ghép cùng để tiếp tục.'
+          : null;
 
   const partnerOptions = useMemo(() => candidates
     .filter((candidate) => candidate.dispatch?.tripId != null
@@ -162,19 +179,21 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           {warnings.length > 0 && (
-            <button type="button" className="btn btn--secondary" onClick={onClose} disabled={saving}>
+            <button type="button" className="btn btn--secondary" onClick={onClose}>
               Xong
             </button>
           )}
-          <button
-            type="button"
-            className="btn btn--primary"
-            onClick={() => { void handlePair(); }}
-            disabled={saving || loadingBase || !baseTrip || !partnerTripId}
-          >
-            {saving ? <Loader2 size={15} className="spin" /> : <Link2 size={15} />}
-            {saving ? 'Đang ghép…' : 'Ghép chuyến'}
-          </button>
+          <DisabledActionTip id="pair-trips-submit" reason={submitDisabledReason}>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => { if (submitDisabledReason) return; void handlePair(); }}
+              aria-disabled={submitDisabledReason != null || undefined}
+            >
+              {saving ? <Loader2 size={15} className="spin" /> : <Link2 size={15} />}
+              {saving ? 'Đang ghép…' : 'Ghép chuyến'}
+            </button>
+          </DisabledActionTip>
         </div>
       </div>
     </Modal>

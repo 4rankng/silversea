@@ -7,6 +7,7 @@ import {
 } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { CloseButton } from '../../../components/untitled-ui/base/buttons/close-button';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { Modal } from '../../../design-system/Modal';
 import { billBookingReference } from '../../../lib/business-reference';
 import {
@@ -211,6 +212,20 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
 
   let globalRowOffset = 0;
 
+  // Sweep (card 20261008_1): both dialog buttons used to disable silently —
+  // "Hủy" froze during a save, "Lưu phân bổ" went dark on validation errors.
+  // Each cause now rides the aria-described + aria-disabled pattern
+  // (DisabledActionTip) so the reason is reachable on hover AND keyboard
+  // focus — `isDisabled`/the `disabled` attribute would take the buttons out
+  // of both. When validation blocks the save, the reason IS the first
+  // specific validation message (the notice list carries the full set).
+  const cancelDisabledReason = saving ? 'Đang lưu phân bổ — chưa hủy được.' : null;
+  const saveDisabledReason = saving
+    ? 'Đang lưu phân bổ…'
+    : validation.hasErrors
+      ? (validation.allErrors[0] ?? 'Số container phân bổ chưa hợp lệ — kiểm tra các dòng đánh dấu đỏ.')
+      : null;
+
   return (
     <Modal
       chrome="bare"
@@ -372,17 +387,28 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
         )}
 
         <div className="dispatch-allocation-popover__actions">
-          <UUIButton size="sm" color="secondary" onPress={onClose} isDisabled={saving}>Hủy</UUIButton>
-          <UUIButton
-            size="sm"
-            color="primary"
-            className="dispatch-allocation-popover__save"
-            onPress={handleSave}
-            isDisabled={validation.hasErrors || saving}
-            isLoading={saving}
-          >
-            {saving ? 'Đang lưu…' : 'Lưu phân bổ'}
-          </UUIButton>
+          <DisabledActionTip id="dispatch-allocation-cancel" reason={cancelDisabledReason}>
+            <UUIButton
+              size="sm"
+              color="secondary"
+              aria-disabled={saving || undefined}
+              onPress={() => { if (saving) return; onClose(); }}
+            >
+              Hủy
+            </UUIButton>
+          </DisabledActionTip>
+          <DisabledActionTip id="dispatch-allocation-save" reason={saveDisabledReason}>
+            <UUIButton
+              size="sm"
+              color="primary"
+              className="dispatch-allocation-popover__save"
+              onPress={handleSave}
+              aria-disabled={saveDisabledReason != null || undefined}
+              isLoading={saving}
+            >
+              {saving ? 'Đang lưu…' : 'Lưu phân bổ'}
+            </UUIButton>
+          </DisabledActionTip>
         </div>
       </div>
     </Modal>

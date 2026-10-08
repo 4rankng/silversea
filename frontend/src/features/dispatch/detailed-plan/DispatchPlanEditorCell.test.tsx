@@ -408,7 +408,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(document.querySelector('.dispatch-assignment-dialog__issue-driver')?.textContent).toMatch(/Phạm Văn Hùng/);
     // The ownTruck plate lookup runs against the TRUCK search endpoint.
     expect(listResourcesMock).toHaveBeenCalledWith('TRUCK', expect.objectContaining({ q: '15H-052.82', limit: 5 }));
-    await waitFor(() => expect(issueButton().disabled).toBe(false));
+    await waitFor(() => expect(issueButton()).not.toHaveAttribute('aria-disabled'));
   });
 
   it('blocks issuing and explains when the plated truck has no paired driver', async () => {
@@ -453,8 +453,8 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.queryByRole('button', { name: /Phát lệnh nhanh/ })).toBeNull();
     // The plan is frozen history — the trigger locks with an explanation and
     // never opens the editor (its save would only 409 at the live-trip guard).
-    const trigger = screen.getByRole('button', { name: /Sửa ô điều phối/ }) as HTMLButtonElement;
-    expect(trigger.disabled).toBe(true);
+    const trigger = screen.getByRole('button', { name: /Sửa ô điều phối/ });
+    expect(trigger).toHaveAttribute('aria-disabled', 'true');
     expect(trigger.title).toMatch(/Chuyến đã hoàn thành/);
     fireEvent.click(trigger);
     expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
@@ -647,8 +647,8 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     }), { onAtomicSave });
     await openDialog();
 
-    const trigger = screen.getByRole('button', { name: 'Lẻ Phân loại' }) as HTMLButtonElement;
-    expect(trigger.disabled).toBe(false);
+    const trigger = screen.getByRole('button', { name: 'Lẻ Phân loại' });
+    expect(trigger).not.toHaveAttribute('aria-disabled');
     fireEvent.click(trigger);
     // Card 20261006_392: an LCL lot is ONE whole-lot LCL_SHIPMENT fulfillment and
     // shipment_fulfillments_lcl_dispatch_classification_check pins its

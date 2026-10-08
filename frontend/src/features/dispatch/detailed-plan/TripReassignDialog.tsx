@@ -6,6 +6,7 @@ import { qk } from '../../../api/keys';
 import { useCatalogs } from '../../../hooks/useCatalogs';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { useTripDetail } from '../../../hooks/useTripQueries';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { Modal } from '../../../components/UI';
 import { TextField, UuiSelectField } from '../../../design-system';
 
@@ -135,6 +136,20 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
   const confirmDisabled = saving || !trip || lockedByAcceptance
     || (carrierType === 'OWN' ? (!truckId || !driverId) : (!externalCarrierId && !externalPlateNumber));
 
+  // Sweep (card 20261008_1): both footer buttons used to disable silently —
+  // each disable cause now carries its own aria-described reason
+  // (DisabledActionTip) instead of a bare `disabled`. The acceptance-locked
+  // trip is NOT a disabled-control case: the confirm control is removed and
+  // the body explains the lock (kept as-is).
+  const cancelDisabledReason = saving ? 'Đang lưu phân xe lại — chưa hủy được.' : null;
+  const confirmDisabledReason = saving
+    ? 'Đang lưu phân xe lại…'
+    : !trip
+      ? 'Chưa tải được thông tin chuyến.'
+      : carrierType === 'OWN'
+        ? (!truckId || !driverId ? 'Chọn xe và lái xe để xác nhận.' : null)
+        : (!externalCarrierId && !externalPlateNumber ? 'Chọn đối tác hoặc nhập biển số xe.' : null);
+
   return (
     <Modal
       isOpen={tripId != null}
@@ -144,16 +159,30 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
       maxWidth={440}
       footer={(
         <>
-          <button type="button" className="btn btn--ghost btn--sm" onClick={onClose} disabled={saving}>
-            <X size={14} aria-hidden="true" /> Hủy
-          </button>
+          <DisabledActionTip id="trip-reassign-cancel" reason={cancelDisabledReason}>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => { if (saving) return; onClose(); }}
+              aria-disabled={saving || undefined}
+            >
+              <X size={14} aria-hidden="true" /> Hủy
+            </button>
+          </DisabledActionTip>
           {/* No confirmation control on a locked trip — the dispatcher must
               not be offered a save the server guard will reject. */}
           {!lockedByAcceptance && (
-            <button type="button" className="btn btn--primary btn--sm" onClick={() => void handleSave()} disabled={confirmDisabled}>
-              {saving ? <Loader2 size={14} className="spin" aria-hidden="true" /> : <Shuffle size={14} aria-hidden="true" />}
-              Xác nhận phân xe lại
-            </button>
+            <DisabledActionTip id="trip-reassign-confirm" reason={confirmDisabledReason}>
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={() => { if (confirmDisabledReason) return; void handleSave(); }}
+                aria-disabled={confirmDisabled || undefined}
+              >
+                {saving ? <Loader2 size={14} className="spin" aria-hidden="true" /> : <Shuffle size={14} aria-hidden="true" />}
+                Xác nhận phân xe lại
+              </button>
+            </DisabledActionTip>
           )}
         </>
       )}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
 import type { DispatchDetailPlanAssignmentCounts, DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
@@ -139,7 +140,19 @@ export function DetailedPlanGrid({
         <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} />
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
-          <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry} disabled={loading}>Thử lại</button>
+          {/* Sweep (card 20261008_1): the retry used to disable silently
+              while a reload was in flight — same aria-described explanation
+              as /dispatch's retry (card 081026093510). */}
+          <DisabledActionTip id="detailed-plan-retry-cold" reason={loading ? 'Đang tải dữ liệu…' : null}>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => { if (loading) return; onRetry(); }}
+              aria-disabled={loading || undefined}
+            >
+              Thử lại
+            </button>
+          </DisabledActionTip>
         </div>
       </>
     );
@@ -163,7 +176,16 @@ export function DetailedPlanGrid({
       {error && items.length > 0 && (
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
-          <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry} disabled={loading}>Thử lại</button>
+          <DisabledActionTip id="detailed-plan-retry-banner" reason={loading ? 'Đang tải dữ liệu…' : null}>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => { if (loading) return; onRetry(); }}
+              aria-disabled={loading || undefined}
+            >
+              Thử lại
+            </button>
+          </DisabledActionTip>
         </div>
       )}
 

@@ -12,6 +12,7 @@ import {
 import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal, useConfirm } from '../../../components/UI';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { billBookingReference } from '../../../lib/business-reference';
 import { DateTimeField, NumberField, SearchableSelect, type SearchableSelectOption } from '../../../design-system';
 import {
@@ -508,7 +509,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.container.containerTypeLabel, row.container.cargoWeightKg, suggestions, vehicleOptions]);
 
   async function openEditor() {
-    if (disabled) return;
+    if (disabled || ensuring) return;
     // An issued order owns a trip. While it runs, its vehicle must be changed
     // through the trip reassignment flow so the driver/vehicle state stays
     // coherent. Once it completes, the plan is frozen history — the backend's
@@ -710,6 +711,41 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     && row.dispatch.tripId != null
     && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT');
 
+  // Sweep (card 20261008_1): every action button here used to disable
+  // silently. Each disable cause now carries its own aria-described reason
+  // (DisabledActionTip) — reachable on hover AND keyboard focus — and the
+  // handlers guard the same conditions the reasons name (aria-disabled does
+  // not block clicks the way `disabled` did).
+  const triggerDisabledReason = planFrozen
+    ? 'Chuyến đã hoàn thành — kế hoạch điều phối đã chốt.'
+    : ensuring
+      ? 'Đang chuẩn bị dữ liệu chuyến — thử lại sau.'
+      : disabled
+        ? 'Ô điều phối đang khóa thao tác.'
+        : null;
+  const cancelDisabledReason = saving
+    ? 'Đang lưu thay đổi — chưa hủy được.'
+    : issuing
+      ? 'Đang phát lệnh — chưa hủy được.'
+      : null;
+  const saveDisabledReason = saving
+    ? 'Đang lưu thay đổi…'
+    : issuing
+      ? 'Đang phát lệnh — chưa lưu được.'
+      : null;
+  const issueDisabledReason = saving
+    ? 'Đang lưu thay đổi — chưa phát lệnh được.'
+    : issuing
+      ? 'Đang phát lệnh…'
+      : planDirty
+        ? 'Lưu thay đổi điều phối trước khi phát lệnh.'
+        : null;
+  const completeDisabledReason = saving
+    ? 'Đang lưu thay đổi — chưa hoàn thành được.'
+    : issuing
+      ? 'Đang phát lệnh — chưa hoàn thành được.'
+      : null;
+
   return (
     <div className="dispatch-assignment-cell" data-cell-label="Điều phối">
       <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
@@ -730,22 +766,24 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         {row.lotFullyPlated && !currentPlate && (
           <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
         )}
-        <button
-          ref={triggerRef}
-          type="button"
-          className="btn btn--secondary btn--sm dispatch-assignment-cell__trigger"
-          onClick={openEditor}
-          disabled={disabled || planFrozen || ensuring}
-          aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
-          aria-label={canReassignIssuedTrip ? `Phân xe lại ${identity}` : `Sửa ô điều phối ${identity}`}
-          title={planFrozen
-            ? 'Chuyến đã hoàn thành — kế hoạch điều phối đã chốt'
-            : canReassignIssuedTrip
-              ? 'Phân xe lại trước khi chuyến xuất phát'
-              : `Chỉnh sửa điều phối · ${identity}`}
-        >
-          {canReassignIssuedTrip ? 'Phân xe lại' : 'Sửa'}
-        </button>
+        <DisabledActionTip id={`dispatch-plan-trigger-${row.fulfillmentId ?? row.shipmentId}`} reason={triggerDisabledReason}>
+          <button
+            ref={triggerRef}
+            type="button"
+            className="btn btn--secondary btn--sm dispatch-assignment-cell__trigger"
+            onClick={openEditor}
+            aria-disabled={disabled || planFrozen || ensuring || undefined}
+            aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
+            aria-label={canReassignIssuedTrip ? `Phân xe lại ${identity}` : `Sửa ô điều phối ${identity}`}
+            title={planFrozen
+              ? 'Chuyến đã hoàn thành — kế hoạch điều phối đã chốt'
+              : canReassignIssuedTrip
+                ? 'Phân xe lại trước khi chuyến xuất phát'
+                : `Chỉnh sửa điều phối · ${identity}`}
+          >
+            {canReassignIssuedTrip ? 'Phân xe lại' : 'Sửa'}
+          </button>
+        </DisabledActionTip>
       </div>
 
       <Modal
@@ -755,34 +793,55 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         maxWidth={560}
         footer={(
           <>
-            <button type="button" className="btn btn--secondary" onClick={closeEditor} disabled={saving || issuing}>Hủy</button>
-            <button type="button" className="btn btn--primary" onClick={() => void save()} disabled={saving || issuing}>
-              <Save size={16} aria-hidden="true" />
-              {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
-            </button>
-            {(issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && (
+            <DisabledActionTip id={`dispatch-plan-cancel-${row.fulfillmentId ?? row.shipmentId}`} reason={cancelDisabledReason}>
               <button
                 type="button"
-                className="btn btn--primary dispatch-assignment-dialog__issue-btn"
-                onClick={() => void issue()}
-                disabled={!canIssue || issuing || saving}
-                title={planDirty ? 'Lưu thay đổi điều phối trước khi phát lệnh' : undefined}
+                className="btn btn--secondary"
+                onClick={() => { if (saving || issuing) return; closeEditor(); }}
+                aria-disabled={saving || issuing || undefined}
               >
-                {issuing ? 'Đang phát lệnh…' : 'Phát lệnh'}
+                Hủy
               </button>
+            </DisabledActionTip>
+            <DisabledActionTip id={`dispatch-plan-save-${row.fulfillmentId ?? row.shipmentId}`} reason={saveDisabledReason}>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => { if (saving || issuing) return; void save(); }}
+                aria-disabled={saving || issuing || undefined}
+              >
+                <Save size={16} aria-hidden="true" />
+                {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
+              </button>
+            </DisabledActionTip>
+            {(issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && (
+              <DisabledActionTip id={`dispatch-plan-issue-${row.fulfillmentId ?? row.shipmentId}`} reason={issueDisabledReason}>
+                <button
+                  type="button"
+                  className="btn btn--primary dispatch-assignment-dialog__issue-btn"
+                  onClick={() => { if (!canIssue || issuing || saving) return; void issue(); }}
+                  aria-disabled={!canIssue || issuing || saving || undefined}
+                  title={planDirty ? 'Lưu thay đổi điều phối trước khi phát lệnh' : undefined}
+                >
+                  {issuing ? 'Đang phát lệnh…' : 'Phát lệnh'}
+                </button>
+              </DisabledActionTip>
             )}
             {row.dispatch.carrierType === 'EXTERNAL' && row.dispatch.tripId != null && row.taskStatus === 'DISPATCHED' && (
-              <button
-                type="button"
-                className="btn btn--primary dispatch-assignment-dialog__complete-btn"
-                onClick={() => {
-                  closeEditor();
-                  onCompleteExternalTrip(row);
-                }}
-                disabled={saving || issuing}
-              >
-                Hoàn thành chuyến
-              </button>
+              <DisabledActionTip id={`dispatch-plan-complete-${row.fulfillmentId ?? row.shipmentId}`} reason={completeDisabledReason}>
+                <button
+                  type="button"
+                  className="btn btn--primary dispatch-assignment-dialog__complete-btn"
+                  onClick={() => {
+                    if (saving || issuing) return;
+                    closeEditor();
+                    onCompleteExternalTrip(row);
+                  }}
+                  aria-disabled={saving || issuing || undefined}
+                >
+                  Hoàn thành chuyến
+                </button>
+              </DisabledActionTip>
             )}
           </>
         )}

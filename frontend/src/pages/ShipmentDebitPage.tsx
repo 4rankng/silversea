@@ -20,6 +20,7 @@ import { Button as UUIButton } from '../components/untitled-ui/base/buttons/butt
 import { EmptyState, SearchableSelect } from '../design-system';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
+import { DisabledActionTip } from '../components/shared/DisabledActionTip';
 import './ShipmentDebitPage.css';
 
 /** sessionStorage key for the L2 open-state restore (reload persistence). */
@@ -153,7 +154,9 @@ export function ShipmentDebitPage() {
     const ids = items
       .filter((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED')
       .map((row) => row.shipmentId);
-    if (!canManage || ids.length === 0 || issuing) return;
+    // Guard mirrors the button's disable causes (sweep card 20261008_1):
+    // aria-disabled does not block clicks the way `disabled` did.
+    if (!canManage || !customerId || ids.length === 0 || issuing) return;
     setIssuing(true);
     try {
       const selectionKey = `debit-note-${[...ids].sort((x, y) => x - y).join('-')}`;
@@ -235,6 +238,21 @@ export function ShipmentDebitPage() {
   // The picker's own wording, so the hint never echoes an id back at the user.
   const selectedCustomerLabel = customerOptions.find((option) => option.value === customerId)?.label ?? '';
 
+  // Sweep (card 20261008_1): the export used to disable silently on two of
+  // its three causes (only the no-customer case carried a wrapper `title`).
+  // Every cause now rides the aria-described + aria-disabled pattern
+  // (DisabledActionTip) so the reason is reachable on hover AND keyboard
+  // focus — `isDisabled`/the `disabled` attribute would take the button out
+  // of both.
+  const exportDisabledReason = issuing
+    ? 'Đang xuất Debit Note…'
+    : !customerId
+      ? 'Chọn khách hàng để xuất Debit Note.'
+      : !anyLockedSelected
+        ? 'Chọn ít nhất một lô đã khóa để xuất Debit Note.'
+        : null;
+  const exportDisabled = exportDisabledReason != null;
+
   return (
     <div className="shipment-debit-page data-workspace">
       <Breadcrumbs items={[{ label: 'Tổng quan lô hàng', to: '/shipments' }, { label: 'Chi phí - Quyết toán' }]} />
@@ -250,16 +268,18 @@ export function ShipmentDebitPage() {
         <header className="shipment-debit-header" data-component="shipment-debit-header">
           <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
           {canManage && (
-            <span className="shipment-debit-header__export" title={!customerId ? 'Vui lòng chọn khách hàng để xuất Debit Note' : undefined}>
-              <UUIButton
-                className="shipment-debit-export"
-                size="sm"
-                color="tertiary"
-                isDisabled={!customerId || !anyLockedSelected || issuing}
-                onPress={() => { void exportSelectedLockedLots(); }}
-              >
-                Xuất Debit Note
-              </UUIButton>
+            <span className="shipment-debit-header__export">
+              <DisabledActionTip id="shipment-debit-export" reason={exportDisabledReason}>
+                <UUIButton
+                  className="shipment-debit-export"
+                  size="sm"
+                  color="tertiary"
+                  aria-disabled={exportDisabled || undefined}
+                  onPress={() => { if (exportDisabled) return; void exportSelectedLockedLots(); }}
+                >
+                  Xuất Debit Note
+                </UUIButton>
+              </DisabledActionTip>
             </span>
           )}
         </header>

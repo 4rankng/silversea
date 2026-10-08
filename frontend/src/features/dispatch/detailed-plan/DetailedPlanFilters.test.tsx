@@ -251,7 +251,7 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     const onChange = vi.fn();
     const { rerender } = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
     const clearButton = screen.getByRole('button', { name: 'Xóa lọc' });
-    expect(clearButton).toBeDisabled();
+    expect(clearButton).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(clearButton);
     expect(onChange).not.toHaveBeenCalled();
 

@@ -6,6 +6,7 @@ import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableSelect, Tabs, 
 import type { TabItem } from '../../../design-system';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { businessDateISO } from '../../../lib/format';
 import { useMonth } from '../../../hooks/useMonth';
 import { useTripOptions } from '../../../hooks/useTripOptions';
@@ -171,6 +172,9 @@ export function DetailedPlanFilters({
     setDraftResetKey((key) => key + 1);
     onChange(createDefaultDetailedPlanFilters());
   };
+  // Sweep (card 20261008_1): the reset used to disable silently when the
+  // filter set was already idle — aria-described explanation.
+  const clearDisabledReason = hasActiveFilters ? null : 'Không có bộ lọc nào đang áp dụng.';
 
   const selectDate = (date: string) => {
     // Presets and the from/to fields replace each other entirely (last writer
@@ -285,17 +289,19 @@ export function DetailedPlanFilters({
             <UUIButton size="sm" color="primary" iconLeading={Plus} onPress={goAssign}>
               Gán xe
             </UUIButton>
-            <UUIButton
-              className={'detailed-plan-filters__clear' + (hasActiveFilters ? '' : ' is-idle')}
-              size="sm"
-              color="tertiary"
-              iconLeading={RotateCcw}
-              onPress={clearFilters}
-              isDisabled={!hasActiveFilters}
-              aria-label="Xóa lọc"
-            >
-              Xóa lọc
-            </UUIButton>
+            <DisabledActionTip id="detailed-plan-clear-filters" reason={clearDisabledReason}>
+              <UUIButton
+                className={'detailed-plan-filters__clear' + (hasActiveFilters ? '' : ' is-idle')}
+                size="sm"
+                color="tertiary"
+                iconLeading={RotateCcw}
+                onPress={() => { if (!hasActiveFilters) return; clearFilters(); }}
+                aria-disabled={!hasActiveFilters || undefined}
+                aria-label="Xóa lọc"
+              >
+                Xóa lọc
+              </UUIButton>
+            </DisabledActionTip>
           </>
         )}
         fold={{

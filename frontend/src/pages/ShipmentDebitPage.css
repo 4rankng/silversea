@@ -94,8 +94,10 @@
    glance. While disabled it now drops the brand fill entirely — neutral
    surface + muted ink — so "no lot selected yet" is unmistakable. Anchored on
    the workspace section that wraps the shared filter bar (card 20260922_38
-   rework M1), not just the page wrapper. */
-.shipment-debit-workspace button.shipment-debit-export:disabled {
+   rework M1), not just the page wrapper. Sweep card 20261008_1: the button
+   rides aria-disabled (never the `disabled` attribute) so the reason stays
+   hover/focus-reachable, hence the attribute selector. */
+.shipment-debit-workspace button.shipment-debit-export[aria-disabled="true"] {
   background: var(--surface-2);
   color: var(--fg-3);
   box-shadow: none;
