@@ -7,6 +7,7 @@ import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
 import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
+import { TelLink, telHref } from '../../components/TelLink';
 import { driverLocationLabels } from '../../features/driver/driver-display';
 
 /**
@@ -134,7 +135,6 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   // Card 20261003_320: do NOT fall back to contactPhone — when khoPhone is
   // empty, the Gọi kho button must NOT dial the general order contact.
   const callContacts = operationalSiteContacts({ contacts: fulfillment?.factoryContacts, contactName: fulfillment?.contactName, contactPhone: khoPhone });
-  const showContactPhoneRow = Boolean(contactPhone) && contactPhone !== khoPhone;
 
   // Card 20260926_27 item 5: the abbrev "Nhà máy" row is gone (the factory
   // name renders in the header), so the full-name row falls back to the
@@ -166,21 +166,20 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           {/* Card 20260926_41 V2 (CHIEF): the info card is pure data — the
               call affordance lives in the action bar beneath the card. */}
           {/* Card 20261005_364 (REQ-05, SUPERSEDES V2's pure-data ruling FOR
-              THIS ROW): the number itself is the tap-to-call control — a tel:
-              link per the house pattern (.fwd-instructions__link /
-              a.tdp-instructions-value). The URI strips whitespace so the
-              webview dialer accepts it; the visible number keeps its digits.
-              Plain "—" when the site has no phone. */}
+              THIS ROW): the number itself is the tap-to-call control — the
+              shared house tel: pattern (components/TelLink). Plain "—" when
+              the site has no phone. */}
           <TaskFact
             icon={<Phone size={16} aria-hidden="true" />}
             label="SĐT kho"
-            value={khoPhone ? <a href={`tel:${khoPhone.replace(/\s+/g, '')}`} className="driver-task-fact__tel">{khoPhone}</a> : '—'}
+            value={khoPhone ? <TelLink phone={khoPhone} className="driver-task-fact__tel" /> : '—'}
           />
-          {/* Card 20260926_27 item 7: the named-contact number renders only
-              when it DIFFERS from the kho number — identical numbers never
-              render twice. */}
-          {showContactPhoneRow ? (
-            <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT liên hệ" value={contactPhone} />
+          {/* Card 20261003_320 / card 081026230540: the named-contact number
+              renders only when it DIFFERS from the kho number — identical
+              numbers never render twice. Same tap-to-call pattern: round 8
+              caught this row as plain text on trip 79. */}
+          {contactPhone && contactPhone !== khoPhone ? (
+            <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT liên hệ" value={<TelLink phone={contactPhone} className="driver-task-fact__tel" />} />
           ) : null}
           {/* Operator ruling 2026-09-27: the container the driver is hauling
               reads here, in the original design's position (after the kho
@@ -204,10 +203,11 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
       </section>
 
       {/* Card 20260926_41 V2 (CHIEF): the call affordance lives OUTSIDE the
-          info card — one green Gọi kho button, tel: the site phone. */}
+          info card — one green Gọi kho button, tel: the site phone (shared
+          telHref whitespace contract, card 081026230540). */}
       {callContacts.length ? (
         <div className="driver-task-call-bar">
-          {callContacts.length === 1 ? <a href={`tel:${callContacts[0].phone}`} className="driver-task-call-bar__btn"><PhoneCall size={16} aria-hidden="true" /> Gọi kho</a> : <Btn onClick={() => setCallOpen(true)} icon={<PhoneCall size={16} />}>Gọi kho</Btn>}
+          {callContacts.length === 1 ? <a href={telHref(callContacts[0].phone)} className="driver-task-call-bar__btn"><PhoneCall size={16} aria-hidden="true" /> Gọi kho</a> : <Btn onClick={() => setCallOpen(true)} icon={<PhoneCall size={16} />}>Gọi kho</Btn>}
         </div>
       ) : null}
       <Modal isOpen={callOpen} onClose={() => setCallOpen(false)} title="Chọn liên hệ để gọi" maxWidth={480}>

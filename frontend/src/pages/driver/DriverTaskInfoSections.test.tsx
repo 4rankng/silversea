@@ -276,6 +276,44 @@ describe('DriverTaskInfoSections', () => {
     expect(link!.textContent).toBe('0989 130 345');
   });
 
+  // ---- Card 081026230540: EVERY phone on the driver surface is tap-to-call
+  // through the one shared TelLink pattern — the contact row (reported plain
+  // text on trip 79) and the call bar share the #364 whitespace contract.
+  const contactRowValue = () => Array.from(document.querySelectorAll('.driver-task-fact'))
+    .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT liên hệ')
+    ?.querySelector('.driver-task-fact__value');
+
+  it('card 081026230540 AC1: SĐT liên hệ renders as a tel: link dialing the contact number', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0900000001' } })} />);
+
+    const link = contactRowValue()?.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toBe('tel:0900000001');
+    expect(link!.textContent).toBe('0900000001');
+  });
+
+  it('card 081026230540 AC1: no contact phone → the row never renders, so no dead link', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: null } })} />);
+
+    expect(contactRowValue()).toBeUndefined();
+  });
+
+  it('card 081026230540 AC2: SĐT liên hệ href strips inner whitespace, visible number keeps it', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: ' 0989 130 345 ' } })} />);
+
+    const link = contactRowValue()?.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toBe('tel:0989130345');
+    expect(link!.textContent).toBe('0989 130 345');
+  });
+
+  it('card 081026230540 AC2: the Gọi kho bar href strips inner whitespace too', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: ' 0989 130 345 ' } })} />);
+
+    const bar = screen.getByRole('link', { name: /Gọi kho/ });
+    expect(bar.getAttribute('href')).toBe('tel:0989130345');
+  });
+
   it('QA-2026-09-26-25 dashes SĐT kho when the site has no phone on file', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: null, contactPhone: null } })} />);
 

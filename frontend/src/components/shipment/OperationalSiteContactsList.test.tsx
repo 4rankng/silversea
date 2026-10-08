@@ -28,4 +28,16 @@ describe('OperationalSiteContactsList', () => {
     expect(phoneRule).toContain('overflow-wrap: anywhere');
     expect(phoneRule).not.toContain('white-space: nowrap');
   });
+
+  // Card 081026230540: the modal Gọi buttons share the #364 whitespace
+  // contract — inner spaces never reach the tel: URI.
+  it('card 081026230540: the Gọi href strips inner whitespace from the stored number', () => {
+    render(<OperationalSiteContactsList callable contacts={[
+      { name: 'Kho chính', phone: '0989 130 345', isDefault: true },
+    ]} />);
+
+    expect(within(screen.getAllByRole('listitem')[0]).getByRole('link', {
+      name: 'Gọi Kho chính 0989 130 345',
+    })).toHaveAttribute('href', 'tel:0989130345');
+  });
 });

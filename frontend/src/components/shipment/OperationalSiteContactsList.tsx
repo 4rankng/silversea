@@ -1,5 +1,6 @@
 import type { OperationalSiteContact } from '@tingting/shared';
 import { Button } from '../untitled-ui/base/buttons/button';
+import { telHref } from '../TelLink';
 import './OperationalSiteContactsList.css';
 
 /** Named contact data stays plain; only the explicit telephone action is a button. */
@@ -14,7 +15,7 @@ export function OperationalSiteContactsList({ contacts, callable = false }: {
         <span className="site-contact-list__phone">{contact.phone}</span>
         {contact.isDefault && contacts.length > 1 ? <span className="site-contact-list__default">Mặc định</span> : null}
       </div>
-      {callable ? <Button href={`tel:${contact.phone}`} color="secondary" size="sm" aria-label={`Gọi ${contact.name} ${contact.phone}`}>Gọi</Button> : null}
+      {callable ? <Button href={telHref(contact.phone)} color="secondary" size="sm" aria-label={`Gọi ${contact.name} ${contact.phone}`}>Gọi</Button> : null}
     </li>)}
   </ul>;
 }
