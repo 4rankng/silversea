@@ -11,6 +11,7 @@ Ops cần biết hôm nay có những lô nào phải làm, xe mình phụ trác
 Sản phẩm cần giúp Ops:
 
 - Tìm nhanh kế hoạch công ty và ghim các lô cần theo dõi riêng.
+- Mở đầu ca làm việc bằng một trang tổng quan: số lô chờ xử lý theo ngày giao dự kiến, số xe đang chạy, số dư quỹ và số yêu cầu chờ duyệt, kèm lối đi nhanh tới ba việc chính (kế hoạch làm hàng, theo dõi phương tiện, quỹ tạm ứng).
 - Theo dõi đúng xe được giao, phân biệt đã phát lệnh với lái xe đã nhận.
 - Ghi một khoản thực chi ngay trong lô đang làm, bổ sung biên lai sau khi có.
 - Hiểu số dư quỹ và đối chiếu từng khoản tiền nhận, chi, hoàn trả.
