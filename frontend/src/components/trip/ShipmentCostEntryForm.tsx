@@ -91,7 +91,22 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
       <ul className="shipment-cost-entry__list">{state.entries.map((entry, index) => <li key={entry.id} className="shipment-cost-entry__item">
         {entry.receiptStorageKey && <a href={receiptUrls[index] || undefined} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><PhotoImage src={receiptUrls[index]} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}
         <div className="shipment-cost-entry__item-body"><div className="shipment-cost-entry__item-top"><strong>{entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong><span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span></div>
-          <div className="shipment-cost-entry__item-meta"><span>{formatISODate(entry.occurredAt)}</span><span>{entry.payerKind === 'COMPANY' ? 'Công ty đã trả' : 'Tôi chi'}</span>{entry.costGroup && <span>{entry.costGroup === 'DRIVER_ROAD' ? 'Tiền đường' : 'Chi phí lô hàng'}</span>}{entry.invoiceNumber && <span>HĐ {entry.invoiceNumber}</span>}</div>
+          <div className="shipment-cost-entry__item-meta"><span>{formatISODate(entry.occurredAt)}</span><span>{entry.payerKind === 'COMPANY' ? 'Công ty đã trả' : 'Tôi chi'}</span>{entry.costGroup && <span>{entry.costGroup === 'DRIVER_ROAD' ? 'Tiền đường' : 'Chi phí lô hàng'}</span>}{entry.invoiceNumber && <span>HĐ {entry.invoiceNumber}</span>}
+          {/* Card 081026091900 — trip 79 showed a TOLL pair (-30.000 then +30.000),
+              BOTH captioned "Tôi chi / Tiền đường". A negative row is an
+              adjusting entry, not a spend: ruling 20260928_197, shipped and
+              QA PASSED on the Ops wallet (071026210530). That fix reached only
+              that surface — the driver list is the same defect class. Reusing the
+              already-approved wording keeps one rule across both screens. */}
+          {Number(entry.amount) < 0 && (
+            <span
+              className="shipment-cost-entry__item-adjustment"
+              title="Dòng âm là bút toán điều chỉnh — tương đương bỏ/bớt khoản, KHÔNG phải một khoản chi, và không được cộng vào tổng."
+            >
+              — bút toán điều chỉnh (dòng âm)
+            </span>
+          )}
+        </div>
           {entry.note && <span className="shipment-cost-entry__item-note">{entry.note}</span>}
           <DriverSavedExpenseProofs expenseId={entry.id} />
           {!readOnly && <DriverExpenseCorrection expenseId={entry.id} onSaved={state.refresh} />}

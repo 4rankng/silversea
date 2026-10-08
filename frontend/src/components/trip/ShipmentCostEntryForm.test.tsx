@@ -27,6 +27,27 @@ describe('driver expense workflow — TC-CP-LX', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   });
 
+  // Card 081026091900 — trip 79 carried a TOLL pair: -30.000 then +30.000, both
+  // rendered "Tôi chi / Tiền đường". A negative row is an adjusting entry, not a
+  // spend — ruling 20260928_197, already shipped and QA PASSED on the Ops wallet
+  // (071026210530). The driver list never got the same treatment, so the class
+  // was fixed at one surface only.
+  it('labels a negative saved row as an adjusting entry, and leaves a positive row alone', async () => {
+    api.listIncidentalCosts.mockResolvedValue([
+      { ...entry, id: 22, costType: DriverIncidentalCostType.TOLL, costGroup: 'DRIVER_ROAD', feeName: 'TOLL', amount: '-30000', payerKind: 'USER' },
+      { ...entry, id: 23, costType: DriverIncidentalCostType.TOLL, costGroup: 'DRIVER_ROAD', feeName: 'TOLL', amount: '30000', payerKind: 'USER' },
+    ]);
+    setup();
+    await screen.findAllByText('TOLL');
+
+    const rows = screen.getAllByText('TOLL').map((node) => node.closest('li') as HTMLElement);
+    const negative = rows.find((row) => row.textContent?.includes('-30.000'));
+    const positive = rows.find((row) => row.textContent?.includes('30.000') && !row.textContent?.includes('-30.000'));
+
+    expect(negative?.textContent).toMatch(/bút toán điều chỉnh/);
+    expect(positive?.textContent).not.toMatch(/bút toán điều chỉnh/);
+  });
+
   it('shows unknown route rates and does not create money automatically', async () => {
     setup();
     await screen.findByText('Chưa có chi phí phát sinh');
