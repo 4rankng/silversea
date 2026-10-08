@@ -173,6 +173,11 @@ export function DispatchTaskTagEditor({ value, onChange, disabled = false }: {
             )}
             <div className="dispatch-assignment-dialog__notes-manual">
               <label className="dispatch-assignment-dialog__notes-label" htmlFor="dispatch-task-note-text">Ghi chú thêm</label>
+              {/* Card 081026091120: the note is stored at the LOT level, but the
+                  dialog opens per container — dispatchers read it as a
+                  per-container note and cross-contaminate lots mentally. Name
+                  the real scope right on the field. */}
+              <p className="dispatch-assignment-dialog__notes-scope">Ghi chú dùng chung cả lô — hiện trên GHI CHÚ của mọi container trong lô.</p>
               <textarea
                 id="dispatch-task-note-text"
                 className="ds-field__input dispatch-assignment-dialog__notes-text"

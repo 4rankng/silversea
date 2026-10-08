@@ -331,6 +331,15 @@ describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)'
 });
 
 describe('DispatchPlanEditorCell — driver note composer', () => {
+  it('card 081026091120: the note field states it is the lot-shared note, not per-container', async () => {
+    mockFleetResources();
+    renderCell(row({ notes: { vehicleNote: null, customerNote: null } }), { onAtomicSave: vi.fn() });
+    await openDialog();
+    // The note is stored at the lot level — every container in the lot shows
+    // it. The dialog must say so, or dispatchers read it as per-container.
+    expect(await screen.findByText(/Ghi chú dùng chung cả lô/)).toBeTruthy();
+  });
+
   it('composes chips + manual text into the atomic save body and re-anchors', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,

@@ -643,6 +643,14 @@
   margin-top: 4px;
 }
 
+/* Card 081026091120: the lot-scope hint under the manual-note label — the
+   note is shared by every container in the lot, and the dialog must say so. */
+.dispatch-assignment-dialog__notes-scope {
+  margin: 0;
+  font-size: var(--ops-table-supporting-size, 12px);
+  color: var(--fg-3);
+}
+
 textarea.dispatch-assignment-dialog__notes-text {
   padding: 8px 10px;
   font-size: var(--ops-table-supporting-size, 12px);
