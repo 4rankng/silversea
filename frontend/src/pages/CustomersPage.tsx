@@ -7,6 +7,7 @@ import {
   Building2, Hash, Landmark, MapPin, User, Phone,
 } from 'lucide-react';
 import { api } from '../lib/api';
+import { actionErrorMessage } from '../lib/api/action-error';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
@@ -331,10 +332,16 @@ export default function CustomersPage() {
   /**
    * Mutation failures must surface as a toast: the edit modal stays open and
    * would otherwise cover the table-slot error row below it.
+   *
+   * Card 071026212000 (lead ruling 2026-10-08): a permission toast fires only
+   * for a genuine user-initiated denial and must name the action; aborted/
+   * raced requests stay silent. `action` is the action name in the toast
+   * policy's "Bạn không có quyền <action>." form.
    */
-  const toastMutationError = (e: unknown, fallback: string) => {
-    const baseMessage = e instanceof Error && e.message ? e.message : fallback;
-    toast({ kind: 'error', message: baseMessage, duration: 7000 });
+  const toastMutationError = (action: string, e: unknown, fallback: string) => {
+    const message = actionErrorMessage(action, e, fallback);
+    if (message === null) return;
+    toast({ kind: 'error', message, duration: 7000 });
   };
 
   const debtMap = useMemo(() => {
@@ -398,7 +405,7 @@ export default function CustomersPage() {
       toast({ kind: 'success', message: 'Đã tạo khách hàng' });
       setShowAddForm(false);
       await refetchCustomers();
-    } catch (e: unknown) { toastMutationError(e, 'Lỗi lưu'); } finally { setSaving(false); }
+    } catch (e: unknown) { toastMutationError('tạo khách hàng', e, 'Lỗi lưu'); } finally { setSaving(false); }
   }
 
   async function doUpdate(id: number, body: Record<string, unknown>) {
@@ -409,7 +416,7 @@ export default function CustomersPage() {
       await refetchCustomers();
       setEditingId(null);
       setMenuOpenId(null);
-    } catch (e: unknown) { toastMutationError(e, 'Lỗi cập nhật'); } finally { setSaving(false); }
+    } catch (e: unknown) { toastMutationError('cập nhật khách hàng', e, 'Lỗi cập nhật'); } finally { setSaving(false); }
   }
 
   const { confirm, dialog: confirmDialog } = useConfirm();
@@ -421,7 +428,7 @@ export default function CustomersPage() {
       await api.delete(`/customers/${id}`);
       setMenuOpenId(null);
       await refetchCustomers();
-    } catch (e: unknown) { toastMutationError(e, 'Lỗi xóa'); } finally { setDeleting(null); }
+    } catch (e: unknown) { toastMutationError('xóa khách hàng', e, 'Lỗi xóa'); } finally { setDeleting(null); }
   }
 
   /** Card _37 bulk status flip (BE bulk-status endpoint): one idempotent
@@ -440,7 +447,7 @@ export default function CustomersPage() {
       selection.clear();
       await refetchCustomers();
     } catch (e: unknown) {
-      toastMutationError(e, 'Lỗi khóa/mở khóa');
+      toastMutationError('khóa hoặc mở khóa khách hàng', e, 'Lỗi khóa/mở khóa');
     } finally { setBulkStatusBusy(false); }
   }
 
@@ -460,7 +467,7 @@ export default function CustomersPage() {
       setNotifyOpen(false);
       setNotifyTitle(''); setNotifyMessage('');
     } catch (e: unknown) {
-      toastMutationError(e, 'Lỗi gửi thông báo');
+      toastMutationError('gửi thông báo khách hàng', e, 'Lỗi gửi thông báo');
     } finally { setNotifySending(false); }
   }
 
