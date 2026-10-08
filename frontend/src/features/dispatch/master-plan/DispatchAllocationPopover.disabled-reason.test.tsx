@@ -10,6 +10,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 
 import { DispatchAllocationPopover } from './DispatchAllocationPopover';
+import { DispatchAllocationDaySection } from './DispatchAllocationDaySection';
 
 vi.mock('../../../api/tripClient', () => ({
   tripClient: {
@@ -132,5 +133,38 @@ describe('DispatchAllocationPopover disabled reasons (card 20261008_1 sweep)', (
     fireEvent.click(save);
     await waitFor(() => expect(saveShipmentCarrierAllocations).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  });
+
+  it('per-day add explains its disable (loading / no free option) and arms when an option is free', () => {
+    const onAddRow = vi.fn();
+    const day = {
+      dateKey: '2026-10-10',
+      dateLabel: '10/10/2026',
+      factoryName: null,
+      demand: { count20: 1, count40: 0 },
+      rows: [],
+    } as never;
+    const validation = {
+      assigned20: 0, assigned40: 0, remaining20: 1, remaining40: 0,
+      isOver: false, isComplete: false, state: 'partial', rowIssues: [], errors: [],
+    } as never;
+    const noop = vi.fn();
+    const base = { day, dayIndex: 0, isMultiDay: false, validation, globalRowOffset: 0, onUpdateRow: noop, onAddRow, onRemoveRow: noop };
+
+    const view = render(<DispatchAllocationDaySection {...base} options={[]} optionsLoading />);
+    const loading = screen.getByRole('button', { name: /Thêm nhà xe/ });
+    expect(loading).toHaveAttribute('aria-disabled', 'true');
+    expect(reasonOf(loading)).toContain('Đang tải');
+
+    view.rerender(<DispatchAllocationDaySection {...base} options={[{ key: 'x', isActive: false } as never]} optionsLoading={false} />);
+    const exhausted = screen.getByRole('button', { name: /Thêm nhà xe/ });
+    expect(exhausted).toHaveAttribute('aria-disabled', 'true');
+    expect(reasonOf(exhausted)).toContain('Đã gán hết');
+
+    view.rerender(<DispatchAllocationDaySection {...base} options={[{ key: 'x', isActive: true } as never]} optionsLoading={false} />);
+    const armed = screen.getByRole('button', { name: /Thêm nhà xe/ });
+    expect(armed).not.toHaveAttribute('aria-disabled');
+    fireEvent.click(armed);
+    expect(onAddRow).toHaveBeenCalledWith(0);
   });
 });

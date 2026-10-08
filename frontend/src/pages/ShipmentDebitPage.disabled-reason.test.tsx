@@ -31,6 +31,7 @@ vi.mock('../api/shipmentDebit', () => ({
 
 import { ToastProvider } from '../components/shared/Toast';
 import { ShipmentDebitPage } from './ShipmentDebitPage';
+import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import type { ShipmentDebitLotRow } from '../api/shipmentClient';
 
 function renderPage(initialEntry = '/shipments-debit') {
@@ -153,5 +154,34 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     fireEvent.click(button);
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
     expect(createBatch).toHaveBeenCalledWith([101], 'debit-note-101');
+  });
+
+  it('Xóa lọc explains the empty-filters disable and clears when a filter is active', () => {
+    const onClear = vi.fn();
+    const base = {
+      onLockChange: vi.fn(),
+      onDeliveryRangeChange: vi.fn(),
+      onResetSecondary: vi.fn(),
+      onClear,
+    };
+    const wrap = (deliveryFrom: string) => (
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider>
+          <ShipmentDebitRibbon deliveryFrom={deliveryFrom} deliveryTo="" lockStatus="ALL" {...base} />
+        </ToastProvider>
+      </QueryClientProvider>
+    );
+    const view = render(wrap(''));
+    const button = screen.getByRole('button', { name: 'Xóa lọc' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getAllByText('Chưa có bộ lọc nào để xóa.').length).toBeGreaterThan(0);
+    fireEvent.click(button);
+    expect(onClear).not.toHaveBeenCalled();
+
+    view.rerender(wrap('2026-10-01'));
+    const armed = screen.getByRole('button', { name: 'Xóa lọc' });
+    expect(armed).not.toHaveAttribute('aria-disabled');
+    fireEvent.click(armed);
+    expect(onClear).toHaveBeenCalledTimes(1);
   });
 });
