@@ -1187,6 +1187,12 @@ async function assertPlanRowRigAvailable(
     /** Card 061026172804 (FB-038 / REQ-04): the dispatcher confirmed the save
      *  may ride a COMPLETED trip's window. */
     confirmCompletedOverlap?: boolean;
+    /** Card 081026091100: the row's Phân loại. "Kẹp" is 'DOUBLE'
+     *  (DISPATCH_CLASSIFICATION_LABELS) — two 20' containers ride ONE mooc, so
+     *  the pair's two planned windows on that tractor overlap by construction.
+     *  trip-pairing.service.ts already documents that the sequential rules do
+     *  not apply to KEP; this guard had no way to know. */
+    classification?: DispatchClassification | null;
   },
 ): Promise<void> {
   const plate = args.plate.trim();
@@ -1194,6 +1200,13 @@ async function assertPlanRowRigAvailable(
   // The row's own window: start = its container's closing appointment; end =
   // the saved Giờ trả hàng, defaulting to an 8-hour shift when unsaved.
   const windowEnd = args.windowEnd ?? new Date(args.windowStart.getTime() + 8 * 3600_000);
+  // Card 081026091100: a Kẹp row shares the rig with its partner leg ON
+  // PURPOSE, so the two pre-dispatch plan rows overlapping on that plate is the
+  // arrangement the dispatcher asked for, not a conflict. Only the plan-row
+  // scans are skipped — the dispatched-trip scan below still runs, so a Kẹp row
+  // is still refused when an unrelated LIVE trip holds that tractor (that is
+  // not the pair's own overlap).
+  const isKepPairing = args.classification === 'DOUBLE';
   // Pre-dispatch plan rows planned onto the same rig with an overlapping
   // window. A row without its own appointment cannot prove overlap and is
   // skipped rather than guessed into a conflict. Card 363: a row without a
@@ -1250,7 +1263,11 @@ async function assertPlanRowRigAvailable(
       lt(s.trips.plannedStartAt, windowEnd),
       sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
     ));
-  if (planConflicts.length > 0 || lclPlanConflicts.length > 0 || tripConflicts.length > 0) {
+  // Card 081026091100: for a Kẹp row only the dispatched-trip scan counts — the
+// two plan-row scans describe the pair's own deliberate overlap. Every other
+// classification keeps all three.
+const planRowBlocked = isKepPairing ? false : (planConflicts.length > 0 || lclPlanConflicts.length > 0);
+if (planRowBlocked || tripConflicts.length > 0) {
     throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
   }
   // Card 061026172804 (FB-038 / REQ-04): a COMPLETED trip of the same rig no
@@ -1443,6 +1460,7 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
         windowStart,
         windowEnd: nextPlannedEndAt,
         confirmCompletedOverlap: input.rigOverlapCompletedConfirmed === true,
+        classification: input.classification ?? null,
       });
     }
   }

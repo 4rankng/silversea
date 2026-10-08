@@ -133,6 +133,74 @@ function saveInput(fx: Fixture, windowEnd: Date) {
   };
 }
 
+describe('card 081026091100 — a Kẹp (DOUBLE) row may share the rig with its pair', () => {
+  // "Kẹp" is DispatchClassification 'DOUBLE' (shared/src/constants/index.ts:918):
+  // two 20' containers ride ONE mooc, so the two planned windows on that tractor
+  // overlap BY CONSTRUCTION. assertPlanRowRigAvailable never saw the
+  // classification — the caller did not pass it — so it applied the full
+  // sequential rule set and refused the dispatcher. trip-pairing.service.ts:104
+  // already documents that the sequential rules do not apply to KEP.
+  test('a DOUBLE row overlapping its partner row on the same plate saves', async () => {
+    const t0 = new Date('2026-10-08T08:00:00.000Z');
+    const fx = await makeFixture(t0);
+    const partner = await makeFixture(t0);
+    // The partner leg already rides the same plate, window overlapping.
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: fx.truckPlate })
+      .where(eq(s.shipmentFulfillments.id, partner.fulfillmentId));
+
+    const saved = await updateDispatchDetailPlan({
+      ...saveInput(fx, new Date('2026-10-08T10:00:00.000Z')),
+      classification: 'DOUBLE',
+    });
+    assert.ok(saved, 'a Kẹp row must not be blocked by its own partner');
+    void partner;
+  });
+
+  test('the negative control: a SINGLE row in the same shape is still blocked', async () => {
+    // If this goes green the guard was removed rather than narrowed.
+    const t0 = new Date('2026-10-08T08:00:00.000Z');
+    const fx = await makeFixture(t0);
+    const other = await makeFixture(t0);
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: fx.truckPlate })
+      .where(eq(s.shipmentFulfillments.id, other.fulfillmentId));
+
+    await assert.rejects(
+      () => updateDispatchDetailPlan(saveInput(fx, new Date('2026-10-08T10:00:00.000Z'))),
+      (error: unknown) => (error as { statusCode?: number }).statusCode === 409,
+    );
+  });
+
+  test('a DOUBLE row is still blocked by a LIVE trip on the same rig', async () => {
+    // The Kẹp carve-out covers the pair's own overlap, not every overlap: an
+    // unrelated running trip on that tractor is a genuine conflict.
+    const t0 = new Date('2026-10-08T08:00:00.000Z');
+    const fx = await makeFixture(t0);
+    const live = await makeFixture(t0);
+    await insertTrip({
+      tripCode: `TRP91100-LIVE-${suffix}`,
+      customerId: live.customerId,
+      routeId: live.routeId,
+      departureDate: '2026-10-08',
+      truckId: fx.truckId,
+      fulfillmentId: live.fulfillmentId,
+      plannedStartAt: new Date('2026-10-08T07:00:00.000Z'),
+      plannedEndAt: new Date('2026-10-08T11:00:00.000Z'),
+      status: 'IN_TRANSIT',
+      createdBy: fx.actor.userId,
+    });
+
+    await assert.rejects(
+      () => updateDispatchDetailPlan({
+        ...saveInput(fx, new Date('2026-10-08T10:00:00.000Z')),
+        classification: 'DOUBLE',
+      }),
+      (error: unknown) => (error as { statusCode?: number }).statusCode === 409,
+    );
+  });
+});
+
 describe('card 363 rig-conflict overlap', () => {
   test('061026172804 rework: a completed trip that still rides its fulfillment row warns, not the generic block', async () => {
     // QA FAILED rework spec (staging cut 2087fe5b): the generic plan-row block
