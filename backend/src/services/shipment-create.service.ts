@@ -196,10 +196,15 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     changedBy: input.createdBy ?? null,
   });
 
-  // Card 20260922_6 — container-deposit intake tick ("có cược"): when the
-  // CUS ticked a deposit at intake, the hoàn-cược tracker row lands in the
-  // SAME tx so a rolled-back create never strands an orphan tracker row.
-  // KT completes bill/carrier/amount by hand when the lot didn't carry them.
+  // Card 20260922_6 / 051026231522 — container-deposit intake tick ("có cược"):
+  // when the CUS ticked a deposit at intake, the hoàn-cược tracker row lands in
+  // the SAME tx so a rolled-back create never strands an orphan tracker row.
+  // The row's "Số Bill" is the lot's document reference — Số Bill (blNumber,
+  // hàng Nhập) or Số Booking (bookingRef, hàng Xuất; the two are mutually
+  // exclusive by schema refinement) — falling back to the shipment code when
+  // the intake carried neither (reporter: "Số Bill nhập tay" must survive the
+  // tick). Hãng tàu rides the intake shipping line; Ngày cược is stamped
+  // inside recordDepositFromIntake. KT completes bill/carrier/amount by hand.
   if (input.hasDeposit) {
     let customerName = rawCustomerName ?? '';
     if (!customerName && customerId != null) {
@@ -211,7 +216,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
       shipmentId: shipment.id,
       customerName,
       carrierName: input.shippingLineName ?? '',
-      billNumber: input.blNumber ?? '',
+      billNumber: input.blNumber?.trim() || input.bookingRef?.trim() || finalized.shipmentCode || '',
       expectedAmount: input.depositAmount ?? null,
     }, tx);
   }

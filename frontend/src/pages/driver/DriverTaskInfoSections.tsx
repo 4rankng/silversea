@@ -1,4 +1,7 @@
 import { useState, type ReactNode } from 'react';
+import { operationalSiteContacts } from '@tingting/shared';
+import { Modal, Btn } from '../../components/UI';
+import { OperationalSiteContactsList } from '../../components/shipment/OperationalSiteContactsList';
 import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package, Phone, PhoneCall } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
@@ -104,7 +107,9 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   const [infoOpen, setInfoOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   const plannedAt = fulfillment?.plannedAt ?? trip.plannedStartAt;
-  const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
+  // Card 071026205810: named fallback, same treatment as Cảng hạ's
+  // "Chưa có nơi trả rỗng" — a bare dash read as a render error.
+  const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? 'Chưa có cảng nâng';
 
   // KP-063: direction-aware destination mapping. For IMPORT the required
   // Cảng hạ is the empty-container return depot (where the driver returns
@@ -123,8 +128,12 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   // Card 20260926_27 item 7: khoPhone and contactPhone are independent
   // fields and CAN differ. Identical numbers never render twice — the
   // contact row appears only when it carries a DIFFERENT trimmed number.
+  const [callOpen, setCallOpen] = useState(false);
   const khoPhone = fulfillment?.khoPhone?.trim() || null;
   const contactPhone = fulfillment?.contactPhone?.trim() || null;
+  // Card 20261003_320: do NOT fall back to contactPhone — when khoPhone is
+  // empty, the Gọi kho button must NOT dial the general order contact.
+  const callContacts = operationalSiteContacts({ contacts: fulfillment?.factoryContacts, contactName: fulfillment?.contactName, contactPhone: khoPhone });
   const showContactPhoneRow = Boolean(contactPhone) && contactPhone !== khoPhone;
 
   // Card 20260926_27 item 5: the abbrev "Nhà máy" row is gone (the factory
@@ -156,7 +165,17 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
               the call affordance is the row's leading phone icon. */}
           {/* Card 20260926_41 V2 (CHIEF): the info card is pure data — the
               call affordance lives in the action bar beneath the card. */}
-          <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT kho" value={khoPhone ?? '—'} />
+          {/* Card 20261005_364 (REQ-05, SUPERSEDES V2's pure-data ruling FOR
+              THIS ROW): the number itself is the tap-to-call control — a tel:
+              link per the house pattern (.fwd-instructions__link /
+              a.tdp-instructions-value). The URI strips whitespace so the
+              webview dialer accepts it; the visible number keeps its digits.
+              Plain "—" when the site has no phone. */}
+          <TaskFact
+            icon={<Phone size={16} aria-hidden="true" />}
+            label="SĐT kho"
+            value={khoPhone ? <a href={`tel:${khoPhone.replace(/\s+/g, '')}`} className="driver-task-fact__tel">{khoPhone}</a> : '—'}
+          />
           {/* Card 20260926_27 item 7: the named-contact number renders only
               when it DIFFERS from the kho number — identical numbers never
               render twice. */}
@@ -186,13 +205,14 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
 
       {/* Card 20260926_41 V2 (CHIEF): the call affordance lives OUTSIDE the
           info card — one green Gọi kho button, tel: the site phone. */}
-      {khoPhone ? (
+      {callContacts.length ? (
         <div className="driver-task-call-bar">
-          <a href={`tel:${khoPhone}`} className="driver-task-call-bar__btn">
-            <PhoneCall size={16} aria-hidden="true" /> Gọi kho
-          </a>
+          {callContacts.length === 1 ? <a href={`tel:${callContacts[0].phone}`} className="driver-task-call-bar__btn"><PhoneCall size={16} aria-hidden="true" /> Gọi kho</a> : <Btn onClick={() => setCallOpen(true)} icon={<PhoneCall size={16} />}>Gọi kho</Btn>}
         </div>
       ) : null}
+      <Modal isOpen={callOpen} onClose={() => setCallOpen(false)} title="Chọn liên hệ để gọi" maxWidth={480}>
+        <OperationalSiteContactsList contacts={callContacts} callable />
+      </Modal>
 
       {/* Operational instructions precede billing details and remain outside
           both independently collapsible sections. */}

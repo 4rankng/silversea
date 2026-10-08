@@ -14,19 +14,10 @@ import type { Notification } from '@tingting/shared';
 import { EmptyState } from '../design-system';
 import './NotificationsPage.css';
 
-function timeAgo(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (s < 60) return 'vừa xong';
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m} phút trước`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} giờ trước`;
-  const days = Math.floor(h / 24);
-  if (days < 30) return `${days} ngày trước`;
-  return d.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-}
+// Card 2026-10-05_1628: this page carried a third byte-identical copy of the
+// relative-time helper (the bell had one too). One shared formatter keeps a
+// timestamp reading the same everywhere.
+import { formatRelativeTime } from '../lib/date';
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -139,7 +130,7 @@ export default function NotificationsPage() {
                   {notification.message && (
                     <div className="notif-page__item-msg">{notificationDisplayMessage(notification.message)}</div>
                   )}
-                  <div className="notif-page__item-time">{timeAgo(notification.createdAt)}</div>
+                  <div className="notif-page__item-time">{formatRelativeTime(notification.createdAt)}</div>
                 </div>
               </button>
             ))}

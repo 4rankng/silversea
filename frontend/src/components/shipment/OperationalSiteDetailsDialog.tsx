@@ -32,9 +32,9 @@ export function OperationalSiteDetailsDialog({ site, isOpen, onClose }: Operatio
               href={site.googleMapsUrl}
               target="_blank"
               rel="noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 'var(--control-touch-h)', color: 'var(--accent, #2563eb)', fontWeight: 600 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 'var(--control-touch-h)', color: 'var(--accent-ink, #00361B)', fontWeight: 600 }}
             >
-              <ExternalLink size={17} aria-hidden="true" /> Mở vị trí trên Google Maps
+              <ExternalLink size={17} aria-hidden="true" style={{ color: 'var(--accent, #2563eb)' }} /> Mở vị trí trên Google Maps
             </a>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}>

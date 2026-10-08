@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
-import type { DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
+import type { DispatchDetailPlanAssignmentCounts, DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
 import { Modal } from '../../../components/UI';
 import {
   DispatchPlanEditorCell,
@@ -28,13 +29,7 @@ import { useDispatchTaskTags } from './useDispatchTaskTags';
 
 import '../../../styles/operational-table-typography.css';
 import './DetailedPlanGrid.css';
-
-function formatWeight(kg: string | null | undefined): string {
-  if (kg == null || kg === '') return '—';
-  const value = Number(kg);
-  if (!Number.isFinite(value)) return kg;
-  return `${new Intl.NumberFormat('vi-VN').format(value)} kg`;
-}
+import { formatWeight } from '../../../lib/format';
 
 interface DetailedPlanGridProps {
   filters: DetailedPlanFilterState;
@@ -51,6 +46,9 @@ interface DetailedPlanGridProps {
   onClearLotBanner: () => void;
   presence: { zone: string; zoneLabel: string; date: string; items: ZoneTruckPresenceItem[] } | null;
   zones: Array<{ code: string; label: string }>;
+  /** Card 20261008_3 — the assignment chips' counts, forwarded to the filter
+   *  strip (both render sites share them). */
+  assignmentCounts?: DispatchDetailPlanAssignmentCounts;
   sortKey: DetailPlanSortKey;
   sortDirection: DetailPlanSortDirection;
   onToggleSort: (key: Exclude<DetailPlanSortKey, null>) => void;
@@ -111,6 +109,7 @@ export function DetailedPlanGrid({
   onClearLotBanner,
   presence,
   zones,
+  assignmentCounts,
   sortKey,
   sortDirection,
   onToggleSort,
@@ -138,10 +137,22 @@ export function DetailedPlanGrid({
   if (error && items.length === 0) {
     return (
       <>
-        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} />
+        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} />
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
-          <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry} disabled={loading}>Thử lại</button>
+          {/* Sweep (card 20261008_1): the retry used to disable silently
+              while a reload was in flight — same aria-described explanation
+              as /dispatch's retry (card 081026093510). */}
+          <DisabledActionTip id="detailed-plan-retry-cold" reason={loading ? 'Đang tải dữ liệu…' : null}>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => { if (loading) return; onRetry(); }}
+              aria-disabled={loading || undefined}
+            >
+              Thử lại
+            </button>
+          </DisabledActionTip>
         </div>
       </>
     );
@@ -149,7 +160,7 @@ export function DetailedPlanGrid({
 
   return (
     <>
-      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} />
+      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} />
 
       <ZoneTruckPresencePanel
         items={presence?.items ?? []}
@@ -165,7 +176,16 @@ export function DetailedPlanGrid({
       {error && items.length > 0 && (
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
-          <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry} disabled={loading}>Thử lại</button>
+          <DisabledActionTip id="detailed-plan-retry-banner" reason={loading ? 'Đang tải dữ liệu…' : null}>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => { if (loading) return; onRetry(); }}
+              aria-disabled={loading || undefined}
+            >
+              Thử lại
+            </button>
+          </DisabledActionTip>
         </div>
       )}
 
@@ -254,10 +274,13 @@ export function DetailedPlanGrid({
                 // all (an all-empty notes cell collapses on phones).
                 const issueStatus = deriveDispatchIssueStatus({
                   vehicleAssigned: row.dispatch.assignedPlate != null,
+                  carrierAssigned: row.dispatch.externalCarrierId != null,
                   issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
                   completed: row.taskStatus === 'COMPLETED',
                 });
-                const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED';
+                // Card 20261004_359 — deferred-plate external rows quick-issue
+                // exactly like plated ones (the issue body ships no plate).
+                const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE';
                 const canCompleteExternal = row.dispatch.carrierType === 'EXTERNAL'
                   && row.dispatch.tripId != null
                   && row.taskStatus === 'DISPATCHED';
@@ -265,8 +288,23 @@ export function DetailedPlanGrid({
                   ? 'Phát lệnh'
                   : canCompleteExternal ? 'Hoàn thành' : null;
                 const notesCellBlank = !row.notes.vehicleNote && !row.notes.customerNote && !row.notes.opsRecoveryNotes?.length && actionLabel == null;
-                const scheduleValue = row.time.runAt ? formatAppointmentGroupLine(row.time.runAt)
-                  : [row.time.runHour != null ? `${row.time.runHour}H` : '—', row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ');
+                // PM 03/10 (card 20261003_304): a present date renders ALONE —
+                // the '—' placeholder never prefixes it. The bare dash stays
+                // only for a fully unknown schedule (no date, no hour).
+                // Card 20261002_269 (PM R34): the saved Giờ trả hàng shows in
+                // this column the moment it is saved — the staged plannedEndAt
+                // outranks the appointment-derived run timestamp, so the
+                // dispatcher sees 13:00 immediately after Lưu, and after reload.
+                // Card 20261003_318: the delivery-date fallback is LABELLED —
+                // a bare date read as a stored return hour sent the user into
+                // the editor expecting it there.
+                const scheduleValue = row.plannedEndAt
+                  ? formatAppointmentGroupLine(row.plannedEndAt)
+                  : row.time.runAt ? formatAppointmentGroupLine(row.time.runAt)
+                    : row.time.runHour != null
+                      ? [`${row.time.runHour}H`, row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ')
+                      : row.time.deliveryDate ? `Ngày giao ${formatISODate(row.time.deliveryDate)}`
+                        : '—';
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
@@ -300,13 +338,13 @@ export function DetailedPlanGrid({
                     return (
                       <>
                         <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng" data-label-short="Nâng" data-empty={!liftShort && !liftPort ? 'true' : undefined}>
-                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{liftShort ?? liftPort ?? '—'}</div>
+                          <div className="detailed-plan-grid__line">{liftShort ?? liftPort ?? '—'}</div>
                           {liftShort && liftPort && liftShort !== liftPort && (
                             <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{liftPort}</div>
                           )}
                         </td>
                         <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Trả hàng" data-label-short="Trả" data-empty={!dropShort && !dropPort ? 'true' : undefined}>
-                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{dropShort ?? dropPort ?? '—'}</div>
+                          <div className="detailed-plan-grid__line">{dropShort ?? dropPort ?? '—'}</div>
                           {dropShort && dropPort && dropShort !== dropPort && (
                             <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{dropPort}</div>
                           )}
@@ -315,19 +353,21 @@ export function DetailedPlanGrid({
                     );
                   })()}
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường" data-label-short="Tuyến">
-                    {row.customerRoute.routeName ? (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{row.customerRoute.routeName}</div>
-                    ) : row.customerRoute.deliveryPoint ? (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{row.customerRoute.deliveryPoint}</div>
-                    ) : (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">Chưa có tuyến đường</div>
-                    )}
-                    <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
-                      {row.docs.tradeDirection === 'IMPORT' ? (
-                        <span>Nhập</span>
-                      ) : row.docs.tradeDirection === 'EXPORT' ? (
-                        <span>Xuất</span>
-                      ) : '—'}
+                    <div className="detailed-plan-grid__route-direction">
+                      {row.customerRoute.routeName ? (
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{row.customerRoute.routeName}</div>
+                      ) : row.customerRoute.deliveryPoint ? (
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{row.customerRoute.deliveryPoint}</div>
+                      ) : (
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">Chưa có tuyến đường</div>
+                      )}
+                      <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
+                        {row.docs.tradeDirection === 'IMPORT' ? (
+                          <span>Nhập</span>
+                        ) : row.docs.tradeDirection === 'EXPORT' ? (
+                          <span>Xuất</span>
+                        ) : '—'}
+                      </div>
                     </div>
                     {row.isCombined && (
                       <span className="detailed-plan-grid__combined-note" title="Đóng kết hợp">

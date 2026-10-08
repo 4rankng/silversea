@@ -502,8 +502,20 @@ describe('DetailedPlanGrid', () => {
     expect(css).toContain('.detailed-plan-grid__row--plated {\n  background: var(--surface);');
     // The dialog body is the panel the drawer used to hold: the design-lock
     // selection `[role="dialog"]:has(.detailed-plan-filter-panel)` and the
-    // visible `.detailed-plan-filter-panel__quick` must keep resolving.
-    expect(css).toContain('.detailed-plan-filter-panel__fields,\n.detailed-plan-filter-panel__quick {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);');
+    // visible `.detailed-plan-filter-panel__quick` must keep resolving — as a
+    // TWO-UP grid at every width (operator 2026-10-03: "why so many filter
+    // rows, can we put 2 filter per row in this screen"). The pairing used to
+    // sit behind `min-width: 641px`, so the phone — the width with the least
+    // room for a tall stack — was the one width that got one field per row.
+    expect(css).toContain('.detailed-plan-filter-panel__fields,\n.detailed-plan-filter-panel__quick {');
+    expect(css).toMatch(/\.detailed-plan-filter-panel__fields,\s*\.detailed-plan-filter-panel__quick\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    // …and no width may put it back to one-per-line: the phone breakpoint is
+    // what produced the long stack the operator reported.
+    expect(css).not.toMatch(/@media[^{]*\{[^}]*detailed-plan-filter-panel__fields[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+    // Each section is a row of the panel, so it spans the panel's width: the
+    // panel's content-sizing `justify-items` is about the CONTROLS inside a
+    // section, and squeezing the section itself left the grid 68px tracks.
+    expect(css).toMatch(/\.detailed-plan-filter-panel__group\s*\{[^}]*justify-self:\s*stretch/);
     expect(css).not.toContain('detailed-plan-ribbon__quick');
     expect(css).not.toContain('detailed-plan-ribbon__customer');
     expect(css).not.toContain('detailed-plan-filters__advanced');
@@ -666,10 +678,25 @@ describe('DetailedPlanGrid — QA-001 appointment minutes', () => {
     expect(screen.getByText('20H 11/09/2026')).toBeTruthy();
   });
 
-  it('SCHEDULE-LAYOUT-04 keeps a known date without inventing a time', () => {
+  it('SCHEDULE-LAYOUT-04 keeps a known date without inventing a time, labelled as the delivery date (card 20261003_318: a bare date read as a stored hour misled the user)', () => {
     renderGrid([row({ time: { deliveryDate: '2026-09-11', runHour: null } })]);
 
-    expect(screen.getByText('— 11/09/2026')).toBeTruthy();
+    expect(screen.getByText('Ngày giao 11/09/2026')).toBeTruthy();
+    expect(screen.queryByText(/^11\/09\/2026$/)).toBeNull();
+    expect(screen.queryByText('— 11/09/2026')).toBeNull();
+  });
+
+  it('CARD-269 renders the saved Giờ trả hàng in the schedule cell — immediately, not only in the editor', () => {
+    // The dispatcher saved 13:00 05/10/2026 (plannedEndAt, zone-aware ISO);
+    // the appointment-derived time still says the old date. The column must
+    // show the saved dispatch hour (PM R34: the grid updates to 13:00).
+    const { container } = renderGrid([row({
+      time: { deliveryDate: '2026-10-01', runHour: null },
+      plannedEndAt: '2026-10-05T06:00:00.000+00:00',
+    })]);
+    const schedule = container.querySelector('.ops-schedule')!;
+    expect(schedule.firstElementChild).toHaveTextContent('13:00 05/10/2026');
+    expect(schedule.textContent).not.toContain('01/10/2026');
   });
 
   it('SCHEDULE-LAYOUT-04 preserves a fully unknown schedule and direction', () => {

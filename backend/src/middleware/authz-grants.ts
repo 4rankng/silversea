@@ -63,6 +63,26 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     source: 'Card 20260921_3',
   },
   {
+    resource: 'shipments',
+    methods: ['DELETE'],
+    pathPattern: /^\/operational-sites\/\d+$/,
+    roles: [Role.CUS, Role.DISPATCHER],
+    effect: 'bypass',
+    reason:
+      'Card 20261002_263 (R29): operational-sites rows are factory/warehouse master data managed by Chứng từ and Điều vận — the config screen removes a row via DELETE /operational-sites/:id. The route\'s own requireRoles keeps the permitted role set; this casbin bridge stays scoped to exactly this path so general shipment delete stays closed.',
+    source: 'Card 20261002_263 (R29)',
+  },
+  {
+    resource: 'shipments',
+    methods: ['DELETE'],
+    pathPattern: /^\/cus-workspace\/\d+$/,
+    roles: [Role.CUS],
+    effect: 'bypass',
+    reason:
+      'Cards 351/352 (QA gap found 05/10): the Xóa lô flow is the CUS DIRECT delete — 2026-09-10 user directive removed the approval flow (requestShipmentDelete) and the route\'s own requireRoles(Role.CUS) admits the CUS user, but the mount-level casbinAuthz(\'shipments\') had no DELETE grant here so every confirm tap died 403. Bridge scoped to exactly this path; general shipment delete stays closed.',
+    source: 'Cards 351/352; user directive 2026-09-10 (direct CUS delete)',
+  },
+  {
     resource: 'config',
     methods: ['POST'],
     pathPattern: /^\/routes\/?$/,
@@ -154,6 +174,25 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     source: 'card 20261001_253 (mount-order fix; mirrors the Card-20260930_228 financial row)',
   },
   {
+    // Card 20261002_220 (PM ruling 2026-10-03: CUS IS to read the quotation
+    // fee catalog). The Chi-hộ table's dedicated cost columns come from
+    // /api/quotations/fees/active, and CUS is a first-party role on that
+    // screen — it was denied by the `config, read` policy row, so either the
+    // columns silently vanished or the FE had to suppress the call. Scoped to
+    // this ONE GET path rather than a `p, CUS, config, read` policy row:
+    // granting config:read wholesale would hand CUS every config catalog
+    // (pricing tables, expense categories, portals), which this ruling does
+    // not say. Every other quotation verb keeps its own requireRoles.
+    resource: 'config',
+    methods: ['GET'],
+    pathPattern: /^\/quotations\/fees\/active\/?$/,
+    roles: [Role.CUS],
+    effect: 'bypass',
+    reason:
+      'CUS staff the Chi hộ cost screen, whose dedicated fee columns are built from the customer\'s active quotation frames (/api/quotations/fees/active). PM ruled 2026-10-03 that CUS gets read access. Bridge route-scoped to that single GET so the rest of the config catalog stays Casbin-governed for CUS.',
+    source: 'PM ruling 2026-10-03 (card 20261002_220)',
+  },
+  {
     resource: 'financial',
     methods: ['GET'],
     pathPattern: /^\/finance\/billing-documents\/\d+(\/export)?$/,
@@ -182,6 +221,16 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     reason:
       'Governed close-maker command required by the O2C PRD: only the CUS close-maker command is exposed on the trip surface; all other CUS trip operations remain denied.',
     source: 'O2C PRD (tripRouteAuthz doc comment)',
+  },
+  {
+    resource: 'trips',
+    methods: ['PUT', 'DELETE'],
+    pathPattern: /^\/\d+\/expenses\/\d+\/?$/,
+    roles: [Role.OPS],
+    effect: 'bypass',
+    reason:
+      'Card 071026141580 ("fix all issues" ruling 2026-10-07): the wallet shows an Ops payer their own khai-chi-hô trip costs with Sửa/Xóa like every other editable row, and those buttons must WORK — the trips casbin resource grants OPS read-only, so the expense-mutation routes (PUT/DELETE /trips/:id/expenses/:eid, the exact surface the trip cost card uses) bridge OPS alone. Everyone else falls through to casbin unchanged; the routes keep their own state guards (locked/COMPLETED/cancelled rejections, canonical-write assertions).',
+    source: 'card 071026141580 + owner ruling 2026-10-07',
   },
 ];
 

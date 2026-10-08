@@ -152,7 +152,7 @@ export default function BillingDocumentsPanel({
                   <FileText size={15} />
                   <span>{doc.rangeFrom} → {doc.rangeTo}</span>
                   <strong className="mono">
-                    {formatCurrency(doc.totalInclVat).replace(' ₫', '')}đ
+                    {formatCurrency(doc.totalInclVat)}
                   </strong>
                   {doc.type === 'DEBIT_NOTE' && (
                     <span>

@@ -228,4 +228,20 @@ describe('Debit note template save/delete UX', () => {
     expect(mocks.updateDebitNoteTemplate).not.toHaveBeenCalled();
   });
 
+  // Card 20261004_333 — a failed detail fetch must not fall through to the
+  // blank new-template editor over an existing template.
+  it('shows the fetch-error state with retry instead of a blank editor when the detail query fails', async () => {
+    mocks.params = { id: '901' };
+    mocks.useQuery.mockReturnValue({ data: undefined, isLoading: false, isError: true, isFetching: false, refetch: mocks.refetch });
+    render(<StrictMode><DebitNoteTemplateEditorPage /></StrictMode>);
+
+    expect(await screen.findByText('Không thể tải mẫu giấy báo nợ')).toBeVisible();
+    // The workspace (blank new-template editor) must not render — the header
+    // keeps its identity input, so pin the workspace nav instead.
+    expect(screen.queryByRole('navigation', { name: 'Mục chỉnh sửa' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(mocks.refetch).toHaveBeenCalledOnce();
+  });
+
 });

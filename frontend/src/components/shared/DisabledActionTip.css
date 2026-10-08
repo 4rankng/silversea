@@ -1,0 +1,32 @@
+/* Disabled-action explanation (card 081026093510) — the tooltip half of the
+ * aria-described + aria-disabled pattern documented in DisabledActionTip.tsx.
+ * The bubble must ride the WRAPPER's hover/focus: an action with
+ * `aria-disabled` is still hoverable/focusable, but a natively disabled one
+ * would not be, which is why callers never use the `disabled` attribute. */
+.disabled-action-tip {
+  position: relative;
+  display: inline-flex;
+}
+
+.disabled-action-tip__bubble {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: var(--text-caption-size, 12px);
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.disabled-action-tip:hover .disabled-action-tip__bubble,
+.disabled-action-tip:focus-within .disabled-action-tip__bubble {
+  display: block;
+}

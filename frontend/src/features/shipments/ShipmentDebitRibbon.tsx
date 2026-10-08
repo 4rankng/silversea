@@ -1,6 +1,7 @@
 import { RotateCcw } from 'lucide-react';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { Button as UUIButton } from '../../components/untitled-ui/base/buttons/button';
+import { DisabledActionTip } from '../../components/shared/DisabledActionTip';
 import {
   DateRangeFields, DateRangePresetSelect, DateRangePresets, FilterBar, InlineLabelSelect,
   type DateRangePreset, type DateRangeValue,
@@ -93,17 +94,22 @@ export function ShipmentDebitRibbon({
     <FilterBar
       presets={presetChips}
       actions={(
-        <UUIButton
-          className="shipment-debit-ribbon__clear"
-          size="sm"
-          color="tertiary"
-          iconLeading={RotateCcw}
-          isDisabled={!hasFilters}
-          onPress={onClear}
-          aria-label="Xóa lọc"
+        <DisabledActionTip
+          id="shipment-debit-clear-filters"
+          reason={!hasFilters ? 'Chưa có bộ lọc nào để xóa.' : null}
         >
-          Xóa lọc
-        </UUIButton>
+          <UUIButton
+            className="shipment-debit-ribbon__clear"
+            size="sm"
+            color="tertiary"
+            iconLeading={RotateCcw}
+            aria-disabled={!hasFilters || undefined}
+            onPress={() => { if (!hasFilters) return; onClear(); }}
+            aria-label="Xóa lọc"
+          >
+            Xóa lọc
+          </UUIButton>
+        </DisabledActionTip>
       )}
     >
       <DateRangeFields

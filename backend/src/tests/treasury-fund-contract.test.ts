@@ -39,14 +39,22 @@ async function request(path: string, token = admin, body?: unknown, method = 'PO
 test('actual account setup, position and expense catalog preserve explicit fund independent of BANK/CASH', async () => {
   const code = `${tag}-bank-tm`;
   const input = { code, name: 'ACB company-looking name', type: 'BANK', fundCode: 'TM', openingBalance: 123000,
-    openingBalanceDate: '2026-09-16', reason: 'QA account setup', openingBalanceEvidence: 'QA statement' };
+    openingBalanceDate: '2026-09-16', reason: 'QA account setup', openingBalanceEvidence: 'QA statement',
+    bankName: 'ACB Bank QA', bankAccountNumber: '0071000123456' };
   const created = await request('/finance/treasury/accounts/setup', admin, input);
   assert.equal(created.status, 202, JSON.stringify(created));
   const [account] = await db.select().from(s.treasuryAccounts).where(eq(s.treasuryAccounts.code, code.toUpperCase()));
   accountIds.push(account.id);
   assert.equal((account as { fundCode?: string }).fundCode, 'TM');
   const position = await request('/finance/treasury/position', accountant);
-  assert.equal(position.body.accounts.find((row: { accountId: number }) => row.accountId === account.id).fundCode, 'TM');
+  const positioned = position.body.accounts.find((row: { accountId: number }) => row.accountId === account.id);
+  assert.equal(positioned.fundCode, 'TM');
+  // Card 20261002_291: the position read carries the bank identity (the row
+  // displays it; the technical code never is a label) and the canonical
+  // outstanding OPS advance for the summary bar.
+  assert.equal(positioned.bankName, 'ACB Bank QA');
+  assert.equal(positioned.bankAccountNumber, '0071000123456');
+  assert.equal(typeof position.body.opsAdvance.totalOutstanding, 'number');
   const catalog = await request('/expense-accounting/catalog', accountant);
   assert.equal(catalog.body.accounts.find((row: { id: number }) => row.id === account.id).fundCode, 'TM');
   assert.equal(catalog.body.staff.find((row: { id: number }) => row.id === userIds[1]).name, `${tag}-${Role.ACCOUNTANT}`);

@@ -45,19 +45,31 @@ export async function completeExternalCarrierTrip(args: {
     create: async (tx) => {
       // Fast pre-read for 404/cancel messaging before the machine's
       // row-locked reload does the authoritative checks.
+      // Card 20261004_359 — carrierType/externalPlateNumber live in the
+      // trip_carrier_info split (Stage A); the tripsComposite view folds the
+      // 1:1 splits back together for this read.
       const [trip] = await tx.select({
-        id: s.trips.id,
-        tripCode: s.trips.tripCode,
-        fulfillmentId: s.trips.fulfillmentId,
-        shipmentId: s.trips.shipmentId,
-        version: s.trips.version,
-        status: s.trips.status,
-      }).from(s.trips)
-        .where(and(eq(s.trips.id, args.tripId), isNull(s.trips.deletedAt)))
+        id: s.tripsComposite.id,
+        tripCode: s.tripsComposite.tripCode,
+        fulfillmentId: s.tripsComposite.fulfillmentId,
+        shipmentId: s.tripsComposite.shipmentId,
+        version: s.tripsComposite.version,
+        status: s.tripsComposite.status,
+        carrierType: s.tripsComposite.carrierType,
+        externalPlateNumber: s.tripsComposite.externalPlateNumber,
+      }).from(s.tripsComposite)
+        .where(and(eq(s.tripsComposite.id, args.tripId), isNull(s.tripsComposite.deletedAt)))
         .limit(1);
       if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi.');
       if (trip.status === TripStatus.CANCELED) {
         throw new ApiError(409, 'Chuyến đã bị hủy.');
+      }
+      // Card 20261004_359 — issuing an external dispatch may defer the plate
+      // ("Bổ sung sau"), but a trip that actually ran must carry one: the
+      // mandatory-plate point moves from issue to completion. The plate rides
+      // in through the reassign flow (TripReassignDialog).
+      if (trip.carrierType === 'EXTERNAL' && trip.externalPlateNumber == null) {
+        throw new ApiError(409, 'Chuyến chưa có biển số xe — bổ sung biển (Phân xe lại) trước khi hoàn thành.');
       }
       await transitionTripStatus(
         trip.id,

@@ -5,6 +5,8 @@ import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import type { AccountingWorkspaceUrlState } from './accountingWorkspaceTypes';
 import type {
+  DepositWeeklySummary,
+  MoneyAlertsSummary,
   PayablesSummary,
   ProfitabilitySummary,
   ReceivablesSummary,
@@ -25,6 +27,30 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
       api.get<PayablesSummary>(
         `/reports/payables-summary?asOfDate=${encodeURIComponent(state.to)}`,
       ),
+  });
+
+  // Card 369 — weekly container-deposit series for the overview chart. Keyed
+  // on the full selected range so a range change refetches chart and cards
+  // together; only the overview view renders it.
+  const depositWeekly = useQuery({
+    queryKey: qk.accounting.depositWeekly(state.from, state.to),
+    queryFn: () =>
+      api.get<DepositWeeklySummary>(
+        `/accounting/deposits/weekly-summary?from=${encodeURIComponent(state.from)}&to=${encodeURIComponent(state.to)}`,
+      ),
+    enabled: state.activeView === 'overview',
+  });
+
+  // Card 370 — one aggregated money-alerts snapshot (fund balances, due-debt
+  // groups, the three alert strips) for the overview money block; only the
+  // overview view renders it.
+  const moneyAlerts = useQuery({
+    queryKey: qk.accounting.moneyAlerts(state.to),
+    queryFn: () =>
+      api.get<MoneyAlertsSummary>(
+        `/accounting/money-alerts?asOfDate=${encodeURIComponent(state.to)}`,
+      ),
+    enabled: state.activeView === 'overview',
   });
 
   const profitability = useQuery({
@@ -65,9 +91,21 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
     enabled: state.activeView === 'transport',
   });
 
-  const transportParties = useQuery({
+  // The two populations come from two different sources on purpose: the
+  // customers list serves billing parties (non-carriers only since 2026-10-03)
+  // while the carrier filter must enumerate nhà xe, which live in
+  // customers.isCarrier. bootstrap.externalCarriers is that carrier list —
+  // reading both out of one unfiltered array is what made them merge.
+  const transportCustomers = useQuery({
     queryKey: qk.catalogs.allCustomers,
     queryFn: () => configClient.getAllCustomers(),
+    staleTime: 5 * 60 * 1000,
+    enabled: state.activeView === 'transport',
+  });
+
+  const transportCarriers = useQuery({
+    queryKey: qk.allCarriers,
+    queryFn: () => configClient.getAllCarriers(),
     staleTime: 5 * 60 * 1000,
     enabled: state.activeView === 'transport',
   });
@@ -75,10 +113,14 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
   return {
     receivables,
     payables,
+    depositWeekly,
+    moneyAlerts,
     profitability,
     transportRegister,
-    transportParties,
+    transportCustomers,
+    transportCarriers,
     hasOverviewError:
-      receivables.isError || payables.isError || profitability.isError,
+      receivables.isError || payables.isError || profitability.isError
+      || depositWeekly.isError || moneyAlerts.isError,
   };
 }

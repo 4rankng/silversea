@@ -12,8 +12,8 @@ import { qk } from '../../api/keys';
  *  the version comes from a freshly loaded driver row — the salary summary
  *  does not carry updatedAt. */
 function isVersionConflict(err: unknown): boolean {
-  const e = err as { status?: number };
-  return e.status === 428 || e.status === 409;
+  const status = err && typeof err === 'object' && 'status' in err && typeof err.status === 'number' ? err.status : null;
+  return status === 428 || status === 409;
 }
 
 /**
@@ -101,12 +101,18 @@ export function BaseSalaryEditModal({
       void queryClient.invalidateQueries({ queryKey: qk.configCounts.drivers });
       onClose();
     } catch (e) {
+      // 4xx business refusals carry the precise reason (the parsed `error`
+      // field) — surface it verbatim; the recovery explanation stays as the
+      // fallback for the message-less case. Card 20261005_367.
+      const status = e && typeof e === 'object' && 'status' in e && typeof e.status === 'number' ? e.status : null;
+      const reason = e && typeof e === 'object' && 'message' in e && typeof e.message === 'string' ? e.message.trim() : '';
+      const detail = status != null && status >= 400 && status < 500 ? reason : '';
       if (isVersionConflict(e)) {
         // Someone else saved first — mint a fresh token, keep the typed
         // amount, and let the admin retry against the newest row.
         try {
           await refreshVersionToken();
-          setError('Lương cứng đã được cập nhật ở nơi khác — đã tải bản mới nhất. Kiểm tra số tiền rồi lưu lại.');
+          setError(detail || 'Lương cứng đã được cập nhật ở nơi khác — đã tải bản mới nhất. Kiểm tra số tiền rồi lưu lại.');
         } catch {
           setError('Không thể tải lại thông tin lái xe. Vui lòng đóng và mở lại hộp thoại.');
         }

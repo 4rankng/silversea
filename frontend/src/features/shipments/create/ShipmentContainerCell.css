@@ -18,3 +18,12 @@
 
 .csc-container-cell--persistent .csc-container-cell__display { display: none; }
 .csc-container-cell--persistent .csc-container-cell__editor > * { opacity: 1; }
+/* Card 20261002_268: always-visible trailing affordance (factory detail peek).
+   Sits over the display span's right edge. Fades out only while a picker menu
+   is open in the cell — it must stay live right after an Enter commit, where
+   focus-within alone would strand the button (pointer-events:none) exactly
+   when the operator just picked a factory. */
+.csc-container-cell__actions { position: absolute; z-index: 1; top: 0; right: 0; bottom: 0; display: flex; align-items: center; padding-right: 8px; }
+.csc-container-cell:has([aria-expanded='true']) .csc-container-cell__actions { opacity: 0; pointer-events: none; }
+.csc-container-cell__action { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-3); cursor: pointer; }
+.csc-container-cell__action:hover { background: var(--surface-2); color: var(--fg-1); }

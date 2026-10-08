@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronRight, ChevronUp, Download, Truck } from 'lucide-react';
 import { formatMoney, formatNumber } from '../lib/format';
 import { useAuth } from '../hooks/useAuth';
-import type { DashboardDecisionItem, Role, TripDetail } from '@tingting/shared';
+import type { DashboardDecisionItem, Role } from '@tingting/shared';
 import { ROLE_LABELS } from '@tingting/shared';
 import { SkeletonLine, SkeletonKPIs } from '../components/shared/Skeleton';
 import { Banner } from '../components/shared/Banner';
@@ -11,16 +11,17 @@ import { EmptyState as DsEmptyState } from '../design-system/EmptyState';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { AssetIcon } from '../components/AssetIcon';
 import { useDashboardData } from '../features/dashboard/hooks/useDashboardData';
-import { fmtMoM } from '../features/dashboard/utils';
+import { monthlyChange } from '../features/dashboard/utils';
 import { useMonth } from '../hooks/useMonth';
 import { RevenueTrendChart } from '../components/charts/RevenueTrendChart';
+import { deriveMonthlyFinanceChart } from './finance-derived';
 import { AuditLogWidget } from '../features/dashboard/components/AuditLogWidget';
 import { useDashboardAnimations } from '../features/dashboard/hooks/useDashboardAnimations';
 import { CompanyInfoSetupBanner } from '../features/dashboard/components/CompanyInfoSetupBanner';
 import './DashboardPage.css';
 import './WorkflowFinance.css';
 import { ExecutiveFinancialStrip } from '../components/dashboard/ExecutiveFinancialStrip';
-import { CostBreakdown, DeltaPill, decisionIcon, greeting, runningSum, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
+import { CostBreakdown, DeltaPill, decisionIcon, greeting, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
 
 type DashboardStatTone = 'revenue' | 'cost' | 'gross' | 'net' | 'debt';
 
@@ -61,6 +62,48 @@ function DashboardStat({ tone, icon, label, delta, value, valueRef, description 
   );
 }
 
+interface DashboardMonthlyFinanceChartProps {
+  reports: Parameters<typeof deriveMonthlyFinanceChart>[0];
+  month: number;
+  year: number;
+  onViewReport: () => void;
+}
+
+export function DashboardMonthlyFinanceChart({ reports, month, year, onViewReport }: DashboardMonthlyFinanceChartProps) {
+  const chart = useMemo(() => deriveMonthlyFinanceChart(reports, month), [reports, month]);
+  return (
+    <section className="d-card d-card-border bg-base-100 wf-card wf-chart wf-bento-hero" aria-labelledby="dashboard-revenue-title">
+      <div className="wf-card-h">
+        <div>
+          <h2 className="ttl" id="dashboard-revenue-title">Doanh thu và lợi nhuận gộp theo tháng</h2>
+          <div className="sub">Số liệu ghi nhận theo từng tháng · Năm {year}</div>
+        </div>
+        <div className="wf-chart-actions">
+          <button className="d-btn d-btn-link d-btn-sm wf-link" onClick={onViewReport}>Xem báo cáo
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </button>
+        </div>
+      </div>
+      <div className="wf-legend">
+        <span className="li"><span className="sw sw--revenue" />Doanh thu</span>
+        <span className="li"><span className="sw sw--gross" />Lợi nhuận gộp</span>
+      </div>
+      <div className="body">
+        {chart.hasChartData ? <RevenueTrendChart {...chart} /> : (
+          <div className="wf-chart-empty-wrap">
+            <DsEmptyState
+              title="Chưa có dữ liệu trong kỳ"
+              description="Biểu đồ xuất hiện khi báo cáo ghi nhận doanh thu hoặc lợi nhuận gộp trong năm."
+              context="revenue-period"
+              className="wf-chart-empty"
+            />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /**
  * Dashboard — wireframe redesign per /wireframe/nepo-dashboard.html.
  *
@@ -82,7 +125,6 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { month: currentMonth, year: currentYear } = useMonth();
-  const [chartView, setChartView] = useState<'day' | 'month'>('day');
   const [showAllAttention, setShowAllAttention] = useState(false);
   const countersAnimated = useRef(false);
 
@@ -93,10 +135,9 @@ export default function DashboardPage() {
     stats, loading, prevPnlReport,
     createdTripsCount,
     receivablesSummary,
-    yearlySeries,
+    yearlyReports,
     recentAudit,
-    derived, formattedNet,
-    allTrips,
+    derived,
   } = useDashboardData(currentMonth, currentYear);
 
   // Animation hook — must be after loading is defined
@@ -104,74 +145,22 @@ export default function DashboardPage() {
 
   // ── Derived values (non-hook computations) ──────────────────────────────
   const d = derived ?? null;
-  const revenue = d?.revenue ?? 0;
-  const costs = d?.costs ?? 0;
-  const grossProfit = d?.grossProfit ?? 0;
-  const netProfit = d?.netProfit ?? 0;
-  const prevRevenue = d?.prevRevenue ?? 0;
-  const prevCosts = d?.prevCosts ?? 0;
-  const prevGross = d?.prevGross ?? 0;
-  const prevNet = d?.prevNet ?? 0;
+  const revenue = d?.revenue ?? null;
+  const costs = d?.costs ?? null;
+  const grossProfit = d?.grossProfit ?? null;
+  const netProfit = d?.netProfit ?? null;
+  const prevRevenue = d?.prevRevenue ?? null;
+  const prevCosts = d?.prevCosts ?? null;
+  const prevGross = d?.prevGross ?? null;
+  const prevNet = d?.prevNet ?? null;
 
-  const revenueMoM = fmtMoM(revenue, prevRevenue);
-  const costsMoM = fmtMoM(costs, prevCosts);
-  const grossMoM = fmtMoM(grossProfit, prevGross);
-  const netMoM = fmtMoM(netProfit, prevNet);
+  const revenueMoM = monthlyChange(revenue, prevRevenue);
+  const costsMoM = monthlyChange(costs, prevCosts);
+  const grossMoM = monthlyChange(grossProfit, prevGross);
+  const netMoM = monthlyChange(netProfit, prevNet);
 
-  const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
-  const costRatio = revenue > 0 ? (costs / revenue) * 100 : 0;
-
-  // ── Chart series (daily + monthly) ────────────────────────────────────────
-  // Daily view groups trips by departureDate; monthly view uses yearly P&L.
-  // Both convert to Tr (millions). Only data points with actual data are shown.
-
-  const dailyChartData = useMemo(() => {
-    if (!allTrips || allTrips.length === 0) return { labels: [] as string[], revenue: [] as number[], gross: [] as number[] };
-    const activeTrips = allTrips.filter((t: TripDetail) => t.status !== 'CANCELED');
-    const dayMap = new Map<string, { revenue: number; gross: number }>();
-    for (const t of activeTrips) {
-      const dateKey = t.departureDate?.slice(0, 10);
-      if (!dateKey) continue;
-      const rev = Number(t.revenue) || 0;
-      const gp = Number(t.grossProfit) || 0;
-      const existing = dayMap.get(dateKey) ?? { revenue: 0, gross: 0 };
-      existing.revenue += rev;
-      existing.gross += gp;
-      dayMap.set(dateKey, existing);
-    }
-    const sorted = Array.from(dayMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .filter(([, v]) => v.revenue > 0 || v.gross > 0);
-    return {
-      labels: sorted.map(([d]) => String(parseInt(d.slice(8, 10), 10))),
-      revenue: sorted.map(([, v]) => v.revenue / 1_000_000),
-      gross: sorted.map(([, v]) => v.gross / 1_000_000),
-    };
-  }, [allTrips]);
-
-  const { chartMonths, chartRevenue, chartGross } = useMemo(() => {
-    if (chartView === 'day') {
-      return {
-        chartMonths: dailyChartData.labels,
-        chartRevenue: runningSum(dailyChartData.revenue),
-        chartGross: runningSum(dailyChartData.gross),
-      };
-    }
-    // Monthly view — trim leading months with no data
-    if (!yearlySeries || yearlySeries.length === 0) return { chartMonths: [], chartRevenue: [], chartGross: [] };
-    const months = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
-    const baseIdx = currentMonth - 1;
-    const allMonths = yearlySeries.map((_, i) => months[(baseIdx - yearlySeries.length + 1 + i + 12) % 12]);
-    const allRev = yearlySeries.map((p) => Number(p.revenue ?? 0) / 1_000_000);
-    const allGross = yearlySeries.map((p) => Number(p.grossProfit ?? 0) / 1_000_000);
-    const firstDataIdx = allRev.findIndex((r, i) => r > 0 || allGross[i] > 0);
-    if (firstDataIdx < 0) return { chartMonths: [], chartRevenue: [], chartGross: [] };
-    return {
-      chartMonths: allMonths.slice(firstDataIdx),
-      chartRevenue: runningSum(allRev.slice(firstDataIdx)),
-      chartGross: runningSum(allGross.slice(firstDataIdx)),
-    };
-  }, [chartView, dailyChartData, yearlySeries, currentMonth]);
+  const grossMargin = revenue !== null && revenue > 0 && grossProfit !== null ? (grossProfit / revenue) * 100 : null;
+  const costRatio = revenue !== null && revenue > 0 && costs !== null ? (costs / revenue) * 100 : null;
 
   // ── Top trucks (by margin) ──────────────────────────────────────────────
   const topTrucks = useMemo(() => {
@@ -201,15 +190,15 @@ export default function DashboardPage() {
   // users to estimate angles or match a detached legend to a chart.
   const costBreakdown = useMemo<CostBreakdownItem[]>(() => {
     if (!d) return [];
-    return d.slicesWithPct
+    return d.costComponents
       .map(slice => ({
         name: slice.label,
         value: slice.value,
         pct: slice.pct,
         color: slice.color,
       }))
-      .filter(item => item.value !== null && item.value > 0 && item.pct !== null && item.pct > 0)
-      .sort((a, b) => b.value - a.value);
+      .filter(item => item.value !== 0)
+      .sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity));
   }, [d]);
 
   // ── Fleet stats ─────────────────────────────────────────────────────────
@@ -251,7 +240,7 @@ export default function DashboardPage() {
         priority: 90,
       });
     }
-    if (revenue > 0) {
+    if (revenue !== null && revenue > 0) {
       fallback.push({
         id: 'profit-close-ready-fallback',
         kind: 'profit-close',
@@ -282,7 +271,7 @@ export default function DashboardPage() {
 
   // ── Trigger KPI counter animations once data loads ──
   useEffect(() => {
-    if (loading || countersAnimated.current) return;
+    if (loading || countersAnimated.current || revenue === null || costs === null || grossProfit === null || netProfit === null) return;
     countersAnimated.current = true;
 
     // Small delay to let entrance animations start first
@@ -310,11 +299,12 @@ export default function DashboardPage() {
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
-  // Critical-receivables banner — surfaces ONLY customers in the worst aging
-  // bucket (>90 days overdue). Lesser overdue tiers (31–60, 61–90) are
-  // routine and don't warrant a page-top banner. dismissKey ties dismissal to
-  // the active period so a new month re-surfaces the banner.
-  // Backend bucket ranges: '0-30' | '31-60' | '61-90' | '90+' (see
+  // Critical-receivables banner — surfaces ONLY customers in the worst overdue
+  // band (>90 days past their effective due date — card 061026221213 makes the
+  // bands contractual, so this text is literal). Lesser overdue tiers (1–30,
+  // 31–90) are routine and don't warrant a page-top banner. dismissKey ties
+  // dismissal to the active period so a new month re-surfaces the banner.
+  // Backend bucket ranges: 'chua-den-han' | '1-30' | '31-90' | '90+' (see
   // backend/src/services/aging.service.ts).
   const over90Bucket = receivablesSummary?.buckets?.find(b => b.range === '90+');
   const over90Count = over90Bucket?.count ?? 0;
@@ -346,13 +336,13 @@ export default function DashboardPage() {
         <div className="wf-head__copy">
           <h1 className="sr-only">Tổng quan vận hành</h1>
           <div className="wf-sum">
-            {greeting()}, {user?.fullName || (user?.role && ROLE_LABELS[user.role as Role]) || user?.username || 'bạn'}. Doanh thu tháng {currentMonth}/{currentYear}: <b>{formatNumber(revenue)} ₫</b>.{' '}
-            {prevPnlReport ? (
-              revenue >= prevRevenue
-                ? <span className="wf-sum__change wf-sum__change--positive">{revenueMoM === 'Mới' ? 'Tháng trước chưa có doanh thu' : `Biến động ${revenueMoM} so với tháng trước`}</span>
-                : <span className="wf-sum__change wf-sum__change--negative">Biến động {revenueMoM} so với tháng trước</span>
+            {greeting()}, {user?.fullName || (user?.role && ROLE_LABELS[user.role as Role]) || user?.username || 'bạn'}. Doanh thu tháng {currentMonth}/{currentYear}: <b>{revenue === null ? '—' : formatNumber(revenue)} ₫</b>.{' '}
+            {revenue !== null && prevPnlReport && prevRevenue != null ? (
+              <span className={`wf-sum__change${revenueMoM.direction === 'up' ? ' wf-sum__change--positive' : revenueMoM.direction === 'down' ? ' wf-sum__change--negative' : ''}`}>
+                {revenueMoM.label === 'Mới' && revenue > 0 ? 'Tháng trước chưa có doanh thu' : `Biến động ${revenueMoM.label} so với tháng trước`}
+              </span>
             ) : <b>Chưa đủ dữ liệu so sánh</b>}
-            . Lợi nhuận ròng dự kiến <b>{formattedNet} ₫</b> sau phí quản lý.
+            . Lợi nhuận ròng dự kiến <b>{netProfit === null ? '—' : formatMoney(netProfit)} ₫</b> sau phí quản lý.
           </div>
         </div>
         <div className="wf-acts">
@@ -375,35 +365,35 @@ export default function DashboardPage() {
           tone="revenue"
           icon={<AssetIcon name="analytics" size={15} />}
           label={`Doanh thu · ${String(currentMonth).padStart(2, '0')}/${currentYear}`}
-          delta={<DeltaPill mom={revenueMoM} />}
-          value={formatMoney(revenue)}
+          delta={<DeltaPill change={revenueMoM} />}
+          value={revenue === null ? '—' : formatMoney(revenue)}
           valueRef={element => { kpiRefs.current.revenue = element; }}
-          description={<>Tháng trước · {formatNumber(prevRevenue)} ₫</>}
+          description={<>Tháng trước · {prevRevenue == null ? '—' : `${formatNumber(prevRevenue)} ₫`}</>}
         />
         <DashboardStat
           tone="cost"
           icon={<AssetIcon name="expense" size={15} />}
           label="Tổng chi phí"
-          delta={<DeltaPill mom={costsMoM} />}
-          value={formatMoney(costs)}
+          delta={<DeltaPill change={costsMoM} favorableDirection="down" />}
+          value={costs === null ? '—' : formatMoney(costs)}
           valueRef={element => { kpiRefs.current.costs = element; }}
-          description={<>{costRatio.toFixed(1)}% doanh thu</>}
+          description={<>{costRatio === null ? 'Chưa có tỷ lệ doanh thu' : `${costRatio.toFixed(1)}% doanh thu`}</>}
         />
         <DashboardStat
           tone="gross"
           icon={<AssetIcon name="gross-margin" size={15} />}
           label="Lợi nhuận gộp"
-          delta={<DeltaPill mom={grossMoM} />}
-          value={formatMoney(grossProfit)}
+          delta={<DeltaPill change={grossMoM} />}
+          value={grossProfit === null ? '—' : formatMoney(grossProfit)}
           valueRef={element => { kpiRefs.current.gross = element; }}
-          description={<>Biên gộp · {grossMargin.toFixed(1)}%</>}
+          description={<>Biên gộp · {grossMargin === null ? '—' : `${grossMargin.toFixed(1)}%`}</>}
         />
         <DashboardStat
           tone="net"
           icon={<AssetIcon name="profit" size={15} />}
           label="Lợi nhuận ròng"
-          delta={<DeltaPill mom={netMoM} />}
-          value={formatMoney(netProfit)}
+          delta={<DeltaPill change={netMoM} />}
+          value={netProfit === null ? '—' : formatMoney(netProfit)}
           valueRef={element => { kpiRefs.current.net = element; }}
           description={<>Sau phí quản lý · <button className="d-btn d-btn-link d-btn-xs wf-link" onClick={() => navigate('/profit')}>Phân chia →</button></>}
         />
@@ -491,65 +481,13 @@ export default function DashboardPage() {
             </div>
           </section>}
 
-        {/* Hero 1 — Chart (8 cols × 2 rows) */}
-        <section className="d-card d-card-border bg-base-100 wf-card wf-chart wf-bento-hero" aria-labelledby="dashboard-revenue-title">
-            <div className="wf-card-h">
-              <div>
-                <h2 className="ttl" id="dashboard-revenue-title">Doanh thu & Lợi nhuận gộp</h2>
-                <div className="sub">
-                  {chartMonths.length > 0
-                    ? chartView === 'day'
-                      ? `${chartMonths.length} ngày · Tháng ${currentMonth}/${currentYear}`
-                      : `${chartMonths.length} tháng gần nhất`
-                    : 'Chưa có dữ liệu'}
-                </div>
-              </div>
-              <div className="wf-chart-actions">
-                <div className="wf-chart-toggle">
-                  <button className={`d-btn d-btn-sm wf-chart-toggle__btn${chartView === 'day' ? ' is-active' : ''}`} onClick={() => setChartView('day')} aria-pressed={chartView === 'day'}>Ngày</button>
-                  <button className={`d-btn d-btn-sm wf-chart-toggle__btn${chartView === 'month' ? ' is-active' : ''}`} onClick={() => setChartView('month')} aria-pressed={chartView === 'month'}>Tháng</button>
-                </div>
-                <button className="d-btn d-btn-link d-btn-sm wf-link" onClick={() => navigate('/finance')}>Xem báo cáo
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-                </button>
-              </div>
-            </div>
-            <div className="wf-legend">
-              <span className="li"><span className="sw sw--revenue" />Doanh thu</span>
-              <span className="li"><span className="sw sw--gross" />Lợi nhuận gộp</span>
-            </div>
-            <div className="body">
-              {(() => {
-                if (chartRevenue.length === 0) {
-                  return (
-                    <div className="wf-chart-empty-wrap">
-                      <DsEmptyState
-                        title="Chưa có dữ liệu trong kỳ"
-                        description="Biểu đồ sẽ xuất hiện khi kỳ này ghi nhận doanh thu hoặc lợi nhuận gộp dương."
-                        context="revenue-period"
-                        className="wf-chart-empty"
-                      />
-                    </div>
-                  );
-                }
-                const totalRev = chartRevenue.reduce((a, b) => a + b, 0);
-                const totalGp = chartGross.reduce((a, b) => a + b, 0);
-                if (totalRev === 0 && totalGp === 0) {
-                  return (
-                    <div className="wf-chart-empty-wrap">
-                      <DsEmptyState
-                        title="Chưa đủ dữ liệu lịch sử"
-                        description="Biểu đồ doanh thu & lợi nhuận gộp sẽ xuất hiện tại đây sau khi có chuyến đầu tiên trong kỳ."
-                        context="revenue-period"
-                        className="wf-chart-empty"
-                      />
-                    </div>
-                  );
-                }
-                return <RevenueTrendChart months={chartMonths} revenue={chartRevenue} gross={chartGross} />;
-              })()}
-            </div>
-          </section>
+        {/* Hero 1 — Recognized monthly report values */}
+        <DashboardMonthlyFinanceChart
+          reports={yearlyReports}
+          month={currentMonth}
+          year={currentYear}
+          onViewReport={() => navigate('/finance')}
+        />
 
         {/* Fleet (4 cols × 1 row) — right of chart, row 1 */}
         <div className="d-card d-card-border bg-base-100 wf-card wf-fleet wf-bento-third">
@@ -586,16 +524,11 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="body">
-              {costBreakdown.length === 0 ? (
-                <DsEmptyState
-                  title="Chưa có chi phí trong tháng"
-                  description="Cơ cấu chi phí sẽ xuất hiện sau khi có khoản chi được ghi nhận."
-                  context="cost-composition"
-                  className="wf-dashboard-empty wf-dashboard-empty--cost"
-                />
-              ) : (
-                <CostBreakdown items={costBreakdown} total={d?.totalPie ?? costs} />
-              )}
+              <CostBreakdown
+                items={costs === null ? [] : costBreakdown}
+                total={costs}
+                complete={d?.costComplete ?? false}
+              />
             </div>
           </div>
 
@@ -630,7 +563,7 @@ export default function DashboardPage() {
               <div className="wf-card-h">
                 <div>
                   <h2 className="ttl">Top tuyến sinh lời</h2>
-                  <div className="sub">Theo lợi nhuận gộp · {String(currentMonth).padStart(2, '0')}/{currentYear}</div>
+                  <div className="sub">Lợi nhuận chuyến đã ghi nhận · {String(currentMonth).padStart(2, '0')}/{currentYear}</div>
                 </div>
                 <button className="d-btn d-btn-link d-btn-sm wf-link" onClick={() => navigate('/finance')}>Tất cả</button>
               </div>
@@ -638,7 +571,7 @@ export default function DashboardPage() {
                 {topRoutes.length === 0 ? (
                   <DsEmptyState
                     title="Chưa có dữ liệu tuyến"
-                    description="Xếp hạng sẽ xuất hiện khi tuyến có lợi nhuận gộp."
+                    description={d?.routesComplete ? "Xếp hạng theo lợi nhuận chuyến đã ghi nhận trong kỳ." : "Chưa đủ dữ liệu báo cáo để xếp hạng tuyến trong kỳ."}
                     context="profitable-routes"
                     className="wf-dashboard-empty wf-dashboard-empty--inline"
                   />

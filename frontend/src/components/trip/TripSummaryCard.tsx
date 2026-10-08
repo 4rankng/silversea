@@ -34,7 +34,7 @@ export function TripSummaryCard() {
           </span>
         </div>
         <div className="tc-summary-row">
-          <span className="tc-summary-row__lbl"><DollarSign size={12} /> Vé đường ({tollStations} trạm)</span>
+          <span className="tc-summary-row__lbl"><DollarSign size={12} />{` Vé đường (${tollStations} trạm)`}</span>
           <span className={`tc-summary-row__val ${tollCost === 0 ? 'tc-summary-row__val--neutral' : 'tc-summary-row__val--neg'}`}>
             <Money value={Math.abs(tollCost)} sign={tollCost === 0 ? undefined : "−"} />
           </span>

@@ -1,6 +1,6 @@
 /**
 /**
- * API client for the Ops field-operations portal (docs/prd/OpsVanHanh.md),
+ * API client for the Ops field-operations portal (docs/prd/OpsVanHanh.docx),
  * backed by backend/src/routes/ops.ts.
  */
 import { api, fileCommandFingerprint } from '../lib/api';
@@ -75,9 +75,32 @@ export interface OpsFundBook {
 
 export type OpsExpenseStatus = 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
+/**
+ * Card 20261008_2 — full-set per-status counts for the "Lịch sử chi phí"
+ * status filter tabs (the envelope's `statusCounts`, never page-derived).
+ * Each bucket sizes exactly the rows that tab reveals across BOTH sources the
+ * list merges (native Ops rows + legacy trip-sourced rows), so the numeral
+ * always agrees with the list behind it. Buckets the legacy loader's
+ * asymmetry keeps out of a view (DRAFT/VOIDED/PENDING/REJECTED never see the
+ * legacy rows) stay honest by construction; every key is always present and
+ * an empty bucket is `0`, never absent.
+ */
+export interface OpsExpenseStatusCounts {
+  all: number;
+  DRAFT: number;
+  RECORDED: number;
+  VOIDED: number;
+  PENDING: number;
+  APPROVED: number;
+  REJECTED: number;
+}
+
 export interface OpsExpenseRow {
   sourceKind?: 'OPS' | 'TRIP';
   sourceId?: number;
+  /** Trip of a legacy (TRIP-sourced) row — the Sửa/Xóa route into the chi-hô
+   *  entry APIs (card 071026141580). */
+  tripId?: number | null;
   id: number;
   shipmentId: number;
   shipmentCode: string | null;
@@ -183,6 +206,34 @@ export interface OpsExpenseTypeOption {
   category?: string | null;
 }
 
+export interface OpsAdvanceRequestRow {
+  id: number;
+  version: number;
+  requesterId: number;
+  amount: string;
+  /** Posted funding, net of reversals. Absent means UNKNOWN, never "unfunded". */
+  fundedAmount?: number;
+  reason: string;
+  status: string;
+  createdAt: string;
+  approverName?: string | null;
+  approvedAt?: string | null;
+}
+
+export interface OpsAdvanceRequestEnvelope {
+  items: OpsAdvanceRequestRow[];
+  total: number;
+  page: number;
+  limit: number;
+  /**
+   * Full-set counts per status (requester-scoped, status filter excluded) —
+   * KPIs must never derive from the current page (ForwarderAdvancesPage rule).
+   * Optional only so hand-written fixtures stay valid; the server always sends
+   * it.
+   */
+  statusCounts?: Record<string, number>;
+}
+
 function qs(params: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -209,17 +260,21 @@ export const opsClient = {
   getFundBook: (period?: OpsFundBookPeriod) =>
     api.get<OpsFundBook>(`/ops/wallet/fund-book${qs({ from: period?.from, to: period?.to })}`),
   getWalletExpenses: (status?: OpsExpenseStatus) =>
-    api.get<{ items: OpsExpenseRow[] }>(`/ops/wallet/expenses${qs({ status })}`),
+    api.get<{ items: OpsExpenseRow[]; statusCounts: OpsExpenseStatusCounts }>(`/ops/wallet/expenses${qs({ status })}`),
   createAdvanceRequest: (body: { amount: number; reason: string }) =>
     api.post<unknown>('/ops/wallet/advance-requests', body),
   getWalletAdvanceRequests: (params?: { status?: string; page?: number; limit?: number }) =>
-    api.get<{ items: Array<{ id: number; version: number; requesterId: number; amount: string; fundedAmount?: number; reason: string; status: string; createdAt: string; approverName?: string | null; approvedAt?: string | null }>; total: number; page: number; limit: number }>(
+    api.get<OpsAdvanceRequestEnvelope>(
       `/ops/wallet/advance-requests${qs({ status: params?.status, page: params?.page, limit: params?.limit })}`,
     ),
 
   // ── Khoản chi ──
   getExpenseTypes: () =>
     api.get<{ items: OpsExpenseTypeOption[] }>('/ops/expense-types'),
+  // Card 071026210510: the dialog asks the grant BEFORE the operator types —
+  // the same predicate the save enforces, answered as a verdict, not a 403.
+  getExpenseWriteScope: (shipmentId: number) =>
+    api.get<{ writable: boolean; reason: string | null }>(`/ops/expenses/write-scope${qs({ shipmentId })}`),
   createExpense: (body: {
     shipmentId: number;
     shipmentContainerId?: number | null;

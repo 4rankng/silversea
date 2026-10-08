@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { expenseDateSchema } from '@tingting/shared';
+import { expenseDateSchema, treasuryFundLabel, type TreasuryFundCode } from '@tingting/shared';
 import { api } from '../../lib/api';
 import { qk } from '../../api/keys';
 import { FilterDropdown } from '../../components/FilterDropdown';
@@ -18,12 +18,10 @@ import { expenseMoney } from './expense-accounting-model';
  *  direction each đợt supports; the row action below lands there with the
  *  SAME period pre-applied. */
 
-type FundSource = 'COMPANY' | 'TM';
-
 interface FundBookMovement { id: number; direction: 'IN' | 'OUT'; amount: string; valueDate: string; status: string; postedAt: string; ledgerEntryId: number | null }
 interface FundBookAccount { accountId: number; code: string; name: string; currency: string; openingBalance: number; openingBalanceDate: string | null; cutoverAt: string | null; totalIn: number; totalOut: number; bookBalance: number; movements: FundBookMovement[] }
 interface FundBook {
-  source: FundSource;
+  source: TreasuryFundCode;
   period: { from: string | null; to: string | null };
   accounts: FundBookAccount[];
   totals: { openingBalance: number; totalIn: number; totalOut: number; bookBalance: number };
@@ -31,9 +29,7 @@ interface FundBook {
   opsAdvance: { totalOutstanding: number; items: Array<{ staffId: number; staffName: string | null; outstanding: number }> };
 }
 
-const SOURCE_LABELS: Record<FundSource, string> = { COMPANY: 'Quỹ công ty', TM: 'Quỹ TM' };
-
-function fetchFundBook(params: { source: FundSource; from?: string; to?: string }): Promise<FundBook> {
+function fetchFundBook(params: { source: TreasuryFundCode; from?: string; to?: string }): Promise<FundBook> {
   const query = new URLSearchParams({ source: params.source });
   if (params.from) query.set('from', params.from);
   if (params.to) query.set('to', params.to);
@@ -44,7 +40,7 @@ export function FundBookSection() {
   const [searchParams, setSearchParams] = useSearchParams();
   const today = businessDateISO();
   const sourceParam = searchParams.get('fundSource');
-  const source: FundSource = sourceParam === 'TM' ? 'TM' : 'COMPANY';
+  const source: TreasuryFundCode = sourceParam === 'TM' ? 'TM' : 'COMPANY';
   const parseDate = (value: string | null) => (value && expenseDateSchema.safeParse(value).success ? value : undefined);
   const from = parseDate(searchParams.get('fundFrom')) ?? `${today.slice(0, 7)}-01`;
   const to = parseDate(searchParams.get('fundTo')) ?? today;
@@ -78,7 +74,7 @@ export function FundBookSection() {
           label="Nguồn quỹ"
           value={source}
           onChange={event => setFilter('fundSource', event.target.value)}
-          options={([{ value: 'COMPANY', label: SOURCE_LABELS.COMPANY }, { value: 'TM', label: SOURCE_LABELS.TM }] as const)}
+          options={([{ value: 'COMPANY', label: treasuryFundLabel('COMPANY') }, { value: 'TM', label: treasuryFundLabel('TM') }] as const)}
         />
       </FilterDropdown>
     </FilterBar>

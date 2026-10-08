@@ -494,14 +494,29 @@ export async function loadShipmentListAppointmentGroups(
   // shipment_containers has no deletedAt column (deletion is hard-delete at
   // the service layer, see reconcileShipmentContainersInTx) so no soft-delete
   // filter is needed here.
+  // Precedence matches DetailedPlanGrid schedule display:
+  // 1. Live trip plannedEndAt
+  // 2. Stored fulfillment plannedEndAt (explicit dispatch override)
+  // 3. Container customerAppointmentAt
   const containerRows = await db.select({
     shipmentId: s.shipmentContainers.shipmentId,
     customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
     operationalSiteId: s.shipmentContainers.operationalSiteId,
     containerTypeCode: s.containerTypes.code,
     containerTypeName: s.containerTypes.name,
+    fulfillmentPlannedEndAt: s.shipmentFulfillments.plannedEndAt,
+    tripPlannedEndAt: s.trips.plannedEndAt,
   }).from(s.shipmentContainers)
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .leftJoin(s.shipmentFulfillments, and(
+      eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .leftJoin(s.trips, and(
+      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+    ))
     .where(inArray(s.shipmentContainers.shipmentId, ids))
     .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id));
 
@@ -529,14 +544,15 @@ export async function loadShipmentListAppointmentGroups(
   // first and filling shipment-level fallbacks later splits containers which
   // share one effective factory into duplicate display lines.
   return groupShipmentAppointmentGroups(containerRows.flatMap((row) => {
-    if (row.customerAppointmentAt == null) return [];
+    const effectiveAt = row.tripPlannedEndAt ?? row.fulfillmentPlannedEndAt ?? row.customerAppointmentAt;
+    if (effectiveAt == null) return [];
     const shipment = shipmentsById.get(row.shipmentId);
     const factorySiteId = row.operationalSiteId ?? shipment?.operationalSiteId ?? null;
     const factorySite = factorySiteId != null ? sitesById.get(factorySiteId) : null;
     const legacyFactoryName = shipment?.factoryName?.trim() ?? null;
     return [{
       shipmentId: row.shipmentId,
-      at: row.customerAppointmentAt,
+      at: effectiveAt,
       factorySiteId,
       factoryShortName: factorySite?.shortName ?? legacyFactoryName,
       factoryFullName: factorySite?.fullName ?? legacyFactoryName,

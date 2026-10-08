@@ -61,6 +61,11 @@ export const PAGE_CATALOG = {
     title: 'Đội xe',
     path: '/fleet',
   },
+  fleetProductivity: {
+    title: 'Hiệu quả Năng suất Xe',
+    path: '/fleet/productivity',
+    section: 'resources',
+  },
   // Dispatcher resource-catalog views: read-only lookups of internal tractors
   // and drivers for staffing dispatch plans (separate from the admin /fleet
   // CRUD workspace).
@@ -185,6 +190,15 @@ export const PAGE_CATALOG = {
     title: 'Người dùng',
     path: '/users',
     section: 'system',
+  },
+  hrRoster: {
+    // Read-only personnel directory (hồ sơ nhân sự) — a different surface from
+    // the permission-administration /users screen. Bộ phận derives exactly the
+    // way /users derives it (business units); office attendance/salary fields
+    // are deliberately not modeled until the customer confirms them.
+    title: 'Danh sách nhân sự',
+    path: '/hr/roster',
+    section: 'hr',
   },
   auditLogs: {
     title: 'Nhật ký người dùng',
@@ -401,7 +415,7 @@ export const PAGE_CATALOG = {
     requiresParams: ['id'],
   },
   myTwoOrders: {
-    title: 'Hành trình · Hai lệnh',
+    title: 'Hành trình · Lệnh trong ngày',
     path: '/my-trips/two-orders',
   },
   myPayslips: {
@@ -459,8 +473,14 @@ export const PAGE_CATALOG = {
     requiresParams: ['id'],
   },
 
-  /* ── Ops field operations (docs/prd/OpsVanHanh.md) ─────────────────── */
+  /* ── Ops field operations (docs/prd/OpsVanHanh.docx) ─────────────────── */
 
+  // Ops overview dashboard (route /ops trần) — tổng hợp chỉ số công việc +
+  // quick links vào 3 màn Ops hiện có; opsHome của role vẫn là /my-orders.
+  opsOverview: {
+    title: 'Tổng quan Ops',
+    path: '/ops',
+  },
   opsOrders: {
     title: 'Kế hoạch làm hàng',
     path: '/ops/orders',

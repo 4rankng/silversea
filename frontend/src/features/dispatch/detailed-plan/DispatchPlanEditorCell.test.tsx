@@ -8,10 +8,16 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
   return {
     ...actual,
     listDispatchFleetResources: vi.fn(),
+    createCarrierFleetVehicle: vi.fn(),
   };
 });
 
-import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
+const getTrailersMock = vi.fn();
+vi.mock('../../../api/configClient', () => ({
+  configClient: { getTrailers: (...args: Array<unknown>) => getTrailersMock(...args) },
+}));
+
+import { createCarrierFleetVehicle, listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
 
@@ -23,6 +29,9 @@ vi.mock('./useDispatchTaskTags', () => ({
       { id: 1, label: 'Đặt đầu' },
       { id: 2, label: 'Đặt đuôi' },
       { id: 3, label: 'Lấy vỏ ICD đi đóng' },
+      // Canonical pool label (migration 0066) that the Lấy Lẻ auto-seed
+      // writes into the driver note.
+      { id: 4, label: 'ĐẢO VỎ' },
     ],
     isLoading: false,
     error: null,
@@ -34,6 +43,9 @@ vi.mock('./useDispatchTaskTags', () => ({
 }));
 
 const listResourcesMock = vi.mocked(listDispatchFleetResources);
+// Default trailer catalog for every describe: an empty list keeps the
+// coupling-only default; the card-20261005_387 describe overrides per test.
+getTrailersMock.mockResolvedValue([]);
 
 const PAIRED_TRUCK = {
   id: 154,
@@ -235,6 +247,36 @@ describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)'
     expect(hourSeg().value).toBe('15');
   });
 
+  it('bug #316 prefills Giờ trả hàng from inherited runAt when plannedEndAt is null', async () => {
+    mockFleetResources();
+    renderCell(row({
+      plannedEndAt: null,
+      time: { deliveryDate: '2026-10-10', runAt: '2026-10-10T03:00:00.000Z', runHour: 10 },
+    }), {});
+    await openDialog();
+    expect(endField()).toBeTruthy();
+    expect(daySeg().value).toBe('10');
+    expect(hourSeg().value).toBe('10');
+  });
+
+  it('bug #316 keeps plannedEndAt omitted when prefilled runAt is untouched', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.83' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+    });
+    mockFleetResources();
+    renderCell(row({
+      plannedEndAt: null,
+      time: { deliveryDate: '2026-10-10', runAt: '2026-10-10T03:00:00.000Z', runHour: 10 },
+    }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect('plannedEndAt' in onAtomicSave.mock.calls[0]![1]).toBe(false);
+  });
+
   it('sends zone-aware ISO on save (15:30 +07:00 → 08:30Z)', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
@@ -289,6 +331,15 @@ describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)'
 });
 
 describe('DispatchPlanEditorCell — driver note composer', () => {
+  it('card 081026091120: the note field states it is the lot-shared note, not per-container', async () => {
+    mockFleetResources();
+    renderCell(row({ notes: { vehicleNote: null, customerNote: null } }), { onAtomicSave: vi.fn() });
+    await openDialog();
+    // The note is stored at the lot level — every container in the lot shows
+    // it. The dialog must say so, or dispatchers read it as per-container.
+    expect(await screen.findByText(/Ghi chú dùng chung cả lô/)).toBeTruthy();
+  });
+
   it('composes chips + manual text into the atomic save body and re-anchors', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
@@ -357,7 +408,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(document.querySelector('.dispatch-assignment-dialog__issue-driver')?.textContent).toMatch(/Phạm Văn Hùng/);
     // The ownTruck plate lookup runs against the TRUCK search endpoint.
     expect(listResourcesMock).toHaveBeenCalledWith('TRUCK', expect.objectContaining({ q: '15H-052.82', limit: 5 }));
-    await waitFor(() => expect(issueButton().disabled).toBe(false));
+    await waitFor(() => expect(issueButton()).not.toHaveAttribute('aria-disabled'));
   });
 
   it('blocks issuing and explains when the plated truck has no paired driver', async () => {
@@ -402,8 +453,8 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.queryByRole('button', { name: /Phát lệnh nhanh/ })).toBeNull();
     // The plan is frozen history — the trigger locks with an explanation and
     // never opens the editor (its save would only 409 at the live-trip guard).
-    const trigger = screen.getByRole('button', { name: /Sửa ô điều phối/ }) as HTMLButtonElement;
-    expect(trigger.disabled).toBe(true);
+    const trigger = screen.getByRole('button', { name: /Sửa ô điều phối/ });
+    expect(trigger).toHaveAttribute('aria-disabled', 'true');
     expect(trigger.title).toMatch(/Chuyến đã hoàn thành/);
     fireEvent.click(trigger);
     expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
@@ -577,7 +628,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.queryByText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
   });
 
-  it('locks Phân loại to Lẻ on LCL rows (cargo-mode bound, not a per-cont choice)', async () => {
+  it('offers Lẻ ONLY on LCL rows — never Lấy Lẻ, never the cont models (card 20261006_392)', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
       shipmentVersion: 6,
@@ -596,18 +647,69 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     }), { onAtomicSave });
     await openDialog();
 
-    const trigger = screen.getByRole('button', { name: 'Lẻ Phân loại' }) as HTMLButtonElement;
-    expect(trigger.disabled).toBe(true);
-    // Locked select never opens a list offering the cont models.
+    const trigger = screen.getByRole('button', { name: 'Lẻ Phân loại' });
+    expect(trigger).not.toHaveAttribute('aria-disabled');
     fireEvent.click(trigger);
+    // Card 20261006_392: an LCL lot is ONE whole-lot LCL_SHIPMENT fulfillment and
+    // shipment_fulfillments_lcl_dispatch_classification_check pins its
+    // classification to 'LCL'. Offering 'Lấy Lẻ' here produced a save that died
+    // on that constraint as a raw 23514 surfaced as HTTP 500 — the option list
+    // must not offer a value the row can never store.
+    expect(screen.getByRole('option', { name: 'Lẻ' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'Lấy Lẻ' })).toBeNull();
+    // The cont models stay off an LCL lot — it is bound to its cargo mode.
     expect(screen.queryByRole('option', { name: 'Đơn' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Kẹp' })).toBeNull();
     expect(screen.queryByRole('option', { name: 'Kết hợp' })).toBeNull();
 
+    // Re-pick the current value to close the list (an open listbox replaces
+    // the dialog's save row) and leave the draft untouched.
+    fireEvent.click(screen.getByRole('option', { name: 'Lẻ' }));
     fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
     expect(onAtomicSave).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ classification: 'LCL' }),
+    );
+  });
+
+  it('choosing Lấy Lẻ seeds NO tag on a CONTAINER row — the note stays the dispatcher\'s own (card 362)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'LCL_PICKUP',
+      isCombined: false,
+      operationalNotes: 'ĐẢO VỎ\nhọp chị An 8h',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    // Card 20261006_392 moved this case off the LCL lot: 'Lấy Lẻ' is the 40'
+    // empty-shell pickup run and belongs on a CONTAINER row. It cannot be stored
+    // on an LCL_SHIPMENT row at all. Card 362's intent — no shell-tag seed — is
+    // preserved, on the row type where the option is legal.
+    renderCell(row({
+      cargoMode: 'FCL',
+      fulfillmentType: 'FCL_CONTAINER',
+      container: { containerNumber: 'MSKU1234565', containerTypeLabel: "20'DC", cargoWeightKg: null } as never,
+      classification: 'SINGLE' as never,
+      notes: { vehicleNote: 'họp chị An 8h', customerNote: null },
+    }), { onAtomicSave });
+    await openDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: /Phân loại/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Lấy Lẻ' }));
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        classification: 'LCL_PICKUP',
+        // Card 20261005_362: no shell-tag seed — the note is untouched; the
+        // dispatcher picks task tags manually.
+        operationalNotes: 'họp chị An 8h',
+      }),
     );
   });
 });
@@ -923,5 +1025,232 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
     const options = await openVehicleDropdown();
 
     expect(options.some((label) => label.includes('60C-123.45 — Hạ tại khu vực D-1 — ⚠ rơ-moóc 40FT, cần 20FT'))).toBe(true);
+  });
+});
+
+describe('DispatchPlanEditorCell — quick-add plate for the selected carrier (card 20261004_357)', () => {
+  const createVehicleMock = vi.mocked(createCarrierFleetVehicle);
+
+  beforeEach(() => {
+    createVehicleMock.mockReset();
+  });
+
+  // Carrier-less rows render the 'Chọn nhà xe' placeholder — the same trigger
+  // pattern the vehicle combobox tests drive.
+  const carrierLessRow = () => row({ dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } });
+
+  async function selectExternalCarrier() {
+    // Open the Nhà xe combobox and pick the mocked external carrier (EXT:9).
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn nhà xe'))!);
+    const carrierOption = await screen.findAllByText('Carrier QA');
+    fireEvent.click(carrierOption[carrierOption.length - 1]);
+    await waitFor(() => expect(screen.getByText('Carrier QA')).toBeTruthy());
+  }
+
+  it('offers "+ Thêm nhanh" only while an external carrier is selected, and absent for OWN', async () => {
+    mockFleetResources();
+    renderCell(carrierLessRow());
+    await openDialog();
+
+    // No carrier yet: no affordance.
+    expect(screen.queryByText('Thêm nhanh')).toBeNull();
+
+    await selectExternalCarrier();
+    expect(screen.getByText('Thêm nhanh')).toBeTruthy();
+  });
+
+  it('creates the plate through the Xe ngoài API and preselects it', async () => {
+    mockFleetResources();
+    createVehicleMock.mockResolvedValue({ id: 77, carrierId: 9, licensePlate: '29C-111.22', isActive: true });
+    renderCell(carrierLessRow());
+    await openDialog();
+    await selectExternalCarrier();
+
+    fireEvent.click(screen.getByText('Thêm nhanh'));
+    expect(await screen.findByText('Thêm nhanh biển số xe')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Biển số xe'), { target: { value: '29c 111.22' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+
+    await waitFor(() => expect(createVehicleMock).toHaveBeenCalledWith({ carrierId: 9, licensePlate: '29C 111.22' }));
+    // Dialog closes; the new plate is preselected in the combobox trigger.
+    await waitFor(() => expect(screen.queryByText('Thêm nhanh biển số xe')).toBeNull());
+    await waitFor(() => expect(screen.getAllByText('29C-111.22').length).toBeGreaterThan(0));
+  });
+
+  it('surfaces the API error inline instead of closing', async () => {
+    mockFleetResources();
+    createVehicleMock.mockRejectedValue(new Error('Biển số xe đã tồn tại'));
+    renderCell(carrierLessRow());
+    await openDialog();
+    await selectExternalCarrier();
+
+    fireEvent.click(screen.getByText('Thêm nhanh'));
+    fireEvent.change(screen.getByLabelText('Biển số xe'), { target: { value: '29C-111.22' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+
+    expect(await screen.findByText('Biển số xe đã tồn tại')).toBeTruthy();
+    // Dialog stays open for correction.
+    expect(screen.getByText('Thêm nhanh biển số xe')).toBeTruthy();
+  });
+});
+
+describe('DispatchPlanEditorCell — "Bổ sung sau" deferred plate (card 20261004_359)', () => {
+  const deferredRow = () => row({
+    taskStatus: 'READY',
+    dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: null },
+  });
+
+  it('leads the EXTERNAL vehicle list with "Bổ sung sau"; absent for OWN', async () => {
+    mockFleetResources();
+    renderCell(deferredRow());
+    await openDialog();
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn hoặc nhập biển số'))!);
+    const listbox = await screen.findAllByRole('listbox');
+    void listbox;
+    const option = screen.getAllByText('Bổ sung sau')[0];
+    expect(option).toBeTruthy();
+    // First among the vehicle options rendered inside the dropdown panel.
+    const dropdownOptions = [...document.querySelectorAll('[role=option], .searchable-select__option')].map((el) => el.textContent?.trim());
+    expect(dropdownOptions[0]).toBe('Bổ sung sau');
+  });
+
+  it('saves the deferred choice as carrier-with-no-vehicle-fields (no plate on the wire)', async () => {
+    mockFleetResources();
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'SINGLE',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(deferredRow(), { onAtomicSave });
+    await openDialog();
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn hoặc nhập biển số'))!);
+    fireEvent.click((await screen.findAllByText('Bổ sung sau'))[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.carrierType).toBe('EXTERNAL');
+    expect(body.externalCarrierId).toBe(9);
+    expect(body.externalCarrierVehicleId).toBeUndefined();
+    expect(body.plateNumber).toBeUndefined();
+    expect(body.truckId).toBeUndefined();
+  });
+
+  it('shows the Phát lệnh section for a saved deferred row (AWAITING_PLATE is issuable)', async () => {
+    mockFleetResources();
+    renderCell(deferredRow());
+    await openDialog();
+
+    // AWAITING_PLATE (carrier assigned, no plate) — the issue section and its
+    // Phát lệnh button are reachable exactly like a plated row.
+    expect(screen.getByText('Phát lệnh cho tài xế')).toBeTruthy();
+  });
+});
+
+// Card 20261005_387 — per-trip trailer override on the EXISTING issue API
+// (POST /shipments/:id/dispatch already accepts trailerId; until now no FE
+// sent it, so every trip rode the tractor's current coupling). Default stays
+// the coupling (trailerId omitted from the body); a picked trailer rides as
+// trailerId with a comparison note naming both plates; the backend's three
+// 409 trailer gates surface through the issue error line untouched.
+describe('DispatchPlanEditorCell — trailer override on phát lệnh (card 20261005_387)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFleetResources();
+    getTrailersMock.mockResolvedValue([
+      { id: 2, licensePlate: '15R-182.06', type: '20FT', status: 'ACTIVE' },
+      { id: 7, licensePlate: '30R-555.55', type: '40FT', status: 'ACTIVE' },
+      { id: 8, licensePlate: 'OLD-TRAILER', type: null, status: 'INACTIVE' },
+    ]);
+  });
+
+  const issueOk = () => vi.fn().mockResolvedValue({
+    fulfillmentId: 101, version: 4,
+    trip: { id: 55, version: 1, tripCode: 'TRP-1', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null },
+    notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },
+    replayed: false,
+  });
+
+  it('shows the tractor coupling and omits trailerId when no override is picked', async () => {
+    const onIssueOrder = issueOk();
+    renderCell(row(), { onIssueOrder });
+    await openDialog();
+    expect(await screen.findByText(/Moóc đang ghép: 15R-182\.06/)).toBeTruthy();
+    fireEvent.click(issueButton());
+    await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
+    const [, body] = onIssueOrder.mock.calls[0];
+    expect(body.trailerId).toBeUndefined();
+  });
+
+  it('sends trailerId and names both plates when an override is picked', async () => {
+    const onIssueOrder = issueOk();
+    renderCell(row(), { onIssueOrder });
+    await openDialog();
+    // UuiSelectField is React Aria: click the trigger, then the portalled
+    // option (the PhoiPhieuControlPage.selection idiom).
+    fireEvent.click(await screen.findByRole('button', { name: /Moóc cho chuyến \(ghi đè\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /30R-555\.55 · 40FT/ }, { timeout: 10_000 }));
+    expect(screen.getByText(/Ghi đè moóc: 30R-555\.55/)).toBeTruthy();
+    expect(screen.getByText(/thay cho moóc đang ghép 15R-182\.06/)).toBeTruthy();
+    fireEvent.click(issueButton());
+    await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
+    expect(onIssueOrder.mock.calls[0][1].trailerId).toBe(7);
+  });
+
+  it('keeps an inactive trailer out of the override options', async () => {
+    renderCell(row());
+    await openDialog();
+    fireEvent.click(await screen.findByRole('button', { name: /Moóc cho chuyến \(ghi đè\)/ }));
+    expect(await screen.findByRole('option', { name: /30R-555\.55 · 40FT/ }, { timeout: 10_000 })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /OLD-TRAILER/ })).toBeNull();
+  });
+
+  it('surfaces the backend 409 trailer gate message on issue', async () => {
+    const onIssueOrder = vi.fn().mockRejectedValue(new Error('Rơ-moóc không phù hợp với loại container.'));
+    renderCell(row(), { onIssueOrder });
+    await openDialog();
+    fireEvent.click(issueButton());
+    expect(await screen.findByText('Rơ-moóc không phù hợp với loại container.')).toBeTruthy();
+  });
+});
+
+describe('DispatchPlanEditorCell — completed-trip overlap confirm (card 061026172804)', () => {
+  it('a 409 RIG_OVERLAP_COMPLETED warns via confirm; confirming retries the save with the flag', async () => {
+    const apiError = Object.assign(new Error('Đầu xe 15H-052.82 có 1 chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?'), {
+      status: 409,
+      raw: { code: 'RIG_OVERLAP_COMPLETED' },
+    });
+    const onAtomicSave = vi.fn()
+      .mockRejectedValueOnce(apiError)
+      .mockResolvedValue({
+        fulfillmentVersion: 5,
+        shipmentVersion: 7,
+        classification: 'SINGLE',
+        isCombined: false,
+        operationalNotes: null,
+        dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+        estimates: { plannedRevenue: null, plannedCarrierCost: null },
+        lotFullyPlated: false,
+      });
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    // The warning surfaces as the house confirm dialog, not an inline error.
+    expect(await screen.findByText('Xác nhận')).toBeTruthy();
+    expect(screen.getByText(/chuyến đã hoàn thành trùng khung giờ/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(2));
+    const retryBody = onAtomicSave.mock.calls[1][1] as { rigOverlapCompletedConfirmed?: boolean };
+    expect(retryBody.rigOverlapCompletedConfirmed).toBe(true);
+    // The retry closed the dialog (save succeeded).
+    await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
   });
 });

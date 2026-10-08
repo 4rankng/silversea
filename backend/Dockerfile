@@ -1,5 +1,6 @@
-# ── Build ─────────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS builder
+ARG BUILDPLATFORM
+# ── Stage 1: Build TS natively on the host architecture (no QEMU emulation) ───
+FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
 
 ARG NODE_OPTIONS=--max-old-space-size=4096
 ENV NODE_OPTIONS=${NODE_OPTIONS}
@@ -15,9 +16,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY shared/package.json shared/package.json
 COPY backend/package.json backend/package.json
 
-# Resolve the backend and its transitive workspace dependencies. pnpm still
-# materializes the shared root store in this disposable stage, but Chromium
-# download is disabled above and the runtime is assembled from `pnpm deploy`.
+# Resolve the backend and its transitive workspace dependencies natively.
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
     --mount=type=cache,target=/tmp/pnpm-verify,id=pnpm-verify \
     pnpm install --frozen-lockfile --filter @tingting/backend...
@@ -32,39 +31,53 @@ COPY backend/src backend/src
 COPY backend/fix-esm-imports.js backend/fix-esm-imports.js
 COPY shared/fix-esm-imports.js shared/fix-esm-imports.js
 
-# Compile TypeScript — fails fast if type errors exist
-# Then rewrite bare imports for Node.js ESM compatibility
+# Compile TypeScript natively with incremental caching and failure guard
 RUN --mount=type=cache,target=/tmp/.tscache,id=backend-tsbuild \
-    pnpm --filter @tingting/shared build && pnpm --filter backend build
+    mkdir -p /tmp/.tscache/backend-tsbuildinfo /tmp/.tscache/backend-dist backend/dist && \
+    cp -a /tmp/.tscache/backend-dist/. backend/dist/ && \
+    ( pnpm --filter @tingting/shared build && pnpm --filter @tingting/backend build && \
+      rm -rf /tmp/.tscache/backend-dist && mkdir -p /tmp/.tscache/backend-dist && \
+      cp -a backend/dist/. /tmp/.tscache/backend-dist/ ) || \
+    ( rm -rf /tmp/.tscache/backend-tsbuildinfo /tmp/.tscache/backend-dist && exit 1 )
 
-# Produce a self-contained production dependency tree for the backend package.
-# This excludes root-only QA tooling even though the monorepo shares a lockfile.
-RUN pnpm --config.inject-workspace-packages=true \
-    --filter @tingting/backend \
-    --prod deploy /prod/backend
-
-# ── Production ───────────────────────────────────────────────────────────────
+# ── Stage 2: Production runtime (linux/amd64) ─────────────────────────────────
 FROM node:22-alpine AS production
+
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 WORKDIR /app
 
-# Copy the pruned backend package and its injected workspace dependencies.
-COPY --from=builder /prod/backend/node_modules backend/node_modules
-COPY --from=builder /prod/backend/package.json backend/package.json
-COPY --from=builder /app/backend/dist backend/dist
+# Copy manifests
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY shared/package.json shared/package.json
+COPY backend/package.json backend/package.json
+
+# Copy compiled shared dist from builder so workspace package injection succeeds
+COPY --from=builder /app/shared/dist shared/dist
+
+# Deploy production dependencies for target platform (linux/amd64) directly into /prod/backend
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
+    pnpm --config.inject-workspace-packages=true \
+        --filter @tingting/backend \
+        --prod deploy /prod/backend
+
+WORKDIR /prod/backend
+
+# Copy compiled backend dist from builder
+COPY --from=builder /app/backend/dist dist
 # Copy static files that tsc doesn't emit
-COPY backend/src/casbin/model.conf backend/dist/casbin/model.conf
-COPY backend/src/casbin/policy.csv backend/dist/casbin/policy.csv
+COPY backend/src/casbin/model.conf dist/casbin/model.conf
+COPY backend/src/casbin/policy.csv dist/casbin/policy.csv
 # Drizzle migrate reads only migration SQL plus meta/_journal.json. Generation
 # snapshots are development artifacts and do not belong in the runtime image.
-COPY backend/drizzle/*.sql backend/drizzle/
-COPY backend/drizzle/meta/_journal.json backend/drizzle/meta/_journal.json
-COPY backend/drizzle.config.ts backend/drizzle.config.ts
-COPY frontend/public/fonts/BeVietnamPro-Regular.ttf backend/dist/assets/BeVietnamPro-Regular.ttf
-COPY frontend/public/fonts/BeVietnamPro-SemiBold.ttf backend/dist/assets/BeVietnamPro-SemiBold.ttf
+COPY backend/drizzle/*.sql drizzle/
+COPY backend/drizzle/meta/_journal.json drizzle/meta/_journal.json
+COPY backend/drizzle.config.ts drizzle.config.ts
+COPY frontend/public/fonts/BeVietnamPro-Regular.ttf dist/assets/BeVietnamPro-Regular.ttf
+COPY frontend/public/fonts/BeVietnamPro-SemiBold.ttf dist/assets/BeVietnamPro-SemiBold.ttf
 
-# Create uploads directory
-RUN mkdir -p /app/backend/uploads
+# Create uploads directory and symlink /app/backend -> /prod/backend for compose compatibility
+RUN mkdir -p uploads && rm -rf /app/backend && ln -s /prod/backend /app/backend
 
 WORKDIR /app/backend
 

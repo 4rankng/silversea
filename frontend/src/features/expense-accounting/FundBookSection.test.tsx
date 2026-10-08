@@ -75,7 +75,7 @@ describe('FundBookSection — sổ quỹ theo kỳ (card 20260928_168)', () => {
     section();
     await screen.findByText('TK công ty ACB');
     fireEvent.click(screen.getByRole('button', { name: /Nguồn quỹ$/ }));
-    const option = await screen.findByRole('option', { name: 'Quỹ TM' });
+    const option = await screen.findByRole('option', { name: 'Quỹ tiền mặt' });
     fireEvent.click(option);
     await waitFor(() => expect(get).toHaveBeenCalledWith('/expense-accounting/fund-book?source=TM&from=2026-09-01&to=2026-09-30'));
   });

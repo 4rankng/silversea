@@ -33,6 +33,7 @@
   height: 100%;
   height: 100dvh;
   overflow: clip;
+  background: var(--bg);
 }
 
 /* Desktop sidebar toggle (1024px and above) */
@@ -167,6 +168,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  background: var(--bg);
   padding: var(--app-body-pad-t, 24px) var(--app-body-pad-x) 32px;
   padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)) max(var(--app-body-pad-x), env(safe-area-inset-right, 0px));
   scrollbar-gutter: stable;

@@ -1,5 +1,5 @@
-import React, { lazy, Suspense, type ReactElement } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { useEffect, lazy, Suspense, type ReactElement } from 'react';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SearchProvider } from './context/SearchContext';
 import { MonthProvider } from './hooks/useMonth';
@@ -68,6 +68,7 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ForwarderTripsPage = lazy(() => import('./pages/ForwarderTripsPage'));
 const ForwarderTripDetailPage = lazy(() => import('./pages/ForwarderTripDetailPage'));
 const ForwarderAdvancesPage = lazy(() => import('./pages/ForwarderAdvancesPage'));
+const OpsOverviewPage = lazy(() => import('./pages/OpsOverviewPage'));
 const OpsOrdersPage = lazy(() => import('./pages/OpsOrdersPage'));
 const OpsFleetTrackingPage = lazy(() => import('./pages/OpsFleetTrackingPage'));
 const OpsWalletPage = lazy(() => import('./pages/OpsWalletPage'));
@@ -86,7 +87,9 @@ const FleetDriversPage = lazy(() => import('./pages/FleetDriversPage'));
 const DispatchSuppliersPage = lazy(() => import('./pages/DispatchSuppliersPage'));
 const ProfitPage = lazy(() => import('./pages/ProfitPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
+const HrRosterPage = lazy(() => import('./pages/HrRosterPage'));
 const FleetPage = lazy(() => import('./pages/FleetPage'));
+const FleetProductivityPage = lazy(() => import('./pages/FleetProductivityPage'));
 const TruckTiresPage = lazy(() => import('./pages/TruckTiresPage'));
 const TrucksConfigPage = lazy(() => import('./pages/config/TrucksConfigPage'));
 const TruckOwnersConfigPage = lazy(() => import('./pages/config/TruckOwnersConfigPage'));
@@ -142,12 +145,36 @@ function PageLoader() {
   );
 }
 
+/** Card 20261004_358 (criterion 2): guessed /shipments/:id/edit URLs used to
+ *  404 — no separate edit route ever existed; the shipment edit surface IS the
+ *  detail page's inline editors. The alias lands them there, where the detail
+ *  route's own reader gate still applies. */
+function ShipmentEditRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/shipments/${id}`} replace />;
+}
+
 export function AppRoutes() {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
+  // The phoi-phieu board is a lazy route. A click navigates inside a React
+  // transition, and a SUSPENDING transition keeps the previous page painted at
+  // the new URL — the Suspense loader never shows (reproduced: the workspace
+  // title painted under /accounting/phoi-phieu for the whole chunk fetch).
+  // Warm the chunk once for the roles the route admits, so the first click
+  // paints the board. Residual: a click landing before the warm fetch
+  // completes can still show the previous page — the warm fetch starts at app
+  // mount, long before any human click. The effect lives above the loading
+  // early-return: hooks run unconditionally.
+  const canReadPhoiPhieu = getModernRole(user?.role ?? '') === Role.ADMIN
+    || getModernRole(user?.role ?? '') === Role.MANAGER
+    || getModernRole(user?.role ?? '') === Role.ACCOUNTANT;
+  useEffect(() => {
+    if (!canReadPhoiPhieu) return;
+    void import('./pages/accounting/PhoiPhieuControlPage');
+  }, [canReadPhoiPhieu]);
 
   if (loading) return <PageLoader />;
-
   if (!isAuthenticated) return (
     <>
       {location.pathname !== '/login' && <Navigate to="/login" replace />}
@@ -214,6 +241,7 @@ export function AppRoutes() {
   // fields; financial/cost fields are stripped by the backend intake services.
   // DISPATCHER reaches the same pages create-only (Casbin grants POST on
   // customers/routes; the pages hide edit/delete for that role).
+  const factoryEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || isCus || currentRole === Role.DISPATCHER ? el : <Navigate to={homeRedirect} replace />);
   const catalogEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus || currentRole === Role.DISPATCHER ? el : <Navigate to={homeRedirect} replace />);
   const accountantOnly = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   const shipmentReaderOnly = (el: ReactElement) => (
@@ -282,7 +310,8 @@ export function AppRoutes() {
           <Route path="/fleet/external" element={dispatchOnly(page(<ExternalFleetPage />))} />
           <Route path="/fleet/drivers" element={dispatchOnly(page(<FleetDriversPage />))} />
           <Route path="/fleet" element={officeStaffOnly(page(<FleetPage />))} />
-<Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
+          <Route path="/fleet/productivity" element={officeStaffOnly(page(<FleetProductivityPage />))} />
+          <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
 <Route path="/fleet/trailers/:id/tires" element={officeStaffOnly(page(<TruckTiresPage vehicle="trailer" />))} />
           <Route path="/trips" element={tripDetailOnly(page(<TripListPage />))} />
           <Route path="/trips/new" element={adminOnly(page(<TripCreatePage />))} />
@@ -316,6 +345,14 @@ export function AppRoutes() {
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
           <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />
           <Route path="/debt" element={financeReaderOnly(page(<DebtListPage />))} />
+          {/* Card 071026211120: the spec, the report endpoint and the nav copy all
+              call this page "receivables" while the route has always been /debt, so
+              the documented link was a hard 404 for a signed-in accountant. Send the
+              legacy path to the real route instead of letting the catch-all answer
+              it. No guard here on purpose: /debt applies financeReaderOnly itself, so
+              an unauthorized role is still bounced exactly as before rather than
+              reaching the page by the back door. */}
+          <Route path="/receivables" element={<Navigate to={routes.debt} replace />} />
           <Route path="/debt/:id" element={financeReaderOnly(page(<DebtDetailPage />))} />
           <Route path="/debt/:id/billing/new" element={financeReaderOnly(page(<DebtDetailPage />))} />
           <Route path="/penalties" element={officeStaffOnly(page(<PenaltyPage />))} />
@@ -336,6 +373,11 @@ export function AppRoutes() {
           <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentContainersPage />))} />
           <Route path="/shipments-debit" element={shipmentDebitReaderOnly(page(<ShipmentDebitPage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
+          {/* Card 20261004_358 (criterion 2): /shipments/:id/edit used to 404 —
+              no separate edit route ever existed; the shipment edit surface IS
+              the detail page's inline editors. Guessed URLs land there instead
+              of the dead end; the detail route's own reader gate still applies. */}
+          <Route path="/shipments/:id/edit" element={<ShipmentEditRedirect />} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />
@@ -344,7 +386,7 @@ export function AppRoutes() {
               /system/admin-health work-inbox RBAC). Kept separate from /config. */}
           <Route path="/admin-center" element={strictAdminOnly(page(<AdminCenterPage />))} />
           <Route path="/config" element={adminOnly(page(<ConfigPage />))} />
-          <Route path="/config/factories" element={adminOnly(page(<FactoriesConfigPage />))} />
+          <Route path="/config/factories" element={factoryEditorOnly(page(<FactoriesConfigPage />))} />
           <Route path="/config/trailers" element={adminOnly(page(<TrailersConfigPage />))} />
           <Route path="/config/trucks" element={adminOnly(page(<TrucksConfigPage />))} />
           <Route path="/config/trucks/:truckId/owners" element={adminOnly(page(<TruckOwnersConfigPage />))} />
@@ -399,6 +441,7 @@ export function AppRoutes() {
           <Route path="/payables/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/salary" element={officeStaffOnly(page(<SalaryAttendancePage />))} />
           <Route path="/users" element={officeStaffOnly(page(<UsersPage />))} />
+          <Route path="/hr/roster" element={officeStaffOnly(page(<HrRosterPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />
           <Route path="/audit-log" element={<Navigate to="/audit-logs" replace />} />
           <Route path="/admin/audit-logs" element={<Navigate to="/audit-logs" replace />} />
@@ -414,6 +457,7 @@ export function AppRoutes() {
           <Route path="/my-payslips" element={driverOnly(page(<DriverPayslipsPage />))} />
           <Route path="/notifications" element={driverOnly(page(<NotificationsPage />))} />
           <Route path="/my-orders" element={opsOnly(page(<ForwarderTripsPage />))} />
+          <Route path="/ops" element={opsOnly(page(<OpsOverviewPage />))} />
           <Route path="/ops/orders" element={opsOnly(page(<OpsOrdersPage />))} />
           <Route path="/ops/fleet-tracking" element={opsOnly(page(<OpsFleetTrackingPage />))} />
           <Route path="/ops/wallet" element={opsOnly(page(<OpsWalletPage />))} />

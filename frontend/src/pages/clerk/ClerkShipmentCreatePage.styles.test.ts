@@ -273,3 +273,38 @@ describe('global hover reset — copy-icon exclusions (20260918_3 cut D)', () =>
     expect(rule).toContain(':not(.shipment-container-ledger__copy)');
   });
 });
+
+/* ─── Card 051026230627 — the appointment cluster as a tap surface ─────────
+ * The create-form "Ngày giờ đóng trả" cluster rendered as five tiny
+ * spinbox-sized segments (hh 20px … yyyy 35px on a 175×30 cluster). The
+ * expectation allows the spacious-cluster alternative to a picker redesign:
+ * the cluster must carry touch-height segments, a readable font, full row
+ * width on phones, and a table column wide enough to hold the larger pair
+ * (the 176px floor above was measured for the 12px control font). */
+describe('CUS "Ngày giờ đóng trả" cluster geometry (card 051026230627)', () => {
+  it('gives the appointment segments touch height and a readable font', () => {
+    // The base UUI geometry derives inner heights from --uui-control-h and the
+    // segments' font from --text-control-compact-size; the fix overrides those
+    // variables on the cluster's control boundaries (per-element height rules
+    // lose to the base sheet's ID-level min-height resets).
+    expect(css).toMatch(
+      /\.csc-container-cell--appointment [\s\S]{0,160}?--uui-control-h:\s*var\(--control-touch-h/,
+    );
+    expect(css).toMatch(
+      /\.csc-container-cell--appointment [\s\S]{0,200}?--text-control-compact-size:\s*1[5-9]px/,
+    );
+  });
+
+  it('claims full row width on phones so the cluster is never squeezed', () => {
+    const mobile = css.slice(css.indexOf('@media (max-width: 640px)'));
+    expect(mobile).toMatch(
+      /\.csc-container-row > \.csc-container-cell--appointment\s*\{\s*grid-column:\s*1 \/ -1/,
+    );
+  });
+
+  it('widens the desktop table column to the larger cluster floor', () => {
+    // 176px was the floor for the 12px-font cluster; at 16px the pair needs
+    // ~220px or the table scroll box shears the date half off again.
+    expect(css).toMatch(/\.csc-container-col__appointment\s*\{\s*width:\s*2[2-9]\dpx/);
+  });
+});

@@ -4,7 +4,7 @@
 
 Tài liệu xác định trải nghiệm từ khi tiếp nhận nhu cầu vận chuyển đến khi hoàn thành công việc, đủ hồ sơ và thu tiền. Mỗi bên cần biết phần việc của mình, thông tin còn thiếu và bước tiếp theo, không phải nhập lại dữ liệu đã có hoặc dò qua nhiều màn hình để biết một lô đang ở đâu.
 
-Xem thêm: [mục lục PRD](README.md), [danh mục khách hàng/nhà máy](MasterDataNhaMay.md), [vận hành hiện trường](OpsVanHanh.md), [màn hình lái xe](ManHinhLaiXe.md).
+Xem thêm: [mục lục PRD](README.md), [danh mục khách hàng/nhà máy](MasterDataNhaMay.docx), [vận hành hiện trường](OpsVanHanh.docx), [màn hình lái xe](ManHinhLaiXe.docx).
 
 ## 1. Mục tiêu, người sử dụng và phạm vi
 
@@ -120,7 +120,7 @@ Một khách hàng có nhiều nhà máy. Nhà máy có tuyến cố định và
 
 Cước được xác định theo điều khoản của từng hợp đồng. Khi hợp đồng cho phép các nguồn giá này, ưu tiên giá gốc theo kg, sau đó giá theo container/loại xe, cuối cùng là nhập hoặc điều chỉnh thủ công bởi người có quyền khi cần. Thứ tự này không cho phép lấy giá của hợp đồng khác hoặc coi dữ liệu thiếu là giá 0. Giá dự kiến phải phân biệt với giá đã phát hành; quyền sửa lô không tự cho phép sửa giá.
 
-Đối với mô hình Long Minh trong [Cước và phụ phí dầu](CuocPhiPhuPhiDau.md):
+Đối với mô hình Long Minh trong [Cước và phụ phí dầu](CuocPhiPhuPhiDau.docx):
 
 - **Cước điều chỉnh = Giá gốc × (1 + Tỷ lệ chia sẻ / 100).** Tỷ lệ thuộc cặp khách hàng–tuyến.
 - **Phụ phí dầu = (Giá dầu kỳ − Giá dầu mốc) × Lít định mức khứ hồi**, nhưng không nhỏ hơn 0. Tỷ lệ chia sẻ không nhân thêm vào phụ phí dầu.
@@ -132,7 +132,7 @@ Không áp mô hình này cho hợp đồng khác khi chưa có căn cứ. Các 
 
 **Lệnh chạy ngoài** cho chọn dữ liệu danh mục hoặc nhập thông tin tự do được phép. Ban đầu tùy chọn này tắt; bật/tắt không làm mất nội dung đang nhập. Tên nhập cho một lệnh không tự trở thành danh mục mới. Các màn liên quan hiển thị đúng tên đã lưu. Danh sách và chi tiết có nhãn **Chạy ngoài** gọn tại vị trí nhận diện lô, cùng cách lọc riêng các lệnh này; không lặp nhãn cạnh từng trường.
 
-Bản chất của loại lô này — nguồn hàng, cước do khách báo và phí chi hộ, các thao tác/chi phí được bỏ qua — định nghĩa tại [MasterDataNhaMay.md](MasterDataNhaMay.md) §4; công thức cước tại [Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.md). Mục này chỉ quy định cách lô chạy ngoài đi qua quy trình O2C.
+Bản chất của loại lô này — nguồn hàng, cước do khách báo và phí chi hộ, các thao tác/chi phí được bỏ qua — định nghĩa tại [MasterDataNhaMay.docx](MasterDataNhaMay.docx) §4; công thức cước tại [Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.docx). Mục này chỉ quy định cách lô chạy ngoài đi qua quy trình O2C.
 
 Chạy ngoài không bỏ qua tải trọng, lịch, quyền hoặc hạn mức tín dụng. Nếu có ngoại lệ tín dụng được phép, người có thẩm quyền ghi trực tiếp đúng hạn mức, lý do và thời gian hiệu lực; không tạo yêu cầu chờ duyệt.
 
@@ -179,7 +179,7 @@ Hai lệnh trong cặp được nhận diện nhất quán ở kế hoạch, mà
 
 **Kết hợp:** tái dùng đúng vỏ qua hai lệnh nối tiếp. Chưa biết số vỏ có thể lưu kế hoạch để bổ sung, nhưng hai số khác nhau không được coi là cùng vỏ. Hoàn thành trả hàng Lệnh 1 rồi mới bắt đầu đóng hàng Lệnh 2; khi chưa thể bắt đầu, nêu rõ phần việc trước đang chặn.
 
-Hủy, tháo cặp hoặc đổi một thành viên không làm mất phần còn hiệu lực hoặc bỏ qua xung đột phương tiện. Phí chung và thu nhập của cặp tính đúng một lần theo định mức đã xác định, không trả thành hai cuốc đơn. Điều chỉnh giữ lịch sử và không tự thay đổi kỳ đã khóa. Chi tiết tại [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.md).
+Hủy, tháo cặp hoặc đổi một thành viên không làm mất phần còn hiệu lực hoặc bỏ qua xung đột phương tiện. Phí chung và thu nhập của cặp tính đúng một lần theo định mức đã xác định, không trả thành hai cuốc đơn. Điều chỉnh giữ lịch sử và không tự thay đổi kỳ đã khóa. Chi tiết tại [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.docx).
 
 ## 6. Lái xe thực hiện, hoàn thành và ghi nhận thu nhập
 
@@ -222,7 +222,7 @@ Hoàn thành cập nhật đúng công việc và tổng hợp lô cho các vai 
 
 Lái xe ghi chi trực tiếp theo quyền và danh mục, gắn đúng chuyến. Tiền đường và phụ cấp dùng định mức phù hợp; giá trị 0 được nhập rõ khác với chưa nhập. Đổi moóc phải dùng đúng định mức mới; nếu thiếu thì nói rõ, không giữ giá cũ như thể đã tính đúng.
 
-Nhận dạng ảnh cột bơm đề xuất lít, đơn giá và tiền để người dùng kiểm tra, sửa và lưu. Hóa đơn nhiên liệu phải phân bổ đúng số lít, không trùng và có tổng tiền hợp lệ; đây là yêu cầu dữ liệu, không phải cấp duyệt. Khoản chi đã ghi, chứng từ còn thiếu, thanh toán và quyết toán được theo dõi riêng. Chi phí hiện trường và quỹ Ops theo [Vận hành Ops](OpsVanHanh.md).
+Nhận dạng ảnh cột bơm đề xuất lít, đơn giá và tiền để người dùng kiểm tra, sửa và lưu. Hóa đơn nhiên liệu phải phân bổ đúng số lít, không trùng và có tổng tiền hợp lệ; đây là yêu cầu dữ liệu, không phải cấp duyệt. Khoản chi đã ghi, chứng từ còn thiếu, thanh toán và quyết toán được theo dõi riêng. Chi phí hiện trường và quỹ Ops theo [Vận hành Ops](OpsVanHanh.docx).
 
 ## 7. Hồ sơ, bảng kê và công nợ
 
@@ -254,7 +254,7 @@ Kế toán phơi phiếu quản lý một danh sách xe được phân công; m�
 
 Nơi làm việc kế toán có hai bảng liên kết nguồn:
 
-1. **Chi phí Ops và hoàn ứng:** theo lô/nhân viên, xem khoản thực chi, giấy tờ, người/ngày đối chiếu và nghĩa vụ hoàn ứng theo [Vận hành Ops](OpsVanHanh.md).
+1. **Chi phí Ops và hoàn ứng:** theo lô/nhân viên, xem khoản thực chi, giấy tờ, người/ngày đối chiếu và nghĩa vụ hoàn ứng theo [Vận hành Ops](OpsVanHanh.docx).
 2. **Phơi phiếu và tiền đường:** mỗi dòng nhận diện công việc/lô/container, lịch, khách hàng/nhà máy/tuyến, nơi nâng/hạ, nhà vận tải, biển số/tài xế, số chi hộ phải thu/phải trả, tiền đường, trạng thái chứng từ/thanh toán và ngày liên quan. Các dòng cùng biển số đứng liền nhau khi dùng chế độ nhóm xe, kể cả kẹp/kết hợp; vẫn truy được từng nguồn, không nhân đôi tiền dùng chung. Ghi chú CUS/điều vận và ghi chú lái xe là hai nội dung riêng.
 
 Bộ lọc lịch của phơi phiếu sử dụng đúng ngày hẹn đang hiển thị, theo giờ Việt Nam; không âm thầm lọc theo ngày xuất phát khác. Tìm kiếm nhận cả tên phí và số hóa đơn. Khi lọc đã/chưa đối chiếu, chỉ các khoản phù hợp xuất hiện trong chi tiết thu/trả và tổng tương ứng. Khách hàng, nhà máy và tuyến là ba thông tin riêng, không dùng tên khách thay nhà máy.
@@ -267,11 +267,11 @@ Mỗi số tổng mở được các dòng phí: tên, số hóa đơn, số thu
 
 ### 7.5 Nguồn quỹ và phiếu thu/chi
 
-Hai nguồn theo dõi là **Quỹ công ty** và **Quỹ TM**. Mỗi tài khoản thực tế được người có quyền cấu hình rõ thuộc Quỹ công ty hoặc Quỹ TM, độc lập với loại Tiền mặt/Ngân hàng. Không suy ra nguồn quỹ từ tên, ngân hàng hoặc loại tài khoản. Tài khoản cũ chưa phân nguồn giữ nguyên số dư và lịch sử, hiển thị “Chưa phân nguồn quỹ” và cần cấu hình trước khi dùng ở phiếu chi phí. Người quản lý/quản trị thiết lập hoặc phân nguồn trực tiếp tại Sổ quỹ / ngân hàng; kế toán thấy hướng dẫn cấu hình, không dùng tài khoản giả. Thay đổi cấu hình có kiểm tra phiên bản và lịch sử, không tạo hoặc di chuyển giao dịch tiền.
+Hai nguồn theo dõi là **Quỹ công ty** và **Quỹ tiền mặt**. Mỗi tài khoản thực tế được người có quyền cấu hình rõ thuộc Quỹ công ty hoặc Quỹ tiền mặt, độc lập với loại Tiền mặt/Ngân hàng. Không suy ra nguồn quỹ từ tên, ngân hàng hoặc loại tài khoản. Tài khoản cũ chưa phân nguồn giữ nguyên số dư và lịch sử, hiển thị “Chưa phân nguồn quỹ” và cần cấu hình trước khi dùng ở phiếu chi phí. Người quản lý/quản trị thiết lập hoặc phân nguồn trực tiếp tại Sổ quỹ / ngân hàng; kế toán thấy hướng dẫn cấu hình, không dùng tài khoản giả. Thay đổi cấu hình có kiểm tra phiên bản và lịch sử, không tạo hoặc di chuyển giao dịch tiền.
 
 - Quỹ công ty, tài khoản ACB được nêu trong yêu cầu: cược container với hãng tàu, ứng Ops và tiền đường lái xe.
-- Quỹ TM: các khoản có hóa đơn như nâng/hạ/lưu bãi; thu các khoản của khách không theo dõi chi hộ riêng và trả chi hộ cho vendor/xe nhà.
-- Nguồn quỹ của phiếu phải khớp với các dòng chi phí trên phiếu: dòng chi hộ có hóa đơn (kể cả chi phí hóa đơn) thuộc Quỹ TM; ứng Ops, chi phí lô hàng không hóa đơn, phát sinh Ops, tiền đường và cược container thuộc Quỹ công ty. Chọn sai nguồn thì phiếu bị từ chối và nêu đúng dòng sai quỹ; phiếu trộn dòng của hai nguồn cũng bị từ chối kèm yêu cầu tách phiếu, không tự chọn một tài khoản thay người lập.
+- Quỹ tiền mặt: các khoản có hóa đơn như nâng/hạ/lưu bãi; thu các khoản của khách không theo dõi chi hộ riêng và trả chi hộ cho vendor/xe nhà.
+- Nguồn quỹ của phiếu phải khớp với các dòng chi phí trên phiếu: dòng chi hộ có hóa đơn (kể cả chi phí hóa đơn) thuộc Quỹ tiền mặt; ứng Ops, chi phí lô hàng không hóa đơn, phát sinh Ops, tiền đường và cược container thuộc Quỹ công ty. Chọn sai nguồn thì phiếu bị từ chối và nêu đúng dòng sai quỹ; phiếu trộn dòng của hai nguồn cũng bị từ chối kèm yêu cầu tách phiếu, không tự chọn một tài khoản thay người lập.
 - Chọn nguồn/tài khoản trước khi ghi thu/chi; hiển thị số tiền, đối tượng, nguồn được phân bổ và chiều tăng/giảm quỹ. Số tài khoản chưa cấu hình phải được bổ sung đúng quyền, không dùng số minh họa.
 - Chọn một, nhiều hoặc toàn bộ kết quả trong phạm vi được chỉ rõ để lập phiếu tổng hợp. Không gộp dòng thu và dòng chi thành một số ròng khiến mất nghĩa vụ; không trộn các đối tượng không thể cùng một phiếu.
 - Phiếu chỉ được ghi khi mọi dòng còn hợp lệ, cùng kỳ cho phép và không vượt số còn lại. Khóa nghiệp vụ áp theo thao tác; thanh toán công nợ đã chốt không sửa lại chi phí hay chứng từ kỳ cũ. Nếu một dòng đã đổi/đã thanh toán/không còn quyền thì giải thích dòng đó và không ghi một phần rồi báo cả phiếu thành công.
@@ -281,7 +281,7 @@ Quỹ phản ánh tiền đã giao/nhận thực tế. Nhập chi phí, đối c
 
 ### 7.9 Khóa lô và bảng quyết toán theo lô (Chi phí — Quyết toán)
 
-**Khóa lô** (khóa chi phí) là mốc đóng băng hồ sơ tài chính của lô: tổng phải thu, tổng phải trả, các nhóm chi phí, **luồng hải quan** (đỏ/vàng/xanh) và **nhãn cảng nâng/hạ** được giữ đúng **tại thời điểm khóa**. Sửa chi phí bị chặn khi lô đã khóa; các trường theo dõi thực tế (ngày nộp hồ sơ hoàn cược, ngày tiền về, số đã hoàn) vẫn bổ sung được theo thực tế. Khi lô chưa khóa, các số này theo dõi hiện hành; đã khóa rồi thì hồ sơ đã phát hành không tự viết lại khi danh mục (tên cảng, nhóm chi phí) thay đổi sau đó.
+**Khóa lô** (khóa chi phí) là mốc đóng băng hồ sơ tài chính của lô: tổng phải thu, tổng phải trả, các nhóm chi phí và **nhãn cảng nâng/hạ** được giữ đúng **tại thời điểm khóa**. Sửa chi phí bị chặn khi lô đã khóa; các trường theo dõi thực tế (ngày nộp hồ sơ hoàn cược, ngày tiền về, số đã hoàn) vẫn bổ sung được theo thực tế. Khi lô chưa khóa, các số này theo dõi hiện hành; đã khóa rồi thì hồ sơ đã phát hành không tự viết lại khi danh mục (tên cảng, nhóm chi phí) thay đổi sau đó.
 
 **Bảng quyết toán theo lô** có hai lớp. Lớp tổng (Tổng phải thu khách, Tổng phải trả, chênh lệch) tính từ cả hai bảng của lô; dòng chi hộ có hóa đơn tự tính lại số thu khách theo quy tắc của loại chi phí (hiện nay: tính lại đúng thực chi — chi phí qua lại); chỉ dòng **Phí khác (không hóa đơn)** do CUS tự nhập số thu khách, và chỉ các dòng này nhận số gõ tay. Dòng chi phí **đã có số hóa đơn thì giữ nguyên khóa** — không sửa số trên màn quyết toán; muốn đổi phải sửa tại nguồn chi phí theo quy trình, không gõ đè trên dòng đã có hóa đơn. Lớp chi tiết hiện mỗi container một dòng trên cả hai bảng, kể cả container chưa có phần việc.
 
@@ -297,7 +297,7 @@ phải trả nào và không được dùng để chốt. Ẩn khi lô không c�
 (màn chốt debit) áp cùng quy tắc loại trừ khỏi tổng và hiển thị dòng tổng tiền bị loại — xem
 mục Kế toán chốt debit.
 
-Các con số chưa xác định hiển thị **Chưa xác định**, không tự thành 0. Loại chi phí chưa được phân nhóm quyết toán hiển thị trong nhóm **Chưa phân loại** và tổng các nhóm luôn khớp tổng chi phí lô — không mất đồng nào khỏi bảng. Luồng hải quan là thuộc tính tờ khai của **lô**, hiển thị thống nhất trên bảng quyết toán; chưa khai báo hiển thị "—". Khoảng ngày trên bảng kê theo **ngày giao của các lô được chọn** vào đợt phát hành, không phải ngày xử lý; một lô chỉ nằm trong một bảng kê đang hiệu lực — chọn lại lô đã thuộc bảng kê khác bị chặn và nêu rõ số lô.
+Các con số chưa xác định hiển thị **Chưa xác định**, không tự thành 0. Loại chi phí chưa được phân nhóm quyết toán hiển thị trong nhóm **Chưa phân loại** và tổng các nhóm luôn khớp tổng chi phí lô — không mất đồng nào khỏi bảng. Khoản ngày trên bảng kê theo **ngày giao của các lô được chọn** vào đợt phát hành, không phải ngày xử lý; một lô chỉ nằm trong một bảng kê đang hiệu lực — chọn lại lô đã thuộc bảng kê khác bị chặn và nêu rõ số lô.
 
 **Khóa hiển thị trên mọi màn hình**: hồ sơ lô, chuyến, tạm ứng và chứng từ được nhận diện bằng khóa nghiệp vụ — **Số Bill/Số Booking** trước hết, số tờ khai thứ hai, rồi tên khách + ngày chi khi không có chứng từ nào; vắng hết thì hiển thị "—". Mã nội bộ của hệ thống (mã lô dạng SHP-*, mã chuyến TRP-*, mã chứng từ, số # thứ tự) chỉ là khóa kỹ thuật phục vụ liên kết và lưu trữ, **không bao giờ hiển thị** cho người dùng; thiếu khóa nghiệp vụ là thiếu thông tin, không tự chế số thay thế. Tiêu đề và thông báo sinh lại theo khóa nghiệp vụ của hồ sơ được tham chiếu bằng một bộ sinh dùng chung.
 
@@ -334,7 +334,7 @@ Mỗi tổng mở được khoản phí và phiếu phân bổ tạo nên nó. C
 | AC-CP-KT-04 | Mở tổng chi hộ/tiền đường thấy đủ chi tiết tên phí, hóa đơn, số thu/trả, người chi; tổng bằng các dòng, tiền đường không vào phải thu khách. |
 | AC-CP-KT-05 | Bật Thu bằng trả điền hai số bằng nhau; tắt và sửa thu 150.000đ/trả 120.000đ giữ đúng hai giá trị sau lưu; không biến thành một giao dịch tiền mặt. |
 | AC-CP-KT-06 | Kế toán đối chiếu dòng, thêm/sửa khoản có lý do và theo kỳ; không yêu cầu người thứ hai duyệt; ghi rõ người/ngày, hoàn thành chuyến không bị phụ thuộc đối chiếu. |
-| AC-CP-KT-07 | Tạo tài khoản hoặc phân nguồn tài khoản cũ tại Sổ quỹ / ngân hàng; chọn rõ Quỹ công ty/TM, không suy ra từ CASH/BANK hoặc tên. API danh mục và màn hình lập phiếu trả/hiện đúng tài khoản đang hoạt động của quỹ đã chọn. Tài khoản chưa phân nguồn có thông báo cấu hình, không ghi phiếu chi phí được. Phân nguồn giữ nguyên số dư, lịch sử tiền; kiểm tra quyền và phiên bản, không ghi tiền mới. |
+| AC-CP-KT-07 | Tạo tài khoản hoặc phân nguồn tài khoản cũ tại Sổ quỹ / ngân hàng; chọn rõ Quỹ công ty/quỹ tiền mặt, không suy ra từ CASH/BANK hoặc tên. API danh mục và màn hình lập phiếu trả/hiện đúng tài khoản đang hoạt động của quỹ đã chọn. Tài khoản chưa phân nguồn có thông báo cấu hình, không ghi phiếu chi phí được. Phân nguồn giữ nguyên số dư, lịch sử tiền; kiểm tra quyền và phiên bản, không ghi tiền mới. |
 | AC-CP-KT-08 | Chọn tất cả chỉ chọn phạm vi được ghi rõ, hiển thị số dòng/tổng; đổi bộ lọc không giữ âm thầm dòng ẩn để thanh toán. |
 | AC-CP-KT-09 | Ghi phiếu chi 300.000đ phân bổ 100.000đ + 200.000đ: quỹ giảm đúng 300.000đ, từng khoản đã trả đúng phân bổ; mở lại hoặc bấm lặp không ghi thêm. |
 | AC-CP-KT-10 | Khoản phải thu 500.000đ, thu 200.000đ: đã thu 200.000đ, còn 300.000đ; thu vượt còn lại bị chặn, không tạo số dư âm ngầm. |
@@ -449,9 +449,9 @@ Giới hạn có chủ ý: tick **không ẩn khách hàng nào khỏi danh sác
 
 ## 10. Tài liệu liên quan và điểm cần làm rõ
 
-- [Màn hình lái xe](ManHinhLaiXe.md), [Vận hành Ops](OpsVanHanh.md), [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.md).
-- [Master data nhà máy](MasterDataNhaMay.md).
-- [Cước và phụ phí dầu](CuocPhiPhuPhiDau.md), [Phương án tính cước tự động](PhuongAnTinhCuocTuDong.md), [Mô hình và quy tắc cước](CuocPhiThietKeDB.md).
+- [Màn hình lái xe](ManHinhLaiXe.docx), [Vận hành Ops](OpsVanHanh.docx), [Lô hàng Kẹp và Kết hợp](LoHangKepKetHop.docx).
+- [Master data nhà máy](MasterDataNhaMay.docx).
+- [Cước và phụ phí dầu](CuocPhiPhuPhiDau.docx), [Phương án tính cước tự động](PhuongAnTinhCuocTuDong.docx), [Mô hình và quy tắc cước](CuocPhiThietKeDB.docx).
 
 Bộ chứng từ bắt buộc cho LCL thay phiếu hạ container cần được chốt với người phụ trách nghiệp vụ. Điều kiện hợp đồng hoặc nguồn thông tin còn chưa rõ cần được xác định trước khi áp dụng; không tự đặt giá, giấy tờ mới hoặc thêm phê duyệt để thay thế câu trả lời.
 

@@ -177,7 +177,7 @@ export function DispatchTaskTagManagerPopover({ triggerRef, onClose, onRenamed }
                     </div>
                   ) : (
                     <>
-                      <span className="dispatch-tag-manager__label" title={tag.label}>{tag.label}</span>
+                      <span className="dispatch-tag-manager__label">{tag.label}</span>
                       <span className="dispatch-tag-manager__row-actions">
                         <button
                           type="button"

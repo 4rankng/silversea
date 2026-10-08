@@ -1,4 +1,4 @@
-import { computeFifoAging } from '@tingting/shared';
+import { computeFifoAging, maxOverdueDaysOf } from '@tingting/shared';
 import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 
 import { db } from '../db';
@@ -38,6 +38,8 @@ export interface CustomerReceivableSnapshot {
   obligations: CustomerReceivableObligation[];
   aging: { current: number; d30: number; d60: number; over90: number };
   totalOutstanding: number;
+  /** Contractual overdue span (card 061026221213): days past the effective due
+   * date of the oldest open obligation; 0 = not yet due. Never the debt age. */
   maxOverdueDays: number;
 }
 
@@ -570,29 +572,27 @@ export async function getCustomerReceivableSnapshots(
         timestamp: obligation.issueTimestamp,
         debit: obligation.outstanding,
         credit: 0,
+        // Effective due date = processingDueDate ?? originalDueDate; rows that
+        // froze neither fall back to their issue date inside computeFifoAging.
+        dueDate: obligation.processingDueDate ?? obligation.originalDueDate,
       }));
     for (const row of unappliedCreditRows.filter((item) => item.customerId === customerId)) {
       syntheticEntries.push({
         timestamp: toIsoTimestamp(row.timestamp),
         debit: 0,
         credit: Number(row.credit ?? 0),
+        dueDate: null,
       });
     }
 
     const { aging, openInvoices } = computeFifoAging(syntheticEntries, cutoff.referenceDate);
-    let maxOverdueDays = 0;
-    for (const invoice of openInvoices) {
-      if (invoice.open <= 0) continue;
-      const ageDays = Math.floor((cutoff.referenceDate.getTime() - new Date(invoice.ts).getTime()) / 86400000);
-      if (ageDays > maxOverdueDays) maxOverdueDays = ageDays;
-    }
 
     snapshots.set(customerId, {
       customerId,
       obligations,
       aging,
       totalOutstanding: aging.current + aging.d30 + aging.d60 + aging.over90,
-      maxOverdueDays,
+      maxOverdueDays: maxOverdueDaysOf(openInvoices),
     });
   }
 

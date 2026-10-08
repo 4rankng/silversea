@@ -102,10 +102,15 @@ export function FinancePolicySection({
         financialPolicy.isLoading ? (
           <FinanceLoadingBlock />
         ) : financialPolicy.error ? (
-          <div className="cfg-form-error" role="alert">
-            {financialPolicy.error instanceof Error
-              ? financialPolicy.error.message
-              : 'Không tải được chính sách. Kiểm tra kết nối và thử lại.'}
+          <div className="cfg-form-error" role="alert" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span>
+              {financialPolicy.error instanceof Error
+                ? financialPolicy.error.message
+                : 'Không tải được chính sách. Kiểm tra kết nối và thử lại.'}
+            </span>
+            <button type="button" className="btn btn--sm" onClick={() => void financialPolicy.refetch()}>
+              Thử lại
+            </button>
           </div>
         ) : (
           <div className="cfg-finance-workspace">
@@ -229,10 +234,15 @@ export function FinancePolicySection({
       ) : truckProfiles.isLoading ? (
         <FinanceLoadingBlock />
       ) : truckProfiles.error ? (
-        <div className="cfg-form-error" role="alert">
-          {truckProfiles.error instanceof Error
-            ? truckProfiles.error.message
-            : 'Không tải được hồ sơ tài chính xe. Kiểm tra kết nối và thử lại.'}
+        <div className="cfg-form-error" role="alert" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span>
+            {truckProfiles.error instanceof Error
+              ? truckProfiles.error.message
+              : 'Không tải được hồ sơ tài chính xe. Kiểm tra kết nối và thử lại.'}
+          </span>
+          <button type="button" className="btn btn--sm" onClick={() => void truckProfiles.refetch()}>
+            Thử lại
+          </button>
         </div>
       ) : (
         <div className="cfg-finance-workspace">

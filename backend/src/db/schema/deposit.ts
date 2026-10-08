@@ -15,6 +15,10 @@ export const depositRefundTrackers = pgTable('deposit_refund_trackers', {
   /** The amount KT recorded as deposited/owed. Fill-only from the customer's
    *  expected amount; KT may enter or correct by hand. */
   depositAmount: numeric('deposit_amount', { precision: 15, scale: 0 }).notNull(),
+  /** Ngày cược (card 051026231522) — the VN calendar day the deposit landed.
+   *  Nullable: rows predating the column keep NULL and the CV-overdue anchor
+   *  falls back to createdAt, exactly the old behavior. */
+  depositDate: date('deposit_date'),
   /** KT-entered day the refund petition (công văn) was submitted. */
   cvSubmittedDate: date('cv_submitted_date'),
   /** Defaults to cvSubmittedDate + 14 days server-side; editable (some

@@ -203,11 +203,11 @@ describe('phơi chi-hộ row identity', () => {
     page(); await screen.findByText('Confirmed fee');
     const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
     expect(screen.getByLabelText('Số tiền trả dòng 2')).toHaveValue('-80.000');
-    expect(totals()).toEqual(['140.000₫', '50.000₫']);
+    expect(totals()).toEqual(['140.000 ₫', '50.000 ₫']);
     fireEvent.change(screen.getByLabelText('Số tiền trả dòng 1'), { target: { value: '-1' } });
-    expect(totals()).toEqual(['140.000₫', '0₫']);
+    expect(totals()).toEqual(['140.000 ₫', '0 ₫']);
     fireEvent.change(screen.getByLabelText('Số tiền trả dòng 1'), { target: { value: '50000' } });
-    expect(totals()).toEqual(['140.000₫', '50.000₫']);
+    expect(totals()).toEqual(['140.000 ₫', '50.000 ₫']);
     expect(api.update).not.toHaveBeenCalled(); expect(api.correct).not.toHaveBeenCalled();
   });
   it('keeps native entry and source IDs distinct and preserves the untouched amount', async () => {
@@ -217,8 +217,8 @@ describe('phơi chi-hộ row identity', () => {
     expect(screen.getByLabelText('Số tiền trả dòng 1')).toHaveValue('50.000');
     expect(screen.getByLabelText('Số tiền thu dòng 2')).toHaveValue('80.000');
     const totalCells = screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd');
-    expect(totalCells[0]!.textContent).toBe('146.000₫');
-    expect(totalCells[1]!.textContent).toBe('130.000₫');
+    expect(totalCells[0]!.textContent).toBe('146.000 ₫');
+    expect(totalCells[1]!.textContent).toBe('130.000 ₫');
     expect(screen.getByRole('status')).toHaveTextContent('Có thay đổi chưa lưu');
     fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
     await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
@@ -232,9 +232,44 @@ describe('phơi chi-hộ row identity', () => {
     expect(first.getByRole('button', { name: 'Xóa' })).toBeEnabled();
     expect(confirmed.getByRole('button', { name: 'Xóa' })).toBeDisabled();
     fireEvent.click(first.getByRole('button', { name: 'Xóa' }));
-    const dialog = within(await screen.findByRole('dialog', { name: 'Xác nhận thao tác' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    // Card 20261005_373: the reason is REQUIRED, so the confirm button stays
+    // disabled until the accountant states the grounds for the void.
+    expect(dialog.getByRole('button', { name: 'Xóa' })).toBeDisabled();
+    fireEvent.change(dialog.getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: '  ' } });
+    expect(dialog.getByRole('button', { name: 'Xóa' })).toBeDisabled();
+    fireEvent.change(dialog.getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Nhập trùng biểu phí cảng' } });
     fireEvent.click(dialog.getByRole('button', { name: 'Xóa' }));
-    await waitFor(() => expect(api.remove).toHaveBeenCalledWith(7, 5, expect.any(String)));
+    await waitFor(() => expect(api.remove).toHaveBeenCalledWith(7, 5, 'Nhập trùng biểu phí cảng'));
+  });
+  it('card 20261005_373: sends the accountant\'s stated grounds, never a fixed sentence', async () => {
+    page(); await screen.findByText('First fee');
+    fireEvent.click(within(screen.getByText('First fee').closest('tr')!).getByRole('button', { name: 'Xóa' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    fireEvent.change(dialog.getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: '  Kế toán không công nhận biểu phí này  ' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Xóa' }));
+    await waitFor(() => expect(api.remove).toHaveBeenCalledOnce());
+    // The trimmed, user-typed reason — the old hardcoded
+    // "Kế toán xóa dòng trong xem chi tiết chi hộ" is gone from the payload.
+    expect(api.remove.mock.calls[0]![2]).toBe('Kế toán không công nhận biểu phí này');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).not.toBeInTheDocument());
+  });
+  it('card 20261005_373: a cancelled reason prompt sends no void at all', async () => {
+    page(); await screen.findByText('First fee');
+    fireEvent.click(within(screen.getByText('First fee').closest('tr')!).getByRole('button', { name: 'Xóa' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).not.toBeInTheDocument());
+    expect(api.remove).not.toHaveBeenCalled();
+  });
+  it('card 20261005_373: a backend refusal is surfaced in the dialog alert', async () => {
+    api.remove.mockRejectedValueOnce(new Error('Khoản đã được đối chiếu — dùng điều chỉnh.'));
+    page(); await screen.findByText('First fee');
+    fireEvent.click(within(screen.getByText('First fee').closest('tr')!).getByRole('button', { name: 'Xóa' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nhập lý do' }));
+    fireEvent.change(dialog.getByLabelText('Lý do xóa (bắt buộc)'), { target: { value: 'Sai chứng từ' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Xóa' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Khoản đã được đối chiếu — dùng điều chỉnh.');
   });
   it('labels every fact for the shared phone record and clears the draft label after restoration', async () => {
     page(); await screen.findByText('First fee');
@@ -281,5 +316,154 @@ describe('one modal surface at a time in the chi-hộ flow (card 20260923_11)', 
     expect(await screen.findByRole('dialog', { name: 'Chi tiết chi hộ' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Thêm khoản chi' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+});
+
+describe('card 20261002_292 — Chi Hộ dialog renders TRIP sourceKind as read-only', () => {
+  it('renders TRIP sourceKind row as static formatted values with Chi phí chuyến label and skips it on save', async () => {
+    const tripRow = {
+      entryId: 99,
+      sourceId: 101,
+      sourceKind: 'TRIP' as const,
+      version: 1,
+      feeName: 'Cược vỏ cont',
+      amountThu: 2500000,
+      amountTra: 2000000,
+      payerName: 'Công ty',
+      confirmed: false,
+    };
+    api.detail.mockResolvedValue({
+      tripId: 7,
+      rows: [rows[0], tripRow],
+    });
+
+    page();
+    await screen.findByText('Cược vỏ cont');
+
+    // Row 1 (OPS) has input fields and Xóa button
+    expect(screen.getByLabelText('Số tiền thu dòng 1')).toHaveValue('60.000');
+    expect(screen.getByRole('button', { name: 'Xóa' })).toBeInTheDocument();
+
+    // Row 2 (TRIP) does not have input fields for amounts; it renders text
+    expect(screen.queryByLabelText('Số tiền thu dòng 2')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Số tiền trả dòng 2')).not.toBeInTheDocument();
+    expect(screen.getByText('2.500.000 ₫')).toBeInTheDocument();
+    expect(screen.getByText('2.000.000 ₫')).toBeInTheDocument();
+    expect(screen.getByText('Chi phí chuyến')).toBeInTheDocument();
+
+    // Edit row 1 and save
+    fireEvent.change(screen.getByLabelText('Số tiền thu dòng 1'), { target: { value: '65000' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+
+    await waitFor(() => expect(api.update).toHaveBeenCalledOnce());
+    expect(api.update).toHaveBeenCalledWith(7, 23, expect.objectContaining({ customerChargeAmount: 65000 }));
+    // Row 2 (TRIP) was not updated
+    expect(api.correct).not.toHaveBeenCalled();
+  });
+});
+
+
+// Card 051026231617 — the PM rule (card 20260928_181) keeps negative chi-hộ
+// rows OUT of "Tổng trả", but the rows stay visible in the table, so the
+// footer contradicted them silently (E2E: rows summed −50.000, footer said
+// 100.000). The math is governed and stays; the dialog must SAY the exclusion
+// with count + excluded amount so Tổng trả + các khoản âm = tổng các dòng.
+describe('card 051026231617 — the footer says it excludes negative chi-hộ rows', () => {
+  it('keeps the gross Tổng trả and names the excluded negative rows beside it', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows: [
+      { ...rows[0] },
+      { ...rows[1], confirmed: false, amountTra: 50000 },
+      { entryId: 31, sourceId: 11, version: 1, feeName: 'Điều chỉnh trừ 1', amountThu: null, amountTra: -50000, confirmed: false },
+      { entryId: 32, sourceId: 12, version: 1, feeName: 'Điều chỉnh trừ 2', amountThu: null, amountTra: -50000, confirmed: true },
+      { entryId: 33, sourceId: 13, version: 1, feeName: 'Điều chỉnh trừ 3', amountThu: null, amountTra: -50000, confirmed: false },
+    ] });
+    page();
+    await screen.findByText('Điều chỉnh trừ 1');
+    const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
+    expect(totals()).toEqual(['140.000 ₫', '100.000 ₫']);
+    const note = screen.getByText(/khoản chi âm/, { selector: 'p.phoi-detail-note' });
+    expect(note).toHaveTextContent('Có 3 khoản chi âm, tổng -150.000 ₫ — không tính vào Tổng trả.');
+  });
+
+  it('stays silent while every payable row is non-negative', async () => {
+    page();
+    await screen.findByText('First fee');
+    expect(screen.queryByText(/khoản chi âm/)).toBeNull();
+  });
+});
+
+// Card 2026-10-05_373 spec table 1.1.3 — "Nội dung phải/đã đưa (kèm mã đơn)".
+// The chi-hộ table's "Hóa đơn" column already shows the invoice number, so the
+// mã đơn under the fee name is the LOT code, stacked with the house
+// `record-cell-stack` pattern (no page-local CSS).
+describe('card 2026-10-05_373 — the chi-hộ "Nội dung phí" cell carries the lot code', () => {
+  it('stacks the fee name and the lot code through the shared stack class', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows: [
+      { ...rows[0], shipmentCode: 'LO-2026-0912' },
+      { ...rows[1], shipmentCode: 'LO-2026-0912' },
+    ] });
+    page();
+    await screen.findByText('First fee');
+    const cell = screen.getByText('First fee').closest('td')!;
+    expect(cell).toHaveClass('phoi-detail-col--description');
+    expect(cell.dataset.label).toBe('Nội dung phí');
+    const lotCode = within(cell).getByText('LO-2026-0912');
+    expect(lotCode.tagName).toBe('SMALL');
+    expect(lotCode.parentElement).toHaveClass('record-cell-stack');
+    expect(within(lotCode.parentElement!).getByText('First fee')).toBeInTheDocument();
+  });
+
+  it('falls back to — when the lot has no code', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows: [{ ...rows[0], shipmentCode: null }] });
+    page();
+    await screen.findByText('First fee');
+    const cell = screen.getByText('First fee').closest('td')!;
+    expect(within(cell).getByText('—')).toBeInTheDocument();
+  });
+});
+
+/* ─── Card 051026231533 — "Ngày lấy phơi" tự set khi tích nhận phơi ────────
+ * Đặc tả 5.10: "Nếu đã nhận phơi, ngày là ngày tích chọn nhận phơi trên
+ * desktop" — the date must stamp itself at the tick, not require manual
+ * DD/MM/YYYY entry. The checkbox drives the same ngayLayPhoi draft the manual
+ * input uses, so the PHOI08 draft-until-save contract holds unchanged. */
+describe('phơi nhận-phơi auto-date (card 051026231533)', () => {
+  const todayIso = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  it('ticking "Đã nhận phơi" stamps Ngày lấy phơi with the tick day and saves it', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows, ngayLayPhoi: null, trangThaiLay: null });
+    page(); await screen.findByText('First fee');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Đã nhận phơi/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+
+    await waitFor(() => expect(api.meta).toHaveBeenCalledWith(7, expect.objectContaining({ ngayLayPhoi: todayIso() })));
+  });
+
+  it('unticking clears the recorded date (saves null)', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows, ngayLayPhoi: '2026-09-22', trangThaiLay: null });
+    page(); await screen.findByText('First fee');
+
+    expect(screen.getByRole('checkbox', { name: /Đã nhận phơi/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Đã nhận phơi/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+
+    await waitFor(() => expect(api.meta).toHaveBeenCalledWith(7, expect.objectContaining({ ngayLayPhoi: null })));
+  });
+
+  it('leaves the manual date field editable after the tick', async () => {
+    api.detail.mockResolvedValue({ tripId: 7, tripCode: 'QA-TRIP', rows, ngayLayPhoi: null, trangThaiLay: null });
+    page(); await screen.findByText('First fee');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Đã nhận phơi/ }));
+    // The day segment is the data-seg seam (the field label names the group);
+    // editing it must flow through the same draft as before the tick.
+    const day = document.querySelector('input[data-seg="dd"]') as HTMLInputElement;
+    expect(day).toBeTruthy();
+    fireEvent.change(day, { target: { value: '15' } });
+    expect(day.value).toBe('15');
   });
 });

@@ -26,16 +26,18 @@ export {
   CarrierType, SettlementMethod, DebitNoteMode,
   TruckCapRole,
   CARRIER_TYPE_LABELS, SETTLEMENT_METHOD_LABELS,
+  TRADE_DIRECTION_LABELS,
   TRUCK_CAP_ROLE_LABELS,
   FINANCIAL_ROLES, isFinancialRole,
   TIRES,
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
+  LCL_PICKUP_TRAILER_TYPE,
   DEFAULT_SHIPPING_LINES,
   ExpenseTypeCategory,
 } from './constants';
 
-export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification } from './constants';
+export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification, TradeDirection } from './constants';
 export { workInboxItemBaseSchema, workInboxResponseSchema, workInboxPartySchema, workInboxNextActionSchema, workInboxStateSchema, customerDeliveryResponseSchema, operationsWorkInboxItemSchema, driverWorkInboxItemSchema, customerWorkInboxItemSchema, accountantWorkInboxItemSchema, managerWorkInboxItemSchema, adminHealthInboxItemSchema } from './schemas/work-inbox';
 export type {
   WorkInboxItemBase,
@@ -322,6 +324,8 @@ export type {
 
 export { round2dp, roundInt, roundHalfAwayFromZero } from './calculations/round';
 export { sumExcludingNegative } from './calculations/expenseTotals';
+export { vatForAmount, debitRoundVatTotals } from './calculations/vat';
+export type { DebitRoundVatInput, DebitPeriodVatTotals } from './calculations/vat';
 export { computeFuelSurcharge, computeFreightRate } from './calculations/fuelSurcharge';
 export {
   CONTAINER_PRICE_CLASS_LABELS,
@@ -354,7 +358,11 @@ export { applyCommittedLegacyFuelFreeze } from './calculations/committedLegacyFu
 export type { CommittedLegacyFuelInput } from './calculations/committedLegacyFuel';
 export { computeTripTotals, computeRoadAllowance } from './calculations/tripTotals';
 export type { ComputeTripTotalsInput, ComputeTripTotalsOutput } from './calculations/tripTotals';
-export { computeFifoAging } from './calculations/fifoAging';
+export {
+  computeFifoAging,
+  calendarDaysPastDue,
+  maxOverdueDaysOf,
+} from './calculations/fifoAging';
 export type { FifoAgingInput, AgingBuckets, OpenInvoice } from './calculations/fifoAging';
 export { computeVehicleAlerts, VEHICLE_ALERT_LABELS } from './calculations/vehicleAlerts';
 export type { VehicleAlertInput } from './calculations/vehicleAlerts';
@@ -440,3 +448,9 @@ export * from './schemas/treasury';
 export * from './schemas/shipment-debit-summary';
 export * from './schemas/shipment-debit-edits';
 export * from './schemas/shipment-debit-detail';
+
+export { operationalSiteContacts } from './operational-site-contacts';
+export type { OperationalSiteContact } from './operational-site-contacts';
+
+export * from './types/fleet-productivity';
+export * from './schemas/fleet-productivity';

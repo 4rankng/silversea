@@ -10,7 +10,7 @@ import type { LedgerColumn } from '../../lib/column-visibility';
  * Split out of `AccountingDebitClosePage.tsx` on 2026-09-29: the page carries
  * the board's render logic and this module owns what a COLUMN IS — its header,
  * its track budget class, its tier-1 group, the wire value behind the cell, and
- * the one cell renderer. `frontend/src/tests/structure.guard.test.ts` caps a
+ * the one cell renderer. `frontend/frontend/scripts/check-structure.mjs` caps a
  * source file at 400 lines; this is the widest seam in the page and it is a
  * real one (nothing here reads page state).
  */

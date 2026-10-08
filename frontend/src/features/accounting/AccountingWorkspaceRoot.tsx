@@ -22,8 +22,8 @@ export function AccountingWorkspaceRoot() {
     applyTransportSearch,
     setTransportPage,
     setTransportSort,
-    resetTransportSearch,
     resetTransportSecondary,
+    resetTransportAll,
   } = useAccountingWorkspaceUrlState();
   const queries = useAccountingWorkspaceQueries(state);
 
@@ -103,6 +103,8 @@ export function AccountingWorkspaceRoot() {
           transportViewHref={viewHref('transport')}
           receivables={queries.receivables}
           payables={queries.payables}
+          depositWeekly={queries.depositWeekly}
+          moneyAlerts={queries.moneyAlerts}
           profitability={queries.profitability}
         />
       ) : (
@@ -115,8 +117,8 @@ export function AccountingWorkspaceRoot() {
           search={state.transportSearch}
           customerId={state.customerId ? String(state.customerId) : ''}
           carrierId={state.carrierId ? String(state.carrierId) : ''}
-          customers={(queries.transportParties.data ?? []).filter((party) => !party.isCarrier)}
-          carriers={(queries.transportParties.data ?? []).filter((party) => party.isCarrier)}
+          customers={queries.transportCustomers.data ?? []}
+          carriers={queries.transportCarriers.data ?? []}
           ownership={state.ownership ?? ''}
           readiness={state.readiness ?? ''}
           selectionScopeKey={buildTransportSelectionScopeKey(state)}
@@ -129,7 +131,7 @@ export function AccountingWorkspaceRoot() {
           onSearch={applyTransportSearch}
           onPageChange={setTransportPage}
           onRetry={() => queries.transportRegister.refetch()}
-          onReset={resetTransportSearch}
+          onReset={resetTransportAll}
           onResetSecondary={resetTransportSecondary}
         />
       )}

@@ -293,7 +293,11 @@ export async function requestTripFinancialClose(input: {
 
 export async function requestTripFinancialChange(input: {
   tripId: number;
-  reason: string;
+  /** Owner ruling 07/10 (card 393): a completed-trip correction no longer
+   *  requires a typed reason. A supplied reason is still audited; an absent
+   *  one is stored as null. The other four governance flows keep requiring
+   *  one — only this path was relaxed. */
+  reason: string | null;
   figures: TripFigureUpdateInput;
   makerId: number;
   makerRole: string;
@@ -302,7 +306,7 @@ export async function requestTripFinancialChange(input: {
 }) {
   assertCanMakeGovernanceAction('TRIP_FINANCIAL_CHANGE', input.makerRole);
   assertExpectedTripVersion(input.expectedTripVersion);
-  const reason = requireReason(input.reason);
+  const reason = input.reason?.trim() || null;
 
   const execute = async (tx: Tx) => {
     await lockTripFinancialAuthority(tx, [input.tripId]);

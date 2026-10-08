@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../../../lib/api';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 import { getOffsetDateString } from './cusAppointmentUtils';
 
@@ -88,7 +89,11 @@ describe('CusAppointmentPopover', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('textbox', { name: 'Ngày — Giờ hẹn đóng/trả' }));
+    // Card 061026172803 semantics (owner word 2026-10-06): a segment click is
+    // a caret click and keeps the picker closed — the pointer path to the
+    // picker is the field's FRAME. This suite predates the ruling and opened
+    // the panel by clicking the segment group.
+    fireEvent.click(document.querySelector('[data-seg-part="date"]')!);
     const dayCell = document.querySelector<HTMLButtonElement>('.dtp-grid button[data-idx="15"]');
     expect(dayCell).toBeTruthy();
     fireEvent.click(dayCell!);
@@ -252,6 +257,35 @@ describe('CusAppointmentPopover', () => {
     await screen.findByRole('alert');
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled();
+  });
+
+  // Card 367 law pin (docs/design-guidelines.md §2026-10-05): a 4xx save
+  // refusal surfaces the API's error message verbatim; non-4xx failures keep
+  // the generic retry hint so raw internal error text never leaks.
+  it('card 367: a 4xx save refusal surfaces the API reason instead of the generic hint', async () => {
+    const onClose = vi.fn();
+    const onCommit = vi.fn()
+      .mockRejectedValueOnce(new ApiError(409, { error: 'Phiên bản dữ liệu đã thay đổi' }, 'Phiên bản dữ liệu đã thay đổi'))
+      .mockRejectedValueOnce(new Error('network unavailable'));
+    render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={onClose} onChange={vi.fn()} onCommit={onCommit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Phiên bản dữ liệu đã thay đổi');
+    expect(screen.queryByText(/Chưa lưu được giờ hẹn/)).toBeNull();
+
+    // A non-4xx rejection keeps the generic fallback — no raw error leak.
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Chưa lưu được giờ hẹn. Vui lòng thử lại.');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('card 367: a plain {status: 409, message} commit refusal shows that message', async () => {
+    const onCommit = vi.fn().mockRejectedValueOnce({ status: 409, message: 'Nhà máy vừa đổi lịch đóng — khung giờ này đã được giữ cho chuyến khác.' });
+    render(<CusAppointmentPopover isOpen value="2026-09-08T08:00" containerLabel="Cont 1" onClose={vi.fn()} onChange={vi.fn()} onCommit={onCommit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nhà máy vừa đổi lịch đóng — khung giờ này đã được giữ cho chuyến khác.');
+    expect(screen.queryByText(/Chưa lưu được giờ hẹn/)).toBeNull();
   });
 
   it('does not confirm an incomplete typed date using Enter', () => {
@@ -454,4 +488,67 @@ describe('CusAppointmentPopover', () => {
     expect(handleChange).toHaveBeenCalledWith('');
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
+
+  it('card 325: pressing Enter on a preset pill commits the appointment and closes', async () => {
+    const onCommit = vi.fn().mockResolvedValue(true);
+    const onClose = vi.fn();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-04T09:00:00+07:00'));
+    const expectedDay = getOffsetDateString(2, new Date()); // Ngày kia
+
+    render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value={null}
+        containerLabel="MSKU9999999"
+        onClose={onClose}
+        onChange={vi.fn()}
+        onCommit={onCommit}
+      />,
+    );
+
+    const dayAfterPill = screen.getByRole('button', { name: 'Ngày kia' });
+    fireEvent.click(dayAfterPill);
+
+    const timePill = screen.getByRole('button', { name: '13:30' });
+    fireEvent.click(timePill);
+
+    // Focus is on the 13:30 button when pressing Enter
+    fireEvent.keyDown(timePill, { key: 'Enter' });
+
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(`${expectedDay}T13:30`));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    vi.useRealTimers();
+  });
+
+  // 20261004_325 semantic pin: a quick pill is a VALUE control — keyboard
+  // activation (Enter on the focused pill) applies the preset AND confirms it
+  // through the same commit path as typed entry. Pre-fix (before 4bfba1c6)
+  // Enter on a pill target early-returned and never committed; that red is no
+  // longer reproducible at HEAD, so this pins the fixed semantics.
+  it('_325: Enter alone on a quick pill picks it and commits that slot', async () => {
+    const onCommit = vi.fn().mockResolvedValue(true);
+    const onClose = vi.fn();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-04T09:00:00+07:00'));
+    const expectedDay = getOffsetDateString(2, new Date()); // Ngày kia
+    render(
+      <CusAppointmentPopover
+        isOpen={true}
+        value={null}
+        containerLabel="MSKU1234567"
+        onClose={onClose}
+        onChange={vi.fn()}
+        onCommit={onCommit}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Ngày kia' }), { key: 'Enter' });
+    await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
+    // The pill's own slot commits: picked day + default 08:00 slot.
+    expect(onCommit).toHaveBeenCalledWith(`${expectedDay}T08:00`);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    vi.useRealTimers();
+  });
 });
+

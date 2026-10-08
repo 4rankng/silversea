@@ -1,8 +1,25 @@
+/* Card 20261004_327 (user iPhone capture: below the last lot card a white band
+   ran to the physical bottom; mechanism vs card 20260927_149 in the evidence
+   report). The page surface fills the shell scrollport AND paints the page
+   tone, so below the last lot card the surface continues to the bottom edge —
+   no void, and nothing foreign to show in any iOS viewport state.
+   `min-height: 100%` is the scrollport-relative fill (the same answer
+   .notif-page / .driver-journey / .app.is-driver ship): this page lives inside
+   the main.app-body scrollport (100dvh minus topbar and shell paddings), so a
+   viewport-locked `100dvh` overshoots the scrollport by topbar + paddings
+   (≈130–180px at 390×844) and that overshoot IS a scrollable gap below the
+   last card — the symptom this card closes. `align-content: start` parks any
+   leftover BELOW the last grid row (the last lot card); default grid stretch
+   divides the leftover into the auto rows and opens voids between the
+   breadcrumbs, control surface and workspace instead. */
 .shipments-page {
   display: grid;
   gap: 12px;
   min-width: 0;
-  padding-bottom: 40px;
+  min-height: 100%;
+  align-content: start;
+  background: var(--bg);
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
 }
 
 .shipments-page--worksheet {
@@ -123,6 +140,21 @@
    plan combobox keeps a page rule, because 320px is the dialog's own body
    width ceiling and the pool of bucket names can outgrow the trigger. */
 
+/* Inside the filter card, the status dropdown sits beside the date presets
+   on mobile instead of claiming a full row (user request 2026-10-03). */
+.list-filter-bar .shipments-control__tabs {
+  width: auto;
+  min-width: 0;
+}
+
+@media (max-width: 575px) {
+  .list-filter-bar .list-filter-bar__quick:has(.shipments-control__tabs) {
+    width: auto;
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+}
+
 /* The plan combobox is sized by the value it holds, never by the row
    (card 20260927_152, operator 2026-09-27: a two-word value must not take a
    full row). The old `width: 100%` made it a whole-line item — measured 1480px
@@ -190,8 +222,8 @@
 
 .cus-drawer-workflow {
   display: grid;
-  gap: 8px;
-  padding: 12px 20px 10px;
+  gap: 12px;
+  padding: 14px 20px 12px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
@@ -225,8 +257,7 @@
 .cus-drawer-decision-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.88fr) minmax(240px, 1.15fr);
-  border-block: 1px solid var(--line);
-  background: var(--surface-2);
+  background: var(--surface);
 }
 
 .cus-drawer-decision {
@@ -295,36 +326,20 @@
 }
 
 .cus-drawer-workflow__action {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px;
-  border-block: 1px solid var(--line);
-  background: var(--surface-2);
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
 }
 
-.cus-drawer-workflow__action::before {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: var(--status-strip-width);
-  height: var(--status-strip-height);
-  border-radius: var(--status-strip-radius);
-  background: var(--accent-2);
-  transform: translateY(-50%);
-  content: '';
-  pointer-events: none;
-}
-
-.cus-drawer-workflow__action--blocked::before {
-  background: var(--warning);
-}
-
-.cus-drawer-workflow__action--idle::before {
-  background: var(--ink-3);
-}
+/* Card 20261004 drawer restyle (Untitled UI PRO consult — application/
+   slideout-menus project-details-menu): the decorative status rail and the
+   tinted action box are retired; the drawer reads as flat white sections
+   divided by hairlines. Blocked-state semantics stay in the reason text
+   (aria-describedby) and the secondary-toned action button. */
 
 .cus-drawer-workflow__action > div {
   display: grid;
@@ -470,8 +485,17 @@
   transition: background var(--t-fast);
 }
 
-.cus-dashboard-row:hover > th,
-.cus-dashboard-row:hover > td { background: var(--surface-2); }
+/* Owner ruling 03-10: hovering a row must NOT tint every cell in it. This
+   sheet used to carry `.cus-dashboard-row:hover > th, .cus-dashboard-row:hover
+   > td { background: var(--surface-2) }`, so moving the pointer anywhere across
+   a shipment lit the entire card and the highlighted cell stopped reading as
+   "this one is under the pointer". The hover now lands on the cell alone.
+   Fine pointers only: touch browsers keep :hover stuck on the last-touched
+   target, which would strand the tint after the finger lifts. */
+@media (hover: hover) and (pointer: fine) {
+  .cus-dashboard-table td:hover,
+  .cus-dashboard-table th:hover { background: var(--surface-2); }
+}
 
 /* The attention signal lives in the CELL'S TEXT, not in a colour field. This
    sheet used to tint the whole schedule cell cream, and its own reasoning said
@@ -657,30 +681,11 @@
   line-height: 1.35;
 }
 
-/* Direction badge modifiers emitted dynamically:
-   `cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}` */
-/* Card 20260927_67 (5) — badge normalization, the surface's three-way reading:
-     solid grey  = neutral / empty
-     outlined    = identifier
-     peach       = warning
-   Xuất/Nhập and "Đóng kết hợp" are CLASSIFICATIONS of the record, so both take
-   the outline. The combined tag used to be a solid peach fill, which spent the
-   warning colour on a category — and contradicted the note three rules below it
-   ("Neutral structural edge ... never an accent fill"). Freeing peach to mean
-   only warning is the point: a reader no longer has to learn that this one
-   harmless tag is painted like a problem.
-   Shape is untouched (22px floor, 6px radius) so no row height moves;
-   `box-sizing: border-box` keeps the 1px border inside the 22px. */
+/* Classifications are information, not controls (owner session ruling). */
 .cus-direction-badge--import,
-.cus-direction-badge--export { background: var(--surface); color: var(--ink-2) !important; border: 1px solid var(--control-border); }
-.cus-combined-tag { background: var(--surface); color: var(--ink-2) !important; border: 1px solid var(--control-border); }
+.cus-direction-badge--export,
+.cus-combined-tag { background: transparent; color: var(--ink-2) !important; border: 0; border-radius: 0; padding: 0; }
 
-/* Cargo-mode category tag (`Cont`/`Lẻ`) in the cargo-summary cell. Shares the
-   direction badge's outline treatment above: both are identifiers. An earlier
-   note here claimed "squared corners distinguish mode from direction's full
-   pill" — there is no pill, and never was: design law §1 forbids one and a
-   test pins `border-radius: 999` off both. The two read apart by their label
-   and their cell, not by their shape. */
 /* The cell is the click target, so it carries the shared control floor. It was
    a bare 44px — a private number that both contradicted the 2026-09-27 ceiling
    ruling ("component size max 40px", `--control-touch-h` = 40px) and inflated
@@ -1383,7 +1388,18 @@
 }
 
 .cus-shipment-drawer .drawer__body {
-  padding: 0 0 72px;
+  /* The footer is a flex sibling of the scrolling body (Drawer.css) — no
+     overlap, so the old 72px phantom clearance is gone (20261004 drawer
+     restyle; it read as a dead band above the Huỷ/Lưu bar). */
+  padding: 0;
+}
+
+/* Untitled UI slideout Footer pattern: the action bar sits on the same white
+   panel surface as the content, separated only by the hairline top border
+   (Drawer.css .drawer__foot supplies the border) — not a tinted second
+   surface. */
+.cus-shipment-drawer .drawer__foot {
+  background: var(--surface);
 }
 
 .cus-container-ledger {
@@ -1462,16 +1478,22 @@
  * — the drawer caps at 1180px, so an 11th column is only affordable by
  * letting the wrapping columns wrap, which §4's no-truncation doctrine
  * already allows. */
-.cus-container-col__identity { width: 11%; }
+.cus-container-col__identity { width: 12%; }
 .cus-container-col__type { width: 7%; }
-.cus-container-col__route { width: 10%; }
+.cus-container-col__route { width: 12%; }
 .cus-container-col__dispatch { width: 7%; }
 .cus-container-col__carrier { width: 8%; }
 .cus-container-col__plate { width: 7%; }
 .cus-container-col__site { width: 10%; }
 .cus-container-col__weight { width: 8%; }
-.cus-container-col__appointment { width: 13%; }
-.cus-container-col__actions { width: 9%; }
+.cus-container-col__appointment { width: 15%; }
+.cus-container-col__actions { width: 4%; }
+
+.cus-container-table th.cus-container-cell--actions,
+.cus-container-table td.cus-container-cell--actions {
+  text-align: center;
+  padding: 4px 2px;
+}
 
 .cus-container-table th,
 .cus-container-table td {
@@ -1908,6 +1930,13 @@
 @media (max-width: 560px) {
   .shipments-page {
     gap: 14px;
+    /* The fill stays scrollport-relative (base rule above): a `min-height:
+       100dvh` here measured as a 130–180px scrollable void below the last
+       card at 390×844 (topbar 56 + safe-top + shell paddings 14 + 28 + safe
+       all stack below a viewport-locked page). Only the trailing clearance is
+       re-tuned for the phone; the safe area applies once here, the shell
+       scrollport keeps its own counted-once clearance. */
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   }
 
   .cus-workspace {
@@ -1937,7 +1966,7 @@
   }
 
   .cus-shipment-drawer .drawer__body {
-    padding: 0 0 56px;
+    padding: 0;
   }
 
   .cus-drawer-workflow {
@@ -1972,7 +2001,7 @@
   .cus-drawer-workflow__action {
     align-items: stretch;
     flex-direction: column;
-    padding: 13px 14px;
+    padding: 12px 0 0;
   }
 
   .cus-drawer-primary-action {
@@ -2553,20 +2582,15 @@
 }
 
 /* Per-row remove — lives in the row's own Thao tác cell (card 20260923_9).
-   Keeps the hover-reveal contract (fine pointers) with the danger hover; the
-   cell is the anchor, so the icon never overlaps the container code. */
+   Action icon is always visible and centered in the cell per user request. */
 .cus-container-row__remove {
-  visibility: hidden;
-  position: absolute;
-  top: 50%;
-  right: 8px;
-  transform: translateY(-50%);
-  z-index: 2;
+  visibility: visible;
   display: inline-flex;
   width: 26px;
   height: 26px;
   align-items: center;
   justify-content: center;
+  margin: 0 auto;
   padding: 0;
   border: 1px solid var(--line-2);
   border-radius: 8px;
@@ -2576,6 +2600,8 @@
 }
 .cus-container-row__remove:hover { border-color: color-mix(in srgb, var(--danger) 58%, var(--line-2)); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--danger-text); }
 .cus-container-row__remove:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--danger) 18%, transparent); outline-offset: 1px; }
+.cus-container-row__remove:disabled { opacity: 0.35; cursor: not-allowed; }
+.cus-container-row__remove:disabled:hover { border-color: var(--line-2); background: var(--surface); color: var(--ink-3); }
 .cus-container-row:hover .cus-container-row__remove,
 .cus-container-row:focus-within .cus-container-row__remove { visibility: visible; }
 /* Touch viewports never hover. The copy affordance already reveals itself for

@@ -11,6 +11,7 @@ import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import type { DebitNoteTemplate } from '@tingting/shared';
 import { EmptyState } from '../../design-system';
+import { Alert } from '../../components/shared/Alert';
 import './config-page.css';
 
 function groupLabel(mode: DebitNoteTemplate['groupingMode']) {
@@ -27,7 +28,7 @@ export default function DebitNoteTemplatesConfigPage() {
   const handleBack = () => navigate('/config');
   useBackShortcut(handleBack);
 
-  const { data, isLoading, refetch } = useQuery<DebitNoteTemplate[]>({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery<DebitNoteTemplate[]>({
     queryKey: qk.catalogs.debitNoteTemplates,
     queryFn: () => configClient.getDebitNoteTemplates(),
     staleTime: 30_000,
@@ -68,6 +69,27 @@ export default function DebitNoteTemplatesConfigPage() {
           <div className="cfg-empty debit-template-list-empty debit-template-list-empty--loading">
             <Loader2 size={28} className="spin" />
             <strong>Đang tải mẫu</strong>
+          </div>
+        ) : isError ? (
+          // Card 20261004_333 — a failed fetch must not fall through to the
+          // "Chưa có mẫu nào" empty-state.
+          <div className="cfg-empty debit-template-list-empty">
+            <Alert
+              variant="error"
+              style="soft"
+              action={(
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  disabled={isFetching}
+                  onClick={() => { void refetch(); }}
+                >
+                  {isFetching ? 'Đang thử lại…' : 'Thử lại'}
+                </button>
+              )}
+            >
+              Không thể tải danh sách mẫu giấy báo nợ
+            </Alert>
           </div>
         ) : templates.length === 0 ? (
           <div className="cfg-empty debit-template-list-empty">

@@ -137,7 +137,7 @@ describe('filter bar = one wrapping line in one card (card 20260927_152)', () =>
     expect(modeTs).toContain('fitWidth');
     // The criteria stay a single copy: inline on the bar, or behind the trigger.
     const dropdownTsx = read('src/components/FilterDropdown.tsx');
-    expect(dropdownTsx).toMatch(/if \(barMode === 'inline' && inlineWhenRoom\) return <>\{children\}<\/>;/);
+    expect(dropdownTsx).toMatch(/if \(barMode === 'inline' && inlineWhenRoom\) return <>\{primary\}\{children\}<\/>;/);
   });
 
   it('never parks a popover without coordinates — no `?? 12` fallback anywhere', () => {

@@ -1,19 +1,44 @@
-/* ============================================================================
- * PhoiPhieu dialogs styling — shared across PhoiPhieuChiHoDialog and
- * PhoiPhieuTienDuongDialog.
- *
- * Inside the modal the tt-table's fixed layout equal-shares columns and
- * thead th pins nowrap, so long headers wrap at spaces instead of clipping
- * (case QA-2026-09-24-01; design law §4).
- * ========================================================================== */
+@import '../../styles/record-table.css';
 
-.phoi-detail-matrix {
-  table-layout: auto;
-  width: 100%;
-}
-
+/* Both editors inherit the one house record/grid hand-off. */
+.phoi-detail-matrix { table-layout: auto; min-width: 0; }
 .phoi-detail-matrix thead th {
   white-space: normal;
   word-break: keep-all;
   overflow-wrap: normal;
+}
+.phoi-detail-matrix .phoi-detail-col--ordinal { min-width: 48px; }
+.phoi-detail-matrix .phoi-detail-col--description { min-width: 164px; }
+.phoi-detail-matrix .phoi-detail-col--identity { min-width: 144px; }
+.phoi-detail-matrix .phoi-detail-col--date { min-width: 104px; white-space: nowrap; }
+.phoi-detail-matrix .phoi-detail-col--money { min-width: 144px; }
+.phoi-detail-matrix .phoi-detail-col--action { min-width: 144px; }
+.phoi-detail-matrix .money { white-space: nowrap; }
+
+.phoi-detail-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+/* Card 20261002_278 (QA FAILED follow-up). This dialog scrolls inside
+   `.modal__body`, and a sticky child is constrained to that scrollport's
+   PADDING edge, not its border edge. `.modal__body` carries a 20px
+   padding-top, so the pinned header sat 20px below the top of the dialog and
+   the rows scrolling past showed through that band ABOVE it — row 1 was
+   sliced in half (staging, 5-row fixture). `top: 0` cannot close the gap from
+   inside the table; the only correct pin point is the scrollport's own edge.
+
+   So hand the gutter to the content instead: the scrollport's top padding
+   goes to 0 and `.phoi-detail-body` takes the gutter back. The padding edge
+   now coincides with the border edge, and the header pins flush. If the shell
+   ever changes its padding, the worst case here is a cosmetic gutter
+   difference — whereas a hardcoded negative `top` would silently bring the
+   clipping defect back. */
+.modal__body:has(> .phoi-detail-body) { padding-top: 0; }
+.phoi-detail-body { padding-top: 20px; }
+.phoi-detail-meta { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.phoi-detail-meta > * { flex: 1 1 180px; min-width: 0; }
+.phoi-detail-linked { display: flex; align-items: center; gap: 8px; min-height: var(--control-h); }
+.phoi-detail-note { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); }
+.phoi-detail-error { color: var(--danger-text); }
+
+@container (max-width: 1100px) {
+  .phoi-detail-matrix td[class] { min-width: 0; white-space: normal; }
 }

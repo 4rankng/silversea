@@ -111,27 +111,31 @@ Chủ sản phẩm chốt giữ các quy tắc này ngày2026-10-01; xem
 
 | Tài liệu | Phạm vi | Không thuộc tài liệu này |
 |----------|---------|--------------------------|
-| [QuyTrinhO2C.md](QuyTrinhO2C.md) | Quy trình từ tiếp nhận lô đến điều vận, giao nhận, hoàn thành hồ sơ và thu tiền; trách nhiệm từng vai trò | Công thức cước chi tiết, thiết kế bảng giá |
-| [MasterDataNhaMay.md](MasterDataNhaMay.md) | Khách hàng, nhà máy, tuyến và địa điểm; lựa chọn dữ liệu theo quan hệ; lệnh chạy ngoài | Cách tính cước, phân xe, lương |
-| [LoHangKepKetHop.md](LoHangKepKetHop.md) | Kẹp hai container đồng thời và kết hợp hai công việc nối tiếp; nguồn lực, tiến độ, chi phí và doanh thu | Quy trình chung mỗi lô đơn lẻ |
-| [OpsVanHanh.md](OpsVanHanh.md) | Kế hoạch làm hàng, theo dõi phương tiện, tiền ứng, chi phí, chứng từ và quyết toán của nhân viên hiện trường | Lương lái xe, công nợ khách hàng |
-| [ManHinhLaiXe.md](ManHinhLaiXe.md) | Hành trình lái xe: nhận lệnh, đọc thông tin, thực hiện, bổ sung ảnh/chứng từ và hoàn thành | Điều vận, kế toán |
-| [CuocPhiPhuPhiDau.md](CuocPhiPhuPhiDau.md) | Công thức cước, tham số hợp đồng, bảng số tham chiếu và quy tắc làm tròn | Trải nghiệm cấu hình giá, luồng nhập kỳ giá |
-| [CuocPhiThietKeDB.md](CuocPhiThietKeDB.md) | Yêu cầu đối với dữ liệu cước, ngày hiệu lực, giải thích số tiền và bảo toàn lịch sử | Công thức tính cước |
-| [PhuongAnTinhCuocTuDong.md](PhuongAnTinhCuocTuDong.md) | Trải nghiệm cấu hình, tính cước theo ngày vận chuyển, xử lý thiếu giá và điều chỉnh giá trên bảng kê | Công thức gốc và bảng giá hợp đồng |
+| [QuyTrinhO2C.docx](QuyTrinhO2C.docx) | Quy trình từ tiếp nhận lô đến điều vận, giao nhận, hoàn thành hồ sơ và thu tiền; trách nhiệm từng vai trò | Công thức cước chi tiết, thiết kế bảng giá |
+| [MasterDataNhaMay.docx](MasterDataNhaMay.docx) | Khách hàng, nhà máy, tuyến và địa điểm; lựa chọn dữ liệu theo quan hệ; lệnh chạy ngoài | Cách tính cước, phân xe, lương |
+| [LoHangKepKetHop.docx](LoHangKepKetHop.docx) | Kẹp hai container đồng thời và kết hợp hai công việc nối tiếp; nguồn lực, tiến độ, chi phí và doanh thu | Quy trình chung mỗi lô đơn lẻ |
+| [OpsVanHanh.docx](OpsVanHanh.docx) | Kế hoạch làm hàng, theo dõi phương tiện, tiền ứng, chi phí, chứng từ và quyết toán của nhân viên hiện trường | Lương lái xe, công nợ khách hàng |
+| [ManHinhLaiXe.docx](ManHinhLaiXe.docx) | Hành trình lái xe: nhận lệnh, đọc thông tin, thực hiện, bổ sung ảnh/chứng từ và hoàn thành | Điều vận, kế toán |
+| [CuocPhiPhuPhiDau.docx](CuocPhiPhuPhiDau.docx) | Công thức cước, tham số hợp đồng, bảng số tham chiếu và quy tắc làm tròn | Trải nghiệm cấu hình giá, luồng nhập kỳ giá |
+| [CuocPhiThietKeDB.docx](CuocPhiThietKeDB.docx) | Yêu cầu đối với dữ liệu cước, ngày hiệu lực, giải thích số tiền và bảo toàn lịch sử | Công thức tính cước |
+| [PhuongAnTinhCuocTuDong.docx](PhuongAnTinhCuocTuDong.docx) | Trải nghiệm cấu hình, tính cước theo ngày vận chuyển, xử lý thiếu giá và điều chỉnh giá trên bảng kê | Công thức gốc và bảng giá hợp đồng |
+| [BaoGia.docx](BaoGia.docx) | Phân hệ báo giá: khung giá theo khách hàng, lưới giá nhà máy × tuyến × hạng xe, phụ phí theo kỳ giá dầu, nhập/xuất Excel, lịch sử phiên bản | Cách tính cước áp cho lô khi phát lệnh (ở QuyTrinhO2C.docx §7) |
+| [PhanHeKeToan.docx](PhanHeKeToan.docx) | Giao diện và quy tắc phân hệ Kế toán: dashboard tiền/cược/quỹ/cảnh báo, phơi phiếu, công nợ vận tải, quỹ, chấm công/lương/nhân sự | Các phân hệ khác (Điều độ, Lái xe, CUS, Quản lý); quy trình O2C chung; công thức cước |
 
 ## 5. Nguồn yêu cầu gốc
 
 | Tài liệu | Nguồn |
 |----------|-------|
-| MasterDataNhaMay.md | `2026.9.6_Logic_nghiep_vu.docx` Phần 1, kèm yêu cầu bổ sung về tên nhà máy, địa chỉ, liên hệ và thông tin xuất hóa đơn |
-| LoHangKepKetHop.md | `2026.9.6_Logic_nghiep_vu.docx` Phần 2 |
-| OpsVanHanh.md | `2026.9.6_Man_hinh_ops.docx`, `các chi phí.docx` |
-| ManHinhLaiXe.md | `2026.8.27_Man_hinh_lai_xe.docx` và yêu cầu màn hình bổ sung |
-| CuocPhiPhuPhiDau.md | `18.7 - BG Long Minh T7.xlsx` và trả lời khách hàng |
-| CuocPhiThietKeDB.md | Yêu cầu cước và phương án khách hàng |
-| PhuongAnTinhCuocTuDong.md | `Phương án tính cước tự động.docx` |
-| QuyTrinhO2C.md | Tổng hợp yêu cầu nghiệp vụ |
+| MasterDataNhaMay.docx | `2026.9.6_Logic_nghiep_vu.docx` Phần 1, kèm yêu cầu bổ sung về tên nhà máy, địa chỉ, liên hệ và thông tin xuất hóa đơn |
+| LoHangKepKetHop.docx | `2026.9.6_Logic_nghiep_vu.docx` Phần 2 |
+| OpsVanHanh.docx | `2026.9.6_Man_hinh_ops.docx`, `các chi phí.docx` |
+| ManHinhLaiXe.docx | `2026.8.27_Man_hinh_lai_xe.docx` và yêu cầu màn hình bổ sung |
+| CuocPhiPhuPhiDau.docx | `18.7 - BG Long Minh T7.xlsx` và trả lời khách hàng |
+| CuocPhiThietKeDB.docx | Yêu cầu cước và phương án khách hàng |
+| PhuongAnTinhCuocTuDong.docx | `Phương án tính cước tự động.docx` |
+| QuyTrinhO2C.docx | Tổng hợp yêu cầu nghiệp vụ |
+| BaoGia.docx | `22.9 - BÁO GIÁ MẪU 1.xlsx`, `các chi phí.pdf` (21/09) |
+| PhanHeKeToan.docx | `5.10 - CHI TIẾT CÁC BỘ PHẬN.docx` Phần 1 (PHÂN HỆ KẾ TOÁN) |
 
 Các file nguồn là bản minh hoạ logic, không phải bộ dữ liệu đầy đủ: ô trống trong file
 nguồn là bình thường và không ảnh hưởng công thức. Khi nguồn và quy tắc đã chốt khác
@@ -144,10 +148,10 @@ nhau, quy tắc đã chốt trong tài liệu tương ứng thắng — xem
   là một phần việc vận chuyển gắn với một container hoặc với hàng lẻ LCL. *Chuyến*
   (trip) là hành trình thực tế của một xe. *Kẹp* là hai container chạy đồng thời trên
   cùng xe; *kết hợp* là hai công việc nối tiếp dùng chung vỏ. *Lệnh chạy ngoài* là lô
-  không do SilverSea tạo ra — xem [MasterDataNhaMay.md](MasterDataNhaMay.md) §4.
+  không do SilverSea tạo ra — xem [MasterDataNhaMay.docx](MasterDataNhaMay.docx) §4.
 - **Một quy tắc chỉ có một nơi định nghĩa.** Tài liệu khác tham chiếu, không chép
   lại; khi cần sửa, sửa tại nơi định nghĩa.
-- **Số mục ổn định.** Mã tham chiếu dạng `Tài liệu.md §n.m` được dùng trong mã nguồn;
+- **Số mục ổn định.** Mã tham chiếu dạng `Tài liệu.docx §n.m` được dùng trong mã nguồn;
   không đánh số lại mục khi sửa nội dung.
 - **Không ghi lịch sử trong tài liệu.** Quyết định đã chốt, việc đã bỏ và lý do nằm ở
   [CHANGELOG.md](CHANGELOG.md) hoặc hồ sơ công việc, không nằm trong yêu cầu sản phẩm.

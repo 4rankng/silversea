@@ -76,7 +76,7 @@ export function ShipmentCreateWorkspace() {
   const { getConflict: getReferenceConflict, reportServerConflict } = useShipmentReferenceDuplicateGuard({
     blNumber: form.blNumber,
     bookingRef: form.bookingRef,
-    declarationNumber: form.declarationNumber,
+    declarationNumbers: form.declarationNumbers && form.declarationNumbers.length > 0 ? form.declarationNumbers : [form.declarationNumber],
     tradeDirection: form.tradeDirection,
   });
   const [routeDialogTargetKey, setRouteDialogTargetKey] = useState<string | null>(null);
@@ -181,7 +181,10 @@ export function ShipmentCreateWorkspace() {
         : key === 'isCombined' ? value !== EMPTY_FORM.isCombined
         : key === 'isAdHoc' ? value !== EMPTY_FORM.isAdHoc
         : key === 'hasDeposit' ? value !== EMPTY_FORM.hasDeposit
-        : Array.isArray(value) ? value.length > 0
+        // Arrays diff against their pristine shape: a non-empty array is not
+        // automatically data (declarationNumbers starts as [''], and a
+        // pristine form must not report dirty — regression of 73286319).
+        : Array.isArray(value) ? JSON.stringify(value) !== JSON.stringify(EMPTY_FORM[key as keyof typeof EMPTY_FORM])
         : value !== ''
     ));
     const hasContainerData = containers.some((row) => (
@@ -213,13 +216,33 @@ export function ShipmentCreateWorkspace() {
   }, [form.customerId, sitesVersion, reportError]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((current) => key === 'tradeDirection'
-      ? {
-        ...current,
-        tradeDirection: value as FormState['tradeDirection'],
-        ...(value === 'IMPORT' ? { bookingRef: '' } : value === 'EXPORT' ? { blNumber: '' } : {}),
+    setForm((current) => {
+      if (key === 'tradeDirection') {
+        return {
+          ...current,
+          tradeDirection: value as FormState['tradeDirection'],
+          ...(value === 'IMPORT' ? { bookingRef: '' } : value === 'EXPORT' ? { blNumber: '' } : {}),
+        };
       }
-      : { ...current, [key]: value });
+      if (key === 'declarationNumber') {
+        const strVal = (value as string) || '';
+        const currentRest = (current.declarationNumbers ?? []).slice(1);
+        return {
+          ...current,
+          declarationNumber: strVal,
+          declarationNumbers: [strVal, ...currentRest],
+        };
+      }
+      if (key === 'declarationNumbers') {
+        const listVal = (value as string[]) || [];
+        return {
+          ...current,
+          declarationNumbers: listVal,
+          declarationNumber: listVal[0] ?? '',
+        };
+      }
+      return { ...current, [key]: value };
+    });
     clearFeedback();
   }
 
@@ -484,6 +507,7 @@ export function ShipmentCreateWorkspace() {
             billConflict={billConflict}
             bookingConflict={bookingConflict}
             declarationConflict={declarationConflict}
+            getDeclarationConflict={(decl) => getReferenceConflict('declaration', decl)}
             customerAddButtonRef={customerAddButtonRef}
             shippingLineAddButtonRef={shippingLineAddButtonRef}
             onOpenCustomerDialog={() => setCustomerDialogOpen(true)}
@@ -617,9 +641,9 @@ export function ShipmentCreateWorkspace() {
           >
             {form.cargoMode === 'LCL' && (
               <div style={gridStyle}>
-                <DateTimeField label="Hạn hoàn tất hải quan" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
-                <DateTimeField label="Hạn hạ container tại cảng" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
-                <DateTimeField label="Thời điểm trả container" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
+                <DateTimeField label="Hạn hoàn tất hải quan" combinedPicker value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
+                <DateTimeField label="Hạn hạ container tại cảng" combinedPicker value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
+                <DateTimeField label="Thời điểm trả container" combinedPicker value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
                 <div data-field-id="shipment-expected-delivery">
                   <DateField id="shipment-expected-delivery" label="Ngày giao dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} />
                 </div>

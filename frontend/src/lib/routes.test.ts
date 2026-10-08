@@ -55,6 +55,7 @@ describe('titleForPath destination labels and route precedence', () => {
     '/my-trips/3': 'Hành trình',
     '/my-earnings': 'Thu nhập',
     '/my-orders': 'Lệnh giao nhận',
+    '/ops': 'Tổng quan Ops', // exact-match rule — must not inherit any /ops/* title
     '/my-forwarder-trips': 'Chuyến đi',
     '/my-advances': 'Tạm ứng',
     '/my-settlements': 'Phiếu thanh toán',

@@ -7,10 +7,10 @@ describe('computeTotals', () => {
     expect(computeTotals([
       { invoiceAmount: '12000000', supplierPayment: '8000000' },
       { invoiceAmount: '5500000', supplierPayment: '6000000' },
-    ])).toEqual({ invoice: 17500000, paid: 14000000, difference: 3500000 });
+    ])).toEqual({ invoice: 17500000, paid: 14000000, difference: 3500000, com: 0 });
   });
 
   it('returns zeros for an empty period', () => {
-    expect(computeTotals([])).toEqual({ invoice: 0, paid: 0, difference: 0 });
+    expect(computeTotals([])).toEqual({ invoice: 0, paid: 0, difference: 0, com: 0 });
   });
 });

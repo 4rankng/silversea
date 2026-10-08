@@ -152,8 +152,11 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     const fuelVarianceLiters = fuelLiters - computedLiters;
     const fuelVarianceOver = fuelVarianceLiters > 0;
 
+    // The carrier catalog is `externalCarriers`; `customers` deliberately holds
+    // no nhà xe, so resolving the name from it silently lost every external
+    // carrier and fell back to "không còn trong danh mục".
     const externalCarrierName = trip.externalCarrierName ?? (trip.externalCarrierId
-      ? (catalogData?.customers.find(c => c.id === trip.externalCarrierId)?.name ?? 'Đơn vị vận chuyển không còn trong danh mục')
+      ? (catalogData?.externalCarriers?.find(c => c.id === trip.externalCarrierId)?.name ?? 'Đơn vị vận chuyển không còn trong danh mục')
       : '—');
 
     return {
@@ -382,7 +385,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     setReassignExternalDriverPhone,
     setReassignReason,
     cancelLoading,
-    carrierCustomers: catalogData?.customers.filter(c => c.isCarrier).map(c => ({ id: c.id, label: c.name })) ?? [],
+    carrierCustomers: catalogData?.externalCarriers?.map(c => ({ id: c.id, label: c.name })) ?? [],
     setShowReassign,
     setShowAdjust,
     setAdjustAmount,

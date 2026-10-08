@@ -146,9 +146,9 @@ export default function FuelEvidenceReviewPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
                   <div><strong>Chụp lúc</strong><div>{formatDateTimeVN(row.capturedAt)}</div></div>
                   <div><strong>Lít</strong><div>{row.litres ?? '—'}</div></div>
-                  <div><strong>Đơn giá</strong><div>{row.unitPrice ? formatCurrency(row.unitPrice) : '—'}</div></div>
-                  <div><strong>Thành tiền</strong><div>{row.totalAmount ? formatCurrency(row.totalAmount) : '—'}</div></div>
-                  <div><strong>Tính lại</strong><div>{row.computedTotal ? formatCurrency(row.computedTotal) : '—'}</div></div>
+                  <div><strong>Đơn giá</strong><div>{row.unitPrice != null ? formatCurrency(row.unitPrice) : '—'}</div></div>
+                  <div><strong>Thành tiền</strong><div>{row.totalAmount != null ? formatCurrency(row.totalAmount) : '—'}</div></div>
+                  <div><strong>Tính lại</strong><div>{row.computedTotal != null ? formatCurrency(row.computedTotal) : '—'}</div></div>
                   <div><strong>GPS</strong><div>{row.latitude && row.longitude ? `${row.latitude}, ${row.longitude}` : 'Chưa có'}</div></div>
                 </div>
 

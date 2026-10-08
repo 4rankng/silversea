@@ -305,7 +305,7 @@ export async function requestBillingDocumentAdjustment(input: {
  * invariants run at build time exactly as before.
  */
 /**
- * §7.2 issue readiness (QuyTrinhO2C.md): goods (presentation lines), price
+ * §7.2 issue readiness (QuyTrinhO2C.docx): goods (presentation lines), price
  * (per-line amounts), original document received (§7.1: actual person + date
  * on each source trip) — each missing condition contributes its own reason so
  * none masks another. Period conditions are collected separately by the

@@ -11,6 +11,7 @@ import { resolveFuelSurcharge } from './pricing.service';
 import type { TripLegInput } from '@tingting/shared';
 import { resolveTripDriverSalary, computeTripTotals } from '@tingting/shared';
 import { ApiError } from '../errors';
+import { assertCompletionNotBeforeDeparture } from './trip-status-machine.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { propagateTripFinancialSourceChange } from './source-change.service';
 import { createFinancialPosting, getActiveFinancialPosting } from './financial-posting.service';
@@ -146,6 +147,11 @@ export async function updateTripFigures(
       .limit(1)
       .for('update', { of: [s.trips] });
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    // Card 061026221826: a manual Ngày hoàn thành never lands before the Ngày
+    // khởi hành (the /trips/135 nonsense pair came through this path).
+    if (data.completedAt) {
+      assertCompletionNotBeforeDeparture(new Date(data.completedAt), trip.departureDate);
+    }
     // O2C: costs stay editable after COMPLETED (no hard-freeze). A financial
     // edit on a completed trip requires a governed correction (the caller has
     // already established governanceAuthorized via the adjustment flow).

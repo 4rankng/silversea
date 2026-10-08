@@ -19,7 +19,7 @@ import opsRoutes from '../routes/ops';
 import { photosRouter } from '../routes/upload';
 
 /**
- * Ops module route tests (docs/prd/OpsVanHanh.md §9 P0): RBAC matrix, pins,
+ * Ops module route tests (docs/prd/OpsVanHanh.docx §9 P0): RBAC matrix, pins,
  * expense lifecycle incl. photo gate + resend, wallet formula, settlement
  * freeze/approve/reject, fleet assignment + read model.
  */

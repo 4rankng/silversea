@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DispatchTruck } from '../../../api/dispatchPlanningClient';
-import { capacityOverloadSuffix, exceedsCapacity, ownTruckLabel, vehicleWarningSuffix } from './trailerFit';
+import { capacityOverloadSuffix, exceedsCapacity, ownTruckLabel, requiredTrailerTypeForContainer, vehicleWarningSuffix } from './trailerFit';
 
 function truck(overrides: Partial<DispatchTruck> = {}): DispatchTruck {
   return {
@@ -77,5 +77,28 @@ describe('vehicleWarningSuffix', () => {
       .toBe(` — ⚠ rơ-moóc 40FT, cần 20FT${OVERLOAD}`);
     expect(vehicleWarningSuffix({ trailerType: '20FT', capacityKg: '30000.00' }, '20FT', '21500.00')).toBe('');
     expect(vehicleWarningSuffix(undefined, '20FT', '21500.00')).toBe('');
+  });
+});
+
+describe('requiredTrailerTypeForContainer', () => {
+  it('derives the requirement from the container code for the cont models', () => {
+    expect(requiredTrailerTypeForContainer('20DC', 'SINGLE')).toBe('20FT');
+    expect(requiredTrailerTypeForContainer('40HC', 'SINGLE')).toBe('40FT');
+    // Kẹp pairs two 20' shells on one 40' moóc.
+    expect(requiredTrailerTypeForContainer('20DC', 'DOUBLE')).toBe('40FT');
+  });
+
+  it('forces a 40FT moóc for Lấy Lẻ whatever the lot code says', () => {
+    // The run carries the truck's own empty shell, so a 20' lot code must
+    // not downgrade the moóc requirement and 409 the issue later.
+    expect(requiredTrailerTypeForContainer('20DC', 'LCL_PICKUP')).toBe('40FT');
+    expect(requiredTrailerTypeForContainer('40HC', 'LCL_PICKUP')).toBe('40FT');
+    // Even with no container info at all the run still needs the 40' moóc.
+    expect(requiredTrailerTypeForContainer(null, 'LCL_PICKUP')).toBe('40FT');
+  });
+
+  it('stays silent without a container code on the other classifications', () => {
+    expect(requiredTrailerTypeForContainer(null, 'SINGLE')).toBeNull();
+    expect(requiredTrailerTypeForContainer('', 'LCL')).toBeNull();
   });
 });

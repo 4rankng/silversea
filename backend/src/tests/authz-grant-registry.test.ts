@@ -122,6 +122,18 @@ function oldHasRouteScopedRoleAllowance(
   ) {
     return true;
   }
+  // Card 20261002_220 (ruling change, same-commit oracle update per this
+  // file's rule): PM ruled 2026-10-03 that CUS may read the quotation fee
+  // catalog. Before this ruling the row was absent and CUS was denied the
+  // active-fee GET, so the Chi-hộ dedicated cost columns had no source.
+  if (
+    resource === 'config'
+    && role === Role.CUS
+    && method === 'GET'
+    && /^\/quotations\/fees\/active\/?$/.test(path)
+  ) {
+    return true;
+  }
   if (
     resource === 'financial'
     && role === Role.CUS
@@ -264,6 +276,13 @@ const CONFIG_PATHS = [
   '/fuel-price-periods/9/',
   '/fuel-price-periods/x',
   '/fuel-price-periods/9/export',
+  // Card 20261002_220 — the granted active-fee read, plus the near-miss
+  // shapes that must stay denied.
+  '/quotations/fees/active',
+  '/quotations/fees/active/',
+  '/quotations/fees/active/9',
+  '/quotations/fees/archived',
+  '/quotations/fees/active/export',
   '/pricing-tables',
   '/expense-categories',
   '/customers?include=archived',
@@ -296,7 +315,8 @@ const TRIP_PATHS = [
   '/',
 ] as const;
 
-// 'trips' has no bypass rows — a control that no grant leaks across resources.
+// Card 071026141580: 'trips' now carries ONE bypass row (wallet trip-expense
+// mutations for OPS) — every other trips route is still casbin-only.
 const BYPASS_RESOURCES = ['shipments', 'config', 'financial', 'trips'] as const;
 
 describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
@@ -305,12 +325,20 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
   });
 
   describe('registry integrity', () => {
-    it('carries the ported bypass rows (ten + the 253 mirror) and two exclusive rows', () => {
+    it('carries the ported bypass rows (ten + the 253 mirror + the 220 fee read + the 1580 wallet bridge) and two exclusive rows', () => {
       // Card 20261001_253 added one config-resource mirror of the financial
       // debit-note row: both bare-'/'api gates evaluate sequentially, so the
       // grant must be reachable at each gate the request actually passes.
-      assert.equal(ROUTE_GRANT_RULES.length, 13);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 11);
+      // Card 20261002_220 added one more bypass (CUS reads the active
+      // quotation fee catalog) on the PM ruling of 2026-10-03.
+      // Cards 351/352 (05/10, QA gap): one more bypass — the CUS delete-
+      // request path (DELETE /cus-workspace/:id), the 2026-09-10 direct-CUS-
+      // delete ruling that the casbin layer never had a row for.
+      // Card 071026141580 ("fix all issues" 2026-10-07): one more bypass —
+      // the wallet's trip-expense PUT/DELETE bridge for OPS (the payer edits/
+      // deletes their own khai-chi-hô rows; casbin grants OPS trips read only).
+      assert.equal(ROUTE_GRANT_RULES.length, 17);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 15);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 
@@ -476,5 +504,27 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
         statusCode: 403,
       });
     });
+  });
+});
+
+describe('CUS delete-request bridge (cards 351/352)', () => {
+  // QA-discovered gap (05/10 staging rung): the Xóa lô flow is the CUS
+  // DIRECT delete (2026-09-10 user directive — requestShipmentDelete removed
+  // the approval flow), and the route's own requireRoles(Role.CUS) admits the
+  // CUS user — but the mount-level casbinAuthz('shipments') has no DELETE
+  // policy for this path, so every confirm tap died with 403 "Không có quyền
+  // truy cập". The house pattern for exactly this situation is a path-scoped
+  // bypass bridge (declarations 20260921_3, operational-sites 20261002_263):
+  // the route keeps the role set, the bridge opens only this path, general
+  // shipment delete stays closed.
+  it('bridges DELETE /cus-workspace/:id for CUS only', () => {
+    assert.ok(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.CUS));
+    // patterns are strict (no trailing-slash normalization in the matcher)
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313/', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.DISPATCHER), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.ADMIN), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/abc', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'POST', '/cus-workspace/313', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/313', Role.CUS), undefined);
   });
 });

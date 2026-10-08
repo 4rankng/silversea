@@ -19,7 +19,7 @@ import {
   canonicalizePairingLocation,
   type TripPairSnapshot,
 } from './trip-pairing.service';
-import type { Tx } from './trip-shared';
+import { resolveCanonicalLocationsForTrips, type Tx } from './trip-shared';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { getPairSalarySettingsFrom, pairSurchargeFor } from './pair-salary-settings.service';
 import { lockTripFinancialAuthority, TRIP_FINANCIAL_AUTHORITY_LOCK_NAMESPACE } from './trip-financial-authority-lock.service';
@@ -339,6 +339,23 @@ async function loadTripsForPairing(tx: Tx, tripIds: [number, number]) {
     ...row,
     cargoWeightKg: row.cargoWeightKg ?? containerWeightByTripId.get(row.id) ?? null,
   }]));
+  // Card 353: trips issued before the canonical-location write landed keep
+  // NULL canonical columns (staging census trips 131-134) — coalesce from the
+  // source container so the pair authority, snapshot and write-back see the
+  // same locations the FE draft (getTripById) carries.
+  if (tripIds.some((tripId) => {
+    const row = byId.get(tripId);
+    return row == null || row.canonicalOrigin == null || row.canonicalDestination == null;
+  })) {
+    const fallbacks = await resolveCanonicalLocationsForTrips(tx, tripIds);
+    for (const tripId of tripIds) {
+      const row = byId.get(tripId);
+      const fallback = fallbacks.get(tripId);
+      if (!row) continue;
+      row.canonicalOrigin = row.canonicalOrigin ?? fallback?.origin ?? null;
+      row.canonicalDestination = row.canonicalDestination ?? fallback?.destination ?? null;
+    }
+  }
   return {
     first: byId.get(tripIds[0]) as TripRowForPairing,
     second: byId.get(tripIds[1]) as TripRowForPairing,

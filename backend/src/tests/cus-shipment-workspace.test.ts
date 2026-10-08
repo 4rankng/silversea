@@ -1080,7 +1080,7 @@ describe('CUS container-flat projection', () => {
     assert.equal(past.fieldAccess.cargoWeightKg.mode, 'DIRECT');
   });
 
-  test('SISPROD-CUS-ACCESS CUS and DISPATCHER keep linked-trip identity writable but route/ports read-only', async () => {
+  test('SISPROD-CUS-ACCESS CUS and DISPATCHER keep linked-trip identity and PORTS writable; routeId stays read-only (card 358 decision a)', async () => {
     const marker = Math.random().toString(16).slice(2, 8);
     const dispatcherActor: AuthUser = {
       userId: 0,
@@ -1118,11 +1118,13 @@ describe('CUS container-flat projection', () => {
     // fills numbers left blank at intake even after the lot is assigned, so
     // the field saves directly with no approval step — trip or not.
     assert.equal(trippedRow.fieldAccess.containerNumber.mode, 'DIRECT');
-    // Route/ports stay on the generic trip split for dispatch — only the
-    // identity field opened.
+    // Card 20261005_358 decision (a): ports backfill after dispatch — the
+    // Kẹp pair validation needs them and the classification is chosen after
+    // creation. routeId stays on the generic trip split (trip legs/pricing
+    // derive from it).
     assert.equal(trippedRow.fieldAccess.routeId.mode, 'READ_ONLY');
-    assert.equal(trippedRow.fieldAccess.liftSiteId.mode, 'READ_ONLY');
-    assert.equal(trippedRow.fieldAccess.dropoffSiteId.mode, 'READ_ONLY');
+    assert.equal(trippedRow.fieldAccess.liftSiteId.mode, 'DIRECT');
+    assert.equal(trippedRow.fieldAccess.dropoffSiteId.mode, 'DIRECT');
 
     // CUS sees the same operational restriction as the authoritative writer.
     // The old DIRECT override advertised route/port edits that always fail
@@ -1138,14 +1140,19 @@ describe('CUS container-flat projection', () => {
     const cusLine = cusDetail.containers.find((line) => line.id === trippedContainer.id);
     assert.ok(cusLine);
     assert.equal(cusLine.fieldAccess.containerNumber.mode, 'DIRECT');
-    for (const key of ['routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
-      assert.equal(cusRow.fieldAccess[key].mode, 'READ_ONLY', `list ${key}`);
-      assert.equal(cusLine.fieldAccess[key].mode, 'READ_ONLY', `detail ${key}`);
-      assert.match(cusLine.fieldAccess[key].reason, /chuyến thực tế/);
+    assert.equal(cusRow.fieldAccess.routeId.mode, 'READ_ONLY', 'list routeId');
+    assert.equal(cusLine.fieldAccess.routeId.mode, 'READ_ONLY', 'detail routeId');
+    assert.match(cusLine.fieldAccess.routeId.reason, /chuyến thực tế/);
+    for (const key of ['liftSiteId', 'dropoffSiteId'] as const) {
+      assert.equal(cusRow.fieldAccess[key].mode, 'DIRECT', `list ${key}`);
+      assert.equal(cusLine.fieldAccess[key].mode, 'DIRECT', `detail ${key}`);
+      assert.match(cusLine.fieldAccess[key].reason, /bổ sung cảng/);
     }
-    for (const key of ['routeEditable', 'liftSiteEditable', 'dropoffSiteEditable'] as const) {
-      assert.equal(cusRow[key], false, `list ${key}`);
-      assert.equal(cusLine.permissions[key], false, `detail ${key}`);
+    assert.equal(cusRow.routeEditable, false, 'list routeEditable');
+    assert.equal(cusLine.permissions.routeEditable, false, 'detail routeEditable');
+    for (const key of ['liftSiteEditable', 'dropoffSiteEditable'] as const) {
+      assert.equal(cusRow[key], true, `list ${key}`);
+      assert.equal(cusLine.permissions[key], true, `detail ${key}`);
     }
 
     const accountantView = await listCusShipmentContainers(
@@ -1211,6 +1218,79 @@ describe('CUS container-flat projection', () => {
         .where(eq(s.shipmentAccountingLocks.shipmentId, lockedShipment.id));
       await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
     }
+  });
+
+  // Card 20261005_358 decision (a): the linked-trip 409 no longer covers the
+  // lift/dropoff PORT fields — the Kẹp pair validation needs them and the
+  // ports firm up closer to pickup. routeId keeps the denial (trip legs and
+  // pricing derive from it). Red-first: this write succeeded-path pin was
+  // observed failing (409) before the writer carve-out.
+  test('port backfill writes on a tripped container succeed while routeId still 409s', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const dispatcherActor: AuthUser = {
+      userId: 0,
+      username: 'cus-ws-test-ports-dispatcher',
+      email: null,
+      fullName: null,
+      role: Role.DISPATCHER,
+    };
+    const trippedShipment = await seedShipment({
+      blNumber: `DSP-PORTS-${marker}`,
+      cargoMode: 'FCL',
+      status: 'DISPATCHED',
+    });
+    const trippedContainer = await seedContainer(trippedShipment.id, { containerNumber: `DSP${marker}P` });
+    const fulfillment = await seedFulfillment(trippedShipment.id, trippedContainer.id);
+    const route = await seedRoute();
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `TRP-DSP-${marker}`,
+      customerId,
+      routeId: route.id,
+      departureDate: '2026-09-01',
+      fulfillmentId: fulfillment.id,
+      status: 'CREATED',
+    }).returning();
+    createdTripIds.push(trip.id);
+
+    const before = await getCusShipmentWorkspaceDetail(trippedShipment.id, dispatcherActor);
+    const lineBefore = before.containers.find((line) => line.id === trippedContainer.id);
+    assert.ok(lineBefore);
+    assert.equal(lineBefore.fieldAccess.liftSiteId.mode, 'DIRECT');
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: trippedShipment.id,
+      containerId: trippedContainer.id,
+      input: {
+        expectedShipmentVersion: trippedShipment.version,
+        liftSiteId: liftPortId,
+        dropoffSiteId: dropPortId,
+      },
+      actor: dispatcherActor,
+    });
+    assert.equal(result.line.liftSiteId, liftPortId);
+    assert.equal(result.line.dropoffSiteId, dropPortId);
+
+    const [stored] = await db.select({ pickupPortId: s.shipmentContainers.pickupPortId, dropoffPortId: s.shipmentContainers.dropoffPortId })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, trippedContainer.id))
+      .limit(1);
+    assert.equal(stored?.pickupPortId, liftPortId);
+    assert.equal(stored?.dropoffPortId, dropPortId);
+
+    // The adjacent operational denial still stands on the same command shape.
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: trippedShipment.id,
+        containerId: trippedContainer.id,
+        input: {
+          expectedShipmentVersion: trippedShipment.version + 1,
+          routeId: route.id,
+        },
+        actor: dispatcherActor,
+      }),
+      /đã gắn chuyến xe/,
+    );
   });
 
   test('searches a container suffix and returns only the matching container row', async () => {
@@ -3053,7 +3133,7 @@ describe('Linked-trip guard is value-aware (container number is identity, not an
     );
   });
 
-  test('SISPROD-CUS-ACCESS linked-trip CUS route and port changes still reject with no partial write', async () => {
+  test('SISPROD-CUS-ACCESS linked-trip CUS route change still rejects; PORT changes backfill (card 358 decision a)', async () => {
     const { marker, shipment, container, fulfillment } = await seedAssignedLot();
     await attachTrip(fulfillment.id, marker);
     const route = await seedRoute();
@@ -3067,23 +3147,32 @@ describe('Linked-trip guard is value-aware (container number is identity, not an
       db.select({ version: s.shipments.version }).from(s.shipments).where(eq(s.shipments.id, shipment.id)),
     ]);
     const before = await readState();
-    for (const update of [{ routeId: route.id }, { liftSiteId: ports.liftPortId }, { dropoffSiteId: ports.dropPortId }]) {
-      await assert.rejects(
-        () => updateCusShipmentContainerLine({
-          shipmentId: shipment.id,
-          containerId: container.id,
-          input: { expectedShipmentVersion: shipment.version, ...update },
-          actor: cusActor,
-        }),
-        (error: unknown) => {
-          assert.ok(error instanceof ApiError);
-          assert.equal(error.statusCode, 409);
-          assert.match(error.message, /Container đã gắn chuyến xe \(TRP-NUM-/);
-          return true;
-        },
-      );
-      assert.deepEqual(await readState(), before);
-    }
+    // routeId keeps the linked-trip denial, with no partial write.
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: container.id,
+        input: { expectedShipmentVersion: shipment.version, routeId: route.id },
+        actor: cusActor,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof ApiError);
+        assert.equal(error.statusCode, 409);
+        assert.match(error.message, /Container đã gắn chuyến xe \(TRP-NUM-/);
+        return true;
+      },
+    );
+    assert.deepEqual(await readState(), before);
+    // Card 20261005_358 decision (a): the two PORT fields backfill after
+    // dispatch — the writer persists them and realigns the snapshot.
+    const saved = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: { expectedShipmentVersion: shipment.version, liftSiteId: ports.liftPortId, dropoffSiteId: ports.dropPortId },
+      actor: cusActor,
+    });
+    assert.equal(saved.line.liftSiteId, ports.liftPortId);
+    assert.equal(saved.line.dropoffSiteId, ports.dropPortId);
   });
 
   test('a same-value appointment echo does not trip the guard on a tripped row', async () => {
@@ -3248,6 +3337,86 @@ describe('container line vehicle plate clear (20260916_6)', () => {
     assert.equal(after.plannedVehiclePlateNumber, null, 'plate must be cleared, not fall back to the vehicle plate');
     assert.equal(after.plannedExternalCarrierVehicleId, null, 'vehicle selection must be cleared');
     assert.equal(after.plannedExternalCarrierId, carrier.id, 'the external carrier itself stays');
+  });
+
+  test('an EXTERNAL carrier with NO plate saves — "Bổ sung sau" (card 071026205330 / REQ-07 #359)', async () => {
+    // Workflow REQ-07 / card 20261004_359: an external carrier may be planned
+    // before its plate is known — CUS fills it later. The issue path already
+    // accepts that shape (trip-factory-snapshot.test.ts, "issue external carrier
+    // without a plate"), and the OWN branch right here already stores a null
+    // plate. Only this EXTERNAL branch still refused, so the CUS container-line
+    // editor could not save a row whose plate combobox was simply empty —
+    // which is exactly what QA hit, and it turned "bổ sung sau" into a hard
+    // block. A container that never had a plate also had no clearVehicle flag
+    // to send (there was nothing to clear), so the clearVehicle affordance
+    // added in 9393f108 could not reach this case either.
+    const carrier = await seedCustomer({
+      name: `Nhà xe chưa có biển ${suffix}`.slice(0, 255),
+      isCarrier: true,
+      status: 'ACTIVE',
+    });
+    const shipment = await seedShipment({
+      blNumber: `PBL${lettersTag(5)}`.slice(0, 100),
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `PBL${lettersTag(4)}1`.slice(0, 50),
+    });
+    const fulfillment = await seedFulfillment(shipment.id, container.id);
+
+    const saved = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+        plateNumber: null,
+      },
+      actor: cusActor,
+    });
+
+    assert.equal(saved.line.carrierType, 'EXTERNAL');
+    assert.equal(saved.line.plateNumber, null, 'a deferred plate is stored as null, not refused');
+
+    const [after] = await db.select({
+      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+      plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+      plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+    }).from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal(after?.plannedCarrierType, 'EXTERNAL');
+    assert.equal(after?.plannedExternalCarrierId, carrier.id, 'the carrier assignment itself is kept');
+    assert.equal(after?.plannedVehiclePlateNumber, null);
+
+    // A carrier is still mandatory — dropping the plate requirement must not
+    // turn into dropping the carrier requirement. Checked on a fresh row: once a
+    // carrier is planned, an explicit `externalCarrierId: null` falls back to
+    // the stored one by design, so it would never reach the guard.
+    const bareShipment = await seedShipment({
+      blNumber: `PBC${lettersTag(5)}`.slice(0, 100),
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+    });
+    const bareContainer = await seedContainer(bareShipment.id, {
+      containerNumber: `PBC${lettersTag(4)}1`.slice(0, 50),
+    });
+    await seedFulfillment(bareShipment.id, bareContainer.id);
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: bareShipment.id,
+        containerId: bareContainer.id,
+        input: {
+          expectedShipmentVersion: bareShipment.version,
+          carrierType: 'EXTERNAL',
+          plateNumber: null,
+        },
+        actor: cusActor,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 400,
+    );
   });
 
   test('clearVehicle cannot ride along with a vehicle selection or an inline new carrier', () => {

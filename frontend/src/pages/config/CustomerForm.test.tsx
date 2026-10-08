@@ -49,4 +49,19 @@ describe('customer form template access', () => {
     fireEvent.click(screen.getByRole('button', { name: /Mẫu giấy báo nợ/ }));
     expect(await screen.findByRole('option', { name: 'Mẫu kế toán' })).toBeInTheDocument();
   });
+
+  // Card 20261004_333 — a failed templates feed must not render as "no
+  // templates to pick": the failure surfaces with retry next to the field.
+  it('surfaces the templates feed failure with retry instead of a silently empty picker', async () => {
+    getDebitNoteTemplates.mockRejectedValue(new Error('500'));
+    renderForm();
+    expect(await screen.findByText(/Không thể tải danh sách mẫu giấy báo nợ/, undefined, { timeout: 3000 })).toBeVisible();
+
+    getDebitNoteTemplates.mockResolvedValue([{ id: 7, name: 'Mẫu kế toán', isDefault: false }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Mẫu giấy báo nợ/ }));
+    expect(await screen.findByRole('option', { name: 'Mẫu kế toán' })).toBeInTheDocument();
+    expect(getDebitNoteTemplates.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
 });

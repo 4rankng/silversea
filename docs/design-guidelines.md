@@ -177,6 +177,12 @@ the date. A ruling row should name the test or `design-lock` entry that now enfo
 - **Port and place names are data, not code.** Port/place names live in CRUD data, never hard-coded in identifiers or
   UI logic; no backcompat shims — direct migration.
   *Source:* 2026-09-19 operator ruling, card 20260919_6.
+- **Composed status/live-region copy renders as ONE text node.** An announcement built from a prefix plus a dynamic
+  label ("Đang tải <label>…") must render the whole phrase as a single template-literal text node (or one child
+  `<span>`), never adjacent JSX text children — node-boundary extraction (accessibility snapshots, live-region
+  announcements, QA probes) trims each node and joins with no separator, gluing "Đang tải" and the label into
+  "Đang tảikế hoạch…". *Source:* cards 051026230609 (/ops), 061026043646 (/accounting lanes + forwarder settlement);
+  pin pattern: `extractedText` helper in `OpsQueryFeedback.test.tsx`.
 
 ## 9. Design process
 
@@ -270,6 +276,7 @@ Not laws — standing conventions already at parity, verified by the 2026-09-22 
 | 2026-09-27 | **The `Bộ lọc` dialog holds two rows and the ranges fold in as a dropdown** (CHIEF, dialog screenshot + the wrapped chips group: "please use dropdown here instead of [the wrapped chips]", "we can increse width of dialog so that all filters and buttons fit 2 rows, instead of 3", "the height of component ke hoach dropdown too high, please reduce to be same as other dropdown"). (1) `design-system/forms/DateRangeFields.tsx` gains `DateRangePresetSelect` — the SAME `presets` array as `DateRangePresets`, rendered as one content-sized dropdown (`Ngày: Hôm nay` … `Tất cả`) for the dialog; the chips stay in the bar, so there is exactly one implementation of the ranges per container and no second preset list. (2) `components/FilterDropdown.css` panel is `min(520px, calc(100vw - 24px))` (was a flat 320px) and the folded ranges are a `flex: 0 0 auto` item on the same line as the criteria, not a `flex: 1 1 100%` block — measured 500px viewport: row 1 `[Ngày][Xuất/Nhập][Loại]`, row 2 `[Kế hoạch][Đặt lại][Áp dụng]`; 594px: the ranges stay in the bar and the dialog is still two rows. (3) The dialog's footer/hint row is deleted — `Đặt lại`/`Áp dụng` are `.filter-dropdown__actions` inside the body (`margin-left:auto`), and every criterion in a filter context is forced to ONE height (`:is(.filter-bar, .filter-dropdown__body) .searchable-select__trigger`, `--filter-control-h`) so `SearchableSelect`'s phone band can no longer out-height its siblings. Held by `components/FilterDropdown.test.tsx` and `design-lock/expectations/filters.mjs` (`rows ≤2`, `matchHeight`, `maxWidth .filter-dropdown__trigger ≤180`). |
 | 2026-09-27 | **Every filter control plane in the app is the ONE strip** (operator: "apply the philosphy implement UI change to all pages filters control plane" + "also redesign this to make it data dense card"). The 46 renderers of `ListFilterBar` now include every surface that still hand-rolled a toolbar: the dispatch catalogs (via `CatalogTableShell`), the detailed-plan header + Drawer, the trips filter card, users/audit/ops-orders/salary, the payables family, the config catalogue shell (`CrudTable` — 17 pages in one edit), `/config`, `/customers`, the transport register, fuel-evidence, recoverable costs, the profitability panel, `/config/routes`, the shipment-finance panel and the shared `PeriodFilter`. A page may only size a control inside the family caps; secondary criteria live in the `Bộ lọc` dialog; a status/scope/role segment is `Tabs variant="boxed"` and — new — a boxed group placed in a bar takes the strip's own control height (`.filter-bar .ds-tabs__btn`), since a bar child otherwise stood 36px beside 30px siblings. Dead with it: `.fwd-filter-chip*`, the `Toolbar` pill row, `WorkboardFilters` + `.list-filter-bar__pair`, the `.filter-tabs`/`.pill-row` band, and the duplicated desktop/phone selects on the admin + forwarder pages. Same ruling, the **record card**: at ≤999px the CUS shipment card is a two-column FACT grid — only the identity cell spans both columns, the section label rides the first value's line (`data-cell-short` prints the short form), a cell whose facts are all placeholders collapses them onto one line (`data-facts="inline"`, ` · `-separated) and cargo nothing is known about is named once ("Chưa có hàng hóa") instead of "— · — kg". Measured: 500px card 375 → 203px, 768px 379 → 263px for the same information (locks `shipments/{phone,tablet}/record-card-density`). |
 | 2026-09-27 | **The shared record-table card is data dense too** (operator, screenshot of `/config/fuel-price-periods`: "redesign this to fit data dense UI philosophy"). `styles/record-table.css`'s container-≤1100px band printed every fact as a label line ABOVE its value, so a four-fact catalogue card was 230px tall for four short facts and half of each card was dead space. The label is an inline caption now (`td::before { display: inline }`, 11px uppercase muted) and the cell rhythm is `5px 12px`, so a fact costs one line instead of two — measured `/config/fuel-price-periods` 230 → **117px** at 1147 and 768, 138 → 118px at 390, `/config/ports` 125px, with the role sweep clean at every route × 390/1440 (0 overflow, 0 clipped, 0 sub-11px, 0 console errors). Locks `config/fuel-price-periods/{w1147,w768}/card-density` + `no-clipped-text` and `config/ports/w1147/card-density`. |
+| 2026-10-03 | **The structure ratchet runs as `frontend/scripts/check-structure.mjs`** (card 20261003_308): the pre-commit guard pass executes the plain-node script instead of booting a vitest suite (the suite boot held the git index lock ~11s per commit on this volume — the source of both 03-10 stale-lock incidents). The four checks are unchanged (LOC ratchet, dead baselines, untitled-ui manifest parity, local date-formatter law); `src/tests/structure.guard.test.ts` is retired and every doc reference now names the script. |
 | 2026-09-28 | **Both paid UI catalogs are mandatory for a UI/UX problem, and their roles are pinned.** The "reference before invention" rule of §9 now has a named discovery step: the **Untitled UI PRO** MCP (`search_components` → `get_component`/`get_component_bundle` → the returned `pnpm uui:add:*`) is the component **source** — its returned command is the pinned install path, and `frontend/src/components/untitled-ui/installed.json` (enforced by `structure.guard.test.ts`) is the do-not-overwrite record. The **Tailkit** MCP is a **pattern reference only**: its app components are built on a `secondary-{50..900}` ramp plus `@headlessui/react` and Heroicons `hi-*` classes that this project does not have, so it is retokenized, never pasted — checklist in `frontend/docs/tailkit-ui.md`. Routing is enforced in `AGENTS.md` (mandatory tool routing + a design-provenance rule on the UI verification contract): a UI decision names the catalog and component id it consulted, or states why a house primitive was the right answer. The Untitled theme re-colouring and the `components.json` v8 pin are now `pnpm check:brand` failures, so an upstream theme re-fetch cannot silently revert the brand. |
 | 2026-09-29 | **One page heading, sentence case — and never a second name welded onto it** (CHIEF report with two screenshots of the Kế toán section; `/accounting/chot-debit` titled itself *"Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP"*, its board caption repeated *"KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP — thu/trả theo lô (cước vận chuyển)"*, and a second heading shouted *"TỔNG HỢP CÔNG NỢ KHÁCH HÀNG"*): the H1 is the SCREEN's name — the thing the sidebar already calls it — so it is ONE name, sentence case, with no separator joining a second one and no ALL-CAPS run. The document a board renders is the BOARD's identity: it belongs in the board's own `<h2>`/`<caption>`, where the period and the row count can sit beside it. A detail page composing `<record> — <value>` at runtime is a different thing (its suffix is a business identifier), which is why the guard reads literal `title=` values only. The same case rule governs every literal `<h1|h2|h3>` and every VISIBLE `<caption>`: a caption is `sr-only` when it only restates the page name; otherwise it carries what the table ADDS. Pin: `frontend/src/components/page-heading-law.test.ts` (app-wide source scan; measured before landing — 2 offending titles and 3 offending headings app-wide, all in this section). |
 | 2026-09-29 | **A board too wide for the canvas scrolls ON PURPOSE** (same report: the /accounting/chot-debit board was a 2640px `table-layout: fixed` wall whose explicit colgroup shares were the only thing holding it together, and half of it lived off screen; /accounting/phoi-phieu squeezed 11 columns into ~57px needles instead): a money matrix wider than the ~1150px operational canvas gets (1) an explicit scroll box with a `--border-1` hairline, (2) a per-column `min-width` so the header wraps inside its own cell and the TABLE grows instead of the columns collapsing, (3) a STICKY identity pair (the board's axis + the row's identity) at `z-index: var(--z-base)` so it stays under the sticky header band while painting above the columns that scroll under it, and (4) a touch-only scroll cue (the card 20260924_9 `/shipments-debit` pattern). A `nowrap` HEADER is the defect that starves the data columns — the amount never wraps, its header always does. Pin: `frontend/src/pages/accounting/AccountingDebitClosePage.css`. |
@@ -279,6 +286,7 @@ Not laws — standing conventions already at parity, verified by the 2026-09-22 
 | 2026-09-29 | **Two shared table defects the Kế toán sweep surfaced, fixed at the primitive** (the sweep's own evidence, not a new operator ruling — recorded here because each one had already been patched page-locally three times, which is the divergence §"rule of one answer" exists to stop): (1) **a header label is never chopped mid-word.** `record-table thead th` declared `overflow-wrap: anywhere`, so a narrow column's min-content was one CHARACTER and shredded its label ("CONTAINER" → CONTAINE + R, the defect QA filed as card 20260922_54; `/accounting/deposit-tracker`'s `STT` rendered over two lines). `.ppc-board`, `.shipment-debit-table` and `.invoice-tracking-table` each carried their own copy of the fix. Both the shared base and the global `:where(table thead th)` now declare `overflow-wrap: normal; word-break: keep-all` — law §4's "single-token values EXPAND" applied to the head, so the COLUMN sizes to the label. (2) **supporting text inside a data cell floors at 11px.** A `<small>` beside 12px data renders at the browser's 0.8em default (9.6px, §5 wants 11px for supporting text, and `role-ui-sweep.mjs` counts sub-11px as a defect); the global table base now floors it at `--ops-table-meta-size`. Pins: `src/styles/table-no-truncation.styles.test.ts` (the header rule), `src/styles/operational-table-typography.test.ts` (the `<small>` floor). Measured after: 0 chopped headers and 0 sub-11px text across the 18 routes swept at 1440, and `pnpm design:drift` FELL (rawShadow 61→59, rawZIndex 81→80, untokenizedTransition 133→132). |
 | 2026-09-30 | **The phone's screen name lives in the topbar — one title, and the page keeps the accessible one** (operator, two phone screenshots side by side: `/shipments` printed "Tổng quan lô hàng" in its own header row while `/shipments-detail` printed the same words in the topbar; the request was to make them match). `/shipments` is the only page that had inverted the split: it owned a *visible* `<h1>` AND suppressed the topbar's fallback via `lib/page-heading-policy.ts` + `.app--page-own-heading`, so the phone showed a bespoke header row where every other route shows the shell title. That page now takes the same treatment `PageHeader` gives every other screen — at ≤640px `.shipments-control__title` is sr-only (in the a11y tree, out of the visual flow) and the topbar's "Đang xem" block is the visible title at EVERY width. The policy module, its test, the `Layout.tsx` class and the responsive rule are DELETED: with no page owning a visible phone heading there is nothing left to suppress, and the exact-match path list was the mechanism's whole risk (a prefix would have stripped the title off `/shipments/new`, `-detail`, `-debit`, `/:id`). The `<h1>` is not deleted above 640px — desktop keeps the page's own title beside the tabs, as before. Pin: `src/pages/ShipmentsPage.test.tsx` (the ≤640px sr-only rule + no `app--page-own-heading` in `responsive.css`). Measured: 390px title height 1px (sr-only) with the topbar title visible; 768/1440px unchanged; 0 horizontal overflow at all three. |
 | 2026-09-30 | **A selected row wears the shared neutral-ink edge — the four sheets that still drew an accent rail are conformed** (surfaced by `pnpm check:ui` refusing the build on `border-left: 3px solid var(--accent)`; the same violation also hid in `border-inline-start`, which the checker cannot see). §"Row selection — a row is the control" (card `20260929_207`) already settled this: the edge is `box-shadow: inset 3px 0 0 var(--ink)` over `var(--surface)`, NEVER a brand tint and never an accent-filled row — the exact recipe `styles/record-table.css:118-122` ships. `AccountingWorkspacePage.css`, `CustomersPage.css`, `PhoiPhieuControlPage.css` and `ExpenseAccounting.css` now carry that recipe rather than a fourth variant. Two shapes, not one: three sheets take the base form verbatim on the `<tr>`, while the customers grid paints its zebra on the CELLS, so a row-level background would be hidden under them — its surface therefore rides the cells too (specificity 0,4,3 against the 0,3,3 zebra, later in the sheet, no `!important`). The two tests that pinned the superseded accent recipe — and one that forbade any shadow on the phôi phiếu file — were re-pinned to the contract, and that file's flat-sheet ratchet was narrowed to what it means: comments are stripped, the sanctioned ink edge is subtracted, gradients/3D/drop shadows still fail, and a SECOND assertion pins that every remaining `box-shadow` in the declared sheet IS that edge. The callout rail on `.expense-accounting-notice` is a notice, not a selection state, and is left alone. Pin: `src/styles/selection-state-contract.styles.test.ts` (the four rules + no `border-left: <2-6>px solid` per sheet). |
+| 2026-10-03 | **§5 mechanism revision — the phone tab bar returns to the fixed layer, the proven sibling pattern** (card `20260927_149`, user evidence: payroll and nepocorp render band-free on the owner's real iPhone; both pin the bar `position: fixed; bottom: 0` with the home-indicator strip painted INSIDE the bar's own opaque box). The interim in-flow bar (f902c3e0 driver, e4d9a6c portal) depended on iOS dvh reflow — the one half a desktop CDP can never verify (visual viewport ≠ layout viewport), which is why the card sat blocked on a device re-test. A fixed bar cannot leave uncovered space below itself at any viewport state: its bottom edge is the viewport bottom and its `env(safe-area-inset-bottom)` padding paints the strip. The law's obligations are unchanged, only the mechanism: (1) the bar's own opaque `--surface` box covers through the physical bottom (the `::after` band and the in-flow column are both retired; the root-canvas paints `html:has(body .app.is-driver)` stay as over-scroll defense in depth); (2) the scrolling content pays the bar's height ONCE as bottom clearance derived from the shared `--bottom-nav-h` token (`calc(var(--bottom-nav-h) + 16px)` driver `.app-body`, `calc(77px + env(...))` portal `.customer-shell__content`) — the old blanket 92px main-column reserve stays dead; (3) sticky bars stacked ABOVE the tab bar still MUST NOT re-add `env(safe-area-inset-bottom)` at ≤1023px. Pin: `src/components/layout/bottom-nav.styles.test.ts` (fixed + bottom 0 + inset padding + clearance token + portal conformance). Measured at 390×844 CDP: gap below nav 0 on `/my-trips`, `/my-earnings`, `/portal/shipments`; forced 2000px overflow parks last content above the bar on both shells; 768 identical; 1440 untouched (bar hidden, clearance 0). |
 
 
 ### 2026-10-01 — Phone accounting records remain inside the screen
@@ -375,3 +383,165 @@ branches remain source-only until driven through legitimate owned work.
 ### 2026-10-02 — UI63 complete inline label/control width budget
 
 A labelled bar field must reserve its label, seam and actual trigger together before sibling packing. A280px whole-field cap cannot hold the measured98.25px label +8px gap +existing200px searchable minimum. The shared UuiSelectField owner gives visible labelled bar fields bounded intrinsic width and applies280px to their trigger; long labels and the inner row wrap normally when necessary. Preserve control height/minimum and complete label text; no clipping, page offsets or page-local geometry. Hidden-label filters, ordinary stacked forms and folded portalled fields retain their existing width/value owners. Paid reference: pinned Untitled UIv8 Select/select-shared; keep the installed house adapter mechanics.
+
+### 2026-10-02 — Stable filter validation (QA-SESSION-FILTER-01)
+
+Owner explicit session ruling: date/search error feedback uses a surface-backed
+anchored popover outside the shared toolbar flow; validation never increases
+toolbar height or moves sibling filters. Ordinary form helper layout remains
+unchanged. Error stays accessible through aria-describedby and role=alert, and
+disappears on a valid correction. Browser regression records exact toolbar
+bounds before/after native invalid date entry.
+
+### 2026-10-02 — Static classifications (QA-SESSION-STATIC-01)
+
+Owner Nhập/Xuất screenshot: informational shipment direction and combined-cargo
+labels render plain text with no border, fill, radius or button semantics. Real
+edit/filter actions keep control chrome. This supersedes the earlier
+outlined-classification treatment.
+
+### 2026-10-03 — Grid cell actions sit bottom-right, outside the text flow (card 20261002_302)
+
+PM (screenshot 03/10): a cell's "Chi tiết" action must not share its row with
+the values it opens — "chi tiet shoult be at bottom right of cell, not there,
+dont occupy text space". In the master-plan grid the cargo block is a column
+(summary full-width; the action drops to its own right-aligned row) and a note
+line holding a detail trigger stacks the note above the right-aligned action
+(`align-self: flex-end`). The <768 phone band keeps its §8 inline record shape
+(budget-pinned); a cell action never takes value width on ≥768. Class sweep:
+the pattern exists only in the master-plan grid (cargo + operational/factory
+note cells) — the detailed-plan grid carries no inline cell "Chi tiết"
+triggers. Pins: `MasterPlanGrid.cellactions.styles.test.ts`.
+
+### 2026-10-03 — Paired numeric→picker fields: Tab hand-off opens the picker exactly once (card 20261002_272)
+
+Customer (TingTing 03/10) + PM directive. For a PAIRED field set — a numeric
+entry field followed by its picker — Tab LEAVING the numeric field opens the
+picker's suggestion menu exactly once (focus lands, then a programmatic
+open through the combobox's `onReady` handle). Bare focus and pass-through
+tabbing stay CLOSED: this scopes, not reverses, the 2026-09-21 ruling that
+rejected a focus trigger for the Loại container cell ("menu bật cả khi chỉ
+Tab ngang qua, che các ô khác") — the flash-over-other-cells problem cannot
+occur because the open fires only on the paired field's own Tab keydown.
+Shift+Tab back is untouched. Implementation: UUI `ComboBox onReady` handle
+→ `USearchableField openApiRef` → the paired field's `onKeyDown`. Pins:
+`ContainerTypeCellPicker.test.tsx` (bare-focus-closed preservation +
+hand-off-opens-once).
+
+### 2026-10-03 — Filters stay visible when width permits (owner decision 2026-10-02, card 20261002_282)
+
+Owner decision recorded in the contract's design block (AGENTS.md §3,
+02-10 wave): filters are visible when width permits. This governs the
+DEFAULT at wide widths — where the criteria fit the inline budget they stay
+in the bar rather than folding into `Bộ lọc`. It does not rewrite the fold
+MECHANISM: the 2026-09-27 two-row `Bộ lọc` ruling and the row-budget law
+(`docs/design-system/03-data-display-and-feedback.md`) remain how the band
+counts rows and picks `inline → dialog`. The measured reconciliation between
+the ≥1280 inline expectation (R17) and the two-row cap is card
+20261002_282's open scope; the owning lane brings measured options before
+the shared band moves. No implementation pins yet — they land with 282.
+
+### 2026-10-04 — Popover footers hug their content (cards 20261004_322, 20261004_330)
+
+The gap between a popover/dialog's last content block and its footer/action
+row is a seam, not whitespace: `margin-top ≤ 4px` + `padding-top ≤ 8px`
+(~13px visual), with a hairline `border-top` when the footer needs a
+separator. No filling spacer, no auto-margin stretch above the actions — a
+detached popover's footer always hugs its content (allocation dialog fixed
+33px → 13px, card 20261004_322). Class sweep 04/10 (card 20261004_330's
+scope): `.month-picker__footer` (topbar), `.users-mobile-card__actions`,
+`.trip-hero__actions`. Pins: each surface's styles-contract test.
+
+### 2026-10-04 — Fixed-column icon runs never bleed onto neighbours (cards 20261004_324, 20261004_331)
+
+In a `table-layout: fixed` table a row-action icon run stays inside its
+frozen column: the column budget must admit the full run at the coarse-pointer
+40px button floor, and the run uses `justify-content: safe flex-end` so a run
+that cannot fit keeps its start edge inside its own cell instead of painting
+leftward over the previous cell (the pencil-glued-to-the-pill defect, card
+20261004_324). A status pill and an action run never share one frozen cell.
+Class sweep 04/10 (card 20261004_331's scope): shared root cause
+`components/Table.css .row-actions` and `.ancillary-fees__table`.
+
+### 2026-10-04 — Suggestion popovers open below their trigger (card 20261004_344)
+
+A combobox/suggestion menu renders directly BELOW its input
+(`data-placement="bottom"`, trigger-anchored). Never flip a menu upward by
+default to keep a sibling action visible — an upward menu covers the row
+above and lands out of the user's sightline ("gõ không gợi ý" reports twice,
+04/10). The `+ Thêm` sibling being overlaid while the menu is open is
+standard dropdown behavior; `shouldFlip` still lifts the menu only when the
+trigger is jammed against the viewport bottom. Class sweep 04/10 (card
+344's scope): the `popoverPlacement="top"` override removed from all 9
+create-form pickers and the dead prop API removed from shared ComboBox —
+TypeScript now rejects re-introduction. Pins: combobox house-default test +
+ContainerTypeCellPicker placement test.
+
+### 2026-10-04 — Segmented date/time inputs restart on type-over (card 20261004_326)
+
+Typing a digit into a FULL segment with a collapsed caret restarts the
+segment (the typed digit replaces the content) — the standard segmented-input
+contract. Without it the input's `maxLength` silently swallows every
+keystroke: the value can never change, so the segment never completes and
+auto-advance dies for every path that loses the select-on-focus selection
+(second click on a just-advanced segment, render timing after the focus
+hand-off, IME/autofill/mobile-keyboard landings — user retest 04/10 revoked
+the first QA verdict). A click on a segment re-selects its digits even when
+focus does not change. Class = the shared `DateTimeSegments` engine, so every
+host (dispatch editor, appointment popover, schedule editor, buffered
+inputs) inherits the contract. Pins: type-over restart tests in
+DateTimeSegments.test.tsx (red-first, observed failing).
+
+### 2026-10-05 — Save errors show the backend's precise reason (card 20261005_354)
+
+A save failure surfaces the API's `error` message verbatim for 4xx business
+refusals — e.g. the per-container allocation freeze 'Không thể đổi nhà xe
+sau khi đã phát hành lệnh điều xe.' Generic fallback copy is only for
+refusals with no business reason. Generic text over a precise refusal hides
+the real cause: 354's rung caught the mismatch live (the wire carried the
+freeze reason while the dialog said 'Lô hàng đã thay đổi — mở lại'), the
+exact complaint class behind the old whole-row allocation lock. Class =
+every catch that maps API failures to UI copy (sweep card 20261005_367
+covers CusAppointmentPopover, InvoiceTrackingFormModal,
+MonthlyProductivityView, base-salary-edit-modal, DispatchContainerDetailDrawer,
+BusinessUnitsManager, ShipmentCreateWorkspace, RoleWorkInbox). Pin:
+DispatchAllocationPopover 409-surfaces-verbatim test (red-first, observed
+failing before the catch fix).
+
+### 2026-10-06 — Composed live-region copy renders as ONE text node (cards 051026230609, 061026043646)
+
+An announcement assembled from a prefix plus a dynamic label ("Đang tải
+<label>…") must render the whole phrase as one template-literal text node
+(or one child `<span>`), never adjacent JSX text children — node-boundary
+extraction (accessibility snapshots, live-region announcements, QA probes)
+trims each node and joins with no separator, gluing "Đang tải" + "đang bị
+chặn" into "Đang tảiđang bị chặn…" on /accounting, the same mechanism card
+051026230609 fixed on /ops. Class sweep found exactly one further site
+(forwarder settlement step panels); both render single nodes now. Pins:
+`AccountingWorkInbox.test.tsx` + `ForwarderSettlementSection.test.tsx`
+`extractedText` assertions (red-first, observed failing with the reporter's
+verbatim glued string before the fix).
+
+### 2026-10-06 — Every file export/download action reports busy, success, and failure (card 20261006_391)
+
+A control that produces a file (CSV/xlsx download, voucher fetch, print
+window) shows a busy label on itself while the file builds, announces success
+when the file is ready, and announces failure when the download dies — a
+silent download hides real breakage, and on /customers a swallowed download
+error died as an unhandled rejection with zero user feedback. Reference
+shape: the FinancePage export handler (card 061026174602). Pins:
+`FuelCard.test.tsx`, `CustomersPage.test.tsx`,
+`MonthlyProductivityView.test.tsx` export-feedback assertions (red-first,
+observed failing at HEAD before the fix).
+
+### 2026-10-07 — Config catalogue tables keep the tabular frame at every width (card 061026221226)
+
+A config catalogue table (the shared `CrudTable` scaffold) never switches to
+the generic ≤1100px label-per-cell card handoff: column labels live only in
+the header row — gluing each cell's label ("KHÁCH HÀNG —", "% CHIA SẺ 2%")
+into the row destroys the catalogue reading pattern and was rejected by the
+owner. Text wraps, never clips; genuine width excess rides the shared
+`.record-table-wrap--scroll` boundary. Reference pattern: Untitled UI PRO v8
+`application/table` (consulted 07/10). Pins:
+`CrudTable.discovery.test.tsx` presentation contract (red-first, observed
+failing at HEAD), rung captures `qa/2026-10-07_card061026221226_ui-*`.

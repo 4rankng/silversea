@@ -80,7 +80,9 @@ export function useTripOptions(): TripOptions {
 
   return {
     customers: catalog?.customers.map((c) => ({ id: c.id, label: c.name })) ?? [],
-    carrierCustomers: catalog?.customers.filter(c => c.isCarrier).map(c => ({ id: c.id, label: c.name })) ?? [],
+    // bootstrap serves the two populations separately — `customers` no longer
+    // carries nhà xe, so the carrier list must come from `externalCarriers`.
+    carrierCustomers: catalog?.externalCarriers?.map(c => ({ id: c.id, label: c.name })) ?? [],
     routes:
       catalog?.routes.map((r) => ({
         id: r.id,

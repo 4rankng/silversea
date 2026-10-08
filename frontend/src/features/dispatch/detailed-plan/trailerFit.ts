@@ -1,11 +1,17 @@
 import type { DispatchTruck } from '../../../api/dispatchPlanningClient';
+import { LCL_PICKUP_TRAILER_TYPE } from '@tingting/shared';
 
 /** Mirror of the backend issue gate (inferTrailerTypeFromContainerCode in
  *  dispatch-planning-utils.service.ts): a container code starting with 20
  *  uses20FT for a single load or40FT for a DOUBLE pair; larger shells use40FT. Null container info → no
  *  signal, no annotation — same "only block on a provable mismatch" stance
- *  as the backend. */
+ *  as the backend.
+ *
+ *  LCL_PICKUP ('Lấy Lẻ') overrides the container code entirely: the run
+ *  moves the truck's own empty 40' shell, so the lot's 20' code must not
+ *  downgrade the required trailer to a 20' moóc the run will not drive. */
 export function requiredTrailerTypeForContainer(label: string | null | undefined, classification?: string): '20FT' | '40FT' | null {
+  if (classification === 'LCL_PICKUP') return LCL_PICKUP_TRAILER_TYPE;
   const normalized = label?.trim().toUpperCase() ?? '';
   if (!normalized) return null;
   return normalized.startsWith('20') && classification !== 'DOUBLE' ? '20FT' : '40FT';

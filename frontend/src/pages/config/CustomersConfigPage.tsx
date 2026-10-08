@@ -261,7 +261,21 @@ export default function CustomersConfigPage() {
           <div className="record-table-wrap">
           <table className="record-table ops-table cfg-customer-table">
             <thead>
-              <tr>
+              {/* Two-tier header (thẻ 349, user mockup 04/10): group bands over
+                  the sortable row. Colspans follow colPresence so a hidden
+                  optional column never leaves a dead span, and a fully hidden
+                  group disappears (span 0 renders nothing). */}
+              <tr className="cfg-customer-group-row">
+                <th colSpan={1 + Number(!!colPresence.shortName) + Number(!!colPresence.code) + Number(!!colPresence.taxCode) + Number(!!colPresence.address)} scope="col" className="cfg-col-group">KHÁCH HÀNG</th>
+                {(Number(!!colPresence.contactPerson) + Number(!!colPresence.phone) + Number(!!colPresence.accountantName) + Number(!!colPresence.accountantPhone) + Number(!!colPresence.contactInfo)) > 0 && (
+                  <th colSpan={Number(!!colPresence.contactPerson) + Number(!!colPresence.phone) + Number(!!colPresence.accountantName) + Number(!!colPresence.accountantPhone) + Number(!!colPresence.contactInfo)} scope="col" className="cfg-col-group">LIÊN HỆ</th>
+                )}
+                {(Number(!!colPresence.agencyFeePaymentTermDays) + Number(!!colPresence.paymentTermDays)) > 0 && (
+                  <th colSpan={Number(!!colPresence.agencyFeePaymentTermDays) + Number(!!colPresence.paymentTermDays)} scope="col" className="cfg-col-group">THANH TOÁN</th>
+                )}
+                <th scope="col" className="cfg-col-group cfg-col-group--actions"><span className="sr-only">Thao tác</span></th>
+              </tr>
+              <tr className="cfg-customer-sort-row">
                 <SortHeader label="Tên Khách hàng" sortKey="name" sort={sort} onSortChange={handleSort} />
                 {colPresence.shortName && <SortHeader label="Tên viết tắt" sortKey="shortName" sort={sort} onSortChange={handleSort} />}
                 {colPresence.code && <SortHeader label="Mã KH" sortKey="code" sort={sort} onSortChange={handleSort} />}

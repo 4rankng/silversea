@@ -44,6 +44,10 @@
 .csc-identity-grid__customer { grid-column: span 6; }
 .csc-identity-grid__booking, .csc-identity-grid__trade-direction { grid-column: span 3; }
 .csc-identity-grid__shipping-line, .csc-identity-grid__declaration { grid-column: span 6; }
+.csc-identity-grid__declaration { display: grid; gap: 8px; align-content: start; }
+.csc-declaration-row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.csc-declaration-row > div:first-child { flex: 1 1 auto; min-width: 0; }
+.csc-declaration-picker__add { width: fit-content; white-space: nowrap; }
 .csc-shipping-line-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .csc-shipping-line-picker__add { width: fit-content; white-space: nowrap; }
 .csc-shipping-line-dialog { display: grid; gap: 12px; }
@@ -141,7 +145,8 @@
 .csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--control-compact-h, 34px); padding: 5px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: var(--text-control-size); font-weight: 650; cursor: pointer; }
 /* The `--dashed` name survives as the JSX/test marker, but the accent action
    is borderless — plus icon + label only (user request 2026-08-30). */
-.csc-utility-button--dashed { border: 0; background: transparent; color: var(--accent); font-weight: 700; }
+.csc-utility-button--dashed { border: 0; background: transparent; color: var(--accent-ink); font-weight: 700; }
+.csc-utility-button--dashed svg { color: var(--accent); }
 .csc-utility-button:disabled { cursor: not-allowed; opacity: .65; }
 .csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
 .csc-icon-button--danger { color: var(--danger); }
@@ -250,7 +255,7 @@
   .csc-identity-grid__customer { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-declaration-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 /* Keep the normal-flow action row above the iPhone home indicator at the end
    of the long create form. It is deliberately not sticky. */
@@ -258,7 +263,7 @@
   .csc-container-row { grid-template-columns: minmax(0, 112px) minmax(0, 1fr); }
   .csc-container-row > * { grid-column: 1 / -1; }
   .csc-container-row > .csc-container-cell--weight { grid-column: 1; }
-  .csc-container-row > .csc-container-cell--appointment { grid-column: 2; }
+  .csc-container-row > .csc-container-cell--appointment { grid-column: 1 / -1; }
   .csc-page {
     padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px));
     /* The trailing safe-area padding must read as part of the worksheet, not
@@ -331,12 +336,32 @@
 .csc-field-warning__link:hover { color: var(--warning-text); }
 
 /* Separate time/date controls remain usable in the repeatable desktop grid.
- * 176px is the control's measured floor: the two segment groups carry
- * min-width:max-content (a cramped segment clips its digits), so the pair
- * cannot render below ~171px. At 170px the date half spilled out of the cell
- * and the container table's scroll box sheared it off, leaving only "HH :".
- * The other three auto columns absorb the 6px. */
-.csc-container-col__appointment { width: 176px; }
+ * 240px is the control's measured floor at the create-form segment font (16px):
+ * the two segment groups carry min-width:max-content (a cramped segment clips
+ * its digits), so the pair cannot render below ~233px. At narrower widths the
+ * date half spills out of the cell and the container table's scroll box shears
+ * it off (the old 176px floor was computed for the 12px control font and left
+ * the five segments 20–35px wide — user report 2026-10-05, card 051026230627:
+ * "5 ô spinbox riêng lẻ tí hon, chật, khó bấm"). The other three auto columns
+ * absorb the difference. */
+.csc-container-col__appointment { width: 240px; }
+
+/* Card 051026230627 — the appointment cluster is a tap surface first (its
+ * whole group opens the picker): give the segments touch height and a
+ * readable font at THIS page only. The base UUI geometry derives every inner
+ * height from --uui-control-h and the segments read their font through
+ * --text-control-compact-size, so the fix overrides those variables on the
+ * cluster's control boundaries (specificity above the base size rules) — no
+ * per-element heights, and the em-based segment widths in DateTimeSegments.css
+ * scale with the font automatically. Compact hosts (filter bars) keep the
+ * shared defaults; 40px stays inside the design-lock band. */
+.csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control],
+.csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] [data-uui-control] {
+  --uui-control-h: var(--control-touch-h);
+}
+.csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] {
+  --text-control-compact-size: 16px;
+}
 
 /* Stacked records are forms, not spreadsheet previews. Show their controls
  * continuously and keep catalog creation beside its selector so invisible

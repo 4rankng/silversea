@@ -115,10 +115,15 @@
 
 /* Numeric columns pair with the <Money>/formatCurrency conventions. The
    bundled Be Vietnam Pro carries proportional figures only — align by
-   right edge, never force tabular-nums (font-family contract test). */
+   right edge, never force tabular-nums (font-family contract test). A
+   formatted VND value is atomic: it never breaks mid-number (the base's
+   overflow-wrap:anywhere serves identity/notes columns, never numeric
+   ones). */
 .record-table .num {
   text-align: right;
   font-family: var(--font-data);
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* Row ordinals are atomic numeric values, including compact record headers. */
@@ -288,5 +293,51 @@
 
   .record-table tbody td:nth-child(n + 2) {
     border-top: 1px solid var(--line);
+  }
+}
+
+/* Explicit table-mode adoption (`--table`, the counterpart of `--scroll`):
+   a table whose column set fits a narrow canvas stays a real table — the
+   container card band above exists so WIDE tables never force horizontal
+   scroll, and a 3-5 column ledger misclassifies under it by a few pixels
+   (1083px wrap at 1440). Table geometry returns from tablet up; phones keep
+   the card band. Specificity (0,2,x) outranks every band rule (0,1,x). */
+@media (min-width: 768px) {
+  .record-table-wrap--table .record-table {
+    display: table;
+  }
+
+  .record-table-wrap--table .record-table colgroup {
+    display: table-column-group;
+  }
+
+  .record-table-wrap--table .record-table thead {
+    display: table-header-group;
+  }
+
+  .record-table-wrap--table .record-table tbody {
+    display: table-row-group;
+    gap: 0;
+  }
+
+  .record-table-wrap--table .record-table tbody tr {
+    display: table-row;
+    gap: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .record-table-wrap--table .record-table tbody th,
+  .record-table-wrap--table .record-table tbody td {
+    display: table-cell;
+    min-width: 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* The card band's inline label eyebrow has no table-mode meaning. */
+  .record-table-wrap--table .record-table tbody td::before {
+    content: none;
   }
 }

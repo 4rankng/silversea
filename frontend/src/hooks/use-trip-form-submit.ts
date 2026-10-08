@@ -118,13 +118,12 @@ const handleSubmit = useCallback(
     // partner identity is required, and that is enforced by the backend schema.
 
     if (isEditMode) {
-      if (existingTrip?.status === TripStatus.COMPLETED && !governanceReason?.trim()) {
-        const msg = 'Vui lòng nhập lý do điều chỉnh chuyến đã hoàn thành.';
-        s.setError(msg);
-        showToast({ kind: 'error', message: msg });
-        focusAndScroll('governanceReason');
-        return;
-      }
+      // Owner ruling 07/10 (card 393): a completed-trip correction must NOT
+      // be gated on a typed reason. The gate refused every correction with
+      // "Vui lòng nhập lý do điều chỉnh chuyến đã hoàn thành." even while the
+      // field looked filled, blocking ordinary fixes outright. A reason the
+      // user does supply is still recorded for the audit trail; an absent one
+      // travels as null (shipment_finance_actions.reason is nullable).
       for (const leg of legs) {
         if (!leg.origin.trim() && !leg.destination.trim() && !leg.km.trim()) continue;
         if (!leg.origin.trim() || !leg.destination.trim()) {
@@ -376,8 +375,11 @@ const handleSubmit = useCallback(
           truckId: s.carrierType === 'OWN' ? (s.truckId ? Number(s.truckId) : null) : null,
           driverId: s.carrierType === 'OWN' ? (s.driverId ? Number(s.driverId) : null) : null,
           trailerType: s.carrierType === 'OWN' ? (s.trailerType || null) : null,
+          // Optional since 07/10: a completed-trip edit sends a trimmed reason
+          // when the user gave one, and null when they did not. The non-null
+          // assertion is gone with the gate that required it.
           governanceReason: existingTrip.status === TripStatus.COMPLETED
-            ? governanceReason!.trim()
+            ? (governanceReason?.trim() || null)
             : undefined,
         };
 
@@ -617,7 +619,8 @@ const handleSubmit = useCallback(
   [
     isEditMode, existingTrip, requiredFieldsFilled, s.containerRows,
     s.customerId, s.routeId, s.truckId, s.trailerType,
-    s.driverId, s.cargoTypeId, s.departureDate, s.customerReference, s.containerCount,
+    s.driverId, s.cargoTypeId, s.departureDate, s.completedAt, s.customerReference, s.containerCount,
+    governanceReason,
     s.plannedContainerTypeId,
     hasOptionalData, legs, s.fuelMode, s.fuelLitersOverride,
     s.fuelSupplementLiters, s.fuelSupplementReason, s.tollsDiscount,

@@ -28,8 +28,20 @@ export interface PhoiPhieuRow {
   /** Appointment day in Vietnam, or the established shipment schedule fallback. */
   transportDate?: string | null;
   tripStatus: string | null;
+  /** The day the POD paper was taken (ngày lấy phơi) as entered on the desktop
+   *  detail dialog — the board's "đã nhận phơi / chưa nhận phơi" state and its
+   *  date read from this pair. Optional so an older in-flight payload renders. */
+  phoiTakenDate?: string | null;
+  /** The accountant's free-text take status, ride-along detail under the
+   *  binary phoi state. */
+  phoiTakeStatus?: string | null;
   chiHoThu: number | null;
   chiHoTra: number | null;
+  /** Card 20261002_292: the COMPANY-paid (TRIP-kind) slice of the chi-hộ
+   *  totals, labeled separately in the cell. Optional so an older in-flight
+   *  backend payload still renders. */
+  chiHoTripThu?: number | null;
+  chiHoTripTra?: number | null;
   tienDuong: number | null;
   /** Per-direction eligible-entry counts (approved ∧ remaining>0) — the
    *  toolbar counter previews exactly what the voucher will consume. */
@@ -80,7 +92,12 @@ export interface PhoiPhieuFeeRow {
   entryId: number;
   sourceId: number;
   version: number;
+  sourceKind?: 'OPS' | 'TRIP';
   feeName: string | null;
+  /** Card 2026-10-05_373 spec table 1.1.3 — "Nội dung phí kèm mã đơn". The
+   *  table's own "Hóa đơn" column carries the invoice number, so this is the
+   *  lot / shipment code. */
+  shipmentCode?: string | null;
   invoiceNumber: string | null;
   amountTra: number;
   amountThu: number | null;
@@ -143,6 +160,10 @@ export interface PhoiPhieuTienDuongRow {
   amount: number;
   confirmed: boolean;
   driverName: string | null;
+  /** Card 20261005_373: the accountable person behind the payment, matching the
+   *  chi-hộ row's `payerName`. The tiền-đường grid reads it only for display —
+   *  no mutation, no aria/tooltip. `null` renders `—`. */
+  payerName: string | null;
   occurredAt: string | null;
 }
 

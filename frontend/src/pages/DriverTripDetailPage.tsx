@@ -324,9 +324,13 @@ function DriverTripDetailContent() {
   const containerSealPhotos = fulfillment?.containerSealPhotos ?? [];
   const contPhotoKey = containerSealPhotos.find((p) => p.type === 'CONTAINER')?.storageKey ?? null;
   const sealPhotoKey = containerSealPhotos.find((p) => p.type === 'SEAL')?.storageKey ?? null;
-  // 40f3ae15: biên bản giao hàng photo rides the same wire as type
-  // DELIVERY_NOTE (latest row wins — the query orders by uploadedAt desc).
-  const deliveryNotePhotoKey = containerSealPhotos.find((p) => p.type === 'DELIVERY_NOTE')?.storageKey ?? null;
+  // EVERY biên bản giao hàng photo rides the same wire (the query orders by
+  // uploadedAt desc). The old `.find()` kept only the latest row and silently
+  // hid the driver's earlier uploads — each upload is its own trip_photos row,
+  // so all of them render.
+  const deliveryNotePhotoKeys = containerSealPhotos
+    .filter((p) => p.type === 'DELIVERY_NOTE')
+    .map((p) => p.storageKey);
   const accountingLock = trip.accountingLock ?? null;
   // Spec (Phần 4): the completion gate lives on the e-POD screen
   // (/my-trips/:id/pod) — this page only links there. The footer still
@@ -340,6 +344,10 @@ function DriverTripDetailContent() {
   const missingDocs = 2 - podHave;
   const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
   const photoHave = ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].filter((type) => photoTypes.has(type as never)).length;
+  // Card 061026043643: the counter reports UPLOADED PHOTOS, not filled zones —
+  // two biên bản uploads read "Ảnh 2/3", not "1/3". Denominator stays 3 (the
+  // three capture zones); done state keeps the zones-full meaning.
+  const photoCount = containerSealPhotos.length;
 
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
@@ -359,7 +367,7 @@ function DriverTripDetailContent() {
           ok. */}
       <div className="driver-task-progress" data-testid="driver-task-progress">
         <span className={`driver-task-progress__item${podHave >= 2 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-pod">Chứng từ {podHave}/2</span>
-        <span className={`driver-task-progress__item${photoHave >= 3 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-photos">Ảnh {photoHave}/3</span>
+        <span className={`driver-task-progress__item${photoHave >= 3 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-photos">Ảnh {photoCount}/3</span>
         <span className="driver-task-progress__item" data-testid="progress-costs">Chi phí {costEntryCount}</span>
       </div>
 
@@ -393,17 +401,18 @@ function DriverTripDetailContent() {
           and the two-row bullet list restated what the sticky bar already says
           (Còn thiếu N chứng từ) and cost ~60px of the first screenful. */}
       <footer className="driver-task-footer">
-        <div className="driver-task-footer__body">
+        {/* Card 071026103226 (FB-055 regression): the closed card is ONE row —
+            title left, document button right, no hint line (the stacked hint
+            re-inflated the card to ~115px against the ≤60px contract). */}
+        <div className={`driver-task-footer__body${closed ? ' driver-task-footer__body--closed' : ''}`}>
           <div className="driver-task-footer__summary">
             <strong>{cancelled ? 'Chuyến đã hủy' : completed ? 'Chuyến đã hoàn thành' : 'Chứng từ giao hàng'}</strong>
-            {closed ? (
-              <p className="driver-task-footer__hint">Xem lại phiếu bãi và biên bản giao nhận đã lưu.</p>
-            ) : (!hasYardReceipt || !hasSignedNote) ? (
+            {!closed && (!hasYardReceipt || !hasSignedNote) ? (
               <p className="driver-task-footer__issues" role="list">
                 {!hasYardReceipt && <span role="listitem">Thiếu Phiếu bãi / phiếu hạ</span>}
                 {!hasSignedNote && <span role="listitem">Thiếu Biên bản giao nhận</span>}
               </p>
-            ) : (
+            ) : !closed && (
               <p className="driver-task-footer__ready">
                 <CheckCircle2 size={14} />
                 <span>Đủ chứng từ, chờ hoàn thành chuyến.</span>
@@ -411,7 +420,15 @@ function DriverTripDetailContent() {
             )}
           </div>
           {closed && (
-            <Link className="driver-task-complete" to={`/my-trips/${validFulfillmentId}/pod`} style={{ textDecoration: 'none' }}>
+            // Card 071026205800: the `:id` in `/my-trips/:id/pod` is the SAME
+            // `:id` as `/my-trips/:id` above — a TRIP id (card 20260915_1). This
+            // link used to send `validFulfillmentId` instead, so the driver landed
+            // on a route param that is not a trip at all: DriverTripPodPage
+            // resolves the fulfillment from the TRIP payload, found nothing, and
+            // rendered the "Không thể xác định chuyến đi từ liên kết này" dead
+            // end. The e-POD screen still talks to fulfillment-scoped endpoints —
+            // it does that resolution itself.
+            <Link className="driver-task-complete" to={`/my-trips/${validTripId}/pod`} style={{ textDecoration: 'none' }}>
               <FileCheck2 size={18} />
               <span>Xem chứng từ giao hàng</span>
             </Link>
@@ -472,7 +489,7 @@ function DriverTripDetailContent() {
           containers={trip.containers}
           contPhotoKey={contPhotoKey}
           sealPhotoKey={sealPhotoKey}
-          deliveryNotePhotoKey={deliveryNotePhotoKey}
+          deliveryNotePhotoKeys={deliveryNotePhotoKeys}
           tradeDirection={trip.tradeDirection ?? null}
           onSaved={handleContainerSaved}
         />
@@ -546,9 +563,9 @@ function DriverTripDetailContent() {
                   <div className="driver-task-fuel-facts">
                     <div><strong>Thời điểm chụp:</strong> {formatDateTime(latestFuelEvidence.capturedAt)}</div>
                     <div><strong>Lít:</strong> {latestFuelEvidence.litres ?? '—'}</div>
-                    <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
-                    <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
-                    <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
+                    <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice != null ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
+                    <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount != null ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
+                    <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal != null ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
                     <div>
                       <strong>GPS:</strong>
                       {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? (
@@ -620,7 +637,7 @@ function DriverTripDetailContent() {
               type="button"
               className="driver-task-complete-sticky__btn"
               disabled={trip.status !== 'IN_TRANSIT'}
-              onClick={() => navigate(`/my-trips/${validFulfillmentId}/pod`)}
+              onClick={() => navigate(`/my-trips/${validTripId}/pod`)}
             >
               <FileCheck2 size={16} />
               {/* DRV-DET-06: "Hoàn tất lệnh vận chuyển" — this bar navigates

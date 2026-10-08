@@ -16,7 +16,7 @@ import { type NotificationPayload } from './notification.service';
 import { operationalName } from '../db/master-data-name';
 import { escapeLikeTerm } from '../lib/format';
 import { ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
-import { NotificationType, Role } from '@tingting/shared';
+import { NotificationType, Role, LCL_PICKUP_TRAILER_TYPE } from '@tingting/shared';
 
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
@@ -358,6 +358,24 @@ export function trimBounded(value: string | null | undefined, label: string, max
   return trimmed;
 }
 
+
+/**
+ * Trailer the issue gate requires for a fulfillment's own container code.
+ *
+ * `LCL_PICKUP` ('Lấy Lẻ') is the one classification that ignores the code:
+ * the run takes an already-empty 40' shell and closes LCL cargo into it, so
+ * the lot's own 20' code must not downgrade the requirement to a 20' moóc.
+ * Mirrors `requiredTrailerTypeForContainer` in the plan editor so the picker
+ * advisory and this gate can never disagree.
+ */
+export function requiredTrailerTypeForFulfillment(
+  code: string | null | undefined,
+  dispatchClassification: string | null | undefined,
+): '20FT' | '40FT' {
+  if (dispatchClassification === 'LCL_PICKUP') return LCL_PICKUP_TRAILER_TYPE;
+  if (dispatchClassification === 'DOUBLE' && code?.trim().toUpperCase().startsWith('20')) return '40FT';
+  return inferTrailerTypeFromContainerCode(code);
+}
 
 export function inferTrailerTypeFromContainerCode(code: string | null | undefined): '20FT' | '40FT' {
   const normalized = code?.trim().toUpperCase() ?? '';

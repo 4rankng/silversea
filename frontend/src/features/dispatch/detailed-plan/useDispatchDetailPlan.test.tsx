@@ -1,7 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { PaginatedResponse } from '@tingting/shared';
-import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import type { DispatchDetailPlanAssignmentCounts, DispatchDetailPlanPage, DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDispatchDetailPlan } from './useDispatchDetailPlan';
 
 vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
@@ -17,6 +16,7 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
     assignDispatchDetailCarrier: vi.fn(),
     updateDispatchDetailEstimates: vi.fn(),
     updateDispatchDetailPlan: vi.fn(),
+    completeDispatchExternalTrip: vi.fn(),
   };
 });
 
@@ -44,14 +44,18 @@ import {
   listZoneTruckPresence,
   updateDispatchDetailEstimates,
   updateDispatchDetailPlan,
+  completeDispatchExternalTrip,
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
 
-const page = (items: DispatchDetailPlanRow[], total = items.length): PaginatedResponse<DispatchDetailPlanRow> => ({
+/** Fixture page in the API's response shape (card 20261008_3: the grid
+ *  response also carries the chips' union counts). */
+const page = (items: DispatchDetailPlanRow[], total = items.length, counts: DispatchDetailPlanAssignmentCounts = { UNASSIGNED: 0, ASSIGNED: 0 }): DispatchDetailPlanPage => ({
   items,
   total,
   page: 1,
   pageSize: 50,
+  assignmentStatusCounts: counts,
 });
 
 const listDispatchDetailPlanRowsMock = vi.mocked(listDispatchDetailPlanRows);
@@ -61,6 +65,7 @@ const assignDispatchDetailPlateMock = vi.mocked(assignDispatchDetailPlate);
 const assignDispatchDetailCarrierMock = vi.mocked(assignDispatchDetailCarrier);
 const updateDispatchDetailEstimatesMock = vi.mocked(updateDispatchDetailEstimates);
 const updateDispatchDetailPlanMock = vi.mocked(updateDispatchDetailPlan);
+const completeDispatchExternalTripMock = vi.mocked(completeDispatchExternalTrip);
 
 const assignmentResult = (assignedPlate: string | null) => ({
   fulfillmentId: 101,
@@ -91,6 +96,7 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
   ports: { pickupPortId: null, pickupPortName: null, dropoffPortId: null, dropoffPortName: null },
   estimates: { plannedRevenue: null, plannedCarrierCost: null },
   lotFullyPlated: false,
+  plannedEndAt: null,
   ...overrides,
 } as DispatchDetailPlanRow);
 
@@ -312,17 +318,15 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   });
 });
 
+const { dispatchShipmentMock } = vi.hoisted(() => ({ dispatchShipmentMock: vi.fn() }));
+
 vi.mock('../../../api/shipmentClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/shipmentClient')>();
   return {
     ...actual,
-    dispatchShipment: vi.fn(),
+    dispatchShipment: dispatchShipmentMock,
   };
 });
-
-import { dispatchShipment } from '../../../api/shipmentClient';
-
-const dispatchShipmentMock = vi.mocked(dispatchShipment);
 
 describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
   beforeEach(() => {
@@ -376,7 +380,7 @@ describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
     expect(result.current.assignmentError).toBeNull();
   });
 
-  it('surfaces a reload banner and keeps the row unchanged on a 409', async () => {
+  it('keeps the row unchanged on a 409 so a refused issue never reads as issued', async () => {
     dispatchShipmentMock.mockRejectedValue(Object.assign(new Error('conflict'), { status: 409 }));
     const { result } = renderHook(() => useDispatchDetailPlan());
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -395,7 +399,127 @@ describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
     const item = result.current.items.find((r) => r.fulfillmentId === 101)!;
     expect(item.taskStatus).toBe('READY');
     expect(item.dispatch.tripId).toBeUndefined();
-    expect(result.current.assignmentError).toContain('tải lại');
+    // Card 0610261732 — the banner carries whatever the backend said, so a
+    // refusal is always explained. (The no-message fallback is pinned below.)
+    expect(result.current.assignmentError).toBe('conflict');
+  });
+
+  // Card 0610261732 — the backend refuses a phát lệnh for many concrete,
+  // un-retriable business reasons ("Trọng lượng hàng vượt quá tải trọng xe.",
+  // "Container chưa có tuyến đường hợp lệ.", "Tác vụ đã bị hủy.", …). The
+  // generic "reload" banner told the dispatcher that data had changed and to
+  // reload — advice that cannot fix any of them and hides the actual cause
+  // behind a page-level role=alert. savePlan already surfaces the ApiError
+  // message; the issue path must not swallow it.
+  it.each([
+    { status: 409, message: 'Trọng lượng hàng vượt quá tải trọng xe.' },
+    { status: 409, message: 'Container chưa có tuyến đường hợp lệ.' },
+    { status: 409, message: 'Tác vụ đã bị hủy.' },
+    { status: 409, message: 'Xe đầu kéo chưa có rơ-moóc khả dụng.' },
+  ])('surfaces the backend refusal "$message" instead of a generic reload banner', async ({ status, message }) => {
+    dispatchShipmentMock.mockRejectedValue(Object.assign(new Error(message), { status }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.issueOrder(result.current.items[0], {
+        plannedStartAt: '2026-08-30T01:00:00.000Z',
+        plannedEndAt: '2026-08-30T05:00:00.000Z',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: 154,
+        driverId: 8,
+      })).rejects.toBeTruthy();
+    });
+
+    // The banner names the real refusal — not "Dữ liệu đã thay đổi".
+    expect(result.current.assignmentError).toBe(message);
+    expect(result.current.assignmentError).not.toContain('tải lại');
+    // A refused issue must never leave a success reading on the row.
+    const item = result.current.items.find((r) => r.fulfillmentId === 101)!;
+    expect(item.taskStatus).toBe('READY');
+    expect(item.dispatch.tripId).toBeUndefined();
+  });
+
+  it('falls back to the reload banner only when a 409 carries no usable message', async () => {
+    dispatchShipmentMock.mockRejectedValue(Object.assign(new Error(''), { status: 409 }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.issueOrder(result.current.items[0], {
+        plannedStartAt: '2026-08-30T01:00:00.000Z',
+        plannedEndAt: '2026-08-30T05:00:00.000Z',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: 154,
+        driverId: 8,
+      })).rejects.toBeTruthy();
+    });
+
+    expect(result.current.assignmentError).toBe('Dữ liệu đã thay đổi. Vui lòng tải lại.');
+  });
+});
+
+// Card 0610261732 class sweep — the same "blanket reload banner hides the real
+// refusal" defect lived in the sibling assign handlers. Each backend refuses
+// with a concrete, actionable reason ("Lô hàng đã kết thúc, không thể gán
+// biển số.", "Nhà xe không còn hiệu lực."); a "reload" banner cannot fix any of
+// them. The row must also stay untouched on refusal.
+describe('useDispatchDetailPlan assign refusals keep the backend reason (card 0610261732 sweep)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1));
+    getDispatchZonesMock.mockResolvedValue({ items: [] });
+    listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
+  });
+
+  it.each([
+    { reason: 'Lô hàng đã kết thúc, không thể gán biển số.' },
+    { reason: 'CUS chưa gán nhà xe cho tác vụ này.' },
+  ])('assignPlate surfaces "$reason" rather than a generic reload banner', async ({ reason }) => {
+    assignDispatchDetailPlateMock.mockRejectedValue(Object.assign(new Error(reason), { status: 409 }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.assignPlate(result.current.items[0], { truckId: 154 })).rejects.toBeTruthy();
+    });
+
+    expect(result.current.assignmentError).toBe(reason);
+    const item = result.current.items.find((r) => r.fulfillmentId === 101)!;
+    expect(item.dispatch.assignedPlate).toBeNull();
+  });
+
+  it.each([
+    { reason: 'Lô hàng đã kết thúc, không thể đổi nhà xe.' },
+    { reason: 'Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.' },
+    { reason: 'Nhà xe không còn hiệu lực.' },
+  ])('assignCarrier surfaces "$reason" rather than a generic reload banner', async ({ reason }) => {
+    assignDispatchDetailCarrierMock.mockRejectedValue(Object.assign(new Error(reason), { status: 409 }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.assignCarrier(result.current.items[0], { carrierType: 'OWN' })).rejects.toBeTruthy();
+    });
+
+    expect(result.current.assignmentError).toBe(reason);
+  });
+
+  it.each([
+    { reason: 'Chuyến đã bị hủy.' },
+    { reason: 'Chuyến chưa có biển số xe — bổ sung biển (Phân xe lại) trước khi hoàn thành.' },
+  ])('completeExternalTrip surfaces "$reason" rather than a generic reload banner', async ({ reason }) => {
+    const dispatched = row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 55 } });
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([dispatched], 1));
+    completeDispatchExternalTripMock.mockRejectedValue(Object.assign(new Error(reason), { status: 409 }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await expect(result.current.completeExternalTrip(result.current.items[0])).rejects.toBeTruthy();
+    });
+    expect(result.current.assignmentError).toBe(reason);
   });
 });
 
@@ -407,10 +531,16 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
     listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
   });
 
-  it.each(['success', 'failure'])('ignores a pre-save refresh %s after an unfiltered atomic save (DSP-FU-006)', async (outcome) => {
-    const previous = row();
+  it.each([
+    { outcome: 'success', savedEnd: '2026-08-20T06:00:00.000Z' },
+    { outcome: 'failure', savedEnd: '2026-08-20T06:00:00.000Z' },
+    { outcome: 'success', savedEnd: null },
+    { outcome: 'failure', savedEnd: null },
+  ])('QA-SESSION-SCHEDULE-01 keeps saved return time $savedEnd against stale refresh $outcome (DSP-FU-006)', async ({ outcome, savedEnd }) => {
+    const previous = row({ plannedEndAt: '2026-08-20T02:00:00.000Z' });
     const updated = row({
       version: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      plannedEndAt: savedEnd,
       dispatch: { ...previous.dispatch, assignedPlate: '15C-167.31', assignedDriverName: 'Nguyễn Văn A' },
       notes: { ...previous.notes, vehicleNote: 'Kiểm tra seal' },
       lotFullyPlated: true,
@@ -434,13 +564,13 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
     updateDispatchDetailPlanMock.mockResolvedValue({
       fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
       classification: 'SINGLE', isCombined: false, operationalNotes: 'Kiểm tra seal',
-      plannedEndAt: null,
+      plannedEndAt: savedEnd,
       dispatch: { ...updated.dispatch, carrierType: 'OWN' }, estimates: updated.estimates, lotFullyPlated: true,
       driverNotified: false, driverHint: null, replayed: false,
     });
 
     await act(async () => {
-      await result.current.savePlan(previous, { carrierType: 'OWN', truckId: 7, plannedRevenue: null, plannedCarrierCost: null });
+      await result.current.savePlan(previous, { carrierType: 'OWN', truckId: 7, plannedRevenue: null, plannedCarrierCost: null, plannedEndAt: savedEnd });
     });
     expect(result.current.items).toEqual([updated]);
     await act(async () => {
@@ -586,8 +716,8 @@ describe('useDispatchDetailPlan background refresh vs loading skeleton', () => {
   });
 
   function deferredResponse() {
-    let resolve!: (value: ReturnType<typeof page>) => void;
-    const promise = new Promise<ReturnType<typeof page>>((res) => { resolve = res; });
+    let resolve!: (value: DispatchDetailPlanPage) => void;
+    const promise = new Promise<DispatchDetailPlanPage>((res) => { resolve = res; });
     return { promise, resolve };
   }
 
@@ -774,5 +904,16 @@ describe('card 20260922_32 — topbar month scope actually filters', () => {
     expect(call.date).toBe('2026-09-22');
     expect(call.dateFrom).toBeUndefined();
     expect(call.dateTo).toBeUndefined();
+  });
+});
+
+describe('card 20261008_3 — chip counts ride the grid response', () => {
+  it('surfaces the fetched page union counts as assignmentStatusCounts (the chips read these)', async () => {
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1, { UNASSIGNED: 4, ASSIGNED: 2 }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Full-set over the union of both branches (fulfillment + điều phối),
+    // computed server-side per chip — equals what clicking each chip returns.
+    expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 4, ASSIGNED: 2 });
   });
 });

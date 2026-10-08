@@ -57,6 +57,7 @@ export const routes = {
   adminAdvanceSettlements: PAGE_CATALOG.adminAdvanceSettlements.path,
   salary: PAGE_CATALOG.salary.path,
   users: PAGE_CATALOG.users.path,
+  hrRoster: PAGE_CATALOG.hrRoster.path,
   auditLogs: PAGE_CATALOG.auditLogs.path,
   adminCenter: PAGE_CATALOG.adminCenter.path,
   customers: PAGE_CATALOG.customers.path,
@@ -126,6 +127,7 @@ export const routes = {
 
   /* ── Ops field operations (OpsVanHanh) ───────────────────────────────── */
 
+  opsOverview: PAGE_CATALOG.opsOverview.path,
   opsOrders: PAGE_CATALOG.opsOrders.path,
   opsFleetTracking: PAGE_CATALOG.opsFleetTracking.path,
   opsWallet: PAGE_CATALOG.opsWallet.path,
@@ -266,6 +268,7 @@ const titleRules: TitleRule[] = [
   { test: p => p === '/config/ports', title: 'Cảng / Bãi' },
   { test: p => p.startsWith(routes.config), title: p => CONFIG_ITEMS.find(item => item.path.startsWith('/config/') && (p === item.path || p.startsWith(`${item.path}/`)))?.label ?? 'Cấu hình' },
   { test: p => p === routes.users, title: PAGE_CATALOG.users.title },
+  { test: p => p === routes.hrRoster, title: PAGE_CATALOG.hrRoster.title },
   { test: p => p === routes.auditLogs, title: PAGE_CATALOG.auditLogs.title },
   { test: p => p === routes.adminCenter, title: PAGE_CATALOG.adminCenter.title },
   { test: p => /^\/portal\/shipments\/\d+$/.test(p), title: 'Chi tiết lô hàng' },
@@ -277,6 +280,9 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.myTrips), title: PAGE_CATALOG.myTrips.title },
   { test: p => p.startsWith(routes.myPayslips), title: PAGE_CATALOG.myPayslips.title },
   { test: p => p.startsWith(routes.myEarnings), title: PAGE_CATALOG.myEarnings.title },
+  // '/ops' is an exact route of its own — the three /ops/* destinations below
+  // are exact matches too, so none of them inherits the overview title.
+  { test: p => p === routes.opsOverview, title: PAGE_CATALOG.opsOverview.title },
   { test: p => p === routes.opsWallet, title: PAGE_CATALOG.opsWallet.title },
   { test: p => p === routes.opsOrders, title: PAGE_CATALOG.opsOrders.title },
   { test: p => p === routes.opsFleetTracking, title: PAGE_CATALOG.opsFleetTracking.title },

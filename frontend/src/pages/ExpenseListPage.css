@@ -122,7 +122,7 @@
 }
 
 .expense-amount--paid {
-  color: var(--accent);
+  color: var(--success-text);
 }
 
 /* ── Status Badge (text + color-dot per §1) ────────────────────────────── */

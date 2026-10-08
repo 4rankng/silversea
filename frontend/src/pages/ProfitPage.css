@@ -195,7 +195,7 @@
 .partner-card__avatar--secondary { background: linear-gradient(135deg, #6E9DCB, #3D6FA3); }
 .partner-card__name { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: var(--fw-semibold); letter-spacing: 0; margin-bottom: 2px; color: var(--ink); }
 .partner-card__role { font-size: var(--fs-xs); color: var(--ink-3); }
-.partner-card__pct { margin-left: auto; font-family: var(--font-display); font-weight: var(--fw-bold); font-size: var(--fs-sm); color: var(--accent); letter-spacing: 0; }
+.partner-card__pct { margin-left: auto; font-family: var(--font-display); font-weight: var(--fw-bold); font-size: var(--fs-sm); color: var(--accent-ink); letter-spacing: 0; }
 .partner-card__amount { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: var(--fw-bold); letter-spacing: 0; line-height: 1.25; margin-bottom: var(--space-xs); color: var(--ink); }
 .partner-card__amount-label { font-family: var(--font-data); font-size: var(--fs-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); font-weight: var(--fw-semibold); margin-bottom: var(--space-xs); }
 

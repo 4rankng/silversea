@@ -11,6 +11,7 @@ import { loadTripPairingSummaries } from './trip-pairs.service';
 import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 import { operationalName } from '../db/master-data-name';
 import { escapeLikeTerm } from '../lib/format';
+import { resolveCanonicalLocationsForTrips } from './trip-shared';
 import { readTripExternalCarrier } from './trip-external-carrier-read.service';
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
@@ -50,7 +51,7 @@ const TRIP_RELATION_JOINS = <T extends WithLeftJoin>(query: T): T => (query as W
   .leftJoin(s.suppliers, eq(s.tripsComposite.fuelSupplierId, s.suppliers.id)) as unknown as T;
 
 /** Shape flat joined rows into nested relation objects. */
-function shapeTripRelations(item: Record<string, unknown>, extras?: {
+function shapeTripRelations<T extends Record<string, unknown>>(item: T, extras?: {
   legs?: unknown[];
   photoUrls?: string[];
   pairing?: unknown;
@@ -473,7 +474,7 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
 }
 
 export async function getTripById(id: number) {
-  const [trip] = await TRIP_RELATION_JOINS(db.select({
+  let [trip] = await TRIP_RELATION_JOINS(db.select({
     id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, version: s.tripsComposite.version,
     shipmentId: s.tripsComposite.shipmentId,
     customerId: s.tripsComposite.customerId, customerReference: s.tripsComposite.customerReference,
@@ -534,6 +535,19 @@ export async function getTripById(id: number) {
     .where(and(eq(s.tripsComposite.id, id), isNull(s.tripsComposite.deletedAt))).limit(1);
 
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+
+  if (trip.canonicalOrigin == null || trip.canonicalDestination == null) {
+    // Card 353: trips issued before the canonical-location write landed keep
+    // NULL columns (staging census trips 131-134) — coalesce from the source
+    // container so the pairing dialog's draftFor() sees the same authority
+    // the pair service will assert against.
+    const fallback = (await resolveCanonicalLocationsForTrips(db, [trip.id])).get(trip.id);
+    trip = {
+      ...trip,
+      canonicalOrigin: trip.canonicalOrigin ?? fallback?.origin ?? null,
+      canonicalDestination: trip.canonicalDestination ?? fallback?.destination ?? null,
+    };
+  }
 
   const [legs, photos, instructions, accountingLock, externalCarrier] = await Promise.all([
     db.select().from(s.tripLegs).where(eq(s.tripLegs.tripId, id)).orderBy(s.tripLegs.sequence),

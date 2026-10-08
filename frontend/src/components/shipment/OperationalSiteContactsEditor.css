@@ -1,0 +1,5 @@
+.site-contacts-editor { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: var(--space-md); }
+.site-contacts-editor legend { color: var(--fg-2); font-weight: 600; margin-bottom: var(--space-sm); }
+.site-contacts-editor__row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-sm); }
+.site-contacts-editor__row > :first-child, .site-contacts-editor__row > :nth-child(2) { flex: 1 1 160px; min-width: 0; }
+.site-contacts-editor__default { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--control-h); color: var(--fg-2); }

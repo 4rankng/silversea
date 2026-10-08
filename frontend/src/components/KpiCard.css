@@ -132,7 +132,7 @@
   line-height: 1.4;
   min-width: 0;
 }
-.kpi__meta--up { color: var(--accent); font-weight: var(--fw-semibold); }
+.kpi__meta--up { color: var(--success-text); font-weight: var(--fw-semibold); }
 .kpi__meta--down { color: var(--danger); font-weight: var(--fw-semibold); }
 
 .kpi__watermark {
@@ -258,7 +258,7 @@
   color: var(--ink);
   overflow-wrap: anywhere;
 }
-.metric-strip__value--success { color: var(--accent); }
+.metric-strip__value--success { color: var(--success-text); }
 .metric-strip__value--danger  { color: var(--danger); }
 .metric-strip__value--muted   { color: var(--ink-3); }
 .metric-strip__sub {
@@ -269,7 +269,7 @@
   gap: 4px 8px;
 }
 .metric-strip__sub strong { color: var(--ink); font-weight: var(--fw-semibold); }
-.metric-strip__sub .ms-pos { color: var(--accent); font-weight: var(--fw-semibold); }
+.metric-strip__sub .ms-pos { color: var(--success-text); font-weight: var(--fw-semibold); }
 .metric-strip__sub .ms-neg { color: var(--danger); font-weight: var(--fw-semibold); }
 
 /* ─── Trend variant (T2 — KPI sparkline, a-c-statistics-11 pattern) ──────

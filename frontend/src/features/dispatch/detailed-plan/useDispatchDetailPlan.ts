@@ -15,6 +15,7 @@ import {
   listZoneTruckPresence,
   updateDispatchDetailEstimates,
   updateDispatchDetailPlan,
+  type DispatchDetailPlanAssignmentCounts,
   type DispatchDetailPlanRow,
   type ZoneTruckPresenceItem,
 } from '../../../api/dispatchPlanningClient';
@@ -68,6 +69,9 @@ export function useDispatchDetailPlan() {
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<DispatchDetailPlanRow[]>([]);
   const [total, setTotal] = useState(0);
+  // Card 20261008_3 — the two assignment chips' counts ride the grid response
+  // (full-set over the union of both branches), so they refresh with the rows.
+  const [assignmentStatusCounts, setAssignmentStatusCounts] = useState<DispatchDetailPlanAssignmentCounts>({ UNASSIGNED: 0, ASSIGNED: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<DetailPlanSortKey>(null);
@@ -143,6 +147,7 @@ export function useDispatchDetailPlan() {
         if (requestIdRef.current !== requestId) return;
         setItems(response.items);
         setTotal(response.total);
+        setAssignmentStatusCounts(response.assignmentStatusCounts ?? { UNASSIGNED: 0, ASSIGNED: 0 });
         setPage((current) => Math.min(current, Math.max(1, Math.ceil(response.total / PAGE_SIZE))));
         setLoading(false);
       })
@@ -224,8 +229,11 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
+      // Card 0610261732 — the backend's reason is the actionable one
+      // ("Lô hàng đã kết thúc, không thể gán biển số."); a blanket reload
+      // banner cannot fix it. Keep the reload copy for a message-less 409.
       if (status === 409) {
-        setAssignmentError('Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+        setAssignmentError((mutationError as { message?: string }).message || 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
       } else {
         setAssignmentError('Không thể lưu biển số xe. Vui lòng thử lại.');
       }
@@ -274,7 +282,7 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       setAssignmentError((mutationError as { status?: number }).status === 409
-        ? 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.'
+        ? ((mutationError as { message?: string }).message || 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.')
         : 'Không thể đổi nhà xe. Vui lòng thử lại.');
       throw mutationError;
     }
@@ -323,6 +331,7 @@ export function useDispatchDetailPlan() {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
+      plannedEndAt?: string | null;
       /** Phân loại (Đơn/Kẹp/Kết hợp) — the dispatcher's call since 2026-09-08;
        *  optional so CUS-derived values stay valid when a caller omits it. */
       classification?: DispatchClassification;
@@ -351,6 +360,7 @@ export function useDispatchDetailPlan() {
               shipmentVersion: result.shipmentVersion,
               isCombined: result.isCombined,
               classification: result.classification,
+              plannedEndAt: result.plannedEndAt,
               lotFullyPlated: result.lotFullyPlated,
               dispatch: { ...item.dispatch, ...result.dispatch },
               estimates: { ...result.estimates },
@@ -413,8 +423,15 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
+      // Card 0610261732 — the backend refuses an issue for many concrete,
+      // un-retriable business reasons (overweight cargo, no valid route, a
+      // canceled task, an inactive truck/driver). A blanket "data changed,
+      // reload" banner advises an action that cannot fix any of them and
+      // hides the real cause behind the page-level alert. Surface the
+      // ApiError message, exactly as savePlan does, and keep the reload copy
+      // only for a 409 that carries no usable text.
       setAssignmentError(status === 409
-        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+        ? ((mutationError as { message?: string }).message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
         : 'Không thể phát lệnh. Vui lòng thử lại.');
       throw mutationError;
     }
@@ -440,7 +457,7 @@ export function useDispatchDetailPlan() {
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
       setAssignmentError(status === 409
-        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+        ? ((mutationError as { message?: string }).message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
         : status === 403
           ? 'Bạn không có quyền hoàn thành chuyến xe ngoài.'
           : 'Không thể hoàn thành chuyến. Vui lòng thử lại.');
@@ -493,6 +510,7 @@ export function useDispatchDetailPlan() {
     page,
     totalPages,
     total,
+    assignmentStatusCounts,
     pageSize: PAGE_SIZE,
     setPage,
     sortKey,

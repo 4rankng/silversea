@@ -81,6 +81,22 @@ export function settlementBalanceSummary(
   refund: number,
 ) {
   const balance = totalAdvance - totalExpense - refund;
+  // Card 2026-10-05_1544 (spec 5.10): the spec asks for a plain notice —
+  // "số tiền còn lại = ĐNTT − đã ứng; dương thì Cty thanh toán hoàn ứng, âm thì
+  // Cty yêu cầu hoàn trả tạm ứng". Its formula leaves `refund` out because the
+  // spec is a high-level document; the persisted refund is deliberately part of
+  // this balance (settlement-review-policy.test.ts pins it as "shown separately
+  // from the remaining difference"), so the notice is derived from the SAME
+  // balance instead of a second, divergent one.
+  //
+  // Sign note: this module's `balance` is advanced − spent − refunded, so it runs
+  // OPPOSITE to the spec's "còn lại". Mapped back: money left with the driver
+  // (balance > 0) means the company asks them to return it.
+  const notice = balance === 0
+    ? null
+    : balance > 0
+      ? 'Công ty yêu cầu hoàn trả tạm ứng'
+      : 'Công ty thanh toán hoàn ứng';
   return {
     balance,
     label: balance === 0
@@ -88,6 +104,7 @@ export function settlementBalanceSummary(
       : balance > 0
         ? 'Còn dư chưa hoàn'
         : 'Thiếu phải bổ sung',
+    notice,
   };
 }
 
@@ -246,7 +263,7 @@ export default function SettlementPrintPage() {
   const totalAdvance = requests.reduce((sum, r) => sum + Number(r.allocatedAmount ?? r.amount), 0);
   const totalExpense = expenses.reduce((sum, e) => sum + Number(e.buyAmount), 0);
   const refund = Number(s.refundAmount || 0);
-  const { balance, label: balanceLabel } = settlementBalanceSummary(totalAdvance, totalExpense, refund);
+  const { balance, label: balanceLabel, notice: settlementNotice } = settlementBalanceSummary(totalAdvance, totalExpense, refund);
 
   const rows = buildPrintRows(expenses);
   const totalFromRows = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
@@ -535,6 +552,17 @@ export default function SettlementPrintPage() {
             </div>
           </div>
         </div>
+
+        {/* Card 2026-10-05_1544 (spec 5.10): the settlement instruction — who
+            owes whom — stated in words, not left for the reader to infer from a
+            signed number. Reuses this page's existing note block so the design
+            vocabulary stays unchanged; role=status announces it without stealing
+            focus. */}
+        {settlementNotice && (
+          <div className="settlement-detail__note" role="status">
+            <strong>Quyết toán tạm ứng:</strong> {settlementNotice}.
+          </div>
+        )}
 
         {/* ── Note ── */}
         {s.note && (

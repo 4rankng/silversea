@@ -26,9 +26,11 @@ router.put('/:id/pre-departure', declareMaterialWrite('trips.pre-departure', { m
   const id = parseInt(req.params.id as string);
   const data = updateTripFiguresSchema.parse(req.body);
   const user = getUser(req);
+  // Optional since 07/10 (card 393): a completed-trip correction needs no
+  // typed reason. A supplied one is still audited; absent travels as null.
   const governanceReason = typeof req.body?.governanceReason === 'string'
-    ? req.body.governanceReason.trim()
-    : '';
+    ? (req.body.governanceReason.trim() || null)
+    : null;
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_PRE_DEPARTURE,
@@ -90,9 +92,11 @@ router.put('/:id/actuals', declareMaterialWrite('trips.actuals', { method: 'PUT'
   const id = parseInt(req.params.id as string);
   const data = updateTripFiguresSchema.parse(req.body);
   const user = getUser(req);
+  // Optional since 07/10 (card 393): a completed-trip correction needs no
+  // typed reason. A supplied one is still audited; absent travels as null.
   const governanceReason = typeof req.body?.governanceReason === 'string'
-    ? req.body.governanceReason.trim()
-    : '';
+    ? (req.body.governanceReason.trim() || null)
+    : null;
   const idempotencyKey = getRequestIdempotencyKey(req);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_ACTUALS,

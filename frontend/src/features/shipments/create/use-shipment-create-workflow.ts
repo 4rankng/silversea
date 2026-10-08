@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ApiError } from '../../../lib/api';
 import {
   createShipmentDeclaration,
+  deleteShipmentDeclaration,
   getShipmentDetail,
   quickCreateShipment,
   saveShipmentContainers,
@@ -31,6 +32,11 @@ interface SaveAttempt {
   rootSignature?: string;
   declarationId?: number;
   declarationSignature?: string;
+  extraDeclarationSignature?: string;
+  /** Which extra declaration rows this attempt already wrote (id by number)
+   *  — a retry must never re-create them, and rows removed between retries
+   *  must be deleted (20261004_328: N rows mean exactly N declarations). */
+  extraDeclarationIds?: Record<string, number>;
   containerSignature?: string;
   submitSignature?: string;
   pendingCreatePayload?: QuickCreateShipmentRequest;
@@ -160,6 +166,36 @@ export function useShipmentCreateWorkflow({
           : await updateShipmentDeclaration(shipmentId, attempt.declarationId, declarationPayload);
         attempt.declarationId = declaration.id;
         attempt.declarationSignature = declarationSignature;
+      }
+
+      const extraDeclarations = (form.declarationNumbers && form.declarationNumbers.length > 1)
+        ? Array.from(new Set(
+            form.declarationNumbers
+              .slice(1)
+              .map((s) => s.trim())
+              .filter((s) => Boolean(s) && s !== declarationSignature)
+          ))
+        : [];
+      const extraSignature = signature(extraDeclarations);
+      if (attempt.extraDeclarationSignature !== extraSignature) {
+        // 20261004_328: reconcile, don't replay. Rows written by an earlier
+        // attempt are kept (never duplicated); rows the clerk removed before
+        // the retry are deleted so the server ends at exactly N declarations.
+        const created = attempt.extraDeclarationIds ?? {};
+        // Bind before writing: a mid-loop failure must leave the partial
+        // progress visible to the retry, never a replayable blank slate.
+        attempt.extraDeclarationIds = created;
+        for (const [declNum, declId] of Object.entries(created)) {
+          if (extraDeclarations.includes(declNum)) continue;
+          await deleteShipmentDeclaration(shipmentId, declId);
+          delete created[declNum];
+        }
+        for (const declNum of extraDeclarations) {
+          if (created[declNum] != null) continue;
+          const declaration = await createShipmentDeclaration(shipmentId, { declarationNumber: declNum, scope: 'SINGLE' });
+          created[declNum] = declaration.id;
+        }
+        attempt.extraDeclarationSignature = extraSignature;
       }
 
       const mustReconcileContainers = containerPayload.length > 0

@@ -24,6 +24,10 @@ import {
   runReceivableReminders,
 } from './services/receivable-reminder.service';
 import {
+  FUND_NEGATIVE_ALERT_CRON,
+  runFundNegativeAlerts,
+} from './services/fund-negative-alert.service';
+import {
   logDurableEffectRunSummary,
   processDueDurableEffectJobs,
 } from './services/durable-effect.service';
@@ -53,6 +57,7 @@ import accountingDebitRoutes from './routes/accounting-debit';
 import salaryRoutes from './routes/salary';
 import geotagRoutes from './routes/geotag';
 import recoverableCostRoutes from './routes/recoverable-costs';
+import fleetProductivityRoutes from './routes/fleet-productivity.routes';
 import { dashboardWorkInboxRouter, driverWorkInboxRouter, financialWorkInboxRouter, forwarderWorkInboxRouter, portalWorkInboxRouter, systemWorkInboxRouter } from './routes/work-inbox';
 
 await initAuditService();
@@ -98,6 +103,20 @@ if (schedulerEnabled) {
     handler: async () => {
       const stats = await runReceivableReminderRetries();
       console.log(`[scheduler] receivable-reminder-retry: ${stats.retried} retried, ${stats.suppressed} suppressed, ${stats.escalated} escalated, ${stats.failed} failed`);
+    },
+  });
+
+  // Card 051026231511 — the bell's quick fund notice. Reads the same money-alerts
+  // authority as the overview's "Quỹ âm" strip and notifies financial roles once
+  // per Vietnam business date while both funds are negative.
+  registerJob({
+    name: 'fund-negative-alert',
+    cron: FUND_NEGATIVE_ALERT_CRON,
+    handler: async () => {
+      const stats = await runFundNegativeAlerts();
+      if (stats.alerted > 0) {
+        console.log(`[scheduler] fund-negative-alert: ${stats.alerted} alerted`);
+      }
     },
   });
 
@@ -181,7 +200,7 @@ app.use('/api/salary-periods', authMiddleware, salaryPeriodsRouter);
 app.use('/api/salary-periods', authMiddleware, casbinAuthz('config'), salaryPeriodsAdminRouter);
 app.use('/api/driver/me', authMiddleware, casbinAuthz('driver_portal'), driverWorkInboxRouter, driverRoutes);
 app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), forwarderWorkInboxRouter, forwarderRoutes);
-// Ops field-operations portal (docs/prd/OpsVanHanh.md): role gates live inside
+// Ops field-operations portal (docs/prd/OpsVanHanh.docx): role gates live inside
 // the router (OPS portal routes / ADMIN·MANAGER·ACCOUNTANT approvals /
 // ADMIN-only truck assignment), so no Casbin resource is introduced here.
 app.use('/api/ops', authMiddleware, opsRoutes);
@@ -235,6 +254,7 @@ app.use('/api/audit-logs', authMiddleware, casbinAuthz('audit_logs'), auditLogRo
 // at /api/fleet/tires; these dedicated endpoints need the same auth + config
 // gating + MANAGER/ADMIN role (enforced inside the router).
 app.use('/api/fleet/tires', authMiddleware, casbinAuthz('config'), tireLifecycleRouter);
+app.use('/api/fleet/productivity', authMiddleware, fleetProductivityRoutes);
 app.use('/api/salary', authMiddleware, casbinAuthz('salary'), salaryRoutes);
 
 // Boot-time material-write coverage gate: a mounted write route that declares

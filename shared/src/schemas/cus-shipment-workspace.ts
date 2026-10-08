@@ -708,7 +708,16 @@ export const shipmentRecoveryRecordResultSchema = z.object({
 }).strict();
 
 export const shipmentCusContainerFlatRowSchema = z.object({
-  id: z.number().int().positive(),
+  // Row identity for the workboard's edit sessions and React keys. Positive =
+  // the real shipment_containers id. Negative = a lot-level row for a
+  // container-less LCL lot (card 365), carrying `-shipmentId` so it can never
+  // collide with a container id on the same page; container-scoped writes
+  // always miss it (the writer matches id + shipmentId of a real container).
+  id: z.number().int().refine((value) => value !== 0, { message: 'Row id is a container id or -shipmentId' }),
+  // True for those lot-level rows (absent/false = real container row). LCL
+  // lots are forbidden from owning containers, so the Chi Tiết workboard
+  // surfaces the LOT itself as one read-only row.
+  isLotLevel: z.boolean().optional(),
   shipmentId: z.number().int().positive(),
   shipmentVersion: z.number().int().positive(),
   ordinal: z.number().int().positive(),
@@ -728,6 +737,10 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   containerTypeLabel: z.string().nullable(),
   dispatchStatus: z.enum(SHIPMENT_CUS_DISPATCH_STATUSES),
   carrierName: z.string().nullable(),
+  // The #359 deferred-plate semantics ride the row: "external carrier,
+  // plate arrives later" (CUS sẽ bổ sung) must be distinguishable from a
+  // genuinely unassigned vehicle (Chưa gán biển số).
+  carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   plateNumber: z.string().nullable(),
   liftSite: z.string().nullable(),
   dropoffSite: z.string().nullable(),
@@ -789,12 +802,15 @@ export const shipmentCusWorkspaceListResponseSchema = z.object({
   limit: z.number().int().min(1).max(100),
   total: z.number().int().nonnegative(),
   totalPages: z.number().int().nonnegative(),
-  pageSummary: z.object({
+  // Card 081026093520: the status-tab counts. FULL-set figures over the same
+  // filtered set `total` counts (status-tab lens excluded), so every tab's
+  // numeral sizes exactly the rows that tab's lens reveals — never the loaded
+  // page. Replaces the page-scoped `pageSummary` that fed the retired summary
+  // rail (a page's 20/20/20 beside a whole-set total never read as one scale).
+  statusCounts: z.object({
     needsSchedule: z.number().int().nonnegative(),
     needsVehicle: z.number().int().nonnegative(),
     waitingAccounting: z.number().int().nonnegative(),
-    readyToLock: z.number().int().nonnegative(),
-    needsAttention: z.number().int().nonnegative(),
   }).strict(),
   items: z.array(shipmentCusWorkspaceListItemSchema),
 }).strict();

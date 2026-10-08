@@ -7,7 +7,7 @@ import { assertResourceAvailability } from './dispatch-resource-availability.ser
 export { assertResourceAvailability } from './dispatch-resource-availability.service';
 import { LiveTripRow } from './dispatch-planning-utils.service';
 import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
-import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferTrailerTypeFromContainerCode, inferredVehicleCapacityKg, parseIsoWithZone, routeServiceDurationMinutes, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
+import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferredVehicleCapacityKg, parseIsoWithZone, requiredTrailerTypeForFulfillment, routeServiceDurationMinutes, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
 import { db } from '../db';
 import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { ApiError } from '../errors';
@@ -26,6 +26,7 @@ import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.servi
 import { resolveDispatchFactorySnapshot } from './trip-factory-site.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 import { syncShipmentExpenseSources } from './expense-accounting-write.service';
+import { canonicalLocationsFromContainerRow, containerLocationColumns } from './trip-shared';
 
 
 import { and, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
@@ -270,13 +271,23 @@ export async function issueOrderCreateOrUpdate(
     : await tx.select({
       routeId: s.shipmentContainers.routeId,
       containerTypeCode: s.containerTypes.code,
+      ...containerLocationColumns,
     })
       .from(s.shipmentContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
       .limit(1);
+  // Card 353: trips.canonical_origin / canonical_destination record the
+  // điểm đi / điểm đến — the container's Cảng nâng / Cảng hạ at issue time
+  // (catalog port operational name, raw free-text name for ad-hoc orders).
+  // Without these the pairing dialog (draftFor) and POST /trips/pairs
+  // (buildTripPairSnapshot → MISSING_LOCATION) hard-block every ghép.
+  const canonicalLocations = containerRoute
+    ? canonicalLocationsFromContainerRow(containerRoute)
+    : { origin: null, destination: null };
+  // FCL route falls back container -> shipment (mirroring detail plan and CUS workspace)
   const effectiveRouteId = fulfillment.cargoMode === CARGO_MODE.FCL
-    ? containerRoute?.routeId ?? null
+    ? (containerRoute?.routeId ?? shipment.routeId ?? null)
     : shipment.routeId;
   const [route] = effectiveRouteId == null
     ? []
@@ -320,7 +331,11 @@ export async function issueOrderCreateOrUpdate(
 
   if (input.carrierType === 'OWN') {
     if (input.truckId == null || input.driverId == null) {
-      throw new ApiError(400, 'Điều xe nội bộ phải chọn xe và tài xế.');
+      // Card 348: every path answers with the SAME actionable sentence the
+      // frontend pre-check throws — a user must never see a different or
+      // generic message for this validation depending on which layer caught
+      // it (the flaky "Lỗi không xác định" report 04/10).
+      throw new ApiError(400, 'Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
     }
     const [truck] = await tx.select({
       id: s.trucks.id,
@@ -400,12 +415,12 @@ export async function issueOrderCreateOrUpdate(
         .limit(1);
       // Master-data imports usually leave Loại Moóc blank (see trailers.type
       // comment) — only block on a mismatch we can actually prove, not on
-      // missing data.
+      // missing data. LCL_PICKUP and DOUBLE both run on a 40' moóc whatever
+      // the lot's own 20' code says (see requiredTrailerTypeForFulfillment).
       if (
         container?.code
         && resolvedTrailerType != null
-        && resolvedTrailerType !== (fulfillment.dispatchClassification === 'DOUBLE' && container.code.startsWith('20')
-          ? '40FT' : inferTrailerTypeFromContainerCode(container.code))
+        && resolvedTrailerType !== requiredTrailerTypeForFulfillment(container.code, fulfillment.dispatchClassification)
       ) {
         throw new ApiError(409, 'Rơ-moóc không phù hợp với loại container.');
       }
@@ -463,9 +478,11 @@ export async function issueOrderCreateOrUpdate(
     // is completed by dispatch/CUS on the driver's behalf (trips complete-external).
     externalDriverName = trimBounded(input.externalDriverName, 'Tên tài xế ngoài', 100);
     externalDriverPhone = trimBounded(input.externalDriverPhone, 'Số điện thoại tài xế ngoài', 20);
-    if (!externalPlateNumber) {
-      throw new ApiError(400, 'Điều xe ngoài phải có biển số xe.');
-    }
+    // Card 20261004_359: a plate is NO LONGER required to issue an external
+    // dispatch — dispatch may issue before the plate is known ("Bổ sung sau",
+    // the plan-save path already shipped this contract) and the plate rides in
+    // later through the reassign flow. Completion (trip-external-close)
+    // carries the new mandatory-plate gate instead.
   }
 
   const lockIds = [truckId, trailerId, driverId].filter((id): id is number => id != null);
@@ -566,6 +583,8 @@ export async function issueOrderCreateOrUpdate(
       sourceShipmentVersion: shipment.version,
       plannedStartAt,
       plannedEndAt,
+      canonicalOrigin: canonicalLocations.origin,
+      canonicalDestination: canonicalLocations.destination,
       truckId,
       trailerId,
       driverId,
@@ -630,6 +649,8 @@ export async function issueOrderCreateOrUpdate(
     const { ops: updatedTripOps, carrier: updatedTripCarrier } = splitTripPatch({
       plannedStartAt,
       plannedEndAt,
+      canonicalOrigin: canonicalLocations.origin,
+      canonicalDestination: canonicalLocations.destination,
       truckId,
       trailerId,
       driverId,

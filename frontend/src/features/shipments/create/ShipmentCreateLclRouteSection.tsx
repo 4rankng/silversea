@@ -66,7 +66,6 @@ export function ShipmentCreateLclRouteSection({
             searchable
             allowsCustomValue={form.isAdHoc}
             {...(form.isAdHoc && routeCustomText ? { onCustomValue: routeCustomText } : {})}
-            popoverPlacement="top"
           />
           {selectedOperationalSite?.routeId == null && (
             <button
@@ -119,7 +118,7 @@ export function ShipmentCreateLclRouteSection({
                       border: 0,
                       background: 'none',
                       padding: 0,
-                      color: 'var(--accent, #2563eb)',
+                      color: 'var(--accent-ink, #00361B)',
                       fontWeight: 700,
                       cursor: 'pointer',
                       fontSize: 'var(--text-control-size)',
@@ -131,7 +130,6 @@ export function ShipmentCreateLclRouteSection({
               ) : undefined
             }
             searchable
-            popoverPlacement="top"
           />
           <div className="csc-site-picker__actions">
             {form.operationalSiteId && (

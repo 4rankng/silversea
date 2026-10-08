@@ -315,3 +315,47 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
   });
 
 });
+
+const officeRosterMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../api/userClient', () => ({
+  userClient: {
+    getUsers: officeRosterMock,
+  },
+}));
+
+describe('SalaryAttendancePage — office group removed (card 20261006_390)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    salaryQueriesMock.useSalaryList.mockReturnValue({
+      data: {
+        items: [{ id: 1, name: 'Nguyen Van A', status: 'ACTIVE', salary: { ...baseSalary } }],
+      },
+      isLoading: false,
+    });
+    salaryQueriesMock.useDriverSalary.mockReturnValue({ data: { ...baseSalary }, isLoading: false });
+    salaryQueriesMock.useDriverWorkDays.mockReturnValue({ data: { workDays: [] }, isLoading: false });
+    salaryQueriesMock.useUpdateWorkDays.mockReturnValue(mutationStub());
+    salaryQueriesMock.useConfirmSalary.mockReturnValue(mutationStub());
+    salaryQueriesMock.useUnconfirmSalary.mockReturnValue(mutationStub());
+  });
+
+  it('card 390: the Văn phòng group is gone — no office tab, no office surface, no office fetch', async () => {
+    renderPage();
+    expect(await screen.findByText('Nguyen Van A')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Văn phòng' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: 'Nhóm chấm công và bảng lương' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Chưa có dữ liệu chấm công/lương văn phòng')).not.toBeInTheDocument();
+    expect(screen.queryByText('Trần Văn Bình')).not.toBeInTheDocument();
+    expect(officeRosterMock).not.toHaveBeenCalled();
+  });
+
+  it('the driver surface stays intact without the group switcher', async () => {
+    renderPage();
+    expect(await screen.findByText('Nguyen Van A')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tìm lái xe trong bảng lương')).toBeInTheDocument();
+    // The driver picker list itself still renders the driver's selectable row.
+    const driverRow = screen.getAllByText('Nguyen Van A').find((el) => el.closest('.driver-select-row__list'));
+    expect(driverRow).toBeTruthy();
+  });
+});

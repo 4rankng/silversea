@@ -266,7 +266,7 @@ export function AccountingTransportRegister({
           action={
             hasActiveFilters ? (
               <button type="button" className="btn btn--secondary btn--sm" onClick={onReset}>
-                Xóa bộ lọc tìm kiếm
+                Xóa bộ lọc
               </button>
             ) : undefined
           }

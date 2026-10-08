@@ -63,6 +63,7 @@ export const qk = {
     customers: (page: number, search: string) => ['customers', page, search] as const,
     /** Base key for useTableQueryState-driven customer list pages. */
     customersTable: ['customers'],
+    customersStatusCounts: ['customers', 'status-counts'],
     allCustomers: ['all-customers'],
     users: ['users'],
     /** Admin-only drawer option list: shipments eligible for clerk-scope assignment. */
@@ -102,7 +103,7 @@ export const qk = {
     pairSalary: ['config', 'pair-salary-settings'] as const,
   },
 
-  /** Ops portal (docs/prd/OpsVanHanh.md) — self-contained ops surface. */
+  /** Ops portal (docs/prd/OpsVanHanh.docx) — self-contained ops surface. */
   ops: {
     /** Broad prefix — matches every ops query for one-shot invalidation. */
     root: ['ops'] as const,
@@ -376,6 +377,11 @@ export const qk = {
       ['accounting', 'work-inbox', view, page, sortBy ?? '', sortDir ?? ''] as const,
     receivables: (asOf: string) => ['accounting', 'receivables', asOf] as const,
     payables: (asOf: string) => ['accounting', 'payables', asOf] as const,
+    /** Weekly container-deposit series — one key per requested from/to range. */
+    depositWeekly: (from: string, to: string) =>
+      ['accounting', 'deposit-weekly', from, to] as const,
+    /** Card 370 — money-alerts snapshot (funds, due-debt groups, alerts). */
+    moneyAlerts: (asOf: string) => ['accounting', 'money-alerts', asOf] as const,
     profitability: (month: number, year: number) => ['accounting', 'profitability', month, year] as const,
     transportRegister: (params: {
       from: string;

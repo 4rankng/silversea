@@ -217,6 +217,23 @@ after(async () => {
 });
 
 describe('shipment accounting lock', () => {
+
+  test('an orphaned trip — shipment soft-deleted — stays cancelable (card 20261007_396)', async () => {
+    const { adminActor, shipment, trip } = await setup();
+    // Mirror the staging orphans (card 20261007_396): an ACTIVE trip whose
+    // lot row was soft-deleted by a fixture purge — the trip must remain
+    // cancelable, since a deleted shipment has no active accounting lock to
+    // protect.
+    await db.update(s.trips).set({ status: TripStatus.IN_TRANSIT }).where(eq(s.trips.id, trip.id));
+    await db.update(s.shipments).set({ deletedAt: new Date() }).where(eq(s.shipments.id, shipment.id));
+    const [live] = await db.select({ version: s.trips.version }).from(s.trips).where(eq(s.trips.id, trip.id));
+    const canceled = await transitionTripStatus(
+      trip.id, TripStatus.CANCELED, adminActor.userId, Role.ADMIN,
+      undefined, undefined, { expectedVersion: live.version },
+    );
+    assert.equal(canceled.status, TripStatus.CANCELED);
+  });
+
   test('ACCOUNTANT confirms and CUS locks a fully billed shipment, then shipment and trip mutations are frozen', async () => {
     const { actor, cusActor, shipment, trip, document } = await setup();
     const confirmation = await confirmShipmentFinance({

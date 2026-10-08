@@ -29,6 +29,10 @@ interface ReasonPromptDialogProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  /** Card 2026-10-05_373: the default "Lý do xóa (bắt buộc)" reads wrong when
+   *  the reason grounds a REJECTION rather than a delete, so the field label is
+   *  overridable. Omitted everywhere else, keeping the current wording. */
+  reasonLabel?: string;
   onReason: (reason: string | null) => void;
 }
 
@@ -36,7 +40,7 @@ interface ReasonPromptDialogProps {
  *  the field starts EMPTY (no canned constants), Confirm stays disabled while
  *  the trimmed input is empty, and the 500-char cap matches the backend zod. */
 export function ReasonPromptDialog({
-  isOpen, message, confirmLabel = 'Xác nhận', cancelLabel = 'Hủy', onReason,
+  isOpen, message, confirmLabel = 'Xác nhận', cancelLabel = 'Hủy', reasonLabel = 'Lý do xóa (bắt buộc)', onReason,
 }: ReasonPromptDialogProps) {
   const portalTarget = typeof document === 'undefined' ? null : document.body;
   const messageId = useId();
@@ -82,7 +86,7 @@ export function ReasonPromptDialog({
           <p id={messageId} className="confirm-message">{message}</p>
         </div>
         <div className="confirm-prompt">
-          <label className="confirm-prompt__label" htmlFor={inputId}>Lý do xóa (bắt buộc)</label>
+          <label className="confirm-prompt__label" htmlFor={inputId}>{reasonLabel}</label>
           <textarea
             id={inputId}
             className="confirm-prompt__textarea"
@@ -111,6 +115,8 @@ export function ReasonPromptDialog({
 interface ReasonPromptOptions {
   confirmLabel?: string;
   cancelLabel?: string;
+  /** Card 2026-10-05_373 — see `ReasonPromptDialogProps.reasonLabel`. */
+  reasonLabel?: string;
 }
 
 interface ReasonPromptState extends ReasonPromptOptions {
@@ -131,7 +137,7 @@ export function useReasonPrompt() {
   };
   // Retain message/options through the exit animation.
   const dialog = state
-    ? <ReasonPromptDialog isOpen={state.isOpen} message={state.message} confirmLabel={state.confirmLabel} cancelLabel={state.cancelLabel} onReason={(value) => settle(value)} />
+    ? <ReasonPromptDialog isOpen={state.isOpen} message={state.message} confirmLabel={state.confirmLabel} cancelLabel={state.cancelLabel} reasonLabel={state.reasonLabel} onReason={(value) => settle(value)} />
     : null;
   return { prompt, dialog };
 }

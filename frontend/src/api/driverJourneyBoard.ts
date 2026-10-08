@@ -9,8 +9,8 @@
 
 export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
 
-/** Raw fulfillment-owned classification (ĐƠN/KẸP/KẾT HỢP/LẺ labels). */
-export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
+/** Raw fulfillment-owned classification (ĐƠN/KẸP/KẾT HỢP/LẺ/LẤY LẺ labels). */
+export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | 'LCL_PICKUP';
 
 export interface DriverJourneyCard {
   fulfillmentId: number;
@@ -52,6 +52,9 @@ export interface DriverJourneyCard {
   containerNumber: string | null;
   containerTypeName: string | null;
   sealNumber: string | null;
+  /** shipments_containers.cargo_weight_kg, display-ready ("15000") — the
+   *  card renders "· 15.000 kg" (card 20261004_356); null when unweighted. */
+  cargoWeightKg: string | null;
   /** 3a0bd5af: last-leg ĐÓNG/TRẢ (loại hình pill on the card). */
   loadingType: string | null;
   /** shipments.trade_direction — drives the container-row 3rd column

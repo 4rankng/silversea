@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
 import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
+import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { billBookingReference } from '../lib/business-reference';
@@ -22,10 +23,10 @@ export default function DispatchDetailPlanPage() {
   // null keeps the dialog closed. Candidates are the loaded unpaired OWN
   // rows with trips — the same set the grid offers the button for.
   const [pairRow, setPairRow] = useState<DispatchDetailPlanRow | null>(null);
-  const pairCandidates = detailPlan.items.filter((item) => item.dispatch.tripId != null
-    && item.dispatch.carrierType !== 'EXTERNAL'
-    && !item.dispatch.pairKind
-    && item.dispatch.tripStatus !== 'CANCELED');
+  const pairCandidates = useMemo(
+    () => selectPairCandidates(detailPlan.items, pairRow),
+    [detailPlan.items, pairRow],
+  );
   // Staff close for external-carrier trips: external drivers don't use the
   // app, so dispatch/CUS confirm the completion from the grid row.
   const [completingRow, setCompletingRow] = useState<DispatchDetailPlanRow | null>(null);
@@ -64,6 +65,7 @@ export default function DispatchDetailPlanPage() {
           onClearLotBanner={detailPlan.clearLotBanner}
           presence={detailPlan.presence}
           zones={detailPlan.zones}
+          assignmentCounts={detailPlan.assignmentStatusCounts}
           sortKey={detailPlan.sortKey}
           sortDirection={detailPlan.sortDirection}
           onToggleSort={detailPlan.toggleSort}
@@ -71,7 +73,13 @@ export default function DispatchDetailPlanPage() {
           onOpenTripReassign={setReassignTripId}
           onCompleteExternalTrip={setCompletingRow}
           onIssueOrder={detailPlan.issueOrder}
-          onOpenPair={setPairRow}
+          onOpenPair={(row) => {
+            setPairRow(row);
+            // Card 353: a stale grid window (rows fetched before a just-issued
+            // sibling got its tripId) left "Lệnh ghép cùng" empty. Refresh on
+            // open so the candidates always reflect the issued pairs.
+            void detailPlan.refresh();
+          }}
           onEnsureFulfillment={detailPlan.ensureFulfillment}
           autoOpenFulfillmentId={detailPlan.autoOpenFulfillmentId}
           onAutoOpenConsumed={detailPlan.consumeAutoOpen}

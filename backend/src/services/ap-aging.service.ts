@@ -21,7 +21,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { TxnType } from '@tingting/shared';
+import { TxnType, calendarDaysPastDue } from '@tingting/shared';
 
 const PAYABLE_TXN_TYPES: TxnType[] = [
   TxnType.VENDOR_EXPENSE,
@@ -97,6 +97,8 @@ export async function getApAgingDetail(opts: {
     debit: s.ledger.debit,
     credit: s.ledger.credit,
     timestamp: s.ledger.timestamp,
+    originalDueDate: s.ledger.originalDueDate,
+    processingDueDate: s.ledger.processingDueDate,
   })
     .from(s.ledger)
     .where(and(
@@ -126,9 +128,10 @@ export async function getApAgingDetail(opts: {
     totalPaid: number;
     payments: ApPaymentEntry[];
     duplicateRefCount: number;
-    // FIFO aging buckets — debits create "current"; aging advances with time.
-    // We track net entries with their timestamp to bucket them.
-    entries: Array<{ amount: number; timestamp: Date; isPayable: boolean }>;
+    // FIFO aging buckets — debits create "current"; bands are contractual
+    // due-status (card 061026221213). We track net entries with their
+    // timestamp and effective due date to bucket them.
+    entries: Array<{ amount: number; timestamp: Date; isPayable: boolean; originalDueDate: string | null; processingDueDate: string | null }>;
   }
   const bySupplier = new Map<number, Acc>();
 
@@ -160,14 +163,22 @@ export async function getApAgingDetail(opts: {
     } else {
       acc.totalPayable += amount;
     }
-    acc.entries.push({ amount, timestamp: r.timestamp, isPayable: !isPayment });
+    acc.entries.push({
+      amount,
+      timestamp: r.timestamp,
+      isPayable: !isPayment,
+      originalDueDate: r.originalDueDate,
+      processingDueDate: r.processingDueDate,
+    });
   }
 
   // ── 4. Compute aging buckets per supplier ──
-  // Bucket assignment: each payable entry ages forward from its timestamp
-  // to asOf; payments reduce the oldest payables first (FIFO). What's left
-  // outstanding at asOf is bucketed by the ORIGINAL payable entry's age.
+  // Bucket assignment: each payable entry advances from its timestamp to asOf;
+  // payments reduce the oldest payables first (FIFO). What's left outstanding
+  // at asOf is bucketed by the ORIGINAL payable entry's effective due date
+  // (card 061026221213 — bands are contractual due-status, never age).
   const asOfMs = new Date(asOf).getTime();
+  const asOfDate = new Date(asOf);
   const DAY = 24 * 60 * 60 * 1000;
 
   // Resolve supplier names in one query.
@@ -194,12 +205,19 @@ export async function getApAgingDetail(opts: {
     totalPayable += acc.totalPayable;
     totalPaid += acc.totalPaid;
 
-    // Bucket the payable entries by age; payments net against the OLDEST first.
+    // Payments net against the oldest payable entries first (FIFO order).
     const payables = acc.entries
       .filter(e => e.isPayable)
       .map(e => ({
         amount: e.amount,
         ageDays: Math.max(0, Math.floor((asOfMs - e.timestamp.getTime()) / DAY)),
+        // Effective due date = processingDueDate ?? originalDueDate; rows that
+        // froze neither are due at issue (house fallback).
+        overdueDays: calendarDaysPastDue(
+          e.processingDueDate ?? e.originalDueDate,
+          e.timestamp.toISOString(),
+          asOfDate,
+        ),
         remaining: e.amount,
       }))
       .sort((a, b) => a.ageDays - b.ageDays);
@@ -215,17 +233,18 @@ export async function getApAgingDetail(opts: {
     const aging = { current: 0, d30: 0, d60: 0, over90: 0 };
     for (const p of payables) {
       if (p.remaining <= 0) continue;
-      if (p.ageDays <= 30) aging.current += p.remaining;
-      else if (p.ageDays <= 60) aging.d30 += p.remaining;
-      else if (p.ageDays <= 90) aging.d60 += p.remaining;
+      if (p.overdueDays === 0) aging.current += p.remaining;
+      else if (p.overdueDays <= 30) aging.d30 += p.remaining;
+      else if (p.overdueDays <= 90) aging.d60 += p.remaining;
       else aging.over90 += p.remaining;
     }
 
-    // maxOverdueDays = longest age among entries still partially unpaid.
+    // maxOverdueDays = longest contractual overdue span among entries still
+    // partially unpaid; 0 = nothing past its effective due date.
     let maxOverdueDays = 0;
     for (const p of payables) {
-      if (p.remaining > 0 && p.ageDays > 30) {
-        maxOverdueDays = Math.max(maxOverdueDays, p.ageDays);
+      if (p.remaining > 0 && p.overdueDays > maxOverdueDays) {
+        maxOverdueDays = p.overdueDays;
       }
     }
 

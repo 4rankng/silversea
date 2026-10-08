@@ -20,6 +20,7 @@ export interface ShipmentCreateFormState {
   blNumber: string;
   shippingLineName: string;
   declarationNumber: string;
+  declarationNumbers?: string[];
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   cargoMode: CargoMode;
   isCombined: boolean;
@@ -108,6 +109,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   blNumber: '',
   shippingLineName: '',
   declarationNumber: '',
+  declarationNumbers: [''],
   tradeDirection: '',
   cargoMode: 'FCL',
   isCombined: false,
@@ -156,7 +158,10 @@ export function createEmptyContainer(): ShipmentContainerDraft {
 
 /**
  * Start a new FCL row from the preceding row's operational data. The physical
- * container number is the only value that must be entered again.
+ * identifiers are per-container and must be entered again: the number, and the
+ * type (card 071026100800 — a copied "40DC" read as stray text in the fresh
+ * row, and mixed-type lots fight the copied selection). Schedule data (route,
+ * ports, factory, window) legitimately rides the previous row.
  */
 export function createContainerFromPrevious(
   previous?: ShipmentContainerDraft,
@@ -167,6 +172,7 @@ export function createContainerFromPrevious(
     ...previous,
     key: crypto.randomUUID(),
     containerNumber: '',
+    containerTypeId: '',
   };
 }
 

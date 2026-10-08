@@ -1,6 +1,7 @@
 import { Calendar, Plus, Trash2 } from 'lucide-react';
 import type { CarrierAllocationOption } from '../../../components/shipment/CarrierAllocationSummary';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { UuiSelectField } from '../../../design-system';
 import {
@@ -164,17 +165,24 @@ export function DispatchAllocationDaySection({
 
       <div role="row" className="dispatch-allocation-popover__day-add-row">
         <div role="cell" aria-colspan={4} className="dispatch-allocation-popover__day-add-cell">
-          <UUIButton
-            type="button"
-            size="sm"
-            color="secondary"
-            className="dispatch-allocation-popover__add"
-            iconLeading={<Plus size={16} aria-hidden="true" />}
-            onPress={() => onAddRow(dayIndex)}
-            isDisabled={!canAddRow}
+          <DisabledActionTip
+            id="dispatch-allocation-add-carrier"
+            reason={!canAddRow
+              ? (optionsLoading ? 'Đang tải danh sách nhà xe…' : 'Đã gán hết nhà xe khả dụng cho ngày này.')
+              : null}
           >
-            {addLabel}
-          </UUIButton>
+            <UUIButton
+              type="button"
+              size="sm"
+              color="secondary"
+              className="dispatch-allocation-popover__add"
+              iconLeading={<Plus size={16} aria-hidden="true" />}
+              onPress={() => { if (!canAddRow) return; onAddRow(dayIndex); }}
+              aria-disabled={!canAddRow || undefined}
+            >
+              {addLabel}
+            </UUIButton>
+          </DisabledActionTip>
         </div>
       </div>
     </div>

@@ -11,14 +11,22 @@ const getDriverTripMock = vi.hoisted(() => vi.fn());
 // Synchronous trip payload for the page's first render — the trip →
 // fulfillmentId resolution is seeded into the query cache so existing
 // tests keep their synchronous shape.
+const TRIP_ID = 88;
+// Card 071026205800: this number must stay DIFFERENT from the trip id. The
+// `/my-trips/:id/pod` route carries a TRIP id (card 20260915_1), while every
+// e-POD endpoint is FULFILLMENT-scoped. With both ids equal, a component that
+// navigates with the wrong one still lands on a route stub carrying the same
+// number, so the test passes for the wrong reason — which is exactly how a link
+// that sends a fulfillment id into a trip-id route survived review.
+const FULFILLMENT_ID = 4242;
 const tripBasic88: Record<string, unknown> = {
-  id: 88, shipmentId: null, fulfillmentId: 88, tripCode: 'TRP-88',
+  id: TRIP_ID, shipmentId: null, fulfillmentId: FULFILLMENT_ID, tripCode: 'TRP-88',
   departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
   routeName: null, truckPlate: null, customerName: null, notes: null,
 };
 function freshClient() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(['driver-trip-basic', '88'], tripBasic88);
+  client.setQueryData(['driver-trip-basic', String(TRIP_ID)], tripBasic88);
   return client;
 }
 
@@ -218,7 +226,7 @@ function PodRouteStub() {
 describe('DriverTripDetailPage', () => {
   beforeEach(() => {
     getDriverTripMock.mockResolvedValue({
-      id: 88, shipmentId: null, fulfillmentId: 88, tripCode: 'TRP-88',
+      id: TRIP_ID, shipmentId: null, fulfillmentId: FULFILLMENT_ID, tripCode: 'TRP-88',
       departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
       routeName: null, truckPlate: null, customerName: null, notes: null,
     });
@@ -449,11 +457,14 @@ describe('DriverTripDetailPage', () => {
     const cta = await screen.findByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     fireEvent.click(cta);
 
-    // The driver lands on THIS trip's pod screen — the route param is the
-    // fulfillment id (88), not trip.id (55). Wrong-id navigation here would
-    // open another trip's e-POD screen.
-    expect(await screen.findByTestId('pod-route-stub-88')).toBeTruthy();
-    expect(screen.queryByTestId('pod-route-stub-55')).toBeNull();
+    // The driver lands on THIS trip's pod screen. Card 071026205800: the
+    // `/my-trips/:id/pod` route carries a TRIP id, so the param must be 88 —
+    // not the fulfillment id (4242). The two used to be the same number in
+    // this fixture, which is how navigating with the fulfillment id passed
+    // review; with them split, sending the fulfillment id lands the driver on
+    // a different trip's e-POD route and this assertion catches it.
+    expect(await screen.findByTestId(`pod-route-stub-${TRIP_ID}`)).toBeTruthy();
+    expect(screen.queryByTestId(`pod-route-stub-${FULFILLMENT_ID}`)).toBeNull();
 
   });
 
@@ -819,6 +830,26 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByRole('dialog', { name: 'Thêm ảnh cont' })).toBeNull();
   });
 
+  it('card 061026043643: the photo counter counts uploaded photos, not filled zones', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          containerSealPhotos: [
+            { id: 11, type: 'DELIVERY_NOTE', storageKey: 'n1', uploadedAt: '2026-10-06T00:00:00.000Z' },
+            { id: 12, type: 'DELIVERY_NOTE', storageKey: 'n2', uploadedAt: '2026-10-06T00:00:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const strip = screen.getByTestId('driver-task-progress');
+    expect(strip.textContent).toContain('Ảnh 2/3');
+  });
+
   it('card _30: progress summary counts saved POD files, photos and reported cost entries', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
@@ -861,6 +892,28 @@ describe('DriverTripDetailPage', () => {
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    // Card 20261003_320: when khoPhone is absent, Gọi kho is hidden and never dials contactPhone
+    expect(screen.queryByRole('link', { name: /Gọi kho/ })).toBeNull();
+  });
+
+  it('offers named factory telephone choices with the default first and retains direct single-number calls', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ fulfillment: { ...makeTaskDetail().fulfillment!, factoryContacts: [
+        { name: 'Cổng kho', phone: '0901234567', isDefault: false },
+        { name: 'Điều phối', phone: '0907654321', isDefault: true },
+      ] } }), isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+    const opener = await screen.findByRole('button', { name: 'Gọi kho' });
+    fireEvent.click(opener);
+    const dialog = await screen.findByRole('dialog', { name: 'Chọn liên hệ để gọi' });
+    const links = within(dialog).getAllByRole('link');
+    expect(links[0]).toHaveAttribute('href', 'tel:0907654321');
+    await waitFor(() => expect(within(dialog).getByText('Điều phối')).toBeVisible());
+    expect(links[0]).toHaveAttribute('aria-label', 'Gọi Điều phối 0907654321');
+    expect(links[1]).toHaveAttribute('href', 'tel:0901234567');
+    await waitFor(() => expect(within(dialog).getByText('Cổng kho')).toBeVisible());
+    expect(links[1]).toHaveAttribute('aria-label', 'Gọi Cổng kho 0901234567');
   });
 
   it('card _27: identical kho and contact numbers render ONE phone row', async () => {
@@ -881,6 +934,30 @@ describe('DriverTripDetailPage', () => {
     expect(valueOf('SĐT kho')).toBe('0909000001');
     expect(screen.queryByText('SĐT liên hệ')).toBeNull();
     expect(screen.getByRole('link', { name: /Gọi kho/ })).toBeTruthy();
+  });
+
+  // Card 20261005_364 (REQ-05): through the full page render the warehouse
+  // number is itself the tap-to-call control (lockstep with the component
+  // suite's AC1-AC3 pins).
+  it('card 20261005_364: the SĐT kho value is a tel: link in the full page render', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: { ...makeTaskDetail().fulfillment!, khoPhone: '0989130345' },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const khoValue = Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT kho')
+      ?.querySelector('.driver-task-fact__value');
+    const link = khoValue?.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toBe('tel:0989130345');
+    expect(link!.textContent).toBe('0989130345');
   });
 
   // TC-DA-005: customer master-data invoice rows render with the exact
@@ -1251,6 +1328,47 @@ describe('DriverTripDetailPage', () => {
       vi.unstubAllGlobals();
     }
   });
+
+  // P1 051026230645 — the driver uploaded two biên bản photos; both rows ride
+  // the wire (the backend keeps one trip_photos row per upload), so BOTH must
+  // render. The old derivation collapsed the list with `.find()` and silently
+  // hid every upload before the latest — the driver-visible data loss.
+  it('two persisted biên bản uploads both stay visible — no silent replace', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          containerSealPhotos: [
+            { id: 4, type: 'DELIVERY_NOTE', storageKey: 'trips/55/note-old.jpg', uploadedAt: '2026-08-01T01:00:00.000Z' },
+            { id: 3, type: 'DELIVERY_NOTE', storageKey: 'trips/55/note-new.jpg', uploadedAt: '2026-08-01T02:00:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['note'], { type: 'image/jpeg' }));
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:note'),
+      revokeObjectURL: vi.fn(),
+    }));
+    renderPage();
+
+    try {
+      expect(await screen.findByRole('button', { name: 'Xem ảnh biên bản 1' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Xem ảnh biên bản 2' })).toBeTruthy();
+      // Both persisted storage keys are actually read for display — the older
+      // upload is not just missing from the count, its bytes still render.
+      await waitFor(() => expect(getBlob).toHaveBeenCalledWith('/photos/trips%2F55%2Fnote-old.jpg'));
+      expect(getBlob).toHaveBeenCalledWith('/photos/trips%2F55%2Fnote-new.jpg');
+      expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản 1' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Xóa ảnh biên bản 2' })).toBeTruthy();
+    } finally {
+      getBlob.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 
@@ -1346,5 +1464,23 @@ describe('20260915_1: trip → fulfillmentId resolution', () => {
     expect(screen.getByText('Ghi chú')).toBeTruthy();
     expect(screen.getByText('Không có ghi chú.')).toBeTruthy();
     expect(screen.queryByTestId('operation-chips')).toBeNull();
+  });
+});
+
+describe('driver completed-trip footer height contract (card 071026103226 — FB-055 regression)', () => {
+  it('the closed card renders the summary and the button side by side with no hint line', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: 'COMPLETED' }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+    await screen.findByText('Chuyến đã hoàn thành');
+    // The card must not stack a hint line under the title in the closed
+    // state — that line is what re-inflated the card to ~115px.
+    const hint = document.querySelector('.driver-task-footer__hint');
+    expect(hint).toBeNull();
+    // The body carries the closed variant: one row, summary left + button right.
+    const body = document.querySelector('.driver-task-footer__body');
+    expect(body?.className).toContain('driver-task-footer__body--closed');
   });
 });

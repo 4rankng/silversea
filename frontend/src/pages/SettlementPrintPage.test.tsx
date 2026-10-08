@@ -75,6 +75,37 @@ describe('settlement read-only exports', () => {
     expect(getBlob).not.toHaveBeenCalled();
   });
 
+  /** Card 2026-10-05_1544 (spec 5.10) — the settlement instruction in words, so
+   *  nobody has to infer who owes whom from a signed amount. Reuses the page's
+   *  existing note block, so the visible chrome is unchanged. */
+  it.each([
+    ['zero', null],
+    ['positive', 'Công ty yêu cầu hoàn trả tạm ứng'],
+    ['negative', 'Công ty thanh toán hoàn ứng'],
+  ] as const)('states the %s settlement instruction out loud', (balanceState, expected) => {
+    if (balanceState === 'positive') {
+      state.linkedRequests = [{
+        id: 10, amount: '1000000', allocatedAmount: '1000', reason: 'Tạm ứng một triệu',
+        status: 'RECORDED', createdAt: '2026-09-17T00:00:00.000Z',
+      }];
+    }
+    if (balanceState === 'negative') {
+      state.linkedExpenses = [{
+        id: 5, tripId: 10, expenseType: 'OTHER', buyAmount: '1000',
+        departureDate: '2026-09-17', customerName: 'Khách hàng',
+        containerNumber: 'CSQU3054383', invoiceNumber: 'INV-1', note: null, tripCode: 'QA-TRIP-10',
+      }];
+    }
+    const { container } = page();
+    const notice = container.querySelector('.settlement-detail__note[role="status"]');
+    if (expected === null) {
+      expect(notice).toBeNull();
+    } else {
+      expect(notice).toHaveTextContent('Quyết toán tạm ứng:');
+      expect(notice).toHaveTextContent(expected);
+    }
+  });
+
   it('keeps expense labels and complete values available when rows reflow on mobile', () => {
     state.linkedExpenses = [{
       id: 5, tripId: 10, expenseType: 'OTHER', buyAmount: '1000',

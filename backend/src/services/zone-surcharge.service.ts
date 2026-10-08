@@ -2,7 +2,7 @@
 // override > driver incidental actuals > port config > null. Lives in its
 // own module so the lock service and the debit-detail producer can both use
 // it without an import cycle.
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { sumExcludingNegative } from '@tingting/shared';
 import { db } from '../db';
 import { liveDebitOpsExpense } from './live-debit-expense-scope';
@@ -46,11 +46,23 @@ export async function resolveLotZoneSurcharge(
   const lotTrips = await db.select({ id: s.trips.id })
     .from(s.trips)
     .where(eq(s.trips.shipmentId, shipmentId));
+  // Card 2026-10-05_373: a cost the accountant REJECTED (từ chối) is voided on
+  // its accounting source, and must stop justifying a zone surcharge exactly as
+  // it stops counting toward the road-fee total. The OVERRIDE rung above is
+  // already status-aware via liveDebitOpsExpense(), so leaving this rung
+  // unfiltered would let a rejected lift/drop keep its surcharge. The join is a
+  // LEFT join and the null branch is kept, so a legacy cost with no accounting
+  // source still counts (same rule as getPhoiPhieuTienDuong).
   const incidentalRows = await db.select({ amount: s.driverIncidentalCosts.amount })
     .from(s.driverIncidentalCosts)
+    .leftJoin(s.expenseAccountingSources, and(
+      eq(s.expenseAccountingSources.sourceKind, 'DRIVER'),
+      eq(s.expenseAccountingSources.sourceId, s.driverIncidentalCosts.id),
+    ))
     .where(and(
       inArray(s.driverIncidentalCosts.tripId, lotTrips.length > 0 ? lotTrips.map((trip) => trip.id) : [0]),
       eq(s.driverIncidentalCosts.costType, 'LIFT_DROP_ZONE'),
+      or(isNull(s.expenseAccountingSources.id), ne(s.expenseAccountingSources.status, 'VOIDED')),
     ));
   // Same rule as the OVERRIDE rung above: only negative rows = an empty rung.
   const countedIncidental = incidentalRows.filter((row) => Number(row.amount) >= 0);

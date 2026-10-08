@@ -13,6 +13,10 @@ import { configurationText, normalizeConfigurationText } from './config-search';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import '../../pages/config/config-page.css';
+/* CrudTable-owned table variant — must load after record-table.css (same
+   import site) so the ≤1100px tabular-frame exemption can never be
+   order-flipped. See crud-table.css for the card 061026221226 contract. */
+import './crud-table.css';
 
 interface CrudColumn<T> {
   header: string;
@@ -135,7 +139,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
               ? toolbarLeft({ totalItems: items.length, activeCount: activeIds.size })
               : items.length > 0 && (
                   <span className="cfg-page__summary">
-                    <strong>{visibleItems.length}{normalizedSearch ? ` / ${items.length}` : ''}</strong> mục
+                    <strong>{`${visibleItems.length}${normalizedSearch ? ` / ${items.length}` : ''} mục`}</strong>
                   </span>
                 )}
           </div>
@@ -152,8 +156,14 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
           <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => { void refetch(); }}>{isFetching ? 'Đang thử lại…' : 'Thử lại'}</button>
         </div>}
         <div className="table-scroll">
-          <div className="record-table-wrap">
-          <table className="record-table ops-table">
+          {/* Card 061026221226 (owner directive): config catalogue tables keep
+              the tabular frame at every width — the shared scroll boundary
+              absorbs genuine width excess, and the `record-table--config`
+              variant below restores thead+cells inside the ≤1100px container
+              band so column labels stay in the header row instead of being
+              glued into every cell by the generic card handoff. */}
+          <div className="record-table-wrap record-table-wrap--scroll">
+          <table className="record-table ops-table record-table--config">
             <caption className="sr-only">{title}</caption>
             <thead>
               <tr>

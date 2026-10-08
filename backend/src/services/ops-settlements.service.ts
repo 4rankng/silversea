@@ -1,5 +1,5 @@
 /**
- * Ops settlement batches (phiếu quyết toán — docs/prd/OpsVanHanh.md §5.4):
+ * Ops settlement batches (phiếu quyết toán — docs/prd/OpsVanHanh.docx §5.4):
  * freeze the creator's open PENDING+APPROVED cash expenses into one numbered
  * batch accounting reviews and closes.
  */

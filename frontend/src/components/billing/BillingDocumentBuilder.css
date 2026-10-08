@@ -501,7 +501,7 @@
 }
 
 .billing-builder__footer {
-  padding: 14px 28px;
+  padding: 8px 28px 14px;
   display: flex;
   justify-content: flex-end;
   gap: 10px;

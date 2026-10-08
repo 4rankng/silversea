@@ -274,7 +274,7 @@ containers (so the auto-split is meaningful).
     - **Then** Đơn là một công việc; Kẹp là đúng hai container20FT chạy đồng thời trên cùng đầu kéo/moóc/tài xế đủ tổng tải; Kết hợp là hai công việc nối tiếp tái dùng cùng vỏ, trả xong lệnh trước mới đóng lệnh sau.
     - Cặp giữ hai công việc nhận diện riêng, cùng quan hệ ghép; không gộp mất lô/chứng từ/doanh thu. Phí của cùng hành trình dùng chung tính một lần; phí riêng giữ riêng, không tự đặt cách chia đều.
     - Chặn thành viên40FT trong cặp Kẹp, thành viên thứ ba, quá tổng tải, khác phân công hoặc xung đột ngoài cặp. Lịch đồng thời trong chính cặp Kẹp hợp lệ không phải lý do chặn.
-    - **Nguồn hiện hành:** `docs/prd/QuyTrinhO2C.md` §5.4; `docs/prd/LoHangKepKetHop.md` §1–7. Thay mô tả đảo nghĩa cũ, giữ mã AC.
+    - **Nguồn hiện hành:** `docs/prd/QuyTrinhO2C.docx` §5.4; `docs/prd/LoHangKepKetHop.docx` §1–7. Thay mô tả đảo nghĩa cũ, giữ mã AC.
     - **Reference:** TC-DV-DISPATCH-007/008/029/030/031/032. Chỉ ghi PASS khi đã thực thi từng trường hợp; cập nhật thuật ngữ không phải bằng chứng kiểm thử.
 
 ### Test steps

@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
-import { treasuryFundCodeSchema, type Role, type TreasuryFundCode, type TreasuryAccountFundInput } from '@tingting/shared';
+import { treasuryFundCodeSchema, treasuryFundLabel, type Role, type TreasuryFundCode, type TreasuryAccountFundInput } from '@tingting/shared';
 
 import { runInTx } from '../lib/tx';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
@@ -35,6 +35,10 @@ export interface TreasuryPosition {
   fundCode: TreasuryFundCode | null;
   version: number;
   currency: string;
+  /** Card 20261002_291: the business identity a row displays — the technical
+   *  `code` is never a user-facing label. */
+  bankName: string | null;
+  bankAccountNumber: string | null;
   openingBalance: number;
   totalIn: number;
   totalOut: number;
@@ -375,6 +379,8 @@ export async function getTreasuryPosition(accountId: number, transaction?: Tx): 
       fundCode: account.fundCode,
       version: account.version,
       currency: account.currency,
+      bankName: account.bankName,
+      bankAccountNumber: account.bankAccountNumber,
       openingBalance,
       totalIn,
       totalOut,
@@ -421,6 +427,8 @@ export async function getTreasuryPositions(accountIds: number[], transaction?: T
       fundCode: account.fundCode,
       version: account.version,
         currency: account.currency,
+        bankName: account.bankName,
+        bankAccountNumber: account.bankAccountNumber,
         openingBalance,
         totalIn,
         totalOut,
@@ -519,7 +527,7 @@ export async function assertTreasuryFundAssigned(executor: Executor, accountId: 
   const [account] = await executor.select({ fundCode: s.treasuryAccounts.fundCode }).from(s.treasuryAccounts)
     .where(eq(s.treasuryAccounts.id, accountId)).for('update');
   if (!account) throw new ApiError(404, 'Không tìm thấy tài khoản tiền mặt/ngân hàng');
-  if (!treasuryFundCodeSchema.safeParse(account.fundCode).success) throw new ApiError(409, 'Tài khoản chưa phân nguồn quỹ. Cấu hình Quỹ công ty hoặc Quỹ TM tại Sổ quỹ / ngân hàng trước khi ghi phiếu.');
+  if (!treasuryFundCodeSchema.safeParse(account.fundCode).success) throw new ApiError(409, `Tài khoản chưa phân nguồn quỹ. Cấu hình ${treasuryFundLabel('COMPANY')} hoặc ${treasuryFundLabel('TM')} tại Sổ quỹ / ngân hàng trước khi ghi phiếu.`);
 }
 
 /**
@@ -567,7 +575,10 @@ export async function assertVoucherFundMatches(
   const required = [...new Set(lines.map((l) => fundFor(l.costGroup)).filter(Boolean))] as Array<'COMPANY' | 'TM'>;
   if (required.length === 0) return; // nothing to judge
 
-  const name = (f: 'COMPANY' | 'TM') => (f === 'TM' ? 'Quỹ TM' : 'Quỹ công ty');
+  // Card 2026-10-05_381: one display source for both fund names — the wording
+  // lives in the shared constant, never inline here. The local alias is kept
+  // only so the remaining `name(...)` call site below stays readable.
+  const name = treasuryFundLabel;
   const [account] = await executor.select({ fundCode: s.treasuryAccounts.fundCode }).from(s.treasuryAccounts)
     .where(eq(s.treasuryAccounts.id, accountId)).limit(1);
   const fund = treasuryFundCodeSchema.safeParse(account?.fundCode);
@@ -581,7 +592,7 @@ export async function assertVoucherFundMatches(
     throw new ApiError(
       400,
       `Phiếu này trộn hai nguồn quỹ nên không thể ghi vào một tài khoản. `
-      + `Cần Quỹ công ty: ${forCompany.join(', ') || '—'}; cần Quỹ TM: ${forTm.join(', ') || '—'}. Hãy tách phiếu.`,
+      + `Cần ${treasuryFundLabel('COMPANY')}: ${forCompany.join(', ') || '—'}; cần ${treasuryFundLabel('TM')}: ${forTm.join(', ') || '—'}. Hãy tách phiếu.`,
     );
   }
 

@@ -88,25 +88,29 @@ describe('VID-DSP-02 direct release', () => {
     const button = screen.getByRole('button');
     act(() => { button.click(); button.click(); });
     expect(listFleet).toHaveBeenCalledTimes(1);
-    expect(button).toBeDisabled();
-    expect(button).toHaveAccessibleName('Đang phát lệnh · CSQU3054383');
-    expect(button).toHaveAttribute('aria-busy', 'true');
-    expect(button.textContent).toBe('');
-    expect(button.querySelector('svg.tt-animate-spin')).not.toBeNull();
+    // Sweep card 20261008_1: the busy reason mounts the DisabledActionTip
+    // wrapper, which remounts the button — re-query instead of holding the
+    // stale node.
+    const issuingButton = screen.getByRole('button');
+    expect(issuingButton).toHaveAttribute('aria-disabled', 'true');
+    expect(issuingButton).toHaveAccessibleName('Đang phát lệnh · CSQU3054383');
+    expect(issuingButton).toHaveAttribute('aria-busy', 'true');
+    expect(issuingButton.textContent).toBe('');
+    expect(issuingButton.querySelector('svg.tt-animate-spin')).not.toBeNull();
     await act(async () => finishLookup({ items: [ownTruck] }));
     expect(issue).toHaveBeenCalledTimes(1);
-    expect(button).toBeDisabled();
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button'));
     await act(async () => finishIssue({
       fulfillmentId: 1, version: 4,
       trip: { id: 55, version: 1, tripCode: 'VID-DSP', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 12, trailerId: 2, driverId: 34, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null },
       notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true }, replayed: false,
     }));
     expect(issue).toHaveBeenCalledTimes(1);
-    expect(button).not.toBeDisabled();
-    expect(button).toHaveAccessibleName('Phát lệnh · CSQU3054383');
-    expect(button).toHaveAttribute('aria-busy', 'false');
-    expect(button.querySelector('svg.tt-animate-spin')).toBeNull();
+    const idleButton = screen.getByRole('button');
+    expect(idleButton).not.toBeDisabled();
+    expect(idleButton).toHaveAccessibleName('Phát lệnh · CSQU3054383');
+    expect(idleButton).toHaveAttribute('aria-busy', 'false');
+    expect(idleButton.querySelector('svg.tt-animate-spin')).toBeNull();
   });
 
   it('issues an external saved assignment without mandatory driver or extra confirmation', async () => {
@@ -140,5 +144,34 @@ describe('VID-DSP-02 direct release', () => {
     await waitFor(() => expect(issue).toHaveBeenCalledTimes(2));
     expect(issue.mock.calls[1][0]).toEqual(row());
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('issue payload carries the saved "Giờ trả hàng" (card 350)', () => {
+  // User report 04/10 (P1): after Phát lệnh the /dispatch overview showed a
+  // phantom 14:44 (= runAt 12:44 + 2h) while /dispatch-detail kept the saved
+  // 14:30. The issue draft synthesized plannedEndAt and never read
+  // row.plannedEndAt ("Giờ trả hàng — staged pre-issuance on the
+  // fulfillment"); since card 343 the overview column prefers the trip's end,
+  // so the synthetic value became visible and persisted.
+  it('the issued plannedEndAt is the stored return time, not runAt + 2h', async () => {
+    const original = row('EXTERNAL');
+    original.plannedEndAt = '2026-09-15T08:30:00.000Z';
+    const issue = vi.fn().mockResolvedValue({});
+    render(<QuickIssueOrderButton row={original} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
+    await waitFor(() => expect(issue).toHaveBeenCalledTimes(1));
+    expect(issue.mock.calls[0][1].plannedEndAt).toBe('2026-09-15T08:30:00.000Z');
+    expect(issue.mock.calls[0][1].plannedStartAt).toBe('2026-09-15T07:17:00.000Z');
+  });
+
+  it('rows without a stored return keep the runAt + 2h estimate', async () => {
+    const original = row('EXTERNAL');
+    original.plannedEndAt = null;
+    const issue = vi.fn().mockResolvedValue({});
+    render(<QuickIssueOrderButton row={original} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
+    await waitFor(() => expect(issue).toHaveBeenCalledTimes(1));
+    expect(issue.mock.calls[0][1].plannedEndAt).toBe('2026-09-15T09:17:00.000Z');
   });
 });

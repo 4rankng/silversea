@@ -97,15 +97,17 @@ describe('BaseSalaryEditModal', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
-  it('on a 428 conflict, refreshes the token, keeps the amount, and explains', async () => {
+  it('on a version conflict, surfaces the API reason, refreshes the token, and keeps the amount', async () => {
     const onClose = vi.fn();
-    apiPut.mockRejectedValueOnce({ status: 428, message: 'Precondition Required' });
+    apiPut.mockRejectedValueOnce({ status: 428, message: 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.' });
     apiGet.mockResolvedValue({ id: 39, updatedAt: '2026-09-14T11:30:00.000Z', baseSalary: '9000000' });
     await renderReady({ onClose });
     fireEvent.change(screen.getByDisplayValue('8000000'), { target: { value: '9500000' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu/ }));
 
-    await waitFor(() => expect(screen.getByText(/đã được cập nhật ở nơi khác/)).toBeTruthy());
+    // Card 367 law: the backend's precise 4xx reason renders verbatim; the
+    // recovery explanation is the fallback for refusals with no business reason.
+    await waitFor(() => expect(screen.getByText('Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.')).toBeTruthy());
     // The typed amount survives for the retry.
     expect(screen.getByDisplayValue('9500000')).toBeTruthy();
     expect(onClose).not.toHaveBeenCalled();
@@ -114,6 +116,18 @@ describe('BaseSalaryEditModal', () => {
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(2));
     expect(apiPut).toHaveBeenLastCalledWith('/drivers/39', { baseSalary: 9_500_000, salaryEffectiveDate: expect.any(String) }, { expectedUpdatedAt: '2026-09-14T11:30:00.000Z' });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it('a conflict with no business reason keeps the recovery explanation', async () => {
+    const onClose = vi.fn();
+    apiPut.mockRejectedValueOnce({ status: 428 });
+    apiGet.mockResolvedValue({ id: 39, updatedAt: '2026-09-14T11:30:00.000Z', baseSalary: '9000000' });
+    await renderReady({ onClose });
+    fireEvent.change(screen.getByDisplayValue('8000000'), { target: { value: '9500000' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu/ }));
+
+    await waitFor(() => expect(screen.getByText(/đã được cập nhật ở nơi khác/)).toBeTruthy());
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('surfaces other save errors without closing', async () => {

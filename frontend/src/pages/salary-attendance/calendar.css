@@ -294,10 +294,15 @@
   padding: 1px 3px;
   border-radius: 4px;
   margin-top: 2px;
+  /* The trip code is a DATA VALUE: display it in full at every cell width —
+     wraps at its hyphens (or via the house emergency break for hyphen-less
+     codes), never ellipsizes, no title crutch (law book §4 no-truncation
+     doctrine, card 20261004_338). The cell row may grow taller than square
+     where a code wraps; the 7-column grid sources are untouched. */
   max-width: 90%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
   font-family: var(--font-data);
 }
 

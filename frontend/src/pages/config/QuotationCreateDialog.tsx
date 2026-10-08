@@ -1,131 +1,75 @@
-import { useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Modal, TextField, UuiSelectField } from '../../design-system';
-import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
+import { useId, useRef, useState, type FormEvent } from 'react';
+import { quotationCreateSchema } from '@tingting/shared';
 import { Btn } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
-import { useQuotations } from '../../hooks/useQuotationQueries';
-import { quotationClient } from '../../api/quotationClient';
-import { qk } from '../../api/keys';
-import { SURCHARGE_ROUNDING_MODES } from '@tingting/shared';
-import type { QuotationCreateInput, SurchargeRoundingMode } from '@tingting/shared';
+import { Modal, TextField, UuiSelectField, BufferedUuiDateInput } from '../../design-system';
+import { useAllCustomers } from '../../hooks/useCatalogQueries';
+import { useCreateQuotation } from '../../hooks/useQuotationQueries';
 
-const ROUNDING_LABELS: Record<SurchargeRoundingMode, string> = {
-  NONE: 'Không làm tròn',
-  THOUSAND: 'Làm tròn 3 số (nghìn)',
-  TEN_THOUSAND: 'Làm tròn 4 số (chục nghìn)',
-};
+type FieldErrors = Partial<Record<'customerId' | 'templateName' | 'effectiveDate', string>>;
 
-/**
- * Tạo báo giá — the create dialog the config screen's "＋ Tạo báo giá"
- * action opens (card _56, previously a dead link). It builds the frame
- * payload the shared `quotationCreateSchema` governs: customer, template
- * name, effective date, the per-customer surcharge rounding rule and an
- * optional note. Cells and the Chi-phí-khác catalog start empty by design —
- * the created frame opens in the grid where the heSo cells and the fee
- * catalog are the editable surfaces.
- */
 export function QuotationCreateDialog({ onClose, onCreated }: {
   onClose: () => void;
   onCreated: (id: number) => void;
 }) {
-  const frames = useQuotations();
-  const queryClient = useQueryClient();
+  const formId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const customers = useAllCustomers();
+  const create = useCreateQuotation();
   const [customerId, setCustomerId] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
-  const [roundingMode, setRoundingMode] = useState<SurchargeRoundingMode>('NONE');
+  const [rounding, setRounding] = useState('NONE');
   const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const selectedCustomer = customers.data?.find(customer => String(customer.id) === customerId);
+  const close = () => { if (!create.isPending) onClose(); };
 
-  const customerOptions = useMemo(() => {
-    const byId = new Map<number, string>();
-    for (const frame of frames.data ?? []) {
-      if (!byId.has(frame.customerId)) byId.set(frame.customerId, frame.customerName);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (create.isPending) return;
+    const parsed = quotationCreateSchema.safeParse({ customerId: Number(customerId), templateName, effectiveDate, surchargeRoundingMode: rounding, note });
+    const validControls = formRef.current?.checkValidity();
+    if (!parsed.success || !validControls) {
+      const fields: FieldErrors = {};
+      for (const issue of parsed.success ? [] : parsed.error.issues) {
+        const field = issue.path[0];
+        if (field === 'customerId') fields.customerId = 'Chọn khách hàng.';
+        if (field === 'templateName') fields.templateName = templateName.trim() ? 'Tên mẫu báo giá tối đa 120 ký tự.' : 'Nhập tên mẫu báo giá.';
+        if (field === 'effectiveDate') fields.effectiveDate = 'Chọn ngày hiệu lực hợp lệ.';
+      }
+      if (parsed.success && !validControls) fields.effectiveDate = 'Chọn ngày hiệu lực hợp lệ.';
+      setErrors(fields);
+      requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+      return;
     }
-    return [...byId.entries()]
-      .sort(([, a], [, b]) => a.localeCompare(b))
-      .map(([id, name]) => ({ value: String(id), label: name }));
-  }, [frames.data]);
-
-  const dateShapeOk = /^\d{4}-\d{2}-\d{2}$/.test(effectiveDate);
-  const canSave = customerId !== '' && templateName.trim() !== '' && dateShapeOk && !saving;
-
-  async function save() {
-    if (!canSave) return;
-    setSaving(true);
-    setError(null);
-    const body: QuotationCreateInput = {
-      customerId: Number(customerId),
-      templateName: templateName.trim(),
-      effectiveDate,
-      surchargeRoundingMode: roundingMode,
-      note: note.trim() === '' ? null : note.trim(),
-    };
+    setErrors({});
     try {
-      const { id } = await quotationClient.create(body);
-      await queryClient.invalidateQueries({ queryKey: qk.catalogs.quotations });
-      onCreated(id);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Không tạo được báo giá. Vui lòng thử lại.');
-      setSaving(false);
+      const result = await create.mutateAsync(parsed.data);
+      onCreated(result.id);
+    } catch {
+      // The mutation error is rendered below; retain the operator's draft.
     }
   }
 
   return (
-    <Modal
-      isOpen
-      onClose={onClose}
-      title="Tạo báo giá"
-      ariaLabel="Tạo báo giá"
-      maxWidth={520}
-      footer={<>
-        <Btn size="sm" disabled={saving} onClick={onClose}>Hủy</Btn>
-        <Btn size="sm" variant="primary" disabled={!canSave} onClick={() => void save()}>
-          {saving ? 'Đang tạo…' : 'Tạo báo giá'}
-        </Btn>
-      </>}
+    <Modal isOpen title="Tạo báo giá" onClose={close} backdropDismiss={false} polished
+      footer={<><Btn onClick={close} disabled={create.isPending}>Hủy</Btn><Btn variant="primary" type="submit" form={formId} disabled={create.isPending || customers.isLoading || customers.isError}>{create.isPending ? 'Đang tạo…' : 'Tạo báo giá'}</Btn></>}
     >
-      <div className="stack">
-        <UuiSelectField
-          label="Khách hàng"
-          value={customerId}
-          onChange={(event) => setCustomerId(event.target.value)}
-          options={[{ value: '', label: 'Chọn khách hàng' }, ...customerOptions]}
-          disabled={frames.isPending}
-          required
-        />
-        <TextField
-          label="Tên biểu mẫu"
-          value={templateName}
-          onChange={(event) => setTemplateName(event.target.value)}
-          placeholder="Ví dụ: Mẫu 1"
-          required
-        />
-        <BufferedUuiDateInput
-          label="Ngày hiệu lực"
-          size="sm"
-          value={effectiveDate}
-          onChange={setEffectiveDate}
-        />
-        <UuiSelectField
-          label="Làm tròn phụ phí"
-          value={roundingMode}
-          onChange={(event) => setRoundingMode(event.target.value as SurchargeRoundingMode)}
-          options={SURCHARGE_ROUNDING_MODES.map((mode) => ({ value: mode, label: ROUNDING_LABELS[mode] }))}
-        />
-        <TextField
-          label="Ghi chú"
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          placeholder="Ghi chú cho biểu mẫu (không bắt buộc)"
-        />
-        <p className="quotation-status">
-          Lưới hệ số và danh mục Chi phí khác tạo rỗng — chỉnh sửa ngay trên khung báo giá sau khi tạo.
-        </p>
-        {error && <Alert variant="error" style="soft">{error}</Alert>}
-      </div>
+      <form id={formId} ref={formRef} className="stack" onSubmit={submit} noValidate>
+        {customers.isError && <Alert variant="error" style="soft">Không tải được danh sách khách hàng. <Btn size="sm" onClick={() => void customers.refetch()}>Thử lại</Btn></Alert>}
+        {create.isError && <Alert variant="error" style="soft">{create.error.message}</Alert>}
+        <UuiSelectField label="Khách hàng" value={customerId} required size="md" error={errors.customerId} hint={selectedCustomer?.name}
+          disabled={create.isPending || customers.isLoading || customers.isError}
+          options={[{ value: '', label: 'Chọn khách hàng' }, ...(customers.data ?? []).map(customer => ({ value: String(customer.id), label: customer.name }))]}
+          onChange={event => { setCustomerId(event.target.value); setErrors(previous => ({ ...previous, customerId: undefined })); }} />
+        <TextField label="Tên mẫu báo giá" value={templateName} required maxLength={120} error={errors.templateName} disabled={create.isPending} onChange={event => { setTemplateName(event.target.value); setErrors(previous => ({ ...previous, templateName: undefined })); }} />
+        <BufferedUuiDateInput label="Ngày hiệu lực" value={effectiveDate} isRequired isInvalid={Boolean(errors.effectiveDate)} hint={errors.effectiveDate} isDisabled={create.isPending} onChange={value => { setEffectiveDate(value); setErrors(previous => ({ ...previous, effectiveDate: undefined })); }} />
+        <UuiSelectField label="Làm tròn phụ phí dầu" value={rounding} size="md" disabled={create.isPending}
+          options={[{ value: 'NONE', label: 'Không làm tròn' }, { value: 'THOUSAND', label: 'Đến hàng nghìn' }, { value: 'TEN_THOUSAND', label: 'Đến hàng chục nghìn' }]}
+          onChange={event => setRounding(event.target.value)} />
+        <TextField label="Ghi chú" value={note} maxLength={2000} disabled={create.isPending} onChange={event => setNote(event.target.value)} />
+      </form>
     </Modal>
   );
 }

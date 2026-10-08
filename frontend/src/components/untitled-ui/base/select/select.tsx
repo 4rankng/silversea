@@ -1,6 +1,6 @@
 
 import type { FC, ReactNode, RefAttributes } from "react";
-import { isValidElement, useRef } from "react";
+import { isValidElement, useEffect, useRef } from "react";
 import { ChevronDown } from "@untitledui/icons";
 import type { SelectProps as AriaSelectProps } from "react-aria-components";
 import { Button as AriaButton, ListBox as AriaListBox, Select as AriaSelect, SelectValue as AriaSelectValue } from "react-aria-components";
@@ -108,6 +108,28 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, isInvalid, size, placehold
 
 const Select = ({ placeholder = "Select", icon, size = "md", children, items, label, hint, tooltip, hideRequiredIndicator, className, ...rest }: SelectProps) => {
     const triggerRef = useRef<HTMLDivElement>(null);
+
+    // An explicit aria-label override (marked by UuiSelectField's
+    // data-aria-label-override) must win the accessible-name computation:
+    // RAC composites aria-labelledby (value + label refs) on the trigger and
+    // labelledby outranks label, so the name garbles ("Chưa xác định Phơi
+    // phiếu" — card 071026204720). RAC re-applies the composition after
+    // commit-phase strips (proven by probe), so the seam is watched and
+    // re-stripped whenever it reappears. Selects without the explicit
+    // override — including the hideLabel fallback — keep RAC's value+label
+    // naming, which filter/row controls and their tests rely on.
+    useEffect(() => {
+        const root = triggerRef.current;
+        if (!root || typeof MutationObserver === 'undefined') return;
+        const strip = () => {
+            const btn = root.querySelector('button[data-uui-control="select"]');
+            if (btn?.hasAttribute('aria-label') && btn.closest('[data-aria-label-override]') && btn.hasAttribute('aria-labelledby')) btn.removeAttribute('aria-labelledby');
+        };
+        strip();
+        const observer = new MutationObserver(strip);
+        observer.observe(root, { subtree: true, attributes: true, attributeFilter: ['aria-labelledby'] });
+        return () => observer.disconnect();
+    }, []);
 
     return (
         <SelectContext.Provider value={{ size }}>

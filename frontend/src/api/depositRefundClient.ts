@@ -44,6 +44,7 @@ export async function listDepositTrackers(from?: string, to?: string, status?: D
 export async function createDepositTracker(body: {
   billNumber: string; customerName: string; carrierName: string; depositAmount: number | string;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
+  depositDate?: string | null; status?: DepositStatus;
 }): Promise<DepositTrackerRow> {
   return api.post<DepositTrackerRow>('/accounting/deposits', body);
 }

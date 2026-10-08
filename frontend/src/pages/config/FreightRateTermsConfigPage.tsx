@@ -5,6 +5,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { Alert } from '../../components/shared/Alert';
 import { useAllCustomers, useRoutesDropdown } from '../../hooks/useCatalogQueries';
 import { CONFIG } from '@tingting/shared';
 import type { FreightRateTermRow } from '../../api/pricingClient';
@@ -49,8 +50,10 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
   onDelete?: () => Promise<void>;
   deleting?: boolean;
 }) {
-  const { data: customers = [] } = useAllCustomers();
-  const { data: routes = [] } = useRoutesDropdown();
+  const customersQuery = useAllCustomers();
+  const routesQuery = useRoutesDropdown();
+  const { data: customers = [], isError: customersError, isLoading: customersLoading, refetch: refetchCustomers } = customersQuery;
+  const { data: routes = [], isError: routesError, isLoading: routesLoading, refetch: refetchRoutes } = routesQuery;
   const radioName = useId();
 
   const [customerId, setCustomerId] = useState(String(item?.customerId ?? ''));
@@ -85,13 +88,51 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
 
   return (
     <InlineForm colSpan={8}>
+      {customersError && (
+        <div style={{ flex: '1 1 100%', marginBottom: 8 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              <button type="button" className="btn btn--sm" onClick={() => void refetchCustomers()}>
+                Thử lại
+              </button>
+            }
+          >
+            Không thể tải danh sách khách hàng.
+          </Alert>
+        </div>
+      )}
+      {routesError && (
+        <div style={{ flex: '1 1 100%', marginBottom: 8 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              <button type="button" className="btn btn--sm" onClick={() => void refetchRoutes()}>
+                Thử lại
+              </button>
+            }
+          >
+            Không thể tải danh mục tuyến đường.
+          </Alert>
+        </div>
+      )}
       <div style={{ flex: 1, minWidth: 200 }}>
         <UuiSelectField
           label="Khách hàng"
           value={customerId}
           onChange={e => setCustomerId(e.target.value)}
+          disabled={customersLoading || customersError}
           options={[
-            { value: '', label: '— Chọn khách hàng —' },
+            {
+              value: '',
+              label: customersError
+                ? 'Lỗi tải khách hàng — thử lại'
+                : customersLoading
+                ? 'Đang tải khách hàng…'
+                : '— Chọn khách hàng —',
+            },
             ...customers.map(c => ({ value: String(c.id), label: c.name })),
           ]}
         />
@@ -101,8 +142,16 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
           label="Tuyến"
           value={routeId}
           onChange={e => setRouteId(e.target.value)}
+          disabled={routesLoading || routesError}
           options={[
-            { value: '', label: '— Chọn tuyến —' },
+            {
+              value: '',
+              label: routesError
+                ? 'Lỗi tải danh mục tuyến đường — thử lại'
+                : routesLoading
+                ? 'Đang tải danh mục tuyến đường…'
+                : '— Chọn tuyến —',
+            },
             ...routes.map(r => ({ value: String(r.id), label: r.name })),
           ]}
         />
@@ -253,11 +302,11 @@ export default function FreightRateTermsConfigPage() {
         columns={[
           { header: 'Khách hàng', render: r => customerNames.get(r.customerId) ?? '—' },
           { header: 'Tuyến', render: r => routeNames.get(r.routeId) ?? '—' },
-          { header: '% chia sẻ', render: r => `${fmtShare(r.sharePct)}%` },
-          { header: 'Km 1 chiều', render: r => formatNumber(r.billingKmOneWay) },
-          { header: 'Giá gốc dầu F', render: r => fmtFuel(r.baseFuelPrice) },
+          { header: '% chia sẻ', className: 'num', render: r => `${fmtShare(r.sharePct)}%` },
+          { header: 'Km 1 chiều', className: 'num', render: r => formatNumber(r.billingKmOneWay) },
+          { header: 'Giá gốc dầu F', className: 'num', render: r => fmtFuel(r.baseFuelPrice) },
           { header: 'Ngưỡng', render: r => renderThreshold(r) },
-          { header: 'Trễ (ngày)', render: r => String(r.fuelLagDays) },
+          { header: 'Trễ (ngày)', className: 'num', render: r => String(r.fuelLagDays) },
           { header: 'Ngày hiệu lực', render: r => formatDate(r.effectiveDate) },
         ]}
         renderForm={p => (

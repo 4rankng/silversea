@@ -3,14 +3,14 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { eq, inArray } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { Role, SupplierType } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import configRouter, { catalogBootstrapRouter } from '../routes/config';
 import { getBootstrapData } from '../services/config.service';
-import { backfillSupplierCarrierLinks } from '../scripts/backfill-supplier-carriers';
+import { backfillCarrierSuppliers, backfillSupplierCarrierLinks } from '../scripts/backfill-supplier-carriers';
 import { listDispatchFleet } from '../services/dispatch-planning-queries.service';
 import type { AuthUser } from '../middleware/auth';
 import { cacheInvalidate } from '../lib/redis';
@@ -101,7 +101,7 @@ after(async () => {
 describe('supplier → carrier customer link (Chọn nhà xe visibility)', () => {
   it('creates a linked ACTIVE isCarrier customer that bootstrap lists as an external carrier', async () => {
     const name = `NCC Vận tải ${suffix}`;
-    const created = await api('POST', '/api/config/suppliers', { name });
+    const created = await api('POST', '/api/config/suppliers', { name, types: ['CARRIER'] });
     assert.equal(created.status, 201, JSON.stringify(created.body));
     const supplierId = (created.body as { id: number }).id;
     createdSupplierIds.push(supplierId);
@@ -128,7 +128,7 @@ describe('supplier → carrier customer link (Chọn nhà xe visibility)', () =>
   });
   it('mirrors a supplier rename onto the linked carrier customer', async () => {
     const name = `NCC Doi ten ${suffix}B`;
-    const created = await api('POST', '/api/config/suppliers', { name });
+    const created = await api('POST', '/api/config/suppliers', { name, types: ['CARRIER'] });
     assert.equal(created.status, 201, JSON.stringify(created.body));
     const supplierId = (created.body as { id: number }).id;
     createdSupplierIds.push(supplierId);
@@ -155,6 +155,7 @@ describe('supplier → carrier customer link (Chọn nhà xe visibility)', () =>
 
     const created = await api('POST', '/api/config/suppliers', {
       name: `NCC Lien ket ${suffix}C`,
+      types: ['CARRIER'],
       linkedCustomerId: explicitCustomer!.id,
     });
     assert.equal(created.status, 201, JSON.stringify(created.body));
@@ -169,7 +170,7 @@ describe('supplier → carrier customer link (Chọn nhà xe visibility)', () =>
 
   it('hides the carrier from bootstrap when the supplier is deactivated', async () => {
     const name = `NCC Tam dung ${suffix}D`;
-    const created = await api('POST', '/api/config/suppliers', { name });
+    const created = await api('POST', '/api/config/suppliers', { name, types: ['CARRIER'] });
     assert.equal(created.status, 201);
     const supplierId = (created.body as { id: number }).id;
     createdSupplierIds.push(supplierId);
@@ -183,6 +184,53 @@ describe('supplier → carrier customer link (Chọn nhà xe visibility)', () =>
     const names = (bootstrap.externalCarriers ?? []).map((carrier) => carrier.name);
     assert.ok(!names.includes(name), 'deactivated supplier must vanish from external carriers');
   });
+
+  it('does NOT mirror a non-carrier supplier — a fuel station is not a nhà xe', async () => {
+    // 2026-10-03: mirroring ran on every supplier write, so Petrolimex / PV Oil
+    // (FUEL) and the insurers (SERVICE) were all selectable as external
+    // carriers and all leaked into the merged khách hàng list. Carrier-ness is
+    // now decided by `types`, full stop.
+    const name = `Tram xang khong phai nha xe ${suffix}E`;
+    const created = await api('POST', '/api/config/suppliers', { name, types: ['FUEL'] });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const supplierId = (created.body as { id: number }).id;
+    createdSupplierIds.push(supplierId);
+    const [supplier] = await db.select().from(s.suppliers).where(eq(s.suppliers.id, supplierId));
+    const bootstrap = await getBootstrapData();
+    const carrierNames = (bootstrap.externalCarriers ?? []).map((carrier) => carrier.name);
+    assert.ok(!carrierNames.includes(name), 'a FUEL supplier must never appear as an external carrier');
+
+    const [linked] = supplier?.linkedCustomerId
+      ? await db.select({ isCarrier: s.customers.isCarrier })
+        .from(s.customers).where(eq(s.customers.id, supplier.linkedCustomerId)).limit(1)
+      : [];
+    assert.notEqual(linked?.isCarrier, true, 'a non-carrier supplier must not own a carrier-flagged record');
+  });
+
+  it('withdraws the carrier flag when a supplier stops being a carrier', async () => {
+    // The retraction path: a supplier created before the type existed already
+    // holds a stale isCarrier mirror, and re-saving it as FUEL must take the
+    // nhà xe away — otherwise the customer list stays polluted forever.
+    const name = `Nha xe bi doi thanh nhi lieu ${suffix}F`;
+    const created = await api('POST', '/api/config/suppliers', { name, types: ['CARRIER'] });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const supplierId = (created.body as { id: number }).id;
+    createdSupplierIds.push(supplierId);
+    const [before] = await db.select().from(s.suppliers).where(eq(s.suppliers.id, supplierId));
+    createdCustomerIds.push(before!.linkedCustomerId!);
+
+    const [beforeCustomer] = await db.select({ isCarrier: s.customers.isCarrier })
+      .from(s.customers).where(eq(s.customers.id, before!.linkedCustomerId!)).limit(1);
+    assert.equal(beforeCustomer!.isCarrier, true, 'precondition: it started as a nhà xe');
+
+    const retyped = await api('PUT', `/api/config/suppliers/${supplierId}`, { types: ['FUEL'] },
+      { 'If-Unmodified-Since': before!.updatedAt.toISOString() });
+    assert.equal(retyped.status, 200, JSON.stringify(retyped.body));
+
+    const [afterCustomer] = await db.select({ isCarrier: s.customers.isCarrier })
+      .from(s.customers).where(eq(s.customers.id, before!.linkedCustomerId!)).limit(1);
+    assert.equal(afterCustomer!.isCarrier, false, 'retagging as a fuel supplier must retract the nhà xe flag');
+  });
 });
 
 describe('supplier carrier backfill (one-shot, idempotent)', () => {
@@ -192,6 +240,7 @@ describe('supplier carrier backfill (one-shot, idempotent)', () => {
     const [unlinked] = await db.insert(s.suppliers).values({
       name: `NCC Backfill unlinked ${suffix}`,
       status: 'ACTIVE',
+      types: ['CARRIER'],
     }).returning({ id: s.suppliers.id, name: s.suppliers.name });
     createdSupplierIds.push(unlinked!.id);
 
@@ -205,6 +254,7 @@ describe('supplier carrier backfill (one-shot, idempotent)', () => {
     const [dangling] = await db.insert(s.suppliers).values({
       name: `NCC Backfill dangling ${suffix}`,
       status: 'ACTIVE',
+      types: ['CARRIER'],
       linkedCustomerId: gone!.id,
     }).returning({ id: s.suppliers.id, name: s.suppliers.name });
     createdSupplierIds.push(dangling!.id);
@@ -223,6 +273,7 @@ describe('supplier carrier backfill (one-shot, idempotent)', () => {
     const [taxSupplier] = await db.insert(s.suppliers).values({
       name: `NCC Backfill taxcode ${suffix}`,
       status: 'ACTIVE',
+      types: ['CARRIER'],
       taxCode,
     }).returning({ id: s.suppliers.id, name: s.suppliers.name });
     createdSupplierIds.push(taxSupplier!.id);
@@ -293,5 +344,71 @@ describe('supplier carrier backfill (one-shot, idempotent)', () => {
       updatedAt: s.suppliers.updatedAt,
     }).from(s.suppliers).where(inArray(s.suppliers.id, [unlinked!.id, dangling!.id, taxSupplier!.id]));
     assert.deepEqual(afterRerun, beforeRerun, 'second run must not touch the linked rows');
+  });
+});
+
+describe('orphan carrier adoption (carrier → owning supplier)', () => {
+  it('gives a sheet-seeded carrier with no supplier its own CARRIER-typed supplier', async () => {
+    // The "Nhà xe" sheet seeds carriers straight into `customers`, leaving them
+    // with no owner anywhere — invisible on /suppliers and impossible to edit
+    // now that carriers are administered there. Reconciliation must adopt or
+    // mint one, and a second run must be a no-op.
+    const name = `Nha xe orphan ${suffix}G`;
+    const [carrier] = await db.insert(s.customers).values({
+      name, shortName: name, status: 'ACTIVE', isCarrier: true, linkedSupplierId: null,
+    }).returning({ id: s.customers.id });
+    createdCustomerIds.push(carrier!.id);
+
+    const first = await backfillCarrierSuppliers();
+    assert.ok(first.minted >= 1 || first.adopted >= 1, `the orphan must gain an owner; got ${JSON.stringify(first)}`);
+
+    const [supplier] = await db.select({
+      id: s.suppliers.id, types: s.suppliers.types, linkedCustomerId: s.suppliers.linkedCustomerId,
+    }).from(s.suppliers).where(eq(s.suppliers.name, name)).limit(1);
+    assert.ok(supplier, 'a CARRIER-typed supplier must exist for the orphan nhà xe');
+    createdSupplierIds.push(supplier!.id);
+    assert.deepEqual(supplier!.types, ['CARRIER']);
+
+    const [reowned] = await db.select({ linkedSupplierId: s.customers.linkedSupplierId })
+      .from(s.customers).where(eq(s.customers.id, carrier!.id)).limit(1);
+    assert.equal(reowned!.linkedSupplierId, supplier!.id, 'the carrier must point back at its supplier');
+    assert.equal(supplier!.linkedCustomerId, carrier!.id, 'and the supplier must point back at the carrier');
+
+    const second = await backfillCarrierSuppliers();
+    assert.equal(second.adopted + second.minted, 0, 'a second run must adopt nothing (idempotent)');
+  });
+
+  it('adopts an existing supplier that matches the carrier by tax code instead of minting a duplicate', async () => {
+    const taxCode = `07${String(Date.now() + 7).slice(-8)}`;
+    const [supplier] = await db.insert(s.suppliers).values({
+      name: `NCC trùng MST ${suffix}H`,
+      shortName: `NCC trùng MST ${suffix}H`,
+      taxCode,
+      types: [SupplierType.CARRIER],
+      primaryType: SupplierType.CARRIER,
+      status: 'ACTIVE',
+    }).returning({ id: s.suppliers.id });
+    createdSupplierIds.push(supplier!.id);
+
+    // Business-named differently, but the same legal entity by tax code — the
+    // identity the customers index treats as unique, so a mint would collide.
+    const [carrier] = await db.insert(s.customers).values({
+      name: `Nha xe khac ten ${suffix}H`,
+      status: 'ACTIVE',
+      isCarrier: true,
+      taxCode,
+      linkedSupplierId: null,
+    }).returning({ id: s.customers.id });
+    createdCustomerIds.push(carrier!.id);
+
+    const result = await backfillCarrierSuppliers();
+    assert.ok(result.adopted >= 1, `the tax-code holder must be adopted; got ${JSON.stringify(result)}`);
+    const matched = await db.select({ id: s.suppliers.id }).from(s.suppliers)
+      .where(and(eq(s.suppliers.name, `Nha xe khac ten ${suffix}H`), isNull(s.suppliers.deletedAt)));
+    assert.equal(matched.length, 0, 'no duplicate supplier may be minted for an already-registered tax code');
+
+    const [linked] = await db.select({ linkedCustomerId: s.suppliers.linkedCustomerId })
+      .from(s.suppliers).where(eq(s.suppliers.id, supplier!.id)).limit(1);
+    assert.equal(linked!.linkedCustomerId, carrier!.id, 'the existing supplier adopts the carrier');
   });
 });

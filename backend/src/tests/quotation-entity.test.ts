@@ -6,7 +6,7 @@
  *   liters 20/26/26/30/40/48/64/64/70/70 ℓ, Giá cos 1.248.000 … 4.160.000,
  *   surcharges 241.948 / 314.533 / 314.533 / 362.922 / 483.896 / 580.676 /
  *   774.234 / 846.819* — *file shows 846.818 (Δ at 3dp display); the system
- *   stores base at scale 4 (CuocPhiThietKeDB.md §3.2.1, QA-passed) and pins
+ *   stores base at scale 4 (CuocPhiThietKeDB.docx §3.2.1, QA-passed) and pins
  *   846.819. NEWEB 1.25T: 1.300.000 + 314.533 = 1.614.533.
  *
  * Runs on an isolated DB (throwaway quotation_w66); canonical class codes are

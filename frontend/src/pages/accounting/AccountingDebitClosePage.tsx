@@ -184,7 +184,10 @@ export default function AccountingDebitClosePage() {
     selection.clear();
   }
 
-  const facetCount = customerFilter.length + truckFilter.length;
+  // Card 20261002_285 AC3: the badge counts CRITERIA, not selected values — it
+  // summed the arrays' lengths, so 3 customers + 1 truck read "4 đang áp dụng"
+  // while one `Đặt lại` cleared both, a count no operator could reach by clearing.
+  const facetCount = (customerFilter.length ? 1 : 0) + (truckFilter.length ? 1 : 0);
   const groupedHead = shown.filter((column) => column.group != null);
   const period = [filters.dateFrom, filters.dateTo].filter(Boolean).join(' – ');
   const roundItems = roundsQuery.data?.items ?? [];
@@ -225,7 +228,7 @@ export default function AccountingDebitClosePage() {
               title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để mở popup chốt đợt' : undefined}
               onClick={() => setSettlementOpen(true)}
             >
-              Chọn Debit ({selectedCount} dòng)
+              {`Chọn Debit (${selectedCount} dòng)`}
             </button>
           </>
         )}

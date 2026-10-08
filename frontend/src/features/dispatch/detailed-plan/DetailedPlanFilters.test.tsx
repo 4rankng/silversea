@@ -126,8 +126,12 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     const quick = within(dialog).getByRole('heading', { name: 'Bộ lọc nhanh' }).parentElement as HTMLElement;
     expect(quick.className).toContain('detailed-plan-filter-panel__group');
     expect(within(quick).getByRole('button', { name: 'Khách: Tất cả' })).toBeTruthy();
-    expect(within(quick).getByRole('button', { name: 'Xuất / Nhập: Tất cả' })).toBeTruthy();
     expect(within(quick).getByRole('button', { name: 'Điều xe: Tất cả' })).toBeTruthy();
+    // Card 20261002_282 (R17): Xuất / Nhập rides the bar while it has room —
+    // a direct bar item ahead of the trigger, never repeated in the dialog.
+    expect(within(dialog).queryByRole('button', { name: /^Xuất \/ Nhập/ })).toBeNull();
+    const direction = within(bar).getByRole('button', { name: 'Xuất / Nhập: Tất cả' });
+    expect(direction.closest('.inline-label-select')?.parentElement).toBe(bar);
     expect(within(quick).getByRole('button', { name: 'Dữ liệu: Tất cả' })).toBeTruthy();
   });
 
@@ -228,12 +232,12 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
   it('maps the drawer facet selects to their filter patches and keeps labels in the triggers', () => {
     const onChange = vi.fn();
     renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
-    openFilterDialog();
-
+    // Xuất / Nhập is a bar item (card 20261002_282); the rest live in the dialog.
     fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     expect(onChange).toHaveBeenCalledWith({ direction: 'IMPORT' });
 
+    openFilterDialog();
     fireEvent.click(screen.getByRole('button', { name: 'Điều xe: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Chưa điều xe' }));
     expect(onChange).toHaveBeenCalledWith({ assignmentStatus: 'UNASSIGNED' });
@@ -247,7 +251,7 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     const onChange = vi.fn();
     const { rerender } = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
     const clearButton = screen.getByRole('button', { name: 'Xóa lọc' });
-    expect(clearButton).toBeDisabled();
+    expect(clearButton).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(clearButton);
     expect(onChange).not.toHaveBeenCalled();
 
@@ -385,5 +389,147 @@ describe('DetailedPlanFilters — Bộ lọc dialog (hours/zone/points)', () => 
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn tất cả' }));
     expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [] });
+  });
+});
+
+// Card 20261002_285 AC1. RED-first: the date scope has TWO representations — the
+// `date` preset and the `dateFrom`/`dateTo` range — and `clearSecondaryFilters`
+// preserved only the preset. An identically-scoped custom range was therefore
+// silently wiped by the dialog's own `Đặt lại`, while the same preset survived.
+describe('detailed-plan Bộ lọc reset keeps the whole date scope (card 20261002_285)', () => {
+  it('leaves a custom from/to range in place and clears the folded criteria', () => {
+    const onChange = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps(onChange)}
+        filters={{
+          ...EMPTY_DETAILED_PLAN_FILTERS,
+          q: 'BL-001',
+          dateFrom: '2026-08-01',
+          dateTo: '2026-08-05',
+          deliveryPointIds: [42],
+        }}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
+      />,
+    );
+    openFilterDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt lại' }));
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+      q: 'BL-001',
+      dateFrom: '2026-08-01',
+      dateTo: '2026-08-05',
+      deliveryPointIds: [],
+    }));
+  });
+
+  it('still preserves the preset scope, unchanged from before', () => {
+    const onChange = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps(onChange)}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, q: 'BL-001', date: '2026-08-01', deliveryPointIds: [42] }}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
+      />,
+    );
+    openFilterDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt lại' }));
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+      q: 'BL-001',
+      date: '2026-08-01',
+      deliveryPointIds: [],
+    }));
+  });
+});
+
+describe('DetailedPlanFilters — quick assignment chips (card 20261002_274, A07)', () => {
+  it('carries the Tất cả / Chưa gán xe / Đã gán xe quick chips on the bar', () => {
+    const onChange = vi.fn();
+    renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    expect(within(group).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('true');
+    // Name prefix: each chip appends its count span (card 20261008_3).
+    fireEvent.click(within(group).getByRole('tab', { name: /^Chưa gán xe/ }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assignmentStatus: 'UNASSIGNED' }));
+    fireEvent.click(within(group).getByRole('tab', { name: /^Đã gán xe/ }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assignmentStatus: 'ASSIGNED' }));
+  });
+
+  it('mirrors an applied assignment filter as the active chip', () => {
+    renderFilters(
+      <DetailedPlanFilters {...baseProps()} filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, assignmentStatus: 'ASSIGNED' }} />,
+    );
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    expect(within(group).getByRole('tab', { name: /^Đã gán xe/ }).getAttribute('aria-selected')).toBe('true');
+    expect(within(group).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('false');
+  });
+});
+
+describe('DetailedPlanFilters — assignment chip counts (card 20261008_3)', () => {
+  it('maps the union count source onto the two chips — each count is what clicking shows', () => {
+    renderFilters(<DetailedPlanFilters {...baseProps()} assignmentCounts={{ UNASSIGNED: 3, ASSIGNED: 2 }} />);
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    const unassigned = within(group).getByRole('tab', { name: /^Chưa gán xe/ });
+    const assigned = within(group).getByRole('tab', { name: /^Đã gán xe/ });
+    const all = within(group).getByRole('tab', { name: 'Tất cả' });
+
+    // Chip → count mapping: the numbers come from the grid query's own
+    // `assignmentStatusCounts` — full-set over the UNION of both branches
+    // (fulfillment + điều phối), so each equals the total clicking that chip
+    // returns from the API (pinned server-side in
+    // dispatch-detail-plan-assignment-counts.test.ts).
+    expect(unassigned.querySelector('.ds-tabs__count')?.textContent).toBe('3');
+    expect(assigned.querySelector('.ds-tabs__count')?.textContent).toBe('2');
+    // 'Tất cả' is not one of the two chips — no count of its own.
+    expect(all.querySelector('.ds-tabs__count')).toBeNull();
+    // Status-tab count convention (ShipmentsPage precedent): tone rides the
+    // count — warning = còn phải gán, accent = đã gán xong.
+    expect(unassigned.querySelector('.ds-tabs__count--warning')).toBeTruthy();
+    expect(assigned.querySelector('.ds-tabs__count--accent')).toBeTruthy();
+  });
+
+  it('renders 0 as "0" on an empty row set — never blank', () => {
+    renderFilters(<DetailedPlanFilters {...baseProps()} assignmentCounts={{ UNASSIGNED: 0, ASSIGNED: 0 }} />);
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    for (const name of [/^Chưa gán xe/, /^Đã gán xe/]) {
+      const count = within(group).getByRole('tab', { name }).querySelector('.ds-tabs__count');
+      expect(count).not.toBeNull();
+      expect(count?.textContent).toBe('0');
+    }
+  });
+
+  it('defaults to 0 counts when no count source has arrived yet — still never blank', () => {
+    renderFilters(<DetailedPlanFilters {...baseProps()} />);
+
+    const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
+    expect(within(group).getByRole('tab', { name: /^Chưa gán xe/ }).querySelector('.ds-tabs__count')?.textContent).toBe('0');
+    expect(within(group).getByRole('tab', { name: /^Đã gán xe/ }).querySelector('.ds-tabs__count')?.textContent).toBe('0');
+  });
+});
+
+describe('DetailedPlanFilters — Xuất / Nhập on the bar (card 20261002_282)', () => {
+  it('leaves the bar direction out of the badge and out of the dialog reset', () => {
+    const onChange = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps(onChange)}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, direction: 'IMPORT', zone: 'HP' }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Xuất / Nhập: Nhập' })).toBeTruthy();
+    // direction is visible on the bar; only the zone is behind the trigger.
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 1 đang áp dụng' }));
+    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt lại' }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...EMPTY_DETAILED_PLAN_FILTERS,
+      date: '',
+      direction: 'IMPORT',
+    });
   });
 });

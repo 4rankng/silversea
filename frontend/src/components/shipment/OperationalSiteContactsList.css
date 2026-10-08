@@ -1,0 +1,5 @@
+.site-contact-list { display: grid; gap: var(--space-sm); list-style: none; padding: 0; margin: 0; }
+.site-contact-list__row { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+.site-contact-list__identity { display: flex; flex: 1; flex-wrap: wrap; gap: var(--space-xs) var(--space-sm); min-width: 0; overflow-wrap: anywhere; }
+.site-contact-list__phone { color: var(--fg-2); min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.site-contact-list__default { color: var(--fg-2); }

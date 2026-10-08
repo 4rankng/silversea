@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 import { Role } from '@tingting/shared';
 import { EmptyState, Pagination } from '../design-system';
 import type { ShipmentListItem } from '../api/shipmentClient';
@@ -8,8 +8,10 @@ import { updateShipment } from '../api/shipmentClient';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/shared/Toast';
+import { DisabledActionTip } from '../components/shared/DisabledActionTip';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import { useDispatchMasterPlan } from '../features/dispatch/master-plan/useDispatchMasterPlan';
+import { exportMasterPlanWorksheet } from '../features/dispatch/master-plan/masterPlanExport';
 import { MasterPlanFilters } from '../features/dispatch/master-plan/MasterPlanFilters';
 import { MasterPlanGrid } from '../features/dispatch/master-plan/MasterPlanGrid';
 import { DispatchAllocationPopover } from '../features/dispatch/master-plan/DispatchAllocationPopover';
@@ -30,6 +32,7 @@ export default function MasterPlanPage() {
   const { toast } = useToast();
   const [allocating, setAllocating] = useState<ShipmentListItem | null>(null);
   const [containerDetailShipment, setContainerDetailShipment] = useState<ShipmentListItem | null>(null);
+  const [exporting, setExporting] = useState(false);
   const allocationTriggerRef = useRef<HTMLButtonElement | null>(null);
   const containerDetailTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -67,6 +70,42 @@ export default function MasterPlanPage() {
     }
   }, [masterPlan, toast]);
 
+  // Single-day scope (deliveryDateFrom === deliveryDateTo): the grid narrows
+  // its schedule/port/cargo lines to that day — the worksheet takes the same
+  // argument so its columns match the screen exactly.
+  const scheduleDate = masterPlan.filters.deliveryDateFrom
+    && masterPlan.filters.deliveryDateFrom === masterPlan.filters.deliveryDateTo
+    ? masterPlan.filters.deliveryDateFrom
+    : null;
+
+  // Card 081026093510 (lead ruling 2026-10-08): the export enable condition
+  // is DATA-DRIVEN — export is possible whenever the dispatcher's current
+  // filtered view holds >= 1 row; at 0 rows the button disables WITH the
+  // "Không có dữ liệu để xuất" explanation. Busy states carry their own
+  // explanation (the 'Đang xuất…' label, or the loading reason).
+  const exportDisabledReason = exporting
+    ? null
+    : masterPlan.loading
+      ? 'Đang tải dữ liệu…'
+      : masterPlan.total === 0
+        ? 'Không có dữ liệu để xuất'
+        : null;
+  const exportDisabled = exporting || exportDisabledReason != null;
+
+  const handleExportExcel = async () => {
+    if (exportDisabled) return;
+    setExporting(true);
+    try {
+      const count = await exportMasterPlanWorksheet(masterPlan.filters, scheduleDate);
+      toast({ kind: 'success', message: `Đã xuất ${count} lô hàng ra tệp Excel.` });
+    } catch {
+      // FB-053 export feedback convention.
+      toast({ kind: 'error', message: 'Chưa xuất được tệp Excel — vui lòng thử lại.' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Customer ask (Cap_nhat_UI_va_logic 2.1): hint inside the "Sản lượng" bar
   // listing last day's OWN trucks that dropped containers in the zone.
   const presenceDropPlates = (masterPlan.presence?.items ?? [])
@@ -81,14 +120,18 @@ export default function MasterPlanPage() {
         {masterPlan.error && (
           <div className="dispatch-plan-page__error" role="alert">
             <span>{masterPlan.error}</span>
-            <button
-              type="button"
-              className="btn btn--secondary btn--sm"
-              onClick={masterPlan.refetch}
-              disabled={masterPlan.loading}
-            >
-              Thử lại
-            </button>
+            {/* Sweep (card 081026093510): the retry used to disable silently
+                while a load was in flight — same aria-described explanation. */}
+            <DisabledActionTip id="master-plan-retry" reason={masterPlan.loading ? 'Đang tải dữ liệu…' : null}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => { if (masterPlan.loading) return; masterPlan.refetch(); }}
+                aria-disabled={masterPlan.loading || undefined}
+              >
+                Thử lại
+              </button>
+            </DisabledActionTip>
           </div>
         )}
 
@@ -96,10 +139,28 @@ export default function MasterPlanPage() {
           filters={masterPlan.filters}
           onChange={masterPlan.updateFilters}
           action={(
-            <button type="button" className="btn btn--primary btn--sm" onClick={() => navigate('/shipments/new')}>
-              <Plus size={16} aria-hidden="true" />
-              Tạo lô hàng
-            </button>
+            <>
+              {/* Card 081026093510: data-driven export — enabled while the
+                  filtered view holds >= 1 row. At 0 rows the action stays
+                  aria-disabled (focusable + hoverable, NEVER `disabled`) so
+                  DisabledActionTip can explain "Không có dữ liệu để xuất" on
+                  hover AND keyboard focus. */}
+              <DisabledActionTip id="master-plan-export" reason={exportDisabledReason}>
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  aria-disabled={exportDisabled || undefined}
+                  onClick={() => { if (exportDisabled) return; void handleExportExcel(); }}
+                >
+                  <Download size={14} aria-hidden="true" />
+                  {exporting ? 'Đang xuất…' : 'Xuất file Excel'}
+                </button>
+              </DisabledActionTip>
+              <button type="button" className="btn btn--primary btn--sm" onClick={() => navigate('/shipments/new')}>
+                <Plus size={16} aria-hidden="true" />
+                Tạo lô hàng
+              </button>
+            </>
           )}
         />
 
@@ -167,12 +228,7 @@ export default function MasterPlanPage() {
               // `assertDispatcherCanMutateShipmentIntake` scopes a dispatcher's
               // write to intake-stage lots; offer the note affordance there only.
               notesIntakeOnly={user?.role === Role.DISPATCHER}
-              scheduleDate={
-                masterPlan.filters.deliveryDateFrom
-                && masterPlan.filters.deliveryDateFrom === masterPlan.filters.deliveryDateTo
-                  ? masterPlan.filters.deliveryDateFrom
-                  : null
-              }
+              scheduleDate={scheduleDate}
             />
             {masterPlan.total > masterPlan.pageSize && (
               <Pagination
@@ -197,6 +253,7 @@ export default function MasterPlanPage() {
       <DispatchContainerDetailDrawer
         shipment={containerDetailShipment}
         onClose={() => setContainerDetailShipment(null)}
+        onSaved={() => masterPlan.refetch()}
       />
     </div>
   );

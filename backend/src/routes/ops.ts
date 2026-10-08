@@ -1,5 +1,5 @@
 /**
- * Ops field-operations portal (docs/prd/OpsVanHanh.md), mounted at /api/ops
+ * Ops field-operations portal (docs/prd/OpsVanHanh.docx), mounted at /api/ops
  * behind authMiddleware. Role gates per PRD §2: portal routes are OPS-only,
  * financial reconciliation is ADMIN/MANAGER/ACCOUNTANT, truck ops
  * assignment is ADMIN-only.
@@ -11,6 +11,8 @@ import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { Role, createAdvanceRequestSchema } from '@tingting/shared';
+import { db } from '../db';
+import { opsExpenseWriteScope } from '../services/expense-owner-scope.service';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
@@ -33,6 +35,7 @@ import {
   listOpsExpenses,
   updateOpsExpense,
 } from '../services/ops-expenses.service';
+import { loadOpsExpenseStatusCounts } from '../services/ops-expense-status-census.service';
 import {
   createOpsSettlement,
   finalizeOpsSettlement,
@@ -110,9 +113,14 @@ router.get('/wallet/expenses', OPS_ONLY, asyncHandler(async (req: Request, res: 
   const status = statusFilterSchema.parse(req.query.status);
   const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? '100'), 10) || 100, 1), 200);
   const offset = Math.max(Number.parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
-  res.json({
-    items: await listOpsExpenses({ paidById: user.userId, status, limit, offset }),
-  });
+  // Card 20261008_2: `statusCounts` sizes every status tab over the FULL set
+  // (native + legacy trip-sourced rows), never the loaded page — the envelope
+  // shape follows cus-shipment-workspace's statusCounts (card 081026093520).
+  const [items, statusCounts] = await Promise.all([
+    listOpsExpenses({ paidById: user.userId, status, limit, offset }),
+    loadOpsExpenseStatusCounts({ paidById: user.userId }),
+  ]);
+  res.json({ items, statusCounts });
 }));
 
 router.get('/wallet/advance-requests', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
@@ -179,6 +187,15 @@ const expensePatchSchema = z.object({
   note: z.string().max(1000).nullable().optional(),
 });
 
+
+// Card 071026210510: the expense dialog checks the grant BEFORE the operator
+// types anything — the verdict comes from the same assert the save runs, so
+// the open-time answer and the save-time refusal can never disagree.
+router.get('/expenses/write-scope', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const shipmentId = parseId(typeof req.query.shipmentId === 'string' ? req.query.shipmentId : undefined, 'Lô hàng');
+  res.json(await opsExpenseWriteScope(db, user.userId, shipmentId));
+}));
 
 router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);

@@ -52,7 +52,10 @@ beforeEach(() => {
 });
 
 describe('QuotationConfigPage (card 20260922_56)', () => {
-  it('lists frames, filters by customer and date window, and opens the grid', async () => {
+  // The customer-filter select chain (button → react-aria option) flakes over
+  // the 5s default on a loaded box (5.1–6.9s in full runs) — the house
+  // drawer-interaction deadline contract from card 20260930_237 applies.
+  it('lists frames, filters by customer and date window, and opens the grid', { timeout: 15000 }, async () => {
     render(<QuotationConfigPage />, { wrapper: makeWrapper() });
     const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
     expect(await within(framesRegion).findByText('Công ty A')).toBeTruthy();
@@ -70,7 +73,9 @@ describe('QuotationConfigPage (card 20260922_56)', () => {
     expect(within(framesRegion).getByText('Công ty B')).toBeTruthy();
   });
 
-  it('opens all ten class rows in file order with their groups and five metric columns', async () => {
+  // Select/grid interaction chain — same loaded-box flake contract as the test
+  // above (card 20260930_237 precedent).
+  it('opens all ten class rows in file order with their groups and five metric columns', { timeout: 15000 }, async () => {
     render(<QuotationConfigPage />, { wrapper: makeWrapper() });
     const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
     fireEvent.click(await within(framesRegion).findByText('Công ty A'));
@@ -265,5 +270,104 @@ describe('QuotationConfigPage fee catalog (card 20260922_64)', () => {
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
     const [, body] = apiPut.mock.calls[0];
     expect(body.fees[0]).toEqual({ feeName: 'Lưu ca xe', subType: null, defaultAmount: 1000000, routing: 'OTHER_COSTS', note: null, sortOrder: 0 });
+  });
+});
+
+describe('QuotationConfigPage master list + detail states (card 20261002_288)', () => {
+  // The validity label reads the LOCAL calendar: a frame is in force from its
+  // effective date on (frames carry no end date). Fixtures straddle "today".
+  const datedFrames = [
+    { id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null },
+    { id: 2, customerId: 9, customerName: 'Công ty B', templateName: 'LOG COM', effectiveDate: '2099-01-01', note: 'Hiệu lực sau' },
+  ];
+
+  function mockFrames(framesList: unknown[]) {
+    apiGet.mockReset();
+    apiGetBlob.mockReset();
+    apiPut.mockClear();
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/quotations') return Promise.resolve(framesList);
+      if (path === '/quotations/1') return Promise.resolve({
+        id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null,
+        cells: [], // the live norm: a frame whose grid is not configured yet
+        fees: [],
+      });
+      if (path === '/quotations/1/versions') return Promise.resolve({ items: [], total: 0 });
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+  }
+
+  it('ranks each frame customer → quote code → applied date → validity status', async () => {
+    mockFrames(datedFrames);
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
+    const options = await within(framesRegion).findAllByRole('option');
+    expect(options).toHaveLength(2);
+
+    const first = within(options[0]);
+    expect(first.getByText('Công ty A')).toBeTruthy();               // customer names the row
+    expect(first.getByText('Mẫu 1')).toBeTruthy();                   // quote code
+    expect(first.getByText('01/09/2026')).toBeTruthy();              // applied date, dd/mm/yyyy
+    expect(first.getByText('Đang hiệu lực')).toBeTruthy();           // in force
+
+    const second = within(options[1]);
+    expect(second.getByText('Chưa hiệu lực')).toBeTruthy();          // effective date in the future
+  });
+
+  it('keeps the pane alive when nothing is selected and names a frame with no route grid', async () => {
+    mockFrames(datedFrames);
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    const detail = document.querySelector('.quotation-detail') as HTMLElement;
+    expect(detail.className).toContain('is-empty');
+    expect(await within(detail).findByText('Chọn một báo giá để xem lưới giá.')).toBeTruthy();
+
+    fireEvent.click(await within(document.querySelector('.quotation-frames') as HTMLElement).findByText('Công ty A'));
+    expect((document.querySelector('.quotation-detail') as HTMLElement).className).not.toContain('is-empty');
+    expect(await within(document.querySelector('.quotation-detail') as HTMLElement)
+      .findByText('Báo giá chưa có biểu giá theo tuyến.')).toBeTruthy();
+  });
+});
+
+// Card 20261004_333 — query errors must not render as empty data: the frames
+// list drops its "Không có báo giá khớp bộ lọc" empty-state while the fetch
+// failed, and the version history surfaces the failure with retry instead of
+// a silent blank table.
+describe('QuotationConfigPage fetch-error states (card 20261004_333)', () => {
+  it('keeps the empty-state out of the frames list while the frames fetch failed', async () => {
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/quotations') return Promise.reject(new Error('500'));
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    expect(await screen.findByRole('alert', undefined, { timeout: 3000 })).toBeVisible();
+    expect(screen.queryByText('Không có báo giá khớp bộ lọc.')).not.toBeInTheDocument();
+  });
+
+  it('surfaces the version-history failure with retry instead of the empty-history copy', async () => {
+    let versionsFail = true;
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/quotations') return Promise.resolve(frames);
+      if (path === '/quotations/1') return Promise.resolve({
+        id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null,
+        cells: gridCells,
+        fees: [],
+      });
+      if (path.startsWith('/quotations/1/versions')) {
+        return versionsFail ? Promise.reject(new Error('500')) : Promise.resolve({ items: [], total: 0 });
+      }
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
+    fireEvent.click(await within(framesRegion).findByText('Công ty A'));
+
+    const history = await screen.findByRole('region', { name: 'Lịch sử phiên bản báo giá' });
+    expect(await within(history).findByText(/Không thể tải lịch sử phiên bản/, undefined, { timeout: 3000 })).toBeVisible();
+    expect(within(history).queryByText('Chưa có phiên bản nào được ghi nhận.')).not.toBeInTheDocument();
+
+    versionsFail = false;
+    fireEvent.click(within(history).getByRole('button', { name: 'Thử lại' }));
+    expect(await within(history).findByText('Chưa có phiên bản nào được ghi nhận.')).toBeVisible();
+    expect(within(history).queryByText(/Không thể tải lịch sử phiên bản/)).not.toBeInTheDocument();
   });
 });

@@ -2,7 +2,7 @@
   "library": "untitledui",
   "libVersion": "8",
   "cliVersion": "0.1.63",
-  "note": "Vendored Untitled UI PRO source under src/components/untitled-ui/. Derived from the filesystem; enforced by src/tests/structure.guard.test.ts. An id listed here is a LOCALLY ADAPTED file - edit it, never re-run pnpm uui:add:* over it.",
+  "note": "Vendored Untitled UI PRO source under src/components/untitled-ui/. Derived from the filesystem; enforced by frontend/scripts/check-structure.mjs. An id listed here is a LOCALLY ADAPTED file - edit it, never re-run pnpm uui:add:* over it.",
   "files": [
     "base/avatar/avatar.tsx",
     "base/avatar/base-components/avatar-add-button.tsx",
@@ -29,10 +29,8 @@
     "base/select/select-shared.tsx",
     "base/select/select.tsx",
     "base/tags/base-components/tag-checkbox.tsx",
-    "base/tags/base-components/tag-close-x.tsx",
     "base/textarea/textarea.tsx",
     "base/tooltip/tooltip.tsx",
-    "foundations/dot-icon.tsx",
-    "foundations/featured-icon/featured-icon.tsx"
+    "foundations/dot-icon.tsx"
   ]
 }

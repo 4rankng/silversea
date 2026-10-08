@@ -204,15 +204,26 @@ describe('DriverTwoOrdersPage — M8.3 two-orders view', () => {
     await waitFor(() => expect(screen.getByText(/Hôm nay không có lệnh/)).toBeTruthy());
   });
 
+  it('shows the state-free page title on an empty day so it does not contradict the empty state', async () => {
+    useDriverTwoOrdersMock.mockReturnValue({
+      data: { date: '2026-07-26', active: null, next: null, firstOrderLate: false, allToday: [] },
+      isLoading: false, error: null,
+    });
+    renderAt();
+    await waitFor(() => expect(screen.getByText(/Hôm nay không có lệnh/)).toBeTruthy());
+    expect(screen.getByRole('heading', { level: 1, name: 'Lệnh trong ngày' })).toBeTruthy();
+    expect(screen.queryByText(/Hai lệnh hôm nay/)).toBeNull();
+  });
+
   it('shows the loading spinner while loading', () => {
     useDriverTwoOrdersMock.mockReturnValue({ data: undefined, isLoading: true, error: null });
     renderAt();
-    expect(screen.getByText(/Đang tải hai lệnh hôm nay/)).toBeTruthy();
+    expect(screen.getByText(/Đang tải lệnh trong ngày/)).toBeTruthy();
   });
 
   it('shows the error state when the query fails', async () => {
     useDriverTwoOrdersMock.mockReturnValue({ data: undefined, isLoading: false, error: new Error('boom') });
     renderAt();
-    await waitFor(() => expect(screen.getByText(/Không thể tải thông tin hai lệnh/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Không thể tải thông tin lệnh trong ngày/)).toBeTruthy());
   });
 });

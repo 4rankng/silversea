@@ -8,7 +8,7 @@
  * `cus-shipment-workspace.service.ts` remains the facade importers target.
  */
 import { Role, ShipmentCusBucket, ShipmentStatus, localDateInBusinessZone, type DispatchClassification, type ShipmentCusContainerQuery, type ShipmentCusWorkspaceDetail, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceQuery, type ShipmentCusContainerFlatResponse, type ShipmentCusContainerFlatRow } from '@tingting/shared';
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 
 
 import { db, type Executor } from '../db';
@@ -29,7 +29,8 @@ import { billOrBookNumberFor, trimOrNull } from './cus-workspace-mapping.service
 export * from './cus-workspace-sql.service';
 export * from './cus-workspace-mapping.service';
 
-import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess } from './cus-workspace-builders.service';
+import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite, indexAssignmentRows } from './cus-workspace-builders.service';
+import { loadCusShipmentStatusCounts } from './cus-shipment-status-census.service';
 
 // Executor comes from ../db (the one Executor seam).
 export type ShipmentRow = typeof s.shipments.$inferSelect;
@@ -141,6 +142,7 @@ export type AssignmentRow = {
   plannedExternalCarrierId: number | null;
   plannedExternalCarrierVehicleId: number | null;
   plannedVehiclePlateNumber: string | null;
+  plannedEndAt: Date | null;
   plannedCarrierName: string | null;
   plannedCarrierShortName: string | null;
   tripId: number | null;
@@ -390,6 +392,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
       plannedExternalCarrierVehicleId: s.shipmentFulfillments.plannedExternalCarrierVehicleId,
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+      plannedEndAt: s.shipmentFulfillments.plannedEndAt,
       plannedCarrierName: plannedCarrier.name,
       plannedCarrierShortName: plannedCarrier.shortName,
       tripId: s.trips.id,
@@ -499,20 +502,12 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     billingLinesByShipment.set(row.shipmentId, bucket);
   }
 
-  const assignmentsByContainer = new Map<number, AssignmentRow>();
   // Lot-level (LCL) allocations ride fulfillments with no container row —
   // keyed by shipment so lot-level readiness and carrier chips can read the
-  // allocation without any container line existing.
-  const assignmentsByShipment = new Map<number, AssignmentRow>();
-  for (const row of assignmentRows) {
-    if (row.shipmentContainerId == null) {
-      if (row.shipmentId == null || assignmentsByShipment.has(row.shipmentId)) continue;
-      assignmentsByShipment.set(row.shipmentId, row as AssignmentRow);
-      continue;
-    }
-    if (assignmentsByContainer.has(row.shipmentContainerId)) continue;
-    assignmentsByContainer.set(row.shipmentContainerId, row as AssignmentRow);
-  }
+  // allocation without any container line existing. Shared first-row-wins
+  // indexing with the status census (card 081026093520).
+  const { byContainer: assignmentsByContainer, byShipment: assignmentsByShipment } =
+    indexAssignmentRows(assignmentRows as readonly AssignmentRow[]);
 
   // Effective-factory labels for per-container authority + shipment fallback:
   // short name preferred, unique by site id (one lookup for the whole page).
@@ -839,6 +834,12 @@ async function buildShipmentPageConditions(
   // orders the Trạng thái column); AWAITING_VEHICLE is the coalesced rank-0
   // complement — no trip, or a CREATED trip whose ngày đóng/trả exists.
   if (searchMode === 'container' && 'dispatchStatus' in query) {
+    // Lot-level rows (card 365) sit outside the container-line triage: their
+    // dispatch state derives from the lot's own LCL_SHIPMENT allocation, and
+    // the overview endpoint rejects this filter entirely — so there is no
+    // cross-surface parity contract here. Any dispatchStatus filter narrows
+    // back to real container lines.
+    if (query.dispatchStatus) conditions.push(isNotNull(s.shipmentContainers.id));
     if (query.dispatchStatus === 'ASSIGNED') conditions.push(sql`${activeCarrierTypeSql()} is not null`);
     else if (query.dispatchStatus === 'UNASSIGNED') conditions.push(sql`${activeCarrierTypeSql()} is null`);
     else if (query.dispatchStatus === 'AWAITING_VEHICLE') conditions.push(sql`coalesce(${containerDispatchRankSql()}, 0) = 0`);
@@ -850,9 +851,7 @@ async function buildShipmentPageConditions(
   return conditions;
 }
 
-async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUser) {
-  const conditions = await buildShipmentPageConditions(query, actor, 'shipment');
-
+async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, conditions: SQL[], executor: Executor = db) {
   const offset = (query.page - 1) * query.limit;
   // Explicit `nulls last` keeps empty cells at the bottom in both directions.
   // Cargo rank stays as a secondary key so sorting never scrambles the
@@ -875,7 +874,7 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
         desc(s.shipments.id),
       ];
   const [items, totalRows] = await Promise.all([
-    db.select({
+    executor.select({
       shipment: s.shipments,
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,
@@ -886,7 +885,7 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
       .orderBy(...sortOrder)
       .limit(query.limit)
       .offset(offset),
-    db.select({ value: count() }).from(s.shipments)
+    executor.select({ value: count() }).from(s.shipments)
       .where(and(...conditions)),
   ]);
 
@@ -916,7 +915,17 @@ export async function listCusShipmentWorkspace(
   query: ShipmentCusWorkspaceQuery,
   actor: AuthUser,
 ): Promise<ShipmentCusWorkspaceListResponse> {
-  const { items, total } = await loadShipmentPage(query, actor);
+  const conditions = await buildShipmentPageConditions(query, actor, 'shipment');
+  // Card 081026093520: the page, its `total`, and the status-tab counts read
+  // one REPEATABLE READ snapshot (the container list's precedent), so the tab
+  // numerals can never disagree with the list behind them. The counts are
+  // FULL-set over these conditions (the client-side status lens excluded,
+  // exactly like `total`), replacing the page-scoped `pageSummary` whose
+  // per-page figures could never read as one scale beside that total.
+  const [{ items, total }, statusCounts] = await db.transaction((tx) => Promise.all([
+    loadShipmentPage(query, conditions, tx),
+    loadCusShipmentStatusCounts(conditions, tx),
+  ]), { isolationLevel: 'repeatable read', accessMode: 'read only' });
   const support = await loadSupportRows(items.map((row) => row.shipment.id));
   const confirmations = await getShipmentFinanceConfirmationSummaries(
     items.map((row) => row.shipment.id),
@@ -931,32 +940,13 @@ export async function listCusShipmentWorkspace(
     confirmations.get(row.shipment.id)!,
     dateRange,
   ));
-  const needsSchedule = projectedItems.filter((item) => item.operational.scheduleReadiness === 'WAITING_DATE').length;
-  const needsVehicle = projectedItems.filter((item) => (
-    item.operational.vehicleReadiness === 'WAITING_CARRIER'
-    || item.operational.vehicleReadiness === 'WAITING_PLATE'
-  )).length;
-  const waitingAccounting = projectedItems.filter((item) => (
-    item.activeLock == null
-    && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
-  )).length;
-  const readyToLock = projectedItems.filter((item) => item.action.kind === 'LOCK' && item.action.enabled).length;
-  const needsAttention = projectedItems.filter((item) => (
-    item.operational.scheduleReadiness !== 'SCHEDULED'
-    || item.operational.vehicleReadiness === 'WAITING_CARRIER'
-    || item.operational.vehicleReadiness === 'WAITING_PLATE'
-    || item.finance.isLoss === true
-    || item.finance.hasPendingRecovery
-    || item.accountingConfirmation.status === 'UNAVAILABLE'
-    || item.accountingConfirmation.status === 'STALE'
-  )).length;
 
   return {
     page: query.page,
     limit: query.limit,
     total,
     totalPages: total === 0 ? 0 : Math.ceil(total / query.limit),
-    pageSummary: { needsSchedule, needsVehicle, waitingAccounting, readyToLock, needsAttention },
+    statusCounts,
     items: projectedItems,
   };
 }
@@ -970,13 +960,116 @@ export async function getCusShipmentWorkspaceDetail(
 }
 
 /**
+ * Lot-level flat row (card 365): the ONE row a container-less LCL lot gets on
+ * the container workboard, so the Chi Tiết list agrees with the Tổng quan
+ * list. LCL lots are forbidden from owning containers, so there is no
+ * container line to project — container-scoped cells are read-only and the
+ * lot's own data (identity, docs, schedule, lot-level allocation) carries the
+ * row. Identity is `-shipmentId` (see shipmentCusContainerFlatRowSchema).
+ */
+function buildLotFlatRow(
+  row: ShipmentListRow,
+  actor: AuthUser,
+  support: WorkspaceSupport,
+): ShipmentCusContainerFlatRow {
+  const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
+  const shipmentEditable = actor.role === Role.CUS && activeLock == null;
+  // The lot's own allocation (LCL_SHIPMENT fulfillment, no container) — the
+  // same planned-only identity the overview's carrier chips read.
+  const lotAssignment = support.assignmentsByShipment.get(row.shipment.id) ?? null;
+  const identity = currentAssignmentIdentity(lotAssignment);
+  const dispatchStatus: ShipmentCusContainerFlatRow['dispatchStatus'] = lotAssignment?.tripStatus === 'COMPLETED'
+    ? 'COMPLETED'
+    : lotAssignment?.tripStatus === 'IN_TRANSIT'
+      ? 'IN_TRANSIT'
+      : lotAssignment?.tripStatus === 'CREATED'
+        ? 'CREATED'
+        : identity.plateNumber != null
+          ? 'PLANNED'
+          : 'AWAITING_VEHICLE';
+  const liftSite = resolveLiftSite(support, null, lotAssignment);
+  const dropoffSite = resolveDropoffSite(support, null, lotAssignment);
+  const shipmentFactoryName = row.shipment.operationalSiteId != null
+    ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
+    : null;
+  const readOnly = { mode: 'READ_ONLY' as const, reason: 'Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng.' };
+  return {
+    id: -row.shipment.id,
+    isLotLevel: true,
+    shipmentId: row.shipment.id,
+    shipmentVersion: row.shipment.version,
+    ordinal: 1,
+    customerId: row.shipment.customerId,
+    isAdHoc: row.shipment.isAdHoc,
+    customerName: row.customerName,
+    factoryName: shipmentFactoryName ?? trimOrNull(row.shipment.factoryName),
+    routeName: row.routeName,
+    billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
+    declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
+    shippingLineName: trimOrNull(row.shipment.shippingLineName),
+    isCombined: row.shipment.isCombined,
+    classification: lotAssignment?.dispatchClassification ?? 'LCL',
+    direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
+    containerNumber: null,
+    containerTypeLabel: null,
+    dispatchStatus,
+    carrierName: identity.carrierName,
+    carrierType: identity.carrierType,
+    plateNumber: identity.plateNumber,
+    liftSite: liftSite?.name ?? null,
+    dropoffSite: dropoffSite?.name ?? null,
+    // Mirrors the container rows' LCL branch: the lot's schedule IS its
+    // expectedDeliveryDate (the overview reads the same date).
+    transportDate: row.shipment.expectedDeliveryDate,
+    closingAt: row.shipment.closingAt?.toISOString() ?? null,
+    plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
+    customerAppointmentAt: null,
+    customerNotes: row.shipment.customerNotes,
+    operationalNotes: row.shipment.operationalNotes,
+    raw: {
+      containerNumber: null,
+      containerTypeId: null,
+      cargoWeightKg: null,
+      cargoVolumeCbm: null,
+    },
+    fieldAccess: {
+      operationalSiteId: readOnly,
+      containerNumber: readOnly,
+      containerTypeId: readOnly,
+      cargoWeightKg: readOnly,
+      cargoVolumeCbm: readOnly,
+      routeId: readOnly,
+      liftSiteId: readOnly,
+      dropoffSiteId: readOnly,
+    },
+    shipmentFieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, false),
+    // The MISSING triage is FCL-container scoped ("LCL lots are explicitly
+    // excluded" — buildShipmentPageConditions), so a lot row can never enter
+    // that filter; projecting COMPLETE keeps filter and projection in sync.
+    informationStatus: 'COMPLETE',
+    missingFields: [],
+    shipmentScheduleEditable: shipmentEditable,
+    shipmentNotesEditable: shipmentEditable,
+    carrierEditable: false,
+    plateEditable: false,
+    liftSiteEditable: false,
+    dropoffSiteEditable: false,
+    routeEditable: false,
+    customerAppointmentEditable: false,
+    scheduleEditable: false,
+  };
+}
+
+/**
  * Container-flat projection across all in-scope shipments: one row per
  * container, carrying shipment context (customer, factory, bill/booking)
- * plus the per-container operational fields. Pagination counts shipments via
- * loadShipmentPage's filters, then flattens each shipment's containers. The
- * projection carries only the scheduling permission needed to decide whether
- * to offer inline editing; current selectors and versions stay authoritative
- * in the lazily-loaded workspace detail.
+ * plus the per-container operational fields, plus ONE lot-level row per
+ * container-less LCL lot (card 365) so this list agrees with the Tổng quan
+ * list. Pagination counts rows via loadShipmentPage's filters, then flattens
+ * each shipment's containers. The projection carries only the scheduling
+ * permission needed to decide whether to offer inline editing; current
+ * selectors and versions stay authoritative in the lazily-loaded workspace
+ * detail.
  */
 export async function listCusShipmentContainers(
   query: ShipmentCusContainerQuery,
@@ -1004,25 +1097,33 @@ export async function listCusShipmentContainers(
   // REPEATABLE READ transaction so all three see the same snapshot — a
   // container deleted between the page query and the support load can no
   // longer produce a silently dropped row (`if (!container) continue`).
+  //
+  // Row source (card 365): shipments LEFT JOIN containers, keeping every real
+  // container row AND one lot-level row per container-less LCL lot. The old
+  // FROM shipment_containers INNER JOIN shipments dropped every LCL lot —
+  // LCL is forbidden from owning containers, so the overview showed the lot
+  // while this board could never render it. FCL (and legacy null cargoMode)
+  // lots without containers stay excluded, exactly as before.
+  const rowSource = or(isNotNull(s.shipmentContainers.id), eq(s.shipments.cargoMode, CARGO_MODE.LCL))!;
   const [selectedContainers, totalRows, customerOptions] = await db.transaction(async (tx) => {
     const [containers, totals, options] = await Promise.all([
       tx.select({
         shipment: s.shipments,
         customerName: CUSTOMER_DISPLAY_NAME,
         routeName: ROUTE_DISPLAY_NAME,
-        containerId: s.shipmentContainers.id,
-      }).from(s.shipmentContainers)
-        .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+        containerId: sql<number | null>`${s.shipmentContainers.id}`,
+      }).from(s.shipments)
+        .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.shipmentId, s.shipments.id))
         .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
         .leftJoin(s.routes, eq(s.routes.id, sql<number>`coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})`))
         .leftJoin(liftPort, eq(liftPort.id, s.shipmentContainers.pickupPortId))
-        .where(and(...conditions))
+        .where(and(...conditions, rowSource))
         .orderBy(...sortOrder)
         .limit(query.limit)
         .offset(offset),
-      tx.select({ value: count() }).from(s.shipmentContainers)
-        .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
-        .where(and(...conditions)),
+      tx.select({ value: count() }).from(s.shipments)
+        .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.shipmentId, s.shipments.id))
+        .where(and(...conditions, rowSource)),
       loadActorScopedCustomerOptions(actor, tx),
     ]);
     return [containers, totals, options] as const;
@@ -1033,6 +1134,11 @@ export async function listCusShipmentContainers(
   const flatRows: ShipmentCusContainerFlatRow[] = [];
   for (const selected of selectedContainers) {
     const row: ShipmentListRow = selected;
+    if (selected.containerId == null) {
+      // Lot-level row: the LCL lot itself (never has container rows).
+      flatRows.push(buildLotFlatRow(row, actor, support));
+      continue;
+    }
     const containers = support.containersByShipment.get(row.shipment.id) ?? [];
     const containerIndex = containers.findIndex((container) => container.id === selected.containerId);
     const container = containers[containerIndex];
@@ -1077,6 +1183,7 @@ export async function listCusShipmentContainers(
       containerTypeLabel: line.containerTypeLabel,
       dispatchStatus: line.dispatchStatus,
       carrierName: line.carrierName,
+      carrierType: line.carrierType,
       plateNumber: line.plateNumber,
       liftSite: line.liftSite,
       dropoffSite: line.dropoffSite,

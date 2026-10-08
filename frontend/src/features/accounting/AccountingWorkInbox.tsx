@@ -73,8 +73,11 @@ function InboxLane({
       </header>
 
       {stale && <div className="accounting-work-inbox__notice" role="status"><Clock3 size={15} /> Dữ liệu đã cũ; hãy làm mới trước khi xử lý.</div>}
+      {/* One text node (card 061026043646): separate JSX text children made
+          node-boundary extraction announce "Đang tảiđang bị chặn…" — the
+          boundary space dies between nodes. Law: OpsQueryFeedback. */}
       {query.isLoading ? (
-        <div className="accounting-work-inbox__state" role="status">Đang tải {title.toLowerCase()}…</div>
+        <div className="accounting-work-inbox__state" role="status">{`Đang tải ${title.toLowerCase()}…`}</div>
       ) : query.isError ? (
         <div className="accounting-work-inbox__state is-error" role="alert"><AlertTriangle size={18} /> Không thể tải nhóm này.<button type="button" onClick={() => void query.refetch()}>Thử lại</button></div>
       ) : !data?.items.length ? (

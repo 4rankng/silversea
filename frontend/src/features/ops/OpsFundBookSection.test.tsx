@@ -61,7 +61,7 @@ describe('Sổ quỹ running balance', () => {
     expect(useOpsFundBookMock).toHaveBeenLastCalledWith({ from: undefined, to: undefined });
     for (const input of within(range).getAllByRole('textbox')) expect(input).toHaveValue('');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(balanceColumn()).toEqual(['7.000.000', '6.910.000']);
+    expect(balanceColumn()).toEqual(['7.000.000 ₫', '6.910.000 ₫']);
   });
 
   it('starts the Số dư column at the window opening and lands on the closing', () => {
@@ -69,7 +69,7 @@ describe('Sổ quỹ running balance', () => {
     render(<OpsFundBookSection />);
 
     // 1.000.000 opening + 6.000.000 advance − 90.000 expense.
-    expect(balanceColumn()).toEqual(['7.000.000', '6.910.000']);
+    expect(balanceColumn()).toEqual(['7.000.000 ₫', '6.910.000 ₫']);
     // The column's last value IS the window closing the summary prints, which
     // is the property that broke: opening must be a term of the column.
     expect(document.body.textContent).toContain('Số dư đầu kỳ:');
@@ -86,6 +86,6 @@ describe('Sổ quỹ running balance', () => {
     });
     render(<OpsFundBookSection />);
 
-    expect(balanceColumn()).toEqual(['6.000.000', '5.910.000']);
+    expect(balanceColumn()).toEqual(['6.000.000 ₫', '5.910.000 ₫']);
   });
 });

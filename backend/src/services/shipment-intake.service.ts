@@ -19,6 +19,21 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+function siteContactValues(input: Pick<OperationalSiteUpdateInput, 'contacts' | 'contactName' | 'contactPhone'>, existing?: Pick<typeof s.operationalSites.$inferSelect, 'contacts' | 'contactName' | 'contactPhone'>) {
+  const contacts = input.contacts ?? existing?.contacts ?? [];
+  const defaultContact = contacts.find(contact => contact.isDefault);
+  // A structured list is authoritative; old clients must not desynchronize its default.
+  if (contacts.length || input.contacts !== undefined) return {
+    contacts, contactName: defaultContact?.name ?? null, contactPhone: defaultContact?.phone ?? null,
+  };
+  return {
+    contacts,
+    contactName: input.contactName !== undefined ? input.contactName : existing?.contactName ?? null,
+    contactPhone: input.contactPhone !== undefined ? input.contactPhone : existing?.contactPhone ?? null,
+  };
+}
+
+
 export interface SubmitShipmentForDispatchInput {
   shipmentId: number;
   expectedVersion: number;
@@ -69,6 +84,31 @@ async function persistCarrierAllocations(
     actorId,
     allowClerkIntake: true,
   });
+  // ── Card 354: the dispatch freeze is PER-CONTAINER, not per-lot ───────────
+  // A container whose fulfillment already carries an issued order (trip) is
+  // frozen with its current carrier; only order-less containers accept
+  // allocation changes. A shipment-linked trip without fulfillment
+  // attribution cannot be pinned to one container, so it conservatively
+  // freezes every container in the lot.
+  const tripRows = await tx.select({ fulfillmentId: s.trips.fulfillmentId })
+    .from(s.trips)
+    .where(and(eq(s.trips.shipmentId, shipment.id), isNull(s.trips.deletedAt)));
+  const unattributedTrip = tripRows.some((row) => row.fulfillmentId == null);
+  const trippedFulfillmentIds = new Set(
+    tripRows.map((row) => row.fulfillmentId).filter((id): id is number => id != null),
+  );
+  const pinnedFulfillmentIds = unattributedTrip
+    ? new Set(fulfillmentRows.map((row) => row.id))
+    : trippedFulfillmentIds;
+  const pinnedByContainer = new Map<number, { carrierType: 'OWN' | 'EXTERNAL' | null; externalCarrierId: number | null }>();
+  for (const row of fulfillmentRows) {
+    if (row.shipmentContainerId == null || !pinnedFulfillmentIds.has(row.id)) continue;
+    pinnedByContainer.set(row.shipmentContainerId, {
+      carrierType: (row.plannedCarrierType as 'OWN' | 'EXTERNAL' | null) ?? null,
+      externalCarrierId: row.plannedExternalCarrierId ?? null,
+    });
+  }
+  const FREEZE_ALLOCATION_MESSAGE = 'Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.';
   if (shipment.cargoMode === CARGO_MODE.LCL) {
     // 20260916_5 ruling (a): an LCL lô is ONE allocation unit — one carrier
     // covers the whole lô (per-carrier groups still apply); container-bucket
@@ -84,6 +124,16 @@ async function persistCarrierAllocations(
       ?? fulfillmentRows[0];
     if (!lclFulfillment) throw new ApiError(409, 'Không tìm thấy phân bổ nhà xe cho lô LCL.');
     const lclAlloc = allocations[0];
+    if (lclAlloc && pinnedFulfillmentIds.has(lclFulfillment.id)) {
+      const frozenKey = lclFulfillment.plannedCarrierType == null
+        ? 'UNASSIGNED'
+        : lclFulfillment.plannedCarrierType === 'OWN'
+          ? 'OWN'
+          : `EXTERNAL:${lclFulfillment.plannedExternalCarrierId ?? ''}`;
+      const nextKey = lclAlloc.carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${lclAlloc.externalCarrierId ?? ''}`;
+      if (frozenKey !== nextKey) throw new ApiError(409, FREEZE_ALLOCATION_MESSAGE);
+      return fulfillmentRows; // frozen — the lô-unit carrier does not change
+    }
     if (lclAlloc) {
       await tx.update(s.shipmentFulfillments).set({
         plannedCarrierType: lclAlloc.carrierType,
@@ -196,32 +246,76 @@ async function persistCarrierAllocations(
     }
   }
 
+  // Card 354: pinned (order-bearing) containers keep their carrier. The
+  // request's counts are the total picture — every pinned container consumes
+  // one slot of ITS OWN carrier and only the surplus distributes over
+  // order-less containers. A pinned slot the request drops, or a count with no
+  // free container left to take it, could only be realized by changing a
+  // frozen container — refused with the freeze error.
+  const pinnedDemand = new Map<string, { count20: number; count40: number }>();
+  for (const container of containerRows) {
+    const pinned = pinnedByContainer.get(container.id);
+    if (!pinned || pinned.carrierType == null) continue; // frozen-unassigned keeps its null carrier
+    const bucket = containerSizeBucket(container.typeCode, container.typeName);
+    const dateKey = hasDates
+      ? (container.customerAppointmentAt
+        ? localDateInBusinessZone(container.customerAppointmentAt) ?? '__UNSCHEDULED__'
+        : '__UNSCHEDULED__')
+      : '*';
+    const key = `${dateKey}|${pinned.carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${pinned.externalCarrierId ?? ''}`}`;
+    const demand = pinnedDemand.get(key) ?? { count20: 0, count40: 0 };
+    if (bucket === 20) demand.count20 += 1;
+    else demand.count40 += 1;
+    pinnedDemand.set(key, demand);
+  }
+  const surplusByRow: { count20: number; count40: number }[] = [];
+  const coveredPinnedKeys = new Set<string>();
+  for (const allocation of allocations) {
+    if (allocation.count20 < 0 || allocation.count40 < 0 || !Number.isInteger(allocation.count20) || !Number.isInteger(allocation.count40)) {
+      throw new ApiError(400, 'Số lượng container phân bổ phải là số nguyên không âm.');
+    }
+    const key = `${hasDates ? allocation.appointmentDate?.trim() || '__UNSCHEDULED__' : '*'}|${allocation.carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${allocation.externalCarrierId ?? ''}`}`;
+    coveredPinnedKeys.add(key);
+    const demand = pinnedDemand.get(key);
+    const surplus20 = allocation.count20 - (demand?.count20 ?? 0);
+    const surplus40 = allocation.count40 - (demand?.count40 ?? 0);
+    if (surplus20 < 0 || surplus40 < 0) throw new ApiError(409, FREEZE_ALLOCATION_MESSAGE);
+    surplusByRow.push({ count20: surplus20, count40: surplus40 });
+  }
+  for (const key of pinnedDemand.keys()) {
+    if (!coveredPinnedKeys.has(key)) throw new ApiError(409, FREEZE_ALLOCATION_MESSAGE);
+  }
+  const free20 = bucket20.filter((id) => !pinnedByContainer.has(id));
+  const free40 = bucket40.filter((id) => !pinnedByContainer.has(id));
+  const free20ByDate = new Map<string, number[]>();
+  const free40ByDate = new Map<string, number[]>();
+  for (const [dateKey, ids] of bucket20ByDate) free20ByDate.set(dateKey, ids.filter((id) => !pinnedByContainer.has(id)));
+  for (const [dateKey, ids] of bucket40ByDate) free40ByDate.set(dateKey, ids.filter((id) => !pinnedByContainer.has(id)));
+
   const assignmentByContainer = new Map<number, { carrierType: 'OWN' | 'EXTERNAL' | null; externalCarrierId: number | null }>();
+  for (const [containerId, carrier] of pinnedByContainer) assignmentByContainer.set(containerId, carrier);
   if (hasDates) {
     const index20ByDate = new Map<string, number>();
     const index40ByDate = new Map<string, number>();
-    for (const allocation of allocations) {
-      if (allocation.count20 < 0 || allocation.count40 < 0 || !Number.isInteger(allocation.count20) || !Number.isInteger(allocation.count40)) {
-        throw new ApiError(400, 'Số lượng container phân bổ phải là số nguyên không âm.');
-      }
+    for (let rowIdx = 0; rowIdx < allocations.length; rowIdx += 1) {
+      const allocation = allocations[rowIdx]!;
       const carrier = {
         carrierType: allocation.carrierType,
         externalCarrierId: allocation.carrierType === 'EXTERNAL' ? allocation.externalCarrierId ?? null : null,
       };
       const dateKey = allocation.appointmentDate?.trim() || '__UNSCHEDULED__';
-      const dateBucket20 = bucket20ByDate.get(dateKey) ?? [];
-      const dateBucket40 = bucket40ByDate.get(dateKey) ?? [];
+      const dateBucket20 = free20ByDate.get(dateKey) ?? [];
+      const dateBucket40 = free40ByDate.get(dateKey) ?? [];
+      const surplus = surplusByRow[rowIdx]!;
       let idx20 = index20ByDate.get(dateKey) ?? 0;
       let idx40 = index40ByDate.get(dateKey) ?? 0;
-      for (let count = 0; count < allocation.count20; count += 1) {
-        if (idx20 < dateBucket20.length) {
-          assignmentByContainer.set(dateBucket20[idx20++]!, carrier);
-        }
+      for (let count = 0; count < surplus.count20; count += 1) {
+        if (idx20 >= dateBucket20.length) throw new ApiError(409, FREEZE_ALLOCATION_MESSAGE);
+        assignmentByContainer.set(dateBucket20[idx20++]!, carrier);
       }
-      for (let count = 0; count < allocation.count40; count += 1) {
-        if (idx40 < dateBucket40.length) {
-          assignmentByContainer.set(dateBucket40[idx40++]!, carrier);
-        }
+      for (let count = 0; count < surplus.count40; count += 1) {
+        if (idx40 >= dateBucket40.length) throw new ApiError(409, FREEZE_ALLOCATION_MESSAGE);
+        assignmentByContainer.set(dateBucket40[idx40++]!, carrier);
       }
       index20ByDate.set(dateKey, idx20);
       index40ByDate.set(dateKey, idx40);
@@ -229,19 +323,20 @@ async function persistCarrierAllocations(
   } else {
     let index20 = 0;
     let index40 = 0;
-    for (const allocation of allocations) {
-      if (allocation.count20 < 0 || allocation.count40 < 0 || !Number.isInteger(allocation.count20) || !Number.isInteger(allocation.count40)) {
-        throw new ApiError(400, 'Số lượng container phân bổ phải là số nguyên không âm.');
-      }
+    for (let rowIdx = 0; rowIdx < allocations.length; rowIdx += 1) {
+      const allocation = allocations[rowIdx]!;
       const carrier = {
         carrierType: allocation.carrierType,
         externalCarrierId: allocation.carrierType === 'EXTERNAL' ? allocation.externalCarrierId ?? null : null,
       };
-      for (let count = 0; count < allocation.count20; count += 1) {
-        assignmentByContainer.set(bucket20[index20++]!, carrier);
+      const surplus = surplusByRow[rowIdx]!;
+      for (let count = 0; count < surplus.count20; count += 1) {
+        if (index20 >= free20.length) throw new ApiError(409, FREEZE_ALLOCATION_MESSAGE);
+        assignmentByContainer.set(free20[index20++]!, carrier);
       }
-      for (let count = 0; count < allocation.count40; count += 1) {
-        assignmentByContainer.set(bucket40[index40++]!, carrier);
+      for (let count = 0; count < surplus.count40; count += 1) {
+        if (index40 >= free40.length) throw new ApiError(409, FREEZE_ALLOCATION_MESSAGE);
+        assignmentByContainer.set(free40[index40++]!, carrier);
       }
     }
   }
@@ -251,6 +346,7 @@ async function persistCarrierAllocations(
   }
   // Partial mode: containers beyond the allocated totals get no carrier —
   // clear any stale planned carrier so coverage always mirrors the request.
+  // Pinned containers are pre-seeded above, so their carrier never clears.
   if (allowPartial) {
     for (const containerId of [...bucket20, ...bucket40]) {
       if (!assignmentByContainer.has(containerId)) {
@@ -261,6 +357,7 @@ async function persistCarrierAllocations(
 
   for (const fulfillment of fulfillmentRows) {
     if (fulfillment.shipmentContainerId == null) continue;
+    if (pinnedByContainer.has(fulfillment.shipmentContainerId)) continue; // frozen — no write
     const assignment = assignmentByContainer.get(fulfillment.shipmentContainerId);
     if (!assignment) throw new ApiError(409, 'Không tìm thấy phân bổ nhà xe cho container.');
     await tx.update(s.shipmentFulfillments).set({
@@ -298,6 +395,7 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
     googleMapsUrl: s.operationalSites.googleMapsUrl,
     contactName: s.operationalSites.contactName,
     contactPhone: s.operationalSites.contactPhone,
+    contacts: s.operationalSites.contacts,
     liftFeeInvoiceName: s.operationalSites.liftFeeInvoiceName,
     liftFeeInvoiceAddress: s.operationalSites.liftFeeInvoiceAddress,
     liftFeeTaxCode: s.operationalSites.liftFeeTaxCode,
@@ -363,6 +461,7 @@ export async function createOperationalSiteForIntake(
     if (existing && !existing.isActive) {
       throw new ApiError(409, 'Điểm vận hành đang ngưng hoạt động; không tự động kích hoạt lại.');
     }
+    const contactValues = siteContactValues(input, existing);
     const values = {
       customerId: input.customerId,
       code: input.code,
@@ -372,8 +471,7 @@ export async function createOperationalSiteForIntake(
       routeId: input.siteType === 'FACTORY' ? input.routeId : null,
       address: input.address,
       googleMapsUrl: input.googleMapsUrl ?? null,
-      contactName: input.contactName ?? null,
-      contactPhone: input.contactPhone ?? null,
+      ...contactValues,
       liftFeeInvoiceName: input.liftFeeInvoiceName ?? null,
       liftFeeInvoiceAddress: input.liftFeeInvoiceAddress ?? null,
       liftFeeTaxCode: input.liftFeeTaxCode ?? null,
@@ -403,6 +501,7 @@ export async function createOperationalSiteForIntake(
       googleMapsUrl: row.googleMapsUrl,
       contactName: row.contactName,
       contactPhone: row.contactPhone,
+      contacts: row.contacts,
       liftFeeInvoiceName: row.liftFeeInvoiceName,
       liftFeeInvoiceAddress: row.liftFeeInvoiceAddress,
       liftFeeTaxCode: row.liftFeeTaxCode,
@@ -425,8 +524,8 @@ export function isValidIntakeSiteType(value: string): value is OperationalSiteTy
  * active-only.
  */
 export async function listOperationalSitesForAdmin(actor: AuthUser) {
-  if (![Role.ADMIN, Role.MANAGER].includes(actor.role)) {
-    throw new ApiError(403, 'Chỉ quản trị viên hoặc giám đốc được xem danh mục nhà máy.');
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền xem danh mục nhà máy.');
   }
   return db.select({
     id: s.operationalSites.id,
@@ -442,6 +541,7 @@ export async function listOperationalSitesForAdmin(actor: AuthUser) {
     googleMapsUrl: s.operationalSites.googleMapsUrl,
     contactName: s.operationalSites.contactName,
     contactPhone: s.operationalSites.contactPhone,
+    contacts: s.operationalSites.contacts,
     liftFeeInvoiceName: s.operationalSites.liftFeeInvoiceName,
     liftFeeInvoiceAddress: s.operationalSites.liftFeeInvoiceAddress,
     liftFeeTaxCode: s.operationalSites.liftFeeTaxCode,
@@ -468,8 +568,8 @@ export async function updateOperationalSiteForAdmin(
   input: OperationalSiteUpdateInput,
   actor: AuthUser,
 ) {
-  if (![Role.ADMIN, Role.MANAGER].includes(actor.role)) {
-    throw new ApiError(403, 'Chỉ quản trị viên hoặc giám đốc được chỉnh sửa danh mục nhà máy.');
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền chỉnh sửa danh mục nhà máy.');
   }
   return db.transaction(async (tx) => {
     const [row] = await tx.select().from(s.operationalSites)
@@ -485,7 +585,7 @@ export async function updateOperationalSiteForAdmin(
       routeId: 'routeId' in input ? input.routeId ?? null : row.routeId,
       name: input.name ?? row.name,
     };
-    if (row.siteType === OperationalSiteType.FACTORY && merged.routeId == null) {
+    if ('routeId' in input && row.siteType === OperationalSiteType.FACTORY && merged.routeId == null) {
       throw new ApiError(409, 'Nhà máy cần được liên kết với một tuyến đường.');
     }
     if (row.siteType === OperationalSiteType.WAREHOUSE && merged.routeId != null) {
@@ -497,14 +597,14 @@ export async function updateOperationalSiteForAdmin(
       if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
     }
 
+    const contactValues = siteContactValues(input, row);
     const [updated] = await tx.update(s.operationalSites).set({
       ...(input.name != null ? { name: input.name } : {}),
       ...(input.shortName != null ? { shortName: input.shortName } : {}),
       ...('routeId' in input ? { routeId: merged.routeId } : {}),
       ...(input.address != null ? { address: input.address } : {}),
       ...(input.googleMapsUrl !== undefined ? { googleMapsUrl: input.googleMapsUrl } : {}),
-      ...(input.contactName !== undefined ? { contactName: input.contactName } : {}),
-      ...(input.contactPhone !== undefined ? { contactPhone: input.contactPhone } : {}),
+      ...contactValues,
       ...(input.liftFeeInvoiceName !== undefined ? { liftFeeInvoiceName: input.liftFeeInvoiceName } : {}),
       ...(input.liftFeeInvoiceAddress !== undefined ? { liftFeeInvoiceAddress: input.liftFeeInvoiceAddress } : {}),
       ...(input.liftFeeTaxCode !== undefined ? { liftFeeTaxCode: input.liftFeeTaxCode } : {}),
@@ -527,6 +627,7 @@ export async function updateOperationalSiteForAdmin(
       googleMapsUrl: updated.googleMapsUrl,
       contactName: updated.contactName,
       contactPhone: updated.contactPhone,
+      contacts: updated.contacts,
       liftFeeInvoiceName: updated.liftFeeInvoiceName,
       liftFeeInvoiceAddress: updated.liftFeeInvoiceAddress,
       liftFeeTaxCode: updated.liftFeeTaxCode,
@@ -534,6 +635,54 @@ export async function updateOperationalSiteForAdmin(
       isActive: updated.isActive,
       version: updated.version,
     };
+  });
+}
+
+/**
+ * Soft-delete of a customer-owned site from the admin config surface (R29:
+ * Chứng từ/Điều vận manage the factory catalog end to end). A site any live
+ * shipment still points at (its own factory pointer or a container's
+ * warehouse pointer) refuses deletion with a business message — deactivate
+ * instead. Historical shipments keep their integer pointers either way; the
+ * list joins match by id without a deletedAt filter, so past rows keep
+ * showing the factory name.
+ */
+export async function deleteOperationalSiteForAdmin(siteId: number, actor: AuthUser) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền xóa danh mục nhà máy.');
+  }
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(s.operationalSites)
+      .where(and(eq(s.operationalSites.id, siteId), isNull(s.operationalSites.deletedAt)))
+      .limit(1);
+    if (!row) throw new ApiError(404, 'Không tìm thấy nhà máy / kho.');
+
+    const [liveShipment] = await tx.select({ id: s.shipments.id })
+      .from(s.shipments)
+      .where(and(
+        eq(s.shipments.operationalSiteId, siteId),
+        isNull(s.shipments.deletedAt),
+      ))
+      .limit(1);
+    const [liveContainer] = await tx.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+      .where(and(
+        eq(s.shipmentContainers.operationalSiteId, siteId),
+        isNull(s.shipments.deletedAt),
+      ))
+      .limit(1);
+    if (liveShipment || liveContainer) {
+      throw new ApiError(409, 'Không thể xóa: nhà máy đang có lô hàng còn hiệu lực sử dụng. Hãy ngưng hoạt động thay vì xóa.');
+    }
+
+    const [deleted] = await tx.update(s.operationalSites).set({
+      deletedAt: new Date(),
+      updatedBy: actor.userId,
+      updatedAt: new Date(),
+    }).where(eq(s.operationalSites.id, siteId)).returning();
+    if (!deleted) throw new Error('Không thể xóa nhà máy / kho.');
+    return { ok: true as const };
   });
 }
 
@@ -777,17 +926,16 @@ export async function assignShipmentCarriers(input: AssignShipmentCarriersComman
     if (shipment.version !== input.expectedVersion) {
       throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
     }
-    if (canonicalShipmentStatus(shipment.status) !== 'READY_FOR_DISPATCH') {
+    // Card 354: intake-phase lots (NEW / PENDING_DATE) and canceled lots are
+    // refused; post-dispatch statuses may still fill order-less containers.
+    // The per-container freeze lives in persistCarrierAllocations — a request
+    // that would change an order-bearing container's carrier gets the precise
+    // 'Không thể đổi nhà xe…' refusal there instead of a lot-wide lockout.
+    const canonical = canonicalShipmentStatus(shipment.status);
+    if (canonical == null
+      || canonical === 'PENDING_DATE'
+      || canonical === 'CANCELED') {
       throw new ApiError(409, 'Chỉ được gán lại nhà xe khi lô đang sẵn sàng điều xe.');
-    }
-    const [issuedOrder] = await tx.select({ id: s.trips.id }).from(s.trips)
-      .where(and(
-        eq(s.trips.shipmentId, shipment.id),
-        isNull(s.trips.deletedAt),
-      ))
-      .limit(1);
-    if (issuedOrder) {
-      throw new ApiError(409, 'Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.');
     }
 
     await persistCarrierAllocations(tx, shipment, input.actor.userId, input.carrierAllocations, input.allowPartial === true);

@@ -56,7 +56,7 @@ export function ShipmentCreateLclCargoFields({
                     border: 0,
                     background: 'none',
                     padding: 0,
-                    color: 'var(--accent, #2563eb)',
+                    color: 'var(--accent-ink, #00361B)',
                     fontWeight: 700,
                     cursor: 'pointer',
                     fontSize: 'var(--text-control-size)',
@@ -68,7 +68,6 @@ export function ShipmentCreateLclCargoFields({
             ) : undefined
           }
           searchable
-          popoverPlacement="top"
         />
         {!sitesLoading && form.customerId ? (
           <button
@@ -82,7 +81,7 @@ export function ShipmentCreateLclCargoFields({
               border: '1px dashed var(--border-2)',
               borderRadius: 8,
               background: 'transparent',
-              color: 'var(--accent, #2563eb)',
+              color: 'var(--accent-ink, #00361B)',
               fontWeight: 700,
               display: 'inline-flex',
               alignItems: 'center',
@@ -90,7 +89,7 @@ export function ShipmentCreateLclCargoFields({
               cursor: 'pointer',
             }}
           >
-            <Plus size={15} aria-hidden="true" />Thêm kho
+            <Plus size={15} aria-hidden="true" style={{ color: 'var(--accent, #2563eb)' }} />Thêm kho
           </button>
         ) : null}
       </div>

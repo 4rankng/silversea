@@ -503,7 +503,7 @@
 .settlement-expense-editor label { display: grid; gap: 6px; }
 .settlement-expense-editor__actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
 .settlement-expense-editor__actions .btn { min-height: var(--control-max-h); }
-.settlement-expense-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.settlement-expense-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; padding-top: 8px; }
 .settlement-expense-actions .btn { min-height: var(--control-max-h); }
 @media (max-width: 720px) { .settlement-expense-editor { grid-template-columns: 1fr; } .settlement-expense-editor__actions { grid-column: 1; } }
 .settlement-editor-hint { margin: -4px 0 12px; color: var(--ink-3); font-size: var(--fs-xs); }

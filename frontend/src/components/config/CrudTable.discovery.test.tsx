@@ -54,3 +54,27 @@ describe('catalogue discovery and recovery', () => {
     expect(screen.getByText('Xe đầu kéo')).toBeVisible();
   });
 });
+
+describe('config-table presentation contract (card 061026221226)', () => {
+  beforeEach(() => {
+    state.data = [{ id: 7, name: 'Cảng A' }];
+    state.isLoading = state.isError = state.isFetching = false;
+  });
+  const mount = () => render(<MemoryRouter><CrudTable<{ id: number; name: string }> title="Cảng" description="Danh mục" endpoint="/ports" colSpan={1} columns={[{ header: 'Tên', render: (item) => <span>{item.name}</span> }]} renderForm={() => null} /></MemoryRouter>);
+
+  it('keeps the tabular frame at every width: the config table opts out of the ≤1100px label-per-cell card handoff and rides the shared scroll boundary', () => {
+    const view = mount();
+    const wrap = view.container.querySelector('.record-table-wrap');
+    const table = view.container.querySelector('table.record-table');
+    // The card handoff in record-table.css keys on these classes: the wrap
+    // adopts the house horizontal-scroll boundary, and the table carries the
+    // config variant whose container-query block restores the tabular frame
+    // (labels stay in the thead alone — never glued into cells).
+    expect(wrap).not.toBeNull();
+    expect(wrap).toHaveClass('record-table-wrap--scroll');
+    expect(table).toHaveClass('record-table--config');
+    // The per-cell data-labels stay in the markup (screen-reader/cell
+    // semantics) — the config variant's CSS is what silences their ::before.
+    expect(table?.querySelector('tbody td[data-label="Tên"]')).not.toBeNull();
+  });
+});

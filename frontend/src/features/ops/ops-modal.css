@@ -232,3 +232,19 @@
 }
 
 .ops-field-error { color: var(--danger-text); font-size: var(--text-label-size); font-weight: 500; }
+
+/* Card 071026210510: the grant refusal shows as an alert banner above the
+   form; the fieldset wrapper disables every input without per-control edits,
+   and resets the native frame the browser would draw. */
+.ops-modal__refusal {
+  color: var(--danger-text);
+  font-size: var(--text-label-size);
+  font-weight: 500;
+  margin: 0 0 10px;
+}
+.ops-modal__fieldset {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}

@@ -49,6 +49,10 @@ export interface TreasuryPosition {
     fundCode: TreasuryFundCode | null;
     version: number;
     currency: string;
+    /** Bank identity shown on the account row (card 20261002_291): the
+     *  technical `code` is never a business label. */
+    bankName: string | null;
+    bankAccountNumber: string | null;
     openingBalance: number;
     totalIn: number;
     totalOut: number;
@@ -56,6 +60,8 @@ export interface TreasuryPosition {
     completeness: 'COMPLETE' | 'PARTIAL';
     cutoverAt: string | null;
   }>;
+  /** Outstanding OPS advances (card 20261002_291 fifth summary metric). */
+  opsAdvance: { totalOutstanding: number };
 }
 
 export type { ProfitabilityDimension, ProfitabilityReport } from '@tingting/shared';

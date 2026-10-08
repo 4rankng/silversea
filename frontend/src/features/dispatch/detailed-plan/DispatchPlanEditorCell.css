@@ -8,12 +8,45 @@
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 2px;
-  padding: 8px 12px;
+  padding: 6px 10px;
+}
+
+.dispatch-assignment-cell__vehicle-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  min-width: 0;
+}
+
+.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__plate,
+.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__driver {
+  display: inline;
+}
+
+.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__driver::before {
+  content: '·';
+  color: var(--fg-3);
+  margin-right: 4px;
+}
+
+.dispatch-assignment-cell__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 2px;
 }
 
 .dispatch-assignment-cell__trigger {
   justify-self: start;
-  margin-top: 4px;
+  margin-top: 0;
+  min-height: 26px;
+  height: 28px;
+  max-height: 36px;
+  padding: 2px 8px;
+  font-size: var(--text-caption-size, 11px);
+  line-height: 1.2;
 }
 
 .dispatch-assignment-cell__carrier,
@@ -106,6 +139,39 @@
   grid-area: vehicle;
 }
 
+/* Card 20261004_357 — label row carries the quick-add affordance (same
+   accent borderless pattern as the create form's "Thêm khách hàng"). */
+.dispatch-assignment-dialog__vehicle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dispatch-assignment-dialog__quick-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--control-compact-h, 34px);
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold, 600);
+  cursor: pointer;
+}
+
+.dispatch-assignment-dialog__quick-add svg {
+  color: var(--accent);
+}
+
+.dispatch-assignment-dialog__quick-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .dispatch-assignment-dialog__classification {
   grid-area: classification;
   width: min(168px, 100%);
@@ -194,7 +260,7 @@
 }
 
 .dispatch-assignment-dialog__issue-warning {
-  color: var(--color-fg-warning-primary, #b54708);
+  color: var(--color-text-warning-primary);
 }
 
 .dispatch-assignment-dialog__issue > label {
@@ -377,38 +443,15 @@
 @container (max-width: 900px) {
   /* Related facts share responsive tracks; full driver text stays natural. */
   .dispatch-assignment-cell {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) auto;
     column-gap: 8px;
+    row-gap: 2px;
     align-items: center;
-  }
-
-  .dispatch-assignment-cell::before,
-  .dispatch-assignment-cell__driver {
-    grid-column: 1 / -1;
-  }
-
-  .dispatch-assignment-cell__carrier,
-  .dispatch-assignment-cell__issue,
-  .dispatch-assignment-cell > .detailed-plan-grid__lot-flag {
-    grid-column: 1;
-  }
-
-  .dispatch-assignment-cell__plate,
-  .dispatch-assignment-cell__trigger {
-    grid-column: 2;
-  }
-
-  .dispatch-assignment-cell__trigger {
-    justify-self: end;
-    margin-top: 0;
-  }
-
-  /* Preserve the existing short record label outside the edit action. */
-  td.detailed-plan-grid__cell--editable::before {
-    display: none;
+    padding: 4px 8px;
   }
 
   .dispatch-assignment-cell::before {
+    grid-column: 1 / -1;
     display: block;
     margin-bottom: 2px;
     color: var(--fg-2);
@@ -418,6 +461,37 @@
     letter-spacing: 0;
     line-height: 1.3;
     text-transform: none;
+  }
+
+  .dispatch-assignment-cell__carrier {
+    grid-column: 1;
+  }
+
+  .dispatch-assignment-cell__vehicle-group {
+    grid-column: 1;
+  }
+
+  .dispatch-assignment-cell__actions {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .dispatch-assignment-cell__trigger {
+    justify-self: end;
+    margin-top: 0;
+    min-height: 26px;
+    height: 28px;
+    max-height: 36px;
+    padding: 2px 8px;
+  }
+
+  /* Preserve the existing short record label outside the edit action. */
+  td.detailed-plan-grid__cell--editable::before {
+    display: none;
   }
 }
 
@@ -517,7 +591,7 @@
 
 .dispatch-assignment-dialog__notes-tag:not(.is-selected):hover:not(:disabled) {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .dispatch-assignment-dialog__notes-tag.is-selected {
@@ -567,6 +641,14 @@
   flex-direction: column;
   gap: 6px;
   margin-top: 4px;
+}
+
+/* Card 081026091120: the lot-scope hint under the manual-note label — the
+   note is shared by every container in the lot, and the dialog must say so. */
+.dispatch-assignment-dialog__notes-scope {
+  margin: 0;
+  font-size: var(--ops-table-supporting-size, 12px);
+  color: var(--fg-3);
 }
 
 textarea.dispatch-assignment-dialog__notes-text {
@@ -713,9 +795,12 @@ textarea.dispatch-assignment-dialog__notes-text {
 
 .dispatch-tag-manager__label {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  /* Tag labels are WRAPPING text: display the label in full at every
+     popover width — no ellipsis and no title crutch (law book §4
+     no-truncation doctrine, card 20261004_338). */
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-size: var(--ops-table-supporting-size, 12px);
   color: var(--fg-1);
 }

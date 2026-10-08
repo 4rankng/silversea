@@ -25,6 +25,10 @@ export function resolveNotificationRoute(notification: Notification, role: strin
       return role === 'DRIVER' ? routes.myPenalties : routes.penalties;
     case 'payments':
       return role === 'DRIVER' ? routes.myEarnings : routes.finance;
+    case 'funds':
+      // Card 051026231511 — the bell's fund notice opens the treasury position
+      // page, the same surface that shows the balances the alert quotes.
+      return routes.treasury;
     default:
       return null;
   }

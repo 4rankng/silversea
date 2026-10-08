@@ -104,8 +104,34 @@ export function DateTimeSegments({
     const node = segRefs.current[index];
     if (!node) return;
     node.focus();
+    // Select the digits the caret just landed on, not park the caret after
+    // them. Card 20261002_275 AC2: "Backspace on an empty minute returns to the
+    // hour and SELECTS it so it can be retyped." This call used to place the
+    // caret at the end, which silently defeated the `onFocus → select()` the
+    // component already does — arriving with a selection is also what makes
+    // auto-advance and paste distribution type-over rather than append-into a
+    // field that is already full.
     const end = node.value.length;
-    if (end > 0) node.setSelectionRange(end, end);
+    if (end > 0) node.setSelectionRange(0, end);
+  };
+
+  // Hand focus to a segment without depending on the controlled re-render: a
+  // same-string update bails out of rendering — and with it the effect below —
+  // but the caret must still move (card 326: the hand-off is the requirement).
+  // Calling focusSegment synchronously is required for iOS Safari / WebKit, which
+  // blocks programmatic .focus() outside the synchronous user activation frame.
+  // Consuming `pendingFocus` at microtask time also lets a later queued
+  // hand-off re-assert selection after React renders.
+  const scheduleFocus = (index: number) => {
+    pendingFocus.current = index;
+    focusSegment(index);
+    queueMicrotask(() => {
+      if (pendingFocus.current != null) {
+        const targetIdx = pendingFocus.current;
+        pendingFocus.current = null;
+        focusSegment(targetIdx);
+      }
+    });
   };
 
   // Focus moves land after the controlled re-render so the target segment
@@ -122,6 +148,16 @@ export function DateTimeSegments({
     const digits = incoming.replace(/\D+/g, '');
     const next = [...texts];
     if (incoming.length > specs[index].maxLength || /[:/]/.test(incoming)) {
+      // Single-digit type-over fallback for mobile virtual keyboards where
+      // onKeyDown might not fire or emit standard keys: typing 1 extra digit into
+      // a full segment replaces it with the newly typed digit.
+      if (incoming.length === specs[index].maxLength + 1 && !/[:/]/.test(incoming) && texts[index].length >= specs[index].maxLength) {
+        const newDigit = digits.slice(-1);
+        next[index] = newDigit;
+        onValueChange(next.some(Boolean) ? next.join(separator) : '');
+        return;
+      }
+
       // Paste/multi-char entry: fill from this segment forward, overflow flows
       // on, and segments the stream does not reach are cleared (the pasted
       // text defines everything from this segment onward).
@@ -134,14 +170,17 @@ export function DateTimeSegments({
           stop = cursor;
         } else next[cursor] = '';
       }
-      pendingFocus.current = stop;
+      scheduleFocus(stop);
     } else {
       next[index] = digits.slice(0, specs[index].maxLength);
       // Auto-advance only on a complete in-range value; flagged values stay
       // put. Completing the final segment ends the entry naturally.
       if (next[index].length === specs[index].maxLength && !isOutOfRange(specs[index], next[index])) {
-        if (index + 1 < specs.length) pendingFocus.current = index + 1;
-        else onComplete?.();
+        if (index + 1 < specs.length) {
+          scheduleFocus(index + 1);
+        } else {
+          onComplete?.();
+        }
       }
     }
     onValueChange(next.some(Boolean) ? next.join(separator) : '');
@@ -150,6 +189,19 @@ export function DateTimeSegments({
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
     inputProps?.onKeyDown?.(event);
     if (event.defaultPrevented || disabled || readOnly || event.altKey || event.ctrlKey || event.metaKey) return;
+    // Type-over restart (thẻ 326 revocation, user retest 04/10/2026): a digit
+    // typed into a FULL segment with a collapsed caret must restart the
+    // segment (standard segmented-input contract). Without this, the input's
+    // maxLength silently swallows the keystroke — the value can never change,
+    // so the segment never completes and auto-advance is dead for every
+    // path that loses the select-on-focus selection (second click, render
+    // timing after scheduleFocus, IME/autofill landings).
+    const collapsed = (event.currentTarget.selectionStart ?? 0) === (event.currentTarget.selectionEnd ?? 0);
+    if (/^[0-9]$/.test(event.key) && collapsed && texts[index].length >= specs[index].maxLength) {
+      event.preventDefault();
+      write(index, event.key);
+      return;
+    }
     const empty = segRefs.current[index]?.value === '';
     const first = index === 0;
     const last = index === specs.length - 1;
@@ -175,7 +227,16 @@ export function DateTimeSegments({
   };
 
   return <div id={id} role="group" data-seg-part={part} data-uui-control="segments" data-control-size={size}
-    onClick={() => { if (!disabled && !readOnly) onOpenPicker(); }}
+    // Card 061026172803 (FB-030; owner word 2026-10-06, superseding the
+    // 2026-09-20 no-icon ruling for digit clicks): a click on a SEGMENT is a
+    // caret click — typing must start there, so the bubble must not open the
+    // picker. The pointer path to the picker survives on the field's frame
+    // (any non-input part of the group).
+    onClick={(event) => {
+      if (disabled || readOnly) return;
+      if (event.target instanceof HTMLElement && event.target.tagName === 'INPUT') return;
+      onOpenPicker();
+    }}
     className={['date-seg-group', error ? 'date-seg-group--error' : '', className].filter(Boolean).join(' ')}>
     {specs.map((spec, index) => {
       const outOfRange = isOutOfRange(spec, texts[index]);
@@ -200,6 +261,11 @@ export function DateTimeSegments({
           onChange={(event) => write(index, event.target.value)}
           onKeyDown={(event) => handleKeyDown(event, index)}
           onFocus={(event) => { inputProps?.onFocus?.(event); event.target.select(); }}
+          // Re-select on click even when the segment already holds focus —
+          // onFocus does not re-fire for an already-focused input, and a
+          // caret parked mid-digit leaves a full segment untypeable (same
+          // 326 type-over contract as the keydown guard above).
+          onClick={(event) => { inputProps?.onClick?.(event); event.currentTarget.select(); }}
           isDisabled={disabled} disabled={disabled} readOnly={readOnly} isRequired={required}
           inputClassName={['date-seg', outOfRange ? 'date-seg--invalid' : '', inputProps?.className].filter(Boolean).join(' ')}
           wrapperClassName="date-seg-wrapper" />

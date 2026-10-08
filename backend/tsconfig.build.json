@@ -1,5 +1,9 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": "/tmp/.tscache/backend-tsbuildinfo/backend.tsbuildinfo"
+  },
   "exclude": [
     "src/tests",
     "src/**/*.test.ts",

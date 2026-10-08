@@ -70,6 +70,7 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     containerNumber: 'MSCU1234561',
     containerTypeName: "40'HC",
     sealNumber: 'SL001',
+    cargoWeightKg: null,
     loadingType: null,
     tradeDirection: null,
     contactName: 'Nguyễn Văn A',
@@ -92,6 +93,22 @@ function renderPage() {
 }
 
 describe('DriverTripsPage', () => {
+  it('journey card shows the container weight when the payload carries it (card 356)', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ cargoWeightKg: '15000' }),
+    ]));
+    renderPage();
+    const weight = screen.getByTestId('cont-weight');
+    expect(weight.textContent).toBe('15.000 kg');
+  });
+
+  it('journey card omits the weight segment when the container is unweighted (card 356)', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ cargoWeightKg: null }),
+    ]));
+    renderPage();
+    expect(screen.queryByTestId('cont-weight')).toBeNull();
+  });
   it('journey card leads with the bill/booking code and never shows the internal TRP code (CHIEF 26/09)', () => {
     // The document number rides blNumber/bookingRef; shipmentCode is our
     // internal SHP-/QADRV- key and must never surface on a driver screen.
@@ -278,6 +295,18 @@ describe('DriverTripsPage', () => {
 
     expect(await screen.findByText('KẾT HỢP')).toBeTruthy();
     expect(screen.getByText('LẺ')).toBeTruthy();
+  });
+
+  it('tags LCL_PICKUP as LẤY LẺ, and keeps it off the KẸP linked fallback', async () => {
+    // An LCL row is never a kẹp member, so without its own branch the
+    // `linked` fallback would mislabel the empty-shell run as KẸP.
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 22, classification: 'LCL_PICKUP', linked: true }),
+    ]));
+    renderPage();
+
+    expect(await screen.findByText('LẤY LẺ')).toBeTruthy();
+    expect(screen.queryByText('KẸP')).toBeNull();
   });
 
   it('shows the KẾT HỢP sequencing lock note on the second card until Lệnh 1 completes', async () => {

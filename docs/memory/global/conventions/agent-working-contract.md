@@ -40,11 +40,10 @@ Every task runs: **Understand → Plan → Implement → QA → Fix → Re-QA �
 | Frontend typecheck | `cd frontend && npx tsc -b` | 0 errors |
 | Frontend tests | `cd frontend && pnpm test` | all pass |
 | Build | `make build` | succeeds |
-| E2E (API / flow / RBAC / schema changes) | `cd e2e && ./run_all.sh` | all pass |
 
 Scope to what the change touches — never skip a gate it could affect. Shared contracts, Drizzle schemas, financial calculations (`shared/src/calculations/`), or RBAC changes → full set including E2E.
 
-**Mechanical compile gate:** versioned pre-commit hook (`scripts/githooks/pre-commit`, wired via `git config core.hooksPath scripts/githooks`, auto-wired on `pnpm install`) runs the typecheck table + the frontend `structure.guard.test.ts` LOC-ratchet whenever staged files touch a project, refusing the commit on failure. Escape hatch: `git commit --no-verify` (justify in the commit body — a red `main` is worse than a delayed commit). Origin incidents: 2026-09-05 corrupted-JSX sweep commit; 2026-09-08 LOC-ceiling breach.
+**Mechanical compile gate:** versioned pre-commit hook (`scripts/githooks/pre-commit`, wired via `git config core.hooksPath scripts/githooks`, auto-wired on `pnpm install`) runs the typecheck table + the frontend `scripts/check-structure.mjs` LOC-ratchet whenever staged files touch a project, refusing the commit on failure. Escape hatch: `git commit --no-verify` (justify in the commit body — a red `main` is worse than a delayed commit). Origin incidents: 2026-09-05 corrupted-JSX sweep commit; 2026-09-08 LOC-ceiling breach.
 
 ## QA artifacts (`qa/` — mandatory)
 
@@ -79,7 +78,7 @@ Every bugfix/feature: update `testplan/` first, re-test before marking done. **E
 - `shared/`: cross-package Zod contracts, types, navigation catalog, financial calculations.
 - `backend/`: Express 5, Drizzle/Postgres, Casbin, services, routes, jobs, tests.
 - `frontend/`: React/Vite app, feature modules, design system, API clients, tests — see [[frontend-architecture]] and [[design-system-contracts]].
-- `e2e/`: authenticated product-flow checks. `plans/`: durable implementation plans (a plan is not proof of completion). `qa/`: verification evidence. `deploy/` + Makefiles: deployment mechanics.
+- `plans/`: durable implementation plans (a plan is not proof of completion). `qa/`: verification evidence. `deploy/` + Makefiles: deployment mechanics.
 
 **Core invariants:**
 - Drizzle ORM only; **no raw SQL** in application behavior.

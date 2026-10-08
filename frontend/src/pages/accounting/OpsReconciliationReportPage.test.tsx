@@ -113,13 +113,9 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
     expect(screen.getAllByText('+150.000 ₫')).toBeTruthy();
     const positiveRow = screen.getByText('NV A', { selector: 'td' }).closest('tr')!;
     const remaining = positiveRow.querySelector('td[data-label="Còn phải hoàn ứng"]')!;
-    expect(remaining.querySelector('.money__sign')).toHaveTextContent('+');
-    expect(remaining.querySelector('.money__num')).toHaveTextContent('150.000');
-    expect(remaining.querySelector('.money__unit')).toHaveTextContent('₫');
+    expect(remaining.querySelector('.money')?.textContent).toBe('+150.000 ₫');
     const settledRow = screen.getByText('NV B', { selector: 'td' }).closest('tr')!;
-    expect(settledRow.querySelector('td[data-label="Còn phải hoàn ứng"] .money__sign')).toBeNull();
-    expect(settledRow.querySelector('td[data-label="Còn phải hoàn ứng"] .money__num')).toHaveTextContent('0');
-    expect(settledRow.querySelector('td[data-label="Còn phải hoàn ứng"] .money__unit')).toHaveTextContent('₫');
+    expect(settledRow.querySelector('td[data-label="Còn phải hoàn ứng"] .money')?.textContent).toBe('0 ₫');
     expect(screen.getByText('Công ty yêu cầu nhân viên hoàn trả tạm ứng')).toBeTruthy();
     expect(screen.getByText('Không còn chênh lệch')).toBeTruthy();
     expect(screen.getByText('Tổng còn phải hoàn ứng')).toBeTruthy();

@@ -46,6 +46,23 @@ export async function assertOpsExpenseAssignment(executor: Pick<Executor, 'selec
   throw new ApiError(403, 'Lô này không thuộc xe bạn phụ trách. Liên hệ Quản trị viên để được gán xe.');
 }
 
+/**
+ * Read-only verdict for the expense dialog's open-time check (card
+ * 071026210510): the SAME grant predicate as the save-time assert above —
+ * never a second copy of it — so the dialog and the save can never disagree.
+ * Non-403 errors propagate: an infrastructure failure must surface as a 500,
+ * not masquerade as a permission denial.
+ */
+export async function opsExpenseWriteScope(executor: Pick<Executor, 'select'>, userId: number, shipmentId: number): Promise<{ writable: boolean; reason: string | null }> {
+  try {
+    await assertOpsExpenseAssignment(executor, userId, shipmentId);
+    return { writable: true, reason: null };
+  } catch (error) {
+    if (error instanceof ApiError && error.statusCode === 403) return { writable: false, reason: error.message };
+    throw error;
+  }
+}
+
 export async function assertExpenseOwnerWriteScope(executor: Executor, actor: { userId: number; role: Role }, source: ExpenseAccountingSource) {
   if (actor.role === Role.OPS) await assertOpsExpenseAssignment(executor, actor.userId, source.shipmentId);
   if (actor.role === Role.DRIVER) {

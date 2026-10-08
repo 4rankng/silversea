@@ -158,6 +158,20 @@
   color: var(--danger-text);
 }
 
+/* Port backfill editors (card: bổ sung cảng sau điều xe) — the select keeps
+   its own design-system chrome; only the cell fit is owned here. */
+.dispatch-container-detail__port-select {
+  display: block;
+  min-width: 140px;
+}
+
+.dispatch-container-detail__save-error {
+  margin: 0 0 8px;
+  color: var(--danger-text);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+}
+
 @container (max-width: 760px) {
   .dispatch-container-detail__table-scroll { border: 0; overflow: visible; }
   .dispatch-container-detail__table,

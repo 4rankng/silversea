@@ -168,8 +168,10 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                   </thead>
                   <tbody>
                     {expenses.map((fee, i) => {
-                      const buy = Number(fee.buyAmount);
-                      const sell = Number(fee.sellAmount);
+                      // Card 20261002_293: keep null as null — Number(null) is
+                      // 0 and would turn a missing amount into a fake zero.
+                      const buy = fee.buyAmount == null ? null : Number(fee.buyAmount);
+                      const sell = fee.sellAmount == null ? null : Number(fee.sellAmount);
                       // Forwarder-owned fees are accepted with the settlement,
                       // never as a separate per-line approval on this card.
 
@@ -188,19 +190,19 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                             </div>
                           </td>
                           <td className="num" style={{ color: 'var(--ink-2)' }}>
-                            {buy > 0 ? formatCurrency(buy) : ''}
+                            {buy != null ? formatCurrency(buy) : '—'}
                           </td>
                           <td className="num" style={{ color: 'var(--ink-2)' }}>
-                            {sell > 0 ? formatCurrency(sell) : ''}
+                            {sell != null ? formatCurrency(sell) : '—'}
                           </td>
                           <td
                             className="num"
                             style={{
-                              color: sell > 0 ? 'var(--success)' : 'var(--ink-3)',
+                              color: sell != null && sell > 0 ? 'var(--success)' : 'var(--ink-3)',
                               fontWeight: 700,
                             }}
                           >
-                            {sell > 0 ? formatCurrency(sell) : ''}
+                            {sell != null ? formatCurrency(sell) : '—'}
                           </td>
                           <td
                             style={{ fontSize: 'var(--text-data-size)', color: 'var(--ink-3)', overflowWrap: 'anywhere' }}
@@ -272,19 +274,19 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                         <div className="ancillary-fee-card__amounts">
                           <div className="ancillary-fee-card__amount">
                             <span className="ancillary-fee-card__label">Gốc</span>
-                            <span className="ancillary-fee-card__value mono">{buy > 0 ? formatCurrency(buy) : '—'}</span>
+                            <span className="ancillary-fee-card__value mono">{buy != null ? formatCurrency(buy) : '—'}</span>
                           </div>
                           <div className="ancillary-fee-card__amount">
                             <span className="ancillary-fee-card__label">Báo khách</span>
-                            <span className="ancillary-fee-card__value mono">{sell > 0 ? formatCurrency(sell) : '—'}</span>
+                            <span className="ancillary-fee-card__value mono">{sell != null ? formatCurrency(sell) : '—'}</span>
                           </div>
                           <div className="ancillary-fee-card__amount">
                             <span className="ancillary-fee-card__label">Báo nợ</span>
                             <span
                               className="ancillary-fee-card__value ancillary-fee-card__value--margin mono"
-                              style={{ color: sell > 0 ? 'var(--success)' : 'var(--ink-3)' }}
+                              style={{ color: sell != null && sell > 0 ? 'var(--success)' : 'var(--ink-3)' }}
                             >
-                              {sell > 0 ? formatCurrency(sell) : '—'}
+                              {sell != null ? formatCurrency(sell) : '—'}
                             </span>
                           </div>
                         </div>

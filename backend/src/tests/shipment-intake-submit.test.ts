@@ -289,6 +289,223 @@ describe('shipment intake submission', () => {
     assert.equal(emptied.shipment.version, partial.shipment.version + 1);
   });
 
+  // ── Card 354: the allocation freeze is per-container, not per-lot ─────────
+  test('354: fills the unallocated container while a trip-bound sibling keeps its carrier', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const [carrier] = await db.insert(s.customers).values({
+      name: `Carrier ${suffix}-${customerIds.length}`,
+      isCarrier: true,
+      status: 'ACTIVE',
+    }).returning();
+    customerIds.push(carrier.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'FCL',
+      shipmentCode: `INTAKE-354-${suffix}`,
+      status: 'DISPATCHED',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    const [contTripped, contFree] = await db.insert(s.shipmentContainers).values([
+      {
+        shipmentId: shipment.id,
+        routeId: ref.route.id,
+        operationalSiteId: ref.site.id,
+        containerTypeId: ref.containerType.id, // 20'
+        containerNumber: 'MSCU3540001',
+        customerAppointmentAt: new Date('2026-08-05T08:00:00.000Z'),
+        createdBy: admin.userId,
+      },
+      {
+        shipmentId: shipment.id,
+        routeId: ref.route.id,
+        operationalSiteId: ref.site.id,
+        containerTypeId: ref.containerType.id, // 20'
+        containerNumber: 'MSCU3540002',
+        customerAppointmentAt: new Date('2026-08-05T08:00:00.000Z'),
+        createdBy: admin.userId,
+      },
+    ]).returning();
+    const [pinnedFulfillment, freeFulfillment] = await db.insert(s.shipmentFulfillments).values([
+      {
+        shipmentId: shipment.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: contTripped.id,
+        sourceShipmentVersion: shipment.version,
+        plannedCarrierType: 'OWN',
+        createdBy: admin.userId,
+      },
+      {
+        shipmentId: shipment.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: contFree.id,
+        sourceShipmentVersion: shipment.version,
+        createdBy: admin.userId,
+      },
+    ]).returning();
+    await db.insert(s.trips).values({
+      tripCode: `TRP354-${suffix}-a`,
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      departureDate: '2026-08-05',
+      shipmentId: shipment.id,
+      fulfillmentId: pinnedFulfillment.id,
+      createdBy: admin.userId,
+    });
+
+    // RED at HEAD: the lot-wide guard 409s ('Chỉ được gán lại nhà xe khi lô
+    // đang sẵn sàng điều xe.') the moment ANY trip exists, so the free
+    // container can never be filled after its sibling was dispatched — the
+    // user-visible defect in card 354 (cont EEUU1234575 stuck 'Chờ phân xe').
+    const filled = await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      actor: admin,
+      allowPartial: true,
+      carrierAllocations: [
+        { appointmentDate: '2026-08-05', carrierType: 'OWN', count20: 1, count40: 0 },
+        { appointmentDate: '2026-08-05', carrierType: 'EXTERNAL', externalCarrierId: carrier.id, count20: 1, count40: 0 },
+      ],
+    });
+    const byContainer = new Map(filled.assignments.map((row) => [row.shipmentContainerId, row]));
+    assert.equal(byContainer.get(contTripped.id)?.plannedCarrierType, 'OWN');
+    assert.equal(byContainer.get(contFree.id)?.plannedCarrierType, 'EXTERNAL');
+    assert.equal(byContainer.get(contFree.id)?.plannedExternalCarrierId, carrier.id);
+    assert.equal(freeFulfillment.shipmentContainerId, contFree.id);
+  });
+
+  test('354: re-carriering a trip-bound container stays refused with the freeze message', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const [carrier] = await db.insert(s.customers).values({
+      name: `Carrier ${suffix}-${customerIds.length}`,
+      isCarrier: true,
+      status: 'ACTIVE',
+    }).returning();
+    customerIds.push(carrier.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'FCL',
+      shipmentCode: `INTAKE-354-FRZ-${suffix}`,
+      status: 'DISPATCHED',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    const [contTripped, contFree] = await db.insert(s.shipmentContainers).values([
+      {
+        shipmentId: shipment.id,
+        routeId: ref.route.id,
+        operationalSiteId: ref.site.id,
+        containerTypeId: ref.containerType.id, // 20'
+        containerNumber: 'MSCU3541001',
+        createdBy: admin.userId,
+      },
+      {
+        shipmentId: shipment.id,
+        routeId: ref.route.id,
+        operationalSiteId: ref.site.id,
+        containerTypeId: ref.containerType.id, // 20'
+        containerNumber: 'MSCU3541002',
+        createdBy: admin.userId,
+      },
+    ]).returning();
+    const [pinnedFulfillment] = await db.insert(s.shipmentFulfillments).values([
+      {
+        shipmentId: shipment.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: contTripped.id,
+        sourceShipmentVersion: shipment.version,
+        plannedCarrierType: 'OWN',
+        createdBy: admin.userId,
+      },
+      {
+        shipmentId: shipment.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: contFree.id,
+        sourceShipmentVersion: shipment.version,
+        createdBy: admin.userId,
+      },
+    ]).returning();
+    await db.insert(s.trips).values({
+      tripCode: `TRP354-${suffix}-b`,
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      departureDate: '2026-08-05',
+      shipmentId: shipment.id,
+      fulfillmentId: pinnedFulfillment.id,
+      createdBy: admin.userId,
+    });
+
+    // The request only offers EXTERNAL, so the trip-bound OWN container would
+    // have to change carrier — the precise per-container freeze message must
+    // fire (RED at HEAD: the blanket status guard fires first with the
+    // 'Chỉ được gán lại nhà xe…' message, masking the real reason).
+    await assert.rejects(
+      () => assignShipmentCarriers({
+        shipmentId: shipment.id,
+        expectedVersion: shipment.version,
+        actor: admin,
+        allowPartial: true,
+        carrierAllocations: [{ carrierType: 'EXTERNAL', externalCarrierId: carrier.id, count20: 2, count40: 0 }],
+      }),
+      /Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe/,
+    );
+  });
+
+  test('354: a shipment-linked trip without fulfillment attribution freezes the lot conservatively', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'FCL',
+      shipmentCode: `INTAKE-354-LEG-${suffix}`,
+      status: 'DISPATCHED',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      routeId: ref.route.id,
+      operationalSiteId: ref.site.id,
+      containerTypeId: ref.containerType.id, // 20'
+      containerNumber: 'MSCU3542001',
+      createdBy: admin.userId,
+    });
+    // Legacy auto-shipment trips carry shipmentId but no fulfillmentId — the
+    // freeze cannot be attributed to one container, so the whole lot stays
+    // frozen (same effective behavior as the old blanket guard).
+    await db.insert(s.trips).values({
+      tripCode: `TRP354-${suffix}-c`,
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      departureDate: '2026-08-05',
+      shipmentId: shipment.id,
+      createdBy: admin.userId,
+    });
+
+    await assert.rejects(
+      () => assignShipmentCarriers({
+        shipmentId: shipment.id,
+        expectedVersion: shipment.version,
+        actor: admin,
+        allowPartial: true,
+        carrierAllocations: [{ carrierType: 'OWN', count20: 1, count40: 0 }],
+      }),
+      /Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe/,
+    );
+  });
+
   test('TC-DV-DISPATCH-043: assigns carriers separately per appointment date, allowing same carrier across different dates', async () => {
     const dispatcher = await actor(Role.DISPATCHER);
     const ref = await references();
@@ -697,17 +914,37 @@ describe('shipment intake submission', () => {
 });
 
 describe('operational site admin maintenance', () => {
-  test('limits the master-data list and updates to ADMIN and MANAGER', async () => {
-    const clerk = await actor(Role.CUS);
-    await assert.rejects(
-      () => listOperationalSitesForAdmin(clerk),
-      (err: unknown) => err instanceof ApiError && err.statusCode === 403,
-    );
+  test('permits CUS and DISPATCHER factory maintenance while denying DRIVER', async () => {
     const ref = await references();
-    await assert.rejects(
-      () => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version }, clerk),
-      (err: unknown) => err instanceof ApiError && err.statusCode === 403,
-    );
+    for (const role of [Role.CUS, Role.DISPATCHER]) {
+      const authorized = await actor(role);
+      const rows = await listOperationalSitesForAdmin(authorized);
+      assert.ok(rows.some(row => row.id === ref.site.id));
+      const current = rows.find(row => row.id === ref.site.id)!;
+      const updated = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: current.version, name: 'Nhà máy quản lý' }, authorized);
+      assert.equal(updated.name, 'Nhà máy quản lý');
+    }
+    const denied = await actor(Role.DRIVER);
+    await assert.rejects(() => listOperationalSitesForAdmin(denied), (err: unknown) => err instanceof ApiError && err.statusCode === 403);
+    await assert.rejects(() => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version }, denied), (err: unknown) => err instanceof ApiError && err.statusCode === 403);
+  });
+
+  test('stores named contacts, changes default and deletes without stale scalar values', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const contacts = [{ name: 'Cổng kho', phone: '0901234567', isDefault: true }, { name: 'Điều phối', phone: '0907654321', isDefault: false }];
+    const saved = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version, contacts }, admin);
+    assert.deepEqual(saved.contacts, contacts);
+    assert.equal(saved.contactPhone, contacts[0].phone);
+    const changed = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: saved.version, contacts: contacts.map(contact => ({ ...contact, isDefault: !contact.isDefault })) }, admin);
+    assert.equal(changed.contactName, 'Điều phối');
+    assert.equal(changed.contactPhone, contacts[1].phone);
+    const omitted = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: changed.version, name: 'Đổi tên' }, admin);
+    assert.deepEqual(omitted.contacts, changed.contacts);
+    const cleared = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: omitted.version, contacts: [] }, admin);
+    assert.deepEqual(cleared.contacts, []);
+    assert.equal(cleared.contactName, null);
+    assert.equal(cleared.contactPhone, null);
   });
 
   test('lists every live site with its customer, including deactivated rows', async () => {
@@ -750,6 +987,16 @@ describe('operational site admin maintenance', () => {
     );
   });
 
+  test('allows metadata edits on a legacy factory with no route without permitting explicit route clearing', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    await db.update(s.operationalSites).set({ routeId: null }).where(eq(s.operationalSites.id, ref.site.id));
+    const changed = await updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version, contacts: [{ name: 'Kho', phone: '0901234567', isDefault: true }] }, admin);
+    assert.equal(changed.routeId, null);
+    assert.equal(changed.contactPhone, '0901234567');
+    await assert.rejects(() => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: changed.version, routeId: null }, admin), (error: unknown) => error instanceof ApiError && error.statusCode === 409);
+  });
+
   test('keeps the FACTORY route invariant on merged updates', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();
@@ -764,7 +1011,7 @@ describe('operational site admin maintenance', () => {
     );
   });
 
-  // Trilogy gap F7 / MDN-7 — MasterDataNhaMay.md §3.3: nhà máy bị vô hiệu hoá
+  // Trilogy gap F7 / MDN-7 — MasterDataNhaMay.docx §3.3: nhà máy bị vô hiệu hoá
   // (`is_active = false`) không được xuất hiện trong dropdown tạo lô. Backend
   // service đã filter ở shipment-intake.service.ts:289; test này chặn hồi quy.
   test('MDN-7: hides inactive factories from intake listing (trilogy F7)', async () => {
@@ -792,7 +1039,7 @@ describe('operational site admin maintenance', () => {
       items.some((site) => site.id === ref.site.id),
       'active factory should appear in intake listing',
     );
-    // Inactive factory must NOT be present (MasterDataNhaMay.md §3.3).
+    // Inactive factory must NOT be present (MasterDataNhaMay.docx §3.3).
     assert.equal(
       items.some((site) => site.id === inactiveFactory.id),
       false,
@@ -813,6 +1060,7 @@ after(async () => {
   try {
     if (idempotencyKeys.length) await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
     if (shipmentIds.length) {
+      await db.delete(s.trips).where(inArray(s.trips.shipmentId, shipmentIds));
       await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, shipmentIds));
       await db.delete(s.dispatchHandoffs).where(inArray(s.dispatchHandoffs.shipmentId, shipmentIds));
       await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, shipmentIds));

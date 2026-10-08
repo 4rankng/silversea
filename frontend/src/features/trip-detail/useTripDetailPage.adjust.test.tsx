@@ -23,7 +23,7 @@ vi.mock('../../hooks/useQueries', () => ({
   useFuelConfig: useFuelConfigMock,
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: 'MANAGER' } }) }));
-vi.mock('../../hooks/useCatalogs', () => ({ useCatalogs: () => ({ data: { trucks: [], drivers: [], customers: [], routes: [] } }) }));
+vi.mock('../../hooks/useCatalogs', () => ({ useCatalogs: () => ({ data: { trucks: [], drivers: [], customers: [], externalCarriers: [], routes: [] } }) }));
 vi.mock('../../components/UI', () => ({ useConfirm: () => ({ confirm: vi.fn(async () => true), dialog: null }) }));
 vi.mock('../../components/shared/Toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 

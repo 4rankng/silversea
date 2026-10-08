@@ -81,6 +81,10 @@ router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: '
     carrierType: data.carrierType ?? 'OWN',
     truckId: data.truckId ?? null,
     driverId: data.driverId ?? null,
+    // Card 20261006_389 — per-trip trailer override on reassign: forward the
+    // dispatcher's trailer choice through the SAME command and gates as issue
+    // (input.trailerId wins; omitted = the tractor's current coupling).
+    trailerId: data.trailerId ?? null,
     externalCarrierId: data.externalCarrierId ?? null,
     // The trip-detail reassignment form has no carrier-fleet vehicle picker.
     // Preserve the issued vehicle so the governed FCL validation still checks

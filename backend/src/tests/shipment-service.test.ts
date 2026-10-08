@@ -1468,6 +1468,27 @@ describe('softDeleteShipment', () => {
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,
     );
   });
+
+  test('cascades deletion cleanly to uncancelled fulfillments (cards 351, 352)', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
+
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: {},
+      plannedCarrierType: 'OWN',
+    }).returning();
+
+    const deleted = await softDeleteShipment(shipment.id, { version: shipment.version });
+    assert.ok(deleted.deletedAt);
+
+    const [fRow] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.ok(fRow?.canceledAt, 'fulfillment is canceled upon shipment soft delete');
+  });
 });
 
 describe('snapshotContainersIntoTrip', () => {

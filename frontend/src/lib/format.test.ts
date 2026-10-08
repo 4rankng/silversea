@@ -107,6 +107,23 @@ describe('empty-state contract', () => {
   });
 });
 
+describe('financial zero and VND format integrity (card 20261002_293)', () => {
+  it.each([
+    [0, '0 ₫'],
+    ['0', '0 ₫'],
+    [1500000, '1.500.000 ₫'],
+    ['1500000', '1.500.000 ₫'],
+  ])('formatCurrency(%p) renders the zero and the digit grouping, never a blank', (input, expected) => {
+    expect(formatCurrency(input)).toBe(expected);
+  });
+
+  it('rounds fractional VND at the display edge — money carries no decimals', () => {
+    expect(formatCurrency(1248000.5)).toBe('1.248.001 ₫');
+    expect(formatCurrency(17842.593)).toBe('17.843 ₫');
+    expect(formatMoney(17842.593)).toBe('17.843');
+  });
+});
+
 describe('timezone pinning (dates read as Vietnam wall-clock on any host)', () => {
   it('formatDate rolls to the Vietnam calendar day across the UTC boundary', () => {
     // 17:30Z on Sep 10 is already 00:30 Sep 11 in +07.

@@ -99,6 +99,16 @@ describe('buildQuickEditDraft', () => {
     expect(draft.declarations.map((row) => row.id)).toEqual([11]);
   });
 
+  // Card 20261005_360 (REQ-01): the stored numeric string carries PG's two
+  // dead decimals ("10000.00") — the edit input hydrates without them, and a
+  // genuine decimal keeps its significant digit.
+  it('weight seed drops PG trailing decimals but keeps real ones', () => {
+    const item = makeItem({ raw: { cargoWeightKg: '10000.00' } });
+    expect(buildQuickEditDraft(item, 'cargo').cargoWeightKg).toBe('10000');
+    const half = makeItem({ raw: { cargoWeightKg: '100.50' } });
+    expect(buildQuickEditDraft(half, 'cargo').cargoWeightKg).toBe('100.5');
+  });
+
   it('blanks numeric seed when the row carries null', () => {
     const item = makeItem({ raw: { packageCount: null } });
     expect(buildQuickEditDraft(item, 'cargo').packageCount).toBe('');

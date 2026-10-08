@@ -299,6 +299,44 @@ describe('O01 two-way dispatch pairing routes', () => {
     assert.match(String(blocked.data.error ?? ''), /chồng thời gian/i);
   });
 
+  test('DISPATCHER — the Ghép chuyến operator role — can create a pair (card 353)', async () => {
+    // The "Ghép chuyến điều vận" dialog lives on the dispatcher's own screen
+    // (the user's P1 repro ran as dungnv / Điều vận) but the POST guard was
+    // ADMIN,MANAGER only — even past the dialog validation the dispatcher's
+    // merge would die 403. The operator role must be able to complete the
+    // flow the UI hands it.
+    const firstSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-28T08:00:00',
+      plannedEndAt: '2026-07-28T12:00:00',
+      canonicalOrigin: 'Cat Lai',
+      canonicalDestination: 'Binh Duong',
+      cargoWeightKg: 12000,
+      vehicleCapacityKg: 18000,
+    };
+    const secondSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-28T13:00:00',
+      plannedEndAt: '2026-07-28T17:00:00',
+      canonicalOrigin: 'Binh Duong',
+      canonicalDestination: 'Cat Lai',
+      cargoWeightKg: 11000,
+      vehicleCapacityKg: 18000,
+    };
+    const first = await mkTrip(TripStatus.CREATED, '2026-07-28', firstSeed);
+    const second = await mkTrip(TripStatus.CREATED, '2026-07-28', secondSeed);
+    const dispatcher = await mkUser(`o01-dispatcher-${Date.now() % 100000}`, Role.DISPATCHER);
+    const dispatcherToken = sign(dispatcher);
+
+    const payload = {
+      firstTripId: first.id,
+      secondTripId: second.id,
+      firstTrip: pairDraft(firstSeed, first.version),
+      secondTrip: pairDraft(secondSeed, second.version),
+    };
+    const created = await testFetch('/pairs', { method: 'POST', token: dispatcherToken, body: payload });
+    assert.equal(created.status, 201, 'dispatcher completes the Ghép chuyến flow the UI hands them');
+    createdPairIds.push(created.data.id);
+  });
+
   test('route rejects forged schedule, location, cargo, and capacity fields and accepts the authoritative payload', async () => {
     const firstSeed: TripAuthoritySeed = {
       plannedStartAt: '2026-07-27T08:00:00',

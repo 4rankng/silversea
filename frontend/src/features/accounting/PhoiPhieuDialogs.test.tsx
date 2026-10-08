@@ -319,17 +319,16 @@ describe('card 20260928_171 — chi tiết tiền đường: sửa số tiền, 
     render(<PhoiPhieuControlPage />, { wrapper: makeWrapper() });
     const row = await findBoardRow('BILL-002');
     const boardMoney = row.querySelector('.ppc-col--money .money')!;
-    expect(boardMoney.querySelector('.money__num')?.textContent).toBe('2.000.000');
-    expect(boardMoney.querySelector('.money__unit')?.textContent).toBe('₫');
+    expect(boardMoney.textContent).toBe('2.000.000 ₫');
 
     fireEvent.click(within(row).getByRole('button', { name: 'Xem chi tiết' }));
     const dialog = await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
     await within(dialog).findByLabelText('Thực chi dòng 1');
     const footer = within(dialog).getByRole('region', { name: 'Tổng cộng' });
     // the same string the board cell shows, now inside the detail
-    expect(within(footer).getByText('2.000.000')).toHaveClass('money__num');
+    expect(within(footer).getByText('2.000.000 ₫')).toBeTruthy();
     // the gross stays visible, but under the label that says it is the gross
-    expect(within(footer).getByText('2.050.000')).toHaveClass('money__num');
+    expect(within(footer).getByText('2.050.000 ₫')).toBeTruthy();
     expect(within(footer).getByText('Tổng phát sinh')).toBeInTheDocument();
     expect(within(footer).getByText('Đã duyệt')).toBeInTheDocument();
     expect(within(dialog).getByText(/chỉ dòng đã duyệt mới được lập phiếu chi/)).toBeInTheDocument();
@@ -487,5 +486,31 @@ describe('PHOI08 Tiền đường authoritative partial-save retry', () => {
       { sourceKind: 'DRIVER', sourceId: 22, expectedVersion: 4 },
       expect.objectContaining({ expectedVersion: 4, amount: 70000 }),
     );
+  });
+});
+
+describe('PHOI13 Chi hộ dialog keeps its content readable (card 20261002_278)', () => {
+  it('re-pins the table header to the dialog scrollport', async () => {
+    render(<PhoiPhieuChiHoDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    const table = await screen.findByRole('table');
+
+    // The page-level sticky offset (-24px) is tuned for `.app-body`; inside the
+    // dialog the scrollport is `.modal__body`, so an inherited offset rides the
+    // header ABOVE the scrollport edge and over row 1 — the "text edges cut
+    // off" defect. The table overrides the token it actually consumes.
+    expect(table.style.getPropertyValue('--sticky-thead-top')).toBe('0px');
+
+    // The wrap must stay `overflow: visible` so `.modal__body` remains the
+    // header's scrollport. Promoting it to a scroll container (the `--scroll`
+    // modifier) collapses the vertical overflow the header pins inside and
+    // would silently un-pin the header instead.
+    expect(table.closest('.record-table-wrap--scroll')).toBeNull();
+
+    // The scrollport's top gutter is removed via `.modal__body:has(> .phoi-detail-body)`.
+    // That selector keys on the content root being the DIRECT child of the shell
+    // body; inserting a wrapper element between them silently un-matches the
+    // rule and the clipped-row defect returns with no test failure anywhere.
+    const body = document.querySelector('.modal__body');
+    expect(body?.firstElementChild).toHaveClass('phoi-detail-body');
   });
 });

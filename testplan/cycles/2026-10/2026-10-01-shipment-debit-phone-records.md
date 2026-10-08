@@ -1,0 +1,8 @@
+# QA-AUDIT-UI-39 — settlement records on phone
+
+1. Reproduce current390 /shipments-debit wide summary: source9columns; phone all financial/document/identity/state facts readable without horizontal scrolling.20records/page; next/back/filter reset retains source order and eligibility.
+2. Explicit checkbox only for manageable locked lots; Details/nested expand must not toggle selection. Same existing business key, per-row customer, session restore, save callback and role policy. Manager cannot open/manage.
+3. Expanded populated real lot: Bảng2.1/2.2/2.3 and unattached rows use every original column cell, same null/auto amounts and editable handlers. Phone records only, one mounted input per logical field;768/1440 original matrix and print matrix, no duplicate controls/IDs.
+4. Actual input draft/cancel or removal-reason Cancel demonstrates no write; direct readbacks200 before/after identical. Actual native Details touch/keyboard, nested action + close, pagers/filter reset/screens/DOM/driver log required. Unit parity each ledger and full affected gates; staging/other-role paths honestly uncovered.
+
+Actual nested-record continuation: old ShipmentDebitWorkspace width/max-width100vw makes the workspace390px inside a narrower Panel; raw screenshot ui39_ui-container-chiho-390.png and bounds in ui39_dom-api-parity.json show clipping/actions offscreen. Replace that existing workspace bound with100% of the actual parent, keep the shared primitive/field handlers; require final all nested h3/dt/dd/inputs/buttons inside390 and proper target section captures. Old green actions/parity alone is not visual acceptance.

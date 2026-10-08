@@ -4,7 +4,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { cacheGet } from '../lib/redis';
 import { eq, and, or, sql, inArray, like, isNull, lt } from 'drizzle-orm';
-import { computeFifoAging, TxnType } from '@tingting/shared';
+import { computeFifoAging, maxOverdueDaysOf, round2dp, TxnType } from '@tingting/shared';
 import { ENTITY_RESULTS_KEY_PREFIX } from '../lib/report-cache';
 import type { PayableSummary, PayablesCategory, Supplier } from '@tingting/shared';
 import {
@@ -14,7 +14,14 @@ import {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type LedgerEntry = { debit: string | null; credit: string | null; timestamp: Date | null };
+type LedgerEntry = {
+  debit: string | null;
+  credit: string | null;
+  timestamp: Date | null;
+  /** Frozen contractual due date (O2C §B0) — null on legacy rows. */
+  originalDueDate: string | null;
+  processingDueDate: string | null;
+};
 
 interface AgingConfig {
   entityType: 'CUSTOMER' | 'VENDOR' | 'CARRIER';
@@ -42,8 +49,10 @@ interface FetchOptions {
 interface EntityAgingResult {
   entityId: number;
   aging: { current: number; d30: number; d60: number; over90: number };
-  openInvoices: Array<{ ts: string; open: number }>;
+  openInvoices: Array<{ ts: string; open: number; dueDate: string | null; overdueDays: number }>;
   totalOutstanding: number;
+  /** Contractual overdue span (card 061026221213) — days past the effective
+   * due date of the oldest open obligation; 0 = not yet due. Never the age. */
   maxOverdueDays: number;
 }
 
@@ -90,8 +99,8 @@ export interface CustomerAgingListResult {
   totals: AgingListTotals;
 }
 
-/** Aging-bucket filter matching the /debt page's bucket pills. */
-export type AgingBucketFilter = 'all' | 'current' | 'd30' | 'd60' | 'over90';
+/** Aging-bucket filter matching the /debt page's bucket pills ('overdue' = any overdue portion). */
+export type AgingBucketFilter = 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue';
 
 export interface AgingListTotals {
   total: number;
@@ -129,19 +138,59 @@ export function summarizeAgingTotals(rows: Array<{ totalOutstanding: number; max
     if (r.aging.d30 > 0) { totals.d30 += r.aging.d30; totals.d30Custs++; }
     if (r.aging.d60 > 0) { totals.d60 += r.aging.d60; totals.d60Custs++; }
     if (r.aging.over90 > 0) { totals.over90 += r.aging.over90; totals.over90Custs++; }
-    if (r.maxOverdueDays > 30) totals.overdueCount++;
+    // Card 061026221213: "quá hạn" counts contractual overdue spans (> 0 days
+    // past the effective due date) — the old > 30-day threshold on debt age let
+    // a "QUÁ HẠN 22 ngày" row read "Trong hạn" while every tile counted 0.
+    if (r.maxOverdueDays > 0) totals.overdueCount++;
     if (classifyAgingRisk(r.totalOutstanding, r.aging) === 'high') totals.highRiskCount++;
   }
   return totals;
 }
 
-/** Bucket filter matching the /debt page's pills (each bucket requires outstanding). */
+/** Bucket filter matching the /debt page's pills (each bucket requires outstanding).
+ * `'overdue'` selects rows carrying ANY overdue portion (a d30/d60/over90 share —
+ * bands are contractual due-status since card 061026221213); the four single-
+ * bucket values keep their exact prior semantics. */
 export function filterAgingByBucket<
   T extends { totalOutstanding: number; aging: { current: number; d30: number; d60: number; over90: number } },
 >(rows: T[], bucket: AgingBucketFilter): T[] {
   if (bucket === 'all') return rows;
+  if (bucket === 'overdue') {
+    return rows.filter(r => r.totalOutstanding > 0 && (r.aging.d30 > 0 || r.aging.d60 > 0 || r.aging.over90 > 0));
+  }
   const hasBucket = (r: T) => r.totalOutstanding > 0 && r.aging[bucket] > 0;
   return rows.filter(hasBucket);
+}
+
+/** Due-group card aggregate behind the overview's "Tổng quát về tiền" block.
+ * `inTerm` = the not-yet-due portion (aging.current); `overdue` = the past-due
+ * d30/d60/over90 portions — the bands are contractual due-status bands since
+ * card 061026221213. One entity with both portions counts in BOTH groups. */
+export interface DueGroups {
+  inTerm: { amount: number; count: number };
+  overdue: { amount: number; count: number };
+}
+
+/** Aggregate rows into the due-group cards. Amounts pass through `round2dp`;
+ * counts use the SAME presence predicate as `filterAgingByBucket` so a card's
+ * count and its drill-down list agree row-for-row. */
+export function computeDueGroups(
+  rows: ReadonlyArray<{ totalOutstanding: number; aging: { current: number; d30: number; d60: number; over90: number } }>,
+): DueGroups {
+  let inTermAmount = 0;
+  let overdueAmount = 0;
+  let inTermCount = 0;
+  let overdueCount = 0;
+  for (const row of rows) {
+    inTermAmount += row.aging.current;
+    overdueAmount += row.aging.d30 + row.aging.d60 + row.aging.over90;
+    if (row.totalOutstanding > 0 && row.aging.current > 0) inTermCount++;
+    if (row.totalOutstanding > 0 && (row.aging.d30 > 0 || row.aging.d60 > 0 || row.aging.over90 > 0)) overdueCount++;
+  }
+  return {
+    inTerm: { amount: round2dp(inTermAmount), count: inTermCount },
+    overdue: { amount: round2dp(overdueAmount), count: overdueCount },
+  };
 }
 
 // ─── Column sorting (server-side, pre-pagination) ────────────────────────────
@@ -310,6 +359,8 @@ async function fetchLedgerGrouped(
     debit: s.ledger.debit,
     credit: s.ledger.credit,
     timestamp: s.ledger.timestamp,
+    originalDueDate: s.ledger.originalDueDate,
+    processingDueDate: s.ledger.processingDueDate,
   }).from(s.ledger)
     .where(and(...conditions))
     .orderBy(sql`${s.ledger.id} ASC`);
@@ -317,7 +368,13 @@ async function fetchLedgerGrouped(
   const grouped = new Map<number, LedgerEntry[]>();
   for (const row of ledgerRows) {
     const entries = grouped.get(row.entityId) || [];
-    entries.push({ debit: row.debit, credit: row.credit, timestamp: row.timestamp });
+    entries.push({
+      debit: row.debit,
+      credit: row.credit,
+      timestamp: row.timestamp,
+      originalDueDate: row.originalDueDate,
+      processingDueDate: row.processingDueDate,
+    });
     grouped.set(row.entityId, entries);
   }
   return grouped;
@@ -329,6 +386,9 @@ function computeAging(entries: LedgerEntry[], now: Date, invertSigns: boolean) {
       timestamp: e.timestamp instanceof Date ? e.timestamp.toISOString() : (e.timestamp as string | null),
       debit: invertSigns ? (e.credit ?? '0') : (e.debit ?? '0'),
       credit: invertSigns ? (e.debit ?? '0') : (e.credit ?? '0'),
+      // Effective due date = processingDueDate ?? originalDueDate; legacy rows
+      // that froze neither are due at issue inside computeFifoAging.
+      dueDate: e.processingDueDate ?? e.originalDueDate,
     })),
     now,
   );
@@ -345,15 +405,14 @@ function computeEntityResults(
     const { aging, openInvoices } = computeAging(entries, referenceDate, config.invertSigns);
     const totalOutstanding = aging.current + aging.d30 + aging.d60 + aging.over90;
 
-    let maxOverdueDays = 0;
-    for (const inv of openInvoices) {
-      if (inv.open <= 0) continue;
-      const ageDays = Math.floor((referenceDate.getTime() - new Date(inv.ts).getTime()) / 86400000);
-      if (ageDays > maxOverdueDays) maxOverdueDays = ageDays;
-    }
-
     if (totalOutstanding > 0) {
-      results.push({ entityId, aging, openInvoices, totalOutstanding, maxOverdueDays });
+      results.push({
+        entityId,
+        aging,
+        openInvoices,
+        totalOutstanding,
+        maxOverdueDays: maxOverdueDaysOf(openInvoices),
+      });
     }
   }
 
@@ -466,13 +525,14 @@ async function findCustomerIdsForAgingSearch(search: string): Promise<Set<number
 // ─── Accounts Receivable (Customer aging) ────────────────────────────────────
 
 /**
- * The range label identifying the current (not-yet-overdue) receivables bucket.
+ * The range label identifying the current (not-yet-due) receivables bucket.
  * Single source of truth: `getReceivablesSummary` emits this label, and every
  * consumer that derives an "overdue total" by filtering buckets MUST compare
- * against THIS constant rather than a magic `'0-30'` string — otherwise a label
- * change here silently flips the overdue calc to "all outstanding".
+ * against THIS constant rather than a magic string — otherwise a label change
+ * here silently flips the overdue calc to "all outstanding". The bands are
+ * contractual due-status bands since card 061026221213.
  */
-export const CURRENT_AGING_RANGE = '0-30';
+export const CURRENT_AGING_RANGE = 'chua-den-han';
 
 export async function getReceivablesSummary(opts: { asOfDate?: string } = {}) {
   const customerRows = await db.select({ id: s.customers.id })
@@ -493,9 +553,9 @@ export async function getReceivablesSummary(opts: { asOfDate?: string } = {}) {
 
   const buckets = [
     { range: CURRENT_AGING_RANGE, label: 'Trong hạn', count: 0, amount: 0 },
-    { range: '31-60', label: '31-60 ngày', count: 0, amount: 0 },
-    { range: '61-90', label: '61-90 ngày', count: 0, amount: 0 },
-    { range: '90+', label: 'Trên 90 ngày', count: 0, amount: 0 },
+    { range: '1-30', label: 'Quá hạn 1-30 ngày', count: 0, amount: 0 },
+    { range: '31-90', label: 'Quá hạn 31-90 ngày', count: 0, amount: 0 },
+    { range: '90+', label: 'Quá hạn trên 90 ngày', count: 0, amount: 0 },
   ];
 
   let totalOutstanding = 0;
@@ -510,9 +570,11 @@ export async function getReceivablesSummary(opts: { asOfDate?: string } = {}) {
     totalCustomers++;
     totalOutstanding += r.totalOutstanding;
 
+    // Single-band counts by the row's worst contractual overdue span (card
+    // 061026221213: cut at 30/90 days past due, matching the amount bands).
     if (r.maxOverdueDays > 90) buckets[3].count++;
-    else if (r.maxOverdueDays > 60) buckets[2].count++;
-    else if (r.maxOverdueDays > 30) buckets[1].count++;
+    else if (r.maxOverdueDays > 30) buckets[2].count++;
+    else if (r.maxOverdueDays > 0) buckets[1].count++;
     else buckets[0].count++;
   }
 
@@ -522,6 +584,9 @@ export async function getReceivablesSummary(opts: { asOfDate?: string } = {}) {
     totalCustomers,
     overdueCustomers: totalCustomers - buckets[0].count,
     overdueAmount: buckets.slice(1).reduce((sum, bucket) => sum + bucket.amount, 0),
+    // "Tổng quát về tiền" cards — computed over the same snapshot rows the
+    // buckets above aggregate, so the counts match the /debt drill-down lists.
+    dueGroups: computeDueGroups(results),
   };
   return {
     ...payload,
@@ -706,7 +771,7 @@ async function getPayablesForScope(
       const carrier = carrierById.get(r.entityId);
       if (!carrier) continue;
       totalOutstanding += r.totalOutstanding;
-      if (r.maxOverdueDays > 30) overdueSuppliers++;
+      if (r.maxOverdueDays > 0) overdueSuppliers++;
       // Build a Supplier-shaped object so the frontend can render uniformly.
       // Fields not present on customers are nulled to satisfy the type.
       const supplierLike = {
@@ -743,7 +808,7 @@ async function getPayablesForScope(
       const supplier = supplierById.get(r.entityId);
       if (!supplier) continue;
       totalOutstanding += r.totalOutstanding;
-      if (r.maxOverdueDays > 30) overdueSuppliers++;
+      if (r.maxOverdueDays > 0) overdueSuppliers++;
       items.push({
         supplier: supplier as unknown as Supplier,
         totalOutstanding: r.totalOutstanding,
@@ -789,6 +854,8 @@ export interface PayablesListTotals {
 }
 
 export interface PaginatedPayablesSummary extends PayablesSummaryResult {
+  /** Full-set due-group cards (KPI strip) — never bucket/search/page scoped. */
+  dueGroups: DueGroups;
   page: number;
   limit: number;
   total: number;
@@ -812,7 +879,7 @@ export function summarizePayablesTotals(items: PayableSummary[]): PayablesListTo
 }
 
 export function paginatePayablesSummary(
-  result: PayablesSummaryResult,
+  result: PayablesSummaryResult & { dueGroups?: DueGroups },
   opts: { search?: string; page?: number; limit?: number; sortBy?: PayablesSummarySortKey; sortDir?: AgingSortDir } = {},
 ): PaginatedPayablesSummary {
   const q = opts.search?.trim().toLowerCase();
@@ -832,6 +899,10 @@ export function paginatePayablesSummary(
     totalOutstanding: result.totalOutstanding,
     totalSuppliers: result.totalSuppliers,
     overdueSuppliers: result.overdueSuppliers,
+    // Same invariant for the due-group cards: getPayablesSummary computes them
+    // over the merged full item set and they pass through untouched; the
+    // fallback derives them from the set a caller hands over when it carries none.
+    dueGroups: result.dueGroups ?? computeDueGroups(result.items),
     totals,
     items: page.rows,
     page: page.page,
@@ -862,7 +933,10 @@ export async function getPayablesSummary(opts: { asOfDate?: string; category?: P
       getPayablesForScope(vendorScope, opts.asOfDate),
       getPayablesForScope(carrierScope, opts.asOfDate),
     ]);
-    const payload = mergePayablesSummaries(summaries);
+    // "Tổng quát về tiền" cards aggregate the merged full item set (suppliers
+    // + carriers) and land in the checksummed payload like every other field.
+    const merged = mergePayablesSummaries(summaries);
+    const payload = { ...merged, dueGroups: computeDueGroups(merged.items) };
     return {
       ...payload,
       ...historicalReportMetadata(opts.asOfDate, 'payables-summary-v2', payload),
@@ -882,7 +956,8 @@ export async function getPayablesSummary(opts: { asOfDate?: string; category?: P
     }
   })();
 
-  const payload = await getPayablesForScope(scope, opts.asOfDate);
+  const scopeResult = await getPayablesForScope(scope, opts.asOfDate);
+  const payload = { ...scopeResult, dueGroups: computeDueGroups(scopeResult.items) };
   return {
     ...payload,
     ...historicalReportMetadata(opts.asOfDate, `payables-${opts.category}-v2`, payload),

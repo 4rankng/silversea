@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Btn, PageHeader } from '../../components/UI';
 import { EmptyState, FilterBar, UuiSelectField } from '../../design-system';
 import { Alert } from '../../components/shared/Alert';
+import { StatusText } from '../../components/shared/StatusText';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import {
   type QuotationFeeInput,
@@ -17,7 +18,6 @@ import { RouteBlock, fmtLiters, type RouteBlockData } from './QuotationRouteBloc
 import { QuotationImportPreview } from './QuotationImportPreview';
 import { QuotationFeesSection } from './QuotationFeesSection';
 import { QuotationCreateDialog } from './QuotationCreateDialog';
-import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './QuotationConfigPage.css';
 
@@ -31,6 +31,14 @@ import './QuotationConfigPage.css';
 // Hệ số / Tổng lít / Giá cos / Phụ phí / Tổng, columns = the 10 classes
 // under HÀNG LẺ / HÀNG CONTAINER (labels from QUOTATION_GRID_COLUMNS).
 
+
+/** Local-calendar YYYY-MM-DD — the operator's "today", never the UTC shift. */
+function todayIso(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
 
 export default function QuotationConfigPage() {
   // Card 20260922_57: xlsx import (preview → commit) + export.
@@ -244,52 +252,62 @@ export default function QuotationConfigPage() {
 
       <div className="quotation-layout">
         <section className="quotation-frames" aria-label="Danh sách báo giá">
-          <div className="record-table-wrap">
-          <table className="quotation-frames__table record-table ops-table">
-            <thead>
-              <tr>
-                <th scope="col">Khách hàng</th>
-                <th scope="col">Mẫu báo giá</th>
-                <th scope="col">Ngày hiệu lực</th>
-                <th scope="col">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredFrames.map((frame) => (
-                <tr
-                  key={frame.id}
-                  className={frame.id === selectedId ? 'is-selected' : undefined}
-                  tabIndex={0}
-                  aria-selected={frame.id === selectedId}
-                  onClick={() => setSelectedId(frame.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      setSelectedId(frame.id);
-                    }
-                  }}
-                >
-                  <td data-label="Khách hàng">{frame.customerName}</td>
-                  <td data-label="Mẫu báo giá">{frame.templateName}</td>
-                  <td data-label="Ngày hiệu lực"><span className="data-token">{frame.effectiveDate}</span></td>
-                  <td data-label="Ghi chú">{frame.note ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-          {!frames.isLoading && filteredFrames.length === 0 && (
+          {filteredFrames.length > 0 && (
+            <ul className="quotation-frames__list" role="listbox" aria-label="Báo giá">
+              {filteredFrames.map((frame) => {
+                const selected = frame.id === selectedId;
+                // Card 20261002_288 hierarchy: customer → quote code → applied
+                // date → validity (a quotation is in force from its effective
+                // date on; the frame carries no end date).
+                const inForce = frame.effectiveDate <= todayIso();
+                return (
+                  <li
+                    key={frame.id}
+                    role="option"
+                    aria-selected={selected}
+                    tabIndex={0}
+                    className={selected ? 'is-selected' : undefined}
+                    onClick={() => setSelectedId(frame.id)}
+                    onKeyDown={(option) => {
+                      if (option.key === 'Enter' || option.key === ' ') {
+                        option.preventDefault();
+                        setSelectedId(frame.id);
+                      }
+                    }}
+                  >
+                    <span className="quotation-frames__customer">{frame.customerName}</span>
+                    <span className="quotation-frames__meta">
+                      <span className="quotation-frames__template">{frame.templateName}</span>
+                      <span className="data-token">{formatDate(frame.effectiveDate)}</span>
+                    </span>
+                    {frame.note && <span className="quotation-frames__note">{frame.note}</span>}
+                    <StatusText variant={inForce ? 'success' : 'neutral'} className="quotation-frames__validity">
+                      {inForce ? 'Đang hiệu lực' : 'Chưa hiệu lực'}
+                    </StatusText>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {!frames.isLoading && !frames.isError && filteredFrames.length === 0 && (
             <EmptyState context="search" title="Không có báo giá khớp bộ lọc." />
           )}
         </section>
 
-        <section className="quotation-detail" aria-label="Lưới giá">
+        <section className={selectedId == null ? 'quotation-detail is-empty' : 'quotation-detail'} aria-label="Lưới giá">
           {selectedId == null && <EmptyState context="pricing" title="Chọn một báo giá để xem lưới giá." />}
           {selectedId != null && detail.isError && <Alert variant="error" style="soft">{String(detail.error)}</Alert>}
           {selectedId != null && detail.isLoading && <p className="quotation-status">Đang tải lưới giá…</p>}
-          {detail.data && routeBlocks.map((block) => (
-            <RouteBlock key={`${selectedId}:${block.routeId}`} block={block} saving={update.isPending} onSaveHeSo={saveHeSo} />
-          ))}
+          {selectedId != null && detail.data && routeBlocks.length === 0 && (
+            <EmptyState context="pricing" title="Báo giá chưa có biểu giá theo tuyến." />
+          )}
+          {routeBlocks.length > 0 && (
+            <div className="quotation-detail__scroll">
+              {routeBlocks.map((block) => (
+                <RouteBlock key={`${selectedId}:${block.routeId}`} block={block} saving={update.isPending} onSaveHeSo={saveHeSo} />
+              ))}
+            </div>
+          )}
         </section>
       </div>
 
@@ -308,6 +326,21 @@ export default function QuotationConfigPage() {
             <BufferedUuiDateInput label="Từ ngày (phiên bản)" size="sm" value={versionFilterFrom} onChange={setVersionFilterFrom} />
             <BufferedUuiDateInput label="Đến ngày (phiên bản)" size="sm" value={versionFilterTo} onChange={setVersionFilterTo} />
           </div>
+          {versionsQuery.isError && (
+            // Card 20261004_333 — a failed versions fetch must not render as a
+            // silent blank table where the empty copy claims "Chưa có phiên bản".
+            <p className="quotation-status" role="alert">
+              Không thể tải lịch sử phiên bản.{' '}
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={versionsQuery.isFetching}
+                onClick={() => { void versionsQuery.refetch(); }}
+              >
+                {versionsQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+              </button>
+            </p>
+          )}
           {versionsQuery.isLoading && <p className="quotation-status">Đang tải phiên bản…</p>}
           {versionsQuery.data && versionsQuery.data.items.length === 0 && (
             <p className="quotation-status">Chưa có phiên bản nào được ghi nhận.</p>

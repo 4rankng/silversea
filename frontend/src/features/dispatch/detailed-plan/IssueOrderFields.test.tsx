@@ -37,13 +37,14 @@ describe('IssueOrderFields — no date/time picker (customer ruling)', () => {
   const baseDraft: IssueOrderDraft = {
     externalDriverName: '',
     externalDriverPhone: '',
+    trailerId: null,
   };
 
   it('renders no schedule UI for own-truck rows — driver line only', () => {
     render(
       <IssueOrderFields
         row={mockRow}
-        ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long' }}
+        ownTruck={{ id: 1, driverId: 1, driverName: 'Lương Văn Long', currentTrailerId: null, currentTrailerPlate: null, trailerType: null }}
         loadingOwnTruck={false}
         issueDraft={baseDraft}
         setIssueDraft={vi.fn()}

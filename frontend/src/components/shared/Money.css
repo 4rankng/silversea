@@ -1,32 +1,13 @@
 /* ============================================================================
- * Money — inline money value with a subtitle-sized currency unit.
- * Digits inherit their data/metric context; the unit uses the shared caption
- * role so it never becomes an unreadable fraction of a dense table value.
+ * Money — one inline element, one text run. The single-run contract (card
+ * 386 v2): no sub-spans, no flex — a flex/split layout is what let the number
+ * and the ₫ stack into two boxes under nowrap. Digits and unit share the
+ * surrounding font size and the shared data font.
  * ========================================================================== */
 
 .money {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.15em;
-  flex-wrap: nowrap;
+  display: inline;
   white-space: nowrap;
-  line-height: 1.35;
-}
-
-/* Digits + sign inherit size / weight / color from the parent context. */
-.money__num,
-.money__sign {
   font-family: var(--font-data);
   line-height: 1.35;
-}
-
-.money__unit {
-  font-size: var(--text-caption-size);
-  line-height: 1.35;
-  font-weight: 500;
-  /* Design law §2: the unit keeps the parent's meaning color at full opacity —
-     11px text at 0.65 opacity could not clear the 4.5:1 floor. */
-  opacity: 1;
-  color: inherit;
-  white-space: nowrap;
 }

@@ -8,6 +8,7 @@ import { PageHeader, Panel } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { SortHeader } from '../components/shared/SortHeader';
+import { useToast } from '../components/shared/Toast';
 import { usePnlReport, useYearlyPnl, useMonthlyTrips, useCapTable } from '../hooks/useQueries';
 import { useMonth } from '../hooks/useMonth';
 import { usePageAnimations } from '../hooks/animations';
@@ -71,6 +72,11 @@ export default function FinancePage() {
   const [truckSort, setTruckSort] = useState<TableSortState | null>(null);
   const [tripSort, setTripSort] = useState<TableSortState | null>(null);
   const [categorySort, setCategorySort] = useState<TableSortState | null>(null);
+  // Card 061026174602: the export ran silently — no busy state, no toast, and
+  // a failed export threw unhandled. The button now shows the busy state and
+  // reports both outcomes.
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
   const handleTruckSort = (key: string) => setTruckSort(current => nextTableSort(current, key));
   const handleTripSort = (key: string) => setTripSort(current => nextTableSort(current, key));
   const handleCategorySort = (key: string) => setCategorySort(current => nextTableSort(current, key));
@@ -155,32 +161,40 @@ export default function FinancePage() {
               <CalendarDays size={14} style={{ color: 'var(--brand)' }} />
               <span>Tháng {month} · <strong>{year}</strong></span>
             </div>
-            <button className="btn btn--primary" onClick={async () => {
-              if (!report) return;
-              const headers = ['Khoản mục', `Tháng ${String(month).padStart(2,'0')}/${year}`, `Tháng ${String(month).padStart(2,'0')}/${year - 1}`];
-              const rows = [
-                ['Doanh thu vận tải', transRevenue ?? '—', transRevenueLY ?? '—'],
-                ['Doanh thu điều xe ngoài', report.externalMarginTotal ?? '—', prevReport?.externalMarginTotal ?? '—'],
-                ['Thu nhập khác', otherRevenue ?? '—', otherRevenueLY ?? '—'],
-                ['Tổng doanh thu', totalRevenue ?? '—', totalRevenueLY ?? '—'],
-                ['Nhiên liệu', fuelCost ?? '—', ''],
-                ['Tiền đi đường', roadCost ?? '—', ''],
-                ['Lương lái xe', driverCost ?? '—', ''],
-                ['Khấu hao đội xe', fleetDepreciationCost ?? '—', prevReport?.fleetDepreciationTotal ?? '—'],
-                ['Chi phí cố định đội xe', fleetFixedCost ?? '—', prevReport?.fleetMonthlyFixedCostTotal ?? '—'],
-                ['Chưa phân bổ đội xe', unallocatedFleetFixedCostTotal, prevReport?.unallocatedFleetFixedCostTotal ?? '—'],
-                ['Tổng chi phí vận hành', totalCosts ?? '—', totalCostsLY ?? '—'],
-                ['Lợi nhuận gộp', grossProfit ?? '—', grossProfitLY ?? '—'],
-                ['Lợi nhuận ròng', netProfit ?? '—', netProfitLY ?? '—'],
-              ];
-              await downloadCSV(`bao-cao-lai-lo-${String(month).padStart(2, '0')}-${String(year).slice(-2)}.csv`, headers, rows, {
-                title: 'BÁO CÁO LÃI LỖ',
-                subtitle: `Kỳ báo cáo: Tháng ${String(month).padStart(2,'0')}/${year} · so sánh với Tháng ${String(month).padStart(2,'0')}/${year - 1}`,
-                columnTypes: ['text', 'currency', 'currency'],
-              });
+            <button className="btn btn--primary" disabled={exporting} onClick={async () => {
+              if (!report || exporting) return;
+              setExporting(true);
+              try {
+                const headers = ['Khoản mục', `Tháng ${String(month).padStart(2,'0')}/${year}`, `Tháng ${String(month).padStart(2,'0')}/${year - 1}`];
+                const rows = [
+                  ['Doanh thu vận tải', transRevenue ?? '—', transRevenueLY ?? '—'],
+                  ['Doanh thu điều xe ngoài', report.externalMarginTotal ?? '—', prevReport?.externalMarginTotal ?? '—'],
+                  ['Thu nhập khác', otherRevenue ?? '—', otherRevenueLY ?? '—'],
+                  ['Tổng doanh thu', totalRevenue ?? '—', totalRevenueLY ?? '—'],
+                  ['Nhiên liệu', fuelCost ?? '—', ''],
+                  ['Tiền đi đường', roadCost ?? '—', ''],
+                  ['Lương lái xe', driverCost ?? '—', ''],
+                  ['Khấu hao đội xe', fleetDepreciationCost ?? '—', prevReport?.fleetDepreciationTotal ?? '—'],
+                  ['Chi phí cố định đội xe', fleetFixedCost ?? '—', prevReport?.fleetMonthlyFixedCostTotal ?? '—'],
+                  ['Chưa phân bổ đội xe', unallocatedFleetFixedCostTotal, prevReport?.unallocatedFleetFixedCostTotal ?? '—'],
+                  ['Tổng chi phí vận hành', totalCosts ?? '—', totalCostsLY ?? '—'],
+                  ['Lợi nhuận gộp', grossProfit ?? '—', grossProfitLY ?? '—'],
+                  ['Lợi nhuận ròng', netProfit ?? '—', netProfitLY ?? '—'],
+                ];
+                await downloadCSV(`bao-cao-lai-lo-${String(month).padStart(2, '0')}-${String(year).slice(-2)}.csv`, headers, rows, {
+                  title: 'BÁO CÁO LÃI LỖ',
+                  subtitle: `Kỳ báo cáo: Tháng ${String(month).padStart(2,'0')}/${year} · so sánh với Tháng ${String(month).padStart(2,'0')}/${year - 1}`,
+                  columnTypes: ['text', 'currency', 'currency'],
+                });
+                toast({ kind: 'success', message: 'Đã xuất Báo cáo lãi lỗ ra tệp Excel.' });
+              } catch {
+                toast({ kind: 'error', message: 'Chưa xuất được tệp Excel — vui lòng thử lại.' });
+              } finally {
+                setExporting(false);
+              }
             }}>
               <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Xuất Excel
+              {exporting ? 'Đang xuất…' : 'Xuất Excel'}
             </button>
           </div>
         }
@@ -326,7 +340,7 @@ export default function FinancePage() {
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
                             <span style={{ width: 10, height: 10, background: a.fill, borderRadius: 2, flexShrink: 0 }} />
                             <span style={{ flex: 1, color: 'var(--ink-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
-                            <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)', marginRight: 4 }}>{formatNumber(a.value)}₫</span>
+                            <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)', marginRight: 4 }}>{formatNumber(a.value)} ₫</span>
                             <span style={{ color: 'var(--ink-3)', flexShrink: 0, fontFamily: 'var(--font-data)' }}>{a.pct.toFixed(0)}%</span>
                           </div>
                         ))}
@@ -394,7 +408,7 @@ export default function FinancePage() {
                           {minProfit < 0 && (
                             <line x1={zeroX} y1={0} x2={zeroX} y2={24} stroke="var(--line-2)" strokeWidth={1} strokeDasharray="2,2" />
                           )}
-                          <text x={280} y={15} fontSize="11" fill={isNegative ? 'var(--danger)' : 'var(--ink-2)'} fontWeight={isNegative ? 600 : 500} textAnchor="end">{formatNumber(val)}₫</text>
+                          <text x={280} y={15} fontSize="11" fill={isNegative ? 'var(--danger)' : 'var(--ink-2)'} fontWeight={isNegative ? 600 : 500} textAnchor="end">{formatNumber(val)} ₫</text>
                         </g>
                       );
                     })}
@@ -648,7 +662,7 @@ export default function FinancePage() {
                             {t.plate}
                           </span>
                           <span className={`truck-card__profit ${t.profit >= 0 ? 'truck-card__profit--up' : 'truck-card__profit--down'}`}>
-                            {formatNumber(t.profit)}₫
+                            {formatNumber(t.profit)} ₫
                           </span>
                         </div>
                         <div className="truck-card__stats">

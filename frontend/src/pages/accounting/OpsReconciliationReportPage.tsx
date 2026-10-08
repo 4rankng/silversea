@@ -186,11 +186,14 @@ export default function OpsReconciliationReportPage() {
           <table className="record-table ops-table">
             <thead>
               <tr>
-                <th>STT</th><th>Nhân viên</th>
+                {/* Card 377 (spec 5.10, Hình 9): the column titles carry the
+                    customer's own vocabulary — "Nhân viên ĐNTT" and the note
+                    column titled "Ghi chú". */}
+                <th>STT</th><th>Nhân viên ĐNTT</th>
                 <th className="num">Số tiền ĐNTT</th>
                 <th className="num">Số tiền đã ứng</th>
                 <th className="num">Còn phải hoàn ứng</th>
-                <th>Chiều</th>
+                <th>Ghi chú</th>
                 <th aria-label="Thao tác" />
               </tr>
             </thead>
@@ -239,11 +242,11 @@ function ReportRow({ row, index, actionLot, onVoucher }: {
   return (
     <tr>
       <td data-label="STT">{index + 1}</td>
-      <td data-label="Nhân viên">{row.staffName}</td>
+      <td data-label="Nhân viên ĐNTT">{row.staffName}</td>
       <td data-label="Số tiền ĐNTT" className="num"><Money value={row.dntt} /></td>
       <td data-label="Số tiền đã ứng" className="num"><Money value={row.advanced} /></td>
       <td data-label="Còn phải hoàn ứng" className="num"><Money value={Math.abs(row.remaining)} sign={row.remaining > 0 ? '+' : row.remaining < 0 ? '−' : undefined} /></td>
-      <td data-label="Chiều">
+      <td data-label="Ghi chú">
         <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>
       </td>
       <td data-label="" className="record-table__action">

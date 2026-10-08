@@ -58,7 +58,7 @@ export type ServerContainerAfterSave = { id: number; containerTypeId?: number | 
 /** Each reconcilable field maps a payload key to its TripDetail counterpart
  *  and a normaliser so string ↔ number / null ↔ undefined differences
  *  don't false-positive as changes. */
-export const RECONCILABLE_FIELDS: ReadonlyArray<{
+const RECONCILABLE_FIELDS: ReadonlyArray<{
   payloadKey: string;
   tripKey: keyof TripDetail;
   normalize: (v: unknown) => unknown;

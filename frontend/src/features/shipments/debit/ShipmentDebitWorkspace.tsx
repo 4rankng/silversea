@@ -99,15 +99,19 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved
 
   const auth = useAuth();
   const role = auth?.user?.role;
-  // Card 20260930_214 — `/api/quotations` sits behind `casbinAuthz('config')`
+  // `/api/quotations/fees/active` sits behind `casbinAuthz('config')`
   // (backend/src/index.ts:229, policy.csv: `config, read` = DISPATCHER,
-  // MANAGER, ACCOUNTANT + ADMIN). Asking for the active fee catalog from a role
-  // the policy denies produced a 403 and a console error on every CUS visit;
-  // the query now only runs for a role that may read it, and the table renders
-  // without the dedicated routing columns instead of pretending they exist.
-  const canReadFeeCatalog = role === Role.ADMIN || role === Role.MANAGER
-    || role === Role.DISPATCHER || role === Role.ACCOUNTANT;
-  const feeCatalog = useActiveQuotationFees(canReadFeeCatalog ? customerId : null).data ?? [];
+  // MANAGER, ACCOUNTANT + ADMIN). CUS has no config policy row, so asking for
+  // the active fee catalog from it produced a 403 and a console error on every
+  // CUS visit of this screen.
+  //
+  // Card 20261002_220 — PM ruled 2026-10-03 that CUS DOES read this catalog, so
+  // the backend grants it route-scoped to that one GET
+  // (authz-grants.ts). The FE role gate is therefore removed: it existed only
+  // to suppress a call the policy now permits, and leaving it would keep the
+  // dedicated cost columns missing for the very role the ruling covers. The
+  // remaining config catalogs are untouched — no `config:read` for CUS.
+  const feeCatalog = useActiveQuotationFees(customerId).data ?? [];
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const canLock = role === Role.ADMIN || role === Role.ACCOUNTANT || role === Role.CUS;
   const canAdjust = role === Role.ADMIN || role === Role.ACCOUNTANT;

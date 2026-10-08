@@ -171,8 +171,9 @@ describe('DriverTaskInfoSections', () => {
     expect(screen.queryByText('SĐT liên hệ')).toBeNull();
     const kho = screen.getByText('SĐT kho');
     expect(kho).not.toBeNull();
-    // V2 (card _41): the info grid is pure data — no tel links inside; the
-    // call affordance is the Gọi kho bar link BELOW the card.
+    // Card 20261005_364: the number itself is the tel: link (V2's pure-data
+    // ruling is superseded for this row); the Gọi kho bar link still sits
+    // BELOW the card. The legacy icon-affordance name stays retired.
     expect(screen.queryByRole('link', { name: /Gọi điện thoại kho/ })).toBeNull();
     expect(screen.getByText('0901234567')).toBeTruthy();
     const bar = screen.getByRole('link', { name: /Gọi kho/ });
@@ -182,7 +183,8 @@ describe('DriverTaskInfoSections', () => {
   it('QA-2026-09-26-27 renders TWO phone rows when the kho and contact numbers differ', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0909000001' } })} />);
 
-    // V2: both rows are plain data; the single Gọi kho bar dials the kho number.
+    // Card 20261005_364: the kho number is the tel: link; the contact row
+    // stays plain data. The single Gọi kho bar still dials the kho number.
     expect(screen.getByText('0909000001')).toBeTruthy();
     const bar = screen.getByRole('link', { name: /Gọi kho/ });
     expect(bar.getAttribute('href')).toBe('tel:0901234567');
@@ -198,6 +200,30 @@ describe('DriverTaskInfoSections', () => {
 
     expect(valueOf('SĐT kho')).toBe('—');
     expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    // Card 20261003_320: with khoPhone absent, Gọi kho is hidden and never dials contactPhone
+    expect(screen.queryByRole('link', { name: /Gọi kho/ })).toBeNull();
+  });
+
+  it('card 20261003_320: does NOT dial contactPhone from Gọi kho button when khoPhone is empty', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0900000001' } })} />);
+
+    expect(valueOf('SĐT kho')).toBe('—');
+    expect(valueOf('SĐT liên hệ')).toBe('0900000001');
+    // AC1: SĐT kho trống → không có nút 'Gọi kho' bấm được
+    expect(screen.queryByRole('link', { name: /Gọi kho/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Gọi kho/ })).toBeNull();
+    // AC3: SĐT liên hệ vẫn hiển thị bình thường
+    expect(screen.getByText('0900000001')).toBeTruthy();
+  });
+
+  it('card 20261003_320: dials the kho phone from Gọi kho button when khoPhone exists', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0900000001' } })} />);
+
+    expect(valueOf('SĐT kho')).toBe('0901234567');
+    expect(valueOf('SĐT liên hệ')).toBe('0900000001');
+    // AC2: SĐT kho có dữ liệu → nút Gọi kho gọi đúng số kho
+    const callBtn = screen.getByRole('link', { name: /Gọi kho/ });
+    expect(callBtn.getAttribute('href')).toBe('tel:0901234567');
   });
 
   it('QA-2026-09-26-27 never duplicates when whitespace differs between the two fields', () => {
@@ -215,6 +241,39 @@ describe('DriverTaskInfoSections', () => {
     expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toContain('SĐT kho');
+  });
+
+  // ---- Card 20261005_364 (REQ-05): the SĐT kho NUMBER is itself the
+  // tap-to-call control — a tel: link around the number (supersedes card _41
+  // V2 "pure data" for THIS row only; the Gọi kho bar stays as-is).
+  const khoRowValue = () => Array.from(document.querySelectorAll('.driver-task-fact'))
+    .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT kho')
+    ?.querySelector('.driver-task-fact__value');
+
+  it('card 20261005_364 AC1: SĐT kho renders as a tel: link dialing the warehouse number', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0909000001' } })} />);
+
+    const link = khoRowValue()?.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toBe('tel:0901234567');
+    expect(link!.textContent).toBe('0901234567');
+  });
+
+  it('card 20261005_364 AC2: no kho phone → "—" plain text, no tel link on the row', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0909000001' } })} />);
+
+    expect(valueOf('SĐT kho')).toBe('—');
+    expect(khoRowValue()?.querySelector('a')).toBeNull();
+  });
+
+  it('card 20261005_364 AC3: the href is the dialable URI — whitespace stripped, number never invented', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: ' 0989 130 345 ' } })} />);
+
+    const link = khoRowValue()?.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toBe('tel:0989130345');
+    // The visible number keeps its digits (trimmed outer whitespace only).
+    expect(link!.textContent).toBe('0989 130 345');
   });
 
   it('QA-2026-09-26-25 dashes SĐT kho when the site has no phone on file', () => {
@@ -364,6 +423,16 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Sóng Thần' } })} />);
 
     expect(labels()).not.toContain('Trả cont rỗng');
+  });
+
+  it('gives Cảng nâng the named fallback like Cảng hạ when the pickup chain is empty (card 071026205810)', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'IMPORT',
+      fulfillment: { pickupPortName: null, pickupWarehouseName: null, lclWarehouseName: null },
+    })} />);
+
+    expect(valueOf('Cảng nâng')).toBe('Chưa có cảng nâng');
+    expect(valueOf('Cảng hạ')).toBe('Chưa có nơi trả rỗng');
   });
 
   it('hides the return depot row when returnDepotName is null', () => {

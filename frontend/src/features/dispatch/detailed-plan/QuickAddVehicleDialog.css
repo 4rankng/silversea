@@ -1,0 +1,61 @@
+/* Card 20261004_357 — quick-add plate dialog (mirrors the create form's
+   quick-add affordances; house tokens only). */
+.quick-add-vehicle {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-add-vehicle__context,
+.quick-add-vehicle__hint {
+  margin: 0;
+  font-size: var(--text-caption-size, 13px);
+  line-height: 1.45;
+  color: var(--fg-2);
+}
+
+.quick-add-vehicle__context strong {
+  color: var(--fg-1);
+}
+
+.quick-add-vehicle__error {
+  padding: 8px 10px;
+  border: 1px solid var(--danger, var(--border-2));
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--danger, var(--fg-1));
+  font-size: var(--text-caption-size, 13px);
+}
+
+.quick-add-vehicle__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.quick-add-vehicle__field label {
+  grid-column: 1 / -1;
+  color: var(--fg-2);
+  font-size: var(--text-label-size, 13px);
+  font-weight: var(--fw-semibold, 600);
+}
+
+.quick-add-vehicle__field input {
+  min-height: var(--control-compact-h, 34px);
+  padding: 6px 10px;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg-1);
+  font: inherit;
+  font-size: var(--text-control-size, 14px);
+}
+
+.quick-add-vehicle__field input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.quick-add-vehicle__field input:disabled {
+  opacity: 0.65;
+}

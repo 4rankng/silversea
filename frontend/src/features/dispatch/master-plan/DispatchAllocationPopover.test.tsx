@@ -103,7 +103,7 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 2"), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 2"), { target: { value: '2' } });
 
-    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Lưu phân bổ' })).not.toHaveAttribute('aria-disabled');
     fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
@@ -114,6 +114,25 @@ describe('DispatchAllocationPopover', () => {
     }), undefined, 'partial');
   });
 
+  it('surfaces the backend refusal verbatim on 409 instead of a generic conflict (354 freeze)', async () => {
+    // The per-container freeze refuses with 'Không thể đổi nhà xe…'. The
+    // dialog must show THAT reason — the generic 'Lô hàng đã thay đổi' text
+    // hides the real cause, the exact complaint behind the old whole-row lock.
+    vi.mocked(saveShipmentCarrierAllocations).mockRejectedValue(
+      Object.assign(new Error('Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.'), { status: 409 }),
+    );
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Thêm nhà xe/ })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: /Thêm nhà xe/ }));
+    await waitFor(() => screen.getByLabelText(/Nhà xe dòng 2/));
+    fireEvent.change(screen.getByLabelText("Số container 20' dòng 2"), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+
+    expect(await screen.findByText('Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.')).toBeTruthy();
+    expect(screen.queryByText(/Lô hàng đã thay đổi/)).toBeNull();
+  });
+
   it('blocks save on over-allocation (MAX mode)', async () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
@@ -122,12 +141,14 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '3' } });
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '3' } });
 
-    expect(await screen.findByText(/Container 20' vượt số lượng/)).toBeTruthy();
+    // The same validation text also rides the save button's DisabledActionTip
+    // reason (sweep card 20261008_1), so collect every copy instead of one.
+    expect((await screen.findAllByText(/Container 20' vượt số lượng/)).length).toBeGreaterThan(0);
     expect(screen.getByText("Tổng đang vượt 1 container 20'.")).toBeTruthy();
     expect(screen.getByText("Tổng đang vượt 1 container 40'.")).toBeTruthy();
     expect(screen.getByLabelText("Số container 20' dòng 1")).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText("Số container 40' dòng 1")).toHaveAttribute('aria-invalid', 'true');
-    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Lưu phân bổ' })).toHaveAttribute('aria-disabled', 'true');
     expect(saveShipmentCarrierAllocations).not.toHaveBeenCalled();
   });
 
@@ -243,8 +264,10 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 2"), { target: { value: '1' } });
 
-    expect(await screen.findByText(/bị lặp/i)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
+    // The same validation text also rides the save button's DisabledActionTip
+    // reason (sweep card 20261008_1), so collect every copy instead of one.
+    expect((await screen.findAllByText(/bị lặp/i)).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Lưu phân bổ' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('labels every decision field and distinguishes a valid partial allocation from an error', async () => {
@@ -274,7 +297,7 @@ describe('DispatchAllocationPopover', () => {
     // class probes query the document, not the render container.
     expect(document.querySelector('.dispatch-allocation-popover__summary.is-partial')).toBeTruthy();
     expect(document.querySelector('.dispatch-allocation-popover__summary.is-error')).toBeNull();
-    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Lưu phân bổ' })).not.toHaveAttribute('aria-disabled');
   });
 
   it('moves focus into a newly added carrier row', async () => {
@@ -429,8 +452,8 @@ describe('DispatchAllocationPopover', () => {
       expect(screen.queryByText(/bị lặp/i)).toBeNull();
 
       // Save button is enabled
-      const saveBtn = screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement;
-      expect(saveBtn.disabled).toBe(false);
+      const saveBtn = screen.getByRole('button', { name: 'Lưu phân bổ' });
+      expect(saveBtn).not.toHaveAttribute('aria-disabled');
       fireEvent.click(saveBtn);
 
       await waitFor(() => expect(onSaved).toHaveBeenCalled());
@@ -498,7 +521,7 @@ describe('DispatchAllocationPopover', () => {
       // collect all matches instead of asserting on a single node.
       const duplicateNotices = await screen.findAllByText(/bị lặp/i);
       expect(duplicateNotices.length).toBeGreaterThan(0);
-      expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByRole('button', { name: 'Lưu phân bổ' })).toHaveAttribute('aria-disabled', 'true');
     });
 
     it('blocks save when an individual day is over-allocated', async () => {
@@ -509,8 +532,10 @@ describe('DispatchAllocationPopover', () => {
       // Day 1 demand is 1x40. Try to assign 2x40 to row 1
       fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '2' } });
 
-      expect(await screen.findByText(/vượt số lượng/i)).toBeInTheDocument();
-      expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
+      // The same validation text also rides the save button's DisabledActionTip
+      // reason (sweep card 20261008_1), so collect every copy instead of one.
+      expect((await screen.findAllByText(/vượt số lượng/i)).length).toBeGreaterThan(0);
+      expect(screen.getByRole('button', { name: 'Lưu phân bổ' })).toHaveAttribute('aria-disabled', 'true');
     });
   });
 });

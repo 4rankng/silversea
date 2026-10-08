@@ -26,12 +26,15 @@
 }
 
 /* Ancillary-fees grid: Loại phí · Gốc · Báo khách · Báo nợ · Chứng từ
-   · Trạng thái. Status cell hosts the pill + the inline hover-revealed
-   approve/reject icons.
-   `min-width: 720px` keeps money cells wide enough to fit "1.350.000 ₫"
-   without ellipsis; the .table-scroll wrapper provides horizontal
-   scrolling on narrow containers. */
-.ancillary-fees__table { min-width: 720px; table-layout: fixed; width: 100%; }
+   · Trạng thái. The Trạng thái cell hosts the status token AND the row's
+   action button in one `.fee-decision-cell`, so its frozen column must
+   admit that whole run at the table floor (card 20261004_331 — a status
+   token and an action run never bleed out of their cell). The floor moved
+   720px → 900px to grant that width: every column keeps ≥ its old width
+   and money cells stay wide enough for "1.350.000 ₫" without ellipsis;
+   the .table-scroll wrapper provides horizontal scrolling on narrow
+   containers (the 641–900px band scrolls instead of bleeding). */
+.ancillary-fees__table { min-width: 900px; table-layout: fixed; width: 100%; }
 .ancillary-fees__table thead th { padding: 8px 6px; font-size: var(--text-caption-size); }
 .ancillary-fees__table thead th {
   background: var(--surface-2);
@@ -49,12 +52,12 @@
 }
 .ancillary-fees__table tbody td { padding: 8px 6px; font-size: var(--text-data-size); vertical-align: top; }
 .ancillary-fees__table tbody td.num { font-size: var(--text-data-size); }
-.ancillary-fees__table thead th:nth-child(1) { width: 30%; }   /* Loại phí */
-.ancillary-fees__table thead th:nth-child(2) { width: 14%; }   /* Gốc */
-.ancillary-fees__table thead th:nth-child(3) { width: 14%; }   /* Báo khách */
-.ancillary-fees__table thead th:nth-child(4) { width: 13%; }   /* Báo nợ */
-.ancillary-fees__table thead th:nth-child(5) { width: 17%; }   /* Chứng từ */
-.ancillary-fees__table thead th:nth-child(6) { width: 12%; background: var(--surface-2); }   /* Trạng thái */
+.ancillary-fees__table thead th:nth-child(1) { width: 25%; }   /* Loại phí */
+.ancillary-fees__table thead th:nth-child(2) { width: 12%; }   /* Gốc */
+.ancillary-fees__table thead th:nth-child(3) { width: 12%; }   /* Báo khách */
+.ancillary-fees__table thead th:nth-child(4) { width: 12%; }   /* Báo nợ */
+.ancillary-fees__table thead th:nth-child(5) { width: 14%; }   /* Chứng từ */
+.ancillary-fees__table thead th:nth-child(6) { width: 25%; background: var(--surface-2); }   /* Trạng thái */
 
 /* Clip long text in body cells so numbers/labels never bleed into the
    next column. Col 1 keeps the natural wrap (it stacks name + container). */
@@ -72,13 +75,18 @@
   background: var(--surface-2);
 }
 
-/* Decision cell: status pill + hover action icons */
+/* Decision cell: status pill + the row's Sửa action. The column budget above
+   holds the whole run at the table floor; `flex-wrap: wrap` is the yield —
+   if a wider label ever exceeds the budget the run stacks INSIDE its own cell
+   (pill over the button) instead of bleeding over Chứng từ, and
+   `flex-shrink: 0` keeps each item at its intrinsic width (no truncation). */
 .fee-decision-cell {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  white-space: nowrap;
+  flex-wrap: wrap;
 }
+.fee-decision-cell > * { flex-shrink: 0; }
 .fee-action-container {
   position: relative;
   display: inline-flex;
@@ -320,31 +328,6 @@
   display: none;
 }
 
-.ancillary-fee-card__actions {
-  display: flex;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-  margin-top: 8px;
-}
-.ancillary-fee-card__btn--approve {
-  background: var(--accent-soft);
-  color: var(--accent-2);
-  border-color: var(--accent);
-}
-.ancillary-fee-card__btn--approve:hover {
-  background: var(--brand);
-  color: var(--fg-on-brand);
-  border-color: var(--brand);
-}
-.ancillary-fee-card__btn--reject {
-  color: var(--ink-3);
-}
-.ancillary-fee-card__btn--reject:hover {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-
 /* Mobile totals bar */
 .ancillary-fees__mobile-totals {
   display: flex;
@@ -567,7 +550,11 @@ tbody tr:last-child td { border-bottom: none; }
 .row-strong { font-weight: 600; color: var(--ink); font-size: var(--text-data-size); }
 .row-meta { font-size: var(--text-caption-size); color: var(--ink-3); margin-top: 2px; line-height: 1.35; }
 
-.row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+/* `safe flex-end` (card 20261004_331 root fix): when the run fits its column
+   this renders exactly like flex-end; when it cannot fit, `safe` keeps the
+   run's start edge inside its own cell instead of painting leftward over the
+   previous cell (the fixed-column glyph-bleed class). */
+.row-actions { display: flex; gap: 6px; justify-content: safe flex-end; }
 /* Compact desktop row actions; responsive.css restores the house40px touch
    geometry on phones via the universal #root button rule. */
 .row-action {

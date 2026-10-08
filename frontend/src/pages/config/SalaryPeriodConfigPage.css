@@ -145,7 +145,7 @@
 
 .sp-badge--active {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--success-text);
 }
 
 .sp-badge__dot {
@@ -156,6 +156,8 @@
   background: currentColor;
   flex-shrink: 0;
 }
+
+.sp-badge--active .sp-badge__dot { background: var(--accent); }
 
 .sp-default-card__body {
   padding: 20px;
@@ -232,7 +234,7 @@
 .sp-save-success {
   font-size: var(--text-data-size);
   font-weight: var(--fw-semibold);
-  color: var(--accent);
+  color: var(--success-text);
   animation: spFadeIn var(--t-normal) both;
 }
 

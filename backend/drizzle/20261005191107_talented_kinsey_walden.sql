@@ -1,0 +1,1 @@
+ALTER TABLE "deposit_refund_trackers" ADD COLUMN "deposit_date" date;

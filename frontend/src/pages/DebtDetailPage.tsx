@@ -405,7 +405,7 @@ export default function DebtDetailPage() {
           <small>{lastPayment ? formatDate(lastPayment.timestamp) : 'Chưa có phiếu thu'}</small>
         </article>
         <article className="dd-account-card">
-          <span>Nhóm tuổi nợ nổi bật</span>
+          <span>Nhóm hạn nợ nổi bật</span>
           <strong>{activeAgingRange ? activeAgingRange.label : 'Không nợ'}</strong>
           <small>{activeAgingRange ? money(activeAgingAmount) : 'Không có số dư'}</small>
         </article>
@@ -477,11 +477,11 @@ export default function DebtDetailPage() {
 
       {/* ── Aging Summary ───────────────────────────────────────────────── */}
       <details className="dd-aging-disclosure">
-        <summary>Phân bổ tuổi nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${money(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
+        <summary>Phân bổ hạn nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${money(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
       <section className="dd-summary dd-summary--aging">
         <div className="dd-sum-top">
           <div>
-            <div className="dd-sum-label">PHÂN BỔ TUỔI NỢ</div>
+            <div className="dd-sum-label">PHÂN BỔ HẠN NỢ</div>
             <p className="dd-sum-copy">
               {hasDebt
                 ? 'Theo dõi phần công nợ nào đang tiến gần hạn hoặc đã quá hạn.'
@@ -491,8 +491,8 @@ export default function DebtDetailPage() {
               <div className="dd-sum-note">
                 <AlertTriangle size={17} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                 {activeAgingIdx <= 0
-                  ? 'Toàn bộ công nợ đang trong hạn 30 ngày — cần theo dõi thu hồi.'
-                  : `Có công nợ quá hạn ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thu hồi.`
+                  ? 'Toàn bộ công nợ chưa đến hạn — cần theo dõi thu hồi.'
+                  : `Có công nợ ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thu hồi.`
                 }
               </div>
             )}
@@ -500,7 +500,7 @@ export default function DebtDetailPage() {
           <div className="dd-sum-update">
             Cập nhật lần cuối
             <b>{new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</b>
-            {ledgerRows.length} giao dịch trong kỳ
+            {`${ledgerRows.length} giao dịch trong kỳ`}
           </div>
         </div>
 
@@ -527,7 +527,7 @@ export default function DebtDetailPage() {
                   {range.label}
                 </div>
                 <div className={`dd-ac-val${amt === 0 ? ' dd-ac-val--zero' : ''}`}>
-                  {formatCurrency(amt).replace(' ₫', '')}đ
+                  {formatCurrency(amt)}
                 </div>
                 <div className="dd-ac-share">
                   {amt > 0 ? `${pct}% tổng công nợ` : 'Không phát sinh'}

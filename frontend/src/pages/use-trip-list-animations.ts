@@ -2,7 +2,7 @@ import { useListAnimations, usePageAnimations } from '../hooks/animations';
 export function useTripListAnimations() {
     const { rootRef } = usePageAnimations({
       ready: true,
-      selectors: ['.hero', '.list-filter-bar', '.table-card', '.table-foot'],
+      selectors: ['.hero', '.list-filter-bar', '.table-card'],
       staggerDelay: 80,
     });
     // Animation hooks called for side effects (attach observers / register

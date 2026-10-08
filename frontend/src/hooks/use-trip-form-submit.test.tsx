@@ -441,3 +441,56 @@ describe('KSHIP-004: actual edit retry requests', () => {
     expect(refetch).not.toHaveBeenCalled();
   });
 });
+
+// Owner ruling 07/10 — editing a COMPLETED trip must not force a typed reason.
+// The reason gate refused every completed-trip correction ("Vui lòng nhập lý
+// do điều chỉnh chuyến đã hoàn thành") while the field itself looked filled,
+// which blocked ordinary corrections outright. The audit value is preserved:
+// a supplied reason is still recorded, and an absent one is stored as null
+// (shipment_finance_actions.reason is nullable).
+describe('owner ruling 07/10: a completed-trip edit needs no typed reason', () => {
+  beforeEach(() => { vi.clearAllMocks(); upsertTripInstructionsMock.mockResolvedValue(undefined); });
+
+  function renderCompletedEdit(governanceReason?: string) {
+    const { result } = renderHook(
+      () => useTripFormSubmit({
+        state: makeState({ notes: 'Updated note' }),
+        isEditMode: true,
+        existingTrip: makeExistingTrip({ status: TripStatus.COMPLETED }),
+        legs: [], requiredFieldsFilled: 99, hasOptionalData: true,
+        photoUrls: [], flushPendingPhotos: vi.fn(async () => []),
+        flushPendingContainerPhotos: vi.fn(async () => new Map()),
+        governanceReason,
+      }),
+      { wrapper: createWrapper() },
+    );
+    return { result };
+  }
+
+  it('submits a completed-trip edit with no reason instead of refusing it', async () => {
+    putMock.mockResolvedValue(makeExistingTrip({ status: TripStatus.COMPLETED, version: 4 }));
+    const { result } = renderCompletedEdit();
+    await act(async () => { await result.current(); });
+    // A COMPLETED trip saves through the figures PUT and then the best-effort
+    // instructions upsert, so two calls is the healthy shape — the point is
+    // that the figures call HAPPENS at all, carrying no reason.
+    const figures = putMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(putMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(figures.governanceReason).toBeNull();
+  });
+
+  it('still records a reason when the user chooses to give one', async () => {
+    putMock.mockResolvedValue(makeExistingTrip({ status: TripStatus.COMPLETED, version: 4 }));
+    const { result } = renderCompletedEdit('  test  ');
+    await act(async () => { await result.current(); });
+    expect(putMock.mock.calls[0][1].governanceReason).toBe('test');
+  });
+
+  it('never raises the reason error for a completed trip', async () => {
+    putMock.mockResolvedValue(makeExistingTrip({ status: TripStatus.COMPLETED, version: 4 }));
+    const { result } = renderCompletedEdit();
+    await act(async () => { await result.current(); });
+    expect(result.current).toBeDefined();
+    expect(putMock.mock.calls[0][1].notes).toBe('Updated note');
+  });
+});

@@ -31,7 +31,7 @@
  *      15T rungs are NO LONGER seeded — invented ladder-consistent 15T prices
  *      read as real contract data on dev/staging (QA, 2026-09-20). The engine
  *      now returns MANUAL 'missing base price' exactly like prod on any env
- *      where UAT validates against the PRD (CuocPhiPhuPhiDau.md §5: missing
+ *      where UAT validates against the PRD (CuocPhiPhuPhiDau.docx §5: missing
  *      data, not policy). A real customer 15T price is entered through the
  *      config UI like any other contract rung.
  *
@@ -84,7 +84,7 @@ const CANONICAL_CONTAINER_PRICE_CLASSES = [
   { code: 'CONT40.HEAVY', name: 'Cont 40 nặng - Trọng tải > 20 tấn', isContainer: true, sortOrder: 13 },
 ] as const;
 
-// Design liters/km ladder (CuocPhiThietKeDB.md §3.3) — DEMO until the
+// Design liters/km ladder (CuocPhiThietKeDB.docx §3.3) — DEMO until the
 // customer confirms real consumption norms.
 const CANONICAL_NORMS: Record<string, string> = {
   '1.25T': '0.1000',

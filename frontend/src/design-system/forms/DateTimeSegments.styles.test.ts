@@ -34,4 +34,14 @@ describe('date segments read DD/MM/YYYY with even slash gaps (card 20260924_10)'
     const sep = css.match(/\.date-sep\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(sep).toContain('margin-inline: 2px');
   });
+
+  it('marks the focused segment with a flat brand underline so an empty hand-off is visible', () => {
+    // Auto-advance hands focus to an EMPTY segment whose placeholder looks
+    // identical focused or not; the group outline is position-blind. The
+    // focused slot must carry its own flat marker (inset underline, the same
+    // mechanic as .date-seg--invalid — never a 3D elevation per the flat
+    // surface ruling).
+    const focus = css.match(/\.date-seg-group \.date-seg-wrapper \.date-seg:focus\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(focus).toContain('box-shadow: inset 0 -2px 0 var(--color-border-brand)');
+  });
 });

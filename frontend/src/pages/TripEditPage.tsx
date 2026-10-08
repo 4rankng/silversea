@@ -30,7 +30,6 @@ import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import type { TripOptions } from '../hooks/useTripOptions';
 import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
 import { TripEditConflictDialog } from '../components/trip/TripEditConflictDialog';
-import { CompletedTripReasonSection } from '../components/trip/CompletedTripReasonSection';
 import './TripForm.css';
 import './TripEditPage.css';
 export default function TripEditPage() {
@@ -42,11 +41,10 @@ export default function TripEditPage() {
   const { data: catalogData } = useCatalogs();
   const { rootRef } = usePageAnimations({ ready: !loading });
   const actionBarRef = useFixedActionClearance<HTMLDivElement>();
-  const [governanceReason, setGovernanceReason] = useState('');
   const [editConflict, setEditConflict] = useState<TripEditConflictError | null>(null);
   const editOptions: TripOptions = useMemo(() => ({
     customers: catalogData?.customers.map((c) => ({ id: c.id, label: c.name })) ?? [],
-    carrierCustomers: catalogData?.customers.filter(c => c.isCarrier).map(c => ({ id: c.id, label: c.name })) ?? [],
+    carrierCustomers: catalogData?.externalCarriers?.map(c => ({ id: c.id, label: c.name })) ?? [],
     routes: catalogData?.routes.map(r => ({
       id: r.id,
       label: `${r.name}${r.distanceKm ? ` (${r.distanceKm} km)` : ''}`,
@@ -73,7 +71,6 @@ export default function TripEditPage() {
     options: editOptions,
     mode: 'edit',
     existingTrip: trip,
-    governanceReason,
   });
   const searchableRoutes = useMemo(
     () => editOptions.routes.map((route) => ({
@@ -200,9 +197,6 @@ export default function TripEditPage() {
         <form id="trip-edit-form" onSubmit={onSubmit}>
           <div className="tc-content">
             <div className="tc-bento">
-              {trip.status === TripStatus.COMPLETED && (
-                <CompletedTripReasonSection reason={governanceReason} onChange={setGovernanceReason} />
-              )}
               <CardSection number={1} title="Tuyến đường & ngày" subtitle="Thời gian và tuyến vận chuyển">
                 <div className="tc-field-row tc-field-row--2">
                   <div className="tc-field">

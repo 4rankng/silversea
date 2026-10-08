@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { Truck, Container, UserCheck, Download, CheckCircle } from "lucide-react";
+import { Truck, Container, UserCheck, Download, CheckCircle, BarChart3 } from "lucide-react";
 import { downloadCSV } from "../lib/csv";
 import { useToast } from "../components/shared/Toast";
 import { PageHeader, Btn, KPI } from "../components/UI";
@@ -23,6 +24,7 @@ import { TruckCard } from '../features/fleet/truck-card';
 import { DriverCard } from '../features/fleet/driver-card';
 
 export default function FleetPage() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { rootRef } = usePageAnimations({ ready: true });
@@ -101,6 +103,14 @@ export default function FleetPage() {
         description="Quản lý xe đầu kéo, rơ-moóc và lái xe trong một trang"
         action={
           <div className="fleet-action-row">
+            <Btn
+              variant="secondary"
+              size="sm"
+              icon={<BarChart3 size={14} />}
+              onClick={() => navigate('/fleet/productivity')}
+            >
+              Báo cáo năng suất
+            </Btn>
             <Btn
               variant="secondary"
               size="sm"

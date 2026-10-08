@@ -135,6 +135,7 @@ export async function getSupplierStatement(supplierId: number, dateFrom?: string
       timestamp: r.timestamp.toISOString(),
       debit: r.credit ?? '0',
       credit: r.debit ?? '0',
+      dueDate: r.processingDueDate ?? r.originalDueDate,
     })),
     now,
   );
@@ -225,6 +226,7 @@ export async function getCarrierPayableStatement(
       timestamp: row.timestamp.toISOString(),
       debit: row.credit ?? '0',
       credit: row.debit ?? '0',
+      dueDate: row.processingDueDate ?? row.originalDueDate,
     })),
     dateTo ? resolveVietnamAsOfCutoff(dateTo).referenceDate : new Date(),
   );

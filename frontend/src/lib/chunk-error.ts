@@ -4,11 +4,23 @@ import { isolateInteractionGate } from './interaction-gate';
 const RELOAD_AT_KEY = 'tt-chunk-reload-at';
 const RELOAD_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 const ANY_CHUNK_RE = /(Loading chunk|Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|error loading dynamically imported module)/i;
+/**
+ * Card 061026221813 — React.lazy reads `moduleObject.default` once the dynamic
+ * import settles (react/cjs/react.development.js, lazyInitializer). A chunk
+ * that resolves to `undefined` — the first-load race a stale asset manifest
+ * produces — throws "Cannot read properties of undefined (reading 'default')",
+ * which none of the textual variants above match. It is the same class of
+ * asset failure, so it belongs here; without it the verified-deployment
+ * recovery never engaged and the user was stranded on a dead-end error.
+ * Scoped to the exact `reading 'default'` null-deref so an unrelated
+ * null-deref in app code stays an ordinary bug and never spends the reload.
+ */
+const LAZY_UNDEFINED_MODULE_RE = /Cannot read properties of undefined \(reading ['"]default['"]\)/;
 export type ChunkRecovery = 'reloading' | 'exhausted' | 'unavailable';
 let pending: Promise<ChunkRecovery> | undefined;
 
 export function isChunkFailureMessage(message: string): boolean {
-  return message.length > 0 && ANY_CHUNK_RE.test(message);
+  return message.length > 0 && (ANY_CHUNK_RE.test(message) || LAZY_UNDEFINED_MODULE_RE.test(message));
 }
 
 function entryAsset(doc: Document): string | null {

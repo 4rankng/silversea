@@ -8,7 +8,7 @@ import { formatDateTimeShort } from '../lib/format';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   CREATED: { label: 'Chờ nhận lệnh', color: 'var(--info, #2563eb)' },
-  IN_TRANSIT: { label: 'Đang vận chuyển', color: 'var(--accent, #7c3aed)' },
+  IN_TRANSIT: { label: 'Đang vận chuyển', color: 'var(--accent-ink, #00361B)' },
   COMPLETED: { label: 'Đã hoàn thành', color: 'var(--ok, #16a34a)' },
 };
 

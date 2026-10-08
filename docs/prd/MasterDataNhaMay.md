@@ -2,7 +2,7 @@
 
 **Dự án:** TTransport — Silver Sea
 
-Xem thêm: [mục lục PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Màn hình lái xe](ManHinhLaiXe.md).
+Xem thêm: [mục lục PRD](README.md), [Quy trình O2C](QuyTrinhO2C.docx), [Màn hình lái xe](ManHinhLaiXe.docx).
 
 CUS và Điều vận cần chọn đúng khách hàng, nhà máy và địa điểm khi lập công việc. Lái xe và Ops cần biết chính xác nơi làm hàng cùng người liên hệ. Người quản lý danh mục cần cập nhật thông tin thuận tiện, còn Kế toán cần phân biệt đúng khách hàng và các bên xuất hóa đơn.
 
@@ -173,7 +173,7 @@ Mất kết nối phải báo rõ chưa thể lưu, giữ nội dung đang làm 
 2. Luồng chuẩn điền đúng tuyến/vị trí của từng nhà máy. Một lô có hai container tại hai nhà máy khác nhau vẫn giữ đúng tuyến và địa điểm của mỗi công việc.
 3. Nhà máy cũ thiếu tuyến cho phép chọn tuyến hợp lệ riêng cho công việc; không phát lệnh khi còn thiếu, không sửa ngầm danh mục và không ghi đè tuyến đã có. Tạo nhà máy mới phải có tuyến.
 4. Nhà máy ngừng hoạt động, danh sách rỗng, đang tải và lỗi tải có thông báo khác nhau cùng bước xử lý phù hợp. Công việc cũ vẫn xem được nhà máy đã sử dụng.
-5. Tên ngắn, tên đầy đủ, địa chỉ, liên hệ và thông tin xuất hóa đơn đúng chủ thể. Chi tiết lái xe giữ thứ tự và nhãn theo [Màn hình lái xe](ManHinhLaiXe.md), không lấy khách hàng thay cho nhà máy thiếu thông tin.
+5. Tên ngắn, tên đầy đủ, địa chỉ, liên hệ và thông tin xuất hóa đơn đúng chủ thể. Chi tiết lái xe giữ thứ tự và nhãn theo [Màn hình lái xe](ManHinhLaiXe.docx), không lấy khách hàng thay cho nhà máy thiếu thông tin.
 6. Lệnh chạy ngoài mặc định tắt; bật/tắt giữ nội dung đang nhập và áp dụng đúng quy tắc. Lô chạy ngoài chỉ dùng cước do khách báo và các phí chi hộ; không có cơ chế tích chọn để bỏ qua kiểm tra cước phí.
 7. Chọn danh mục hoặc nhập riêng rồi mở lại đều giữ đúng thông tin. Phối hợp hai cách nhập không làm sai quan hệ hoặc tự tăng danh mục. Người không có quyền quản lý danh mục không thể dùng tạo nhanh để thêm mục.
 8. Tạo nhanh thành công thì chọn được ngay. Lỗi, gián đoạn hoặc thử lại không tạo mục trùng, không làm mất bản nháp và không báo thành công sai.

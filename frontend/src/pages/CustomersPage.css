@@ -197,7 +197,11 @@
 /* Grid: fixed columns, 38px striped rows, mono identity, stacked contact. */
 .customers-code-cell { font-family: var(--font-data); font-weight: 600; font-size: var(--text-data-size, 13px); }
 .customers-mono-cell { font-family: var(--font-data); font-size: var(--text-data-size, 13px); }
-.customers-name-cell { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+/* Card 20261004_336: the business name is WRAPPING text — full name at every
+   width, no ellipsis and no title crutch (law book §4 no-truncation doctrine,
+   card 20260922_37). Wraps inside the auto identity column that card
+   20261004_335 pinned as the single auto column; width sources untouched. */
+.customers-name-cell { display: inline-block; max-width: 100%; white-space: normal; overflow-wrap: anywhere; font-weight: 500; }
 .customers-muted { color: var(--ink-3); }
 
 /* Card 20260929_207 — the row is the selection control (PM decision: row click

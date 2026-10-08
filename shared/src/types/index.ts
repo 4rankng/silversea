@@ -356,6 +356,9 @@ export interface FuelPriceHistory {
   unitPrice: string;
   effectiveDate: string;
   changedBy: number | null;
+  /** Display name resolved from changedBy (card 20261002_290) — the internal
+   *  id is never a user-facing label. */
+  changedByName: string | null;
   note: string | null;
   createdAt: string;
 }
@@ -708,6 +711,8 @@ export interface PayableSummary {
     d60: number;
     over90: number;
   };
+  /** Contractual overdue span (card 061026221213): days past the effective due
+   * date of the oldest open obligation; 0 = not yet due. Never the debt age. */
   maxOverdueDays: number;
   /**
    * Origin of the payable row.
@@ -796,7 +801,7 @@ export interface Port {
 
 // Domain vocabularies live in constants (single source); re-exported here for
 // the established `import { ... } from '@tingting/shared'` surface.
-export { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '../constants';
+export { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS, LCL_PICKUP_TRAILER_TYPE } from '../constants';
 export type { DispatchClassification } from '../constants';
 
 /** Carrier key for master-plan filtering: own fleet, a specific external

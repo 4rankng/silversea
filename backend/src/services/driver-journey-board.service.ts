@@ -14,10 +14,10 @@ import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 // separate from driverWorkInbox — zero risk to that shared query or its
 // existing callers/tests.
 export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
-// Spec tags are ĐƠN/KẸP/KẾT HỢP (+LCL's LẺ): the raw fulfillment-owned
+// Spec tags are ĐƠN/KẸP/KẾT HỢP (+LCL's LẺ, and LCL_PICKUP's LẤY LẺ): the raw fulfillment-owned
 // dispatchClassification carries that label; `linked` carries the pairing
 // signal (kẹp/kết-hợp cards stick together), derived below from the shipment.
-export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
+export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | 'LCL_PICKUP';
 
 export interface DriverJourneyCard {
   fulfillmentId: number;
@@ -56,6 +56,9 @@ export interface DriverJourneyCard {
   containerNumber: string | null;
   containerTypeName: string | null;
   sealNumber: string | null;
+  /** Container payload (shipments_containers.cargo_weight_kg) — the driver
+   *  card and detail render it as "· 15.000 kg" (card 20261004_356). */
+  cargoWeightKg: string | null;
   // 3a0bd5af: loại hình cell — the trip's LAST leg ĐÓNG/TRẢ (destination
   // semantics, same rule the billing draft applies); null when no legs.
   loadingType: string | null;
@@ -83,7 +86,10 @@ function bucketForStatus(
   status: typeof s.trips.$inferSelect.status,
   acknowledged: boolean,
 ): DriverJourneyBucket {
-  if (status === 'COMPLETED') return 'HISTORY';
+  // DRV-LIST-02 (card 347): Lịch sử means completed OR cancelled. The
+  // cancelled half was missing — CANCELED fell through to the 'NEW' default
+  // and a user saw a cancelled order under "Lệnh mới".
+  if (status === 'COMPLETED' || status === 'CANCELED') return 'HISTORY';
   if (status === 'IN_TRANSIT') {
     // Docx4 BUG2: ops "Phát lệnh" can flip a trip to IN_TRANSIT before the
     // driver acknowledges (the same premise as the reassignment relaxation).
@@ -149,6 +155,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeName: s.containerTypes.name,
     sealNumber: s.shipmentContainers.sealNumber,
+    cargoWeightKg: s.shipmentContainers.cargoWeightKg,
     // 3a0bd5af: HÀNG ĐÓNG/TRẢ badge source — the trip's last leg loadingType.
     // Scalar subquery keeps one row per fulfillment (a trip_legs join would
     // fan out multi-leg trips into duplicate cards).
@@ -192,7 +199,10 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       // 4 of a driver's 5 cards came from the QA-fixture purge, so the driver
       // saw purged lots they can no longer act on).
       isNull(s.shipments.deletedAt),
-      inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED']),
+      // DRV-LIST-02 (card 347): cancelled trips belong in Lịch sử — they are
+      // bucketed HISTORY below. The old filter dropped them from EVERY tab,
+      // so the driver lost the record entirely.
+      inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED']),
     ))
     .orderBy(desc(s.trips.plannedStartAt));
 
@@ -302,6 +312,9 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       containerNumber: row.containerNumber,
       containerTypeName: row.containerTypeName,
       sealNumber: row.sealNumber,
+      // PG numeric arrives "15000.00" — display-ready form (Number → "15000");
+      // null/blank passthrough stays null so the FE segment omits cleanly.
+      cargoWeightKg: row.cargoWeightKg == null || row.cargoWeightKg === '' ? null : String(Number(row.cargoWeightKg)),
       loadingType: row.loadingType,
       tradeDirection: row.tradeDirection,
       contactName: row.contactName,

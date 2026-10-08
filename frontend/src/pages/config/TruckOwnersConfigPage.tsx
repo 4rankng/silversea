@@ -22,6 +22,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { useToast } from '../../components/shared/Toast';
+import { Alert } from '../../components/shared/Alert';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
@@ -125,16 +126,19 @@ export default function TruckOwnersConfigPage() {
     enabled: !!id && !Number.isNaN(id),
   });
 
-  const { data: all = [], refetch } = useQuery<TruckCapEntry[]>({
+  const { data: all, refetch, isFetching, isError } = useQuery<TruckCapEntry[]>({
     queryKey: qk.crud.entity(ENDPOINT),
     queryFn: async () => {
       const r = await api.get<PaginatedResponse<TruckCapEntry>>(ENDPOINT);
       return r.items;
     },
   });
+  // Card 20261004_333: no `= []` default here — a failed fetch must not render
+  // as a genuinely empty owner list.
+  const allRows = all ?? [];
 
   // Scope to this truck (factory doesn't filter by truckId server-side).
-  const items = all.filter(r => r.truckId === id);
+  const items = allRows.filter(r => r.truckId === id);
   const activeIds = computeActiveIds(items);
 
   const sorted = sort
@@ -217,7 +221,11 @@ export default function TruckOwnersConfigPage() {
       <Panel>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--line)' }}>
           <div style={{ fontSize: 'var(--text-data-size)', color: 'var(--fg-3)' }}>
-            Hiện tại: <strong style={{ color: 'var(--fg-1)' }}>{activeOwners.length}</strong> đối tác · {items.length - activeOwners.length} bản ghi lịch sử
+            {/* Card 20261004_333: never print "0 đối tác" while the fetch failed. */}
+            Hiện tại:{' '}
+            {isError
+              ? <strong style={{ color: 'var(--fg-1)' }}>—</strong>
+              : <><strong style={{ color: 'var(--fg-1)' }}>{activeOwners.length}</strong> đối tác · {items.length - activeOwners.length} bản ghi lịch sử</>}
           </div>
           {!showAddForm && (
             <button className="btn btn--primary" onClick={() => setShowAddForm(true)}>
@@ -275,7 +283,28 @@ export default function TruckOwnersConfigPage() {
                   </tr>
                 );
               })}
-              {sorted.length === 0 && !showAddForm && (
+              {isError && (
+                <tr><td colSpan={5} data-label="" style={{ padding: 24 }}>
+                  {/* Card 20261004_333: error state, not the empty-owner copy. */}
+                  <Alert
+                    variant="error"
+                    style="soft"
+                    action={(
+                      <button
+                        type="button"
+                        className="btn btn--secondary btn--sm"
+                        disabled={isFetching}
+                        onClick={() => { void refetch(); }}
+                      >
+                        {isFetching ? 'Đang thử lại…' : 'Thử lại'}
+                      </button>
+                    )}
+                  >
+                    Không thể tải danh sách đối tác sở hữu
+                  </Alert>
+                </td></tr>
+              )}
+              {!isError && sorted.length === 0 && !showAddForm && (
                 <tr><td colSpan={5} data-label="" style={{ padding: 32, textAlign: 'center', color: 'var(--fg-3)' }}>
                   Chưa có đối tác sở hữu cho xe này. Thêm đối tác để bắt đầu phân chia lợi nhuận theo xe.
                 </td></tr>

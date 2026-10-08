@@ -50,6 +50,7 @@ import {
   STORAGE_DELETE_MODE,
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
+import { parseRangeDate } from '../lib/range-date';
 
 registerAuditEvent('POST', '/api/expenses', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PUT', '/api/expenses/', AuditEvent.ENTITY_UPDATED);
@@ -192,8 +193,8 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     truckId: req.query.truckId ? Number(req.query.truckId) : undefined,
     supplierId: req.query.supplierId ? Number(req.query.supplierId) : undefined,
     categoryId: req.query.categoryId ? Number(req.query.categoryId) : undefined,
-    fromDate: req.query.fromDate as string | undefined,
-    toDate: req.query.toDate as string | undefined,
+    fromDate: parseRangeDate(req.query.fromDate),
+    toDate: parseRangeDate(req.query.toDate),
     page,
     // Service param is `pageSize`; pagination parsing/clamping is shared.
     pageSize: limit,

@@ -278,8 +278,14 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
       setResponseMessage({ kind: 'success', text: decision === 'CONFIRMED' ? 'Đã ghi nhận xác nhận nhận hàng.' : 'Đã ghi nhận báo cáo sai lệch.' });
       await load();
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409) {
-        setResponseMessage({ kind: 'conflict', text: 'Phản hồi đang xung đột với phiên bản mới. Dữ liệu nháp vẫn được giữ; hãy tải lại trước khi gửi.' });
+      // 409 refusals name the exact case (stale version, superseded event,
+      // already answered) — surface the reason verbatim whatever shape the
+      // rejection arrives in (ApiError, plain {status, message}); the fixed
+      // line is only the message-less case.
+      const status = error && typeof error === 'object' && 'status' in error && typeof error.status === 'number' ? error.status : null;
+      const reason = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message.trim() : '';
+      if (status === 409) {
+        setResponseMessage({ kind: 'conflict', text: reason || 'Phản hồi đang xung đột với phiên bản mới. Dữ liệu nháp vẫn được giữ; hãy tải lại trước khi gửi.' });
       } else {
         setResponseMessage({ kind: 'error', text: error instanceof Error ? error.message : 'Không thể gửi phản hồi.' });
       }

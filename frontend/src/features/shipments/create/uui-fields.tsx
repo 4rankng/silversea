@@ -41,6 +41,9 @@ interface UTextFieldProps {
   min?: string | number;
   step?: string | number;
   hideLabel?: boolean;
+  /** Keyboard hook on the input itself (card 20261002_272: the paired-field
+   *  Tab hand-off lives on the Số container field's Tab keydown). */
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 interface UDateFieldProps {
@@ -105,6 +108,7 @@ export function UTextField({
   min,
   step,
   hideLabel,
+  onKeyDown,
 }: UTextFieldProps) {
   return (
     <div className="csc-text-field-with-warning">
@@ -121,7 +125,7 @@ export function UTextField({
         isInvalid={Boolean(error)}
         hint={error ?? hint}
         hideRequiredIndicator={!required}
-        inputProps={{ maxLength, min, step }}
+        inputProps={{ maxLength, min, step, onKeyDown }}
         className="csc-uui-field csc-control-boundary"
       />
       {warning && !error && (

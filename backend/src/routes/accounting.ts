@@ -25,6 +25,7 @@ import {
 import { requireRoles } from '../middleware/casbin';
 import { runIdempotent } from '../services/idempotency.service';
 import { declareMaterialWrite } from '../middleware/material-write';
+import { parseRangeDate } from '../lib/range-date';
 
 function parseId(value: string | string[] | undefined, label = 'ID'): number {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -56,21 +57,6 @@ function businessDate(): string {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
-/** Strict real-calendar YYYY-MM-DD for query range bounds. A plain Date.parse
- *  passes 2026-09-31 (JS rolls it into October), so the round-trip check is the
- *  validation: an impossible day answers a business 400 naming the value
- *  instead of a Postgres date-cast 500. */
-function parseRangeDate(value: unknown, fallback: string): string {
-  if (value === undefined || value === null || value === '') return fallback;
-  const raw = String(value);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new ApiError(400, `Khoảng ngày không hợp lệ: ${raw}`);
-  const [y, m, d] = raw.split('-').map(Number);
-  const utc = new Date(Date.UTC(y, m - 1, d));
-  if (utc.getUTCFullYear() !== y || utc.getUTCMonth() !== m - 1 || utc.getUTCDate() !== d) {
-    throw new ApiError(400, `Khoảng ngày không hợp lệ: ${raw}`);
-  }
-  return raw;
-}
 
 accountingRoutes.post('/invoice-tracking', declareMaterialWrite('accounting.invoice-tracking.create', { method: 'POST', path: '/api/accounting/invoice-tracking' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);

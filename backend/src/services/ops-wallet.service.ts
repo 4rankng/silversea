@@ -11,6 +11,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getOutstandingAdvanceBalance } from './advance-shared.service';
+import { loadExpenseTypeNames, pickExpenseDisplayName } from './expense-type-display';
 import type { Tx } from './trip-shared';
 import { and, eq, isNull, ne, notExists, or, inArray } from 'drizzle-orm';
 
@@ -239,6 +240,7 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
   ]);
 
   const funded = await getAdvanceFundedAmounts(db, advanceRows.map((row) => row.id));
+  const proxyTypeNames = await loadExpenseTypeNames(proxyRows.map((row) => row.expenseType));
   const refundReversals = refundRows.length ? await db.select({ movementId: s.treasuryMovements.id, amount: s.treasuryMovements.amount, valueDate: s.treasuryMovements.valueDate })
     .from(s.treasuryMovements)
     .where(and(inArray(s.treasuryMovements.reversalOfId, refundRows.map((row) => row.movementId)), eq(s.treasuryMovements.status, 'POSTED'))) : [];
@@ -265,7 +267,10 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
     // Card 20260928_181 — same rule for the trip-expense entries.
     const expenseAmount = Number(row.buyAmount);
     if (expenseAmount <= 0) continue;
-    const label = `Chi phí: ${row.feeName ?? row.expenseType}`;
+    // Card 071026141580: the "Diễn giải" line never prints the machine code —
+    // "khai chi hộ" trip rows carry no custom fee name, and the catalog holds
+    // the Vietnamese label ("Phí chi hộ khác" for OTHER).
+    const label = `Chi phí: ${pickExpenseDisplayName(row.feeName, row.expenseType, proxyTypeNames.get(row.expenseType))}`;
     items.push({ key: `trip-expense-${row.id}`, date: fundBookIsoDate(row.expenseDate ?? row.createdAt), kind: 'EXPENSE', label, reference: null, amount: String(-Math.round(expenseAmount)) });
   }
   for (const row of refundRows) {

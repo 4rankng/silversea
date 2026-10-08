@@ -1,0 +1,8 @@
+# QA-HARNESS18 — absent road_config drives exact page defaults
+
+1. Preserve ADMIN96866's failed assert.ok(road),84 original PNG/DOM states, source/helper bytes and owned closure. Read only its saved200/null proof and retained147 roadConfig0rows; do not create a row.
+2. Before authoring a QA candidate, compare the backend nullable GET, typed client/hook, exact TripExpenseConfigPage initial values and per-field nullish fallbacks. Keep source pins.
+3. Derive only the ADMIN action owner, composed21 manifest row12 and receiving full wrapper; verify complete diffs/inverse equality. Exactly null or a non-array object is permitted. Other primitive/undefined/array bodies fail. Preserve the raw body/status/hash and exact200 response requirement.
+4. In a future controller-authorized actual run at390/768/1440, read the real nullable source then navigate `/config/trip-expense`. If absent, expect actual hints400.000/200.000/200.000/55.000/300.000 đ from the page's current defaults; if populated, expect exact source keys with the same per-field fallback. Preserve all five native hover/atomic/full-glyph/clipping assertions and original screenshots/DOM. No Save/configuration mutation.
+5. Complete the same full ADMIN action loop, directAPI-after raw-body/hash equality, strict HTTP/auth/material/source/owned-window cleanup and separate controller147 AFTER. Missing mounted hints or any unrelated failure remains fatal; current native acceptance requires original-pixel grading.
+6. Do not promote old84 states. Other roles/staging/hardware, configured non-default values unavailable in current population, all material Save/governance paths and error/concurrency branches remain explicit gaps.

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { Button as AriaButton } from 'react-aria-components';
 import { CalendarOff } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
@@ -11,7 +10,7 @@ import type {
 } from '@tingting/shared';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { useConfirm } from '../../../components/UI';
-import { displayNote } from '../cus/cusUtils';
+import { displayNote, stripDecimalTrailingZeros } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
@@ -21,6 +20,7 @@ import { USearchableField } from '../create/uui-fields';
 import { externalVendorPlateOptions } from '../external-plate-options';
 import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
+import { directionLabel, fallback, formatScheduleTime } from './shipment-container-ledger-utils';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
 import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
 import { formatVietnamDateTimeInput, localDateTimeToIso } from '../../../lib/shipment-operations';
@@ -28,6 +28,10 @@ import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { formatISODate } from '../../../lib/format';
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
+// Card 20261002_275 AC4: the last native `type="time"` in the app. The date
+// above is its own field, so this surface could not mount the segmented time
+// entry until there was a time-only mount of it.
+import { TimeSegmentsField } from '../../../design-system/forms/TimeSegmentsField';
 import '../../../styles/table-sort.css';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 
@@ -123,23 +127,6 @@ export function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
   return 'ghi chú';
 }
 
-function directionLabel(direction: ShipmentCusContainerFlatRow['direction']): string {
-  if (direction === 'IMPORT') return 'Nhập';
-  if (direction === 'EXPORT') return 'Xuất';
-  return 'Chưa xác định';
-}
-
-
-function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
-  const value = row.customerAppointmentAt;
-  const input = formatVietnamDateTimeInput(value);
-  return input ? input.slice(11, 16) : null;
-}
-
-function fallback(value: string | null, label: string) {
-  return value || <span className="shipment-container-ledger__missing">{label}</span>;
-}
-
 function InlineEditor({
   id,
   edit,
@@ -200,7 +187,7 @@ function InlineEditor({
   const [shippingLineName, setShippingLineName] = useState(detail.summary.raw.shippingLineName ?? '');
   const [containerNumber, setContainerNumber] = useState(line.raw.containerNumber ?? '');
   const [containerTypeId, setContainerTypeId] = useState(line.raw.containerTypeId ? String(line.raw.containerTypeId) : '');
-  const [cargoWeightKg, setCargoWeightKg] = useState(line.raw.cargoWeightKg ?? '');
+  const [cargoWeightKg, setCargoWeightKg] = useState(stripDecimalTrailingZeros(line.raw.cargoWeightKg));
   const [cargoVolumeCbm, setCargoVolumeCbm] = useState(line.raw.cargoVolumeCbm ?? '');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -571,7 +558,7 @@ function AddContainerRowForm({ shipmentId, expectedShipmentVersion, submitting, 
       <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={weight} onChange={(event) => setWeight(event.target.value)} disabled={busy} /></label>
       <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={volume} onChange={(event) => setVolume(event.target.value)} disabled={busy} /></label>
       <BufferedUuiDateInput label="Ngày đóng/trả" value={appointmentDate} onChange={setAppointmentDate} isDisabled={busy} />
-      <label><span>Giờ đóng/trả</span><input aria-label="Giờ đóng/trả mới" type="time" value={appointmentTime} onChange={(event) => setAppointmentTime(event.target.value)} disabled={busy} /></label>
+      <TimeSegmentsField label="Giờ đóng/trả" value={appointmentTime} onChange={setAppointmentTime} disabled={busy} />
       {error && <span role="alert">{error}</span>}
       <div>
         <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void submit()}>Lưu dòng mới</button>
@@ -701,12 +688,17 @@ export function ShipmentContainerLedger({
     enabled: boolean,
     children: ReactNode,
   ) => {
+    // Lot-level rows (card 365 — container-less LCL lots) are display-only on
+    // this workboard: there is no container line behind them to open an edit
+    // session against, so every cell renders read-only regardless of the
+    // field's authority (shipment-level edits happen on Tổng quan lô hàng).
+    const canEdit = enabled && row.isLotLevel !== true;
     const triggerId = `shipment-detail-edit-${mode}-${row.id}`;
     const editorId = `${triggerId}-editor`;
     const busy = editLoadingRowId === row.id;
     const expanded = activeEdit?.row.id === row.id && activeEdit.mode === mode;
-    const className = `shipment-container-ledger__cell-trigger${enabled ? '' : ' shipment-container-ledger__cell-trigger--read-only'}`;
-    if (!enabled) return <div className={className}>{children}</div>;
+    const className = `shipment-container-ledger__cell-trigger${canEdit ? '' : ' shipment-container-ledger__cell-trigger--read-only'}`;
+    if (!canEdit) return <div className={className}>{children}</div>;
     return (
       <div className={`shipment-container-ledger__cell-editor${expanded ? ' shipment-container-ledger__cell-editor--expanded' : ''}`} data-mode={mode}>
         <AriaButton
@@ -807,23 +799,12 @@ export function ShipmentContainerLedger({
                         <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
                       </div>
                       <span className="shipment-container-ledger__classification"><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b><span>· {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span></span>
-                      {row.shipmentId && (
-                        <Link
-                          to={`/shipments/${row.shipmentId}`}
-                          className="shipment-container-ledger__shipment-link"
-                          title="Xem chi tiết lô hàng"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ fontSize: '12px', color: 'var(--color-primary, #059669)', textDecoration: 'underline', marginTop: '2px', display: 'inline-block' }}
-                        >
-                          Chi tiết lô hàng →
-                        </Link>
-                      )}
                     </div>)}
                   </td>
                   <td data-label="Thông số container" className={cellClassName(containerEditable, 'container')}>
                     {editableCell(row, 'container', containerEditable, <div className="shipment-container-ledger__multiline">
-                      <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
-                      <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
+                      <strong className="shipment-container-ledger__code">{row.isLotLevel ? 'Lô hàng lẻ' : fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
+                      <span>{row.isLotLevel ? 'Không có container' : fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
                       <span className="shipment-container-ledger__container-classification">{DISPATCH_CLASSIFICATION_LABELS[row.classification]}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
                     </div>)}
@@ -847,7 +828,7 @@ export function ShipmentContainerLedger({
                       <strong>{row.carrierName || <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}</strong>
                       {row.plateNumber
                         ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
-                        : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">Chưa gán biển số</BadgeWithDot>}
+                        : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">{row.carrierType === 'EXTERNAL' ? 'CUS sẽ bổ sung' : 'Chưa gán biển số'}</BadgeWithDot>}
                     </div>)}
                   </td>)}
 {!isHidden('notes') && (<td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
@@ -879,6 +860,9 @@ export function ShipmentContainerLedger({
                   </td>)}
                   {canMutateRows && (
                     <td data-label="Thao tác" className="shipment-container-ledger__cell--actions">
+                      {/* Lot-level rows own no container line — add/remove are
+                          container-set writes and never apply to them. */}
+                      {row.isLotLevel !== true && (
                       <div className="shipment-container-ledger__multiline">
                         <button
                           type="button"
@@ -897,6 +881,7 @@ export function ShipmentContainerLedger({
                           }}
                         >Xóa</button>
                       </div>
+                      )}
                     </td>
                   )}
                 </tr>

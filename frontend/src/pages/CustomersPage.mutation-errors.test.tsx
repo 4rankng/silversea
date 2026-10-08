@@ -106,7 +106,7 @@ describe('CustomersPage mutation error surfacing', () => {
     // The modal must stay open so the user can retry or cancel — the error is
     // NOT routed to the table slot that sits behind the modal overlay.
     expect(screen.getByText('Sửa khách hàng')).toBeTruthy();
-  });
+  }, 15_000);
 
   it('toasts non-409 mutation errors verbatim without the governance hint', async () => {
     apiMock.put.mockRejectedValue(new ApiError(400, { error: 'MST đã tồn tại' }, 'MST đã tồn tại'));

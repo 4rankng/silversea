@@ -89,6 +89,36 @@ beforeEach(() => {
 });
 
 describe('PenaltyReasonsConfigPage filter strip', () => {
+  // Card 20261004_333 — a failed list fetch must not fall through to the
+  // "Không tìm thấy lỗi vi phạm" empty-state, and a failed stats fetch must
+  // not fabricate "0 lượt".
+  it('shows the fetch-error state with retry instead of the empty catalog when the list query fails', { timeout: 15000 }, async () => {
+    getPenaltyReasonsMock.mockRejectedValue(new Error('500'));
+    renderPage();
+    expect(await screen.findByText('Không thể tải danh sách lỗi vi phạm', undefined, { timeout: 10000 })).toBeVisible();
+    expect(screen.queryByText('Không tìm thấy lỗi vi phạm')).not.toBeInTheDocument();
+
+    getPenaltyReasonsMock.mockResolvedValue(reasons);
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText('Chạy quá tốc độ')).toBeVisible();
+    expect(getPenaltyReasonsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps the true-empty state only when the query succeeded with zero items', async () => {
+    getPenaltyReasonsMock.mockResolvedValue([]);
+    renderPage();
+    expect(await screen.findByText('Không tìm thấy lỗi vi phạm')).toBeVisible();
+    expect(screen.queryByText('Không thể tải danh sách lỗi vi phạm')).not.toBeInTheDocument();
+  });
+
+  it('prints a dash instead of a fabricated zero when the stats query failed', async () => {
+    apiGetMock.mockRejectedValue(new Error('500'));
+    renderPage();
+    expect(await screen.findByText('Chạy quá tốc độ')).toBeVisible();
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3);
+    expect(screen.queryByText('lượt')).not.toBeInTheDocument();
+  });
+
   it('renders the shared bar with the search slot, the severity toggles and the sort action', async () => {
     const { container } = renderPage();
     expect(await screen.findByText('Chạy quá tốc độ')).toBeInTheDocument();

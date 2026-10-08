@@ -59,6 +59,16 @@ export interface CrudRouterOptions<
    *  silently-ignored filter never hides rows. items AND total share the
    *  filtered WHERE. */
   filterFields?: string[];
+  /** Whitelisted boolean-equality list filters WITH A DEFAULT (e.g.
+   *  `{ isCarrier: false }` → `/customers` hides carriers and `/customers?isCarrier=true`
+   *  reveals them). Absent param = the declared default; present = the parsed
+   *  value, so the default never overrides an explicit request. Accepts
+   *  `true`/`false`/`1`/`0`; an empty param falls back to the default; anything
+   *  else 400s so a typo can never silently widen the list. Unlike
+   *  `filterFields`, a declared default means the predicate is always applied —
+   *  that is the point: the resource's list must not leak the excluded rows by
+   *  omission. items AND total share the filtered WHERE. */
+  booleanFilters?: Record<string, boolean>;
   disableDelete?: boolean;
   deleteMode?: 'soft' | 'hard';
   /** Override the default list-page maxLimit (100) for catalogs that may exceed
@@ -119,6 +129,7 @@ export function createCrudRouter<
     searchableField,
     searchableFields,
     filterFields,
+    booleanFilters,
     disableDelete = false,
     deleteMode = 'soft',
     maxLimit,
@@ -285,6 +296,9 @@ export function createCrudRouter<
       if (filterFields && !filterFields.includes(key)) {
         throw new ApiError(400, `Bộ lọc không được hỗ trợ: ${key}`);
       }
+      if (booleanFilters && !(key in booleanFilters)) {
+        throw new ApiError(400, `Bộ lọc không được hỗ trợ: ${key}`);
+      }
     }
     if (filterFields) {
       for (const field of filterFields) {
@@ -298,6 +312,22 @@ export function createCrudRouter<
         }
         conditions.push(eq(column(table, field), parsed));
       }
+    }
+    // Boolean-equality filters with a declared default. Unlike filterFields
+    // these are ALWAYS applied — the default is what keeps the excluded rows
+    // out of the list, so an absent param cannot leak them.
+    for (const [field, fallback] of Object.entries(booleanFilters ?? {})) {
+      const raw = req.query[field];
+      let value = fallback;
+      if (raw !== undefined) {
+        const trimmed = String(raw).trim();
+        if (trimmed !== '') {
+          if (trimmed === 'true' || trimmed === '1') value = true;
+          else if (trimmed === 'false' || trimmed === '0') value = false;
+          else throw new ApiError(400, `Giá trị bộ lọc ${field} không hợp lệ`);
+        }
+      }
+      conditions.push(eq(column(table, field), value));
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;

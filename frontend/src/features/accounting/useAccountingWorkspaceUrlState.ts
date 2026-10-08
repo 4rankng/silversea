@@ -130,5 +130,17 @@ export function useAccountingWorkspaceUrlState() {
     // closure from the current render.
     resetTransportSecondary: () =>
       applyUrlState({ customerId: null, carrierId: null, ownership: null, readiness: null, page: null }),
+    // Card 20261002_285 AC1: the strip's own "Xóa bộ lọc" arms on
+    // `hasActiveFilters`, which spans the search AND the four dialog criteria —
+    // but it called `resetTransportSearch`, so a register filtered only by, say,
+    // `customerId` showed a clear button that changed nothing. This clears the
+    // whole set. ONE pass, for the same reason as above: chaining
+    // `resetTransportSearch()` into `resetTransportSecondary()` would let the
+    // second call overwrite the first, reintroducing the 20260927_152 bug one
+    // level up.
+    resetTransportAll: () => {
+      setTransportSearch('');
+      applyUrlState({ search: null, customerId: null, carrierId: null, ownership: null, readiness: null, page: null });
+    },
   };
 }

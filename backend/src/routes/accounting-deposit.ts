@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { expenseVndSchema } from '@tingting/shared';
+import { expenseDateSchema, expenseVndSchema } from '@tingting/shared';
 import { getUser } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { throwValidation } from '../lib/validation';
@@ -10,6 +10,7 @@ import { getRequestIdempotencyKey } from './utils/idempotency';
 import { declareMaterialWrite } from '../middleware/material-write';
 import {
   listDepositTrackers, createDepositTracker, updateDepositTrackerDates, markDepositRefunded, normalizeDepositDate,
+  getDepositWeeklySummary,
 } from '../services/deposit-refund-tracker.service';
 
 const router = Router()
@@ -35,6 +36,15 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(await listDepositTrackers(getUser(req), { from: query.from, to: query.to, status: query.status }));
 }));
 
+// Registered before the /:id/... routes — weekly summary is a fixed path read.
+router.get('/weekly-summary', asyncHandler(async (req, res) => {
+  const query = parse(z.object({
+    from: expenseDateSchema,
+    to: expenseDateSchema,
+  }).refine((range) => range.from <= range.to, 'Ngày từ phải trước hoặc bằng ngày đến.'), req.query);
+  res.json(await getDepositWeeklySummary(getUser(req), { from: query.from, to: query.to }));
+}));
+
 router.post('/', declareMaterialWrite('accounting.deposit-tracker.create', { method: 'POST', path: '/api/accounting/deposits/' }),  asyncHandler(async (req, res) => {
   const user = getUser(req);
   const input = parse(z.object({
@@ -42,8 +52,10 @@ router.post('/', declareMaterialWrite('accounting.deposit-tracker.create', { met
     customerName: z.string().trim().min(1).max(255),
     carrierName: z.string().trim().min(1).max(255),
     depositAmount: z.union([z.number(), z.string()]),
+    depositDate: dateInput.nullable().optional(),
     cvSubmittedDate: dateInput.nullable().optional(),
     expectedRefundDate: dateInput.nullable().optional(),
+    status: z.enum(['CHUA_HOAN_CUOC', 'DA_HOAN_CUOC']).optional(),
     note: z.string().max(500).nullable().optional(),
   }).strict(), req.body);
   const outcome = await runIdempotent({

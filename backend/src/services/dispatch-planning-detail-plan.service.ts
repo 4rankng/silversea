@@ -21,7 +21,7 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 
-import { and, asc, eq, ilike, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, Role, TripStatus, type DispatchClassification } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -108,6 +108,10 @@ export interface UpdateDispatchDetailPlanInput {
    *  now always sends: a per-container dispatcher must not rewrite a flag
    *  that spans every container in the lot. */
   isCombined?: boolean;
+  /** Card 061026172804 (FB-038 / REQ-04): the dispatcher confirmed the save
+   *  may ride a COMPLETED trip's window — the 409 RIG_OVERLAP_COMPLETED
+   *  warning was acknowledged in the dialog before this retry. */
+  rigOverlapCompletedConfirmed?: boolean;
   /** Driver-facing note (shipments.operational_notes). Undefined = note
    *  untouched by this save. '' clears; null ≡ '' for change detection. */
   operationalNotes?: string | null;
@@ -286,9 +290,21 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
   // client error, not an empty result (stale client, not silent nothing).
   if (input.zone != null) await requireDispatchZone(input.zone);
 
+  // Card 20261008_3 — 'gán xe' on the fulfillment branch = a planned plate on
+  // the row (OWN plate / carrier-vehicle plate / typed plate). Kept OUT of the
+  // shared filter below so one grouped scan can count both chips' halves of
+  // the union; pageKeys/rows still apply it through `rowFilters`.
+  const assignmentPredicate = input.assignmentStatus === 'UNASSIGNED'
+    ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`
+    : input.assignmentStatus === 'ASSIGNED'
+      ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
+      : undefined;
+
   return db.transaction(async (tx) => {
     // Shared filter so the rows page and the total count stay consistent
-    // within one transaction.
+    // within one transaction. The assignment split (card 20261008_3) is NOT
+    // part of it — `rowFilters` adds it for the page/rows selects while the
+    // count split below reads both halves from these same conditions.
     const filters = and(
       isNull(s.shipmentFulfillments.canceledAt),
       isNull(s.shipments.deletedAt),
@@ -320,12 +336,6 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         sql`exists (select 1 from ${s.ports} pz where pz.id = ${s.shipmentContainers.pickupPortId} and pz.dispatch_zone = ${input.zone} and pz.deleted_at is null)`,
         sql`exists (select 1 from ${s.ports} pz where pz.id = ${s.shipmentContainers.dropoffPortId} and pz.dispatch_zone = ${input.zone} and pz.deleted_at is null)`,
       ) : undefined,
-      input.assignmentStatus === 'UNASSIGNED'
-        ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`
-        : undefined,
-      input.assignmentStatus === 'ASSIGNED'
-        ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
-        : undefined,
       input.customerId ? eq(s.shipments.customerId, input.customerId) : undefined,
       input.dataStatus ? dispatchDetailDataStatusSql(input.dataStatus) : undefined,
       // Card 20260927_61 advanced filters. Plate equality is the effective
@@ -372,7 +382,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       trailerType: input.trailerType ?? null,
       routeId: input.routeId ?? null,
     };
-    const pageKeys = await listDetailPlanPageKeys(tx, filters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
+    const rowFilters = and(filters, assignmentPredicate);
+    const pageKeys = await listDetailPlanPageKeys(tx, rowFilters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
     const fulfillmentIds = pageKeys.flatMap((key) => key.fulfillmentId == null ? [] : [key.fulfillmentId]);
     const branchContainerIds = pageKeys.flatMap((key) => key.fulfillmentId == null && key.containerId != null ? [key.containerId] : []);
 
@@ -453,9 +464,14 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         eq(s.tripPairs.id, s.trips.activeTripPairId),
         eq(s.tripPairs.status, 'ACTIVE'),
       ))
-      .where(and(filters, pageKeyPredicate(s.shipmentFulfillments.id, fulfillmentIds)))
+      .where(and(rowFilters, pageKeyPredicate(s.shipmentFulfillments.id, fulfillmentIds)))
       .orderBy(...dispatchDetailPriorityOrderSql()),
-      tx.select({ total: sql<number>`count(*)` })
+      // Card 20261008_3 — chip counts, same scan as the old total: one grouped
+      // aggregate splits the fulfillment branch into both chips' halves.
+      tx.select({
+        unassigned: sql<number>`count(*) filter (where ${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`,
+        assigned: sql<number>`count(*) filter (where ${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`,
+      })
         .from(s.shipmentFulfillments)
         .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
         .innerJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
@@ -469,9 +485,12 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // dispatchers can see and allocate lots stuck before the write-path
     // fix. The global identity page has already selected both sources;
     // hydrate only those rows and retain the combined total.
-    const [unionRows, unionCount] = await Promise.all([
+    // Every điều phối (fulfillment-less) row is inherently unassigned, so the
+    // branch only ever contributes to the UNASSIGNED chip — counted with that
+    // side of the split regardless of the request's own chip filter.
+    const [unionRows, unionUnassignedCount] = await Promise.all([
       listFulfillmentLessReadyRows(tx, unionFilters, accountantCustomerIds, limit, 0, branchContainerIds),
-      countFulfillmentLessReadyRows(tx, unionFilters, accountantCustomerIds),
+      countFulfillmentLessReadyRows(tx, { ...unionFilters, assignmentStatus: 'UNASSIGNED' }, accountantCustomerIds),
     ]);
     const pageRows = [...rows, ...unionRows].sort(compareDetailPlanRows);
     const shipmentIds = pageRows.map((row) => row.shipmentId);
@@ -615,7 +634,18 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         };
       }),
       limit,
-      total: Number(totals[0]?.total ?? 0) + unionCount,
+      // Card 20261008_3 — chip counts over the UNION of both branches, full-set
+      // under every other active filter. The two halves partition the row set
+      // (planned plate set vs not), so their sum is the view's total.
+      assignmentStatusCounts: {
+        UNASSIGNED: Number(totals[0]?.unassigned ?? 0) + unionUnassignedCount,
+        ASSIGNED: Number(totals[0]?.assigned ?? 0),
+      },
+      total: input.assignmentStatus === 'ASSIGNED'
+        ? Number(totals[0]?.assigned ?? 0)
+        : input.assignmentStatus === 'UNASSIGNED'
+          ? Number(totals[0]?.unassigned ?? 0) + unionUnassignedCount
+          : Number(totals[0]?.unassigned ?? 0) + Number(totals[0]?.assigned ?? 0) + unionUnassignedCount,
       page,
       pageSize: limit,
     };
@@ -1144,6 +1174,155 @@ export async function updateFulfillmentEstimates(
  * (issueOrderCreateOrUpdate) owns the driver notification.
  */
 
+/**
+ * The window a plan row occupies its rig for, resolved per cargo mode
+ * (card 061026174603). FCL rows carry a container appointment; an LCL lot has
+ * no container by design, so its window is the lot-level closing/return date —
+ * the same `coalesce(appointment, closingAt, plannedReturnAt)` the dispatch
+ * list reads at line 224. Null means "no window to prove overlap with", which
+ * callers treat as skip, never as a refusal.
+ */
+async function resolvePlanRowWindowStart(
+  tx: Tx,
+  fulfillment: { shipmentId: number; shipmentContainerId: number | null },
+): Promise<Date | null> {
+  if (fulfillment.shipmentContainerId != null) {
+    const [row] = await tx.select({ appointment: s.shipmentContainers.customerAppointmentAt })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
+      .limit(1);
+    return row?.appointment ?? null;
+  }
+  const [lot] = await tx.select({
+    closingAt: s.shipments.closingAt,
+    plannedReturnAt: s.shipments.plannedReturnAt,
+  })
+    .from(s.shipments)
+    .where(eq(s.shipments.id, fulfillment.shipmentId))
+    .limit(1);
+  return lot?.closingAt ?? lot?.plannedReturnAt ?? null;
+}
+
+async function assertPlanRowRigAvailable(
+  tx: Tx,
+  args: {
+    fulfillmentId: number;
+    plate: string;
+    windowStart: Date;
+    windowEnd: Date | null;
+    /** Card 061026172804 (FB-038 / REQ-04): the dispatcher confirmed the save
+     *  may ride a COMPLETED trip's window. */
+    confirmCompletedOverlap?: boolean;
+    /** Card 081026091100: the row's Phân loại. "Kẹp" is 'DOUBLE'
+     *  (DISPATCH_CLASSIFICATION_LABELS) — two 20' containers ride ONE mooc, so
+     *  the pair's two planned windows on that tractor overlap by construction.
+     *  trip-pairing.service.ts already documents that the sequential rules do
+     *  not apply to KEP; this guard had no way to know. */
+    classification?: DispatchClassification | null;
+  },
+): Promise<void> {
+  const plate = args.plate.trim();
+  if (!plate) return;
+  // The row's own window: start = its container's closing appointment; end =
+  // the saved Giờ trả hàng, defaulting to an 8-hour shift when unsaved.
+  const windowEnd = args.windowEnd ?? new Date(args.windowStart.getTime() + 8 * 3600_000);
+  // Card 081026091100: a Kẹp row shares the rig with its partner leg ON
+  // PURPOSE, so the two pre-dispatch plan rows overlapping on that plate is the
+  // arrangement the dispatcher asked for, not a conflict. Only the plan-row
+  // scans are skipped — the dispatched-trip scan below still runs, so a Kẹp row
+  // is still refused when an unrelated LIVE trip holds that tractor (that is
+  // not the pair's own overlap).
+  const isKepPairing = args.classification === 'DOUBLE';
+  // Pre-dispatch plan rows planned onto the same rig with an overlapping
+  // window. A row without its own appointment cannot prove overlap and is
+  // skipped rather than guessed into a conflict. Card 363: a row without a
+  // saved end is bounded by one 8-hour shift (the same default the saving row
+  // uses above) instead of counting as occupying the rig forever.
+  const planConflicts = await tx.select({ id: s.shipmentFulfillments.id })
+    .from(s.shipmentFulfillments)
+    .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+    .where(and(
+      ne(s.shipmentFulfillments.id, args.fulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
+      isNotNull(s.shipmentContainers.customerAppointmentAt),
+      lt(s.shipmentContainers.customerAppointmentAt, windowEnd),
+      sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, ${s.shipmentContainers.customerAppointmentAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
+      // QA rework 061026172804: a fulfillment whose trip is COMPLETED has
+      // released the rig (card 363) — it must fall through to the completed
+      // tier's warning below, not raise the generic plan-row block here
+      // (the masking the staging QA cut exposed).
+      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
+    ));
+  // Card 061026174603: an LCL row is a plan unit too, but it has no container,
+  // so the branch above (which inner-joins shipmentContainers) cannot see it.
+  // Without this the same tractor could ride two overlapping LCL rows, or an
+  // LCL row and an FCL row — the guard would protect FCL and silently exempt
+  // Hàng lẻ. Same overlap rule, same 8-hour default, LCL window from the lot.
+  const lclPlanConflicts = await tx.select({ id: s.shipmentFulfillments.id })
+    .from(s.shipmentFulfillments)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+    .where(and(
+      ne(s.shipmentFulfillments.id, args.fulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
+      eq(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
+      sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) is not null`,
+      sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) < ${windowEnd.toISOString()}::timestamptz`,
+      sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
+      // Same released-rig exclusion as the FCL scan above.
+      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
+    ));
+  // Dispatched trips riding the same rig: the plate is the pre-dispatch key,
+  // the truck's license plate is the dispatched key — one physical tractor.
+  // Card 363: only ACTIVE trips occupy the rig (a COMPLETED trip released it —
+  // back-to-back 'chạy gối đầu' assignments were false-blocked), and an
+  // open-ended trip is bounded by one 8-hour shift from its start.
+  const tripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+    .from(s.trips)
+    .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .where(and(
+      eq(s.trucks.licensePlate, plate),
+      notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
+      isNull(s.trips.deletedAt),
+      isNotNull(s.trips.plannedStartAt),
+      lt(s.trips.plannedStartAt, windowEnd),
+      sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
+    ));
+  // Card 081026091100: for a Kẹp row only the dispatched-trip scan counts — the
+// two plan-row scans describe the pair's own deliberate overlap. Every other
+// classification keeps all three.
+const planRowBlocked = isKepPairing ? false : (planConflicts.length > 0 || lclPlanConflicts.length > 0);
+if (planRowBlocked || tripConflicts.length > 0) {
+    throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+  }
+  // Card 061026172804 (FB-038 / REQ-04): a COMPLETED trip of the same rig no
+  // longer blocks (card 363 released the rig on completion) but the overlap is
+  // not silent either — the save is refused once with a warning payload the
+  // editor turns into a confirm dialog; the confirmed retry proceeds (chạy
+  // gối đầu onto a finished trip is legal). Same overlap rule and 8-hour
+  // default as the active-trip scan above.
+  if (!args.confirmCompletedOverlap) {
+    const completedTripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+      .from(s.trips)
+      .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+      .where(and(
+        eq(s.trucks.licensePlate, plate),
+        eq(s.trips.status, TripStatus.COMPLETED),
+        isNull(s.trips.deletedAt),
+        isNotNull(s.trips.plannedStartAt),
+        lt(s.trips.plannedStartAt, windowEnd),
+        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.windowStart.toISOString()}::timestamptz`,
+      ));
+    if (completedTripConflicts.length > 0) {
+      throw new ApiError(409,
+        `Đầu xe ${plate} có ${completedTripConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
+        undefined,
+        { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+  }
+}
+
 export async function updateDispatchDetailPlan(input: UpdateDispatchDetailPlanInput): Promise<DispatchDetailPlanMutationResult & { replayed: boolean }> {
   assertDispatchActor(input.actor);
   const outcome = await runIdempotent<DispatchDetailPlanMutationResult>({
@@ -1285,6 +1464,44 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
 
   // Fulfillment row: assignment snapshot + estimates + classification.
   // Without a vehicle block the stored vehicle columns keep their values.
+  if (vehicleSelected && vehicle?.plannedVehiclePlateNumber != null && vehicle.plannedVehiclePlateNumber.trim() !== '') {
+    // Card 20261003_317: the plan-row edit assigns rigs BEFORE dispatch — the
+    // same physical tractor must not be planned onto two fulfillments whose
+    // windows overlap. The plate is the pre-dispatch rig identity (no planned
+    // truck id is persisted); dispatched trips join by license plate.
+    //
+    // Card 061026174603: the window is resolved PER CARGO MODE. An FCL row's
+    // window is its container's closing appointment; an LCL lot has no
+    // container BY DESIGN — it decomposes into one LCL_SHIPMENT fulfillment —
+    // so its window is the lot-level closing/return date, the same coalesce the
+    // dispatch list itself reads. Resolving the window per mode is what lets
+    // the Hàng lẻ dispatch flow run at all; a row whose window cannot be
+    // resolved is skipped (the existing "cannot prove overlap" law), never
+    // refused with a container error.
+    const windowStart = await resolvePlanRowWindowStart(tx, fulfillment);
+    if (windowStart != null) {
+      await assertPlanRowRigAvailable(tx, {
+        fulfillmentId: input.fulfillmentId,
+        plate: vehicle.plannedVehiclePlateNumber,
+        windowStart,
+        windowEnd: nextPlannedEndAt,
+        confirmCompletedOverlap: input.rigOverlapCompletedConfirmed === true,
+        classification: input.classification ?? null,
+      });
+    }
+  }
+  // Card 20261006_392: an LCL lot is ONE whole-lot LCL_SHIPMENT fulfillment, so
+  // its only legal classification is 'LCL'. The DB enforces that with
+  // shipment_fulfillments_lcl_dispatch_classification_check, and a save that
+  // reached it answered the dispatcher with a raw PostgresError 23514 surfaced as
+  // HTTP 500 'Lỗi máy chủ'. Refuse it as the business error it is, before the
+  // write. 'LCL_PICKUP' ("Lấy Lẻ") stays legal on a CONTAINER row — it is the
+  // 40'-trailer pickup run (see requiredTrailerTypeForFulfillment), and no
+  // fulfillment row in the database has ever carried it.
+  if (input.classification && fulfillment.fulfillmentType === 'LCL_SHIPMENT'
+    && input.classification !== 'LCL') {
+    throw new ApiError(409, 'Phân loại không hợp lệ cho lô Hàng lẻ. Lô hàng lẻ là một tác vụ cả lô nên chỉ dùng phân loại "Lẻ".');
+  }
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
     plannedCarrierType: input.carrierType,
     plannedExternalCarrierId,

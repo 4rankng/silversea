@@ -100,8 +100,9 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     expect(screen.queryByText('Chưa chọn khách hàng')).toBeNull();
     expect(container.querySelector('.shipment-debit-customer-bar')).not.toBeNull();
     expect(screen.getByText(/Đang xem tất cả khách hàng/)).toBeTruthy();
-    // The export action is still a per-customer action, so it stays disabled.
-    expect((screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement).disabled).toBe(true);
+    // The export action is still a per-customer action, so it stays disabled —
+    // aria-disabled with the reason reachable (sweep card 20261008_1).
+    expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).toHaveAttribute('aria-disabled', 'true');
     // Picking a customer narrows the scope to that numeric id — the picker is
     // the shared searchable combobox, promoted out of `Bộ lọc`.
     fireEvent.click(screen.getByRole('button', { name: 'Tất cả khách hàng' }));
@@ -164,23 +165,27 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     expect(customerBar).not.toBeNull();
     expect(within(customerBar).getByRole('button', { name: 'Tất cả khách hàng' })).toBeTruthy();
     // Row 1: Xuất Debit Note rides the title baseline, disabled without a
-    // customer, with the hover tooltip naming the prerequisite.
+    // customer, with the DisabledActionTip bubble naming the prerequisite
+    // (sweep card 20261008_1 — the reason is reachable on hover AND focus).
     const header = container.querySelector('[data-component="shipment-debit-header"]') as HTMLElement;
-    expect(within(header).getByRole('button', { name: 'Xuất Debit Note' })).toBeTruthy();
-    const exportWrap = header.querySelector('.shipment-debit-header__export') as HTMLElement;
-    expect(exportWrap.getAttribute('title')).toBe('Vui lòng chọn khách hàng để xuất Debit Note');
+    const exportButton = within(header).getByRole('button', { name: 'Xuất Debit Note' });
+    expect(exportButton).toHaveAttribute('aria-disabled', 'true');
+    const exportReasonId = exportButton.getAttribute('aria-describedby');
+    expect(exportReasonId).toBeTruthy();
+    expect(document.getElementById(exportReasonId!)?.textContent).toBe('Chọn khách hàng để xuất Debit Note.');
   });
 
   it('keeps the disabled export CTA off its brand fill (card 20260922_31)', () => {
     renderPage();
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
-    // Nothing selected yet → the primary action is disabled…
-    expect(button.disabled).toBe(true);
+    // Nothing selected yet → the primary action is disabled (aria-disabled,
+    // sweep card 20261008_1)…
+    expect(button).toHaveAttribute('aria-disabled', 'true');
     // …and the disabled brand-strip rule is live on the workspace section that
     // wraps the shared bar (CSS-source pin — house convention; jsdom has no
     // layout engine, so computed fills are measured in the browser wave).
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
-    const rule = css.match(/\.shipment-debit-workspace button\.shipment-debit-export:disabled\s*\{([^}]*)\}/)?.[1] ?? '';
+    const rule = css.match(/\.shipment-debit-workspace button\.shipment-debit-export\[aria-disabled="true"\]\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(rule).toMatch(/background:\s*var\(--surface-2\);/);
     expect(rule).toMatch(/box-shadow:\s*none;/);
     expect(rule).not.toMatch(/brand|accent/);
@@ -222,12 +227,13 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
-    const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
+    // Sweep card 20261008_1: the disabled reason mounts the DisabledActionTip
+    // wrapper, which remounts the button on every state flip — re-query.
+    expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
-    expect(button.disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).not.toHaveAttribute('aria-disabled');
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
-    expect(button.disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('clears the selection when filters change so stale locked picks cannot arm the export', async () => {
@@ -235,11 +241,11 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
-    const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
-    expect(button.disabled).toBe(false);
+    const button = screen.getByRole('button', { name: 'Xuất Debit Note' });
+    expect(button).not.toHaveAttribute('aria-disabled');
     fireEvent.click(screen.getByRole('button', { name: 'Khóa lô: Tất cả' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Đang mở' }));
-    await waitFor(() => expect((screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement).disabled).toBe(true));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).toHaveAttribute('aria-disabled', 'true'));
   });
 });
 
@@ -293,8 +299,8 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
-    const button = screen.getByRole('button', { name: 'Xuất Debit Note' }) as HTMLButtonElement;
-    expect(button.disabled).toBe(false);
+    const button = screen.getByRole('button', { name: 'Xuất Debit Note' });
+    expect(button).not.toHaveAttribute('aria-disabled');
     fireEvent.click(button);
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
     // One POST, both locked ids, the stable per-selection key — the open lot never travels.

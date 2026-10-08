@@ -172,6 +172,7 @@ function projectSiteSnapshot(snapshot: Record<string, unknown>): Record<string, 
       address: site.address,
       contactName: site.contactName,
       contactPhone: site.contactPhone,
+      contacts: site.contacts,
       googleMapsUrl: site.googleMapsUrl,
       strictRules: site.strictRules,
       sourceVersion: site.sourceVersion,
@@ -298,6 +299,13 @@ export async function loadOwnedFulfillmentTrip(
       ...(includeCanceled ? [] : [isNull(s.shipmentFulfillments.canceledAt)]),
       eq(s.trips.driverId, driverId),
     ))
+    // Card 347 rework (staging probe 05/10): a fulfillment can hold several
+    // trips — a CANCELED original plus a live replacement after reassignment.
+    // The old unordered .limit(1) let the canceled sibling win, so a live
+    // order's detail showed "Chuyến đã hủy". Live trips resolve first
+    // (newest first); a canceled trip resolves only when it is all that
+    // remains (20260916_7's canceled-trip banner contract).
+    .orderBy(asc(sql`(${s.trips.status} = 'CANCELED')`), desc(s.trips.id))
     .limit(1);
 
   const rows = options.forUpdate ? await query.for('update') : await query;
@@ -708,6 +716,113 @@ export async function attachPodFile(args: {
         await storageService.delete(uploadedStorageKey).catch(() => undefined);
       }
     },
+  });
+
+  return { submission: outcome.result, replayed: outcome.replayed };
+}
+
+/**
+ * Card 071026212500 — let a driver take back a photo they uploaded into their
+ * own DRAFT submission.
+ *
+ * Until this existed there was no delete path for an e-POD file at all — not for
+ * the driver, not for admin/CUS — so a mis-upload was welded into its slot
+ * forever. attachPodFile already replaces the file when the driver re-uploads
+ * over an occupied slot and already queues the old blob for deletion, so the
+ * storage machinery was in production; only the deliberate step was missing.
+ *
+ * The boundary is not invented here: attachPodFile refuses every status but
+ * DRAFT (see above), so a draft is the driver's own editable work and a
+ * submitted submission is a frozen record of what was handed in. Only the draft
+ * half is opened here. Removing evidence after submission stays refused — that
+ * is a business decision this card does not make.
+ *
+ * The row is hard-deleted because trip_pod_files has no deleted_at and carries a
+ * unique (submission_id, file_type) index: keeping the row would keep the slot
+ * occupied, so a soft delete would not actually free anything. The blob is
+ * removed by a durable job rather than inside the transaction, so a rollback can
+ * neither lose the blob nor leave the row dangling.
+ */
+export async function removePodFile(args: {
+  driverId: number;
+  actorUserId: number;
+  fulfillmentId: number;
+  submissionId: number;
+  fileId: number;
+  expectedVersion: number;
+  idempotencyKey: string;
+}): Promise<{ submission: DriverPodSubmissionView; replayed: boolean }> {
+  assertPositiveInteger(args.fulfillmentId, 'Tác vụ');
+  assertPositiveInteger(args.submissionId, 'Phiên bản e-POD');
+  assertPositiveInteger(args.fileId, 'Tệp e-POD');
+  assertPositiveInteger(args.expectedVersion, 'Phiên bản e-POD');
+
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_FILE_DELETE,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      driverId: args.driverId,
+      actorUserId: args.actorUserId,
+      fulfillmentId: args.fulfillmentId,
+      submissionId: args.submissionId,
+      fileId: args.fileId,
+      expectedVersion: args.expectedVersion,
+    },
+    createdBy: args.actorUserId,
+    entityType: 'trip_pod_submission',
+    responseStatusCode: 200,
+    create: async (tx) => {
+      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
+      await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
+      ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      const submission = await loadSubmissionTx(tx, {
+        tripId: ownedTrip.tripId,
+        submissionId: args.submissionId,
+      });
+      if (submission.version !== args.expectedVersion) {
+        throw new ApiError(409, 'Phiên bản e-POD đã thay đổi. Vui lòng tải lại.');
+      }
+      // Same sentence attachPodFile uses, so the driver reads one rule, not two.
+      if (submission.status !== TripPodStatus.DRAFT) {
+        throw new ApiError(409, 'Chỉ có thể cập nhật e-POD ở trạng thái nháp.');
+      }
+
+      const [target] = await tx.select({
+        id: s.tripPodFiles.id,
+        storageKey: s.tripPodFiles.storageKey,
+      }).from(s.tripPodFiles)
+        .where(and(
+          eq(s.tripPodFiles.id, args.fileId),
+          eq(s.tripPodFiles.submissionId, submission.id),
+        ))
+        .limit(1);
+      if (!target) {
+        throw new ApiError(404, 'Không tìm thấy tệp e-POD trong phiên bản này.');
+      }
+
+      await tx.delete(s.tripPodFiles).where(eq(s.tripPodFiles.id, target.id));
+      await enqueueStorageDelete(tx, {
+        dedupeKey: buildPodFinalDeleteDedupeKey(target.id, target.storageKey),
+        payload: {
+          storageKey: target.storageKey,
+          mode: STORAGE_DELETE_MODE.FINAL_DELETE,
+          entityType: 'trip_pod_files',
+          entityId: target.id,
+        },
+      });
+
+      const [updated] = await tx.update(s.tripPodSubmissions).set({
+        version: sql`${s.tripPodSubmissions.version} + 1`,
+        updatedAt: new Date(),
+      }).where(eq(s.tripPodSubmissions.id, submission.id))
+        .returning({ id: s.tripPodSubmissions.id });
+
+      return buildSubmissionViewTx(tx, {
+        submissionId: updated.id,
+        fulfillmentId: ownedTrip.fulfillmentId,
+      });
+    },
+    getEntityId: (value) => value.id,
   });
 
   return { submission: outcome.result, replayed: outcome.replayed };

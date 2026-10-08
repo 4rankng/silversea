@@ -1,3 +1,4 @@
+import type { OperationalSiteContact } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -553,6 +554,7 @@ export interface DriverFulfillmentDetail {
   factoryAddress: string | null;
   /** Legacy site phone; the UI uses one combined named contact row. */
   khoPhone: string | null;
+  factoryContacts: OperationalSiteContact[];
   /** TC-DA-005: shipment customer master-data invoice block (hidden when all null). */
   invoiceMaster: { taxCode: string | null; companyName: string | null; address: string | null } | null;
   /** Factory's own invoice identity for the trip — explicit party attribution
@@ -623,6 +625,7 @@ export async function getDriverFulfillmentDetail(
     siteSnapshot: s.shipmentFulfillments.siteSnapshot,
     siteContactName: containerFactory.contactName,
     siteContactPhone: containerFactory.contactPhone,
+    siteContacts: containerFactory.contacts,
     containerFactoryAddress: containerFactory.address,
     customerTaxCode: s.customers.taxCode,
     customerCompanyName: s.customers.name,
@@ -745,6 +748,7 @@ export async function getDriverFulfillmentDetail(
     factoryAddress: shipmentRow.containerFactoryAddress ?? null,
     // Kho site phone — the FE warehouse-phone row always renders (tel link or "—").
     khoPhone: shipmentRow.siteContactPhone ?? null,
+    factoryContacts: shipmentRow.siteContacts ?? [],
     shippingLineName: shipmentRow.shippingLineName,
     expectedDeliveryDate: shipmentRow.expectedDeliveryDate,
     customsCutoffAt: shipmentRow.customsCutoffAt?.toISOString() ?? null,

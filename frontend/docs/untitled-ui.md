@@ -143,7 +143,7 @@ with `tsc -b` clean.
   stock palette cannot land.
 - `src/components/untitled-ui/installed.json` lists every vendored file.
   It is derived from the filesystem and enforced by
-  `src/tests/structure.guard.test.ts` — add or remove a vendored file and the
+  `frontend/scripts/check-structure.mjs` — add or remove a vendored file and the
   suite fails until the manifest is regenerated in the same commit.
 - `@/*` resolves to `src/*` through both TypeScript and Vite.
 - Installed source and the repository's current React Aria/TypeScript versions

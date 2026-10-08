@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { DateTimeSegments } from './DateTimeSegments';
@@ -73,6 +73,27 @@ describe('DateTimeSegments', () => {
     expect(seg('hh')).toHaveValue('08');
     expect(seg('mm')).toHaveValue('30');
     expect(activeLabel()).toBe('Phút — test');
+  });
+
+  // Card 326 class: the hand-off to the next segment must not depend on the
+  // controlled re-render. A parent that keeps the draft as a primitive string
+  // bails out of rendering when the update leaves the string unchanged — and
+  // with the render goes the effect that used to be the only thing moving
+  // focus. The typed path cannot produce a same-string draft (React drops a
+  // change event whose value matches the tracked input), so the reachable
+  // instance is the multi-char path: a full paste over the same text
+  // (re-pasting the current value, autofill/undo/IME commits).
+  it('hands focus to the next segment when a full paste leaves the draft string unchanged', async () => {
+    function BailHarness() {
+      const [current, setCurrent] = useState('08:30');
+      return <DateTimeSegments id="t" part="time" groupAriaLabel="test" value={current} onValueChange={setCurrent} onOpenPicker={() => {}} />;
+    }
+    render(<BailHarness />);
+    act(() => seg('hh').focus());
+    type('hh', '08:30');
+    expect(seg('hh')).toHaveValue('08');
+    expect(seg('mm')).toHaveValue('30');
+    await waitFor(() => expect(activeLabel()).toBe('Phút — test'));
   });
 
   it.each([
@@ -171,3 +192,59 @@ describe('DateTimeSegments', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('DateTimeSegments — type-over restart (thẻ 326 revocation, user retest 04/10/2026)', () => {
+  // User retest on build 813a2b0d: "auto-advance is still broken". The engine
+  // advances correctly ONLY while the segment keeps its select-on-focus
+  // selection; with a collapsed caret the input's maxLength silently swallows
+  // every digit (value can never change → never completes → never advances).
+  // The contract is the standard segmented-input one: typing a digit into a
+  // FULL segment restarts it (replace-first), regardless of selection state.
+  it('typing a digit into a full segment with a collapsed caret restarts the segment (replace-first)', () => {
+    render(<Harness part="time" value="13:30" />);
+    const mmSeg = seg('mm');
+    act(() => {
+      mmSeg.focus();
+      mmSeg.setSelectionRange(2, 2); // collapsed caret at end — the broken state
+    });
+    fireEvent.keyDown(mmSeg, { key: '0' });
+    // Native input would reject this keystroke (maxLength reached) and no
+    // onChange would fire — pre-fix the segment stayed "30" and focus stuck.
+    expect(seg('mm')).toHaveValue('0');
+  });
+
+  it('a full hour restarted by typing still completes and auto-advances', () => {
+    render(<Harness part="time" value="13:30" />);
+    const hhSeg = seg('hh');
+    act(() => {
+      hhSeg.focus();
+      hhSeg.setSelectionRange(2, 2);
+    });
+    fireEvent.keyDown(hhSeg, { key: '1' });
+    expect(seg('hh')).toHaveValue('1');
+    type('hh', '13');
+    expect(seg('hh')).toHaveValue('13');
+    expect(activeLabel()).toBe('Phút — test');
+  });
+
+  it('clicking a segment re-selects its digits even when focus does not change', () => {
+    render(<Harness part="time" value="13:30" />);
+    const hhSeg = seg('hh');
+    act(() => {
+      hhSeg.focus();
+      hhSeg.setSelectionRange(2, 2); // e.g. a second click parked the caret
+    });
+    fireEvent.click(hhSeg);
+    expect(hhSeg.selectionStart).toBe(0);
+    expect(hhSeg.selectionEnd).toBe(2);
+  });
+
+  it('single-digit type-over replaces a full segment without scattering across parts (mobile virtual keyboard fallback)', () => {
+    render(<Harness part="time" value="13:30" />);
+    // Simulate mobile virtual keyboard emitting '138' (1 digit added to full segment)
+    type('hh', '138');
+    expect(seg('hh')).toHaveValue('8');
+    expect(seg('mm')).toHaveValue('30');
+  });
+});
+

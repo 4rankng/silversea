@@ -483,6 +483,7 @@ dispatchPlanningRoutes.patch(
       plannedEndAt: parsed.data.plannedEndAt,
       classification: parsed.data.classification,
       isCombined: parsed.data.isCombined,
+      rigOverlapCompletedConfirmed: parsed.data.rigOverlapCompletedConfirmed === true,
       operationalNotes: parsed.data.operationalNotes,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },

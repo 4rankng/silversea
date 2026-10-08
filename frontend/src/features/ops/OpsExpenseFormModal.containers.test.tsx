@@ -11,8 +11,13 @@ import { OpsExpenseFormModal, opsContainerId } from './OpsExpenseFormModal';
 // choice must survive Loại phí / Nhóm chi phí edits, a no-container submit
 // must never serialize container 0, and suggestion chips fill Tên khoản chi —
 // not the expense-type field.
-const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
+const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), getExpenseWriteScope: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
+
+// Null by default so the unauthed suites never trigger the write-scope probe;
+// the card-071026210510 case swaps an OPS identity in.
+const authMock = vi.hoisted(() => ({ value: null as { user: { role: string } } | null }));
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => authMock.value }));
 
 const types = { items: [
   { id: 1, code: 'SOI_CHIEU', name: 'Phí soi chiếu', requiresInvoice: true },
@@ -62,9 +67,11 @@ async function chooseType(name: string) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  authMock.value = null;
   api.getExpenseTypes.mockResolvedValue(types);
   api.getExpensePhotos.mockResolvedValue({ items: [] });
   api.createExpense.mockResolvedValue(entry);
+  api.getExpenseWriteScope.mockResolvedValue({ writable: true, reason: null });
 });
 
 // Every case here drives a long interaction chain (open catalog menu, choose a
@@ -160,5 +167,39 @@ describe('ops expense form — Số Cont persistence (audit c12 cluster A)', { t
     fireEvent.change(screen.getByLabelText('Thực thu (thu khách)'), { target: { value: '250000' } });
     expect(save).toBeEnabled();
     expect(api.createExpense).not.toHaveBeenCalled();
+  });
+});
+
+describe('card 071026210510 — the expense dialog answers the grant before input', () => {
+  it('an OPS without the grant sees the backend refusal on open, with Lưu disabled', async () => {
+    authMock.value = { user: { role: 'OPS' } };
+    api.getExpenseWriteScope.mockResolvedValue({
+      writable: false,
+      reason: 'Lô này không thuộc xe bạn phụ trách. Liên hệ Quản trị viên để được gán xe.',
+    });
+    show();
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('không thuộc xe bạn phụ trách');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled());
+    expect(api.createExpense).not.toHaveBeenCalled();
+  });
+
+  it('a granted OPS sees no refusal and keeps the form as it was', async () => {
+    authMock.value = { user: { role: 'OPS' } };
+    api.getExpenseWriteScope.mockResolvedValue({ writable: true, reason: null });
+    show();
+    await screen.findByLabelText(/Số Bill/);
+    await waitFor(() => expect(api.getExpenseWriteScope).toHaveBeenCalledWith(8));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('a probe failure never blocks the form — the save-time guard stays the backstop', async () => {
+    authMock.value = { user: { role: 'OPS' } };
+    api.getExpenseWriteScope.mockRejectedValue(new Error('network down'));
+    show();
+    await screen.findByLabelText(/Số Bill/);
+    await waitFor(() => expect(api.getExpenseWriteScope).toHaveBeenCalled());
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled(); // form invalid, not blocked — filling it enables Lưu
   });
 });

@@ -44,13 +44,25 @@
   min-width: 0;
 }
 
-/* Direct prefix-date/search feedback follows the control in normal flow.
- * Align that state at the control's top so the helper cannot drag sibling
- * controls down to its last line. Normal labelled stacks keep flex-end. */
-.filter-bar:has(> .date-range-fields .uui-date-hint--error),
-.filter-bar:has(> [data-input-wrapper] > .date-seg-group ~ .uui-date-hint--error),
-.filter-bar:has(> .filter-bar__search-cell > .filter-bar__search-error) {
-  align-items: flex-start;
+/* Validation is an anchored popover: it never changes toolbar geometry.
+   Ordinary form helpers keep their normal-flow layout. */
+.filter-bar [data-input-wrapper],
+.filter-bar__search-cell { position: relative; }
+
+.filter-bar .uui-date-hint--error,
+.filter-bar__search-error {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  left: 0;
+  z-index: var(--z-popover);
+  width: max-content;
+  max-width: min(260px, 100%);
+  padding: var(--space-sm);
+  border: var(--border) solid var(--danger-text);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--danger-text);
+  overflow-wrap: anywhere;
 }
 
 /* The shared toolbar surface: one card around the whole strip. */

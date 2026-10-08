@@ -198,10 +198,8 @@
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .page-title { font-size: var(--text-title-size); }
 
-  /* ── Trip hero / metric-strip on tablet ── */
+  /* ── Metric strip on tablet ── */
   .metric-strip--cols-3 { grid-template-columns: 1fr; }
-  .trip-hero__title { font-size: var(--text-title-size); }
-  .trip-hero__actions { flex-wrap: wrap; }
   .detail-grid { grid-template-columns: 1fr; gap: 0; }
 }
 
@@ -446,7 +444,10 @@
   .confirm-overlay {
     padding: 0;
     align-items: flex-end;
-    background: rgba(10, 10, 10, 0.45);
+    /* Card 20261002_277 sweep (03/10): the phone band kept its own lighter
+       rgba after the scrim went to the shared token — same too-light defect
+       class on the same surface. Blur stays per-family. */
+    background: var(--scrim-modal);
     backdrop-filter: blur(6px);
   }
   .confirm-box {
@@ -565,17 +566,6 @@
   .subsection-card { padding: 12px 14px; border-radius: 10px; }
   .subsection-card__title { font-size: var(--fs-2xs); }
 
-  /* ── trip-hero (new) — tighter padding, smaller title ── */
-  .trip-hero { padding: 14px 16px 12px; border-radius: 14px; gap: 10px; margin-bottom: 12px; }
-  .trip-hero__title { font-size: var(--text-title-size); }
-  .trip-hero__crumb { font-size: var(--fs-2xs); }
-  .trip-hero__chip { font-size: var(--fs-xs); padding: 4px 9px; }
-  .trip-hero__chip svg { width: 13px; height: 13px; }
-  .trip-hero__actions { padding-top: 10px; gap: 6px; }
-  .trip-hero__actions .btn { flex: 1 1 auto; min-width: 0; justify-content: center; min-height: var(--control-touch-h); }
-  .trip-hero__actions-divider { display: none; }
-  .trip-hero__actions-spacer { display: none; }
-  .trip-hero__warn { font-size: var(--fs-2xs); padding: 3px 7px; }
 
   /* ── detail-grid (new) — single col on phone ── */
   .detail-grid { grid-template-columns: 1fr; gap: 0; }
@@ -691,13 +681,13 @@
    operator ruling (case QA-2026-09-26-03 residuals). */
 @media (pointer: coarse) {
   #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
-  #root button,
-  #root [role='button'],
-  #root input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']),
-  #root select,
-  #root textarea { min-height: var(--control-touch-h); }
-  #root button,
-  #root [role='button'] { min-width: var(--control-touch-h); }
+  :is(#root, body) button,
+  :is(#root, body) [role='button'],
+  :is(#root, body) input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']),
+  :is(#root, body) select,
+  :is(#root, body) textarea { min-height: var(--control-touch-h); }
+  :is(#root, body) button,
+  :is(#root, body) [role='button'] { min-width: var(--control-touch-h); }
   /* Table-cell links: `a` defaults to display:inline where min-height is
      IGNORED — the 68 inline table links measured 15px tall (2026-09-26
      sweep). inline-flex makes the floor real; rows grow on touch, which is

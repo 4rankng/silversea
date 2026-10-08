@@ -252,8 +252,23 @@ export interface DispatchDetailPlanFilters {
   customerId?: number | null; dataStatus?: 'COMPLETE' | 'MISSING' | ''; // card _50 ribbon
 }
 
+/** Chip counts of the detail plan grid (card 20261008_3) — full-set over the
+ *  UNION of both row branches (fulfillment + điều phối), every other filter
+ *  held. UNASSIGNED includes the inherently-unassigned điều phối branch;
+ *  ASSIGNED counts fulfillment rows with a planned plate. `UNASSIGNED +
+ *  ASSIGNED` partitions `total`. */
+export interface DispatchDetailPlanAssignmentCounts {
+  UNASSIGNED: number;
+  ASSIGNED: number;
+}
+
+/** One page of the detail plan grid — the rows plus the chips' union counts. */
+export interface DispatchDetailPlanPage extends PaginatedResponse<DispatchDetailPlanRow> {
+  assignmentStatusCounts: DispatchDetailPlanAssignmentCounts;
+}
+
 export function listDispatchDetailPlanRows(filters: { page?: number; limit?: number } & DispatchDetailPlanFilters = {}) {
-  return api.get<PaginatedResponse<DispatchDetailPlanRow>>(
+  return api.get<DispatchDetailPlanPage>(
     `/shipments/dispatch-detail-plan-rows?${queryString(filters as Record<string, string | number | Array<string> | boolean | null | undefined>)}`,
   );
 }

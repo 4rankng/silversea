@@ -21,6 +21,7 @@ vi.mock('../../api/shipmentClient', async (importOriginal) => {
     listAdminOperationalSites: vi.fn(),
     updateAdminOperationalSite: vi.fn(),
     createOperationalSite: vi.fn(),
+    deleteAdminOperationalSite: vi.fn(),
   };
 });
 
@@ -39,6 +40,7 @@ vi.mock('../../api/configClient', async (importOriginal) => {
 const listMock = vi.mocked(shipmentClientModule.listAdminOperationalSites);
 const updateMock = vi.mocked(shipmentClientModule.updateAdminOperationalSite);
 const createSiteMock = vi.mocked(shipmentClientModule.createOperationalSite);
+const deleteSiteMock = vi.mocked(shipmentClientModule.deleteAdminOperationalSite);
 const routesMock = vi.mocked(configClientModule.configClient.getRoutesList);
 const customersMock = vi.mocked(configClientModule.configClient.getAllCustomers);
 
@@ -101,6 +103,37 @@ beforeEach(() => {
 });
 
 describe('FactoriesConfigPage', () => {
+  it('shows address and named phone values directly and edits the default contact list', { timeout: 15000 }, async () => {
+    const contacts = [{ name: 'Cổng kho', phone: '0901234567', isDefault: true }, { name: 'Điều phối', phone: '0907654321', isDefault: false }];
+    listMock.mockResolvedValue([{ ...factory, contacts }]);
+    renderPage();
+    await screen.findByText('Nhà máy A');
+    expect(screen.getByText('KCN Đình Vũ')).toBeVisible();
+    expect(screen.getByText('0907654321')).toBeVisible();
+    expect(document.querySelector('.factory-record-details details')).toBeNull();
+    fireEvent.click(screen.getByTitle('Sửa điểm vận hành'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Tên liên hệ 2' }), { target: { value: 'Điều phối mới' } });
+    fireEvent.click(within(dialog).getAllByRole('radio')[1]);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa liên hệ 1' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cập nhật' }));
+    await waitFor(() => expect(updateMock).toHaveBeenCalledOnce());
+    expect(updateMock).toHaveBeenCalledWith(11, expect.objectContaining({ contacts: [{ name: 'Điều phối mới', phone: '0907654321', isDefault: true }] }));
+  });
+
+  it('preserves a legacy named contact with no phone on unrelated metadata edits', async () => {
+    listMock.mockResolvedValue([{ ...factory, contactPhone: null, contacts: [] }]);
+    renderPage();
+    await screen.findByText('Nhà máy A');
+    expect(screen.getByText('Anh Tùng · Chưa có số điện thoại')).toBeVisible();
+    fireEvent.click(screen.getByTitle('Sửa điểm vận hành'));
+    fireEvent.change(await screen.findByDisplayValue('Nhà máy A'), { target: { value: 'Nhà máy A sửa tên' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
+    await waitFor(() => expect(updateMock).toHaveBeenCalledOnce());
+    expect(updateMock.mock.calls[0][1]).not.toHaveProperty('contacts');
+    expect(updateMock.mock.calls[0][1].contactName).toBe('Anh Tùng');
+  });
+
   it('lists sites with customer, type, route and status', async () => {
     renderPage();
     expect(await screen.findByText('Nhà máy A')).toBeTruthy();
@@ -113,10 +146,74 @@ describe('FactoriesConfigPage', () => {
     expect(listMock).toHaveBeenCalledOnce();
   });
 
+  // Card 20261004_324: the TRẠNG THÁI pill wore a stray pencil glyph at its
+  // right edge — the action run's start-edge overflow painting over the status
+  // cell (mechanism + budgets pinned in config-action-glyph-bleed.styles.test.ts).
+  // These DOM pins hold the two cells' contents apart: the status cell is clean
+  // text and nothing else, and both real action affordances stay whole in the
+  // action cell (no clipping fix — design law §4).
+  it('keeps the status cell clean text and both row actions whole in their own cell', async () => {
+    renderPage();
+    await screen.findByText('Nhà máy A');
+    const rows = document.querySelectorAll('.factories-table tbody tr:not(.cfg-empty-row)');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const statusCell = row.querySelector('td[data-label="Trạng thái"]') as HTMLElement;
+      expect(statusCell.querySelector('svg, button, .row-action, .row-actions')).toBeNull();
+      expect(['Đang dùng', 'Đã ngưng']).toContain(statusCell.textContent?.trim());
+      const actionCell = row.querySelector('td.record-table__action') as HTMLElement;
+      expect(actionCell.querySelector('button[title="Sửa điểm vận hành"] svg')).not.toBeNull();
+      expect(actionCell.querySelector('button[title="Xóa nhà máy / kho"] svg')).not.toBeNull();
+    }
+  });
+
   it('explains how to create the first site when the catalog is empty', async () => {
     listMock.mockResolvedValue([]);
     renderPage();
     expect(await screen.findByText(/Dùng nút "Tạo mới" hoặc form nhận lô của CUS/)).toBeTruthy();
+  });
+
+  // Card 20261004_333 — a failed list fetch must never masquerade as an empty
+  // catalog. Before the fix the page coalesced `sitesQuery.data ?? []` and
+  // branched on `isLoading` only, so a query error fell through to "0 mục" +
+  // "Chưa có nhà máy / kho nào…" — indistinguishable from a genuinely empty
+  // catalog. The error state names the failure and offers "Thử lại" → refetch.
+  it('shows the fetch-error state with retry instead of the empty catalog when the list query fails', async () => {
+    listMock.mockRejectedValueOnce(new Error('GET /api/shipments/operational-sites/admin failed'));
+    renderPage();
+
+    expect(await screen.findByText('Không thể tải danh sách nhà máy / kho', undefined, { timeout: 3000 })).toBeVisible();
+    // Never the "0 mục" summary nor the true-empty copy while the query errors.
+    expect(document.querySelector('.cfg-page__summary')).toBeNull();
+    expect(screen.queryByText(/Chưa có nhà máy \/ kho nào/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Không tìm thấy nhà máy/)).not.toBeInTheDocument();
+
+    // "Thử lại" calls refetch — the next successful fetch renders the rows.
+    listMock.mockResolvedValue([factory]);
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText('Nhà máy A')).toBeVisible();
+    expect(listMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps the true-empty state only when the query succeeded with zero items', async () => {
+    listMock.mockResolvedValue([]);
+    renderPage();
+    expect(await screen.findByText(/Chưa có nhà máy \/ kho nào/)).toBeVisible();
+    // Success + 0 items is NOT an error: no error alert, summary reads "0 mục".
+    expect(screen.queryByText('Không thể tải danh sách nhà máy / kho')).not.toBeInTheDocument();
+    expect(document.querySelector('.cfg-page__summary')?.textContent).toContain('0');
+  });
+
+  it('keeps "Đang tải…" while the list query is still pending', async () => {
+    // Never-settling query. Executor form is required here: the repo's tsconfig
+    // lib predates `Promise.withResolvers` (TS2550), and the resolvers are
+    // deliberately never invoked.
+    const pendingForever = new Promise<never>(() => {});
+    listMock.mockReturnValue(pendingForever);
+    renderPage();
+    expect(await screen.findByText('Đang tải…')).toBeVisible();
+    expect(screen.queryByText(/Chưa có nhà máy \/ kho nào/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Không thể tải danh sách nhà máy / kho')).not.toBeInTheDocument();
   });
 
   it('matches Vietnamese terms without accents and recovers from no results', async () => {
@@ -182,7 +279,7 @@ describe('FactoriesConfigPage', () => {
     expect(updateMock).toHaveBeenCalledWith(11, expect.objectContaining({
       expectedVersion: 3,
       name: 'Nhà máy A — renamed',
-      routeId: 7,
+      contacts: [expect.objectContaining({ phone: factory.contactPhone })],
     }));
   });
 
@@ -227,5 +324,44 @@ describe('FactoriesConfigPage filter strip', () => {
     expect(source).not.toContain('maxWidth: 280');
     expect(source).not.toContain('maxWidth: 240');
     expect(source).not.toContain("style={{ flex: 1 }}");
+  });
+
+  // Card 20261002_263 (R29) — mutating test: taps ONE named fixture row's Xóa
+  // action (title-contract read), then the modal's confirm button is the
+  // actual mutation tap. Mutates: 1 mocked site row via deleteAdminOperationalSite.
+  it('deletes a site after the confirm modal answers', async () => {
+    listMock.mockResolvedValue([factory]);
+    deleteSiteMock.mockResolvedValue({ ok: true });
+    renderPage();
+
+    // The list query is async — await the rows before any lookup.
+    const deleteButtons = await screen.findAllByTitle('Xóa nhà máy / kho');
+    fireEvent.click(deleteButtons[0]);
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Xóa Nhà máy A/)).toBeTruthy();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa' }));
+    await waitFor(() => {
+      expect(deleteSiteMock).toHaveBeenCalledWith(factory.id);
+    });
+    await waitFor(() => {
+      expect(listMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('keeps the confirm open and shows the business message on 409', async () => {
+    listMock.mockResolvedValue([factory]);
+    deleteSiteMock.mockRejectedValue(new Error('Không thể xóa: nhà máy đang có lô hàng còn hiệu lực sử dụng.'));
+    renderPage();
+
+    const deleteButtons = await screen.findAllByTitle('Xóa nhà máy / kho');
+    fireEvent.click(deleteButtons[0]);
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa' }));
+    expect(await screen.findByText(/lô hàng còn hiệu lực/)).toBeTruthy();
+    // The dialog stays open so the operator reads the message in place.
+    expect(screen.getByRole('dialog')).toBeTruthy();
   });
 });

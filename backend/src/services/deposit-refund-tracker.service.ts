@@ -1,9 +1,9 @@
-import { and, asc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { insertTreasuryMovement } from './treasury.service';
 import { ApiError } from '../errors';
-import { expenseDateSchema, expenseVndSchema, TxnType } from '@tingting/shared';
+import { expenseDateSchema, expenseVndSchema, round2dp, TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { requireExpenseFinance } from './expense-accounting-write.service';
@@ -72,16 +72,21 @@ export interface CvOverdueRow {
   status: string;
   cvSubmittedDate: string | null;
   createdAt: Date;
+  /** Ngày cược (card 051026231522) — the 7-day anchor when the row carries
+   *  one; rows predating the column fall back to createdAt. */
+  depositDate?: string | null;
 }
 
 export function isCvOverdue(row: CvOverdueRow, now: Date = new Date()): boolean {
   if (row.status !== 'CHUA_HOAN_CUOC' || row.cvSubmittedDate != null) return false;
-  const createdDay = vnCalendarDate(row.createdAt);
+  // Card 051026231522: anchor = row.depositDate ?? row.createdAt — the deposit
+  // day when known, the legacy createdAt day otherwise (unchanged old math).
+  const anchorDay = row.depositDate ?? vnCalendarDate(row.createdAt);
   const todayDay = vnCalendarDate(now);
   const diff = Math.round((Date.UTC(
     Number(todayDay.slice(0, 4)), Number(todayDay.slice(5, 7)) - 1, Number(todayDay.slice(8, 10)),
   ) - Date.UTC(
-    Number(createdDay.slice(0, 4)), Number(createdDay.slice(5, 7)) - 1, Number(createdDay.slice(8, 10)),
+    Number(anchorDay.slice(0, 4)), Number(anchorDay.slice(5, 7)) - 1, Number(anchorDay.slice(8, 10)),
   )) / 86_400_000);
   return diff > CV_OVERDUE_DAYS;
 }
@@ -127,26 +132,134 @@ function buildWarnings(rows: Array<typeof s.depositRefundTrackers.$inferSelect>)
   };
 }
 
+export interface DepositWeekRow {
+  weekStart: string;
+  label: string;
+  count: number;
+  depositAmount: number;
+  refundedAmount: number;
+}
+
+export interface DepositWeeklySummary {
+  weeks: DepositWeekRow[];
+  totals: { count: number; depositAmount: number; refundedAmount: number };
+}
+
+/** Monday (YYYY-MM-DD) of the ISO calendar day's Mon–Sun week. */
+function mondayOf(isoDay: string): string {
+  const date = new Date(`${isoDay}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+  return date.toISOString().slice(0, 10);
+}
+
+/** "Tổng quát về tiền" weekly container-deposit series (REQ-5.10-01): one row
+ *  per Mon–Sun calendar week covering [from,to], empty weeks zeroed. The weeks
+ *  run full (weekStart stays the true Monday) but INCLUSION is clamped to the
+ *  range edges per series' own day: count + depositAmount bucket by createdAt,
+ *  refundedAmount (only ĐÃ-hoàn-cược rows) buckets by
+ *  COALESCE(refundPostedAt, updatedAt) — each counted only when that day falls
+ *  inside [from,to]. Totals are exactly the sums of the week rows. */
+export async function getDepositWeeklySummary(actor: ExpenseActor, filters: { from: string; to: string }): Promise<DepositWeeklySummary> {
+  requireExpenseFinance(actor);
+  expenseDateSchema.parse(filters.from);
+  expenseDateSchema.parse(filters.to);
+  if (filters.from > filters.to) throw new ApiError(400, 'Ngày từ phải trước hoặc bằng ngày đến.');
+  const { from, to } = filters;
+  const fromStart = new Date(`${from}T00:00:00Z`);
+  const toEnd = new Date(`${to}T23:59:59.999Z`);
+  const rows = await db.select().from(s.depositRefundTrackers).where(or(
+    and(gte(s.depositRefundTrackers.createdAt, fromStart), lte(s.depositRefundTrackers.createdAt, toEnd)),
+    and(
+      eq(s.depositRefundTrackers.status, 'DA_HOAN_CUOC'),
+      or(
+        and(gte(s.depositRefundTrackers.refundPostedAt, fromStart), lte(s.depositRefundTrackers.refundPostedAt, toEnd)),
+        and(isNull(s.depositRefundTrackers.refundPostedAt), gte(s.depositRefundTrackers.updatedAt, fromStart), lte(s.depositRefundTrackers.updatedAt, toEnd)),
+      ),
+    ),
+  ));
+  const weeks: DepositWeekRow[] = [];
+  const firstWeekStart = mondayOf(from);
+  const lastWeekStart = mondayOf(to);
+  for (let weekStart = firstWeekStart; weekStart <= lastWeekStart; weekStart = addDays(weekStart, 7)) {
+    weeks.push({
+      weekStart,
+      label: `Tuần ${weekStart.slice(8, 10)}/${weekStart.slice(5, 7)}`,
+      count: 0, depositAmount: 0, refundedAmount: 0,
+    });
+  }
+  // Week position of a day inside [from,to]: whole days since the first Monday
+  // divided by 7 — the sorted weeks array IS the lookup table.
+  const dayIndex = (isoDay: string) => Date.parse(`${isoDay}T00:00:00Z`) / 86_400_000;
+  const firstWeekIndex = dayIndex(firstWeekStart);
+  for (const row of rows) {
+    const amount = Number(row.depositAmount);
+    const createdDay = row.createdAt.toISOString().slice(0, 10);
+    if (createdDay >= from && createdDay <= to) {
+      const week = weeks[Math.floor((dayIndex(createdDay) - firstWeekIndex) / 7)]!;
+      week.count += 1;
+      week.depositAmount += amount;
+    }
+    if (row.status === 'DA_HOAN_CUOC') {
+      const postedDay = (row.refundPostedAt ?? row.updatedAt).toISOString().slice(0, 10);
+      if (postedDay >= from && postedDay <= to) {
+        weeks[Math.floor((dayIndex(postedDay) - firstWeekIndex) / 7)]!.refundedAmount += amount;
+      }
+    }
+  }
+  for (const week of weeks) {
+    week.depositAmount = round2dp(week.depositAmount);
+    week.refundedAmount = round2dp(week.refundedAmount);
+  }
+  return {
+    weeks,
+    totals: {
+      count: weeks.reduce((sum, week) => sum + week.count, 0),
+      depositAmount: round2dp(weeks.reduce((sum, week) => sum + week.depositAmount, 0)),
+      refundedAmount: round2dp(weeks.reduce((sum, week) => sum + week.refundedAmount, 0)),
+    },
+  };
+}
+
 export async function createDepositTracker(actor: ExpenseActor, input: {
   shipmentId?: number | null; billNumber: string; customerName: string; carrierName: string;
   depositAmount: number | string; cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
+  /** Ngày cược (card 051026231522) — dd/mm/yy or ISO; nullable. */
+  depositDate?: string | null;
+  /** Default CHUA_HOAN_CUOC. DA_HOAN_CUOC at create composes the ĐÃ-hoàn-cược
+   *  tick below in the same tx — the treasury posting runs exactly once. */
+  status?: DepositStatus;
 }, conn: typeof db | Tx = db): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
   const amount = Number(input.depositAmount);
   if (!expenseVndSchema.safeParse(amount).success || amount <= 0) throw new ApiError(400, 'Số tiền cược phải là số nguyên dương.');
   const cvDate = input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : null;
   const expectedDate = input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : (cvDate ? addDays(cvDate, 14) : null);
-  const [row] = await conn.insert(s.depositRefundTrackers).values({
-    shipmentId: input.shipmentId ?? null,
-    billNumber: input.billNumber.trim(),
-    customerName: input.customerName.trim(),
-    carrierName: input.carrierName.trim(),
-    depositAmount: String(amount),
-    cvSubmittedDate: cvDate,
-    expectedRefundDate: expectedDate,
-    note: input.note?.trim() || null,
-  }).returning();
-  return row;
+  const depositDate = input.depositDate ? normalizeDepositDate(input.depositDate) : null;
+  const run = async (tx: Tx) => {
+    const [row] = await tx.insert(s.depositRefundTrackers).values({
+      shipmentId: input.shipmentId ?? null,
+      billNumber: input.billNumber.trim(),
+      customerName: input.customerName.trim(),
+      carrierName: input.carrierName.trim(),
+      depositAmount: String(amount),
+      depositDate,
+      cvSubmittedDate: cvDate,
+      expectedRefundDate: expectedDate,
+      note: input.note?.trim() || null,
+    }).returning();
+    // Trạng thái ĐÃ hoàn cược at create: the collection posts into the
+    // company fund through the standing treasury engine — never a hand-rolled
+    // money movement. Insert + posting share one transaction, and the
+    // movement guard inside markDepositRefunded keeps it exactly-once.
+    return input.status === 'DA_HOAN_CUOC'
+      ? markDepositRefunded(actor, row.id, tx, amount)
+      : row;
+  };
+  // Invariant: a non-default `conn` is always a caller transaction (the only
+  // call shapes are `createDepositTracker(actor, input)` and `…(actor, input,
+  // tx)`), so the DA composition joins that transaction; the pool default
+  // opens one to keep insert + posting atomic.
+  return conn === db ? db.transaction(run) : run(conn as Tx);
 }
 
 /** KT fills/edits the CV date; the expected refund date defaults to CV + 14
@@ -199,6 +312,10 @@ export async function recordDepositFromIntake(input: {
     customerName: input.customerName.trim(),
     carrierName: input.carrierName.trim(),
     depositAmount: String(amount),
+    // Ngày cược = the VN calendar day the row lands (card 051026231522) — the
+    // intake day is the deposit day; KT may correct it later if the customer
+    // deposited on another day.
+    depositDate: vnCalendarDate(new Date()),
   }).returning();
   if (Number(row.depositAmount) === 0) {
     await conn.update(s.depositRefundTrackers).set({ depositAmount: '0' }).where(eq(s.depositRefundTrackers.id, row.id));

@@ -333,8 +333,10 @@ class ApiClient {
     const res = await fetch(`${API_BASE}${url}`, { headers });
     this.handleSessionExpiry(res, token);
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new ApiError(res.status, null, text || `Request failed: ${res.status}`);
+      // Card 368: delegate to the shared normalizer (card 348) so non-JSON
+      // bodies (HTML error pages, proxy failures) become status-aware
+      // messages instead of leaking the raw body as err.message.
+      throw await ApiError.fromResponse(res);
     }
     return res.text();
   }
@@ -348,8 +350,10 @@ class ApiClient {
     const res = await fetch(`${API_BASE}${url}`, { headers });
     this.handleSessionExpiry(res, token);
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new ApiError(res.status, null, text || `Request failed: ${res.status}`);
+      // Card 368: delegate to the shared normalizer (card 348) so non-JSON
+      // bodies (HTML error pages, proxy failures) become status-aware
+      // messages instead of leaking the raw body as err.message.
+      throw await ApiError.fromResponse(res);
     }
     return res.blob();
   }
@@ -369,8 +373,10 @@ class ApiClient {
     });
     this.handleSessionExpiry(res, token);
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new ApiError(res.status, null, text || `Request failed: ${res.status}`);
+      // Card 368: delegate to the shared normalizer (card 348) so non-JSON
+      // bodies (HTML error pages, proxy failures) become status-aware
+      // messages instead of leaking the raw body as err.message.
+      throw await ApiError.fromResponse(res);
     }
     return res.blob();
   }
@@ -390,8 +396,10 @@ class ApiClient {
     });
     this.handleSessionExpiry(res, token);
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new ApiError(res.status, null, text || `Request failed: ${res.status}`);
+      // Card 368: delegate to the shared normalizer (card 348) so non-JSON
+      // bodies (HTML error pages, proxy failures) become status-aware
+      // messages instead of leaking the raw body as err.message.
+      throw await ApiError.fromResponse(res);
     }
     return res.text();
   }

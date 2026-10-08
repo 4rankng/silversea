@@ -8,6 +8,8 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { reassignTruckDriverInTx } from './truck-driver-assignment.service';
 import { lockDriverRowForUpdate, lockTrailerRow, lockTruckRow } from './application-relationship.service';
+import { ensureSupplierCarrierLink } from './supplier-carrier-link.service';
+import { normalizeSupplierTypes, SupplierType } from './supplier-types.service';
 import {
   blockedRow,
   cellsForRow,
@@ -92,6 +94,25 @@ export interface CustomerPayload {
   email: string | null;
   paymentTermChiHoDays: number | null;
   paymentTermCuocDays: number | null;
+}
+
+/**
+ * The workbook's "Nhà xe" sheet — subcontractor trucking companies. These are
+ * NOT customers: they apply as a CARRIER-typed supplier, and the carrier link
+ * service mirrors each one into the `customers.isCarrier` row every "Chọn nhà
+ * xe" dropdown reads. Column layout mirrors the customer's sheet (and
+ * tools/generate-prod-master-data.py:extract_carriers, the only other reader
+ * of this sheet): name, shortName, code, taxCode, address, director, phone.
+ */
+export interface CarrierPayload {
+  kind: 'carrier';
+  name: string;
+  shortName: string | null;
+  code: string | null;
+  taxCode: string | null;
+  address: string | null;
+  contactPerson: string | null;
+  phone: string | null;
 }
 
 export interface RoutePayload {
@@ -215,6 +236,41 @@ export function parseCustomersV2(workbook: ExcelJS.Workbook, rows: ParsedRow[]):
     };
     rows.push(classifiedRow({
       sheetName: sheet.name, rowNumber, entityType: 'customer', classification: 'ACCEPTED',
+      naturalKey: taxCode ? `TAX:${normalizeIdentifier(taxCode)}` : `CODE:${normalizeLookup(code || name)}`,
+      payload, reasonCode: null, redactedReason: null,
+    }));
+  }
+}
+
+/**
+ * The "Nhà xe" sheet. Before 2026-10-03 the sheet name sat in `knownSheets`
+ * with no parser behind it, so the whole sheet parsed to zero rows with zero
+ * warnings — a silent data loss the customer reported as the carrier list
+ * being wrong. It now yields `carrier` rows that apply as CARRIER-typed
+ * suppliers, which is where a nhà xe is administered.
+ */
+export function parseCarriersV2(workbook: ExcelJS.Workbook, rows: ParsedRow[]): void {
+  const sheet = workbook.getWorksheet('Nhà xe');
+  if (!sheet) return;
+  const last = lastRelevantRow(sheet, 3, [1, 2, 3, 4]);
+  for (let rowNumber = 3; rowNumber <= last; rowNumber += 1) {
+    const { values, hasFormula } = cellsForRow(sheet, rowNumber, [1, 2, 3, 4, 5, 6, 7]);
+    const [name, shortName, code, taxCode, address, director, phone] = values;
+    if (!values.some(Boolean)) { rows.push(templateRow(sheet.name, rowNumber, 'carrier')); continue; }
+    if (hasFormula) { rows.push(blockedRow(sheet.name, rowNumber, 'carrier', 'FORMULA_NOT_ALLOWED', 'Ô dữ liệu chứa công thức và không được phép nhập.')); continue; }
+    if (!name) { rows.push(blockedRow(sheet.name, rowNumber, 'carrier', 'MISSING_REQUIRED_FIELDS', 'Thiếu tên nhà xe.')); continue; }
+    const payload: CarrierPayload = {
+      kind: 'carrier',
+      name,
+      shortName: shortName || code || null,
+      code: code || null,
+      taxCode: taxCode || null,
+      address: address || null,
+      contactPerson: director || null,
+      phone: phone || null,
+    };
+    rows.push(classifiedRow({
+      sheetName: sheet.name, rowNumber, entityType: 'carrier', classification: 'ACCEPTED',
       naturalKey: taxCode ? `TAX:${normalizeIdentifier(taxCode)}` : `CODE:${normalizeLookup(code || name)}`,
       payload, reasonCode: null, redactedReason: null,
     }));
@@ -464,6 +520,50 @@ export async function applyReferenceEntities(
     await tx.update(s.masterImportRowResults).set({ appliedEntityType: 'customer', appliedEntityId: entity.id })
       .where(eq(s.masterImportRowResults.id, persistedBySource.get(`${row.sheetName}:${row.rowNumber}`)!.id));
     increment(counts, 'customer');
+  }
+
+  // Carriers land as CARRIER-typed suppliers — the /suppliers screen is where
+  // a nhà xe is administered — and `ensureSupplierCarrierLink` mirrors each one
+  // into the `customers.isCarrier` row every "Chọn nhà xe" dropdown reads, so
+  // an imported carrier is indistinguishable from one created through the UI.
+  // CARRIER is ADDED to any existing types, never substituted: a supplier that
+  // is both a carrier and a fuel supplier stays both.
+  for (const row of parsed.rows.filter((candidate) => candidate.classification === 'ACCEPTED' && candidate.payload?.kind === 'carrier')) {
+    const payload = row.payload as CarrierPayload;
+    const [existing] = await tx.select().from(s.suppliers).where(and(
+      isNull(s.suppliers.deletedAt),
+      eq(sql`lower(btrim(${s.suppliers.name}))`, payload.name.trim().toLowerCase()),
+    )).limit(1);
+    const types = normalizeSupplierTypes([...(existing?.types ?? []), SupplierType.CARRIER]);
+    const values = {
+      name: payload.name,
+      shortName: payload.shortName ?? existing?.shortName ?? payload.name,
+      taxCode: payload.taxCode ?? existing?.taxCode ?? null,
+      phone: payload.phone ?? existing?.phone ?? null,
+      types,
+      // An existing primaryType survives only when it is still in the merged
+      // set; otherwise the row is being retyped as a carrier.
+      primaryType: existing?.primaryType && types.includes(existing.primaryType as SupplierType)
+        ? existing.primaryType
+        : SupplierType.CARRIER,
+      isFuelSupplier: types.includes(SupplierType.FUEL),
+      updatedAt: new Date(),
+    };
+    const supplier = existing
+      ? (await tx.update(s.suppliers).set(values).where(eq(s.suppliers.id, existing.id)).returning())[0]!
+      : (await tx.insert(s.suppliers).values({ ...values, status: 'ACTIVE' }).returning())[0]!;
+    const carrierCustomerId = await ensureSupplierCarrierLink(tx, supplier, null);
+    // `suppliers` has no address column; the "Nhà xe" sheet's address column
+    // belongs to the carrier record, so it is written there rather than dropped.
+    if (carrierCustomerId != null && payload.address) {
+      await tx.update(s.customers)
+        .set({ address: payload.address, updatedAt: new Date() })
+        .where(eq(s.customers.id, carrierCustomerId));
+    }
+    await tx.update(s.masterImportRowResults)
+      .set({ appliedEntityType: 'carrier', appliedEntityId: supplier.id })
+      .where(eq(s.masterImportRowResults.id, persistedBySource.get(`${row.sheetName}:${row.rowNumber}`)!.id));
+    increment(counts, 'carrier');
   }
 
   for (const row of parsed.rows.filter((candidate) => candidate.classification === 'ACCEPTED' && candidate.payload?.kind === 'route')) {

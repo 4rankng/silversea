@@ -43,7 +43,7 @@ const router = Router()
 
 /**
  * Three-state surcharge threshold confirmation (20260917_11, PRD
- * CuocPhiThietKeDB.md §8): the stored mode and the stored values must agree.
+ * CuocPhiThietKeDB.docx §8): the stored mode and the stored values must agree.
  *   UNSET → both values null (nothing customer-confirmed yet);
  *   NONE  → both values null (customer confirmed "no threshold");
  *   PCT   → pct set, abs null;
@@ -235,6 +235,41 @@ const supplierLinkedCustomerNameSortSql = sql`(
   where ${s.customers.id} = ${s.suppliers.linkedCustomerId}
 )`;
 
+// Card 071026141610: the customers status pills must count the WHOLE dataset.
+// The list endpoint is paginated and its envelope carries no statusCounts, so
+// the page could only ever show the loaded page's rows — the pills could not
+// add up to the total. Mirrors /suppliers/status-counts.
+//
+// Scoped EXACTLY like the customers list (card 2026-10-03: carriers are
+// administered on /suppliers, so the default list is the non-carrier
+// population). Without this `isCarrier: false` the counts would not reconcile
+// with the `total` the page already renders.
+//
+// Deliberately carries NO requireRoles guard, so its access is exactly the
+// casbin `config` read access the list itself has. Verified: DISPATCHER and
+// CUS both read GET /api/customers (200), so gating the census on the narrower
+// SCREEN_ROLES (ADMIN/MANAGER/ACCOUNTANT) would deny them the counts for a page
+// they can already open — recreating the very defect this card fixes.
+router.get(
+  '/customers/status-counts',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const rows = await db
+      .select({ status: s.customers.status, count: sql<number>`count(*)::int` })
+      .from(s.customers)
+      .where(and(isNull(s.customers.deletedAt), eq(s.customers.isCarrier, false)))
+      .groupBy(s.customers.status);
+    const byStatus: Record<string, number> = {};
+    let all = 0;
+    for (const row of rows) {
+      // status is nullable on the column; a NULL group still belongs to the
+      // whole-dataset total, so count it in `all` without inventing a key.
+      if (row.status != null) byStatus[row.status] = row.count;
+      all += row.count;
+    }
+    res.json({ all, active: byStatus['ACTIVE'] ?? 0, locked: byStatus['LOCKED'] ?? 0, byStatus });
+  }),
+);
+
 // Card _37 customers screen: drawer history + bulk ops resolve BEFORE the
 // CRUD sub-router; unhandled paths fall through via next().
 router.use('/customers', customersScreenRouter);
@@ -244,6 +279,12 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, { materia
   // now searchable too; the factory's contains-ILIKE covers full values
   // and last-4/5-char tails alike.
   searchableFields: ['shortName', 'name', 'taxCode', 'phone', 'contactPerson'],
+  // Carriers ("nhà xe") are customers rows flagged isCarrier, so an unfiltered
+  // list shows both populations gộp into one table — the 2026-10-03 report.
+  // The customer list is the non-carrier population by default; the carriers
+  // are administered on /suppliers, and `?isCarrier=true` stays available for
+  // the screens that must enumerate them.
+  booleanFilters: { isCarrier: false },
   sortableColumns: {
     name: operationalName(s.customers.shortName, s.customers.name),
     contactPerson: s.customers.contactPerson,
@@ -926,9 +967,13 @@ router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, { mat
 // ('ĐANG HOẠT ĐỘNG (TRANG NÀY)' was the reported anti-pattern). One grouped
 // census + per-carrier assigned-vehicle counts (trucks.carrier_id = the
 // supplier's linked customer), both scoped to live rows.
+// Card 071026141610: the ACCOUNTANT nav branch serves BOTH /customers and
+// /suppliers, but ACCOUNTANT was missing from this guard, so an accountant
+// loaded the directory and then got 403 on the counts — the KPI/stat cards
+// fell back to their 'Không thể tải số liệu' hint. Read-only census.
 router.get(
   '/suppliers/status-counts',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.DISPATCHER, Role.CUS),
   asyncHandler(async (_req: Request, res: Response) => {
     const [statusRows, vehicleRows] = await Promise.all([
       db.select({ status: s.suppliers.status, count: sql<number>`count(*)::int` })

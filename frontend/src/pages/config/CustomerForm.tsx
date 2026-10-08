@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Truck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import './config-page.css';
 import './customer-form.css';
 import { UuiSelectField } from '../../design-system';
@@ -54,10 +54,11 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
   );
   const [creditWarningThreshold, setCreditWarningThreshold] = useState(toThresholdPercent(item?.creditWarningThreshold));
   const [status, setStatus] = useState(item?.status || 'ACTIVE');
-  const [isCarrier, setIsCarrier] = useState(item?.isCarrier ?? false);
   const [debitNoteMode, setDebitNoteMode] = useState<Customer['debitNoteMode']>(item?.debitNoteMode ?? 'MONTHLY');
   const [debitNoteTemplateId, setDebitNoteTemplateId] = useState<number | null>(item?.debitNoteTemplateId ?? null);
-  const { data: templates } = useQuery<DebitNoteTemplate[]>({
+  // Card 20261004_333: a failed templates feed must not render as "no templates
+  // to pick" — surface the error with retry next to the field.
+  const { data: templates, isError: templatesFailed, isFetching: templatesFetching, refetch: reloadTemplates } = useQuery<DebitNoteTemplate[]>({
     queryKey: qk.catalogs.debitNoteTemplates,
     queryFn: () => configClient.getDebitNoteTemplates(),
     enabled: canEditTemplate,
@@ -153,23 +154,24 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-        <label className="flex items-center gap-2 cursor-pointer select-none text-sm">
-          <input
-            type="checkbox"
-            checked={isCarrier}
-            onChange={e => setIsCarrier(e.target.checked)}
-            style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
-          />
-          <Truck size={14} />
-          <span>Nhà xe (đối tác vận tải ngoài)</span>
-        </label>
-      </div>
 
       <Field label="Thông tin liên hệ khác / Địa chỉ">
         <textarea className="input" value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="SĐT, email, địa chỉ khác…" rows={3} style={{ resize: 'vertical' }} />
       </Field>
 
+      {canEditTemplate && templatesFailed && (
+        <p className="cfg-form-error" role="alert" style={{ gridColumn: '1 / -1' }}>
+          Không thể tải danh sách mẫu giấy báo nợ.{' '}
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={templatesFetching}
+            onClick={() => { void reloadTemplates(); }}
+          >
+            {templatesFetching ? 'Đang thử lại…' : 'Thử lại'}
+          </button>
+        </p>
+      )}
       {canEditTemplate ? <UuiSelectField
         label="Mẫu giấy báo nợ"
         value={debitNoteTemplateId === null || debitNoteTemplateId === undefined ? '' : String(debitNoteTemplateId)}
@@ -207,7 +209,6 @@ export function CustomerForm({ saving, item, error, onsave, oncancel }: {
             status,
             debitNoteMode,
             debitNoteTemplateId,
-            isCarrier,
           });
         }} disabled={saving || !name.trim()
           || (Boolean(creditWarningThreshold.trim()) && fromThresholdPercent(creditWarningThreshold) == null)

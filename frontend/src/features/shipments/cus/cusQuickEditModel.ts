@@ -11,7 +11,7 @@ import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import { CUS_SEARCH_PATTERN } from '@tingting/shared';
 import type { updateShipment, updateShipmentDeclaration } from '../../../api/shipmentClient';
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
-import { scheduleTime, type QuickEditDeclarationRow, type ShipmentQuickEditDraft } from './cusUtils';
+import { scheduleTime, type QuickEditDeclarationRow, type ShipmentQuickEditDraft, stripDecimalTrailingZeros } from './cusUtils';
 
 export type QuickEditField = ShipmentQuickEditDraft['field'];
 
@@ -130,7 +130,7 @@ export function buildQuickEditDraft(item: ShipmentCusWorkspaceListItem, field: Q
     shippingLineName: item.raw.shippingLineName ?? '',
     packageCount: item.raw.packageCount == null ? '' : String(item.raw.packageCount),
     packageType: item.raw.packageType ?? '',
-    cargoWeightKg: item.raw.cargoWeightKg ?? '',
+    cargoWeightKg: stripDecimalTrailingZeros(item.raw.cargoWeightKg),
     cargoVolumeCbm: item.raw.cargoVolumeCbm ?? '',
   };
 }

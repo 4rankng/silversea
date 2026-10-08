@@ -14,6 +14,7 @@ vi.mock('../../api/customerServiceFinanceClient', () => ({
 vi.mock('../../api/configClient', () => ({
   configClient: {
     getAllCustomers: vi.fn().mockResolvedValue([]),
+    getAllCarriers: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -119,5 +120,35 @@ describe('AccountingWorkspaceRoot transport register sort (URL-driven)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Doanh thu' }));
     await waitFor(() => expect(lastParams()).toMatchObject({ page: 1, sortBy: 'revenue', sortDir: 'desc' }));
     await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Doanh thu' }).getAttribute('aria-sort')).toBe('descending'));
+  });
+});
+
+// Card 20261002_285 AC1. RED-first: the strip's "Xóa bộ lọc" arms on
+// `hasActiveFilters`, which spans the search AND the four `Bộ lọc` criteria, but
+// it called the search-only reset — so a register filtered by nothing but
+// `customerId` rendered a clear button that changed nothing.
+describe('transport register strip reset clears every filter (card 20261002_285)', () => {
+  it('drops a secondary criterion that the search-only reset left behind', async () => {
+    renderRoot('/accounting?view=transport&customerId=7');
+    await waitFor(() => expect(lastParams()).toMatchObject({ customerId: 7 }));
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Doanh thu' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: /Xóa bộ lọc/ }));
+
+    await waitFor(() => expect(lastParams().customerId).toBeUndefined());
+  });
+
+  it('clears the search and the criteria together, and restarts on page 1', async () => {
+    renderRoot('/accounting?view=transport&search=TGHU&carrierId=3&page=4');
+    await waitFor(() => expect(lastParams()).toMatchObject({ search: 'TGHU', carrierId: 3, page: 4 }));
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Doanh thu' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: /Xóa bộ lọc/ }));
+
+    // One pass, not two: chaining the two resets would let the second overwrite
+    // the first (the card 20260927_152 stale-closure bug, one level up).
+    await waitFor(() => expect(lastParams()).toMatchObject({ page: 1 }));
+    expect(lastParams().carrierId).toBeUndefined();
+    expect(lastParams().search).toBeUndefined();
   });
 });

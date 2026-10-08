@@ -257,14 +257,15 @@ function listResponse(items = [row]) {
     limit: 20,
     total: items.length,
     totalPages: items.length ? 1 : 0,
-    pageSummary: {
+    // Card 081026093520: FULL-set tab counts (same filtered set as `total`,
+    // status lens excluded). Tests that pin count semantics override these.
+    statusCounts: {
       needsSchedule: items.filter((item) => item.operational.scheduleReadiness === 'WAITING_DATE').length,
       needsVehicle: items.filter((item) => ['WAITING_CARRIER', 'WAITING_PLATE'].includes(item.operational.vehicleReadiness)).length,
       waitingAccounting: items.filter((item) => (
-        item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE'
+        item.activeLock == null
+        && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
       )).length,
-      readyToLock: items.filter((item) => item.action.kind === 'LOCK' && item.action.enabled).length,
-      needsAttention: items.filter((item) => item.finance.isLoss || item.finance.hasPendingRecovery).length,
     },
     items,
   };
@@ -375,13 +376,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
 
-    // Card 20260926_47: the priority rail is the tab strip now — the same
-    // pageSummary numbers ride the tab counts, and the strip precedes the table.
+    // Card 20260926_47: the priority rail is the tab strip now — the API's
+    // full-set statusCounts ride the tab counts, and the strip precedes the table.
     const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
     for (const label of ['Tất cả', 'Chưa chốt lịch', 'Chờ điều xe', 'Chờ đối soát']) {
       expect(within(tablist).getByRole('tab', { name: new RegExp(label) })).toBeTruthy();
     }
-    expect(within(tablist).getAllByText('1')).toHaveLength(4);
+    expect(within(tablist).getByRole('tab', { name: /Tất cả/ }).textContent).toContain('1');
+    expect(tablist.textContent).not.toContain('(trang)');
     expect(tablist.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -808,6 +810,22 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-schedule-missing\s*\{[^}]*color:/);
     // The per-bucket status strip on the identity cell stays.
     expect(css).toMatch(/\.cus-dashboard-row \.status-strip\s*\{[^}]*pointer-events:\s*none;/);
+  });
+
+  // Owner ruling 03-10 (screenshot): hovering a shipment card highlighted the
+  // WHOLE card. The sheet carried `.cus-dashboard-row:hover > th, > td`, so every
+  // cell in the row lit and the cell actually under the pointer no longer read
+  // as the hovered one. The hover belongs to the cell alone.
+  it('CUS-HOVER-01 highlights the hovered cell, never the whole row', () => {
+    // Comments quote the removed rule verbatim, so assert against the sheet with
+    // comments stripped — otherwise the explanation of the fix fails the fix.
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    // No descendant-combinator row tint: that is the shape that lit every cell.
+    expect(rules).not.toMatch(/\.cus-dashboard-row:hover\s*>\s*(th|td)/);
+    expect(rules).not.toMatch(/\.cus-dashboard-row:hover[^{]*\{[^}]*background/);
+    // The cell under the pointer is what carries the hover, and only on a fine
+    // pointer — a touch browser keeps :hover stuck on the last-touched target.
+    expect(rules).toMatch(/@media \(hover: hover\) and \(pointer: fine\)\s*\{[^}]*\.cus-dashboard-table td:hover[^}]*background:\s*var\(--surface-2\)/);
   });
 
   it('CUS-OVERVIEW-03 retains a distinct recovery warning after deduplicating the missing-date signal', async () => {
@@ -1420,47 +1438,85 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText(/Container đã gắn chuyến xe TRIP-9/)).toBeTruthy();
   });
 
-  it('blocks Xóa lô while containers remain; deletes with the confirmed flow when clear (card 20260923_1)', { timeout: 15000 }, async () => {
-    // Trip-attached rows are blocked in the UI (card 20260923_1), so the
-    // clear-all path is exercised on detached lines — the guard itself is
-    // pinned by the dedicated trip-attached test above.
-    let containers = manageDetail.containers.map((line) => ({ ...line, tripId: null, tripStatus: null }));
+  it('allows Xóa lô directly when deletable=true even with containers remaining, resolving Catch-22 deadlock (cards 351, 352)', { timeout: 15000 }, async () => {
+    // Cards 351 & 352: Previously, "Xóa lô" required deleting all containers first,
+    // but deleting the last container was blocked by "Lô hàng phải có ít nhất một container".
+    // Now, clicking "Xóa lô" on a deletable lot immediately opens the confirmed delete modal
+    // (cascading all containers), eliminating the deadlock.
+    const containers = manageDetail.containers.map((line) => ({ ...line, tripId: null, tripStatus: null }));
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve({ ...manageDetail, containers })
         : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: { ...row.operational, deletable: true } }]))
     ));
-    apiPost.mockImplementation(((url: string) => {
-      const match = String(url).match(/\/containers\/(\d+)\/remove/);
-      if (match) {
-        const removedId = Number(match[1]);
-        containers = containers.filter((line) => line.id !== removedId);
-        return Promise.resolve({ removedId, shipmentVersion: 4 });
-      }
-      return Promise.resolve({});
-    }) as typeof apiPost);
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
     await screen.findByText('Trạng thái lô');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
-    // Containers present → inline error, no delete API call.
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa lô' }));
-    expect(await screen.findByText('Chưa xoá hết container — hãy xoá bớt/xoá hết container trước khi xoá lô')).toBeTruthy();
-
-    // Clear all three containers via the drawer removes → detail refetches empty.
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU1234567' }));
-    await waitFor(() => expect(within(drawer).queryByText('MSKU1234567')).toBeNull());
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' }));
-    await waitFor(() => expect(within(drawer).queryByText('MSKU7654321')).toBeNull());
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU2222333' }));
-    await waitFor(() => expect(within(drawer).queryByText('MSKU2222333')).toBeNull());
-
-    // Zero containers → the confirmed delete flow takes over (the action
-    // modal's reason textarea is the modal's stable signature).
+    // Containers present (3 containers) → no deadlock; confirmed delete flow opens immediately
     fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa lô' }));
     await waitFor(() => expect(document.querySelector('.cus-action-reason textarea')).toBeTruthy());
+  });
+
+  it('offers the lot-delete affordance to CUS on a deletable lot (card 071026204710)', async () => {
+    // The write guard is `requireRoles(Role.CUS)`, so CUS is the role the
+    // affordance is meant for.
+    const deletable = { ...row.operational, deletable: true };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers: [] })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
+    ));
+    authState.user.role = Role.CUS;
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
+  });
+
+  it('offers the lot-delete affordance to ADMIN, which the delete route now admits (card 071026204710)', async () => {
+    // The lead re-ruled this card: the delete is CUS **or** ADMIN — the route
+    // (cus-workspace.routes.ts:344) and the service guard
+    // (shipment-governance.service.ts:36) widened together. An earlier revision
+    // of this file hid the button from ADMIN to match the then-current guard,
+    // which would have left ADMIN able to delete via the API but unable to reach
+    // the control at all.
+    const deletable = { ...row.operational, deletable: true };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers: [] })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
+    ));
+    authState.user.role = Role.ADMIN;
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
+  });
+
+  it('hides the lot-delete affordance from roles the delete route refuses (card 071026204710)', async () => {
+    // The point of gating on the role rather than on `operational.deletable`
+    // alone: that flag is a data-state check (no live trip left on the lot) and
+    // carries no role, so an unlisted role must not be offered the action.
+    const deletable = { ...row.operational, deletable: true };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...manageDetail, containers: [] })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
+    ));
+    authState.user.role = Role.ACCOUNTANT;
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByText('Trạng thái lô');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    expect(within(drawer).queryByRole('button', { name: 'Xóa lô' })).toBeNull();
   });
 
   it('keeps Xóa lô reachable and states why a dispatched lot cannot be deleted (card 20260923_1)', async () => {
@@ -1749,6 +1805,23 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByRole('option', { name: 'Chưa xác định' })).toHaveAttribute('aria-disabled', 'true');
     fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
     expect(within(dialog).getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
+  });
+
+  it('names the custody select by its label alone, not value-then-label (card 071026204720)', async () => {
+    // The staging retest lot (TEST-LCL-362) rides null custody: the '' sentinel
+    // option is genuinely selected, so RAC composites the button name as
+    // value+label — "Chưa xác định Phơi phiếu". The null-state text stays the
+    // visible trigger content; the NAME must remain the field label.
+    apiGet.mockResolvedValueOnce(listResponse([{
+      ...row,
+      documentCustody: { status: null, label: null, available: true, editable: true },
+    }]));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(masterRowDetailButton());
+    const dialog = await screen.findByRole('dialog');
+    const trigger = await within(dialog).findByRole('button', { name: 'Phơi phiếu' });
+    expect(trigger.textContent).toContain('Chưa xác định');
   });
 
   it('states unavailable financial confirmation honestly instead of presenting it as pending', async () => {
@@ -2302,7 +2375,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('keeps the shipment drawer flat, compact, and honest about blocked actions', () => {
     expect(css).toMatch(/\.cus-shipment-drawer\s*\{[^}]*background:\s*var\(--surface\);/);
     expect(css).toMatch(/\.cus-container-table\s*\{[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
-    expect(css).toMatch(/\.cus-drawer-workflow__action--blocked::before\s*\{[^}]*background:\s*var\(--warning\);/);
+    // 20261004 drawer restyle (Untitled UI PRO consult, application/slideout-menus):
+    // the action row is a flat white section divided by a hairline — the old
+    // decorative ::before status rail and the tinted action box are retired.
+    // Blocked semantics stay in the reason text + the secondary-toned button.
+    expect(css).not.toMatch(/\.cus-drawer-workflow__action[^{]*::before/);
+    expect(css).toMatch(/\.cus-drawer-workflow__action\s*\{[^}]*border-top:\s*1px solid var\(--line\);[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.cus-shipment-drawer \.drawer__foot\s*\{[^}]*background:\s*var\(--surface\);/);
+    expect(css).not.toMatch(/\.cus-shipment-drawer \.drawer__body\s*\{[^}]*padding:\s*0 0 \d+px/);
     expect(source).toContain("color={item.action.enabled ? 'primary' : 'secondary'}");
   });
 
@@ -2404,13 +2484,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
   // Card 20260927_67 (5). The three-way reading of the CUS surface:
   // solid grey = neutral/empty, outlined = identifier, peach = warning.
-  it('reads badge colour as role: outline for identifiers, peach only for warning', () => {
+  it('reads static classifications as plain text, reserving peach for warnings', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
-    // Xuất/Nhập and Đóng kết hợp are classifications, so both take the outline.
+    // Xuất/Nhập and Đóng kết hợp are plain classifications per the owner session ruling.
     // The two direction modifiers share one rule, so match the whole block.
-    const outlineBlock = css.match(/\.cus-direction-badge--import,[\s\S]*?\.cus-direction-badge--export\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(outlineBlock).toMatch(/border:\s*1px solid var\(--control-border\)/);
-    expect(css).toMatch(/\.cus-combined-tag\s*\{[^}]*border:\s*1px solid var\(--control-border\)/);
+    const outlineBlock = css.match(/\.cus-direction-badge--import,[\s\S]*?\.cus-direction-badge--export[\s\S]*?\{[^}]*\}/)?.[0] ?? '';
+    expect(outlineBlock).toMatch(/border:\s*0/);
+    expect(outlineBlock).toMatch(/background:\s*transparent/);
+    expect(css).toMatch(/\.cus-combined-tag\s*\{[^}]*border:\s*0/);
     // The combined tag used to be a solid peach fill, which spent the warning
     // colour on a harmless category. Peach now means warning and nothing else.
     const combined = css.match(/\.cus-combined-tag\s*\{[^}]*\}/)?.[0] ?? '';
@@ -2583,13 +2664,13 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
     await screen.findByRole('table');
     // The old decision rail is dead — its four numbers live in the tabs now.
     expect(document.querySelector('.cus-workspace-summary')).toBeNull();
-    // One 36px primary row carries the heading + tabs + actions; export is one
+    // One 36px primary row carries the heading + actions; export is one
     // of its actions. On a phone the heading is the a11y-tree copy only — the
     // topbar prints the visible title (the same split `PageHeader` uses).
     expect(document.querySelector('.shipments-control__row--primary')).toBeTruthy();
     const primaryRow = document.querySelector('.shipments-control__row--primary') as HTMLElement;
     expect(primaryRow.querySelector('h1')?.textContent).toBe('Tổng quan lô hàng');
-    expect(primaryRow.querySelector('[role="tablist"]')).toBeTruthy();
+    expect(document.querySelector('.list-filter-bar [role="tablist"]')).toBeTruthy();
     expect(Array.from(primaryRow.querySelectorAll('button')).some((b) => b.textContent?.includes('Tải XLSX'))).toBe(true);
     expect(primaryRow.textContent).toContain('Tạo lô mới');
     // The 36px lock is CSS law, not accident.
@@ -2603,22 +2684,73 @@ describe('Card 20260926_47 — Row 1: title + segmented status tabs + actions', 
     expect(source).not.toContain('PageHeader');
   });
 
-  it('renders the four segmented tabs with counts — Tất cả from total, readiness tabs from pageSummary', async () => {
-    apiGet.mockResolvedValue({ ...listResponse(tabbedItems), total: 72, totalPages: 4 });
+  it('renders EVERY status tab with its full-set count — the API numbers, never the loaded page', async () => {
+    // Card 081026093520: the page holds 4 rows (one per bucket) while the
+    // filtered set holds 72 — the numerals wear the FULL-set statusCounts the
+    // API reports, each sizing exactly the rows its tab's lens reveals.
+    apiGet.mockResolvedValue({
+      ...listResponse(tabbedItems),
+      total: 72,
+      totalPages: 4,
+      statusCounts: { needsSchedule: 31, needsVehicle: 20, waitingAccounting: 3 },
+    });
     renderPage();
     const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
     const all = within(tablist).getByRole('tab', { name: /Tất cả/ });
     expect(all.getAttribute('aria-selected')).toBe('true');
-    expect(all.textContent).toContain('72');
-    expect(within(tablist).getByRole('tab', { name: /Chưa chốt lịch/ }).textContent).toContain('1');
-    expect(within(tablist).getByRole('tab', { name: /Chờ điều xe/ }).textContent).toContain('1');
-    expect(within(tablist).getByRole('tab', { name: /Chờ đối soát/ }).textContent).toContain('1');
-    // The whole-set total shares no basis with the three page-scoped counts,
-    // so each readiness label names its scope — and "Tất cả" does not.
-    for (const label of ['Chưa chốt lịch', 'Chờ điều xe', 'Chờ đối soát']) {
-      expect(within(tablist).getByRole('tab', { name: new RegExp(`${label} \\(trang\\)`) })).toBeTruthy();
+    // Exact text mapping: label + the statusCounts numeral for that tab id.
+    expect(all.textContent).toBe('Tất cả72');
+    expect(within(tablist).getByRole('tab', { name: /Chưa chốt lịch/ }).textContent).toBe('Chưa chốt lịch31');
+    expect(within(tablist).getByRole('tab', { name: /Chờ điều xe/ }).textContent).toBe('Chờ điều xe20');
+    expect(within(tablist).getByRole('tab', { name: /Chờ đối soát/ }).textContent).toBe('Chờ đối soát3');
+    // Never the loaded page's own slice (which would read 1/1/1 here)…
+    expect(document.querySelectorAll('tr.cus-dashboard-row').length).toBe(tabbedItems.length);
+    // …and never a page-scope suffix.
+    expect(tablist.textContent).not.toContain('(trang)');
+  });
+
+  it('shows 0, never blank, when a status bucket is empty', async () => {
+    apiGet.mockResolvedValue({
+      ...listResponse([]),
+      total: 0,
+      totalPages: 0,
+      statusCounts: { needsSchedule: 0, needsVehicle: 0, waitingAccounting: 0 },
+    });
+    renderPage();
+    const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
+    for (const label of ['Tất cả', 'Chưa chốt lịch', 'Chờ điều xe', 'Chờ đối soát']) {
+      const tab = within(tablist).getByRole('tab', { name: new RegExp(label) });
+      expect(tab.textContent).toBe(`${label}0`);
     }
-    expect(all.textContent).not.toContain('(trang)');
+  });
+
+  it('keeps the counts consistent when the base search changes', async () => {
+    apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('searchSuffix=MSCU')
+      ? {
+        ...listResponse(tabbedItems),
+        total: 4,
+        totalPages: 1,
+        statusCounts: { needsSchedule: 2, needsVehicle: 1, waitingAccounting: 1 },
+      }
+      : {
+        ...listResponse(tabbedItems),
+        total: 72,
+        totalPages: 4,
+        statusCounts: { needsSchedule: 31, needsVehicle: 20, waitingAccounting: 3 },
+      }));
+    renderPage();
+    const tablist = await screen.findByRole('tablist', { name: 'Trạng thái lô hàng' });
+    expect(within(tablist).getByRole('tab', { name: /Chưa chốt lịch/ }).textContent).toBe('Chưa chốt lịch31');
+    const input = screen.getByLabelText('Tìm lô hàng');
+    fireEvent.change(input, { target: { value: 'MSCU6639870' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=MSCU6639870')));
+    // The strip re-numerals from the SAME response the filtered rows ride.
+    await waitFor(() => {
+      expect(within(tablist).getByRole('tab', { name: /Tất cả/ }).textContent).toBe('Tất cả4');
+    });
+    expect(within(tablist).getByRole('tab', { name: /Chưa chốt lịch/ }).textContent).toBe('Chưa chốt lịch2');
+    expect(within(tablist).getByRole('tab', { name: /Chờ điều xe/ }).textContent).toBe('Chờ điều xe1');
+    expect(within(tablist).getByRole('tab', { name: /Chờ đối soát/ }).textContent).toBe('Chờ đối soát1');
   });
 
   it('clicking a readiness tab writes ?status= and slices the table without a reload', async () => {

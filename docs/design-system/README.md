@@ -41,7 +41,7 @@ also gate `git commit` / CI.
 |---|---|---|
 | `cd frontend && pnpm vitest run` | whole suite | behaviour + the CSS/contract pins in `src/styles/*.styles.test.ts` and each page's `*.test.tsx` (a rule that must exist, a banned declaration that must not) |
 | `cd frontend && pnpm check:ui` (`scripts/check-ui-contract.mjs`, `check-brand-contract.mjs`) | on demand / CI | structural UI and brand violations across every CSS file |
-| `cd frontend && pnpm size-check` (`scripts/check-size.mjs`) | pre-commit (`structure.guard.test.ts`) | file-size ceilings |
+| `cd frontend && pnpm size-check` (`scripts/check-size.mjs`) | pre-commit (`scripts/check-structure.mjs`) | file-size ceilings |
 | `cd frontend && pnpm design:drift` | **pre-commit** + on demand | page CSS that adds a raw value: hex colours, off-ladder `border-radius`, raw `box-shadow`/`z-index`, untokenized `transition`, a new breakpoint. Counts may fall, never rise (`frontend/design-drift.baseline.json`) |
 | `cd frontend && pnpm design:lock` | on demand (needs the dev server up) | the **rendered** result at a given width: chrome budgets, record heights, clip counts, tap floors, caption floors, relationships, `computed` values that a higher-specificity rule would change — `design-lock/expectations/filters.mjs` holds the filter-strip contract (`rows ≤2`, family `maxWidth`, `matchHeight`). Evidence in `qa/design-lock/` |
 | `cd frontend && node role-ui-sweep.mjs` | on demand | every route of every role at 390/768/1440: overflow, clipped values, sub-44 controls, sub-11px text, console/API errors. Evidence in `qa/role-sweep/` |

@@ -60,6 +60,34 @@
   line-height: 1.25;
 }
 
+/* A drill-down item (`href`) keeps the rail's ruled anatomy — it never becomes
+   a filled card — but must read as actionable, since the design law forbids
+   static status text that looks like a control (and equally forbids a control
+   that looks like static text). Same in-rail link pattern the due-group cards
+   use: brand number, underline on hover, visible focus ring.
+   Declared before the tone block so `--warning`/`--info` still own the number
+   colour when an item is both a drill-down and toned. */
+.summary-rail__item--link {
+  text-decoration: none;
+}
+
+/* Equal specificity to `.summary-rail dd` but later, so the link's number
+   takes the brand colour; the `--warning`/`--info` tone selectors outrank both
+   and still own the colour when an item is toned as well. */
+.summary-rail__item--link dd {
+  color: var(--brand);
+}
+
+.summary-rail__item--link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.summary-rail__item--link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 /* Tones color the number only — never a filled container (amber means
    "needs attention"; a filled card reads as decoration once counts grow). */
 .summary-rail__item--warning dd { color: var(--warning-text); }

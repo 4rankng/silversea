@@ -41,53 +41,62 @@ import './ShipmentsPage.css';
 // Card 20260923_1 — the drawer's Xóa lô answers with a reason instead of
 // vanishing. The dispatched wording is the lifecycle guard's own message
 // (shipment-lifecycle softDeleteShipment), so the inline banner and the 409
-// the API would raise say the same thing.
+// the API would raise say the same thing. Cards 351/352: eliminate the
+// containers block deadlock (a lot is deleted with all its containers cascade;
+// only live trips block deletion).
 const LOT_DELETE_BLOCK_MESSAGES = {
-  containers: 'Chưa xoá hết container — hãy xoá bớt/xoá hết container trước khi xoá lô',
   dispatched: 'Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh.',
 } as const;
 
 // Card 20260926_47 — Row 1 status tabs. Each tab is a lens over the current
-// page, matching the pageSummary vocabulary the API already reports (the
-// workspace list endpoint has no server-side status param — the slice is
-// client-side over the loaded page). Only "Tất cả" counts the whole filtered
-// set (`total`); the three readiness counts are page-scoped, so their labels
-// name that basis — a 1206 total beside 20/20/20 must not read as one scale.
-const LOT_STATUS_TABS = [
+// page (the workspace list endpoint has no server-side status param — the
+// slice is client-side over the loaded page). Card 081026093520: EVERY tab
+// carries a count, and the counts are the FULL-set figures the API reports in
+// `statusCounts` — the same filtered set `total` counts, status lens excluded.
+// Each numeral sizes exactly the rows that tab's `matches` lens reveals across
+// pages, so 'Tất cả 147' and its three siblings read as one scale (the old
+// page-scoped numbers never could: 20/20/20 beside a 1206 total).
+const LOT_STATUS_TABS: readonly {
+  id: 'all' | 'needsSchedule' | 'needsVehicle' | 'waitingAccounting';
+  label: string;
+  countTone: 'warning' | 'info' | undefined;
+  countOf: (counts: ShipmentCusWorkspaceListResponse['statusCounts'], total: number) => number;
+  matches: (item: ShipmentCusWorkspaceListItem) => boolean;
+}[] = [
   {
     id: 'all',
     label: 'Tất cả',
     countTone: undefined,
-    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary'], total: number) => total,
+    countOf: (_counts: ShipmentCusWorkspaceListResponse['statusCounts'], total: number) => total,
     matches: () => true,
   },
   {
     id: 'needsSchedule',
-    label: 'Chưa chốt lịch (trang)',
+    label: 'Chưa chốt lịch',
     countTone: undefined,
-    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.needsSchedule,
+    countOf: (counts: ShipmentCusWorkspaceListResponse['statusCounts']) => counts.needsSchedule,
     matches: (item: ShipmentCusWorkspaceListItem) => item.operational.scheduleReadiness === 'WAITING_DATE',
   },
   {
     id: 'needsVehicle',
-    label: 'Chờ điều xe (trang)',
+    label: 'Chờ điều xe',
     countTone: 'warning' as const,
-    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.needsVehicle,
+    countOf: (counts: ShipmentCusWorkspaceListResponse['statusCounts']) => counts.needsVehicle,
     matches: (item: ShipmentCusWorkspaceListItem) => (
       item.operational.vehicleReadiness === 'WAITING_CARRIER' || item.operational.vehicleReadiness === 'WAITING_PLATE'
     ),
   },
   {
     id: 'waitingAccounting',
-    label: 'Chờ đối soát (trang)',
+    label: 'Chờ đối soát',
     countTone: 'info' as const,
-    countOf: (summary: ShipmentCusWorkspaceListResponse['pageSummary']) => summary.waitingAccounting,
+    countOf: (counts: ShipmentCusWorkspaceListResponse['statusCounts']) => counts.waitingAccounting,
     matches: (item: ShipmentCusWorkspaceListItem) => (
       item.activeLock == null
       && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
     ),
   },
-] as const;
+];
 
 // Valid plan buckets — same derivation the shared WorkboardFilters uses.
 const LOT_PLAN_BUCKETS = Object.values(ShipmentCusBucket);
@@ -106,6 +115,14 @@ export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER; // ADMIN/MANAGER/CUS/DISPATCHER — mirrors the shipmentCreatorOnly route guard (testplan/roles/01-cus.md)
+  // Card 071026204710, then re-ruled by the lead on the same card: the lot
+  // delete is now CUS **or** ADMIN (routes/shipments/cus-workspace.routes.ts:344
+  // and services/shipment-governance.service.ts:36 both widened together). This
+  // gate first hid the affordance from ADMIN because the route refused it — that
+  // half is obsolete now, and keeping it would have left ADMIN able to delete
+  // through the API but unable to reach the button. The affordance mirrors the
+  // guard; when the guard moves, this moves with it.
+  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const pageSize = readCusPageSize(searchParams.get('limit'));
@@ -119,7 +136,7 @@ export default function ShipmentsPage() {
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
   // Card 20260926_47: the status tabs are URL state. Values are the
-  // pageSummary keys — the same vocabulary the API reports counts in.
+  // statusCounts keys — the same vocabulary the API reports counts in.
   const rawStatus = searchParams.get('status');
   const statusTab = LOT_STATUS_TABS.find((tab) => tab.id === rawStatus)?.id ?? '';
   // Card 20260926_48: Kế hoạch is a multi-select combobox. The API keeps a
@@ -143,7 +160,7 @@ export default function ShipmentsPage() {
   // answers with a reason instead of vanishing. The stored value is the BLOCK
   // KIND (not a message) so the banner self-heals: once the blocking condition
   // stops holding, the derived message is empty without an extra effect.
-  const [deleteLotBlock, setDeleteLotBlock] = useState<{ shipmentId: number; kind: 'containers' | 'dispatched' } | null>(null);
+  const [deleteLotBlock, setDeleteLotBlock] = useState<{ shipmentId: number; kind: 'dispatched' } | null>(null);
   const [exporting, setExporting] = useState(false);
   const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
   // Card 20260922_42: the toolbar's draft state moved page-side — search
@@ -271,23 +288,18 @@ export default function ShipmentsPage() {
     void loadDetail(shipmentId);
   }, [loadDetail]);
 
-  // Card 20260923_1: Xóa lô lives in the drawer header — blocked with an
-  // inline error while any container remains (ruling: clear the containers
-  // first), and with the lifecycle guard's own reason when a trip already left
-  // the lot (deletable=false). Only the clear case routes into the existing
-  // confirmed delete flow with its API guards (đã điều xe / đã phát sinh).
+  // Cards 351 & 352: Xóa lô lives in the drawer header. It is blocked with the
+  // lifecycle guard's reason when a trip already left the lot (deletable=false).
+  // When deletable is true, it routes directly into confirmed delete (deleting
+  // the lot cascades all its containers, resolving the 0-container deadlock).
   const requestDeleteLot = useCallback((item: ShipmentCusWorkspaceListItem) => {
-    if ((ws.details[item.id]?.containers.length ?? 0) > 0) {
-      setDeleteLotBlock({ shipmentId: item.id, kind: 'containers' });
-      return;
-    }
     if (!item.operational.deletable) {
       setDeleteLotBlock({ shipmentId: item.id, kind: 'dispatched' });
       return;
     }
     setDeleteLotBlock(null);
     actions.openAction(item, 'delete');
-  }, [actions, ws.details]);
+  }, [actions]);
 
   const requestCloseMobileDetail = useCallback(() => {
     if (drawerId != null && savingDetailIds.has(drawerId)) {
@@ -324,8 +336,9 @@ export default function ShipmentsPage() {
   const total = ws.data?.total ?? 0;
   // Card 20260926_47: the active status tab is a lens over the loaded page —
   // the list endpoint has no server-side status param, so the tab slices the
-  // current page locally and its counts are the pageSummary numbers the old
-  // summary rail displayed.
+  // current page locally. Its COUNT is the full-set `statusCounts` figure the
+  // API reports (card 081026093520): the size of this lens's slice across the
+  // whole filtered set, not of the loaded page.
   const statusTabDef = LOT_STATUS_TABS.find((tab) => tab.id === statusTab) ?? LOT_STATUS_TABS[0];
   // Plain filter, not useMemo: `items` is rebuilt every render (ws.data?.items
   // ?? []) so a memo here both buys nothing and trips exhaustive-deps.
@@ -346,15 +359,10 @@ export default function ShipmentsPage() {
   });
   const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / pageSize));
   const drawerItem = items.find((item) => item.id === drawerId) ?? (drawerId != null ? ws.details[drawerId]?.summary : null) ?? null;
-  // Derived, not stored: the banner clears itself the moment the blocking
-  // condition stops holding (e.g. the last container is removed).
-  const drawerContainerCount = drawerId != null ? ws.details[drawerId]?.containers.length ?? 0 : 0;
   const lotDeleteBlockKind = deleteLotBlock != null && deleteLotBlock.shipmentId === drawerItem?.id ? deleteLotBlock.kind : null;
-  const lotDeleteMessage = lotDeleteBlockKind === 'containers' && drawerContainerCount > 0
-    ? LOT_DELETE_BLOCK_MESSAGES.containers
-    : lotDeleteBlockKind === 'dispatched' && drawerItem != null && !drawerItem.operational.deletable
-      ? LOT_DELETE_BLOCK_MESSAGES.dispatched
-      : null;
+  const lotDeleteMessage = lotDeleteBlockKind === 'dispatched' && drawerItem != null && !drawerItem.operational.deletable
+    ? LOT_DELETE_BLOCK_MESSAGES.dispatched
+    : null;
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;
@@ -440,21 +448,6 @@ export default function ShipmentsPage() {
       <header className="shipments-control">
         <div className="shipments-control__row shipments-control__row--primary">
           <h1 className="shipments-control__title">Tổng quan lô hàng</h1>
-          {ws.data ? (
-            <Tabs
-              className="shipments-control__tabs"
-              variant="boxed"
-              ariaLabel="Trạng thái lô hàng"
-              value={statusTab || 'all'}
-              onChange={(id) => updateParam('status', id === 'all' ? null : id)}
-              tabs={LOT_STATUS_TABS.map((tab) => ({
-                id: tab.id,
-                label: tab.label,
-                count: tab.countOf(ws.data!.pageSummary, total),
-                countTone: tab.countTone,
-              }))}
-            />
-          ) : null}
           <div className="shipments-control__actions">
             <UUIButton
               size="sm"
@@ -504,6 +497,22 @@ export default function ShipmentsPage() {
             inputProps: { title: 'Nhấn / để tìm kiếm · Esc để xóa' },
           }}
           presets={presetNode}
+          quickFilters={ws.data ? (
+            <Tabs
+              className="shipments-control__tabs"
+              variant="boxed"
+              ariaLabel="Trạng thái lô hàng"
+              value={statusTab || 'all'}
+              onChange={(id) => updateParam('status', id === 'all' ? null : id)}
+              tabs={LOT_STATUS_TABS.map((tab) => ({
+                id: tab.id,
+                label: tab.label,
+                count: tab.countOf(ws.data!.statusCounts, total),
+                countTone: tab.countTone,
+              }))}
+            />
+          ) : undefined}
+          quickFiltersLabel="Trạng thái lô hàng"
           columns={{
             items: CUS_ROW_COLUMNS,
             hidden: rowColumns.hidden,
@@ -697,13 +706,15 @@ export default function ShipmentsPage() {
                 >
                   <ExternalLink size={14} /> Chi tiết lô hàng
                 </Link>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm cus-drawer-lot-delete"
-                  onClick={() => requestDeleteLot(drawerItem)}
-                >
-                  Xóa lô
-                </button>
+                {canDeleteLot && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm cus-drawer-lot-delete"
+                    onClick={() => requestDeleteLot(drawerItem)}
+                  >
+                    Xóa lô
+                  </button>
+                )}
                 {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
               </div>
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
@@ -730,6 +741,7 @@ export default function ShipmentsPage() {
                   <div className="cus-drawer-decision cus-drawer-decision--custody">
                     <UuiSelectField
                       label="Phơi phiếu"
+                      ariaLabel="Phơi phiếu"
                       value={drawerItem.documentCustody.status ?? ''}
                       disabled={drawerItem.bucket === ShipmentCusBucket.LOCKED || !drawerItem.documentCustody.available || !drawerItem.documentCustody.editable}
                       onChange={(event) => void actions.updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}

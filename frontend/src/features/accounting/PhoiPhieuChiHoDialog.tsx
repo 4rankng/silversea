@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
-import { sumExcludingNegative } from '@tingting/shared';
+import { round2dp, sumExcludingNegative } from '@tingting/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   correctPhoiPhieuRow, getPhoiPhieuChiHo, updatePhoiPhieuMeta,
   updatePhoiPhieuRowAmounts, voidPhoiPhieuRow, type PhoiPhieuFeeRow, type ChiHoConfirmation,
 } from '../../api/phoiPhieuClient';
 import { billBookingReference } from '../../lib/business-reference';
+import { formatMoney } from '../../lib/format';
 import { qk } from '../../api/keys';
-import { Btn, useConfirm } from '../../components/UI';
+import { Btn } from '../../components/UI';
+import { useReasonPrompt } from '../../components/reason-prompt';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { EmptyState, Modal, NumberField, TextField } from '../../design-system';
@@ -21,6 +23,25 @@ interface Props {
   confirmation?: ChiHoConfirmation;
   onClose: () => void;
   onSaved: () => void;
+}
+
+/** Card 051026231533 — "ngày tích chọn nhận phơi" is the operator's local
+ *  calendar day at the tick, never a UTC slice (VN evenings would shift). */
+function tickDayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** The row amount a footer figure sees right now: the draft edit when one
+ *  exists, else the stored column; '' (cleared draft) counts as 0. */
+function liveAmount(
+  edits: Record<number, { thu: number | ''; tra: number | '' }>,
+  row: PhoiPhieuFeeRow,
+  key: 'thu' | 'tra',
+): number {
+  const edit = edits[row.entryId];
+  const value = edit ? edit[key] : row[key === 'thu' ? 'amountThu' : 'amountTra'] ?? 0;
+  return value === '' ? 0 : value;
 }
 
 export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onClose, onSaved }: Props) {
@@ -39,7 +60,14 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
   const [ngayLayPhoi, setNgayLayPhoi] = useState<string | null>(null);
   const [trangThaiLay, setTrangThaiLay] = useState<string | null>(null);
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: adding });
-  const { confirm, dialog } = useConfirm();
+  // Card 20261005_373: the void now REQUIRES a reason and the audit log stores
+  // it, so the old hardcoded sentence ("Kế toán xóa dòng trong xem chi tiết chi
+  // hộ") said nothing about why the row was dropped. The accountant types the
+  // grounds through the ONE house reason prompt (components/reason-prompt) — the
+  // same surface the tiền-đường reject uses. Its Confirm button stays disabled
+  // while the trimmed reason is empty, and a cancel resolves to null, so no
+  // request is sent without a reason.
+  const { prompt, dialog } = useReasonPrompt();
 
   // Card 20260923_11: this dialog and the "Thêm khoản chi" panel are two
   // aria-modal surfaces. `adding` used to mount the drawer *beside* the still
@@ -56,22 +84,23 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
   // `?? []` fallback would otherwise hand it a new array every render and
   // recompute the footer figures on every keystroke.
   const rows = useMemo(() => detail.data?.rows ?? [], [detail.data]);
-  const totals = useMemo(() => {
-    const live = (row: PhoiPhieuFeeRow, key: 'thu' | 'tra') => {
-      const edit = edits[row.entryId];
-      const value = edit ? edit[key] : row[key === 'thu' ? 'amountThu' : 'amountTra'] ?? 0;
-      return value === '' ? 0 : value;
-    };
-    return {
-      thu: rows.reduce((sum, row) => sum + live(row, 'thu'), 0),
-      tra: sumExcludingNegative(rows, row => live(row, 'tra')),
-    };
-  }, [rows, edits]);
+  const totals = useMemo(() => ({
+    thu: rows.reduce((sum, row) => sum + liveAmount(edits, row, 'thu'), 0),
+    tra: sumExcludingNegative(rows, row => liveAmount(edits, row, 'tra')),
+  }), [rows, edits]);
+  // Card 051026231617 — the PM rule (card 20260928_181) keeps negative rows out
+  // of every total, but the rows stay visible in the table above, so the
+  // footer must SAY the exclusion instead of silently contradicting them: the
+  // note names the count and the excluded amount so
+  // Tổng trả + các khoản âm = tổng thật của các dòng.
+  const negativeTraRows = rows.filter(row => liveAmount(edits, row, 'tra') < 0);
+  const negativeTraTotal = round2dp(negativeTraRows.reduce((sum, row) => sum + liveAmount(edits, row, 'tra'), 0));
   const meta = {
     ...(ngayLayPhoi !== null && (ngayLayPhoi || null) !== (detail.data?.ngayLayPhoi || null) ? { ngayLayPhoi: ngayLayPhoi || null } : {}),
     ...(trangThaiLay !== null && (trangThaiLay.trim() || null) !== (detail.data?.trangThaiLay || null) ? { trangThaiLay: trangThaiLay.trim() || null } : {}),
   };
   const dirty = Object.keys(meta).length > 0 || rows.some(row => {
+    if (row.sourceKind === 'TRIP') return false;
     const edit = edits[row.entryId];
     return edit && (edit.thu !== (row.amountThu ?? '') || edit.tra !== (row.amountTra ?? ''));
   });
@@ -107,6 +136,7 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
     setError('');
     try {
       for (const row of rows) {
+        if (row.sourceKind === 'TRIP') continue;
         const edit = edits[row.entryId];
         if (!edit) continue;
         const thu = edit.thu === '' ? null : edit.thu;
@@ -137,12 +167,13 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
   }
 
   async function removeRow(row: PhoiPhieuFeeRow) {
-    const ok = await confirm(`Xóa dòng "${row.feeName ?? 'phí'}"? Khoản đã đối chiếu sẽ không xóa được.`, { variant: 'danger', confirmLabel: 'Xóa' });
-    if (!ok) return;
+    if (saving || detail.isFetching) return;
+    const reason = await prompt(`Xóa dòng "${row.feeName ?? 'phí'}"? Khoản đã đối chiếu sẽ không xóa được.`, { confirmLabel: 'Xóa' });
+    if (!reason) return;
     setSaving(true);
     setError('');
     try {
-      await voidPhoiPhieuRow(tripId, row.sourceId, 'Kế toán xóa dòng trong xem chi tiết chi hộ');
+      await voidPhoiPhieuRow(tripId, row.sourceId, reason);
       await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) });
     } catch (voidError) {
       setError(voidError instanceof Error ? voidError.message : 'Không xóa được dòng.');
@@ -182,21 +213,51 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
         {detail.data && (
           <>
             {rows.length === 0 ? <EmptyState variant="compact" context="expenses" title="Chưa có khoản chi hộ" description="Thêm dòng để ghi nhận khoản chi của chuyến này." /> : <div className="record-table-wrap" role="region" aria-label="Các khoản chi hộ">
-            <table className="record-table ops-table phoi-detail-matrix">
+            {/* Card 20261002_278. `--sticky-thead-top` is -24px so a page table's header pins flush under the topbar while `.app-body` scrolls. This table lives in a DIFFERENT scrollport (`.modal__body`, 12px padding), so the inherited offset rode the header above the scrollport edge and over row 1 — the "nội dung bị cắt mép chữ" report. Overriding the token the shared rule actually consumes re-pins it flush here without touching the page-level default. */}
+            <table className="record-table ops-table phoi-detail-matrix" style={{ '--sticky-thead-top': '0px' } as React.CSSProperties}>
               <thead><tr>
                 <th className="phoi-detail-col--ordinal">STT</th><th className="phoi-detail-col--description">Nội dung phí</th><th className="phoi-detail-col--identity">Hóa đơn</th><th className="phoi-detail-col--money">Số tiền thu</th><th className="phoi-detail-col--money">Số tiền trả</th><th className="phoi-detail-col--identity">Người thanh toán</th><th className="phoi-detail-col--action" aria-label="Thao tác" />
               </tr></thead>
               <tbody>
                 {detail.data.rows.map((row, index) => {
+                  const isTrip = row.sourceKind === 'TRIP';
                   return (
                     <tr key={row.sourceId}>
                       <td data-label="STT" className="phoi-detail-col--ordinal">{index + 1}</td>
-                      <td data-label="Nội dung phí" className="phoi-detail-col--description">{row.feeName ?? '—'}</td>
+                      {/* Card 2026-10-05_373 spec table 1.1.3 — "Nội dung phải/đã đưa (kèm mã đơn)".
+                          The house `record-cell-stack` (styles/utilities.css) is the one shared
+                          primary-line/secondary-line pattern the other record tables use, so this
+                          cell adds no page-local CSS. A lot with no code prints "—", the table's
+                          existing empty-value convention. */}
+                      <td data-label="Nội dung phí" className="phoi-detail-col--description">
+                        <div className="record-cell-stack">
+                          <span>{row.feeName ?? '—'}</span>
+                          <small>{row.shipmentCode ?? '—'}</small>
+                        </div>
+                      </td>
                       <td data-label="Hóa đơn" className="phoi-detail-col--identity">{row.invoiceNumber ?? '—'}</td>
-                      <td data-label="Số tiền thu" className="phoi-detail-col--money"><NumberField aria-label={`Số tiền thu dòng ${index + 1}`} suffix="₫" grouped value={edits[row.entryId]?.thu ?? row.amountThu ?? ''} onChange={(n) => setEdit(row, 'thu', n)} /></td>
-                      <td data-label="Số tiền trả" className="phoi-detail-col--money"><NumberField aria-label={`Số tiền trả dòng ${index + 1}`} suffix="₫" grouped signed value={edits[row.entryId]?.tra ?? row.amountTra ?? ''} onChange={(n) => setEdit(row, 'tra', n)} /></td>
+                      <td data-label="Số tiền thu" className="phoi-detail-col--money">
+                        {isTrip ? (
+                          <span style={{ fontWeight: 600 }}>{row.amountThu != null ? `${formatMoney(row.amountThu)} ₫` : '—'}</span>
+                        ) : (
+                          <NumberField aria-label={`Số tiền thu dòng ${index + 1}`} suffix="₫" grouped value={edits[row.entryId]?.thu ?? row.amountThu ?? ''} onChange={(n) => setEdit(row, 'thu', n)} />
+                        )}
+                      </td>
+                      <td data-label="Số tiền trả" className="phoi-detail-col--money">
+                        {isTrip ? (
+                          <span style={{ fontWeight: 600 }}>{`${formatMoney(row.amountTra)} ₫`}</span>
+                        ) : (
+                          <NumberField aria-label={`Số tiền trả dòng ${index + 1}`} suffix="₫" grouped signed value={edits[row.entryId]?.tra ?? row.amountTra ?? ''} onChange={(n) => setEdit(row, 'tra', n)} />
+                        )}
+                      </td>
                       <td data-label="Người thanh toán" className="phoi-detail-col--identity">{row.payerName ?? '—'}</td>
-                      <td data-label="Thao tác" className="phoi-detail-col--action"><Btn size="sm" disabled={saving || row.confirmed} title={row.confirmed ? 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa' : undefined} onClick={() => void removeRow(row)}>Xóa</Btn></td>
+                      <td data-label="Thao tác" className="phoi-detail-col--action">
+                        {isTrip ? (
+                          <span style={{ color: 'var(--ink-3)', fontSize: 'var(--text-caption-size)' }}>Chi phí chuyến</span>
+                        ) : (
+                          <Btn size="sm" disabled={saving || row.confirmed} title={row.confirmed ? 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa' : undefined} onClick={() => void removeRow(row)}>Xóa</Btn>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -204,6 +265,11 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
             </table>
             </div>}
             <PhoiPhieuDetailSummary items={[{ label: 'Tổng thu', amount: totals.thu }, { label: 'Tổng trả', amount: totals.tra }]} />
+            {negativeTraRows.length > 0 && (
+              <p className="phoi-detail-note">
+                Có {negativeTraRows.length} khoản chi âm, tổng {formatMoney(negativeTraTotal)} ₫ — không tính vào Tổng trả.
+              </p>
+            )}
             {dirty && <p role="status" className="phoi-detail-note">Có thay đổi chưa lưu</p>}
             <label className="phoi-detail-linked">
               <input type="checkbox" checked={linked} onChange={(e) => setEquality(e.target.checked)} />
@@ -211,6 +277,18 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
             </label>
             {linkNotice && <p role="status" className="phoi-detail-note">{linkNotice}</p>}
             <div className="phoi-detail-meta">
+              {/* Card 051026231533 — the tick is the source of truth per spec
+                  5.10 ("ngày là ngày tích chọn nhận phơi trên desktop"): it
+                  stamps the date draft; the manual field stays editable for
+                  corrections and drives the same save diff. */}
+              <label className="phoi-detail-linked">
+                <input
+                  type="checkbox"
+                  checked={(ngayLayPhoi ?? detail.data.ngayLayPhoi ?? '') !== ''}
+                  onChange={(e) => setNgayLayPhoi(e.target.checked ? tickDayIso() : '')}
+                />
+                Đã nhận phơi
+              </label>
               <BufferedUuiDateInput label="Ngày lấy phơi" size="sm" value={ngayLayPhoi ?? (detail.data.ngayLayPhoi ?? '')} onChange={setNgayLayPhoi} />
               <TextField label="Trạng thái lấy" value={trangThaiLay ?? detail.data.trangThaiLay ?? ''} onChange={(e) => setTrangThaiLay(e.target.value)} />
             </div>

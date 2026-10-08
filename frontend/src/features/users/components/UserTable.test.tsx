@@ -73,7 +73,7 @@ describe('UserTable username display', () => {
 });
 
 describe('UserTable role filter strip (card 20260927_152)', () => {
-  it('keeps all nine role choices and their counts in the shared category dropdown', async () => {
+  it('keeps all nine role choices reachable in the shared category dropdown, which carries no counter', async () => {
     renderTable({
       filter: Role.DRIVER,
       total: 12,
@@ -83,7 +83,12 @@ describe('UserTable role filter strip (card 20260927_152)', () => {
     });
 
     const filter = screen.getByRole('button', { name: /Lọc tài khoản theo vai trò/ });
-    expect(filter).toHaveTextContent('Lái xe (6)');
+    // The dropdown names the selected scope and nothing else — a numeral would
+    // ride the value as a stray annotation, and it repeats on every option
+    // rather than marking the one selected (operator 2026-10-03: "dropdown
+    // should not contain counter").
+    expect(filter).toHaveTextContent('Lái xe');
+    expect(filter).not.toHaveTextContent('(6)');
     expect(screen.queryByRole('tablist', { name: 'Lọc tài khoản theo vai trò' })).toBeNull();
     fireEvent.click(filter);
     const options = await screen.findAllByRole('option');
@@ -91,12 +96,13 @@ describe('UserTable role filter strip (card 20260927_152)', () => {
     for (const label of ['Tất cả', 'Quản trị viên', 'Quản lý', 'Kế toán', 'Lái xe', 'Vận hành', 'Khách hàng', 'Chứng từ', 'Điều vận']) {
       expect(screen.getByRole('option', { name: new RegExp(label) })).toBeVisible();
     }
-    // Every tab prints a count: the account total on `Tất cả`, the per-role
-    // count on the rest (a role the server did not count reads 0).
-    expect(screen.getByRole('option', { name: 'Tất cả (12)' })).toBeVisible();
-    expect(screen.getByRole('option', { name: 'Lái xe (6)' })).toBeVisible();
-    expect(screen.getByRole('option', { name: 'Quản trị viên (2)' })).toBeVisible();
-    expect(screen.getByRole('option', { name: 'Kế toán (0)' })).toBeVisible();
+    // …and no option carries a count, in either direction: the total, the
+    // per-role count, and the roles the server did not count (which read 0).
+    for (const label of ['Tất cả', 'Quản trị viên', 'Kế toán', 'Lái xe']) {
+      expect(screen.getByRole('option', { name: label })).toBeVisible();
+    }
+    expect(screen.getByRole('option', { name: 'Kế toán' })).toHaveTextContent('Kế toán');
+    expect(screen.getByRole('option', { name: 'Kế toán' }).textContent).not.toMatch(/\d/);
   });
 
   it('keeps the shared dropdown and search writers wired to the page state', async () => {

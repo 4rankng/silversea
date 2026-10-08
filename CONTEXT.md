@@ -19,7 +19,6 @@ requirements) → current code, schemas, tests, migrations → roadmap/plans →
   backend tests.
 - `frontend/`: React/Vite application, feature modules, design system, API
   clients, and frontend tests.
-- `e2e/`: authenticated product-flow checks.
 - `docs/prd/`: SilverSea source documents and decision/status index.
   - `docs/prd/silversea-google-drive.md`: where the customer's shared Google
     Drive lives and how to read it **without auth** (public export endpoints).

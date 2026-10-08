@@ -104,11 +104,6 @@ for (const [sourceName, source, requiredRule] of [
     dashboardSource,
     /\.dash-wf \.wf-minibtn\.green:hover\s*\{[^}]*background:\s*var\(--brand-hover\)/,
   ],
-  [
-    'src/components/Table.css',
-    tableSource,
-    /\.ancillary-fee-card__btn--approve:hover\s*\{[^}]*background:\s*var\(--brand\)/,
-  ],
 ]) {
   if (!requiredRule.test(source)) {
     failures.push(`${sourceName}: missing emerald CTA rule ${requiredRule}`);

@@ -10,7 +10,7 @@ import { formatNumber } from '../../lib/format';
 export default function TripExpenseConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
   const navigate = useNavigate();
-  const { data: roadConfig } = useRoadConfig();
+  const { data: roadConfig, isLoading: configLoading, isError: configFailed, refetch: reloadConfig, isFetching } = useRoadConfig();
   const saveRoad = useSaveRoadConfig();
   const [form, setForm] = useState({
     defaultDriverSalary: '400000',
@@ -99,6 +99,17 @@ export default function TripExpenseConfigPage() {
     <div ref={pageRef} className="cfg-page cfg-page--trip-expense" style={{ maxWidth: 720, margin: '0 auto' }}>
       <PageHeader title="Chi phí chuyến đi" description="Tiền kết hợp · trả hàng 2 điểm · lưu ca xe · trạm BOT · thưởng chuyến về có hàng" onBack={() => navigate('/config')} iconName="trip-expense-rules" />
       <Panel title="Mặc định toàn công ty" subtitle="Áp dụng khi tuyến hoặc lái xe chưa có cấu hình riêng">
+        {/* Card 20261004_333 — a failed read must not present the draft's
+            defaults as saved config (FuelConfigPage's established pattern:
+            banner + save disabled while the read failed). */}
+        {configFailed && (
+          <div role="alert" className="cfg-form-error">
+            Không tải được cấu hình chi phí chuyến đi. Bản nháp đang giữ nguyên.{' '}
+            <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching} onClick={() => { void reloadConfig(); }}>
+              {isFetching ? 'Đang thử lại…' : 'Tải lại cấu hình'}
+            </button>
+          </div>
+        )}
         <div className="cfg-form-grid">
           <div className="field">
             <label htmlFor="default-driver-salary">Tiền kết hợp mặc định (đ)</label>
@@ -159,7 +170,7 @@ export default function TripExpenseConfigPage() {
         </div>
 
         <div className="cfg-form-actions">
-          <button onClick={handleSave} disabled={saving} className="btn btn--primary">
+          <button onClick={handleSave} disabled={saving || configLoading || configFailed} className="btn btn--primary">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Lưu cấu hình
           </button>

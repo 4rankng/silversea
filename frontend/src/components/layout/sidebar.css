@@ -263,7 +263,7 @@
 .nav-item svg { width: 18px; height: 18px; stroke-width: 1.8; flex-shrink: 0; }
 .nav-item__badge {
   background: var(--surface);
-  color: var(--accent);
+  color: var(--accent-ink);
   min-width: 22px;
   height: 20px;
   border-radius: 4px;
@@ -285,7 +285,7 @@
 }
 
 .sidebar-footer {
-  padding: 14px 12px;
+  padding: 8px 12px 14px;
   border-top: 1px solid var(--sb-line);
   flex-shrink: 0;
   position: relative;

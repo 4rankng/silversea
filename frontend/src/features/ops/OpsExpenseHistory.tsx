@@ -8,23 +8,26 @@ import { Image as ImageIcon, Pencil, Trash2 } from 'lucide-react';
 import {
   useOpsWalletExpenses,
   useDeleteOpsExpense,
+  useInvalidateOps,
 } from '../../hooks/useOpsQueries';
-import type { OpsExpenseRow, OpsExpenseStatus } from '../../api/opsClient';
+import { tripClient } from '../../api/tripClient';
+import type { OpsExpenseRow, OpsExpenseStatus, OpsExpenseStatusCounts } from '../../api/opsClient';
 import { Drawer, useConfirm } from '../../components/UI';
 import { Tabs } from '../../design-system';
 import { useReasonPrompt } from '../../components/reason-prompt';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
+import { OpsLegacyExpenseEditModal } from './OpsLegacyExpenseEditModal';
 import { useToast } from '../../components/shared/Toast';
 import { formatMoney } from '../../lib/format';
 
 import './ops-modal.css';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
-const STATUS_FILTERS: Array<{ value: OpsExpenseStatus | undefined; label: string }> = [
-  { value: undefined, label: 'Tất cả' },
-  { value: 'DRAFT', label: 'Cần bổ sung' },
-  { value: 'RECORDED', label: 'Đã ghi nhận' },
-  { value: 'VOIDED', label: 'Đã hủy' },
+const STATUS_FILTERS: Array<{ value: OpsExpenseStatus | undefined; label: string; countKey: keyof OpsExpenseStatusCounts }> = [
+  { value: undefined, label: 'Tất cả', countKey: 'all' },
+  { value: 'DRAFT', label: 'Cần bổ sung', countKey: 'DRAFT' },
+  { value: 'RECORDED', label: 'Đã ghi nhận', countKey: 'RECORDED' },
+  { value: 'VOIDED', label: 'Đã hủy', countKey: 'VOIDED' },
 ];
 
 const STATUS_COLORS: Record<OpsExpenseStatus, string> = {
@@ -45,8 +48,30 @@ const STATUS_LABELS: Record<OpsExpenseStatus, string> = {
   REJECTED: 'Đã từ chối (lịch sử)',
 };
 
+// Card 071026141580: trip-sourced (khai chi hộ) rows are editable from the
+// wallet too — same rule as the chi-hô dialog ("Khoản đã đối chiếu sẽ không
+// xóa được"): unconfirmed, unvoided, un-settled rows get Sửa/Xóa regardless of
+// source kind; their APIs differ, which the row actions route on.
 const isEditableExpense = (row: OpsExpenseRow) =>
-  row.sourceKind !== 'TRIP' && !row.confirmedAt && row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED' && row.opsSettlementId == null;
+  !row.confirmedAt && row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED' && row.opsSettlementId == null;
+
+// Card 071026210520: a locked row must state WHY its actions cell is empty —
+// the QA found "Đã ghi nhận" rows with a blank cell and no visible rule. The
+// rule order mirrors the guards that would reject the write anyway.
+const editBlockReason = (row: OpsExpenseRow): string | null => {
+  if (isEditableExpense(row)) return null;
+  if (row.opsSettlementId != null) return 'Đã quyết toán';
+  if (row.confirmedAt) return 'Đã đối chiếu';
+  return 'Đã hủy / từ chối';
+};
+
+// Card 071026210530: a negative recorded row IS the adjusting entry (the PM's
+// sanctioned "delete-equivalent" — card 20260928_197, dropped from the totals
+// by sumExcludingNegative), but the wallet labeled it plain "Đã ghi nhận",
+// indistinguishable from a real expense. Cancel-by-void shows "Đã hủy"; the
+// signed-adjustment mechanism must name itself just as plainly.
+const isAdjustingEntry = (row: OpsExpenseRow) =>
+  (row.approvalStatus === 'RECORDED' || row.approvalStatus === 'APPROVED') && Number(row.amount) < 0;
 
 /**
  * Lịch sử chi phí của Ops (OpsVanHanh §5.3): nhãn đỏ "Nợ chứng từ" khi chưa
@@ -59,28 +84,47 @@ export function OpsExpenseHistory() {
   const { toast } = useToast();
   const deleteLock = useRef(false);
   const [deleting, setDeleting] = useState(false);
-  const { dialog } = useConfirm();
+  const { confirm, dialog } = useConfirm();
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const [legacyFor, setLegacyFor] = useState<OpsExpenseRow | null>(null);
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [editing, setEditing] = useState<OpsExpenseRow | null>(null);
+  const [editingLegacy, setEditingLegacy] = useState<OpsExpenseRow | null>(null);
+  const invalidate = useInvalidateOps();
 
   async function handleDelete(row: OpsExpenseRow) {
     if (deleteLock.current) return;
     deleteLock.current = true; setDeleting(true);
     try {
-      // Q10 (card 20260922_78): the delete asks for a mandatory free-text
-      // reason — cancel/empty aborts without any request.
-      const reason = await prompt(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatMoney(row.amount)} ₫?`, { confirmLabel: 'Xóa' });
-      if (reason == null) return;
-      await deleteExpense.mutateAsync({ id: row.id, reason });
+      if (row.sourceKind === 'TRIP') {
+        // Card 071026141580: trip rows are deleted through their own API
+        // (DELETE /trips/:id/expenses/:eid — the same one the trip cost card
+        // uses). That contract takes no reason field, so the wallet shows a
+        // plain confirm here instead of the Q10 reason prompt the Ops-expense
+        // delete (which stores one) requires.
+        const ok = await confirm(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatMoney(row.amount)} ₫?`, { confirmLabel: 'Xóa', variant: 'danger' });
+        if (!ok) return;
+        await tripClient.deleteTripExpense(row.tripId ?? 0, row.sourceId ?? 0);
+        invalidate();
+      } else {
+        // Q10 (card 20260922_78): the Ops-expense delete asks for a mandatory
+        // free-text reason — cancel/empty aborts without any request.
+        const reason = await prompt(`Xóa khoản chi ${row.expenseTypeName ?? row.expenseTypeCode} ${formatMoney(row.amount)} ₫?`, { confirmLabel: 'Xóa' });
+        if (reason == null) return;
+        await deleteExpense.mutateAsync({ id: row.id, reason });
+      }
     } catch (error) { toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không xóa được khoản chi. Vui lòng thử lại.' }); }
     finally { deleteLock.current = false; setDeleting(false); }
   }
 
   const items = data?.items ?? [];
+  const statusCounts = data?.statusCounts;
 
-  const hasEditableRow = items.some((row: OpsExpenseRow) => isEditableExpense(row));
+  // Card 20260921_26 hid the column when nothing was editable (an empty column
+  // read as a rendering bug). Card 071026210520: the column now carries the
+  // lock rule for non-editable rows, so it is never empty and renders whenever
+  // there are rows — a locked row must never show a silent blank cell.
+  const hasActionsColumn = items.length > 0;
 
   return (
     <section className="ops-wallet__section" aria-label="Lịch sử chi phí">
@@ -91,7 +135,15 @@ export function OpsExpenseHistory() {
           ariaLabel="Lọc theo trạng thái"
           value={status ?? 'all'}
           onChange={(id) => setStatus(id === 'all' ? undefined : id as OpsExpenseStatus)}
-          tabs={STATUS_FILTERS.map((filter) => ({ id: filter.value ?? 'all', label: filter.label }))}
+          tabs={STATUS_FILTERS.map((filter) => ({
+            id: filter.value ?? 'all',
+            label: filter.label,
+            // Card 20261008_2: every tab carries its FULL-set count (native +
+            // legacy rows, never the loaded page), so the numeral sizes
+            // exactly the rows that tab reveals. `?? 0` prints a visible zero
+            // for an empty bucket — never a blank chip.
+            count: statusCounts?.[filter.countKey] ?? 0,
+          }))}
         />
       </header>
 
@@ -108,7 +160,7 @@ export function OpsExpenseHistory() {
               <th>Số tiền</th>
               <th>Chứng từ</th>
               <th>Trạng thái</th>
-              {hasEditableRow && <th aria-label="Thao tác" />}
+              {hasActionsColumn && <th aria-label="Thao tác" />}
             </tr>
           </thead>
           <tbody>
@@ -134,40 +186,58 @@ export function OpsExpenseHistory() {
                   <span style={{ color: STATUS_COLORS[row.approvalStatus] }}>
                     {STATUS_LABELS[row.approvalStatus]}
                   </span>
+                  {isAdjustingEntry(row) && (
+                    <span
+                      className="ops-reject-reason"
+                      title="Dòng âm là bút toán điều chỉnh — tương đương bỏ/bớt khoản, đã được loại khỏi tổng sổ quỹ."
+                    >
+                      {' — bút toán điều chỉnh (dòng âm)'}
+                    </span>
+                  )}
                   {row.approvalStatus === 'REJECTED' && row.rejectionReason && (
                     <span className="ops-reject-reason" title={row.rejectionReason}> — {row.rejectionReason}</span>
                   )}
                 </td>
-                {hasEditableRow && (
+                {hasActionsColumn && (
                 <td className="ops-row-actions" aria-label="Thao tác">
-                  {isEditableExpense(row) && (
-                    <button
-                      type="button"
-                      className="btn btn--secondary"
-                      aria-label={`Sửa khoản chi ${opsBillReference(row.billRef)}`}
-                      onClick={() => setEditing(row)}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                  )}
+                  {isEditableExpense(row) ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        aria-label={`Sửa khoản chi ${opsBillReference(row.billRef)}`}
+                        onClick={() => (row.sourceKind === 'TRIP' ? setEditingLegacy(row) : setEditing(row))}
+                      >
+                        <Pencil size={13} />
+                      </button>
 
-                  {isEditableExpense(row) && (
-                    <button
-                      type="button"
-                      className="btn btn--secondary ops-danger"
-                      aria-label={`Xóa khoản chi ${opsBillReference(row.billRef)}`}
-                      disabled={deleting}
-                      onClick={() => void handleDelete(row)}
+                      <button
+                        type="button"
+                        className="btn btn--secondary ops-danger"
+                        aria-label={`Xóa khoản chi ${opsBillReference(row.billRef)}`}
+                        disabled={deleting}
+                        onClick={() => void handleDelete(row)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
+                  ) : (
+                    // Card 071026210520: never a silent empty cell — the rule
+                    // that locked the row is printed in place of the buttons.
+                    <span
+                      className="ops-row-lock"
+                      style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', whiteSpace: 'nowrap' }}
+                      title={`Khoản chi ${editBlockReason(row)?.toLowerCase()} — số liệu giữ nguyên để đối chiếu; chỉ bổ sung chứng từ được.`}
                     >
-                      <Trash2 size={13} />
-                    </button>
+                      {editBlockReason(row)}
+                    </span>
                   )}
                 </td>
                 )}
               </tr>
             ))}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={hasEditableRow ? 8 : 7} className="ops-wallet__empty">Chưa có khoản chi nào.</td></tr>
+              <tr><td colSpan={hasActionsColumn ? 8 : 7} className="ops-wallet__empty">Chưa có khoản chi nào.</td></tr>
             )}
           </tbody>
         </table>
@@ -179,6 +249,9 @@ export function OpsExpenseHistory() {
       )}
       {editing && (
         <OpsExpenseEditModal entry={editing} onClose={() => setEditing(null)} />
+      )}
+      {editingLegacy && (
+        <OpsLegacyExpenseEditModal entry={editingLegacy} onClose={() => setEditingLegacy(null)} />
       )}
       {legacyFor && <OpsLegacyExpenseDetail row={legacyFor} onClose={() => setLegacyFor(null)} />}
       {dialog}

@@ -21,7 +21,7 @@ push:
 	@docker buildx use $(BUILDER)
 	@docker buildx inspect --bootstrap >/dev/null
 	@echo "Checking GHCR auth..."
-	@(docker info 2>/dev/null | grep -q "Username: 4rankng") || (echo "Need login..." && gh auth token | docker login ghcr.io -u 4rankng --password-stdin)
+	@(docker info 2>/dev/null | grep -q "Username: 4rankng") || (echo "Need login..." && docker logout ghcr.io 2>/dev/null; gh auth token | docker login ghcr.io -u 4rankng --password-stdin)
 	@echo "Building & pushing $(PLATFORM) image (with inline cache)..."
 	cd .. && docker buildx build \
 		--platform $(PLATFORM) \

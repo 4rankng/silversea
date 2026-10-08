@@ -449,6 +449,19 @@
   overflow-wrap: anywhere;
 }
 
+/* Card 20261005_364 (REQ-05): the warehouse number is the tap-to-call
+   control — house tel-link face (cf. .fwd-instructions__link /
+   a.tdp-instructions-value): brand, no underline, weight 500. */
+.driver-task-fact__tel {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.driver-task-fact__tel:hover {
+  text-decoration: underline;
+}
+
 .driver-task-rules {
   display: grid;
   gap: 10px;
@@ -494,7 +507,7 @@
 }
 
 .driver-task-link {
-  color: var(--accent);
+  color: var(--accent-ink);
   text-decoration: none;
   overflow-wrap: anywhere;
 }
@@ -505,7 +518,9 @@
    call affordance — a 44px round tap target spanning the label+value rows.
    The number itself stays plain, selectable text. One glyph, one target. */
 /* Card 20260926_41 V2 (CHIEF): the call affordance is one green filled
-   button BELOW the info card — the card itself stays pure data. */
+   button BELOW the info card — the card itself stays pure data.
+   Card 20261005_364: the SĐT kho row's number is now also a tel: link
+   (tap the number to dial); this bar remains as the explicit CTA. */
 .driver-task-call-bar {
   display: flex;
   justify-content: stretch;
@@ -1178,6 +1193,8 @@
   font-weight: 600;
 }
 
+.driver-task-ops-toggle > span { color: var(--accent-ink); }
+
 .driver-task-close-chip {
   display: inline-flex;
   align-items: center;
@@ -1195,4 +1212,16 @@
   .driver-task-ops-toggle {
     min-height: var(--control-touch-h);
   }
+}
+
+/* Card 071026103226 (FB-055 regression): the closed card is ONE row — summary
+   left, document button right — holding the card at the ≤60px contract; the
+   stacked hint line re-inflated it to ~115px on staging. */
+.driver-task-footer__body--closed {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.driver-task-footer__body--closed .driver-task-complete {
+  width: auto;
 }

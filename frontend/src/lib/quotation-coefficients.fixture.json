@@ -1,0 +1,155 @@
+{
+  "source": "Actual local quotation45 read during UI29, customer1, effective2026-10-02; no fabricated rows",
+  "cells": [
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "1.25T",
+      "heSo": 1
+    },
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "2.5T",
+      "heSo": 1
+    },
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "3.5T",
+      "heSo": 1
+    },
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "5T",
+      "heSo": 1
+    },
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "8T",
+      "heSo": 1
+    },
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "10T",
+      "heSo": 1
+    },
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "CONT20.LIGHT",
+      "heSo": 1
+    },
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "CONT20.HEAVY",
+      "heSo": 1
+    },
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "CONT40.LIGHT",
+      "heSo": 1
+    },
+    {
+      "routeId": 1,
+      "vehicleSizeClassCode": "CONT40.HEAVY",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "1.25T",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "2.5T",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "3.5T",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "5T",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "8T",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "10T",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "CONT20.LIGHT",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "CONT20.HEAVY",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "CONT40.LIGHT",
+      "heSo": 1
+    },
+    {
+      "routeId": 2,
+      "vehicleSizeClassCode": "CONT40.HEAVY",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "1.25T",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "2.5T",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "3.5T",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "5T",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "8T",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "10T",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "CONT20.LIGHT",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "CONT20.HEAVY",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "CONT40.LIGHT",
+      "heSo": 1
+    },
+    {
+      "routeId": 3,
+      "vehicleSizeClassCode": "CONT40.HEAVY",
+      "heSo": 1
+    }
+  ]
+}

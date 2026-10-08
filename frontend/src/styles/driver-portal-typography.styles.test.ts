@@ -9,7 +9,7 @@ const files = [
   'pages/driver/DriverSecondaryPages.css', 'pages/portal/PortalPages.css',
   'pages/portal/CustomerPortalLayout.css', 'pages/FleetPage.css',
   'pages/TruckTiresPage.css', 'components/work-inbox/RoleWorkInbox.css',
-  'components/DriverTripCard.css', 'components/TripHero.css',
+  'components/DriverTripCard.css',
   'components/EarningsHero.css', 'components/FuelAllocCard.css',
   'components/trip/DriverContainerCard.css',
   'components/trip/TripPodSubmission.css',

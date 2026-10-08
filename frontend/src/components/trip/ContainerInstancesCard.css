@@ -401,7 +401,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 14px;
-  margin-top: 16px;
+  margin-top: 4px;
+  padding-top: 8px;
 }
 
 .ci-editor__footer > span {

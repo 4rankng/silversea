@@ -290,7 +290,7 @@
   cursor: pointer;
   font-size: var(--fs-sm);
   font-weight: 500;
-  color: var(--accent);
+  color: var(--accent-ink);
   padding: 4px 8px;
   border-radius: 6px;
   transition: background 140ms ease;

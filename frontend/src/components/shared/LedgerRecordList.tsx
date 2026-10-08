@@ -1,131 +1,84 @@
-import { isValidElement, useState, type ReactElement, type ReactNode } from 'react';
+import { Children, isValidElement, useEffect, useState, type Key, type ReactNode } from 'react';
+import { Panel } from '../UI';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import './LedgerRecordList.css';
 
-/** One labelled fact inside a record. `primary` facts stay visible; the rest
- *  collapse under the record's "Chi tiết" disclosure. `layout: "full-width"`
- *  stacks the label above a full-lane value for composite editors and source
- *  lists (QA-AUDIT-UI-65); everything else keeps the paired label/value row. */
-export interface LedgerFact {
-  key: string;
+export interface LedgerRecordFact {
+  key: Key;
   label: ReactNode;
   value: ReactNode;
   primary?: boolean;
   align?: 'end';
+  /** Composite editors/workspaces own a full lane; scalar facts remain paired. */
   layout?: 'full-width';
-  /** Extra class carried over from the desktop matrix cell (e.g. warn tint). */
-  className?: string;
 }
-
-/** One phone record: identity header plus the desktop row's facts. */
 export interface LedgerRecord {
-  key: string | number;
-  title: string;
-  subtitle?: string;
-  facts: LedgerFact[];
+  key: Key;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  facts: LedgerRecordFact[];
   selected?: boolean;
   selectable?: boolean;
-  onSelect?: () => void;
+  onSelect?: (selected: boolean) => void;
 }
-
-/** The shared 20-row seam: one page size for every ledger, so the pager is
- *  the same muscle memory on every surface that rides this band. */
+interface LedgerRecordListProps {
+  rows: LedgerRecord[];
+  emptyMessage?: ReactNode;
+}
 const PAGE_SIZE = 20;
 
-type ElementWithChildren = ReactElement<{ children?: ReactNode }>;
-
-const hasChildren = (node: ReactNode): node is ElementWithChildren => isValidElement(node);
-
-/** Plain text of a label node, for the `data-label` the fact band renders
- *  from (consumers pass strings, fragments and JSX headings alike). */
-const textOf = (node: ReactNode): string => {
-  if (node === null || node === undefined || typeof node === 'boolean') return '';
-  if (typeof node === 'string' || typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return node.map((child) => textOf(child)).join('');
-  if (hasChildren(node)) return textOf(node.props.children);
-  return '';
-};
-
-function FactItem({ fact }: { fact: LedgerFact }) {
-  return (
-    <div
-      className={`ledger-record__fact${fact.className ? ` ${fact.className}` : ''}`}
-      data-label={textOf(fact.label)}
-      data-layout={fact.layout}
-      data-align={fact.align}
-    >
-      <div className="ledger-record__value">{fact.value}</div>
+function titleText(node: ReactNode): string {
+  return Children.toArray(node).map((child): string => {
+    if (typeof child === 'string' || typeof child === 'number') return String(child);
+    return isValidElement<{ children?: ReactNode }>(child) ? titleText(child.props.children) : '';
+  }).join(' ').replace(/\s+/g, ' ').trim();
+}
+function Facts({ facts }: { facts: LedgerRecordFact[] }) {
+  return <dl className="ledger-record__facts">{facts.map((fact) => (
+    <div key={fact.key} className="ledger-record__fact" data-layout={fact.layout}>
+      <dt>{fact.label}</dt><dd data-align={fact.align}>{fact.value}</dd>
     </div>
-  );
+  ))}</dl>;
 }
 
-function LedgerRecordCard({ record }: { record: LedgerRecord }) {
-  const primary = record.facts.filter((fact) => fact.primary);
-  const rest = record.facts.filter((fact) => !fact.primary);
-  return (
-    <article
-      className="ledger-record"
-      aria-label={record.title}
-      data-selected={record.selected ? 'true' : undefined}
-    >
-      <header className="ledger-record__head">
-        {record.onSelect && (
-          <input
-            type="checkbox"
-            className="ledger-record__select"
-            aria-label={`Chọn ${record.title}`}
-            checked={record.selected === true}
-            disabled={record.selectable === false}
-            onChange={() => record.onSelect?.()}
-          />
-        )}
-        <div className="ledger-record__id">
-          <h5 className="ledger-record__title">{record.title}</h5>
-          {record.subtitle && <p className="ledger-record__subtitle">{record.subtitle}</p>}
-        </div>
-      </header>
-      <div className="ledger-record__facts">
-        {primary.map((fact) => <FactItem key={fact.key} fact={fact} />)}
-      </div>
-      {rest.length > 0 && (
-        <details className="ledger-record__more">
-          <summary>Chi tiết</summary>
-          <div className="ledger-record__facts">
-            {rest.map((fact) => <FactItem key={fact.key} fact={fact} />)}
-          </div>
-        </details>
-      )}
-    </article>
-  );
-}
-
-/** The phone record band for wide ledgers and pricing matrices. Renders the
- *  records only inside the phone breakpoint — on desktop the surface keeps
- *  its own table (standalone consumers wrap it in `.ledger-desktop`, the
- *  LedgerMatrix renders that wrapper itself). */
-export function LedgerRecordList({ rows }: { rows: LedgerRecord[] }) {
+/** Phone counterpart of a ledger matrix. Values/actions remain owned by callers. */
+export function LedgerRecordList({ rows, emptyMessage = 'Chưa có dữ liệu.' }: LedgerRecordListProps) {
   const phone = useMediaQuery('(max-width: 640px)');
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
+  const signature = JSON.stringify(rows.map((row) => row.key));
+  useEffect(() => { setPage(1); }, [signature]);
   if (!phone) return null;
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const current = Math.min(page, pageCount - 1);
-  const visible = pageCount > 1
-    ? rows.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
-    : rows;
+  const currentPage = Math.min(page, pageCount);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const visible = rows.slice(start, start + PAGE_SIZE);
   return (
     <div className="ledger-record-list">
-      {visible.map((record) => <LedgerRecordCard key={record.key} record={record} />)}
-      {pageCount > 1 && (
-        <nav className="ledger-record-list__pager" aria-label="Trang bản ghi">
-          <button type="button" className="btn btn--secondary btn--sm" disabled={current === 0} onClick={() => setPage(current - 1)}>
-            Trang trước
-          </button>
-          <span className="ledger-record-list__page">{current + 1}/{pageCount}</span>
-          <button type="button" className="btn btn--secondary btn--sm" disabled={current === pageCount - 1} onClick={() => setPage(current + 1)}>
-            Trang sau
-          </button>
-        </nav>
-      )}
+      {rows.length === 0 && <p className="ledger-record-list__empty">{emptyMessage}</p>}
+      {visible.map((row) => {
+        const name = titleText(row.title) || 'Bản ghi';
+        const secondary = row.facts.filter((fact) => !fact.primary);
+        return (
+          <article key={row.key} aria-label={name} className="ledger-record" data-selected={row.selected || undefined}>
+            <Panel title={row.title} subtitle={row.subtitle} action={row.selectable && row.onSelect ? (
+              <label className="ledger-record__selection">
+                <input type="checkbox" checked={!!row.selected} onChange={(event) => row.onSelect?.(event.target.checked)} aria-label={`Chọn ${name}`} />
+                <span>Chọn</span>
+              </label>
+            ) : undefined}>
+              <Facts facts={row.facts.filter((fact) => fact.primary)} />
+              {secondary.length > 0 && <details className="ledger-record__details">
+                <summary>Chi tiết</summary><Facts facts={secondary} />
+              </details>}
+            </Panel>
+          </article>
+        );
+      })}
+      {rows.length > PAGE_SIZE && <nav className="ledger-record-list__pager" aria-label="Trang bản ghi">
+        <button type="button" className="btn btn--secondary btn--sm" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Trang trước</button>
+        <span role="status">{start + 1}–{Math.min(start + PAGE_SIZE, rows.length)} / {rows.length}</span>
+        <button type="button" className="btn btn--secondary btn--sm" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>Trang sau</button>
+      </nav>}
     </div>
   );
 }

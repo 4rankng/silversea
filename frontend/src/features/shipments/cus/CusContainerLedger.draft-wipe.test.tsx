@@ -69,13 +69,16 @@ function DraftWipeHost() {
     <ToastProvider>
       <ContainerLedger
         detail={detail}
-        onLineSaved={async (line) => setDetail((current) => ({
-          ...current,
-          summary: { ...current.summary, version: line.shipmentVersion },
-          containers: current.containers.map((candidate) => (
-            candidate.id === line.id ? line : { ...candidate, shipmentVersion: line.shipmentVersion }
-          )),
-        }))}
+        onLineSaved={async (line) => {
+          if (!line) return;
+          setDetail((current) => ({
+            ...current,
+            summary: { ...current.summary, version: line.shipmentVersion },
+            containers: current.containers.map((candidate) => (
+              candidate.id === line.id ? line : { ...candidate, shipmentVersion: line.shipmentVersion }
+            )),
+          }));
+        }}
         getIdempotencyKey={() => 'draft-wipe-key'}
         clearIdempotencyKey={() => {}}
         idPrefix="wipe"

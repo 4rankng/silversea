@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../api/configClient', () => ({
   configClient: { getDispatchZones: vi.fn() },
@@ -45,10 +45,10 @@ describe('dispatch allocation filter buckets (card 20260925_5)', () => {
 });
 
 describe('MasterPlanFilters', () => {
-  it('keeps the shared criteria in the bar and opens the rest behind Bộ lọc', () => {
+  it('keeps the shared and basic criteria in the bar and opens the zone facets behind Bộ lọc (card 20261002_282)', () => {
     const onChange = vi.fn();
     vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
-    render(
+    const { container } = render(
       <MasterPlanFilters
         filters={{ ...EMPTY_FILTERS, q: 'BL-001', allocationStatus: 'NOT_ALLOCATED', deliveryDateFrom: '2026-08-01', portIds: [7] }}
         onChange={onChange}
@@ -56,33 +56,52 @@ describe('MasterPlanFilters', () => {
     );
 
     // The bar carries the criteria every list shares (the search field and the
-    // from/to group); every master-plan criterion sits behind `Bộ lọc`.
+    // from/to group) AND the basic criteria while it has room (R17): Xuất /
+    // Nhập and Phân xe are bar items, not dialog-only.
+    const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
     expect(screen.getByLabelText('Tìm kiếm lô hàng')).toBeTruthy();
     expect(screen.getAllByLabelText('Từ ngày')).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: 'Tất cả Xuất / Nhập' })).toBeNull();
+    const direction = within(bar).getByRole('button', { name: 'Xuất / Nhập: Tất cả' });
+    const allocation = within(bar).getByRole('button', { name: 'Phân xe: Chờ phân xe' });
+    expect(direction.closest('.inline-label-select')?.parentElement).toBe(bar);
+    expect(allocation.closest('.inline-label-select')?.parentElement).toBe(bar);
     expect(screen.queryByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' })).toBeNull();
 
-    // allocationStatus + portIds applied. The delivery date is the bar's own
-    // control, so it is no longer a dialog criterion and does not count.
-    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 2 đang áp dụng' }));
+    // allocationStatus is visible on the bar, so the badge speaks only for the
+    // applied port facet behind the trigger.
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 1 đang áp dụng' }));
     const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
-    expect(within(dialog).getByRole('button', { name: 'Tất cả Xuất / Nhập' })).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: 'Chờ phân xe Phân xe' })).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'Nhà xe' })).toBeTruthy();
+    // One copy of each criterion: the bar's selects are not repeated here.
+    expect(within(dialog).queryByRole('button', { name: /^Xuất \/ Nhập/ })).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: /^Phân xe/ })).toBeNull();
     expect(within(dialog).queryByRole('button', { name: 'Tất cả các ngày' })).toBeNull();
     expect(within(dialog).queryByRole('button', { name: 'Hôm nay' })).toBeNull();
     expect(within(dialog).queryByRole('button', { name: 'Hôm sau' })).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'Đặt lại' })).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'Áp dụng' })).toBeTruthy();
 
-    // `Đặt lại` clears exactly the criteria the dialog holds.
+    // `Đặt lại` clears exactly the criteria the dialog holds — the bar's
+    // Xuất / Nhập and Phân xe keep their values.
     fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt lại' }));
     expect(onChange).toHaveBeenLastCalledWith({
-      tradeDirection: '',
-      allocationStatus: '',
       portIds: [],
       carrierKeys: [],
     });
+  });
+
+  it('writes the bar selects through to the plan filters', () => {
+    const onChange = vi.fn();
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
+    expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'EXPORT' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Phân xe: Tất cả trạng thái' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Chờ phân nhà xe' }));
+    expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'PENDING_CARRIER' });
   });
 
   it('drops the redundant date preset shortcuts (filter-bar law §5 — the date inputs cover them)', () => {
@@ -121,9 +140,10 @@ describe('MasterPlanFilters', () => {
       />,
     );
 
-    // allocationStatus + portIds; the delivery date is the bar's own control.
-    const trigger = screen.getByRole('button', { name: 'Bộ lọc, 2 đang áp dụng' });
-    expect(within(trigger).getByText('2')).toBeTruthy();
+    // portIds only: allocationStatus is visible on the bar (card 20261002_282)
+    // and the delivery date is the bar's own control.
+    const trigger = screen.getByRole('button', { name: 'Bộ lọc, 1 đang áp dụng' });
+    expect(within(trigger).getByText('1')).toBeTruthy();
   });
 
   it('uses configured visibility for legacy port facets while preserving other zones', async () => {
@@ -211,4 +231,80 @@ describe('MasterPlanFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ portIds: [11] });
   });
 
+});
+
+// Card 20261002_285 AC1 + AC3. RED-first: on coarse pointers the delivery range
+// renders INSIDE the `Bộ lọc` dialog, which makes it a folded criterion there —
+// but it was excluded from both the badge and `Đặt lại`, and `MasterPlanPage`
+// passes no bar-level reset. A phone user could apply a date, then find no count
+// for it and no way to clear it. On fine pointers the range rides the bar, and
+// that behaviour is pinned by the tests above and must not change.
+describe('master-plan delivery range is a real criterion on coarse pointers (card 20261002_285)', () => {
+  const originalMatchMedia = window.matchMedia;
+  afterEach(() => { window.matchMedia = originalMatchMedia; });
+
+  function useCoarsePointerMedia() {
+    window.matchMedia = (media): MediaQueryList => ({
+      media,
+      matches: media === '(hover: none) and (pointer: coarse)',
+      onchange: null,
+      addListener() {}, removeListener() {},
+      addEventListener() {}, removeEventListener() {},
+      dispatchEvent() { return true; },
+    } as unknown as MediaQueryList);
+  }
+
+  it('counts the applied range in the trigger badge', () => {
+    useCoarsePointerMedia();
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(
+      <MasterPlanFilters
+        filters={{ ...EMPTY_FILTERS, deliveryDateFrom: '2026-08-01', deliveryDateTo: '2026-08-05' }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    // Both ends set = two applied conditions, not zero.
+    expect(screen.getByRole('button', { name: 'Bộ lọc, 2 đang áp dụng' })).toBeTruthy();
+  });
+
+  it('Đặt lại clears the range it now shows inside the dialog', () => {
+    useCoarsePointerMedia();
+    const onChange = vi.fn();
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(
+      <MasterPlanFilters
+        filters={{ ...EMPTY_FILTERS, deliveryDateFrom: '2026-08-01', deliveryDateTo: '2026-08-05', portIds: [7] }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 3 đang áp dụng' }));
+    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
+    // The range really is in the dialog on this pointer type.
+    expect(within(dialog).getByLabelText('Từ ngày')).toBeTruthy();
+
+    // Xuất / Nhập and Phân xe ride the bar here (jsdom keeps the strip
+    // inline), so the dialog's reset leaves them alone (card 20261002_282).
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt lại' }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      portIds: [],
+      carrierKeys: [],
+      deliveryDateFrom: '',
+      deliveryDateTo: '',
+    });
+  });
+
+  it('leaves the fine-pointer contract alone: the range is not a dialog criterion', () => {
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(
+      <MasterPlanFilters
+        filters={{ ...EMPTY_FILTERS, portIds: [7], deliveryDateFrom: '2026-08-01' }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    // portIds only — the date rides the bar and is not counted.
+    expect(screen.getByRole('button', { name: 'Bộ lọc, 1 đang áp dụng' })).toBeTruthy();
+  });
 });

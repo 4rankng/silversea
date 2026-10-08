@@ -3,7 +3,7 @@
 > **Vai trò:** Kế toán theo phạm vi được cấp; CUS phối hợp khoản thu khách; Ops/lái xe cung cấp khoản chi và chứng từ.
 > **Tài khoản:** theo [`../testaccounts.txt`](../testaccounts.txt), chỉ dùng tài khoản/môi trường được phép.
 > **Màn liên quan:** chi tiết lô `/shipments/:id`, bảng kế toán chi phí Ops, phơi phiếu/tiền đường, quỹ, công nợ `/debt`, `/payables` và báo cáo `/finance`. Xác nhận route thực tế trước khi chạy, không giả định route mới chưa được triển khai.
-> **PRD nguồn:** [Quy trình O2C §5–8](../../docs/prd/QuyTrinhO2C.md), [Vận hành Ops §5/9](../../docs/prd/OpsVanHanh.md), [Màn hình lái xe §8](../../docs/prd/ManHinhLaiXe.md).
+> **PRD nguồn:** [Quy trình O2C §5–8](../../docs/prd/QuyTrinhO2C.docx), [Vận hành Ops §5/9](../../docs/prd/OpsVanHanh.docx), [Màn hình lái xe §8](../../docs/prd/ManHinhLaiXe.docx).
 > **Kiểm thử bổ sung:** [Chi phí — yêu cầu ngày 16/09/2026](../2026-09-16-expense-requirements.md), [Luồng Ops](05-ops-quy-chi-phi.md).
 
 ## Phạm vi hiện hành và ánh xạ ca cũ

@@ -122,6 +122,7 @@ export const operationalSiteSnapshot = (site: typeof s.operationalSites.$inferSe
   googleMapsUrl: site.googleMapsUrl,
   contactName: site.contactName,
   contactPhone: site.contactPhone,
+  contacts: site.contacts,
   liftFeeInvoiceName: site.liftFeeInvoiceName,
   liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
   liftFeeTaxCode: site.liftFeeTaxCode,

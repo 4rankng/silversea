@@ -46,14 +46,6 @@ interface USearchableFieldProps {
   onCustomValue?: (text: string) => void;
   hideLabel?: boolean;
   /**
-   * Initial placement hint for the dropdown. Pass `"top"` for pickers whose
-   * sibling action (e.g. the "+ Thêm" inline-create button) sits directly
-   * below the trigger — the dropdown opens upward and never covers that
-   * sibling. `shouldFlip` stays on, so the dropdown still falls back below
-   * when the trigger is jammed against the viewport top.
-   */
-  popoverPlacement?: 'top' | 'bottom' | 'top start' | 'top end' | 'bottom start' | 'bottom end' | 'left' | 'right' | 'start' | 'end';
-  /**
    * Open the suggestion menu when the user TYPES into the field
    * (menuTrigger "input") instead of only on click/arrow keys. Unlike
    * `searchable` (focus trigger) the menu stays closed while the user merely
@@ -70,6 +62,13 @@ interface USearchableFieldProps {
    * row (20260920_26).
    */
   createOption?: { label: (typed: string) => string; onSelect: (typed: string) => void };
+  /**
+   * Receives the programmatic open handle once the combobox state exists
+   * (card 20261002_272 — the paired-field Tab hand-off: the sibling field's
+   * Tab keydown focuses this input and calls `open()`; bare focus and
+   * pass-through still never open — menuTrigger semantics are unchanged).
+   */
+  openApiRef?: { current: { open: () => void } | null };
 }
 
 export function USearchableField({
@@ -92,8 +91,8 @@ export function USearchableField({
   openOnType,
   onCustomValue,
   hideLabel,
-  popoverPlacement,
   createOption,
+  openApiRef,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   const selectedLabel = selected?.label;
@@ -156,7 +155,6 @@ export function USearchableField({
         menuTrigger={searchable ? 'focus' : openOnType ? 'input' : 'manual'}
         openOnPress
         selectedKey={searchable && allowsCustomValue ? chosenKey : (value || null)}
-        popoverPlacement={popoverPlacement}
         inputValue={
           searchable
             ? inputValue
@@ -226,6 +224,7 @@ export function USearchableField({
         shortcut={shortcut}
         popoverClassName={popoverClassName}
         className="csc-uui-field csc-control-boundary"
+        {...(openApiRef ? { onReady: (api: { open: () => void }) => { openApiRef.current = api; } } : {})}
       >
         {(item: { id: string | number; label?: string; searchText?: string }) => (
           <SelectItem

@@ -63,7 +63,7 @@ describe('summarizeAgingTotals', () => {
     assert.equal(totals.currentCusts, 2);
     assert.equal(totals.d30Custs, 1);
     assert.equal(totals.over90Custs, 1);
-    assert.equal(totals.overdueCount, 2); // maxOverdueDays > 30
+    assert.equal(totals.overdueCount, 3); // contractual overdue: maxOverdueDays > 0 (card 061026221213)
     assert.equal(totals.highRiskCount, 1); // over90 balance
   });
 });

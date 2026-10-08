@@ -5,6 +5,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { Alert } from '../../components/shared/Alert';
 import { useContainerTypes, usePorts } from '../../hooks/useCatalogQueries';
 import { formatMoney } from '../../lib/format';
 
@@ -20,11 +21,36 @@ interface LiftPricing {
 
 const DIR_LABELS: Record<string, string> = { LIFT_UP: 'Nâng', LIFT_DOWN: 'Hạ' };
 
-function LiftPricingForm({ saving, item, onsave, oncancel, ports, containerTypes, onDelete, deleting }: {
-  saving: boolean; item?: LiftPricing; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+function LiftPricingForm({
+  saving,
+  item,
+  onsave,
+  oncancel,
+  ports,
+  portsError,
+  portsLoading,
+  onRetryPorts,
+  containerTypes,
+  containerTypesError,
+  containerTypesLoading,
+  onRetryContainerTypes,
+  onDelete,
+  deleting,
+}: {
+  saving: boolean;
+  item?: LiftPricing;
+  onsave: (d: Record<string, unknown>) => void;
+  oncancel: () => void;
   ports: Array<{ id: number; name: string }>;
+  portsError?: boolean;
+  portsLoading?: boolean;
+  onRetryPorts?: () => void;
   containerTypes: Array<{ id: number; code: string; name: string }>;
-  onDelete?: () => Promise<void>; deleting?: boolean;
+  containerTypesError?: boolean;
+  containerTypesLoading?: boolean;
+  onRetryContainerTypes?: () => void;
+  onDelete?: () => Promise<void>;
+  deleting?: boolean;
 }) {
   const [portId, setPortId] = useState(String(item?.portId ?? ''));
   const [containerTypeId, setContainerTypeId] = useState(String(item?.containerTypeId ?? ''));
@@ -34,13 +60,55 @@ function LiftPricingForm({ saving, item, onsave, oncancel, ports, containerTypes
 
   return (
     <InlineForm colSpan={6}>
+      {portsError && (
+        <div style={{ flex: '1 1 100%', marginBottom: 8 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              onRetryPorts ? (
+                <button type="button" className="btn btn--sm" onClick={onRetryPorts}>
+                  Thử lại
+                </button>
+              ) : undefined
+            }
+          >
+            Không thể tải danh mục cảng / bãi.
+          </Alert>
+        </div>
+      )}
+      {containerTypesError && (
+        <div style={{ flex: '1 1 100%', marginBottom: 8 }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={
+              onRetryContainerTypes ? (
+                <button type="button" className="btn btn--sm" onClick={onRetryContainerTypes}>
+                  Thử lại
+                </button>
+              ) : undefined
+            }
+          >
+            Không thể tải danh mục loại container.
+          </Alert>
+        </div>
+      )}
       <div style={{ flex: 1, minWidth: 180 }}>
         <UuiSelectField
           label="Cảng / bãi"
           value={portId}
           onChange={e => setPortId(e.target.value)}
+          disabled={portsLoading || portsError}
           options={[
-            { value: '', label: '— Chọn cảng —' },
+            {
+              value: '',
+              label: portsError
+                ? 'Lỗi tải cảng — thử lại'
+                : portsLoading
+                ? 'Đang tải cảng…'
+                : '— Chọn cảng —',
+            },
             ...ports.map(port => ({ value: String(port.id), label: port.name })),
           ]}
         />
@@ -50,8 +118,16 @@ function LiftPricingForm({ saving, item, onsave, oncancel, ports, containerTypes
           label="Loại container"
           value={containerTypeId}
           onChange={e => setContainerTypeId(e.target.value)}
+          disabled={containerTypesLoading || containerTypesError}
           options={[
-            { value: '', label: '— Chọn loại —' },
+            {
+              value: '',
+              label: containerTypesError
+                ? 'Lỗi tải loại container — thử lại'
+                : containerTypesLoading
+                ? 'Đang tải loại container…'
+                : '— Chọn loại —',
+            },
             ...containerTypes.map(type => ({ value: String(type.id), label: `${type.code} — ${type.name}` })),
           ]}
         />
@@ -91,8 +167,10 @@ function LiftPricingForm({ saving, item, onsave, oncancel, ports, containerTypes
 
 export default function LiftPricingConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
-  const { data: ports = [] } = usePorts();
-  const { data: containerTypes = [] } = useContainerTypes();
+  const portsQuery = usePorts();
+  const containerTypesQuery = useContainerTypes();
+  const { data: ports = [], isError: portsError, isLoading: portsLoading, refetch: refetchPorts } = portsQuery;
+  const { data: containerTypes = [], isError: containerTypesError, isLoading: containerTypesLoading, refetch: refetchContainerTypes } = containerTypesQuery;
   const portNames = new Map(ports.map((port) => [port.id, port.name]));
   const containerTypeNames = new Map(containerTypes.map((type) => [type.id, type.code]));
   return (
@@ -111,7 +189,24 @@ export default function LiftPricingConfigPage() {
           { header: 'Hàng/Rỗng', render: (r) => r.loadState === 'EMPTY' ? 'Rỗng' : 'Hàng' },
           { header: 'Ngày hiệu lực', render: (r) => r.effectiveDate },
         ]}
-        renderForm={(p) => <LiftPricingForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} ports={ports} containerTypes={containerTypes} onDelete={p.onDelete} deleting={p.deleting} />}
+        renderForm={(p) => (
+          <LiftPricingForm
+            saving={p.saving}
+            item={p.item}
+            onsave={p.onSave}
+            oncancel={p.onCancel}
+            ports={ports}
+            portsError={portsError}
+            portsLoading={portsLoading}
+            onRetryPorts={() => void refetchPorts()}
+            containerTypes={containerTypes}
+            containerTypesError={containerTypesError}
+            containerTypesLoading={containerTypesLoading}
+            onRetryContainerTypes={() => void refetchContainerTypes()}
+            onDelete={p.onDelete}
+            deleting={p.deleting}
+          />
+        )}
       />
     </div>
   );

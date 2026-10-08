@@ -386,10 +386,10 @@
   border-top: 1px dashed var(--line);
 }
 .tc-totals-breakdown__row--override span:first-child {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .tc-totals-breakdown__row--override .money {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: var(--fw-bold);
 }
 

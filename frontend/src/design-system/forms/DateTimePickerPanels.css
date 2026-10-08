@@ -113,3 +113,15 @@
 .dtp-time__exact > button { min-width: 52px; min-height: 32px; padding: 4px 8px; border: 0; border-radius: 6px; background: var(--accent); color: var(--white, #fff); font-size: var(--text-data-size); }
 .dtp-time__error { grid-column: 1 / -1; font-size: var(--text-caption-size); color: var(--danger); }
 @media (max-width: 640px) { .dtp-time__exact > input, .dtp-time__exact > button { min-height: var(--control-max-h); } }
+
+/* Card 071026204700 (FB-001): the combined ngày+giờ popup — one panel holding
+   the calendar and the 24h grid side by side (the .dtp-dialog column pattern),
+   stacked on narrow viewports. */
+.date-picker__popup.combined-datetime__popup { width: min(680px, calc(100vw - 24px)); }
+.combined-datetime__body { display: flex; gap: 16px; align-items: flex-start; }
+.combined-datetime__date { flex: 0 0 auto; }
+.combined-datetime__time { flex: 1 1 auto; min-width: 264px; }
+@media (max-width: 720px) {
+  .combined-datetime__body { flex-direction: column; }
+  .combined-datetime__time { width: 100%; }
+}

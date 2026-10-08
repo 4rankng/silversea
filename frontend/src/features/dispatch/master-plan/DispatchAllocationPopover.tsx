@@ -7,6 +7,7 @@ import {
 } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { CloseButton } from '../../../components/untitled-ui/base/buttons/close-button';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { Modal } from '../../../design-system/Modal';
 import { billBookingReference } from '../../../lib/business-reference';
 import {
@@ -194,17 +195,36 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
       });
       onClose();
     } catch (err) {
-      const status = (err as { status?: number }).status;
+      const status = err && typeof err === 'object' && 'status' in err && typeof err.status === 'number' ? err.status : null;
+      const raw = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? err.message.trim() : '';
+      // Business refusals (4xx) carry the precise reason from the backend —
+      // e.g. the per-container freeze 'Không thể đổi nhà xe…'. Show it verbatim
+      // instead of a generic conflict text that hides the real cause.
+      const detail = status != null && status >= 400 && status < 500 ? raw : '';
       if (status === 409) {
-        setError('Lô hàng đã thay đổi. Vui lòng đóng và mở lại để lấy số liệu mới.');
+        setError(detail || 'Lô hàng đã thay đổi. Vui lòng đóng và mở lại để lấy số liệu mới.');
       } else {
-        setError('Không thể lưu phân bổ. Vui lòng thử lại.');
+        setError(detail || 'Không thể lưu phân bổ. Vui lòng thử lại.');
       }
       setSaving(false);
     }
   };
 
   let globalRowOffset = 0;
+
+  // Sweep (card 20261008_1): both dialog buttons used to disable silently —
+  // "Hủy" froze during a save, "Lưu phân bổ" went dark on validation errors.
+  // Each cause now rides the aria-described + aria-disabled pattern
+  // (DisabledActionTip) so the reason is reachable on hover AND keyboard
+  // focus — `isDisabled`/the `disabled` attribute would take the buttons out
+  // of both. When validation blocks the save, the reason IS the first
+  // specific validation message (the notice list carries the full set).
+  const cancelDisabledReason = saving ? 'Đang lưu phân bổ — chưa hủy được.' : null;
+  const saveDisabledReason = saving
+    ? 'Đang lưu phân bổ…'
+    : validation.hasErrors
+      ? (validation.allErrors[0] ?? 'Số container phân bổ chưa hợp lệ — kiểm tra các dòng đánh dấu đỏ.')
+      : null;
 
   return (
     <Modal
@@ -367,17 +387,28 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
         )}
 
         <div className="dispatch-allocation-popover__actions">
-          <UUIButton size="sm" color="secondary" onPress={onClose} isDisabled={saving}>Hủy</UUIButton>
-          <UUIButton
-            size="sm"
-            color="primary"
-            className="dispatch-allocation-popover__save"
-            onPress={handleSave}
-            isDisabled={validation.hasErrors || saving}
-            isLoading={saving}
-          >
-            {saving ? 'Đang lưu…' : 'Lưu phân bổ'}
-          </UUIButton>
+          <DisabledActionTip id="dispatch-allocation-cancel" reason={cancelDisabledReason}>
+            <UUIButton
+              size="sm"
+              color="secondary"
+              aria-disabled={saving || undefined}
+              onPress={() => { if (saving) return; onClose(); }}
+            >
+              Hủy
+            </UUIButton>
+          </DisabledActionTip>
+          <DisabledActionTip id="dispatch-allocation-save" reason={saveDisabledReason}>
+            <UUIButton
+              size="sm"
+              color="primary"
+              className="dispatch-allocation-popover__save"
+              onPress={handleSave}
+              aria-disabled={saveDisabledReason != null || undefined}
+              isLoading={saving}
+            >
+              {saving ? 'Đang lưu…' : 'Lưu phân bổ'}
+            </UUIButton>
+          </DisabledActionTip>
         </div>
       </div>
     </Modal>

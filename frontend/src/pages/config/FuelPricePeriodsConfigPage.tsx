@@ -6,6 +6,7 @@ import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { Drawer } from '../../components/UI';
+import { Alert } from '../../components/shared/Alert';
 import { CONFIG, Role } from '@tingting/shared';
 import { useAuth } from '../../hooks/useAuth';
 import { NumberField } from '../../design-system';
@@ -53,6 +54,28 @@ function QuotationFuelApprovalAlert() {
 
   return (
     <>
+      {/* Card 20261004_333: a failed pending-approvals fetch must not render as
+          "no pending work" — surface the error with retry instead. */}
+      {pendingQuery.isError && (
+        <div style={{ margin: '12px 0' }}>
+          <Alert
+            variant="error"
+            style="soft"
+            action={(
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={pendingQuery.isFetching}
+                onClick={() => { void pendingQuery.refetch(); }}
+              >
+                {pendingQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+              </button>
+            )}
+          >
+            Không thể tải danh sách chờ xác nhận cập nhật báo giá
+          </Alert>
+        </div>
+      )}
       {pendingTotal > 0 && (
         <div className="expense-page-error" role="alert" style={{ margin: '12px 0' }}>
           <p>
@@ -94,7 +117,9 @@ function QuotationFuelApprovalAlert() {
           </div>
         )}
       >
-        {rows.length === 0 ? (
+        {pendingQuery.isError ? (
+          <p role="alert">Không thể tải danh sách chờ xác nhận. Đóng danh sách và thử lại sau.</p>
+        ) : rows.length === 0 ? (
           <p role="status">Không còn dòng chờ xác nhận.</p>
         ) : (
           <>

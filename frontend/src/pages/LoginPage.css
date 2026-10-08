@@ -191,7 +191,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 20px clamp(28px, 4vw, 60px);
+  padding: 8px clamp(28px, 4vw, 60px) 20px;
   border-top: 1px solid var(--line);
   color: var(--ink-3);
   font-size: var(--text-caption-size);
@@ -418,7 +418,7 @@
 
   .login-footer {
     justify-content: center;
-    padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+    padding: 8px 20px calc(16px + env(safe-area-inset-bottom));
     text-align: center;
   }
 

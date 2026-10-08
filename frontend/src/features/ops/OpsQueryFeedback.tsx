@@ -13,9 +13,9 @@ export function OpsQueryFeedback({ loading, error, label, onRetry }: {
   return (
     <div className={`ops-query-feedback${error ? ' ops-query-feedback--error' : ''}`} role={error ? 'alert' : 'status'}>
       {error ? <>
-        <span>Không tải được {label}. Vui lòng thử lại.</span>
+        <span>{`Không tải được ${label}. Vui lòng thử lại.`}</span>
         <Btn size="sm" onClick={() => void onRetry()}>Thử lại</Btn>
-      </> : <><Loader2 size={16} className="spin" aria-hidden /><span>Đang tải {label}…</span></>}
+      </> : <><Loader2 size={16} className="spin" aria-hidden /><span>{`Đang tải ${label}…`}</span></>}
     </div>
   );
 }

@@ -38,7 +38,7 @@ describe('shared tabs selection styling', () => {
     // The bundled font is proportional (see styles/font-family-contract.test.ts):
     // a tabular-numerals declaration here is a banned no-op.
     expect(count).not.toMatch(/font-variant-numeric/);
-    expect(css).toMatch(/\.ds-tabs__count--accent \{\s*color:\s*var\(--accent/);
+    expect(css).toMatch(/\.ds-tabs__count--accent \{\s*color:\s*var\(--success-text/);
     expect(css).toMatch(/\.ds-tabs__count--warning \{\s*color:\s*var\(--warning/);
   });
 

@@ -102,13 +102,16 @@ describe('AccountingWorkspacePage', () => {
         });
       }
       if (path.startsWith('/customers')) {
-        return Promise.resolve({
-          total: 2,
-          items: [
-            { id: 5, name: 'Silver Sea', isCarrier: false },
-            { id: 7, name: 'Nhà xe Minh Phát', isCarrier: true },
-          ],
-        });
+        // The two populations are separate requests now: the khách hàng filter
+        // reads the (non-carrier) customer list, the nhà xe filter asks for
+        // `?isCarrier=true`. A mock that ignored the flag would hide exactly the
+        // regression this file guards — carriers leaking into the customer
+        // dropdown.
+        const wantsCarriers = new URLSearchParams(path.split('?')[1] ?? '').get('isCarrier') === 'true';
+        const items = wantsCarriers
+          ? [{ id: 7, name: 'Nhà xe Minh Phát', isCarrier: true }]
+          : [{ id: 5, name: 'Silver Sea', isCarrier: false }];
+        return Promise.resolve({ total: items.length, items });
       }
       return Promise.resolve({
         totals: { revenue: 40_000_000, directCost: 25_000_000, sharedOverhead: 0, profit: 15_000_000 },

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { Role, operationalSiteContacts } from '@tingting/shared';
 
 import { db, type Tx } from '../db';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
@@ -27,6 +27,7 @@ import {
 import {
   applyFleetSpecs,
   applyReferenceEntities,
+  parseCarriersV2,
   parseCustomersV2,
   parseDriversV2,
   parsePortsV2,
@@ -35,6 +36,7 @@ import {
   parseStaffUsers,
   parseTrailerSpecs,
   parseTruckSpecs,
+  type CarrierPayload,
   type CustomerPayload,
   type RoutePayload,
   type StaffUserPayload,
@@ -125,7 +127,7 @@ interface FleetPayload {
 }
 
 type AcceptedPayload = SitePayload | PortPayload | DriverPayload | FleetPayload
-  | CustomerPayload | RoutePayload | TruckSpecPayload | TrailerSpecPayload | StaffUserPayload;
+  | CustomerPayload | CarrierPayload | RoutePayload | TruckSpecPayload | TrailerSpecPayload | StaffUserPayload;
 
 export interface ParsedRow {
   sheetName: string;
@@ -778,6 +780,10 @@ async function parseWorkbook(buffer: Buffer): Promise<ParsedWorkbook> {
   // Sep-2026 delivery sheets (Data form.xlsx + User & Role.xlsx, merged into
   // one workbook by the route before this parse runs). No-ops when absent.
   parseCustomersV2(workbook, rows);
+  // The workbook's "Nhà xe" sheet is a SEPARATE population from "Khách
+  // hàng" — it was whitelisted in knownSheets with no parser behind it until
+  // 2026-10-03, so it parsed to zero rows with zero warnings.
+  parseCarriersV2(workbook, rows);
   parseSitesV2(workbook, rows);
   parseRoutesV2(workbook, rows);
   parsePortsV2(workbook, rows);
@@ -1165,6 +1171,11 @@ async function applyParsedRows(
       googleMapsUrl: payload.googleMapsUrl,
       contactName: payload.contactName,
       contactPhone: payload.contactPhone,
+      // The structured list must move in lockstep with the imported pair:
+      // readers prefer `contacts` when non-empty, so writing only the legacy
+      // pair would leave imported values invisible until an unrelated PATCH
+      // clobbered them.
+      contacts: operationalSiteContacts({ contactName: payload.contactName, contactPhone: payload.contactPhone }),
       liftFeeInvoiceName: payload.liftFeeInvoiceName,
       liftFeeInvoiceAddress: payload.liftFeeInvoiceAddress,
       liftFeeTaxCode: payload.liftFeeTaxCode,

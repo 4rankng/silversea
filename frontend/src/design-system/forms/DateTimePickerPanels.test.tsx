@@ -14,6 +14,12 @@ function click(element: HTMLElement) {
   fireEvent.pointerDown(element); fireEvent.mouseDown(element);
   act(() => element.focus()); fireEvent.click(element);
 }
+
+function openViaFrame(part: 'time' | 'date' = 'time') {
+  const group = document.querySelector(`[data-seg-part="${part}"]`);
+  if (!group) throw new Error(`segments group (${part}) not found`);
+  fireEvent.click(group);
+}
 // Press inside an open desktop picker: react-aria arms the press on pointer
 // events, and the focus() step of click() would blur the field — which the
 // desktop blur handler treats as leaving the group and closes the picker.
@@ -132,7 +138,7 @@ describe('DateTimePickerDialog (_43 P0 rework: split NGÀY/GIỜ, compact)', () 
   it('disabling the field closes its open picker and re-enabling never reopens it', async () => {
     const onChange = vi.fn();
     const { rerender } = render(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T08:00" onChange={onChange} />);
-    click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+    openViaFrame();
     expect(await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).toBeTruthy();
     rerender(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T08:00" onChange={onChange} isDisabled />);
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).not.toBeInTheDocument());
@@ -159,7 +165,7 @@ describe('DateTimePickerDialog (_43 P0 rework: split NGÀY/GIỜ, compact)', () 
   it('the trigger opens the compact portaled picker; picks stream the buffered contract and Xong closes', async () => {
     const onChange = vi.fn();
     render(<BufferedUuiDateTimeInput label="Hẹn" value="2026-09-19T08:00" onChange={onChange} />);
-    click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+    openViaFrame();
     const dialog = await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' });
     expect(dialog.classList.contains('time-picker__popup')).toBe(true);
     expect(dialog.parentElement).toBe(document.body);
@@ -195,13 +201,13 @@ function DialogHost({ onChange }: { onChange: (v: string) => void }) {
 describe('BufferedUuiDateTimeInput — split-field picker openings (P0 regression)', () => {
   it('the time trigger opens the time picker', async () => {
     render(<DialogHost onChange={vi.fn()} />);
-    click(screen.getByRole('textbox', { name: 'Giờ — Hẹn' }));
+    openViaFrame();
     expect(await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).toBeTruthy();
   });
 
   it('the date trigger opens the date picker, keeping the field label in the accessible names', async () => {
     render(<DialogHost onChange={vi.fn()} />);
-    click(screen.getByRole('textbox', { name: 'Ngày — Hẹn' }));
+    openViaFrame('date');
     expect(await screen.findByRole('dialog', { name: 'Chọn ngày — Hẹn' })).toBeTruthy();
   });
 

@@ -11,7 +11,7 @@ vi.mock('@tingting/shared', async (importOriginal) => ({ ...(await importOrigina
 import ShipmentsPage from './ShipmentsPage';
 describe('debug export bisect', () => {
   it('clicks XLSX without toolbar', async () => {
-    apiGet.mockResolvedValue({ page: 1, limit: 20, total: 0, totalPages: 0, pageSummary: { needsSchedule: 0, needsVehicle: 0, waitingAccounting: 0, readyToLock: 0, needsAttention: 0 }, items: [] });
+    apiGet.mockResolvedValue({ page: 1, limit: 20, total: 0, totalPages: 0, statusCounts: { needsSchedule: 0, needsVehicle: 0, waitingAccounting: 0 }, items: [] });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><ToastProvider><MemoryRouter initialEntries={['/shipments']}><Routes><Route path="/shipments" element={<ShipmentsPage />} /></Routes></MemoryRouter></ToastProvider></QueryClientProvider>);
     await screen.findByRole('button', { name: 'Tải XLSX' });

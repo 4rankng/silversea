@@ -107,6 +107,73 @@ describe('deposit tracker workflows', () => {
     expect(form.getByLabelText('Số Bill')).toHaveValue('QA-NEW');
     expect(api.createDepositTracker).toHaveBeenCalledWith(expect.objectContaining({ cvSubmittedDate: null, depositAmount: 4000000 }));
   });
+
+  // Spec 5.10 Table 1.1.3: the create dialog gained Ngày cược, Ngày dự kiến
+  // hoàn cược (CV + 14 default) and Trạng thái.
+  it('renders the three spec 5.10 create fields and defaults Trạng thái to Chưa hoàn cược', async () => {
+    page(); await screen.findByText('QA-BILL');
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Thêm dòng theo dõi hoàn cược' }));
+    expect(form.getByLabelText('Ngày cược')).toHaveValue('');
+    expect(form.getByLabelText('Ngày dự kiến hoàn cược')).toHaveValue('');
+    const status = form.getByRole('button', { name: /Trạng thái/ });
+    expect(status).toHaveTextContent('Chưa hoàn cược');
+    expect(form.getByText('Bỏ trống ngày dự kiến để hệ thống tự điền ngày nộp CV + 14 ngày.')).toBeInTheDocument();
+    fireEvent.click(status);
+    expect(await screen.findByRole('option', { name: 'Đã hoàn cược' })).toBeInTheDocument();
+  });
+
+  it('auto-fills Ngày dự kiến hoàn cược to CV + 14 on CV change and keeps a manual override', async () => {
+    page(); await screen.findByText('QA-BILL');
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Thêm dòng theo dõi hoàn cược' }));
+    fireEvent.change(form.getByLabelText('Ngày nộp CV (tùy chọn)'), { target: { value: '01/10/2026' } });
+    await waitFor(() => expect(form.getByLabelText('Ngày dự kiến hoàn cược')).toHaveValue('15'));
+    expect(form.getByLabelText('Tháng — Ngày dự kiến hoàn cược')).toHaveValue('10');
+    expect(form.getByLabelText('Năm — Ngày dự kiến hoàn cược')).toHaveValue('2026');
+    // Still auto-tracked while the user has not overridden it.
+    fireEvent.change(form.getByLabelText('Ngày nộp CV (tùy chọn)'), { target: { value: '05/10/2026' } });
+    await waitFor(() => expect(form.getByLabelText('Ngày dự kiến hoàn cược')).toHaveValue('19'));
+    // A manual override sticks across later CV changes.
+    fireEvent.change(form.getByLabelText('Ngày dự kiến hoàn cược'), { target: { value: '25/10/2026' } });
+    await waitFor(() => expect(form.getByLabelText('Ngày dự kiến hoàn cược')).toHaveValue('25'));
+    fireEvent.change(form.getByLabelText('Ngày nộp CV (tùy chọn)'), { target: { value: '10/10/2026' } });
+    expect(form.getByLabelText('Ngày dự kiến hoàn cược')).toHaveValue('25');
+  });
+
+  it('submits depositDate + status and can mark Đã hoàn cược at creation', async () => {
+    page(); await screen.findByText('QA-BILL');
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Thêm dòng theo dõi hoàn cược' }));
+    for (const [label, value] of [['Số Bill', 'QA-NEW'], ['Khách hàng', 'QA customer'], ['Hãng tàu', 'QA carrier'], ['Số tiền cược (₫)', '5000000']]) fireEvent.change(form.getByLabelText(label), { target: { value } });
+    fireEvent.change(form.getByLabelText('Ngày cược'), { target: { value: '03/10/2026' } });
+    fireEvent.change(form.getByLabelText('Ngày nộp CV (tùy chọn)'), { target: { value: '01/10/2026' } });
+    fireEvent.click(form.getByRole('button', { name: /Trạng thái/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Đã hoàn cược' }));
+    api.createDepositTracker.mockResolvedValue(row);
+    fireEvent.click(form.getByRole('button', { name: 'Lưu dòng' }));
+    await waitFor(() => expect(api.createDepositTracker).toHaveBeenCalledExactlyOnceWith({
+      billNumber: 'QA-NEW', customerName: 'QA customer', carrierName: 'QA carrier',
+      depositAmount: 5000000,
+      cvSubmittedDate: '2026-10-01', expectedRefundDate: '2026-10-15',
+      note: null, depositDate: '2026-10-03', status: 'DA_HOAN_CUOC',
+    }));
+  });
+
+  it('keeps the create payload at status CHUA_HOAN_CUOC with blank dates by default', async () => {
+    page(); await screen.findByText('QA-BILL');
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Thêm dòng theo dõi hoàn cược' }));
+    for (const [label, value] of [['Số Bill', 'QA-NEW'], ['Khách hàng', 'QA customer'], ['Hãng tàu', 'QA carrier'], ['Số tiền cược (₫)', '5000000']]) fireEvent.change(form.getByLabelText(label), { target: { value } });
+    api.createDepositTracker.mockResolvedValue(row);
+    fireEvent.click(form.getByRole('button', { name: 'Lưu dòng' }));
+    await waitFor(() => expect(api.createDepositTracker).toHaveBeenCalledExactlyOnceWith({
+      billNumber: 'QA-NEW', customerName: 'QA customer', carrierName: 'QA carrier',
+      depositAmount: 5000000,
+      cvSubmittedDate: null, expectedRefundDate: null, note: null, depositDate: null,
+      status: 'CHUA_HOAN_CUOC',
+    }));
+  });
   it('reports load failures and retries without claiming an empty successful result', async () => {
     api.listDepositTrackers.mockRejectedValueOnce(new Error('Không tải được dữ liệu'));
     page(); expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được dữ liệu');

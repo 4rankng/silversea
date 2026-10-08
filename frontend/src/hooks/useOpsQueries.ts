@@ -1,5 +1,5 @@
 /**
- * React-query hooks for the Ops portal (docs/prd/OpsVanHanh.md). Local key
+ * React-query hooks for the Ops portal (docs/prd/OpsVanHanh.docx). Local key
  * factory keeps the ops surface self-contained; mutations invalidate the
  * wallet + lists so the optimistic patches reconcile against the server.
  */
@@ -10,6 +10,7 @@ import {
   type OpsExpensePhoto,
   type OpsExpenseRow,
   type OpsExpenseStatus,
+  type OpsExpenseStatusCounts,
   type OpsFleetTruck,
   type OpsFundBook,
   type OpsFundBookPeriod,
@@ -39,7 +40,7 @@ export const opsKeys = {
   adminSettlement: (id: number) => ['ops', 'admin-settlement', id] as const,
 };
 
-function useInvalidateOps() {
+export function useInvalidateOps() {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: qk.ops.root });
@@ -91,7 +92,7 @@ export function useOpsFundBook(period?: OpsFundBookPeriod) {
 }
 
 export function useOpsWalletExpenses(status?: OpsExpenseStatus) {
-  return useQuery<{ items: OpsExpenseRow[] }>({
+  return useQuery<{ items: OpsExpenseRow[]; statusCounts: OpsExpenseStatusCounts }>({
     queryKey: opsKeys.walletExpenses(status),
     queryFn: () => opsClient.getWalletExpenses(status),
   });

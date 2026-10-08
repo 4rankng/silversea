@@ -1,0 +1,94 @@
+/* ── Settlement sheet (screen + A4 print) ───────────────────────────────── */
+
+.ops-settlement-sheet h3 {
+  margin: 0 0 4px;
+  font-size: var(--text-section-size);
+}
+
+.ops-settlement-sheet > p {
+  margin: 0 0 10px;
+  font-size: var(--text-data-size);
+  color: var(--fg-2);
+}
+
+.ops-settlement-sheet h4 {
+  margin: 12px 0 6px;
+  font-size: var(--text-data-size);
+}
+
+.ops-settlement-sheet__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ops-settlement-sheet__table th,
+.ops-settlement-sheet__table td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 8px;
+  font-size: var(--text-caption-size);
+  text-align: left;
+}
+
+.ops-settlement-sheet__subtotal td {
+  font-weight: 600;
+}
+
+.ops-settlement-sheet__group-total {
+  font-weight: 600;
+  font-size: var(--text-data-size);
+  margin: 4px 0 8px;
+}
+
+.ops-settlement-sheet__grand {
+  font-weight: 700;
+  font-size: var(--text-body-size);
+  margin: 10px 0;
+}
+
+.ops-settlement-sheet__signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.ops-settlement-sheet__signatures span {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  font-weight: 600;
+  font-size: var(--text-data-size);
+}
+
+.ops-settlement-sheet__signatures small {
+  font-weight: 400;
+  color: var(--fg-3);
+}
+
+/* A4 print: only the sheet survives. */
+@media print {
+  :where(body:has(.ops-settlement-sheet)) * {
+    visibility: hidden;
+  }
+
+  body:has(.ops-settlement-sheet) {
+    background: var(--surface);
+  }
+
+  .ops-settlement-sheet,
+  .ops-settlement-sheet * {
+    visibility: visible;
+  }
+
+  .ops-settlement-sheet .ds-table-scroll {
+    overflow: visible;
+    max-width: none;
+  }
+
+  .ops-settlement-sheet {
+    background: var(--surface);
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 24px;
+  }
+}

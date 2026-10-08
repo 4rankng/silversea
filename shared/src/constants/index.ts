@@ -9,7 +9,7 @@ export enum TripStatus {
  *  (giấy báo nợ) and carrier payment statements.
  *
  *  `COMPLETED` is the single terminal / posting state (O2C reconciliation, 01/08/2026 —
- *  `docs/prd/QuyTrinhO2C.md`). Revenue/AP posts via `postTripCompletion` on the
+ *  `docs/prd/QuyTrinhO2C.docx`). Revenue/AP posts via `postTripCompletion` on the
  *  `IN_TRANSIT → COMPLETED` transition, carrying the migrated photo / zero-revenue /
  *  e-POD gates. The former `LOCKED` milestone has been dropped: costs stay editable
  *  after completion (no hard-freeze); an AR snapshot + dirty-flag on `trips` surfaces
@@ -559,6 +559,12 @@ export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMa
   // contradictory requiresInvoice:false + substituteEvidenceAllowed:false state
   // card 20260928_181 fixed for CUSTOMS/ZONE_SURCHARGE.
   ROAD_REPAIR:    { name: 'Phí sửa chữa dọc đường',      defaultMarkup: false, billingLabel: 'Phí sửa chữa dọc đường', category: ExpenseTypeCategory.REPAIR_ADVANCE },
+  // Card 20261004_355 — fuel spend gets its own row so OPS Khai chi phí stops
+  // filing diesel under "Phí chi hộ khác" and the fuel class vanishes from
+  // reports. No-invoice class (see the seed policy): the driver-side analog is
+  // the refill-report flow, and OPS fuel claims ride receipts; the admin
+  // surface can reclassify if the owner wants the invoice gate instead.
+  FUEL:           { name: 'Phí nhiên liệu / dầu',        defaultMarkup: false, billingLabel: 'Phí nhiên liệu', category: ExpenseTypeCategory.KHAC },
 };
 
 export const NO_INVOICE_EVIDENCE_TYPES = [
@@ -672,6 +678,16 @@ export const CARRIER_TYPE_LABELS: Record<CarrierType, string> = {
   [CarrierType.EXTERNAL]: 'Xe ngoài',
 };
 
+/** `shipments.tradeDirection` (backend/src/db/schema/shipments.ts) — nhập khẩu
+ *  / xuất khẩu, NOT trong nước. The wire value is the raw enum; the board
+ *  paints the label from this map (card 20261005_383). */
+export type TradeDirection = 'IMPORT' | 'EXPORT';
+
+export const TRADE_DIRECTION_LABELS: Record<TradeDirection, string> = {
+  IMPORT: 'Nhập',
+  EXPORT: 'Xuất',
+};
+
 export const SETTLEMENT_METHOD_LABELS: Record<SettlementMethod, string> = {
   [SettlementMethod.COMPANY_DIRECT]: 'Công ty trả trực tiếp',
   [SettlementMethod.OPS_ADVANCE]: 'Chi hộ tạm ứng',
@@ -743,6 +759,8 @@ export enum NotificationType {
   SYSTEM_ANNOUNCEMENT = 'SYSTEM_ANNOUNCEMENT',
   ADVANCE_SETTLEMENT_APPROVED = 'ADVANCE_SETTLEMENT_APPROVED',
   SHIPMENT_HANDOFF = 'SHIPMENT_HANDOFF',
+  /** Card 051026231511 — the bell counterpart of the overview 'Quỹ âm' strip. */
+  FUND_NEGATIVE = 'FUND_NEGATIVE',
 }
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
@@ -759,6 +777,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   [NotificationType.SYSTEM_ANNOUNCEMENT]: 'Thông báo hệ thống',
   [NotificationType.ADVANCE_SETTLEMENT_APPROVED]: 'Phiếu hoàn ứng đã duyệt',
   [NotificationType.SHIPMENT_HANDOFF]: 'Lô hàng được giao cho điều vận',
+  [NotificationType.FUND_NEGATIVE]: 'Quỹ âm',
 };
 
 /**
@@ -767,7 +786,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
  * (still recorded in the notification drawer) so low-signal events don't spam
  * every role. Absent types => no push. This is the single knob to tune.
  *
- * Audiences (per `docs/prd/QuyTrinhO2C.md` push MVP — scoped to Driver + Điều vận):
+ * Audiences (per `docs/prd/QuyTrinhO2C.docx` push MVP — scoped to Driver + Điều vận):
  *  - 'driver'      → DRIVER role only.
  *  - 'dispatcher'  → Điều vận authority (MANAGER/ADMIN in the dispatcher seat).
  *  - 'financial'   → ACCOUNTANT + MANAGER/ADMIN (financial office action).
@@ -785,6 +804,9 @@ export const PUSH_RULES: Partial<Record<NotificationType, PushAudience>> = {
   // PRD push MVP: settlement-approved is Driver + Điều vận only. Previously
   // pushed to every role ('all'), which violated the MVP scope.
   [NotificationType.ADVANCE_SETTLEMENT_APPROVED]: 'driver',
+  // FUND_NEGATIVE is deliberately absent — in-app only, like OVERDUE_PAYMENT
+  // (the receivable reminder it sits beside). A negative balance is a
+  // same-day accounting warning, not a "stop what you are doing" device wake.
 };
 
 export * from './api-paths';
@@ -872,10 +894,23 @@ export const DEFAULT_SHIPPING_LINES = Object.freeze([
 
 /**
  * Fulfillment-owned operational classification: SINGLE (Đơn), DOUBLE (Kẹp),
- * COMBINED (Kết hợp), LCL (Lẻ). A label only — it never infers trip pairing,
- * vehicle sharing, or shipment-level `Đóng kết hợp`.
+ * COMBINED (Kết hợp), LCL (Lẻ), LCL_PICKUP (Lấy Lẻ). A label only — it never
+ * infers trip pairing, vehicle sharing, or shipment-level `Đóng kết hợp`.
+ *
+ * The four cont models describe how many shells a run moves and in how many
+ * legs: Đơn = one 40' shell, closed then dropped at the port, one way. Kẹp =
+ * two 20' shells. Kết hợp = deliver the return load first, then close the
+ * outbound load on the way back, two ways.
+ *
+ * LCL_PICKUP is the LCL-specific fourth case: the truck takes an EMPTY shell
+ * (one already emptied, or one whose previous load was delivered), runs a
+ * combined leg to close LCL cargo into it for the warehouse transfer, then
+ * either comes back with the shell empty OR closes it and returns to the
+ * port. The ending is a dispatcher's task-tag choice, not a second
+ * classification — the ending is purely the dispatcher's manual tag choice
+ * (card 20261005_362 removed the shell-tag auto-seed).
  */
-export const DISPATCH_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED', 'LCL'] as const;
+export const DISPATCH_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED', 'LCL', 'LCL_PICKUP'] as const;
 export type DispatchClassification = (typeof DISPATCH_CLASSIFICATIONS)[number];
 
 /** Vietnamese operator labels for each classification. */
@@ -884,4 +919,19 @@ export const DISPATCH_CLASSIFICATION_LABELS: Record<DispatchClassification, stri
   DOUBLE: 'Kẹp',
   COMBINED: 'Kết hợp',
   LCL: 'Lẻ',
+  LCL_PICKUP: 'Lấy Lẻ',
 };
+
+/**
+ * The Lảy Lẻ run always moves one 40' empty shell, whatever the row's own
+ * container code says — the shell is the truck's, not the lot's.
+ */
+export const LCL_PICKUP_TRAILER_TYPE = '40FT' as const;
+
+/**
+ * Task tag pre-selected when a row is classified Lấy Lẻ: the run's defining
+ * move is taking an already-empty shell and closing LCL cargo into it
+ * (canonical pool label, migration 0066). The dispatcher then adds the
+ * ending tag — `HẠ VỎ ...` to come back with the shell empty, or a
+ * port/bãi tag to close it and return to the port.
+ */

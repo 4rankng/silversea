@@ -301,7 +301,7 @@ export default function PayableDetailPage() {
             {hasDebt ? (
               <span className="dd-tag dd-tag--warn dd-tag--dot">Còn nợ</span>
             ) : hasCredit ? (
-              <span className="dd-tag dd-tag--warn dd-tag--dot">Đã trả thừa {formatCurrency(overpaymentAmount).replace(' ₫', '')}đ</span>
+              <span className="dd-tag dd-tag--warn dd-tag--dot">Đã trả thừa {formatCurrency(overpaymentAmount)}</span>
             ) : (
               <span className="dd-tag dd-tag--ok dd-tag--dot">Đã thanh toán đủ</span>
             )}
@@ -361,22 +361,22 @@ export default function PayableDetailPage() {
               <div className="dd-sum-note">
                 <AlertTriangle size={17} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                 {activeAgingIdx <= 0
-                  ? 'Toàn bộ công nợ đang trong hạn 30 ngày.'
-                  : `Có công nợ quá hạn ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thanh toán.`
+                  ? 'Toàn bộ công nợ chưa đến hạn.'
+                  : `Có công nợ ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thanh toán.`
                 }
               </div>
             )}
             {hasCredit && (
               <div className="dd-sum-note" style={{ marginTop: 4 }}>
                 <AlertTriangle size={17} style={{ color: 'var(--warning)', flexShrink: 0 }} />
-                Đã trả thừa {formatCurrency(overpaymentAmount).replace(' ₫', '')}đ — nhà cung cấp đang nợ lại công ty
+                Đã trả thừa {formatCurrency(overpaymentAmount)} — nhà cung cấp đang nợ lại công ty
               </div>
             )}
           </div>
           <div className="dd-sum-update">
             Cập nhật lần cuối
             <b>{new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</b>
-            {ledgerRows.length} giao dịch trong kỳ
+            {`${ledgerRows.length} giao dịch trong kỳ`}
           </div>
         </div>
 
@@ -384,7 +384,7 @@ export default function PayableDetailPage() {
             leads the page; every bucket, amount and share stays available on
             expand. Summary line shows the active bucket + amount. */}
         <details className="dd-aging-disclosure">
-          <summary>Phân bổ tuổi nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${formatCurrency(activeAgingAmount).replace(' ₫', '')}đ` : 'Không còn nợ'}</span></summary>
+          <summary>Phân bổ hạn nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${formatCurrency(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
           <div className="dd-aging-bar">
             {effectiveAging.map((amt, i) => {
               const pct = agingTotal > 0 ? (amt / agingTotal) * 100 : 0;
@@ -401,7 +401,7 @@ export default function PayableDetailPage() {
               return (
                 <div key={i} className={`dd-aging-cell${isActive ? ' dd-aging-cell--active' : ''}`}>
                   <div className="dd-ac-head"><span className="dd-ac-dot" style={{ background: range.dotColor }} />{range.label}</div>
-                  <div className={`dd-ac-val${amt === 0 ? ' dd-ac-val--zero' : ''}`}>{formatCurrency(amt).replace(' ₫', '')}đ</div>
+                  <div className={`dd-ac-val${amt === 0 ? ' dd-ac-val--zero' : ''}`}>{formatCurrency(amt)}</div>
                   <div className="dd-ac-share">{amt > 0 ? `${pct}% tổng công nợ` : 'Không phát sinh'}</div>
                 </div>
               );

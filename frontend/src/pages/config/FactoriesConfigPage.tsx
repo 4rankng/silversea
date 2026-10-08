@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { PageHeader, Modal } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
@@ -19,11 +19,14 @@ import { OperationalSiteCreateDialog } from '../../components/shipment/Operation
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import {
+  deleteAdminOperationalSite,
   listAdminOperationalSites,
   updateAdminOperationalSite,
   type AdminOperationalSite,
 } from '../../api/shipmentClient';
-import type { Route } from '@tingting/shared';
+import { operationalSiteContacts, type OperationalSiteContact, type Route } from '@tingting/shared';
+import { OperationalSiteContactsList } from '../../components/shipment/OperationalSiteContactsList';
+import { OperationalSiteContactsEditor } from '../../components/shipment/OperationalSiteContactsEditor';
 import { removeDiacritics } from '../../lib/format';
 import './config-page.css';
 
@@ -35,6 +38,7 @@ type SiteDraft = {
   googleMapsUrl: string;
   contactName: string;
   contactPhone: string;
+  contacts: OperationalSiteContact[];
   warehouseContactInfo: string;
   liftInfo: string;
   dropInfo: string;
@@ -52,6 +56,7 @@ function draftFrom(site: AdminOperationalSite): SiteDraft {
     googleMapsUrl: site.googleMapsUrl || '',
     contactName: site.contactName || '',
     contactPhone: site.contactPhone || '',
+    contacts: operationalSiteContacts(site),
     warehouseContactInfo: site.warehouseContactInfo || '',
     liftInfo: site.liftInfo || '',
     dropInfo: site.dropInfo || '',
@@ -74,6 +79,11 @@ export default function FactoriesConfigPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  // R29 (card 20261002_263): the row's Xóa action parks the site here until
+  // the confirm modal answers — the tap itself never deletes.
+  const [deleting, setDeleting] = useState<AdminOperationalSite | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const sitesQuery = useQuery({
     queryKey: qk.catalogs.adminOperationalSites,
@@ -128,11 +138,12 @@ export default function FactoriesConfigPage() {
         expectedVersion: editing.version,
         name: draft.name,
         shortName: draft.shortName || undefined,
-        routeId: draft.routeId ?? null,
+        ...(draft.routeId !== editing.routeId ? { routeId: draft.routeId ?? null } : {}),
         address: draft.address,
         googleMapsUrl: draft.googleMapsUrl || null,
         contactName: draft.contactName || null,
         contactPhone: draft.contactPhone || null,
+        ...(draft.contacts.length || operationalSiteContacts(editing).length ? { contacts: draft.contacts } : {}),
         warehouseContactInfo: draft.warehouseContactInfo || null,
         liftInfo: draft.liftInfo || null,
         dropInfo: draft.dropInfo || null,
@@ -152,6 +163,23 @@ export default function FactoriesConfigPage() {
   }
 
   const isFactory = editing?.siteType === 'FACTORY';
+
+  async function confirmDelete() {
+    if (!deleting || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      await deleteAdminOperationalSite(deleting.id);
+      toast({ kind: 'success', message: `Đã xóa ${deleting.name}.` });
+      setDeleting(null);
+      await queryClient.invalidateQueries({ queryKey: qk.catalogs.adminOperationalSites });
+    } catch (err) {
+      // 409 keeps the dialog open: the site is still referenced by a live
+      // shipment, so the operator reads the business message in place.
+      setDeleteError((err as Error)?.message || 'Không thể xóa nhà máy / kho.');
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
 
   return (
     <div className="cfg-page cfg-page--factories fade-up">
@@ -174,10 +202,15 @@ export default function FactoriesConfigPage() {
               <button className="btn btn--primary" onClick={() => setCreateOpen(true)} disabled={customersQuery.isLoading}>
                 <Plus size={14} /> Tạo mới
               </button>
-              <span className="cfg-page__summary">
-                <strong>{filtered.length}</strong> mục
-                {sites.length !== filtered.length && ` / ${sites.length}`}
-              </span>
+              {/* A failed list fetch is not an empty catalog (card 20261004_333):
+                  the "0 mục" counter and the empty-state copy must never claim
+                  data absence while the query is in error — the Alert below
+                  carries the state instead. */}
+              {!sitesQuery.isError && (
+                <span className="cfg-page__summary">
+                  <strong>{`${filtered.length} mục${sites.length !== filtered.length ? ` / ${sites.length}` : ''}`}</strong>
+                </span>
+              )}
             </>
           )}
         >
@@ -201,6 +234,9 @@ export default function FactoriesConfigPage() {
           <div className="record-table-wrap">
           <table className="record-table ops-table factories-table">
             <caption className="sr-only">Danh mục nhà máy / kho theo khách hàng</caption>
+            <colgroup>
+              {[4, 10, 9, 16, 7, 11, 22, 10, 11].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+            </colgroup>
             <thead>
               <tr>
                 <th className="num">STT</th>
@@ -211,11 +247,37 @@ export default function FactoriesConfigPage() {
                 <th>Tuyến</th>
                 <SortHeader label="Địa chỉ / Liên hệ" sortKey="address" sort={sort} onSortChange={handleSort} />
                 <th>Trạng thái</th>
-                <th style={{ width: 56 }}></th>
+                <th style={{ width: 76 }}></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && (
+              {/* Card 20261004_333 — query state maps to render explicitly:
+                  error renders the Alert + retry (never "0 mục"/empty-state),
+                  loading renders "Đang tải…", and only a SUCCESSFUL empty
+                  result may claim the catalog is empty. */}
+              {sitesQuery.isError && (
+                <tr className="cfg-empty-row">
+                  <td colSpan={9} data-label="" style={{ textAlign: 'center', padding: '28px 12px' }}>
+                    <Alert
+                      variant="error"
+                      style="soft"
+                      action={(
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm"
+                          disabled={sitesQuery.isFetching}
+                          onClick={() => { void sitesQuery.refetch(); }}
+                        >
+                          {sitesQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+                        </button>
+                      )}
+                    >
+                      Không thể tải danh sách nhà máy / kho
+                    </Alert>
+                  </td>
+                </tr>
+              )}
+              {!sitesQuery.isError && filtered.length === 0 && (
                 <tr className="cfg-empty-row">
                   <td colSpan={9} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
                     {sitesQuery.isLoading
@@ -234,14 +296,9 @@ export default function FactoriesConfigPage() {
                   <td data-label="Loại">{site.siteType === 'FACTORY' ? 'Nhà máy' : 'Kho'}</td>
                   <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
                   <td data-label="Chi tiết" className="factory-record-details">
-                    <details>
-                      <summary>Địa chỉ và liên hệ</summary>
-                      <dl>
-                        <div><dt>Địa chỉ</dt><dd>{site.address || '—'}</dd></div>
-                        <div><dt>Liên hệ</dt><dd>{site.contactName || '—'}</dd></div>
-                        <div><dt>Điện thoại</dt><dd>{site.contactPhone || '—'}</dd></div>
-                      </dl>
-                    </details>
+                    <div>{site.address || 'Chưa có địa chỉ'}</div>
+                    <OperationalSiteContactsList contacts={operationalSiteContacts(site)} />
+                    {!operationalSiteContacts(site).length && site.contactName ? <div>{site.contactName} · Chưa có số điện thoại</div> : null}
                   </td>
                   <td data-label="Trạng thái">
                     {site.isActive
@@ -257,6 +314,14 @@ export default function FactoriesConfigPage() {
                         onClick={() => openEdit(site)}
                       >
                         <Pencil size={14} />
+                      </button>
+                      <button
+                        className="row-action"
+                        title="Xóa nhà máy / kho"
+                        aria-label={`Xóa ${site.shortName || site.name}`}
+                        onClick={() => setDeleting(site)}
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
@@ -291,15 +356,38 @@ export default function FactoriesConfigPage() {
                   onChange={(e) => setDraft({ ...draft, shortName: e.target.value })} />
               </Field>
               {isFactory ? (
-                <UuiSelectField
-                  label="Tuyến đường chuẩn"
-                  value={draft.routeId == null ? '' : String(draft.routeId)}
-                  onChange={(e) => setDraft({ ...draft, routeId: e.target.value ? Number(e.target.value) : null })}
-                  options={[
-                    { value: '', label: '— Chọn tuyến —' },
-                    ...routes.map((route) => ({ value: String(route.id), label: route.name })),
-                  ]}
-                />
+                <>
+                  {/* Card 20261004_333: a failed routes feed must not look like
+                      "no routes configured" — same class as the list bug. */}
+                  {routesQuery.isError && (
+                    <Alert
+                      variant="error"
+                      style="soft"
+                      wrapperStyle={{ gridColumn: '1 / -1' }}
+                      action={(
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm"
+                          disabled={routesQuery.isFetching}
+                          onClick={() => { void routesQuery.refetch(); }}
+                        >
+                          {routesQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+                        </button>
+                      )}
+                    >
+                      Không thể tải danh sách tuyến đường
+                    </Alert>
+                  )}
+                  <UuiSelectField
+                    label="Tuyến đường chuẩn"
+                    value={draft.routeId == null ? '' : String(draft.routeId)}
+                    onChange={(e) => setDraft({ ...draft, routeId: e.target.value ? Number(e.target.value) : null })}
+                    options={[
+                      { value: '', label: '— Chọn tuyến —' },
+                      ...routes.map((route) => ({ value: String(route.id), label: route.name })),
+                    ]}
+                  />
+                </>
               ) : (
                 <Field label="Loại">
                   <input className="input" value="Kho lấy hàng (không dùng tuyến)" disabled />
@@ -311,14 +399,9 @@ export default function FactoriesConfigPage() {
                     onChange={(e) => setDraft({ ...draft, address: e.target.value })} />
                 </Field>
               </div>
-              <Field label="Người liên hệ">
-                <input className="input" value={draft.contactName} maxLength={120}
-                  onChange={(e) => setDraft({ ...draft, contactName: e.target.value })} />
-              </Field>
-              <Field label="Số điện thoại">
-                <input className="input" value={draft.contactPhone} maxLength={30}
-                  onChange={(e) => setDraft({ ...draft, contactPhone: e.target.value })} />
-              </Field>
+              <div className="cfg-form-columns__full">
+                <OperationalSiteContactsEditor value={draft.contacts} disabled={saving} onChange={contacts => setDraft({ ...draft, contacts })} />
+              </div>
               <div className="cfg-form-columns__full">
                 <Field label="Liên kết Google Maps">
                   <input className="input" value={draft.googleMapsUrl} maxLength={2000}
@@ -377,11 +460,48 @@ export default function FactoriesConfigPage() {
         )}
       </Modal>
 
+      {/* R29 destructive confirm (untitledui destructive-modal family, rebuilt
+          in house tokens): names the row, states the consequence, and keeps
+          the backend's 409 business message visible in place. */}
+      <Modal
+        isOpen={!!deleting}
+        title={deleting ? `Xóa ${deleting.name}?` : ''}
+        subtitle="Nhà máy / kho"
+        polished
+        onClose={() => { setDeleting(null); setDeleteError(null); }}
+        maxWidth={440}
+      >
+        {deleting && (
+          <div>
+            {deleteError && <Alert variant="error" style="soft">{deleteError}</Alert>}
+            <p style={{ margin: '0 0 12px', color: 'var(--fg-2)' }}>
+              Danh mục sẽ bị xóa khỏi bảng và các form nhận lô. Lô hàng lịch sử
+              vẫn giữ nguyên thông tin nhà máy này. Không thể xóa khi còn lô
+              hàng đang chạy tham chiếu.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn--ghost" onClick={() => { setDeleting(null); setDeleteError(null); }}>
+                Hủy
+              </button>
+              <button className="btn btn--danger" disabled={deleteBusy} onClick={() => { void confirmDelete(); }}>
+                {deleteBusy ? 'Đang xóa…' : 'Xóa'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       <OperationalSiteCreateDialog
         isOpen={createOpen}
         customers={(customersQuery.data ?? []).map((customer) => ({ id: customer.id, name: customer.name }))}
+        customersError={customersQuery.isError}
+        onRetryCustomers={() => void customersQuery.refetch()}
+        isCustomersLoading={customersQuery.isLoading}
         defaultSiteType="FACTORY"
         routes={routes}
+        routesError={routesQuery.isError}
+        onRetryRoutes={() => void routesQuery.refetch()}
+        isRoutesLoading={routesQuery.isLoading}
         onClose={() => setCreateOpen(false)}
         onCreated={async () => {
           setCreateOpen(false);

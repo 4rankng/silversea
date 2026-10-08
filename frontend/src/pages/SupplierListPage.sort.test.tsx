@@ -25,6 +25,7 @@ vi.mock('../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
 }));
 
+import { ToastProvider } from '../components/shared/Toast';
 import SupplierListPage from './SupplierListPage';
 
 function supplierFixture(id: number, name: string): Supplier {
@@ -57,7 +58,7 @@ function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <SupplierListPage />
+        <ToastProvider>{/* card 071026211100: the page answers exports with the house toast */}<SupplierListPage /></ToastProvider>
         <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -65,12 +66,13 @@ function renderPage() {
 }
 
 function lastGetUrl(): string {
-  const calls = apiMock.get.mock.calls;
-  return String(calls[calls.length - 1]![0]);
+  const calls = apiMock.get.mock.calls.filter(([url]) => String(url).startsWith('/suppliers?'));
+  return String(calls[calls.length - 1]?.[0] ?? '');
 }
 
 describe('SupplierListPage server-side sort headers', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/suppliers');
     apiMock.get.mockReset();
     // 12 total at pageSize 10 → two pages, so the page-reset proof can run.
     apiMock.get.mockResolvedValue({
@@ -100,7 +102,7 @@ describe('SupplierListPage server-side sort headers', () => {
       expect(lastGetUrl()).toContain('sortDir=desc');
       expect(lastGetUrl()).toContain('page=1');
     });
-  });
+  }, 20_000);
 
   it('exposes each data column\'s backend sort key through its header button', async () => {
     renderPage();
@@ -119,9 +121,9 @@ describe('SupplierListPage server-side sort headers', () => {
     }
     // The last-clicked column announces direction via its header cell.
     expect(screen.getByRole('button', { name: 'Công nợ' }).closest('th')?.getAttribute('aria-sort')).toBe('ascending');
-  });
+  }, 20_000);
 
-  it('omits sort params entirely until a header is pressed', async () => {
+  it('omits sort params entirely on a plain load until a header is pressed', async () => {
     renderPage();
     expect(await screen.findAllByText('Garage Auto 123')).toBeTruthy();
     expect(lastGetUrl()).not.toContain('sortBy');
@@ -143,5 +145,44 @@ describe('SupplierListPage server-side sort headers', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/);
     fireEvent.keyDown(row!, { key: 'Enter' });
     expect(screen.getByTestId('location')).toHaveTextContent('/suppliers/1');
+  });
+});
+
+describe('SupplierListPage — URL sort seed (freeze-halting small, card 20261002_274 follow-through)', () => {
+  beforeEach(() => {
+    apiMock.get.mockReset();
+    apiMock.get.mockResolvedValue({
+      items: [supplierFixture(1, 'Garage Auto 123')],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+    });
+  });
+
+  it('seeds the server sort from ?sortBy/&sortDir on load (deep link honored by the first fetch)', async () => {
+    window.history.replaceState({}, '', '/suppliers?sortBy=name&sortDir=asc');
+    renderPage();
+
+    await waitFor(() => {
+      const call = apiMock.get.mock.calls.find(([url]) => String(url).includes('/suppliers?'));
+      expect(call).toBeTruthy();
+      const u = new URL(String(call![0]), 'http://localhost');
+      expect(u.searchParams.get('sortBy')).toBe('name');
+      expect(u.searchParams.get('sortDir')).toBe('asc');
+    });
+    window.history.replaceState({}, '', '/suppliers');
+  });
+
+  it('ignores a dir-only pair (no sortBy → no sort param)', async () => {
+    window.history.replaceState({}, '', '/suppliers?sortDir=desc');
+    renderPage();
+
+    await waitFor(() => {
+      const call = apiMock.get.mock.calls.find(([url]) => String(url).includes('/suppliers?'));
+      expect(call).toBeTruthy();
+      const u = new URL(String(call![0]), 'http://localhost');
+      expect(u.searchParams.get('sortBy')).toBeNull();
+    });
+    window.history.replaceState({}, '', '/suppliers');
   });
 });

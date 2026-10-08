@@ -151,7 +151,9 @@ describe('DispatchDetailPlanPage — ghép chuyến wiring (DISP-DP-12)', () => 
 
     await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
     expect(vi.mocked(tripClient.createPair).mock.calls[0][0].firstTripId).toBe(900);
-    expect(plan.refresh).toHaveBeenCalledTimes(1);
+    // Card 20261003_353 added a plan refresh when the dialog opens; pairing
+    // then refreshes again — 2 calls is the pinned intended behavior.
+    expect(plan.refresh).toHaveBeenCalledTimes(2);
     // A warning-free pair closes the dialog with the grid's fresh data.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   }, 20_000);

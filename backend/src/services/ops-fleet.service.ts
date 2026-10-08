@@ -1,5 +1,5 @@
 /**
- * Ops fleet tracking (docs/prd/OpsVanHanh.md §4): read-only view of the trucks
+ * Ops fleet tracking (docs/prd/OpsVanHanh.docx §4): read-only view of the trucks
  * an Ops owns, each paired with its current dispatch + driver-synced status,
  * plus the admin assignment command that feeds it.
  */

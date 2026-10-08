@@ -7,7 +7,7 @@ export const OPS_SHIPMENT_STATUS: Record<string, { label: string; color: string 
   PENDING_DATE: { label: 'Chờ ngày giao', color: 'var(--fg-3, #6b7280)' },
   READY_FOR_DISPATCH: { label: 'Sẵn sàng phát lệnh', color: 'var(--info, #2563eb)' },
   DISPATCHED: { label: 'Đã phát lệnh', color: 'var(--warn, #d97706)' },
-  IN_TRANSIT: { label: 'Đang vận chuyển', color: 'var(--accent, #7c3aed)' },
+  IN_TRANSIT: { label: 'Đang vận chuyển', color: 'var(--accent-ink, #00361B)' },
   COMPLETED: { label: 'Hoàn thành', color: 'var(--ok, #16a34a)' },
   CANCELED: { label: 'Đã hủy', color: 'var(--err, #dc2626)' },
 };

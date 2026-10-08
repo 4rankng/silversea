@@ -1,6 +1,6 @@
 # Role: DRIVER — Lái xe
 
-> Current acceptance baseline (2026-09-17): `docs/prd/ManHinhLaiXe.md` governs. Earlier trial restrictions and PASS records below are historical, not evidence for this checkout. Offline queues/replay and hiding all cost entry are retired. Existing AC IDs are retained with corrected expectations.
+> Current acceptance baseline (2026-09-17): `docs/prd/ManHinhLaiXe.docx` governs. Earlier trial restrictions and PASS records below are historical, not evidence for this checkout. Offline queues/replay and hiding all cost entry are retired. Existing AC IDs are retained with corrected expectations.
 
 > Typography update (2026-09-14): earlier numeric font-size expectations in this document are superseded by `testplan/cycles/2026-09/2026-09-14_typography-coherence.md`: 12px body/data/controls/actions, 11px labels/captions, 14px section titles, 16px overlay titles, 18px page titles and 20px principal metrics. Other behavior and layout requirements remain unchanged. Historical measurements below are retained as evidence.
 
@@ -73,7 +73,7 @@ to the driver's plate.
    - The **bottom navigation keeps its existing 4 tabs** — none added or
      removed this phase.
    - Each sub-tab's count is shown in its label.
-   - **Spec**: `ManHinhLaiXe.md` §1. **Case**: `TC-LX-NHANLENH-014`.
+   - **Spec**: `ManHinhLaiXe.docx` §1. **Case**: `TC-LX-NHANLENH-014`.
 
 3. **DRV-LIST-03 — Trip card anatomy**
    - Factory short name (full-name fallback) is the primary identifier; route is secondary.
@@ -118,7 +118,7 @@ to the driver's plate.
 >
 > **Decision 2026-09-07: the docx is authoritative — one card per container.**
 > The list-screen migration landed 2026-09-07; the 2026-09-09 docx audit
-> (`2026.8.27_Man_hinh_lai_xe.docx` / [`ManHinhLaiXe.md`](../../docs/prd/ManHinhLaiXe.md)
+> (`2026.8.27_Man_hinh_lai_xe.docx` / [`ManHinhLaiXe.docx`](../../docs/prd/ManHinhLaiXe.docx)
 > §1–§2.1) confirms the built screen matches the binding anatomy:
 >
 > | Item | Historical expectation (not current acceptance) | Evidence |

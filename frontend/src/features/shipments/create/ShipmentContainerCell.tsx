@@ -16,6 +16,8 @@ interface ShipmentContainerCellProps {
   displayTitle?: string;
   /** Always-visible muted second line (e.g. factory address under the name). */
   subValue?: string;
+  /** Always-visible trailing affordance beside the value (e.g. factory detail peek). */
+  actions?: ReactNode;
   children: ReactNode;
   fieldId?: string;
   error?: string;
@@ -36,6 +38,7 @@ export function ShipmentContainerCell({
   placeholder,
   displayTitle,
   subValue,
+  actions,
   children,
   fieldId,
   error,
@@ -111,6 +114,7 @@ export function ShipmentContainerCell({
         <div className="csc-container-cell__editor">{children}</div>
       </div>
       {subValue && <span className="csc-container-cell__subvalue">{subValue}</span>}
+      {actions && <span className="csc-container-cell__actions">{actions}</span>}
       {error && <span className="csc-container-cell__error">{error}</span>}
     </td>
   );

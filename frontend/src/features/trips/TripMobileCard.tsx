@@ -116,7 +116,7 @@ export function TripMobileCard({ trip, warnThreshold, style, copyingPlan, onCopy
             <span className="val empty">—</span>
           ) : cons ? (
             <span className={`val${cons.per100 > warnThreshold ? ' warn' : ''}`}>
-              {cons.per100.toFixed(1).replace('.', ',')} L/100km
+              {`${cons.per100.toFixed(1).replace('.', ',')} L/100km`}
             </span>
           ) : (
             <span className="val empty">Chờ khai báo</span>

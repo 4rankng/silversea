@@ -153,10 +153,10 @@ describe('AR/AP aging grid characterization', () => {
 
     const cells = Array.from(grid!.querySelectorAll('.dd-aging-cell'));
     expect(cells).toHaveLength(4);
-    expect(within(cells[0] as HTMLElement).getByText('0–30 NGÀY')).toBeTruthy();
-    expect(within(cells[1] as HTMLElement).getByText('31–60 NGÀY')).toBeTruthy();
-    expect(within(cells[2] as HTMLElement).getByText('61–90 NGÀY')).toBeTruthy();
-    expect(within(cells[3] as HTMLElement).getByText('TRÊN 90 NGÀY')).toBeTruthy();
+    expect(within(cells[0] as HTMLElement).getByText('CHƯA ĐẾN HẠN')).toBeTruthy();
+    expect(within(cells[1] as HTMLElement).getByText('QUÁ HẠN 1–30 NGÀY')).toBeTruthy();
+    expect(within(cells[2] as HTMLElement).getByText('QUÁ HẠN 31–90 NGÀY')).toBeTruthy();
+    expect(within(cells[3] as HTMLElement).getByText('QUÁ HẠN TRÊN 90 NGÀY')).toBeTruthy();
 
     // Entire outstanding balance sits in bucket 0 → only cell 0 is active.
     expect(cells[0].className).toContain('dd-aging-cell--active');
@@ -173,10 +173,10 @@ describe('AR/AP aging grid characterization', () => {
 
     const cells = Array.from(grid!.querySelectorAll('.dd-aging-cell'));
     expect(cells).toHaveLength(4);
-    expect(within(cells[0] as HTMLElement).getByText('0–30 NGÀY')).toBeTruthy();
-    expect(within(cells[1] as HTMLElement).getByText('31–60 NGÀY')).toBeTruthy();
-    expect(within(cells[2] as HTMLElement).getByText('61–90 NGÀY')).toBeTruthy();
-    expect(within(cells[3] as HTMLElement).getByText('TRÊN 90 NGÀY')).toBeTruthy();
+    expect(within(cells[0] as HTMLElement).getByText('CHƯA ĐẾN HẠN')).toBeTruthy();
+    expect(within(cells[1] as HTMLElement).getByText('QUÁ HẠN 1–30 NGÀY')).toBeTruthy();
+    expect(within(cells[2] as HTMLElement).getByText('QUÁ HẠN 31–90 NGÀY')).toBeTruthy();
+    expect(within(cells[3] as HTMLElement).getByText('QUÁ HẠN TRÊN 90 NGÀY')).toBeTruthy();
 
     // 100 of 175 outstanding → active bucket 0 at 57%; the zero bucket stays inert.
     expect(cells[0].className).toContain('dd-aging-cell--active');

@@ -741,8 +741,10 @@ describe('Q15 trip financial governance', () => {
     assert.ok(applied.action.appliedAt instanceof Date);
     assert.deepEqual(applied.action.applicationResult, { probe: 'applied' });
 
-    // Completed-trip mutation boundaries stay closed at create time: a
-    // governed change and a completed-trip cancellation each require a reason.
+    // Owner ruling 07/10 (card 393): a completed-trip EDIT no longer needs a
+    // reason and applies directly. A completed-trip CANCELLATION is a
+    // different governed action and still requires one — that boundary is
+    // deliberately left closed.
     const completedFixture = await createTripFixture(TripStatus.COMPLETED);
     const editWithoutReason = await api('PUT', `/api/trips/${completedFixture.id}/actuals`, {
       legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 20, loadingType: LoadingType.HANG }],
@@ -750,7 +752,10 @@ describe('Q15 trip financial governance', () => {
       revenue: 1_800_000,
       version: completedFixture.version,
     }, 2, `q15-boundary-edit-${suffix}`);
-    assert.equal(editWithoutReason.status, 400);
+    assert.equal(editWithoutReason.status, 200, JSON.stringify(editWithoutReason.body));
+    const [editedCompleted] = await db.select().from(s.tripsComposite)
+      .where(eq(s.tripsComposite.id, completedFixture.id)).limit(1);
+    assert.equal(editedCompleted.revenue, '1800000');
 
     const cancelWithoutReason = await api('POST', `/api/trips/${completedFixture.id}/cancel`, {
       expectedVersion: completedFixture.version,
@@ -796,7 +801,9 @@ describe('Q15 trip financial governance', () => {
           },
         },
         {
-          // A completed trip without a governance reason is a per-row failure.
+          // Owner ruling 07/10 (card 393): a completed trip with NO governance
+          // reason is no longer a per-row failure — it applies like any other
+          // row and the financial action records reason: null.
           tripId: noReasonTrip.id,
           figures: {
             legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 12, loadingType: LoadingType.HANG }],
@@ -808,23 +815,28 @@ describe('Q15 trip financial governance', () => {
       ],
     }, 2, `q15-bulk-${suffix}`);
     assert.equal(bulk.status, 200, JSON.stringify(bulk.body));
-    assert.equal(bulk.body.failed, 1, JSON.stringify(bulk.body));
+    assert.equal(bulk.body.failed, 0, JSON.stringify(bulk.body));
     const rows = bulk.body.results as Array<Record<string, unknown>>;
     assert.equal(rows.find((row) => row.tripId === completedSource.id)?.ok, true);
     assert.equal(rows.find((row) => row.tripId === open.id)?.ok, true);
-    assert.equal(rows.find((row) => row.tripId === noReasonTrip.id)?.ok, false);
+    assert.equal(rows.find((row) => row.tripId === noReasonTrip.id)?.ok, true);
+    // The audit keeps the reason when given, and stores null when omitted.
+    const governanceOf = (tripId: number): unknown =>
+      (rows.find((row) => row.tripId === tripId)?.governanceAction as { reason?: unknown } | undefined)?.reason;
+    assert.equal(governanceOf(completedSource.id), 'Điều chỉnh hàng loạt theo biên bản đối soát');
+    assert.equal(governanceOf(noReasonTrip.id), null);
 
-    // Direct apply: the completed-trip figures changed in-request, the open
-    // trip applied as before, and the refused row left its trip untouched.
+    // Direct apply: all three rows changed in-request — including the
+    // completed trip that carried no reason (owner ruling 07/10).
     const [appliedCompleted] = await db.select().from(s.tripsComposite)
       .where(eq(s.tripsComposite.id, completedSource.id)).limit(1);
     assert.equal(appliedCompleted.revenue, '2000000');
     const [appliedOpen] = await db.select().from(s.tripsComposite)
       .where(eq(s.tripsComposite.id, open.id)).limit(1);
     assert.equal(appliedOpen.revenue, '1300000');
-    const [refusedRow] = await db.select().from(s.tripsComposite)
+    const [appliedNoReason] = await db.select().from(s.tripsComposite)
       .where(eq(s.tripsComposite.id, noReasonTrip.id)).limit(1);
-    assert.equal(refusedRow.revenue, '1200000');
+    assert.equal(appliedNoReason.revenue, '1400000');
   });
 
   it('rejects role-, stale-, and evidence-gated close requests without changing trip or ledger state', async () => {

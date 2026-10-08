@@ -29,7 +29,7 @@ describe('treasury account fund setup', () => {
     const account = { accountId: 8, name: 'ACB công ty', fundCode: null, version: 3 } as TreasuryPosition['accounts'][number];
     render(<TreasuryAccountDrawer account={account} onClose={vi.fn()} onSaved={saved} />);
     expect(screen.getByRole('button', { name: /Nguồn quỹ/ })).toHaveTextContent('Chọn nguồn quỹ');
-    await select('Nguồn quỹ', 'Quỹ TM');
+    await select('Nguồn quỹ', 'Quỹ tiền mặt');
     fireEvent.change(screen.getByLabelText(/Lý do/), { target: { value: 'Xác nhận chủ quỹ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu tài khoản' }));
     await screen.findByText('Mất phản hồi');
@@ -43,7 +43,7 @@ describe('treasury account fund setup', () => {
   it('creates a bank account with the explicitly selected TM fund', async () => {
     create.mockReset().mockResolvedValue({ id: 9 }); const saved = vi.fn();
     render(<TreasuryAccountDrawer onClose={vi.fn()} onSaved={saved} />);
-    await select('Nguồn quỹ', 'Quỹ TM');
+    await select('Nguồn quỹ', 'Quỹ tiền mặt');
     for (const [label, value] of [['Mã tài khoản', 'TM-ACB'], ['Tên tài khoản', 'TM ACB'], ['Chứng từ số dư đầu kỳ', 'Sao kê'], ['Lý do', 'Thiết lập']]) fireEvent.change(screen.getByLabelText(new RegExp(label)), { target: { value } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu tài khoản' }));
     await waitFor(() => expect(saved).toHaveBeenCalledOnce());

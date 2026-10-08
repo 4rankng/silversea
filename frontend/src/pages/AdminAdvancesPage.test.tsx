@@ -210,3 +210,19 @@ it('drives the status filter from the bar chips and never submits a literal all 
   await waitFor(() => expect(allChip.className).toContain('is-active'));
   expect(listAllAdvanceRequests.mock.calls.every(([params]) => params.status !== 'all')).toBe(true);
 });
+
+describe('advance card creator line (card 071026141630)', () => {
+  it('the bởi line names the CREATOR with a dash fallback — never a bare bởi or nothing', async () => {
+    renderPage();
+    // Both fixture rows carry approverName: null — at HEAD the line rendered
+    // nothing at all (the audit gap: "không truy được ai yêu cầu tạm ứng").
+    // The card's word: the line names the creator, '—' when system-created.
+    const lines = await screen.findAllByText(/bởi/);
+    expect(lines.length).toBeGreaterThan(0);
+    const text = lines.map((el) => (el.textContent || ''));
+    expect(text.join(' ')).toContain('An Nguyễn');
+    expect(text.join(' ')).toContain('Bình Trần');
+    // A bare "bởi" with no name must never render.
+    for (const t of text) expect(t.replace(/bởi/, '').trim().length).toBeGreaterThan(0);
+  });
+});

@@ -8,6 +8,7 @@ import { useCompanyInfo, useSaveCompanyInfo } from '../../hooks/useCatalogQuerie
 import { configClient } from '../../api/configClient';
 import { useAuthedPhotoUrl } from '../../lib/api/photo';
 import { usePageAnimations } from '../../hooks/animations';
+import { Alert } from '../../components/shared/Alert';
 import './config-page.css';
 
 type CompanyInfoForm = {
@@ -56,7 +57,10 @@ const FIELD_LABELS: Array<{ key: TextCompanyInfoField; label: string }> = [
 export default function CompanyInfoConfigPage() {
   const navigate = useNavigate();
   const { rootRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row', '.company-info-preview-row'] });
-  const { data, isLoading } = useCompanyInfo();
+  // Card 20261004_333: `isError` must map to a visible error state — a failed
+  // read currently renders as the "Chưa cấu hình" first-save form, and saving
+  // over it would blank the real profile.
+  const { data, isLoading, isError: loadFailed, refetch: reloadInfo, isFetching } = useCompanyInfo();
   const saveCompanyInfo = useSaveCompanyInfo();
   const [form, setForm] = useState<CompanyInfoForm>(EMPTY_FORM);
   // Hydrate the form synchronously when `data` changes (render-time state sync)
@@ -190,6 +194,25 @@ export default function CompanyInfoConfigPage() {
       >
         {isLoading ? (
           <div style={{ textAlign: 'center', padding: 24, color: 'var(--ink-3)' }}>Đang tải…</div>
+        ) : loadFailed ? (
+          // Card 20261004_333 — a failed read is not an unconfigured profile:
+          // render the error state + retry instead of the first-save form.
+          <Alert
+            variant="error"
+            style="soft"
+            action={(
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={isFetching}
+                onClick={() => { void reloadInfo(); }}
+              >
+                {isFetching ? 'Đang thử lại…' : 'Thử lại'}
+              </button>
+            )}
+          >
+            Không thể tải thông tin công ty
+          </Alert>
         ) : (
           <>
             {!isCompanyInfoConfigured(data) && (

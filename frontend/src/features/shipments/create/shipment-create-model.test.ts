@@ -170,17 +170,22 @@ describe('shipment create model', () => {
     expect(createEmptyContainer().cargoVolumeCbm).toBe('');
   });
 
-  it('copies a preceding container while requiring a new container number', () => {
+  it('copies a preceding container while requiring a new container number AND a fresh type choice', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'row-2' });
     const copied = createContainerFromPrevious({
       ...container,
       customerAppointmentAt: '2026-08-20T09:30',
     });
 
+    // Card 071026100800 (fix-all-issues ruling 2026-10-07): schedule data
+    // (route, ports, factory, window) rides the previous row, but the type is
+    // per-container data — a fresh row shows no "40DC" ghost, and mixed-type
+    // lots (1x20DC + 1x40DC) never fight a copied selection.
     expect(copied).toMatchObject({
       ...container,
       key: 'row-2',
       containerNumber: '',
+      containerTypeId: '',
       customerAppointmentAt: '2026-08-20T09:30',
     });
   });

@@ -5,6 +5,7 @@ import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import { ApiError } from '../../../lib/api';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ContainerLedger } from './CusContainerLedger';
+import { getOffsetDateString } from './cusAppointmentUtils';
 
 const { updateCusShipmentContainerLine, removeCusShipmentContainerRow } = vi.hoisted(() => ({
   updateCusShipmentContainerLine: vi.fn(),
@@ -60,9 +61,9 @@ const detail = {
   selectors: { externalCarriers: [], ports: [], containerTypes: [], routes: [], carrierVehicles: [] },
 } as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyChange?: (dirty: boolean) => void } = {}) {
+function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyChange?: (dirty: boolean) => void; detail?: ShipmentCusWorkspaceDetail } = {}) {
   const props = {
-    detail,
+    detail: opts.detail ?? detail,
     onLineSaved: vi.fn(),
     getIdempotencyKey: () => 'test-key',
     clearIdempotencyKey: () => {},
@@ -275,6 +276,68 @@ describe('ContainerLedger confirm affordances', () => {
     expect(trigger.getAttribute('aria-label')).toContain('09:00 11/09/2026');
   });
 
+  it('card 071026205310: committing the appointment sweeps the row\'s other dirty fields into the same save', async () => {
+    const detailWithPorts = {
+      ...detail,
+      selectors: { ...detail.selectors, ports: [{ id: 3, label: 'Cảng Hải Phòng' }, { id: 8, label: 'Bãi Chân Thật - THT' }] },
+    } as unknown as ShipmentCusWorkspaceDetail;
+    renderLedger({ detail: detailWithPorts });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    // Dirty the lift port first, through the row's own select (base: Cảng Hải Phòng).
+    fireEvent.click(screen.getByLabelText(/Cảng nâng của container/));
+    const portFilter = document.querySelector<HTMLInputElement>('.searchable-select__popover input[role="combobox"]');
+    expect(portFilter).toBeTruthy();
+    fireEvent.change(portFilter!, { target: { value: 'Chan That' } });
+    fireEvent.click(screen.getByRole('option', { name: /Bãi Chân Thật - THT/ }));
+
+    // Then commit the appointment from the popover's Enter path — the same
+    // partial save that used to post ONLY the appointment.
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    setAppointment('09:00', '11/09/2026');
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
+    expect(payload.customerAppointmentAt).toBe('2026-09-11T09:00:00+07:00');
+    // The dirty port rides the same POST — a ports-only payload let the row
+    // read clean and the save-exit hook close the drawer over the draft.
+    expect(payload.liftSiteId).toBe(8);
+  });
+
+  it('card 071026205310 r2: the preset-pill path sweeps the dirty port like every other commit path', async () => {
+    const detailWithPorts = {
+      ...detail,
+      selectors: { ...detail.selectors, ports: [{ id: 3, label: 'Cảng Hải Phòng' }, { id: 8, label: 'Bãi Chân Thật - THT' }] },
+    } as unknown as ShipmentCusWorkspaceDetail;
+    renderLedger({ detail: detailWithPorts });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    // Dirty the lift port first (base: Cảng Hải Phòng).
+    fireEvent.click(screen.getByLabelText(/Cảng nâng của container/));
+    const portFilter = document.querySelector<HTMLInputElement>('.searchable-select__popover input[role="combobox"]');
+    expect(portFilter).toBeTruthy();
+    fireEvent.change(portFilter!, { target: { value: 'Chan That' } });
+    fireEvent.click(screen.getByRole('option', { name: /Bãi Chân Thật - THT/ }));
+
+    // Lead's failing sequence: tap Hôm nay, tap 08:00, Enter — no typing.
+    // Enter lands on the FOCUSED pill, so the popover re-clicks it and
+    // commits inside the SAME event — the exact cascade that must not read
+    // a stale drafts closure.
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
+    const pill = screen.getByRole('button', { name: '08:00' });
+    fireEvent.click(pill);
+    fireEvent.keyDown(pill, { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const [, , payload] = updateCusShipmentContainerLine.mock.calls[0];
+    // The pill-composed appointment (today + 08:00) reached the wire…
+    expect(String(payload.customerAppointmentAt)).toContain('T08:00');
+    // …and the dirty port rode the same POST.
+    expect(payload.liftSiteId).toBe(8);
+  });
+
   it('Escape in the popover closes without saving', async () => {
     renderLedger();
     updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
@@ -373,7 +436,7 @@ describe('ContainerLedger confirm affordances', () => {
       const [saving, setSaving] = useState(false);
       return <ToastProvider><ContainerLedger
         detail={current}
-        onLineSaved={async (line) => { setCurrent({ ...current, containers: [line] }); }}
+        onLineSaved={async (line) => { if (line) setCurrent({ ...current, containers: [line] }); }}
         getIdempotencyKey={() => 'typed-enter-current-state'}
         clearIdempotencyKey={() => {}}
         idPrefix="real-host"
@@ -440,6 +503,40 @@ describe('ContainerLedger confirm affordances', () => {
 
     resolveSave!({ line: { id: 10, shipmentVersion: 5 } });
     await waitFor(() => expect(onAppointmentSavedAndExit).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  });
+
+  // 20261004_325: preset picks + Enter converge on the SAME commit path as
+  // typed entry (commitAppointment → POST → close), and the dirty banner
+  // stays truthful: the pick is a real unsaved draft until the saved line
+  // lands — never papered over, never stuck after the save. The fix landed
+  // in 4bfba1c6 (popover unit test covers the Enter routing); this pins the
+  // ledger-level convergence and dirty semantics.
+  it('_325: preset picks + Enter from the focused pill commit and clear dirtiness only once the saved line lands', async () => {
+    const onDirtyChange = vi.fn();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-04T09:00:00+07:00'));
+    const expectedDay = getOffsetDateString(2, new Date()); // Ngày kia
+    const view = renderLedger({ onDirtyChange });
+    updateCusShipmentContainerLine.mockResolvedValue({ line: { id: 10, shipmentVersion: 5 } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ngày kia' }));
+    fireEvent.click(screen.getByRole('button', { name: '13:30' }));
+    // The pick marks a genuinely unsaved container draft (banner truthfully on).
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
+
+    // Enter with the browser's post-click focus: the target is the pill button.
+    fireEvent.keyDown(screen.getByRole('button', { name: '13:30' }), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const payload = updateCusShipmentContainerLine.mock.calls[0][2] as { customerAppointmentAt: string };
+    expect(payload.customerAppointmentAt).toBe(`${expectedDay}T13:30:00+07:00`);
+    // Popover closes after the save — same close path as typed entry.
+    await waitFor(() => expect(document.querySelector('.cus-appointment-popover')).toBeNull());
+    // Dirtiness clears only when the saved line actually lands (host refetch).
+    view.rerenderWithSavedLine();
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+    vi.useRealTimers();
   });
 });
 
@@ -573,5 +670,97 @@ describe('vendor-scoped plate datalist (card 20260925_6 sweep)', () => {
     const datalist = container.querySelector('datalist[id$="-plates-10"]');
     expect(Array.from(datalist!.querySelectorAll('option')).map((option) => option.value))
       .toEqual(['15C-184.62']);
+  });
+});
+
+// Card 071026100800 — after a container is removed from a lot, the OVERVIEW
+// row (containerSummary "2x40DC", container count) must refresh immediately:
+// the remove path refreshes the drawer (onExternalTripCompleted → force detail
+// reload) AND the list row (onLineSaved(null) → applySavedContainerLine's
+// no-line branch → loadList). Missing the list refresh kept the deleted row's
+// numbers on screen until a manual reload — the reported bug.
+describe('071026100800 — xóa container làm tươi hàng tổng quan', () => {
+  it('remove success refreshes the overview row AND the drawer detail', async () => {
+    const onLineSaved = vi.fn();
+    const onExternalTripCompleted = vi.fn();
+    removeCusShipmentContainerRow.mockClear();
+    removeCusShipmentContainerRow.mockResolvedValueOnce({});
+    render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={detail}
+          onLineSaved={onLineSaved}
+          onExternalTripCompleted={onExternalTripCompleted}
+          getIdempotencyKey={() => 'test-key'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="remove-refresh"
+        />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
+    // null = structural change (no line payload) → applySavedContainerLine
+    // refreshes the list, exactly like the add path does with a line.
+    await waitFor(() => expect(onLineSaved).toHaveBeenCalledWith(null));
+    expect(onExternalTripCompleted).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed remove refreshes nothing — the data did not change', async () => {
+    const onLineSaved = vi.fn();
+    const onExternalTripCompleted = vi.fn();
+    removeCusShipmentContainerRow.mockClear();
+    removeCusShipmentContainerRow.mockRejectedValueOnce(new ApiError(409, { error: 'Không xóa được container.' }, 'Không xóa được container.'));
+    render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={detail}
+          onLineSaved={onLineSaved}
+          onExternalTripCompleted={onExternalTripCompleted}
+          getIdempotencyKey={() => 'test-key'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="remove-fail"
+        />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
+    expect(onLineSaved).not.toHaveBeenCalled();
+    expect(onExternalTripCompleted).not.toHaveBeenCalled();
+  });
+  // Card 20261007_395 — an LCL lot is ONE containerless LCL_SHIPMENT by
+  // design; the server refuses a container add with 409 "Chỉ lô hàng FCL mới
+  // thêm được dòng container." The ledger used to offer "Thêm container" on
+  // LCL anyway (its own comment claimed LCL manages containers here), so staff
+  // could only ever walk into a dead end. FCL must still get the affordance.
+  it('offers the add-container action on FCL and withholds it on LCL', () => {
+    const onLineSaved = vi.fn();
+    const { unmount } = render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={{ ...detail, summary: { ...detail.summary, cargoMode: 'FCL' } }}
+          onLineSaved={onLineSaved}
+          onExternalTripCompleted={vi.fn()}
+          getIdempotencyKey={() => 'k'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="fcl-add"
+        />
+      </ToastProvider>,
+    );
+    expect(screen.getByRole('button', { name: 'Thêm container' })).toBeTruthy();
+    unmount();
+
+    render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={{ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } }}
+          onLineSaved={onLineSaved}
+          onExternalTripCompleted={vi.fn()}
+          getIdempotencyKey={() => 'k'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="lcl-add"
+        />
+      </ToastProvider>,
+    );
+    expect(screen.queryByRole('button', { name: 'Thêm container' })).toBeNull();
   });
 });

@@ -28,9 +28,9 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   containerTypeSummary: '2 x 40HC + 1 x 20DC',
   totalCargoWeightKg: 41000.75,
   allocationStatus: 'NOT_ALLOCATED',
-  // The master plan's allocation trigger is gated on READY_FOR_DISPATCH, which
-  // is the only status the backend accepts a carrier assignment for. The
-  // fixture models a dispatchable lot, so the trigger is live in these tests.
+  // The backend accepts carrier assignment for READY_FOR_DISPATCH and, since
+  // card 354's per-container freeze, also post-dispatch statuses. The fixture
+  // models a dispatchable lot, so the trigger is live in these tests.
   status: ShipmentStatus.READY_FOR_DISPATCH,
   carrierAllocationSummary: [],
   appointmentGroups: [],
@@ -370,13 +370,16 @@ describe('MasterPlanGrid', () => {
     const scheduleWidth = widthFor('schedule');
     const widths = ['schedule', 'customer', 'route-shipping', 'lift-port', 'drop-port', 'cargo', 'notes', 'allocation'].map(widthFor);
 
-    // 2b023521 rebalanced the grid toward route/shipping (16%) +
-    // allocation (12%); schedule is now 15% (was 22%) — the trip window
-    // still gets dedicated room but route/shipping wins on the wireframe.
-    expect(scheduleWidth).toBe(15);
+    // 2b023521 rebalanced the grid toward route/shipping (16%) — schedule
+    // went 22% → 15%. Card 20261003_303 (PM 03/10) slims schedule further to
+    // 10% — its date/hour/count tokens fit — and feeds the freed width to
+    // the starved columns (notes 14%, allocation 13%, cargo 11%).
+    expect(scheduleWidth).toBe(10);
     expect(widthFor('route-shipping')).toBe(16);
-    expect(widthFor('allocation')).toBe(12);
-    expect(scheduleWidth).toBeGreaterThan(widthFor('allocation'));
+    expect(widthFor('allocation')).toBe(13);
+    expect(widthFor('notes')).toBe(14);
+    expect(widthFor('cargo')).toBe(11);
+    expect(scheduleWidth).toBeLessThan(widthFor('allocation'));
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
   });
 
@@ -429,11 +432,39 @@ describe('MasterPlanGrid', () => {
     expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
   });
 
-  it('locks the allocation trigger for every status the backend refuses (READY_FOR_DISPATCH is the only assignable one)', () => {
-    // assignShipmentCarriers 409s for any status ≠ READY_FOR_DISPATCH, and again
-    // when the lot already carries a live trip. The trigger used to stay live on
-    // DISPATCHED / IN_TRANSIT rows, so the dispatcher's save came back as a bare
-    // "Lô hàng đã thay đổi" conflict that hid the real reason.
+  it('locks the allocation trigger only for statuses the backend refuses outright', () => {
+    // assignShipmentCarriers 409s intake-phase lots (NEW / PENDING_DATE) and
+    // CANCELED lots. Those rows must not offer the trigger: the dispatcher's
+    // save would come back as a bare conflict that hid the real reason.
+    const onAllocate = vi.fn();
+    render(<MasterPlanGrid
+      items={[
+        item({ status: ShipmentStatus.PENDING_DATE }),
+        item({ id: 2, status: ShipmentStatus.CANCELED }),
+      ]}
+      onAllocate={onAllocate}
+    />);
+
+    const triggers = screen.getAllByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
+    expect(triggers).toHaveLength(2);
+    for (const trigger of triggers) {
+      // Card 081026093510 sweep: the lock is aria-disabled (never the
+      // `disabled` attribute) so the reason stays reachable on hover AND
+      // keyboard focus; the guard still blocks the action.
+      expect(trigger).toHaveAttribute('aria-disabled', 'true');
+      const reasonId = trigger.getAttribute('aria-describedby');
+      expect(reasonId).toBeTruthy();
+      expect(document.getElementById(reasonId!)?.textContent).toBe('Lô chưa ở trạng thái có thể phân bổ nhà xe.');
+      fireEvent.click(trigger);
+    }
+    expect(onAllocate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the allocation trigger live on post-dispatch rows so unallocated containers can be filled (354)', () => {
+    // The allocation freeze is per-container: a trip-bound container keeps its
+    // carrier while its unallocated siblings still accept fills. Locking the
+    // whole row on DISPATCHED / IN_TRANSIT / COMPLETED starved those siblings
+    // ("Chưa phân nhà xe / CUS sẽ bổ sung" never became allocatable).
     const onAllocate = vi.fn();
     render(<MasterPlanGrid
       items={[
@@ -447,10 +478,10 @@ describe('MasterPlanGrid', () => {
     const triggers = screen.getAllByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
     expect(triggers).toHaveLength(3);
     for (const trigger of triggers) {
-      expect(trigger).toBeDisabled();
-      fireEvent.click(trigger);
+      expect(trigger).toBeEnabled();
     }
-    expect(onAllocate).not.toHaveBeenCalled();
+    fireEvent.click(triggers[1]!);
+    expect(onAllocate).toHaveBeenCalledTimes(1);
   });
 
   it('hides the "Ghi chú" column when both operationalNotes and factoryNotes are empty', () => {
@@ -497,7 +528,7 @@ describe('MasterPlanGrid', () => {
     // The "Xem chi tiết" button is visible
     const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
     expect(detailBtn).toBeTruthy();
-    expect(detailBtn).toHaveTextContent('Chi tiết');
+    expect(detailBtn).toHaveTextContent('Xem thêm');
 
     // Click "Chi tiết" to open the modal
     fireEvent.click(detailBtn);
@@ -722,15 +753,12 @@ describe('MasterPlanFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '2026-09-15', deliveryDateTo: '' });
     expect(screen.queryByRole('dialog')).toBeNull();
 
-    // The categorical criteria live behind `Bộ lọc` (card 20260927_152).
-    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
-    const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Tất cả Xuất / Nhập' }));
+    // The basic criteria live on the bar while zone/carrier facets live behind `Bộ lọc` (card 20261002_282).
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Tất cả trạng thái Phân xe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Phân xe: Tất cả trạng thái' }));
     fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
   });
@@ -788,7 +816,37 @@ describe('MasterPlanFilters', () => {
     expect(page).toContain('action={(');
     expect(page).toContain('dispatch-plan-page--wide');
     expect(css).toContain('max-width: 1400px');
-    // Card 20260930_246: 12 → 8 — the advisory strips tighten so the first\n    // record meets its chrome budget at every width.\n    expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 8px;\n  max-width: none;');
+    expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 8px;\n  max-width: none;');
     expect(css).toContain('.app-main:not(.driver-mode) .app-body > .dispatch-plan-page--wide');
   });
+
+  it('card 20261004_321: gates container detail on containerTotal > 0 and uses Xem thêm for notes without duplicate Chi tiết', () => {
+    const { rerender } = render(
+      <MasterPlanGrid
+        items={[item({ containerTotal: 0, containerCount20: 0, containerCount40: 0, containerTypeSummary: 'Chưa có cont', factoryNotes: 'Short' })]}
+        onAllocate={vi.fn()}
+      />,
+    );
+    // When containerTotal is 0, no "Chi tiết" link is rendered in the cargo cell
+    expect(screen.queryByRole('button', { name: /Xem chi tiết container/ })).toBeNull();
+
+    // When containerTotal > 0 and note is long
+    const longNote = '1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890';
+    rerender(
+      <MasterPlanGrid
+        items={[item({ containerTotal: 1, factoryNotes: longNote })]}
+        onAllocate={vi.fn()}
+      />,
+    );
+    const containerBtn = screen.getByRole('button', { name: /Xem chi tiết container/ });
+    expect(containerBtn).toHaveTextContent('Chi tiết');
+
+    const noteBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
+    expect(noteBtn).toHaveTextContent('Xem thêm');
+
+    // Exactly one "Chi tiết" button in the entire row
+    const chiTietButtons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === 'Chi tiết');
+    expect(chiTietButtons).toHaveLength(1);
+  });
 });
+

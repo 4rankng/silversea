@@ -1,5 +1,5 @@
 /**
- * Ops cash expenses (docs/prd/OpsVanHanh.md §3.3, §5.3): context-first entry
+ * Ops cash expenses (docs/prd/OpsVanHanh.docx §3.3, §5.3): context-first entry
  * per lô, receipt photos, author-scoped edits, accounting decisions, and the
  * pure grouping used by settlements + exports.
  */
@@ -515,6 +515,9 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
 export interface OpsExpenseListRow {
   sourceKind?: 'OPS' | 'TRIP';
   sourceId?: number;
+  /** Trip id of a legacy (TRIP-sourced) row — the wallet's Sửa/Xóa route into
+   *  the chi-hô entry APIs (card 071026141580). */
+  tripId?: number | null;
   version: number;
   confirmedAt: string | null;
   costGroup: ExpenseCostGroup | null;

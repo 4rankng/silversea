@@ -1,27 +1,23 @@
-import { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import { useState, useMemo, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, Plus, Download,
-  MoreHorizontal, Pencil, Trash2, X, Save, Loader2,
-  Building2, Hash, User, Phone, Landmark, Clock, FileText,
+  MoreHorizontal, Pencil, Trash2, Loader2,
 } from 'lucide-react';
 import { Truck as TruckIcon } from 'lucide-react';
 import { useConfirm } from '../components/UI';
+import { useToast } from '../components/shared/Toast';
 import { SupplierCarrierTrucksSection } from '../features/suppliers/SupplierCarrierTrucksSection';
 import { api } from '../lib/api';
-import { Input } from '../components/untitled-ui/base/input/input';
-import { TextArea } from '../components/untitled-ui/base/textarea/textarea';
-import { EntityFormSection, UnitInput, RequiredHint } from '../components/shared/EntityFormParts';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
-import { PageHeader, KPI, StatusPill, Modal, ModalChip, ModalChipLive } from '../components/UI';
+import { PageHeader, KPI, StatusPill } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useDropdownDismiss } from '../hooks/useDropdownDismiss';
 import { EmptyState, FilterBar, Pagination, useTableQueryState } from '../design-system';
-import { SupplierType, type Supplier } from '@tingting/shared';
-import { CONFIG } from '@tingting/shared';
+import { SupplierType, CONFIG, type Supplier } from '@tingting/shared';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
 import { usePayablesSummary } from '../hooks/useFinancialQueries';
@@ -51,162 +47,8 @@ const STATUS_LABELS: Record<string, string> = {
   INACTIVE: 'Ngừng hoạt động',
 };
 
-export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
-  item?: Supplier; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
-}) {
-  const [name, setName] = useState(item?.name || '');
-  const [shortName, setShortName] = useState(item?.shortName || '');
-  const [contactPerson, setContactPerson] = useState(item?.contactPerson || '');
-  const [phone, setPhone] = useState(item?.phone || '');
-  const [taxCode, setTaxCode] = useState(item?.taxCode || '');
-  const [note, setNote] = useState(item?.note || '');
-  const [chiHoDueDays, setChiHoDueDays] = useState<string>(item?.chiHoDueDays != null ? String(item.chiHoDueDays) : '');
-  const [cuocDueDays, setCuocDueDays] = useState<string>(item?.cuocDueDays != null ? String(item.cuocDueDays) : '');
+import { SupplierFormModal } from '../features/suppliers/SupplierFormModal';
 
-  useEffect(() => {
-    if (isOpen) {
-      setName(item?.name || '');
-      setShortName(item?.shortName || '');
-      setContactPerson(item?.contactPerson || '');
-      setPhone(item?.phone || '');
-      setTaxCode(item?.taxCode || '');
-      setNote(item?.note || '');
-      setChiHoDueDays(item?.chiHoDueDays != null ? String(item.chiHoDueDays) : '');
-      setCuocDueDays(item?.cuocDueDays != null ? String(item.cuocDueDays) : '');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, item?.id]);
-
-  const handleSave = () => {
-    if (!name.trim()) return;
-    onsave({
-      name: name.trim(),
-      shortName: shortName.trim() || name.trim(),
-      contactPerson: contactPerson.trim() || undefined,
-      phone: phone.trim() || undefined,
-      taxCode: taxCode.trim() || undefined,
-      note: note.trim() || undefined,
-      chiHoDueDays: chiHoDueDays.trim() === '' ? null : Number(chiHoDueDays),
-      cuocDueDays: cuocDueDays.trim() === '' ? null : Number(cuocDueDays),
-    });
-  };
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      title={item ? item.name : 'Thêm nhà cung cấp'}
-      subtitle={item ? 'Sửa nhà cung cấp' : undefined}
-      polished
-      ariaLabel={item ? `Sửa nhà cung cấp — ${item.name}` : 'Thêm nhà cung cấp'}
-      headerRight={
-        !item ? undefined : item.status === 'ACTIVE'
-          ? <ModalChipLive>Đang hoạt động</ModalChipLive>
-          : <ModalChip>Ngừng hoạt động</ModalChip>
-      }
-      onClose={oncancel}
-      onConfirm={handleSave}
-      maxWidth={960}
-      footer={
-        <>
-          <RequiredHint />
-          <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
-            <X size={14} /> Hủy
-          </button>
-          <button type="button" className="btn btn--primary btn--sm" disabled={saving || !name.trim()} onClick={handleSave}>
-            {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
-            {item ? 'Cập nhật' : 'Thêm nhà cung cấp'}
-          </button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <EntityFormSection icon={Building2} label="Thông tin nhà cung cấp">
-          <Input
-            size="sm"
-            label="Tên nhà cung cấp"
-            isRequired
-            icon={Building2}
-            value={name}
-            onChange={setName}
-            placeholder="Ví dụ: Garage Auto 123"
-            autoFocus
-          />
-          <Input
-            size="sm"
-            label="Tên viết tắt"
-            icon={Hash}
-            value={shortName}
-            onChange={setShortName}
-            placeholder="Để trống sẽ dùng tên đầy đủ"
-          />
-          <Input
-            size="sm"
-            label="Mã số thuế"
-            icon={Landmark}
-            value={taxCode}
-            maxLength={20}
-            onChange={setTaxCode}
-            placeholder="Ví dụ: 0312…"
-            inputClassName="tabular-nums"
-          />
-          <Input
-            size="sm"
-            label="Người liên hệ"
-            icon={User}
-            value={contactPerson}
-            onChange={setContactPerson}
-            placeholder="Ví dụ: Anh Tuấn · Kế toán"
-          />
-          <Input
-            size="sm"
-            label="Điện thoại"
-            icon={Phone}
-            value={phone}
-            onChange={setPhone}
-            placeholder="Ví dụ: 0912…"
-            inputClassName="tabular-nums"
-          />
-        </EntityFormSection>
-
-        <EntityFormSection icon={Clock} label="Điều khoản thanh toán">
-          <UnitInput
-            size="sm"
-            label="Hạn thanh toán Chi hộ"
-            unit="ngày"
-            icon={Clock}
-            value={chiHoDueDays}
-            onChange={setChiHoDueDays}
-            min={0}
-            max={365}
-            placeholder="Ví dụ: 15"
-          />
-          <UnitInput
-            size="sm"
-            label="Hạn thanh toán Cước"
-            unit="ngày"
-            icon={Clock}
-            value={cuocDueDays}
-            onChange={setCuocDueDays}
-            min={0}
-            max={365}
-            placeholder="Ví dụ: 30"
-          />
-        </EntityFormSection>
-
-        <EntityFormSection icon={FileText} label="Ghi chú">
-          <div className="col-span-full">
-            <TextArea
-              value={note}
-              onChange={setNote}
-              placeholder="Ghi chú thêm…"
-              rows={3}
-            />
-          </div>
-        </EntityFormSection>
-      </div>
-    </Modal>
-  );
-}
 
 export default function SupplierListPage() {
   const navigate = useNavigate();
@@ -224,7 +66,10 @@ export default function SupplierListPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+  // Card 071026211100: export feedback parity with /finance and /payables.
+  const [exporting, setExporting] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  const { toast } = useToast();
   // Card 20260926_2: expanded carrier row showing its 'Xe của nhà thầu' section.
   const [trucksOpenId, setTrucksOpenId] = useState<number | null>(null);
   // Row kebab menus join the global click-away / Escape dismissal layer.
@@ -232,12 +77,24 @@ export default function SupplierListPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirm();
 
+  // Card (freeze-halting small, lead 2026-10-03): the sort pair in the URL
+  // seeds the filters bag on mount — a ?sortBy=&sortDir= deep link is
+  // honored by the first server fetch instead of being ignored until a
+  // header press. Invalid/absent values drop out via readTableSort.
+  const urlSortSeed = (() => {
+    const p = new URLSearchParams(window.location.search);
+    const by = p.get('sortBy');
+    if (!by) return {};
+    return { sortBy: by, sortDir: p.get('sortDir') === 'desc' ? 'desc' : 'asc' } as Partial<SupplierTableFilters>;
+  })();
+
   const table = useTableQueryState<Supplier, SupplierTableFilters>({
     endpoint: (params) => configClient.getSuppliers(
       params.page ?? 1,
       params.search ?? '',
       readTableSort(params.sortBy, params.sortDir),
     ),
+    initialFilters: urlSortSeed,
     queryKey: qk.catalogs.suppliersTable,
     defaultPageSize: 10,
     debounceMs: 300,
@@ -333,24 +190,33 @@ export default function SupplierListPage() {
         description={`${total} nhà cung cấp đang quản lý`}
         action={
           <>
-            <button className="btn btn--secondary" onClick={async () => {
-              const headers = ['Tên NCC', 'Người liên hệ', 'Điện thoại', 'MST', 'Là nhà CC nhiên liệu', 'Trạng thái'];
-              const rows = filtered.map(s => [
-                s.name,
-                s.contactPerson || '',
-                s.phone || '',
-                s.taxCode || '',
-                s.isFuelSupplier ? 'Có' : 'Không',
-                STATUS_LABELS[s.status] || s.status,
-              ]);
-              await downloadCSV(`nha-cung-cap-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
-                title: 'DANH SÁCH NHÀ CUNG CẤP',
-                subtitle: `${filtered.length} nhà cung cấp đang quản lý`,
-                columnTypes: ['text', 'text', 'text', 'text', 'text', 'text'],
-                hideTotals: true,
-              });
+            <button className="btn btn--secondary" disabled={exporting} onClick={async () => {
+              if (exporting) return;
+              setExporting(true);
+              try {
+                const headers = ['Tên NCC', 'Người liên hệ', 'Điện thoại', 'MST', 'Là nhà CC nhiên liệu', 'Trạng thái'];
+                const rows = filtered.map(s => [
+                  s.name,
+                  s.contactPerson || '',
+                  s.phone || '',
+                  s.taxCode || '',
+                  s.isFuelSupplier ? 'Có' : 'Không',
+                  STATUS_LABELS[s.status] || s.status,
+                ]);
+                await downloadCSV(`nha-cung-cap-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
+                  title: 'DANH SÁCH NHÀ CUNG CẤP',
+                  subtitle: `${filtered.length} nhà cung cấp đang quản lý`,
+                  columnTypes: ['text', 'text', 'text', 'text', 'text', 'text'],
+                  hideTotals: true,
+                });
+                toast({ kind: 'success', message: 'Đã xuất danh sách nhà cung cấp ra tệp Excel.' });
+              } catch {
+                toast({ kind: 'error', message: 'Chưa xuất được tệp Excel — vui lòng thử lại.' });
+              } finally {
+                setExporting(false);
+              }
             }}>
-              <Download size={14} /> Xuất Excel
+              <Download size={14} /> {exporting ? 'Đang xuất…' : 'Xuất Excel'}
             </button>
             <button className="btn btn--primary" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
               <Plus size={14} /> Thêm nhà cung cấp
@@ -404,8 +270,8 @@ export default function SupplierListPage() {
               Ngừng HĐ · {inactiveCount}
             </button>
             <button type="button" aria-pressed={typeFilter === 'all'} className={`filter-chip${typeFilter === 'all' ? ' is-active' : ''}`} onClick={() => setTypeFilter('all')}>Mọi loại</button>
-            <button type="button" aria-pressed={typeFilter === 'carrier'} className={`filter-chip${typeFilter === 'carrier' ? ' is-active' : ''}`} onClick={() => setTypeFilter('carrier')}>Xe ngoài (nhà thầu vận tải)</button>
-            <button type="button" aria-pressed={typeFilter === 'other'} className={`filter-chip${typeFilter === 'other' ? ' is-active' : ''}`} onClick={() => setTypeFilter('other')}>Vật tư · dịch vụ</button>
+            <button type="button" aria-pressed={typeFilter === 'carrier'} className={`filter-chip${typeFilter === 'carrier' ? ' is-active' : ''}`} onClick={() => setTypeFilter('carrier')}>Nhà xe</button>
+            <button type="button" aria-pressed={typeFilter === 'other'} className={`filter-chip${typeFilter === 'other' ? ' is-active' : ''}`} onClick={() => setTypeFilter('other')}>Nhà cung cấp khác</button>
           </>
         )}
       />
@@ -486,15 +352,24 @@ export default function SupplierListPage() {
       <div className="desktop-only table-wrap suppliers-page__workspace">
         <div className="record-table-wrap suppliers-page__grid-wrapper">
           <table className="record-table ops-table suppliers-page__grid" style={{ tableLayout: 'fixed' }}>
+            {/* Card 20261004_335: the action column budgets the worst-case
+                row-action run (2 × coarse 40px square + 6px gap = 86px + 24px
+                cell padding → 112px, card-324 idiom). The data shares sum to
+                89% so 89% × 1100px + 112px fits the table-mode floor — the
+                shared record-table card band starts below 1100px — and the
+                frozen column can never be squeezed below its budget. The
+                grant is funded from the wrap-yield name / Mã NCC / contact
+                columns; the tax-code, phone and money token columns keep
+                their widths (styles test: action-column-width-budget). */}
             <colgroup>
-              <col style={{ width: '22%' }} />
+              <col style={{ width: '21%' }} />
               <col style={{ width: '12%' }} />
+              <col style={{ width: '11%' }} />
               <col style={{ width: '12%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '12%' }} />
+              <col style={{ width: '11%' }} />
               <col style={{ width: '12%' }} />
               <col style={{ width: '10%' }} />
-              <col style={{ width: 60 }} />
+              <col style={{ width: 112 }} />
             </colgroup>
             <thead>
               <tr>
@@ -505,7 +380,7 @@ export default function SupplierListPage() {
                 <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
                 <SortHeader label="SĐT" sortKey="phone" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Công nợ" sortKey="payable" sort={sort} onSortChange={applySort} style={thMoneyStyle} />
-                <th style={{ width: 60 }}></th>
+                <th style={{ width: 112 }}></th>
               </tr>
             </thead>
             <tbody>

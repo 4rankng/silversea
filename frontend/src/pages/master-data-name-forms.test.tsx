@@ -50,7 +50,8 @@ describe('master-data full and short name forms', () => {
     }));
   });
 
-  it('submits both factory names', async () => {
+  // House select-chain timeout contract (card 20260930_237 / 20261004_333).
+  it('submits both factory names', { timeout: 15000 }, async () => {
     createOperationalSite.mockResolvedValue({
       id: 1,
       customerId: 7,
@@ -87,7 +88,9 @@ describe('master-data full and short name forms', () => {
     })));
   });
 
-  it('requires a customer and submits the picked customer in picker mode', async () => {
+  // House select-chain timeout contract (card 20260930_237 / 20261004_333): two
+  // react-aria select chains in one test exceed the 5s default on loaded boxes.
+  it('requires a customer and submits the picked customer in picker mode', { timeout: 15000 }, async () => {
     createOperationalSite.mockResolvedValue({
       id: 21,
       customerId: 9,
@@ -139,7 +142,7 @@ describe('master-data full and short name forms', () => {
     })));
   });
 
-  it('creates a route below the factory route selector and selects it', async () => {
+  it('creates a route below the factory route selector and selects it', { timeout: 15000 }, async () => {
     const onRouteCreated = vi.fn();
     createRoute.mockResolvedValue({ id: 12, name: 'Cảng Cát Lái — KCN Sóng Thần', shortName: 'Cát Lái — Sóng Thần' });
     render(<OperationalSiteCreateDialog isOpen customerId={7} routes={[]} onClose={vi.fn()} onCreated={vi.fn()} onRouteCreated={onRouteCreated} />);
@@ -161,7 +164,7 @@ describe('master-data full and short name forms', () => {
     await waitFor(() => expect(within(reopenedFactoryDialog).getByRole('button', { name: 'Thêm tuyến đường' })).toHaveFocus());
   });
 
-  it('restores the factory draft when route creation is cancelled', async () => {
+  it('restores the factory draft when route creation is cancelled', { timeout: 15000 }, async () => {
     render(<OperationalSiteCreateDialog isOpen customerId={7} routes={[{ id: 11, name: 'Cảng Hải Phòng - Biển Bạc Bắc Ninh' }]} onClose={vi.fn()} onCreated={vi.fn()} />);
     // The polished modal animates in (opacity 0 → 1); await it so slow runs
     // don't query a mid-animation dialog instance.
@@ -179,7 +182,7 @@ describe('master-data full and short name forms', () => {
     await waitFor(() => expect(within(reopenedFactoryDialog).getByRole('button', { name: 'Thêm tuyến đường' })).toHaveFocus());
   });
 
-  it('keeps the factory draft while a route creation error is resolved', async () => {
+  it('keeps the factory draft while a route creation error is resolved', { timeout: 15000 }, async () => {
     createRoute.mockRejectedValue(new Error('Không thể kết nối danh mục tuyến.'));
     render(<OperationalSiteCreateDialog isOpen customerId={7} routes={[]} onClose={vi.fn()} onCreated={vi.fn()} />);
     const factoryDialog = screen.getByRole('dialog', { name: 'Thêm nhà máy' });

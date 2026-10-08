@@ -53,6 +53,12 @@ export const NO_INVOICE_EXPENSE_TYPE_CODES = new Set([
   // substituteEvidenceAllowed:false, i.e. the approval gate and the evidence
   // gate disagreeing silently.
   'ROAD_REPAIR',
+  // Card 20261004_355: fuel claims ride refill reports and station receipts,
+  // not VAT invoices — the same loose class as ROAD_REPAIR. Demanding an
+  // invoice would block exactly the quick diesel entry the card asks for; the
+  // fill-only seed never overwrites admin edits, so reclassification is a
+  // one-row admin change if the owner wants the invoice gate instead.
+  'FUEL',
 ]);
 
 export function expenseTypeSeedPolicy(code: string): { requiresInvoice: boolean; substituteEvidenceAllowed: boolean } {

@@ -6,11 +6,13 @@ import type { TripDetail } from '@tingting/shared';
 vi.mock('../../../hooks/useTripQueries', () => ({
   useTripDetail: vi.fn(),
 }));
+const catalogsMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../hooks/useCatalogs', () => ({
-  useCatalogs: () => ({ data: { customers: [] } }),
+  useCatalogs: catalogsMock,
 }));
+const trucksDriversMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../hooks/useCatalogQueries', () => ({
-  useTrucksAndDrivers: () => ({ data: null }),
+  useTrucksAndDrivers: trucksDriversMock,
 }));
 vi.mock('../../../api/tripClient', () => ({
   tripClient: { reassignTrip: vi.fn() },
@@ -23,6 +25,9 @@ import { TripReassignDialog } from './TripReassignDialog';
 
 const useTripDetailMock = vi.mocked(useTripDetail);
 const reassignMock = vi.mocked(tripClient.reassignTrip);
+// Defaults keep every pre-389 describe exactly as it was.
+catalogsMock.mockReturnValue({ data: { customers: [], externalCarriers: [] } });
+trucksDriversMock.mockReturnValue({ data: null });
 
 const TRIP = {
   id: 3,
@@ -256,5 +261,75 @@ describe('TripReassignDialog — acceptance lock', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân xe lại' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('đã được lái xe nhận việc');
     await waitFor(() => expect(refetch).toHaveBeenCalled());
+  });
+});
+
+// Card 20261006_389 — per-trip trailer override on REASSIGN. The coupling of
+// the SELECTED tractor is the default (no trailerId in the body); picking a
+// different ACTIVE trailer sends trailerId and names both plates; the backend
+// keeps the same three trailer gates as issue.
+describe('TripReassignDialog — trailer override on reassign (card 20261006_389)', () => {
+  beforeEach(() => {
+    useTripDetailMock.mockReset();
+    useTripDetailMock.mockReturnValue({
+      data: TRIP, isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    catalogsMock.mockReturnValue({
+      data: {
+        customers: [], externalCarriers: [],
+        trailers: [
+          { id: 5, licensePlate: '15R-000.01', type: '20FT', status: 'ACTIVE' },
+          { id: 6, licensePlate: '30R-000.02', type: '40FT', status: 'ACTIVE' },
+          { id: 9, licensePlate: 'OLD-R', type: null, status: 'INACTIVE' },
+        ],
+      },
+    });
+    trucksDriversMock.mockReturnValue({
+      data: {
+        trucks: [
+          { id: 20, licensePlate: '15H-000.01', trailerType: '20FT', currentTrailerId: 5 },
+          { id: 21, licensePlate: '30H-000.02', trailerType: '40FT', currentTrailerId: 6 },
+        ],
+        drivers: [],
+      },
+    });
+    reassignMock.mockReset().mockResolvedValue({} as never);
+  });
+
+  it('shows the selected tractor coupling and omits trailerId when no override is picked', async () => {
+    renderDialog();
+    expect(await screen.findByText(/Moóc đang ghép: 15R-000\.01 · 20FT/)).toBeTruthy();
+    // The reassign contract requires the reason (card 20260922_79).
+    fireEvent.change(screen.getByPlaceholderText(/Bắt buộc — ghi vào nhật ký/), { target: { value: 'qa: không ghi đè moóc' } });
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận phân xe lại/ }));
+    await waitFor(() => expect(reassignMock).toHaveBeenCalledTimes(1));
+    expect(reassignMock.mock.calls[0][1].trailerId).toBeUndefined();
+  });
+
+  it('sends trailerId and names both plates when an override is picked', async () => {
+    renderDialog();
+    await screen.findByText(/Moóc đang ghép: 15R-000\.01 · 20FT/);
+    // UuiSelectField exposes a hidden native select — drive it by the selected
+    // option's display value (the file's own proven idiom).
+    fireEvent.change(screen.getByDisplayValue('Dùng moóc đang ghép (15R-000.01)'), { target: { value: '6' } });
+    expect(screen.getByText(/Ghi đè moóc: 30R-000\.02/)).toBeTruthy();
+    expect(screen.getByText(/thay cho moóc đang ghép 15R-000\.01/)).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText(/Bắt buộc — ghi vào nhật ký/), { target: { value: 'qa: ghi đè moóc 40ft' } });
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận phân xe lại/ }));
+    await waitFor(() => expect(reassignMock).toHaveBeenCalledTimes(1));
+    expect(reassignMock.mock.calls[0][1].trailerId).toBe(6);
+  });
+
+  it('follows the newly selected tractor coupling and keeps inactive trailers out', async () => {
+    renderDialog();
+    await screen.findByText(/Moóc đang ghép: 15R-000\.01 · 20FT/);
+    fireEvent.change(screen.getByDisplayValue('15H-000.01'), { target: { value: '21' } });
+    expect(await screen.findByText(/Moóc đang ghép: 30R-000\.02 · 40FT/)).toBeTruthy();
+    // An INACTIVE catalog trailer must never join the picker: the select's
+    // option mirror carries only ACTIVE rows (+ the coupling when it left).
+    const overrideSelect = screen.getByDisplayValue('Dùng moóc đang ghép (30R-000.02)') as HTMLSelectElement;
+    const optionTexts = [...overrideSelect.options].map((option) => option.textContent);
+    expect(optionTexts.some((label) => label?.includes('OLD-R'))).toBe(false);
+    expect(optionTexts.some((label) => label?.includes('30R-000.02'))).toBe(true);
   });
 });

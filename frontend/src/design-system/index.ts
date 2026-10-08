@@ -39,8 +39,15 @@ export type {
   FilterBarProps,
   FilterBarSearchProps,
   FilterBarFoldProps,
+  FilterBarResetScope,
   FilterBarColumns,
 } from './FilterBar';
+
+// The per-column quick filter (one shared implementation; the register board's
+// Khách hàng / Thông tin xe headers are its first consumers — later boards
+// reuse this exact component, never a page-local copy).
+export { ColumnMiniFilter } from './ColumnMiniFilter';
+export type { ColumnMiniFilterProps } from './ColumnMiniFilter';
 
 export { TextField } from './forms/TextField';
 export type { TextFieldProps, BaseFieldProps } from './forms/TextField';

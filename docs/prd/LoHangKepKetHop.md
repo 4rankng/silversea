@@ -2,7 +2,7 @@
 
 **Dự án:** TTransport — Silver Sea
 
-Xem thêm: [mục lục PRD](README.md), [Quy trình O2C](QuyTrinhO2C.md), [Màn hình lái xe](ManHinhLaiXe.md).
+Xem thêm: [mục lục PRD](README.md), [Quy trình O2C](QuyTrinhO2C.docx), [Màn hình lái xe](ManHinhLaiXe.docx).
 
 Điều vận cần ghép các công việc phù hợp để tận dụng xe, moóc và hành trình. Lái xe cần hiểu hai công việc chạy đồng thời hay nối tiếp. CUS và Kế toán cần giữ đúng lô hàng, chứng từ, doanh thu và chi phí của từng công việc khi ghép.
 
@@ -22,6 +22,10 @@ Ghép **hai container 20FT** lên cùng một moóc có khả năng chở hai v�
 Xe đưa container đến trả hàng Lệnh 1, giữ lại vỏ để đi đóng hàng Lệnh 2 thay vì chạy rỗng về bãi. Hai lệnh dùng chung đầu kéo, moóc và tài xế nhưng thực hiện nối tiếp.
 
 **Cảng nâng → trả hàng tại Nhà máy 1 → giữ vỏ → đóng hàng tại Nhà máy 2 → Cảng hạ.**
+
+Cảng nâng / Cảng hạ có thể bổ sung SAU khi điều xe (quyết định 05/10/2026, card
+20261005_358): ghép chuyến cần đủ hai cảng để qua kiểm tra, nên điều vận bổ sung
+trên Chi tiết lô hàng mà không phải gỡ phân xe. Tuyến đường vẫn khóa sau điều xe.
 
 Chỉ được bắt đầu đóng hàng Lệnh 2 sau khi hoàn thành phần trả hàng Lệnh 1. Tiết kiệm hành trình rỗng không làm gộp chứng từ hoặc doanh thu của hai công việc.
 
@@ -75,7 +79,7 @@ Mọi thao tác cần Internet. Khi chưa thể xác định đã lưu hay chưa
 
 Nhãn **KẸP/KẾT HỢP** nằm cạnh đúng công việc/container và phản ánh cặp đang có hiệu lực. Khi bỏ ghép, nhãn ghép ngừng hiển thị; trạng thái hiện hành của từng công việc vẫn đọc được.
 
-Trên app lái xe, hai thẻ đứng liền kề, có dấu hiệu cùng cặp. Mỗi thẻ vẫn thể hiện container, loại, lịch và thao tác riêng. KẸP thể hiện chạy đồng thời; KẾT HỢP thể hiện phần trước/phần sau cùng lý do chưa thể bắt đầu phần sau. Xem [Màn hình lái xe](ManHinhLaiXe.md).
+Trên app lái xe, hai thẻ đứng liền kề, có dấu hiệu cùng cặp. Mỗi thẻ vẫn thể hiện container, loại, lịch và thao tác riêng. KẸP thể hiện chạy đồng thời; KẾT HỢP thể hiện phần trước/phần sau cùng lý do chưa thể bắt đầu phần sau. Xem [Màn hình lái xe](ManHinhLaiXe.docx).
 
 Ở Điều vận, từng công việc giữ thông tin cảng nâng/hạ đúng chiều nhập/xuất. Dấu hiệu dùng chung xe không che số container, loại hoặc trạng thái của từng công việc.
 

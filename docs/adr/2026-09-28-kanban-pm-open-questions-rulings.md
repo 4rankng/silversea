@@ -2,7 +2,7 @@
 date: 2026-09-28
 status: accepted
 deciders: Frank Ng (delegated: derive from PM source doc + PRD)
-source: /Users/dev/Downloads/các chi phí.pdf  ·  docs/prd/OpsVanHanh.md
+source: /Users/dev/Downloads/các chi phí.pdf  ·  docs/prd/OpsVanHanh.docx
 scope: kanban cards 161,162,165,166,167,169,171,172,173,181,197
 ---
 
@@ -42,7 +42,7 @@ needed — build it.
 **Ruling: two sources, kept separate, integrated into the phơi phiếu screen.
 Per-account running balance. No limit / credit management.**
 
-Evidence — this is not actually open. `docs/prd/OpsVanHanh.md` §5.2 carries a
+Evidence — this is not actually open. `docs/prd/OpsVanHanh.docx` §5.2 carries a
 **dated ruling that already shipped**:
 
 > "**Sổ quỹ tách hai nguồn** (chốt 21/09, ship 22/09): mỗi phiếu thu/chi gắn
@@ -85,7 +85,7 @@ invention.
 **Ruling: a "đợt" is an `expenseReconciliations` lot (the reconciliation that
 bundles ops costs and allocates the received advance to them).**
 
-Evidence — `docs/prd/OpsVanHanh.md` §9.2 defines the semantics of "đợt"
+Evidence — `docs/prd/OpsVanHanh.docx` §9.2 defines the semantics of "đợt"
 independently of any table:
 
 > "Báo cáo hoàn ứng theo nhân viên/đợt cho biết **chi phí thuộc đợt**, **tiền
@@ -122,7 +122,7 @@ once the phiếu posts — **not** numeric equality. Restate criterion 5 that wa
 (for the accountant) and the phơi phiếu list (for CUS/accountant). Do not widen
 `/accounting/debit-board`, and do not widen `/dispatch` for CUS.**
 
-Evidence — `docs/prd/OpsVanHanh.md` §9.1 already names both surfaces:
+Evidence — `docs/prd/OpsVanHanh.docx` §9.1 already names both surfaces:
 
 > "Ghi chú … **và lý do của khoản không thu khách**, phải đọc được tại **kế hoạch
 > điều vận (kế toán)** và nơi **CUS/kế toán xử lý khoản thu (danh sách phơi
@@ -187,7 +187,7 @@ is auditable and correctable.
 are already built — this card was parked on a question the code had already
 answered.**
 
-- Criterion 6, the payer column — `docs/prd/OpsVanHanh.md` §9.1:
+- Criterion 6, the payer column — `docs/prd/OpsVanHanh.docx` §9.1:
   "'Người thanh toán' là người thực hiện khoản chi; **nhập thay không đổi người
   này thành người đang đăng nhập**." The implementation already honours this:
   `phoi-phieu-control.service.ts:472-473` reads `opsExpenseEntries.paidById`

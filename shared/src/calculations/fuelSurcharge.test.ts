@@ -152,7 +152,7 @@ test('computeFreightRate: fuelDelta is not rounded', () => {
 
 
 // ─── TC-CUOC-007 / TC-CUOC-008 boundary tests (Phase-1 evidence) ────────────
-// Per docs/prd/CuocPhiThietKeDB.md §4.2 — `H`, `J` rounded separately HALF_UP
+// Per docs/prd/CuocPhiThietKeDB.docx §4.2 — `H`, `J` rounded separately HALF_UP
 // to whole VND; `liters` and `fuelDelta` keep their precision.
 
 test('computeFreightRate: SUNRISE+SJ 10T rounding boundary HALF_UP (TC-CUOC-007)', () => {

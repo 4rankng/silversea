@@ -13,6 +13,7 @@ import { cacheGet } from '../../lib/redis';
 import { getDashboardWidgets } from '../../services/dashboard-widgets.service';
 import { totalArRangeKey } from '../../lib/report-cache';
 import { getCustomerAgingList, customerAgingSortQuerySchema } from '../../services/aging.service';
+import { getMoneyAlertsSummary } from '../../services/money-alerts.service';
 import { parsePagination } from '../utils/pagination';
 import { throwValidation } from '../../lib/validation';
 import { exportReceivablesAgingXlsx, attachmentDisposition } from '../../services/statement.service';
@@ -111,13 +112,24 @@ router.get('/reports/receivables-summary', asyncHandler(async (req: Request, res
   res.json(await getReceivablesSummary({ asOfDate }));
 }));
 
+// Card 370 (REQ-5.10-02) — the "Tổng quát về tiền" money-alerts snapshot:
+// funds + due-debt chart + the three always-on alerts in ONE read. Registered
+// under /accounting so the contract URL GET /api/accounting/money-alerts is
+// served with the same accountant-facing gate style as GET
+// /api/accounting/deposits/ (auth + casbin('accounting') at the /api/accounting
+// mount, then the office-role read gate here).
+router.get('/accounting/money-alerts', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const asOfDate = typeof req.query.asOfDate === 'string' ? req.query.asOfDate : undefined;
+  res.json(await getMoneyAlertsSummary({ asOfDate }));
+}));
+
 router.get('/reports/receivables-aging', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
   const asOfDate = typeof req.query.asOfDate === 'string' ? req.query.asOfDate : undefined;
   const { page, limit } = parsePagination(req, { limit: 500, maxLimit: 500 });
   const rawBucket = typeof req.query.bucket === 'string' ? req.query.bucket : undefined;
-  const bucket = rawBucket && ['current', 'd30', 'd60', 'over90'].includes(rawBucket)
-    ? (rawBucket as 'current' | 'd30' | 'd60' | 'over90')
+  const bucket = rawBucket && ['current', 'd30', 'd60', 'over90', 'overdue'].includes(rawBucket)
+    ? (rawBucket as 'current' | 'd30' | 'd60' | 'over90' | 'overdue')
     : 'all';
   // Sort params are whitelist-validated separately so the rest of this route's
   // hand-parsed query surface (search/asOfDate/bucket) stays untouched.

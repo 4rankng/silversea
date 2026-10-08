@@ -1,10 +1,12 @@
 import { AgingDisclosure } from '../components/finance/AgingDisclosure';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
+import { useToast } from '../components/shared/Toast';
 import { billBookingReference } from '../lib/business-reference';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
 import { ChevronRight, Gift } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -15,6 +17,7 @@ import { financialClient } from '../api/financialClient';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useAuth } from '../hooks/useAuth';
+import { PartyMonthlyProductionSummary } from '../features/accounting/PartyMonthlyProductionSummary';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import {
   usePageAnimations,
@@ -211,17 +214,27 @@ export function CommissionModal({
 type PayablesSummaryEnvelope = Awaited<ReturnType<typeof financialClient.getPayablesSummary>>;
 
 export default function PayableListPage() {
+  // Due-group deep links (?filter=current|overdue from the accounting
+  // overview) initialize the bucket filter the same way the /debt page does;
+  // afterwards the bucket rides the filters bag alongside category and sort.
+  // `?asOf=` pins the aging snapshot date so the list matches the clicked counts.
+  const [searchParams] = useSearchParams();
+  const urlBucket = searchParams.get('filter') === 'current' ? 'current'
+    : searchParams.get('filter') === 'overdue' ? 'overdue'
+    : undefined;
+  const urlAsOf = searchParams.get('asOf') ?? undefined;
   // Server-side search + pagination + column sort; headline numbers and totals
   // are full-set. Search input, page-reset-on-filter and caching live in the
   // table hook.
   const table = useTableQueryState<
     PayableSummary,
-    { category?: PayablesCategory; sortBy?: string; sortDir?: 'asc' | 'desc' },
+    { category?: PayablesCategory; bucket?: 'current' | 'overdue'; asOfDate?: string; sortBy?: string; sortDir?: 'asc' | 'desc' },
     PayablesSummaryEnvelope
   >({
     endpoint: (params) => financialClient.getPayablesSummary(params),
     queryKey: qk.financial.payablesSummaryAll,
     defaultPageSize: 25,
+    initialFilters: urlBucket || urlAsOf ? { bucket: urlBucket, asOfDate: urlAsOf } : {},
   });
   const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
   const category = table.filters.category as PayablesCategory | undefined;
@@ -243,11 +256,18 @@ export default function PayableListPage() {
   const apiSupplierCount = data?.totalSuppliers ?? 0;
   const apiOverdueCount = data?.overdueSuppliers ?? 0;
   const error = queryError ? (queryError as Error).message : null;
+  // Card 071026141620: the summary rail's values are only real once the query
+  // settled — before that it degrades to an em dash, like the accounting rail.
+  const payablesReady = !loading && !error;
   const prefersReduced = usePrefersReducedMotion();
   const compact = false; // full VND everywhere — no short form (e.g. "12,5 tr")
 
   /* ── Commission modal ── */
   const [commissionOpen, setCommissionOpen] = useState(false);
+  // Card 071026141590: the export rides the house feedback contract (busy label
+  // + success/failure toast) — the silent click hid real failures from kế toán.
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
   // Fuel-invoice capture/lookup is secondary here: debt lookup leads.
   const [fuelOpen, setFuelOpen] = useState(false);
   const postCommission = usePostCommission();
@@ -335,7 +355,19 @@ export default function PayableListPage() {
 
   /* ── CSV export ── */
   const handleExport = async () => {
-    const headers = ['Nhà cung cấp', 'Tổng nợ', '0-30 ngày', '31-60 ngày', '61-90 ngày', '>90 ngày'];
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await runExport();
+      toast({ kind: 'success', message: 'Đã xuất công nợ phải trả ra tệp CSV.' });
+    } catch {
+      toast({ kind: 'error', message: 'Chưa xuất được báo cáo công nợ phải trả — vui lòng thử lại.' });
+    } finally {
+      setExporting(false);
+    }
+  };
+  const runExport = async () => {
+    const headers = ['Nhà cung cấp', 'Tổng nợ', 'Chưa đến hạn', 'Quá hạn 1-30', 'Quá hạn 31-90', 'Quá hạn >90'];
     const rows = payables.map(d => [
       d.supplier.name,
       d.totalOutstanding,
@@ -379,33 +411,37 @@ export default function PayableListPage() {
                 Ghi hoa hồng
               </button>
             )}
-            <button className="btn btn--secondary btn--sm" onClick={handleExport}>
+            <button className="btn btn--secondary btn--sm" onClick={handleExport} disabled={exporting}>
+              {exporting ? 'Đang xuất…' : 'Xuất báo cáo'}
               <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Xuất báo cáo
             </button>
           </div>
         }
       />
 
       {/* ── Zone 1: Summary rail — one ruled row before the aging lanes ── */}
+      {/* Card 071026141620: same contract as the accounting overview rail —
+          every label carries a value; while the query is not settled the value
+          is an explicit em dash (never a blank, never a fake 0), and a loaded
+          empty set is a real "0". */}
       <SummaryRail
         ariaLabel="Tóm tắt công nợ phải trả"
         items={[
-          { label: 'Tổng công nợ phải trả', value: `${heroMoney.num} ${heroMoney.unit}` },
-          { label: 'Nhà cung cấp', value: totals.supplierCount },
-          { label: 'Quá hạn', value: totals.overdueCount, tone: totals.overdueCount > 0 ? 'warning' : undefined },
+          { label: 'Tổng công nợ phải trả', value: payablesReady ? `${heroMoney.num} ${heroMoney.unit}` : '—' },
+          { label: 'Nhà cung cấp', value: payablesReady ? totals.supplierCount : '—' },
+          { label: 'Quá hạn', value: payablesReady ? totals.overdueCount : '—', tone: payablesReady && totals.overdueCount > 0 ? 'warning' : undefined },
         ]}
       />
 
-      <AgingDisclosure label="Tuổi nợ nhà cung cấp · mở chi tiết">
+      <AgingDisclosure label="Hạn nợ nhà cung cấp · mở chi tiết">
       <div className="payables-aging-grid">
-        {/* Trong hạn (0–30) */}
+        {/* Trong hạn (chưa đến hạn) */}
         <div className="aging-card aging-card--ok">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--ok" />
             <span className="aging-card__label">
               <strong>Trong hạn</strong>
-              <small>0–30 ngày</small>
+              <small>chưa đến hạn</small>
             </span>
           </div>
           <span className="aging-card__value">
@@ -417,13 +453,13 @@ export default function PayableListPage() {
           </div>
         </div>
 
-        {/* Quá hạn 31–60 */}
+        {/* Quá hạn 1–30 */}
         <div className="aging-card aging-card--warn">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--warn" />
             <span className="aging-card__label">
               <strong>Quá hạn</strong>
-              <small>31–60 ngày</small>
+              <small>1–30 ngày</small>
             </span>
           </div>
           <span className="aging-card__value">
@@ -435,13 +471,13 @@ export default function PayableListPage() {
           </div>
         </div>
 
-        {/* Quá hạn 61–90 */}
+        {/* Quá hạn 31–90 */}
         <div className="aging-card aging-card--deep">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--deep" />
             <span className="aging-card__label">
               <strong>Quá hạn</strong>
-              <small>61–90 ngày</small>
+              <small>31–90 ngày</small>
             </span>
           </div>
           <span className="aging-card__value">
@@ -569,10 +605,10 @@ export default function PayableListPage() {
                     <tr>
                       <SortHeader label="Nhà cung cấp" sortKey="supplierName" sort={sortState} onSortChange={handleSortChange} />
                       <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
-                      <SortHeader label="0-30 ngày" sortKey="current" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label="31-60 ngày" sortKey="d30" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label="61-90 ngày" sortKey="d60" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label=">90 ngày" sortKey="over90" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="Chưa đến hạn" sortKey="current" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="Quá hạn 1-30" sortKey="d30" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="Quá hạn 31-90" sortKey="d60" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="Quá hạn >90" sortKey="over90" sort={sortState} onSortChange={handleSortChange} />
                       <th></th>
                     </tr>
                   </thead>
@@ -597,17 +633,19 @@ export default function PayableListPage() {
                         }}>
                           {formatCurrency(d.totalOutstanding)}
                         </td>
-                        <td data-label="0-30 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
-                          {d.aging.current > 0 ? formatCurrency(d.aging.current) : '—'}
+                        {/* Card 20261002_293: a computed 0 bucket renders "0 ₫"
+                            (quietly toned), never a dash that reads as no data. */}
+                        <td data-label="Chưa đến hạn" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
+                          {d.aging.current != null ? formatCurrency(d.aging.current) : '—'}
                         </td>
-                        <td data-label="31-60 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
-                          {d.aging.d30 > 0 ? formatCurrency(d.aging.d30) : '—'}
+                        <td data-label="Quá hạn 1-30" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
+                          {d.aging.d30 != null ? formatCurrency(d.aging.d30) : '—'}
                         </td>
-                        <td data-label="61-90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
-                          {d.aging.d60 > 0 ? formatCurrency(d.aging.d60) : '—'}
+                        <td data-label="Quá hạn 31-90" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
+                          {d.aging.d60 != null ? formatCurrency(d.aging.d60) : '—'}
                         </td>
-                        <td data-label=">90 ngày" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
-                          {d.aging.over90 > 0 ? formatCurrency(d.aging.over90) : '—'}
+                        <td data-label="Quá hạn >90" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
+                          {d.aging.over90 != null ? formatCurrency(d.aging.over90) : '—'}
                         </td>
                         <td data-label="" className="record-table__action" style={{ textAlign: 'right' }}>
                           <ChevronRight size={14} style={{ color: 'var(--fg-3)' }} />
@@ -630,6 +668,12 @@ export default function PayableListPage() {
           </>
         )}
       </div>
+
+      {/* ── Card 380: monthly transport production summary — the ledger table
+          above stays primary; the section reuses this page's card skin and its
+          còn-nợ column reconciles with the table's Tổng nợ (same ledger
+          endpoint — pinned by the summary's component tests). ── */}
+      <PartyMonthlyProductionSummary variant="payable" className="payables-data-card" />
 
       {/* ── Fuel invoices: secondary capture/lookup, collapsed by default so
           debt totals, search and the payable queue lead the initial view ── */}

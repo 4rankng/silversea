@@ -31,6 +31,7 @@ import {
   useCounterAnimation,
 } from '../hooks/animations';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import { PartyMonthlyProductionSummary } from '../features/accounting/PartyMonthlyProductionSummary';
 import './DebtListPage.css';
 import '../styles/table-sort.css';
 import '../styles/record-table.css';
@@ -81,19 +82,22 @@ interface AgingBucket {
 
 /**
  * One filter mode per bucket. The four aging buckets must filter independently
- * so clicking "31–60 ngày" shows only customers in that bucket, etc.
- * `'all'` is the unfiltered default.
+ * so clicking "Quá hạn 1–30" shows only customers in that band, etc.
+ * `'all'` is the unfiltered default. `'overdue'` has no lane card — it is the
+ * cross-bucket "any overdue portion" aggregate the overview cards deep-link
+ * to (?filter=overdue).
  */
-type BucketFilterMode = 'all' | 'current' | 'd30' | 'd60' | 'over90';
+type BucketFilterMode = 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue';
 
 const AGING_BUCKETS: AgingBucket[] = [
-  // Per P0-W6, the four age buckets are now surfaced as semantic O2C state
-  // lanes — "Trong hạn" / "Quá hạn 31–60" / "Quá hạn 61–90" / "Quá hạn >90" —
-  // so the accountant sees the AR workflow state (current vs overdue) at a
-  // glance instead of having to translate day ranges into a status.
-  { key: 'current', label: 'Trong hạn (0–30)', shortLabel: 'Trong hạn', subLabel: '0–30 ngày', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: 'var(--success, #177448)', filterMode: 'current' },
-  { key: 'd30', label: 'Quá hạn 31–60', shortLabel: 'Quá hạn', subLabel: '31–60 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
-  { key: 'd60', label: 'Quá hạn 61–90', shortLabel: 'Quá hạn', subLabel: '61–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
+  // Card 061026221213: the four bands are CONTRACTUAL due-status lanes (days
+  // past the effective due date, cut at 30/90 — see computeFifoAging) — "Trong
+  // hạn" / "Quá hạn 1–30" / "Quá hạn 31–90" / "Quá hạn trên 90", so every
+  // "Trong hạn"/"Quá hạn" word on the page means the same thing as the row
+  // chip and the KPI tiles. (P0-W6's lane intent, now truthful about bands.)
+  { key: 'current', label: 'Trong hạn (chưa đến hạn)', shortLabel: 'Trong hạn', subLabel: 'chưa đến hạn', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: 'var(--success, #177448)', filterMode: 'current' },
+  { key: 'd30', label: 'Quá hạn 1–30', shortLabel: 'Quá hạn', subLabel: '1–30 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
+  { key: 'd60', label: 'Quá hạn 31–90', shortLabel: 'Quá hạn', subLabel: '31–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
   { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', dotClass: 'debt-aging__dot--danger', color: 'var(--danger, #E32434)', filterMode: 'over90' },
 ];
 
@@ -110,18 +114,22 @@ const BUCKET_ICONS: Record<string, typeof CalendarCheck2> = {
 export default function DebtListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  // Bucket filter can arrive via ?filter= (aging-card deep links).
+  // Bucket filter can arrive via ?filter= (aging-card and overview due-group
+  // deep links; `overdue` = any overdue portion).
   const urlBucket = searchParams.get('filter') === 'current' ? 'current'
     : searchParams.get('filter') === 'd30' ? 'd30'
     : searchParams.get('filter') === 'd60' ? 'd60'
     : searchParams.get('filter') === 'over90' ? 'over90'
+    : searchParams.get('filter') === 'overdue' ? 'overdue'
     : undefined;
   // Server-side pagination + bucket filter + debounced search + column sort;
   // totals are full-set. Search input, page-reset-on-filter and caching live in
-  // the hook.
+  // the hook. `?asOf=` (from the accounting overview due-group deep links)
+  // pins the aging snapshot date so the list matches the clicked counts.
+  const urlAsOf = searchParams.get('asOf') ?? undefined;
   const table = useTableQueryState<
     CustomerAging,
-    { bucket?: 'current' | 'd30' | 'd60' | 'over90'; sortBy?: string; sortDir?: 'asc' | 'desc' },
+    { bucket?: 'current' | 'd30' | 'd60' | 'over90' | 'overdue'; asOfDate?: string; sortBy?: string; sortDir?: 'asc' | 'desc' },
     CustomerAgingResponse & { items: CustomerAging[] }
   >({
     endpoint: async (params) => {
@@ -130,10 +138,26 @@ export default function DebtListPage() {
     },
     queryKey: qk.financial.customerAgingAll,
     defaultPageSize: 25,
-    initialFilters: urlBucket ? { bucket: urlBucket } : {},
+    initialFilters: urlBucket || urlAsOf ? { bucket: urlBucket, asOfDate: urlAsOf } : {},
   });
   const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
   const filterMode: BucketFilterMode = (table.filters.bucket as BucketFilterMode | undefined) ?? 'all';
+  // Card 061026172807: inside a bucket view each row carries its SHARE of that
+  // bucket (the same value the bucket card sums), so the drill-down rows sum to
+  // the card amount — the card sums band shares while the rows previously
+  // displayed total outstanding, and the two disagreed on every mixed row.
+  const activeBucket = AGING_BUCKETS.find((bucket) => bucket.filterMode === filterMode) ?? null;
+  const isOverdueAggregate = filterMode === 'overdue';
+  const bucketShareOf = (d: { aging: { current: number; d30: number; d60: number; over90: number } }) =>
+    filterMode === 'current' ? d.aging.current
+      : filterMode === 'd30' ? d.aging.d30
+        : filterMode === 'd60' ? d.aging.d60
+          : filterMode === 'over90' ? d.aging.over90
+            : isOverdueAggregate ? d.aging.d30 + d.aging.d60 + d.aging.over90
+              : 0;
+  const bucketShareLabel = activeBucket
+    ? `Nợ ${activeBucket.subLabel}`
+    : isOverdueAggregate ? 'Nợ quá hạn' : null;
   // Sort rides in the hook's filters bag: setFilter resets the page to 1 and
   // the queryKey stays keyed on the primitive param values (no refetch loops).
   const sortState: TableSortState | null = table.filters.sortBy != null && table.filters.sortDir != null
@@ -295,7 +319,7 @@ export default function DebtListPage() {
         ]}
       />
 
-      <AgingDisclosure label="Nhóm tuổi nợ khách hàng · mở chi tiết">
+      <AgingDisclosure label="Nhóm hạn nợ khách hàng · mở chi tiết">
       <div className="debt-aging-grid" data-tour-id="debt-aging">
         {AGING_BUCKETS.map((bucket) => {
           const amount = totals[bucket.amountKey];
@@ -414,6 +438,12 @@ export default function DebtListPage() {
                             {formatCurrency(d.totalOutstanding)}
                           </span>
                         </div>
+                        {bucketShareLabel && (
+                          <div className="m-card__row">
+                            <span className="m-card__row-label">{bucketShareLabel}</span>
+                            <span className="m-card__row-value" style={{ color: 'var(--warning-text)' }}>{formatCurrency(bucketShareOf(d))}</span>
+                          </div>
+                        )}
                         {d.totalOutstanding > 0 && (
                           <>
                             {d.contactInfo && (
@@ -450,6 +480,7 @@ export default function DebtListPage() {
                     <thead>
                       <tr>
                         <SortHeader label="Khách hàng" sortKey="customerName" sort={sortState} onSortChange={handleSortChange} />
+                        {bucketShareLabel && <th className="num">{bucketShareLabel}</th>}
                         <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
                         <SortHeader label="Net công nợ" sortKey="netBalance" sort={sortState} onSortChange={handleSortChange} className="num" />
                         <SortHeader label="Quá hạn" sortKey="maxOverdueDays" sort={sortState} onSortChange={handleSortChange} className="num" style={{ textAlign: 'center' }} />
@@ -482,10 +513,16 @@ export default function DebtListPage() {
                             </div>
                             <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginLeft: 16 }}>
                               {d.totalOutstanding > 0
-                                ? (d.maxOverdueDays > 30 ? "Nợ quá hạn" : "Trong hạn")
+                                ? (d.maxOverdueDays > 0 ? "Nợ quá hạn" : "Trong hạn")
                                 : (d.totalOutstanding < 0 ? "Trả trước" : "Cân bằng")}
                             </div>
                           </td>
+
+                          {bucketShareLabel && (
+                            <td data-label={bucketShareLabel} className="num typo-mono" style={{ color: 'var(--warning-text)' }}>
+                              {formatCurrency(bucketShareOf(d))}
+                            </td>
+                          )}
 
                           <td data-label="Tổng nợ" className="num typo-mono" style={{
                             fontWeight: 700,
@@ -494,15 +531,21 @@ export default function DebtListPage() {
                             {formatCurrency(d.totalOutstanding)}
                           </td>
 
+                          {/* Card 071026211110: the backend always computes netBalance
+                            (aging.service.ts:685 — the linked supplier's AP balance is 0 when
+                            none is linked, so net === outstanding), and this page's own export
+                            writes that number for every row (statement-customer.service.ts:483).
+                            Rendering an em dash here made the screen and its own export disagree
+                            about the same customer, and hid the overdue balances this page
+                            exists to show. The muted colour still marks "no linked supplier";
+                            only the digit is no longer swallowed. */}
                           <td data-label="Net công nợ" className="num typo-mono" style={{
                             fontWeight: 600,
                             color: d.linkedSupplierId == null
                               ? 'var(--fg-3)'
                               : (d.netBalance > 0 ? 'var(--warning-text)' : d.netBalance < 0 ? 'var(--success)' : 'var(--fg-3)')
                           }}>
-                            {d.linkedSupplierId == null
-                              ? <span style={{ color: 'var(--fg-3)' }}>&mdash;</span>
-                              : formatCurrency(d.netBalance)}
+                            {formatCurrency(d.netBalance)}
                           </td>
 
                           <td data-label="Quá hạn" className="num" style={{ textAlign: 'center', fontWeight: 600 }}>
@@ -536,6 +579,14 @@ export default function DebtListPage() {
           </>
         )}
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+        *  ZONE 4 — Card 380: monthly transport production summary. The ledger
+        *  table above stays primary; this band reuses the page's own card skin
+        *  and its còn-nợ column reconciles with the table's Tổng nợ (same
+        *  ledger endpoint — pinned by the summary's component tests).
+        * ══════════════════════════════════════════════════════════════════════ */}
+      <PartyMonthlyProductionSummary variant="receivable" className="debt-data-card" />
     </div>
   );
 }

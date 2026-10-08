@@ -41,7 +41,7 @@ import {
   listShipmentReferenceConflicts,
   normalizeDocumentReference,
 } from '../../services/shipment-lifecycle-shared.service';
-import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
+import { assignShipmentCarriers, createOperationalSiteForIntake, deleteOperationalSiteForAdmin, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
@@ -437,7 +437,7 @@ coreRoutes.post(
 // because the entity ships on the intake endpoints above.
 coreRoutes.get(
   '/operational-sites/admin',
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     res.json({ items: await listOperationalSitesForAdmin(getUser(req)) });
   }),
@@ -446,7 +446,7 @@ coreRoutes.get(
 coreRoutes.patch(
   '/operational-sites/:id',
   declareNonMaterialWrite('Reference-data CRUD (factory/warehouse master). Version-checked partial update — a replay hits the stale-version 409 guard instead of applying twice, and identity fields (customer, code, site type) are immutable. No financial or shipment-lifecycle mutation.'),
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const siteId = Number.parseInt(req.params.id as string, 10);
     if (!Number.isInteger(siteId) || siteId < 1) {
@@ -455,6 +455,18 @@ coreRoutes.patch(
     const parsed = operationalSiteUpdateSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     res.json(await updateOperationalSiteForAdmin(siteId, parsed.data, getUser(req)));
+  }),
+);
+
+coreRoutes.delete(
+  '/operational-sites/:id', declareNonMaterialWrite('Reference-data CRUD (factory/warehouse master). Soft-delete with a live-shipment reference guard — a replay lands on the deterministic 404 (row already gone), so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const siteId = Number.parseInt(req.params.id as string, 10);
+    if (!Number.isInteger(siteId) || siteId < 1) {
+      throw new ApiError(404, 'Không tìm thấy nhà máy / kho.');
+    }
+    res.json(await deleteOperationalSiteForAdmin(siteId, getUser(req)));
   }),
 );
 

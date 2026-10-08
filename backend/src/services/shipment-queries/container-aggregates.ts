@@ -6,7 +6,7 @@
 
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { localDateInBusinessZone } from '@tingting/shared';
 
 
@@ -111,8 +111,19 @@ export async function loadShipmentListContainerPortGroups(
     // `localDate` to recompute the Cảng nâng / Cảng hạ cells when the
     // dispatcher filters by a single day.
     customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+    fulfillmentPlannedEndAt: s.shipmentFulfillments.plannedEndAt,
+    tripPlannedEndAt: s.trips.plannedEndAt,
   }).from(s.shipmentContainers)
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .leftJoin(s.shipmentFulfillments, and(
+      eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .leftJoin(s.trips, and(
+      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+    ))
     .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
     .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id));
   const portIds = [...new Set(containerRows.flatMap((row) => [row.pickupPortId, row.dropoffPortId])
@@ -124,14 +135,17 @@ export async function loadShipmentListContainerPortGroups(
       .where(inArray(s.ports.id, portIds)))
       .map((port) => [port.id, port.shortName?.trim() || port.name]));
 
-  return groupShipmentContainerPortGroups(containerRows.map((row) => ({
-    shipmentId: row.shipmentId,
-    pickupPortName: row.pickupPortId == null ? null : portNamesById.get(row.pickupPortId) ?? null,
-    dropoffPortName: row.dropoffPortId == null ? null : portNamesById.get(row.dropoffPortId) ?? null,
-    containerTypeCode: row.containerTypeCode,
-    containerTypeName: row.containerTypeName,
-    localDate: row.customerAppointmentAt == null ? null : localDateInBusinessZone(row.customerAppointmentAt),
-  })));
+  return groupShipmentContainerPortGroups(containerRows.map((row) => {
+    const effectiveAt = row.tripPlannedEndAt ?? row.fulfillmentPlannedEndAt ?? row.customerAppointmentAt;
+    return {
+      shipmentId: row.shipmentId,
+      pickupPortName: row.pickupPortId == null ? null : portNamesById.get(row.pickupPortId) ?? null,
+      dropoffPortName: row.dropoffPortId == null ? null : portNamesById.get(row.dropoffPortId) ?? null,
+      containerTypeCode: row.containerTypeCode,
+      containerTypeName: row.containerTypeName,
+      localDate: effectiveAt == null ? null : localDateInBusinessZone(effectiveAt),
+    };
+  }));
 }
 
 /**

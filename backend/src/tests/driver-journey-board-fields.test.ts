@@ -27,6 +27,7 @@ import * as s from '../db/schema';
 import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
 import { getDriverCompletionEvidenceStatus } from '../services/trip-pod.service';
 import { getDriverFulfillmentDetail } from '../services/driver.service';
+import { loadOwnedFulfillmentTrip } from '../services/trip-pod.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const NOTES = 'LẤY SỐ; GÓI CUỘN';
@@ -115,7 +116,7 @@ async function mkLeg(tripId: number, sequence: number, loadingType: 'HANG' | 'VO
 async function mkContainerTrip(args: {
   driverId: number; customerId: number; routeId: number; cargoTypeId: number;
   containerTypeId: number; siteId: number; notes: string | null; factoryName: string | null;
-  tripStatus?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
+  tripStatus?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
   tradeDirection?: 'IMPORT' | 'EXPORT';
   /** Dispatcher free-text delivery override (shipments.deliveryLocation). */
   deliveryLocation?: string | null;
@@ -123,6 +124,9 @@ async function mkContainerTrip(args: {
   dropoffPortId?: number | null;
   /** Snapshot deliverySite display name (the structured fallback). */
   deliverySiteName?: string | null;
+  /** Container payload (shipments_containers.cargo_weight_kg) for the
+   *  driver-facing weight render (card 356). */
+  cargoWeightKg?: string | null;
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: args.customerId,
@@ -142,6 +146,7 @@ async function mkContainerTrip(args: {
     containerNumber: `JB${String(400000 + shipment.id).slice(-6)}`,
     operationalSiteId: args.siteId,
     ...(args.dropoffPortId == null ? {} : { dropoffPortId: args.dropoffPortId }),
+    ...(args.cargoWeightKg === undefined ? {} : { cargoWeightKg: args.cargoWeightKg }),
   }).returning();
   createdContainerIds.push(container.id);
   const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
@@ -391,6 +396,68 @@ describe('journey-board bucketing — acceptance, not departure, marks Đã nh�
     await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, tripB.id));
   });
 
+  // Card 347 rework (QA FAILED 05/10, staging probe): a fulfillment with a
+  // CANCELED trip (older, trip 14) and a LIVE replacement (trip 79, CREATED
+  // after reassignment) made the detail show "Chuyến đã hủy" for a live order
+  // — loadOwnedFulfillmentTrip's `.limit(1)` has no ORDER BY, so the canceled
+  // sibling won the pick. Contract: the LIVE trip resolves first; a canceled
+  // trip resolves only when it is all that remains (20260916_7's canceled
+  // banner must keep working).
+  test('fulfillment trip resolution prefers the LIVE trip over a canceled sibling (card 347 rework)', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Resolve');
+
+    // Trip A (older id) is cancelled; trip B (newer) is the live replacement.
+    const chain = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+    });
+    await db.update(s.trips).set({ status: 'CANCELED' }).where(eq(s.trips.id, chain.trip.id));
+    const { id: _omitId, ...tripBase } = chain.trip;
+    void _omitId;
+    const [liveTrip] = await db.insert(s.trips).values({
+      ...tripBase,
+      tripCode: `${chain.trip.tripCode ?? 'T'}-LIVE`,
+      status: 'CREATED',
+    }).returning();
+
+    const resolved = await loadOwnedFulfillmentTrip(db, chain.fulfillment.id, driver.id, { includeCanceled: true });
+    assert.equal(resolved.tripId, liveTrip.id, 'detail resolves the live replacement, not the canceled sibling');
+
+    // Only-cancelled fallback (20260916_7): the canceled trip still resolves.
+    await db.delete(s.trips).where(eq(s.trips.id, liveTrip.id));
+    const fallback = await loadOwnedFulfillmentTrip(db, chain.fulfillment.id, driver.id, { includeCanceled: true });
+    assert.equal(fallback.tripId, chain.trip.id, 'canceled trip still resolves when it is all that remains');
+  });
+
+  // Card 20261004_347 (user report 04/10): a cancelled trip showed in the
+  // driver's "Lệnh mới". This file's own contract — DRV-LIST-02, quoted in
+  // driver-journey-board.service.ts — says Lịch sử means completed OR
+  // cancelled. At HEAD the classifier only implemented the completed half
+  // (CANCELED fell through to the 'NEW' default) and the board query excluded
+  // cancelled trips from EVERY tab. Contract: CANCELED → HISTORY, visible in
+  // Lịch sử, never in Lệnh mới; live siblings unaffected.
+  test('a CANCELED trip buckets HISTORY — never Lệnh mới (card 347, DRV-LIST-02)', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Cancel');
+
+    const { trip: tripCancelled } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tripStatus: 'CANCELED',
+    });
+    const { trip: tripLive } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+    });
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const bucketByTrip = new Map(board.items.map((card) => [card.tripId, card.bucket]));
+    assert.equal(bucketByTrip.has(tripCancelled.id), true, 'chuyến hủy vẫn review được — nằm ở Lịch sử');
+    assert.equal(bucketByTrip.get(tripCancelled.id), 'HISTORY', 'CANCELED → Lịch sử (DRV-LIST-02), không bao giờ Lệnh mới');
+    assert.equal(bucketByTrip.get(tripLive.id), 'NEW', 'chuyến sống bên cạnh không bị ảnh hưởng');
+  });
+
   // TC-LX-TIENDO-022 / DRV-LIST-02: a card reaches Lịch sử when the trip is
   // COMPLETED, not when its e-POD evidence is merely complete. The old rule
   // filed an acknowledged IN_TRANSIT trip under Lịch sử as soon as both
@@ -626,6 +693,30 @@ describe('driver fulfillment photo wire (biên bản = DELIVERY_NOTE)', () => {
     );
   });
 });
+
+
+  // Card 20261004_356 — the driver journey card renders the container
+  // weight ("… · 20DC · 15.000 kg"); the board payload must carry it per
+  // card, null when the container has no weight so the FE omits cleanly.
+  test('cards carry the container weight, null when unassigned', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const weightedSite = await mkSite(customer.id, 'Nhà máy Có Trọng lượng');
+    const { fulfillment: weighted } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: weightedSite.id, notes: null, factoryName: null,
+      cargoWeightKg: '15000',
+    });
+    const unweightedSite = await mkSite(customer.id, 'Nhà máy Không Trọng lượng');
+    const { fulfillment: unweighted } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: unweightedSite.id, notes: null, factoryName: null,
+    });
+    const board = await getDriverJourneyBoard(driver.id);
+    const weightedCard = board.items.find((c) => c.fulfillmentId === weighted.id)!;
+    const unweightedCard = board.items.find((c) => c.fulfillmentId === unweighted.id)!;
+    assert.equal(weightedCard.cargoWeightKg, '15000');
+    assert.equal(unweightedCard.cargoWeightKg, null);
+  });
 
 after(async () => {
   try {

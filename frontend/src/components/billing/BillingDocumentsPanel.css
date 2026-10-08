@@ -115,10 +115,12 @@
 }
 
 .billing-panel__doc span {
+  /* Date ranges / due-date lines are DATA VALUES: display them in full at
+     every width — no ellipsis clip (law book §4 no-truncation doctrine,
+     card 20261004_338). */
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .billing-panel__doc strong {

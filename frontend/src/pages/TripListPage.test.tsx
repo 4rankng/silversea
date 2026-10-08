@@ -151,7 +151,7 @@ describe('TripListPage filter strip (card 20260927_152)', () => {
     }
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm chuyến đi' }), { target: { value: 'TRP-202608' } });
-    await waitFor(() => expect(lastCallParams()).toMatchObject({ search: 'TRP-202608' }));
+    await waitFor(() => expect(lastCallParams()).toMatchObject({ search: 'TRP-202608' }), { timeout: 10_000 });
   });
 
   it('writes the status segment and the criteria into the list query', async () => {

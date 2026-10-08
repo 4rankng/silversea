@@ -5,6 +5,8 @@ import { formatDateTimeVN, formatCurrency } from '../lib/format';
 import { Panel } from '../components/UI';
 import { EmptyState, FilterBar, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import '../styles/record-table.css';
+import '../styles/operational-table-typography.css';
 import {
   CalCell,
   DriverPayoutModal,
@@ -633,6 +635,7 @@ export default function SalaryAttendancePage() {
           </div>
         )}
       </div>
+
       {canPostPayout && (
         <DriverPayoutModal
           isOpen={payoutOpen}

@@ -105,8 +105,12 @@
 
 /* Schedule carries the variable-length appointment groups and cutoff. Two
    independent port columns make lift/drop scanning explicit without changing
-   the authoritative per-container projection. */
-.master-plan-grid__col--schedule { width: 15%; }
+   the authoritative per-container projection. PM 2026-10-03 (card
+   20261003_303): 10% — the column's unbreakable tokens (date, hour, count)
+   fit with room; the freed 5% flows to the value-starved columns (notes,
+   cargo, allocation). Long factory names in the sub line wrap at word
+   boundaries as they already did at 15%. */
+.master-plan-grid__col--schedule { width: 10%; }
 /* Schedule lines carry time+date+factory+count; extra width avoids mid-value wraps. */
 .master-plan-grid__col--customer { width: 14%; }
 .master-plan-grid__cell[data-label="Khách hàng & nhà máy"] > .master-plan-grid__line--strong:first-child {
@@ -115,9 +119,9 @@
 .master-plan-grid__col--route-shipping { width: 16%; }
 .master-plan-grid__col--lift-port { width: 11%; }
 .master-plan-grid__col--drop-port { width: 11%; }
-.master-plan-grid__col--cargo { width: 10%; }
-.master-plan-grid__col--notes { width: 11%; }
-.master-plan-grid__col--allocation { width: 12%; }
+.master-plan-grid__col--cargo { width: 11%; }
+.master-plan-grid__col--notes { width: 14%; }
+.master-plan-grid__col--allocation { width: 13%; }
 
 .master-plan-grid thead th {
   position: sticky;
@@ -153,6 +157,19 @@
   .master-plan-grid__row:hover {
     background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
   }
+  /* Card 20261003_315 (PM: "jumping color very irritating"): the tint must
+     paint on the CELLS — the global `tbody tr:hover td` wash
+     (components/Table.css) and per-column hovers otherwise break the row
+     into different tones as the pointer crosses boundaries. One tone, full
+     row width; inner structured divs stay transparent so it reads through. */
+  .master-plan-grid tbody > .master-plan-grid__row:hover > .master-plan-grid__cell {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
+}
+
+.master-plan-grid__row,
+.master-plan-grid__cell {
+  transition: none !important;
 }
 
 
@@ -335,27 +352,39 @@
   border-color: var(--fg-3);
 }
 
+/* PM 2026-10-03 (card 20261002_302): the cell's "Chi tiết" action is a
+   bottom-right footnote of the cell, never a row-sharer with the values —
+   the summary block takes the full width and the action drops to its own
+   right-aligned row. */
 .master-plan-grid__cargo-content {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 2px 8px;
 }
 
+/* Card 20261004_321 (repair of the 03/10 law's misfire, not the law): these
+   two `flex` values were HORIZONTAL sizing in the pre-302 wrapping row — a
+   56px summary basis that grew to push the action right, and a note line whose
+   first child grew to push its trigger right. The 03/10 column flip left them
+   behind, where they became vertical inflation: a short summary was forced to
+   56px and the footnote dropped 22–39px below the values ("khoảng trống dọc
+   lớn … ghim xuống đáy ô"). Both blocks are content-height now, so the
+   footnote hugs its values 2px below and the row keeps its dense rhythm. */
 .master-plan-grid__cargo-summary {
-  flex: 1 1 56px;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
 .master-plan-grid__line--notes:has(> .master-plan-grid__note-detail-trigger) {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
 }
 
 .master-plan-grid__line--notes:has(> .master-plan-grid__note-detail-trigger) > :first-child {
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
@@ -367,6 +396,7 @@
   min-width: 44px;
   min-height: max(28px, var(--uui-control-h));
   margin: 0;
+  align-self: flex-end;
   align-items: center;
   justify-content: flex-end;
   color: var(--accent-2);
@@ -374,7 +404,7 @@
   border: 0;
   font-size: var(--ops-table-meta-size, 11px);
   font-weight: var(--fw-semibold, 600);
-  line-height: 1.35;
+  line-height: 1.2;
   text-decoration: none;
   white-space: nowrap;
   box-shadow: none;
@@ -453,9 +483,11 @@
 /* Keep the semantic Untitled UI button behavior while presenting the existing
    values as a flat, full-cell editor trigger instead of a second action. */
 .master-plan-grid__allocation-trigger {
-  display: block;
+  display: flex;
+  align-items: flex-start;
   width: 100%;
-  padding: 12px;
+  min-height: 100%;
+  padding: 8px 10px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -473,13 +505,7 @@
 }
 
 .master-plan-grid__allocation-trigger:hover {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .master-plan-grid__cell--action:hover {
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
-  }
+  background: transparent;
 }
 
 .master-plan-grid__allocation-trigger:focus-visible {

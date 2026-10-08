@@ -322,9 +322,12 @@
 .fleet-detail .fleet-tire-link:hover {
   border-color: color-mix(in srgb, var(--fleet-glow) 34%, transparent);
   background: color-mix(in srgb, var(--fleet-green-end) 95%, transparent);
-  color: var(--accent);
+  color: var(--accent-ink);
   transform: translateY(-1px);
 }
+
+.fleet-page .fleet-tire-link:hover svg,
+.fleet-detail .fleet-tire-link:hover svg { color: var(--accent); }
 
 .fleet-page .fleet-tire-link__count,
 .fleet-detail .fleet-tire-link__count {
@@ -763,22 +766,25 @@
 }
 
 .fleet-tire-detail__serial {
-  overflow: hidden;
+  /* Tire serials are DATA VALUES (long unbroken tokens): display them in
+     full at every width via the house emergency break — no ellipsis clip
+     (law book §4 no-truncation doctrine, card 20261004_338). */
   color: var(--ink);
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
   font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .fleet-tire-detail__position {
-  overflow: hidden;
+  /* Tire position is a DATA VALUE: wraps in full, no ellipsis clip
+     (law book §4 no-truncation doctrine, card 20261004_338). */
   color: var(--ink-3);
   font-size: var(--text-caption-size);
   font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .fleet-tire-detail__meta {

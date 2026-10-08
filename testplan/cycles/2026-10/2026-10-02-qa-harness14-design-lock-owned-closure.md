@@ -1,0 +1,12 @@
+# QA-HARNESS14 — design-lock measurement preservation and owned process lifecycle
+
+Before the fix, preserve root48534: all205 actual `ok` lines and peak5/native cache closures, raw five-second `browser.close()` timeout, overall runner/wrapper EXIT1, report absent, exact owned58884 absent and numeric exitNULL. No old-run promotion.
+
+1. Run the reviewed canonical205 under the current source nonce and a fresh controller wrapper output after root GO. Capture exact launched-child PID/birth/executable/private profile via its own CDP and wrapper descendant observation. Use no foreign Chrome or process signal.
+2. Retain every complete measured result before cleanup, including full details and failed-lock screenshots. The report must exist even if a later lock, context, observer or process cleanup fails. Partial results cannot claim total205; runner/native/closure failure remains explicit.
+3. Preserve the unchanged five-second graceful deadline as raw evidence. If it times out, require bounded current actual connection and exact owned PID absence. TERM/KILL is permitted only for the re-read exact owned fingerprint. Report raw timeout, any signal actually sent, final connected state and PID identity observation; never invent a numeric browser exit.
+4. Require every cached target/window and the window observer to close under their original strict guards. Such failures are fatal even when the browser process later vanishes. Arbitrary browser close errors, missing ownership, reused/ambiguous process metadata or surviving/connected browser must fail closed. Keep raw results and cleanup evidence.
+5. Bind the wrapper's exact descendant PID/birth/profile to the canonical proof, require all205/zero failures/current source and expectations unchanged, peak at mostfive, actual disconnection and proven closure. Preserve every source/native/auth/graphics/evaluator expectation; no raised budget, cleared error or generic cleanup waiver.
+6. Derive explicit new pinned wrapper/evaluator pair/UI72/six files; prove the full evaluator bytes unchanged and reverse every literal dependency change. No automatic auth policy adoption for six/billing.
+
+Preparation rung: CODE-READ ONLY. Actual closure recovery, all205 fresh results, runtime error counterexamples and full current original pixels remain NOT TESTED until controller execution; material/global147 AFTER/staging/Safari/hardware remain outside this harness claim.

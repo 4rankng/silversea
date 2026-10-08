@@ -76,13 +76,15 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     }
   });
 
-  it('keeps the two amount cells off the base break-anywhere so a figure never splits mid-number', () => {
-    const amountRule = rules.match(/\.invoice-tracking-page \.record-table td\[data-label="Số tiền trả"\],[\s\S]*?\}/)?.[0] ?? '';
-    expect(amountRule).toContain('data-label="Chênh lệch"');
-    expect(amountRule).toContain('overflow-wrap: normal');
-    expect(amountRule).toContain('word-break: keep-all');
-    // Never `nowrap`: the amount may still wrap at its own boundary (digits / ₫).
-    expect(amountRule).not.toContain('nowrap');
+  it('carries NO amount-cell rule — the shared numeric law owns those cells', () => {
+    // An earlier mitigation scoped `white-space: normal` + keep-all to the two
+    // amount cells; a page-scoped rule out-specifies the shared `.record-table
+    // .num` law (nowrap) and silently un-wraps the cells in the production
+    // bundle. The cells render one text node and inherit the shared nowrap.
+    expect(rules).not.toMatch(/data-label="Số tiền trả"\]/);
+    expect(rules).not.toMatch(/data-label="Chênh lệch"\]/);
+    const shared = read('src/styles/record-table.css').match(/\.record-table \.num\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(shared).toContain('white-space: nowrap');
   });
 
   it('keeps the action cell on one line — a control pair cannot wrap', () => {
@@ -158,7 +160,10 @@ describe('invoice-tracking command strip (card 20260929_ivt — shared primitive
 
   it('empty state keeps the period copy and the clear-filters sub-link', () => {
     expect(tsx).toContain('Không tìm thấy hóa đơn nào trong kỳ đã chọn');
-    expect(tsx).toContain('Xóa bộ lọc ngày');
+    // Card 20261002_285's landing shortened the reset copy — the date-scoped
+    // label overpromised ("clear the DATE filter") for a handler that resets
+    // every condition.
+    expect(tsx).toContain('Xóa bộ lọc');
   });
 
   it('scrollbar thumb is neutral ink — the green table-scroll thumb is gone', () => {

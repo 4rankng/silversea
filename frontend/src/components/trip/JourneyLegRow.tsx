@@ -22,7 +22,7 @@ export function JourneyLegRow({ leg, onRemove, onUpdate, canRemove }: JourneyLeg
       <div className="leg-card__head">
         <div className="leg-card__label">
           <span className="leg-card__seq">{leg.sequence}</span>
-          Chặng {leg.sequence}
+          {`Chặng ${leg.sequence}`}
         </div>
         {canRemove && (
           <button type="button" className="btn btn--ghost btn--icon btn--sm" onClick={onRemove} aria-label="Xóa chặng">

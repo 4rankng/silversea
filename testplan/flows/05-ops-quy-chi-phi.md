@@ -4,7 +4,7 @@
 > **Vai trò tham gia:** Kế toán (ACCOUNTANT) — ghi nhận tiền thực giao/nhận, đối chiếu và quyết toán trực tiếp; Điều vận — gán chuyến
 > **Tài khoản:** theo `testplan/testaccounts.txt` (mục `demoUsers` — chỉ tồn tại trên local dev)
 > **Route chính:** `/ops/orders`, `/ops/fleet-tracking`, `/ops/wallet`
-> **PRD nguồn:** [Vận hành Ops](../../docs/prd/OpsVanHanh.md), [Quy trình O2C §7](../../docs/prd/QuyTrinhO2C.md)
+> **PRD nguồn:** [Vận hành Ops](../../docs/prd/OpsVanHanh.docx), [Quy trình O2C §7](../../docs/prd/QuyTrinhO2C.docx)
 > **Kiểm thử bổ sung:** [Chi phí — yêu cầu ngày 16/09/2026](../2026-09-16-expense-requirements.md).
 >
 > **Bản đồ route:** các màn `/ops/*` là bộ màn mới

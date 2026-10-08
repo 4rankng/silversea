@@ -177,6 +177,13 @@
   color: var(--ok);
 }
 
+/* Card 071026212510: the "N tệp" pair is one text node (template literal) and
+   never wraps — immune to flex/anonymous-item space trimming by construction.
+   Icon separation stays the gap above. */
+.trip-pod__state-count {
+  white-space: nowrap;
+}
+
 .trip-pod__state-missing {
   background: rgba(148, 163, 184, 0.16);
   color: var(--ink-3);
@@ -269,12 +276,13 @@
 .trip-pod__file-name {
   font-size: var(--text-data-size);
   color: var(--ink);
-  /* Long file names (e.g. "TRP-2026-07-0001-YARD_OR_DROP_RECEIPT.pdf")
-     truncate with ellipsis on a single line. The full name is still
-     available via the title attribute and the download action. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* File names are WRAPPING text: display the full name at every width —
+     no ellipsis and no title crutch (law book §4 no-truncation doctrine,
+     card 20261004_338). Long unbroken name runs (e.g.
+     "TRP-2026-07-0001-YARD_OR_DROP_RECEIPT.pdf") break via the house
+     emergency break instead of clipping. */
+  white-space: normal;
+  overflow-wrap: anywhere;
   min-width: 0;
   max-width: 100%;
   display: block;
@@ -284,6 +292,35 @@
   font-size: var(--text-caption-size);
   color: var(--ink-3);
   white-space: nowrap;
+}
+
+/* Card 071026212500 — the remove affordance sits at the end of the file row and
+   keeps the row's single-line height; the danger tint is reserved for hover and
+   for keyboard focus so a driver never reaches for the wrong control by accident. */
+.trip-pod__file-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.trip-pod__file-remove:hover:not(:disabled),
+.trip-pod__file-remove:focus-visible {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.trip-pod__file-remove:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .trip-pod__empty {

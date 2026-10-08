@@ -1,8 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TripPodStatus, TripStatus } from '@tingting/shared';
 import type { TripPodSubmissionProps } from '../components/trip/TripPodSubmission';
+import { qk } from '../api/keys';
 
 /**
  * DriverTripPodPage — Phần 4 ticket 2026-08-28: e-POD is its own screen the
@@ -18,6 +20,7 @@ const {
   toastMock,
   submitPodMock,
   completeTripMock,
+  getDriverTripMock,
   podSubmissionMock,
 } = vi.hoisted(() => ({
   useDriverTaskDetailMock: vi.fn(),
@@ -25,11 +28,16 @@ const {
   toastMock: vi.fn(),
   submitPodMock: vi.fn(),
   completeTripMock: vi.fn(),
+  getDriverTripMock: vi.fn(),
   podSubmissionMock: vi.fn((_props: TripPodSubmissionProps) => <div data-testid="trip-pod-submission">pod</div>),
 }));
 
 vi.mock('../api/driverClient', () => ({
-  driverClient: { submitPod: submitPodMock, completeTrip: completeTripMock },
+  driverClient: {
+    submitPod: submitPodMock,
+    completeTrip: completeTripMock,
+    getDriverTrip: getDriverTripMock,
+  },
 }));
 
 vi.mock('../hooks/useDriverQueries', () => ({
@@ -64,11 +72,18 @@ vi.mock('../lib/idempotency', () => ({
 
 import { DriverTripPodPage } from './DriverTripPodPage';
 
+// Card 071026141570: the route `/my-trips/:id/pod` carries a TRIP id, but every
+// e-POD endpoint is FULFILLMENT-scoped. These two must stay numerically
+// distinct in every fixture below, otherwise a page that (wrongly) hands the
+// route id straight to the fulfillment endpoint still renders green.
+const TRIP_ID = 88;
+const FULFILLMENT_ID = 4242;
+
 function makePod(files: Array<{ fileType: string }>) {
   return {
     id: 22,
     tripId: 55,
-    fulfillmentId: 88,
+    fulfillmentId: FULFILLMENT_ID,
     submissionVersion: 1,
     status: TripPodStatus.DRAFT,
     sourceTripVersion: 3,
@@ -103,7 +118,7 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
     notes: null,
     accountingLock: null,
     fulfillment: {
-      id: 88,
+      id: FULFILLMENT_ID,
       documentNumber: ' BILL-POD-55 ',
       driverNotes: null,
     },
@@ -113,14 +128,23 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderPage() {
+function renderPage(
+  client: QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  tripPayload: { id: number; fulfillmentId: number | null } = { id: TRIP_ID, fulfillmentId: FULFILLMENT_ID },
+) {
+  // The page resolves the fulfillment id from the TRIP payload. Seed that
+  // payload into the cache so the resolution happens without a network round
+  // trip and the existing synchronous assertions keep their meaning.
+  client.setQueryData(qk.driver.tripBasic(TRIP_ID), tripPayload);
   return render(
-    <MemoryRouter initialEntries={['/my-trips/88/pod']}>
-      <Routes>
-        <Route path="/my-trips/:id/pod" element={<DriverTripPodPage />} />
-        <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[`/my-trips/${TRIP_ID}/pod`]}>
+        <Routes>
+          <Route path="/my-trips/:id/pod" element={<DriverTripPodPage />} />
+          <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -132,6 +156,7 @@ describe('DriverTripPodPage', () => {
     submitPodMock.mockReset().mockResolvedValue({});
     completeTripMock.mockReset().mockResolvedValue({});
     podSubmissionMock.mockClear();
+    getDriverTripMock.mockReset().mockResolvedValue({ id: TRIP_ID, fulfillmentId: FULFILLMENT_ID });
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),
       isLoading: false,
@@ -139,6 +164,63 @@ describe('DriverTripPodPage', () => {
       isError: false,
       refetch: refetchMock,
     });
+  });
+
+  // Card 071026141570 (P2, driver e-POD hard error on staging trip 79).
+  //
+  // The route `/my-trips/:id/pod` carries a TRIP id. Every e-POD endpoint is
+  // FULFILLMENT-scoped (`DRIVER_TASK.DETAIL = /driver/me/fulfillments/{id}`).
+  // The page used to hand the route id straight to that endpoint, so every trip
+  // 404'd and fell into the hard-error branch. The fulfillment id must come
+  // from the TRIP payload instead.
+  it('resolves the fulfillment id from the trip payload, never from the route trip id', async () => {
+    renderPage();
+
+    // The pod screen renders from the fulfillment's task detail...
+    expect(await screen.findByTestId('trip-pod-submission')).toBeTruthy();
+    expect(screen.queryByText('Không tải được chuyến. Vui lòng thử lại.')).toBeNull();
+    // ...and the fulfillment id it holds is the one from the trip payload.
+    expect(screen.getByText('BILL-POD-55')).toBeInTheDocument();
+  });
+
+  it('does not query the fulfillment endpoint with the route trip id (regression pin, card 071026141570)', async () => {
+    // Both mandatory photos present so the completion gate opens and the write
+    // actually fires — that write is the observable proof of which id the page holds.
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: makePod([
+          { fileType: 'YARD_OR_DROP_RECEIPT' },
+          { fileType: 'SIGNED_DELIVERY_NOTE' },
+        ]),
+      }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // Deliberately do NOT seed the cache: this test asserts the page's own
+    // trip→fulfillment resolution by observing what it asks the API for.
+    renderPage(client);
+
+    expect(await screen.findByTestId('trip-pod-submission')).toBeTruthy();
+    expect(screen.queryByText('Không tải được chuyến. Vui lòng thử lại.')).toBeNull();
+
+    // The trip was fetched BY TRIP id...
+    expect(getDriverTripMock).toHaveBeenCalledWith(TRIP_ID);
+    // ...and the completion write carries the FULFILLMENT id, never the route id.
+    fireEvent.click(screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
+    await waitFor(() => expect(completeTripMock).toHaveBeenCalled());
+    expect(completeTripMock.mock.calls[0][0]).toBe(FULFILLMENT_ID);
+    expect(completeTripMock.mock.calls[0][0]).not.toBe(TRIP_ID);
+  });
+
+  it('shows the no-fulfillment guard (not a hard error) when the trip has no fulfillment', async () => {
+    renderPage(new QueryClient({ defaultOptions: { queries: { retry: false } } }), {
+      id: TRIP_ID,
+      fulfillmentId: null,
+    });
+
+    // Ad-hoc trips carry fulfillmentId: null — they have no e-POD surface at all.
+    expect(await screen.findByText('Không thể xác định chuyến đi từ liên kết này.')).toBeTruthy();
+    expect(screen.queryByText('Không tải được chuyến. Vui lòng thử lại.')).toBeNull();
   });
 
   it('QA-AUDIT-DRV-POD-01 uses the business reference in the header and document panel', () => {
@@ -150,7 +232,7 @@ describe('DriverTripPodPage', () => {
 
   it.each([null, '   '])('QA-AUDIT-DRV-POD-01 names a missing document number (%s)', (documentNumber) => {
     useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({ fulfillment: { id: 88, documentNumber, driverNotes: null } }),
+      data: makeTaskDetail({ fulfillment: { id: FULFILLMENT_ID, documentNumber, driverNotes: null } }),
       isLoading: false, error: null, isError: false, refetch: refetchMock,
     });
     renderPage();
@@ -204,7 +286,7 @@ describe('DriverTripPodPage', () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         notes: 'Hàng dễ vỡ, bốc cẩn thận.',
-        fulfillment: { id: 88, driverNotes: 'Vào cổng số 2.' },
+        fulfillment: { id: FULFILLMENT_ID, driverNotes: 'Vào cổng số 2.' },
       }),
       isLoading: false,
       error: null,
@@ -240,8 +322,10 @@ describe('DriverTripPodPage', () => {
     fireEvent.click(complete);
 
     expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
-    expect(submitPodMock).toHaveBeenCalledWith(88, 22, { expectedVersion: 2 }, expect.any(String));
-    expect(completeTripMock).toHaveBeenCalledWith(88, { expectedVersion: 3 }, expect.any(String));
+    // Card 071026141570: both writes carry the FULFILLMENT id from the trip
+    // payload (4242), never the route's trip id (88).
+    expect(submitPodMock).toHaveBeenCalledWith(FULFILLMENT_ID, 22, { expectedVersion: 2 }, expect.any(String));
+    expect(completeTripMock).toHaveBeenCalledWith(FULFILLMENT_ID, { expectedVersion: 3 }, expect.any(String));
     expect(submitPodMock.mock.invocationCallOrder[0]).toBeLessThan(completeTripMock.mock.invocationCallOrder[0]);
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã lưu chứng từ giao hàng.' });
   });
@@ -293,7 +377,7 @@ describe('DriverTripPodPage', () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         knownTagLabels: ['BỐC HÀNG'],
-        fulfillment: { id: 88, driverNotes: 'BỐC HÀNG\nGọi cổng 2' },
+        fulfillment: { id: FULFILLMENT_ID, driverNotes: 'BỐC HÀNG\nGọi cổng 2' },
       }),
       isLoading: false,
       error: null,
@@ -313,7 +397,7 @@ describe('DriverTripPodPage', () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         knownTagLabels: ['BỐC HÀNG'],
-        fulfillment: { id: 88, driverNotes: 'BỐC HÀNG' },
+        fulfillment: { id: FULFILLMENT_ID, driverNotes: 'BỐC HÀNG' },
       }),
       isLoading: false,
       error: null,
@@ -404,6 +488,61 @@ describe('DriverTripPodPage', () => {
     expect(submitPodMock).not.toHaveBeenCalled();
     expect(completeTripMock).not.toHaveBeenCalled();
     expect(screen.getByTestId('trip-pod-submission')).toBeInTheDocument();
+  });
+
+  // Card 051026230654 — completion moves the trip NEW/RUNNING → HISTORY, but
+  // the journey board (list + "Lệnh mới" badge) and the day-view chip kept
+  // their pre-completion cache: the global 5-minute staleTime masked the
+  // remount refetch, so the driver saw stale counts until the 15 s poll or a
+  // manual tab flip. The completion must invalidate its consumers BEFORE
+  // navigating back so /my-trips refetches on mount.
+  it('invalidates the journey board and day view when the trip completes', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: makePod([
+          { fileType: 'YARD_OR_DROP_RECEIPT' },
+          { fileType: 'SIGNED_DELIVERY_NOTE' },
+        ]),
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    renderPage(client);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
+    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
+  });
+
+  it('does not invalidate the board when the completion fails', async () => {
+    completeTripMock.mockRejectedValueOnce(new Error('Không thể hoàn thành chuyến.'));
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: makePod([
+          { fileType: 'YARD_OR_DROP_RECEIPT' },
+          { fileType: 'SIGNED_DELIVERY_NOTE' },
+        ]),
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    renderPage(client);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith({ kind: 'error', message: 'Không thể hoàn thành chuyến.' }));
+    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
   });
 
 });

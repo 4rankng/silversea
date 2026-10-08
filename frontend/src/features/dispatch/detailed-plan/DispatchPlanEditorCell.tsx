@@ -1,6 +1,6 @@
 import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Save } from 'lucide-react';
+import { Plus, Save } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
 import {
   listDispatchFleetResources,
@@ -11,28 +11,30 @@ import {
 } from '../../../api/dispatchPlanningClient';
 import { api } from '../../../lib/api';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
-import { Modal } from '../../../components/UI';
+import { Modal, useConfirm } from '../../../components/UI';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { billBookingReference } from '../../../lib/business-reference';
 import { DateTimeField, NumberField, SearchableSelect, type SearchableSelectOption } from '../../../design-system';
 import {
   CURRENT_PLATE_PREFIX,
+  DEFERRED_PLATE_PREFIX,
   EXTERNAL_VEHICLE_PREFIX,
   EXTERNAL_CARRIER_PREFIX,
   FREE_TEXT_PREFIX,
   OWN_CARRIER_VALUE,
   SUGGESTION_LABELS,
   carrierValueForRow,
-  classificationOptionsForRow,
   normalizePlate,
   parseCarrier,
   plateCompareKey,
   vehiclePlateKey,
   vehicleValueForRow,
 } from './DispatchPlanCellValues';
-import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
+import { DispatchClassificationField } from './DispatchClassificationField';
 import { IssueOrderFields } from './IssueOrderFields';
 import { useIssueOrder } from './useIssueOrder';
+import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
 import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, vehicleWarningSuffix, type VehicleFit } from './trailerFit';
 import './DispatchPlanEditorCell.css';
 
@@ -48,6 +50,7 @@ export interface AtomicPlanSaveResult {
   isCombined: boolean;
   /** Stored driver-facing note after the save. */
   operationalNotes: string | null;
+  plannedEndAt: string | null;
   dispatch: {
     carrierType: 'OWN' | 'EXTERNAL';
     carrierName: string | null;
@@ -73,6 +76,7 @@ interface DispatchPlanEditorCellProps {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
+      plannedEndAt?: string | null;
       classification: DispatchClassification;
       operationalNotes?: string | null;
     },
@@ -131,6 +135,35 @@ function vietnamLocalInputToIso(local: string): string | null {
   return new Date(`${local}:00+07:00`).toISOString();
 }
 
+/**
+ * Resolves the effective schedule datetime string for a row.
+ * Precedence matches DetailedPlanGrid schedule display:
+ * 1. Stored plannedEndAt (explicit dispatch override)
+ * 2. Inherited runAt (customer appointment, closing, planned return)
+ * 3. Fallback deliveryDate + runHour
+ */
+function effectiveStoredEndIso(row: DispatchDetailPlanRow): string | null {
+  if (row.plannedEndAt) return row.plannedEndAt;
+  if (row.time.runAt) return row.time.runAt;
+  if (row.time.runHour != null && row.time.deliveryDate && /^\d{4}-\d{2}-\d{2}$/.test(row.time.deliveryDate)) {
+    return vietnamLocalInputToIso(`${row.time.deliveryDate}T${String(row.time.runHour).padStart(2, '0')}:00`);
+  }
+  return null;
+}
+
+function effectivePlanEndLocal(row: DispatchDetailPlanRow): string {
+  const iso = effectiveStoredEndIso(row);
+  return iso ? isoToVietnamLocalInput(iso) : '';
+}
+
+function sameInstantMinute(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  const tA = new Date(a).getTime();
+  const tB = new Date(b).getTime();
+  if (Number.isNaN(tA) || Number.isNaN(tB)) return false;
+  return Math.floor(tA / 60000) === Math.floor(tB / 60000);
+}
 
 /** Stored estimates are digit strings; NumberField drafts hold number | ''. */
 const estimateToDraft = (value: string | null): number | '' => (value && value.trim() ? Number(value) : '');
@@ -141,12 +174,11 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
     vehicleValue: vehicleValueForRow(row),
     plannedRevenue: estimateToDraft(row.estimates.plannedRevenue),
     plannedCarrierCost: estimateToDraft(row.estimates.plannedCarrierCost),
-    plannedEndAt: isoToVietnamLocalInput(row.plannedEndAt),
+    plannedEndAt: effectivePlanEndLocal(row),
     classification: row.classification,
     operationalNotes: row.notes.vehicleNote,
   };
 }
-
 
 function parseVnd(value: string): { valid: true; value: number | null } | { valid: false; value: null } {
   const normalized = value.trim();
@@ -165,13 +197,15 @@ interface VehicleBody {
 }
 
 /** Vehicle body for the atomic save. '' → explicit clear (Bỏ gán biển số);
- *  CURRENT_PLATE → keep stored columns (the snapshot is the stored value). */
+ *  CURRENT_PLATE → keep stored columns (the snapshot is the stored value);
+ *  DEFERRED → carrier stays, plate ships empty (Bổ sung sau — card 20261004_359). */
 function vehicleBody(value: string): VehicleBody | null {
   if (!value) return { clearVehicle: true };
   if (value.startsWith(OWN_TRUCK_PREFIX)) return { truckId: Number(value.slice(OWN_TRUCK_PREFIX.length)) };
   if (value.startsWith(EXTERNAL_VEHICLE_PREFIX)) return { externalCarrierVehicleId: Number(value.slice(EXTERNAL_VEHICLE_PREFIX.length)) };
   if (value.startsWith(FREE_TEXT_PREFIX)) return { plateNumber: value.slice(FREE_TEXT_PREFIX.length) };
   if (value.startsWith(CURRENT_PLATE_PREFIX)) return {};
+  if (value === DEFERRED_PLATE_PREFIX) return {};
   return null;
 }
 
@@ -210,21 +244,47 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const truckCarrierLinksRef = useRef(new Map<number, { plate: string; carrierId: number; carrierName: string }>());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Card 061026172804 (FB-038): the completed-trip overlap warning rides a
+  // confirm dialog — the house confirm idiom, not an inline alert.
+  const { confirm, dialog: overlapConfirmDialog } = useConfirm();
   // Fleet fetches must never masquerade as "no data": a failed list load
   // renders a retry affordance instead of the misleading empty message
   // (debug order #2 — QA's combobox evidence came from this swallow).
   const [carrierError, setCarrierError] = useState(false);
   const [vehicleError, setVehicleError] = useState(false);
   const [fleetRetryNonce, setFleetRetryNonce] = useState(0);
+  // Card 20261004_357 — quick-add plate for the selected external carrier.
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  // Manually added vehicles ride the option list until the refetch lands them.
+  const [manualVehicles, setManualVehicles] = useState<Map<number, string>>(() => new Map());
   // Branch-row decompose in flight (fulfillment-less rows must decompose
   // before the editor can target a fulfillment identity).
   const [ensuring, setEnsuring] = useState(false);
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
+  const quickAddCarrierName = selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null
+    ? carrierOptions.find((option) => option.value === `${EXTERNAL_CARRIER_PREFIX}${selectedCarrier.externalCarrierId}`)?.label
+      ?? row.dispatch.carrierName ?? ''
+    : '';
+
+  const handleVehicleCreated = (vehicleId: number, licensePlate: string) => {
+    // Card 20261004_357 — preselect the new plate and let the refetch fold it
+    // into the fetched list (manualVehicles covers the interim).
+    setManualVehicles((current) => {
+      const next = new Map(current);
+      next.set(vehicleId, licensePlate);
+      return next;
+    });
+    setFleetRetryNonce((nonce) => nonce + 1);
+    setDraft((current) => ({ ...current, vehicleValue: `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}` }));
+    setError(null);
+    setQuickAddOpen(false);
+  };
 
   const issueStatus = deriveDispatchIssueStatus({
     vehicleAssigned: row.dispatch.assignedPlate != null,
+    carrierAssigned: row.dispatch.externalCarrierId != null,
     issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
     completed: row.taskStatus === 'COMPLETED',
     driverAccepted: row.dispatch.driverAccepted === true,
@@ -247,12 +307,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     || (draft.operationalNotes ?? '') !== (row.notes.vehicleNote ?? '')
     || !storedRevenue.valid || !storedCarrierCost.valid
     || draftRevenue !== storedRevenue.value
-    || draftCarrierCost !== storedCarrierCost.value;
-  const canIssue = issueStatus === 'PLATED_NOT_ISSUED' && !planDirty;
+    || draftCarrierCost !== storedCarrierCost.value
+    || draft.plannedEndAt !== effectivePlanEndLocal(row);
+  // Card 20261004_359 — a deferred-plate external assignment is issuable too.
+  const canIssue = (issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && !planDirty;
 
   const {
     ownTruck,
     loadingOwnTruck,
+    trailerOptions,
     issueDraft,
     setIssueDraft,
     issuing,
@@ -366,7 +429,17 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         && !mapped.some((option) => option.label === normalizedSearch)
         ? [{ value: `${FREE_TEXT_PREFIX}${normalizedSearch}`, label: `Dùng biển số: ${normalizedSearch}` }]
         : [];
-      setVehicleOptions([...freeTextOption, ...mapped]);
+      // Card 20261004_357 — plates added through the quick-add dialog ride the
+      // list immediately (before the refetch returns them from the server).
+      const manualOptions = isOwnFleet
+        ? []
+        : [...manualVehicles.entries()]
+          .filter(([vehicleId]) => !mapped.some((option) => option.value === `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}`))
+          .map(([vehicleId, plate]) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}`, label: plate }));
+      // Card 20261004_359 — "Bổ sung sau" leads the EXTERNAL list (CTO
+      // direction): issue now, plate rides in later. OWN keeps no such choice.
+      const deferredOption = isOwnFleet ? [] : [{ value: DEFERRED_PLATE_PREFIX, label: 'Bổ sung sau' }];
+      setVehicleOptions([...deferredOption, ...freeTextOption, ...manualOptions, ...mapped]);
       setVehicleCursor(response.nextCursor);
       setSuggestions(isOwnFleet ? response.suggestedItems ?? [] : []);
       setVehicleError(false);
@@ -382,7 +455,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     // `selectedCarrier` is a fresh object every render (parseCarrier of the
     // draft); the effect keys on the two primitives it actually consumes so
     // the vehicle list doesn't reload on every keystroke elsewhere.
-  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch, rowIsCarrierLess, fleetRetryNonce, draft.classification]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch, rowIsCarrierLess, fleetRetryNonce, draft.classification, manualVehicles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectableCarrierOptions = useMemo(() => {
     const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
@@ -436,7 +509,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.container.containerTypeLabel, row.container.cargoWeightKg, suggestions, vehicleOptions]);
 
   async function openEditor() {
-    if (disabled) return;
+    if (disabled || ensuring) return;
     // An issued order owns a trip. While it runs, its vehicle must be changed
     // through the trip reassignment flow so the driver/vehicle state stays
     // coherent. Once it completes, the plan is frozen history — the backend's
@@ -556,7 +629,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     // mirroring the backend's atomic-save contract exactly. The completeness
     // ref distinguishes an intentional clear (all segments emptied) from a
     // half-typed edit, which must never reach the wire as a clear.
-    const storedEnd = row.plannedEndAt ?? null;
+    const storedEnd = effectiveStoredEndIso(row);
     if (endCompletenessRef.current === 'incomplete') {
       setError('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.');
       return;
@@ -568,33 +641,62 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       setError('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.');
       return;
     }
+    const endTouched = !sameInstantMinute(draftEndIso, storedEnd);
     setSaving(true);
     setError(null);
+    const saveBody = {
+      carrierType: carrier.carrierType,
+      externalCarrierId: carrier.carrierType === 'EXTERNAL' ? carrier.externalCarrierId ?? null : null,
+      // Send the vehicle block only when the editor actually touches it —
+      // an estimates/classification-only save must not disturb stored columns.
+      ...(vehicleChanged ? body : {}),
+      plannedRevenue: draft.plannedRevenue === '' ? null : draft.plannedRevenue,
+      plannedCarrierCost: draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost,
+      // Same touch-gating as the vehicle block: an untouched field must
+      // never reach the wire and clobber a value another editor saved.
+      ...(endTouched ? { plannedEndAt: draftEndIso } : {}),
+      classification: draft.classification,
+      operationalNotes: draft.operationalNotes,
+    };
+    const attemptSave = async (extra: { rigOverlapCompletedConfirmed?: boolean }) => {
+      await onAtomicSave(row, { ...saveBody, ...extra });
+    };
     try {
-      await onAtomicSave(row, {
-        carrierType: carrier.carrierType,
-        externalCarrierId: carrier.carrierType === 'EXTERNAL' ? carrier.externalCarrierId ?? null : null,
-        // Send the vehicle block only when the editor actually touches it —
-        // an estimates/classification-only save must not disturb stored columns.
-        ...(vehicleChanged ? body : {}),
-        plannedRevenue: draft.plannedRevenue === '' ? null : draft.plannedRevenue,
-        plannedCarrierCost: draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost,
-        // Same touch-gating as the vehicle block: an untouched field must
-        // never reach the wire and clobber a value another editor saved.
-        ...(draftEndIso !== storedEnd ? { plannedEndAt: draftEndIso } : {}),
-        classification: draft.classification,
-        operationalNotes: draft.operationalNotes,
-      });
+      await attemptSave({});
       restoreFocusRef.current = true;
       setOpen(false);
     } catch (saveError) {
       // The grid-level banner renders behind this modal, so the dialog must
-      // speak for itself: show the backend's specific 409 reason (version
-      // conflict, live-trip guard) inline instead of a generic retry hint.
-      const err = saveError as { status?: number; message?: string };
-      setError(err.status === 409 && err.message
-        ? err.message
-        : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+      // speak for itself: show the backend's specific 409+payload confirm path.
+      const err = saveError as {
+        status?: number;
+        message?: string;
+        raw?: { code?: string };
+      };
+      if (err.status === 409 && err.raw?.code === 'RIG_OVERLAP_COMPLETED') {
+        // Card 061026172804 (FB-038 / REQ-04): a completed-trip overlap warns
+        // instead of silently passing — the dispatcher confirms and the same
+        // save rides the confirm flag. Declining keeps the editor open with
+        // the explanation inline.
+        const proceed = await confirm(err.message
+          ?? 'Đầu xe có chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?');
+        if (proceed) {
+          try {
+            await attemptSave({ rigOverlapCompletedConfirmed: true });
+            restoreFocusRef.current = true;
+            setOpen(false);
+          } catch (retryError) {
+            const retry = retryError as { status?: number; message?: string };
+            setError(retry.status === 409 && retry.message ? retry.message : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+          }
+        } else {
+          setError(err.message ?? 'Đã huỷ lưu.');
+        }
+      } else {
+        setError(err.status === 409 && err.message
+          ? err.message
+          : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+      }
     } finally {
       setSaving(false);
     }
@@ -609,39 +711,80 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     && row.dispatch.tripId != null
     && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT');
 
+  // Sweep (card 20261008_1): every action button here used to disable
+  // silently. Each disable cause now carries its own aria-described reason
+  // (DisabledActionTip) — reachable on hover AND keyboard focus — and the
+  // handlers guard the same conditions the reasons name (aria-disabled does
+  // not block clicks the way `disabled` did).
+  const triggerDisabledReason = planFrozen
+    ? 'Chuyến đã hoàn thành — kế hoạch điều phối đã chốt.'
+    : ensuring
+      ? 'Đang chuẩn bị dữ liệu chuyến — thử lại sau.'
+      : disabled
+        ? 'Ô điều phối đang khóa thao tác.'
+        : null;
+  const cancelDisabledReason = saving
+    ? 'Đang lưu thay đổi — chưa hủy được.'
+    : issuing
+      ? 'Đang phát lệnh — chưa hủy được.'
+      : null;
+  const saveDisabledReason = saving
+    ? 'Đang lưu thay đổi…'
+    : issuing
+      ? 'Đang phát lệnh — chưa lưu được.'
+      : null;
+  const issueDisabledReason = saving
+    ? 'Đang lưu thay đổi — chưa phát lệnh được.'
+    : issuing
+      ? 'Đang phát lệnh…'
+      : planDirty
+        ? 'Lưu thay đổi điều phối trước khi phát lệnh.'
+        : null;
+  const completeDisabledReason = saving
+    ? 'Đang lưu thay đổi — chưa hoàn thành được.'
+    : issuing
+      ? 'Đang phát lệnh — chưa hoàn thành được.'
+      : null;
+
   return (
     <div className="dispatch-assignment-cell" data-cell-label="Điều phối">
       <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
-      <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
-        {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
-      </span>
-      {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
-        <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
-          {row.dispatch.assignedDriverName || 'Chưa có tài xế'}
+      <div className="dispatch-assignment-cell__vehicle-group">
+        <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
+          {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
         </span>
-      )}
-      <DispatchIssueStatusChip status={issueStatus} />
-      {/* Cước thu/trả temporarily hidden from the grid cell per customer
-          request (docx T2.3); the editor dialog still shows and saves both. */}
-      {row.lotFullyPlated && !currentPlate && (
-        <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
-      )}
-      <button
-        ref={triggerRef}
-        type="button"
-        className="btn btn--secondary btn--sm dispatch-assignment-cell__trigger"
-        onClick={openEditor}
-        disabled={disabled || planFrozen || ensuring}
-        aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
-        aria-label={canReassignIssuedTrip ? `Phân xe lại ${identity}` : `Sửa ô điều phối ${identity}`}
-        title={planFrozen
-          ? 'Chuyến đã hoàn thành — kế hoạch điều phối đã chốt'
-          : canReassignIssuedTrip
-            ? 'Phân xe lại trước khi chuyến xuất phát'
-            : `Chỉnh sửa điều phối · ${identity}`}
-      >
-        {canReassignIssuedTrip ? 'Phân xe lại' : 'Sửa'}
-      </button>
+        {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
+          <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
+            {row.dispatch.assignedDriverName || 'Chưa có tài xế'}
+          </span>
+        )}
+      </div>
+      <div className="dispatch-assignment-cell__actions">
+        <DispatchIssueStatusChip status={issueStatus} />
+        {/* Cước thu/trả temporarily hidden from the grid cell per customer
+            request (docx T2.3); the editor dialog still shows and saves both. */}
+        {row.lotFullyPlated && !currentPlate && (
+          <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
+        )}
+        <DisabledActionTip id={`dispatch-plan-trigger-${row.fulfillmentId ?? row.shipmentId}`} reason={triggerDisabledReason}>
+          <button
+            ref={triggerRef}
+            type="button"
+            className="btn btn--secondary btn--sm dispatch-assignment-cell__trigger"
+            onClick={openEditor}
+            aria-disabled={disabled || planFrozen || ensuring || undefined}
+            aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
+            aria-label={canReassignIssuedTrip ? `Phân xe lại ${identity}` : `Sửa ô điều phối ${identity}`}
+            title={planFrozen
+              ? 'Chuyến đã hoàn thành — kế hoạch điều phối đã chốt'
+              : canReassignIssuedTrip
+                ? 'Phân xe lại trước khi chuyến xuất phát'
+                : `Chỉnh sửa điều phối · ${identity}`}
+          >
+            {canReassignIssuedTrip ? 'Phân xe lại' : 'Sửa'}
+          </button>
+        </DisabledActionTip>
+      </div>
 
       <Modal
         isOpen={open}
@@ -650,34 +793,55 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         maxWidth={560}
         footer={(
           <>
-            <button type="button" className="btn btn--secondary" onClick={closeEditor} disabled={saving || issuing}>Hủy</button>
-            <button type="button" className="btn btn--primary" onClick={() => void save()} disabled={saving || issuing}>
-              <Save size={16} aria-hidden="true" />
-              {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
-            </button>
-            {issueStatus === 'PLATED_NOT_ISSUED' && (
+            <DisabledActionTip id={`dispatch-plan-cancel-${row.fulfillmentId ?? row.shipmentId}`} reason={cancelDisabledReason}>
               <button
                 type="button"
-                className="btn btn--primary dispatch-assignment-dialog__issue-btn"
-                onClick={() => void issue()}
-                disabled={!canIssue || issuing || saving}
-                title={planDirty ? 'Lưu thay đổi điều phối trước khi phát lệnh' : undefined}
+                className="btn btn--secondary"
+                onClick={() => { if (saving || issuing) return; closeEditor(); }}
+                aria-disabled={saving || issuing || undefined}
               >
-                {issuing ? 'Đang phát lệnh…' : 'Phát lệnh'}
+                Hủy
               </button>
+            </DisabledActionTip>
+            <DisabledActionTip id={`dispatch-plan-save-${row.fulfillmentId ?? row.shipmentId}`} reason={saveDisabledReason}>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => { if (saving || issuing) return; void save(); }}
+                aria-disabled={saving || issuing || undefined}
+              >
+                <Save size={16} aria-hidden="true" />
+                {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
+              </button>
+            </DisabledActionTip>
+            {(issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && (
+              <DisabledActionTip id={`dispatch-plan-issue-${row.fulfillmentId ?? row.shipmentId}`} reason={issueDisabledReason}>
+                <button
+                  type="button"
+                  className="btn btn--primary dispatch-assignment-dialog__issue-btn"
+                  onClick={() => { if (!canIssue || issuing || saving) return; void issue(); }}
+                  aria-disabled={!canIssue || issuing || saving || undefined}
+                  title={planDirty ? 'Lưu thay đổi điều phối trước khi phát lệnh' : undefined}
+                >
+                  {issuing ? 'Đang phát lệnh…' : 'Phát lệnh'}
+                </button>
+              </DisabledActionTip>
             )}
             {row.dispatch.carrierType === 'EXTERNAL' && row.dispatch.tripId != null && row.taskStatus === 'DISPATCHED' && (
-              <button
-                type="button"
-                className="btn btn--primary dispatch-assignment-dialog__complete-btn"
-                onClick={() => {
-                  closeEditor();
-                  onCompleteExternalTrip(row);
-                }}
-                disabled={saving || issuing}
-              >
-                Hoàn thành chuyến
-              </button>
+              <DisabledActionTip id={`dispatch-plan-complete-${row.fulfillmentId ?? row.shipmentId}`} reason={completeDisabledReason}>
+                <button
+                  type="button"
+                  className="btn btn--primary dispatch-assignment-dialog__complete-btn"
+                  onClick={() => {
+                    if (saving || issuing) return;
+                    closeEditor();
+                    onCompleteExternalTrip(row);
+                  }}
+                  aria-disabled={saving || issuing || undefined}
+                >
+                  Hoàn thành chuyến
+                </button>
+              </DisabledActionTip>
             )}
           </>
         )}
@@ -712,7 +876,25 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               </p>
             ) : null}
             <label htmlFor={`dispatch-vehicle-${row.fulfillmentId}`} className="dispatch-assignment-dialog__vehicle">
-              <span>Xe / biển số</span>
+              <span className="dispatch-assignment-dialog__vehicle-head">
+                <span>Xe / biển số</span>
+                {/* Card 20261004_357 — quick-add registers a plate under the
+                    selected external carrier (same Xe ngoài API). Own fleet is
+                    fleet-managed, so the affordance is external-only. */}
+                {selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null && (
+                  <button
+                    type="button"
+                    className="dispatch-assignment-dialog__quick-add"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setQuickAddOpen(true);
+                    }}
+                    disabled={saving}
+                  >
+                    <Plus size={14} aria-hidden="true" />Thêm nhanh
+                  </button>
+                )}
+              </span>
               <SearchableSelect
                 id={`dispatch-vehicle-${row.fulfillmentId}`}
                 value={draft.vehicleValue}
@@ -795,18 +977,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 </button>
               </p>
             ) : null}
-            <UuiSelectField
-              label="Phân loại"
-              width="content"
-              wrapperClassName="dispatch-assignment-dialog__classification"
-              value={draft.classification}
-              options={classificationOptionsForRow(row.classification)}
-              onChange={(event) => {
-                setDraft((current) => ({ ...current, classification: event.target.value as DispatchClassification }));
+            <DispatchClassificationField
+              row={row}
+              classification={draft.classification}
+              operationalNotes={draft.operationalNotes}
+              onChange={(next, nextNotes) => {
+                setDraft((current) => ({ ...current, classification: next, operationalNotes: nextNotes }));
                 setError(null);
               }}
-              disabled={saving || row.classification === 'LCL'}
-              hint={row.classification === 'LCL' ? 'Hàng lẻ giữ phân loại Lẻ — gắn với hình thức lô hàng' : undefined}
+              disabled={saving}
             />
             <NumberField
               id={`dispatch-revenue-${row.fulfillmentId}`}
@@ -846,7 +1025,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           />
           {error && <p className="dispatch-assignment-dialog__error" role="alert">{error}</p>}
 
-          {issueStatus === 'PLATED_NOT_ISSUED' && (
+          {(issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && (
             <fieldset className="dispatch-assignment-dialog__issue" disabled={issuing}>
               <legend>Phát lệnh cho tài xế</legend>
               {planDirty ? (
@@ -858,6 +1037,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                   row={row}
                   ownTruck={ownTruck}
                   loadingOwnTruck={loadingOwnTruck}
+                  trailerOptions={trailerOptions}
                   issueDraft={issueDraft}
                   setIssueDraft={setIssueDraft}
                   onFieldTouched={() => setIssueError(null)}
@@ -868,6 +1048,16 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           )}
         </form>
       </Modal>
+      {overlapConfirmDialog}
+      {quickAddOpen && selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null && (
+        <QuickAddVehicleDialog
+          isOpen
+          carrierId={selectedCarrier.externalCarrierId}
+          carrierName={quickAddCarrierName}
+          onClose={() => setQuickAddOpen(false)}
+          onCreated={handleVehicleCreated}
+        />
+      )}
     </div>
   );
 }

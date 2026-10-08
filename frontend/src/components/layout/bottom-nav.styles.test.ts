@@ -33,3 +33,51 @@ describe('bottom-nav opacity contract', () => {
     expect(bar).toContain('-webkit-backdrop-filter: blur(14px);');
   });
 });
+
+/* Card 20260927_149 (user evidence 03/10): payroll and nepocorp render the
+ * phone tab bar without any dead band beneath it on a real iPhone. Both pin
+ * the bar to `position: fixed; bottom: 0` and paint the home-indicator strip
+ * INSIDE the bar's own opaque box (`padding-bottom: env(safe-area-inset-)`)
+ * while the scrolling content pays a clearance. The in-flow bar this replaces
+ * depended on iOS dvh reflow — the one half CDP can never verify (visual
+ * viewport ≠ layout viewport), which is exactly why the card sat blocked on
+ * a device re-test. A fixed bar cannot leave uncovered space below itself:
+ * its bottom edge is the viewport bottom at every viewport state, and its
+ * own padding paints the safe-area strip. The fixed accept/complete bars on
+ * the trip screen already offset by `--bottom-nav-h`, so the same token now
+ * describes the true geometry instead of a coincidence of column flow.
+ */
+describe('bottom-nav fixed-layer contract (proven phone pattern)', () => {
+  const css = () => read('src/components/layout/bottom-nav.css');
+  const barRule = () => css().match(/\.bottom-nav \{[^}]*\}/gs)?.find(b => b.includes('env(safe-area-inset-bottom')) ?? '';
+
+  it('driver bar is pinned to the viewport bottom, not in flow', () => {
+    const bar = barRule();
+    expect(bar, 'the ≤1023 bar rule exists').not.toBe('');
+    expect(bar).toMatch(/position:\s*fixed;/);
+    expect(bar).toMatch(/bottom:\s*0;/);
+    expect(css()).not.toMatch(/\.bottom-nav \{[^}]*position:\s*relative/);
+  });
+
+  it('driver bar paints the home-indicator strip inside its own box', () => {
+    const bar = barRule();
+    expect(bar).toMatch(/padding-bottom:[^;]*env\(safe-area-inset-bottom/);
+    expect(bar).toMatch(/background:\s*var\(--surface\);/);
+  });
+
+  it('driver content pays a nav clearance derived from the shared height token', () => {
+    const media = css().match(/@media \(max-width: 1023px\) \{[\s\S]*$/)?.[0] ?? '';
+    expect(
+      media.match(/\.app\.is-driver \.app-body\s*\{[^}]*padding-bottom:\s*calc\(var\(--bottom-nav-h\)/),
+      'driver app-body reserves the fixed bar height',
+    ).not.toBeNull();
+  });
+
+  it('customer portal bar follows the same fixed pattern (same defect class)', () => {
+    const portal = read('src/pages/portal/CustomerPortalLayout.css');
+    const portalBar = portal.match(/\.customer-shell__bottom-nav \{[^}]*\}/gs)?.find(b => b.includes('safe-area-inset-bottom')) ?? '';
+    expect(portalBar, 'the ≤1023 portal bar rule exists').not.toBe('');
+    expect(portalBar).toMatch(/position:\s*fixed;/);
+    expect(portalBar).toMatch(/bottom:\s*0;/);
+  });
+});

@@ -28,6 +28,21 @@ import { lockTripCloseAggregate } from './trip-close-readiness.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
+/** Card 061026221826: Ngày hoàn thành never precedes Ngày khởi hành. The VN
+ *  wall-clock date of the completion instant is compared against the planned
+ *  departure date (same-day completion is normal); a missing departure date
+ *  (legacy rows) skips the check. Shared by the completion transition and the
+ *  manual actuals edit. */
+export function assertCompletionNotBeforeDeparture(
+  completedAt: Date,
+  departureDate: string | Date | null | undefined,
+): void {
+  if (!departureDate) return;
+  const dep = typeof departureDate === 'string' ? departureDate.slice(0, 10) : departureDate.toISOString().slice(0, 10);
+  const vnDate = new Date(completedAt.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
+  if (vnDate < dep) throw new ApiError(400, 'Ngày hoàn thành không thể trước ngày khởi hành.');
+}
+
 export async function transitionTripStatus(
   tripId: number,
   targetStatus: TripStatus,
@@ -95,6 +110,11 @@ export async function transitionTripStatus(
       .where(eq(s.trips.id, tripId))
       .limit(1)
       .for('update', { of: [s.trips] });
+    // Card 061026221826: completing before the planned departure date stamps
+    // the exact nonsense /trips/135 showed — refuse before any write.
+    if (targetStatus === TripStatus.COMPLETED) {
+      assertCompletionNotBeforeDeparture(new Date(), trip.departureDate);
+    }
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (options?.expectedVersion !== undefined && trip.version !== options.expectedVersion) {
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');

@@ -16,19 +16,7 @@ export const runningSum = (values: number[]): number[] => {
   return values.map((value) => (total += value));
 };
 
-export function DeltaPill(props: { mom?: string | null; change?: MonthlyChange; favorableDirection?: 'up' | 'down'; suffix?: string; flatLabel?: string }) {
-  if (props.mom !== undefined) {
-    const { mom, suffix = '', flatLabel = '0%' } = props;
-    if (!mom) return <span className="d-badge d-badge-ghost d-badge-sm delta flat">{flatLabel}</span>;
-    const isUp = mom.startsWith('+');
-    const isDown = mom.startsWith('-');
-    const className = isUp ? 'delta up' : isDown ? 'delta down' : 'delta flat';
-    const badgeClass = isUp ? 'd-badge-success' : isDown ? 'd-badge-error' : 'd-badge-ghost';
-    const symbol = isUp ? '▲' : isDown ? '▼' : '·';
-    return <span className={`d-badge d-badge-soft d-badge-sm ${badgeClass} ${className}`}>{symbol} {mom.replace(/^[+-]/, '')}{suffix}</span>;
-  }
-  const { change, favorableDirection = 'up' } = props;
-  if (!change) return null;
+export function DeltaPill({ change, favorableDirection = 'up' }: { change: MonthlyChange; favorableDirection?: 'up' | 'down' }) {
   const tone = change.direction === 'flat' ? 'flat' : change.direction === favorableDirection ? 'up' : 'down';
   const badgeClass = tone === 'up' ? 'd-badge-success' : tone === 'down' ? 'd-badge-error' : 'd-badge-ghost';
   const symbol = change.direction === 'up' ? '▲' : change.direction === 'down' ? '▼' : '·';

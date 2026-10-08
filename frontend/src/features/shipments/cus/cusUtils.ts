@@ -15,6 +15,16 @@ import { ApiError } from '../../../lib/api';
 import { formatISODate, formatDateTimeShort, formatNumber } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
+
+/** Card 20261005_360 (REQ-01): PG numeric strings carry two dead decimals
+ *  ("10000.00") — edit inputs hydrate without them; a genuine decimal keeps
+ *  its significant digit ("100.50" -> "100.5"). Non-numeric passthrough. */
+export function stripDecimalTrailingZeros(value: string | null | undefined): string {
+  if (value == null || value === '') return '';
+  const amount = Number(value);
+  return Number.isFinite(amount) ? String(amount) : value;
+}
+
 export function formatQuantity(value: string | null, maximumFractionDigits = 2): string {
   if (value == null || value === '') return '—';
   const amount = Number(value);

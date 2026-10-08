@@ -1250,9 +1250,12 @@ export const atomicDispatchPlanEditSchema = z.object({
    *  null/'' clears it. No after-start rule here — the FE owns the
    *  'Giờ trả hàng phải sau giờ chạy' check (card _15, 2026-09-26). */
   plannedEndAt: z.string().nullish(),
-  /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ). The dispatcher's call for cont
-   *  rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake and LCL
-   *  rows keep Lẻ. Undefined = unchanged. */
+  /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ/Lấy Lẻ). The dispatcher's call for
+   *  cont rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake. LCL
+   *  rows are bound to the cargo-mode pair Lẻ / Lấy Lẻ (Lấy Lẻ = the
+   *  empty-shell run: take an empty 40' shell, close LCL cargo into it for the
+   *  warehouse transfer, then back empty or back to the port). Undefined =
+   *  unchanged. */
   classification: dispatchClassificationSchema.optional(),
   /** Lot-level `shipments.is_combined`. Owned by the CUS create/quick-edit
    *  surface, not by this per-container dispatch editor: one container's
@@ -1260,6 +1263,12 @@ export const atomicDispatchPlanEditSchema = z.object({
    *  Optional and omitted by the editor — the stored value is left untouched.
    *  The dispatch route strips it even when a caller sends it explicitly. */
   isCombined: z.boolean().optional(),
+  /** Card 061026172804 (FB-038 / REQ-04): a save whose rig window overlaps a
+   *  COMPLETED trip of the same tractor is refused once with 409 payload code
+   *  RIG_OVERLAP_COMPLETED; the dispatcher's confirmation re-sends the save
+   *  with this flag and it proceeds (chạy gối đầu onto a finished trip is
+   *  legal). An ACTIVE (CREATED/IN_TRANSIT) overlap still blocks outright. */
+  rigOverlapCompletedConfirmed: z.boolean().optional(),
   /** Driver-facing note (shipments.operational_notes). Optional: an editor
    *  save that touches only plan fields omits it and the stored note stays
    *  untouched. '' clears the note; null ≡ '' for change detection. */
@@ -1845,6 +1854,20 @@ export const dispatchShipmentSchema = z.object({
   fuelMode: z.nativeEnum(FuelMode).optional(),
 });
 
+export const operationalSiteContactsSchema = z.array(z.object({
+  name: z.string().trim().min(1, 'Tên liên hệ là bắt buộc').max(120),
+  phone: z.string().trim().min(1, 'Số điện thoại là bắt buộc').max(30).regex(/^\+?[0-9][0-9() .-]*$/, 'Số điện thoại không hợp lệ'),
+  isDefault: z.boolean(),
+})).max(20, 'Tối đa 20 liên hệ').superRefine((contacts, ctx) => {
+  if (contacts.length && contacts.filter(contact => contact.isDefault).length !== 1) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Chọn đúng một liên hệ mặc định.' });
+  }
+  const phones = contacts.map(contact => contact.phone.replace(/[^0-9+]/g, ''));
+  if (new Set(phones).size !== phones.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Số điện thoại liên hệ bị trùng.' });
+  }
+});
+
 export const operationalSiteSchema = z.object({
   customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
   code: z.string().trim().min(1, 'Mã điểm vận hành là bắt buộc').max(80),
@@ -1856,6 +1879,7 @@ export const operationalSiteSchema = z.object({
   googleMapsUrl: z.string().url('Liên kết Google Maps không hợp lệ').max(2000).optional().nullable(),
   contactName: z.string().trim().max(120).optional().nullable(),
   contactPhone: z.string().trim().max(30).optional().nullable(),
+  contacts: operationalSiteContactsSchema.optional(),
   liftFeeInvoiceName: z.string().trim().max(255).optional().nullable(),
   liftFeeInvoiceAddress: z.string().trim().max(2000).optional().nullable(),
   liftFeeTaxCode: z.string().trim().max(40).optional().nullable(),
@@ -1892,6 +1916,7 @@ export const operationalSiteUpdateSchema = z.object({
   googleMapsUrl: z.string().url('Liên kết Google Maps không hợp lệ').max(2000).optional().nullable(),
   contactName: z.string().trim().max(120).optional().nullable(),
   contactPhone: z.string().trim().max(30).optional().nullable(),
+  contacts: operationalSiteContactsSchema.optional(),
   liftFeeInvoiceName: z.string().trim().max(255).optional().nullable(),
   liftFeeInvoiceAddress: z.string().trim().max(2000).optional().nullable(),
   liftFeeTaxCode: z.string().trim().max(40).optional().nullable(),

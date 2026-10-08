@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { QUOTATION_GRID_COLUMNS } from '../../../shared/dist/index.js';
+import { loadEnv, preflight } from '../lib/env.mjs';
+import { createSession } from '../lib/harness.mjs';
+const env = await loadEnv(); assert.ok(['localhost', '127.0.0.1'].includes(new URL(env.baseUrl).hostname)); await preflight(env);
+const created = JSON.parse(await fs.readFile('qa/2026-10-01_comprehensive-audit_ui29-final/created-record.json', 'utf8'));
+const output = path.resolve(process.env.QA_PRICING_OUTPUT_DIR || 'qa/2026-10-01_comprehensive-audit_ui35-final'); await fs.mkdir(output, { recursive: true });
+const ctx = await createSession({ env, role: 'ADMIN', evidenceDir: output, runId: 'UI35' });
+const proof = { role: ctx.role, account: ctx.username, quotationId: created.id, states: [], writes: [], httpErrors: [] };
+const save = () => fs.writeFile(path.join(output, 'driver-assertions.json'), JSON.stringify({ ...proof, errors: ctx.errors }, null, 2) + '\n');
+async function reads() { const result = {}; for (const query of [`/quotations/${created.id}`, `/quotations/${created.id}/versions`, '/quotations/fees/active?customerId=1']) { const read = await ctx.apiGet(query); assert.equal(read.status, 200); result[query] = read; } return result; }
+async function capture(width, label) {
+ const shot = await ctx.screenshot(`${width}-${label}`);
+ const dom = await ctx.page.evaluate(() => ({ url: location.pathname, width: innerWidth, documentWidth: document.documentElement.scrollWidth, text: document.body.innerText,
+  blocks: [...document.querySelectorAll('.quotation-route-block')].map(e => ({ routeId: Number(e.dataset.routeId), text: e.innerText, rect: e.getBoundingClientRect().toJSON() })),
+  records: [...document.querySelectorAll('.quotation-route-block .ledger-record')].map(e => ({ title: e.getAttribute('aria-label'), text: e.innerText, rect: e.getBoundingClientRect().toJSON(), facts: [...e.querySelectorAll('.ledger-record__fact')].map(f => ({ label: f.querySelector('dt')?.textContent, value: f.querySelector('dd')?.textContent, input: f.querySelector('input')?.value, labelRect:f.querySelector('dt')?.getBoundingClientRect().toJSON(), valueRect:f.querySelector('dd')?.getBoundingClientRect().toJSON() })) })),
+  amounts: [...document.querySelectorAll('.quotation-route-block .money')].map(e => {const r=document.createRange();r.selectNodeContents(e);return { text: e.textContent, rect: e.getBoundingClientRect().toJSON(), lines: [...r.getClientRects()].filter(x=>x.width>0).map(x=>x.toJSON()), boundary: (e.closest('td')||e.closest('dd')||e.parentElement).getBoundingClientRect().toJSON(), inRecord: !!e.closest('.ledger-record') };}),
+  frames: [...document.querySelectorAll('.quotation-frames tbody tr')].map(e=>({text:e.innerText,rect:e.getBoundingClientRect().toJSON(),facts:[...e.querySelectorAll('td')].map(c=>({label:c.dataset.label,text:c.innerText,rect:c.getBoundingClientRect().toJSON()})),dates:[...e.querySelectorAll('.data-token')].map(d=>{const r=document.createRange();r.selectNodeContents(d);return{text:d.textContent,rect:d.getBoundingClientRect().toJSON(),lines:[...r.getClientRects()].filter(x=>x.width>0).map(x=>x.toJSON()),boundary:d.closest('td').getBoundingClientRect().toJSON()};})})),
+  matrices: [...document.querySelectorAll('.quotation-route-block [data-ledger-matrix]')].map(e => ({scrollLeft:e.scrollLeft,scrollWidth:e.scrollWidth,clientWidth:e.clientWidth,rect:e.getBoundingClientRect().toJSON(), labels:[...e.querySelectorAll('tbody th[scope="row"]')].map(h=>({text:h.textContent,rect:h.getBoundingClientRect().toJSON(),position:getComputedStyle(h).position,background:getComputedStyle(h).backgroundColor})),axis:e.querySelector('thead th[data-row-header]')?.getBoundingClientRect().toJSON(),headers:[...e.querySelectorAll('thead th')].map(h=>h.textContent),rows:[...e.querySelectorAll('tbody tr')].map(r=>({title:r.querySelector('th .data-token')?.textContent,subtitle:r.querySelector('th .row-meta')?.textContent,facts:[...r.querySelectorAll('td')].map(c=>({text:c.textContent,value:c.querySelector('input')?.value,alignment:getComputedStyle(c).textAlign}))}))})),
+  inputs: [...document.querySelectorAll('.quotation-route-block input')].map(e=>({label:e.getAttribute('aria-label'),value:e.value,rect:e.getBoundingClientRect().toJSON(),focused:document.activeElement===e,alignment:getComputedStyle(e).textAlign})) }));
+ const domPath=shot.replace(/\.png$/,'-dom.json');await fs.writeFile(domPath,JSON.stringify(dom,null,2)+'\n');proof.states.push({width,label,shot,domPath,dom});await save();
+ assert.ok(dom.documentWidth<=width+1,'No document-wide pricing overflow');
+ for(const frame of dom.frames){assert.deepEqual(frame.facts.map(f=>f.label),['Khách hàng','Mẫu báo giá','Ngày hiệu lực','Ghi chú']);assert.ok(frame.rect.left>=0&&frame.rect.right<=width+1);for(const date of frame.dates){assert.equal(date.lines.length,1);for(const line of date.lines)assert.ok(line.left>=date.boundary.left-1&&line.right<=date.boundary.right+1);}}
+ for(const amount of dom.amounts) for(const line of amount.lines) {assert.ok(line.left>=amount.boundary.left-1&&line.right<=amount.boundary.right+1,`Contained amount ${amount.text}`); if(width===390&&amount.inRecord)assert.ok(line.left>=0&&line.right<=width);}
+ if(width===390&&dom.blocks.length>0) {assert.equal(dom.matrices.length,0);assert.equal(dom.records.length,proof.cells.length);for(const record of dom.records){assert.deepEqual(record.facts.map(f=>f.label),['Hệ số','Tổng lít dầu/chuyến','Giá cos','Phụ phí','Tổng']);assert.ok(record.rect.left>=0&&record.rect.right<=width);assert.ok(record.rect.height<=210,`Compact record height ${record.rect.height}`);for(const fact of record.facts){assert.ok(fact.labelRect.right<=fact.valueRect.left+1||fact.labelRect.bottom<=fact.valueRect.top+1,'Label/value tracks do not overlap');}}}
+ for(const input of dom.inputs){assert.ok(Math.abs(input.rect.width-72)<=1,'Short numeric width72');assert.ok(Math.abs(input.rect.height-30)<=1,'Coefficient30px');assert.equal(input.alignment,'right');}
+ for(const matrix of dom.matrices){assert.deepEqual(matrix.headers,['Loại xe','Hệ số','Tổng lít dầu/chuyến','Giá cos','Phụ phí','Tổng']);assert.equal(matrix.rows.length,10);assert.deepEqual(matrix.rows.map(r=>r.title),QUOTATION_GRID_COLUMNS.map(c=>c.label));matrix.rows.forEach(r=>{assert.equal(r.facts.length,5);r.facts.forEach(f=>assert.equal(f.alignment,'right'));});for(const metric of matrix.labels){assert.equal(metric.position,'sticky');assert.ok(Math.abs(metric.rect.left-matrix.rect.left)<=1,'Class label remains visible while panning');assert.ok(metric.rect.right<=matrix.rect.right+1);assert.notEqual(metric.background,'rgba(0, 0, 0, 0)');}assert.ok(Math.abs(matrix.axis.left-matrix.rect.left)<=1,'Class header axis stays visible');}
+ return dom;
+}
+try {
+ await ctx.page.setCacheEnabled(false);await ctx.page.setRequestInterception(true);ctx.page.on('request',r=>{if(['POST','PUT','PATCH','DELETE'].includes(r.method())){proof.writes.push({method:r.method(),url:r.url()});void r.abort('blockedbyclient');}else void r.continue();});ctx.page.on('response',r=>{if(r.status()>=400)proof.httpErrors.push({url:r.url(),status:r.status()});});
+ const baseline=await reads();const detail=baseline[`/quotations/${created.id}`].body;assert.equal(detail.templateName,created.templateName);proof.cells=detail.cells;assert.equal(detail.cells.length,30);assert.equal(baseline[`/quotations/${created.id}/versions`].body.items[0].version,Number(process.env.QA_PRICING_EXPECTED_VERSION||'1'));
+ for(const width of [390,768,1440]) {
+  console.log(JSON.stringify({width,step:'start'}));await ctx.page.setViewport({width,height:900,hasTouch:width<900});await ctx.goto('/config/quotations');await capture(width,'frame-list-top');const last=await ctx.page.$('.quotation-frames tbody tr:last-child');assert.ok(last);await last.evaluate(e=>e.scrollIntoView({block:'nearest',inline:'nearest'}));await ctx.settle(150);await capture(width,'frame-list-last');
+  const h=await ctx.page.evaluateHandle(name=>[...document.querySelectorAll('.quotation-frames tbody tr')].find(e=>e.textContent.includes(name)),created.templateName);const row=h.asElement();assert.ok(row);await row.click();await ctx.settle(350);await ctx.page.keyboard.press('Space');await ctx.settle(150);await ctx.page.keyboard.press('Enter');await ctx.settle(150);assert.equal(await row.evaluate(e=>document.activeElement===e),true);await ctx.page.waitForSelector('.quotation-route-block');await capture(width,'selected');
+  const blocks=await ctx.page.$$('.quotation-route-block');assert.equal(blocks.length,3);
+  for(let index=0;index<blocks.length;index++) {
+   const block=blocks[index];const routeId=Number(await block.evaluate(e=>e.dataset.routeId));const actualCells=detail.cells.filter(c=>c.routeId===routeId);
+   assert.deepEqual(actualCells.map(c=>c.vehicleSizeClassCode),QUOTATION_GRID_COLUMNS.map(c=>c.vehicleSizeClassCode));
+   if(width===390) {
+    const records=await block.$$('.ledger-record');assert.equal(records.length,10);
+    for(let j=0;j<records.length;j++){await records[j].evaluate(e=>e.scrollIntoView({block:'start',inline:'nearest'}));await ctx.settle(100);const dom=await capture(width,`route-${routeId}-class-${actualCells[j].vehicleSizeClassCode}`);assert.equal(dom.records[index*10+j].title,QUOTATION_GRID_COLUMNS[j].label);}
+   } else {
+    const matrix=await block.$('[data-ledger-matrix]');assert.ok(matrix);await block.evaluate(e=>e.scrollIntoView({block:'start',inline:'nearest'}));
+    for(const position of ['first','middle','last']){await matrix.evaluate((e,position)=>{e.scrollLeft=position==='first'?0:position==='middle'?(e.scrollWidth-e.clientWidth)/2:e.scrollWidth;},position);await ctx.settle(150);const dom=await capture(width,`route-${routeId}-${position}-track`);const viewport=dom.matrices[index];const expected=position==='first'?0:position==='middle'?(viewport.scrollWidth-viewport.clientWidth)/2:viewport.scrollWidth-viewport.clientWidth;assert.ok(Math.abs(viewport.scrollLeft-expected)<=1);}
+    await matrix.evaluate(e=>{e.scrollLeft=0;});
+   }
+   const input=await block.$('input');assert.ok(input);await input.click();await ctx.settle(150);const focused=await capture(width,`route-${routeId}-coefficient-focus`);assert.ok(focused.inputs.some(i=>i.focused));await ctx.page.keyboard.press('Tab');await ctx.settle(200);assert.equal(proof.writes.length,0,'Unchanged coefficient focus/blur has no update');
+  }
+  assert.deepEqual(await reads(),baseline);console.log(JSON.stringify({width,fullClassFacts:true,unchangedCoefficientWrites:0,readParity:true}));
+ }
+ assert.equal(proof.writes.length,0);assert.equal(proof.httpErrors.length,0);assert.equal(ctx.errors.length,0);proof.parity={before:baseline,after:await reads()};proof.complete=true;await save();console.log(JSON.stringify({complete:true,states:proof.states.length,quotationId:created.id,widths:[390,768,1440],writes:0}));
+}finally{await save();await ctx.browser.close();}

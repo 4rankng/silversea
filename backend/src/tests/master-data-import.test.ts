@@ -41,6 +41,8 @@ const truckPlate = `15A-${String(Date.now()).slice(-5)}`;
 const trailerPlate = `15R-${String(Date.now() + 1).slice(-5)}`;
 const unknownDriverTruckPlate = `15B-${String(Date.now() + 2).slice(-5)}`;
 const importedSiteCode = `SITE-${customerCode.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 48)}-1`;
+const carrierTaxCode = `88${String(Date.now()).slice(-8)}`;
+let createdCarrierSupplierId = 0;
 const importedSiteShortName = `NM ngắn import ${suffix}`;
 
 const userIds: number[] = [];
@@ -74,7 +76,7 @@ async function buildWorkbookFixture(): Promise<Buffer> {
 
   const sites = workbook.addWorksheet('NHÀ MÁY');
   setRow(sites, 2, ['STT', 'MÃ NỘI BỘ', 'NHÀ MÁY', 'ĐỊA CHỈ', 'MST NÂNG HẠ', 'LƯU Ý', 'ĐỊNH VỊ KHO']);
-  setRow(sites, 3, [1, customerCode, siteName, 'Địa chỉ thử nghiệm', `Mã số thuế ${taxCode}`, 'Tuân thủ quy định an toàn', 'https://maps.example.test/site']);
+  setRow(sites, 3, [1, customerCode, siteName, 'Địa chỉ thử nghiệm, người liên hệ: Nguyễn Văn A, sđt: 0901234567', `Mã số thuế ${taxCode}`, 'Tuân thủ quy định an toàn', 'https://maps.example.test/site']);
 
   const routes = workbook.addWorksheet('TUYẾN ĐƯỜNG');
   setRow(routes, 2, ['STT', 'TUYẾN ĐƯỜNG', 'HÀNG NHẬP', 'HÀNG XUẤT']);
@@ -235,6 +237,16 @@ describe('master-data workbook analysis', () => {
     assert.equal(batch.summary['port.ACCEPTED'], 29);
     assert.equal(batch.summary['route.ACCEPTED'], 3);
     assert.equal(batch.summary['customer.ACCEPTED'], 2);
+    // 2026-10-03: the "Nhà xe" sheet sat in `knownSheets` with no parser behind
+    // it, so it contributed ZERO rows and ZERO warnings — the carriers were
+    // simply never imported, and the customer report read as "the two sheets
+    // merged into one list". It is a separate population from "Khách hàng" and
+    // must keep producing its own rows.
+    assert.equal(batch.summary['carrier.ACCEPTED'], 17);
+    assert.equal(batch.summary['carrier.BLOCKED'] ?? 0, 0);
+    assert.ok(batch.rows.some((row) => row.sheetName === 'Nhà xe'
+      && row.entityType === 'carrier'
+      && row.classification === 'ACCEPTED'), 'the Nhà xe sheet must parse into its own carrier rows');
     assert.equal(batch.summary['driver.ACCEPTED'], 39);
     assert.equal(batch.summary['truck_spec.ACCEPTED'], 38);
     assert.equal(batch.summary['trailer_spec.ACCEPTED'], 37);
@@ -593,6 +605,16 @@ describe('master-data apply', () => {
       [[siteName, 'FACTORY'], [warehouseName, 'WAREHOUSE']]
         .sort((left, right) => left[0]!.localeCompare(right[0]!)),
     );
+    // The imported contact pair must land in the structured list in lockstep:
+    // readers prefer `contacts` when non-empty, so a pair-only write would
+    // leave imported values invisible until an unrelated PATCH clobbered them.
+    const importedFactory = sites.find((site) => site.name === siteName)!;
+    assert.equal(importedFactory.contactName, 'Nguyễn Văn A');
+    assert.equal(importedFactory.contactPhone, '0901234567');
+    assert.deepEqual(importedFactory.contacts, [{ name: 'Nguyễn Văn A', phone: '0901234567', isDefault: true }]);
+    const importedWarehouse = sites.find((site) => site.name === warehouseName)!;
+    assert.equal(importedWarehouse.contactPhone, null);
+    assert.deepEqual(importedWarehouse.contacts, []);
     assert.equal(ports.length, 1);
     assert.equal(trucks.length, 1);
     assert.equal(drivers.length, 1);
@@ -765,6 +787,55 @@ describe('master-data apply', () => {
       .limit(1);
     assert.equal(site!.siteType, 'FACTORY');
   });
+
+  test('applies the "Nhà xe" sheet as a CARRIER-typed supplier with its linked carrier record', async () => {
+    // The sheet is a separate population from "Khách hàng": it must land as a
+    // nhà xe, never as a plain khách hàng row. Applying it creates a CARRIER
+    // supplier plus the linked `customers.isCarrier` record every "Chọn nhà
+    // xe" dropdown reads — the same shape a supplier created through the admin
+    // form produces.
+    const carrierName = `Nhà xe import ${suffix}`;
+    const workbook = new ExcelJS.Workbook();
+    await (workbook.xlsx.load as (data: unknown) => Promise<unknown>)(applyFixtureBuffer);
+    const carriers = workbook.addWorksheet('Nhà xe');
+    setRow(carriers, 2, ['Tên Khách hàng', 'Tên viết tắt', 'Mã KH', 'Mã Số Thuế', 'Địa Chỉ', 'Giám đốc', 'SĐT Giám đốc']);
+    setRow(carriers, 3, [carrierName, `NX${suffix.slice(-6)}`, '', carrierTaxCode, `Địa chỉ nhà xe ${suffix}`, 'Nguyễn Vận Tải', '0912000111']);
+    const source = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const analyzed = await requestJson('POST', '/api/config/master-data-imports/analyze', {
+      file: source,
+      filename: 'carriers.xlsx',
+    });
+    assert.equal(analyzed.status, 201);
+    const batch = analyzed.body.batch as { id: number; version: number; summary: Record<string, number> };
+    await trackBatch(batch.id);
+    assert.equal(batch.summary['carrier.ACCEPTED'], 1, 'the carrier sheet must parse into its own row group');
+
+    const applied = await requestJson('POST', `/api/config/master-data-imports/${batch.id}/apply`, {
+      body: { expectedVersion: batch.version },
+      idempotencyKey: `master-carrier-apply-${suffix}`,
+    });
+    assert.equal(applied.status, 200);
+    assert.equal((applied.body.appliedCounts as Record<string, number>).carrier, 1);
+
+    const [supplier] = await db.select({
+      id: s.suppliers.id, types: s.suppliers.types, linkedCustomerId: s.suppliers.linkedCustomerId,
+    }).from(s.suppliers).where(eq(s.suppliers.name, carrierName)).limit(1);
+    assert.ok(supplier, 'the Nhà xe row must land as a supplier');
+    assert.ok(supplier!.types?.includes('CARRIER'), `carrier supplier must be CARRIER-typed, got ${JSON.stringify(supplier!.types)}`);
+
+    const [carrierCustomer] = await db.select({
+      isCarrier: s.customers.isCarrier, status: s.customers.status, address: s.customers.address,
+      linkedSupplierId: s.customers.linkedSupplierId,
+    }).from(s.customers).where(eq(s.customers.id, supplier!.linkedCustomerId!)).limit(1);
+    assert.ok(carrierCustomer, 'the supplier must resolve to a linked carrier record');
+    assert.equal(carrierCustomer!.isCarrier, true, 'the linked record is what makes it selectable as a nhà xe');
+    assert.equal(carrierCustomer!.status, 'ACTIVE');
+    assert.equal(carrierCustomer!.linkedSupplierId, supplier!.id);
+    assert.match(carrierCustomer!.address ?? '', new RegExp(`Địa chỉ nhà xe ${suffix}`), 'the sheet address belongs to the carrier record');
+
+    createdCarrierSupplierId = supplier!.id;
+  });
 });
 
 after(async () => {
@@ -808,6 +879,13 @@ after(async () => {
   }
   await Promise.all(batchStorageKeys.map((key) => storageService.delete(key).catch(() => undefined)));
   if (customerId) await db.delete(s.customers).where(eq(s.customers.id, customerId));
+  if (createdCarrierSupplierId) {
+    // The minted carrier record carries the supplier's tax code, so drop the
+    // back-link before the supplier and the record before anything else.
+    await db.update(s.customers).set({ linkedSupplierId: null }).where(eq(s.customers.linkedSupplierId, createdCarrierSupplierId));
+    await db.delete(s.suppliers).where(eq(s.suppliers.id, createdCarrierSupplierId));
+    await db.delete(s.customers).where(eq(s.customers.taxCode, carrierTaxCode));
+  }
   if (userIds.length > 0) {
     await db.transaction(async (tx) => {
       await tx.select({ id: s.users.id }).from(s.users)

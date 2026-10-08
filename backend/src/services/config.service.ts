@@ -80,8 +80,12 @@ export async function getBootstrapData() {
       }));
 
     return {
+      // The two arrays are DIFFERENT populations, not one list split later:
+      // `customers` is the billing-party catalog (no nhà xe) and
+      // `externalCarriers` is the carrier catalog. Carriers used to sit in
+      // both, so every "Khách hàng" dropdown also offered nhà xe (2026-10-03).
       customers: customersList
-        .filter(c => c.status === 'ACTIVE')
+        .filter(c => c.status === 'ACTIVE' && !c.isCarrier)
         .map((customer) => ({ ...customer, fullName: customer.name, name: customer.shortName || customer.name })),
       externalCarriers: customersList
         .filter((customer) => customer.status === 'ACTIVE' && customer.isCarrier)
@@ -221,9 +225,22 @@ export async function upsertFuelConfig(data: {
   return { result, status };
 }
 
-export async function getFuelPriceHistory(): Promise<typeof s.fuelPriceHistory.$inferSelect[]> {
+export async function getFuelPriceHistory(): Promise<Array<typeof s.fuelPriceHistory.$inferSelect & { changedByName: string | null }>> {
   return cacheGet('config:fuel-price-history', 300, async () => {
-    return db.select().from(s.fuelPriceHistory).orderBy(desc(s.fuelPriceHistory.effectiveDate));
+    // Card 20261002_290: resolve the changer's display name backend-side — the
+    // internal id is never a user-facing label (§2), and the column the history
+    // table shows comes from this one read.
+    return db.select({
+      id: s.fuelPriceHistory.id,
+      unitPrice: s.fuelPriceHistory.unitPrice,
+      effectiveDate: s.fuelPriceHistory.effectiveDate,
+      changedBy: s.fuelPriceHistory.changedBy,
+      changedByName: s.users.fullName,
+      note: s.fuelPriceHistory.note,
+      createdAt: s.fuelPriceHistory.createdAt,
+    }).from(s.fuelPriceHistory)
+      .leftJoin(s.users, eq(s.users.id, s.fuelPriceHistory.changedBy))
+      .orderBy(desc(s.fuelPriceHistory.effectiveDate));
   });
 }
 

@@ -32,13 +32,13 @@ export function LedgerRow({ row }: { row: LedgerEntry }) {
       </td>
       <td><span className={meta.pill}>{meta.label}</span></td>
       <td className={`dd-num ${credit > 0 ? 'dd-num--debit' : 'dd-num--dash'}`}>
-        {credit > 0 ? formatCurrency(credit).replace(' ₫', '') + 'đ' : '–'}
+        {credit > 0 ? formatCurrency(credit) : '–'}
       </td>
       <td className={`dd-num ${debit > 0 ? 'dd-num--credit' : 'dd-num--dash'}`}>
-        {debit > 0 ? formatCurrency(debit).replace(' ₫', '') + 'đ' : '–'}
+        {debit > 0 ? formatCurrency(debit) : '–'}
       </td>
       <td className={`dd-num ${balance > 0 ? 'dd-num--bal' : balance < 0 ? 'dd-num--credit' : ''}`}>
-        {balance < 0 ? '-' : ''}{formatCurrency(Math.abs(balance)).replace(' ₫', '')}đ
+        {formatCurrency(balance)}
       </td>
       <td className="dd-td-note">{row.note || ''}</td>
     </tr>
@@ -120,16 +120,16 @@ export function PayableLedgerCard({ row }: { row: LedgerEntry }) {
       <dl className="dd-ledger-mobile-card__amounts">
         <div>
           <dt>Phải trả</dt>
-          <dd>{credit > 0 ? formatCurrency(credit).replace(' ₫', '') + 'đ' : '–'}</dd>
+          <dd>{credit > 0 ? formatCurrency(credit) : '–'}</dd>
         </div>
         <div>
           <dt>Đã trả</dt>
-          <dd className={debit > 0 ? 'text-success' : ''}>{debit > 0 ? formatCurrency(debit).replace(' ₫', '') + 'đ' : '–'}</dd>
+          <dd className={debit > 0 ? 'text-success' : ''}>{debit > 0 ? formatCurrency(debit) : '–'}</dd>
         </div>
         <div className="dd-ledger-mobile-card__balance">
           <dt>Số dư</dt>
           <dd className={balance > 0 ? 'text-error' : balance < 0 ? 'text-success' : ''}>
-            {balance < 0 ? '-' : ''}{formatCurrency(Math.abs(balance)).replace(' ₫', '')}đ
+            {formatCurrency(balance)}
           </dd>
         </div>
       </dl>

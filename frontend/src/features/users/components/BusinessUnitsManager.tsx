@@ -36,12 +36,37 @@ export function BusinessUnitsManager({
   }
 
   function isVersionConflict(err: unknown): boolean {
-    const e = err as { status?: number; code?: string };
-    return (e.status === 428 || e.status === 409) && e.code !== 'DUPLICATE_CODE';
+    const status = err && typeof err === 'object' && 'status' in err && typeof err.status === 'number' ? err.status : null;
+    return (status === 428 || status === 409) && errorCode(err) !== 'DUPLICATE_CODE';
   }
 
   function isDuplicateCode(err: unknown): boolean {
-    return (err as { code?: string }).code === 'DUPLICATE_CODE';
+    // The duplicate marker rides the parsed body (err.raw.code) — the same
+    // shape lib/api/client.ts checks for VERSION_TOKEN_REQUIRED. err.code is
+    // never set on ApiError, so the old top-level read never fired and every
+    // duplicate 409 fell into the version-conflict branch with the wrong copy.
+    return errorCode(err) === 'DUPLICATE_CODE';
+  }
+
+  /** Wire-level error code: top-level `code` (plain-object errors) or the
+   *  parsed body's `code` (ApiError.raw — where the backend puts it). */
+  function errorCode(err: unknown): string | null {
+    if (!err || typeof err !== 'object') return null;
+    if ('code' in err && typeof err.code === 'string') return err.code;
+    if ('raw' in err) {
+      const raw = err.raw;
+      if (raw && typeof raw === 'object' && 'code' in raw && typeof raw.code === 'string') return raw.code;
+    }
+    return null;
+  }
+
+  /** The backend's precise reason for a 4xx business refusal (the parsed
+   *  `error` field, already translated) — '' for network/5xx so the surface's
+   *  own copy stays the fallback. Card 20261005_367. */
+  function refusalDetail(err: unknown): string {
+    const status = err && typeof err === 'object' && 'status' in err && typeof err.status === 'number' ? err.status : null;
+    const message = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? err.message.trim() : '';
+    return status != null && status >= 400 && status < 500 ? message : '';
   }
 
   async function handleSaveBusinessUnit() {
@@ -70,11 +95,11 @@ export function BusinessUnitsManager({
       await onRefresh();
     } catch (err) {
       if (editingUnitId != null && isDuplicateCode(err)) {
-        setUnitError('Mã hoặc tên đơn vị phụ trách đã tồn tại. Vui lòng chọn mã/tên khác.');
+        setUnitError(refusalDetail(err) || 'Mã hoặc tên đơn vị phụ trách đã tồn tại. Vui lòng chọn mã/tên khác.');
       } else if (editingUnitId != null && isVersionConflict(err)) {
         // Conflict: reload the authoritative rows for a fresh token but keep
         // the admin's draft for review — never a blind retry loop.
-        setUnitError('Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Kiểm tra thông tin rồi lưu lại.');
+        setUnitError(refusalDetail(err) || 'Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Kiểm tra thông tin rồi lưu lại.');
         await onRefresh();
       } else {
         setUnitError(err instanceof Error ? err.message : 'Không thể lưu đơn vị phụ trách');
@@ -97,9 +122,10 @@ export function BusinessUnitsManager({
       await onRefresh();
     } catch (err) {
       if (isDuplicateCode(err)) {
-        setUnitError('Mã hoặc tên đơn vị phụ trách đã tồn tại.');
+        // 4xx business refusal — the backend's message is the precise reason.
+        setUnitError(refusalDetail(err) || 'Mã hoặc tên đơn vị phụ trách đã tồn tại.');
       } else if (isVersionConflict(err)) {
-        setUnitError('Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Thử lại sau khi kiểm tra.');
+        setUnitError(refusalDetail(err) || 'Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Thử lại sau khi kiểm tra.');
         await onRefresh();
       } else {
         setUnitError(err instanceof Error ? err.message : 'Không thể ngưng sử dụng đơn vị phụ trách');
@@ -118,7 +144,7 @@ export function BusinessUnitsManager({
       await onRefresh();
     } catch (err) {
       if (isVersionConflict(err)) {
-        setUnitError('Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Thử lại sau khi kiểm tra.');
+        setUnitError(refusalDetail(err) || 'Đơn vị đã được cập nhật ở nơi khác — đã tải lại bản mới nhất. Thử lại sau khi kiểm tra.');
         await onRefresh();
       } else {
         setUnitError(err instanceof Error ? err.message : 'Không thể kích hoạt lại đơn vị phụ trách');
