@@ -68,6 +68,7 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ForwarderTripsPage = lazy(() => import('./pages/ForwarderTripsPage'));
 const ForwarderTripDetailPage = lazy(() => import('./pages/ForwarderTripDetailPage'));
 const ForwarderAdvancesPage = lazy(() => import('./pages/ForwarderAdvancesPage'));
+const OpsOverviewPage = lazy(() => import('./pages/OpsOverviewPage'));
 const OpsOrdersPage = lazy(() => import('./pages/OpsOrdersPage'));
 const OpsFleetTrackingPage = lazy(() => import('./pages/OpsFleetTrackingPage'));
 const OpsWalletPage = lazy(() => import('./pages/OpsWalletPage'));
@@ -456,6 +457,7 @@ export function AppRoutes() {
           <Route path="/my-payslips" element={driverOnly(page(<DriverPayslipsPage />))} />
           <Route path="/notifications" element={driverOnly(page(<NotificationsPage />))} />
           <Route path="/my-orders" element={opsOnly(page(<ForwarderTripsPage />))} />
+          <Route path="/ops" element={opsOnly(page(<OpsOverviewPage />))} />
           <Route path="/ops/orders" element={opsOnly(page(<OpsOrdersPage />))} />
           <Route path="/ops/fleet-tracking" element={opsOnly(page(<OpsFleetTrackingPage />))} />
           <Route path="/ops/wallet" element={opsOnly(page(<OpsWalletPage />))} />

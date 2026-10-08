@@ -101,6 +101,7 @@ describe('getNavItems', () => {
       ['Kỷ luật', '/my-penalties'],
     ]],
     [Role.OPS, [
+      ['Tổng quan Ops', '/ops'],
       ['Kế hoạch làm hàng', '/ops/orders'],
       ['Theo dõi phương tiện', '/ops/fleet-tracking'],
       ['Quỹ tạm ứng', '/ops/wallet'],

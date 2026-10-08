@@ -127,6 +127,7 @@ export const routes = {
 
   /* ── Ops field operations (OpsVanHanh) ───────────────────────────────── */
 
+  opsOverview: PAGE_CATALOG.opsOverview.path,
   opsOrders: PAGE_CATALOG.opsOrders.path,
   opsFleetTracking: PAGE_CATALOG.opsFleetTracking.path,
   opsWallet: PAGE_CATALOG.opsWallet.path,
@@ -279,6 +280,9 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.myTrips), title: PAGE_CATALOG.myTrips.title },
   { test: p => p.startsWith(routes.myPayslips), title: PAGE_CATALOG.myPayslips.title },
   { test: p => p.startsWith(routes.myEarnings), title: PAGE_CATALOG.myEarnings.title },
+  // '/ops' is an exact route of its own — the three /ops/* destinations below
+  // are exact matches too, so none of them inherits the overview title.
+  { test: p => p === routes.opsOverview, title: PAGE_CATALOG.opsOverview.title },
   { test: p => p === routes.opsWallet, title: PAGE_CATALOG.opsWallet.title },
   { test: p => p === routes.opsOrders, title: PAGE_CATALOG.opsOrders.title },
   { test: p => p === routes.opsFleetTracking, title: PAGE_CATALOG.opsFleetTracking.title },

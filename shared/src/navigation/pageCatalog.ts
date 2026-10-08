@@ -475,6 +475,12 @@ export const PAGE_CATALOG = {
 
   /* ── Ops field operations (docs/prd/OpsVanHanh.docx) ─────────────────── */
 
+  // Ops overview dashboard (route /ops trần) — tổng hợp chỉ số công việc +
+  // quick links vào 3 màn Ops hiện có; opsHome của role vẫn là /my-orders.
+  opsOverview: {
+    title: 'Tổng quan Ops',
+    path: '/ops',
+  },
   opsOrders: {
     title: 'Kế hoạch làm hàng',
     path: '/ops/orders',

@@ -330,6 +330,10 @@ export function getNavItems(
        ───────────────────────────────────────────────────────────────────────── */
     case 'OPS': {
       return [
+        // Tổng quan Ops (route /ops) — ungrouped home entry, first, the same
+        // way /dashboard and /accounting lead their roles. opsHome stays
+        // /my-orders; this is the overview dashboard, not the role home.
+        { key: 'ops-overview', label: 'Tổng quan Ops', path: routes.opsOverview, icon: LayoutDashboard, section: undefined },
         // Vận hành hiện trường (OpsVanHanh) — kế hoạch làm hàng là màn chính.
         { key: 'ops-orders', label: 'Kế hoạch làm hàng', path: routes.opsOrders, icon: ClipboardList, section: 'my-work' as SectionName },
         { key: 'ops-fleet-tracking', label: 'Theo dõi phương tiện', path: routes.opsFleetTracking, icon: Activity, section: 'my-work' as SectionName },

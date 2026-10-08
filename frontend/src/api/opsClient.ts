@@ -186,6 +186,34 @@ export interface OpsExpenseTypeOption {
   category?: string | null;
 }
 
+export interface OpsAdvanceRequestRow {
+  id: number;
+  version: number;
+  requesterId: number;
+  amount: string;
+  /** Posted funding, net of reversals. Absent means UNKNOWN, never "unfunded". */
+  fundedAmount?: number;
+  reason: string;
+  status: string;
+  createdAt: string;
+  approverName?: string | null;
+  approvedAt?: string | null;
+}
+
+export interface OpsAdvanceRequestEnvelope {
+  items: OpsAdvanceRequestRow[];
+  total: number;
+  page: number;
+  limit: number;
+  /**
+   * Full-set counts per status (requester-scoped, status filter excluded) —
+   * KPIs must never derive from the current page (ForwarderAdvancesPage rule).
+   * Optional only so hand-written fixtures stay valid; the server always sends
+   * it.
+   */
+  statusCounts?: Record<string, number>;
+}
+
 function qs(params: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -216,7 +244,7 @@ export const opsClient = {
   createAdvanceRequest: (body: { amount: number; reason: string }) =>
     api.post<unknown>('/ops/wallet/advance-requests', body),
   getWalletAdvanceRequests: (params?: { status?: string; page?: number; limit?: number }) =>
-    api.get<{ items: Array<{ id: number; version: number; requesterId: number; amount: string; fundedAmount?: number; reason: string; status: string; createdAt: string; approverName?: string | null; approvedAt?: string | null }>; total: number; page: number; limit: number }>(
+    api.get<OpsAdvanceRequestEnvelope>(
       `/ops/wallet/advance-requests${qs({ status: params?.status, page: params?.page, limit: params?.limit })}`,
     ),
 
