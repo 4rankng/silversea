@@ -7,6 +7,27 @@ import { Btn } from '../../components/UI';
 import { EmptyState, FilterBar, UuiSelectField } from '../../design-system';
 import { SkeletonTable } from '../../components/shared/Skeleton';
 import { useToast } from '../../components/shared/Toast';
+import { NumUnit, PctUnit } from './NumericUnit';
+
+// Card 071026141600: every header carries its full label as `title`, so even
+// when the last column sits outside the viewport (the table scrolls
+// horizontally) the tooltip shows the full text — "…% NĂNG SUẤT C.." can
+// never be ambiguous again.
+const MONTHLY_HEADERS = [
+  'STT',
+  'Biển số xe',
+  'Lái xe chính',
+  'Tổng số chuyến',
+  "Kẹp ghép (2×20')",
+  '% Kẹp',
+  'Kết hợp (2 chiều)',
+  '% Kết hợp',
+  'Lấy lẻ chuyển kho',
+  '% Lấy lẻ',
+  'Chuyến đơn',
+  '% Đơn',
+  '% Năng suất cao',
+] as const;
 
 export function MonthlyProductivityView() {
   const currentYear = useMemo(() => new Date().getFullYear(), []);
@@ -142,52 +163,52 @@ export function MonthlyProductivityView() {
             <div className="fleet-kpi-card">
               <div className="fleet-kpi-card__label">Tổng chuyến trong tháng</div>
               <div className="fleet-kpi-card__value">
-                {monthlyData.fleetBreakdown.totalTrips}
+                <NumUnit value={monthlyData.fleetBreakdown.totalTrips} />
               </div>
               <div className="fleet-kpi-card__sub">
-                Hoạt động: {monthlyData.activeInternalTrucks} / {monthlyData.totalInternalTrucks} xe
+                Hoạt động: <NumUnit value={monthlyData.activeInternalTrucks} /> / <NumUnit value={monthlyData.totalInternalTrucks} /> xe
               </div>
             </div>
 
             <div className="fleet-kpi-card fleet-kpi-card--highlight">
               <div className="fleet-kpi-card__label">% Năng suất cao TB</div>
               <div className="fleet-kpi-card__value">
-                {monthlyData.fleetBreakdown.highEfficiencyPct}%
+                <PctUnit value={monthlyData.fleetBreakdown.highEfficiencyPct} />
               </div>
               <div className="fleet-kpi-card__sub">Kẹp + Kết hợp + Lấy lẻ</div>
             </div>
 
             <div className="fleet-kpi-card">
               <div className="fleet-kpi-card__label">% Kẹp ghép TB</div>
-              <div className="fleet-kpi-card__value">{monthlyData.fleetBreakdown.pctKep}%</div>
+              <div className="fleet-kpi-card__value"><PctUnit value={monthlyData.fleetBreakdown.pctKep} /></div>
               <div className="fleet-kpi-card__sub">
-                {monthlyData.fleetBreakdown.kepTrips} chuyến
+                <NumUnit value={monthlyData.fleetBreakdown.kepTrips} /> chuyến
               </div>
             </div>
 
             <div className="fleet-kpi-card">
               <div className="fleet-kpi-card__label">% Kết hợp TB</div>
               <div className="fleet-kpi-card__value">
-                {monthlyData.fleetBreakdown.pctKetHop}%
+                <PctUnit value={monthlyData.fleetBreakdown.pctKetHop} />
               </div>
               <div className="fleet-kpi-card__sub">
-                {monthlyData.fleetBreakdown.ketHopTrips} chuyến
+                <NumUnit value={monthlyData.fleetBreakdown.ketHopTrips} /> chuyến
               </div>
             </div>
 
             <div className="fleet-kpi-card">
               <div className="fleet-kpi-card__label">% Lấy lẻ chuyển kho TB</div>
-              <div className="fleet-kpi-card__value">{monthlyData.fleetBreakdown.pctLayLe}%</div>
+              <div className="fleet-kpi-card__value"><PctUnit value={monthlyData.fleetBreakdown.pctLayLe} /></div>
               <div className="fleet-kpi-card__sub">
-                {monthlyData.fleetBreakdown.layLeTrips} chuyến
+                <NumUnit value={monthlyData.fleetBreakdown.layLeTrips} /> chuyến
               </div>
             </div>
 
             <div className="fleet-kpi-card">
               <div className="fleet-kpi-card__label">% Chuyến đơn TB</div>
-              <div className="fleet-kpi-card__value">{monthlyData.fleetBreakdown.pctDon}%</div>
+              <div className="fleet-kpi-card__value"><PctUnit value={monthlyData.fleetBreakdown.pctDon} /></div>
               <div className="fleet-kpi-card__sub">
-                {monthlyData.fleetBreakdown.donTrips} chuyến
+                <NumUnit value={monthlyData.fleetBreakdown.donTrips} /> chuyến
               </div>
             </div>
           </div>
@@ -203,50 +224,40 @@ export function MonthlyProductivityView() {
               <table className="fleet-productivity-table">
                 <thead>
                   <tr>
-                    <th>STT</th>
-                    <th>Biển số xe</th>
-                    <th>Lái xe chính</th>
-                    <th>Tổng số chuyến</th>
-                    <th>Kẹp ghép (2×20')</th>
-                    <th>% Kẹp</th>
-                    <th>Kết hợp (2 chiều)</th>
-                    <th>% Kết hợp</th>
-                    <th>Lấy lẻ chuyển kho</th>
-                    <th>% Lấy lẻ</th>
-                    <th>Chuyến đơn</th>
-                    <th>% Đơn</th>
-                    <th>% Năng suất cao</th>
+                    {MONTHLY_HEADERS.map((label) => (
+                      <th key={label} title={label}>{label}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {monthlyData.trucks.map((row, idx) => (
                     <tr key={row.truckId}>
-                      <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
+                      <td style={{ color: 'var(--text-muted)' }}><NumUnit value={idx + 1} /></td>
                       <td style={{ fontWeight: 600 }}>{row.licensePlate}</td>
                       <td>{row.driverName ?? <span style={{ color: 'var(--text-muted)' }}>Chưa gán</span>}</td>
-                      <td style={{ fontWeight: 600 }}>{row.breakdown.totalTrips}</td>
-                      <td>{row.breakdown.kepTrips}</td>
+                      <td style={{ fontWeight: 600 }}><NumUnit value={row.breakdown.totalTrips} /></td>
+                      <td><NumUnit value={row.breakdown.kepTrips} /></td>
                       <td>
                         <span className="fleet-badge fleet-badge--kep">
-                          {row.breakdown.pctKep}%
+                          <PctUnit value={row.breakdown.pctKep} />
                         </span>
                       </td>
-                      <td>{row.breakdown.ketHopTrips}</td>
+                      <td><NumUnit value={row.breakdown.ketHopTrips} /></td>
                       <td>
                         <span className="fleet-badge fleet-badge--kethop">
-                          {row.breakdown.pctKetHop}%
+                          <PctUnit value={row.breakdown.pctKetHop} />
                         </span>
                       </td>
-                      <td>{row.breakdown.layLeTrips}</td>
+                      <td><NumUnit value={row.breakdown.layLeTrips} /></td>
                       <td>
                         <span className="fleet-badge fleet-badge--layle">
-                          {row.breakdown.pctLayLe}%
+                          <PctUnit value={row.breakdown.pctLayLe} />
                         </span>
                       </td>
-                      <td>{row.breakdown.donTrips}</td>
+                      <td><NumUnit value={row.breakdown.donTrips} /></td>
                       <td>
                         <span className="fleet-badge fleet-badge--don">
-                          {row.breakdown.pctDon}%
+                          <PctUnit value={row.breakdown.pctDon} />
                         </span>
                       </td>
                       <td
@@ -256,7 +267,7 @@ export function MonthlyProductivityView() {
                           color: row.breakdown.highEfficiencyPct > 0 ? 'var(--color-primary)' : 'var(--text-muted)',
                         }}
                       >
-                        {row.breakdown.highEfficiencyPct}%
+                        <PctUnit value={row.breakdown.highEfficiencyPct} />
                       </td>
                     </tr>
                   ))}
@@ -264,16 +275,16 @@ export function MonthlyProductivityView() {
                 <tfoot>
                   <tr>
                     <td colSpan={3}>TỔNG CỘNG TOÀN ĐỘI</td>
-                    <td>{monthlyData.fleetBreakdown.totalTrips}</td>
-                    <td>{monthlyData.fleetBreakdown.kepTrips}</td>
-                    <td className="fleet-pct">{monthlyData.fleetBreakdown.pctKep}%</td>
-                    <td>{monthlyData.fleetBreakdown.ketHopTrips}</td>
-                    <td className="fleet-pct">{monthlyData.fleetBreakdown.pctKetHop}%</td>
-                    <td>{monthlyData.fleetBreakdown.layLeTrips}</td>
-                    <td className="fleet-pct">{monthlyData.fleetBreakdown.pctLayLe}%</td>
-                    <td>{monthlyData.fleetBreakdown.donTrips}</td>
-                    <td className="fleet-pct">{monthlyData.fleetBreakdown.pctDon}%</td>
-                    <td className="fleet-pct">{monthlyData.fleetBreakdown.highEfficiencyPct}%</td>
+                    <td><NumUnit value={monthlyData.fleetBreakdown.totalTrips} /></td>
+                    <td><NumUnit value={monthlyData.fleetBreakdown.kepTrips} /></td>
+                    <td className="fleet-pct"><PctUnit value={monthlyData.fleetBreakdown.pctKep} /></td>
+                    <td><NumUnit value={monthlyData.fleetBreakdown.ketHopTrips} /></td>
+                    <td className="fleet-pct"><PctUnit value={monthlyData.fleetBreakdown.pctKetHop} /></td>
+                    <td><NumUnit value={monthlyData.fleetBreakdown.layLeTrips} /></td>
+                    <td className="fleet-pct"><PctUnit value={monthlyData.fleetBreakdown.pctLayLe} /></td>
+                    <td><NumUnit value={monthlyData.fleetBreakdown.donTrips} /></td>
+                    <td className="fleet-pct"><PctUnit value={monthlyData.fleetBreakdown.pctDon} /></td>
+                    <td className="fleet-pct"><PctUnit value={monthlyData.fleetBreakdown.highEfficiencyPct} /></td>
                   </tr>
                 </tfoot>
               </table>
