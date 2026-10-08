@@ -62,4 +62,46 @@ describe('SplitDateTimeField combinedPicker (card 071026204700)', () => {
     expect(dialogs[0]!.textContent).toContain('Chọn ngày');
     expect(screen.queryByText('Chọn ngày giờ')).toBeNull();
   });
+
+  // Card 081026230510 (FB-001 round 8): the appointment cell is a tap surface
+  // (card 051026230627) but only the ~3px frame strip + separators inside the
+  // segment groups opened the picker — clicks on the field's dead space (the
+  // fit-content grid's leftover inside the 240px cell) did nothing, so a
+  // normal click on the field no longer opened anything. The whole field body
+  // must open the combined picker; segment clicks stay caret clicks.
+  it('a click on the field body outside the segment groups opens the combined picker', () => {
+    renderField(true);
+    const root = document.querySelector('[data-split-datetime]');
+    expect(root).toBeTruthy();
+    fireEvent.click(root!);
+    const dialogs = document.querySelectorAll('[role="dialog"]');
+    expect(dialogs.length).toBe(1);
+    expect(dialogs[0]!.textContent).toContain('Chọn ngày giờ');
+    expect(dialogs[0]!.querySelector('.combined-datetime__date')).toBeTruthy();
+    expect(dialogs[0]!.querySelector('.combined-datetime__time')).toBeTruthy();
+  });
+
+  it('a double click on the field body outside the segment groups also opens the picker', () => {
+    renderField(true);
+    const root = document.querySelector('[data-split-datetime]');
+    fireEvent.click(root!);
+    fireEvent.click(root!);
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter((d) => d.textContent?.includes('Chọn ngày giờ'));
+    expect(dialogs.length).toBe(1);
+  });
+
+  it('a click on a segment input stays a caret click and opens no picker', () => {
+    renderField(true);
+    const hh = document.querySelector('input[data-seg="hh"]') as HTMLInputElement;
+    expect(hh).toBeTruthy();
+    fireEvent.click(hh);
+    expect(document.querySelectorAll('[role="dialog"]').length).toBe(0);
+  });
+
+  it('without the flag the dead-space click stays inert (hosts keep their contract)', () => {
+    renderField(false);
+    const root = document.querySelector('[data-split-datetime]');
+    fireEvent.click(root!);
+    expect(document.querySelectorAll('[role="dialog"]').length).toBe(0);
+  });
 });

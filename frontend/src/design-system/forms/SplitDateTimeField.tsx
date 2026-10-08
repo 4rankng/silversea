@@ -187,6 +187,21 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
   const dateValue = parseDateTime24(`00:00 ${draft.date}`)?.slice(0, 10) ?? '';
 
   return <div ref={(node) => { groupRef.current = node; if (typeof externalGroupRef === 'function') externalGroupRef(node); else if (externalGroupRef) externalGroupRef.current = node; }} data-split-datetime className={['split-datetime', className].filter(Boolean).join(' ')} role="group" aria-label={label}
+    // Card 081026230510 (FB-001 round 8): the appointment cluster is a tap
+    // surface (card 051026230627), but the fields grid is fit-content inside
+    // its 240px cell — clicks landing on the leftover dead space (and only a
+    // ~3px strip was left inside the groups) opened nothing. In the combined
+    // mode a click on the field body OUTSIDE the segment groups opens the
+    // picker; the groups' own handler keeps owning frame clicks inside them,
+    // and a segment click stays a caret click (card 061026172803 law). Hosts
+    // without combinedPicker keep their contract byte for byte.
+    onClick={(event) => {
+      if (!combinedPicker || disabled || readOnly) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target == null || target.tagName === 'INPUT') return;
+      if (target.closest('[data-seg-part]')) return;
+      openPanel('date');
+    }}
     onFocusCapture={(event) => {
       if (!active && !restoringFocus.current && event.currentTarget.contains(event.target as Node) && !event.currentTarget.contains(event.relatedTarget as Node | null)) valueAtFocus.current = value;
     }}
