@@ -18,8 +18,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let exitCode = 0;
 
 const health = await fetch(`${API}/health`).then((r) => r.json());
-log('health', { buildHash: health.buildHash, expect: '22837bc3' });
-if (!String(health.buildHash || '').startsWith('22837bc3')) { log('build-currency-FAIL'); process.exit(2); }
+log('health', { buildHash: health.buildHash, expect: 'bad3fede' });
+if (!String(health.buildHash || '').startsWith('bad3fede')) { log('build-currency-FAIL'); process.exit(2); }
 
 const login = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: 'bqhuong', password: 'Abc123' }) });
 const token = (await login.json()).token;
@@ -86,14 +86,27 @@ try {
   const glyph = await page.evaluate(() => {
     const b = [...document.querySelectorAll('.trip-pod__state-ok')].find((e) => e.offsetParent !== null && /tệp/.test(e.textContent || ''));
     if (!b) return { err: 'no badge' };
-    const digitNode = [...b.childNodes].find((n) => n.nodeType === 3 && /\d/.test(n.data || ''));
-    const unitNode = [...b.childNodes].filter((n) => n.nodeType === 3 && /tệp/.test(n.data || '')).pop();
-    if (!digitNode || !unitNode) return { err: 'no text nodes' };
-    const rDigit = document.createRange(); rDigit.selectNodeContents(digitNode);
-    const rUnit = document.createRange(); rUnit.setStart(unitNode, 1); rUnit.setEnd(unitNode, unitNode.length); // skip leading space
+    // post-fix shape: label is ONE span with a single text node; pre-fix it was
+    // loose text children of the flex badge
+    const host = b.querySelector('span') ?? b;
+    const textNodes = [...host.childNodes].filter((n) => n.nodeType === 3);
+    if (textNodes.length === 0) return { err: 'no text nodes', hostTag: host.tagName, structure: [...host.childNodes].map((n) => n.nodeType === 3 ? 'text' : n.tagName) };
+    const single = textNodes.length === 1 ? { nodes: textNodes.length, data: (textNodes[0].data || '').slice(0, 20) } : null;
+    const digitNode = textNodes.find((n) => /\d/.test(n.data || ''));
+    const unitNode = textNodes.filter((n) => /tệp/.test(n.data || '')).pop();
+    if (!digitNode || !unitNode) return { err: 'no count/unit nodes', single, structure: textNodes.map((n) => (n.data || '').slice(0, 16)) };
+    const rDigit = document.createRange(); const rUnit = document.createRange();
+    if (digitNode === unitNode) {
+      // single text node "1 tệp": '1' at offset 0-1, space at 1, 't' at 2-3
+      rDigit.setStart(digitNode, 0); rDigit.setEnd(digitNode, 1);
+      rUnit.setStart(unitNode, 2); rUnit.setEnd(unitNode, 3);
+    } else {
+      rDigit.selectNodeContents(digitNode);
+      rUnit.setStart(unitNode, 1); rUnit.setEnd(unitNode, unitNode.length); // skip leading space
+    }
     const d = rDigit.getClientRects()[0], u = rUnit.getClientRects()[0];
     if (!d || !u) return { err: 'no rects' };
-    return { digit: { l: Math.round(d.left), r: Math.round(d.right) }, tGlyph: { l: Math.round(u.left), r: Math.round(u.right) }, gapPx: Math.round((u.left - d.right) * 10) / 10, unitNodeWidth: Math.round(u.width) };
+    return { digit: { l: Math.round(d.left), r: Math.round(d.right) }, tGlyph: { l: Math.round(u.left), r: Math.round(u.right) }, gapPx: Math.round((u.left - d.right) * 10) / 10, unitNodeWidth: Math.round(u.width), singleTextNode: single };
   });
   log('gap-measure', glyph);
   if (glyph.err) { log('INCONCLUSIVE', glyph); exitCode = 2; }

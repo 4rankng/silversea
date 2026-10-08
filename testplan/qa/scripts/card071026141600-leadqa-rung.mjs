@@ -16,8 +16,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let exitCode = 0;
 
 const health = await fetch(`${API}/health`).then((r) => r.json());
-log('health', { buildHash: health.buildHash, expect: '22837bc3' });
-if (!String(health.buildHash || '').startsWith('22837bc3')) { log('build-currency-FAIL'); process.exit(2); }
+log('health', { buildHash: health.buildHash, expect: 'bad3fede' });
+if (!String(health.buildHash || '').startsWith('bad3fede')) { log('build-currency-FAIL'); process.exit(2); }
 
 const login = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: 'hoapt', password: 'Abc123' }) });
 const token = (await login.json()).token;
