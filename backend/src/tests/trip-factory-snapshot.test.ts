@@ -20,7 +20,6 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import { issueOrderCreateOrUpdate } from '../services/dispatch-planning-commands.service';
-import { completeExternalCarrierDispatchOrder } from '../services/dispatch-planning.service';
 import { completeExternalCarrierTrip } from '../services/trip-external-close.service';
 import { getTripFactorySiteView } from '../services/trip-factory-site.service';
 import type { AuthUser } from '../middleware/auth';

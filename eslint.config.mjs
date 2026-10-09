@@ -74,6 +74,10 @@ export default defineConfig([
       // Generated evidence (gitignored) and driver scratch.
       '**/testplan/qa/evidence/**',
       'qa/**',
+      // QA rung drivers — run-once evidence scripts (Node .mjs, executed
+      // directly, never imported by shipped code). Same scratch class as the
+      // evidence dirs above; linting them only pollutes the shipped-code gate.
+      'testplan/qa/scripts/**',
       // Python e2e harness.
       'e2e/**',
       // The transient deploy checkout (gitignored, `.gitignore`): a full repo

@@ -32,9 +32,6 @@ function isRosterDriver(role: Role): boolean {
   return role === Role.DRIVER;
 }
 
-/** One fetch budgets the whole roster; users are a bounded population. */
-const ROSTER_LIMIT = 500;
-
 export default function HrRosterPage() {
   const [search, setSearch] = useState('');
   const [department, setDepartment] = useState('all');
