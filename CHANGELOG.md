@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-09 (tối) — wave: LCL intake & dispatch rulings, money ₫ one text node
+
+Prod `bc305aec` → `6cfe6620` (staging-verified từng bước: `f04497ac` rung intake LCL 16/16 — 38938c50; `3c32994b` rung money ₫ /finance).
+
+### Shipped
+
+- **"Quy cách đóng gói" hàng lẻ có gợi ý sẵn** (091026180800, a692174b): ô "Quy cách đóng gói" trên form tạo lô LCL giờ là combobox gợi ý Pallet / Roll / Carton / Thùng gỗ / Bao / Can — chọn nhanh hoặc gõ tự do như cũ, giá trị ngoài danh sách vẫn lưu nguyên.
+- **Form lô lẻ bỏ hai mốc chỉ dùng cho container nguyên** (091026180700, a9c2d57d): khối "Lịch & ghi chú" của lô hàng lẻ không còn "Hạn hạ container tại cảng" và "Thời điểm trả container" (nghiệp vụ tàu/container nguyên); "Hạn hoàn tất hải quan" và "Ngày giao dự kiến" giữ nguyên. Form FCL không đổi.
+- **"Thêm kho lấy hàng" gọn ba trường, mã tự sinh** (091026180600, 1dee5f58): khi tạo lô, CUS thêm kho lấy hàng mới chỉ cần Tên đầy đủ / Tên ngắn / Địa chỉ; mã điểm vận hành tự suy ra. Form đầy đủ (loại điểm, liên hệ, Google Maps) vẫn ở danh mục.
+- **Tạo lô xong mở thẳng trang lô mới** (091026180900, f04497ac): sau khi lưu, app chuyển đến trang chi tiết của lô vừa tạo thay vì danh sách xếp theo hàng đợi — CUS thấy ngay lô của mình để tiếp tục theo dõi. Bốn thẻ intake (180600/180700/180800/180900) cùng rung một drive 16/16 (38938c50).
+- **App lái xe: hàng nhập hiện đúng điểm hạ** (091026190530, f7da4e65): hàng "Cảng hạ/Hạ" của chuyến IMPORT giờ mang điểm hạ thật của công việc — cảng/bãi hạ container theo dữ liệu điều vận (nơi trả vỏ của dữ liệu cũ còn ghi thì vẫn hiển thị trước); bỏ dòng chết "Chưa có nơi trả rỗng" đứng cạnh "Địa chỉ giao hàng" cùng tên bãi. Rung staging `f8db1eea` (972fbc9b).
+- **Lái xe nhận rồi vẫn đổi được xe** (091026190520, 6cfe6620): sau khi lái xe nhận việc, Điều vận vẫn chỉnh được phương tiện — đầu kéo/moóc với xe nhà, nhà xe/biển số với xe ngoài — giữ nguyên lái xe đã nhận; đổi lái xe hoặc chuyển giữa xe nhà ↔ xe ngoài vẫn chỉ trong cửa sổ trước khi nhận (máy chủ từ chối "Lái xe đã nhận việc — chỉ được đổi xe, giữ lái xe.", dialog khóa ô lái xe kèm lý do thấy được).
+- **Mọi số tiền một text node, ₫ cách khoảng** (20261009_8, 3c32994b): quét 43 vị trí ₫ còn tách node trên toàn app — số và đơn vị nguyên cụm "1 234 567 ₫" ở mọi màn hình, theo luật 2026-10-06; sổ quỹ Ops khớp số trên đúng một node (c4f92fd1).
+
 ## 2026-10-09 (chiều) — wave: iOS mobile viewport
 
 Prod `23998fbd` → staging-verified `ef4c1d63`.

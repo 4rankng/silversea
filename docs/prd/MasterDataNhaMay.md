@@ -33,7 +33,7 @@ Một lô hàng nguồn có thể gồm nhiều container. Nhà máy, tuyến v�
 
 Khi CUS sửa nhà máy của lô FCL, màn hình tổng quan dẫn đến chi tiết các container của đúng khách hàng/chứng từ, bao gồm cả container chưa có lịch. Mỗi dòng cho chọn nhà máy thuộc khách hàng đó, khởi tạo bằng nhà máy đang có và lưu đúng lựa chọn của container. Nhà máy hiển thị sau lưu, khi tải lại và tại Điều vận phải cùng một nguồn; không báo thành công sau khi chỉ đổi một tên tự do ở cấp lô trong khi công việc vẫn dùng nhà máy cũ. Sửa một container không thay nhà máy của container khác. Công việc đã khóa hoặc đã vào trạng thái không cho sửa phải giải thích rõ và tuân thủ quy tắc điều chỉnh hiện hành.
 
-Cảng nâng, cảng hạ và nơi trả vỏ cũng thuộc đúng công việc. Với hàng nhập, nơi giao hàng tại nhà máy khác với nơi trả vỏ: **Cảng hạ** trên thông tin lái xe là nơi trả vỏ của công việc, không được thay bằng địa chỉ nhà máy.
+Cảng nâng, cảng hạ và nơi trả vỏ cũng thuộc đúng công việc. Với hàng nhập, **Cảng hạ** trên thông tin lái xe là điểm hạ của công việc theo dữ liệu điều vận (cảng/bãi hạ container; nơi trả vỏ chỉ còn với dữ liệu cũ còn ghi). Không được thay bằng địa chỉ nhà máy giao hàng.
 
 Với LCL, lưu và hiển thị địa điểm, lịch cùng thông tin công việc hàng lẻ mà không cần container. Trường bắt buộc phải phù hợp với loại hàng; không yêu cầu container giả để nhập tuyến hoặc lịch.
 

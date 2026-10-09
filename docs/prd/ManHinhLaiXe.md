@@ -58,7 +58,7 @@ Giờ hẹn tại nhà máy, giờ tiếp nhận lệnh và thời điểm thự
 
 ### 2.3 Cảng theo chiều vận chuyển
 
-- Với hàng nhập, **Cảng hạ** là nơi trả vỏ rỗng của công việc. Điểm giao hàng/nhà máy không được dùng thay cho nơi trả vỏ chỉ vì trường đó có dữ liệu.
+- Với hàng nhập, hàng **Cảng hạ/Hạ** mang điểm hạ thật của công việc: cảng/bãi hạ container theo dữ liệu điều vận; nơi trả vỏ rỗng chỉ còn với dữ liệu cũ còn ghi và khi có thì vẫn hiển thị tại hàng này. Không để dòng chết "Chưa có nơi trả rỗng" thay cho điểm hạ; điểm giao hàng/nhà máy không dùng thay cho điểm hạ, khi hai điểm là cùng một nơi thì hai hàng cùng tên.
 - Với hàng xuất, cảng nâng/hạ thể hiện đúng điểm lấy vỏ và điểm hạ hàng theo lệnh.
 - Nếu điểm giao hàng khác nơi trả vỏ, giữ cả hai dưới nhãn đúng nghĩa. Hai điểm có thể trùng tên nhưng khác vai trò; nhãn vẫn phải giúp lái xe hiểu đúng điểm cần đến.
 - Khi chưa xác định được điểm cần thiết, hiển thị rõ **Chưa có thông tin** và hướng bổ sung phù hợp quyền; không tạo địa điểm giả hoặc mượn địa điểm của công việc khác.

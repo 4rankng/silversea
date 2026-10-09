@@ -81,7 +81,7 @@ Một container hoàn thành không làm cả lô hoàn thành. Lô chỉ hoàn 
 |---|---|
 | Chưa phát lệnh | Cho sửa kế hoạch theo quyền, số lượng và khả năng thực hiện. |
 | Đã phát nhưng lái xe chưa thực tế nhận công việc hiện tại | Cho đổi nhà vận tải, xe, tài xế hoặc moóc hợp lệ. Không khóa chỉ vì nhãn tổng hợp đang thể hiện đang vận chuyển. |
-| Lái xe đã nhận công việc hiện tại | Khóa thay đổi phân công thông thường, nêu lý do và hướng xử lý được phép; không chuyển sang gửi yêu cầu duyệt. |
+| Lái xe đã nhận công việc hiện tại | Chỉ còn cho đổi phương tiện — xe đầu kéo/moóc với xe nhà, nhà xe/biển số với xe ngoài — giữ nguyên lái xe đã nhận. Đổi lái xe hoặc chuyển giữa xe nhà và xe ngoài bị chặn kèm lý do và hướng xử lý được phép; không chuyển sang gửi yêu cầu duyệt. |
 | Đã hoàn thành, hủy hoặc thuộc kỳ đã khóa | Không sửa phân công như một kế hoạch mới. Sai sót được xử lý bằng nghiệp vụ điều chỉnh phù hợp, giữ lý do và lịch sử. |
 | Nhãn trạng thái và thông tin nhận lệnh mâu thuẫn | Chỉ rõ vấn đề và xác định việc nhận của phân công hiện tại; không tự coi là chưa nhận chỉ dựa vào nhãn. |
 
@@ -187,7 +187,7 @@ Hủy, tháo cặp hoặc đổi một thành viên không làm mất phần cò
 
 Lái xe có **Lệnh mới**, **Đã nhận** và **Lịch sử**. Hai lệnh trong cặp đặt liền nhau với quan hệ rõ, không trộn trạng thái hay ảnh.
 
-Thẻ công việc ưu tiên nhà máy viết tắt → tuyến → từng số container đi cùng loại và thao tác trả/đóng hàng → cảng nâng/hạ → tác vụ/ghi chú. Chi tiết có tên đầy đủ, địa chỉ và liên hệ cùng nhóm; từng bên xuất hóa đơn có tiêu đề trước tên, địa chỉ và mã số thuế. Với hàng nhập, cảng hạ là nơi trả vỏ, không lấy nhà máy giao hàng thay thế. Thông tin thiếu phải nói rõ, không mượn dữ liệu của bên khác.
+Thẻ công việc ưu tiên nhà máy viết tắt → tuyến → từng số container đi cùng loại và thao tác trả/đóng hàng → cảng nâng/hạ → tác vụ/ghi chú. Chi tiết có tên đầy đủ, địa chỉ và liên hệ cùng nhóm; từng bên xuất hóa đơn có tiêu đề trước tên, địa chỉ và mã số thuế. Với hàng nhập, cảng hạ là điểm hạ của công việc — cảng/bãi hạ container theo dữ liệu điều vận; nơi trả vỏ chỉ còn với dữ liệu cũ còn ghi. Không lấy nhà máy giao hàng thay cho điểm hạ. Thông tin thiếu phải nói rõ, không mượn dữ liệu của bên khác.
 
 **Nhận lệnh vận chuyển** là hành động chủ động của lái xe khi có Internet và còn được giao công việc. Chỉ chuyển sang Đã nhận khi thành công; giờ nhận không được diễn giải thành giờ xe xuất phát thực tế. Nếu xe hoặc tài xế đang vướng công việc khác, giải thích và hướng xử lý, không chỉ yêu cầu tải lại.
 
@@ -433,7 +433,7 @@ Giới hạn có chủ ý: tick **không ẩn khách hàng nào khỏi danh sác
 | Tính cước Long Minh | Giá dầu dưới mốc cho phụ phí 0; hai thành phần tiền làm tròn riêng; đúng kỳ/độ trễ; giá đã phát hành không đổi theo kỳ mới. |
 | Lệnh chạy ngoài | Giữ thông tin nhập và tính chất chạy ngoài; không tự thêm danh mục; không bỏ qua quyền, tải trọng, lịch hay tín dụng. |
 | Phân bổ một phần hoặc hàng lẻ | Nhiều nhà vận tải không vượt số lượng, phần thiếu rõ; LCL được phân xe và phát lệnh mà không có vỏ giả. |
-| Đổi phân công | Trước khi lái xe nhận thì đổi hợp lệ được; sau nhận thì chặn đúng lý do. Nếu nhận trong lúc sửa, không ghi đè phân công đã được nhận. |
+| Đổi phân công | Trước khi lái xe nhận thì đổi hợp lệ được; sau nhận thì vẫn đổi được xe/moóc (hoặc nhà xe/biển số với xe ngoài) mà giữ nguyên lái xe, chỉ đổi lái xe mới bị chặn đúng lý do. Nếu nhận trong lúc sửa, không ghi đè phân công đã được nhận. |
 | Phát lệnh kẹp | Hai container 20FT trên phương tiện phù hợp được ghép; quá tổng tải, thành viên 40FT, thành viên thứ ba hoặc công việc ngoài cặp xung đột bị chặn. |
 | Lệnh kết hợp | Đúng vỏ và thứ tự; phần việc trước chưa xong được chỉ rõ; phí chung và lương không tính thành hai cuốc đơn. |
 | Lái xe xem và nhận việc | Đủ nhà máy, tuyến, từng số–loại, cảng và liên hệ đúng nhóm; nhận chủ động; ghi chú tiếng Việt giữ khoảng trắng. |
