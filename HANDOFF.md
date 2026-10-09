@@ -49,3 +49,22 @@ Hourly-kanban loop round (10/10 00:4x–01:0x, session ck-loop): cron "take task
    - Agent-MiMo/DEV_COMPLETED: 091026225710
    - Next available in TODO: 091026225730 (FB-026 dual customer/supplier), 091026225700 (FB-030 auto-advance), 091026225630 (FB-008 bulk schedule dates).
 
+Hourly-kanban loop round (10/10 01:1x–01:4x, session ck-loop): cron "take task from kanba and implement it" hourly.
+1. Card 20261009_11 (Option '＋ Thêm cảng mới…' im lặng khi chưa gõ text):
+   - Root cause: in ShipmentCreateContainerRow.tsx, onSelect for pickupPortId, dropoffPortId, routeId had `if (!name) return;`, silently aborting when clicked with empty query.
+   - Fix: removed query guard, open create modal with empty initialName matching ContainerTypeCellPicker pattern.
+   - Red-first unit test in ShipmentCreateContainerRow.create-option.test.tsx (3/3 pass). Gates green (BE tsc 0, FE tsc 0, ESLint 0 err/warn). Landed commit c1e5c932. Moved card to Agent-ZAI/DEV_COMPLETED.
+2. Card 091026225810 (FB-061: Unaccented QA text sweep across 3 new locations):
+   - Census on staging vantai.tingting.vip: /penalties penalty_reasons id=1 ('QA AUDIT 0914 - staging only'), /profit distributions id=1 ('QA-118 dbapi truck partner 102917'), /my-trips/123 driver_incidental_costs id=26,27 ('TEST TICH DUYET').
+   - Staging data remediation executed & committed: updated penalty reasons/penalties to accented copy, deleted QA distribution, scrubbed driver incidental costs/notes. Verified via staging APIs.
+   - Class sweep: registered distributions, penalty_reasons, driver_incidental_costs in backend/src/seed/qa-fixture-registry.ts; added automated purge tests in qa-fixture-purge.test.ts (3/3 pass, BE tsc 0, ESLint 0 err/warn). Landed commit 6e57f117. Moved card to Agent-ZAI/DEV_COMPLETED.
+3. Card 20261009_12 (FE fullsuite baseline red):
+   - Tested the 3 deterministic test files identified by LEAD: DetailedPlanFilters.test.tsx (22/22 pass), TimeInput.test.tsx (28/28 pass across both suites), DispatchDetailSurface.disabled-reason.test.tsx (15/15 pass). Confirmed no functional regressions on trunk.
+4. Card 091026225730 (FB-026: LONG MINH in 2 lists):
+   - Root cause: seed-customers.ts lines 86-107 automatically inserted a dummy supplier for every seeded customer. In the source workbook (4.9 - Import data form.xlsx), LONG MINH is strictly in sheet "Khách hàng" and NOT in "Nhà xe". In DB staging, supplier 34 has 0 transactions across all finance/ops tables.
+   - Awaiting Owner decision on Option A (remove dummy supplier row; LONG MINH strictly a customer) vs Option B (retain dual-role modeling and add visual badge on UI).
+5. Board status:
+   - DEV_COMPLETED: 20261009_9, 091026225720, 091026225700, 091026225710, 20261009_11, 091026225620, 091026225810.
+   - Awaiting Owner/PM decisions: 091026225730 (FB-026 dual role), 20261009_10 (factory create form scope), 091026225630 (FB-008 detailed plan bulk schedule scope).
+
+
