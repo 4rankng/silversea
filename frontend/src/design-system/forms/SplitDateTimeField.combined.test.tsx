@@ -129,3 +129,29 @@ describe('SplitDateTimeField combinedPicker (card 071026204700)', () => {
     expect(document.querySelectorAll('[role="dialog"]').length).toBe(0);
   });
 });
+
+/**
+ * Card 091026225700 (FB-030 verify-fail): the container row on /shipments/new is
+ * the one host that passes `combinedPicker`, and it is ALSO the host QA typed
+ * into. The plain host's auto-advance is pinned in DateTimeSegments.test.tsx,
+ * but nothing pinned it THROUGH this host — a regression here would be
+ * invisible to the whole suite. Type "15" into the hour segment and the focus
+ * must land on the minute segment.
+ */
+describe('SplitDateTimeField combinedPicker — auto-advance through this host (card 091026225700)', () => {
+  it('typing two in-range hour digits focuses the minute segment', () => {
+    renderField(true);
+    const group = document.querySelector('[data-seg-part="time"]');
+    if (!group) throw new Error('time segments group not found');
+    const [hh, mm] = Array.from(group.querySelectorAll<HTMLInputElement>('input'));
+    if (!hh || !mm) throw new Error('hour/minute inputs not found');
+
+    fireEvent.focus(hh);
+    fireEvent.keyDown(hh, { key: '1' });
+    fireEvent.change(hh, { target: { value: '1' } });
+    fireEvent.keyDown(hh, { key: '5' });
+    fireEvent.change(hh, { target: { value: '15' } });
+
+    expect(document.activeElement).toBe(mm);
+  });
+});
