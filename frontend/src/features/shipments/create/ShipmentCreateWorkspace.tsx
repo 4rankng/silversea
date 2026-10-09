@@ -6,7 +6,6 @@ import {
   UTextAreaField as TextAreaField,
   UDateField as DateField,
 } from './uui-fields';
-import { UDateTimeField as DateTimeField } from './uui-datetime-field';
 import { useToast } from '../../../components/shared/Toast';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
@@ -637,15 +636,15 @@ export function ShipmentCreateWorkspace() {
           <ShipmentCreateSection
             id="schedule"
             title="Lịch & ghi chú"
-            description={form.cargoMode === 'FCL' ? undefined : 'Các hạn vận hành và lưu ý để điều phối thực hiện đúng kế hoạch.'}
+            description={form.cargoMode === 'FCL' ? undefined : 'Ngày giao hàng dự kiến để điều phối thực hiện đúng kế hoạch.'}
           >
             {form.cargoMode === 'LCL' && (
               <div style={gridStyle}>
-                <DateTimeField label="Hạn hoàn tất hải quan" combinedPicker value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
-                {/* FB-078 (card 091026180700): Hạn hạ container tại cảng and
-                    Thời điểm trả container are FCL vessel business — an LCL lot
-                    ships no container shell, so the two fields never render
-                    here. The customs cutoff and delivery dates stay. */}
+                {/* FB-078 round 2 (verify-fail 091026225610; user verbatim:
+                    "chỉ cần 1 mục là thêm ngày giao hàng"): the LCL block is
+                    JUST the delivery-date item. The customs cutoff joins the
+                    FCL-vessel fields (hạ container / trả container) in never
+                    rendering here. */}
                 <div data-field-id="shipment-expected-delivery">
                   <DateField id="shipment-expected-delivery" label="Ngày giao dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} />
                 </div>
@@ -662,8 +661,12 @@ export function ShipmentCreateWorkspace() {
                 <button type="button" className="csc-utility-button csc-utility-button--dashed" onClick={() => update('extraDeliveryDates', [...form.extraDeliveryDates, ''])} disabled={Boolean(saving)}><Plus size={15} aria-hidden="true" />Thêm ngày giao</button>
               </div>
             )}
-            <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={Boolean(saving)} />
-            <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={Boolean(saving)} />
+            {form.cargoMode === 'FCL' && (
+              <>
+                <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={Boolean(saving)} />
+                <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={Boolean(saving)} />
+              </>
+            )}
           </ShipmentCreateSection>
         </div>
 

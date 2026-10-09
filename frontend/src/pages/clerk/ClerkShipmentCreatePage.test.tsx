@@ -988,10 +988,13 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   // supersedes the old plain-text pin, but the 2026-09-06 free-text guarantee
   // survives: quick-picking a common format AND typing any custom value both
   // land in the field.
-  // FB-078 (card 091026180700): container-vessel dates are FCL business — an
-  // LCL lot manages no container shell, so the Lịch & ghi chú block keeps only
-  // the customs cutoff and the delivery dates for hàng lẻ.
-  it('hides Hạn hạ container and Thời điểm trả container on the LCL form, keeping customs and delivery dates', async () => {
+  // FB-078 round 2 (verify-fail 091026225610; user verbatim 09/10: "phần lẻ:
+  // lịch & ghi chú … chỉ cần 1 mục là thêm ngày giao hàng là đc ạ"): the LCL
+  // Lịch & ghi chú block is JUST the delivery-date item. The customs cutoff
+  // joins the FCL-vessel fields (hạn hạ container / trả container) in never
+  // rendering for hàng lẻ, and both note fields render for FCL only — their
+  // state survives mode switches (pinned in the workspace toggle suite).
+  it('keeps only the delivery-date item on the LCL Lịch & ghi chú block', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
@@ -1000,10 +1003,13 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
 
-    expect(screen.getByLabelText(/Hạn hoàn tất hải quan/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Ngày giao dự kiến/)).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/Ngày giao dự kiến/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Thêm ngày giao' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Hạn hoàn tất hải quan/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Hạn hạ container tại cảng/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Thời điểm trả container/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Ghi chú cho khách hàng')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Ghi chú cho lái xe')).not.toBeInTheDocument();
   });
 
   it('suggests common packaging formats while keeping Quy cách đóng gói free-text on the LCL form', async () => {
@@ -1019,9 +1025,12 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     const packageType = screen.getByRole('combobox', { name: 'Quy cách đóng gói' });
     // Typing opens the suggestion menu (openOnType) and filters the common
-    // formats; a quick pick commits the option.
+    // formats; a quick pick commits the option. The explicit ArrowDown mirrors
+    // the house combobox test contract (see the Loại container test below) so
+    // the collection materializes deterministically under jsdom timing.
     fireEvent.focus(packageType);
     fireEvent.change(packageType, { target: { value: 'Pal' } });
+    fireEvent.keyDown(packageType, { key: 'ArrowDown' });
     const option = await screen.findByRole('option', { name: 'Pallet' }, { timeout: 3000 });
     fireEvent.click(option);
     expect((packageType as HTMLInputElement).value).toBe('Pallet');
@@ -1264,7 +1273,14 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await choose('Khách hàng', '7');
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${action}`) }));
     const dialog = await screen.findByRole('dialog', { name: new RegExp(`^${action}`) });
-    fireEvent.change(within(dialog).getByLabelText('Mã điểm vận hành'), { target: { value: created.code } });
+    if (siteType === 'WAREHOUSE') {
+      // FB-077 quick-add contract (card 091026180600 round 1): the warehouse
+      // intake quick-add derives its code from the name — no 'Mã điểm vận hành'
+      // input exists here (it lives on the master-data ĐVVH form). Fix-forward
+      // for a test break carried since round 1's dialog slimming.
+    } else {
+      fireEvent.change(within(dialog).getByLabelText('Mã điểm vận hành'), { target: { value: created.code } });
+    }
     fireEvent.change(within(dialog).getByLabelText('Tên đầy đủ'), { target: { value: created.name } });
     fireEvent.change(within(dialog).getByLabelText('Tên ngắn'), { target: { value: created.shortName } });
     fireEvent.change(within(dialog).getByLabelText('Địa chỉ'), { target: { value: created.address } });

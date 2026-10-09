@@ -165,30 +165,10 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
   });
 
-  it('guards a partial LCL schedule but retains complete shared schedules without an unnecessary warning', async () => {
-    renderWorkspace();
-    await screen.findByRole('button', { name: 'Tạo lô hàng' });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    fireEvent.change(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan'), { target: { value: '14:' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
-    expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
-    await waitFor(() => expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan'), { target: { value: '14:23' } });
-    fireEvent.change(screen.getByLabelText('Ngày — Hạn hoàn tất hải quan'), { target: { value: '20/09/2026' } });
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
-    expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Hàng FCL/ })).toBeChecked();
-    fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Giờ — Hạn hoàn tất hải quan')).toHaveValue('14');
-    expect(screen.getByLabelText('Phút — Hạn hoàn tất hải quan')).toHaveValue('23');
-    expect(screen.getByLabelText('Ngày — Hạn hoàn tất hải quan')).toHaveValue('20');
-    expect(screen.getByLabelText('Tháng — Hạn hoàn tất hải quan')).toHaveValue('09');
-    expect(screen.getByLabelText('Năm — Hạn hoàn tất hải quan')).toHaveValue('2026');
-  // Segmented datetime fields raise this screen's DOM weight; keep the heavy
-  // full-workspace render deterministic above the 5s default.
-  }, 10000);
+  // FB-078 round 2 (verify-fail 091026225610): the customs cutoff no longer
+  // renders on the LCL form at all (the user asked for the delivery-date item
+  // only), so its old mode-switch round-trip pin is retired with the field —
+  // incomplete extra-date text still guards the switch (test above).
 
   it('retains shipment notes across pristine and confirmed cargo-mode switches', async () => {
     renderWorkspace();
@@ -197,7 +177,10 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     fireEvent.change(screen.getByLabelText('Ghi chú cho lái xe'), { target: { value: 'Check seal before leaving' } });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Ghi chú cho khách hàng')).toHaveValue('Call customer before delivery');
+    // FB-078 round 2 (verify-fail 091026225610): the note fields render for
+    // FCL only — hidden while in LCL, but their state survives the round trip.
+    expect(screen.queryByLabelText('Ghi chú cho khách hàng')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Ghi chú cho lái xe')).not.toBeInTheDocument();
     // Card 091026180800: the packaging field is a combobox now — custom text
     // commits through the typed-value channel, so type into the combobox.
     fireEvent.change(screen.getByRole('combobox', { name: 'Quy cách đóng gói' }), { target: { value: 'Pallet' } });
