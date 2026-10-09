@@ -236,7 +236,6 @@ export function ShipmentCreateContainerRow({
               label: (typed) => (typed.trim() ? `＋ Thêm tuyến “${typed.trim()}”…` : '＋ Thêm tuyến mới…'),
               onSelect: (typed) => {
                 const name = typed.trim();
-                if (!name) return;
                 setRouteDialogTargetKey(row.key);
                 setRouteDialogInitialName(name);
                 setRouteDialogOpen(true);
@@ -270,7 +269,6 @@ export function ShipmentCreateContainerRow({
               label: (typed) => (typed.trim() ? `＋ Thêm cảng “${typed.trim()}”…` : '＋ Thêm cảng mới…'),
               onSelect: (typed) => {
                 const name = typed.trim();
-                if (!name) return;
                 setPortDialog({ open: true, target: { key: row.key, field: 'pickupPortId', name } });
               },
             }}
@@ -301,7 +299,6 @@ export function ShipmentCreateContainerRow({
               label: (typed) => (typed.trim() ? `＋ Thêm cảng “${typed.trim()}”…` : '＋ Thêm cảng mới…'),
               onSelect: (typed) => {
                 const name = typed.trim();
-                if (!name) return;
                 setPortDialog({ open: true, target: { key: row.key, field: 'dropoffPortId', name } });
               },
             }}
