@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-10-09 (đêm) — reconciliation: origin/main -> prod (kiểm chứng từng file)
+
+Prod `1a1a227e` → merge commit của `origin/main` (`a71bf718`). Main đi trước 81
+commit và chỉ có đúng MỘT khối công việc chưa từng lên prod.
+
+- **Lô hàng ops trên mobile thành card liền khối** (20261009_9, port 6da4f6b7 từ
+  main): /ops/orders, /ops/wallet, /ops/fleet-tracking — hàng gộp 2 cột nay có viền
+  đủ + bo 12px + nền surface; ô trong hàng nền trong suốt nên khoảng hở không đọc
+  thành "block xám rời rạc"; trạng thái ghim chỉ còn MỘT accent — dải status brand 3x20
+  ở mép trái; hover wash chỉ bật trên con trỏ tinh (hover+fine), không dính hover
+  trên touch. Trước đó hàng chỉ có border-bottom nên nền highlight tràn qua mép phải
+  card ở 390px.
+- **Nền ghim warn giữ nguyên trên bảng desktop, nhưng không được tràn vào card mobile**
+  (quyết định reconciliation): tint warn là diện mạo lâu đời của prod (7fa5ae07,
+  c9442b2f chỉ đổi màu theo token) nên không đụng. Nhưng selector desktop
+  `.ops-orders__table tbody tr.is-pinned` là 0-2-2, mạnh hơn rule card 0-2-0 — nên
+  nếu không reset, thẻ ghim ở 390px vẫn nhuốm warn và mang HAI accent cùng lúc (đã
+  đo bằng Chromium thật: computed background = warn 7%). Khối container nay có reset
+  riêng ở 0-3-0 đưa nền thẻ về `--surface`, dải status brand là accent duy nhất.
+- **7 file conflict còn lại lấy phía prod**: `action-error.ts(+.test)`,
+  `TripReassignDialog.tsx`, `DispatchPlanEditorCell.test.tsx`,
+  `useDispatchDetailPlan.test.tsx`, `lead-qa-harness.mjs`,
+  `qa-20261008-leadqa-batch.mjs` — ở cả hai vế lịch sử prod đều là phần mở rộng của
+  main, bản main là trạng thái cũ. Sau hợp nhất cây prod lệch origin/prod đúng 4
+  file: 3 CSS ops + `OpsOrdersPage.test.tsx` (pin contract mới) + CHANGELOG này — không
+  file nào khác bị lẫn nội dung cũ của main.
+
 ## 2026-10-09 (tối) — wave: LCL intake & dispatch rulings, money ₫ one text node
 
 Prod `bc305aec` → `6cfe6620` (staging-verified từng bước: `f04497ac` rung intake LCL 16/16 — 38938c50; `3c32994b` rung money ₫ /finance).

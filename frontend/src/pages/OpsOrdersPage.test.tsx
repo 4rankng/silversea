@@ -145,8 +145,55 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(pageStyles).not.toMatch(/min-width:\s*960px/);
     expect(pageStyles).toContain('@container (max-width: 900px)');
     expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*border-bottom:\s*1px solid var\(--line\);/);
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*border:\s*1px solid var\(--line\);[^}]*border-radius:\s*12px;/s);
     expect(pageStyles).toContain('@media (pointer: coarse)');
+  });
+
+  it('keeps every mobile row-card liền khối with at most one accent (card _2 mandate)', () => {
+    // Card 20261009_9 reconciliation (port of 6da4f6b7 into prod). The mobile
+    // collapse must render as a bordered card: a border-bottom slice let the
+    // row bleed past its boundary and left every field reading as an isolated
+    // grey block on mobile 390.
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*border:\s*1px solid var\(--line\);[^}]*border-radius:\s*12px;/s);
+    // The card carries its own surface so the frame stays liền khối...
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\s*\{[^}]*background:\s*var\(--surface\);/s);
+    // ...and field-group cells carry no tint of their own — a gap must never
+    // paint as its own "block xám" between fields.
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row > td\s*\{[^}]*background:\s*transparent;/s);
+    // The pinned card shows ONE brand accent: the canonical status strip on the
+    // leading edge. Exactly one accent per card — never a row fill as well.
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row\.is-pinned::before\s*\{[^}]*background:\s*var\(--brand\);/s);
+    // The hover wash is a quiet neutral scan-aid on fine pointers only — never
+    // a sticky hover on touch, never a painted field-group.
+    expect(pageStyles).toContain('@media (hover: hover) and (pointer: fine)');
+    expect(pageStyles).toMatch(/\.ops-orders__table \.ops-orders__row:not\(\.is-pinned\):hover\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--fg-1\) 2%, var\(--surface\)\);/s);
+  });
+
+  it('never lets the desktop pinned tint bleed into the mobile card (specificity law)', () => {
+    // The desktop table still paints a pinned row with the warn tint — that is
+    // prod's long-standing look (7fa5ae07, colour-only retouched by c9442b2f)
+    // and the reconciliation deliberately kept it. What must never happen is
+    // that tint surviving INSIDE the collapsed card, which is what broke the
+    // frame on mobile 390. The card rule (.ops-orders__table .ops-orders__row,
+    // 0-2-0) outranks the desktop pinned rule (tbody tr.is-pinned, 0-1-2), so
+    // the container block must set the surface and no descendant rule in it may
+    // re-introduce a warn fill on the pinned card.
+    const container = pageStyles.slice(pageStyles.indexOf('@container (max-width: 900px)'));
+    expect(container).not.toMatch(/is-pinned[^{]*\{[^}]*background:[^;}]*var\(--warn/);
+    expect(container).not.toMatch(/is-pinned[^{]*::before[^{]*\{[^}]*background:\s*var\(--warn/);
+    // Exactly one painted accent on a pinned card: the brand strip.
+    const paintedAccents = container.match(/\.is-pinned[^{]*\{[^}]*background:\s*var\(--brand\)/g) ?? [];
+    expect(paintedAccents).toHaveLength(1);
+    // The bleed is a CASCADE fact, not a declaration fact: the desktop rule
+    // `.ops-orders__table tbody tr.is-pinned` is 0-2-2 and the plain card rule
+    // is only 0-2-0, so declaring `background: var(--surface)` on the card does
+    // NOT save a pinned row. The container block must therefore carry an
+    // explicit pinned reset at 0-3-0 (`.ops-orders__table .ops-orders__row
+    // .is-pinned`). Verified in real Chromium at 390px — without this rule the
+    // pinned card computes to the warn wash, two accents on one card.
+    expect(container).toMatch(
+      /\.ops-orders__table \.ops-orders__row\.is-pinned\s*\{[^}]*background:\s*var\(--surface\);/s,
+    );
   });
 
   it('declares no filter plane of its own — the strip is the shared FilterBar band', () => {
