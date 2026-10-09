@@ -1,17 +1,24 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Role, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentDetail as ShipmentDetailData } from '../api/shipmentClient';
 
-const { getShipmentDetailMock, listShipmentEventsMock } = vi.hoisted(() => ({
+const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, currentUser } = vi.hoisted(() => ({
   getShipmentDetailMock: vi.fn(),
   listShipmentEventsMock: vi.fn(),
+  deleteCusShipmentMock: vi.fn(),
+  currentUser: {
+    userId: 11,
+    role: 'ADMIN',
+    capabilities: ['shipments.read', 'shipments.write'],
+  },
 }));
 
 vi.mock('../api/shipmentClient', () => ({
   getShipmentDetail: getShipmentDetailMock,
+  deleteCusShipment: deleteCusShipmentMock,
 }));
 
 vi.mock('../api/customerServiceFinanceClient', () => ({
@@ -20,11 +27,7 @@ vi.mock('../api/customerServiceFinanceClient', () => ({
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
-    user: {
-      userId: 11,
-      role: Role.ADMIN,
-      capabilities: ['shipments.read', 'shipments.write'],
-    },
+    user: currentUser,
   }),
 }));
 
@@ -352,5 +355,111 @@ describe('ShipmentDetailPage', () => {
     expect((await screen.findAllByText('Nhà xe đã gán')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Đội xe nội bộ SilverSea').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
+  });
+
+  describe('Xóa lô affordance (card 091026225720)', () => {
+    it('offers the lot-delete button to ADMIN and CUS on a deletable lot', async () => {
+      currentUser.role = Role.ADMIN;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      expect(await screen.findByRole('button', { name: /Xóa lô/ })).toBeTruthy();
+
+      currentUser.role = Role.CUS;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      expect(await screen.findByRole('button', { name: /Xóa lô/ })).toBeTruthy();
+    });
+
+    it('hides the lot-delete button from roles the delete route refuses (ACCOUNTANT, DISPATCHER)', async () => {
+      currentUser.role = Role.ACCOUNTANT;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      await screen.findByText('Khách hàng');
+      expect(screen.queryByRole('button', { name: /Xóa lô/ })).toBeNull();
+
+      currentUser.role = Role.DISPATCHER;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      await screen.findByText('Khách hàng');
+      expect(screen.queryByRole('button', { name: /Xóa lô/ })).toBeNull();
+    });
+
+    it('blocks deletion with warning when shipment status is DISPATCHED', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        shipment: { ...detail.shipment, status: ShipmentStatus.DISPATCHED },
+      });
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      const deleteBtn = await screen.findByRole('button', { name: /Xóa lô/ });
+      fireEvent.click(deleteBtn);
+      expect(await screen.findByText(/Không thể xóa lô hàng đã có container được điều xe/)).toBeTruthy();
+      expect(deleteCusShipmentMock).not.toHaveBeenCalled();
+    });
+
+    it('opens confirm modal, requires reason, and calls deleteCusShipment on confirm', async () => {
+      currentUser.role = Role.ADMIN;
+      deleteCusShipmentMock.mockResolvedValue(undefined);
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      const deleteBtn = await screen.findByRole('button', { name: /Xóa lô/ });
+      fireEvent.click(deleteBtn);
+
+      expect(await screen.findByText(/Xóa lô hàng sẽ loại bỏ hoàn toàn dữ liệu/)).toBeTruthy();
+      const confirmBtn = screen.getByRole('button', { name: 'Xác nhận xóa' });
+      expect(confirmBtn).toBeDisabled();
+
+      const reasonInput = screen.getByPlaceholderText(/Nhập lý do xóa lô hàng/);
+      fireEvent.change(reasonInput, { target: { value: 'Lô tạo nhầm trong đợt kiểm thử FB-031' } });
+      expect(confirmBtn).not.toBeDisabled();
+
+      fireEvent.click(confirmBtn);
+      await waitFor(() => {
+        expect(deleteCusShipmentMock).toHaveBeenCalledWith(1, 7, 'Lô tạo nhầm trong đợt kiểm thử FB-031');
+      });
+    });
   });
 });

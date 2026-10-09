@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, FileText, FileCheck2, Container, History,
+  ArrowLeft, FileText, FileCheck2, Container, History, Loader2, Trash2,
 } from 'lucide-react';
 import { ApiError } from '../lib/api';
-import { PageHeader } from '../components/UI';
+import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
 import {
@@ -17,6 +17,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useAuth } from '../hooks/useAuth';
 import {
   getShipmentDetail as getShipmentDetailRequest,
+  deleteCusShipment,
   type ShipmentDetail as ShipmentDetailData,
 } from '../api/shipmentClient';
 import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
@@ -54,6 +55,46 @@ export default function ShipmentDetailPage() {
   const [data, setData] = useState<ShipmentDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Card 091026225720 (FB-031): lot-delete affordance for authorized roles (ADMIN and CUS)
+  const canDeleteLot = user?.role === Role.ADMIN || user?.role === Role.CUS;
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteBlockedMessage, setDeleteBlockedMessage] = useState<string | null>(null);
+
+  const handleRequestDelete = useCallback(() => {
+    if (!data) return;
+    if (
+      data.shipment.status === 'DISPATCHED' ||
+      data.shipment.status === 'IN_TRANSIT' ||
+      data.shipment.status === 'COMPLETED'
+    ) {
+      setDeleteBlockedMessage(
+        'Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh.',
+      );
+      return;
+    }
+    setDeleteBlockedMessage(null);
+    setDeleteError(null);
+    setDeleteReason('');
+    setDeleteModalOpen(true);
+  }, [data]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteReason.trim() || !data) return;
+    setDeleteSubmitting(true);
+    setDeleteError(null);
+    try {
+      await deleteCusShipment(data.shipment.id, data.shipment.version, deleteReason.trim());
+      navigate('/shipments', { replace: true });
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : 'Không thể xóa lô hàng. Vui lòng thử lại.');
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  }, [data, deleteReason, navigate]);
   // Debit-note freight override (docx §4) — the financial trio negotiates the
   // final debit value on the latest frozen snapshot. GET override 404 (none
   // yet) reads as null, never an error state.
@@ -147,6 +188,17 @@ export default function ShipmentDetailPage() {
         title={shipmentLabel}
         description={`Trạng thái: ${SHIPMENT_STATUS_LABELS[shipment.status]}`}
         onBack={() => navigate('/shipments')}
+        action={
+          canDeleteLot ? (
+            <button
+              type="button"
+              className="btn btn--danger-outline btn--sm"
+              onClick={handleRequestDelete}
+            >
+              <Trash2 size={14} aria-hidden="true" /> Xóa lô
+            </button>
+          ) : undefined
+        }
       />
 
       <div className="shipment-detail__grid">
@@ -322,6 +374,76 @@ export default function ShipmentDetailPage() {
           )}
         </section>
       </div>
+
+      {deleteModalOpen && (
+        <Modal
+          isOpen={deleteModalOpen}
+          title="Xóa lô hàng"
+          onClose={() => { if (!deleteSubmitting) setDeleteModalOpen(false); }}
+          onConfirm={() => void handleConfirmDelete()}
+          footer={(
+            <>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deleteSubmitting}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={() => void handleConfirmDelete()}
+                disabled={deleteSubmitting || !deleteReason.trim()}
+              >
+                {deleteSubmitting ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
+                Xác nhận xóa
+              </button>
+            </>
+          )}
+        >
+          <p>Xóa lô hàng sẽ loại bỏ hoàn toàn dữ liệu của lô và các container liên quan. Thao tác không thể hoàn tác.</p>
+          {deleteError && (
+            <p className="shipment-detail__empty" role="alert" style={{ color: 'var(--danger, #dc2626)' }}>
+              {deleteError}
+            </p>
+          )}
+          <label className="cus-action-reason" style={{ display: 'grid', gap: 6 }}>
+            <span>Lý do xóa</span>
+            <textarea
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              rows={4}
+              maxLength={500}
+              placeholder="Nhập lý do xóa lô hàng..."
+              required
+              autoFocus
+            />
+            <small style={{ color: 'var(--fg-3)' }}>{deleteReason.length}/500 ký tự</small>
+          </label>
+        </Modal>
+      )}
+
+      {deleteBlockedMessage && (
+        <Modal
+          isOpen={Boolean(deleteBlockedMessage)}
+          title="Không thể xóa lô hàng"
+          onClose={() => setDeleteBlockedMessage(null)}
+          onConfirm={() => setDeleteBlockedMessage(null)}
+          footer={(
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setDeleteBlockedMessage(null)}
+            >
+              Đóng
+            </button>
+          )}
+        >
+          <p>{deleteBlockedMessage}</p>
+        </Modal>
+      )}
     </div>
   );
 }
