@@ -56,8 +56,15 @@ describe('OpsWalletPage Sổ quỹ (card 20260923_13)', () => {
     expect(await screen.findByRole('region', { name: 'Sổ quỹ' })).toBeInTheDocument();
     expect(await screen.findByText('Tạm ứng: ứng phí cảng')).toBeInTheDocument();
     expect(screen.getByText('Chi phí: OTHER — bốc xếp')).toBeInTheDocument();
-    expect(screen.getAllByText('1.000.000')).toHaveLength(2); // thu cell + running balance after row 1
-    expect(screen.getByText('600.000')).toBeInTheDocument();
+    // Card 20261009_6 — MONEY ONE-TEXT-NODE law: the render is correct.
+    // Each amount is a SINGLE text node carrying its ₫ suffix; the anchored
+    // regex proves it is not split across elements. The old bare '1.000.000'
+    // matcher missed the suffix and the count was stale: the 'Số dư hiện tại'
+    // summary <dd> renders the same balance, so there are now three surfaces
+    // (summary dd + thu cell + running balance after row 1).
+    expect(screen.getAllByText(/^1\.000\.000 ₫$/)).toHaveLength(3);
+    // Same story: 'Đã ứng' summary <dd> + the chi cell both render 600.000 ₫.
+    expect(screen.getAllByText(/^600\.000 ₫$/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Số dư cuối sổ:/)).toBeInTheDocument();
     expect(screen.getByText(/Còn phải hoàn ứng \(theo kế toán\):/)).toBeInTheDocument();
     expect(screen.getByText('Đã khớp với báo cáo tổng hợp hoàn ứng')).toBeInTheDocument();
