@@ -115,7 +115,10 @@ describe('UI55 controlled segmented date draft acknowledgement', () => {
     expect(day).toHaveValue('28');
     expect(screen.getByLabelText('Tháng — Ngày vận chuyển')).toHaveValue('02');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    fireEvent.click(day);
+    // Card 061026172803 (FB-030, owner word 2026-10-06): a click on a segment
+    // is a caret click and must not open the picker — the pointer path lives
+    // on the field frame (non-input part of the group).
+    fireEvent.click(day.closest('.date-seg-group'));
     fireEvent.click(screen.getByRole('button', { name: '26 Tháng 2 2026' }));
     expect(changes).toEqual(['2026-02-26']);
     expect(day).toHaveValue('26');
@@ -227,7 +230,11 @@ describe.each(['native', 'segmented'] as const)('UI55 %s calendar draft boundari
     const changes: string[] = [];
     const input = caller === 'native' ? renderNativeControlled(changes).input : renderControlled(changes);
     edit(input, caller === 'native' ? '3/10/2026' : '3');
-    fireEvent.click(input);
+    // Card 061026172803 (FB-030, owner word 2026-10-06): segment clicks never
+    // open the picker; the segmented caller opens via the field frame, while
+    // the native input keeps its own open-on-click contract.
+    if (caller === 'native') fireEvent.click(input);
+    else fireEvent.click(input.closest('.date-seg-group'));
     return { changes, input, dialog: screen.getByRole('dialog', { name: caller === 'native' ? 'Chọn ngày' : 'Chọn ngày — Ngày vận chuyển' }) };
   }
 
