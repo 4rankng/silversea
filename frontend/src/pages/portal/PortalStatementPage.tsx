@@ -176,11 +176,11 @@ export default function PortalStatementPage() {
         ) : (
           <>
             <div className="portal-balance-equation" aria-label={balanceEquationLabel}>
-              <div><span>Số dư đầu kỳ</span><strong>{formatMoney(openingBalance)} ₫</strong></div>
+              <div><span>Số dư đầu kỳ</span><strong>{`${formatMoney(openingBalance)} ₫`}</strong></div>
               <span className="portal-balance-equation__operator" aria-hidden="true">{activityOperator}</span>
-              <div><span>Phát sinh trong kỳ</span><strong>{formatMoney(Math.abs(periodActivity))} ₫</strong></div>
+              <div><span>Phát sinh trong kỳ</span><strong>{`${formatMoney(Math.abs(periodActivity))} ₫`}</strong></div>
               <span className="portal-balance-equation__operator" aria-hidden="true">=</span>
-              <div className="portal-balance-equation__result"><span>Số dư cuối kỳ</span><strong>{formatMoney(closingBalance)} ₫</strong></div>
+              <div className="portal-balance-equation__result"><span>Số dư cuối kỳ</span><strong>{`${formatMoney(closingBalance)} ₫`}</strong></div>
             </div>
             {data.unpaidTrips.length > 0 && (
               <section className="portal-due-list" aria-labelledby="portal-due-list-title">
@@ -195,7 +195,7 @@ export default function PortalStatementPage() {
                   <article key={trip.tripId} className="portal-due-row">
                     <div>
                       <strong>{trip.note || 'Chuyến chưa có mã'}</strong>
-                      <span>{formatMoney(trip.outstanding)} ₫ còn phải thanh toán</span>
+                      <span>{`${formatMoney(trip.outstanding)} ₫`} còn phải thanh toán</span>
                     </div>
                     <div>
                       <span>Ngày theo hợp đồng</span>
@@ -226,9 +226,9 @@ export default function PortalStatementPage() {
                         <tr key={row.id}>
                           <td data-label="Ngày">{formatDate(row.timestamp)}</td>
                           <td data-label="Nội dung">{row.note || row.tripCode || row.txnType}</td>
-                          <td data-label="Ghi nợ" className="portal-table__number">{formatMoney(Number(row.debit ?? 0))} ₫</td>
-                          <td data-label="Thanh toán" className="portal-table__number">{formatMoney(Number(row.credit ?? 0))} ₫</td>
-                          <td data-label="Số dư" className="portal-table__number portal-table__balance">{formatMoney(Number(row.balance ?? 0))} ₫</td>
+                          <td data-label="Ghi nợ" className="portal-table__number">{`${formatMoney(Number(row.debit ?? 0))} ₫`}</td>
+                          <td data-label="Thanh toán" className="portal-table__number">{`${formatMoney(Number(row.credit ?? 0))} ₫`}</td>
+                          <td data-label="Số dư" className="portal-table__number portal-table__balance">{`${formatMoney(Number(row.balance ?? 0))} ₫`}</td>
                         </tr>
                       ))}
                     </tbody>

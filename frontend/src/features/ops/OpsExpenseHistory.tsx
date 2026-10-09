@@ -171,7 +171,7 @@ export function OpsExpenseHistory() {
                 <td data-label="Bill / Booking">{opsBillReference(row.billRef)}</td>
                 <td data-label="Cont">{row.containerNumber ?? 'Chung lô'}</td>
                 <td data-label="Loại phí">{row.feeName ?? row.expenseTypeName ?? row.expenseTypeCode}</td>
-                <td className="ops-money" data-label="Số tiền">{formatMoney(row.amount)} ₫</td>
+                <td className="ops-money" data-label="Số tiền">{`${formatMoney(row.amount)} ₫`}</td>
                 <td data-label="Chứng từ">
                   <button
                     type="button"
@@ -265,7 +265,7 @@ function OpsLegacyExpenseDetail({ row, onClose }: { row: OpsExpenseRow; onClose:
   const query = useQuery({ queryKey: qk.opsLegacyExpense(row.sourceId), queryFn: () => expenseAccountingClient.get({ sourceKind: 'TRIP', sourceId: row.sourceId! }) });
   return <Drawer isOpen onClose={onClose} title="Khoản chi được nhập từ kế toán" footer={<button className="btn btn--secondary" onClick={onClose}>Đóng</button>}>
     <p>{opsBillReference(row.billRef)} · {row.feeName ?? row.expenseTypeName}</p>
-    <p>Thực chi: <strong>{formatMoney(row.amount)} ₫</strong></p>
+    <p>Thực chi: <strong>{`${formatMoney(row.amount)} ₫`}</strong></p>
     {row.note && <p style={{ whiteSpace: 'pre-wrap' }}>{row.note}</p>}
     {query.isLoading && <p role="status">Đang tải chứng từ…</p>}
     {query.isError && <p role="alert">Chưa tải được khoản chi. <button onClick={() => void query.refetch()}>Thử lại</button></p>}

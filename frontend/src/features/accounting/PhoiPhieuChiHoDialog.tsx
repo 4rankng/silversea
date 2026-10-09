@@ -267,7 +267,7 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
             <PhoiPhieuDetailSummary items={[{ label: 'Tổng thu', amount: totals.thu }, { label: 'Tổng trả', amount: totals.tra }]} />
             {negativeTraRows.length > 0 && (
               <p className="phoi-detail-note">
-                Có {negativeTraRows.length} khoản chi âm, tổng {formatMoney(negativeTraTotal)} ₫ — không tính vào Tổng trả.
+                Có {negativeTraRows.length} khoản chi âm, tổng {`${formatMoney(negativeTraTotal)} ₫`} — không tính vào Tổng trả.
               </p>
             )}
             {dirty && <p role="status" className="phoi-detail-note">Có thay đổi chưa lưu</p>}

@@ -86,10 +86,10 @@ export function OpsFundBookSection() {
           <strong>
             Khoảng đang lọc: {data.period.from ? formatDate(data.period.from) : 'đầu sổ'} — {data.period.to ? formatDate(data.period.to) : 'nay'}
           </strong>
-          <span>Số dư đầu kỳ: <strong className="mono">{formatMoney(Number(data.periodOpening))} ₫</strong></span>
-          <span>Thu trong kỳ: <strong className="mono">{formatMoney(Number(data.periodIn))} ₫</strong></span>
-          <span>Chi trong kỳ: <strong className="mono">{formatMoney(Number(data.periodOut))} ₫</strong></span>
-          <span>Số dư cuối kỳ: <strong className="mono">{formatMoney(Number(data.periodClosing))} ₫</strong></span>
+          <span>Số dư đầu kỳ: <strong className="mono">{`${formatMoney(Number(data.periodOpening))} ₫`}</strong></span>
+          <span>Thu trong kỳ: <strong className="mono">{`${formatMoney(Number(data.periodIn))} ₫`}</strong></span>
+          <span>Chi trong kỳ: <strong className="mono">{`${formatMoney(Number(data.periodOut))} ₫`}</strong></span>
+          <span>Số dư cuối kỳ: <strong className="mono">{`${formatMoney(Number(data.periodClosing))} ₫`}</strong></span>
           <span style={{ color: 'var(--text-muted, #6b7280)' }}>
             Các con số trên thuộc khoảng đang lọc. “Số dư cuối sổ” và “Còn phải hoàn ứng” bên dưới vẫn là số toàn thời gian.
           </span>
@@ -97,8 +97,8 @@ export function OpsFundBookSection() {
       )}
       {data && (
         <section className="ops-fund-book__summary" aria-label="Tổng sổ quỹ" style={{ marginTop: 12, display: 'grid', gap: 4, justifyContent: 'end', textAlign: 'right' }}>
-          <span>Số dư cuối sổ: <strong className="mono">{formatMoney(Number(data.closing))} ₫</strong></span>
-          <span>Còn phải hoàn ứng (theo kế toán): <strong className="mono">{formatMoney(Number(data.outstandingAdvanceBalance))} ₫</strong></span>
+          <span>Số dư cuối sổ: <strong className="mono">{`${formatMoney(Number(data.closing))} ₫`}</strong></span>
+          <span>Còn phải hoàn ứng (theo kế toán): <strong className="mono">{`${formatMoney(Number(data.outstandingAdvanceBalance))} ₫`}</strong></span>
           <span style={{ color: data.matches ? 'var(--success-text)' : 'var(--err, #dc2626)' }}>
             {data.matches ? 'Đã khớp với báo cáo tổng hợp hoàn ứng' : 'Chưa khớp — cần đối chiếu với kế toán'}
             </span>

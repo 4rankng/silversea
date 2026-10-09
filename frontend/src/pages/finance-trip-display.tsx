@@ -10,7 +10,7 @@ export function CostCheck({ matches, difference }: { matches: boolean; differenc
     </span>
   ) : (
     <span className="cost-check cost-check--warning" title={`Chênh ${formatNumber(Math.abs(difference))} ₫ so với tổng chi phí đã lưu`}>
-      <AlertTriangle size={14} aria-hidden="true" /> Cần kiểm tra {formatNumber(Math.abs(difference))}₫
+      <AlertTriangle size={14} aria-hidden="true" /> Cần kiểm tra {`${formatNumber(Math.abs(difference))} ₫`}
     </span>
   );
 }
@@ -19,7 +19,7 @@ export function TripAmount({ label, value, emphasized = false }: { label: string
   return (
     <div className={emphasized ? 'truck-trip-amount truck-trip-amount--emphasized' : 'truck-trip-amount'}>
       <span>{label}</span>
-      <strong>{formatNumber(value)}₫</strong>
+      <strong>{`${formatNumber(value)} ₫`}</strong>
     </div>
   );
 }
@@ -30,9 +30,9 @@ export function MaintenanceDetails({ truck, trailer, items }: { truck: number; t
     <div className="truck-maintenance-details">
       <div className="truck-maintenance-note">
         Chi phí phát sinh ngoài từng lệnh trong kỳ:
-        {truck > 0 ? <> đầu kéo <strong>{formatNumber(truck)}₫</strong></> : null}
+        {truck > 0 ? <> đầu kéo <strong>{`${formatNumber(truck)} ₫`}</strong></> : null}
         {truck > 0 && trailer > 0 ? ' · ' : null}
-        {trailer > 0 ? <> rơ-moóc <strong>{formatNumber(trailer)}₫</strong></> : null}.
+        {trailer > 0 ? <> rơ-moóc <strong>{`${formatNumber(trailer)} ₫`}</strong></> : null}.
       </div>
       {items.length > 0 && (
         <div className="truck-maintenance-list">
@@ -45,7 +45,7 @@ export function MaintenanceDetails({ truck, trailer, items }: { truck: number; t
                   {item.note ? ` · ${item.note}` : ''}
                 </small>
               </span>
-              <span className="truck-maintenance-item__amount">{formatNumber(item.amount)}₫ <ExternalLink size={12} aria-hidden="true" /></span>
+              <span className="truck-maintenance-item__amount">{`${formatNumber(item.amount)} ₫`} <ExternalLink size={12} aria-hidden="true" /></span>
             </Link>
           ))}
         </div>

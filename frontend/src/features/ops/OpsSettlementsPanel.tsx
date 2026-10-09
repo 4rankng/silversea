@@ -82,7 +82,7 @@ export function OpsSettlementsPanel() {
                 <tr key={item.id} className="ops-wallet__row">
                   <td className="ops-money" data-label="Mã phiếu">{item.code}</td>
                   <td data-label="Ngày lập">{formatDate(item.createdAt)}</td>
-                  <td className="ops-money" data-label="Tổng">{formatMoney(item.totalAmount)} ₫</td>
+                  <td className="ops-money" data-label="Tổng">{`${formatMoney(item.totalAmount)} ₫`}</td>
                   <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="ops-row-actions ops-wallet__wide">
                     <button type="button" className="btn btn--secondary" onClick={() => setDetailId(item.id)}>
@@ -176,7 +176,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
                     ],
                   }))} />
                 <LedgerRecordList rows={[
-                  { key: 'subtotal', title: subtotalLabel, facts: [{ key: 'amount', label: 'Số tiền', value: <span className="data-token">{formatMoney(basket.total)} ₫</span>, primary: true, align: 'end' }] },
+                  { key: 'subtotal', title: subtotalLabel, facts: [{ key: 'amount', label: 'Số tiền', value: <span className="data-token">{`${formatMoney(basket.total)} ₫`}</span>, primary: true, align: 'end' }] },
                 ]} />
                 <div className="ledger-desktop ds-table-scroll">
                 <table className="tt-table ops-settlement-sheet__table">
@@ -197,7 +197,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
                     ))}
                     <tr className="ops-settlement-sheet__subtotal">
                       <td colSpan={2}>{subtotalLabel}</td>
-                      <td className="ops-money">{formatMoney(basket.total)} ₫</td>
+                      <td className="ops-money">{`${formatMoney(basket.total)} ₫`}</td>
                     </tr>
                   </tbody>
                 </table>

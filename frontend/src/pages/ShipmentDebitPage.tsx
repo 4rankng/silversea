@@ -333,7 +333,7 @@ export function ShipmentDebitPage() {
                 table's sideways scroll and its tail clipped at the right edge. */}
             {(summary.data?.excludedCount ?? 0) > 0 && (
               <p className="shipment-debit-shadow-line" role="status">
-                {summary.data?.excludedCount} chuyến chưa gán đầu việc vận chuyển — {formatMoney(Number(summary.data?.excludedSum ?? '0'))} ₫ chưa vào chốt
+                {summary.data?.excludedCount} chuyến chưa gán đầu việc vận chuyển — {`${formatMoney(Number(summary.data?.excludedSum ?? '0'))} ₫`} chưa vào chốt
               </p>
             )}
             {phone && !print ? <ShipmentDebitRecords key={JSON.stringify([customerId, deliveryFrom, deliveryTo, lockStatus])}

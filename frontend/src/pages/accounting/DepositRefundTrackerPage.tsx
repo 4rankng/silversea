@@ -205,7 +205,7 @@ export default function DepositRefundTrackerPage() {
           )}
           {unrefundedTotal > 0 && (
             <p className="deposit-tracker-warnings__item">
-              Chưa hoàn cược số tiền: <strong>{formatMoney(unrefundedTotal)} ₫</strong> — Vui lòng kiểm tra lại!
+              Chưa hoàn cược số tiền: <strong>{`${formatMoney(unrefundedTotal)} ₫`}</strong> — Vui lòng kiểm tra lại!
             </p>
           )}
           {showCvAlert && (

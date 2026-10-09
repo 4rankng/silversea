@@ -233,10 +233,10 @@ export default function FinancePage() {
                 : 'Tháng này chưa có chính sách phân bổ đội xe hiệu lực'}
             </div>
             <div className="finance-allocation-alert__meta">
-              <span>Khấu hao: <strong>{formatNumber(fleetDepreciationCost)} ₫</strong></span>
-              <span>Cố định đội xe: <strong>{formatNumber(fleetFixedCost)} ₫</strong></span>
-              <span>Đã phân bổ: <strong>{formatNumber(allocatedFleetFixedCostTotal)} ₫</strong></span>
-              <span>Chưa phân bổ: <strong>{formatNumber(unallocatedFleetFixedCostTotal)} ₫</strong></span>
+              <span>Khấu hao: <strong>{`${formatNumber(fleetDepreciationCost)} ₫`}</strong></span>
+              <span>Cố định đội xe: <strong>{`${formatNumber(fleetFixedCost)} ₫`}</strong></span>
+              <span>Đã phân bổ: <strong>{`${formatNumber(allocatedFleetFixedCostTotal)} ₫`}</strong></span>
+              <span>Chưa phân bổ: <strong>{`${formatNumber(unallocatedFleetFixedCostTotal)} ₫`}</strong></span>
             </div>
             <div className="finance-allocation-alert__note">
               {currentPolicy?.status === 'CONFIGURED'
@@ -340,7 +340,7 @@ export default function FinancePage() {
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
                             <span style={{ width: 10, height: 10, background: a.fill, borderRadius: 2, flexShrink: 0 }} />
                             <span style={{ flex: 1, color: 'var(--ink-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
-                            <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)', marginRight: 4 }}>{formatNumber(a.value)} ₫</span>
+                            <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)', marginRight: 4 }}>{`${formatNumber(a.value)} ₫`}</span>
                             <span style={{ color: 'var(--ink-3)', flexShrink: 0, fontFamily: 'var(--font-data)' }}>{a.pct.toFixed(0)}%</span>
                           </div>
                         ))}
@@ -408,7 +408,7 @@ export default function FinancePage() {
                           {minProfit < 0 && (
                             <line x1={zeroX} y1={0} x2={zeroX} y2={24} stroke="var(--line-2)" strokeWidth={1} strokeDasharray="2,2" />
                           )}
-                          <text x={280} y={15} fontSize="11" fill={isNegative ? 'var(--danger)' : 'var(--ink-2)'} fontWeight={isNegative ? 600 : 500} textAnchor="end">{formatNumber(val)} ₫</text>
+                          <text x={280} y={15} fontSize="11" fill={isNegative ? 'var(--danger)' : 'var(--ink-2)'} fontWeight={isNegative ? 600 : 500} textAnchor="end">{`${formatNumber(val)} ₫`}</text>
                         </g>
                       );
                     })}
@@ -610,16 +610,16 @@ export default function FinancePage() {
               <div className="pnl-row__label" style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, fontSize: 'var(--text-caption-size)' }}>
                 Lợi nhuận ròng
               </div>
-              <div className="pnl-row__amount">{formatNumber(netProfit)} ₫</div>
+              <div className="pnl-row__amount">{`${formatNumber(netProfit)} ₫`}</div>
               <div className="pnl-row__yoy">{prevReport ? formatNumber(netProfitLY) : '—'}</div>
               <div className={`pnl-row__pct ${prevReport ? yoyClass(netProfit, netProfitLY) : ''}`}>{prevReport ? yoyPct(netProfit, netProfitLY) : '—'}</div>
             </div>
           </div>
 
           <p style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', margin: '14px 0 24px', lineHeight: 1.5 }}>
-            * Lợi nhuận ròng kế toán: <strong>{formatNumber(netProfit)} ₫</strong>.
+            * Lợi nhuận ròng kế toán: <strong>{`${formatNumber(netProfit)} ₫`}</strong>.
             {activeCapTable.length > 0
-              ? <> Sau khi kết chuyển chia cổ đông: {activeCapTable.map((p, i) => <span key={i}>{i > 0 ? ' và ' : ''}<strong>{formatNumber(netProfit != null ? netProfit * p.pct / 100 : null)} ₫</strong> cho {p.name} ({p.pct}%)</span>)}.</>
+              ? <> Sau khi kết chuyển chia cổ đông: {activeCapTable.map((p, i) => <span key={i}>{i > 0 ? ' và ' : ''}<strong>{`${formatNumber(netProfit != null ? netProfit * p.pct / 100 : null)} ₫`}</strong> cho {p.name} ({p.pct}%)</span>)}.</>
               : ' Chưa cấu hình bảng cổ phần.'
             }{' '}
             <Link to='/profit'
@@ -662,7 +662,7 @@ export default function FinancePage() {
                             {t.plate}
                           </span>
                           <span className={`truck-card__profit ${t.profit >= 0 ? 'truck-card__profit--up' : 'truck-card__profit--down'}`}>
-                            {formatNumber(t.profit)} ₫
+                            {`${formatNumber(t.profit)} ₫`}
                           </span>
                         </div>
                         <div className="truck-card__stats">
@@ -717,7 +717,7 @@ export default function FinancePage() {
                               <div><strong>{allocation.profileText}</strong></div>
                               {allocation.monthlyFleetCost > 0 && (
                                 <div>
-                                  Đã phân bổ {formatNumber(t.allocatedFleetFixedCost)} ₫
+                                  Đã phân bổ {`${formatNumber(t.allocatedFleetFixedCost)} ₫`}
                                   {t.unallocatedFleetFixedCost > 0 ? ` · Chưa phân bổ ${formatNumber(t.unallocatedFleetFixedCost)} ₫` : ''}
                                 </div>
                               )}
@@ -841,7 +841,7 @@ export default function FinancePage() {
                                       <div><strong>{allocation.profileText}</strong></div>
                                       {allocation.monthlyFleetCost > 0 && (
                                         <div>
-                                          Đã phân bổ {formatNumber(t.allocatedFleetFixedCost)} ₫
+                                          Đã phân bổ {`${formatNumber(t.allocatedFleetFixedCost)} ₫`}
                                           {t.unallocatedFleetFixedCost > 0 ? ` · Chưa phân bổ ${formatNumber(t.unallocatedFleetFixedCost)} ₫` : ''}
                                         </div>
                                       )}
@@ -937,7 +937,7 @@ export default function FinancePage() {
                         return (
                           <tr key={i}>
                             <td data-label="Hạng mục" style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{cat.categoryName}</td>
-                            <td data-label="Tổng chi phí" className="num">{formatNumber(cat.total)} ₫</td>
+                            <td data-label="Tổng chi phí" className="num">{`${formatNumber(cat.total)} ₫`}</td>
                             <td data-label="Tỷ trọng">
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>

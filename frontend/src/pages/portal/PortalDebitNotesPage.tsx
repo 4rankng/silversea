@@ -180,7 +180,7 @@ export default function PortalDebitNotesPage() {
             <div><span>Hồ sơ đối soát</span><h2>Chứng từ đã phát hành</h2></div>
             <div className="portal-panel__totals">
               <span>Giá trị trong trang</span>
-              <strong>{formatMoney(visibleValue)} ₫</strong>
+              <strong>{`${formatMoney(visibleValue)} ₫`}</strong>
             </div>
           </div>
           <div className="portal-list">
@@ -192,7 +192,7 @@ export default function PortalDebitNotesPage() {
                   <div className="portal-list__primary">
                     <span className={statusClass(doc.debitNoteStatus)}>{STATUS_LABELS[doc.debitNoteStatus ?? 'DRAFT']}</span>
                     <strong>Kỳ {new Date(doc.rangeFrom).toLocaleDateString('vi-VN')} – {new Date(doc.rangeTo).toLocaleDateString('vi-VN')}</strong>
-                    <span className="portal-debit-row__amount">{formatMoney(Number(doc.totalInclVat))} ₫</span>
+                    <span className="portal-debit-row__amount">{`${formatMoney(Number(doc.totalInclVat))} ₫`}</span>
                     <span className="portal-list__meta">
                       Hóa đơn pháp lý: {doc.legalInvoiceRef?.status === 'ISSUED'
                         ? `Đã ghi nhận${doc.legalInvoiceRef.providerReference ? ` · ${doc.legalInvoiceRef.providerReference}` : ''}`
