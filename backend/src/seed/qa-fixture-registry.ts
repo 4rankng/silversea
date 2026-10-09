@@ -211,6 +211,28 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     guards: [],
     scrubColumns: ['name', 'dispatch_zone'],
   },
+  {
+    table: 'distributions',
+    label: 'QA profit distribution rows',
+    predicate: `partner_name ILIKE 'QA%' OR partner_name ILIKE '%dbapi%'`,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
+    table: 'penalty_reasons',
+    label: 'QA penalty reason catalog rows',
+    predicate: `reason_text ILIKE 'QA%' OR reason_text ILIKE '%staging%'`,
+    action: 'soft-delete',
+    guards: [],
+  },
+  {
+    table: 'driver_incidental_costs',
+    label: 'QA text fields on driver incidental costs',
+    predicate: `fee_name ILIKE 'QA%' OR fee_name ILIKE 'TEST%' OR note ILIKE 'QA%' OR note ILIKE 'TEST%'`,
+    action: 'scrub',
+    guards: [],
+    scrubColumns: ['fee_name', 'note'],
+  },
 ];
 
 /** Surfaces whose purge must run before this surface, by table name. */

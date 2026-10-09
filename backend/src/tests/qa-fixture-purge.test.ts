@@ -61,4 +61,36 @@ describe('QA fixture purge', () => {
     await db.execute(sql.raw(`DELETE FROM customers WHERE name = '${realCust}'`));
     await db.execute(sql.raw(`DELETE FROM suppliers WHERE name = '${realSupp}'`));
   });
+
+  it('purges FB-061 surfaces: distributions, penalty_reasons (Card 091026225810)', async () => {
+    const suffix = Date.now() % 1000000;
+    const qaPartner = `QA-118 dbapi truck partner ${suffix}`;
+    const realPartner = `Đối tác đầu tư ${suffix}`;
+    const qaReason = `QA AUDIT 0914 - staging only ${suffix}`;
+    const realReason = `Lý do vi phạm ${suffix}`;
+
+    await db.execute(sql.raw(`INSERT INTO distributions (quarter, year, partner_name, amount) VALUES (3, 2026, '${qaPartner}', 1500000), (3, 2026, '${realPartner}', 2000000)`));
+    await db.execute(sql.raw(`INSERT INTO penalty_reasons (reason_text, default_amount) VALUES ('${qaReason}', 60000), ('${realReason}', 100000)`));
+
+    const distSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'distributions')!;
+    const penSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'penalty_reasons')!;
+    strict.ok(distSurface && penSurface);
+
+    strict.ok(await censusSurface(distSurface) >= 1);
+    strict.ok(await censusSurface(penSurface) >= 1);
+
+    await purgeSurface(distSurface, false);
+    await purgeSurface(penSurface, false);
+
+    const distSurvivors = await db.execute(sql.raw(`SELECT partner_name FROM distributions WHERE partner_name IN ('${qaPartner}', '${realPartner}')`));
+    const distNames = (Array.isArray(distSurvivors) ? distSurvivors : (distSurvivors as { rows: Array<{ partner_name: string }> }).rows).map((r) => r.partner_name);
+    strict.deepEqual(distNames, [realPartner]);
+
+    const penSurvivors = await db.execute(sql.raw(`SELECT reason_text FROM penalty_reasons WHERE reason_text IN ('${qaReason}', '${realReason}') AND deleted_at IS NULL`));
+    const penNames = (Array.isArray(penSurvivors) ? penSurvivors : (penSurvivors as { rows: Array<{ reason_text: string }> }).rows).map((r) => r.reason_text);
+    strict.deepEqual(penNames, [realReason]);
+
+    await db.execute(sql.raw(`DELETE FROM distributions WHERE partner_name = '${realPartner}'`));
+    await db.execute(sql.raw(`DELETE FROM penalty_reasons WHERE reason_text IN ('${realReason}', '${qaReason}')`));
+  });
 });
