@@ -39,12 +39,13 @@ export default function HrRosterPage() {
   const [search, setSearch] = useState('');
   const [department, setDepartment] = useState('all');
 
-  // qk.catalogs.users is the bare ['users'] key; the /users table caches
-  // under ['users', appliedParams] (useTableQueryState appends), so this
-  // whole-roster fetch is a distinct cache entry, not a collision.
+  // The roster reads its own office-staff-readable projection
+  // (/auth/users/roster) — /auth/users is an admin surface and 403s the
+  // finance roles this page's menu addresses (card 20261009_2). Same bare
+  // ['users'] key as before: distinct from the /users table's keyed entries.
   const { data, isLoading, isError } = useQuery({
     queryKey: qk.catalogs.users,
-    queryFn: () => userClient.getUsers({ limit: ROSTER_LIMIT }),
+    queryFn: () => userClient.getHrRoster(),
   });
 
   const { rootRef } = usePageAnimations({ ready: !isLoading });

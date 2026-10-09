@@ -251,6 +251,12 @@ router.get('/users', authMiddleware, casbinAuthz('users'), asyncHandler(async (r
   }));
 }));
 
+// Finance-facing driver roster read (Danh sách nhân sự): office staff read the
+// projected roster without touching the admin /users surface (card 20261009_2).
+router.get('/users/roster', authMiddleware, casbinAuthz('hr_roster'), asyncHandler(async (_req: Request, res: Response) => {
+  res.json(await userService.listHrRoster());
+}));
+
 router.post('/users', declareMaterialWrite('auth.users.create', { method: 'POST', path: '/api/auth/users' }),  authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
   if (req.user?.role === Role.ACCOUNTANT) {
     throw new ApiError(403, 'Kế toán không thể tạo người dùng');

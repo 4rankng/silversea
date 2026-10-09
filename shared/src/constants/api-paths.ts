@@ -8,6 +8,7 @@ export const AUTH = {
   LOGIN: '/auth/login',
   ME: '/auth/me',
   USERS: '/auth/users',
+  USERS_ROSTER: '/auth/users/roster',
   USER: (id: number) => `/auth/users/${id}`,
 } as const;
 

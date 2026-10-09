@@ -590,6 +590,47 @@ export async function listUsers(requesterRole?: string, params: ListUsersParams 
   };
 }
 
+
+/** Driver-only roster projection for the finance-facing Danh sách nhân sự
+ * page. The page's menu audience is office staff (ADMIN/MANAGER/ACCOUNTANT),
+ * but /auth/users is an admin surface — this read returns exactly the roster
+ * columns (no salary, login or assignment metadata), and the 2026-10-09
+ * owner ruling (personnel = drivers only) is enforced server-side as well. */
+export async function listHrRoster() {
+  const rows = await db.select({
+    id: users.id,
+    employeeCode: users.employeeCode,
+    fullName: users.fullName,
+    email: users.email,
+    phone: users.phone,
+    status: users.status,
+    role: users.role,
+  }).from(users)
+    .where(and(isNull(users.deletedAt), eq(users.role, Role.DRIVER)))
+    .orderBy(asc(users.id));
+
+  const links = rows.length
+    ? await db.select({
+      userId: userBusinessUnitLinks.userId,
+      businessUnitId: userBusinessUnitLinks.businessUnitId,
+    }).from(userBusinessUnitLinks)
+      .where(inArray(userBusinessUnitLinks.userId, rows.map((r) => r.id)))
+    : [];
+  const unitsByUser = new Map<number, number[]>();
+  for (const link of links) {
+    const list = unitsByUser.get(link.userId) ?? [];
+    list.push(link.businessUnitId);
+    unitsByUser.set(link.userId, list);
+  }
+
+  const units = await listBusinessUnits();
+  return {
+    items: rows.map((r) => ({ ...r, businessUnitIds: unitsByUser.get(r.id) ?? [] })),
+    total: rows.length,
+    businessUnits: units,
+  };
+}
+
 /** Create a new user with hashed password. DRIVER-role users also get a linked drivers row. */
 export async function createUserWithTx(tx: Tx, data: {
   username?: string;

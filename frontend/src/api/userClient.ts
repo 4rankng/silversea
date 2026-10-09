@@ -37,6 +37,13 @@ export const userClient = {
     return api.get<UsersResponse>(`${AUTH.USERS}${toQuery(params)}`);
   },
 
+  /** Driver-only roster projection — the finance-facing Danh sách nhân sự
+   * page reads this regardless of role (admin included): one data path,
+   * office-staff readable (card 20261009_2). */
+  getHrRoster: async () => {
+    return api.get<UsersResponse>(AUTH.USERS_ROSTER);
+  },
+
   getUser: async (id: number) => {
     return api.get<UserRow>(AUTH.USER(id));
   },

@@ -3,11 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getUsersMock = vi.hoisted(() => vi.fn());
+const getHrRosterMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/userClient', () => ({
   userClient: {
-    getUsers: getUsersMock,
+    getHrRoster: getHrRosterMock,
   },
 }));
 
@@ -57,7 +57,7 @@ function userRow(overrides: Record<string, unknown>) {
 describe('HrRosterPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getUsersMock.mockResolvedValue({
+    getHrRosterMock.mockResolvedValue({
       items: [
         userRow({ id: 2, role: 'DRIVER', fullName: 'Lái xe A', employeeCode: 'TX001', email: 'laixe@example.com', phone: '0902', businessUnitIds: [2] }),
         userRow({ id: 4, role: 'DRIVER', fullName: 'Lái xe B', employeeCode: 'TX002', email: 'laixeb@example.com', phone: '0903', businessUnitIds: [2] }),
