@@ -83,6 +83,10 @@ describe('card 20260922_1 — cut seed rides fill-only', () => {
   });
 
   test('expense categories: seedExpenseCategories fills missing categories including Phí nhiên liệu / dầu, rerun inserts nothing', async () => {
+    // Hermetic precondition: the fill-only contract must be pinned against a
+    // DB missing the category — a local DB that already ran the seed would
+    // otherwise make inserted 0 and the fill path untested.
+    await db.delete(s.expenseCategories).where(eq(s.expenseCategories.name, 'Phí nhiên liệu / dầu'));
     const first = await seedExpenseCategories();
     assert.ok(first.inserted >= 1, 'should insert at least Phí nhiên liệu / dầu if missing');
     const [fuelCat] = await db.select().from(s.expenseCategories)
