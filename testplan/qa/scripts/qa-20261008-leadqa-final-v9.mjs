@@ -1,0 +1,28 @@
+// v9 — VAT select round-trip: set 0.10 → persist → restore 0.08 (only select on page).
+import { launch, login, tap, shot, step, evidenceDir, BASE } from './lead-qa-harness.mjs';
+const dir = evidenceDir('20261008-leadqa-final');
+const log = `${dir}/driver-v9.log`;
+const { browser, page } = await launch();
+await login(page, 'admin');
+await page.goto(`${BASE}/admin-center`, { waitUntil: 'networkidle2', timeout: 60000 });
+await new Promise((r) => setTimeout(r, 2500));
+const before = await page.$eval('select', (e) => e.value);
+const options = await page.$eval('select', (e) => [...e.options].map((o) => o.value));
+step(log, { step: 'vat-before', before, options });
+await page.select('select', '0.1');
+await tap(page, 'xpath///button[contains(., "Lưu")]', log, 'vat-save');
+await new Promise((r) => setTimeout(r, 2500));
+await page.reload({ waitUntil: 'networkidle2' });
+await new Promise((r) => setTimeout(r, 2000));
+const after = await page.$eval('select', (e) => e.value);
+step(log, { step: 'vat-persisted', after, persisted: after === '0.1' });
+await shot(page, `${dir}/A3-vat-010-saved.png`);
+await page.select('select', String(before));
+await tap(page, 'xpath///button[contains(., "Lưu")]', log, 'vat-restore');
+await new Promise((r) => setTimeout(r, 2000));
+await page.reload({ waitUntil: 'networkidle2' });
+const restored = await page.$eval('select', (e) => e.value);
+step(log, { step: 'vat-restored', restored, ok: restored === before });
+await shot(page, `${dir}/A3-vat-restored.png`);
+await browser.close();
+step(log, { step: 'DONE' });
