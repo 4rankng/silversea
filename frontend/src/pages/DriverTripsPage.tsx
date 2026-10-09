@@ -201,7 +201,7 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
               ) : null}
               {isPresent(locations.drop) || card.tradeDirection === 'IMPORT' ? (
                 <span className="driver-journey-card__port">
-                  <span className="driver-journey-card__port-label">Hạ</span> {locations.drop ?? 'Chưa có nơi trả rỗng'}
+                  <span className="driver-journey-card__port-label">Hạ</span> {locations.drop ?? 'Chưa có nơi hạ'}
                 </span>
               ) : null}
               {isPresent(locations.delivery) ? (

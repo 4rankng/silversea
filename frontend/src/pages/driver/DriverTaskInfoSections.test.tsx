@@ -466,11 +466,11 @@ describe('DriverTaskInfoSections', () => {
   it('gives Cảng nâng the named fallback like Cảng hạ when the pickup chain is empty (card 071026205810)', () => {
     render(<DriverTaskInfoSections trip={makeTrip({
       tradeDirection: 'IMPORT',
-      fulfillment: { pickupPortName: null, pickupWarehouseName: null, lclWarehouseName: null },
+      fulfillment: { pickupPortName: null, pickupWarehouseName: null, lclWarehouseName: null, dropPortName: null, dropWarehouseName: null },
     })} />);
 
     expect(valueOf('Cảng nâng')).toBe('Chưa có cảng nâng');
-    expect(valueOf('Cảng hạ')).toBe('Chưa có nơi trả rỗng');
+    expect(valueOf('Cảng hạ')).toBe('Chưa có cảng hạ');
   });
 
   it('hides the return depot row when returnDepotName is null', () => {
@@ -499,14 +499,14 @@ describe('DriverTaskInfoSections', () => {
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
-  it('DRV-R02: IMPORT with no return depot never mislabels the delivery factory as Cảng hạ', () => {
+  it('card 091026190530 (FB-082): IMPORT with no distinct depot carries the drop point as Cảng hạ — DRV-R02 superseded by the 2026-09-18 ruling (return-depot stage dead BE-side, factory excluded from the drop chain there)', () => {
     render(<DriverTaskInfoSections trip={makeTrip({
       tradeDirection: 'IMPORT',
-      fulfillment: { returnDepotName: null, dropPortName: 'Nhà máy Samsung' },
+      fulfillment: { returnDepotName: null, dropPortName: 'Bãi ICD Mỹ Đình' },
     })} />);
 
-    expect(valueOf('Cảng hạ')).toBe('Chưa có nơi trả rỗng');
-    expect(valueOf('Địa chỉ giao hàng')).toBe('Nhà máy Samsung');
+    expect(valueOf('Cảng hạ')).toBe('Bãi ICD Mỹ Đình');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Bãi ICD Mỹ Đình');
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 

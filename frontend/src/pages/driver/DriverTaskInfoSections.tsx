@@ -108,16 +108,19 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   const [infoOpen, setInfoOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   const plannedAt = fulfillment?.plannedAt ?? trip.plannedStartAt;
-  // Card 071026205810: named fallback, same treatment as Cảng hạ's
-  // "Chưa có nơi trả rỗng" — a bare dash read as a render error.
+  // Card 071026205810: named fallbacks — a bare dash reads as a render error.
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? 'Chưa có cảng nâng';
 
-  // KP-063: direction-aware destination mapping. For IMPORT the required
-  // Cảng hạ is the empty-container return depot (where the driver returns
-  // the empty container); for EXPORT it is the conventional drop port.
+  // Card 091026190530 (FB-082): since the 2026-09-18 delivery-stage ruling
+  // the drop chain (the container's dropoff port, else the dispatcher's
+  // free-text override) IS the Hạ point in every direction — the
+  // return-depot stage is dead BE-side. Legacy data with a distinct depot
+  // still leads for IMPORT (driverLocationLabels), but a depot-less IMPORT
+  // trip shows its real drop point here, never a dead "Chưa có nơi trả
+  // rỗng" row beside "Địa chỉ giao hàng" naming the same yard.
   const rawDropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? '—';
   const locations = driverLocationLabels(trip.tradeDirection, rawDropPoint === '—' ? null : rawDropPoint, fulfillment?.returnDepotName);
-  const cangHa = locations.drop ?? (trip.tradeDirection === 'IMPORT' ? 'Chưa có nơi trả rỗng' : '—');
+  const cangHa = locations.drop ?? (trip.tradeDirection === 'IMPORT' ? 'Chưa có cảng hạ' : '—');
 
   // For IMPORT: always show the delivery address when it exists, even when
   // it matches the return depot (the driver needs to see where to deliver).

@@ -211,8 +211,11 @@ describe('DriverTripsPage', () => {
   it.each([
     ['Bãi trả rỗng', 'Nhà máy nhận hàng', 'Bãi trả rỗng', true],
     ['Cùng một cảng', 'Cùng một cảng', 'Cùng một cảng', true],
-    [null, 'Nhà máy nhận hàng', 'Chưa có nơi trả rỗng', true],
-  ])('DRV-R02 IMPORT uses canonical return port %s without a duplicate return row', (depot, delivery, expected, showDelivery) => {
+    // Card 091026190530 (FB-082): no distinct depot → the drop point IS the
+    // Hạ value (the old "Chưa có nơi trả rỗng" pin superseded by the
+    // 2026-09-18 delivery-stage ruling — the return-depot stage is dead).
+    [null, 'Nhà máy nhận hàng', 'Nhà máy nhận hàng', true],
+  ])('IMPORT Hạ resolves to %s without a duplicate return row (card 091026190530)', (depot, delivery, expected, showDelivery) => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ tradeDirection: 'IMPORT', returnDepotName: depot, dropPortName: delivery })]));
     renderPage();
     const drop = screen.getByText('Hạ').parentElement!;
