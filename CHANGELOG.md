@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-09 (sáng) — wave: HR roster rulings
+
+Prod `e9339ad1` → `fca551ee` (staging-verified từng bước `3a43b3b1` → `fca551ee`).
+
+### Shipped
+
+- **Danh sách nhân sự chỉ còn lái xe** (20261009_1, owner ruling 09/10 'chấm công chỉ dành cho lái xe' / 'no office staff'): roster lọc đúng role DRIVER — pin test đỏ→xanh + rung staging chứng minh 43 hàng = đúng 43 driver theo API, 0 nhân sự văn phòng.
+- **Kế toán đọc được roster** (20261009_2): menu Danh sách nhân sự trỏ tới /auth/users vốn 403 role tài chính — giờ có endpoint đọc riêng GET /auth/users/roster (casbin hr_roster: MANAGER + ACCOUNTANT; projection đúng cột roster, không salary/login; driver-only chặn luôn ở server). Rung: hoapt 200 + 43 hàng render, DISPATCHER 403, admin không đổi.
+
+### Rulings
+
+- Owner 09/10: chấm công driver-only vĩnh viễn — bảng văn phòng đã bỏ 06/10 không quay lại; thẻ gốc 051026231606 đóng kèm ruling.
+- 'Phơi phiếu' GIỮ NGUYÊN (lead ruling, owner ủy quyền): thuật ngữ kế toán thật, nhất quán mọi bề mặt.
+- OPS không vào /fleet + /expenses: KHÔNG có requirement nào đòi mở — giữ nguyên thiết kế; đóng mục.
+
 ## 2026-10-09 (rạng sáng) — wave: retest round 8
 
 Prod `371f297f` → `e9339ad1` (staging-verified từng bước: `443f5c14` → `463712eb` → `e9339ad1`).
