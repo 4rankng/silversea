@@ -360,7 +360,13 @@ describe('DispatchAllocationPopover', () => {
     expect(screen.getByTestId('carrier-allocation-empty-externals')).toBeTruthy();
     expect(screen.getByText(/Chưa có nhà xe ngoài nào được cấu hình/)).toBeTruthy();
     expect(screen.getByText(/Quản trị viên/)).toBeTruthy();
-    expect((screen.getByRole('button', { name: /Thêm nhà xe/ }) as HTMLButtonElement).disabled).toBe(true);
+    // Card 20261009_7 / commit c6f67c1d (card 20261008_1 sweep): this action is
+    // no longer a SILENT native `disabled` — it moved to aria-disabled plus a
+    // DisabledActionTip so a focused dispatcher can be told WHY it is inert.
+    // Asserting the native property would pin the pre-sweep behaviour back.
+    const addBtn = screen.getByRole('button', { name: /Thêm nhà xe/ });
+    expect(addBtn).toHaveAttribute('aria-disabled', 'true');
+    expect((addBtn as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(screen.getByLabelText(/Nhà xe dòng 1/));
     expect(screen.getByRole('option', { name: 'Đội xe nội bộ SilverSea' })).toBeTruthy();
