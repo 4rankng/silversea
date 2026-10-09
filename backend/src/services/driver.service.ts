@@ -455,7 +455,36 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
 
   // Include containers so the driver can review/confirm container & seal numbers
   // (populated by the OCR flow).
-  const containers = await listTripContainers(tripId);
+  // Card 091026164520 — trip 79 showed "12.500,5 kg" on the /my-trips card
+  // and "18.500 kg" in this detail for the SAME container. The card renders
+  // the declared payload (shipments_containers.cargo_weight_kg — see
+  // driver-journey-board.service.ts, which documents that the card AND the
+  // detail render that one number), while listTripContainers returns the
+  // trip-local entry the driver/OCR typed onto the trip. Both are real values,
+  // but the declared payload is the one the card already commits to, so it
+  // wins here too. The trip-local number stays on the record and is still
+  // editable via PATCH /trips/:tripId/containers/:containerId — this only
+  // changes what the detail DISPLAYS. Join mirrors the journey board:
+  // trip → fulfillment → shipment container.
+  const tripContainers = await listTripContainers(tripId);
+  let containers = tripContainers;
+  if (trip.fulfillmentId != null) {
+    const [declared] = await db
+      .select({ cargoWeightKg: s.shipmentContainers.cargoWeightKg })
+      .from(s.shipmentFulfillments)
+      .innerJoin(
+        s.shipmentContainers,
+        eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId),
+      )
+      .where(eq(s.shipmentFulfillments.id, trip.fulfillmentId))
+      .limit(1);
+    if (declared?.cargoWeightKg != null && declared.cargoWeightKg !== '') {
+      containers = tripContainers.map((c) => ({
+        ...c,
+        cargoWeightKg: String(declared.cargoWeightKg),
+      }));
+    }
+  }
 
   // Latest uploaded photo per type for this trip — shown as thumbnails on the
   // driver detail page once a container has been saved. Also fetch the full

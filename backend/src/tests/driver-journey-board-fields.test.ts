@@ -26,7 +26,7 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
 import { getDriverCompletionEvidenceStatus } from '../services/trip-pod.service';
-import { getDriverFulfillmentDetail } from '../services/driver.service';
+import { getDriverFulfillmentDetail, getDriverTripDetail } from '../services/driver.service';
 import { loadOwnedFulfillmentTrip } from '../services/trip-pod.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -716,6 +716,50 @@ describe('driver fulfillment photo wire (biên bản = DELIVERY_NOTE)', () => {
     const unweightedCard = board.items.find((c) => c.fulfillmentId === unweighted.id)!;
     assert.equal(weightedCard.cargoWeightKg, '15000');
     assert.equal(unweightedCard.cargoWeightKg, null);
+  });
+
+  // Card 091026164520 — trip 79 showed "12.500,5 kg" on the /my-trips card
+  // but "18.500 kg" in the trip detail's "Số cont & seal" bento: two numbers
+  // for one container. Root cause: the card reads
+  // shipments_containers.cargo_weight_kg (the declared payload) while the
+  // detail reads trip_containers.cargo_weight_kg (the driver's on-the-spot
+  // number, seeded by OCR/hand entry). Both are real values but the card's
+  // own contract (driver-journey-board.service.ts) says the card AND the
+  // detail render the SAME declared payload, so the detail is the side that
+  // diverged. This pins the detail to the declared shipment payload so a
+  // trip never shows two weights for one container.
+  test('trip detail container weight matches the journey card (declared payload)', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Trọng lượng khai 12.500,5');
+    const { fulfillment, trip } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      cargoWeightKg: '12500.5',
+    });
+    // A driver-entered number on the trip container — this is what used to
+    // surface in the detail and disagree with the card.
+    const [tripContainer] = await db.insert(s.tripContainers).values({
+      tripId: trip.id,
+      containerTypeId: containerType.id,
+      cargoWeightKg: '18500',
+    }).returning();
+    // Cleanup is handled by the `after` hook, which deletes trip_containers
+    // by tripId for every created trip — no extra registry needed here.
+    assert.ok(tripContainer.id > 0);
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
+    const detail = await getDriverTripDetail(driver.id, trip.id);
+
+    // The card is the reference: the declared shipment payload.
+    assert.equal(card.cargoWeightKg, '12500.5');
+    // The detail must show the SAME number — not the trip-local entry.
+    const shown = detail!.containers[0]?.cargoWeightKg;
+    assert.equal(
+      Number(shown),
+      12500.5,
+      `detail showed ${shown} kg but the card shows 12500.5 kg for the same container`,
+    );
   });
 
 after(async () => {
