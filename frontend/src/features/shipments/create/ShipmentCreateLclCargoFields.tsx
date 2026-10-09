@@ -9,6 +9,15 @@ import type { ShipmentCreateFormState } from './shipment-create-model';
 
 type FormState = ShipmentCreateFormState;
 
+/** Common packaging formats (FB-079, card 091026180800) — the values the
+ * old free-text placeholder taught ("Ví dụ: Pallet, Roll, Carton, Thùng
+ * gỗ, Bao, Can…"). Suggestions only: any custom value still types through,
+ * preserving the 2026-09-06 free-text guarantee. A fixed catalog is a
+ * separate card when the owner wants one. */
+const PACKAGE_TYPE_SUGGESTIONS = ['Pallet', 'Roll', 'Carton', 'Thùng gỗ', 'Bao', 'Can'];
+
+const packageTypeOptions = PACKAGE_TYPE_SUGGESTIONS.map((label) => ({ value: label, label }));
+
 export interface ShipmentCreateLclCargoFieldsProps {
   form: FormState;
   update: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
@@ -95,13 +104,20 @@ export function ShipmentCreateLclCargoFields({
       </div>
       <div style={shipmentCreateGridStyle}>
         <div data-field-id="shipment-package-type">
-          <TextField
+          {/* FB-079 (card 091026180800): suggestion combobox mirroring the
+              Hãng tàu / nhà máy pickers — quick-pick the common formats, type
+              anything else; custom values commit like before. openOnType so
+              typing itself surfaces the suggestions (click still opens the
+              full list). */}
+          <SearchableField
             id="shipment-package-type"
             label="Quy cách đóng gói"
             value={form.packageType}
-            onChange={(event) => update('packageType', event.target.value)}
-            maxLength={100}
-            placeholder="Ví dụ: Pallet, Roll, Carton, Thùng gỗ, Bao, Can…"
+            onChange={(value) => update('packageType', value)}
+            allowsCustomValue
+            openOnType
+            options={packageTypeOptions}
+            placeholder="Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)"
             disabled={saving}
             error={issueByField.get('shipment-package-type')}
           />

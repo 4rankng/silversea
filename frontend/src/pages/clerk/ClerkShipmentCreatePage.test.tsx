@@ -982,10 +982,12 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.getByRole('button', { name: 'Thêm container' })).toBeDisabled();
   });
 
-  // TC-CUS-CREATE-019: Quy cách đóng gói is a free-text field after the
-  // 2026-09-06 customer request — not a hardcoded {Pallet, Roll, Carton}
-  // dropdown. Pin both the LCL visibility and the wire payload below.
-  it('exposes Quy cách đóng gói as a free-text input on the LCL form', async () => {
+  // TC-CUS-CREATE-019 (FB-079 rewrite, card 091026180800): Quy cách đóng gói is
+  // a suggestion combobox that still accepts free text. FB-079 (2026-10-09)
+  // supersedes the old plain-text pin, but the 2026-09-06 free-text guarantee
+  // survives: quick-picking a common format AND typing any custom value both
+  // land in the field.
+  it('suggests common packaging formats while keeping Quy cách đóng gói free-text on the LCL form', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
@@ -996,14 +998,17 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
 
-    const packageType = screen.getByLabelText('Quy cách đóng gói');
-    expect(packageType.tagName).toBe('INPUT');
-    expect((packageType as HTMLInputElement).type).toBe('text');
-    // No leftover hardcoded option list — the field is plain text.
-    expect(packageType.getAttribute('role')).not.toBe('combobox');
-    expect(packageType.getAttribute('aria-haspopup')).toBeNull();
+    const packageType = screen.getByRole('combobox', { name: 'Quy cách đóng gói' });
+    // Typing opens the suggestion menu (openOnType) and filters the common
+    // formats; a quick pick commits the option.
+    fireEvent.focus(packageType);
+    fireEvent.change(packageType, { target: { value: 'Pal' } });
+    const option = await screen.findByRole('option', { name: 'Pallet' }, { timeout: 3000 });
+    fireEvent.click(option);
+    expect((packageType as HTMLInputElement).value).toBe('Pallet');
 
-    // Free text accepts any value the customer has on their shipping line.
+    // Any custom value the customer uses still types through — the 2026-09-06
+    // free-text guarantee carried into the combobox.
     fireEvent.change(packageType, { target: { value: 'Thùng carton 5 lớp' } });
     expect((packageType as HTMLInputElement).value).toBe('Thùng carton 5 lớp');
   });

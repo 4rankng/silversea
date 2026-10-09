@@ -198,7 +198,9 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
     expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Ghi chú cho khách hàng')).toHaveValue('Call customer before delivery');
-    fireEvent.change(screen.getByLabelText('Quy cách đóng gói'), { target: { value: 'Pallet' } });
+    // Card 091026180800: the packaging field is a combobox now — custom text
+    // commits through the typed-value channel, so type into the combobox.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Quy cách đóng gói' }), { target: { value: 'Pallet' } });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Chuyển và xóa dữ liệu' }));
     await waitFor(() => expect(screen.getByRole('radio', { name: /Hàng FCL/ })).toBeChecked());
