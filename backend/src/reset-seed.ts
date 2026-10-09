@@ -13,6 +13,7 @@ import { sql } from 'drizzle-orm';
 import { db, client } from './db';
 import * as s from './db/schema';
 import { seed } from './seed';
+import { disconnectRedis } from './lib/redis';
 
 /** FK-safe wipe order. Labels are table names for the log. */
 export const WIPE_PLAN: Array<{ label: string; wipe: () => Promise<unknown> }> = [
@@ -109,11 +110,17 @@ async function main() {
     for (const err of outcome.errors) console.error(`  - ${err}`);
     console.error('Refusing to report success. Re-run `npx tsx src/seed.ts` and investigate.');
     await client.end();
+    await disconnectRedis();
     process.exit(1);
   }
 
   console.log('✅ Reset complete — canonical seed verified.');
   await client.end();
+  // The seed's notification/durable-effect path lazily opens the Redis
+  // singleton; without this quit the event loop keeps a live socket and the
+  // process never exits — test-isolated.mjs template builds hang forever
+  // (card 091026164800).
+  await disconnectRedis();
 }
 
 // Run the reset only when invoked directly (npx tsx src/reset-seed.ts).
@@ -124,6 +131,7 @@ if (isMainModule) {
   main().catch(async (err) => {
     console.error('❌ Reset failed:', err);
     try { await client.end(); } catch { /* already closed */ }
+    try { await disconnectRedis(); } catch { /* already closed */ }
     process.exit(1);
   });
 }
