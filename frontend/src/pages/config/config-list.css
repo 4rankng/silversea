@@ -178,7 +178,8 @@
   height: 26px;
   padding: 4px 12px;
   font-size: 10px;
-  letter-spacing: 0.08em;
+  /* Tracking is owned by the global `thead th` rule (components/Table.css,
+     0.08em) — the band re-declares nothing (workboard standard). */
   color: var(--ink-3);
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);

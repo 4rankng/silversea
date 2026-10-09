@@ -161,7 +161,9 @@ describe('AR/AP aging grid characterization', () => {
     // Entire outstanding balance sits in bucket 0 → only cell 0 is active.
     expect(cells[0].className).toContain('dd-aging-cell--active');
     expect(cells.filter((cell) => cell.className.includes('dd-aging-cell--active'))).toHaveLength(1);
-    expect(within(cells[0] as HTMLElement).getByText('1.500.000đ')).toBeTruthy();
+    // Card 071026141540: the aging value rides plain formatCurrency — digits,
+    // space, ₫ in one text node — never the old glued 'đ' form.
+    expect(within(cells[0] as HTMLElement).getByText('1.500.000 ₫')).toBeTruthy();
     expect(within(cells[0] as HTMLElement).getByText('100% tổng công nợ')).toBeTruthy();
     expect(within(cells[1] as HTMLElement).getByText('Không phát sinh')).toBeTruthy();
   });

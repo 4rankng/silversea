@@ -151,7 +151,11 @@ describe('supplier/customer action columns keep their width budgets (action-colu
 
   it('customers action column holds the worst-case row-action run at every width source', () => {
     const cols = parseColgroup(customersSource, '<table className="record-table ops-table"');
-    expect(cols).toHaveLength(7);
+    // 8 since card 061026172805 (commit 2bd830cf, 2026-10-07): the Cập nhật
+    // last-updated column is back — it had never landed for real (a staging
+    // build verified a lane's uncommitted WIP that clean cuts dropped). The
+    // landing adds one 150px data track; the action col stays last.
+    expect(cols).toHaveLength(8);
     const actionCol = cols[cols.length - 1];
     expect(actionCol.kind).toBe('px');
     expect(actionCol.value - 2 * cellPaddingX).toBeGreaterThanOrEqual(fineRun);
@@ -164,10 +168,15 @@ describe('supplier/customer action columns keep their width budgets (action-colu
   it('customers grant is funded without costing the identity column any width', () => {
     // AC2 no-truncation — the customers table keeps ONE auto column (the
     // wrapping identity column) absorbing the remainder. The pre-card fixed
-    // width set summed to 808px; if the grant grows that sum, the auto column
-    // narrows at every width and the name cell's ellipsis point moves earlier.
-    // The grant is funded from the wrap-yield contact column instead.
-    const customersBaselineFixedSum = 808;
+    // width set summed to 808px; if the ACTION grant grows that sum, the auto
+    // column narrows at every width and the name cell's ellipsis point moves
+    // earlier. The grant is funded from the wrap-yield contact column instead.
+    // Baseline moved 808 → 958 by card 061026172805 (commit 2bd830cf,
+    // 2026-10-07): the restored Cập nhật data column carries its own 150px
+    // track. That is a new data column, not an action-grant re-funding — the
+    // action col keeps its card-335 112px and the auto identity column is
+    // still the table's only remainder absorber, asserted below.
+    const customersBaselineFixedSum = 958;
     const cols = parseColgroup(customersSource, '<table className="record-table ops-table"');
     expect(cols.filter((col) => col.kind === 'auto')).toHaveLength(1);
     expect(cols[1].kind).toBe('auto');

@@ -103,7 +103,7 @@ export default function OpsWalletPage() {
                 {advanceItems.map((row) => (
                   <tr key={row.id} className={`ops-wallet__row ops-wallet__row--advance${row.status === 'DRAFT' ? ' ops-wallet__row--draft' : ''}`}>
                     <td data-label="Ngày">{formatDate(row.createdAt)}</td>
-                    <td className="ops-money" data-label="Số tiền">{formatMoney(row.amount)} ₫</td>
+                    <td className="ops-money" data-label="Số tiền">{`${formatMoney(row.amount)} ₫`}</td>
                     <td className="ops-wallet__wide" data-label="Lý do">{row.reason}</td>
                     <td className="ops-wallet__advance-status" data-label="Trạng thái">
                       <span style={{ color: advanceStatusColor(row), fontWeight: 600, fontSize: 'var(--text-body-size)' }}>

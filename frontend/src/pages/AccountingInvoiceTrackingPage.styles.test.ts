@@ -43,7 +43,16 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(rules).not.toMatch(/nth-child\(/);
     expect(rules).not.toMatch(/min-width:\s*1350px|min-width:\s*1180px/);
     expect(rules).not.toMatch(/@container/);
-    expect(rules).not.toMatch(/@media/);
+    // The ONE sanctioned @media is the card 20261009_3 phone tier (owner
+    // ruling 2026-10-09, commit 5245061d): the ≤640 shell owns the single
+    // trailing safe-area clearance, so the page root's own trailing padding
+    // dies in the phone band. It is a page-root padding rule, not a table
+    // breakpoint — pinned byte-exact below and required to stay the ONLY
+    // @media, so any private table/media shape still fails this contract.
+    expect((rules.match(/@media/g) ?? []).length).toBe(1);
+    expect(rules).toMatch(
+      /@media \(max-width: 640px\) \{\s*\.invoice-tracking-page \{ padding-bottom: 0; \}\s*\}/,
+    );
     expect(rules).not.toMatch(/table-layout/);
   });
 
