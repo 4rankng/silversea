@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-09 (chiều) — wave: iOS mobile viewport
+
+Prod `23998fbd` → staging-verified `ef4c1d63`.
+
+### Shipped
+
+- **Hết khoảng trống chết đáy màn hình trên mobile + modal thành bottom sheet** (20261009_3, ef4c1d63): trang Chi tiết lô hàng nhận fill primitive (trước đây thiếu nên hụt chân ~64px trên phone); editor 'Chỉnh sửa khách hàng và lộ trình' trên bề rộng ≤640px portal thành bottom sheet áp đáy (radius trên 16px, đáy phẳng, padding-bottom max(16px, env(safe-area-inset-bottom)), backdrop mờ, dvh budget) qua MỘT implementation dùng chung cả 7 chế độ sửa; desktop giữ neo tại chỗ. 5 pin đỏ→xanh; rung mobile 390/430: sheet dock bottom=0, trang lấp đầy viewport. Thiết bị iOS/Android thật để owner xác nhận cảm giác cuối.
+- **Lỗi lint budget về 0** (8f2791f8): 2 dead local (HrRosterPage sau khi chuyển projection server-side; import thừa sau 93455878); testplan/qa/scripts/** vào nhóm driver-scratch không lint như evidence/qa.
+
 ## 2026-10-09 (trưa) — wave: retest round 9
 
 Prod `b1fc317b` → `23998fbd` (staging-verified `fba9f508` → `26d3f1f7` → `45993f90`).
