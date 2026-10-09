@@ -13,7 +13,7 @@
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -3586,5 +3586,88 @@ describe('FCL workspace factory source editing', () => {
       await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipment.id));
       await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, lockDoc.id));
     }
+  });
+});
+
+describe('Schedule editor save 2+ — clearing the schedule undoes a lot the editor itself drove ready (091026091510)', () => {
+  // The ready-state decomposition stamps a real actor id on the fulfillment
+  // walk, so the dispatcher actor needs an actual user row (userId ≥ 1).
+  let dispatcherActor: AuthUser;
+  before(async () => {
+    const [dispatcherUser] = await db.insert(s.users).values({
+      username: `cus-ws-mm-${suffix}`,
+      passwordHash: 'test-only',
+      role: 'DISPATCHER',
+      status: 'ACTIVE',
+    }).returning();
+    createdUserIds.push(dispatcherUser.id);
+    dispatcherActor = {
+      userId: dispatcherUser.id,
+      username: dispatcherUser.username,
+      email: null,
+      fullName: null,
+      role: Role.DISPATCHER,
+    };
+  });
+
+  test('an LCL lot the editor drove to READY_FOR_DISPATCH clears back to Chưa chốt ngày when no live trip exists', async () => {
+    const shipment = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT' });
+    // Save 1 — the schedule editor sets '08:00 10/10/2026' (IMPORT → plannedReturnAt).
+    const saved = await updateShipment(shipment.id, {
+      expectedVersion: shipment.version,
+      expectedDeliveryDate: '2026-10-10',
+      plannedReturnAt: '2026-10-10T01:00:00.000Z',
+    }, dispatcherActor);
+    assert.equal(saved.status, 'READY_FOR_DISPATCH');
+    assert.equal(saved.version, shipment.version + 1);
+
+    // Save 2 — the undo: clear every date with the fresh version. The lot only
+    // became ready through the very dates being cleared and carries no live
+    // dispatch, so the save must succeed and drop back to PENDING_DATE.
+    const undone = await updateShipment(shipment.id, {
+      expectedVersion: saved.version,
+      expectedDeliveryDate: null,
+      plannedReturnAt: null,
+    }, dispatcherActor);
+    assert.equal(undone.status, 'PENDING_DATE');
+    assert.equal(undone.expectedDeliveryDate, null);
+    assert.equal(undone.plannedReturnAt, null);
+    // The decomposed fulfillment of the ready state is canceled again — the
+    // reverted lot leaves the dispatch plan like a never-dated lot.
+    const [liveFulfillment] = await db.select({ id: s.shipmentFulfillments.id })
+      .from(s.shipmentFulfillments)
+      .where(and(eq(s.shipmentFulfillments.shipmentId, shipment.id), isNull(s.shipmentFulfillments.canceledAt)));
+    assert.equal(liveFulfillment, undefined);
+  });
+
+  test('a ready lot with a live dispatch trip still refuses to drop its last date (true protection kept)', async () => {
+    const shipment = await seedShipment({ cargoMode: 'LCL', tradeDirection: 'IMPORT' });
+    const saved = await updateShipment(shipment.id, {
+      expectedVersion: shipment.version,
+      expectedDeliveryDate: '2026-10-10',
+      plannedReturnAt: '2026-10-10T01:00:00.000Z',
+    }, dispatcherActor);
+    assert.equal(saved.status, 'READY_FOR_DISPATCH');
+    // Save 1's own decomposition already created the lot's single live LCL
+    // fulfillment (partial unique index) — dispatch a trip on THAT row.
+    const [readyFulfillment] = await db.select({ id: s.shipmentFulfillments.id })
+      .from(s.shipmentFulfillments)
+      .where(and(eq(s.shipmentFulfillments.shipmentId, shipment.id), isNull(s.shipmentFulfillments.canceledAt)));
+    assert.ok(readyFulfillment, 'the ready decomposition left a live fulfillment');
+    const trip = await insertTripComposite(db, {
+      fulfillmentId: readyFulfillment.id,
+      customerId,
+      routeId: (await seedRoute()).id,
+      status: 'CREATED',
+      carrierType: 'OWN',
+      departureDate: '2026-10-10',
+    });
+    createdTripIds.push(trip.id);
+    // A dispatched lot's dates are load-bearing — the ready guard stays.
+    await assert.rejects(() => updateShipment(shipment.id, {
+      expectedVersion: saved.version,
+      expectedDeliveryDate: null,
+      plannedReturnAt: null,
+    }, dispatcherActor), (error: unknown) => error instanceof ApiError && error.statusCode === 409);
   });
 });

@@ -4,7 +4,7 @@
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, ne, or } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { canonicalShipmentStatus, Role } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
@@ -155,12 +155,35 @@ export async function updateShipment(
       ? toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch')
       : existing.plannedReturnAt;
     const currentCanonicalStatus = canonicalShipmentStatus(existing.status);
-    if (currentCanonicalStatus === 'READY_FOR_DISPATCH' && !hasDispatchDate({
+    const nextHasDispatchDate = hasDispatchDate({
       expectedDeliveryDate: nextExpectedDeliveryDate,
       closingAt: nextClosingAt,
       plannedReturnAt: nextPlannedReturnAt,
-    })) {
-      throw new ApiError(409, 'Lô hàng đã sẵn sàng điều xe nên phải giữ ngày vận chuyển, giờ đóng hoặc thời gian trả hàng.');
+    });
+    // Card 091026091510: the schedule editor can drive a PENDING_DATE lot to
+    // READY_FOR_DISPATCH by setting the very dates a later save may clear.
+    // Dropping the last date still 409s while a live trip rides the lot (the
+    // CTO deletion boundary 2026-09-04: a non-deleted, non-CANCELED trip,
+    // direct or through a fulfillment — planned carrier allocations do not
+    // count). Without one the lot only became ready through the dates
+    // themselves, so the save reverts it to PENDING_DATE below instead of
+    // dead-ending the editor with a conflict the client self-heals away.
+    if (currentCanonicalStatus === 'READY_FOR_DISPATCH' && !nextHasDispatchDate) {
+      const [liveTrip] = await tx.select({ id: s.trips.id })
+        .from(s.trips)
+        .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
+        .where(and(
+          isNull(s.trips.deletedAt),
+          ne(s.trips.status, 'CANCELED'),
+          or(
+            eq(s.trips.shipmentId, id),
+            eq(s.shipmentFulfillments.shipmentId, id),
+          ),
+        ))
+        .limit(1);
+      if (liveTrip) {
+        throw new ApiError(409, 'Lô hàng đã sẵn sàng điều xe nên phải giữ ngày vận chuyển, giờ đóng hoặc thời gian trả hàng.');
+      }
     }
     const existingContainers = existing.cargoMode === 'FCL'
       ? await tx.select({ customerAppointmentAt: s.shipmentContainers.customerAppointmentAt })
@@ -176,6 +199,10 @@ export async function updateShipment(
         closingAt: nextClosingAt,
         plannedReturnAt: nextPlannedReturnAt,
       });
+    // Mirror image of becomesReady (card 091026091510): the guard above only
+    // lets a date-clearing save past when the ready lot has no live trip, so
+    // this flip is the editor's lawful undo of its own readiness.
+    const revertsToPendingDate = currentCanonicalStatus === 'READY_FOR_DISPATCH' && !nextHasDispatchDate;
     const nextVersion = existing.version + 1;
     const [updated] = await tx.update(s.shipments).set({
       version: nextVersion,
@@ -199,6 +226,7 @@ export async function updateShipment(
       ...(input.closingAt !== undefined ? { closingAt: nextClosingAt } : {}),
       ...(input.plannedReturnAt !== undefined ? { plannedReturnAt: nextPlannedReturnAt } : {}),
       ...(becomesReady ? { status: 'READY_FOR_DISPATCH' as const } : {}),
+      ...(revertsToPendingDate ? { status: 'PENDING_DATE' as const } : {}),
       ...(input.cargoWeightKg !== undefined ? { cargoWeightKg: toNullableFixedDecimal(input.cargoWeightKg, 8, 2, 'Trọng lượng') } : {}),
       ...(input.cargoVolumeCbm !== undefined ? { cargoVolumeCbm: toNullableFixedDecimal(input.cargoVolumeCbm, 7, 3, 'Thể tích') } : {}),
       ...(input.packageCount !== undefined ? { packageCount: input.packageCount } : {}),
@@ -225,6 +253,28 @@ export async function updateShipment(
         eq(s.shipmentFulfillments.shipmentId, id),
         isNull(s.shipmentFulfillments.canceledAt),
         eq(s.shipmentFulfillments.cargoMode, 'FCL'),
+      ));
+    }
+
+    if (revertsToPendingDate) {
+      await tx.insert(s.shipmentStatusHistory).values({
+        shipmentId: id,
+        fromStatus: existing.status ?? 'READY_FOR_DISPATCH',
+        toStatus: 'PENDING_DATE',
+        reason: 'Đã xóa ngày vận chuyển — lô quay lại chờ chốt ngày.',
+        changedBy: input.updatedBy ?? actor?.userId ?? null,
+      });
+      // Same cleanup the soft-delete path applies: cancel the fulfillments
+      // the ready state decomposed so the reverted lot leaves the dispatch
+      // plan exactly like a lot that never had a date.
+      await tx.update(s.shipmentFulfillments).set({
+        canceledAt: new Date(),
+        canceledBy: input.updatedBy ?? actor?.userId ?? null,
+        cancellationReason: 'Shipment schedule cleared',
+        updatedAt: new Date(),
+      }).where(and(
+        eq(s.shipmentFulfillments.shipmentId, id),
+        isNull(s.shipmentFulfillments.canceledAt),
       ));
     }
 
