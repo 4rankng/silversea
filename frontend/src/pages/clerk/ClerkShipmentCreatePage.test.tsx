@@ -987,6 +987,24 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   // supersedes the old plain-text pin, but the 2026-09-06 free-text guarantee
   // survives: quick-picking a common format AND typing any custom value both
   // land in the field.
+  // FB-078 (card 091026180700): container-vessel dates are FCL business — an
+  // LCL lot manages no container shell, so the Lịch & ghi chú block keeps only
+  // the customs cutoff and the delivery dates for hàng lẻ.
+  it('hides Hạn hạ container and Thời điểm trả container on the LCL form, keeping customs and delivery dates', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
+    fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BL-LCL-SCHED' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
+
+    expect(screen.getByLabelText(/Hạn hoàn tất hải quan/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Ngày giao dự kiến/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Hạn hạ container tại cảng/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Thời điểm trả container/)).not.toBeInTheDocument();
+  });
+
   it('suggests common packaging formats while keeping Quy cách đóng gói free-text on the LCL form', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
