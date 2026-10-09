@@ -374,7 +374,7 @@ describe('TripReassignDialog (card 20261008_1 sweep)', () => {
     });
   });
 
-  it('without truck and driver the confirm explains the missing selection and stays inert', () => {
+  it('without a truck the confirm explains the missing tractor and stays inert', () => {
     useTripDetailMock.mockReturnValue({
       data: { ...TRIP, truckId: null, driverId: null }, isLoading: false, error: null, refetch: vi.fn(),
     } as never);
@@ -382,7 +382,11 @@ describe('TripReassignDialog (card 20261008_1 sweep)', () => {
     const confirm = screen.getByRole('button', { name: /Xác nhận phân xe lại/ });
     expect(confirm).toHaveAttribute('aria-disabled', 'true');
     expect(confirm).not.toBeDisabled();
-    expect(reasonOf(confirm)).toBe('Chọn xe và lái xe để xác nhận.');
+    // Card 091026190520: once the driver has accepted, a vehicle-only
+    // reassignment stays allowed, so an own-carrier trip needs ONLY the
+    // tractor here. The copy names the tractor — this assertion pins that
+    // contract, and would catch the dialog drifting back to demanding both.
+    expect(reasonOf(confirm)).toBe('Chọn xe đầu kéo để xác nhận.');
     fireEvent.click(confirm);
     expect(tripClient.reassignTrip).not.toHaveBeenCalled();
   });
