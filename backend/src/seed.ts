@@ -315,6 +315,7 @@ export async function seed() {
     { name: 'Bảo hiểm', isRenewable: true, reminderLeadDays: 30, status: 'ACTIVE' },
     { name: 'Đăng kiểm', isRenewable: true, reminderLeadDays: 30, status: 'ACTIVE' },
     { name: 'Phí đường bộ', isRenewable: true, reminderLeadDays: 30, status: 'ACTIVE' },
+    { name: 'Phí nhiên liệu / dầu', isRenewable: false, status: 'ACTIVE' },
   ];
 
   // Deduplicate existing categories

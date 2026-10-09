@@ -16,6 +16,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { seedForwarderExpenseTypes } from '../seed/seed-expense-types';
 import { seedDriverFeeNorms } from '../seed/seed-driver-fee-norms';
+import { seedExpenseCategories } from '../seed/seed-expense-categories';
 
 const EDIT_TYPE_CODE = 'LIFTING';
 
@@ -79,5 +80,18 @@ describe('card 20260922_1 — cut seed rides fill-only', () => {
     for (const code of ['LIFT_DROP_ALLOWANCE', 'NIGHT_RETURN', 'TURNAROUND', 'OVERLOAD', 'ICD_RELOCATION', 'SUNDAY', 'SHIFT', 'SPECIAL_CONTAINER']) {
       assert.ok(normCodes.has(code), `norm ${code} missing`);
     }
+  });
+
+  test('expense categories: seedExpenseCategories fills missing categories including Phí nhiên liệu / dầu, rerun inserts nothing', async () => {
+    const first = await seedExpenseCategories();
+    assert.ok(first.inserted >= 1, 'should insert at least Phí nhiên liệu / dầu if missing');
+    const [fuelCat] = await db.select().from(s.expenseCategories)
+      .where(eq(s.expenseCategories.name, 'Phí nhiên liệu / dầu'));
+    assert.ok(fuelCat, 'Phí nhiên liệu / dầu must exist after fill');
+    assert.equal(fuelCat.status, 'ACTIVE');
+    assert.equal(fuelCat.isRenewable, false);
+
+    const second = await seedExpenseCategories();
+    assert.equal(second.inserted, 0, 'rerun must insert nothing');
   });
 });
