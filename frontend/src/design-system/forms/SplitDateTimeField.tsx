@@ -190,16 +190,17 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
     // Card 081026230510 (FB-001 round 8): the appointment cluster is a tap
     // surface (card 051026230627), but the fields grid is fit-content inside
     // its 240px cell — clicks landing on the leftover dead space (and only a
-    // ~3px strip was left inside the groups) opened nothing. In the combined
-    // mode a click on the field body OUTSIDE the segment groups opens the
-    // picker; the groups' own handler keeps owning frame clicks inside them,
-    // and a segment click stays a caret click (card 061026172803 law). Hosts
-    // without combinedPicker keep their contract byte for byte.
+    // ~3px strip was left inside the groups) opened nothing. Card
+    // 091026091500 (round 8, lan 2) supersedes the 4da7470f half-measure: on
+    // combinedPicker hosts the owner contract is that a click anywhere on the
+    // field body — the segment inputs included — opens the combined picker;
+    // the segment click still lands as a caret click (focus + select, typing
+    // keeps type-over editing, card 061026172803) and the picker opens from
+    // the field without stealing focus. The 061026172803 caret law keeps its
+    // byte-for-byte contract on hosts without combinedPicker.
     onClick={(event) => {
       if (!combinedPicker || disabled || readOnly) return;
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      if (target == null || target.tagName === 'INPUT') return;
-      if (target.closest('[data-seg-part]')) return;
+      if (!(event.target instanceof HTMLElement)) return;
       openPanel('date');
     }}
     onFocusCapture={(event) => {

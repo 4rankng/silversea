@@ -90,12 +90,36 @@ describe('SplitDateTimeField combinedPicker (card 071026204700)', () => {
     expect(dialogs.length).toBe(1);
   });
 
-  it('a click on a segment input stays a caret click and opens no picker', () => {
+  // Card 091026091500 (FB-001 round 8, lan 2): SUPERSEDES the 4da7470f pin
+  // "a click on a segment input stays a caret click and opens no picker" for
+  // combinedPicker hosts — the owner contract is that a click anywhere on the
+  // field body, segments included, opens the combined picker. The 061026172803
+  // caret law still governs the segment surface itself (the click still
+  // focuses/selects the segment and typing keeps type-over editing) and keeps
+  // its byte-for-byte contract on hosts without combinedPicker.
+  it('a click on a segment input opens the combined picker and typing keeps caret editing', () => {
     renderField(true);
     const hh = document.querySelector('input[data-seg="hh"]') as HTMLInputElement;
     expect(hh).toBeTruthy();
     fireEvent.click(hh);
-    expect(document.querySelectorAll('[role="dialog"]').length).toBe(0);
+    const dialogs = document.querySelectorAll('[role="dialog"]');
+    expect(dialogs.length).toBe(1);
+    expect(dialogs[0]!.textContent).toContain('Chọn ngày giờ');
+    expect(dialogs[0]!.querySelector('.combined-datetime__date')).toBeTruthy();
+    expect(dialogs[0]!.querySelector('.combined-datetime__time')).toBeTruthy();
+    // Caret editing survives the open picker: typing into the focused segment
+    // still writes the draft (type-over contract 061026172803/#326).
+    fireEvent.change(hh, { target: { value: '08' } });
+    expect(hh).toHaveValue('08');
+  });
+
+  it('a double click on a segment input still yields exactly one combined dialog', () => {
+    renderField(true);
+    const hh = document.querySelector('input[data-seg="hh"]') as HTMLInputElement;
+    fireEvent.click(hh);
+    fireEvent.click(hh);
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter((d) => d.textContent?.includes('Chọn ngày giờ'));
+    expect(dialogs.length).toBe(1);
   });
 
   it('without the flag the dead-space click stays inert (hosts keep their contract)', () => {
