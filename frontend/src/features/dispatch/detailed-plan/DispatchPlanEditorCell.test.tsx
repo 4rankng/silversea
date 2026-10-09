@@ -65,6 +65,24 @@ const OTHER_TRUCK = {
   assignedDriverId: 9,
   assignedDriverName: 'Nguyễn Văn Khác',
 };
+// Non-ACTIVE tractors the fleet list still returns (deletedAt null) — the
+// picker must not offer what the plan save would reject with 409.
+const EXPIRED_TRUCK = {
+  ...PAIRED_TRUCK,
+  id: 156,
+  licensePlate: '60C-567.89',
+  status: 'INACTIVE',
+  assignedDriverId: 10,
+  assignedDriverName: 'Lê Văn Hết Hạn',
+};
+const MAINTENANCE_TRUCK = {
+  ...PAIRED_TRUCK,
+  id: 157,
+  licensePlate: '30C-111.22',
+  status: 'MAINTENANCE',
+  assignedDriverId: 11,
+  assignedDriverName: 'Trần Văn Sửa Xe',
+};
 
 const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlanRow => ({
   fulfillmentId: 101,
@@ -98,8 +116,9 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
 /** Resource-aware fleet mock: the dialog issues TRUCK lookups in two shapes —
  *  the issue-time plate search ({q, limit:5}) and the vehicle-picker page
  *  ({limit:50}) — plus carrier/external lists on open. */
-function mockFleetResources(opts: { issueLookup?: Array<typeof PAIRED_TRUCK> } = {}) {
+function mockFleetResources(opts: { issueLookup?: Array<typeof PAIRED_TRUCK>; pageTrucks?: Array<typeof PAIRED_TRUCK | typeof EXPIRED_TRUCK | typeof MAINTENANCE_TRUCK> } = {}) {
   const trucks = opts.issueLookup ?? [PAIRED_TRUCK];
+  const pageTrucks = opts.pageTrucks ?? [PAIRED_TRUCK, OTHER_TRUCK];
   listResourcesMock.mockImplementation((async (resource: string, filters: { q?: string; limit?: number } = {}) => {
     if (resource === 'EXTERNAL_CARRIER') {
       return { items: [{ id: 9, name: 'Carrier QA', isActive: true }], nextCursor: null, total: 1, limit: filters.limit ?? 50 };
@@ -111,7 +130,7 @@ function mockFleetResources(opts: { issueLookup?: Array<typeof PAIRED_TRUCK> } =
     if (filters.limit === 5 && filters.q) {
       return { items: trucks, nextCursor: null, total: trucks.length, limit: 5 };
     }
-    return { items: [PAIRED_TRUCK, OTHER_TRUCK], nextCursor: null, total: 2, limit: filters.limit ?? 50, suggestedItems: [] };
+    return { items: pageTrucks, nextCursor: null, total: pageTrucks.length, limit: filters.limit ?? 50, suggestedItems: [] };
   }) as never);
 }
 
@@ -409,6 +428,42 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     // The ownTruck plate lookup runs against the TRUCK search endpoint.
     expect(listResourcesMock).toHaveBeenCalledWith('TRUCK', expect.objectContaining({ q: '15H-052.82', limit: 5 }));
     await waitFor(() => expect(issueButton()).not.toHaveAttribute('aria-disabled'));
+  });
+
+  // Card 091026164540 — the vehicle picker still listed tractors whose
+  // status is not ACTIVE (reported: 60C-56789 could be picked and only the
+  // save surfaced "Xe đầu kéo không còn hiệu lực"). The save-time guard in
+  // dispatch-planning-detail-plan.service.ts is correct and stays as the
+  // backstop; the picker just must not OFFER a dead truck. This pins the
+  // list side: an inactive tractor never becomes a selectable option.
+  it('omits tractors that are not ACTIVE from the vehicle picker', async () => {
+    const deadTruck = { ...OTHER_TRUCK, id: 199, licensePlate: '60C-567.89', status: 'INACTIVE' };
+    listResourcesMock.mockImplementation((async (resource: string, filters: { q?: string; limit?: number } = {}) => {
+      if (resource === 'EXTERNAL_CARRIER') {
+        return { items: [{ id: 9, name: 'Carrier QA', isActive: true }], nextCursor: null, total: 1, limit: filters.limit ?? 50 };
+      }
+      if (resource === 'EXTERNAL_VEHICLE') {
+        return { items: [], nextCursor: null, total: 0, limit: filters.limit ?? 50 };
+      }
+      return { items: [PAIRED_TRUCK, OTHER_TRUCK, deadTruck], nextCursor: null, total: 3, limit: filters.limit ?? 50, suggestedItems: [] };
+    }) as never);
+
+    renderCell(row({
+      taskStatus: 'READY',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+    }));
+    await openDialog();
+    // Open the own-fleet vehicle picker (carrier-less own row → 'Chọn biển số xe').
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn biển số xe'))!);
+    await screen.findAllByRole('listbox');
+    // Read the rendered dropdown options the same way the sibling
+    // "leads the EXTERNAL vehicle list" test does.
+    const dropdownOptions = [...document.querySelectorAll('[role=option], .searchable-select__option')]
+      .map((el) => el.textContent?.trim() ?? '');
+    // The dead tractor is never offered as a selectable option...
+    expect(dropdownOptions.some((t) => t.includes('60C-567.89'))).toBe(false);
+    // ...while the live ones still are, so the picker is not simply emptied.
+    expect(dropdownOptions.some((t) => t.includes('15H-052.82'))).toBe(true);
   });
 
   it('blocks issuing and explains when the plated truck has no paired driver', async () => {
@@ -1252,5 +1307,41 @@ describe('DispatchPlanEditorCell — completed-trip overlap confirm (card 061026
     expect(retryBody.rigOverlapCompletedConfirmed).toBe(true);
     // The retry closed the dialog (save succeeded).
     await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
+  });
+});
+
+// Card 091026164540: the fleet list returns non-ACTIVE tractors (deletedAt
+// null), and the picker offered them all — a dispatcher could pick an expired
+// tractor and only learn at save ("Xe đầu kéo không còn hiệu lực"). The option
+// list must not offer a value the plan save rejects; the save-time 409 stays
+// as the backstop.
+describe('DispatchPlanEditorCell — expired tractor options (card 091026164540)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFleetResources({ pageTrucks: [PAIRED_TRUCK, EXPIRED_TRUCK, MAINTENANCE_TRUCK] });
+  });
+
+  it('offers only ACTIVE tractors — INACTIVE and MAINTENANCE stay unselectable in the picker', async () => {
+    renderCell(row());
+    await openDialog();
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    // The ACTIVE tractor is pickable…
+    expect(await screen.findByRole('option', { name: /15H-052\.82/ })).toBeTruthy();
+    // …while the non-ACTIVE ones the fleet list returned never become options.
+    expect(screen.queryByRole('option', { name: /60C-567\.89/ })).toBeNull();
+    expect(screen.queryByRole('option', { name: /30C-111\.22/ })).toBeNull();
+  });
+
+  it('keeps the row’s current plate visible when its tractor is no longer ACTIVE — stored identity survives the filter', async () => {
+    renderCell(row({
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '60C-567.89' },
+    }));
+    await openDialog();
+    // The closed select still names the stored assignment; an untouched save
+    // ships no vehicle block, so the expired backstop never fires on it.
+    expect(document.getElementById('dispatch-vehicle-101')!.textContent).toContain('60C-567.89');
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    expect(await screen.findByRole('option', { name: /15H-052\.82/ })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /60C-567\.89 —/ })).toBeNull();
   });
 });

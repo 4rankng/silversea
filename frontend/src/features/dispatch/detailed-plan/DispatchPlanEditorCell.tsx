@@ -405,7 +405,17 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       if (cancelled) return;
       let mapped: SearchableSelectOption[];
       if (isOwnFleet) {
+        // Card 091026164540 — a tractor that is no longer ACTIVE must never
+        // reach the picker. Offering one made the operator discover the
+        // problem only on save ("Xe đầu kéo không còn hiệu lực"), because the
+        // backend correctly refuses the write (dispatch-planning-detail-plan
+        // .service.ts checks status !== 'ACTIVE'). That save-time guard stays
+        // as the server-side backstop — this only removes the dead option.
+        // Only the option list is filtered: truckFitRef / truckCarrierLinksRef
+        // still index every row the endpoint returned, so the fit hints and
+        // carrier autofill for an already-assigned plate keep working.
         const trucks = response.items as DispatchTruck[];
+        const selectableTrucks = trucks.filter((truck) => truck.status === 'ACTIVE');
         truckFitRef.current = new Map(trucks.map((truck) => [truck.id, { trailerType: truck.trailerType, capacityKg: truck.capacityKg }]));
         truckCarrierLinksRef.current = new Map(trucks
           .filter((truck) => truck.carrierId != null)
@@ -413,8 +423,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel, draft.classification);
         // Stable sort (ES2019+): fits first, unknowns keep page order, mismatches sink.
         const ranked = requiredTrailerType != null
-          ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
-          : trucks;
+          ? [...selectableTrucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
+          : selectableTrucks;
         mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType, row.container.cargoWeightKg) }));
       } else {
         mapped = (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
@@ -601,9 +611,20 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           }
         }
         const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel, draft.classification);
+        // Card 091026164540 — a tractor that is no longer ACTIVE must never
+        // reach the picker. Offering one made the operator discover the
+        // problem only on save ("Xe đầu kéo không còn hiệu lực"), because the
+        // backend correctly refuses the write (dispatch-planning-detail-plan
+        // .service.ts checks status !== 'ACTIVE'). That save-time guard stays
+        // as the server-side backstop — this only removes the dead option.
+        // Only the option list is filtered: truckFitRef / truckCarrierLinksRef
+        // still index every row the endpoint returned, so the fit hints and
+        // carrier autofill for an already-assigned plate keep working.
+        const selectableTrucks = trucks.filter((truck) => truck.status === 'ACTIVE');
+        // Stable sort (ES2019+): fits first, unknowns keep page order, mismatches sink.
         const ranked = requiredTrailerType != null
-          ? [...trucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
-          : trucks;
+          ? [...selectableTrucks].sort((a, b) => trailerFitRank(a.trailerType, requiredTrailerType) - trailerFitRank(b.trailerType, requiredTrailerType))
+          : selectableTrucks;
         mapped = ranked.map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck, requiredTrailerType, row.container.cargoWeightKg) }));
       } else {
         mapped = (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
