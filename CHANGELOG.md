@@ -17,7 +17,7 @@ Prod `371f297f` → `e9339ad1` (staging-verified từng bước: `443f5c14` → 
 
 - 20260925_46 (FB-062 gốc): verdict thu hồi 08/10 theo phản chứng round 8 — phần evidence 'không còn native date input' vẫn đúng; thẻ đã đóng lại trên evidence của fix.
 - Đóng nhầm-premise: 061026174601 (trần 360px topbar search là thiết kế đã QA PASS, không phải regression), 061026174602 (toast export P&L đã có từ fix lớp này — đóng theo evidence chung).
-- Ruling owner 09/10: chấm công CHỈ dành cho lái xe, không nhân sự văn phòng ('no office staff') — thẻ 051026231606 đóng kèm ruling; roster 'Danh sách nhân sự' lọc còn đúng lái xe tách thành thẻ 20261009_1. Còn mở (owner): wording nav 'Phơi phiếu' (072303 mục 4).
+- Ruling owner 09/10: chấm công CHỈ dành cho lái xe, không nhân sự văn phòng ('no office staff') — thẻ 051026231606 đóng kèm ruling; roster 'Danh sách nhân sự' lọc còn đúng lái xe tách thành thẻ 20261009_1. Còn mở: không còn mục mở — wording 'Phơi phiếu' GIỮ NGUYÊN theo lead ruling 09/10 (owner ủy quyền; thuật ngữ kế toán thật, nhất quán mọi bề mặt, trong thẻ 081026072303).
 
 ## 2026-10-08 (tối) — wave: fix-all take-over, retest round 7, VAT config
 
