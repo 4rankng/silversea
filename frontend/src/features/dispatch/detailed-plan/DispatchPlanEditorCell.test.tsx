@@ -997,18 +997,40 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
     return (await screen.findAllByRole('option')).map((option) => option.textContent ?? '');
   }
 
-  it('annotates and demotes a trailer-incompatible truck on a 20-foot container row', async () => {
-    // The fleet serves the mismatch first — the picker must not let the
-    // operator's first pick be a truck the issue gate will reject.
-    mockTruckPage([MISMATCH_TRUCK, FIT_TRUCK]);
-    renderCell(row());
+  it('annotates and demotes a trailer-incompatible truck on a 40-foot container row', async () => {
+    // Card 091026164810 — the trailer requirement is a LENGTH FLOOR, mirroring
+    // TRAILER_LENGTH_RANK in the issue-time gate: a 20' load may ride a 40'
+    // moóc, so on a 20-foot row nothing can mismatch any more. The provable
+    // mismatch is the other direction — a 40' requirement on a 20' moóc — so
+    // these cases run on a 40HC row.
+    const fitTruck = { ...OTHER_TRUCK, id: 156, licensePlate: '60C-123.45', trailerType: '40FT' };
+    const undersizedTruck = PAIRED_TRUCK; // 20FT moóc, plate 15H-052.82
+    mockTruckPage([undersizedTruck, fitTruck]);
+    // Point the row's current plate at the fitting truck so what is under test
+    // is the ranking of the fetched options — the current-vehicle fold pins
+    // its own entry to the top otherwise.
+    renderCell(row({
+      container: { containerNumber: 'MSCU7654321', containerTypeLabel: '40HC', cargoWeightKg: '24000.00' },
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '60C-123.45' },
+    }));
     const options = await openVehicleDropdown();
 
-    const fitLabel = options.find((label) => label.includes('15H-052.82'))!;
-    const mismatchLabel = options.find((label) => label.includes('60C-123.45'))!;
+    const fitLabel = options.find((label) => label.includes('60C-123.45'))!;
+    const mismatchLabel = options.find((label) => label.includes('15H-052.82'))!;
     expect(fitLabel).not.toContain('rơ-moóc');
-    expect(mismatchLabel).toContain('⚠ rơ-moóc 40FT, cần 20FT');
+    expect(mismatchLabel).toContain('⚠ rơ-moóc 20FT, cần 40FT');
     expect(options.indexOf(mismatchLabel)).toBe(options.length - 1);
+  });
+
+  // Card 091026164810 — the inverse pairing the old exact-match rule got
+  // wrong: a 20' container on a 40' moóc is the Kẹp rig and is LEGAL, so the
+  // picker must not warn about it. This is the regression the card reports.
+  it('does not warn when a 40FT moóc carries a 20-foot container', async () => {
+    mockTruckPage([{ ...OTHER_TRUCK, id: 156, licensePlate: '60C-123.45', trailerType: '40FT' }]);
+    renderCell(row()); // 20DC → requires 20FT
+    const options = await openVehicleDropdown();
+    const label = options.find((l) => l.includes('60C-123.45'))!;
+    expect(label).not.toContain('rơ-moóc');
   });
 
   it('VID-DSP-03 ranks a40FT moóc as compatible for two20ft Kẹp containers', async () => {
@@ -1075,11 +1097,18 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
   it('carries the mismatch warning on pinned D±1 suggestion labels too', async () => {
     // The proximity suggestion pins the truck to the top of the list — the
     // warning must travel with the pinned label, not just the page list.
-    mockTruckPage([FIT_TRUCK, MISMATCH_TRUCK], [{ truckId: 156, plateNumber: '60C-123.45', reasons: ['D-1_DROP'] }]);
-    renderCell(row());
+    // Card 091026164810: mismatch is now the UNDERSIZED moóc, so this runs on
+    // a 40HC row (a 40FT moóc on a 20' requirement is legal and must not warn).
+    mockTruckPage(
+      [{ ...OTHER_TRUCK, id: 156, licensePlate: '60C-123.45', trailerType: '40FT' }, PAIRED_TRUCK],
+      [{ truckId: 156, plateNumber: '60C-123.45', reasons: ['D-1_DROP'] }],
+    );
+    renderCell(row({ container: { containerNumber: 'MSCU7654321', containerTypeLabel: '40HC', cargoWeightKg: '24000.00' } }));
     const options = await openVehicleDropdown();
 
-    expect(options.some((label) => label.includes('60C-123.45 — Hạ tại khu vực D-1 — ⚠ rơ-moóc 40FT, cần 20FT'))).toBe(true);
+    // The pinned 40FT moóc is a fit on a 40' requirement → no warning.
+    expect(options.some((label) => label.includes('60C-123.45 — Hạ tại khu vực D-1'))).toBe(true);
+    expect(options.some((label) => label.includes('60C-123.45 — Hạ tại khu vực D-1 — ⚠ rơ-moóc'))).toBe(false);
   });
 });
 
