@@ -232,6 +232,62 @@ export function OperationalSiteCreateDialog({
     }
   }
 
+  /* FB-077 round 2 (verify-fail 091026225600): the intake quick-add is FLAT
+   * like the port quick-add "Thêm cảng / bãi" (PortCreateDialog) — just the
+   * three basic fields in one rhythm: full-width name, then a two-up grid.
+   * No eyebrow, no group headers, no context picker. The intake only opens
+   * this dialog with the customer already chosen; the flat picker below is
+   * defensive for a customerId-less caller so submit never loses its target. */
+  const quickAddBody = (
+    <>
+      {customerId == null && (
+        <SelectField
+          label="Khách hàng"
+          value={customerChoice}
+          onChange={(event) => { setCustomerChoice(event.target.value); setError(null); }}
+          disabled={saving || Boolean(customersError) || isCustomersLoading}
+        >
+          <option value="">
+            {customersError
+              ? '— Lỗi tải danh sách khách hàng —'
+              : isCustomersLoading
+              ? '— Đang tải danh sách khách hàng… —'
+              : '— Chọn khách hàng —'}
+          </option>
+          {(customers ?? []).map((customer) => (
+            <option key={customer.id} value={customer.id}>{customer.name}</option>
+          ))}
+        </SelectField>
+      )}
+      <TextField
+        label="Tên đầy đủ"
+        value={form.name}
+        onChange={(event) => update('name', event.target.value)}
+        maxLength={255}
+        placeholder="Tên đầy đủ dùng trên chứng từ, báo cáo"
+        disabled={saving}
+      />
+      <div className="operational-site-create__quick-grid">
+        <TextField
+          label="Tên ngắn"
+          value={form.shortName}
+          onChange={(event) => update('shortName', event.target.value)}
+          maxLength={255}
+          placeholder="Tên hiển thị trong vận hành"
+          disabled={saving}
+        />
+        <TextField
+          label="Địa chỉ"
+          value={form.address}
+          onChange={(event) => update('address', event.target.value)}
+          maxLength={2000}
+          placeholder="Số, đường, phường, quận, tỉnh"
+          disabled={saving}
+        />
+      </div>
+    </>
+  );
+
   const footer = (
     <>
       <button
@@ -258,11 +314,11 @@ export function OperationalSiteCreateDialog({
     <Modal
       isOpen={isOpen && routeDialogState === 'closed'}
       title={defaultSiteType === 'WAREHOUSE' ? 'Thêm kho lấy hàng' : 'Thêm nhà máy'}
-      subtitle="Điểm vận hành"
+      subtitle={quickAdd ? undefined : 'Điểm vận hành'}
       polished
       onClose={close}
       onConfirm={() => void submit()}
-      maxWidth={620}
+      maxWidth={quickAdd ? 560 : 620}
       footer={footer}
     >
       <div className="operational-site-create">
@@ -271,6 +327,8 @@ export function OperationalSiteCreateDialog({
             {error}
           </div>
         )}
+        {quickAdd ? quickAddBody : (
+          <>
         <EntityFormSection icon={MapPin} label="Điểm vận hành">
           {customerId == null && (
             <div className="col-span-full">
@@ -407,7 +465,6 @@ export function OperationalSiteCreateDialog({
             />
           </div>
         </EntityFormSection>
-        {!quickAdd && (
           <EntityFormSection icon={Phone} label="Liên hệ">
             <div className="col-span-full">
               <OperationalSiteContactsEditor value={form.contacts} disabled={saving} onChange={contacts => update('contacts', contacts)} />
@@ -423,6 +480,7 @@ export function OperationalSiteCreateDialog({
               />
             </div>
           </EntityFormSection>
+          </>
         )}
       </div>
     </Modal>

@@ -43,6 +43,23 @@ describe('OperationalSiteCreateDialog quick-add mode', () => {
     expect(screen.queryByLabelText(/Google Maps/)).not.toBeInTheDocument();
   });
 
+  // Verify-fail 091026225600 (round 11): the dialog was still grouped —
+  // "ĐIỂM VẬN HÀNH" eyebrow + section (with the customer picker) and
+  // "TÊN & ĐỊA CHỈ" section. The user asked for it to be as minimal as the
+  // port quick-add ("Thêm cảng / bãi" / PortCreateDialog): a FLAT field
+  // stack — no eyebrow, no group headers, no context picker (the intake only
+  // opens this dialog with the customer already chosen).
+  it('renders flat like the port quick-add — no group headers, no context picker', () => {
+    render(<OperationalSiteCreateDialog {...baseProps} isOpen quickAdd />);
+
+    expect(screen.queryByText('Điểm vận hành')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tên & địa chỉ/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Khách hàng/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Tên đầy đủ/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Tên ngắn/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Địa chỉ/)).toBeInTheDocument();
+  });
+
   it('creates the site with a derived code and short-name fallback', async () => {
     render(<OperationalSiteCreateDialog {...baseProps} isOpen quickAdd />);
     fireEvent.change(screen.getByLabelText(/Tên đầy đủ/), { target: { value: 'Kho Sóng Thần' } });

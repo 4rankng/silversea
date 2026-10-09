@@ -48,6 +48,20 @@
   overflow-wrap: anywhere;
 }
 
+/* FB-077 round 2 (verify-fail 091026225600) — the quick-add body mirrors the
+   port quick-add's flat rhythm: one full-width name row, then a two-up grid
+   that collapses to one column on phones. No group frames. */
+.operational-site-create__quick-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .operational-site-create__quick-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (max-width: 640px), (pointer: coarse) {
   .operational-site-create__add-route { min-height: var(--control-touch-h); font-size: var(--text-control-size); }
 }
