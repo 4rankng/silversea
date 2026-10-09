@@ -9,7 +9,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { NotificationType, Role } from '@tingting/shared';
+import { DriverProgressEventType, NotificationType, Role } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
@@ -2641,13 +2641,18 @@ describe('dispatch fulfillment workflow routes', () => {
       await db.delete(s.driverWorkDays).where(and(eq(s.driverWorkDays.tripId, tripId), eq(s.driverWorkDays.status, 'TRIP_DAY')));
     });
 
-    test('reassignment stays blocked once the driver acknowledged the order', async () => {
+    // Card 091026190520 (FB-081, option b): after the driver's "nhận việc"
+    // milestone the dispatcher may still correct the VEHICLE (truck swap for
+    // OWN, carrier/plate for EXTERNAL) — the driver keeps the job they
+    // accepted. Only a driver change (or a carrier-type switch, which drops
+    // the driver) keeps needing the pre-acceptance window.
+    test('acknowledged trip still accepts a vehicle-only reassignment (truck swap, driver kept)', async () => {
       const { resources, tripId, tripVersion } = await issueOwnAndDepartUnacknowledged();
       // The driver's "nhận việc" milestone, recorded after the ops departure.
       await db.insert(s.driverProgressEvents).values({
         tripId,
         driverId: resources.driver.id,
-        eventType: 'ORDER_RECEIVED',
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
         occurredAt: new Date(),
         recordedBy: adminUserId,
       });
@@ -2658,10 +2663,48 @@ describe('dispatch fulfillment workflow routes', () => {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${dispatcherToken}`,
-          'Idempotency-Key': `reassign-acked-${suffix}-${tripId}`,
+          'Idempotency-Key': `reassign-acked-veh-${suffix}-${tripId}`,
         },
         body: JSON.stringify({
-          reason: 'qa: fixture reassignment',
+          reason: 'qa: vehicle-only reassignment after acknowledgement',
+          carrierType: 'OWN',
+          truckId: replacement.truck.id,
+          driverId: resources.driver.id,
+          expectedVersion: tripVersion,
+        }),
+      });
+      const reassignData = await reassign.json() as {
+        trip?: { id: number; truckId: number; driverId: number };
+        error?: string;
+      };
+      assert.equal(reassign.status, 201, JSON.stringify(reassignData));
+      assert.equal(reassignData.trip?.id, tripId);
+      assert.equal(reassignData.trip?.truckId, replacement.truck.id);
+      assert.equal(reassignData.trip?.driverId, resources.driver.id,
+        'the acknowledged driver must keep the job');
+      await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, tripId));
+    });
+
+    test('acknowledged trip keeps blocking a driver change with the vehicle-only rule', async () => {
+      const { resources, tripId, tripVersion } = await issueOwnAndDepartUnacknowledged();
+      await db.insert(s.driverProgressEvents).values({
+        tripId,
+        driverId: resources.driver.id,
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
+        occurredAt: new Date(),
+        recordedBy: adminUserId,
+      });
+      const replacement = await createOwnedResources();
+
+      const reassign = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${dispatcherToken}`,
+          'Idempotency-Key': `reassign-acked-drv-${suffix}-${tripId}`,
+        },
+        body: JSON.stringify({
+          reason: 'qa: driver change attempt after acknowledgement',
           carrierType: 'OWN',
           truckId: replacement.truck.id,
           driverId: replacement.driver.id,
@@ -2670,7 +2713,7 @@ describe('dispatch fulfillment workflow routes', () => {
       });
       const reassignData = await reassign.json() as { error?: string };
       assert.equal(reassign.status, 409, JSON.stringify(reassignData));
-      assert.match(String(reassignData.error ?? ''), /đã được lái xe nhận việc/);
+      assert.match(String(reassignData.error ?? ''), /đã nhận việc — chỉ được đổi xe, giữ lái xe/);
       await db.delete(s.driverProgressEvents).where(eq(s.driverProgressEvents.tripId, tripId));
     });
 

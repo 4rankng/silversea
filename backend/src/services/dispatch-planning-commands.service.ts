@@ -19,7 +19,7 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
-import { tripHasDriverAcknowledgement } from './trip-lifecycle-ops.service';
+import { driverChangesAfterAcknowledgement, tripHasDriverAcknowledgement } from './trip-lifecycle-ops.service';
 import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
@@ -509,15 +509,23 @@ export async function issueOrderCreateOrUpdate(
     // Reassignment relaxation (TODO/20260911_2 BUG1): an ops "xuất phát"
     // (POST /trips/:id/dispatch) can flip the trip to IN_TRANSIT before any
     // driver acknowledgement, so status alone must not block the correction.
-    // COMPLETED stays terminal, and IN_TRANSIT blocks only once the assigned
-    // driver acknowledged the order.
-    if (
-      liveTrip.status === TripStatus.COMPLETED
-      || await tripHasDriverAcknowledgement(tx, liveTrip.id)
-    ) {
-      throw new ApiError(409, liveTrip.status === TripStatus.COMPLETED
-        ? 'Không thể điều chỉnh tác vụ đã hoàn thành.'
-        : 'Không thể điều chỉnh tác vụ đã được lái xe nhận việc.');
+    // COMPLETED stays terminal. Card 091026190520 (FB-081, option b): after
+    // the driver acknowledged, a VEHICLE-ONLY correction stays allowed — the
+    // same rule reassignTrip applies in trip-lifecycle-ops. The driver keeps
+    // the job they accepted; a driver change (or a carrier-type switch,
+    // which drops the driver) still needs the pre-acceptance window.
+    if (liveTrip.status === TripStatus.COMPLETED) {
+      throw new ApiError(409, 'Không thể điều chỉnh tác vụ đã hoàn thành.');
+    }
+    if (await tripHasDriverAcknowledgement(tx, liveTrip.id)) {
+      if (driverChangesAfterAcknowledgement(liveTrip, {
+        carrierType: input.carrierType,
+        driverId,
+        externalDriverName,
+        externalDriverPhone,
+      })) {
+        throw new ApiError(409, 'Lái xe đã nhận việc — chỉ được đổi xe, giữ lái xe.');
+      }
     }
   }
   if (liveTrip && input.expectedTripVersion !== undefined && liveTrip.version !== input.expectedTripVersion) {

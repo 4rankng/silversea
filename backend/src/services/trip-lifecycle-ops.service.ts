@@ -111,7 +111,7 @@ export async function tripHasDriverAcknowledgement(tx: Tx, tripId: number): Prom
  * accepted. A carrier-type switch always counts as a driver change (OWN→EXTERNAL
  * drops the internal driver; EXTERNAL→OWN assigns one); for external trips the
  * driver identity is the name/phone pair. */
-function driverChangesAfterAcknowledgement(
+export function driverChangesAfterAcknowledgement(
   trip: { carrierType: string | null; driverId: number | null; externalDriverName: string | null; externalDriverPhone: string | null },
   data: { carrierType?: 'OWN' | 'EXTERNAL'; driverId?: number | null; externalDriverName?: string | null; externalDriverPhone?: string | null },
 ): boolean {
