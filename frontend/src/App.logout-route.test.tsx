@@ -42,6 +42,7 @@ vi.mock('./components/Layout', () => {
   return { default: MockLayout };
 });
 
+import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
 
 function LocationProbe() {
@@ -61,13 +62,15 @@ describe('unauthenticated route handling', () => {
 
   it('replaces a protected route with the login route after logout', async () => {
     render(
-      <MemoryRouter initialEntries={['/dashboard']}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/dashboard']}>
         <Suspense>
           <AppRoutes />
         </Suspense>
         <LocationProbe />
-      </MemoryRouter>,
-    );
+      </MemoryRouter>
+      </ToastProvider>,
+  );
 
     expect((await screen.findByTestId('location')).textContent).toBe('/login');
     expect(await screen.findByText('Đăng nhập')).toBeTruthy();
@@ -75,13 +78,15 @@ describe('unauthenticated route handling', () => {
 
   it('renders the login page without redirecting when already on the login route', async () => {
     render(
-      <MemoryRouter initialEntries={['/login']}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/login']}>
         <Suspense>
           <AppRoutes />
         </Suspense>
         <LocationProbe />
-      </MemoryRouter>,
-    );
+      </MemoryRouter>
+      </ToastProvider>,
+  );
 
     expect((await screen.findByTestId('location')).textContent).toBe('/login');
     expect(await screen.findByText('Đăng nhập')).toBeTruthy();
@@ -89,14 +94,22 @@ describe('unauthenticated route handling', () => {
 
   it('takes a newly authenticated driver from login to their own home instead of 404', async () => {
     useAuthMock.mockReturnValue({ isAuthenticated: true, user: { userId: 2, role: 'DRIVER' }, loading: false, logout: vi.fn() });
-    render(<MemoryRouter initialEntries={['/login']}><Suspense><AppRoutes /></Suspense><LocationProbe /></MemoryRouter>);
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/login']}><Suspense><AppRoutes /></Suspense><LocationProbe /></MemoryRouter>
+      </ToastProvider>,
+    );
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/my-trips'));
     expect(screen.queryByText('Không tìm thấy trang')).not.toBeInTheDocument();
   });
 
   it('explains genuine unknown addresses without silently discarding the requested URL', async () => {
     useAuthMock.mockReturnValue({ isAuthenticated: true, user: { userId: 1, role: 'ADMIN' }, loading: false, logout: vi.fn() });
-    render(<MemoryRouter initialEntries={['/unknown-page']}><Suspense><AppRoutes /></Suspense><LocationProbe /></MemoryRouter>);
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/unknown-page']}><Suspense><AppRoutes /></Suspense><LocationProbe /></MemoryRouter>
+      </ToastProvider>,
+    );
     expect(await screen.findByRole('heading', { name: 'Không tìm thấy trang' })).toBeVisible();
     expect(screen.getByTestId('location')).toHaveTextContent('/unknown-page');
   });
@@ -114,13 +127,15 @@ describe('unauthenticated route handling', () => {
     });
 
     render(
-      <MemoryRouter initialEntries={['/dashboard']}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/dashboard']}>
         <Suspense>
           <AppRoutes />
         </Suspense>
         <LocationProbe />
-      </MemoryRouter>,
-    );
+      </MemoryRouter>
+      </ToastProvider>,
+  );
 
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/accounting'));
     expect(await screen.findByText('Không gian kế toán')).toBeTruthy();

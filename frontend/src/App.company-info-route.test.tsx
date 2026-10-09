@@ -45,13 +45,16 @@ vi.mock('./pages/DriverTripsPage', () => ({
   default: () => <div>Driver home test page</div>,
 }));
 
+import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
 
 function renderRoute() {
   return render(
+    <ToastProvider>
     <MemoryRouter initialEntries={['/config/company-info']}>
       <AppRoutes />
-    </MemoryRouter>,
+    </MemoryRouter>
+    </ToastProvider>,
   );
 }
 

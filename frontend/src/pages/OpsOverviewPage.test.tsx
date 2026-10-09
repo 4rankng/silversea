@@ -49,6 +49,7 @@ vi.mock('../pages/AccountingWorkspacePage', () => ({
 import OpsOverviewPage from './OpsOverviewPage';
 import { localDateInputValue } from '../features/ops/opsStatus';
 import { formatMoney } from '../lib/format';
+import { ToastProvider } from '../components/shared/Toast';
 import { AppRoutes } from '../App';
 
 // ── payload builders — shapes match api/opsClient.ts ─────────────────────────
@@ -137,9 +138,11 @@ function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
+      <ToastProvider>
       <MemoryRouter>
         <OpsOverviewPage />
       </MemoryRouter>
+        </ToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -168,10 +171,12 @@ function renderRoute(path: string, log: string[]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[path]}>
-        <RouteProbe log={log} />
-        <AppRoutes />
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <RouteProbe log={log} />
+          <AppRoutes />
+        </MemoryRouter>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }

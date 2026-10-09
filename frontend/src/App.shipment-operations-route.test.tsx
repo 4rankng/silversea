@@ -58,6 +58,7 @@ vi.mock('./pages/AccountingWorkspacePage', () => ({
   default: () => <div>Accounting test page</div>,
 }));
 
+import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
 
 function renderRoute(path: string) {
@@ -66,10 +67,12 @@ function renderRoute(path: string) {
     return <span data-testid="route-location">{location.pathname}</span>;
   }
   return render(
+    <ToastProvider>
     <MemoryRouter initialEntries={[path]}>
       <AppRoutes />
       <LocationProbe />
-    </MemoryRouter>,
+    </MemoryRouter>
+    </ToastProvider>,
   );
 }
 

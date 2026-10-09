@@ -33,10 +33,15 @@ vi.mock('./pages/PayableDetailPage', () => ({ default: () => <div>Payable detail
 vi.mock('./pages/FinancePage', () => ({ default: () => <div>Profit and loss authority</div> }));
 vi.mock('./pages/DriverTripsPage', () => ({ default: () => <div>Driver home</div> }));
 
+import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
 
 function renderRoute(path: string) {
-  return render(<MemoryRouter initialEntries={[path]}><AppRoutes /></MemoryRouter>);
+  return render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}><AppRoutes /></MemoryRouter>
+      </ToastProvider>,
+    );
 }
 
 describe('AppRoutes accountant authoritative workspaces', () => {

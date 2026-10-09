@@ -32,6 +32,7 @@ vi.mock('./pages/DebtListPage', () => ({
   default: () => <div>Debt list test page</div>,
 }));
 
+import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
 
 function authAs(role: Role) {
@@ -61,10 +62,12 @@ describe('AppRoutes legacy /receivables', () => {
 
   it('sends /receivables to the receivables page instead of the 404 (card 071026211120)', async () => {
     render(
-      <MemoryRouter initialEntries={['/receivables']}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/receivables']}>
         <AppRoutes />
-      </MemoryRouter>,
-    );
+      </MemoryRouter>
+      </ToastProvider>,
+  );
 
     expect(await screen.findByText('Debt list test page')).toBeTruthy();
     expect(screen.queryByText(/Không tìm thấy trang/)).toBeNull();
@@ -73,10 +76,12 @@ describe('AppRoutes legacy /receivables', () => {
   it('keeps the redirect behind the page\'s own access guard — a DRIVER gets bounced, not shown receivables', async () => {
     authAs(Role.DRIVER);
     render(
-      <MemoryRouter initialEntries={['/receivables']}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/receivables']}>
         <AppRoutes />
-      </MemoryRouter>,
-    );
+      </MemoryRouter>
+      </ToastProvider>,
+  );
 
     expect(screen.queryByText('Debt list test page')).toBeNull();
   });
