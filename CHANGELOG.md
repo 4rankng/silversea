@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-09 (trưa) — wave: retest round 9
+
+Prod `b1fc317b` → `23998fbd` (staging-verified `fba9f508` → `26d3f1f7` → `45993f90`).
+
+### Shipped
+
+- **Picker mở từ toàn bộ ô ngày giờ (lần 2)** (091026091500, fba9f508): hợp đồng mới của host combinedPicker — click/double-click BẤT KỲ ĐÂU trên thân ô (gồm segment input) mở 'Chọn ngày giờ'; gõ bàn phím giữ caret editing (auto-advance); host không-combined giữ nguyên luật caret 20/09 byte-for-byte. Pin cũ 4da7470f được supersede tường minh. Rung staging: segment click → đúng 1 dialog, gõ 08 + auto-advance, double-click vẫn 1 dialog.
+- **Header bảng điều phối một dòng** (091026091550, 26d3f1f7): khôi phục luật nowrap toàn cục trên 2 lưới điều phối — /dispatch 8/8 + /dispatch-detail 9/9 header giữ một dòng ở 1280/1440 (đo Range client-rects). Red-first 4 pin; quét plan-board family.
+- **Gỡ kẹt 'lịch trình bị khóa sau lưu'** (091026091510, 45993f90 — MiniMax WIP, lead gate + land theo chỉ đạo 'pick the tickets'): rule 'lot READY phải giữ ngày' giờ chỉ chặn lot CÓ live trip (boundary xoá-lô CTO 2026-09-04); lot do chính editor đưa lên READY có thể hoàn tác về 'Chưa chốt ngày' (revert PENDING_DATE + cancel fulfillment). Red-first lead tự quan sát (revert-test đỏ tại HEAD-service); suite 100/100. Rung staging trên chính lô reporter (TEST-LCL-362): set→200/READY, clear→200/PENDING_DATE. Client CUS giữ self-heal 409 cho conflict thật (lot có trip).
+
 ## 2026-10-09 (sáng) — wave: HR roster rulings
 
 Prod `e9339ad1` → `fca551ee` (staging-verified từng bước `3a43b3b1` → `fca551ee`).
