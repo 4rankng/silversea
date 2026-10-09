@@ -24,6 +24,12 @@ interface OperationalSiteCreateDialogProps {
   isCustomersLoading?: boolean;
   /** Default site type preselected when the dialog opens. */
   defaultSiteType?: 'FACTORY' | 'WAREHOUSE';
+  /** FB-077 (card 091026180600): CUS-intake quick-add — the warehouse modal
+   *  shrinks to Tên / Tên ngắn / Địa chỉ; the code derives from the folded
+   *  name, a blank short-name falls back to the name, and the full
+   *  operational-site form (mã, loại điểm, liên hệ, Google Maps) stays on the
+   *  master-data page where it belongs. Master-data callers omit it. */
+  quickAdd?: boolean;
   routes: Array<{ id: number; name: string }>;
   routesError?: boolean | string | null;
   onRetryRoutes?: () => void;
@@ -79,6 +85,7 @@ export function OperationalSiteCreateDialog({
   onRetryCustomers,
   isCustomersLoading,
   defaultSiteType = 'FACTORY',
+  quickAdd = false,
   routes,
   routesError,
   onRetryRoutes,
@@ -174,15 +181,25 @@ export function OperationalSiteCreateDialog({
 
   function validate(): string | null {
     if (customerId == null && !customerChoice) return 'Vui lòng chọn khách hàng';
-    if (!form.code.trim()) return 'Vui lòng nhập mã điểm vận hành';
     if (!form.name.trim()) return 'Vui lòng nhập tên điểm vận hành';
-    if (!form.shortName.trim()) return 'Vui lòng nhập tên ngắn';
+    if (!quickAdd) {
+      if (!form.code.trim()) return 'Vui lòng nhập mã điểm vận hành';
+      if (!form.shortName.trim()) return 'Vui lòng nhập tên ngắn';
+    }
     if (!form.address.trim()) return 'Vui lòng nhập địa chỉ';
-    if (form.siteType === 'FACTORY' && !form.routeId) return 'Vui lòng chọn tuyến đường cho nhà máy';
-    if (form.googleMapsUrl.trim() && !/^https?:\/\//i.test(form.googleMapsUrl.trim())) {
+    if (!quickAdd && form.siteType === 'FACTORY' && !form.routeId) return 'Vui lòng chọn tuyến đường cho nhà máy';
+    if (!quickAdd && form.googleMapsUrl.trim() && !/^https?:\/\//i.test(form.googleMapsUrl.trim())) {
       return 'Liên kết Google Maps phải bắt đầu bằng http:// hoặc https://';
     }
     return null;
+  }
+
+  /** Quick-add site code: the name, diacritics folded, uppercased, dashed —
+   *  the intake user never types an operational-site code (FB-077). */
+  function deriveQuickAddCode(name: string): string {
+    const folded = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+    const code = folded.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+    return code || `SITE-${Date.now()}`;
   }
 
   async function submit() {
@@ -193,9 +210,9 @@ export function OperationalSiteCreateDialog({
     try {
       const created = await createOperationalSite({
         customerId: customerId ?? Number(customerChoice),
-        code: form.code.trim(),
+        code: quickAdd ? deriveQuickAddCode(form.name) : form.code.trim(),
         name: form.name.trim(),
-        shortName: form.shortName.trim(),
+        shortName: form.shortName.trim() || form.name.trim(),
         siteType: form.siteType,
         routeId: form.siteType === 'FACTORY' ? Number(form.routeId) : null,
         address: form.address.trim(),
@@ -293,23 +310,27 @@ export function OperationalSiteCreateDialog({
               </SelectField>
             </div>
           )}
-          <TextField
-            label="Mã điểm vận hành"
-            value={form.code}
-            onChange={(event) => update('code', event.target.value.toUpperCase())}
-            maxLength={80}
-            placeholder="Ví dụ: BB-NHA-MAY-1"
-            disabled={saving}
-          />
-          <SelectField
-            label="Loại điểm"
-            value={form.siteType}
-            onChange={(event) => update('siteType', event.target.value as SiteType)}
-            disabled={saving}
-          >
-            <option value="FACTORY">Nhà máy</option>
-            <option value="WAREHOUSE">Kho</option>
-          </SelectField>
+          {!quickAdd && (
+            <>
+              <TextField
+                label="Mã điểm vận hành"
+                value={form.code}
+                onChange={(event) => update('code', event.target.value.toUpperCase())}
+                maxLength={80}
+                placeholder="Ví dụ: BB-NHA-MAY-1"
+                disabled={saving}
+              />
+              <SelectField
+                label="Loại điểm"
+                value={form.siteType}
+                onChange={(event) => update('siteType', event.target.value as SiteType)}
+                disabled={saving}
+              >
+                <option value="FACTORY">Nhà máy</option>
+                <option value="WAREHOUSE">Kho</option>
+              </SelectField>
+            </>
+          )}
           {form.siteType === 'FACTORY' && (
             <div className="col-span-full">
               {routesError && (
@@ -386,21 +407,23 @@ export function OperationalSiteCreateDialog({
             />
           </div>
         </EntityFormSection>
-        <EntityFormSection icon={Phone} label="Liên hệ">
-          <div className="col-span-full">
-            <OperationalSiteContactsEditor value={form.contacts} disabled={saving} onChange={contacts => update('contacts', contacts)} />
-          </div>
-          <div className="col-span-full">
-            <TextField
-              label="Liên kết Google Maps (không bắt buộc)"
-              value={form.googleMapsUrl}
-              onChange={(event) => update('googleMapsUrl', event.target.value)}
-              maxLength={2000}
-              placeholder="https://maps.google.com/…"
-              disabled={saving}
-            />
-          </div>
-        </EntityFormSection>
+        {!quickAdd && (
+          <EntityFormSection icon={Phone} label="Liên hệ">
+            <div className="col-span-full">
+              <OperationalSiteContactsEditor value={form.contacts} disabled={saving} onChange={contacts => update('contacts', contacts)} />
+            </div>
+            <div className="col-span-full">
+              <TextField
+                label="Liên kết Google Maps (không bắt buộc)"
+                value={form.googleMapsUrl}
+                onChange={(event) => update('googleMapsUrl', event.target.value)}
+                maxLength={2000}
+                placeholder="https://maps.google.com/…"
+                disabled={saving}
+              />
+            </div>
+          </EntityFormSection>
+        )}
       </div>
     </Modal>
     <RouteCreateDialog

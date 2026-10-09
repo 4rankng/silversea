@@ -84,6 +84,7 @@ export function ShipmentCreateModals({
         isOpen={createSiteDialog.open && Boolean(customerId)}
         customerId={Number(customerId)}
         defaultSiteType={createSiteDialog.siteType}
+        quickAdd={createSiteDialog.siteType === 'WAREHOUSE'}
         routes={routes}
         onClose={onCloseCreateSite}
         onCreated={onSiteCreated}
