@@ -8,7 +8,7 @@
 import { createHash } from 'node:crypto';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, sql, gte, inArray, ne, desc } from 'drizzle-orm';
+import { eq, and, isNull, or, sql, gte, inArray, ne, desc } from 'drizzle-orm';
 import { tripCompositeSelect } from './trip-composite.service';
 import { TripStatus } from '@tingting/shared';
 import { cacheGet } from '../lib/redis';
@@ -291,6 +291,7 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
     }).from(s.trips)
       .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
       .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
       .innerJoin(s.tripFinancialPostings, and(
         eq(s.tripFinancialPostings.tripId, s.trips.id),
         eq(s.tripFinancialPostings.status, 'ACTIVE'),
@@ -298,9 +299,13 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
       and(
         eq(s.trips.status, TripStatus.COMPLETED),
         isNull(s.trips.deletedAt),
+        // Tombstoned lots are invisible in financial reports (card 20261010_2);
+        // ad-hoc trips (null shipmentId) stay included.
+        or(isNull(s.trips.shipmentId), isNull(s.shipments.deletedAt)),
         dateFilter,
       ),
     );
+
 
     // Separate OWN vs EXTERNAL carrier trips
     const ownTrips = monthTrips.filter(t => (t.carrierType ?? 'OWN') === 'OWN');
@@ -856,11 +861,14 @@ export async function getFuelVarianceReport(month: number, year: number) {
       routeId: s.trips.routeId,
     }).from(s.trips)
       .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
       .where(
       and(
         // O2C: COMPLETED is the single posting state; grossProfit finalizes here.
         eq(s.trips.status, TripStatus.COMPLETED),
         isNull(s.trips.deletedAt),
+        // Tombstoned lots are invisible in reports (card 20261010_2).
+        or(isNull(s.trips.shipmentId), isNull(s.shipments.deletedAt)),
         sql`${s.trips.completedAt} is not null`,
         gte(completionBusinessDate, tripStart),
         sql`${completionBusinessDate} < ${tripEnd}`,

@@ -224,6 +224,14 @@ export async function getProfitabilityReport(input: {
     eq(s.profitabilitySnapshotDimensions.dimension, dimension),
     gte(s.profitabilitySnapshots.completedBusinessDate, start),
     lt(s.profitabilitySnapshots.completedBusinessDate, end),
+    // A soft-deleted lot's postings are invisible in reports (card 20261010_2):
+    // users cannot delete a lot with live trips, so tombstoned-with-financials
+    // lots are QA-purge artifacts only — excluding them moves no legitimate
+    // number. Ad-hoc trips (null shipmentId) stay included.
+    or(
+      isNull(s.profitabilitySnapshots.shipmentId),
+      isNull(s.shipments.deletedAt),
+    ),
   );
   const groupedRows = await q.select({
     key: s.profitabilitySnapshotDimensions.dimensionKey,
@@ -241,6 +249,7 @@ export async function getProfitabilityReport(input: {
       eq(s.tripFinancialPostings.id, s.profitabilitySnapshots.financialPostingId),
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     ))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.profitabilitySnapshots.shipmentId))
     .where(reportScope)
     .groupBy(
       s.profitabilitySnapshotDimensions.dimensionKey,
@@ -304,6 +313,7 @@ export async function getProfitabilityReport(input: {
       eq(s.tripFinancialPostings.id, s.profitabilitySnapshots.financialPostingId),
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     ))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.profitabilitySnapshots.shipmentId))
     .where(reportScope);
   const pnl = await getPnlReport(input.month, input.year, q);
   const fleetAllocationByTrip = new Map(
