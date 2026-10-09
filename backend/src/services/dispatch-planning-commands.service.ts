@@ -45,6 +45,13 @@ function toLiveTripRow(row: NonNullable<Awaited<ReturnType<typeof getTripComposi
   return { ...row, carrierType: row.carrierType ?? 'OWN' };
 }
 
+/** Physical moóc length rank for the issue-time trailer gate: the container's
+ * requirement is a MINIMUM length, not an exact match. Two 20' boxes clamped
+ * on one 40' moóc is the Kẹp rig, and a lone 20' load rides a 40' moóc
+ * legally whatever its classification says — only a provably undersized moóc
+ * (a 40' requirement on a 20' moóc) blocks (card 091026164500). */
+const TRAILER_LENGTH_RANK: Record<'20FT' | '40FT', number> = { '20FT': 1, '40FT': 2 };
+
 export interface AcceptDispatchHandoffInput {
   shipmentId: number;
   handoffId: number;
@@ -416,11 +423,17 @@ export async function issueOrderCreateOrUpdate(
       // Master-data imports usually leave Loại Moóc blank (see trailers.type
       // comment) — only block on a mismatch we can actually prove, not on
       // missing data. LCL_PICKUP and DOUBLE both run on a 40' moóc whatever
-      // the lot's own 20' code says (see requiredTrailerTypeForFulfillment).
+      // the lot's own 20' code says (see requiredTrailerTypeForFulfillment),
+      // and the comparison is a length FLOOR: a 20' load may ride a 40' moóc
+      // (Kẹp clamp hardware), while a 40' requirement on a 20' moóc stays
+      // blocked (TRAILER_LENGTH_RANK, card 091026164500).
+      const requiredTrailerType = container?.code == null
+        ? null
+        : requiredTrailerTypeForFulfillment(container.code, fulfillment.dispatchClassification);
       if (
-        container?.code
+        requiredTrailerType != null
         && resolvedTrailerType != null
-        && resolvedTrailerType !== requiredTrailerTypeForFulfillment(container.code, fulfillment.dispatchClassification)
+        && TRAILER_LENGTH_RANK[resolvedTrailerType] < TRAILER_LENGTH_RANK[requiredTrailerType]
       ) {
         throw new ApiError(409, 'Rơ-moóc không phù hợp với loại container.');
       }
