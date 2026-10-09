@@ -229,7 +229,12 @@ export function useShipmentCreateWorkflow({
       }
       attemptRef.current = null;
       if (onSaved) onSaved(shipmentId, intent);
-      else navigate('/shipments');
+      // FB-080 (card 091026180900): land on the lot just created, never the
+      // queue-ranked list — the workspace's operational default sort puts
+      // unscheduled lots first, so a newly created DATED lot sat on page 2+ of
+      // Tổng quan and the creator could not find it. The detail page IS the
+      // confirmation the intake succeeded.
+      else navigate(`/shipments/${shipmentId}`);
       return { issues: [] as ShipmentCreateIssue[] };
     } catch (error) {
       // Customer feedback 2026-09-07: when the server rejects a duplicate

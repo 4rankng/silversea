@@ -99,6 +99,7 @@ function renderPage() {
   return render(<MemoryRouter initialEntries={['/shipments/new']}><QueryClientProvider client={client}><ReducedMotionProvider><ToastProvider><Routes>
     <Route path="/shipments/new" element={<ClerkShipmentCreatePage />} />
     <Route path="/shipments" element={<div data-testid="shipment-list" />} />
+    <Route path="/shipments/:id" element={<div data-testid="shipment-detail" />} />
   </Routes></ToastProvider></ReducedMotionProvider></QueryClientProvider></MemoryRouter>);
 }
 
@@ -556,7 +557,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // Card 20260930_237: the post-create shipment-list render rides the 1s
     // default findBy budget and lost that race under parallel load; explicit
     // 15s polling budget, same element contract.
-    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
+    expect(await screen.findByTestId('shipment-detail', {}, { timeout: 15000 })).toBeTruthy();
   });
 
   it('VID-CUS-04: creates the initial declaration atomically without a second declaration write', async () => {
@@ -570,7 +571,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // Card 20260930_237: the post-create shipment-list render rides the
     // 1s default findBy budget and lost that race once under four-file
     // parallel load; explicit 15s polling budget, same element contract.
-    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
+    expect(await screen.findByTestId('shipment-detail', {}, { timeout: 15000 })).toBeTruthy();
     expect(mocks.createDeclaration).not.toHaveBeenCalled();
     expect(mocks.updateDeclaration).not.toHaveBeenCalled();
   });
@@ -663,7 +664,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 2' }));
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.deleteDeclaration).toHaveBeenCalledWith(91, 79));
-    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
+    expect(await screen.findByTestId('shipment-detail', {}, { timeout: 15000 })).toBeTruthy();
     expect(mocks.createDeclaration).toHaveBeenCalledTimes(3);
   });
 
@@ -1178,7 +1179,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // Card 20260930_237: the post-create shipment-list render rides the 1s
     // default findBy budget and lost that race under parallel load; explicit
     // 15s polling budget, same element contract.
-    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
+    expect(await screen.findByTestId('shipment-detail', {}, { timeout: 15000 })).toBeTruthy();
   });
 
   // Card 20260930_237: replace=true measures 21.0-25.0s SOLO and both
@@ -1219,7 +1220,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // Card 20260930_237: the post-create shipment-list render rides the 1s
     // default findBy budget and lost that race under parallel load; explicit
     // 15s polling budget, same element contract.
-    expect(await screen.findByTestId('shipment-list', {}, { timeout: 15000 })).toBeTruthy();
+    expect(await screen.findByTestId('shipment-detail', {}, { timeout: 15000 })).toBeTruthy();
   });
 
   it('opens a confirmation before discarding entered data and creates nothing', async () => {
