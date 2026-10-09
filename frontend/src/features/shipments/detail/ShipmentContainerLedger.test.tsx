@@ -753,3 +753,44 @@ describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
     expect(screen.getByRole('button', { name: /Xóa container/ })).toBeTruthy();
   });
 });
+
+/* Card 20261009_3 — the "Chỉnh sửa khách hàng và lộ trình" editor docks as a
+ * bottom sheet on phones (≤640px). The sheet MUST portal out of the ledger:
+ * the page's `container-type: inline-size` makes `.shipments-detail-page` the
+ * containing block for position:fixed descendants, so an in-tree sheet would
+ * anchor to the scrolling page box instead of the viewport. */
+describe('card 20261009_3 — phone bottom sheet', () => {
+  const stubPhone = (phone: boolean) => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: phone && query === '(max-width: 640px)', media: query,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(),
+    })));
+  };
+
+  it('docks the identity editor as a portaled bottom sheet at ≤640px', () => {
+    stubPhone(true);
+    try {
+      renderLedger('identity');
+      const sheet = document.body.querySelector('.shipment-container-ledger__inline-editor--sheet');
+      expect(sheet).not.toBeNull();
+      expect(sheet!.closest('.shipment-container-ledger')).toBeNull();
+      expect(document.querySelector('.shipment-container-ledger__sheet-backdrop')).not.toBeNull();
+      expect(within(sheet as HTMLElement).getByText('Chỉnh sửa khách hàng và lộ trình')).toBeInTheDocument();
+      expect(within(sheet as HTMLElement).getByRole('button', { name: /^Lưu khách hàng và lộ trình/ })).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps the editor anchored under its cell on desktop (>640px)', () => {
+    stubPhone(false);
+    try {
+      const { container } = renderLedger('identity');
+      expect(container.querySelector('.shipment-container-ledger__inline-editor--sheet')).toBeNull();
+      expect(container.querySelector('.shipment-container-ledger__inline-editor')).not.toBeNull();
+      expect(document.querySelector('.shipment-container-ledger__sheet-backdrop')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

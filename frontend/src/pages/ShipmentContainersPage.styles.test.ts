@@ -199,8 +199,12 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*1px;[^}]*padding:\s*0 !important;/);
     expect(css).toMatch(/\.shipment-container-ledger__editable-cell > \.shipment-container-ledger__cell-editor\s*\{[^}]*position:\s*relative;[^}]*height:\s*100%;/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\s*\{[^}]*position:\s*relative;/);
-    expect(css).toMatch(/\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(100% \+ 6px\);[^}]*display:\s*flex;[^}]*box-shadow:\s*none;/);
-    expect(css).toMatch(/\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*width:\s*min\(420px, calc\(100vw - 28px\)\);[^}]*flex-direction:\s*column;/);
+    /* Card 20261009_3: the card chrome (display/padding/border/radius/fill)
+       lives on the editor's own class so the portaled phone sheet reuses the
+       exact same surface — one shared implementation. The descendant rule owns
+       only the desktop/tablet cell anchoring. */
+    expect(css).toMatch(/\.shipment-container-ledger__inline-editor\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*padding:\s*12px;[^}]*border-radius:\s*8px;[^}]*background:\s*var\(--surface\);[^}]*box-shadow:\s*none;/);
+    expect(css).toMatch(/\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(100% \+ 6px\);[^}]*width:\s*min\(420px, calc\(100vw - 28px\)\);/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\[data-mode="notes"\] > \.shipment-container-ledger__inline-editor\s*\{[^}]*right:\s*-4px;[^}]*left:\s*auto;/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\[data-mode="schedule"\] > \.shipment-container-ledger__inline-editor\s*\{[^}]*right:\s*-4px;[^}]*left:\s*auto;/);
     expect(css).not.toContain('data-mode="appointment"');
@@ -302,5 +306,71 @@ describe('shipment detail workboard styling', () => {
     // Data cells keep the emergency break — long container numbers need it.
     const td = css.match(/\.shipment-container-ledger tbody > tr > td \{([^}]*)\}/)?.[1] ?? '';
     expect(td).toContain('overflow-wrap: anywhere');
+  });
+});
+
+/* Card 20261009_3 — user iOS capture on /shipments-detail: a dead band ran
+ * from the last content to the physical screen bottom, and the "Chỉnh sửa
+ * khách hàng và lộ trình" inline editor opened as an undocked card instead of
+ * the mobile bottom sheet the workboard dialogs use. The page-fill pins below
+ * adopt the exact primitive card 20261004_327 shipped for the sibling
+ * `.shipments-page` (one pattern, one shared implementation); the sheet pins
+ * mirror the house docked-sheet values (DispatchAllocationPopover ≤680px
+ * radius/height budget, SearchableSelect ≤640px backdrop). */
+describe('shipment detail mobile viewport fill + bottom sheet (card 20261009_3)', () => {
+  const indexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+
+  it('the iOS edge-to-edge meta stays in the document head', () => {
+    expect(indexHtml).toMatch(/<meta name="viewport" content="[^"]*viewport-fit=cover[^"]*"\s*\/?>/);
+  });
+
+  it('the page surface fills the shell scrollport and paints the page tone', () => {
+    const rule = css.match(/^\.shipments-detail-page\s*\{[^}]*\}/m)?.[0] ?? '';
+    expect(rule, '.shipments-detail-page base rule exists').not.toBe('');
+    expect(rule).toMatch(/min-height:\s*100%;/);
+    expect(rule).toMatch(/align-content:\s*start;/);
+    expect(rule).toMatch(/background:\s*var\(--bg\);/);
+    expect(rule).toMatch(/padding-bottom:\s*calc\(40px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+    // A viewport-locked fill overshoots the scrollport (topbar + shell
+    // paddings stack below the page) and IS a scrollable void — the exact
+    // mechanism card 20261004_327 removed on the sibling page.
+    expect(css).not.toMatch(/\.shipments-detail-page\s*\{[^}]*min-height:\s*100(?:dvh|vh)\s*;/);
+  });
+
+  it('the phone tier re-tunes only the trailing clearance', () => {
+    const rule = css.match(/@media \(max-width:\s*560px\)\s*\{[\s\S]*?\.shipments-detail-page\s*\{[^}]*\}/)?.[0]?.match(/\.shipments-detail-page\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(rule, '≤560 .shipments-detail-page override exists').not.toBe('');
+    expect(rule).toMatch(/padding-bottom:\s*calc\(24px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+  });
+
+  it('the identity editor docks as a bottom sheet at the ≤640px phone band', () => {
+    const sheet = css.match(/@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.shipment-container-ledger__inline-editor--sheet\s*\{[^}]*\}/)?.[0]?.match(/\.shipment-container-ledger__inline-editor--sheet\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(sheet, 'phone-band sheet rule exists').not.toBe('');
+    expect(sheet).toMatch(/position:\s*fixed;/);
+    expect(sheet).toMatch(/bottom:\s*0;/);
+    expect(sheet).toMatch(/left:\s*0;\s*right:\s*0;/);
+    // Full-bleed dock: no floating side offsets may leak in.
+    expect(sheet).not.toMatch(/left:\s*calc|right:\s*-4px/);
+    // Rounded TOP corners only; the bottom edge sits flush on the screen.
+    expect(sheet).toMatch(/border-radius:\s*16px 16px 0 0;/);
+    // Actions clear the Home indicator via the safe-area inset (env()=0 on
+    // Android/desktop degrades to the 16px floor — the compat AC).
+    expect(sheet).toMatch(/padding-bottom:\s*max\(16px, env\(safe-area-inset-bottom, 0px\)\);/);
+    // Tall editors scroll inside the sheet instead of overflowing the dock.
+    expect(sheet).toMatch(/max-height:\s*calc\(100dvh - max\(8px, env\(safe-area-inset-top, 0px\)\)\);/);
+    expect(sheet).toMatch(/overflow-y:\s*auto;/);
+    // The sheet portals out of the app subtree, so the flat-surface reset
+    // (#root .app *) must be restated on the sheet itself.
+    expect(css).toMatch(/\.shipment-container-ledger__inline-editor--sheet,[^}]*\.shipment-container-ledger__inline-editor--sheet \*[^}]*box-shadow:\s*none;/);
+  });
+
+  it('the sheet renders over a dimmed scrim that matches the house mobile sheet', () => {
+    const backdrop = css.match(/\.shipment-container-ledger__sheet-backdrop\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(backdrop, 'sheet backdrop rule exists').not.toBe('');
+    expect(backdrop).toMatch(/position:\s*fixed;/);
+    expect(backdrop).toMatch(/inset:\s*0;/);
+    expect(backdrop).toMatch(/background:\s*rgba\(12,\s*24,\s*17,\s*0\.46\)/);
+    // Stacks under the sheet but above every app surface.
+    expect(backdrop).toMatch(/z-index:\s*calc\(var\(--z-popover,\s*400\) - 1\);/);
   });
 });

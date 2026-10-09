@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Button as AriaButton } from 'react-aria-components';
 import { CalendarOff } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
@@ -9,6 +10,7 @@ import type {
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import { useClickOutside } from '../../../hooks/useClickOutside';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { useConfirm } from '../../../components/UI';
 import { displayNote, stripDecimalTrailingZeros } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
@@ -130,6 +132,7 @@ export function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
 function InlineEditor({
   id,
   edit,
+  variant,
   onCancel,
   onSaveRoute,
   onSaveVehicle,
@@ -142,6 +145,9 @@ function InlineEditor({
 }: {
   id: string;
   edit: ActiveShipmentDetailEdit;
+  /** Card 20261009_3: `sheet` docks the editor to the viewport bottom on
+   *  phones (≤640px) — same element, same chrome, only the geometry moves. */
+  variant?: 'sheet';
   onCancel: () => void;
   onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
   onSaveVehicle: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => Promise<void>;
@@ -372,7 +378,7 @@ function InlineEditor({
     <div
       id={id}
       ref={editorRef}
-      className="shipment-container-ledger__inline-editor"
+      className={`shipment-container-ledger__inline-editor${variant === 'sheet' ? ' shipment-container-ledger__inline-editor--sheet' : ''}`}
       data-mode={mode}
       tabIndex={-1}
       onKeyDown={(event) => {
@@ -666,22 +672,40 @@ export function ShipmentContainerLedger({
     }
   }
   const missingVehicleTodayCount = rows.filter((row) => row.transportDate === today && (!row.carrierName || !row.plateNumber)).length;
-  const renderInlineEditor = (edit: ActiveShipmentDetailEdit, editorId: string) => (
-    <InlineEditor
-      key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`}
-      id={editorId}
-      edit={edit}
-      onCancel={onCancelEdit}
-      onSaveIdentity={onSaveIdentity}
-      onSaveDocuments={onSaveDocuments}
-      onSaveContainer={onSaveContainer}
-      onSaveRoute={onSaveRoute}
-      onSaveVehicle={onSaveVehicle}
-      onSaveSchedule={onSaveSchedule}
-      onSaveNotes={onSaveNotes}
-      routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))}
-    />
-  );
+  // Card 20261009_3: at ≤640px every inline editor docks to the viewport as a
+  // bottom sheet over a dimmed scrim. It must portal out of the page — the
+  // page's `container-type: inline-size` makes `.shipments-detail-page` the
+  // containing block for position:fixed descendants, so an in-tree sheet
+  // would anchor to the scrolling page box instead of the viewport. Outside
+  // the phone band the editor stays anchored under its cell (unchanged).
+  const isPhoneSheet = useMediaQuery('(max-width: 640px)');
+  const renderInlineEditor = (edit: ActiveShipmentDetailEdit, editorId: string) => {
+    const editor = (
+      <InlineEditor
+        key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`}
+        id={editorId}
+        edit={edit}
+        variant={isPhoneSheet ? 'sheet' : undefined}
+        onCancel={onCancelEdit}
+        onSaveIdentity={onSaveIdentity}
+        onSaveDocuments={onSaveDocuments}
+        onSaveContainer={onSaveContainer}
+        onSaveRoute={onSaveRoute}
+        onSaveVehicle={onSaveVehicle}
+        onSaveSchedule={onSaveSchedule}
+        onSaveNotes={onSaveNotes}
+        routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))}
+      />
+    );
+    if (!isPhoneSheet) return editor;
+    return createPortal(
+      <>
+        <div className="shipment-container-ledger__sheet-backdrop" aria-hidden="true" />
+        {editor}
+      </>,
+      document.body,
+    );
+  };
   const editableCell = (
     row: ShipmentCusContainerFlatRow,
     mode: ShipmentDetailEditMode,

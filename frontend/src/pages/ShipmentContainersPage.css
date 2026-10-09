@@ -2,7 +2,18 @@
   display: grid;
   gap: 14px;
   min-width: 0;
-  padding-bottom: 36px;
+  /* Card 20261009_3: the page surface fills the shell scrollport AND paints
+     the page tone — the exact primitive card 20261004_327 shipped for the
+     sibling `.shipments-page` after a user iPhone capture showed the same
+     dead band here. `min-height: 100%` is scrollport-relative on purpose: a
+     viewport-locked fill overshoots the scrollport (topbar + shell paddings
+     stack below the page) and that overshoot IS a scrollable void.
+     `align-content: start` parks leftover height below the last row instead
+     of stretching voids between the filter bar, summary rail and ledger. */
+  min-height: 100%;
+  align-content: start;
+  background: var(--bg);
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
   container-name: shipments-detail;
   container-type: inline-size;
 }
@@ -261,14 +272,11 @@
 .shipment-container-ledger__classification > span { min-width: 0; overflow-wrap: anywhere; }
 .shipment-container-ledger__editing-cell { position: relative; z-index: var(--z-overlay, 200); overflow: visible !important; background: var(--surface-2) !important; }
 .shipment-container-ledger__cell-editor { position: relative; min-width: 0; }
-.shipment-container-ledger__cell-editor > .shipment-container-ledger__inline-editor {
-  position: absolute;
-  z-index: 4;
-  top: calc(100% + 6px);
-  left: -4px;
+/* Card 20261009_3: the card chrome lives on the editor's own class so the
+   ≤640px phone sheet (`--sheet`, portaled to body) reuses the exact same
+   surface — one shared implementation, no duplicated card styling. */
+.shipment-container-ledger__inline-editor {
   display: flex;
-  width: min(420px, calc(100vw - 28px));
-  min-width: 0;
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
@@ -277,6 +285,14 @@
   border-radius: 8px;
   background: var(--surface);
   box-shadow: none;
+}
+.shipment-container-ledger__cell-editor > .shipment-container-ledger__inline-editor {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 6px);
+  left: -4px;
+  width: min(420px, calc(100vw - 28px));
+  min-width: 0;
 }
 .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
 .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor { right: -4px; left: auto; }
@@ -556,3 +572,60 @@
    filter container (a flex row with its own wrap, alignment, gap and a
    `grid-column` span) — dead weight the next session would have read as a live
    width contract. */
+
+/* Card 20261009_3: the phone tier keeps the scrollport-relative fill and only
+   re-tunes the trailing clearance — the same tier values the sibling
+   `.shipments-page` shipped (card 20261004_327). The safe area applies once
+   here; the shell scrollport keeps its own counted-once clearance. */
+@media (max-width: 560px) {
+  .shipments-detail-page { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Card 20261009_3 — "Chỉnh sửa khách hàng và lộ trình" docks as a bottom
+   sheet on phones (user iOS capture: the editor opened as an undocked card
+   ~19% above the physical bottom). The editor is portaled to body at ≤640px
+   (ShipmentContainerLedger) because the page's `container-type: inline-size`
+   makes it the containing block for position:fixed descendants — an in-tree
+   fixed sheet would anchor to the scrolling page box, not the viewport. The
+   docked values mirror the house pattern (DispatchAllocationPopover ≤680px
+   radius/height budget; SearchableSelect ≤640px backdrop). Every edit mode
+   renders through the same InlineEditor element, so this one rule set is the
+   shared implementation for all seven editors. */
+@media (max-width: 640px) {
+  .shipment-container-ledger__inline-editor--sheet {
+    position: fixed;
+    z-index: var(--z-popover, 400);
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    border-inline: 0;
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - max(8px, env(safe-area-inset-top, 0px)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .shipment-container-ledger__sheet-backdrop {
+    position: fixed;
+    z-index: calc(var(--z-popover, 400) - 1);
+    inset: 0;
+    background: rgba(12, 24, 17, 0.46);
+  }
+
+  /* The sheet lives outside #root .app, so the product-wide flat-surface
+     reset must be restated on the portaled subtree. */
+  .shipment-container-ledger__inline-editor--sheet,
+  .shipment-container-ledger__inline-editor--sheet * {
+    box-shadow: none;
+    text-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
