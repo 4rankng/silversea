@@ -83,29 +83,6 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
       partnerId = createdPartner!.id;
     }
 
-    // Supplier has no unique constraint besides PK — guard against dupes by
-    // looking up (name, partnerId) first, then insert-or-update in JS.
-    const existingSupplier = await db.select({ id: s.suppliers.id })
-      .from(s.suppliers)
-      .where(sql`lower(btrim(${s.suppliers.name})) = lower(btrim(${c.name})) AND ${s.suppliers.partnerId} = ${partnerId}`);
-    const supplierRow = {
-      name: c.name,
-      taxCode: c.taxCode,
-      partnerId,
-      phone: c.directorPhone || null,
-      note: c.email ? `Email: ${c.email}` : null,
-      status: 'ACTIVE',
-      updatedAt: new Date(),
-    };
-    let supplierId: number;
-    if (existingSupplier.length > 0) {
-      await db.update(s.suppliers).set(supplierRow).where(sql`${s.suppliers.id} = ${existingSupplier[0]!.id}`);
-      supplierId = existingSupplier[0]!.id;
-    } else {
-      const [ins] = await db.insert(s.suppliers).values(supplierRow).returning({ id: s.suppliers.id });
-      supplierId = ins!.id;
-    }
-
     // The active customer keys are normalized expression indexes, so PostgreSQL
     // cannot infer them from an ON CONFLICT(name, tax_code) target. Resolve the
     // active row explicitly, then update or insert deterministically.
@@ -123,7 +100,7 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
       fuelSurchargeSharePct: c.internalCode === 'LONG MINH' ? '50.00' : null,
       status: 'ACTIVE',
       debitNoteMode: 'MONTHLY',
-      linkedSupplierId: supplierId,
+      linkedSupplierId: null,
     } as const;
     const [existingCustomer] = await db.select({ id: s.customers.id })
       .from(s.customers)
