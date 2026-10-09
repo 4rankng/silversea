@@ -213,16 +213,28 @@ describe('DetailedPlanGrid', () => {
 
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
     expect(widths[columnNames.indexOf('classification')]).toBeGreaterThanOrEqual(8);
+    // Card 091026091550: with the one-line header law, each column's floor is
+    // its longest header label, measured on the live 1144px canvas (1440
+    // viewport, expanded sidebar) at the 8px header gutter: "KHÁCH HÀNG &
+    // LỘ TRÌNH ↕" needs 16.75%, the schedule label + sort arrow 16.25%. The
+    // note column keeps ~16% — the label only needs 7%, so prose keeps the
+    // rest.
+    expect(widths[columnNames.indexOf('schedule')]).toBe(16.25);
+    expect(widths[columnNames.indexOf('route')]).toBe(16.75);
+    expect(widths[columnNames.indexOf('ports')]).toBe(8.5);
+    expect(widths[columnNames.indexOf('notes')]).toBe(16.25);
     expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);
     expect(css).toContain('@container (max-width: 900px)');
   });
 
-  it('keeps the desktop Phân loại header as a complete label', () => {
+  it('keeps every desktop header label complete — nowrap is the board-wide law (card 091026091550)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
-    const headerRule = css.match(/\.detailed-plan-grid thead th:last-child \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const headerRule = css.match(/\.detailed-plan-grid thead th \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
     expect(headerRule).toContain('white-space: nowrap;');
     expect(headerRule).toContain('overflow-wrap: normal;');
+    expect(headerRule).not.toContain('white-space: normal');
+    expect(headerRule).toContain('padding: 10px 8px;');
   });
 
   it('renders container-less LCL rows with package/weight instead', () => {

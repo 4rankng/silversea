@@ -217,18 +217,20 @@
 
 /* Keep every fixed-layout column explicit and the complete set at 100%.
    Otherwise a newly added column collapses to zero width and its wrapped
-   header label dictates the height of the entire header row. Phân loại needs
-   enough of the desktop workspace for its header as well as its one-word
-   saved value; a 5% share at the normal 1076px dispatch canvas made it wrap
-   letter by letter. */
-.detailed-plan-grid__col--schedule { width: 13%; }
-.detailed-plan-grid__col--route { width: 14%; }
-.detailed-plan-grid__col--ports { width: 7%; }
-.detailed-plan-grid__col--documents { width: 11%; }
-.detailed-plan-grid__col--container { width: 12%; }
-.detailed-plan-grid__col--assignment { width: 12%; }
+   header label dictates the height of the entire header row. Card
+   091026091550: with the one-line header law each column's floor is its
+   longest label, measured on the live 1144px canvas (1440 viewport, expanded
+   sidebar) at the 8px header gutter — the customer label + sort arrow needs
+   16.75%, the schedule pair 16.25%, each port label 8.5%. The note label
+   needs under 7%, so the note column keeps ~16% for its prose. */
+.detailed-plan-grid__col--schedule { width: 16.25%; }
+.detailed-plan-grid__col--route { width: 16.75%; }
+.detailed-plan-grid__col--ports { width: 8.5%; }
+.detailed-plan-grid__col--documents { width: 10%; }
+.detailed-plan-grid__col--container { width: 8.25%; }
+.detailed-plan-grid__col--assignment { width: 7.5%; }
 .detailed-plan-grid__col--classification { width: 8%; }
-.detailed-plan-grid__col--notes { width: 16%; }
+.detailed-plan-grid__col--notes { width: 16.25%; }
 
 .detailed-plan-grid thead th {
   position: sticky;
@@ -238,7 +240,9 @@
   top: var(--sticky-thead-top, -24px);
   z-index: 3;
   text-align: left;
-  padding: 10px 12px;
+  /* Card 091026091550: 8px gutter, same measured trade as the master plan —
+     at the global 12px the compound labels alone consume ~93% of the canvas. */
+  padding: 10px 8px;
   font-size: var(--ops-table-header-size);
   font-weight: var(--ops-table-header-weight);
   /* Workboard standard: --ink-2 header text, 1px --line-strong underline; case
@@ -247,15 +251,12 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-strong);
   line-height: var(--ops-table-header-line-height);
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-/* This two-word decision header is intentionally kept intact at desktop
-   canvases. The 900px container query below changes the table to labelled
-   records before this column needs a mobile wrapping fallback. */
-.detailed-plan-grid thead th:nth-child(8),
-.detailed-plan-grid thead th:last-child {
+  /* Card 091026091550: a header label is ONE line — the same nowrap the
+     global `thead th` rule mandates for every other table. This board kept
+     normal/anywhere for its multi-line CELLS, which let "THỜI GIAN & /
+     LỊCH TRÌNH" wrap even though its sort buttons were pinned one-line
+     below. Cell VALUES keep wrapping; the law is header-scoped. Every
+     column is sized above so its label fits this one line. */
   white-space: nowrap;
   overflow-wrap: normal;
 }

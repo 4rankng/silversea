@@ -103,25 +103,25 @@
   font-size: var(--ops-table-supporting-size);
 }
 
-/* Schedule carries the variable-length appointment groups and cutoff. Two
-   independent port columns make lift/drop scanning explicit without changing
-   the authoritative per-container projection. PM 2026-10-03 (card
-   20261003_303): 10% — the column's unbreakable tokens (date, hour, count)
-   fit with room; the freed 5% flows to the value-starved columns (notes,
-   cargo, allocation). Long factory names in the sub line wrap at word
-   boundaries as they already did at 15%. */
-.master-plan-grid__col--schedule { width: 10%; }
-/* Schedule lines carry time+date+factory+count; extra width avoids mid-value wraps. */
-.master-plan-grid__col--customer { width: 14%; }
+/* Card 091026091550: with the one-line header law every column's floor is
+   its longest header label. Percentages are measured off the live grid at
+   its worst desktop case — the 1144px canvas a 1440 viewport gets with the
+   expanded sidebar — at the 8px header gutter: "TUYẾN ĐƯỜNG & HÃNG TÀU"
+   needs 17.25%, "KHÁCH HÀNG & NHÀ MÁY" 15.75%, schedule 15.5%. Labels ride
+   one nowrap line, so the note column (label needs under 7%) frees most of
+   its old share — 9.5% keeps both the label and the "Thêm ghi chú" trigger
+   (79px text, measured) on one line. */
+.master-plan-grid__col--schedule { width: 15.5%; }
+.master-plan-grid__col--customer { width: 15.75%; }
 .master-plan-grid__cell[data-label="Khách hàng & nhà máy"] > .master-plan-grid__line--strong:first-child {
   text-transform: uppercase;
 }
-.master-plan-grid__col--route-shipping { width: 16%; }
-.master-plan-grid__col--lift-port { width: 11%; }
-.master-plan-grid__col--drop-port { width: 11%; }
-.master-plan-grid__col--cargo { width: 11%; }
-.master-plan-grid__col--notes { width: 14%; }
-.master-plan-grid__col--allocation { width: 13%; }
+.master-plan-grid__col--route-shipping { width: 17.25%; }
+.master-plan-grid__col--lift-port { width: 8.75%; }
+.master-plan-grid__col--drop-port { width: 7.25%; }
+.master-plan-grid__col--cargo { width: 14.75%; }
+.master-plan-grid__col--notes { width: 9.5%; }
+.master-plan-grid__col--allocation { width: 11.25%; }
 
 .master-plan-grid thead th {
   position: sticky;
@@ -131,7 +131,10 @@
   top: var(--sticky-thead-top, -24px);
   z-index: 3;
   text-align: left;
-  padding: 10px 12px;
+  /* Card 091026091550: 8px gutter — at the global 12px the eight compound
+     labels consume ~99% of the 1144px canvas and nothing is left for the
+     note column. */
+  padding: 10px 8px;
   font-size: var(--ops-table-header-size);
   font-weight: var(--ops-table-header-weight);
   /* Workboard standard (docs/design-guidelines.md §"Workboard table & summary
@@ -142,8 +145,15 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-strong);
   line-height: var(--ops-table-header-line-height);
-  white-space: normal;
-  overflow-wrap: anywhere;
+  /* Card 091026091550: a header label is ONE line — the same nowrap the
+     global `thead th` rule mandates for every other table. This board used
+     to override it with normal/anywhere for its multi-line CELLS, which let
+     the compound labels wrap ("THỜI GIAN & / LỊCH TRÌNH"). Cell VALUES keep
+     wrapping: the law below is header-scoped, `.master-plan-grid__line`
+     keeps normal/anywhere. The colgroup above sizes every column so its
+     label fits this one line at the 1144px worst-case canvas. */
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* A record is not itself an action. Restrict the quiet desktop scan aid to

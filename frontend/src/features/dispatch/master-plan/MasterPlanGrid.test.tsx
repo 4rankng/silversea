@@ -363,24 +363,41 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('"carrier direction"');
   });
 
-  it('rebalances schedule against route-shipping and allocation on desktop', () => {
+  it('rebalances the fixed columns so every one-line header fits (card 091026091550)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const widthFor = (column: string) => Number(css.match(new RegExp(`\\.master-plan-grid__col--${column}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%`))?.[1] ?? 0);
 
-    const scheduleWidth = widthFor('schedule');
     const widths = ['schedule', 'customer', 'route-shipping', 'lift-port', 'drop-port', 'cargo', 'notes', 'allocation'].map(widthFor);
 
-    // 2b023521 rebalanced the grid toward route/shipping (16%) — schedule
-    // went 22% → 15%. Card 20261003_303 (PM 03/10) slims schedule further to
-    // 10% — its date/hour/count tokens fit — and feeds the freed width to
-    // the starved columns (notes 14%, allocation 13%, cargo 11%).
-    expect(scheduleWidth).toBe(10);
-    expect(widthFor('route-shipping')).toBe(16);
-    expect(widthFor('allocation')).toBe(13);
-    expect(widthFor('notes')).toBe(14);
-    expect(widthFor('cargo')).toBe(11);
-    expect(scheduleWidth).toBeLessThan(widthFor('allocation'));
+    // Card 091026091550: the plan-board header law is ONE line per header —
+    // `thead th` restores the global nowrap the board used to override, so
+    // the colgroup must hand each column at least its longest label's
+    // measured width. Labels were measured on the live grid at its widest
+    // fixed-layout stress point (1144px canvas, 1440 viewport, expanded
+    // sidebar): "TUYẾN ĐƯỜNG & HÃNG TÀU" alone needs 17.25%. The 12px
+    // header gutter narrows to 8px — at 12px the eight compound labels
+    // consume ~99% of the canvas and leave the note column nothing. The
+    // old schedule<allocation density invariant is superseded: a header
+    // dictates its column's floor now.
+    expect(widthFor('schedule')).toBe(15.5);
+    expect(widthFor('customer')).toBe(15.75);
+    expect(widthFor('route-shipping')).toBe(17.25);
+    expect(widthFor('lift-port')).toBe(8.75);
+    expect(widthFor('drop-port')).toBe(7.25);
+    expect(widthFor('cargo')).toBe(14.75);
+    expect(widthFor('allocation')).toBe(11.25);
+    expect(widthFor('notes')).toBe(9.5);
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
+  });
+
+  it('keeps every plan-board header on one line — the global nowrap law restored (card 091026091550)', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const headerRule = css.match(/\.master-plan-grid thead th \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(headerRule).toContain('white-space: nowrap;');
+    expect(headerRule).toContain('overflow-wrap: normal;');
+    expect(headerRule).not.toContain('white-space: normal');
+    expect(headerRule).toContain('padding: 10px 8px;');
   });
 
   it('wraps operational values instead of truncating them in compact table columns', () => {
