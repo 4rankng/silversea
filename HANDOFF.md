@@ -1,6 +1,10 @@
 # Local audit handoff
 
-Controller: root, session01a0f570-bbb2-7ec3-826a-2a348ab97832. Updated 2026-10-02; reviewed UI100/UI101 union12 activated; all eight current affected gates0; native acceptance ongoing.
+Controller: root, session01a0f570-bbb2-7ec3-826a-2a348ab97832. Updated 2026-10-09; wave-8b kanban drain COMPLETE — all TODO cards QA_PASSED, staging+prod deployed fe2c1344 (owner go-ahead 09/10).
+
+Wave-8b (2026-10-09): board drained — 601/602/603/510-dashboard filed on embedded verdicts; FB-038 463712eb, FB-001 4da7470f, FB-062 443f5c14 (20260925_46 revoked then re-verdicted), 540 61f439b6, 550 e9339ad1, FB-061 data cleanup (ACB accounts ruled not-seed, kept; census 9d30046b); QA scripts fe2c1344. Three lane teammates (MiniMax/ZAI/MiMo) implemented; peer lead concurrently QA'd FB-038/FB-062/540/FB-001 on staging — verdicts verified genuine. My rungs: cut #2 e9339ad1 + cut #3 fe2c1344 (vantai), make deploy fe2c1344 (silversea; backup db-20261009T005024Z.dump, rollback snapshot pre-cutover-20261009T005019Z, tracking 139/139 aligned, asset guard OK, health 200 both envs). Artifacts qa/2026-10-09_wave8b_*.log + testplan/qa/evidence/2026-10-09_wave8b-leadqa/REPORT.md. Customer guide ~/Downloads/Huong-dan-nghiem-thu-cap-nhat-09-10-2026.docx (10 annotated staging shots). HELD: 510-nhan-su at LEAD/TODO awaiting owner scope confirmation (Trung Kiên). Zero prod logins; read-only health probes only. Peer leadcut worktrees /tmp/leadcut-* preserved (not mine). Update 09/10 later: 510-nhan-su hold RESOLVED by owner ruling (timekeeping driver-only, roster filter carded) — cards 20261009_1 and 20261009_2 QA_PASSED; fixes landed 3a43b3b1/fca551ee, staging serving fca551ee, docs b1fc317b. New round-8 retest intake in lanes (see board).
+
+Previous state (2026-10-02): Controller: root, session01a0f570-bbb2-7ec3-826a-2a348ab97832. Updated 2026-10-02; reviewed UI100/UI101 union12 activated; all eight current affected gates0; native acceptance ongoing.
 
 Goal/status: restore lost edits; repair all session/TODO issues; drive local workflows and all screens; deliver portable Git patch. Recovery complete; acceptance ongoing. No final commit/patch.
 
