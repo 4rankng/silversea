@@ -7,11 +7,14 @@ const shellCss = readFileSync(resolve(process.cwd(), 'src/components/layout/app-
 
 describe('authenticated app shell scrolling', () => {
   it('keeps the authenticated viewport non-scrollable while the app body owns scrolling', () => {
-    // Unlike hidden, clip cannot move the viewport when a portalled field gains focus.
-    expect(baseCss).toMatch(/html:has\(body \.app\),\s*body:has\(\.app\)\s*\{[^}]*overflow:\s*clip;/);
-    expect(baseCss).toMatch(/body:has\(\.app\) #root\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*overflow:\s*clip;/);
+    // Card 20261004_327 rework (device QA failed on the fixed-root build): the
+    // shell is a plain 100%-height, overflow-hidden stack — NO position:fixed
+    // root (a fixed root sizes to the iOS layout viewport and clips .app's
+    // 100dvh when the bottom toolbar collapses) and no :has() gate.
+    expect(baseCss).toMatch(/html, body, #root\s*\{[^}]*height:\s*100%;[^}]*overflow:\s*hidden;/);
+    expect(baseCss).not.toMatch(/#root\s*\{[^}]*position:\s*fixed/);
+    expect(baseCss).not.toMatch(/:has\(body \.app\)/);
     expect(shellCss).toMatch(/\.app-body,\s*\.content\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/);
-    expect(baseCss).not.toMatch(/(?:^|\n)(?:html|body|#root)\s*\{[^}]*overflow:\s*(?:hidden|clip);/);
   });
 
   it('keeps form font inheritance in the base layer so component size utilities can win', () => {
