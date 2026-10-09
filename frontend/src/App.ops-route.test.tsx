@@ -35,13 +35,16 @@ vi.mock('./pages/ForwarderTripsPage', () => ({
   default: () => <div>Ops order workspace</div>,
 }));
 
+import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
 
 function renderRoute(path: string) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <AppRoutes />
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={[path]}>
+        <AppRoutes />
+      </MemoryRouter>
+    </ToastProvider>,
   );
 }
 
@@ -83,5 +86,27 @@ describe('AppRoutes Ops is deliberately outside the office-only fleet and expens
   ])('redirects OPS away from $path ($reason)', async ({ path }) => {
     renderRoute(path);
     expect(await screen.findByText('Ops order workspace')).toBeTruthy();
+  });
+});
+
+// Card 091026164630 — owner ruling 2026-10-09: the bounce stays (permission
+// model byte-identical: nav, route guard, casbin untouched) but the silent
+// redirect is bad UX for the denied user. Every guarded redirect announces
+// the denial ("Bạn không có quyền truy cập trang này.") before landing on the
+// role's home; allowed routes must show no such notice.
+describe('guarded redirects announce the denial', () => {
+  it.each(['/fleet', '/expenses'])(
+    'shows a denial notice before landing OPS on its home from %s',
+    async (path) => {
+      renderRoute(path);
+      expect(await screen.findByText('Bạn không có quyền truy cập trang này.')).toBeTruthy();
+      expect(await screen.findByText('Ops order workspace')).toBeTruthy();
+    },
+  );
+
+  it('shows no denial notice on an allowed route', async () => {
+    renderRoute('/my-orders');
+    expect(await screen.findByText('Ops order workspace')).toBeTruthy();
+    expect(screen.queryByText('Bạn không có quyền truy cập trang này.')).toBeNull();
   });
 });

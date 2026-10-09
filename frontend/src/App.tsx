@@ -1,4 +1,4 @@
-import React, { useEffect, lazy, Suspense, type ReactElement } from 'react';
+import React, { useEffect, useRef, lazy, Suspense, type ReactElement } from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SearchProvider } from './context/SearchContext';
@@ -8,7 +8,7 @@ import { Role } from '@tingting/shared';
 import Layout from './components/Layout';
 import CustomerPortalLayout from './pages/portal/CustomerPortalLayout';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
-import { ToastProvider } from './components/shared/Toast';
+import { ToastProvider, useToast } from './components/shared/Toast';
 import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
 import { homeForRole, routes } from './lib/routes';
 import { canReadShipmentDebitRoutes, canReadShipmentRoutes } from './lib/role-access';
@@ -154,6 +154,23 @@ function ShipmentEditRedirect() {
   return <Navigate to={`/shipments/${id}`} replace />;
 }
 
+/** Card 091026164630 — owner ruling 2026-10-09: every role-guard denial lands
+ *  the user on their home exactly as before (permission model byte-identical)
+ *  but announces the denial instead of bouncing silently. Toast fires once per
+ *  mount (ref guard keeps StrictMode's double effect honest); the redirect
+ *  itself happens in the same render with unchanged `replace` semantics. */
+function DeniedRedirect({ to }: { to: string }) {
+  const { toast } = useToast();
+  const toasted = useRef(false);
+  useEffect(() => {
+    if (!toasted.current) {
+      toasted.current = true;
+      toast({ kind: 'error', message: 'Bạn không có quyền truy cập trang này.' });
+    }
+  }, [toast]);
+  return <Navigate to={to} replace />;
+}
+
 export function AppRoutes() {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
@@ -206,16 +223,16 @@ export function AppRoutes() {
         : isCus
           ? cusHome
           : defaultHome;
-  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isCus || isDispatcher || currentRole === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
-  const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={homeRedirect} replace />);
-  const opsOnly = (el: ReactElement) => (isOps ? el : <Navigate to={homeRedirect} replace />); // formerly forwarderOnly
-  const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={homeRedirect} replace />);
+  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isCus || isDispatcher || currentRole === Role.ACCOUNTANT ? <DeniedRedirect to={homeRedirect} /> : el);
+  const driverOnly = (el: ReactElement) => (isDriver ? el : <DeniedRedirect to={homeRedirect} />);
+  const opsOnly = (el: ReactElement) => (isOps ? el : <DeniedRedirect to={homeRedirect} />); // formerly forwarderOnly
+  const customerOnly = (el: ReactElement) => (isCustomer ? el : <DeniedRedirect to={homeRedirect} />);
   // Accountant cannot access dispatch pages (PRD NP-07: no /dispatch,
   // no /dispatch-detail for ACCOUNTANT)
   const dispatchOnly = (el: ReactElement) => (
     isAdmin || currentRole === Role.MANAGER || isDispatcher
       ? el
-      : <Navigate to={homeRedirect} replace />
+      : <DeniedRedirect to={homeRedirect} />
   );
   // Trip drill-down is shared by dispatch planning and office audit. The
   // PRD pins "Vận hành liên quan" (fleet/trips/shipments) as visible — and
@@ -226,56 +243,56 @@ export function AppRoutes() {
     // meant to have Sổ chuyến đi) — nav, search, and route all omit it.
     isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT
       ? el
-      : <Navigate to={homeRedirect} replace />
+      : <DeniedRedirect to={homeRedirect} />
   );
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
-  const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
+  const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <DeniedRedirect to={homeRedirect} />);
   // Freight pricing engine config (Phương án tính cước tự động §5-1): fuel-price
   // period entry names Kế toán/CUS as entrants (backend casbin carries the
   // route-scoped CUS write bypass); DISPATCHER stays out — the page's write
   // buttons would 403 for its read-only casbin grant.
   const fuelPriceConfigOnly = (el: ReactElement) => (
-    isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus ? el : <Navigate to={homeRedirect} replace />
+    isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus ? el : <DeniedRedirect to={homeRedirect} />
   );
   // Catalog management pages (customers, routes) — CUS can add/edit identity
   // fields; financial/cost fields are stripped by the backend intake services.
   // DISPATCHER reaches the same pages create-only (Casbin grants POST on
   // customers/routes; the pages hide edit/delete for that role).
-  const factoryEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || isCus || currentRole === Role.DISPATCHER ? el : <Navigate to={homeRedirect} replace />);
-  const catalogEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus || currentRole === Role.DISPATCHER ? el : <Navigate to={homeRedirect} replace />);
-  const accountantOnly = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
+  const factoryEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || isCus || currentRole === Role.DISPATCHER ? el : <DeniedRedirect to={homeRedirect} />);
+  const catalogEditorOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus || currentRole === Role.DISPATCHER ? el : <DeniedRedirect to={homeRedirect} />);
+  const accountantOnly = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? el : <DeniedRedirect to={homeRedirect} />);
   const shipmentReaderOnly = (el: ReactElement) => (
     canReadShipmentRoutes(currentRole)
       ? el
-      : <Navigate to={homeRedirect} replace />
+      : <DeniedRedirect to={homeRedirect} />
   );
   const shipmentDebitReaderOnly = (el: ReactElement) => (
-    canReadShipmentDebitRoutes(currentRole) ? el : <Navigate to={homeRedirect} replace />
+    canReadShipmentDebitRoutes(currentRole) ? el : <DeniedRedirect to={homeRedirect} />
   );
   const financeReaderOnly = (el: ReactElement) => (
     isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT
       ? el
-      : <Navigate to={homeRedirect} replace />
+      : <DeniedRedirect to={homeRedirect} />
   );
   const capabilityOnly = (capability: string, el: ReactElement) => (
     user?.capabilities?.includes(capability)
       ? el
-      : <Navigate to={homeRedirect} replace />
+      : <DeniedRedirect to={homeRedirect} />
   );
   const recoverableCostOnly = (el: ReactElement) => (
     isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus
       ? el
-      : <Navigate to={homeRedirect} replace />
+      : <DeniedRedirect to={homeRedirect} />
   );
   const shipmentCreatorOnly = (el: ReactElement) => (
     isAdmin || isCus || isDispatcher || currentRole === Role.MANAGER
       ? el
-      : <Navigate to={homeRedirect} replace />
+      : <DeniedRedirect to={homeRedirect} />
   );
   // Strict ADMIN-only — these surfaces expose raw operational data and must
   // never be reachable by MANAGER/ACCOUNTANT. Mirrors managerOrAdminOnly's shape:
   // admit only when the role matches, else bounce to the portal or staff home.
-  const strictAdminOnly = (el: ReactElement) => (isAdmin ? el : <Navigate to={homeRedirect} replace />);
+  const strictAdminOnly = (el: ReactElement) => (isAdmin ? el : <DeniedRedirect to={homeRedirect} />);
 
   // Wrap each page in its own ErrorBoundary so a crash in one route
   // doesn't block navigation to other routes.
@@ -297,7 +314,7 @@ export function AppRoutes() {
           <Route path="/" element={<Navigate to={defaultHome} replace />} />
           <Route
             path="/dashboard"
-            element={isPortalUser || isCustomer || isCus || isDispatcher || currentRole === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
+            element={isPortalUser || isCustomer || isCus || isDispatcher || currentRole === Role.ACCOUNTANT ? <DeniedRedirect to={homeRedirect} /> : page(<DashboardPage />)}
           />
           {/* Dispatch planning: /dispatch = Kế hoạch Tổng quát (shipment-level
               carrier allocation), /dispatch-detail = Kế hoạch Chi tiết
@@ -331,11 +348,11 @@ export function AppRoutes() {
               which is what card 20260928_178 asks to be verified. */}
           <Route
             path="/accounting/invoice-tracking"
-            element={canViewInvoiceTracking(currentRole) ? page(<AccountingInvoiceTrackingPage />) : <Navigate to={homeRedirect} replace />}
+            element={canViewInvoiceTracking(currentRole) ? page(<AccountingInvoiceTrackingPage />) : <DeniedRedirect to={homeRedirect} />}
           />
           <Route
             path="/accounting/deposit-tracker"
-            element={isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? page(<DepositRefundTrackerPage />) : <Navigate to={homeRedirect} replace />}
+            element={isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? page(<DepositRefundTrackerPage />) : <DeniedRedirect to={homeRedirect} />}
           />
           {/* Card 20260928_169 — Báo cáo tổng hợp hoàn ứng (per staff / per
               đợt). Same finance-only gate as the expense-accounting surface it
