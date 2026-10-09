@@ -31,7 +31,7 @@ function renderPage() {
 
 const BUSINESS_UNITS = [
   { id: 1, code: 'SG', name: 'Bộ phận kinh doanh', status: 'ACTIVE', createdAt: '', updatedAt: '' },
-  { id: 2, code: 'HN', name: 'Bộ phận điều hành', status: 'ACTIVE', createdAt: '', updatedAt: '' },
+  { id: 2, code: 'DR', name: 'Đội xe', status: 'ACTIVE', createdAt: '', updatedAt: '' },
 ];
 
 function userRow(overrides: Record<string, unknown>) {
@@ -59,47 +59,52 @@ describe('HrRosterPage', () => {
     vi.clearAllMocks();
     getUsersMock.mockResolvedValue({
       items: [
-        userRow({ id: 1 }),
         userRow({ id: 2, role: 'DRIVER', fullName: 'Lái xe A', employeeCode: 'TX001', email: 'laixe@example.com', phone: '0902', businessUnitIds: [2] }),
+        userRow({ id: 4, role: 'DRIVER', fullName: 'Lái xe B', employeeCode: 'TX002', email: 'laixeb@example.com', phone: '0903', businessUnitIds: [2] }),
+        userRow({ id: 1 }),
+        userRow({ id: 5, role: 'ACCOUNTANT', fullName: 'Kế toán C', employeeCode: 'NV002', email: 'kt@example.com', phone: '0904', businessUnitIds: [1] }),
+        userRow({ id: 6, role: 'DISPATCHER', fullName: 'Điều vận D', employeeCode: 'NV003', email: 'dv@example.com', phone: '0905', businessUnitIds: [1] }),
+        userRow({ id: 7, role: 'ADMIN', fullName: 'Quản trị E', employeeCode: 'NV004', email: 'qt@example.com', phone: '0906', businessUnitIds: [1] }),
         userRow({ id: 3, role: 'CUSTOMER', fullName: 'KH portal', employeeCode: null, businessUnitIds: [] }),
       ],
-      total: 3,
+      total: 7,
       businessUnits: BUSINESS_UNITS,
     });
   });
 
-  it('lists personnel profiles and excludes external customer accounts', async () => {
+  // Owner ruling 2026-10-09 ('cham cong only laixe driver' / 'no office
+  // staff'): the personnel roster is the DRIVER roster — every office role
+  // (OPS, ACCOUNTANT, DISPATCHER, ADMIN, MANAGER, CUS) stays on /users.
+  it('lists drivers only — no office staff, no customer portal accounts', async () => {
     renderPage();
-    expect(await screen.findByText('Trần Văn Bình')).toBeInTheDocument();
-    expect(screen.getByText('Lái xe A')).toBeInTheDocument();
-    expect(screen.queryByText('KH portal')).not.toBeInTheDocument();
-    expect(screen.getByText('NV001')).toBeInTheDocument();
-    expect(screen.getByText('binh@example.com')).toBeInTheDocument();
-    expect(screen.getByRole('cell', { name: 'Bộ phận kinh doanh' })).toBeInTheDocument();
-  });
-
-  it('narrows the list by search term and by business-unit filter', async () => {
-    renderPage();
-    await screen.findByText('Trần Văn Bình');
-
-    fireEvent.change(screen.getByLabelText('Tìm trong danh sách nhân sự'), {
-      target: { value: 'TX001' },
-    });
-    expect(screen.getByText('Lái xe A')).toBeInTheDocument();
-    expect(screen.queryByText('Trần Văn Bình')).not.toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText('Tìm trong danh sách nhân sự'), {
-      target: { value: '' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Lọc theo bộ phận/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Bộ phận điều hành' }));
     expect(await screen.findByText('Lái xe A')).toBeInTheDocument();
-    expect(screen.queryByText('Trần Văn Bình')).not.toBeInTheDocument();
+    expect(screen.getByText('Lái xe B')).toBeInTheDocument();
+    expect(screen.getByText('TX001')).toBeInTheDocument();
+    expect(screen.getAllByRole('cell', { name: 'Đội xe' })).toHaveLength(2); // both drivers sit in Đội xe
+    for (const office of ['Trần Văn Bình', 'Kế toán C', 'Điều vận D', 'Quản trị E', 'KH portal']) {
+      expect(screen.queryByText(office)).not.toBeInTheDocument();
+    }
   });
 
-  it('shows the roster empty state when no personnel matches the filters', async () => {
+  it('narrows the driver list by search term', async () => {
     renderPage();
-    await screen.findByText('Trần Văn Bình');
+    await screen.findByText('Lái xe A');
+
+    fireEvent.change(screen.getByLabelText('Tìm trong danh sách nhân sự'), {
+      target: { value: 'TX002' },
+    });
+    expect(screen.getByText('Lái xe B')).toBeInTheDocument();
+    expect(screen.queryByText('Lái xe A')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Tìm trong danh sách nhân sự'), {
+      target: { value: 'NV001' },
+    });
+    expect(await screen.findByText('Không tìm thấy nhân sự')).toBeInTheDocument();
+  });
+
+  it('shows the roster empty state when no driver matches the filters', async () => {
+    renderPage();
+    await screen.findByText('Lái xe A');
 
     fireEvent.change(screen.getByLabelText('Tìm trong danh sách nhân sự'), {
       target: { value: 'zzz-khong-co' },

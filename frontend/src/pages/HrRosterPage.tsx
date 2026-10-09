@@ -13,7 +13,7 @@ import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
 
 /**
- * Danh sách nhân sự — read-only personnel directory.
+ * Danh sách nhân sự — read-only driver roster.
  *
  * A different surface from /users (permission administration): this page
  * renders the personnel profile columns only (Mã NV, họ tên, bộ phận, email,
@@ -21,13 +21,15 @@ import '../styles/operational-table-typography.css';
  * and no row actions. Bộ phận derives exactly the way /users derives it:
  * businessUnitIds mapped to business unit names, joined per row.
  *
- * Office attendance/salary fields are deliberately NOT modeled yet — the
- * customer has not confirmed the office attendance/salary field set.
+ * Owner ruling 2026-10-09 ('chấm công chỉ dành cho lái xe' / no office
+ * staff): personnel and timekeeping are DRIVER-ONLY — office roles are
+ * administered on /users and never appear here. Office attendance/salary
+ * fields are ruled out, not deferred.
  */
 
-/** External customer portal accounts are not personnel; everyone else is. */
-function isPersonnel(role: Role): boolean {
-  return role !== Role.CUSTOMER;
+/** The roster is the driver roster; every office role stays on /users. */
+function isRosterDriver(role: Role): boolean {
+  return role === Role.DRIVER;
 }
 
 /** One fetch budgets the whole roster; users are a bounded population. */
@@ -48,7 +50,7 @@ export default function HrRosterPage() {
   const { rootRef } = usePageAnimations({ ready: !isLoading });
 
   const personnel = useMemo(
-    () => (data?.items ?? []).filter((u) => isPersonnel(u.role)),
+    () => (data?.items ?? []).filter((u) => isRosterDriver(u.role)),
     [data],
   );
 
