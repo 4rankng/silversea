@@ -458,6 +458,42 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
   });
 
+  // Card 091026164530: the lot quick-view dialog ('Mở chi tiết lô hàng') was
+  // reported to show a 'Tổng quan'/'Chi tiết' tablist on the first open and no
+  // tablist on later opens. Verified against the design and on staging: the
+  // drawer is a single-view surface (lot bar → Trạng thái lô → Chi tiết
+  // container) that carries NO tablist at any width, and its content must be
+  // identical on every open of the same lot. Pin that consistency contract:
+  // three open/close cycles, byte-identical dialog content, no tablist ever —
+  // any reopen-divergent render state (a flag not reset on close, a
+  // condition keyed to the detail cache) turns this red.
+  it('quick-view dialog renders identical content with no tablist on every reopen (card 091026164530)', async () => {
+    const lclRow = { ...row, cargoMode: 'LCL' as const, customerName: 'TEST-LCL-362' };
+    const lclDetail = { ...detail, summary: lclRow, containers: [] };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1' ? Promise.resolve(lclDetail) : Promise.resolve(listResponse([lclRow]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+
+    const opens: string[] = [];
+    for (let open = 1; open <= 3; open++) {
+      fireEvent.click(masterRowDetailButton());
+      const dialog = await screen.findByRole('dialog');
+      // The drawer body settles on the workflow section + ledger — for an LCL
+      // lot the ledger reads "0 cont" with the no-containers note.
+      await waitFor(() => expect(within(dialog).getByRole('heading', { name: 'Trạng thái lô' })).toBeTruthy());
+      expect(within(dialog).getByText('Lô hàng chưa có dữ liệu container.')).toBeTruthy();
+      // Design truth pinned per the card's consistency AC: the dialog is not a
+      // tabbed surface — no tablist inside it, ever.
+      expect(dialog.querySelectorAll('[role="tablist"], [role="tab"]')).toHaveLength(0);
+      opens.push(dialog.textContent ?? '');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    }
+    expect(new Set(opens).size).toBe(1);
+  });
+
   it('does not repeat the shipment-level closing or return date before container appointments', async () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, transportDate: '2026-08-19' }]));
     renderPage();
