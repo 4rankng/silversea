@@ -2,13 +2,19 @@
 // Per-card rungs import these; every assertion tap is a REAL mouse event chain.
 import puppeteer from 'puppeteer';
 import { mkdirSync, appendFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 export const BASE = process.env.QA_BASE ?? 'https://vantai.tingting.vip';
 export const WIDTHS = [1280, 1440, 1920, 2560];
 
+// Evidence roots anchor on this file, never the caller's cwd (09/10: two
+// rungs run from scripts/ created a nested scripts/testplan/... tree), and
+// the slug carries its own date — no stale hardcoded prefix.
 export function evidenceDir(slug) {
-  const dir = `testplan/qa/evidence/2026-10-08_${slug}`;
+  const dir = resolve(join(HERE, '..', 'evidence'), slug);
   mkdirSync(dir, { recursive: true });
   return dir;
 }
