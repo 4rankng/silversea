@@ -19,7 +19,15 @@
   min-height: 100%;
   align-content: start;
   background: var(--bg);
-  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 40px;
+}
+
+/* Rework 2026-10-09 (card 20261009_3, owner ruling): the page keeps only its
+   flat rhythm padding — in the phone band the page's trailing padding dies
+   entirely and the ≤640 shell clearance max(16px, env(safe-area-inset-bottom))
+   is the single, counted-once trailing band. */
+@media (max-width: 640px) {
+  .shipments-page { padding-bottom: 0; }
 }
 
 .shipments-page--worksheet {
@@ -1933,10 +1941,10 @@
     /* The fill stays scrollport-relative (base rule above): a `min-height:
        100dvh` here measured as a 130–180px scrollable void below the last
        card at 390×844 (topbar 56 + safe-top + shell paddings 14 + 28 + safe
-       all stack below a viewport-locked page). Only the trailing clearance is
-       re-tuned for the phone; the safe area applies once here, the shell
-       scrollport keeps its own counted-once clearance. */
-    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+       all stack below a viewport-locked page). The trailing clearance lives
+       entirely in the ≤640 tier near the base rule (padding-bottom: 0) — the
+       ≤640 shell band max(16px, env(safe-area-inset-bottom)) is the single,
+       counted-once trailing clearance. */
   }
 
   .cus-workspace {

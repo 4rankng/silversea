@@ -10,8 +10,15 @@
 
 @media (max-width: 1023px) {
   .notif-page {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px));
+    padding-bottom: 76px;
   }
+}
+
+/* Rework 2026-10-09 (card 20261009_3 class sweep): the ≤640 phone band drops
+   the page's trailing padding entirely — the shell clearance
+   max(16px, env(safe-area-inset-bottom)) is the single, counted-once band. */
+@media (max-width: 640px) {
+  .notif-page { padding-bottom: 0; }
 }
 
 /* ── Header ────────────────────────────────────────────────────────────── */

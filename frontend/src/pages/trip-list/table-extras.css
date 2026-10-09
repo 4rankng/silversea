@@ -1,6 +1,13 @@
 /* ── Page-level layout ─────────────────────────────────────────────────── */
 .trip-list-page { padding-bottom: 40px; }
 
+/* Rework 2026-10-09 (card 20261009_3 class sweep): page trailing padding dies
+   in the ≤640 phone band — the shell clearance
+   max(16px, env(safe-area-inset-bottom)) is counted once. */
+@media (max-width: 640px) {
+  .trip-list-page { padding-bottom: 0; }
+}
+
 /* Breadcrumb link cursor */
 .trip-list-page .trip-list-page__crumbs a { cursor: pointer; }
 

@@ -13,6 +13,13 @@
   min-width: 0;
 }
 
+/* Rework 2026-10-09 (card 20261009_3 class sweep): page trailing padding dies
+   in the ≤640 phone band — the shell clearance
+   max(16px, env(safe-area-inset-bottom)) is counted once. */
+@media (max-width: 640px) {
+  .treasury-page { padding-bottom: 0; }
+}
+
 /* Account records — the record-table base owns chrome, stickiness, hover,
    the .num right alignment, and the ≤1100px card handoff. These rules only
    map treasury roles onto the shared type scale. The identity line pairs

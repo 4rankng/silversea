@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -38,10 +38,11 @@ const responsive = read('src/styles/responsive.css');
 
 /* The page root rule (first `.shipments-page { … }`, the base rule). */
 const pageRootRule = page.match(/^\.shipments-page\s*\{[^}]*\}/m)?.[0] ?? '';
-/* The ≤560px phone-tier `.shipments-page { … }` override (first rule inside
-   the first ≤560 band). */
+/* The ≤640px phone-tier `.shipments-page { … }` override (rework 2026-10-09:
+ * one phone band, one tier — the tier zeroes the page's own trailing padding
+ * because the ≤640 shell clearance below is the single trailing band). */
 const phoneTierRule =
-  page.match(/@media \(max-width: 560px\)\s*\{[\s\S]*?\.shipments-page\s*\{[^}]*\}/)?.[0]?.match(/\.shipments-page\s*\{[^}]*\}/)?.[0] ?? '';
+  page.match(/@media \(max-width: 640px\)\s*\{[^}]*\.shipments-page\s*\{[^}]*\}/)?.[0]?.match(/\.shipments-page\s*\{[^}]*\}/)?.[0] ?? '';
 
 describe('mobile viewport-fill contract (card 20261004_327)', () => {
   it('the shell chain is a plain 100% stack with NO fixed root', () => {
@@ -87,15 +88,20 @@ describe('mobile viewport-fill contract (card 20261004_327)', () => {
     // opening ~leftover/3 of void between the breadcrumbs, the control surface
     // and the workspace — unusual gaps inside the page.
     expect(rule).toMatch(/align-content:\s*start;/);
-    // Safe area handled at the page's own bottom edge (the shell pays its own
-    // counted-once clearance below).
-    expect(rule).toMatch(/padding-bottom:\s*calc\(40px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+    // Rework 2026-10-09 (owner ruling): the page keeps only its flat rhythm
+    // padding — the bottom safe area is counted ONCE, by the shell clearance
+    // pin below. A second env() term here doubled the iPhone band (~120px).
+    expect(rule).toMatch(/padding-bottom:\s*40px;/);
+    expect(rule).not.toMatch(/env\(safe-area-inset-bottom/);
   });
 
   it('the phone tier keeps the scrollport-relative fill — no viewport-locked height', () => {
     const rule = phoneTierRule;
-    expect(rule, '≤560 .shipments-page override exists').not.toBe('');
-    expect(rule).toMatch(/padding-bottom:\s*calc\(24px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+    expect(rule, '≤640 .shipments-page override exists').not.toBe('');
+    // Rework 2026-10-09: the phone tier carries NO trailing padding at all —
+    // the ≤640 shell clearance (max(16px, env)) is the single trailing band.
+    expect(rule).toMatch(/padding-bottom:\s*0;/);
+    expect(rule).not.toMatch(/env\(safe-area-inset-bottom/);
     // `min-height: 100dvh` on a child of the `main.app-body` scrollport
     // overshoots the scrollport's content box by topbar (56px + safe-top) +
     // shell paddings (14 + 28 + safe) ≈ 130–180px at 390×844 — and that
@@ -107,23 +113,86 @@ describe('mobile viewport-fill contract (card 20261004_327)', () => {
   });
 
   it('the safe area is cleared once per scroll (responsive clearance pin)', () => {
+    // Rework 2026-10-09 (owner ruling "kill the bottom dead band"): the ≤640
+    // shell band is exactly max(16px, env(safe-area-inset-bottom, 0px)) — one
+    // flat floor plus ONE env() count for the whole app scroll. The 28px+env
+    // term it replaces stacked with page-level env terms into a ~120px dead
+    // band on home-indicator iPhones.
     expect(responsive).toMatch(
-      /\.app-body, \.content \{ padding: var\(--app-body-pad-t, 14px\) var\(--app-body-pad-x\) calc\(28px \+ env\(safe-area-inset-bottom, 0px\)\);/,
+      /\.app-body, \.content \{ padding: var\(--app-body-pad-t, 14px\) var\(--app-body-pad-x\) max\(16px, env\(safe-area-inset-bottom, 0px\)\);/,
     );
+    expect(responsive).not.toMatch(/calc\(28px \+ env\(safe-area-inset-bottom/);
   });
 
-  /* AC2 evidence — 390×844, 414×896 and 375×667 all land in the ≤560 tier and
+  /* AC2 evidence — 390×844, 414×896 and 375×667 all land in the ≤640 tier and
    * every declaration the chain relies on is unit-relative (100% of the
-   * scrollport, env() safe area, dvh shell with a 100% fallback), so one chain
-   * serves all three viewports with no per-size branch to drift. */
+   * scrollport, dvh shell with a 100% fallback), so one chain serves all three
+   * viewports with no per-size branch to drift. */
   it.each([
     [390, 844],
     [414, 896],
     [375, 667],
   ])('the chain is viewport-relative at %i×%i', (width) => {
-    expect(width).toBeLessThanOrEqual(560);
+    expect(width).toBeLessThanOrEqual(640);
     expect(pageRootRule).toMatch(/min-height:\s*100%;/);
     expect(page).not.toMatch(/min-height:\s*(?:844|896|667)px/);
-    expect(phoneTierRule).toMatch(/env\(safe-area-inset-bottom, 0px\)/);
+    expect(phoneTierRule).toMatch(/padding-bottom:\s*0;/);
+  });
+});
+
+/* Class law (rework 2026-10-09, owner ruling): the phone trailing band is
+ * counted ONCE per scroll — the ≤640 shell (`.app-body, .content`) owns the
+ * max(16px, env(safe-area-inset-bottom)) term. No page surface may count the
+ * bottom safe area again. The allowlist is NOT a loophole: it names surfaces
+ * that own their clearance OUTSIDE the shell scrollport (fixed bars, portaled
+ * sheets, out-of-shell pages, overlay bodies) and therefore count env() for
+ * their own surface only — the documented law in docs/design-guidelines.md. */
+const ALLOWED_ENV_BOTTOM_FILES = new Set([
+  'DriverTripDetailPage.css', // fixed driver task bars clear the Home indicator
+  'ClerkShipmentCreatePage.css', // .csc-page owns clearance (shell neutralized via :has)
+  'CustomerPortalLayout.css', // portal scrollport + its own fixed tab bar
+  'LoginPage.css', // renders outside the app shell
+  'TripEditPage.css', // fixed mobile edit bar
+  'AuditLogPage.css', // detail-modal body is an overlay surface
+  'customer-form.css', // drawer action bar is an overlay surface
+  'ShipmentContainersPage.css', // portaled bottom-sheet rule ONLY (asserted below)
+]);
+
+function pageCssFiles(dir: string, acc: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = resolve(dir, e.name);
+    if (e.isDirectory()) pageCssFiles(p, acc);
+    else if (e.name.endsWith('.css')) acc.push(p);
+  }
+  return acc.sort();
+}
+
+describe('phone-band trailing clearance class law (rework 2026-10-09)', () => {
+  it('no page CSS re-counts the bottom safe area outside the allowlist', () => {
+    const offenders: string[] = [];
+    for (const file of pageCssFiles(resolve(root, 'src/pages'))) {
+      const base = file.split('/').pop() ?? file;
+      // Comments are documentation, not declarations — strip them so the law
+      // reads only real CSS declarations (a comment quoting the pattern must
+      // not become an offender, nor hide one).
+      const text = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      const hits = [...text.matchAll(/(?:padding|padding-bottom)\s*:[^;}]*env\(safe-area-inset-bottom/g)];
+      for (const hit of hits) {
+        const idx = hit.index ?? 0;
+        if (base === 'ShipmentContainersPage.css') {
+          // The sheet rule only: every hit must sit inside the portaled
+          // bottom-sheet rule (its own surface, outside the shell scrollport).
+          const sheetSpans = [...text.matchAll(/\.shipment-container-ledger__inline-editor--sheet[^{]*\{[^}]*\}/g)].map(
+            (m) => [(m.index ?? 0), (m.index ?? 0) + m[0].length] as const,
+          );
+          if (!sheetSpans.some(([a, b]) => idx >= a && idx < b)) {
+            offenders.push(`${base}: ${hit[0].trim()}`);
+          }
+        } else if (!ALLOWED_ENV_BOTTOM_FILES.has(base)) {
+          offenders.push(`${base}: ${hit[0].trim()}`);
+        }
+      }
+    }
+    expect(offenders, 'env(safe-area-inset-bottom) counted again in page padding').toEqual([]);
   });
 });

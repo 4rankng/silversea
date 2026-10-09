@@ -330,17 +330,23 @@ describe('shipment detail mobile viewport fill + bottom sheet (card 20261009_3)'
     expect(rule).toMatch(/min-height:\s*100%;/);
     expect(rule).toMatch(/align-content:\s*start;/);
     expect(rule).toMatch(/background:\s*var\(--bg\);/);
-    expect(rule).toMatch(/padding-bottom:\s*calc\(40px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+    // Rework 2026-10-09 (owner ruling): flat rhythm only — the bottom safe
+    // area is counted ONCE by the ≤640 shell clearance (class-law pin in
+    // mobile-viewport-fill-contract.styles.test.ts). The previous
+    // calc(40px + env) here was the second env() term of the ~120px iPhone
+    // dead band.
+    expect(rule).toMatch(/padding-bottom:\s*40px;/);
+    expect(rule).not.toMatch(/env\(safe-area-inset-bottom/);
     // A viewport-locked fill overshoots the scrollport (topbar + shell
     // paddings stack below the page) and IS a scrollable void — the exact
     // mechanism card 20261004_327 removed on the sibling page.
     expect(css).not.toMatch(/\.shipments-detail-page\s*\{[^}]*min-height:\s*100(?:dvh|vh)\s*;/);
   });
 
-  it('the phone tier re-tunes only the trailing clearance', () => {
-    const rule = css.match(/@media \(max-width:\s*560px\)\s*\{[\s\S]*?\.shipments-detail-page\s*\{[^}]*\}/)?.[0]?.match(/\.shipments-detail-page\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(rule, '≤560 .shipments-detail-page override exists').not.toBe('');
-    expect(rule).toMatch(/padding-bottom:\s*calc\(24px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+  it('the phone tier zeroes the page trailing padding (shell counts once)', () => {
+    const rule = css.match(/@media \(max-width:\s*640px\)\s*\{[^}]*\.shipments-detail-page\s*\{[^}]*\}/)?.[0]?.match(/\.shipments-detail-page\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(rule, '≤640 .shipments-detail-page override exists').not.toBe('');
+    expect(rule).toMatch(/padding-bottom:\s*0;/);
   });
 
   it('the identity editor docks as a bottom sheet at the ≤640px phone band', () => {

@@ -13,7 +13,7 @@
   min-height: 100%;
   align-content: start;
   background: var(--bg);
-  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 40px;
   container-name: shipments-detail;
   container-type: inline-size;
 }
@@ -573,12 +573,12 @@
    `grid-column` span) — dead weight the next session would have read as a live
    width contract. */
 
-/* Card 20261009_3: the phone tier keeps the scrollport-relative fill and only
-   re-tunes the trailing clearance — the same tier values the sibling
-   `.shipments-page` shipped (card 20261004_327). The safe area applies once
-   here; the shell scrollport keeps its own counted-once clearance. */
-@media (max-width: 560px) {
-  .shipments-detail-page { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+/* Card 20261009_3 rework (2026-10-09): the phone tier zeroes the page's own
+   trailing padding — the ≤640 shell band max(16px, env(safe-area-inset-bottom))
+   is the single, counted-once trailing clearance (owner ruling: kill the
+   double-counted bottom dead band). */
+@media (max-width: 640px) {
+  .shipments-detail-page { padding-bottom: 0; }
 }
 
 /* Card 20261009_3 — "Chỉnh sửa khách hàng và lộ trình" docks as a bottom

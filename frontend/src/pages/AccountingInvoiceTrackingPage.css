@@ -30,6 +30,13 @@
   padding-bottom: 40px;
 }
 
+/* Rework 2026-10-09 (card 20261009_3 class sweep): page trailing padding dies
+   in the ≤640 phone band — the shell clearance
+   max(16px, env(safe-area-inset-bottom)) is counted once. */
+@media (max-width: 640px) {
+  .invoice-tracking-page { padding-bottom: 0; }
+}
+
 /* Column headers wrap at word boundaries only — "SỐ TIỀN / TRẢ", never
    "SỐ TIỀ / N TRẢ". The board's long data tokens need the base's
    break-anywhere, but a header is a short label that keeps its words whole

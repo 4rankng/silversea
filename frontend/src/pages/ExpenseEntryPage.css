@@ -25,6 +25,13 @@
   padding-bottom: 16px;
 }
 
+/* Rework 2026-10-09 (card 20261009_3 class sweep): the form wrapper's
+   trailing padding dies in the ≤640 phone band — the shell clearance
+   max(16px, env(safe-area-inset-bottom)) is counted once. */
+@media (max-width: 640px) {
+  .expense-page-form { padding-bottom: 0; }
+}
+
 .expense-page-error {
   background: var(--danger-soft);
   color: var(--danger-text);

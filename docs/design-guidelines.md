@@ -547,3 +547,27 @@ owner. Text wraps, never clips; genuine width excess rides the shared
 `application/table` (consulted 07/10). Pins:
 `CrudTable.discovery.test.tsx` presentation contract (red-first, observed
 failing at HEAD), rung captures `qa/2026-10-07_card061026221226_ui-*`.
+
+### 2026-10-09 — Phone-band trailing clearance is counted once (card 20261009_3 rework)
+
+The ≤640px shell (`responsive.css` `.app-body, .content`) owns the phone
+trailing band: exactly `max(16px, env(safe-area-inset-bottom, 0px))` — one
+flat floor plus ONE `env()` count per scroll. Page roots carry NO trailing
+padding in that band (their ≤640 tier is `padding-bottom: 0`) and never
+re-add `env(safe-area-inset-bottom)` to their own padding: the old pattern
+(`calc(24–40px + env(...))` on the page stacked with `calc(28px + env(...))`
+on the shell) double-counted the safe area into a ~120px dead band on
+home-indicator iPhones. A page that must own its clearance (the `.csc-page`
+pattern) neutralizes the shell with
+`.app-main:has(<page>) .app-body { padding-bottom: 0 }` so the total is still
+counted once. Overlays and fixed bars (modal bodies, sticky action bars,
+portaled sheets, driver task bars, the customer portal tab bar, the login
+page) count `env(safe-area-inset-bottom)` for their OWN surface only — they
+sit outside the shell scrollband's trailing contract. Enforcement: the
+class-law pin in
+`frontend/src/styles/mobile-viewport-fill-contract.styles.test.ts` walks
+`src/pages/**/*.css` and fails any non-allowlisted
+`env(safe-area-inset-bottom)` in a padding declaration (allowlist = exactly
+those own-surface files, with the sheet rule scoped inside
+`ShipmentContainersPage.css`).
+*Source:* card 20261009_3 rework, owner ruling 2026-10-09.
