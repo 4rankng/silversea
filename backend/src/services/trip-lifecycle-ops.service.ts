@@ -105,6 +105,26 @@ export async function tripHasDriverAcknowledgement(tx: Tx, tripId: number): Prom
   return row != null;
 }
 
+/** Card 091026190520 (FB-081, option b): does this reassignment change WHO
+ * drives the trip? After the driver acknowledged (ORDER_RECEIVED) only a
+ * vehicle-only correction is allowed — the driver keeps the job they
+ * accepted. A carrier-type switch always counts as a driver change (OWN→EXTERNAL
+ * drops the internal driver; EXTERNAL→OWN assigns one); for external trips the
+ * driver identity is the name/phone pair. */
+function driverChangesAfterAcknowledgement(
+  trip: { carrierType: string | null; driverId: number | null; externalDriverName: string | null; externalDriverPhone: string | null },
+  data: { carrierType?: 'OWN' | 'EXTERNAL'; driverId?: number | null; externalDriverName?: string | null; externalDriverPhone?: string | null },
+): boolean {
+  const next = data.carrierType || 'OWN';
+  if ((trip.carrierType ?? 'OWN') !== next) return true;
+  if (next === 'OWN') {
+    return data.driverId != null && Number(data.driverId) !== trip.driverId;
+  }
+  const nextName = (data.externalDriverName ?? trip.externalDriverName ?? '').trim();
+  const nextPhone = (data.externalDriverPhone ?? trip.externalDriverPhone ?? '').trim();
+  return nextName !== (trip.externalDriverName ?? '').trim() || nextPhone !== (trip.externalDriverPhone ?? '').trim();
+}
+
 export async function reassignTrip(
   tripId: number,
   data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null; expectedVersion?: number; },
@@ -130,12 +150,19 @@ export async function reassignTrip(
       // can flip the trip to IN_TRANSIT before any driver acknowledgement, so
       // IN_TRANSIT alone must not block the correction — only the driver's
       // ORDER_RECEIVED milestone does. COMPLETED/CANCELED stay terminal.
-      const reassignable = trip.status === TripStatus.IN_TRANSIT
-        && !(await tripHasDriverAcknowledgement(tx, tripId));
+      // Card 091026190520 (FB-081, option b): after acknowledgement a
+      // VEHICLE-ONLY correction is still allowed (truck/trailer for OWN,
+      // carrier/plate for EXTERNAL) — the driver keeps the job they accepted.
+      const acknowledged = trip.status === TripStatus.IN_TRANSIT
+        && (await tripHasDriverAcknowledgement(tx, tripId));
+      const reassignable = trip.status === TripStatus.IN_TRANSIT && !acknowledged;
       if (!reassignable) {
-        throw new ApiError(409, trip.status === TripStatus.IN_TRANSIT
-          ? 'Không thể điều chỉnh tác vụ đã được lái xe nhận việc.'
-          : 'Chỉ có thể đổi lái xe/xe cho chuyến chưa xuất phát');
+        if (!acknowledged) {
+          throw new ApiError(409, 'Chỉ có thể đổi lái xe/xe cho chuyến chưa xuất phát');
+        }
+        if (driverChangesAfterAcknowledgement(trip, data)) {
+          throw new ApiError(409, 'Lái xe đã nhận việc — chỉ được đổi xe, giữ lái xe.');
+        }
       }
     }
 

@@ -76,13 +76,15 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     setError('');
   }, [trip, tripId]);
 
-  // Acceptance lock — mirrors the server guard exactly: an IN_TRANSIT trip
-  // whose driver acknowledged (ORDER_RECEIVED) can no longer be reassigned;
-  // CREATED trips stay reassignable (pre-acceptance correction right).
+  // Acceptance mode (card 091026190520, FB-081 option b) — mirrors the
+  // server guard: an IN_TRANSIT trip whose driver acknowledged
+  // (ORDER_RECEIVED) may only be corrected on the VEHICLE side (truck/trailer
+  // for OWN, carrier/plate for EXTERNAL); the driver keeps the job they
+  // accepted. CREATED trips stay fully reassignable (pre-acceptance right).
   const lockedByAcceptance = trip?.status === 'IN_TRANSIT' && trip?.driverAccepted === true;
 
   async function handleSave() {
-    if (!trip || tripId == null || saving || lockedByAcceptance) return;
+    if (!trip || tripId == null || saving) return;
     if (carrierType === 'OWN') {
       if (!truckId || !driverId) {
         setError('Vui lòng chọn xe và lái xe');
@@ -133,8 +135,8 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     }
   }
 
-  const confirmDisabled = saving || !trip || lockedByAcceptance
-    || (carrierType === 'OWN' ? (!truckId || !driverId) : (!externalCarrierId && !externalPlateNumber));
+  const confirmDisabled = saving || !trip
+    || (carrierType === 'OWN' ? !truckId : (!externalCarrierId && !externalPlateNumber));
 
   // Sweep (card 20261008_1): both footer buttons used to disable silently —
   // each disable cause now carries its own aria-described reason
@@ -147,7 +149,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     : !trip
       ? 'Chưa tải được thông tin chuyến.'
       : carrierType === 'OWN'
-        ? (!truckId || !driverId ? 'Chọn xe và lái xe để xác nhận.' : null)
+        ? (!truckId ? 'Chọn xe đầu kéo để xác nhận.' : null)
         : (!externalCarrierId && !externalPlateNumber ? 'Chọn đối tác hoặc nhập biển số xe.' : null);
 
   return (
@@ -169,9 +171,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
               <X size={14} aria-hidden="true" /> Hủy
             </button>
           </DisabledActionTip>
-          {/* No confirmation control on a locked trip — the dispatcher must
-              not be offered a save the server guard will reject. */}
-          {!lockedByAcceptance && (
+          {(
             <DisabledActionTip id="trip-reassign-confirm" reason={confirmDisabledReason}>
               <button
                 type="button"
@@ -201,32 +201,14 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
             Thử lại
           </button>
         </div>
-      ) : lockedByAcceptance ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <p className="dispatch-assignment-dialog__error" role="status">
-            Tài xế đã nhận việc — không thể phân xe lại. Chỉ có thể đổi xe/lái xe khi chuyến chưa được tài xế nhận.
-          </p>
-          {/* Read-only current assignment so the dispatcher still sees what
-              the trip runs with, without any editable controls. */}
-          <div style={{ display: 'grid', gap: 4, fontSize: 'var(--text-data-size)', color: 'var(--ink)' }}>
-            <span>
-              Loại xe: <strong>{trip.carrierType === 'EXTERNAL' ? 'Xe ngoài' : 'Xe nhà'}</strong>
-            </span>
-            {trip.carrierType === 'EXTERNAL' ? (
-              <>
-                <span>Biển số: <strong>{trip.externalPlateNumber || '—'}</strong></span>
-                <span>Lái xe: <strong>{trip.externalDriverName || '—'}</strong></span>
-              </>
-            ) : (
-              <>
-                <span>Xe đầu kéo: <strong>{trip.truck?.licensePlate || '—'}</strong></span>
-                <span>Lái xe: <strong>{trip.driver?.name || '—'}</strong></span>
-              </>
-            )}
-          </div>
-        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {lockedByAcceptance && (
+            <p className="dispatch-assignment-dialog__error" role="status">
+              Lái xe đã nhận việc — chỉ được đổi xe (xe đầu kéo/moóc, hoặc nhà xe/biển số với xe ngoài), giữ nguyên lái xe
+              {' '}({trip.carrierType === 'EXTERNAL' ? `${trip.externalPlateNumber || '—'} · ${trip.externalDriverName || '—'}` : `${trip.truck?.licensePlate || '—'} · ${trip.driver?.name || '—'}`}).
+            </p>
+          )}
           {error && <p className="dispatch-assignment-dialog__error" role="alert">{error}</p>}
           <UuiSelectField
             label="Loại xe"
@@ -236,7 +218,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
               { value: 'OWN', label: 'Xe nhà' },
               { value: 'EXTERNAL', label: 'Xe ngoài' },
             ]}
-            disabled={saving}
+            disabled={saving || lockedByAcceptance}
             wrapperClassName="field"
           />
           {carrierType === 'OWN' ? (
@@ -253,7 +235,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
                 label="Lái xe"
                 value={driverId}
                 onChange={(event) => setDriverId(event.target.value)}
-                disabled={saving}
+                disabled={saving || lockedByAcceptance}
                 options={[{ value: '', label: '-- Chọn lái xe --' }, ...drivers.map((d) => ({ value: String(d.id), label: d.name }))]}
                 wrapperClassName="field"
               />
@@ -331,7 +313,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
                 placeholder="Tên lái xe ngoài"
                 value={externalDriverName}
                 onChange={(event) => setExternalDriverName(event.target.value)}
-                disabled={saving}
+                disabled={saving || lockedByAcceptance}
               />
               <TextField
                 label="SĐT lái xe"
@@ -340,7 +322,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
                 placeholder="SĐT lái xe"
                 value={externalDriverPhone}
                 onChange={(event) => setExternalDriverPhone(event.target.value)}
-                disabled={saving}
+                disabled={saving || lockedByAcceptance}
               />
             </>
           )}

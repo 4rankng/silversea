@@ -217,7 +217,10 @@ describe('TripReassignDialog — acceptance lock', () => {
     reassignMock.mockReset();
   });
 
-  it('shows a read-only lock for an acknowledged IN_TRANSIT trip — no inputs, no confirm control', () => {
+  // Card 091026190520 (FB-081, option b): after the driver acknowledged, the
+  // dialog opens in VEHICLE-ONLY mode — the truck/trailer stay editable, the
+  // driver-side controls freeze, and the confirm control remains.
+  it('opens in vehicle-only mode for an acknowledged IN_TRANSIT trip — driver frozen, confirm present', () => {
     useTripDetailMock.mockReturnValue({
       data: {
         ...TRIP,
@@ -230,11 +233,13 @@ describe('TripReassignDialog — acceptance lock', () => {
     } as never);
     renderDialog();
 
-    expect(screen.getByText(/Tài xế đã nhận việc/)).toBeTruthy();
-    expect(screen.getByText('15H-104.03')).toBeTruthy();
-    expect(screen.getByText('Bùi Tiến Dũng')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Xác nhận phân xe lại' })).toBeNull();
-    expect(screen.queryByText('Xe đầu kéo')).toBeNull();
+    expect(screen.getByText(/Lái xe đã nhận việc — chỉ được đổi xe/)).toBeTruthy();
+    expect(screen.getByText(/15H-104\.03/)).toBeTruthy();
+    expect(screen.getByText('Xe đầu kéo')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xác nhận phân xe lại' })).toBeTruthy();
+    // The driver keeps the job they accepted: the driver select is frozen.
+    const driverSelect = screen.getByLabelText('Lái xe') as HTMLSelectElement;
+    expect(driverSelect.disabled).toBe(true);
   });
 
   it('keeps a CREATED trip editable even with acceptance on record', () => {
