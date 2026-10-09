@@ -23,9 +23,9 @@ const customerIds: number[] = [];
 const suffix = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 async function mkUser() {
-  const [user] = await db.insert(s.users).values({ username: `ra-${suffix()}`.slice(0, 40), passwordHash: 'x', role: Role.MANAGER }).returning({ id: s.users.id });
+  const [user] = await db.insert(s.users).values({ username: `ra-${suffix()}`.slice(0, 40), passwordHash: 'x', role: Role.MANAGER }).returning({ id: s.users.id, username: s.users.username, role: s.users.role });
   userIds.push(user.id);
-  return user;
+  return { id: user.id, userId: user.id, username: user.username, email: null, fullName: 'Manager', role: user.role };
 }
 
 async function mkDriver(userId: number, label: string) {
@@ -181,4 +181,128 @@ after(async () => {
   if (customerIds.length) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
   await disconnectRedis();
   await client.end();
+});
+
+// ── Route-path rework (QA FAILED 22:5x): the operator route drives
+// reassignIssuedDispatchWriteCommand → issueFulfillmentDispatchOrder, NOT
+// reassignTrip. These cases pin the acceptance lock through THAT path. ──
+import { issueOrderCreateOrUpdate, reassignIssuedDispatchWriteCommand } from '../services/dispatch-planning-commands.service';
+import { ApiError } from '../errors';
+
+async function mkRouteFixture() {
+  const suf = suffix();
+  const [customer] = await db.insert(s.customers).values({ name: `RA-R ${suf}` }).returning({ id: s.customers.id });
+  customerIds.push(customer.id);
+  const [route] = await db.insert(s.routes).values({ name: `RA-R route ${suf}`, distanceKm: 120 }).returning({ id: s.routes.id });
+  const user = await mkUser();
+  const [driverUser] = await db.insert(s.users).values({ username: `ra-d-${suffix()}`.slice(0, 40), passwordHash: 'x', role: Role.DRIVER }).returning({ id: s.users.id });
+  userIds.push(driverUser.id);
+  const driver = await mkDriver(driverUser.id, 'Lái R');
+  const [otherDriverUser] = await db.insert(s.users).values({ username: `ra-e-${suffix()}`.slice(0, 40), passwordHash: 'x', role: Role.DRIVER }).returning({ id: s.users.id });
+  userIds.push(otherDriverUser.id);
+  const otherDriver = await mkDriver(otherDriverUser.id, 'Lái R2');
+  const mkRig = async (label: string) => {
+    const [trailer] = await db.insert(s.trailers).values({ licensePlate: `RA-T-${label}-${suffix().slice(-5)}`.slice(0, 20), type: '40FT', status: 'ACTIVE' }).returning({ id: s.trailers.id });
+    const [truck] = await db.insert(s.trucks).values({ licensePlate: `RA-F-${label}-${suffix().slice(-5)}`.slice(0, 20), currentTrailerId: trailer.id, trailerType: '40FT', status: 'ACTIVE' }).returning({ id: s.trucks.id });
+    truckIds.push(truck.id);
+    return truck;
+  };
+  const truckA = await mkRig('R1');
+  const truckB = await mkRig('R2');
+  const [shipment] = await db.insert(s.shipments).values({
+    customerId: customer.id,
+    routeId: route.id,
+    cargoMode: 'FCL',
+    shipmentCode: `RA-R-${suf}`.slice(0, 50),
+    bookingRef: `RARBOOK-${suf}`.slice(0, 50),
+    status: 'DISPATCHED',
+    createdBy: user.userId,
+  }).returning({ id: s.shipments.id });
+  const [containerType] = await db.insert(s.containerTypes).values({ code: `20DC${suf.replace(/\D/g, '').slice(-7)}`, name: "20' test" }).returning({ id: s.containerTypes.id });
+  const [container] = await db.insert(s.shipmentContainers).values({
+    shipmentId: shipment.id,
+    containerTypeId: containerType.id,
+    containerNumber: `RARU${suf.replace(/\D/g, '').slice(-7)}`.slice(0, 50),
+    routeId: route.id,
+    cargoWeightKg: '12000',
+    createdBy: user.userId,
+  }).returning({ id: s.shipmentContainers.id });
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'FCL_CONTAINER',
+    cargoMode: 'FCL',
+    dispatchClassification: 'SINGLE',
+    shipmentContainerId: container.id,
+    sourceShipmentVersion: 1,
+    siteSnapshot: {},
+    plannedCarrierType: 'OWN',
+    createdBy: user.userId,
+  }).returning();
+  const outcome = await db.transaction((tx) => issueOrderCreateOrUpdate(tx, {
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
+    expectedVersion: fulfillment.version,
+    plannedStartAt: '2026-10-20T08:00:00+07:00',
+    plannedEndAt: '2026-10-20T18:00:00+07:00',
+    endTimeConfirmed: true,
+    carrierType: 'OWN',
+    truckId: truckA.id,
+    driverId: driver.id,
+    idempotencyKey: `rar-issue-${suf}`,
+    actor: { ...user, role: Role.MANAGER },
+  }));
+  tripIds.push(outcome.trip.id);
+  await db.update(s.trips).set({ status: TripStatus.IN_TRANSIT }).where(eq(s.trips.id, outcome.trip.id));
+  await acknowledge(outcome.trip.id, driver.id, user.userId);
+  const [freshFulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id)).limit(1);
+  return { shipment, fulfillment: freshFulfillment, trip: outcome.trip, driver, otherDriver, truckA, truckB, user };
+}
+
+describe('route path (reassignIssuedDispatchWriteCommand) — card 091026190520 rework', () => {
+  test('acknowledged trip: truck swap with the driver kept is allowed', async () => {
+    const fx = await mkRouteFixture();
+    await db.transaction((_tx) => reassignIssuedDispatchWriteCommand({
+      shipmentId: fx.shipment.id,
+      fulfillmentId: fx.fulfillment.id,
+      expectedVersion: fx.fulfillment.version,
+      expectedTripVersion: fx.trip.version,
+      plannedStartAt: '2026-10-20T08:00:00+07:00',
+      plannedEndAt: '2026-10-20T18:00:00+07:00',
+      endTimeConfirmed: true,
+      carrierType: 'OWN',
+      truckId: fx.truckB.id,
+      driverId: fx.driver.id,
+      idempotencyKey: `rar-vehicle-${suffix()}`,
+      actor: { ...fx.user, role: Role.MANAGER },
+    }));
+    const [after] = await db.select({ truckId: s.trips.truckId, driverId: s.trips.driverId }).from(s.trips).where(eq(s.trips.id, fx.trip.id)).limit(1);
+    assert.equal(after.truckId, fx.truckB.id, 'truck must swap to truckB through the route command');
+    assert.equal(after.driverId, fx.driver.id, 'driver must be kept after acknowledgement');
+  });
+
+  test('acknowledged trip: driver change still blocked with the vehicle-only message', async () => {
+    const fx = await mkRouteFixture();
+    await assert.rejects(
+      () => db.transaction((_tx) => reassignIssuedDispatchWriteCommand({
+        shipmentId: fx.shipment.id,
+        fulfillmentId: fx.fulfillment.id,
+        expectedVersion: fx.fulfillment.version,
+        expectedTripVersion: fx.trip.version,
+        plannedStartAt: '2026-10-20T08:00:00+07:00',
+        plannedEndAt: '2026-10-20T18:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: fx.truckA.id,
+        driverId: fx.otherDriver.id,
+        idempotencyKey: `rar-driver-${suffix()}`,
+        actor: { ...fx.user, role: Role.MANAGER },
+      })),
+      (err: unknown) => {
+        assert.ok(err instanceof ApiError, `expected ApiError, got ${String(err)}`);
+        assert.equal(err.statusCode, 409);
+        assert.equal(err.message, 'Lái xe đã nhận việc — chỉ được đổi xe, giữ lái xe.');
+        return true;
+      },
+    );
+  });
 });
