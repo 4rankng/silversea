@@ -86,6 +86,46 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     expect(screen.getAllByRole('button', { name: /Copy ngày giờ đóng trả/ })).toHaveLength(1);
   });
 
+  // Verify-fail 091026225620 (fourth "button missing" report, 09/10): the
+  // hover-only row affordance sits where users don't look — every report
+  // probed "Lịch & ghi chú" and the date/time dialogs. The section-level named
+  // button below is the discoverable position those reports ask for
+  // ("nút xuất hiện tại ít nhất một trong các vị trí đã thỏa thuận"), keeping
+  // the 18/09 hover ruling intact (additive only). Same condition contract as
+  // the hover affordance: a scheduled row + >= 2 rows still empty.
+  it('offers a visible section-level copy button in Lịch & ghi chú while >= 2 rows lack a schedule', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+    addContainer();
+    addContainer();
+    // No source appointment yet → nothing to copy.
+    expect(screen.queryByRole('button', { name: /Copy giờ hẹn xuống cont trống/ })).toBeNull();
+
+    fillAppointment(0, '20/09/2026', '09:00');
+    const sectionButton = await screen.findByRole('button', { name: /Copy giờ hẹn xuống cont trống/ });
+    expect(sectionButton).toBeTruthy();
+
+    fireEvent.click(sectionButton);
+    await waitFor(() => expect(appointmentValue(1).date).toBe('20/09/2026'));
+    expect(appointmentValue(1).time).toBe('09:00');
+    expect(appointmentValue(2).date).toBe('20/09/2026');
+    expect(appointmentValue(2).time).toBe('09:00');
+    // The source row keeps its own value.
+    expect(appointmentValue(0).date).toBe('20/09/2026');
+    expect(appointmentValue(0).time).toBe('09:00');
+  });
+
+  it('hides the section-level copy button once only one empty row remains', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    addContainer();
+    fillAppointment(0, '20/09/2026', '09:00');
+    // One empty row → the shared >= 2 empties contract hides every copy
+    // affordance (same boundary the hover affordance and the CUS ledger pin).
+    expect(screen.queryByRole('button', { name: /Copy giờ hẹn xuống cont trống/ })).toBeNull();
+  });
+
   it('copy fills every empty appointment and never touches set rows', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });

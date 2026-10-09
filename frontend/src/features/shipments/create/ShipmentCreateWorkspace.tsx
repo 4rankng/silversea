@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2 } from 'lucide-react';
+import { Copy, Plus, Trash2 } from 'lucide-react';
+import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
   UTextAreaField as TextAreaField,
@@ -426,6 +427,11 @@ export function ShipmentCreateWorkspace() {
   }
 
   const emptyAppointmentCount = containers.filter((row) => !row.customerAppointmentAt).length;
+  // Verify-fail 091026225620: the section-level copy affordance (the
+  // discoverable position the "button missing" reports kept looking for)
+  // sources from the first row that has an appointment; the per-row hover
+  // buttons keep copying their own values.
+  const copySourceRow = containers.find((row) => row.customerAppointmentAt);
   function copyAppointmentToEmpty(fromKey: string) {
     const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
     if (!source) return;
@@ -663,6 +669,18 @@ export function ShipmentCreateWorkspace() {
             )}
             {form.cargoMode === 'FCL' && (
               <>
+                {copySourceRow && emptyAppointmentCount >= 2 && (
+                  <button
+                    type="button"
+                    className="csc-utility-button csc-utility-button--dashed"
+                    style={{ justifySelf: 'start', alignSelf: 'start', width: 'fit-content' }}
+                    title={`Copy ngày giờ ${formatDateTime24(copySourceRow.customerAppointmentAt) || copySourceRow.customerAppointmentAt} từ dòng đầu tiên có lịch sang các container chưa có lịch`}
+                    onClick={() => copyAppointmentToEmpty(copySourceRow.key)}
+                    disabled={Boolean(saving)}
+                  >
+                    <Copy size={15} aria-hidden="true" />Copy giờ hẹn xuống cont trống
+                  </button>
+                )}
                 <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={Boolean(saving)} />
                 <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={Boolean(saving)} />
               </>
