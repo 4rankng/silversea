@@ -14,6 +14,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { config } from '../config';
+import logger from '../lib/logger';
 import { and, eq } from 'drizzle-orm';
 import { getEmailSettings } from './email-settings.service';
 
@@ -225,7 +226,7 @@ async function deliverLoggedEmail(
         throw new Error('Resend API key chưa được cấu hình');
       }
 
-      console.log(`[email:${isRetry ? 'dev-retry' : 'dev'}] To: ${to} | Subject: ${subject}`);
+      logger.info(`[email:${isRetry ? 'dev-retry' : 'dev'}] To: ${to} | Subject: ${subject}`);
       const updated = await markLoggedEmailSent(logId, null, leaseToken);
       if (!updated) return { ok: false, logId, error: 'Retry claim expired' };
       return { ok: true, logId };

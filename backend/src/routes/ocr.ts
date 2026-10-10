@@ -10,6 +10,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
 import { requireRoles } from '../middleware/casbin';
 import { sniffImageType } from '../lib/format';
+import logger from '../lib/logger';
 import {
   insertTripPhotoRecord,
   prepareTripPhoto,
@@ -556,13 +557,13 @@ router.post('/persist-only', declareMaterialWrite('ocr.persist-only', { method: 
   );
 
   if (replayed) {
-    console.log(
+    logger.info(
       `[ocr] persist-only-replay, no work repeated (tripId=${tripId}, containerId=${containerId ?? '-'})`,
     );
   } else {
     // Distinct, greppable log line: `grep persist-only-flush` must yield ONLY
     // intentional first executions. Exact replays use the separate marker above.
-    console.log(
+    logger.info(
       `[ocr] persist-only-flush, recognition skipped (tripId=${tripId}, containerId=${containerId ?? '-'})`,
     );
   }

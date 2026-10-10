@@ -93,7 +93,7 @@ describe('fuel-period entry guard (card 20260922_61 RBAC)', () => {
     });
     if (response.status !== 201) {
       const body = await response.clone().text();
-      console.log('[q61g-debug] ketoan POST status:', response.status, 'body:', body.slice(0, 200));
+      console.error('[q61g-debug] ketoan POST status:', response.status, 'body:', body.slice(0, 200));
     }
     assert.equal(response.status, 201);
     const body = await response.json() as { id: number };

@@ -392,7 +392,7 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
       notes: 'Comprehensive E2E test trip'
     })
   });
-  if (createRes.status !== 201) console.log('CREATE TRIP FAIL:', createRes, { truckId, driverId, customerId, routeId, cargoTypeId });
+  if (createRes.status !== 201) console.error('CREATE TRIP FAIL:', createRes, { truckId, driverId, customerId, routeId, cargoTypeId });
   assert.strictEqual(createRes.status, 201);
   assert.strictEqual(createRes.data.status, TripStatus.CREATED);
   tripId = createRes.data.id;
@@ -423,7 +423,7 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
       reason: 'Điều phối đổi xe do xe bảo dưỡng định kỳ',
     })
   });
-  if (reassignRes.status !== 200) console.log('REASSIGN FAIL:', reassignRes, 'altTruck:', altTruck.id, 'altDriver:', altDriver.id, 'busyTrucks:', [...curBusyTrucks], 'busyDrivers:', [...curBusyDrivers]);
+  if (reassignRes.status !== 200) console.error('REASSIGN FAIL:', reassignRes, 'altTruck:', altTruck.id, 'altDriver:', altDriver.id, 'busyTrucks:', [...curBusyTrucks], 'busyDrivers:', [...curBusyDrivers]);
   assert.strictEqual(reassignRes.status, 200);
 
   // 3. Update Pre-departure figures (AUTO mode, standard estimates)
@@ -454,7 +454,7 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
       expectedVersion: preDepartureRes.data.version,
     }),
   });
-  if (dispatchRes.status !== 200) console.log('DISPATCH FAIL:', dispatchRes);
+  if (dispatchRes.status !== 200) console.error('DISPATCH FAIL:', dispatchRes);
   assert.strictEqual(dispatchRes.status, 200);
   assert.strictEqual(dispatchRes.data.status, TripStatus.IN_TRANSIT);
   const dispatchedVersion = dispatchRes.data.version;
@@ -688,7 +688,7 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
       payments: [{ tripId: tripId, amount: 500000 }]
     })
   });
-  if (paymentRes.status !== 201) console.log('PAYMENT RECEIVE FAIL:', paymentRes, { customerId, tripId });
+  if (paymentRes.status !== 201) console.error('PAYMENT RECEIVE FAIL:', paymentRes, { customerId, tripId });
   assert.strictEqual(paymentRes.status, 201);
 });
 

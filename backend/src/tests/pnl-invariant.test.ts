@@ -119,7 +119,7 @@ const tolerance = () => Math.max(50, ownTripCount * 2);
 describe('A8 — P&L invariants (integration, dev DB)', () => {
   test('fixture: a data-rich period was found', () => {
     if (!period || !report) {
-      console.log('   [skip] no revenue-bearing OWN trips in DB — nothing to assert');
+      console.warn('   [skip] no revenue-bearing OWN trips in DB — nothing to assert');
       assert.ok(true, 'no data; invariants vacuously hold');
       return;
     }

@@ -9,6 +9,7 @@ import * as s from '../../db/schema';
 import { and, eq, inArray, isNull, like, ne, sql } from 'drizzle-orm';
 import { z, type output } from 'zod';
 import { ApiError } from '../../errors';
+import logger from '../../lib/logger';
 import {
   customerUpdateSchema,
   driverSchema,
@@ -147,7 +148,7 @@ export async function assertUniqueCatalogString(args: {
   const tombstones = await args.tx.select({ id: args.table.id }).from(args.table)
     .where(and(...tombstoneConditions));
   if (tombstones.length > 0 && args.tombstoneMessage) {
-    console.log(`[catalog-uniqueness] ${args.scope}: ${tombstones.length} tombstone row(s) hold the requested key - surfacing the trash remedy.`);
+    logger.info(`[catalog-uniqueness] ${args.scope}: ${tombstones.length} tombstone row(s) hold the requested key - surfacing the trash remedy.`);
     throw new ApiError(409, args.tombstoneMessage(key));
   }
 }

@@ -5,6 +5,7 @@ import { config } from './config';
 import { client as dbClient } from './db';
 import { disconnectRedis } from './lib/redis';
 import { checkRedisAtBoot } from './lib/boot-redis';
+import logger from './lib/logger';
 import { initEnforcer } from './casbin/enforcer';
 import { authMiddleware, assetAuthMiddleware } from './middleware/auth';
 import { casbinAuthz, tripRouteAuthz } from './middleware/casbin';
@@ -81,7 +82,7 @@ if (schedulerEnabled) {
     cron: '* * * * *',
     handler: async () => {
       // No-op heartbeat; visible as a row in scheduler_run_logs every minute.
-      console.log('[scheduler] heartbeat tick');
+      logger.info('[scheduler] heartbeat tick');
     },
   });
 
@@ -93,7 +94,7 @@ if (schedulerEnabled) {
     cron: REMINDER_CRON,
     handler: async () => {
       const stats = await runReceivableReminders();
-      console.log(`[scheduler] receivable-reminder: ${stats.reminded} reminded, ${stats.skipped} skipped, ${stats.deduped} deduped, ${stats.failed} failed`);
+      logger.info(`[scheduler] receivable-reminder: ${stats.reminded} reminded, ${stats.skipped} skipped, ${stats.deduped} deduped, ${stats.failed} failed`);
     },
   });
 
@@ -102,7 +103,7 @@ if (schedulerEnabled) {
     cron: REMINDER_RETRY_CRON,
     handler: async () => {
       const stats = await runReceivableReminderRetries();
-      console.log(`[scheduler] receivable-reminder-retry: ${stats.retried} retried, ${stats.suppressed} suppressed, ${stats.escalated} escalated, ${stats.failed} failed`);
+      logger.info(`[scheduler] receivable-reminder-retry: ${stats.retried} retried, ${stats.suppressed} suppressed, ${stats.escalated} escalated, ${stats.failed} failed`);
     },
   });
 
@@ -115,7 +116,7 @@ if (schedulerEnabled) {
     handler: async () => {
       const stats = await runFundNegativeAlerts();
       if (stats.alerted > 0) {
-        console.log(`[scheduler] fund-negative-alert: ${stats.alerted} alerted`);
+        logger.info(`[scheduler] fund-negative-alert: ${stats.alerted} alerted`);
       }
     },
   });
@@ -137,7 +138,7 @@ if (schedulerEnabled) {
     retries: 1,
     handler: async () => {
       const results = await runRetentionSweeps();
-      console.log(`[scheduler] retention-daily: ${results.map(r => `${r.table}=${r.deleted}`).join(', ')}`);
+      logger.info(`[scheduler] retention-daily: ${results.map(r => `${r.table}=${r.deleted}`).join(', ')}`);
     },
   });
 
@@ -147,7 +148,7 @@ if (schedulerEnabled) {
 // Enable unaccent extension
 try {
   await dbClient`CREATE EXTENSION IF NOT EXISTS unaccent;`;
-  console.log('PostgreSQL unaccent extension initialized successfully.');
+  logger.info('PostgreSQL unaccent extension initialized successfully.');
 } catch (e) {
   console.error('Failed to initialize unaccent extension:', e);
 }
@@ -177,7 +178,7 @@ app.use((req, res, next) => {
   if (LOG_SKIP_PATHS.some(p => req.path.startsWith(p))) return next();
   const start = Date.now();
   res.on('finish', () => {
-    console.log(`${req.method} ${req.path} ${res.statusCode} ${Date.now() - start}ms`);
+    logger.info(`${req.method} ${req.path} ${res.statusCode} ${Date.now() - start}ms`);
   });
   next();
 });
@@ -281,10 +282,10 @@ if (!redisBoot.ok) {
   console.error('');
   process.exit(1);
 }
-console.log(`[Boot] redis ok at ${redisBoot.url}`);
+logger.info(`[Boot] redis ok at ${redisBoot.url}`);
 
 const server = app.listen(config.port, () => {
-  console.log(`NEPO API running on port ${config.port} [${config.nodeEnv}]`);
+  logger.info(`NEPO API running on port ${config.port} [${config.nodeEnv}]`);
 });
 
 // ── Graceful shutdown (tsx watch sends SIGTERM on restart) ─────────────────
@@ -292,7 +293,7 @@ let shuttingDown = false;
 async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(`\n${signal} received — shutting down…`);
+  logger.info(`\n${signal} received — shutting down…`);
 
   stopScheduler();               // cancel all cron tasks (Wave 0)
   server.close();                // stop accepting new connections

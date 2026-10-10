@@ -991,7 +991,7 @@ describe('Q06 fuel invoice routes', () => {
         reason: 'Hoàn tác ngay sau tạo — pin milli/microsecond precision fix',
       },
     });
-    console.log('REVERSAL-BODY', JSON.stringify(freshReversal.body));
+    if (freshReversal.status !== 201) console.error('REVERSAL-BODY', JSON.stringify(freshReversal.body));
     assert.equal(freshReversal.status, 201);
     const freshAfter = await request(`/api/finance/fuel-invoices/${freshInvoice.body.id}`, {
       token: accountantToken,

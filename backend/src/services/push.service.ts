@@ -3,6 +3,7 @@ import { db } from '../db';
 import { pushSubscriptions } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { config } from '../config';
+import logger from '../lib/logger';
 import type { PushSubscriptionPayload } from '@tingting/shared';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
@@ -22,7 +23,7 @@ export function initPushService() {
       config.vapidPrivateKey,
     );
     enabled = true;
-    console.log('✓ Web Push enabled (VAPID configured)');
+    logger.info('✓ Web Push enabled (VAPID configured)');
   } else {
     enabled = false;
     console.warn('⚠️  Web Push disabled — set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY to enable');

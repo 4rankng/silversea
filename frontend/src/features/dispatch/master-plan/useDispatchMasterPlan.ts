@@ -136,7 +136,19 @@ export function useDispatchMasterPlan() {
     if (viewSignatureRef.current !== viewSignature) setLoading(true);
     viewSignatureRef.current = viewSignature;
     setError(null);
-    listShipments(masterPlanListParams({ ...filters, q: debouncedQ }, page, PAGE_SIZE, true))
+    // Fields are enumerated (not spread) so the debounce stays the only gate
+    // on q: the dep array below lists exactly these filter fields, and the
+    // object literal is type-checked against MasterPlanFilters — a new field
+    // must be added here and to the array in the same change.
+    listShipments(masterPlanListParams({
+      q: debouncedQ,
+      tradeDirection: filters.tradeDirection,
+      allocationStatus: filters.allocationStatus,
+      deliveryDateFrom: filters.deliveryDateFrom,
+      deliveryDateTo: filters.deliveryDateTo,
+      portIds: filters.portIds,
+      carrierKeys: filters.carrierKeys,
+    }, page, PAGE_SIZE, true))
       .then((response) => {
         if (requestIdRef.current !== requestId) return;
         setItems(response.items);

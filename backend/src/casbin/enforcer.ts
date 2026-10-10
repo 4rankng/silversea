@@ -1,6 +1,7 @@
 import { newEnforcer, type Enforcer } from 'casbin';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import logger from '../lib/logger';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -15,7 +16,7 @@ export async function initEnforcer(): Promise<Enforcer> {
   const policyPath = path.resolve(__dirname, 'policy.csv');
   enforcerInstance = await newEnforcer(modelPath, policyPath);
   const policies = await enforcerInstance.getPolicy();
-  console.log('[casbin] Enforcer initialized —', policies?.length ?? 0, 'policies loaded');
+  logger.info(`[casbin] Enforcer initialized — ${policies?.length ?? 0} policies loaded`);
   return enforcerInstance;
 }
 
