@@ -150,5 +150,13 @@ describe('OperationalSiteCreateDialog factory quick-add (card 20261009_10)', () 
       // Mã tự sinh from the name — the intake user never types a code.
       code: 'NHA-MAY-ABC',
     });
+    // SEAM PIN (card 20261009_10 rework): the backend treats a DEFINED
+    // contacts array as authoritative and rewrites the flat pair from its
+    // default entry — an empty array nulls BOTH. Quick-add collects only the
+    // flat pair, so its wire payload must omit the key and ride the
+    // flat-client branch. Asserted on the serialized body, because
+    // JSON.stringify drops undefined keys and that is what reaches the wire.
+    const wire = JSON.parse(JSON.stringify(vi.mocked(createOperationalSite).mock.calls[0]![0]));
+    expect(wire).not.toHaveProperty('contacts');
   });
 });

@@ -219,7 +219,12 @@ export function OperationalSiteCreateDialog({
         googleMapsUrl: form.googleMapsUrl.trim() || null,
         contactName: form.contactName.trim() || null,
         contactPhone: form.contactPhone.trim() || null,
-        contacts: form.contacts,
+        // Quick-add collects only the flat contact pair. The backend treats a
+        // DEFINED contacts array as authoritative and rewrites the flat pair
+        // from its default entry — sending quick mode's empty [] would null
+        // BOTH fields, so the user's typed contact silently vanished. The
+        // quick payload omits the key and rides the flat-client branch.
+        contacts: quickAdd ? undefined : form.contacts,
       });
       setForm(EMPTY_FORM);
       onCreated(created);
