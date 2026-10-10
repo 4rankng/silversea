@@ -2068,9 +2068,14 @@
    has an appointment offers to copy its datetime to every line whose
    appointment is still empty. The affordance replaces the ordinal on hover —
    same slot, same shape as the row's inputs — and never covers the container
-   number or the appointment trigger. */
+   number or the appointment trigger. Rest state hides it with opacity, not
+   visibility: visibility: hidden drops it out of the accessibility tree and
+   out of harness actionability, so the button appeared/disappeared in AX
+   snapshots with the pointer's position (card 101026163010). Opacity keeps it
+   rendered, AX-exposed and hit-testable while looking identical — a pointer
+   that can reach the button is already on the row, which reveals it. */
 .cus-container-row__copy {
-  visibility: hidden;
+  opacity: 0;
   position: absolute;
   top: 50%;
   left: auto;
@@ -2090,9 +2095,9 @@
   cursor: pointer;
 }
 .cus-container-row__copy:hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); }
-.cus-container-row__copy:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
+.cus-container-row__copy:focus-visible { opacity: 1; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
 .cus-container-row:hover .cus-container-row__copy,
-.cus-container-row:focus-within .cus-container-row__copy { visibility: visible; }
+.cus-container-row:focus-within .cus-container-row__copy { opacity: 1; }
 /* The icon takes the ordinal's slot while the pointer is on the row; hover-only
    so the row number survives a touch tap. */
 @media (hover: hover) {
@@ -2100,7 +2105,7 @@
   .cus-container-row:focus-within .cus-container-row__ordinal { visibility: hidden; }
 }
 @media (max-width: 640px), (pointer: coarse) {
-  .cus-container-row__copy { visibility: visible; }
+  .cus-container-row__copy { opacity: 1; }
 }
 .cus-appointment-trigger {
   display: flex;

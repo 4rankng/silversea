@@ -375,7 +375,13 @@
 
 /* Bulk appointment copy (user ruling 2026-09-18): the affordance lives in the
    STT cell as a hover-revealed icon button shaped like the row's inputs —
-   a rounded rectangle, never an overlay on top of the time/date fields. */
+   a rounded rectangle, never an overlay on top of the time/date fields.
+   Rest state hides it with opacity, not visibility: visibility: hidden drops
+   it out of the accessibility tree and out of harness actionability, so the
+   button appeared/disappeared in AX snapshots with the pointer's position
+   and coordinate clicks never landed (card 101026163010). Opacity keeps it
+   rendered, AX-exposed and hit-testable while looking identical — a pointer
+   that can reach the button is already on the row, which reveals it. */
 .csc-container-row__index { position: relative; }
 .csc-container-row__copy {
   position: absolute;
@@ -389,7 +395,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  visibility: hidden;
+  opacity: 0;
   border: 1px solid var(--line-2);
   border-radius: 8px;
   background: var(--surface);
@@ -397,17 +403,17 @@
   cursor: pointer;
 }
 .csc-container-row__copy:hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); }
-.csc-container-row__copy:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
+.csc-container-row__copy:focus-visible { opacity: 1; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
 .csc-container-row:hover .csc-container-row__copy,
-.csc-container-row:focus-within .csc-container-row__copy { visibility: visible; }
+.csc-container-row:focus-within .csc-container-row__copy { opacity: 1; }
 /* The icon takes the ordinal's slot while the pointer is on the row; the swap
-   is hover-only so the row number survives a touch tap (coarse pointers). */
+    is hover-only so the row number survives a touch tap (coarse pointers). */
 @media (hover: hover) {
   .csc-container-row:hover .csc-container-row__desktop-index,
   .csc-container-row:focus-within .csc-container-row__desktop-index { visibility: hidden; }
 }
 @media (max-width: 640px), (pointer: coarse) {
-  .csc-container-row__copy { visibility: visible; }
+  .csc-container-row__copy { opacity: 1; }
 }
 
 /* Lệnh chạy ngoài keeps its data-field-id; its control chrome is now the

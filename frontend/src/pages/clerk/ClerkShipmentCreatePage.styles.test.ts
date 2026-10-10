@@ -308,3 +308,48 @@ describe('CUS "Ngày giờ đóng trả" cluster geometry (card 051026230627)', 
     expect(css).toMatch(/\.csc-container-col__appointment\s*\{\s*width:\s*2[2-9]\dpx/);
   });
 });
+
+/* ─── Copy affordance AX/actionability contract (card 101026163010) ────────
+ * `visibility: hidden` takes the per-row copy button OUT of the accessibility
+ * tree and out of Playwright/CDT actionability until the pointer happens to
+ * hover the row — QA saw the button "sometimes in the AX tree" and clicks
+ * that waited for visibility never landed (round 12 PASS / round 13 FAIL was
+ * pointer-position luck, not copy logic). The reveal mechanism is therefore
+ * `opacity: 0` at rest: still rendered, still in the AX tree, still
+ * hit-testable, visually identical because a pointer that can reach the
+ * button is already on the row, which reveals it. Both copy sites (create
+ * form + CUS ledger) share the contract. */
+describe('copy affordance AX/actionability contract (card 101026163010)', () => {
+  const ledgerCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+  const blockOf = (text: string, selector: string) => {
+    const i = text.indexOf(selector);
+    expect(i, `selector missing: ${selector}`).toBeGreaterThan(-1);
+    return text.slice(i, text.indexOf('}', i) + 1);
+  };
+
+  it('keeps both copy buttons in the accessibility tree at rest', () => {
+    const createBlock = blockOf(css, '.csc-container-row__copy {');
+    expect(createBlock).toMatch(/opacity:\s*0;/);
+    expect(createBlock).not.toMatch(/visibility:\s*hidden/);
+
+    const ledgerBlock = blockOf(ledgerCss, '\n.cus-container-row__copy {');
+    expect(ledgerBlock).toMatch(/opacity:\s*0;/);
+    expect(ledgerBlock).not.toMatch(/visibility:\s*hidden/);
+  });
+
+  it('reveals on row hover and row focus-within at both sites', () => {
+    expect(css).toMatch(
+      /\.csc-container-row:hover \.csc-container-row__copy,[\s\S]*?\.csc-container-row:focus-within \.csc-container-row__copy \{[^}]*opacity:\s*1;/,
+    );
+    expect(ledgerCss).toMatch(
+      /\.cus-container-row:hover \.cus-container-row__copy,[\s\S]*?\.cus-container-row:focus-within \.cus-container-row__copy \{[^}]*opacity:\s*1;/,
+    );
+  });
+
+  it('reveals on keyboard focus and on coarse/narrow screens at both sites', () => {
+    expect(css).toMatch(/\.csc-container-row__copy:focus-visible \{[^}]*opacity:\s*1;/);
+    expect(ledgerCss).toMatch(/\.cus-container-row__copy:focus-visible \{[^}]*opacity:\s*1;/);
+    expect(css).toMatch(/\.csc-container-row__copy \{\s*opacity:\s*1;/);
+    expect(ledgerCss).toMatch(/\.cus-container-row__copy \{\s*opacity:\s*1;/);
+  });
+});

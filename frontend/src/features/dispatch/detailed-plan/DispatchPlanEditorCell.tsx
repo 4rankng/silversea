@@ -907,9 +907,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 </button>
               </p>
             ) : null}
-            <label htmlFor={`dispatch-vehicle-${row.fulfillmentId}`} className="dispatch-assignment-dialog__vehicle">
-              <span className="dispatch-assignment-dialog__vehicle-head">
-                <span>Xe / biển số</span>
+            {/* Card 101026163010 follow-up: the quick-add button used to live
+                INSIDE the <label>, so the label carried TWO labelable
+                descendants and getByLabelText('Xe / biển số') resolved
+                ambiguously (a <label> may label exactly one control). The
+                block keeps the same grid area + head row; the label points at
+                the select through htmlFor as before. */}
+            <div className="dispatch-assignment-dialog__vehicle">
+              <div className="dispatch-assignment-dialog__vehicle-head">
+                <label htmlFor={`dispatch-vehicle-${row.fulfillmentId}`}>Xe / biển số</label>
                 {/* Card 20261004_357 — quick-add registers a plate under the
                     selected external carrier (Xe ngoài API); card 101026043010
                     brings the SAME affordance to the internal fleet picker
@@ -927,7 +933,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                     <Plus size={14} aria-hidden="true" />Thêm nhanh
                   </button>
                 )}
-              </span>
+              </div>
               <SearchableSelect
                 id={`dispatch-vehicle-${row.fulfillmentId}`}
                 value={draft.vehicleValue}
@@ -1001,7 +1007,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 loadingMore={loadingVehicles && vehicleOptions.length > 0}
                 size="sm"
               />
-            </label>
+            </div>
             {vehicleError ? (
               <p className="dispatch-assignment-dialog__error" role="status">
                 Không tải được danh sách xe.{' '}

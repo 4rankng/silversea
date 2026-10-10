@@ -122,7 +122,12 @@
   min-width: 0;
 }
 
-.dispatch-assignment-dialog__fields > label {
+/* The vehicle block is a div (its <label> lives inside the head row now — a
+ * <label> may wrap exactly one labelable control, and the quick-add button
+ * used to sit in the label too), so it rides the same field styling as the
+ * remaining direct-label fields. */
+.dispatch-assignment-dialog__fields > label,
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__vehicle {
   display: grid;
   min-width: 0;
   gap: 6px;

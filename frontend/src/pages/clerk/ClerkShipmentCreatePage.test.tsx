@@ -1256,7 +1256,11 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     fireEvent.click(screen.getAllByRole('button', { name: /Thêm nhà máy/ })[0]);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
-    expect(within(dialog).getByLabelText('Mã điểm vận hành')).toBeTruthy();
+    // Card 20261009_10: the intake entry opens the ruled SIX-field quick-add
+    // (code derived from the name) — 'Mã điểm vận hành' lives only on the
+    // master-data ĐVVH form.
+    expect(within(dialog).getByLabelText('Tên đầy đủ')).toBeTruthy();
+    expect(within(dialog).queryByLabelText('Mã điểm vận hành')).toBeNull();
   });
 
   it.each([
@@ -1273,11 +1277,13 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await choose('Khách hàng', '7');
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${action}`) }));
     const dialog = await screen.findByRole('dialog', { name: new RegExp(`^${action}`) });
-    if (siteType === 'WAREHOUSE') {
+    if (siteType === 'WAREHOUSE' || siteType === 'FACTORY') {
       // FB-077 quick-add contract (card 091026180600 round 1): the warehouse
       // intake quick-add derives its code from the name — no 'Mã điểm vận hành'
       // input exists here (it lives on the master-data ĐVVH form). Fix-forward
       // for a test break carried since round 1's dialog slimming.
+      // Card 20261009_10 extends the SAME six-field contract to the intake
+      // 'Thêm nhà máy' entry (owner-ruled: no mã / loại điểm in quick mode).
     } else {
       fireEvent.change(within(dialog).getByLabelText('Mã điểm vận hành'), { target: { value: created.code } });
     }
