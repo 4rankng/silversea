@@ -352,6 +352,9 @@ const assignFulfillmentPlateSchema = z.object({
   externalCarrierVehicleId: z.number().int().positive().nullish(),
   plateNumber: z.string().trim().min(1).max(20).nullish(),
   clear: z.boolean().optional(),
+  // Card 101026043000 — the plate endpoint shares the plan-save warn-once
+  // overlap contract; the confirmed retry rides this flag.
+  rigOverlapCompletedConfirmed: z.boolean().optional(),
 }).strict().refine(
   (value) => [value.truckId, value.externalCarrierVehicleId, value.plateNumber].filter((field) => field != null && field !== '').length <= 1,
   { message: 'Chỉ chọn một nguồn biển số.' },
@@ -420,6 +423,7 @@ dispatchPlanningRoutes.patch(
       externalCarrierVehicleId: parsed.data.externalCarrierVehicleId ?? null,
       plateNumber: parsed.data.plateNumber ?? null,
       clear: parsed.data.clear === true,
+      rigOverlapCompletedConfirmed: parsed.data.rigOverlapCompletedConfirmed === true,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     }));
