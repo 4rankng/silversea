@@ -83,4 +83,23 @@ describe('shipment create factory cell (card 20260923_2)', { timeout: 20000 }, (
     expect(screen.queryByText(FACTORY_ADDRESS)).toBeNull();
     expect((cellWrap as HTMLElement).textContent).not.toContain('Đồng Văn');
   });
+
+  // Card 101026163000 (FB-006): after a committed pick the input keeps focus,
+  // so a bare :focus-within reveal pinned the full combobox (with its Xoá
+  // button) on screen next to the magnifier. Catalog cells must carry the
+  // picker modifier — the CSS collapses them to the value text once the menu
+  // closes; text-input cells keep the focus-within reveal.
+  it('catalog cells carry the picker reveal modifier, text cells do not', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+    const factoryCell = document.querySelector('td[data-field-id$="-factory"]');
+    expect(factoryCell?.classList.contains('csc-container-cell--picker')).toBe(true);
+    for (const suffix of ['-type', '-route', '-pickup-port', '-dropoff-port']) {
+      const cell = document.querySelector(`td[data-field-id$="${suffix}"]`);
+      expect(cell?.classList.contains('csc-container-cell--picker'), suffix).toBe(true);
+    }
+    const numberCell = document.querySelector('td[data-field-id$="-number"]');
+    expect(numberCell?.classList.contains('csc-container-cell--picker')).toBe(false);
+  });
 });

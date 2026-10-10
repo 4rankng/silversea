@@ -23,6 +23,10 @@ interface ShipmentContainerCellProps {
   error?: string;
   className?: string;
   alwaysVisible?: boolean;
+  /** Catalog-picker cell: the editor chrome reveals only while a picker menu
+   *  is open inside the cell — a committed pick collapses to the value text
+   *  (plus any actions) even though the input keeps focus (card 101026163000). */
+  picker?: boolean;
   onRevert?: (value: string) => void;
 }
 
@@ -45,6 +49,7 @@ export function ShipmentContainerCell({
   className,
   onRevert,
   alwaysVisible,
+  picker,
 }: ShipmentContainerCellProps) {
   const cellRef = useRef<HTMLTableCellElement>(null);
   const valueAtFocus = useRef(value);
@@ -98,7 +103,7 @@ export function ShipmentContainerCell({
       ref={cellRef}
       data-label={label}
       data-field-id={fieldId}
-      className={`csc-container-cell${alwaysVisible ? ' csc-container-cell--persistent' : ''}${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
+      className={`csc-container-cell${alwaysVisible ? ' csc-container-cell--persistent' : ''}${picker ? ' csc-container-cell--picker' : ''}${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
       onClick={activateCell}
       onFocusCapture={captureStartingValue}
       onKeyDownCapture={handleCellKeyDown}

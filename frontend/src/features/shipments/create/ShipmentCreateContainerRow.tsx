@@ -153,6 +153,7 @@ export function ShipmentCreateContainerRow({
         displayTitle={containerType ? `${containerType.code} — ${containerType.name}` : undefined}
         fieldId={`container-${row.key}-type`}
         error={issueByField.get(`container-${row.key}-type`)}
+        picker
       >
         <ContainerTypeCellPicker
           value={row.containerTypeId}
@@ -170,6 +171,7 @@ export function ShipmentCreateContainerRow({
         placeholder={isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Chọn nhà máy'}
         fieldId={`container-${row.key}-factory`}
         error={issueByField.get(`container-${row.key}-factory`)}
+        picker
         actions={factory ? (
           <button
             type="button"
@@ -218,6 +220,7 @@ export function ShipmentCreateContainerRow({
         placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : 'Chọn tuyến đường'}
         fieldId={`container-${row.key}-route`}
         error={issueByField.get(`container-${row.key}-route`)}
+        picker
       >
         <div className="csc-route-picker">
           <SearchableField
@@ -252,6 +255,7 @@ export function ShipmentCreateContainerRow({
         placeholder="Chọn cảng nâng"
         fieldId={`container-${row.key}-pickup-port`}
         error={issueByField.get(`container-${row.key}-pickup-port`)}
+        picker
       >
         <div className="csc-route-picker">
           <SearchableField
@@ -283,6 +287,7 @@ export function ShipmentCreateContainerRow({
         placeholder="Chọn cảng hạ"
         fieldId={`container-${row.key}-dropoff-port`}
         error={issueByField.get(`container-${row.key}-dropoff-port`)}
+        picker
       >
         <div className="csc-route-picker">
           <SearchableField
