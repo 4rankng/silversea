@@ -84,3 +84,71 @@ describe('OperationalSiteCreateDialog quick-add mode', () => {
     expect(screen.getByText('Liên hệ')).toBeInTheDocument();
   });
 });
+
+// Card 20261009_10 (owner ruling 10/10): "Thêm nhà máy" from the intake opened
+// the full ĐVVH form, heavier than the warehouse quick-add that shipped
+// alongside it. But a factory is NOT the warehouse case — dispatch needs the
+// route, so mirroring the 3-field warehouse quick-add verbatim would have been
+// wrong. The owner ruled a purposeful SIX fields: full name, short name,
+// address, ROUTE, contact name, contact phone. Code stays derived; the
+// site-type picker and Google Maps stay on the master-data form.
+describe('OperationalSiteCreateDialog factory quick-add (card 20261009_10)', () => {
+  const factoryProps = { ...baseProps, defaultSiteType: 'FACTORY' as const };
+
+  it('renders exactly the six purposeful fields for a factory quick-add', () => {
+    render(<OperationalSiteCreateDialog {...factoryProps} isOpen quickAdd />);
+
+    expect(screen.getByLabelText(/Tên đầy đủ/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Tên ngắn/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Địa chỉ/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Tuyến đường/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Tên liên hệ/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/SĐT liên hệ/)).toBeInTheDocument();
+
+    // The ĐVVH-only inputs stay on the master-data form.
+    expect(screen.queryByLabelText(/Mã điểm vận hành/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Loại điểm/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Google Maps/i)).not.toBeInTheDocument();
+  });
+
+  it('refuses to create a factory without a route — dispatch needs it', () => {
+    render(<OperationalSiteCreateDialog {...factoryProps} isOpen quickAdd />);
+
+    fireEvent.change(screen.getByLabelText(/Tên đầy đủ/), { target: { value: 'Nhà máy ABC' } });
+    fireEvent.change(screen.getByLabelText(/Địa chỉ/), { target: { value: 'Số 1, Đường Lớn' } });
+    fireEvent.click(screen.getByRole('button', { name: /Thêm nhà máy/ }));
+
+    expect(createOperationalSite).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toMatch(/tuyến đường/i);
+  });
+
+  it('creates the factory with a derived code, the chosen route and the contact', async () => {
+    render(<OperationalSiteCreateDialog {...factoryProps} isOpen quickAdd routes={[{ id: 12, name: 'HCM → Hà Nội' }]} />);
+
+    fireEvent.change(screen.getByLabelText(/Tên đầy đủ/), { target: { value: 'Nhà máy ABC' } });
+    fireEvent.change(screen.getByLabelText(/Địa chỉ/), { target: { value: 'Số 1, Đường Lớn' } });
+    // The route picker is a react-aria combobox, so drive it the way a user
+    // does: open the trigger, then press the option. fireEvent.change cannot
+    // reach it and would leave the route empty — a false green.
+    fireEvent.click(screen.getByRole('button', { name: /Tuyến đường/ }));
+    const listbox = await screen.findByRole('listbox');
+    const option = Array.from(listbox.querySelectorAll('[role="option"], [data-key]'))
+      .find((node) => node.textContent?.includes('HCM'));
+    if (!option) throw new Error('route option not found');
+    fireEvent.click(option);
+    fireEvent.change(screen.getByLabelText(/Tên liên hệ/), { target: { value: 'Chị Lan' } });
+    fireEvent.change(screen.getByLabelText(/SĐT liên hệ/), { target: { value: '0900000001' } });
+    fireEvent.click(screen.getByRole('button', { name: /Thêm nhà máy/ }));
+
+    await waitFor(() => expect(createOperationalSite).toHaveBeenCalled());
+    expect(vi.mocked(createOperationalSite).mock.calls[0]![0]).toMatchObject({
+      siteType: 'FACTORY',
+      routeId: 12,
+      contactName: 'Chị Lan',
+      contactPhone: '0900000001',
+      name: 'Nhà máy ABC',
+      // Mã tự sinh from the name — the intake user never types a code.
+      code: 'NHA-MAY-ABC',
+    });
+  });
+});

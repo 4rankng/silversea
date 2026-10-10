@@ -187,7 +187,7 @@ export function OperationalSiteCreateDialog({
       if (!form.shortName.trim()) return 'Vui lòng nhập tên ngắn';
     }
     if (!form.address.trim()) return 'Vui lòng nhập địa chỉ';
-    if (!quickAdd && form.siteType === 'FACTORY' && !form.routeId) return 'Vui lòng chọn tuyến đường cho nhà máy';
+    if (form.siteType === 'FACTORY' && !form.routeId) return 'Vui lòng chọn tuyến đường cho nhà máy';
     if (!quickAdd && form.googleMapsUrl.trim() && !/^https?:\/\//i.test(form.googleMapsUrl.trim())) {
       return 'Liên kết Google Maps phải bắt đầu bằng http:// hoặc https://';
     }
@@ -288,6 +288,125 @@ export function OperationalSiteCreateDialog({
     </>
   );
 
+  /* Card 20261009_10 (owner ruling 10/10): a factory is NOT the warehouse
+   * case. Dispatch plans route the truck to the factory, so the quick-add
+   * carries the route and a contact — six purposeful fields — while the code
+   * stays derived and the site-type picker, ĐVVH extras and Google Maps stay
+   * on the master-data form. Flat layout, same rhythm as the warehouse
+   * quick-add and the port quick-add. */
+  const quickFactoryBody = (
+    <>
+      {customerId == null && (
+        <SelectField
+          label="Khách hàng"
+          value={customerChoice}
+          onChange={(event) => { setCustomerChoice(event.target.value); setError(null); }}
+          disabled={saving || Boolean(customersError) || isCustomersLoading}
+        >
+          <option value="">
+            {customersError
+              ? '— Lỗi tải danh sách khách hàng —'
+              : isCustomersLoading
+              ? '— Đang tải danh sách khách hàng… —'
+              : '— Chọn khách hàng —'}
+          </option>
+          {(customers ?? []).map((customer) => (
+            <option key={customer.id} value={customer.id}>{customer.name}</option>
+          ))}
+        </SelectField>
+      )}
+      <TextField
+        label="Tên đầy đủ"
+        value={form.name}
+        onChange={(event) => update('name', event.target.value)}
+        maxLength={255}
+        placeholder="Tên đầy đủ dùng trên chứng từ, báo cáo"
+        disabled={saving}
+      />
+      <div className="operational-site-create__quick-grid">
+        <TextField
+          label="Tên ngắn"
+          value={form.shortName}
+          onChange={(event) => update('shortName', event.target.value)}
+          maxLength={255}
+          placeholder="Tên hiển thị trong vận hành"
+          disabled={saving}
+        />
+        <TextField
+          label="Địa chỉ"
+          value={form.address}
+          onChange={(event) => update('address', event.target.value)}
+          maxLength={2000}
+          placeholder="Số, đường, phường, quận, tỉnh"
+          disabled={saving}
+        />
+      </div>
+      <div className="col-span-full">
+        {routesError && (
+          <div style={{ marginBottom: 12 }}>
+            <Alert
+              variant="error"
+              style="soft"
+              action={
+                onRetryRoutes ? (
+                  <button type="button" className="btn btn--sm" onClick={onRetryRoutes}>
+                    Thử lại
+                  </button>
+                ) : undefined
+              }
+            >
+              Không tải được danh sách tuyến đường.
+            </Alert>
+          </div>
+        )}
+        <div className="operational-site-create__route-picker">
+          <SelectField
+            label="Tuyến đường"
+            value={form.routeId}
+            onChange={(event) => update('routeId', event.target.value)}
+            disabled={saving || Boolean(routesError) || isRoutesLoading}
+          >
+            <option value="">
+              {routesError
+                ? '— Lỗi tải danh sách tuyến đường —'
+                : isRoutesLoading
+                ? '— Đang tải danh sách tuyến đường… —'
+                : '— Chọn tuyến đường —'}
+            </option>
+            {routeOptions.map((route) => <option key={route.id} value={route.id}>{route.name}</option>)}
+          </SelectField>
+          <button
+            ref={addRouteButtonRef}
+            type="button"
+            className="operational-site-create__add-route"
+            onClick={openRouteDialog}
+            disabled={saving}
+          >
+            <Plus size={15} aria-hidden="true" />Thêm tuyến đường
+          </button>
+        </div>
+      </div>
+      <div className="operational-site-create__quick-grid">
+        <TextField
+          label="Tên liên hệ"
+          value={form.contactName}
+          onChange={(event) => update('contactName', event.target.value)}
+          maxLength={255}
+          placeholder="Người nhận hàng tại nhà máy"
+          disabled={saving}
+        />
+        <TextField
+          label="SĐT liên hệ"
+          value={form.contactPhone}
+          onChange={(event) => update('contactPhone', event.target.value)}
+          maxLength={50}
+          placeholder="Số điện thoại liên hệ"
+          disabled={saving}
+        />
+      </div>
+    </>
+  );
+
   const footer = (
     <>
       <button
@@ -327,7 +446,7 @@ export function OperationalSiteCreateDialog({
             {error}
           </div>
         )}
-        {quickAdd ? quickAddBody : (
+        {quickAdd ? (form.siteType === 'FACTORY' ? quickFactoryBody : quickAddBody) : (
           <>
         <EntityFormSection icon={MapPin} label="Điểm vận hành">
           {customerId == null && (

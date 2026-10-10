@@ -84,7 +84,11 @@ export function ShipmentCreateModals({
         isOpen={createSiteDialog.open && Boolean(customerId)}
         customerId={Number(customerId)}
         defaultSiteType={createSiteDialog.siteType}
-        quickAdd={createSiteDialog.siteType === 'WAREHOUSE'}
+        // Card 20261009_10 (owner ruling): BOTH intake quick-adds are quick.
+        // They differ in their bodies — a warehouse asks for name/short/address,
+        // a factory additionally for the route and a contact — but neither opens
+        // the full master-data form from intake.
+        quickAdd
         routes={routes}
         onClose={onCloseCreateSite}
         onCreated={onSiteCreated}
