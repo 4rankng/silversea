@@ -83,7 +83,9 @@ export function ShipmentCreateContainerRow({
   const pickupPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.pickupPortId);
   const dropoffPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.dropoffPortId);
   const factory = operationalSites.find((site) => String(site.id) === row.operationalSiteId);
-  const canCopyAppointment = Boolean(row.customerAppointmentAt) && emptyAppointmentCount >= 2;
+  // Card 20261010_3: one empty destination is enough — the 2-container lot
+  // (one scheduled, one empty) is the common case and must see the affordance.
+  const canCopyAppointment = Boolean(row.customerAppointmentAt) && emptyAppointmentCount >= 1;
   // Card 20261002_272: open handle for the paired-field Tab hand-off.
   const typePickerOpenApi = useRef<{ open: () => void } | null>(null);
   // Card 20261002_268: read-only factory detail peek beside the cell value.

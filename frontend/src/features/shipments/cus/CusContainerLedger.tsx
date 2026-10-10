@@ -529,7 +529,7 @@ export function ContainerLedger({
                   completing={completing}
                   onAppointmentCommit={(val) => commitAppointment(line.id, val)}
                   onAppointmentCancel={() => revertAppointmentDraft(line.id)}
-                  showCopyAppointment={Boolean(effectiveAppointment(line.id)) && emptyAppointmentCount >= 2}
+                  showCopyAppointment={Boolean(effectiveAppointment(line.id)) && emptyAppointmentCount >= 1}
                   onCopyAppointmentToEmpty={() => copyAppointmentToEmpty(line.id)}
                   onRemove={() => void removeContainer(line)}
                   removing={removingId === line.id}

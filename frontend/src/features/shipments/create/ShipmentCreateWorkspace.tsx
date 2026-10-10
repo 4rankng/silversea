@@ -426,7 +426,12 @@ export function ShipmentCreateWorkspace() {
     clearFeedback();
   }
 
-  const emptyAppointmentCount = containers.filter((row) => !row.customerAppointmentAt).length;
+  // Card 20261010_3: the count gates visibility at >= 1 empty destination, and
+  // it must count only rows a copy would actually fill — a row holding an
+  // uncommitted partial draft is not a destination (emptyAppointmentKeys is
+  // the single source of that truth). The DOM read sees the previous paint,
+  // which is exactly the state a click acts on.
+  const emptyAppointmentCount = emptyAppointmentKeys(containers, workspaceFormRef.current).size;
   // Verify-fail 091026225620: the section-level copy affordance (the
   // discoverable position the "button missing" reports kept looking for)
   // sources from the first row that has an appointment; the per-row hover
@@ -669,7 +674,7 @@ export function ShipmentCreateWorkspace() {
             )}
             {form.cargoMode === 'FCL' && (
               <>
-                {copySourceRow && emptyAppointmentCount >= 2 && (
+                {copySourceRow && emptyAppointmentCount >= 1 && (
                   <button
                     type="button"
                     className="csc-utility-button csc-utility-button--dashed"

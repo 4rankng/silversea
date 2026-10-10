@@ -74,12 +74,22 @@ describe('bulk appointment copy', () => {
     updateCusShipmentContainerLine.mockReset();
   });
 
-  it('hides the copy affordance when fewer than two appointments are empty', () => {
+  it('hides the copy affordance when every appointment is already set', () => {
     renderLedger([
       makeLine(10, 1, '2026-09-16T02:00:00.000Z'),
       makeLine(11, 2, '2026-09-16T03:00:00.000Z'),
     ]);
     expect(copyButton()).toBeNull();
+  });
+
+  // Card 20261010_3: one empty destination is enough — the 2-container lot
+  // (one scheduled, one empty) is the common case and must see the affordance.
+  it('shows the copy affordance when exactly one appointment is empty', () => {
+    renderLedger([
+      makeLine(10, 1, '2026-09-16T02:00:00.000Z'),
+      makeLine(11, 2, null),
+    ]);
+    expect(copyButton()).not.toBeNull();
   });
 
   it('copies the set datetime to empty rows only, marking them dirty for save', async () => {

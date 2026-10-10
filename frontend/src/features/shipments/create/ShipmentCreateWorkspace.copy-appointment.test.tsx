@@ -71,7 +71,7 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
   });
 
-  it('offers hover-copy on the scheduled row while >= 2 rows still lack a schedule', async () => {
+  it('offers hover-copy on the scheduled row while other rows still lack a schedule', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
@@ -92,8 +92,8 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
   // button below is the discoverable position those reports ask for
   // ("nút xuất hiện tại ít nhất một trong các vị trí đã thỏa thuận"), keeping
   // the 18/09 hover ruling intact (additive only). Same condition contract as
-  // the hover affordance: a scheduled row + >= 2 rows still empty.
-  it('offers a visible section-level copy button in Lịch & ghi chú while >= 2 rows lack a schedule', async () => {
+  // the hover affordance: a scheduled row + at least one row still empty.
+  it('offers a visible section-level copy button in Lịch & ghi chú while other rows lack a schedule', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
@@ -116,14 +116,20 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     expect(appointmentValue(0).time).toBe('09:00');
   });
 
-  it('hides the section-level copy button once only one empty row remains', async () => {
+  // Card 20261010_3: the >= 2 threshold hid every copy affordance on the most
+  // common lot — 2 containers, one scheduled, one empty. The contract is now
+  // >= 1 empty destination (same boundary as the hover affordance and the CUS
+  // ledger): copying to a single row still beats typing it by hand.
+  it('shows the section-level copy button once only one empty row remains', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
     fillAppointment(0, '20/09/2026', '09:00');
-    // One empty row → the shared >= 2 empties contract hides every copy
-    // affordance (same boundary the hover affordance and the CUS ledger pin).
-    expect(screen.queryByRole('button', { name: /Copy giờ hẹn xuống cont trống/ })).toBeNull();
+    const sectionButton = await screen.findByRole('button', { name: /Copy giờ hẹn xuống cont trống/ });
+    fireEvent.click(sectionButton);
+    await waitFor(() => expect(appointmentValue(1).date).toBe('20/09/2026'));
+    expect(appointmentValue(1).time).toBe('09:00');
+    expect(appointmentValue(0).date).toBe('20/09/2026');
   });
 
   it('copy fills every empty appointment and never touches set rows', async () => {
@@ -143,18 +149,18 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 2 container chưa có lịch/)).toBeTruthy();
   });
 
-  it('hides the copy affordance with fewer than two empties', async () => {
+  it('shows the row copy affordance with exactly one empty row, hides it with none', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
     // One row, nothing scheduled: nothing to copy from or to.
     expect(copyButton()).toBeNull();
 
-    // One scheduled + one empty = exactly one empty row → still hidden
-    // (spec: MORE THAN one empty container).
+    // One scheduled + one empty → visible (card 20261010_3 lowered the old
+    // >= 2 threshold; the 2-cont lot is the common case).
     addContainer();
     fillAppointment(0, '20/09/2026', '09:00');
-    expect(copyButton()).toBeNull();
+    expect(copyButton()).toBeTruthy();
   });
 
   it.each([
