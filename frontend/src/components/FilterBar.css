@@ -65,9 +65,13 @@
   overflow-wrap: anywhere;
 }
 
-/* The shared toolbar surface: one card around the whole strip. */
+/* The shared toolbar surface: one card around the whole strip.
+   Band-height contract (fix-to-spec 101026043050): control (28-32px compact
+   contract) + 2 x 7px padding-block + 2 x 1px border = 44-48px at desktop AND
+   phone. 7px is the only vertical term that holds the window across the whole
+   control range; side gutter and every control height stay as they are. */
 .filter-bar--card {
-  padding: 12px 14px;
+  padding: 7px 14px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md, 14px);
@@ -416,9 +420,11 @@
     margin-bottom: 14px;
   }
   /* …but the toolbar card keeps its own gutter: the controls sit INSIDE its
-     border, so a zero side padding would press them against the hairline. */
+     border, so a zero side padding would press them against the hairline.
+     Same 7px padding-block as the desktop card — one band height (44-48px)
+     for the phone strip too. */
   .filter-bar--card {
-    padding: 10px 12px;
+    padding: 7px 12px;
   }
   .filter-tab,
   .filter-bar .filter-tab {
