@@ -1086,17 +1086,29 @@ describe('dispatch detail plan plate assignment', () => {
     assert.equal(notes.length, 0, 'plate assignment must not persist any notification');
 
     const [f2] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[1]!));
-    await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${f2.id}/plate`, {
+    // Card 101026043000: the legacy plate-assign endpoint now carries the
+    // shared warn-once overlap guard — a second container on the SAME truck
+    // at the same lot slot is a warn-tier overlap, so the bare assign
+    // refuses 409 and the confirmed retry (rigOverlapCompletedConfirmed)
+    // proceeds. The notifications assertion above still holds for both legs.
+    const f2Warned = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${f2.id}/plate`, {
       method: 'PATCH',
       token: dispatcherToken,
       body: { expectedVersion: f2.version, truckId: truck.id },
     });
+    assert.equal(f2Warned.status, 409);
+    const f2Confirmed = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${f2.id}/plate`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { expectedVersion: f2.version, truckId: truck.id, rigOverlapCompletedConfirmed: true },
+    });
+    assert.equal(f2Confirmed.status, 200, JSON.stringify(f2Confirmed.data));
 
     const [f3] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[2]!));
     const last = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${f3.id}/plate`, {
       method: 'PATCH',
       token: dispatcherToken,
-      body: { expectedVersion: f3.version, truckId: truck.id },
+      body: { expectedVersion: f3.version, truckId: truck.id, rigOverlapCompletedConfirmed: true },
     });
     assert.equal(last.status, 200);
     assert.equal(last.data.lotFullyPlated, true, `lot ${shipment.id} should flip to fully plated`);

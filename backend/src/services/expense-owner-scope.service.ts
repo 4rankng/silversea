@@ -1,6 +1,7 @@
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import * as s from '../db/schema';
+import { db } from '../db';
 import type { Executor } from './trip-shared';
 import type { ExpenseAccountingSource } from './expense-accounting-source.service';
 import { ApiError } from '../errors';
@@ -52,8 +53,11 @@ export async function assertOpsExpenseAssignment(executor: Pick<Executor, 'selec
  * never a second copy of it — so the dialog and the save can never disagree.
  * Non-403 errors propagate: an infrastructure failure must surface as a 500,
  * not masquerade as a permission denial.
+ *
+ * The executor defaults to the db client so route callers never import it
+ * (routes → services layering rule; ops.ts was the last offender).
  */
-export async function opsExpenseWriteScope(executor: Pick<Executor, 'select'>, userId: number, shipmentId: number): Promise<{ writable: boolean; reason: string | null }> {
+export async function opsExpenseWriteScope(userId: number, shipmentId: number, executor: Pick<Executor, 'select'> = db): Promise<{ writable: boolean; reason: string | null }> {
   try {
     await assertOpsExpenseAssignment(executor, userId, shipmentId);
     return { writable: true, reason: null };
