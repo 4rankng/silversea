@@ -107,6 +107,49 @@ test('supplier-backed detail resolves linked customer identity and retains histo
   }
 });
 
+// Card 101026163040 (FB-074): the overview row shows the lot's route
+// ("Q23 billing route …") while the detail header had no route fact at all —
+// for a container-less LCL lot the route existed NOWHERE on the detail page.
+// The detail read must carry the same route display authority the list joins
+// (lot route → container route → ad-hoc rawRouteName).
+test('shipment detail carries the route display label the overview shows', async () => {
+  const [customer] = await db.select().from(s.customers).limit(1);
+  const [route] = await db.select().from(s.routes).limit(1);
+  const [containerType] = await db.select().from(s.containerTypes).limit(1);
+  assert.ok(customer); assert.ok(route); assert.ok(containerType);
+  const routeLabel = (route.shortName?.trim() || route.name);
+
+  // 1) lot-level route
+  const [lotRouted] = await db.insert(s.shipments).values({
+    shipmentCode: `DTR-LOT-${suffix}`, customerId: customer.id, status: 'NEW',
+    cargoMode: 'LCL', routeId: route.id,
+  }).returning();
+  shipmentIds.push(lotRouted.id);
+  const lotDetail = await getShipmentDetail(lotRouted.id);
+  assert.equal(lotDetail.shipment.routeName, routeLabel);
+
+  // 2) route only on the container (list authority coalesce(container, lot))
+  const [contRouted] = await db.insert(s.shipments).values({
+    shipmentCode: `DTR-CONT-${suffix}`, customerId: customer.id, status: 'NEW',
+    cargoMode: 'FCL',
+  }).returning();
+  shipmentIds.push(contRouted.id);
+  await db.insert(s.shipmentContainers).values({
+    shipmentId: contRouted.id, containerTypeId: containerType.id, routeId: route.id,
+  });
+  const contDetail = await getShipmentDetail(contRouted.id);
+  assert.equal(contDetail.shipment.routeName, routeLabel);
+
+  // 3) ad-hoc free-text route (no catalog link)
+  const [adhoc] = await db.insert(s.shipments).values({
+    shipmentCode: `DTR-RAW-${suffix}`, customerId: customer.id, status: 'NEW',
+    cargoMode: 'LCL', rawRouteName: `Tuyến ngoài ${suffix}`,
+  }).returning();
+  shipmentIds.push(adhoc.id);
+  const adhocDetail = await getShipmentDetail(adhoc.id);
+  assert.equal(adhocDetail.shipment.routeName, `Tuyến ngoài ${suffix}`);
+});
+
 after(async () => {
   try {
     if (tripIds.length) {

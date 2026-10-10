@@ -26,7 +26,8 @@ import { useDebitNoteOverride, useSaveDebitNoteOverride } from '../hooks/usePric
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
 import { ShipmentExpensePanel } from '../features/expense-accounting/ShipmentExpensePanel';
 import { ShipmentFinancePanel } from '../features/shipment-finance/ShipmentFinancePanel';
-import { formatCurrency, formatDate, formatDateTimeShort as formatDateTime } from '../lib/format';
+import { formatCurrency, formatDate, formatDateTimeShort as formatDateTime, formatWeight } from '../lib/format';
+import { formatQuantity } from '../features/shipments/cus/cusUtils';
 import { allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
 import { ShipmentDetailContainers } from '../features/shipments/detail/ShipmentDetailContainers';
 import { billBookingReference } from '../lib/business-reference';
@@ -220,14 +221,20 @@ export default function ShipmentDetailPage() {
             <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>
             <div><dt>Loại lô</dt><dd>{shipment.cargoMode === 'FCL' ? 'Container (FCL)' : shipment.cargoMode === 'LCL' ? 'Hàng lẻ (LCL)' : '—'}</dd></div>
             <div><dt>Nhà máy / công trường</dt><dd>{shipment.effectiveFactoryName ?? shipment.factoryName ?? '—'}</dd></div>
+            {/* Card 101026163040 (FB-074): the overview names the lot's route;
+                the detail must carry the same fact or the two views disagree. */}
+            <div><dt>Tuyến đường</dt><dd>{shipment.routeName ?? '—'}</dd></div>
             <div><dt>Hãng tàu</dt><dd>{shipment.shippingLineName ?? '—'}</dd></div>
             <div><dt>Cut-off hải quan</dt><dd>{formatDateTime(shipment.customsCutoffAt)}</dd></div>
             <div><dt>Giờ đóng hàng</dt><dd>{formatDateTime(shipment.closingAt)}</dd></div>
             <div><dt>Thời gian trả</dt><dd>{formatDateTime(shipment.plannedReturnAt)}</dd></div>
-            <div><dt>Trọng lượng</dt><dd>{shipment.cargoWeightKg ? `${shipment.cargoWeightKg} kg` : '—'}</dd></div>
+            {/* Cards 101026163030 / 101026163040: the numeric columns arrive
+                as storage decimals ("500.00", "2.000") — ride the same measure
+                axis as the overview rows instead of echoing the column. */}
+            <div><dt>Trọng lượng</dt><dd>{formatWeight(shipment.cargoWeightKg)}</dd></div>
             {shipment.cargoMode === 'LCL' && (
               <>
-                <div><dt>Thể tích</dt><dd>{shipment.cargoVolumeCbm ? `${shipment.cargoVolumeCbm} CBM` : '—'}</dd></div>
+                <div><dt>Thể tích</dt><dd>{shipment.cargoVolumeCbm ? `${formatQuantity(shipment.cargoVolumeCbm)} CBM` : '—'}</dd></div>
                 <div><dt>Kiện hàng</dt><dd>{shipment.packageCount != null ? `${shipment.packageCount}${shipment.packageType ? ` ${shipment.packageType}` : ' kiện'}` : '—'}</dd></div>
               </>
             )}

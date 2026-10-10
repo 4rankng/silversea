@@ -139,6 +139,11 @@ export interface ShipmentDetail {
     // Mirrors cus-workspace `effectiveFactoryNames` priority so the detail
     // header (ShipmentDetailPage) agrees with the dashboard list view.
     effectiveFactoryName: string | null;
+    // Route display label with the SAME authority the overview rows show
+    // (list joins coalesce(container.routeId, shipment.routeId), then the
+    // ad-hoc rawRouteName) — without it a container-less LCL lot displays its
+    // route on the overview and nowhere on the detail page (FB-074).
+    routeName: string | null;
   };
   containers: Array<Awaited<ReturnType<typeof listShipmentContainers>>[number] & {
     /** Plate issued onto this container's fulfillment at dispatch. */
@@ -294,6 +299,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
       ...shipmentWithCustomer,
       pricingProjection: await buildShipmentPricingProjection(shipment, containers),
       effectiveFactoryName: await resolveEffectiveFactoryName(shipment, decoratedContainers),
+      routeName: await resolveEffectiveRouteName(shipment, decoratedContainers),
     },
     containers: decoratedContainers,
     documents,
@@ -351,4 +357,39 @@ async function resolveEffectiveFactoryName(
     if (resolved) return resolved;
   }
   return null;
+}
+
+/**
+ * Route display label for the detail-page header — the same fact the overview
+ * rows show (cards 101026163040 / FB-074). Mirrors the list authority
+ * `coalesce(container.routeId, shipment.routeId)` (shipment-queries
+ * list-summaries) and falls back to the ad-hoc free text, so a container-less
+ * LCL lot still displays the route its overview line carries.
+ */
+async function resolveEffectiveRouteName(
+  shipment: Awaited<ReturnType<typeof getShipment>>,
+  containers: ShipmentDetail['containers'],
+): Promise<string | null> {
+  const routeIds: number[] = [];
+  // Container routes lead: the overview identity line maps the containers
+  // first (`c.routeName ?? row.routeName`) and only shows the lot route when
+  // the lot has no containers at all.
+  for (const container of containers) {
+    if (container.routeId != null && !routeIds.includes(container.routeId)) routeIds.push(container.routeId);
+  }
+  if (shipment.routeId != null && !routeIds.includes(shipment.routeId)) routeIds.push(shipment.routeId);
+  if (routeIds.length > 0) {
+    const rows = await db.select({
+      id: s.routes.id,
+      name: operationalName(s.routes.shortName, s.routes.name),
+    }).from(s.routes)
+      .where(inArray(s.routes.id, routeIds));
+    const byId = new Map(rows.map((row) => [row.id, row.name]));
+    for (const routeId of routeIds) {
+      const label = byId.get(routeId);
+      if (label) return label;
+    }
+  }
+  const raw = typeof shipment.rawRouteName === 'string' ? shipment.rawRouteName.trim() : '';
+  return raw || null;
 }

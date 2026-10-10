@@ -76,6 +76,7 @@ const detail: ShipmentDetailData = {
     accountingLock: null,
     customerName: 'Công ty Silver Sea',
     effectiveFactoryName: 'Nhà máy Hải Phòng',
+    routeName: 'Hải Phòng – NEWEB',
   },
   containers: [],
   documents: [],
@@ -123,6 +124,60 @@ describe('ShipmentDetailPage', () => {
     expect(await screen.findByText('01:05 02/09/2026')).toBeTruthy();
     expect(screen.getByText(/Khóa lô do CUS/).textContent).toContain('09:00 11/08/2026');
     expect(screen.getByText('Cut-off hải quan').nextElementSibling?.textContent).toBe('—');
+  });
+
+  // Card 101026163030 (FB-069) + the format half of card 101026163040
+  // (FB-074): the detail header echoed the raw numeric columns, so an LCL
+  // lot's "500.00" / "2.000" leaked their storage decimals while the
+  // overview showed "500 kg" / "2 CBM". Weight rides the house measure axis
+  // (formatWeight) and volume the same formatQuantity the overview rows use.
+  it('formats weight and volume through the house measure axis, not the raw column', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      shipment: {
+        ...detail.shipment,
+        cargoMode: 'LCL',
+        cargoWeightKg: '500.00',
+        cargoVolumeCbm: '2.000',
+        packageCount: 10,
+        packageType: 'thùng',
+      },
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter></ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    const weightCell = (await screen.findByText('Trọng lượng')).nextElementSibling;
+    expect(weightCell?.textContent).toBe('500 kg');
+    expect(screen.queryByText('500.00 kg')).toBeNull();
+
+    const volumeCell = screen.getByText('Thể tích').nextElementSibling;
+    expect(volumeCell?.textContent).toBe('2 CBM');
+    expect(screen.queryByText('2.000 CBM')).toBeNull();
+  });
+
+  // Card 101026163040 (FB-074): the overview identity line names the lot's
+  // route while the detail header had no route fact at all — for a
+  // container-less LCL lot the route appeared nowhere on the detail page.
+  it('names the lot route in the detail header (same fact as the overview)', async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter></ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    const routeCell = (await screen.findByText('Tuyến đường')).nextElementSibling;
+    expect(routeCell?.textContent).toBe('Hải Phòng – NEWEB');
   });
 
   it('shows CUS lock metadata without exposing the removed dossier action', async () => {

@@ -254,6 +254,10 @@ export interface ShipmentDetail {
      *  cus-workspace `effectiveFactoryNames` priority so the detail header
      *  agrees with the dashboard list (regression bug 2026-09-07). */
     effectiveFactoryName: string | null;
+    /** Route display label with the overview's authority (container route →
+     *  lot route → ad-hoc rawRouteName) so both views name the same route
+     *  (card 101026163040 / FB-074). */
+    routeName: string | null;
   };
   containers: ShipmentContainer[];
   documents: ShipmentDocument[];
