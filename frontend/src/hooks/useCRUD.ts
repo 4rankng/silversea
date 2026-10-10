@@ -59,8 +59,12 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
     try {
       await api.post(apiPath, body);
       setShowAddForm(false);
-      await refreshAll();
+      // Card 101026163020 (FB-051): feedback for a committed write fires at
+      // commit time; the cache refresh that follows may reject (a raced
+      // refetch aborts; a failed reload surfaces through the page's own
+      // query-error alert) and must never swallow or contradict the success.
       handleMutationSuccess('create');
+      await refreshAll().catch(() => undefined);
     } catch (e: unknown) {
       const message = actionErrorMessage('thêm cấu hình', e, 'Lỗi lưu');
       if (message !== null) {
@@ -80,8 +84,10 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
     try {
       await api.put(`${apiPath}/${id}`, body, expectedUpdatedAt ? { expectedUpdatedAt } : undefined);
       setEditingId(null);
-      await refreshAll();
+      // Card 101026163020 (FB-051): same law as create — the success toast
+      // belongs to the committed write, not to the refresh after it.
       handleMutationSuccess('update');
+      await refreshAll().catch(() => undefined);
     } catch (e: unknown) {
       const message = actionErrorMessage('cập nhật cấu hình', e, 'Lỗi cập nhật');
       if (message !== null) {
@@ -95,8 +101,9 @@ export function useCRUD(apiPath: string, onRefresh: () => Promise<void>) {
     setDeleting(id);
     try {
       await api.delete(`${apiPath}/${id}`, expectedUpdatedAt ? { expectedUpdatedAt } : undefined);
-      await refreshAll();
+      // Card 101026163020 (FB-051): same law as create/update.
       handleMutationSuccess('delete');
+      await refreshAll().catch(() => undefined);
     } catch (e: unknown) {
       const message = actionErrorMessage('xóa cấu hình', e, 'Lỗi xóa');
       if (message !== null) {
