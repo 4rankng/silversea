@@ -143,6 +143,54 @@ describe('shipment intake submission', () => {
     assert.equal(persisted?.shortName, curatedShortName);
   });
 
+  test('quick-add site keeps its flat contact pair; a structured contacts list stays authoritative', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+
+    // The intake quick-add (card 20261009_10) sends contactName/contactPhone
+    // with NO contacts key on the wire — the flat-client branch of
+    // siteContactValues must persist the pair as entered.
+    const created = await createOperationalSiteForIntake({
+      customerId: ref.customer.id,
+      code: `QUICKADD-${suffix}-${siteIds.length}`,
+      name: `Nhà máy quick-add ${suffix}`,
+      siteType: OperationalSiteType.FACTORY,
+      routeId: ref.route.id,
+      address: 'KCN VSIP, Bắc Ninh',
+      contactName: 'Chị Lan',
+      contactPhone: '0900000001',
+    }, admin);
+    siteIds.push(created.id);
+    const [flatRow] = await db.select({
+      contactName: s.operationalSites.contactName,
+      contactPhone: s.operationalSites.contactPhone,
+    }).from(s.operationalSites).where(eq(s.operationalSites.id, created.id));
+    assert.equal(flatRow?.contactName, 'Chị Lan');
+    assert.equal(flatRow?.contactPhone, '0900000001');
+
+    // The other direction of the same law: a client that DOES send a
+    // structured contacts list is authoritative — its default entry
+    // rewrites the flat pair, and stray flat fields must not win.
+    const structured = await createOperationalSiteForIntake({
+      customerId: ref.customer.id,
+      code: `STRUCT-${suffix}-${siteIds.length}`,
+      name: `Nhà máy cấu trúc ${suffix}`,
+      siteType: OperationalSiteType.FACTORY,
+      routeId: ref.route.id,
+      address: 'KCN VSIP, Bắc Ninh',
+      contactName: 'Giá trị lạc',
+      contactPhone: '0999999999',
+      contacts: [{ name: 'Anh Minh', phone: '0900000002', isDefault: true }],
+    }, admin);
+    siteIds.push(structured.id);
+    const [structuredRow] = await db.select({
+      contactName: s.operationalSites.contactName,
+      contactPhone: s.operationalSites.contactPhone,
+    }).from(s.operationalSites).where(eq(s.operationalSites.id, structured.id));
+    assert.equal(structuredRow?.contactName, 'Anh Minh');
+    assert.equal(structuredRow?.contactPhone, '0900000002');
+  });
+
   test('20260916_5 ruling (a): an LCL lô takes one lô-unit carrier allocation', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();
