@@ -1,21 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Modal } from '../../../components/UI';
 import { normalizePlate } from './DispatchPlanCellValues';
-import { createCarrierFleetVehicle } from '../../../api/dispatchPlanningClient';
+import { createCarrierFleetVehicle, createInternalTruck } from '../../../api/dispatchPlanningClient';
 import './QuickAddVehicleDialog.css';
 
 interface QuickAddVehicleDialogProps {
   isOpen: boolean;
-  /** The externally selected nhà xe the plate registers under (Xe ngoài path). */
-  carrierId: number;
+  /** The selected nhà xe the plate registers under (Xe ngoài path); null =
+   *  đội xe nội bộ — the plate registers as an own-fleet tractor (POST /trucks).
+   *  Card 101026043010: one dialog serves both pickers, never a variant. */
+  carrierId: number | null;
   carrierName: string;
   onClose: () => void;
   onCreated: (vehicleId: number, licensePlate: string) => void;
 }
 
-/** Card 20261004_357 — quick-add a plate for the selected external carrier
- *  straight from the dispatch editor, through the SAME API the sidebar Xe
- *  ngoài registration uses (POST /api/shipments/carrier-fleet-vehicles). */
+/** Card 20261004_357 — quick-add a plate straight from the dispatch editor,
+ *  through the SAME API the matching sidebar registration uses: the external
+ *  path posts to the Xe ngoài list (POST /api/shipments/carrier-fleet-vehicles),
+ *  the internal path (card 101026043010) to the truck catalog (POST /api/trucks). */
 export function QuickAddVehicleDialog({ isOpen, carrierId, carrierName, onClose, onCreated }: QuickAddVehicleDialogProps) {
   const [plate, setPlate] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +43,11 @@ export function QuickAddVehicleDialog({ isOpen, carrierId, carrierName, onClose,
       return;
     }
     setSaving(true);
-    createCarrierFleetVehicle({ carrierId, licensePlate: normalized })
+    // Card 101026043010 — an internal quick-add registers an own-fleet
+    // tractor (fleet-catalog create); the external path keeps the Xe ngoài API.
+    (carrierId == null
+      ? createInternalTruck({ licensePlate: normalized })
+      : createCarrierFleetVehicle({ carrierId, licensePlate: normalized }))
       .then((vehicle) => {
         onCreated(vehicle.id, vehicle.licensePlate);
       })
@@ -62,7 +69,11 @@ export function QuickAddVehicleDialog({ isOpen, carrierId, carrierName, onClose,
         <p className="quick-add-vehicle__context">
           Nhà xe: <strong>{carrierName || '—'}</strong>
         </p>
-        <p className="quick-add-vehicle__hint">Xe được lưu vào danh sách Xe ngoài của nhà xe này (giống đăng ký ở menu Danh mục).</p>
+        <p className="quick-add-vehicle__hint">
+          {carrierId == null
+            ? 'Xe được lưu vào danh sách xe nội bộ (giống đăng ký ở menu Danh mục).'
+            : 'Xe được lưu vào danh sách Xe ngoài của nhà xe này (giống đăng ký ở menu Danh mục).'}
+        </p>
         {error && <div role="alert" className="quick-add-vehicle__error">{error}</div>}
         <div className="quick-add-vehicle__field">
           {/* Plain <label htmlFor> is wired to the input below; the a11y rule

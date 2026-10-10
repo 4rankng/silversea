@@ -42,6 +42,7 @@ export type IssueOrderResult = DispatchShipmentResponse;
 
 const PAGE_LOAD_SIZE = 50;
 const OWN_TRUCK_PREFIX = 'truck:';
+const OWN_CARRIER_LABEL = 'SilverSea — xe nội bộ';
 
 export interface AtomicPlanSaveResult {
   fulfillmentVersion: number;
@@ -255,29 +256,37 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [fleetRetryNonce, setFleetRetryNonce] = useState(0);
   // Card 20261004_357 — quick-add plate for the selected external carrier.
   const [quickAddOpen, setQuickAddOpen] = useState(false);
-  // Manually added vehicles ride the option list until the refetch lands them.
-  const [manualVehicles, setManualVehicles] = useState<Map<number, string>>(() => new Map());
+  // Manually added plates ride the option list until the refetch lands them —
+  // keyed by the option value (`truck:{id}` / `vehicle:{id}`, card
+  // 101026043010) so an interim entry can never leak across the two pickers.
+  const [manualVehicles, setManualVehicles] = useState<Map<string, string>>(() => new Map());
   // Branch-row decompose in flight (fulfillment-less rows must decompose
   // before the editor can target a fulfillment identity).
   const [ensuring, setEnsuring] = useState(false);
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
-  const quickAddCarrierName = selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null
-    ? carrierOptions.find((option) => option.value === `${EXTERNAL_CARRIER_PREFIX}${selectedCarrier.externalCarrierId}`)?.label
-      ?? row.dispatch.carrierName ?? ''
-    : '';
+  const quickAddCarrierName = selectedCarrier?.carrierType === 'OWN'
+    ? OWN_CARRIER_LABEL
+    : selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null
+      ? carrierOptions.find((option) => option.value === `${EXTERNAL_CARRIER_PREFIX}${selectedCarrier.externalCarrierId}`)?.label
+        ?? row.dispatch.carrierName ?? ''
+      : '';
 
   const handleVehicleCreated = (vehicleId: number, licensePlate: string) => {
     // Card 20261004_357 — preselect the new plate and let the refetch fold it
-    // into the fetched list (manualVehicles covers the interim).
+    // into the fetched list (manualVehicles covers the interim). Card
+    // 101026043010 — the internal quick-add lands a TRUCK, so the option
+    // value follows the picker's current mode.
+    const valuePrefix = selectedCarrier?.carrierType === 'OWN' ? OWN_TRUCK_PREFIX : EXTERNAL_VEHICLE_PREFIX;
+    const createdValue = `${valuePrefix}${vehicleId}`;
     setManualVehicles((current) => {
       const next = new Map(current);
-      next.set(vehicleId, licensePlate);
+      next.set(createdValue, licensePlate);
       return next;
     });
     setFleetRetryNonce((nonce) => nonce + 1);
-    setDraft((current) => ({ ...current, vehicleValue: `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}` }));
+    setDraft((current) => ({ ...current, vehicleValue: createdValue }));
     setError(null);
     setQuickAddOpen(false);
   };
@@ -440,12 +449,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         ? [{ value: `${FREE_TEXT_PREFIX}${normalizedSearch}`, label: `Dùng biển số: ${normalizedSearch}` }]
         : [];
       // Card 20261004_357 — plates added through the quick-add dialog ride the
-      // list immediately (before the refetch returns them from the server).
-      const manualOptions = isOwnFleet
-        ? []
-        : [...manualVehicles.entries()]
-          .filter(([vehicleId]) => !mapped.some((option) => option.value === `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}`))
-          .map(([vehicleId, plate]) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicleId}`, label: plate }));
+      // list immediately (before the refetch returns them from the server);
+      // card 101026043010 extends the interim ride to the internal list. The
+      // map is keyed by option value, so only the current picker's entries
+      // surface here.
+      const manualOptions = [...manualVehicles.entries()]
+        .filter(([value]) => value.startsWith(isOwnFleet ? OWN_TRUCK_PREFIX : EXTERNAL_VEHICLE_PREFIX)
+          && !mapped.some((option) => option.value === value))
+        .map(([value, label]) => ({ value, label }));
       // Card 20261004_359 — "Bổ sung sau" leads the EXTERNAL list (CTO
       // direction): issue now, plate rides in later. OWN keeps no such choice.
       const deferredOption = isOwnFleet ? [] : [{ value: DEFERRED_PLATE_PREFIX, label: 'Bổ sung sau' }];
@@ -468,7 +479,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch, rowIsCarrierLess, fleetRetryNonce, draft.classification, manualVehicles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectableCarrierOptions = useMemo(() => {
-    const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
+    const options = [{ value: OWN_CARRIER_VALUE, label: OWN_CARRIER_LABEL }, ...carrierOptions];
     // Fallback option only for a real selection — '' (unassigned) keeps the
     // placeholder. A carrier promoted from a truck link resolves its name
     // from the link before falling back to the row's saved carrier.
@@ -900,9 +911,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               <span className="dispatch-assignment-dialog__vehicle-head">
                 <span>Xe / biển số</span>
                 {/* Card 20261004_357 — quick-add registers a plate under the
-                    selected external carrier (same Xe ngoài API). Own fleet is
-                    fleet-managed, so the affordance is external-only. */}
-                {selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null && (
+                    selected external carrier (Xe ngoài API); card 101026043010
+                    brings the SAME affordance to the internal fleet picker
+                    (truck-catalog create, same dialog). */}
+                {(selectedCarrier?.carrierType === 'OWN' || (selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null)) && (
                   <button
                     type="button"
                     className="dispatch-assignment-dialog__quick-add"
@@ -1070,10 +1082,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         </form>
       </Modal>
       {overlapConfirmDialog}
-      {quickAddOpen && selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null && (
+      {quickAddOpen && (selectedCarrier?.carrierType === 'OWN' || (selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null)) && (
         <QuickAddVehicleDialog
           isOpen
-          carrierId={selectedCarrier.externalCarrierId}
+          carrierId={selectedCarrier.carrierType === 'EXTERNAL' ? selectedCarrier.externalCarrierId ?? null : null}
           carrierName={quickAddCarrierName}
           onClose={() => setQuickAddOpen(false)}
           onCreated={handleVehicleCreated}

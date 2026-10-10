@@ -159,6 +159,14 @@ export function createCarrierFleetVehicle(body: { carrierId: number; licensePlat
   });
 }
 
+/** Card 101026043010 — quick-add an own-fleet tractor from the dispatch
+ *  editor's INTERNAL plate picker, through the SAME API the fleet-catalog
+ *  create uses (POST /api/trucks → an ACTIVE truck row, selectable in the
+ *  picker's own-fleet list). */
+export function createInternalTruck(body: { licensePlate: string }) {
+  return api.post<Pick<DispatchTruck, 'id' | 'licensePlate'>>('/trucks', body);
+}
+
 export function updateCarrierFleetVehicle(vehicleId: number, body: { isActive: boolean }) {
   return api.patch<DispatchCarrierVehicle>(`/shipments/carrier-fleet-vehicles/${vehicleId}`, body, {
     headers: { 'Idempotency-Key': crypto.randomUUID() },

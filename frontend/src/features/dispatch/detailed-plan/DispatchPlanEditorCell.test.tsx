@@ -9,6 +9,7 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
     ...actual,
     listDispatchFleetResources: vi.fn(),
     createCarrierFleetVehicle: vi.fn(),
+    createInternalTruck: vi.fn(),
   };
 });
 
@@ -17,7 +18,7 @@ vi.mock('../../../api/configClient', () => ({
   configClient: { getTrailers: (...args: Array<unknown>) => getTrailersMock(...args) },
 }));
 
-import { createCarrierFleetVehicle, listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
+import { createCarrierFleetVehicle, createInternalTruck, listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
 
@@ -1131,7 +1132,9 @@ describe('DispatchPlanEditorCell — quick-add plate for the selected carrier (c
     await waitFor(() => expect(screen.getByText('Carrier QA')).toBeTruthy());
   }
 
-  it('offers "+ Thêm nhanh" only while an external carrier is selected, and absent for OWN', async () => {
+  // Card 101026043010 supersedes the title's old "absent for OWN" half — the
+  // internal picker gained the same affordance (pinned in its own describe).
+  it('offers "+ Thêm nhanh" for a selected external carrier and none while carrier-less', async () => {
     mockFleetResources();
     renderCell(carrierLessRow());
     await openDialog();
@@ -1175,6 +1178,98 @@ describe('DispatchPlanEditorCell — quick-add plate for the selected carrier (c
 
     expect(await screen.findByText('Biển số xe đã tồn tại')).toBeTruthy();
     // Dialog stays open for correction.
+    expect(screen.getByText('Thêm nhanh biển số xe')).toBeTruthy();
+  });
+});
+
+describe('DispatchPlanEditorCell — quick-add plate in the internal fleet picker (card 101026043010)', () => {
+  const createInternalMock = vi.mocked(createInternalTruck);
+  const createExternalMock = vi.mocked(createCarrierFleetVehicle);
+
+  beforeEach(() => {
+    createInternalMock.mockReset();
+    createExternalMock.mockReset();
+  });
+
+  // The default row is an OWN row ('SilverSea — xe nội bộ' preselected) —
+  // exactly the internal fleet picker whose quick-add button the staging
+  // report found missing (PARTIAL FIX of 20261005_357, external-only AC1).
+  it('offers the "+ Thêm nhanh" affordance with the external path\'s accessible name', async () => {
+    mockFleetResources();
+    renderCell(row());
+    await openDialog();
+
+    expect(screen.getByRole('button', { name: 'Thêm nhanh' })).toBeTruthy();
+  });
+
+  it('creates the plate through the internal trucks API in the SAME dialog and preselects it', async () => {
+    mockFleetResources();
+    createInternalMock.mockResolvedValue({ id: 321, licensePlate: '29C-111.22' });
+    renderCell(row());
+    await openDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm nhanh' }));
+    // Reused dialog — same title, field label, and confirm as the external path.
+    expect(await screen.findByText('Thêm nhanh biển số xe')).toBeTruthy();
+    expect(screen.getByLabelText('Biển số xe')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Biển số xe'), { target: { value: '29c 111.22' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+
+    await waitFor(() => expect(createInternalMock).toHaveBeenCalledWith({ licensePlate: '29C 111.22' }));
+    // An internal quick-add must never touch the Xe ngoài registration API.
+    expect(createExternalMock).not.toHaveBeenCalled();
+    // Dialog closes; the new plate preselects the combobox trigger.
+    await waitFor(() => expect(screen.queryByText('Thêm nhanh biển số xe')).toBeNull());
+    await waitFor(() => expect(screen.getAllByText('29C-111.22').length).toBeGreaterThan(0));
+  });
+
+  it('rides the internal option list immediately and is assignable to the row', async () => {
+    mockFleetResources();
+    createInternalMock.mockResolvedValue({ id: 321, licensePlate: '29C-111.22' });
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'SINGLE',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '29C-111.22' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(row(), { onAtomicSave });
+    await openDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm nhanh' }));
+    fireEvent.change(await screen.findByLabelText('Biển số xe'), { target: { value: '29C-111.22' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+    await waitFor(() => expect(screen.queryByText('Thêm nhanh biển số xe')).toBeNull());
+
+    // Same interim-list contract as the external path: the created plate is
+    // in the picker immediately (before the refetch lands it) and selectable.
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    const optionNode = (await screen.findAllByText('29C-111.22')).find((node) => node.closest('[role="option"]'));
+    expect(optionNode).toBeTruthy();
+    fireEvent.click(optionNode!);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.carrierType).toBe('OWN');
+    expect(body.truckId).toBe(321);
+  });
+
+  it('surfaces the internal create error inline instead of closing', async () => {
+    mockFleetResources();
+    createInternalMock.mockRejectedValue(new Error('Biển số xe đã tồn tại'));
+    renderCell(row());
+    await openDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm nhanh' }));
+    fireEvent.change(screen.getByLabelText('Biển số xe'), { target: { value: '29C-111.22' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+
+    expect(await screen.findByText('Biển số xe đã tồn tại')).toBeTruthy();
     expect(screen.getByText('Thêm nhanh biển số xe')).toBeTruthy();
   });
 });
