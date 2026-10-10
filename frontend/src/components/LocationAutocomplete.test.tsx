@@ -79,9 +79,19 @@ describe('LocationAutocomplete', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Mở hành trình' }));
       const input = screen.getByRole('textbox', { name: 'Địa điểm hành trình' });
       act(() => input.focus());
-      await screen.findByText('Cảng Hải Phòng');
+      // Contention-budgeted waits (card 20261010_1): the debounced facet
+      // search resolved in 1.4-2.7s in full-suite runs under machine load
+      // 46-80, past the 1s findBy/waitFor default. 4s clears the worst
+      // observed resolution while staying under the 5s test budget; the
+      // assertions themselves are unchanged.
+      await screen.findByText('Cảng Hải Phòng', {}, { timeout: 4000 });
+      // Flush the combobox's overlay-token registration effect before the
+      // first Escape: the options can render a tick before the enabled isOpen
+      // effect registers the dropdown's token, and an early Escape then finds
+      // the parent topmost and closes the wrong layer (card 20261010_1).
+      await act(async () => {});
       fireEvent.keyDown(document.body, { key: 'Escape' });
-      await waitFor(() => expect(screen.queryByText('Cảng Hải Phòng')).toBeNull());
+      await waitFor(() => expect(screen.queryByText('Cảng Hải Phòng')).toBeNull(), { timeout: 4000 });
       expect(screen.getByText('Hành trình đang mở')).toBeTruthy();
       expect(document.activeElement).toBe(input);
       expect(isOverlayOpen()).toBe(true);

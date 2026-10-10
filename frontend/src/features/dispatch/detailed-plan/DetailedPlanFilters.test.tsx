@@ -328,9 +328,12 @@ describe('DetailedPlanFilters — Bộ lọc dialog (hours/zone/points)', () => 
     fireEvent.click(trigger);
     const search = within(getPicker('điểm trả')).getByLabelText(/Tìm điểm trả/);
     fireEvent.change(search, { target: { value: 'Mỹ' } });
-    await waitFor(() => expect(loadDeliveryPointFacets).toHaveBeenCalledWith('Mỹ'));
+    // Contention-budgeted waits (card 20261010_1): the facet pipeline
+    // resolved in up to 2.7s under full-suite machine load 46-80, past the
+    // 1s waitFor default. Assertions unchanged.
+    await waitFor(() => expect(loadDeliveryPointFacets).toHaveBeenCalledWith('Mỹ'), { timeout: 4000 });
     fireEvent.change(search, { target: { value: 'Mỹ Đình' } });
-    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeInTheDocument());
+    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeInTheDocument(), { timeout: 4000 });
     resolveEarlier([{ id: 8, name: 'Mỹ Tho' }]);
     expect(within(getPopover('điểm trả')).getByRole('option', { name: 'ICD Mỹ Đình' })).toBeInTheDocument();
   });
@@ -345,7 +348,7 @@ describe('DetailedPlanFilters — Bộ lọc dialog (hours/zone/points)', () => 
     openFilterDialog();
     const trigger = screen.getByRole('button', { name: /Chọn điểm trả…/ });
     fireEvent.click(trigger);
-    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
+    await waitFor(() => expect(within(getPopover('điểm trả')).getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy(), { timeout: 4000 });
     await pickCheckbox('điểm trả', 'KCN Vân Trung');
     expect(getPopover('điểm trả')).toBeTruthy();
     fireEvent.pointerDown(document.body);
