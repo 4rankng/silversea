@@ -65,6 +65,10 @@ describe('shipment create responsive layout', () => {
     }
     expect(css).toMatch(/\.csc-container-editor\s*\{[^}]*container-type:\s*inline-size;[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*width:\s*100%;/);
+    // Horizontal-only scroll box: `overflow-x: auto` alone forces
+    // `overflow-y: auto` and the horizontal scrollbar's height makes the table
+    // overflow vertically — the page painted TWO scrollbars over one table.
+    expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*hidden;/);
     expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1038px;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*180px;/);
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
@@ -145,9 +149,11 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 3;/);
     expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 3;/);
-    // Below the 12-column canvas the customer field stops sharing a half row.
-    expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid__customer,\s*\.csc-identity-grid__flags--solo\s*\{[^}]*grid-column:\s*1 \/ -1;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    // Below the 12-column canvas the customer field stops sharing a half row
+    // (owner report 11/10: three identity fields ride ONE row on a laptop —
+    // the collapse starts at 820px, not at the tablet width).
+    expect(css).toMatch(/@media\s*\(max-width:\s*820px\)[\s\S]*?\.csc-identity-grid__customer,\s*\.csc-identity-grid__flags--solo\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*820px\)[\s\S]*?\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
   });
 
@@ -224,22 +230,28 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{\s*\.csc-notes-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
   });
 
-  it('gives the declaration entry its own full-width strip of chips', () => {
+  it('gives the declaration entry the dense chip input (owner reference)', () => {
     // No single-row field shares a grid row with the 1-to-N declaration entry:
     // the carrier + flag band stays a partial-width pair (owner density pass
     // 11/10: carrier 6 columns, the `Tuỳ chọn` chips the other 6).
     expect(css).toMatch(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__flags\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).not.toContain('.csc-identity-grid__declaration');
-    // The strip is one full-width band; the codes are pill chips with an
-    // inline entry, not a form field per declaration.
-    expect(css).toMatch(/\.csc-declaration-strip\s*\{[^}]*grid-column:\s*1 \/ -1;/);
-    expect(css).toMatch(/\.csc-declaration-chip\s*\{[^}]*border-radius:\s*999px;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)\s*\{\s*\.csc-declaration-strip__input,\s*\.csc-declaration-strip__add\s*\{[^}]*flex:\s*1 1 100%;/);
+    // One bordered field holds the chips AND the entry (click anywhere in it
+    // focuses the entry), the head carries the bulk actions, the foot the hint.
+    expect(css).toMatch(/\.csc-declaration-strip\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*display:\s*grid;/);
+    expect(css).toMatch(/\.csc-declaration-strip__field\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*max-height:\s*120px;[^}]*overflow-y:\s*auto;[^}]*cursor:\s*text;/);
+    expect(css).toMatch(/\.csc-declaration-strip__field:focus-within\s*\{[^}]*border-color:\s*var\(--accent\);/);
+    expect(css).toMatch(/\.csc-declaration-strip__input\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-width:\s*180px;[^}]*border:\s*0;/);
+    expect(css).toMatch(/\.csc-declaration-strip__actions\s*\{[^}]*margin-left:\s*auto;/);
+    expect(css).toMatch(/\.csc-declaration-chip\s*\{[^}]*border-radius:\s*6px;/);
+    expect(css).toMatch(/\.csc-declaration-chip--flash\s*\{/);
+    expect(css).toMatch(/\.csc-declaration-strip__bulk-input\s*\{/);
     // The per-declaration row list is retired — no leftover class names.
     expect(css).not.toContain('.csc-declaration-ledger');
     expect(css).not.toContain('.csc-declaration-row');
     expect(css).not.toContain('.csc-declaration-list');
+    expect(css).not.toContain('.csc-declaration-chips');
   });
 
   it('retires the stacked declaration fields and orphan add lines', () => {

@@ -619,7 +619,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     // A second code can be committed with the add action…
     fireEvent.change(declInput, { target: { value: 'TK-SECOND' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+    fireEvent.keyDown(declInput, { key: 'Enter' });
     expect(screen.getByText('TK-SECOND')).toBeTruthy();
     expect(document.querySelector('.csc-declaration-strip__count')?.textContent).toBe('2');
 
