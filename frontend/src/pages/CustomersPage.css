@@ -34,6 +34,7 @@
 /* Card _37: dense table upgrades. */
 .customers-page .record-table-wrap {
   max-height: calc(100vh - 330px);
+  max-height: calc(100dvh - 330px);
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 10px;

@@ -219,6 +219,9 @@
     width: min(86vw, 320px);
     transform: translateX(-101%);
     transition: transform .2s ease;
+    /* Landscape cutouts: the panel paints to the edge, content clears
+       the notch side; portrait insets are 0. */
+    padding-inline: max(0px, env(safe-area-inset-left, 0px)) max(0px, env(safe-area-inset-right, 0px));
   }
   .customer-shell__sidebar.is-open { transform: translateX(0); }
   .customer-shell__close { display: grid; }
@@ -251,6 +254,9 @@
     align-items: center;
     gap: 9px;
     padding: env(safe-area-inset-top, 0px) 12px 0;
+    /* Cutout law: the header paints to both edges, its controls clear the
+       landscape notch sides. */
+    padding-inline: max(12px, env(safe-area-inset-left, 0px)) max(12px, env(safe-area-inset-right, 0px));
     background: var(--sidebar);
     color: var(--fg-inverse);
   }
@@ -295,6 +301,8 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+    /* Cutout law: same max(base, env()) inline treatment as the header. */
+    padding-inline: max(6px, env(safe-area-inset-left, 0px)) max(6px, env(safe-area-inset-right, 0px));
     background: var(--surface);
     border-top: 1px solid var(--border-1);
   }

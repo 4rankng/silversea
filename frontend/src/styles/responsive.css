@@ -69,6 +69,10 @@
     z-index: var(--z-modal);
     transform: translateX(-100%);
     transition: transform 240ms var(--ease);
+    /* Landscape cutouts: the slide-in panel keeps painting its own surface
+       to the screen edge while its content clears the notch side. Portrait
+       insets are 0, so this is a no-op there. */
+    padding-inline: max(0px, env(safe-area-inset-left, 0px)) max(0px, env(safe-area-inset-right, 0px));
   }
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay.open { display: block; }
@@ -94,8 +98,9 @@
   .topbar {
     height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
     min-height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
-    padding-left: 16px;
-    padding-right: 16px;
+    /* Cutout law: the bar paints to both screen edges while its controls
+       clear the landscape notch; portrait insets are 0. */
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
     padding-top: constant(safe-area-inset-top, 0px);
     padding-top: env(safe-area-inset-top, 0px);
     background: var(--sb-bg);
@@ -252,6 +257,9 @@
   .topbar {
     padding: constant(safe-area-inset-top, 0px) 10px 0;
     padding: env(safe-area-inset-top, 0px) 10px 0;
+    /* Same cutout law as the ≤1023 tier: inline override after the
+       shorthand keeps the landscape notch sides clear at 10px+inset. */
+    padding-inline: max(10px, env(safe-area-inset-left, 0px)) max(10px, env(safe-area-inset-right, 0px));
     gap: 8px;
     height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
     min-height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));

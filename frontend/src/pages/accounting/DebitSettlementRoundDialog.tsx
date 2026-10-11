@@ -160,7 +160,7 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
         aria-modal="true"
         aria-label="Chọn Debit — chốt đợt đối soát"
         className="confirm-box"
-        style={{ width: 520, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto' }}
+        style={{ width: 520, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto' }}
         onClick={(event) => event.stopPropagation()}
       >
         <p style={{ fontWeight: 600, margin: '0 0 10px' }}>Chọn Debit — chốt đợt đối soát ({rows.length} lô)</p>

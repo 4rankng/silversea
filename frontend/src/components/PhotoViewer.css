@@ -123,6 +123,7 @@
 .pv-image {
   max-width: 92vw;
   max-height: calc(100vh - 96px);
+  max-height: calc(100dvh - 96px);
   object-fit: contain;
   transform-origin: center center;
   will-change: transform;

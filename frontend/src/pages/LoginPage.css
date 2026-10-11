@@ -355,6 +355,9 @@
 @media (max-width: 900px) {
   .login-page {
     padding: 0;
+    /* Landscape cutouts: the page clears the notch sides; portrait
+       insets are 0. Same max(base, env()) idiom as the app chrome. */
+    padding-inline: max(0px, env(safe-area-inset-left, 0px)) max(0px, env(safe-area-inset-right, 0px));
     background: var(--surface);
   }
 
@@ -424,6 +427,10 @@
 
   .login-visual {
     min-height: 218px;
+    /* Installed standalone mode: the hero panel itself pads below the
+       status bar so its navy surface paints the notch strip — no band, and
+       the clock stays readable. Browser tabs report a 0 inset here. */
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
   .login-visual__image {

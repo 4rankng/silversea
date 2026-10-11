@@ -1,5 +1,7 @@
 .debit-editor-page {
-  min-height: calc(100vh - 64px);
+  /* Scrollport-relative fill — a viewport-locked height overshoots the
+     shell scrollport and becomes scrollable void below the workspace. */
+  min-height: 100%;
   margin: 0;
   min-width: 0;
   background: #f7faf8;
@@ -130,7 +132,7 @@
 }
 
 .debit-editor-workspace {
-  min-height: calc(100vh - 142px);
+  min-height: calc(100dvh - 142px);
   padding: 12px 0 24px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);

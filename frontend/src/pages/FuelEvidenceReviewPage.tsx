@@ -65,7 +65,7 @@ export default function FuelEvidenceReviewPage() {
         .fuel-evidence-review__list {
           display: grid;
           gap: 16px;
-          max-height: calc(100vh - 220px);
+          max-height: calc(100dvh - 220px);
           overflow: auto;
           padding-right: 4px;
         }
