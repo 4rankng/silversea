@@ -691,6 +691,9 @@ export interface DispatchShipmentRequest {
   externalPlateNumber?: string | null;
   externalDriverName?: string | null;
   externalDriverPhone?: string | null;
+  /** Warn-once overlap contract (card 061026172804 family): the dispatcher
+   *  confirmed the completed-trip overlap warning and this is the retry. */
+  rigOverlapCompletedConfirmed?: boolean;
 }
 
 /** Response from `POST /api/shipments/:id/dispatch` — the trip it created (or

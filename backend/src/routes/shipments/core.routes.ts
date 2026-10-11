@@ -87,6 +87,10 @@ const fulfillmentDispatchSchema = z.object({
   externalPlateNumber: z.string().trim().max(20).optional().nullable(),
   externalDriverName: z.string().trim().max(100).optional().nullable(),
   externalDriverPhone: z.string().trim().max(20).optional().nullable(),
+  // Warn-once overlap contract (card 061026172804 family) — the issue path is
+  // a caller of the shared guard and must carry the confirm flag like the
+  // plan-save and reassign endpoints, or its warn has no path on (review B2).
+  rigOverlapCompletedConfirmed: z.boolean().optional(),
 });
 
 const completeShipmentDirectSchema = z.object({
@@ -781,6 +785,7 @@ coreRoutes.post(
       externalPlateNumber: parsed.data.externalPlateNumber ?? null,
       externalDriverName: parsed.data.externalDriverName ?? null,
       externalDriverPhone: parsed.data.externalDriverPhone ?? null,
+      rigOverlapCompletedConfirmed: parsed.data.rigOverlapCompletedConfirmed === true,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     });

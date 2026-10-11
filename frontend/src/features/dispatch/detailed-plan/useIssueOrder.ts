@@ -5,6 +5,7 @@ import {
   type DispatchTruck,
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
+import { useConfirm } from '../../../components/UI';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 
 function pad2(value: number): string {
@@ -124,7 +125,10 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
   });
   const [issuing, setIssuing] = useState(false);
   const issueInFlight = useRef(false);
+  // The confirmed warn-retry reuses the truck resolved for the first attempt.
+  const resolvedTruckRef = useRef<OwnTruckDriver | null>(null);
   const [issueError, setIssueError] = useState<string | null>(null);
+  const { confirm, dialog: issueConfirmDialog } = useConfirm();
 
   useEffect(() => {
     if (!open || !canIssue || row.dispatch.carrierType !== 'OWN' || !row.dispatch.assignedPlate) {
@@ -204,6 +208,26 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
     issueInFlight.current = true;
     setIssuing(true);
     setIssueError(null);
+    const attempt = (extra: { rigOverlapCompletedConfirmed?: boolean } = {}) => onIssueOrder(row, {
+      plannedStartAt: startAt.toISOString(),
+      plannedEndAt: endAt.toISOString(),
+      endTimeConfirmed: true,
+      carrierType: row.dispatch.carrierType as 'OWN' | 'EXTERNAL',
+      truckId: isOwn ? resolvedTruckRef.current!.id : undefined,
+      driverId: isOwn ? resolvedTruckRef.current!.driverId : undefined,
+      // Card 20261005_387 — the per-trip override rides only when picked;
+      // omitted otherwise, so the backend resolves the tractor's current
+      // coupling exactly as before this card.
+      trailerId: isOwn && issueDraft.trailerId != null ? issueDraft.trailerId : undefined,
+      externalCarrierId: isOwn ? undefined : row.dispatch.externalCarrierId,
+      externalCarrierVehicleId: isOwn ? undefined : row.dispatch.externalCarrierVehicleId,
+      externalPlateNumber: isOwn || row.dispatch.externalCarrierVehicleId != null
+        ? undefined
+        : row.dispatch.assignedPlate,
+      externalDriverName: isOwn ? undefined : externalDriverName,
+      externalDriverPhone: isOwn ? undefined : (externalDriverPhone || undefined),
+      ...extra,
+    });
     try {
       // A row action issues directly without mounting the assignment dialog.
       // Resolve its driver only on demand; never fetch once per visible row.
@@ -224,37 +248,43 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
       if (isOwn && resolvedTruck?.driverId == null) {
         throw new Error('Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
       }
-      await onIssueOrder(row, {
-        plannedStartAt: startAt.toISOString(),
-        plannedEndAt: endAt.toISOString(),
-        endTimeConfirmed: true,
-        carrierType: row.dispatch.carrierType as 'OWN' | 'EXTERNAL',
-        truckId: isOwn ? resolvedTruck!.id : undefined,
-        driverId: isOwn ? resolvedTruck!.driverId : undefined,
-        // Card 20261005_387 — the per-trip override rides only when picked;
-        // omitted otherwise, so the backend resolves the tractor's current
-        // coupling exactly as before this card.
-        trailerId: isOwn && issueDraft.trailerId != null ? issueDraft.trailerId : undefined,
-        externalCarrierId: isOwn ? undefined : row.dispatch.externalCarrierId,
-        externalCarrierVehicleId: isOwn ? undefined : row.dispatch.externalCarrierVehicleId,
-        externalPlateNumber: isOwn || row.dispatch.externalCarrierVehicleId != null
-          ? undefined
-          : row.dispatch.assignedPlate,
-        externalDriverName: isOwn ? undefined : externalDriverName,
-        externalDriverPhone: isOwn ? undefined : (externalDriverPhone || undefined),
-      });
+      resolvedTruckRef.current = resolvedTruck;
+      await attempt();
       onIssued();
     } catch (issueOrderError) {
-      setIssueError(
-        issueOrderError instanceof Error && issueOrderError.message
-          ? issueOrderError.message
-          : 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.',
-      );
+      const err = issueOrderError as { status?: number; message?: string; raw?: { code?: string } };
+      // Warn-once overlap contract (card 061026172804 family / ticket
+      // 101026043000 review B2): a completed-trip overlap warns instead of
+      // silently issuing — the dispatcher confirms and the same issue rides
+      // the confirm flag. Before this, "Phát lệnh" rendered the warn as a
+      // plain dead-end error ("…Vẫn lưu?" with no control to answer it).
+      if (err.status === 409 && err.raw?.code === 'RIG_OVERLAP_COMPLETED') {
+        const proceed = await confirm(err.message
+          ?? 'Đầu xe có chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?');
+        if (proceed) {
+          try {
+            await attempt({ rigOverlapCompletedConfirmed: true });
+            onIssued();
+          } catch (retryError) {
+            const retry = retryError as { message?: string };
+            setIssueError(retry.message
+              || 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.');
+          }
+        } else {
+          setIssueError(err.message ?? 'Đã huỷ phát lệnh.');
+        }
+      } else {
+        setIssueError(
+          issueOrderError instanceof Error && issueOrderError.message
+            ? issueOrderError.message
+            : 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.',
+        );
+      }
     } finally {
       issueInFlight.current = false;
       setIssuing(false);
     }
   }
 
-  return { ownTruck, loadingOwnTruck, trailerOptions, issueDraft, setIssueDraft, issuing, issueError, setIssueError, issue };
+  return { ownTruck, loadingOwnTruck, trailerOptions, issueDraft, setIssueDraft, issuing, issueError, setIssueError, issue, issueConfirmDialog };
 }

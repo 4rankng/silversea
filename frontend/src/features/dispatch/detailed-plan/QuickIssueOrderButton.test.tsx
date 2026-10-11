@@ -69,6 +69,26 @@ describe('VID-DSP-02 direct release', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
+  it('a completed-trip overlap warn confirms and retries the issue with the flag (ticket 101026043000 review B2)', async () => {
+    // The warn-once contract (RIG_OVERLAP_COMPLETED + confirm + flagged retry)
+    // reached the plan-save and reassign flows but dead-ended "Phát lệnh": the
+    // 409 rendered as a plain error with no control to answer it.
+    const overlap = Object.assign(
+      new Error('Có 1 chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?'),
+      { status: 409, raw: { code: 'RIG_OVERLAP_COMPLETED' } },
+    );
+    const issue = vi.fn()
+      .mockRejectedValueOnce(overlap)
+      .mockResolvedValue({});
+    render(<QuickIssueOrderButton row={row()} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
+
+    const confirm = await screen.findByRole('button', { name: 'Xác nhận' });
+    fireEvent.click(confirm);
+    await waitFor(() => expect(issue).toHaveBeenCalledTimes(2));
+    expect(issue.mock.calls[1][1]).toMatchObject({ rigOverlapCompletedConfirmed: true });
+  });
+
   it('uses Vietnam time for a legacy date/hour row independently of the browser timezone', async () => {
     const issue = vi.fn().mockResolvedValue({});
     const legacy = row('EXTERNAL');

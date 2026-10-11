@@ -331,6 +331,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     issueError,
     setIssueError,
     issue,
+    issueConfirmDialog,
   } = useIssueOrder({
     row,
     open,
@@ -1088,6 +1089,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         </form>
       </Modal>
       {overlapConfirmDialog}
+      {issueConfirmDialog}
       {quickAddOpen && (selectedCarrier?.carrierType === 'OWN' || (selectedCarrier?.carrierType === 'EXTERNAL' && selectedCarrier.externalCarrierId != null)) && (
         <QuickAddVehicleDialog
           isOpen

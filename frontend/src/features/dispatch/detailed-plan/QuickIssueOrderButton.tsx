@@ -15,7 +15,7 @@ interface QuickIssueOrderButtonProps {
 
 /** Release a saved assignment immediately; planning times stay owned by CUS. */
 export function QuickIssueOrderButton({ row, onIssueOrder }: QuickIssueOrderButtonProps) {
-  const { issue, issuing, issueError } = useIssueOrder({
+  const { issue, issuing, issueError, issueConfirmDialog } = useIssueOrder({
     row, open: false, canIssue: true, onIssueOrder, onIssued: () => undefined,
   });
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
@@ -39,6 +39,7 @@ export function QuickIssueOrderButton({ row, onIssueOrder }: QuickIssueOrderButt
         </button>
       </DisabledActionTip>
       {issueError && <p className="dispatch-assignment-dialog__error" role="alert">{issueError}</p>}
+      {issueConfirmDialog}
     </div>
   );
 }
