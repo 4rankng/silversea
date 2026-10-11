@@ -30,4 +30,12 @@ describe('topbar visibility contract', () => {
   it('does not clip the current-page name on a narrow mobile topbar', () => {
     expect(responsiveCss).toContain('.topbar__context strong {\n    overflow: visible;\n    text-overflow: clip;\n    white-space: normal;');
   });
+
+  it('expands the global search on focus while keeping the 360px rest cap (case 2026-10-11-R14-07)', () => {
+    // Owner ruling 2026-10-11 (FB-057): the 360px cap is a rest-state clamp —
+    // it must relax while the field is in use and return on blur, without
+    // jumping the topbar height.
+    expect(topbarCss).toMatch(/\.topbar__search\s*\{[^}]*max-width:\s*360px;/);
+    expect(topbarCss).toMatch(/\.topbar__search:focus-within\s*\{[^}]*max-width:\s*(min\(560px|560px)/);
+  });
 });

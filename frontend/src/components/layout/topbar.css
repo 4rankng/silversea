@@ -497,12 +497,22 @@
   /* Case QA-2026-09-27-02 / card 20260927_2: the global nav search is the
      secondary tool (page-level table search runs below it) — clamp it to
      360px max so the canvas does not stretch the input across the entire
-     viewport width. Flex keeps it from collapsing below its min-width. */
+     viewport width. Flex keeps it from collapsing below its min-width.
+     Owner ruling 2026-10-11 (case 2026-10-11-R14-07 / FB-057): the cap is a
+     rest-state clamp — focus relaxes it to 560px for typing room and blur
+     returns to the cap. Width-only transition: the topbar height never moves. */
   flex: 1 1 0;
   margin-left: 0;
   position: relative;
   min-width: 200px;
   max-width: 360px;
+  transition: max-width 0.18s ease;
+}
+.topbar__search:focus-within {
+  max-width: 560px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar__search { transition: none; }
 }
 .topbar__search > svg {
   position: absolute;
