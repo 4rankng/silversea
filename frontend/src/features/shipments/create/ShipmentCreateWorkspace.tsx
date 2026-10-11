@@ -30,6 +30,7 @@ import {
 } from './shipment-create-model';
 import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
+import { ShipmentCreateTopline } from './ShipmentCreateTopline';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
@@ -183,8 +184,8 @@ export function ShipmentCreateWorkspace() {
         : key === 'isAdHoc' ? value !== EMPTY_FORM.isAdHoc
         : key === 'hasDeposit' ? value !== EMPTY_FORM.hasDeposit
         // Arrays diff against their pristine shape: a non-empty array is not
-        // automatically data (declarationNumbers starts as [''], and a
-        // pristine form must not report dirty — regression of 73286319).
+        // automatically data (declarationNumbers starts empty, and a pristine
+        // form must not report dirty — regression of 73286319).
         : Array.isArray(value) ? JSON.stringify(value) !== JSON.stringify(EMPTY_FORM[key as keyof typeof EMPTY_FORM])
         : value !== ''
     ));
@@ -516,14 +517,36 @@ export function ShipmentCreateWorkspace() {
     }
   }
 
+  // The three `*`-marked identity fields the owner mock counts ("Bắt buộc").
+  const requiredDone = useMemo(() => [
+    Boolean(form.customerId) || (form.isAdHoc && Boolean(form.rawCustomerName.trim())),
+    Boolean(form.tradeDirection),
+    Boolean(form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef),
+  ].filter(Boolean).length, [
+    form.customerId, form.isAdHoc, form.rawCustomerName,
+    form.tradeDirection, form.blNumber, form.bookingRef,
+  ]);
+
   if (loading) return <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-3)' }}>Đang tải…</div>;
   if (loadError) return <div role="alert" style={{ padding: 24, color: 'var(--danger)' }}>{loadError}</div>;
   if (!catalogs?.customers.length) return <EmptyState context="clients" title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
 
   return (
     <div className="csc-page">
-      <h1 className="csc-page__title">Tạo lô hàng</h1>
-      <form ref={workspaceFormRef} noValidate onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
+      <ShipmentCreateTopline
+        saving={saving}
+        requiredDone={requiredDone}
+        requiredTotal={3}
+        onCancel={goBack}
+        onSaveDraft={() => void save('DRAFT')}
+        onCreate={() => void save('CREATE')}
+      />
+      <form ref={workspaceFormRef} noValidate onSubmit={(event) => { event.preventDefault(); void save('CREATE'); }} className="csc-workspace">
+        <ShipmentCreateSummary
+          validationIssues={validationIssues}
+          submitError={submitError}
+          onFocusIssue={focusIssue}
+        />
         <div className="csc-form">
           <ShipmentCreateIdentitySection
             form={form}
@@ -742,14 +765,6 @@ export function ShipmentCreateWorkspace() {
           vehicleSizeClassCode={previewSizeClass ?? undefined}
           transportDate={previewTransportDate || undefined}
           isAdHoc={form.isAdHoc}
-        />
-        <ShipmentCreateSummary
-          validationIssues={validationIssues}
-          saving={saving}
-          submitError={submitError}
-          onFocusIssue={focusIssue}
-          onCreate={() => void save('DRAFT')}
-          onCancel={goBack}
         />
       </form>
 

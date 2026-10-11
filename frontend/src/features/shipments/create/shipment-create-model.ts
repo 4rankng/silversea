@@ -2,7 +2,7 @@ import { localDateTimeToIso } from '../../../lib/shipment-operations';
 import { ShipmentStatus } from '@tingting/shared';
 
 export type CargoMode = 'FCL' | 'LCL';
-export type SaveIntent = 'DRAFT' | 'SUBMIT';
+export type SaveIntent = 'DRAFT' | 'CREATE' | 'SUBMIT';
 
 export interface ShipmentCreateFormState {
   customerId: string;
@@ -109,7 +109,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   blNumber: '',
   shippingLineName: '',
   declarationNumber: '',
-  declarationNumbers: [''],
+  declarationNumbers: [],
   tradeDirection: '',
   cargoMode: 'FCL',
   isCombined: false,
@@ -258,6 +258,9 @@ export function getShipmentCreateReadiness(
   };
 }
 
+/** DRAFT = partial save (customer only). CREATE = full intake validation.
+ *  SUBMIT = CREATE + submit-for-dispatch (no UI caller today; pre-existing,
+ *  left in place). */
 export function validateShipmentCreate(
   intent: SaveIntent,
   readiness: ShipmentCreateReadiness,

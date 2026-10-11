@@ -140,7 +140,10 @@ describe('shipment create responsive layout', () => {
 
   it('gives customer identity the widest column and reflows cleanly by viewport', () => {
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
-    expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
+    // Owner mock 11/10 column map: 5 / 3 / 4 across one 12-column track.
+    expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 5;/);
+    expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 3;/);
+    expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 4;/);
     // Below the 12-column canvas the customer field stops sharing a half row.
     expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid__customer,\s*\.csc-identity-grid__flags--solo\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
@@ -158,9 +161,9 @@ describe('shipment create responsive layout', () => {
 
   it('separates form sections from the application canvas without decorative elevation', () => {
     expect(css).toMatch(/\.app-main:has\(\.csc-page\)\s*\{[^}]*background:\s*var\(--surface-3\);/);
-    expect(css).toMatch(/\.csc-form\s*\{[^}]*gap:\s*12px;/);
+    expect(css).toMatch(/\.csc-form\s*\{[^}]*gap:\s*10px;/);
     expect(css).toMatch(/\.csc-section\s*\{[^}]*border:\s*0\s*!important;[^}]*background:\s*var\(--surface\)\s*!important;/);
-    expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*margin:\s*-18px -18px 0;[^}]*background:\s*var\(--surface-2\);/);
+    expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*margin:\s*-14px -14px 0;[^}]*background:\s*var\(--surface-2\);/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*margin:\s*-8px -8px 0;/);
     expect(css).not.toMatch(/\.csc-section\s*\{[^}]*box-shadow:/);
   });
@@ -183,11 +186,11 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode legend,\s*\.csc-mode__option,\s*\.csc-flag-checkbox\s*\{[^}]*font-size:\s*var\(--control-compact-touch-font-size\);[^}]*line-height:\s*var\(--control-compact-touch-line-height\);/);
     expect(css).toMatch(/\.app-main:has\(\.csc-page\) \.app-body\s*\{[^}]*--app-body-pad-x:\s*8px;/);
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.csc-page\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*margin-inline:\s*0;/);
-    // Owner mock 11/10: the trailing band reserves the fixed action bar's
-    // measured height (useFixedActionClearance) plus breathing room — once.
-    expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*12px 0 calc\(var\(--csc-action-bar-h, 84px\) \+ 16px\);/);
-    expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.csc-page\s*\{[^}]*padding:\s*12px 0 calc\(var\(--csc-action-bar-h, 84px\) \+ 16px\);/);
-    expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*12px;/);
+    // Owner mock 11/10: the topline retires the fixed action bar, so the page
+    // clears nothing extra and the dense worksheet gaps read 10px.
+    expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*12px 0;/);
+    expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.csc-page\s*\{[^}]*padding:\s*12px 0;/);
+    expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*10px;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section\s*\{[^}]*padding:\s*8px\s*!important;[^}]*gap:\s*10px\s*!important;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*padding:\s*10px 8px;/);
     expect(css).not.toMatch(/\.csc-control-boundary \[data-label='true'\]\s*\{[^}]*font-size:/);
@@ -221,20 +224,22 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{\s*\.csc-notes-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
   });
 
-  it('gives the declaration repeater its own full-width band and compact rows', () => {
-    // No single-row field shares a grid row with the 1-to-N declaration list:
+  it('gives the declaration entry its own full-width strip of chips', () => {
+    // No single-row field shares a grid row with the 1-to-N declaration entry:
     // the carrier + flag band stays a partial-width pair (owner density pass
-    // 11/10 trimmed the carrier to 5 columns so the flag chips own 7).
+    // 11/10 trimmed the carrier to 5 columns so the `Tuỳ chọn` chips own 7).
     expect(css).toMatch(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span 5;/);
     expect(css).toMatch(/\.csc-identity-grid__flags\s*\{[^}]*grid-column:\s*span 7;/);
     expect(css).not.toContain('.csc-identity-grid__declaration');
-    // House repeated-item budget (supplier-carrier-trucks__item: 32px), not a
-    // full form field per declaration.
-    expect(css).toMatch(/\.csc-declaration-row\s*\{[^}]*min-height:\s*32px;/);
-    // The code is short: content-sized track, row remainder for the warning.
-    expect(css).toMatch(/\.csc-declaration-row__field\s*\{[^}]*max-width:\s*320px;/);
-    expect(css).toMatch(/\.csc-declaration-list__add\s*\{[^}]*width:\s*fit-content;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-declaration-list__add\s*\{[^}]*width:\s*100%;/);
+    // The strip is one full-width band; the codes are pill chips with an
+    // inline entry, not a form field per declaration.
+    expect(css).toMatch(/\.csc-declaration-strip\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/\.csc-declaration-chip\s*\{[^}]*border-radius:\s*999px;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)\s*\{\s*\.csc-declaration-strip__input,\s*\.csc-declaration-strip__add\s*\{[^}]*flex:\s*1 1 100%;/);
+    // The per-declaration row list is retired — no leftover class names.
+    expect(css).not.toContain('.csc-declaration-ledger');
+    expect(css).not.toContain('.csc-declaration-row');
+    expect(css).not.toContain('.csc-declaration-list');
   });
 
   it('retires the stacked declaration fields and orphan add lines', () => {
@@ -258,22 +263,22 @@ describe('shipment create responsive layout', () => {
   });
 
   it('uses the full workspace width and keeps actions in the form flow', () => {
-    expect(css).toMatch(/\.csc-workspace\s*\{[^}]*display:\s*grid;[^}]*gap:\s*12px;[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.csc-workspace\s*\{[^}]*display:\s*grid;[^}]*gap:\s*10px;[^}]*min-width:\s*0;/);
     expect(css).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(280px, 320px)');
     expect(css).not.toContain('.csc-readiness');
     expect(css).toMatch(/\.csc-summary\s*\{[^}]*display:\s*grid;[^}]*gap:\s*12px;[^}]*min-width:\s*0;/);
     expect(css).not.toContain('position: sticky');
   });
 
-  it('keeps the final actions in the fixed bottom bar (owner mock 11/10)', () => {
-    expect(css).toMatch(/\.csc-action-bar\s*\{[^}]*position:\s*fixed;[^}]*left:\s*var\(--app-sidebar-offset, 0px\);[^}]*bottom:\s*0;[^}]*padding:\s*12px 20px calc\(12px \+ env\(safe-area-inset-bottom, 0px\)\);[^}]*padding-inline:\s*max\(20px, env\(safe-area-inset-left, 0px\)\) max\(20px, env\(safe-area-inset-right, 0px\)\);[^}]*background:\s*var\(--surface\);[^}]*border-top:\s*1px solid var\(--line\);/);
-    expect(css).toMatch(/\.csc-action-bar__status\s*\{[^}]*-webkit-line-clamp:\s*2;/);
-    expect(css).toMatch(/\.csc-action-bar__actions\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*flex-end;/);
-    // The measured-height clearance (useFixedActionClearance publishes
-    // --csc-action-bar-h) replaces lockstep literals at every tier.
-    expect(css.match(/calc\(var\(--csc-action-bar-h, 84px\) \+ 16px\)/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(css).not.toMatch(/calc\(84px \+ env\(safe-area-inset-bottom/);
-    expect(css).not.toContain('.csc-button');
+  it('keeps the create actions on the page topline', () => {
+    // Owner mock 11/10 ("Tạo lô hàng – dense layout.html"): title, required
+    // progress and Huỷ / Lưu nháp / Tạo lô hàng ride ONE row at the head of the
+    // worksheet. The fixed bottom bar this supersedes is retired for good.
+    expect(css).toMatch(/\.csc-topline\s*\{[^}]*display:\s*flex;/);
+    expect(css).toMatch(/\.csc-topline__actions\s*\{[^}]*margin-left:\s*auto;/);
+    expect(css).not.toContain('.csc-action-bar');
+    expect(css).not.toContain('csc-action-bar-h');
+    expect(css).not.toContain('.csc-page__title');
     expect(css).not.toContain('.csc-summary__actions');
   });
 });

@@ -68,17 +68,6 @@ describe('mobile edge-to-edge — cutout law (landscape left/right insets)', () 
     );
   });
 
-  it('the create-page action bar rides the sidebar offset and clears the cutout sides', () => {
-    const csc = read('src/pages/clerk/ClerkShipmentCreatePage.css');
-    const bar = csc.match(/\.csc-action-bar\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(bar, 'csc action bar rule exists').not.toBe('');
-    // Never under the desktop rail; screen-edge sides follow the cutout law;
-    // bottom env counted once inside its own opaque box.
-    expect(bar).toMatch(/left:\s*var\(--app-sidebar-offset, 0px\);/);
-    expect(bar).toMatch(/padding-inline:\s*max\(20px, env\(safe-area-inset-left, 0px\)\) max\(20px, env\(safe-area-inset-right, 0px\)\);/);
-    expect(bar).toMatch(/calc\(12px \+ env\(safe-area-inset-bottom, 0px\)\)/);
-  });
-
   it('the customer portal mobile chrome clears the notch sides', () => {    const header = portal.match(/\.customer-shell__mobile-header\s*\{[^}]*\}/)?.[0] ?? '';
     expect(header, 'portal mobile header rule exists').not.toBe('');
     expect(header).toMatch(/padding:\s*env\(safe-area-inset-top, 0px\) 12px 0;/);

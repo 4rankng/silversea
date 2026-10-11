@@ -5,8 +5,15 @@
 /* Shipment entry is an operational worksheet: let its cards use the full
    shell canvas, while the app shell remains the single safe outer gutter. */
 .app-main:not(.driver-mode) .app-body > .csc-page { width: 100%; max-width: none; margin-inline: 0; }
-.csc-page { width: 100%; margin: 0; padding: 12px 0 calc(var(--csc-action-bar-h, 84px) + 16px); min-width: 0; }
-.csc-page__title { margin: 0 0 14px; font-size: var(--text-title-size); line-height: 1.2; color: var(--fg-1); font-weight: 700; }
+.csc-page { width: 100%; margin: 0; padding: 12px 0; min-width: 0; }
+/* Owner mock 11/10 ("Tạo lô hàng – dense layout.html"): title, required
+   progress and the three actions ride ONE topline; the fixed bottom bar is
+   retired. */
+.csc-topline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+.csc-topline__title { margin: 0; color: var(--fg-1); font-size: var(--text-title-size); font-weight: 700; line-height: 1.2; }
+.csc-topline__progress { color: var(--fg-3); font-size: var(--text-data-size); }
+.csc-topline__progress strong { color: var(--accent-ink); font-weight: 700; }
+.csc-topline__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
 /* LCL split-lot extra delivery dates (Create Shipment doc Block 2B "[+]" repeater). */
 .csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 .csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
@@ -18,12 +25,12 @@
 .csc-notes-grid > * { min-width: 0; }
 @media (max-width: 760px) { .csc-notes-grid { grid-template-columns: minmax(0, 1fr); } }
 .csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: var(--control-max-h); padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
-.csc-workspace { display: grid; gap: 12px; min-width: 0; }
-.csc-form { display: grid; gap: 12px; min-width: 0; }
-.csc-section { padding: 18px !important; gap: 14px !important; border: 0 !important; border-radius: 14px !important; background: var(--surface) !important; scroll-margin-top: 16px; }
+.csc-workspace { display: grid; gap: 10px; min-width: 0; }
+.csc-form { display: grid; gap: 10px; min-width: 0; }
+.csc-section { padding: 14px !important; gap: 14px !important; border: 0 !important; border-radius: 14px !important; background: var(--surface) !important; scroll-margin-top: 16px; }
 .csc-section:focus { outline: none; }
 .csc-section:focus-visible { outline: 3px solid var(--brand-subtle); outline-offset: 2px; }
-.csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -18px -18px 0; padding: 12px 18px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
+.csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -14px -14px 0; padding: 10px 14px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
 .csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--text-section-size); font-weight: 700; line-height: 1.3; }
 .csc-section__heading p { margin: 2px 0 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.4; }
 /* Section header is a slim title bar: the ad-hoc flag it used to carry now
@@ -43,16 +50,21 @@
 /* Selects migrated to the shared adapter: `ds-uui-*` classes
  * (design-system/forms/UuiSelectField.css, global) own the visuals. The
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
-.csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
-.csc-identity-grid__customer { grid-column: span 6; }
-.csc-identity-grid__booking, .csc-identity-grid__trade-direction { grid-column: span 3; }
+/* Owner mock 11/10 column map: Khách hàng 5 · Hình thức xuất nhập khẩu 3 ·
+   Số Bill/Booking 4, then Hãng tàu 5 · Tuỳ chọn chips 7. */
+.csc-identity-grid__customer { grid-column: span 5; }
+.csc-identity-grid__trade-direction { grid-column: span 3; }
+.csc-identity-grid__booking { grid-column: span 4; }
 .csc-identity-grid__shipping-line { grid-column: span 5; }
-/* The flag band rides its row's baseline: the chips (control height) sit on
-   the same bottom line as the carrier field's input, never centred in a
-   taller row. */
-.csc-identity-grid__flags { grid-column: span 7; display: flex; align-self: end; align-items: flex-end; gap: 12px; min-width: 0; flex-wrap: wrap; }
+/* The flag band carries its own `Tuỳ chọn` label, so its chips row lands on
+   the same baseline as the carrier field's input by construction — the old
+   align-self/align-items: flex-end pair is retired. */
+.csc-identity-grid__flags { grid-column: span 7; display: grid; align-content: start; gap: 8px; min-width: 0; }
 .csc-identity-grid__flags--solo { grid-column: 1 / -1; }
+.csc-identity-grid__flags-label { color: var(--fg-1); font-size: var(--text-label-size); font-weight: 600; line-height: 18px; }
+.csc-identity-grid__flags-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .csc-identity-grid__flags .csc-flag-checkbox { flex: 0 0 auto; }
 /* Field + quick-create on ONE row. The action keeps the house ghost/icon
    quick-create recipe; it sits beside its field instead of owning a line
@@ -123,9 +135,9 @@
 .csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .csc-container-table th:last-child, .csc-container-table td:last-child { border-right: 0; }
 .csc-container-table tbody tr:last-child > * { border-bottom: 0; }
-.csc-container-table thead th { padding: 8px 6px; background: var(--surface-2); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 700; line-height: 1.35; text-align: left; white-space: normal; }
+.csc-container-table thead th { padding: 6px; background: var(--surface-2); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 700; line-height: 1.35; text-align: left; white-space: normal; }
 .csc-container-table thead th:first-child, .csc-container-table thead th:last-child { text-align: center; }
-.csc-container-table tbody th, .csc-container-table tbody td { padding: 8px 6px; background: var(--surface); vertical-align: top; }
+.csc-container-table tbody th, .csc-container-table tbody td { padding: 6px; background: var(--surface); vertical-align: top; }
 .csc-container-table tbody th { color: var(--fg-3); font-size: var(--text-caption-size); text-align: center; }
 .csc-container-table tbody .csc-container-cell { padding: 0; vertical-align: middle; }
 .csc-container-table td:not(.csc-container-row__actions) > * { min-width: 0; }
@@ -228,17 +240,6 @@
   background: var(--surface-2);
 }
 .csc-summary { display: grid; gap: 12px; min-width: 0; }
-/* Owner mock 11/10 + UUI modal-foot idiom: the create actions ride a fixed
-   bottom bar — opaque surface, hairline top border, status left, actions
-   right. Shared fixed-bar mechanisms: left rides the shell's sidebar-offset
-   token (never under the desktop rail) and the inline pads follow the cutout
-   law (max(base, env(l/r))); the bar owns its bottom safe-area strip (env
-   counted once, inside its own box). Height is published as
-   --csc-action-bar-h by useFixedActionClearance — the page clearance below
-   reads it, so a wrapped two-row bar is still cleared. */
-.csc-action-bar { position: fixed; left: var(--app-sidebar-offset, 0px); right: 0; bottom: 0; z-index: var(--z-sticky, 100); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px)); padding-inline: max(20px, env(safe-area-inset-left, 0px)) max(20px, env(safe-area-inset-right, 0px)); background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgb(16 24 40 / 4%); }
-.csc-action-bar__status { margin: 0; min-width: 0; flex: 1 1 auto; color: var(--fg-2); font-size: var(--text-data-size); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.csc-action-bar__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 0 auto; }
 .csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
 .csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p, .csc-summary__muted, .csc-summary__error { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }.csc-summary__muted { color: var(--fg-3); }.csc-summary__error { color: var(--danger); }.csc-summary__warning { color: var(--warn); }
 .csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
@@ -246,8 +247,6 @@
 .csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
 .csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-soft); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: var(--control-max-h); border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
 .csc-submit-error { color: var(--danger); background: var(--danger-soft); font-size: var(--text-data-size); line-height: 1.5; }
-/* Retired: the create actions moved into the fixed .csc-action-bar (owner
-   mock 11/10). */
 @media (min-width: 1101px) and (min-height: 721px) {
   .csc-section__heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
   .csc-section__heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -290,7 +289,7 @@
   .csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .csc-page { padding: 12px 0 calc(var(--csc-action-bar-h, 84px) + 16px); }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-field-with-append { flex-wrap: wrap; }.csc-append-button { width: 100%; }.csc-declaration-list__add { width: 100%; }.csc-declaration-row__field { max-width: none; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-field-with-append { flex-wrap: wrap; }.csc-append-button { width: 100%; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 @media (max-width: 640px) {
   .csc-container-row { grid-template-columns: minmax(0, 112px) minmax(0, 1fr); }
@@ -298,18 +297,10 @@
   .csc-container-row > .csc-container-cell--weight { grid-column: 1; }
   .csc-container-row > .csc-container-cell--appointment { grid-column: 1 / -1; }
   .csc-page {
-    /* The fixed action bar (owner mock 11/10) reserves the trailing band:
-       its measured height (incl. the bar's own safe-area strip) plus
-       breathing room, counted once. The page surface still paints the band
-       (2026-09-16 grey-gap report). */
-    padding-bottom: calc(var(--csc-action-bar-h, 84px) + 16px);
+    /* No fixed surface rides this route any more (owner mock 11/10: the
+       actions moved to the page topline), so the page clears nothing extra —
+       the shell's ≤640 trailing band is the single bottom clearance. */
     background: var(--surface);
-  }
-  /* The shell's own 28px bottom padding sits BELOW the page and shows the
-     canvas after the worksheet ends — the page's safe-area padding replaces
-     it on this route (owner: main.app-body padding, found by the _10 rung). */
-  .app-main:has(.csc-page) .app-body {
-    padding-bottom: 0;
   }
 }
 
@@ -487,21 +478,21 @@
    carrier field (card 20260922_6 anatomy, now inside the identity grid). */
 .csc-deposit-amount { flex: 0 1 260px; min-width: 180px; }
 
-/* SỐ TỜ KHAI repeater — band 3, full width. The code is a short identifier
-   (maxLength 50, realistically 10–20 chars), so it takes a content-sized
-   track and the row's remaining width carries the per-declaration duplicate
-   warning. Rows use the house repeated-item budget
-   (supplier-carrier-trucks__item: 32px), not a full form field each. */
-.csc-declaration-ledger { display: grid; gap: 6px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-md, 10px); background: var(--surface-2); }
-.csc-declaration-ledger__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.csc-declaration-ledger__title { color: var(--fg-3); font-size: var(--text-caption-size); font-weight: var(--fw-semibold, 600); line-height: 1.35; letter-spacing: .04em; text-transform: uppercase; }
-.csc-declaration-ledger__count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-3); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 650; line-height: 1; }
-/* Owner mock 11/10: a long declaration list scrolls INSIDE its panel — the
-   ledger head (title + count pill) and the add row stay anchored. */
-.csc-declaration-list { display: grid; gap: 6px; margin: 0; padding: 0 4px 0 0; list-style: none; max-height: 372px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-.csc-declaration-row { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 32px; }
-.csc-declaration-row__index { display: inline-grid; place-items: center; flex: 0 0 auto; width: 18px; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1; }
-.csc-declaration-row__field { flex: 1 1 auto; min-width: 0; max-width: 320px; }
-.csc-declaration-row__field .csc-text-field-with-warning { min-width: 0; }
-.csc-declaration-row__remove { flex: 0 0 auto; min-width: var(--control-compact-h, 30px); min-height: var(--control-compact-h, 30px); }
-.csc-declaration-list__add { width: fit-content; white-space: nowrap; }
+/* SỐ TỜ KHAI — one dense strip: label + count + chips + inline entry (owner
+   mock "dense layout"). Replaces the per-declaration row list. */
+.csc-declaration-strip { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface-2); }
+.csc-declaration-strip__title { display: inline-flex; align-items: center; gap: 6px; color: var(--fg-3); font-size: var(--text-label-size); font-weight: 600; white-space: nowrap; }
+.csc-declaration-strip__count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-3); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 650; line-height: 1; }
+.csc-declaration-chips { display: flex; flex: 1 1 260px; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 0; min-width: 0; list-style: none; }
+.csc-declaration-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 4px 3px 9px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--fg-1); font-size: var(--text-data-size); }
+.csc-declaration-chip--conflict { border-color: var(--warning); background: var(--warning-soft); }
+.csc-declaration-chip__index { color: var(--fg-3); font-size: var(--text-caption-size); }
+.csc-declaration-chip__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csc-declaration-chip__remove { display: inline-grid; place-items: center; width: 18px; height: 18px; border: 0; border-radius: 999px; background: transparent; color: var(--fg-3); cursor: pointer; }
+.csc-declaration-chip__remove:not(:disabled):hover { background: var(--surface-3); color: var(--danger); }
+.csc-declaration-strip__input { flex: 0 1 210px; min-width: 150px; min-height: var(--control-compact-h); padding: 4px 9px; border: 1px solid var(--border-2); border-radius: 999px; background: var(--surface); color: var(--fg-1); font: inherit; font-size: var(--text-data-size); }
+.csc-declaration-strip__add { flex: 0 0 auto; }
+.csc-declaration-strip__hint { flex: 1 1 220px; color: var(--fg-3); font-size: var(--text-caption-size); }
+.csc-declaration-strip__notice { flex: 1 1 100%; color: var(--fg-3); font-size: var(--text-caption-size); }
+.csc-declaration-strip__notice:empty { display: none; }
+@media (max-width: 640px) { .csc-declaration-strip__input, .csc-declaration-strip__add { flex: 1 1 100%; } }

@@ -149,7 +149,6 @@ describe('mobile viewport-fill contract (card 20261004_327)', () => {
  * their own surface only — the documented law in docs/design-guidelines.md. */
 const ALLOWED_ENV_BOTTOM_FILES = new Set([
   'DriverTripDetailPage.css', // fixed driver task bars clear the Home indicator
-  'ClerkShipmentCreatePage.css', // .csc-page owns clearance (shell neutralized via :has)
   'CustomerPortalLayout.css', // portal scrollport + its own fixed tab bar
   'LoginPage.css', // renders outside the app shell
   'TripEditPage.css', // fixed mobile edit bar

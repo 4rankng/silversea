@@ -1,5 +1,5 @@
-import type { RefObject } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { useState, type RefObject } from 'react';
+import { Plus, X } from 'lucide-react';
 import {
   USearchableField as SearchableField,
   USelectField as SelectField,
@@ -49,9 +49,35 @@ export function ShipmentCreateIdentitySection({
   onOpenCustomerDialog,
   onOpenShippingLineDialog,
 }: ShipmentCreateIdentitySectionProps) {
-  const declarationList = form.declarationNumbers && form.declarationNumbers.length > 0
-    ? form.declarationNumbers
-    : [form.declarationNumber || ''];
+  const declarations = form.declarationNumbers ?? [];
+  const [declDraft, setDeclDraft] = useState('');
+  const [declNotice, setDeclNotice] = useState('');
+  const conflictFor = (value: string, index: number): ShipmentReferenceConflict | undefined => (
+    getDeclarationConflict
+      ? getDeclarationConflict(value)
+      : (index === 0 ? declarationConflict ?? undefined : undefined)
+  );
+  /** Commit one or many typed/pasted codes. Locally duplicate numbers are
+   *  skipped, never stored twice — `form.declarationNumbers` stays a set of
+   *  non-empty strings (the server-side cross-shipment conflict path is a
+   *  separate concern and untouched). */
+  function commitDeclarations(text: string) {
+    const tokens = text.split(/[\s,;]+/).map((token) => token.trim()).filter(Boolean);
+    const seen = new Set(declarations);
+    const added: string[] = [];
+    let skipped = 0;
+    for (const token of tokens) {
+      if (seen.has(token) || added.includes(token)) { skipped += 1; continue; }
+      seen.add(token); added.push(token);
+    }
+    if (added.length > 0) update('declarationNumbers', [...declarations, ...added]);
+    setDeclDraft('');
+    setDeclNotice(
+      added.length > 0
+        ? (skipped > 0 ? `Đã thêm ${added.length} số, bỏ qua ${skipped} số trùng.` : `Đã thêm ${added.length} số.`)
+        : (skipped > 0 ? `Bỏ qua ${skipped} số trùng.` : ''),
+    );
+  }
   return (
     <ShipmentCreateSection
       id="identity"
@@ -90,7 +116,7 @@ export function ShipmentCreateIdentitySection({
             disabled={saving}
             className="csc-utility-button csc-utility-button--dashed csc-append-button"
           >
-            <Plus size={15} aria-hidden="true" />Thêm khách hàng
+            + Khách
           </button>
         </div>
 
@@ -162,7 +188,7 @@ export function ShipmentCreateIdentitySection({
               disabled={saving}
               className="csc-utility-button csc-utility-button--dashed csc-append-button"
             >
-              <Plus size={15} aria-hidden="true" />Thêm hãng tàu
+              + Hãng tàu
             </button>
           </div>
         )}
@@ -171,112 +197,127 @@ export function ShipmentCreateIdentitySection({
           className={`csc-identity-grid__flags${form.cargoMode === 'FCL' ? '' : ' csc-identity-grid__flags--solo'}`}
           data-field-id="shipment-deposit"
         >
-          {/* All three boolean flags share the ONE .csc-flag-checkbox chip
-              treatment and now live on one band: the ad-hoc lot toggle sits
-              with its peers instead of riding the section header as a lone
-              heavy box (density pass, owner 11/10). DOM order keeps the flag
-              contract: Lệnh chạy ngoài → Có cược container → Đóng kết hợp. */}
-          <label className="csc-flag-checkbox" data-field-id="shipment-is-adhoc">
-            <input
-              type="checkbox"
-              checked={form.isAdHoc}
-              onChange={(event) => update('isAdHoc', event.target.checked)}
-              disabled={saving}
-            />
-            <span>Lệnh chạy ngoài</span>
-          </label>
-          <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
-            <input
-              type="checkbox"
-              checked={form.hasDeposit}
-              onChange={(event) => update('hasDeposit', event.target.checked)}
-              disabled={saving}
-            />
-            <span><strong>Có cược container</strong></span>
-          </label>
-          {form.hasDeposit && (
-            <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
-              <TextField
-                id="shipment-deposit-amount"
-                label="Tiền cược dự kiến"
-                value={form.depositAmount}
-                onChange={(event) => update('depositAmount', formatVnMoney(event.target.value))}
-                maxLength={15}
-                placeholder="Ví dụ: 5.000.000"
+          <span className="csc-identity-grid__flags-label">Tuỳ chọn</span>
+          <div className="csc-identity-grid__flags-row">
+            {/* All three boolean flags share the ONE .csc-flag-checkbox chip
+                treatment and now live on one band: the ad-hoc lot toggle sits
+                with its peers instead of riding the section header as a lone
+                heavy box (density pass, owner 11/10). DOM order keeps the flag
+                contract: Lệnh chạy ngoài → Có cược container → Đóng kết hợp. */}
+            <label className="csc-flag-checkbox" data-field-id="shipment-is-adhoc">
+              <input
+                type="checkbox"
+                checked={form.isAdHoc}
+                onChange={(event) => update('isAdHoc', event.target.checked)}
                 disabled={saving}
               />
-            </div>
-          )}
+              <span>Lệnh chạy ngoài</span>
+            </label>
+            <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
+              <input
+                type="checkbox"
+                checked={form.hasDeposit}
+                onChange={(event) => update('hasDeposit', event.target.checked)}
+                disabled={saving}
+              />
+              <span><strong>Có cược container</strong></span>
+            </label>
+            {form.hasDeposit && (
+              <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
+                <TextField
+                  id="shipment-deposit-amount"
+                  label="Tiền cược dự kiến"
+                  value={form.depositAmount}
+                  onChange={(event) => update('depositAmount', formatVnMoney(event.target.value))}
+                  maxLength={15}
+                  placeholder="Ví dụ: 5.000.000"
+                  disabled={saving}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* BAND 3 — declaration repeater. Full width, compact rows: the code is a
-          short identifier, so it takes a content-sized track and the row's
-          remaining width carries the per-declaration duplicate warning. The
-          group legend is the label; every row control keeps its own accessible
-          name ("Số tờ khai", "Số tờ khai 2", …). */}
-      <div className="csc-declaration-ledger" data-field-id="shipment-declarations">
-        <div className="csc-declaration-ledger__head">
-          <span className="csc-declaration-ledger__title">Số tờ khai</span>
-          <span className="csc-declaration-ledger__count">{declarationList.length}</span>
-        </div>
-        <ul className="csc-declaration-list" role="list">
-          {declarationList.map((decl, index) => {
-            const conflict = getDeclarationConflict
-              ? getDeclarationConflict(decl)
-              : (index === 0 ? declarationConflict : undefined);
-            return (
-              <li key={index} className="csc-declaration-row">
-                <span className="csc-declaration-row__index" aria-hidden="true">{index + 1}</span>
-                <div className="csc-declaration-row__field">
-                  <TextField
-                    label={index === 0 ? 'Số tờ khai' : `Số tờ khai ${index + 1}`}
-                    hideLabel
-                    value={decl}
-                    onChange={(event) => {
-                      const next = [...declarationList];
-                      next[index] = event.target.value;
-                      update('declarationNumbers', next);
-                    }}
-                    maxLength={50}
-                    disabled={saving}
-                    placeholder={index === 0 ? 'Số tờ khai' : `Số tờ khai ${index + 1}`}
-                    warning={
-                      conflict ? (
-                        <ShipmentReferenceConflictWarning conflict={conflict} fieldLabel="Số tờ khai" />
-                      ) : undefined
-                    }
-                  />
-                </div>
-                {declarationList.length > 1 && (
-                  <button
-                    type="button"
-                    className="csc-icon-button csc-icon-button--danger csc-declaration-row__remove"
-                    aria-label={`Xóa tờ khai ${index + 1}`}
-                    onClick={() => {
-                      const next = declarationList.filter((_, i) => i !== index);
-                      update('declarationNumbers', next.length > 0 ? next : ['']);
-                    }}
-                    disabled={saving}
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                  </button>
-                )}
-              </li>
-            );
-          })}
+      {/* BAND 3 — one dense `Số tờ khai` strip: label + count pill, the codes
+          as removable chips, an inline entry input and the paste hint (owner
+          mock 11/10 "dense layout"). It replaces the per-declaration row list:
+          a code is a short identifier, so N rows cost N form fields for no
+          benefit. Every chip keeps an accessible remove name ("Xóa tờ khai N")
+          and the per-code cross-shipment conflict warning still renders under
+          the strip. */}
+      <div className="csc-declaration-strip" data-field-id="shipment-declarations">
+        <span className="csc-declaration-strip__title">
+          Số tờ khai
+          <span className="csc-declaration-strip__count">{declarations.length}</span>
+        </span>
+        <ul className="csc-declaration-chips" role="list">
+          {declarations.map((value, index) => (
+            <li
+              key={value}
+              className={`csc-declaration-chip${conflictFor(value, index) ? ' csc-declaration-chip--conflict' : ''}`}
+            >
+              <span className="csc-declaration-chip__index" aria-hidden="true">{index + 1}</span>
+              <span className="csc-declaration-chip__value">{value}</span>
+              <button
+                type="button"
+                className="csc-declaration-chip__remove"
+                aria-label={`Xóa tờ khai ${index + 1}`}
+                disabled={saving}
+                onClick={() => update('declarationNumbers', declarations.filter((_, i) => i !== index))}
+              >
+                <X size={13} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
         </ul>
+        <input
+          className="csc-declaration-strip__input"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          aria-label="Số tờ khai"
+          placeholder="Nhập số tờ khai, nhấn Enter"
+          value={declDraft}
+          disabled={saving}
+          onChange={(event) => setDeclDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commitDeclarations(declDraft);
+            } else if (event.key === 'Backspace' && declDraft === '' && declarations.length > 0) {
+              update('declarationNumbers', declarations.slice(0, -1));
+            }
+          }}
+          onPaste={(event) => {
+            const text = event.clipboardData.getData('text');
+            if (/[\s,;]/.test(text)) {
+              event.preventDefault();
+              commitDeclarations(text);
+            }
+          }}
+        />
         <button
           type="button"
-          onClick={() => {
-            update('declarationNumbers', [...declarationList, '']);
-          }}
+          className="csc-utility-button csc-utility-button--dashed csc-declaration-strip__add"
           disabled={saving}
-          className="csc-utility-button csc-utility-button--dashed csc-declaration-list__add"
+          onClick={() => commitDeclarations(declDraft)}
         >
           <Plus size={15} aria-hidden="true" />Thêm tờ khai
         </button>
+        <span className="csc-declaration-strip__hint">Dán nhiều số, ngăn cách bằng dấu phẩy hoặc xuống dòng.</span>
+        <span className="csc-declaration-strip__notice" role="status" aria-live="polite">{declNotice}</span>
       </div>
+      {declarations.map((value, index) => {
+        const conflict = conflictFor(value, index);
+        return conflict
+          ? (
+            <div key={`conflict-${value}`} className="csc-field-warning">
+              <ShipmentReferenceConflictWarning conflict={conflict} fieldLabel="Số tờ khai" />
+            </div>
+          )
+          : null;
+      })}
     </ShipmentCreateSection>
   );
 }

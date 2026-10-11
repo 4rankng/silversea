@@ -47,11 +47,13 @@ describe('shipment create empty submit feedback', () => {
     const createButton = await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(createButton);
 
-    // The DRAFT issue list surfaces as the summary alert…
-    const alert = await screen.findByText('Cần bổ sung 1 thông tin');
+    // `Tạo lô hàng` is the FULL-intake validation intent (the partial
+    // customer-only save is `Lưu nháp`), so the empty FCL form yields the whole
+    // issue list, not the single customer issue.
+    const alert = await screen.findByText(/^Cần bổ sung \d+ thông tin$/);
     expect(alert).toBeTruthy();
     expect(document.querySelector('.csc-validation-summary')?.textContent)
-      .toContain('Chọn khách hàng để tạo lô hàng.');
+      .toContain('Chọn khách hàng.');
 
     // …and focusShipmentCreateIssue moves focus into the customer field.
     await waitFor(() => {

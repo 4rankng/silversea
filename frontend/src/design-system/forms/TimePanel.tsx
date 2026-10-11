@@ -68,7 +68,6 @@ export function TimePanel({ value, onPick, onApply }: { value: string; onPick: (
     onKeyDown={(event) => { if (event.key === 'Enter') event.stopPropagation(); }}
     onKeyUp={(event) => { if (event.key === 'Enter') event.stopPropagation(); }}>
     <div className="dtp-time__exact">
-      <label htmlFor={id}>Giờ chính xác</label>
       <input id={id} aria-label="Giờ chính xác (HH:mm)" type="text" inputMode="numeric" maxLength={5} autoComplete="off"
         placeholder="HH:mm" value={text} aria-invalid={invalid} aria-describedby={invalid ? `${id}-error` : undefined}
         onChange={(event) => { const raw = event.target.value; const next = /^\d{4}$/.test(raw) ? `${raw.slice(0, 2)}:${raw.slice(2)}` : raw; setText(next); setDraft(parse(next)); setMinuteChosen(false); setInvalid(false); }}

@@ -30,17 +30,19 @@
 .dtp-day.is-today { box-shadow: inset 0 0 0 1px var(--accent, #2563eb); }
 .dtp-day.is-selected { background: var(--accent, #2563eb); color: var(--white, #fff); font-weight: 600; }
 
-/* Compact 24h columns built with the shared React Aria listbox primitive. */
+/* Hour/minute lists follow the vendored Untitled UI PRO listbox anatomy: a
+   framed, scrollable list of compact option rows (sm row: 12px text,
+   rounded-md, hover surface, accent fill when selected). The listbox/option
+   roles and the keyboard contract are unchanged. */
 .dtp-time { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; min-width: 0; }
 .dtp-time__column { min-width: 0; }
 .dtp-time__label { padding: 2px 0 4px; text-align: center; font-size: var(--text-caption-size); font-weight: 600; color: var(--ink-3); }
-.dtp-time__list { position: relative; height: 128px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; outline: none; }
-.dtp-time__option { display: grid; place-items: center; min-height: 32px; border-radius: 5px; font-size: var(--text-data-size); cursor: pointer; outline: none; }
+.dtp-time__list { position: relative; height: 128px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; outline: none; }
+.dtp-time__option { display: grid; place-items: center; min-height: 26px; border-radius: 6px; font-size: var(--text-caption-size); cursor: pointer; outline: none; }
 .dtp-time__option[data-selected] { background: var(--accent); color: var(--white, #fff); font-weight: 600; }
 .dtp-time__option[data-hovered]:not([data-selected]) { background: var(--surface-3); }
 .dtp-time__option[data-focus-visible] { outline: 2px solid var(--accent); outline-offset: -2px; }
 @media (pointer: coarse), (max-width: 767px) {
-  .dtp-time__list { height: 132px; }
   .dtp-time__option { min-height: var(--control-max-h); }
 }
 
@@ -105,23 +107,40 @@
 .dtp-pill.is-active { background: var(--accent); color: var(--white, #fff); font-weight: 600; }
 .dtp-pill:hover { background: var(--surface-3); }
 
-.dtp-time__exact { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 6px; }
-.dtp-time__exact > label { grid-column: 1 / -1; font-size: var(--text-caption-size); color: var(--ink-3); }
-.dtp-time__exact > input { min-width: 0; width: 100%; height: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--ink); font: inherit; font-size: var(--text-data-size); }
+/* The exact-time entry is a COMPACT inline row: a content-sized field (five
+   characters) beside a small confirm — no caption, and never a full-width bar
+   inside the picker. The input keeps its accessible name
+   ("Giờ chính xác (HH:mm)"). */
+.dtp-time__exact { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.dtp-time__exact > input { flex: 0 0 auto; width: 78px; min-width: 0; height: 30px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--ink); font: inherit; font-size: var(--text-data-size); text-align: center; }
 .dtp-time__exact > input:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .dtp-time__exact > input[aria-invalid=true] { border-color: var(--danger); }
-.dtp-time__exact > button { min-width: 52px; min-height: 32px; padding: 4px 8px; border: 0; border-radius: 6px; background: var(--accent); color: var(--white, #fff); font-size: var(--text-data-size); }
+.dtp-time__exact > button { flex: 0 0 auto; min-width: 0; min-height: 30px; padding: 2px 12px; border: 0; border-radius: 6px; background: var(--accent); color: var(--white, #fff); font-size: var(--text-data-size); font-weight: 600; }
 .dtp-time__error { grid-column: 1 / -1; font-size: var(--text-caption-size); color: var(--danger); }
-@media (max-width: 640px) { .dtp-time__exact > input, .dtp-time__exact > button { min-height: var(--control-max-h); } }
 
-/* Card 071026204700 (FB-001): the combined ngày+giờ popup — one panel holding
-   the calendar and the 24h grid side by side (the .dtp-dialog column pattern),
-   stacked on narrow viewports. */
-.date-picker__popup.combined-datetime__popup { width: min(680px, calc(100vw - 24px)); }
-.combined-datetime__body { display: flex; gap: 16px; align-items: flex-start; }
-.combined-datetime__date { flex: 0 0 auto; }
-.combined-datetime__time { flex: 1 1 auto; min-width: 264px; }
+/* Owner report 11/10: the combined popup was 680px wide with a 146px calendar
+   and two 244px time columns (sparse). Fixed two-pane density: the calendar
+   keeps its designed column, the time pane is capped, the option rows are
+   compact, and the exact-time entry stays the compact inline row it now is
+   everywhere (the shared `.dtp-time__exact` anatomy above). */
+.date-picker__popup.combined-datetime__popup { width: min(424px, calc(100vw - 16px)); }
+.combined-datetime__body { display: flex; gap: 12px; align-items: flex-start; }
+.combined-datetime__date { flex: 0 0 220px; min-width: 0; }
+.combined-datetime__time { flex: 1 1 168px; min-width: 0; max-width: 200px; }
+.combined-datetime__time .dtp-time { gap: 6px; width: min(100%, 156px); margin-inline: auto; }
+.combined-datetime__time .dtp-time__list { height: 168px; }
+.combined-datetime__time .dtp-time__option { min-height: 22px; }
+.combined-datetime__time .dtp-time__label { padding: 0 0 3px; }
 @media (max-width: 720px) {
-  .combined-datetime__body { flex-direction: column; }
-  .combined-datetime__time { width: 100%; }
+  .combined-datetime__body { flex-direction: column; gap: 8px; }
+  .combined-datetime__date { flex: 0 0 auto; width: 100%; }
+  .combined-datetime__time { flex: 1 1 auto; width: 100%; max-width: none; }
+  /* Stacked, the time pane is wide: the same options become a chip grid, so
+     all 24 hours and 12 five-minute steps stay visible without scrolling. */
+  .combined-datetime__time .dtp-time { width: min(100%, 320px); }
+  .combined-datetime__time .dtp-time__list { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; height: auto; overflow: visible; padding: 4px; }
+  .combined-datetime__time .dtp-time__option { min-height: 24px; }
+}
+@media (pointer: coarse) {
+  .combined-datetime__time .dtp-time__option { min-height: var(--control-max-h); }
 }

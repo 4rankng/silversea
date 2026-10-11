@@ -211,13 +211,19 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     });
   });
 
-  it('shows only create and cancel actions, without the superseded draft or dispatch actions', async () => {
+  it('shows only the topline create/cancel/draft actions, without the superseded dispatch action', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    // Owner mock 11/10: title + progress + three actions ride ONE page topline
+    // (no fixed bottom bar). `Lưu nháp` is the partial create, `Tạo lô hàng`
+    // the full-intake one.
     expect(screen.getByRole('heading', { level: 1, name: 'Tạo lô hàng' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tạo lô hàng' })).toHaveClass('min-h-11');
     expect(screen.getByRole('button', { name: 'Huỷ' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Lưu nháp' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Lưu bản nháp|Gửi sang điều phối/ })).toBeNull();
+    expect(document.querySelector('.csc-action-bar')).toBeNull();
+    expect(document.querySelector('.csc-topline')).toBeTruthy();
   });
 
   it('uses the approved Vietnamese cargo-mode copy while payloads keep FCL/LCL wire values', async () => {
@@ -233,7 +239,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(await screen.findByText('Hàng lẻ')).toBeTruthy();
 
     await choose('Khách hàng', '7');
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalled());
     expect(mocks.quickCreate.mock.calls[0][0].cargoMode).toBe('FCL');
   });
@@ -276,7 +282,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.change(screen.getByLabelText('Ghi chú cho khách hàng'), { target: { value: 'Khách cần bản scan' } });
     fireEvent.change(screen.getByLabelText('Ghi chú cho lái xe'), { target: { value: 'Gọi bảo vệ trước khi vào' } });
     await choose('Khách hàng', '7');
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
 
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
       customerNotes: 'Khách cần bản scan',
@@ -363,7 +369,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    const addButton = screen.getByRole('button', { name: 'Thêm hãng tàu' });
+    const addButton = screen.getByRole('button', { name: '+ Hãng tàu' });
     fireEvent.click(addButton);
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm hãng tàu' });
@@ -387,7 +393,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     const shippingLine = screen.getByRole('combobox', { name: /^Hãng tàu/ });
     fireEvent.change(shippingLine, { target: { value: 'MSC' } });
-    const addButton = screen.getByRole('button', { name: 'Thêm hãng tàu' });
+    const addButton = screen.getByRole('button', { name: '+ Hãng tàu' });
     fireEvent.click(addButton);
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm hãng tàu' });
@@ -454,7 +460,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    const addButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
+    const addButton = screen.getByRole('button', { name: '+ Khách' });
     fireEvent.click(addButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm khách hàng' });
 
@@ -481,7 +487,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
 
-    const addButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
+    const addButton = screen.getByRole('button', { name: '+ Khách' });
     fireEvent.click(addButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm khách hàng' });
     fireEvent.change(within(dialog).getByLabelText('Tên khách hàng'), { target: { value: 'Không lưu' } });
@@ -515,7 +521,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    const addButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
+    const addButton = screen.getByRole('button', { name: '+ Khách' });
     fireEvent.click(addButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm khách hàng' });
     mocks.createCustomer.mockResolvedValueOnce({
@@ -545,7 +551,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   it('requires a customer before creating a shipment', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     const customer = screen.getByRole('combobox', { name: /^Khách hàng/ });
     await waitFor(() => expect(customer).toHaveFocus());
     expect(customer).toHaveAttribute('aria-invalid', 'true');
@@ -560,7 +566,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ customerId: 7, cargoMode: 'FCL' }), expect.any(String)));
     // Card 20260930_237: the post-create shipment-list render rides the 1s
     // default findBy budget and lost that race under parallel load; explicit
@@ -568,13 +574,28 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(await screen.findByTestId('shipment-detail', {}, { timeout: 15000 })).toBeTruthy();
   });
 
+  it('Tạo lô hàng runs the full intake validation instead of the customer-only draft gate', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    // The satisfied customer field is not enough for the CREATE intent: the
+    // summary lists the rest of the missing intake data and nothing is saved.
+    await waitFor(() => expect(document.querySelector('.csc-validation-summary')?.textContent)
+      .toContain('Chọn hình thức nhập khẩu hoặc xuất khẩu'));
+    expect(mocks.quickCreate).not.toHaveBeenCalled();
+  });
+
   it('VID-CUS-04: creates the initial declaration atomically without a second declaration write', async () => {
     mocks.quickCreate.mockResolvedValue({ id: 90, version: 1, initialDeclarationId: 77 });
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-ATOMIC' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    const declInput = screen.getByRole('textbox', { name: 'Số tờ khai' });
+    fireEvent.change(declInput, { target: { value: 'TK-ATOMIC' } });
+    fireEvent.keyDown(declInput, { key: 'Enter' });
+    expect(screen.getByText('TK-ATOMIC')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ declarationNumber: 'TK-ATOMIC' }), expect.any(String)));
     // Card 20260930_237: the post-create shipment-list render rides the
     // 1s default findBy budget and lost that race once under four-file
@@ -590,21 +611,27 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-FIRST' } });
+    const declInput = screen.getByRole('textbox', { name: 'Số tờ khai' });
+    fireEvent.change(declInput, { target: { value: 'TK-FIRST' } });
+    fireEvent.keyDown(declInput, { key: 'Enter' });
+    expect(screen.getByText('TK-FIRST')).toBeTruthy();
+    expect(document.querySelector('.csc-declaration-strip__count')?.textContent).toBe('1');
 
+    // A second code can be committed with the add action…
+    fireEvent.change(declInput, { target: { value: 'TK-SECOND' } });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
-    const secondDeclInput = screen.getByRole('textbox', { name: 'Số tờ khai 2' });
-    expect(secondDeclInput).toBeTruthy();
-    fireEvent.change(secondDeclInput, { target: { value: 'TK-SECOND' } });
+    expect(screen.getByText('TK-SECOND')).toBeTruthy();
+    expect(document.querySelector('.csc-declaration-strip__count')?.textContent).toBe('2');
 
-    // Can add a third row and remove it
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
-    const thirdDeclInput = screen.getByRole('textbox', { name: 'Số tờ khai 3' });
-    expect(thirdDeclInput).toBeTruthy();
+    // …and a third one added then removed again.
+    fireEvent.change(declInput, { target: { value: 'TK-THIRD' } });
+    fireEvent.keyDown(declInput, { key: 'Enter' });
+    expect(screen.getByText('TK-THIRD')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 3' }));
-    expect(screen.queryByRole('textbox', { name: 'Số tờ khai 3' })).toBeNull();
+    expect(screen.queryByText('TK-THIRD')).toBeNull();
+    expect(document.querySelector('.csc-declaration-strip__count')?.textContent).toBe('2');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
 
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
       expect.objectContaining({ declarationNumber: 'TK-FIRST' }),
@@ -625,9 +652,11 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-FIRST' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai 2' }), { target: { value: 'TK-SECOND' } });
+    const declInput = screen.getByRole('textbox', { name: 'Số tờ khai' });
+    fireEvent.change(declInput, { target: { value: 'TK-FIRST' } });
+    fireEvent.keyDown(declInput, { key: 'Enter' });
+    fireEvent.change(declInput, { target: { value: 'TK-SECOND' } });
+    fireEvent.keyDown(declInput, { key: 'Enter' });
 
     // Row 2's value is checked on its own (the check API is single-value)
     // and the warning renders under that row's field.
@@ -647,13 +676,15 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai' }), { target: { value: 'TK-FIRST' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai 2' }), { target: { value: 'TK-SECOND' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Số tờ khai 3' }), { target: { value: 'TK-THIRD' } });
+    const declInput = screen.getByRole('textbox', { name: 'Số tờ khai' });
+    fireEvent.change(declInput, { target: { value: 'TK-FIRST' } });
+    fireEvent.keyDown(declInput, { key: 'Enter' });
+    fireEvent.change(declInput, { target: { value: 'TK-SECOND' } });
+    fireEvent.keyDown(declInput, { key: 'Enter' });
+    fireEvent.change(declInput, { target: { value: 'TK-THIRD' } });
+    fireEvent.keyDown(declInput, { key: 'Enter' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     // TK-SECOND lands (id 79); TK-THIRD fails mid-extras — the attempt is
     // preserved for retry, TK-SECOND exists server-side.
     await waitFor(() => expect(mocks.createDeclaration).toHaveBeenCalledTimes(2));
@@ -661,16 +692,16 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     // Retry with unchanged rows: TK-THIRD (never landed) is retried — the
     // third call is TK-THIRD again, TK-SECOND is never replayed.
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.createDeclaration).toHaveBeenCalledTimes(3));
     expect(mocks.createDeclaration).toHaveBeenNthCalledWith(3, 91, { declarationNumber: 'TK-THIRD', scope: 'SINGLE' });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Tạo lô hàng' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu nháp' })).toBeEnabled());
 
     // Clerk removes TK-THIRD and TK-SECOND and retries: one declaration row
     // remains → the written TK-SECOND is deleted, nothing is re-created.
     fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 3' }));
     fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 2' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.deleteDeclaration).toHaveBeenCalledWith(91, 79));
     expect(await screen.findByTestId('shipment-detail', {}, { timeout: 15000 })).toBeTruthy();
     expect(mocks.createDeclaration).toHaveBeenCalledTimes(3);
@@ -714,7 +745,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // (routeId 11) overrides the manual route-12 pick and locks the cell to
     // the factory's configured route.
     expect(screen.getByText('Cát Lái — Sóng Thần', { selector: '.csc-container-cell__display' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
       expect.objectContaining({ routeId: null, operationalSiteId: null, containers: [expect.objectContaining({ routeId: 11, operationalSiteId: 41 })] }),
       expect.any(String),
@@ -736,7 +767,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(option).not.toHaveTextContent('NM01');
     expect(factory).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(option);
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
       expect.objectContaining({ containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })] }),
       expect.any(String),
@@ -769,7 +800,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       expect(route).toHaveValue('');
       expect(route).not.toBeDisabled();
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
       expect.objectContaining({ containers: [
         expect.objectContaining({ operationalSiteId: null, routeId: null }),
@@ -793,7 +824,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // Reopen and select again to prove the catalog still exists, rather
     // than only asserting a stale selected label that survives an empty list.
     await choose('Nhà máy', '41');
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
       expect.objectContaining({ containers: [expect.objectContaining({ operationalSiteId: 41, routeId: 11 })] }),
       expect.any(String),
@@ -819,7 +850,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toHaveValue('');
     expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('');
     expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).not.toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
       customerId: 8, cargoMode: 'LCL', operationalSiteId: null, routeId: null,
     }), expect.any(String)));
@@ -845,7 +876,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toHaveValue('');
     expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cái Mép — Mỹ Phước');
     expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).not.toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     if (mode === 'LCL') {
       await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
         customerId: 8, operationalSiteId: null, routeId: 12,
@@ -1228,7 +1259,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
         await choose(label, id);
       }
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     const expected = replace
       ? { operationalSiteId: 43, routeId: 12, pickupPortId: 23, dropoffPortId: 24 }
       : { operationalSiteId: null, routeId: null, pickupPortId: null, dropoffPortId: null };
