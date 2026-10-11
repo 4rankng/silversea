@@ -139,6 +139,15 @@ describe('selection-state contract', () => {
     expect(read('src/styles/tokens.css')).toMatch(
       /@media \(max-width: 640px\)\s*\{[\s\S]*?--filter-control-h:\s*var\(--control-compact-h\);/,
     );
-    expect(read('src/pages/SalaryAttendancePage.tsx')).toContain('aria-label={`Xem bảng công của ${d.name}${salaryLabel}`}');
+    // The roster moved into DriverPayrollTable (5f719c88 refactor) — the
+    // labelled select control follows the component (same accessible name;
+    // the map variable is `row` now, and the salary still rides the label
+    // while visible). The refactor left selection on a mouse-only <tr>; the
+    // owner law "retain all labels, values and keyboard access" pins the
+    // control back explicitly as a real <button> with a visible focus ring.
+    const roster = read('src/features/salary-attendance/DriverPayrollTable.tsx');
+    expect(roster).toContain('aria-label={`Xem bảng công của ${row.name}${salaryLabel}`}');
+    expect(roster).toMatch(/<button[\s\S]{0,300}Xem bảng công/);
+    expect(read('src/features/salary-attendance/DriverPayrollTable.css')).toContain('.dpt__name:focus-visible');
   });
 });

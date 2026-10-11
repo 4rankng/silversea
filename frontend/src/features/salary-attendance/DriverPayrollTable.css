@@ -80,7 +80,6 @@
 
 .dpt__td--num {
   text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Money is the scan column: one right-aligned tabular line so the eye runs
@@ -95,6 +94,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
+  /* The name is the row's labelled select control (selection-state contract):
+     button chrome is reset so it still reads as the row label, while focus
+     stays visible for keyboard users. */
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dpt__name:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .dpt__status {
@@ -125,7 +139,6 @@
   margin: 0;
   color: var(--fg-3);
   font-size: var(--text-caption-size);
-  font-variant-numeric: tabular-nums;
 }
 
 .dpt__pager {
@@ -152,7 +165,6 @@
 .dpt__page-of {
   color: var(--fg-2);
   font-size: var(--text-caption-size);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 

@@ -150,6 +150,12 @@ export function DriverPayrollTable({
             {!loading && pageRows.map((row) => {
               const isSelected = row.id === selectedDriverId;
               const net = row.salary?.netSalary ?? 0;
+              // Selection-state contract (owner law: retain all labels, values
+              // and keyboard access) — the roster refactor moved the driver
+              // select into this table as a mouse-only <tr>. The labelled,
+              // keyboard-activatable control returns as a real <button>, the
+              // salary staying in the accessible name while it is visible.
+              const salaryLabel = row.salary ? ` · ${money(net)}` : '';
               return (
                 <tr
                   key={row.id}
@@ -157,7 +163,15 @@ export function DriverPayrollTable({
                   onClick={() => onSelect(row.id)}
                 >
                   <th scope="row" className="dpt__td dpt__td--name">
-                    <span className="dpt__name">{row.name}</span>
+                    <button
+                      type="button"
+                      className="dpt__name"
+                      aria-label={`Xem bảng công của ${row.name}${salaryLabel}`}
+                      aria-current={isSelected ? 'true' : undefined}
+                      onClick={() => onSelect(row.id)}
+                    >
+                      {row.name}
+                    </button>
                   </th>
                   <td className="dpt__td dpt__td--num">{cellNumber(row.salary?.tripDays)}</td>
                   <td className="dpt__td dpt__td--num">{cellNumber(row.salary?.standbyDays)}</td>
