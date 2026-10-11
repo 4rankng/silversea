@@ -1,6 +1,6 @@
 import { Fragment, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { formatNumber } from '../lib/format';
+import { formatCompact, formatNumber } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
 import { AlertTriangle, CalendarDays, CheckCircle2, ChevronDown, ExternalLink } from 'lucide-react';
 import { EmptyState } from '../design-system';
@@ -388,9 +388,25 @@ export default function FinancePage() {
                 const plateW = Math.max(65, maxPlateLen * 7.8 + 6);
                 const valW = 75;
                 const barTrackW = Math.max(40, 280 - plateW - valW - 10);
-                const zeroX = minProfit < 0 ? (plateW + 5) + (Math.abs(minProfit) / totalRange) * barTrackW : (plateW + 5);
+                const trackStart = plateW + 5;
+                const zeroX = minProfit < 0 ? trackStart + (Math.abs(minProfit) / totalRange) * barTrackW : trackStart;
+                // Money axis (case 2026-10-11-R14-05, owner ruling 2026-10-11):
+                // a real X-scale under the bars — nice 1/2/5×10ⁿ steps, at most
+                // five ticks, compact VND labels. The bar track maps
+                // [minProfit, maxProfit] linearly, so tick x-positions reuse the
+                // same mapping as the bars.
+                const xOf = (v: number) => trackStart + ((v - minProfit) / totalRange) * barTrackW;
+                const rawStep = totalRange / 4;
+                const stepBase = 10 ** Math.floor(Math.log10(rawStep));
+                const stepMant = rawStep / stepBase;
+                const tickStep = (stepMant <= 1 ? 1 : stepMant <= 2 ? 2 : stepMant <= 5 ? 5 : 10) * stepBase;
+                const tickValues: number[] = [];
+                for (let v = Math.ceil(minProfit / tickStep) * tickStep; v <= maxProfit + tickStep / 1000; v += tickStep) {
+                  tickValues.push(Math.round(v / tickStep) * tickStep);
+                }
+                const fmtTick = (v: number) => `${v < 0 ? '-' : ''}${formatCompact(Math.abs(v))} ₫`;
                 return (
-                  <svg width="100%" height={svgH} viewBox={`0 0 280 ${svgH}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Top xe theo lợi nhuận tháng ${month}/${year}`}>
+                  <svg width="100%" height={svgH + 16} viewBox={`0 0 280 ${svgH + 16}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Top xe theo lợi nhuận tháng ${month}/${year}`}>
                     {topTrucks.map((t, i) => {
                       const val = t['LN gộp'];
                       const isNegative = val < 0;
@@ -412,6 +428,19 @@ export default function FinancePage() {
                         </g>
                       );
                     })}
+                    {/* Money axis: baseline + tick marks + compact labels under
+                        the bar track (case 2026-10-11-R14-05). Tick marks are
+                        lines, never rects — the zero-bar contract above owns
+                        every rect in this chart. */}
+                    <g data-chart-xaxis>
+                      <line x1={trackStart} y1={svgH - 4} x2={trackStart + barTrackW} y2={svgH - 4} stroke="var(--line-2)" strokeWidth={1} />
+                      {tickValues.map((v) => (
+                        <g key={v} data-chart-xtick>
+                          <line x1={xOf(v)} y1={svgH - 4} x2={xOf(v)} y2={svgH} stroke="var(--line-2)" strokeWidth={1} />
+                          <text x={xOf(v)} y={svgH + 10} fontSize="9" fontFamily="var(--font-data)" fill="var(--ink-3)" textAnchor="middle">{fmtTick(v)}</text>
+                        </g>
+                      ))}
+                    </g>
                   </svg>
                 );
               })()

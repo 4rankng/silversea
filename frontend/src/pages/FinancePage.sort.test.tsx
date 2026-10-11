@@ -158,6 +158,37 @@ describe('FinancePage top-trucks chart plate labels', () => {
   });
 });
 
+describe('FinancePage top-trucks chart x-axis ticks (case 2026-10-11-R14-05)', () => {
+  it('draws a money-scale axis with tick marks and compact labels under the bars', () => {
+    // Owner ruling 2026-10-11 (FB-050): real X-axis ticks replace the
+    // twice-closed 'HTML bars, no Cartesian axis' disposition. The zero-value
+    // stray-bar-tick suppression (af92c256) is a separate contract below.
+    const axisReport = {
+      ...report,
+      trucks: [
+        pnlTruck(31, '29H-111.11', 4_000_000),
+        pnlTruck(32, '30H-222.22', -1_000_000),
+      ],
+    };
+    usePnlReportMock.mockImplementation((_month: number, year: number) => (
+      year === 2026
+        ? { data: axisReport, isLoading: false, error: null }
+        : { data: undefined, isLoading: false, error: null }
+    ));
+
+    const { container } = renderPage();
+    const svg = container.querySelector('svg[aria-label^="Top xe theo lợi nhuận"]');
+    expect(svg).not.toBeNull();
+    const axis = svg!.querySelector('[data-chart-xaxis]');
+    expect(axis).not.toBeNull();
+    const ticks = [...svg!.querySelectorAll('[data-chart-xtick]')];
+    expect(ticks.length).toBeGreaterThanOrEqual(3);
+    expect(ticks.length).toBeLessThanOrEqual(5);
+    const labels = ticks.map((t) => (t.textContent ?? '').trim());
+    expect(labels.some((l) => /tr|tỷ|k/.test(l))).toBe(true);
+  });
+});
+
 describe('FinancePage top-trucks chart zero-value bars', () => {
   it('renders no bar tick for a zero-profit row and keeps non-zero bars', () => {
     const zeroReport = {
