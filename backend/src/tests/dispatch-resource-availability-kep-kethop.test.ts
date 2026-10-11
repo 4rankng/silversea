@@ -43,9 +43,12 @@ let type20Id = 0;
 let type40Id = 0;
 
 // Row r lives on 2026-10-05+r; partner window 02–10Z, incoming 04–12Z — both
-// inside the VN business day (+07) under any ±7h timezone skew.
+// inside the VN business day (+07) under any ±7h timezone skew. Day offsets
+// are added as real days, so an index past the month boundary stays a valid
+// date (string-building `2026-10-<5+i>` produced 2026-10-34 and an Invalid
+// Date for the later rows).
 function windows(dayIndex: number) {
-  const day = `2026-10-${String(5 + dayIndex).padStart(2, '0')}`;
+  const day = new Date(Date.UTC(2026, 9, 5) + dayIndex * 86400000).toISOString().slice(0, 10);
   return {
     day,
     partnerStart: new Date(`${day}T02:00:00.000Z`),
@@ -176,6 +179,7 @@ interface GateOptions {
   end: Date;
   cargoWeightKg?: string;
   vehicleCapacityKg?: string;
+  confirmOverlap?: boolean;
 }
 
 function gateArgs(o: GateOptions) {
@@ -188,6 +192,7 @@ function gateArgs(o: GateOptions) {
     plannedEndAt: o.end,
     cargoWeightKg: o.cargoWeightKg ?? '10000',
     vehicleCapacityKg: o.vehicleCapacityKg ?? '36000',
+    rigOverlapCompletedConfirmed: o.confirmOverlap === true,
     kepContext: {
       issuingContainerIsTwentyFoot: o.code.startsWith('20'),
       classification: o.classification,
@@ -215,6 +220,29 @@ async function expectConflict(label: string, o: GateOptions) {
         return true;
       },
       `${label}: expected a 409 conflict`,
+    );
+  });
+}
+
+/**
+ * Card 061026172804 warn-once contract: the refusal carries
+ * `payload.code === 'RIG_OVERLAP_COMPLETED'` so the editor can offer a confirm
+ * and retry with the flag. A bare 409 is a dead-end hard block and cannot
+ * satisfy the "cảnh báo rồi lưu" ruling.
+ */
+async function expectWarnOnce(label: string, o: GateOptions) {
+  await db.transaction(async (tx) => {
+    await assert.rejects(
+      () => assertResourceAvailability(tx, gateArgs(o)),
+      (err: unknown) => {
+        assert.ok(err instanceof ApiError, `${label}: expected ApiError, got ${String(err)}`);
+        assert.equal((err as ApiError).statusCode, 409, `${label}: expected 409`);
+        const payload = (err as ApiError).payload as { code?: string } | undefined;
+        assert.equal(payload?.code, 'RIG_OVERLAP_COMPLETED',
+          `${label}: expected payload.code RIG_OVERLAP_COMPLETED, got ${JSON.stringify(payload)}`);
+        return true;
+      },
+      `${label}: expected a warn-once 409`,
     );
   });
 }
@@ -369,6 +397,43 @@ describe('dispatch resource availability — Kẹp / Kết hợp same-rig matrix
     await expectNoConflict('T11', {
       tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
       start: windows(17).incomingStart, end: windows(17).incomingEnd,
+    });
+  });
+
+  // FB-038 / REQ-04, ticket 101026043000 (round 13 still FAIL): the issue and
+  // reassign gate scans only CREATED/IN_TRANSIT, so a trip that has already
+  // COMPLETED is invisible to it — "Phân xe lại" saved a same-rig overlap with
+  // no warning at all. Card 061026172804's law, which the plan-row guard
+  // already implements, is that a completed trip never passes silently: it
+  // warns once and the confirmed save proceeds (chạy gối đầu lên chuyến đã
+  // xong là hợp lệ). These rows pin that tier on THIS gate.
+  test('T12 COMPLETED trip in the window warns once instead of passing silently', async () => {
+    const partner = await mkLot({ tag: 't12-partner', dayIndex: 20, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({ status: TripStatus.COMPLETED }).where(eq(s.trips.id, partner.trip.id));
+    const incoming = await mkLot({ tag: 't12-incoming', dayIndex: 20, classification: 'SINGLE', code: '20DC' });
+    await expectWarnOnce('T12', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(20).incomingStart, end: windows(20).incomingEnd,
+    });
+  });
+
+  test('T13 the confirmed retry of the completed-trip warn proceeds', async () => {
+    const partner = await mkLot({ tag: 't13-partner', dayIndex: 21, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({ status: TripStatus.COMPLETED }).where(eq(s.trips.id, partner.trip.id));
+    const incoming = await mkLot({ tag: 't13-incoming', dayIndex: 21, classification: 'SINGLE', code: '20DC' });
+    await expectNoConflict('T13', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(21).incomingStart, end: windows(21).incomingEnd,
+      confirmOverlap: true,
+    });
+  });
+
+  test('T14 control: a COMPLETED trip outside the window stays silent', async () => {
+    await mkLot({ tag: 't14-partner', dayIndex: 22, classification: 'SINGLE', code: '20DC' });
+    const incoming = await mkLot({ tag: 't14-incoming', dayIndex: 29, classification: 'SINGLE', code: '20DC' });
+    await expectNoConflict('T14', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(29).incomingStart, end: windows(29).incomingEnd,
     });
   });
 });

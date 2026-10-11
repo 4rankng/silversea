@@ -93,6 +93,10 @@ router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: '
     externalPlateNumber: data.externalPlateNumber ?? null,
     externalDriverName: data.externalDriverName ?? null,
     externalDriverPhone: data.externalDriverPhone ?? null,
+    // Card 061026172804 warn-once contract (FB-038 / ticket 101026043000): the
+    // completed-trip overlap refusal was acknowledged in the dialog and this is
+    // the confirmed retry.
+    rigOverlapCompletedConfirmed: data.rigOverlapCompletedConfirmed === true,
     idempotencyKey: getRequestIdempotencyKey(req) ?? '',
     actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
   });

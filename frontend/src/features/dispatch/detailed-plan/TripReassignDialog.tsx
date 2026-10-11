@@ -7,7 +7,7 @@ import { useCatalogs } from '../../../hooks/useCatalogs';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { useTripDetail } from '../../../hooks/useTripQueries';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
-import { Modal } from '../../../components/UI';
+import { Modal, useConfirm } from '../../../components/UI';
 import { TextField, UuiSelectField } from '../../../design-system';
 
 interface TripReassignDialogProps {
@@ -27,6 +27,10 @@ interface TripReassignDialogProps {
  */
 export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassignDialogProps) {
   const queryClient = useQueryClient();
+  // Card 061026172804 warn-once contract (FB-038 / ticket 101026043000): a
+  // completed-trip overlap refuses once and the confirmed retry proceeds —
+  // the same confirm presentation DispatchPlanEditorCell uses for this code.
+  const { confirm, dialog: overlapConfirmDialog } = useConfirm();
   const { data: trip, isLoading: loadingTrip, error: tripError, refetch: refetchTrip } = useTripDetail(tripId != null ? String(tripId) : undefined);
   const { data: trucksDriversData } = useTrucksAndDrivers({ enabled: tripId != null });
   const { data: catalogData } = useCatalogs();
@@ -83,7 +87,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
   // accepted. CREATED trips stay fully reassignable (pre-acceptance right).
   const lockedByAcceptance = trip?.status === 'IN_TRANSIT' && trip?.driverAccepted === true;
 
-  async function handleSave() {
+  async function handleSave(extra: { rigOverlapCompletedConfirmed?: boolean } = {}) {
     if (!trip || tripId == null || saving) return;
     if (carrierType === 'OWN') {
       if (!truckId || !driverId) {
@@ -114,6 +118,7 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
         externalDriverPhone,
         reason: reason.trim(),
         expectedVersion: trip.version,
+        rigOverlapCompletedConfirmed: extra.rigOverlapCompletedConfirmed === true,
       });
       // Prime the trip-detail cache with the reassign response: with the
       // default 5-minute staleTime, reopening this dialog would otherwise
@@ -125,7 +130,22 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
       onReassigned();
       onClose();
     } catch (reassignError) {
-      setError(reassignError instanceof Error && reassignError.message ? reassignError.message : 'Lỗi khi phân xe lại');
+      const err = reassignError as { status?: number; message?: string; raw?: { code?: string } };
+      const message = err?.message || 'Lỗi khi phân xe lại';
+      // Card 061026172804 (FB-038 / ticket 101026043000): a completed-trip
+      // overlap refuses once so the dispatcher confirms before the save
+      // proceeds (chạy gối đầu lên chuyến đã xong is legal). Declining keeps
+      // this dialog open with the explanation inline. Without this branch the
+      // warn became a dead-end block with no way on.
+      if (err?.status === 409 && err?.raw?.code === 'RIG_OVERLAP_COMPLETED') {
+        const proceed = await confirm(message);
+        if (proceed) {
+          setSaving(false);
+          await handleSave({ rigOverlapCompletedConfirmed: true });
+          return;
+        }
+      }
+      setError(message);
       // A late conflict usually means the driver accepted while the dialog
       // was open — refetch so the fresh acceptance flips this dialog into
       // the read-only lock instead of inviting a futile retry.
@@ -153,7 +173,8 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
         : (!externalCarrierId && !externalPlateNumber ? 'Chọn đối tác hoặc nhập biển số xe.' : null);
 
   return (
-    <Modal
+    <>
+      <Modal
       isOpen={tripId != null}
       title="Phân xe lại"
       onClose={onClose}
@@ -335,6 +356,8 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
           />
         </div>
       )}
-    </Modal>
+      </Modal>
+      {overlapConfirmDialog}
+    </>
   );
 }

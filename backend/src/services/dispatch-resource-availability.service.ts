@@ -14,6 +14,13 @@ export async function assertResourceAvailability(tx: Tx, args: {
   plannedEndAt: Date;
   cargoWeightKg: string | null;
   vehicleCapacityKg: string | null;
+  /**
+   * Card 061026172804 warn-once contract: the completed-trip overlap refusal
+   * was acknowledged in the dialog and this is the confirmed retry. Shares the
+   * name the plan-save and plate endpoints already use so one flag covers the
+   * family.
+   */
+  rigOverlapCompletedConfirmed?: boolean;
   kepContext?: {
     issuingContainerIsTwentyFoot: boolean;
     classification: string;
@@ -106,5 +113,32 @@ export async function assertResourceAvailability(tx: Tx, args: {
   }
   if (blocking.some((row) => args.driverId != null && row.driverId === args.driverId)) {
     throw new ApiError(409, 'Tài xế đã bị trùng lịch kế hoạch.');
+  }
+
+  // Card 061026172804 (FB-038 / REQ-04): a COMPLETED trip of the same rig no
+  // longer blocks — the rig is released on completion — but the overlap must
+  // never pass silently. The save is refused once carrying the family's
+  // warn-once payload so the editor can offer a confirm, and the confirmed
+  // retry proceeds (chạy gối đầu onto a finished trip is legal). This gate
+  // scanned only CREATED/IN_TRANSIT, so "Phân xe lại" saved a completed-trip
+  // overlap with no warning at all — the exact "cảnh báo trùng giờ xe không
+  // nổ" symptom, still failing at round 13.
+  if (args.rigOverlapCompletedConfirmed !== true) {
+    const completedConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+      .from(s.trips)
+      .where(and(
+        or(...predicates)!,
+        isNull(s.trips.deletedAt),
+        eq(s.trips.status, TripStatus.COMPLETED),
+        isNotNull(s.trips.plannedStartAt),
+        lt(s.trips.plannedStartAt, args.plannedEndAt),
+        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.plannedStartAt.toISOString()}::timestamptz`,
+      ));
+    if (completedConflicts.length > 0) {
+      throw new ApiError(409,
+        `Có ${completedConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
+        undefined,
+        { code: 'RIG_OVERLAP_COMPLETED' });
+    }
   }
 }

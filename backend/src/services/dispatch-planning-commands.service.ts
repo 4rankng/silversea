@@ -90,6 +90,13 @@ export interface IssueFulfillmentDispatchOrderInput {
   externalDriverName?: string | null;
   externalDriverPhone?: string | null;
   fuelMode?: FuelMode;
+  /**
+   * Card 061026172804 warn-once contract (FB-038 / ticket 101026043000): the
+   * completed-trip overlap refusal was acknowledged and this is the confirmed
+   * retry. Shares the name the plan-save and plate endpoints use so one flag
+   * covers the family.
+   */
+  rigOverlapCompletedConfirmed?: boolean;
   idempotencyKey: string;
   actor: DispatchActor;
 }
@@ -556,6 +563,7 @@ export async function issueOrderCreateOrUpdate(
     plannedEndAt,
     cargoWeightKg,
     vehicleCapacityKg,
+    rigOverlapCompletedConfirmed: input.rigOverlapCompletedConfirmed === true,
     // Both rows must be explicitly Kẹp and share one physical rig. The
     // business day is Vietnam-local, including windows crossing UTC midnight.
     kepContext: {
