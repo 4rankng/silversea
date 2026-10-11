@@ -24,9 +24,6 @@ import { toastActionError } from '../lib/api/action-error';
 
 export default function SalaryAttendancePage() {
   const [searchTerm, setSearchTerm] = useState('');
-  // Bulk selection for "Ghi thanh toán" — the roster is a worklist at 100+
-  // drivers, so payment acts on the checked rows rather than one at a time.
-  const [selectedDriverIds, setSelectedDriverIds] = useState<number[]>([]);
   const {
     month, year, goPrev, goNext,
     selectedDriverId, setSelectedDriverId,
@@ -105,11 +102,11 @@ export default function SalaryAttendancePage() {
         )}
       />
 
-      {/* ── Driver roster — sortable, paginated table with bulk selection.
+      {/* ── Driver roster — sortable, paginated table.
             The card wall this replaces was the compact option at 43 drivers
             but inverted at 100+: a 22-row wall of near-identical cards cannot
-            be scanned, sorted, or acted on in bulk. The list wrapper keeps the
-            class the roster contract asserts. ── */}
+            be scanned or sorted. The list wrapper keeps the class the roster
+            contract asserts. ── */}
       <div className="driver-select-row">
         <div className="driver-select-row__list">
           <DriverPayrollTable
@@ -126,8 +123,6 @@ export default function SalaryAttendancePage() {
               }
             }}
             loading={listLoading}
-            selectedIds={selectedDriverIds}
-            onSelectionChange={setSelectedDriverIds}
           />
         </div>
       </div>

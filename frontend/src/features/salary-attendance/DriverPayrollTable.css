@@ -1,8 +1,8 @@
 /* Driver payroll roster — the sortable/paginated table that replaced the
    driver card wall. Anatomy follows Untitled UI PRO v8 `application/table`
-   (sortable headers + checkbox column) and `pagination-line`, rebuilt in
-   house tokens: 12px data density, 11px labels, 32px rows, controls inside
-   the shared --control-max-h ceiling. */
+   (sortable headers) and `pagination-line`, rebuilt in house tokens: 12px
+   data density, 11px labels, 32px rows, controls inside the shared
+   --control-max-h ceiling. */
 
 .dpt {
   display: grid;
@@ -36,13 +36,6 @@
 }
 
 .dpt__th--num { text-align: right; }
-
-.dpt__th--check,
-.dpt__td--check {
-  width: 36px;
-  padding-inline: 10px;
-  text-align: center;
-}
 
 .dpt__sort {
   display: inline-flex;
@@ -84,7 +77,6 @@
 .dpt__row:hover { background: var(--surface-2); }
 .dpt__row.is-active { background: var(--accent-soft, var(--surface-2)); }
 .dpt__row.is-active .dpt__name { font-weight: 700; }
-.dpt__row.is-checked { box-shadow: inset 2px 0 0 var(--accent); }
 
 .dpt__td--num {
   text-align: right;
@@ -112,14 +104,6 @@
 }
 
 .dpt__status.is-confirmed { color: var(--accent-ink, var(--fg-1)); }
-
-.dpt__check {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--accent-2);
-  vertical-align: middle;
-}
 
 .dpt__empty {
   padding: 18px 12px;
