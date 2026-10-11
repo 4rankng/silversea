@@ -727,8 +727,10 @@ export function ShipmentCreateWorkspace() {
                     <Copy size={15} aria-hidden="true" />Copy giờ hẹn xuống cont trống
                   </button>
                 )}
-                <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={Boolean(saving)} />
-                <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={Boolean(saving)} />
+                <div className="csc-notes-grid">
+                  <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={Boolean(saving)} />
+                  <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={Boolean(saving)} />
+                </div>
               </>
             )}
           </ShipmentCreateSection>

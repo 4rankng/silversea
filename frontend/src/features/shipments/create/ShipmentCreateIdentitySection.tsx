@@ -57,17 +57,6 @@ export function ShipmentCreateIdentitySection({
       id="identity"
       title="Nhận diện lô"
       description="Khách hàng, chứng từ và hướng xuất nhập khẩu."
-      actions={
-        <label className="csc-flag-checkbox" data-field-id="shipment-is-adhoc">
-          <input
-            type="checkbox"
-            checked={form.isAdHoc}
-            onChange={(event) => update('isAdHoc', event.target.checked)}
-            disabled={saving}
-          />
-          <span>Lệnh chạy ngoài</span>
-        </label>
-      }
     >
       {/* BAND 1 — identity. Three single fields share a row; nothing tall
           rides with them. */}
@@ -182,6 +171,20 @@ export function ShipmentCreateIdentitySection({
           className={`csc-identity-grid__flags${form.cargoMode === 'FCL' ? '' : ' csc-identity-grid__flags--solo'}`}
           data-field-id="shipment-deposit"
         >
+          {/* All three boolean flags share the ONE .csc-flag-checkbox chip
+              treatment and now live on one band: the ad-hoc lot toggle sits
+              with its peers instead of riding the section header as a lone
+              heavy box (density pass, owner 11/10). DOM order keeps the flag
+              contract: Lệnh chạy ngoài → Có cược container → Đóng kết hợp. */}
+          <label className="csc-flag-checkbox" data-field-id="shipment-is-adhoc">
+            <input
+              type="checkbox"
+              checked={form.isAdHoc}
+              onChange={(event) => update('isAdHoc', event.target.checked)}
+              disabled={saving}
+            />
+            <span>Lệnh chạy ngoài</span>
+          </label>
           <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
             <input
               type="checkbox"

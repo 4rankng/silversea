@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-10-11 (tối) — /shipments/new: dày đặc hơn, hết lệch nhãn trường
+
+Owner báo trang tạo lô "design too shitty" kèm mock `Tạo lô hàng.html` và yêu cầu
+UI/UX dày dữ liệu hơn. Đây là lượt làm dày trên chính bản thiết kế "owner mock
+11/10" đã có (không đổi cấu trúc 3 section, không đụng bảng container).
+
+- **Nhãn trường hết lệch hàng** (lỗi thật, đo bằng Chromium): ô "Khách hàng" và
+  "Hãng tàu" nằm trong khối trường + nút quick-create; khối này canh đáy
+  (`align-items: flex-end`), nên khi một ô cùng hàng có hint ("Chọn Hình thức xuất
+  nhập khẩu trước") kéo hàng cao lên thì nhãn của nó tụt xuống ~15px so với các ô
+  còn lại. Nay trường kéo dài từ đỉnh hàng (`align-self: stretch`), nút vẫn canh
+  đáy cạnh input — nhãn đầu hàng thẳng nhau, quick-create vẫn ở một hàng.
+- **Lệnh chạy ngoài rời thanh tiêu đề section**: chip nhập chung dải cờ với "Có
+  cược container" (+ "Tiền cược dự kiến" khi bật), nằm cuối hàng Hãng tàu và canh
+  đáy bằng input. Thanh tiêu đề trở lại là dải mỏng — hết ô nặng nằm lẻ góc phải.
+  Thứ tự DOM cờ giữ nguyên hợp đồng (Lệnh chạy ngoài → Có cược container → Đóng
+  kết hợp).
+- **Hãng tàu / dải cờ chia lại 5–7 cột** (lưới 12 cột) thay vì 6–6: chip không còn
+  ngồi nửa hàng trống.
+- **Hai ô ghi chú chung một hàng** ở ≥760px (Ghi chú cho khách hàng | Ghi chú cho
+  lái xe); điện thoại vẫn xếp dọc. Section "Lịch & ghi chú" cao 368px → 246px, cả
+  trang bớt ~110px chiều dọc.
+- **Padding tiêu đề section 16px → 12px**; gỡ slot `actions` (và
+  `.csc-section__actions`) của `ShipmentCreateSection` — không còn consumer sau khi
+  cờ rời tiêu đề.
+- Hợp đồng style cập nhật theo: pin span 5/7, căn đáy dải cờ, lưới ghi chú, và
+  `align-self: stretch` của khối trường-nút.
+
 ## 2026-10-09 (đêm) — reconciliation: origin/main -> prod (kiểm chứng từng file)
 
 Prod `1a1a227e` → merge commit của `origin/main` (`a71bf718`). Main đi trước 81

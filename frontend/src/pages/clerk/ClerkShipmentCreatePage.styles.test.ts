@@ -207,15 +207,26 @@ describe('shipment create responsive layout', () => {
     // owns a line under its field (Tailkit form-input-groups-06 append anatomy).
     expect(css).toMatch(/\.csc-utility-button--dashed\s*\{[^}]*background:\s*transparent;/);
     expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*flex-end;/);
-    expect(css).toMatch(/\.csc-field-with-append > :first-child\s*\{[^}]*flex:\s*1 1 auto;/);
+    // The FIELD stretches from the row top while the action stays bottom
+    // aligned: a hint-bearing sibling makes the row taller, and the old
+    // bottom-aligned field dropped its label below its neighbours' (owner
+    // layout report 11/10). The alignment fix is one rule away from regressing.
+    expect(css).toMatch(/\.csc-field-with-append > :first-child\s*\{[^}]*flex:\s*1 1 auto;[^}]*align-self:\s*stretch;/);
     expect(css).toMatch(/\.csc-append-button\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-append-button\s*\{[^}]*width:\s*100%;/);
   });
 
+  it('pairs the two recipient notes on one dense row', () => {
+    expect(css).toMatch(/\.csc-notes-grid\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*760px\)\s*\{\s*\.csc-notes-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+  });
+
   it('gives the declaration repeater its own full-width band and compact rows', () => {
-    // No single-row field shares a grid row with the 1-to-N declaration list.
-    expect(css).toMatch(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span 6;/);
-    expect(css).toMatch(/\.csc-identity-grid__flags\s*\{[^}]*grid-column:\s*span 6;/);
+    // No single-row field shares a grid row with the 1-to-N declaration list:
+    // the carrier + flag band stays a partial-width pair (owner density pass
+    // 11/10 trimmed the carrier to 5 columns so the flag chips own 7).
+    expect(css).toMatch(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span 5;/);
+    expect(css).toMatch(/\.csc-identity-grid__flags\s*\{[^}]*grid-column:\s*span 7;/);
     expect(css).not.toContain('.csc-identity-grid__declaration');
     // House repeated-item budget (supplier-carrier-trucks__item: 32px), not a
     // full form field per declaration.
