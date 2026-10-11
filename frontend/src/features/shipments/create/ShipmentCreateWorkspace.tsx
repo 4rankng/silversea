@@ -607,15 +607,6 @@ export function ShipmentCreateWorkspace() {
                   ))}
                 </div>
               </fieldset>
-              <label className="csc-flag-checkbox">
-                <input
-                  type="checkbox"
-                  checked={form.isCombined}
-                  onChange={(event) => update('isCombined', event.target.checked)}
-                  disabled={Boolean(saving)}
-                />
-                <span><strong>Đóng kết hợp</strong></span>
-              </label>
             </div>
 
             {form.cargoMode === 'FCL' ? (

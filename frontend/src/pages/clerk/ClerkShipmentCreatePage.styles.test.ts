@@ -124,9 +124,10 @@ describe('shipment create responsive layout', () => {
     expect(css).not.toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*(?:accent-soft|brand-subtle)/);
   });
 
-  it('uses one desktop decision row for cargo type and combined-load handling', () => {
-    expect(css).toMatch(/\.csc-cargo-choice-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*2fr\)\s+minmax\(280px,\s*1fr\);[^}]*align-items:\s*end;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*900px\)[\s\S]*?\.csc-cargo-choice-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+  it('uses one desktop decision row for cargo type', () => {
+    // The three data flags moved into the identity `Tuỳ chọn` band (owner mock
+    // 11/10), so the cargo row carries the Loại hàng decision set alone.
+    expect(css).toMatch(/\.csc-cargo-choice-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);[^}]*align-items:\s*end;/);
     // ONE data-flag treatment: all three flags share ONE chip class — the
     // owner mock 11/10 supersedes the 20260922_31 plain box (bordered chip,
     // brand-soft fill when checked). Still no per-flag variants.
@@ -140,10 +141,10 @@ describe('shipment create responsive layout', () => {
 
   it('gives customer identity the widest column and reflows cleanly by viewport', () => {
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
-    // Owner mock 11/10 column map: 5 / 3 / 4 across one 12-column track.
-    expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 5;/);
+    // Owner mock 11/10 column map: 6 / 3 / 3 across one 12-column track.
+    expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 3;/);
-    expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 4;/);
+    expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 3;/);
     // Below the 12-column canvas the customer field stops sharing a half row.
     expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid__customer,\s*\.csc-identity-grid__flags--solo\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
@@ -205,18 +206,17 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-add-container\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--accent-2\);/);
   });
 
-  it('keeps quick-create actions beside their field on one row', () => {
-    // The action keeps the house ghost/icon quick-create recipe but no longer
-    // owns a line under its field (Tailkit form-input-groups-06 append anatomy).
-    expect(css).toMatch(/\.csc-utility-button--dashed\s*\{[^}]*background:\s*transparent;/);
-    expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*flex-end;/);
-    // The FIELD stretches from the row top while the action stays bottom
-    // aligned: a hint-bearing sibling makes the row taller, and the old
-    // bottom-aligned field dropped its label below its neighbours' (owner
-    // layout report 11/10). The alignment fix is one rule away from regressing.
-    expect(css).toMatch(/\.csc-field-with-append > :first-child\s*\{[^}]*flex:\s*1 1 auto;[^}]*align-self:\s*stretch;/);
-    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-append-button\s*\{[^}]*width:\s*100%;/);
+  it('keeps the quick-create action on its field, as a trailing icon inside the control', () => {
+    // Owner ruling 11/10: the action is an icon-only + riding the field's
+    // TRAILING EDGE — inside the control, never a second control beside it and
+    // never a row of its own.
+    expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*position:\s*relative;[^}]*display:\s*flex;[^}]*align-items:\s*flex-start;/);
+    expect(css).toMatch(/\.csc-field-with-append > :first-child\s*\{[^}]*flex:\s*1 1 auto;[^}]*align-self:\s*start;/);
+    expect(css).toMatch(/\.csc-field-with-append > :first-child input\s*\{[^}]*padding-right:\s*28px;/);
+    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*position:\s*absolute;[^}]*top:\s*26px;[^}]*right:\s*5px;[^}]*width:\s*26px;[^}]*height:\s*26px;/);
+    // The old beside-the-field row (and its phone full-width override) is gone.
+    expect(css).not.toMatch(/\.csc-append-button\s*\{[^}]*white-space:\s*nowrap/);
+    expect(css).not.toMatch(/\.csc-field-with-append\s*\{\s*flex-wrap:\s*wrap;/);
   });
 
   it('pairs the two recipient notes on one dense row', () => {
@@ -227,9 +227,9 @@ describe('shipment create responsive layout', () => {
   it('gives the declaration entry its own full-width strip of chips', () => {
     // No single-row field shares a grid row with the 1-to-N declaration entry:
     // the carrier + flag band stays a partial-width pair (owner density pass
-    // 11/10 trimmed the carrier to 5 columns so the `Tuỳ chọn` chips own 7).
-    expect(css).toMatch(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span 5;/);
-    expect(css).toMatch(/\.csc-identity-grid__flags\s*\{[^}]*grid-column:\s*span 7;/);
+    // 11/10: carrier 6 columns, the `Tuỳ chọn` chips the other 6).
+    expect(css).toMatch(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span 6;/);
+    expect(css).toMatch(/\.csc-identity-grid__flags\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).not.toContain('.csc-identity-grid__declaration');
     // The strip is one full-width band; the codes are pill chips with an
     // inline entry, not a form field per declaration.

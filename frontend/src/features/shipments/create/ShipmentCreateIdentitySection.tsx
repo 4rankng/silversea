@@ -1,4 +1,4 @@
-import { useState, type RefObject } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { Plus, X } from 'lucide-react';
 import {
   USearchableField as SearchableField,
@@ -52,6 +52,7 @@ export function ShipmentCreateIdentitySection({
   const declarations = form.declarationNumbers ?? [];
   const [declDraft, setDeclDraft] = useState('');
   const [declNotice, setDeclNotice] = useState('');
+  const declInputRef = useRef<HTMLInputElement>(null);
   const conflictFor = (value: string, index: number): ShipmentReferenceConflict | undefined => (
     getDeclarationConflict
       ? getDeclarationConflict(value)
@@ -114,9 +115,11 @@ export function ShipmentCreateIdentitySection({
             type="button"
             onClick={onOpenCustomerDialog}
             disabled={saving}
-            className="csc-utility-button csc-utility-button--dashed csc-append-button"
+            className="csc-append-button"
+            aria-label="Thêm khách hàng"
+            title="Thêm khách hàng"
           >
-            + Khách
+            <Plus size={15} aria-hidden="true" />
           </button>
         </div>
 
@@ -186,9 +189,11 @@ export function ShipmentCreateIdentitySection({
               type="button"
               onClick={onOpenShippingLineDialog}
               disabled={saving}
-              className="csc-utility-button csc-utility-button--dashed csc-append-button"
+              className="csc-append-button"
+              aria-label="Thêm hãng tàu"
+              title="Thêm hãng tàu"
             >
-              + Hãng tàu
+              <Plus size={15} aria-hidden="true" />
             </button>
           </div>
         )}
@@ -222,6 +227,15 @@ export function ShipmentCreateIdentitySection({
               />
               <span><strong>Có cược container</strong></span>
             </label>
+            <label className="csc-flag-checkbox" data-field-id="shipment-is-combined">
+              <input
+                type="checkbox"
+                checked={form.isCombined}
+                onChange={(event) => update('isCombined', event.target.checked)}
+                disabled={saving}
+              />
+              <span><strong>Đóng kết hợp</strong></span>
+            </label>
             {form.hasDeposit && (
               <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
                 <TextField
@@ -247,10 +261,8 @@ export function ShipmentCreateIdentitySection({
           and the per-code cross-shipment conflict warning still renders under
           the strip. */}
       <div className="csc-declaration-strip" data-field-id="shipment-declarations">
-        <span className="csc-declaration-strip__title">
-          Số tờ khai
-          <span className="csc-declaration-strip__count">{declarations.length}</span>
-        </span>
+        <span className="csc-declaration-strip__title">Số tờ khai</span>
+        <span className="csc-declaration-strip__count">{declarations.length}</span>
         <ul className="csc-declaration-chips" role="list">
           {declarations.map((value, index) => (
             <li
@@ -258,7 +270,23 @@ export function ShipmentCreateIdentitySection({
               className={`csc-declaration-chip${conflictFor(value, index) ? ' csc-declaration-chip--conflict' : ''}`}
             >
               <span className="csc-declaration-chip__index" aria-hidden="true">{index + 1}</span>
-              <span className="csc-declaration-chip__value">{value}</span>
+              {/* The code itself is the edit affordance: it comes back into the
+                  input (and leaves the list) so a typo is one click away. */}
+              <button
+                type="button"
+                className="csc-declaration-chip__value"
+                aria-label={`Sửa tờ khai ${index + 1}: ${value}`}
+                title="Sửa số tờ khai này"
+                disabled={saving}
+                onClick={() => {
+                  setDeclDraft(value);
+                  setDeclNotice('');
+                  update('declarationNumbers', declarations.filter((_, i) => i !== index));
+                  declInputRef.current?.focus();
+                }}
+              >
+                {value}
+              </button>
               <button
                 type="button"
                 className="csc-declaration-chip__remove"
@@ -272,12 +300,14 @@ export function ShipmentCreateIdentitySection({
           ))}
         </ul>
         <input
+          ref={declInputRef}
           className="csc-declaration-strip__input"
           type="text"
           inputMode="numeric"
           autoComplete="off"
           aria-label="Số tờ khai"
-          placeholder="Nhập số tờ khai, nhấn Enter"
+          placeholder="Nhập số tờ khai, nhấn Enter — hoặc dán nhiều số (phẩy / xuống dòng)"
+          title="Dán nhiều số, ngăn cách bằng dấu phẩy hoặc xuống dòng."
           value={declDraft}
           disabled={saving}
           onChange={(event) => setDeclDraft(event.target.value)}
@@ -299,13 +329,12 @@ export function ShipmentCreateIdentitySection({
         />
         <button
           type="button"
-          className="csc-utility-button csc-utility-button--dashed csc-declaration-strip__add"
+          className="csc-utility-button csc-declaration-strip__add"
           disabled={saving}
           onClick={() => commitDeclarations(declDraft)}
         >
-          <Plus size={15} aria-hidden="true" />Thêm tờ khai
+          <Plus size={15} aria-hidden="true" />Thêm
         </button>
-        <span className="csc-declaration-strip__hint">Dán nhiều số, ngăn cách bằng dấu phẩy hoặc xuống dòng.</span>
         <span className="csc-declaration-strip__notice" role="status" aria-live="polite">{declNotice}</span>
       </div>
       {declarations.map((value, index) => {

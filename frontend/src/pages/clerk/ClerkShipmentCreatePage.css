@@ -52,31 +52,38 @@
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
-/* Owner mock 11/10 column map: Khách hàng 5 · Hình thức xuất nhập khẩu 3 ·
-   Số Bill/Booking 4, then Hãng tàu 5 · Tuỳ chọn chips 7. */
-.csc-identity-grid__customer { grid-column: span 5; }
+/* Owner mock 11/10 column map: Khách hàng 6 · Hình thức xuất nhập khẩu 3 ·
+   Số Bill/Booking 3, then Hãng tàu 6 · Tuỳ chọn chips 6. */
+.csc-identity-grid__customer { grid-column: span 6; }
 .csc-identity-grid__trade-direction { grid-column: span 3; }
-.csc-identity-grid__booking { grid-column: span 4; }
-.csc-identity-grid__shipping-line { grid-column: span 5; }
+.csc-identity-grid__booking { grid-column: span 3; }
+.csc-identity-grid__shipping-line { grid-column: span 6; }
 /* The flag band carries its own `Tuỳ chọn` label, so its chips row lands on
    the same baseline as the carrier field's input by construction — the old
-   align-self/align-items: flex-end pair is retired. */
-.csc-identity-grid__flags { grid-column: span 7; display: grid; align-content: start; gap: 8px; min-width: 0; }
+   align-self/align-items: flex-end pair is retired. All three data flags
+   (Lệnh chạy ngoài, Có cược container, Đóng kết hợp) live here, one chip
+   treatment, in that DOM order. */
+.csc-identity-grid__flags { grid-column: span 6; display: grid; align-content: start; gap: 8px; min-width: 0; }
 .csc-identity-grid__flags--solo { grid-column: 1 / -1; }
 .csc-identity-grid__flags-label { color: var(--fg-1); font-size: var(--text-label-size); font-weight: 600; line-height: 18px; }
 .csc-identity-grid__flags-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .csc-identity-grid__flags .csc-flag-checkbox { flex: 0 0 auto; }
-/* Field + quick-create on ONE row. The action keeps the house ghost/icon
-   quick-create recipe; it sits beside its field instead of owning a line
-   under it (Tailkit `form-input-groups-06` append-button anatomy). */
-/* The quick-create action bottom-aligns with its field's CONTROL, not with
-   its label: the field itself stretches from the row top (align-self) so its
-   label baseline matches every plain sibling in the same grid row — the old
-   `align-items: flex-end` pulled a hint-bearing sibling's row taller and
-   dropped this field's label below its neighbours'. */
-.csc-field-with-append { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
-.csc-field-with-append > :first-child { flex: 1 1 auto; min-width: 0; align-self: stretch; }
-.csc-append-button { flex: 0 0 auto; min-height: var(--control-h, 40px); white-space: nowrap; }
+/* Field + quick-create on ONE row. The action rides the FIELD'S TRAILING EDGE
+   as an icon-only + (owner ruling 11/10: "plus icon at the end of the search
+   bar", "just plus is enough, no need text"), so it reads as part of the
+   control instead of a second control beside it — and it can never wrap below
+   the field or drift with the row height. */
+.csc-field-with-append { position: relative; display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.csc-field-with-append > :first-child { flex: 1 1 auto; min-width: 0; align-self: start; }
+/* Leave room for the trailing + inside the control's right edge. */
+.csc-field-with-append > :first-child input { padding-right: 28px; }
+/* 26px = the house label line (18px) + the field grid's gap (8px): the icon
+   lands on the CONTROL row whatever the cell's height, hint or error state. */
+.csc-append-button { position: absolute; top: 26px; right: 5px; z-index: 1; display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer; }
+.csc-append-button svg { pointer-events: none; }
+.csc-append-button:not(:disabled):hover { background: var(--surface-3); }
+.csc-append-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.csc-append-button:disabled { cursor: not-allowed; opacity: .55; }
 .csc-shipping-line-dialog { display: grid; gap: 12px; }
 .csc-shipping-line-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.45; }
 .csc-shipping-line-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
@@ -120,7 +127,7 @@
 .csc-mode label:hover .csc-mode__option { background: var(--surface-2); color: var(--fg-1); }
 .csc-mode input:checked + span { background: var(--ink); color: var(--surface); }
 .csc-mode input:focus-visible + span { outline: 2px solid var(--accent-2); outline-offset: -2px; }
-.csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: end; gap: 12px; min-width: 0; }
+.csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: end; gap: 12px; min-width: 0; }
 .csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
 .csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 12px; }
 .csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
@@ -288,8 +295,7 @@
   .csc-identity-grid > * { grid-column: auto; }
   .csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: 1 / -1; }
 }
-@media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .csc-page { padding: 12px 0; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-field-with-append { flex-wrap: wrap; }.csc-append-button { width: 100%; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 @media (max-width: 640px) {
   .csc-container-row { grid-template-columns: minmax(0, 112px) minmax(0, 1fr); }
@@ -479,20 +485,24 @@
 .csc-deposit-amount { flex: 0 1 260px; min-width: 180px; }
 
 /* SỐ TỜ KHAI — one dense strip: label + count + chips + inline entry (owner
-   mock "dense layout"). Replaces the per-declaration row list. */
+   mock "dense layout"). Replaces the per-declaration row list. The content
+   stays left-packed at its natural width; only the chips wrap. */
 .csc-declaration-strip { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface-2); }
-.csc-declaration-strip__title { display: inline-flex; align-items: center; gap: 6px; color: var(--fg-3); font-size: var(--text-label-size); font-weight: 600; white-space: nowrap; }
-.csc-declaration-strip__count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-3); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 650; line-height: 1; }
-.csc-declaration-chips { display: flex; flex: 1 1 260px; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 0; min-width: 0; list-style: none; }
-.csc-declaration-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 4px 3px 9px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--fg-1); font-size: var(--text-data-size); }
+.csc-declaration-strip__title { flex: 0 0 auto; color: var(--fg-3); font-size: var(--text-label-size); font-weight: 600; white-space: nowrap; }
+.csc-declaration-strip__count { flex: 0 0 auto; display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-3); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 650; line-height: 1; }
+.csc-declaration-chips { display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 0; min-width: 0; list-style: none; }
+.csc-declaration-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 3px 2px 8px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--fg-1); font-size: var(--text-data-size); }
 .csc-declaration-chip--conflict { border-color: var(--warning); background: var(--warning-soft); }
 .csc-declaration-chip__index { color: var(--fg-3); font-size: var(--text-caption-size); }
-.csc-declaration-chip__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The code IS the edit affordance: one click moves it back into the entry
+   input (and out of the list) so a typo is one click away. */
+.csc-declaration-chip__value { min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.csc-declaration-chip__value:not(:disabled):hover { text-decoration: underline; }
+.csc-declaration-chip__value:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 4px; }
 .csc-declaration-chip__remove { display: inline-grid; place-items: center; width: 18px; height: 18px; border: 0; border-radius: 999px; background: transparent; color: var(--fg-3); cursor: pointer; }
 .csc-declaration-chip__remove:not(:disabled):hover { background: var(--surface-3); color: var(--danger); }
-.csc-declaration-strip__input { flex: 0 1 210px; min-width: 150px; min-height: var(--control-compact-h); padding: 4px 9px; border: 1px solid var(--border-2); border-radius: 999px; background: var(--surface); color: var(--fg-1); font: inherit; font-size: var(--text-data-size); }
-.csc-declaration-strip__add { flex: 0 0 auto; }
-.csc-declaration-strip__hint { flex: 1 1 220px; color: var(--fg-3); font-size: var(--text-caption-size); }
+.csc-declaration-strip__input { flex: 1 1 260px; min-width: 160px; min-height: var(--control-compact-h); padding: 4px 10px; border: 1px solid var(--border-2); border-radius: 999px; background: var(--surface); color: var(--fg-1); font: inherit; font-size: var(--text-data-size); }
+.csc-declaration-strip__add { flex: 0 0 auto; white-space: nowrap; }
 .csc-declaration-strip__notice { flex: 1 1 100%; color: var(--fg-3); font-size: var(--text-caption-size); }
 .csc-declaration-strip__notice:empty { display: none; }
 @media (max-width: 640px) { .csc-declaration-strip__input, .csc-declaration-strip__add { flex: 1 1 100%; } }

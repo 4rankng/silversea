@@ -369,7 +369,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    const addButton = screen.getByRole('button', { name: '+ Hãng tàu' });
+    const addButton = screen.getByRole('button', { name: 'Thêm hãng tàu' });
     fireEvent.click(addButton);
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm hãng tàu' });
@@ -393,7 +393,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     const shippingLine = screen.getByRole('combobox', { name: /^Hãng tàu/ });
     fireEvent.change(shippingLine, { target: { value: 'MSC' } });
-    const addButton = screen.getByRole('button', { name: '+ Hãng tàu' });
+    const addButton = screen.getByRole('button', { name: 'Thêm hãng tàu' });
     fireEvent.click(addButton);
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm hãng tàu' });
@@ -460,7 +460,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    const addButton = screen.getByRole('button', { name: '+ Khách' });
+    const addButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
     fireEvent.click(addButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm khách hàng' });
 
@@ -487,7 +487,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
 
-    const addButton = screen.getByRole('button', { name: '+ Khách' });
+    const addButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
     fireEvent.click(addButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm khách hàng' });
     fireEvent.change(within(dialog).getByLabelText('Tên khách hàng'), { target: { value: 'Không lưu' } });
@@ -521,7 +521,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    const addButton = screen.getByRole('button', { name: '+ Khách' });
+    const addButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
     fireEvent.click(addButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm khách hàng' });
     mocks.createCustomer.mockResolvedValueOnce({
@@ -619,7 +619,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     // A second code can be committed with the add action…
     fireEvent.change(declInput, { target: { value: 'TK-SECOND' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
     expect(screen.getByText('TK-SECOND')).toBeTruthy();
     expect(document.querySelector('.csc-declaration-strip__count')?.textContent).toBe('2');
 
