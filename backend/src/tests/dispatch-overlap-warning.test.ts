@@ -70,10 +70,12 @@ type Fixture = {
 
 // One lot + fulfillment + truck. `appointment` is the container's explicit
 // slot; `closingAt` is the lot-level fallback the grid's runAt renders when
-// the appointment is absent (the repro's "identical slot" evidence).
+// the appointment is absent (the repro's "identical slot" evidence);
+// `expectedDeliveryDate` is the lot "Ngày giao" projection — the date column
+// every grid displays for a row without an appointment date.
 async function makeFixture(
   a: DispatchActor,
-  opts: { appointment: Date | null; closingAt: Date | null },
+  opts: { appointment: Date | null; closingAt: Date | null; expectedDeliveryDate?: string | null },
 ): Promise<Fixture> {
   const [customer] = await db.insert(s.customers).values({ name: `Warn KH ${suffix}-${customerIds.length}` }).returning();
   customerIds.push(customer.id);
@@ -99,6 +101,7 @@ async function makeFixture(
     shipmentCode: `WARN-${suffix}-${shipmentIds.length}`,
     status: 'READY_FOR_DISPATCH',
     closingAt: opts.closingAt,
+    expectedDeliveryDate: opts.expectedDeliveryDate ?? null,
     createdBy: a.userId,
   }).returning();
   shipmentIds.push(shipment.id);
@@ -273,6 +276,54 @@ describe('card 101026043000 — the overlap warning fires on weak slot evidence 
         return true;
       },
     );
+  });
+
+  test('the round-14 repro: two plan rows sharing only the displayed "Ngày giao" lot date warn (case 2026-10-11-R14-04)', async () => {
+    const a = await actor();
+    // Both rows display "Ngày giao 01/10/2026" from the lot
+    // expectedDeliveryDate projection alone — no appointment, no closing/
+    // return. The window law read only appointment ?? closing ?? plannedReturn,
+    // so this exact pair saved silently through "Chỉnh sửa điều phối" (local UI
+    // rung 2026-10-11: two same-slot rows both took truck 15C-167.31 with no
+    // warning). The displayed slot is the dispatcher's claim on the rig.
+    const holder = await makeFixture(a, { appointment: null, closingAt: null, expectedDeliveryDate: '2026-10-01' });
+    const target = await makeFixture(a, { appointment: null, closingAt: null, expectedDeliveryDate: '2026-10-01' });
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: target.truckPlate })
+      .where(eq(s.shipmentFulfillments.id, holder.fulfillmentId));
+
+    await expectWarnThenProceed(saveInput(target), 'ngày-giao-only pair');
+
+    const saved = await updateDispatchDetailPlan({
+      ...saveInput(target),
+      rigOverlapCompletedConfirmed: true,
+    } as never);
+    assert.ok(saved, 'the confirmed retry must proceed (warn, never a hard block)');
+  });
+
+  test('a date-only "Ngày giao" claim covers the displayed day — a same-day afternoon slot warns', async () => {
+    const a = await actor();
+    // The grid shows the date-only row beside "13H 01/10/2026" — one rig
+    // cannot run both, so the day claim must reach the afternoon slot too.
+    const holder = await makeFixture(a, { appointment: null, closingAt: null, expectedDeliveryDate: '2026-10-01' });
+    const target = await makeFixture(a, { appointment: new Date('2026-10-01T06:00:00.000Z'), closingAt: null });
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: target.truckPlate })
+      .where(eq(s.shipmentFulfillments.id, holder.fulfillmentId));
+
+    await expectWarnThenProceed(saveInput(target), 'afternoon slot vs ngày-giao day claim');
+  });
+
+  test('control: date-only rows on different "Ngày giao" days save untouched', async () => {
+    const a = await actor();
+    const holder = await makeFixture(a, { appointment: null, closingAt: null, expectedDeliveryDate: '2026-10-01' });
+    const target = await makeFixture(a, { appointment: null, closingAt: null, expectedDeliveryDate: '2026-10-03' });
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: target.truckPlate })
+      .where(eq(s.shipmentFulfillments.id, holder.fulfillmentId));
+
+    const saved = await updateDispatchDetailPlan(saveInput(target) as never);
+    assert.ok(saved, 'different displayed days are not an overlap');
   });
 });
 
