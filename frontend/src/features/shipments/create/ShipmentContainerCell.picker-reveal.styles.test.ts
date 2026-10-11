@@ -20,7 +20,7 @@ const cellCss = readFileSync(resolve(process.cwd(), 'src/features/shipments/crea
  * 3. The default editor hide stays, so non-picker (text) cells keep the
  *    historical focus-within reveal.
  * 4. `:not()` (not a higher-specificity override) is the mechanism, so
- *    layout rules stay flat in the cascade. The ≤1037px stacked-layout rule
+ *    layout rules stay flat in the cascade. The ≤620px phone-record rule
  *    in ClerkShipmentCreatePage.css shows text/number editors continuously —
  *    and since case 2026-10-11-R14-01 (FB-006 round 14, owner re-report) it
  *    excludes picker cells too: the picked value + detail affordance must
@@ -61,7 +61,7 @@ describe('container cell picker reveal (card 101026163000)', () => {
   });
 
   it('keeps the picked-value contract in the stacked layout too (case 2026-10-11-R14-01)', () => {
-    // The ≤1037px continuous-editor carve-out serves text/number cells only.
+    // The ≤620px continuous-editor carve-out serves text/number cells only.
     const stacked = pageCss.slice(pageCss.indexOf('/* Stacked records'));
     expect(stacked).toMatch(
       /\.csc-container-cell:not\(\.csc-container-cell--picker\) \.csc-container-cell__display \{ display: none; \}/,

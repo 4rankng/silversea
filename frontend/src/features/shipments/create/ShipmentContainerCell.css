@@ -11,8 +11,8 @@
    picker menu is open. After a committed pick react-aria keeps focus on the
    input, and the bare :focus-within reveal pinned the full combobox (with its
    Xoá button) on screen beside the magnifier instead of the picked name. The
-   :not() exclusion — not a higher-specificity override — keeps the ≤1037px
-   stacked-layout rule in ClerkShipmentCreatePage.css (editors shown
+   :not() exclusion — not a higher-specificity override — keeps the ≤620px
+   phone-record rule in ClerkShipmentCreatePage.css (editors shown
    continuously) winning for these cells too. */
 .csc-container-cell:not(.csc-container-cell--picker):focus-within .csc-container-cell__display,
 .csc-container-cell:has([aria-expanded='true']) .csc-container-cell__display { opacity: 0; }

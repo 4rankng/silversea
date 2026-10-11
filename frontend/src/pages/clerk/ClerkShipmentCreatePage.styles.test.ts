@@ -27,7 +27,7 @@ const CONTAINER_COLUMNS = [
 describe('shipment create responsive layout', () => {
   it('shows mobile record controls directly and keeps inline catalog actions beside selectors', () => {
     const recordRules = css.slice(css.indexOf('/* Stacked records'));
-    expect(recordRules).toContain('@container (max-width: 1037px)');
+    expect(recordRules).toContain('@container (max-width: 620px)');
     // Case 2026-10-11-R14-01 (FB-006 round 14): stacked records stay forms for
     // text/number cells — but picker cells must keep the picked value + detail
     // affordance at EVERY width (owner re-report after the round-13 carve-out),
@@ -93,8 +93,8 @@ describe('shipment create responsive layout', () => {
     // Desktop keeps a styled shared header row; below the wide canvas the
     // header row and its colgroup step aside for the record layout.
     expect(css).toMatch(/\.csc-container-table thead th\s*\{[^}]*background:\s*var\(--surface-2\);[^}]*font-weight:\s*700;/);
-    expect(css).toMatch(/@container\s*\(max-width:\s*1037px\)[\s\S]*?\.csc-container-table thead,\s*\.csc-container-table colgroup\s*\{[^}]*display:\s*none;/);
-    expect(css).toMatch(/@container\s*\(max-width:\s*1037px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-table thead,\s*\.csc-container-table colgroup\s*\{[^}]*display:\s*none;/);
+    expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
     expect(css).toMatch(
       /@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
     );
@@ -127,10 +127,11 @@ describe('shipment create responsive layout', () => {
   it('uses one desktop decision row for cargo type and combined-load handling', () => {
     expect(css).toMatch(/\.csc-cargo-choice-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*2fr\)\s+minmax\(280px,\s*1fr\);[^}]*align-items:\s*end;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*900px\)[\s\S]*?\.csc-cargo-choice-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
-    // ONE data-flag treatment (card 20260922_31): all three flags share the
-    // plain inline checkbox class — the bordered chip and the bordered
-    // combined box are retired from both the markup and the sheet.
-    expect(css).toMatch(/\.csc-flag-checkbox\s*\{[^}]*min-height:\s*34px;[^}]*border:\s*0;[^}]*background:\s*none;/);
+    // ONE data-flag treatment: all three flags share ONE chip class — the
+    // owner mock 11/10 supersedes the 20260922_31 plain box (bordered chip,
+    // brand-soft fill when checked). Still no per-flag variants.
+    expect(css).toMatch(/\.csc-flag-checkbox\s*\{[^}]*min-height:\s*34px;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*10px;[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.csc-flag-checkbox:has\(input:checked\)\s*\{[^}]*border-color:\s*var\(--accent-2\);[^}]*background:\s*var\(--accent-soft\);/);
     expect(css).not.toContain('.csc-combined-toggle');
     expect(css).not.toContain('.csc-adhoc-toggle');
     // ONE plain flag treatment: the sheet never styles hint text inside it.
@@ -182,8 +183,10 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode legend,\s*\.csc-mode__option,\s*\.csc-flag-checkbox\s*\{[^}]*font-size:\s*var\(--control-compact-touch-font-size\);[^}]*line-height:\s*var\(--control-compact-touch-line-height\);/);
     expect(css).toMatch(/\.app-main:has\(\.csc-page\) \.app-body\s*\{[^}]*--app-body-pad-x:\s*8px;/);
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.csc-page\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*margin-inline:\s*0;/);
-    expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*12px 0 28px;/);
-    expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.csc-page\s*\{[^}]*padding-bottom:\s*calc\(44px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+    // Owner mock 11/10: the trailing band reserves the fixed action bar's
+    // measured height (useFixedActionClearance) plus breathing room — once.
+    expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*12px 0 calc\(var\(--csc-action-bar-h, 84px\) \+ 16px\);/);
+    expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.csc-page\s*\{[^}]*padding:\s*12px 0 calc\(var\(--csc-action-bar-h, 84px\) \+ 16px\);/);
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*12px;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section\s*\{[^}]*padding:\s*8px\s*!important;[^}]*gap:\s*10px\s*!important;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*padding:\s*10px 8px;/);
@@ -251,10 +254,16 @@ describe('shipment create responsive layout', () => {
     expect(css).not.toContain('position: sticky');
   });
 
-  it('keeps the final actions compact, flat, and aligned by hierarchy', () => {
-    expect(css).toMatch(/\.csc-summary__actions\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*flex-end;[^}]*padding-top:\s*4px;/);
+  it('keeps the final actions in the fixed bottom bar (owner mock 11/10)', () => {
+    expect(css).toMatch(/\.csc-action-bar\s*\{[^}]*position:\s*fixed;[^}]*left:\s*var\(--app-sidebar-offset, 0px\);[^}]*bottom:\s*0;[^}]*padding:\s*12px 20px calc\(12px \+ env\(safe-area-inset-bottom, 0px\)\);[^}]*padding-inline:\s*max\(20px, env\(safe-area-inset-left, 0px\)\) max\(20px, env\(safe-area-inset-right, 0px\)\);[^}]*background:\s*var\(--surface\);[^}]*border-top:\s*1px solid var\(--line\);/);
+    expect(css).toMatch(/\.csc-action-bar__status\s*\{[^}]*-webkit-line-clamp:\s*2;/);
+    expect(css).toMatch(/\.csc-action-bar__actions\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*flex-end;/);
+    // The measured-height clearance (useFixedActionClearance publishes
+    // --csc-action-bar-h) replaces lockstep literals at every tier.
+    expect(css.match(/calc\(var\(--csc-action-bar-h, 84px\) \+ 16px\)/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(css).not.toMatch(/calc\(84px \+ env\(safe-area-inset-bottom/);
     expect(css).not.toContain('.csc-button');
-    expect(css).not.toContain('.csc-summary__actions { display: grid');
+    expect(css).not.toContain('.csc-summary__actions');
   });
 });
 

@@ -5,7 +5,7 @@
 /* Shipment entry is an operational worksheet: let its cards use the full
    shell canvas, while the app shell remains the single safe outer gutter. */
 .app-main:not(.driver-mode) .app-body > .csc-page { width: 100%; max-width: none; margin-inline: 0; }
-.csc-page { width: 100%; margin: 0; padding: 12px 0 28px; min-width: 0; }
+.csc-page { width: 100%; margin: 0; padding: 12px 0 calc(var(--csc-action-bar-h, 84px) + 16px); min-width: 0; }
 .csc-page__title { margin: 0 0 14px; font-size: var(--text-title-size); line-height: 1.2; color: var(--fg-1); font-weight: 700; }
 /* LCL split-lot extra delivery dates (Create Shipment doc Block 2B "[+]" repeater). */
 .csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
@@ -120,11 +120,13 @@
 .csc-container-table select { width: 100%; min-width: 0; max-width: 100%; }
 .csc-container-row__mobile-index { display: none; }
 .csc-container-row__actions { text-align: center; }
-/* ONE data-flag treatment for the whole intake form (card 20260922_31): every
-   boolean flag — Lệnh chạy ngoài, Có cược container, Đóng kết hợp — is a plain
-   inline checkbox (native box + label, zero box chrome: no border, no fill, no
-   chip), at the form's compact control height. */
-.csc-flag-checkbox { display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 34px; padding: 0; border: 0; background: none; color: var(--fg-1); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); cursor: pointer; justify-self: start; }
+/* ONE data-flag treatment for the whole intake form: every boolean flag —
+   Lệnh chạy ngoài, Có cược container, Đóng kết hợp — shares this chip. The
+   20260922_31 plain-box look is superseded by the owner mock 11/10
+   ("Tạo lô hàng.html"): a bordered chip that fills brand-soft when checked;
+   still one treatment for every flag, native input kept for a11y. */
+.csc-flag-checkbox { display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 34px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--fg-1); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); cursor: pointer; justify-self: start; }
+.csc-flag-checkbox:has(input:checked) { border-color: var(--accent-2); background: var(--accent-soft); }
 .csc-flag-checkbox input { width: 16px; height: 16px; flex: 0 0 auto; margin: 0; accent-color: var(--accent-2); }
 .csc-flag-checkbox span { display: inline; color: inherit; }
 .csc-flag-checkbox strong { color: var(--fg-1); }
@@ -214,6 +216,17 @@
   background: var(--surface-2);
 }
 .csc-summary { display: grid; gap: 12px; min-width: 0; }
+/* Owner mock 11/10 + UUI modal-foot idiom: the create actions ride a fixed
+   bottom bar — opaque surface, hairline top border, status left, actions
+   right. Shared fixed-bar mechanisms: left rides the shell's sidebar-offset
+   token (never under the desktop rail) and the inline pads follow the cutout
+   law (max(base, env(l/r))); the bar owns its bottom safe-area strip (env
+   counted once, inside its own box). Height is published as
+   --csc-action-bar-h by useFixedActionClearance — the page clearance below
+   reads it, so a wrapped two-row bar is still cleared. */
+.csc-action-bar { position: fixed; left: var(--app-sidebar-offset, 0px); right: 0; bottom: 0; z-index: var(--z-sticky, 100); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px)); padding-inline: max(20px, env(safe-area-inset-left, 0px)) max(20px, env(safe-area-inset-right, 0px)); background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgb(16 24 40 / 4%); }
+.csc-action-bar__status { margin: 0; min-width: 0; flex: 1 1 auto; color: var(--fg-2); font-size: var(--text-data-size); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.csc-action-bar__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 0 auto; }
 .csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
 .csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p, .csc-summary__muted, .csc-summary__error { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }.csc-summary__muted { color: var(--fg-3); }.csc-summary__error { color: var(--danger); }.csc-summary__warning { color: var(--warn); }
 .csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
@@ -221,7 +234,8 @@
 .csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
 .csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-soft); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: var(--control-max-h); border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
 .csc-submit-error { color: var(--danger); background: var(--danger-soft); font-size: var(--text-data-size); line-height: 1.5; }
-.csc-summary__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+/* Retired: the create actions moved into the fixed .csc-action-bar (owner
+   mock 11/10). */
 @media (min-width: 1101px) and (min-height: 721px) {
   .csc-section__heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
   .csc-section__heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -233,7 +247,15 @@
     scrollbar-gutter: stable;
   }
 }
-@container (max-width: 1037px) {
+/* Owner ruling 11/10 (idea reference: dense spreadsheet row): the record
+   tier is for PHONES. Mid widths keep the dense table — the 1038px
+   min-width sheet scrolls horizontally inside .csc-container-table-scroll
+   instead of stacking each container into a ~300px-tall form.
+   Seam invariant: at ≤640px viewport the section padding leaves the
+   container editor ≤ ~608px, 12px under this threshold — if the phone
+   gutter grows past ~10px/side, lower this number with it, or phones get
+   the dense table under the one-column record overrides. */
+@container (max-width: 620px) {
   .csc-container-table-scroll { width: 100%; overflow: visible; border: 0; border-radius: 0; background: transparent; }
   .csc-container-table, .csc-container-table tbody { display: block; width: 100%; min-width: 0; background: transparent; }
   .csc-container-table thead, .csc-container-table colgroup { display: none; }
@@ -256,20 +278,19 @@
   .csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-field-with-append { flex-wrap: wrap; }.csc-append-button { width: 100%; }.csc-declaration-list__add { width: 100%; }.csc-declaration-row__field { max-width: none; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0 calc(var(--csc-action-bar-h, 84px) + 16px); }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-field-with-append { flex-wrap: wrap; }.csc-append-button { width: 100%; }.csc-declaration-list__add { width: 100%; }.csc-declaration-row__field { max-width: none; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); padding: 8px 0; border: 0; border-radius: 0; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
-/* Keep the normal-flow action row above the iPhone home indicator at the end
-   of the long create form. It is deliberately not sticky. */
 @media (max-width: 640px) {
   .csc-container-row { grid-template-columns: minmax(0, 112px) minmax(0, 1fr); }
   .csc-container-row > * { grid-column: 1 / -1; }
   .csc-container-row > .csc-container-cell--weight { grid-column: 1; }
   .csc-container-row > .csc-container-cell--appointment { grid-column: 1 / -1; }
   .csc-page {
-    padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px));
-    /* The trailing safe-area padding must read as part of the worksheet, not
-       as a bare app-main canvas strip at the end of the scroll (user report
-       2026-09-16: grey gap below the last section on mobile). */
+    /* The fixed action bar (owner mock 11/10) reserves the trailing band:
+       its measured height (incl. the bar's own safe-area strip) plus
+       breathing room, counted once. The page surface still paints the band
+       (2026-09-16 grey-gap report). */
+    padding-bottom: calc(var(--csc-action-bar-h, 84px) + 16px);
     background: var(--surface);
   }
   /* The shell's own 28px bottom padding sits BELOW the page and shows the
@@ -370,7 +391,7 @@
  * must hold at every width — the editor reveals only while its menu opens —
  * otherwise the full combobox chrome replaces the name exactly where desktop
  * windows land inside this container query. */
-@container (max-width: 1037px) {
+@container (max-width: 620px) {
   .csc-container-cell:not(.csc-container-cell--picker) .csc-container-cell__display { display: none; }
   .csc-container-cell:not(.csc-container-cell--picker) .csc-container-cell__editor > * { opacity: 1; }
   .csc-container-cell .csc-route-picker { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; }
@@ -463,7 +484,9 @@
 .csc-declaration-ledger__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .csc-declaration-ledger__title { color: var(--fg-3); font-size: var(--text-caption-size); font-weight: var(--fw-semibold, 600); line-height: 1.35; letter-spacing: .04em; text-transform: uppercase; }
 .csc-declaration-ledger__count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-3); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 650; line-height: 1; }
-.csc-declaration-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+/* Owner mock 11/10: a long declaration list scrolls INSIDE its panel — the
+   ledger head (title + count pill) and the add row stay anchored. */
+.csc-declaration-list { display: grid; gap: 6px; margin: 0; padding: 0 4px 0 0; list-style: none; max-height: 372px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .csc-declaration-row { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 32px; }
 .csc-declaration-row__index { display: inline-grid; place-items: center; flex: 0 0 auto; width: 18px; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1; }
 .csc-declaration-row__field { flex: 1 1 auto; min-width: 0; max-width: 320px; }
