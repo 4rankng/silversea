@@ -166,7 +166,12 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
   it.each([
     ['partial time', '', '14:'],
     ['partial date', '20/09', ''],
-  ])('preserves a %s draft and counts only truly empty destinations', async (_label, date, time) => {
+  ])('replaces a %s draft and counts every row still without a schedule', async (_label, date, time) => {
+    // Case 2026-10-11-R14-03 (FB-009 round 14, owner re-report "mất hẳn")
+    // amends card 20261010_3: a typed partial segment draft is incomplete
+    // invalid input ('Nhập đủ giờ và ngày hợp lệ'), never a schedule — an
+    // explicit copy click replaces it visibly, matching the CUS ledger's
+    // 20260917_1 rule. Rows with a set appointment stay protected.
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
@@ -181,10 +186,57 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     expect(appointmentValue(4).time).toBe('09:00');
     expect(appointmentValue(1).date).toBe('21/09/2026');
     expect(appointmentValue(1).time).toBe('11:30');
-    expect(appointmentValue(2).date).toBe(date);
-    expect(appointmentValue(2).time).toBe(time);
-    expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 2 container chưa có lịch/)).toBeInTheDocument();
+    // The partial draft row is a destination — it receives the source.
+    await waitFor(() => expect(appointmentValue(2).date).toBe('20/09/2026'));
+    expect(appointmentValue(2).time).toBe('09:00');
+    expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 3 container chưa có lịch/)).toBeInTheDocument();
     expect(copyButton()).toBeNull();
+  });
+
+  it('keeps the copy affordance alive when the only other row carries a partial draft (case 2026-10-11-R14-03)', async () => {
+    // Round-14 repro ("nút copy thời gian mất hẳn"): with partial drafts as
+    // the only other rows the exclusion zeroed the destination count and every
+    // copy affordance vanished. A row still without a valid schedule is a
+    // destination, draft or not.
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    addContainer();
+    fillAppointment(0, '20/09/2026', '09:00');
+    fillAppointment(1, '20/09', '');
+
+    expect(copyButton()).toBeTruthy();
+    fireEvent.click(copyButton()!);
+    await waitFor(() => expect(appointmentValue(1).date).toBe('20/09/2026'));
+    expect(appointmentValue(1).time).toBe('09:00');
+  });
+
+  it('bulk date control fills every row without a schedule and never overwrites set rows (case 2026-10-11-R14-02)', async () => {
+    // FB-008 round-14 ("không có nhập ngày giao hàng loạt cho lô nhiều
+    // container"): the copy affordance needs a source row first; this control
+    // types the schedule once and applies it to every row still without one.
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    addContainer();
+    addContainer();
+    fillAppointment(0, '20/09/2026', '09:00');
+
+    const bulkDate = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-date"]')!;
+    const bulkTime = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]')!;
+    expect(bulkDate).toBeTruthy();
+    expect(bulkTime).toBeTruthy();
+    fireEvent.change(bulkDate, { target: { value: '25/12/2026' } });
+    fireEvent.change(bulkTime, { target: { value: '14:30' } });
+
+    const applyBtn = await screen.findByRole('button', { name: /Áp dụng cho 2 container/ });
+    fireEvent.click(applyBtn);
+    await waitFor(() => expect(appointmentValue(1).date).toBe('25/12/2026'));
+    expect(appointmentValue(1).time).toBe('14:30');
+    expect(appointmentValue(2).date).toBe('25/12/2026');
+    expect(appointmentValue(2).time).toBe('14:30');
+    // Rows holding a schedule keep it.
+    expect(appointmentValue(0).date).toBe('20/09/2026');
+    expect(appointmentValue(0).time).toBe('09:00');
+    expect(await screen.findByText(/Đã áp dụng ngày giờ đóng trả cho 2 container chưa có lịch/)).toBeTruthy();
   });
 
   // User ruling 2026-09-18: the affordance lives in the STT cell as an icon

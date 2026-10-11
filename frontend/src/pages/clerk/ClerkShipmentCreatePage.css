@@ -366,12 +366,37 @@
 
 /* Stacked records are forms, not spreadsheet previews. Show their controls
  * continuously and keep catalog creation beside its selector so invisible
- * editor/add rows do not reserve a second line of phone screen space. */
+ * editor/add rows do not reserve a second line of phone screen space.
+ * Picker cells are exempt (case 2026-10-11-R14-01 / FB-006 round 14, owner
+ * re-report after the round-13 carve-out): a picked value + detail affordance
+ * must hold at every width — the editor reveals only while its menu opens —
+ * otherwise the full combobox chrome replaces the name exactly where desktop
+ * windows land inside this container query. */
 @container (max-width: 1037px) {
-  .csc-container-cell .csc-container-cell__display { display: none; }
-  .csc-container-cell .csc-container-cell__editor > * { opacity: 1; }
+  .csc-container-cell:not(.csc-container-cell--picker) .csc-container-cell__display { display: none; }
+  .csc-container-cell:not(.csc-container-cell--picker) .csc-container-cell__editor > * { opacity: 1; }
   .csc-container-cell .csc-route-picker { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; }
   .csc-container-cell .csc-route-picker__add { width: auto; min-height: var(--control-max-h); padding-inline: 8px; }
+}
+
+/* Bulk delivery-schedule entry (case 2026-10-11-R14-02 / FB-008): one
+   date + time typed once applies to every container still without a
+   schedule. Field and action share one wrapping row on desktop and stack
+   on phones — no control exceeds the 40px ordinary ceiling. */
+.csc-bulk-appointment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+.csc-bulk-appointment .csc-uui-field {
+  flex: 0 1 260px;
+  min-width: 220px;
+}
+@media (max-width: 640px) {
+  .csc-bulk-appointment { flex-direction: column; align-items: stretch; }
+  .csc-bulk-appointment .csc-utility-button { width: 100%; }
 }
 
 /* Bulk appointment copy (user ruling 2026-09-18): the affordance lives in the

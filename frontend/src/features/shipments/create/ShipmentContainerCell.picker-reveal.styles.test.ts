@@ -19,10 +19,15 @@ const cellCss = readFileSync(resolve(process.cwd(), 'src/features/shipments/crea
  *    cell, pickers included — opening the menu still shows the editor.
  * 3. The default editor hide stays, so non-picker (text) cells keep the
  *    historical focus-within reveal.
- * 4. `:not()` (not a higher-specificity override) is the mechanism, so the
- *    ≤1037px stacked-layout rule in ClerkShipmentCreatePage.css that shows
- *    editors continuously still wins.
+ * 4. `:not()` (not a higher-specificity override) is the mechanism, so
+ *    layout rules stay flat in the cascade. The ≤1037px stacked-layout rule
+ *    in ClerkShipmentCreatePage.css shows text/number editors continuously —
+ *    and since case 2026-10-11-R14-01 (FB-006 round 14, owner re-report) it
+ *    excludes picker cells too: the picked value + detail affordance must
+ *    hold at every width, with the editor revealed only while the menu opens.
  */
+const pageCss = readFileSync(resolve(process.cwd(), 'src/pages/clerk/ClerkShipmentCreatePage.css'), 'utf8');
+
 describe('container cell picker reveal (card 101026163000)', () => {
   it('excludes picker cells from the focus-within display hide', () => {
     expect(cellCss).toMatch(
@@ -52,6 +57,17 @@ describe('container cell picker reveal (card 101026163000)', () => {
   it('keeps the default editor hide for idle cells', () => {
     expect(cellCss).toMatch(
       /\.csc-container-cell__editor > \* \{ width: 100%; opacity: 0; \}/,
+    );
+  });
+
+  it('keeps the picked-value contract in the stacked layout too (case 2026-10-11-R14-01)', () => {
+    // The ≤1037px continuous-editor carve-out serves text/number cells only.
+    const stacked = pageCss.slice(pageCss.indexOf('/* Stacked records'));
+    expect(stacked).toMatch(
+      /\.csc-container-cell:not\(\.csc-container-cell--picker\) \.csc-container-cell__display \{ display: none; \}/,
+    );
+    expect(stacked).toMatch(
+      /\.csc-container-cell:not\(\.csc-container-cell--picker\) \.csc-container-cell__editor > \* \{ opacity: 1; \}/,
     );
   });
 });

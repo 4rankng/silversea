@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, Copy, Plus, Trash2 } from 'lucide-react';
 import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
   UTextAreaField as TextAreaField,
   UDateField as DateField,
 } from './uui-fields';
+import { UDateTimeField } from './uui-datetime-field';
 import { useToast } from '../../../components/shared/Toast';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
@@ -426,12 +427,19 @@ export function ShipmentCreateWorkspace() {
     clearFeedback();
   }
 
-  // Card 20261010_3: the count gates visibility at >= 1 empty destination, and
-  // it must count only rows a copy would actually fill — a row holding an
-  // uncommitted partial draft is not a destination (emptyAppointmentKeys is
-  // the single source of that truth). The DOM read sees the previous paint,
-  // which is exactly the state a click acts on.
-  const emptyAppointmentCount = emptyAppointmentKeys(containers, workspaceFormRef.current).size;
+  // Case 2026-10-11-R14-02 (FB-008 round 14, "không có nhập ngày giao hàng
+  // loạt cho lô nhiều container"): bulk delivery-schedule entry — type the
+  // "Ngày giờ đóng trả" once and apply it to every container still without
+  // one. The no-source sibling of 'Copy giờ hẹn xuống cont trống': it fills
+  // the same destination set without requiring a scheduled row first.
+  const [bulkAppointment, setBulkAppointment] = useState('');
+  // Case 2026-10-11-R14-03 (FB-009 round 14): the count gates visibility at
+  // >= 1 destination — any row still without a schedule, including one holding
+  // a partial segment draft (incomplete invalid input the copy replaces
+  // visibly; emptyAppointmentKeys is the single source of that truth). The
+  // DOM read sees the previous paint, which is exactly the state a click acts
+  // on.
+  const emptyAppointmentCount = emptyAppointmentKeys(containers).size;
   // Verify-fail 091026225620: the section-level copy affordance (the
   // discoverable position the "button missing" reports kept looking for)
   // sources from the first row that has an appointment; the per-row hover
@@ -440,12 +448,24 @@ export function ShipmentCreateWorkspace() {
   function copyAppointmentToEmpty(fromKey: string) {
     const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
     if (!source) return;
-    const targetKeys = emptyAppointmentKeys(containers, workspaceFormRef.current);
+    const targetKeys = emptyAppointmentKeys(containers);
     if (!targetKeys.size) return;
     setContainers((current) => current.map((row) => (
       targetKeys.has(row.key) ? { ...row, customerAppointmentAt: source } : row
     )));
     toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetKeys.size} container chưa có lịch` });
+  }
+
+  function applyBulkAppointment() {
+    if (!bulkAppointment) return;
+    const targetKeys = emptyAppointmentKeys(containers);
+    if (!targetKeys.size) return;
+    setContainers((current) => current.map((row) => (
+      targetKeys.has(row.key) ? { ...row, customerAppointmentAt: bulkAppointment } : row
+    )));
+    setBulkAppointment('');
+    clearFeedback();
+    toast({ kind: 'success', message: `Đã áp dụng ngày giờ đóng trả cho ${targetKeys.size} container chưa có lịch` });
   }
 
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
@@ -674,6 +694,27 @@ export function ShipmentCreateWorkspace() {
             )}
             {form.cargoMode === 'FCL' && (
               <>
+                {emptyAppointmentCount >= 1 && (
+                  <div className="csc-bulk-appointment" data-field-id="shipment-bulk-appointment">
+                    <UDateTimeField
+                      id="shipment-bulk-appointment"
+                      label="Ngày giờ đóng trả cho tất cả cont"
+                      value={bulkAppointment}
+                      onChange={(event) => setBulkAppointment(event.target.value)}
+                      disabled={Boolean(saving)}
+                      combinedPicker
+                    />
+                    <button
+                      type="button"
+                      className="csc-utility-button csc-utility-button--dashed"
+                      title={`Áp dụng ngày giờ đóng trả này cho ${emptyAppointmentCount} container chưa có lịch`}
+                      onClick={applyBulkAppointment}
+                      disabled={Boolean(saving) || !bulkAppointment}
+                    >
+                      <CalendarDays size={15} aria-hidden="true" />Áp dụng cho {emptyAppointmentCount} container
+                    </button>
+                  </div>
+                )}
                 {copySourceRow && emptyAppointmentCount >= 1 && (
                   <button
                     type="button"

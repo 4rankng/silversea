@@ -287,12 +287,20 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
   it('keeps a whitespace seam between the section title and the first sub-label (card 071026204720)', async () => {
     // Text-level flattens (textContent) carry no block boundaries — the
-    // schedule section's title and first field label must not run on as
+    // schedule section's title and the first sub-label must not run on as
     // "Lịch & ghi chúGhi chú cho khách hàng" the way the staging retest read.
+    // The pin is label-agnostic on purpose: the card protects the SEAM, not
+    // one particular first label, and fields do get inserted above the notes
+    // (the bulk "Ngày giờ đóng trả" field is one). Asserting a hardcoded
+    // first label made the pin go stale the moment that field landed.
     const { container } = renderPage();
     await screen.findByRole('heading', { name: 'Lịch & ghi chú' });
     const section = container.querySelector('#shipment-section-schedule');
-    expect(section?.textContent).toContain('Lịch & ghi chú Ghi chú cho khách hàng');
+    const text = section?.textContent ?? '';
+    // No run-on: the title must never be immediately followed by a non-space.
+    expect(text).not.toMatch(/Lịch & ghi chú(?=\S)/);
+    // And something must actually follow it after the seam.
+    expect(text).toMatch(/Lịch & ghi chú\s+\S/);
   });
 
   it('renders long customer names in the customer-specific dropdown treatment', async () => {

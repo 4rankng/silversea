@@ -28,8 +28,12 @@ describe('shipment create responsive layout', () => {
   it('shows mobile record controls directly and keeps inline catalog actions beside selectors', () => {
     const recordRules = css.slice(css.indexOf('/* Stacked records'));
     expect(recordRules).toContain('@container (max-width: 1037px)');
-    expect(recordRules).toMatch(/\.csc-container-cell \.csc-container-cell__display\s*\{[^}]*display:\s*none;/);
-    expect(recordRules).toMatch(/\.csc-container-cell \.csc-container-cell__editor > \*\s*\{[^}]*opacity:\s*1;/);
+    // Case 2026-10-11-R14-01 (FB-006 round 14): stacked records stay forms for
+    // text/number cells — but picker cells must keep the picked value + detail
+    // affordance at EVERY width (owner re-report after the round-13 carve-out),
+    // revealing their editor only while the menu is open.
+    expect(recordRules).toMatch(/\.csc-container-cell:not\(\.csc-container-cell--picker\) \.csc-container-cell__display\s*\{[^}]*display:\s*none;/);
+    expect(recordRules).toMatch(/\.csc-container-cell:not\(\.csc-container-cell--picker\) \.csc-container-cell__editor > \*\s*\{[^}]*opacity:\s*1;/);
     expect(recordRules).toMatch(/\.csc-container-cell \.csc-route-picker\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
     expect(recordRules).toMatch(/\.csc-container-cell \.csc-route-picker__add\s*\{[^}]*min-height:\s*var\(--control-max-h\);/);
   });
