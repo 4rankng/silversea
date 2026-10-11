@@ -325,6 +325,33 @@ describe('card 101026043000 — the overlap warning fires on weak slot evidence 
     const saved = await updateDispatchDetailPlan(saveInput(target) as never);
     assert.ok(saved, 'different displayed days are not an overlap');
   });
+
+  test('an LCL date-only holder stays weak evidence: the confirmed save has a path on (case 2026-10-11-R14-04 review B1)', async () => {
+    const a = await actor();
+    // Holder: a whole-lot LCL_SHIPMENT fulfillment whose only slot is the
+    // displayed "Ngày giao" lot date — the same date-only evidence the FCL
+    // branch warns on. An LCL row riding closingAt/plannedReturnAt is its
+    // PRIMARY slot (full evidence, card 061026174603); the date-only
+    // fallback is display evidence and must never pin the hard tier —
+    // otherwise the warn's own confirm dead-ends ("Vẫn lưu?" with no path on).
+    const holder = await makeFixture(a, { appointment: null, closingAt: null, expectedDeliveryDate: '2026-10-01' });
+    await db.update(s.shipmentFulfillments)
+      .set({ fulfillmentType: 'LCL_SHIPMENT', shipmentContainerId: null, dispatchClassification: 'LCL' })
+      .where(eq(s.shipmentFulfillments.id, holder.fulfillmentId));
+    // Target: a fully-evidenced FCL row (explicit appointment) on the same rig.
+    const target = await makeFixture(a, { appointment: SLOT, closingAt: null });
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: target.truckPlate })
+      .where(eq(s.shipmentFulfillments.id, holder.fulfillmentId));
+
+    await expectWarnThenProceed(saveInput(target), 'LCL date-only holder');
+
+    const saved = await updateDispatchDetailPlan({
+      ...saveInput(target),
+      rigOverlapCompletedConfirmed: true,
+    } as never);
+    assert.ok(saved, 'the confirmed retry must proceed — the warn tier must never dead-end');
+  });
 });
 
 after(async () => {

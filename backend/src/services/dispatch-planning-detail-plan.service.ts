@@ -806,7 +806,16 @@ async function assertPlanRowRigAvailable(
   const lclHolderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
   const lclHolderStartSql = sql`coalesce(${lclHolderSlotSql}, ${lclHolderDaySql})`;
   const lclHolderEndSql = sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, case when ${lclHolderSlotSql} is null then ${lclHolderDaySql} + interval '1 day' else ${lclHolderSlotSql} + interval '8 hours' end)`;
-  const lclPlanConflicts = await tx.select({ id: s.shipmentFulfillments.id, shipmentId: s.shipmentFulfillments.shipmentId })
+  const lclPlanConflicts = await tx.select({
+    id: s.shipmentFulfillments.id,
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    // Evidence marker, symmetric with the FCL scan (case 2026-10-11-R14-04
+    // review B1): an LCL row riding closingAt/plannedReturnAt has its PRIMARY
+    // slot (full evidence, card 061026174603) — only the displayed "Ngày
+    // giao" date fallback is display evidence. Without this marker a date-only
+    // LCL holder pinned the HARD tier and the warn's own confirm dead-ended.
+    fallbackSlot: sql`(${lclHolderSlotSql}) is null`,
+  })
     .from(s.shipmentFulfillments)
     .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
     .where(and(
@@ -859,7 +868,11 @@ const planRowBlocked = isKepPairing ? false : (crossLotConflicts.length > 0 || c
 // (RIG_OVERLAP_COMPLETED + rigOverlapCompletedConfirmed) verbatim.
 const weakEvidence = !args.window.strong
   || degenerateEnd
-  || crossLotConflicts.some((conflict) => conflict.fallbackSlot);
+  || crossLotConflicts.some((conflict) => conflict.fallbackSlot)
+  // B1 (review 2026-10-11): the LCL branch's date-only holders are display
+  // evidence exactly like the FCL fallbacks — the warn tier must see both,
+  // or the same row is weak when saving and hard when holding.
+  || crossLotLclConflicts.some((conflict) => conflict.fallbackSlot);
 if (planRowBlocked || tripConflicts.length > 0) {
     if (!weakEvidence) {
       throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
