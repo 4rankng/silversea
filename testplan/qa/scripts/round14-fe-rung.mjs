@@ -184,6 +184,14 @@ await run('fb009-fb008-copy-and-bulk', async () => {
   assert.ok(addResult.after > addResult.before, 'a fresh empty row was added');
   const rows = await page.$$('tr.csc-container-row');
   const lastRow = rows[rows.length - 1];
+  // "Thêm container" copies the previous row (createContainerFromPrevious) —
+  // clear the copied schedule first, then type a PARTIAL draft (date only):
+  // the exact round-14 "mất hẳn" state.
+  for (const seg of ['hh', 'mm', 'dd', 'mm2', 'yyyy']) {
+    const el = await lastRow.$(`input[data-seg="${seg}"]`);
+    if (el) { await el.click({ clickCount: 3 }); await el.press('Backspace'); }
+  }
+  await sleep(300);
   const lastRowDate = await lastRow.$('input[data-seg="dd"]');
   if (lastRowDate) { await lastRowDate.click({ clickCount: 3 }); await lastRowDate.type('15'); }
   await sleep(500);
