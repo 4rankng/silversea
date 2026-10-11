@@ -69,9 +69,14 @@ export function ShipmentCreateIdentitySection({
         </label>
       }
     >
+      {/* BAND 1 — identity. Three single fields share a row; nothing tall
+          rides with them. */}
       <div className="csc-identity-grid">
-        {/* KHÁCH HÀNG */}
-        <div className="csc-identity-grid__customer csc-customer-picker" data-field="shipment-customer" data-field-id="shipment-customer">
+        <div
+          className="csc-identity-grid__customer csc-field-with-append"
+          data-field="shipment-customer"
+          data-field-id="shipment-customer"
+        >
           <SearchableField
             id="shipment-customer"
             label="Khách hàng"
@@ -94,7 +99,7 @@ export function ShipmentCreateIdentitySection({
             type="button"
             onClick={onOpenCustomerDialog}
             disabled={saving}
-            className="csc-utility-button csc-utility-button--dashed csc-customer-picker__add"
+            className="csc-utility-button csc-utility-button--dashed csc-append-button"
           >
             <Plus size={15} aria-hidden="true" />Thêm khách hàng
           </button>
@@ -139,9 +144,16 @@ export function ShipmentCreateIdentitySection({
             }
           />
         </div>
+      </div>
 
+      {/* BAND 2 — carrier + the two flags, so a one-row field never shares a
+          grid row with the 1-to-N declaration list below. */}
+      <div className="csc-identity-grid">
         {form.cargoMode === 'FCL' && (
-          <div className="csc-identity-grid__shipping-line csc-shipping-line-picker" data-field-id="shipment-shipping-line">
+          <div
+            className="csc-identity-grid__shipping-line csc-field-with-append"
+            data-field-id="shipment-shipping-line"
+          >
             <SearchableField
               id="shipment-shipping-line"
               label="Hãng tàu"
@@ -159,39 +171,80 @@ export function ShipmentCreateIdentitySection({
               type="button"
               onClick={onOpenShippingLineDialog}
               disabled={saving}
-              className="csc-utility-button csc-utility-button--dashed csc-shipping-line-picker__add"
+              className="csc-utility-button csc-utility-button--dashed csc-append-button"
             >
               <Plus size={15} aria-hidden="true" />Thêm hãng tàu
             </button>
           </div>
         )}
 
-        {/* SỐ TỜ KHAI */}
-        <div className="csc-identity-grid__declaration">
+        <div
+          className={`csc-identity-grid__flags${form.cargoMode === 'FCL' ? '' : ' csc-identity-grid__flags--solo'}`}
+          data-field-id="shipment-deposit"
+        >
+          <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
+            <input
+              type="checkbox"
+              checked={form.hasDeposit}
+              onChange={(event) => update('hasDeposit', event.target.checked)}
+              disabled={saving}
+            />
+            <span><strong>Có cược container</strong></span>
+          </label>
+          {form.hasDeposit && (
+            <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
+              <TextField
+                id="shipment-deposit-amount"
+                label="Tiền cược dự kiến"
+                value={form.depositAmount}
+                onChange={(event) => update('depositAmount', formatVnMoney(event.target.value))}
+                maxLength={15}
+                placeholder="Ví dụ: 5.000.000"
+                disabled={saving}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* BAND 3 — declaration repeater. Full width, compact rows: the code is a
+          short identifier, so it takes a content-sized track and the row's
+          remaining width carries the per-declaration duplicate warning. The
+          group legend is the label; every row control keeps its own accessible
+          name ("Số tờ khai", "Số tờ khai 2", …). */}
+      <div className="csc-declaration-ledger" data-field-id="shipment-declarations">
+        <div className="csc-declaration-ledger__head">
+          <span className="csc-declaration-ledger__title">Số tờ khai</span>
+          <span className="csc-declaration-ledger__count">{declarationList.length}</span>
+        </div>
+        <ul className="csc-declaration-list" role="list">
           {declarationList.map((decl, index) => {
             const conflict = getDeclarationConflict
               ? getDeclarationConflict(decl)
               : (index === 0 ? declarationConflict : undefined);
             return (
-              <div key={index} className="csc-declaration-row">
-                <TextField
-                  label={index === 0 ? 'Số tờ khai' : `Số tờ khai ${index + 1}`}
-                  hideLabel={index > 0}
-                  value={decl}
-                  onChange={(event) => {
-                    const next = [...declarationList];
-                    next[index] = event.target.value;
-                    update('declarationNumbers', next);
-                  }}
-                  maxLength={50}
-                  disabled={saving}
-                  placeholder={index > 0 ? `Số tờ khai ${index + 1}` : undefined}
-                  warning={
-                    conflict ? (
-                      <ShipmentReferenceConflictWarning conflict={conflict} fieldLabel="Số tờ khai" />
-                    ) : undefined
-                  }
-                />
+              <li key={index} className="csc-declaration-row">
+                <span className="csc-declaration-row__index" aria-hidden="true">{index + 1}</span>
+                <div className="csc-declaration-row__field">
+                  <TextField
+                    label={index === 0 ? 'Số tờ khai' : `Số tờ khai ${index + 1}`}
+                    hideLabel
+                    value={decl}
+                    onChange={(event) => {
+                      const next = [...declarationList];
+                      next[index] = event.target.value;
+                      update('declarationNumbers', next);
+                    }}
+                    maxLength={50}
+                    disabled={saving}
+                    placeholder={index === 0 ? 'Số tờ khai' : `Số tờ khai ${index + 1}`}
+                    warning={
+                      conflict ? (
+                        <ShipmentReferenceConflictWarning conflict={conflict} fieldLabel="Số tờ khai" />
+                      ) : undefined
+                    }
+                  />
+                </div>
                 {declarationList.length > 1 && (
                   <button
                     type="button"
@@ -206,46 +259,20 @@ export function ShipmentCreateIdentitySection({
                     <Trash2 size={16} aria-hidden="true" />
                   </button>
                 )}
-              </div>
+              </li>
             );
           })}
-          <button
-            type="button"
-            onClick={() => {
-              update('declarationNumbers', [...declarationList, '']);
-            }}
-            disabled={saving}
-            className="csc-utility-button csc-utility-button--dashed csc-declaration-picker__add"
-          >
-            <Plus size={15} aria-hidden="true" />Thêm tờ khai
-          </button>
-        </div>
-      </div>
-
-      {/* CƯỢC CONTAINER */}
-      <div className="csc-deposit-row" data-field-id="shipment-deposit">
-        <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
-          <input
-            type="checkbox"
-            checked={form.hasDeposit}
-            onChange={(event) => update('hasDeposit', event.target.checked)}
-            disabled={saving}
-          />
-          <span><strong>Có cược container</strong></span>
-        </label>
-        {form.hasDeposit && (
-          <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
-            <TextField
-              id="shipment-deposit-amount"
-              label="Tiền cược dự kiến"
-              value={form.depositAmount}
-              onChange={(event) => update('depositAmount', formatVnMoney(event.target.value))}
-              maxLength={15}
-              placeholder="Ví dụ: 5.000.000"
-              disabled={saving}
-            />
-          </div>
-        )}
+        </ul>
+        <button
+          type="button"
+          onClick={() => {
+            update('declarationNumbers', [...declarationList, '']);
+          }}
+          disabled={saving}
+          className="csc-utility-button csc-utility-button--dashed csc-declaration-list__add"
+        >
+          <Plus size={15} aria-hidden="true" />Thêm tờ khai
+        </button>
       </div>
     </ShipmentCreateSection>
   );

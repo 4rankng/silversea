@@ -137,7 +137,7 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
     expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
     // Below the 12-column canvas the customer field stops sharing a half row.
-    expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid__customer,\s*\.csc-identity-grid__flags--solo\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
   });
@@ -195,14 +195,35 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-add-container\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--accent-2\);/);
   });
 
-  it('keeps the shipping-line add action compact on desktop and touch-sized on mobile', () => {
-    // The picker owns the shipping-line identity column and its add action
-    // rides the dashed utility-button treatment.
-    expect(css).toMatch(/\.csc-identity-grid__shipping-line,\s*\.csc-identity-grid__declaration\s*\{[^}]*grid-column:\s*span 6;/);
+  it('keeps quick-create actions beside their field on one row', () => {
+    // The action keeps the house ghost/icon quick-create recipe but no longer
+    // owns a line under its field (Tailkit form-input-groups-06 append anatomy).
     expect(css).toMatch(/\.csc-utility-button--dashed\s*\{[^}]*background:\s*transparent;/);
-    expect(css).toMatch(/\.csc-shipping-line-picker\s*\{[^}]*display:\s*grid;[^}]*gap:\s*8px;/);
-    expect(css).toMatch(/\.csc-shipping-line-picker__add\s*\{[^}]*width:\s*fit-content;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-shipping-line-picker__add\s*\{[^}]*width:\s*100%;/);
+    expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*flex-end;/);
+    expect(css).toMatch(/\.csc-field-with-append > :first-child\s*\{[^}]*flex:\s*1 1 auto;/);
+    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-append-button\s*\{[^}]*width:\s*100%;/);
+  });
+
+  it('gives the declaration repeater its own full-width band and compact rows', () => {
+    // No single-row field shares a grid row with the 1-to-N declaration list.
+    expect(css).toMatch(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span 6;/);
+    expect(css).toMatch(/\.csc-identity-grid__flags\s*\{[^}]*grid-column:\s*span 6;/);
+    expect(css).not.toContain('.csc-identity-grid__declaration');
+    // House repeated-item budget (supplier-carrier-trucks__item: 32px), not a
+    // full form field per declaration.
+    expect(css).toMatch(/\.csc-declaration-row\s*\{[^}]*min-height:\s*32px;/);
+    // The code is short: content-sized track, row remainder for the warning.
+    expect(css).toMatch(/\.csc-declaration-row__field\s*\{[^}]*max-width:\s*320px;/);
+    expect(css).toMatch(/\.csc-declaration-list__add\s*\{[^}]*width:\s*fit-content;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-declaration-list__add\s*\{[^}]*width:\s*100%;/);
+  });
+
+  it('retires the stacked declaration fields and orphan add lines', () => {
+    expect(css).not.toContain('.csc-customer-picker');
+    expect(css).not.toContain('.csc-shipping-line-picker');
+    expect(css).not.toContain('.csc-declaration-picker');
+    expect(css).not.toContain('.csc-deposit-row');
   });
 
   it('keeps the route add action compact on desktop and full-width on mobile', () => {
