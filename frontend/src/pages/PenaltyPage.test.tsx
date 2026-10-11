@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PenaltyStatus } from '@tingting/shared';
 import type { PenaltyInsights, PenaltyListEnvelope, PenaltyRow } from '../hooks/usePenalties';
+import { ToastProvider } from '../components/shared/Toast';
 
 const apiGet = vi.fn();
 
@@ -85,9 +86,11 @@ function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <PenaltyPage />
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter>
+          <PenaltyPage />
+        </MemoryRouter>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }
