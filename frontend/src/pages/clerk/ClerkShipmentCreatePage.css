@@ -54,7 +54,7 @@
 .csc-field-with-append > :first-child { flex: 1 1 auto; min-width: 0; }
 .csc-append-button { flex: 0 0 auto; min-height: var(--control-h, 40px); white-space: nowrap; }
 .csc-shipping-line-dialog { display: grid; gap: 12px; }
-.csc-shipping-line-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-shipping-line-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.45; }
 .csc-shipping-line-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
 .csc-shipping-line-dialog__name-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
 .csc-shipping-line-dialog__name-field { flex: 1 1 240px; min-width: 0; }
@@ -62,7 +62,7 @@
 .csc-route-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .csc-route-picker__add { width: fit-content; }
 .csc-route-dialog { display: grid; gap: 12px; }
-.csc-route-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-route-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.45; }
 .csc-route-dialog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
 .csc-route-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
 .csc-route-dialog__distance-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
@@ -72,7 +72,7 @@
 .csc-customer-popover .csc-customer-option [slot='label'] { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
 .csc-customer-field { min-width: 0; }
 .csc-customer-dialog { display: grid; gap: 12px; }
-.csc-customer-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.5; }
+.csc-customer-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.45; }
 .csc-customer-dialog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
 .csc-customer-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
 .csc-customer-dialog__submit { justify-self: end; min-height: var(--control-default-h); }
@@ -337,31 +337,29 @@
 .csc-field-warning__link:hover { color: var(--warning-text); }
 
 /* Separate time/date controls remain usable in the repeatable desktop grid.
- * 240px is the control's measured floor at the create-form segment font (16px):
- * the two segment groups carry min-width:max-content (a cramped segment clips
- * its digits), so the pair cannot render below ~233px. At narrower widths the
- * date half spills out of the cell and the container table's scroll box shears
- * it off (the old 176px floor was computed for the 12px control font and left
- * the five segments 20–35px wide — user report 2026-10-05, card 051026230627:
- * "5 ô spinbox riêng lẻ tí hon, chật, khó bấm"). The other three auto columns
+ * 200px = the measured pair floor at the house control font (~150px: the
+ * date group ~93px + 6px grid gap + time group ~51px, em-scaled) plus
+ * headroom; 240px was the 16px-era floor, the old 176px floor sheared the
+ * digits. At narrower widths the date half spills out of the cell and the
+ * container table's scroll box cuts it off. The other three auto columns
  * absorb the difference. */
-.csc-container-col__appointment { width: 240px; }
+.csc-container-col__appointment { width: 200px; }
 
 /* Card 051026230627 — the appointment cluster is a tap surface first (its
- * whole group opens the picker): give the segments touch height and a
- * readable font at THIS page only. The base UUI geometry derives every inner
- * height from --uui-control-h and the segments read their font through
- * --text-control-compact-size, so the fix overrides those variables on the
- * cluster's control boundaries (specificity above the base size rules) — no
- * per-element heights, and the em-based segment widths in DateTimeSegments.css
- * scale with the font automatically. Compact hosts (filter bars) keep the
- * shared defaults; 40px stays inside the design-lock band. */
+ * whole group opens the picker): the segments keep TOUCH HEIGHT (the cure
+ * for "5 ô spinbox riêng lẻ tí hon, chật, khó bấm"). The 16px font that
+ * landed with that card is reversed by the owner report 11/10 ("bloated,
+ * oversize") — segments read the same field font as every other input on
+ * this page. The base UUI geometry derives every inner height from
+ * --uui-control-h, so the tap cure survives the font change; the em-based
+ * segment widths in DateTimeSegments.css scale with the font automatically.
+ * 40px stays inside the design-lock band. */
 .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control],
 .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] [data-uui-control] {
   --uui-control-h: var(--control-touch-h);
 }
 .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] {
-  --text-control-compact-size: 16px;
+  --text-control-compact-size: var(--control-field-font-size);
 }
 
 /* Stacked records are forms, not spreadsheet previews. Show their controls

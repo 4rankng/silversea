@@ -35,7 +35,9 @@ export function FreightPreviewCard({
       <div data-freight-preview="manual"
         style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-data-size)', color: 'var(--ink-2)' }}>
         <div style={{ fontWeight: 600, color: 'var(--ink)' }}>Chưa đủ căn cứ tính tự động — nhập tay</div>
-        <div>{data.formula}</div>
+        {/* Owner density principle (11/10): the formula is a helper fact, not a
+            message — caption size, one line. */}
+        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>{data.formula}</div>
       </div>
     );
   }

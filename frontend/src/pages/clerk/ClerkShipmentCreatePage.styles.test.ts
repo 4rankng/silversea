@@ -306,17 +306,23 @@ describe('global hover reset — copy-icon exclusions (20260918_3 cut D)', () =>
  * the cluster must carry touch-height segments, a readable font, full row
  * width on phones, and a table column wide enough to hold the larger pair
  * (the 176px floor above was measured for the 12px control font). */
-describe('CUS "Ngày giờ đóng trả" cluster geometry (card 051026230627)', () => {
-  it('gives the appointment segments touch height and a readable font', () => {
+describe('CUS "Ngày giờ đóng trả" cluster geometry (cards 051026230627 → 111026173000)', () => {
+  it('gives the appointment segments touch height at the house field font', () => {
     // The base UUI geometry derives inner heights from --uui-control-h and the
     // segments' font from --text-control-compact-size; the fix overrides those
     // variables on the cluster's control boundaries (per-element height rules
-    // lose to the base sheet's ID-level min-height resets).
+    // lose to the base sheet's ID-level min-height resets). The 16px font that
+    // landed with the card is reversed by the owner report 11/10 ("bloated,
+    // oversize" against the 11-12px house scale): touch height STAYS, the font
+    // reads the shared field token — never a hardcoded pixel size.
     expect(css).toMatch(
       /\.csc-container-cell--appointment [\s\S]{0,160}?--uui-control-h:\s*var\(--control-touch-h/,
     );
     expect(css).toMatch(
-      /\.csc-container-cell--appointment [\s\S]{0,200}?--text-control-compact-size:\s*1[5-9]px/,
+      /\.csc-container-cell--appointment [\s\S]{0,200}?--text-control-compact-size:\s*var\(--control-field-font-size\)/,
+    );
+    expect(css).not.toMatch(
+      /\.csc-container-cell--appointment [\s\S]{0,200}?--text-control-compact-size:\s*\d+px/,
     );
   });
 
@@ -327,10 +333,12 @@ describe('CUS "Ngày giờ đóng trả" cluster geometry (card 051026230627)', 
     );
   });
 
-  it('widens the desktop table column to the larger cluster floor', () => {
-    // 176px was the floor for the 12px-font cluster; at 16px the pair needs
-    // ~220px or the table scroll box shears the date half off again.
-    expect(css).toMatch(/\.csc-container-col__appointment\s*\{\s*width:\s*2[2-9]\dpx/);
+  it('keeps the desktop column at the 12px-scale cluster floor', () => {
+    // The em-based segment widths scale with the font: at the 12px field font
+    // the pair needs ~200px or the table scroll box shears the date half off.
+    // 176px left the segments cramped (card 051026230627); 240px was the 16px
+    // era's floor.
+    expect(css).toMatch(/\.csc-container-col__appointment\s*\{\s*width:\s*200px/);
   });
 });
 
