@@ -1,0 +1,180 @@
+/* Driver payroll roster — the sortable/paginated table that replaced the
+   driver card wall. Anatomy follows Untitled UI PRO v8 `application/table`
+   (sortable headers + checkbox column) and `pagination-line`, rebuilt in
+   house tokens: 12px data density, 11px labels, 32px rows, controls inside
+   the shared --control-max-h ceiling. */
+
+.dpt {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dpt__scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface);
+}
+
+.dpt__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-data-size);
+  line-height: 1.35;
+}
+
+.dpt__th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-base, 1);
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dpt__th--num { text-align: right; }
+
+.dpt__th--check,
+.dpt__td--check {
+  width: 36px;
+  padding-inline: 10px;
+  text-align: center;
+}
+
+.dpt__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: var(--control-compact-h, 30px);
+  padding: 5px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--fg-2);
+  font: inherit;
+  font-size: var(--text-caption-size);
+  font-weight: 650;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.dpt__th--num .dpt__sort { justify-content: flex-end; }
+.dpt__sort-idle { opacity: .4; }
+.dpt__sort:hover { color: var(--fg-1); }
+
+.dpt__td {
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-1);
+  font-size: var(--text-data-size);
+  vertical-align: middle;
+}
+
+.dpt__row {
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.dpt__row:last-child > .dpt__td,
+.dpt__row:last-child > .dpt__th { border-bottom: 0; }
+.dpt__row:hover { background: var(--surface-2); }
+.dpt__row.is-active { background: var(--accent-soft, var(--surface-2)); }
+.dpt__row.is-active .dpt__name { font-weight: 700; }
+.dpt__row.is-checked { box-shadow: inset 2px 0 0 var(--accent); }
+
+.dpt__td--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Money is the scan column: one right-aligned tabular line so the eye runs
+   down it. Owner law D02 — a computed zero is a value and prints as 0 đ. */
+.dpt__td--money { font-weight: 650; }
+.dpt__td--money.is-neg { color: var(--danger); }
+
+.dpt__name {
+  display: inline-block;
+  max-width: 26ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.dpt__status {
+  color: var(--fg-2);
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+}
+
+.dpt__status.is-confirmed { color: var(--accent-ink, var(--fg-1)); }
+
+.dpt__check {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent-2);
+  vertical-align: middle;
+}
+
+.dpt__empty {
+  padding: 18px 12px;
+  color: var(--fg-3);
+  font-size: var(--text-caption-size);
+  text-align: center;
+}
+
+.dpt__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.dpt__count {
+  margin: 0;
+  color: var(--fg-3);
+  font-size: var(--text-caption-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.dpt__pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dpt__page-btn {
+  display: inline-grid;
+  place-items: center;
+  width: var(--control-compact-h, 30px);
+  height: var(--control-compact-h, 30px);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-sm, 6px);
+  background: var(--surface);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.dpt__page-btn:disabled { cursor: not-allowed; opacity: .5; }
+.dpt__page-btn:not(:disabled):hover { color: var(--fg-1); border-color: var(--border-3, var(--border-2)); }
+
+.dpt__page-of {
+  color: var(--fg-2);
+  font-size: var(--text-caption-size);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Phone: the money and identity columns stay visible; the two day columns
+   scroll with the rest rather than starving the scan column. */
+@media (max-width: 640px) {
+  .dpt__name { max-width: 16ch; }
+  .dpt__th, .dpt__td { padding-inline: 8px; }
+}

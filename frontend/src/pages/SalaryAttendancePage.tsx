@@ -18,11 +18,15 @@ import {
 import { DOW_LABELS, STATUS_CONFIG } from '../features/salary-attendance/salary-attendance-constants';
 import './SalaryAttendancePage.css';
 import { useSalaryAttendancePage } from '../features/salary-attendance/useSalaryAttendancePage';
+import { DriverPayrollTable } from '../features/salary-attendance/DriverPayrollTable';
 import { BaseSalaryEditModal } from '../features/salary-attendance/base-salary-edit-modal';
 import { toastActionError } from '../lib/api/action-error';
 
 export default function SalaryAttendancePage() {
   const [searchTerm, setSearchTerm] = useState('');
+  // Bulk selection for "Ghi thanh toán" — the roster is a worklist at 100+
+  // drivers, so payment acts on the checked rows rather than one at a time.
+  const [selectedDriverIds, setSelectedDriverIds] = useState<number[]>([]);
   const {
     month, year, goPrev, goNext,
     selectedDriverId, setSelectedDriverId,
@@ -101,57 +105,31 @@ export default function SalaryAttendancePage() {
         )}
       />
 
-      {/* ── Driver selector grid ── */}
+      {/* ── Driver roster — sortable, paginated table with bulk selection.
+            The card wall this replaces was the compact option at 43 drivers
+            but inverted at 100+: a 22-row wall of near-identical cards cannot
+            be scanned, sorted, or acted on in bulk. The list wrapper keeps the
+            class the roster contract asserts. ── */}
       <div className="driver-select-row">
-        {listLoading ? (
-          <div className="salary-attendance__driver-loading">
-            <Loader2 size={20} className="spin salary-attendance__driver-loading-icon" />
-            <span className="salary-attendance__driver-loading-text">Đang tải danh sách lái xe…</span>
-          </div>
-        ) : (
-          <div className="driver-select-row__list">
-            {filteredDrivers.map((d) => {
-              const isSelected = d.id === selectedDriverId;
-              const net = d.salary?.netSalary ?? 0;
-              const salaryLabel = d.salary
-                ? `, lương thực nhận ${net >= 0 ? '' : 'âm '}${formatCurrency(Math.abs(net))}`
-                : '';
-              return (
-                <button
-                  type="button"
-                  key={d.id}
-                  onClick={() => {
-                    setSelectedDriverId(d.id);
-                    // Phone/tablet: bring the selected driver's detail next to
-                    // the pick instead of leaving it below the roster.
-                    if (window.matchMedia('(max-width: 1023px)').matches) {
-                      requestAnimationFrame(() => {
-                        document.querySelector('.salary-page-layout__sidebar')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-                      });
-                    }
-                  }}
-                  className={`driver-select-card ${isSelected ? 'is-active' : ''}`}
-                  aria-pressed={isSelected}
-                  aria-label={`Xem bảng công của ${d.name}${salaryLabel}`}
-                >
-                  {isSelected && <span className="driver-select-card__dot" />}
-                  <div className="driver-select-card__name">{d.name}</div>
-                  {d.salary && (
-                    <div
-                      className="driver-select-card__salary"
-                      style={{ color: net >= 0 ? 'var(--success)' : 'var(--danger)' }}
-                    >
-                      {net >= 0 ? '' : '-'}{formatCurrency(Math.abs(net))}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-            {filteredDrivers.length === 0 && (
-              <EmptyState variant="compact" context="salary" title="Không tìm thấy lái xe" className="salary-empty-inline" />
-            )}
-          </div>
-        )}
+        <div className="driver-select-row__list">
+          <DriverPayrollTable
+            drivers={filteredDrivers}
+            selectedDriverId={selectedDriverId}
+            onSelect={(driverId) => {
+              setSelectedDriverId(driverId);
+              // Phone/tablet: bring the selected driver's detail next to
+              // the pick instead of leaving it below the roster.
+              if (window.matchMedia('(max-width: 1023px)').matches) {
+                requestAnimationFrame(() => {
+                  document.querySelector('.salary-page-layout__sidebar')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+                });
+              }
+            }}
+            loading={listLoading}
+            selectedIds={selectedDriverIds}
+            onSelectionChange={setSelectedDriverIds}
+          />
+        </div>
       </div>
 
 
