@@ -52,8 +52,8 @@ type Props = {
   scopeReady?: boolean;
 };
 
-function endpointFor(role: Role, customerId: number | null | undefined, state: typeof states[number], page: number) {
-  const query = `view=${state}&page=${page}&limit=100`;
+function endpointFor(role: Role, customerId: number | null | undefined, state: typeof states[number], page: number, search: string) {
+  const query = `view=${state}&page=${page}&limit=100${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}`;
   if (role === 'operations') return `/forwarder/me/work-inbox?${query}`;
   if (role === 'driver') return `/driver/me/work-inbox?${query}`;
   return withCustomerScope(`/portal/work-inbox?${query}`, customerId ?? null);
@@ -123,6 +123,19 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const paramPage = Number(searchParams.get('page'));
   const [page, setPage] = useState(() => (Number.isInteger(paramPage) && paramPage > 0 ? paramPage : 1));
   const focusRowKey = searchParams.get('row');
+  // Owner ruling 2026-10-12 (QA2-004): a server-side text search box on the
+  // OPS queue only. The backend already filters title (Bill/Booking) and
+  // subtitle (container · customer · driver/plate) on the `search` param —
+  // this is purely the missing entry point. Debounce + page reset, house idiom.
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
   const [loading, setLoading] = useState(true);
   const [refreshError, setRefreshError] = useState(false);
   const [respondingItemId, setRespondingItemId] = useState<string | null>(null);
@@ -131,7 +144,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const [responseMessage, setResponseMessage] = useState<{ kind: 'success' | 'error' | 'conflict'; text: string } | null>(null);
   const responseKeys = useRef(new Map<string, string>());
   const latestLoadRequest = useRef(0);
-  const endpoint = endpointFor(role, customerId, states[active], page);
+  const endpoint = endpointFor(role, customerId, states[active], page, role === 'operations' ? search : '');
 
   const queryClient = useQueryClient();
 
@@ -301,6 +314,16 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
           <RefreshCw size={15} aria-hidden="true" /> Làm mới
         </button>} />
         <p>{description}</p>
+        {role === 'operations' && (
+          <input
+            className="input role-work-inbox__search"
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Tìm lệnh / Booking / Cont / khách hàng…"
+            aria-label="Tìm trong Lệnh giao nhận"
+          />
+        )}
       </header>
 
 

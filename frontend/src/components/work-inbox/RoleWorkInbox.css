@@ -375,3 +375,12 @@
   .role-work-inbox--operations .role-work-inbox__table td.role-work-inbox__action { padding: 6px 8px !important; }
   .role-work-inbox--operations .role-work-inbox__subtitle { display: block; white-space: normal; overflow: visible; }
 }
+
+/* Owner ruling 2026-10-12 (QA2-004): the OPS queue's server-side text search.
+   Rides the header band under the description; the shared .input height law
+   applies — never taller than the ordinary control ceiling. */
+.role-work-inbox__search {
+  margin-top: 10px;
+  max-width: 380px;
+  width: 100%;
+}

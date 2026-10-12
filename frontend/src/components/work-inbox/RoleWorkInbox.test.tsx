@@ -151,6 +151,32 @@ describe('RoleWorkInbox', () => {
     expect(await screen.findByText('Không có việc trong nhóm này.')).toBeTruthy();
   });
 
+  it('searches the OPS queue server-side: debounced, page reset, no param for other roles', async () => {
+    vi.useFakeTimers();
+    try {
+      let calls: string[] = [];
+      apiGet.mockImplementation(async (url: string) => { calls.push(url); return response([operationsItem]); });
+      const { unmount } = renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
+      await act(async () => { vi.advanceTimersByTime(0); });
+      const input = screen.getByLabelText('Tìm trong Lệnh giao nhận');
+      fireEvent.change(input, { target: { value: 'MSBU1245657' } });
+      await act(async () => { vi.advanceTimersByTime(400); });
+      await act(async () => { await Promise.resolve(); });
+      expect(calls.some(url => url.includes('search=MSBU1245657') && url.includes('page=1'))).toBe(true);
+      expect(calls.every(url => !url.includes('search=undefined'))).toBe(true);
+      unmount();
+
+      calls = [];
+      apiGet.mockImplementation(async (url: string) => { calls.push(url); return response([customerItem]); });
+      renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={7} scopeReady />);
+      await act(async () => { vi.advanceTimersByTime(600); });
+      expect(calls.every(url => !url.includes('search='))).toBe(true);
+      expect(screen.queryByLabelText('Tìm trong Lệnh giao nhận')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows a full error, retries, preserves data on a partial refresh error, and flags stale data', async () => {
     apiGet.mockRejectedValueOnce(new Error('offline'));
     apiGet.mockResolvedValueOnce(response([operationsItem], '2026-01-01T00:00:00.000Z'));
