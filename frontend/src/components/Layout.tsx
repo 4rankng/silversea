@@ -254,10 +254,17 @@ export function getNavItems(
         { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
 
         // Vận hành liên quan (Operations - View-only/Audit) per spec.
-        // Trips/fleet/penalties/customers/suppliers/pricing were removed:
-        // App.tsx bounces ACCOUNTANT off every adminOnly route, so each was a
-        // silent dead link that re-rendered /accounting unchanged. (/salary is
-        // not in that set — `officeStaffOnly` admits ACCOUNTANT.)
+        // Trips/fleet/penalties were removed on 2026-10-05 because App.tsx then
+        // guarded them with adminOnly, making each nav entry a dead link that
+        // silently re-rendered /accounting. That premise is stale: all three
+        // are officeStaffOnly, which admits ACCOUNTANT, and casbin grants the
+        // resources behind them (`trips` read/write, `financial` for penalties,
+        // `config` for the truck/driver catalog FleetPage reads). The same
+        // correction was made for /salary in 3614f54e — restore the entries
+        // rather than deny the route, or the deep link stays the only way in.
+        { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
+        { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
+        { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'operations' as SectionName },
         { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
 
         // Hệ thống (System) per spec — accountant has ONLY audit-logs in this section

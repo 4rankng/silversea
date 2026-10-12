@@ -91,6 +91,9 @@ describe('getNavItems', () => {
       ['Điều khoản cước theo tuyến', '/config/freight-rate-terms'],
       ['Báo cáo Lãi lỗ', '/finance'],
       ['Báo cáo Lợi nhuận', '/profit'],
+      ['Sổ chuyến đi', '/trips'],
+      ['Đội xe', '/fleet'],
+      ['Kỷ luật', '/penalties'],
       ['Tổng quan lô hàng', '/shipments'],
       ['Nhật ký hệ thống', '/audit-logs'],
     ]],
@@ -194,7 +197,11 @@ describe('getNavItems', () => {
     // 'salary' is NOT in this set: /salary is guarded by `officeStaffOnly`,
     // which admits ACCOUNTANT (App.tsx), and GET /api/salary answers 200 for
     // an accountant session. Do not re-add it here.
-    const deadKeys = ['trips', 'fleet', 'penalties', 'customers', 'suppliers', 'config-pricing'];
+    // 'trips', 'fleet' and 'penalties' LEFT this set on 2026-10-12 (QA2-002):
+    // they are officeStaffOnly/tripDetailOnly, both of which admit ACCOUNTANT
+    // by design, so omitting them only hid destinations the deep link already
+    // reached. Follow the /salary precedent in 3614f54e, not this list.
+    const deadKeys = ['customers', 'suppliers', 'config-pricing'];
     const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read']);
     for (const key of deadKeys) {
       expect(items.some((item) => item.key === key), key).toBe(false);
@@ -204,7 +211,7 @@ describe('getNavItems', () => {
     expect(items.map((item) => item.path)).toEqual([
       '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/hr/roster',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
-      '/finance', '/profit', '/shipments', '/audit-logs',
+      '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/audit-logs',
     ]);
   });
 
@@ -223,7 +230,10 @@ describe('getNavItems', () => {
       .filter((item) => item.section === 'operations')
       .map((item) => item.key);
     expect(adminOperations).toEqual(['shipments', 'dispatch', 'trips', 'fleet']);
-    expect(accountantOperations).toEqual(['shipments']);
+    // QA2-002: trips/fleet/penalties are officeStaffOnly/tripDetailOnly, both
+    // of which admit ACCOUNTANT — the accountant operations row now mirrors the
+    // admin set minus 'dispatch' (which no accountant may open).
+    expect(accountantOperations).toEqual(['trips', 'fleet', 'penalties', 'shipments']);
   });
 
   it('keeps every role menu structurally complete and free of duplicate destinations', () => {
