@@ -456,11 +456,15 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
-      setAssignmentError(status === 409
-        ? ((mutationError as { message?: string }).message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
-        : status === 403
-          ? 'Bạn không có quyền hoàn thành chuyến xe ngoài.'
-          : 'Không thể hoàn thành chuyến. Vui lòng thử lại.');
+      // FB-018: the close's real refusal (dangling supplier link, plate gate,
+      // fulfillment mismatch) arrives as the server's Vietnamese message on
+      // any status — surface it instead of a generic retry line that reads
+      // as flakiness and invites the exact "tried twice, same result" loop.
+      setAssignmentError(
+        (mutationError as { message?: string }).message?.trim()
+        || (status === 409
+          ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+          : 'Không thể hoàn thành chuyến. Vui lòng thử lại.'));
       throw mutationError;
     }
   }, []);

@@ -180,7 +180,13 @@ export async function resolveSupplierPaymentDueDate(
     .where(eq(s.suppliers.id, supplierId))
     .limit(1);
   if (!supplier) {
-    throw new Error(`Không tìm thấy nhà cung cấp #${supplierId} để chốt hạn thanh toán`);
+    // Due-date stamping is opt-in enrichment, not posting data: references
+    // like customers.linked_supplier_id carry no FK by repo convention, so a
+    // deleted supplier leaves a dangling link (real staging data has them).
+    // A missing row means "no term to apply" — the same null the unset-term
+    // branch returns — so aging falls back to its global default and the
+    // financial posting itself never fails.
+    return null;
   }
 
   const paymentTermDays = kind === 'CHI_HO' ? supplier.chiHoDueDays : supplier.cuocDueDays;

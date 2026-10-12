@@ -510,10 +510,15 @@ describe('useDispatchDetailPlan assign refusals keep the backend reason (card 06
   it.each([
     { reason: 'Chuyến đã bị hủy.' },
     { reason: 'Chuyến chưa có biển số xe — bổ sung biển (Phân xe lại) trước khi hoàn thành.' },
-  ])('completeExternalTrip surfaces "$reason" rather than a generic reload banner', async ({ reason }) => {
+    // FB-018: a 500 carries the server's Vietnamese cause (e.g. the dangling
+    // supplier link that killed every completion attempt). The banner must
+    // show that cause — the generic retry line read as flakiness and the
+    // dispatcher just clicked again.
+    { reason: 'Không tìm thấy nhà cung cấp #105 để chốt hạn thanh toán', status: 500 },
+  ])('completeExternalTrip surfaces "$reason" rather than a generic reload banner', async ({ reason, status = 409 }) => {
     const dispatched = row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 55 } });
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([dispatched], 1));
-    completeDispatchExternalTripMock.mockRejectedValue(Object.assign(new Error(reason), { status: 409 }));
+    completeDispatchExternalTripMock.mockRejectedValue(Object.assign(new Error(reason), { status }));
     const { result } = renderHook(() => useDispatchDetailPlan());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => {

@@ -112,11 +112,14 @@ describe('O2C rev1 §B0 — NCC dual payment terms', () => {
     assert.equal(snap!.policy, 'CALENDAR_DAY');
   });
 
-  test('resolveSupplierPaymentDueDate throws for a non-existent supplier', async () => {
-    await assert.rejects(
-      () => resolveSupplierPaymentDueDate(db, 9_999_999, 'CHI_HO', '2026-08-02'),
-      /Không tìm thấy nhà cung cấp/,
-    );
+  test('resolveSupplierPaymentDueDate degrades to null for a non-existent supplier', async () => {
+    // FB-018: the throw crashed whole completions — customers.linked_supplier_id
+    // has no FK, so a deleted supplier leaves a dangling link that the
+    // completion's due-date stamping followed straight into a 500. A missing
+    // supplier row is "no term to apply": null, aging falls back to the
+    // global default, the posting itself never fails.
+    const snap = await resolveSupplierPaymentDueDate(db, 9_999_999, 'CHI_HO', '2026-08-02');
+    assert.equal(snap, null);
   });
 
   test('LedgerService.postTripCompletion stamps paymentTermDaysApplied on the VENDOR fuel-supplier row from chiHoDueDays', async () => {

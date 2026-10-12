@@ -1970,6 +1970,99 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.equal(row?.taskStatus, 'COMPLETED');
   });
 
+  test('staff close after a plateless issue and plate-attachment reassign (FB-018 repro)', async () => {
+    // FB-018 (round 16, trip BLCUS6159): dispatch issued an external order
+    // with "Bổ sung sau" (no plate), attached the plate afterwards through
+    // the reassign flow — the documented 20261004_359 route — and the grid's
+    // "Hoàn thành" confirm never completed the trip. This test pins the full
+    // chain at HEAD: plateless issue → reassign attaches the plate → staff
+    // close must land the trip at COMPLETED (not 409/403/hang).
+    const accepted = await createAcceptedFulfillment();
+    const externalCarrier = await createCustomer(`External carrier fb018 ${suffix}-${createdCustomerIds.length}`);
+    // FB-018's 500: the carrier carries a linked_supplier_id whose supplier
+    // row no longer exists (no FK by repo convention; 14 such carriers in the
+    // staging-synced dev data). The completion's opt-in due-date stamping
+    // must degrade to the global default, never crash the close.
+    const [danglingSupplier] = await db.insert(s.suppliers).values({
+      name: `FB-018 deleted supplier ${suffix}`,
+    }).returning();
+    await db.delete(s.suppliers).where(eq(s.suppliers.id, danglingSupplier.id));
+    await db.update(s.customers).set({
+      isCarrier: true,
+      linkedSupplierId: danglingSupplier.id,
+    }).where(eq(s.customers.id, externalCarrier.id));
+    await db.update(s.shipmentFulfillments).set({
+      plannedCarrierType: 'EXTERNAL',
+      plannedExternalCarrierId: externalCarrier.id,
+    }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
+
+    // Issue WITHOUT a carrier vehicle and WITHOUT a plate ("Bổ sung sau").
+    const dispatch = await apiFetch<{ trip: { id: number; version: number } }>(
+      `/${accepted.shipmentId}/dispatch`,
+      {
+        method: 'POST', token: managerToken,
+        body: {
+          fulfillmentId: accepted.fulfillmentId,
+          expectedVersion: accepted.fulfillmentVersion,
+          plannedStartAt: '2026-08-07T08:00:00+07:00',
+          plannedEndAt: '2026-08-07T12:00:00+07:00',
+          endTimeConfirmed: true,
+          carrierType: 'EXTERNAL',
+          externalCarrierId: externalCarrier.id,
+        },
+      },
+    );
+    assert.equal(dispatch.status, 201, JSON.stringify(dispatch.data));
+    createdTripIds.push(dispatch.data.trip.id);
+    const tripId = dispatch.data.trip.id;
+
+    // A close while the plate is still missing refuses with the actionable
+    // plate message (mandatory-plate point moved from issue to completion).
+    const platelessClose = await fetch(`${baseUrl}/api/trips/${tripId}/complete-external`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${dispatcherToken}`, 'Idempotency-Key': `fb018-plateless-${suffix}` },
+      body: JSON.stringify({}),
+    });
+    assert.equal(platelessClose.status, 409);
+    assert.match(
+      String((await platelessClose.json() as { error?: string }).error),
+      /biển số/,
+    );
+
+    // Attach the plate through the reassign flow, exactly as the grid's
+    // "Phân xe lại" dialog does for an issued external order.
+    const reassign = await fetch(`${baseUrl}/api/trips/${tripId}/reassign`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${dispatcherToken}`, 'Idempotency-Key': `fb018-reassign-${suffix}` },
+      body: JSON.stringify({
+        carrierType: 'EXTERNAL',
+        externalCarrierId: externalCarrier.id,
+        externalPlateNumber: '51H-67895',
+        reason: 'FB-018 repro: bổ sung biển sau khi phát lệnh',
+        expectedVersion: dispatch.data.trip.version,
+      }),
+    });
+    assert.ok(reassign.status === 200 || reassign.status === 201, JSON.stringify(await reassign.json()));
+
+    // The staff close the grid's confirm dialog triggers: must complete the
+    // trip, not hang or refuse. Timing is asserted so a lock-wait hang fails
+    // the test instead of silently passing.
+    const closeStarted = Date.now();
+    const close = await fetch(`${baseUrl}/api/trips/${tripId}/complete-external`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${dispatcherToken}`, 'Idempotency-Key': `fb018-close-${suffix}` },
+      body: JSON.stringify({}),
+    });
+    const closeElapsedMs = Date.now() - closeStarted;
+    assert.ok(closeElapsedMs < 10_000, `staff close hung: ${closeElapsedMs}ms`);
+    const closeData = await close.json() as { status?: string; message?: string };
+    assert.equal(close.status, 200, JSON.stringify(closeData));
+    assert.equal(closeData.status, 'COMPLETED');
+    const [closedTrip] = await db.select({ status: s.trips.status })
+      .from(s.trips).where(eq(s.trips.id, tripId));
+    assert.equal(closedTrip.status, 'COMPLETED');
+  });
+
   test('external order persists an optional driver phone with no driver name', async () => {
     // 2026-09-08 HD feedback, follow-up to the staff-close test above: name
     // and phone are informational for external carriers — issuing succeeds
