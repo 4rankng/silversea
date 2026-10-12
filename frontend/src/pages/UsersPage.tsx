@@ -57,7 +57,6 @@ export default function UsersPage() {
   const canManageBusinessUnits = me?.role === Role.ADMIN;
   const canDelete = me?.role === Role.ADMIN;
   // Accountants get scoped /users access: read-only except DRIVER rows (salary/truck/contact).
-  const canEditDriversOnly = !canManage && me?.role === Role.ACCOUNTANT;
 
   const usersTable = useTableQueryState<UserRow, UsersTableFilters, UsersResponse>({
     endpoint: (params) => userClient.getUsers(params),
@@ -151,7 +150,6 @@ export default function UsersPage() {
         search={search}
         canManage={canManage}
         canDelete={canDelete}
-        canEditDriversOnly={canEditDriversOnly}
         businessUnitMap={businessUnitMap}
         deleting={deleting}
         currentUserId={me?.userId}
@@ -190,7 +188,6 @@ export default function UsersPage() {
           businessUnits={businessUnits}
           shipmentOptions={shipmentOptions}
           canManageClerkScope={canManageClerkScope}
-          canEditDriversOnly={canEditDriversOnly}
           onClose={closeEdit}
           onSave={doUpdate}
         />

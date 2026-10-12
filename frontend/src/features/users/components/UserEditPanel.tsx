@@ -24,7 +24,6 @@ interface EditPanelProps {
   shipmentOptions: ShipmentScopeOption[];
   canManageClerkScope?: boolean;
   /** Accountant scope: lock role/credentials, only driver + contact fields editable. */
-  canEditDriversOnly?: boolean;
   onClose: () => void;
   onSave: (id: number, data: EditData) => Promise<boolean | void>;
 }
@@ -32,7 +31,7 @@ interface EditPanelProps {
 export function EditPanel({
   isOpen, user, isMe, saving, error, customerList, businessUnits, shipmentOptions,
   canManageClerkScope = true,
-  canEditDriversOnly, onClose, onSave,
+ onClose, onSave,
 }: EditPanelProps) {
   const [fullName, setFullName] = useState(user.fullName ?? '');
   const [username, setUsername] = useState(user.username ?? '');
@@ -112,7 +111,7 @@ export function EditPanel({
   const roleOptions = Object.values(Role).filter((candidateRole) =>
     canManageClerkScope || candidateRole !== Role.CUS || user.role === Role.CUS,
   );
-  const roleSelectDisabled = canEditDriversOnly || (!canManageClerkScope && user.role === Role.CUS);
+  const roleSelectDisabled = !canManageClerkScope && user.role === Role.CUS;
 
   const handleSubmit = async () => {
     // Field validation with visible labels first — invalid email/password
@@ -197,7 +196,6 @@ export function EditPanel({
               placeholder="nguyen.van.a"
               autoComplete="off"
               valid={usernameValid}
-              disabled={canEditDriversOnly}
             />
           </FormGroup>
         </div>
@@ -218,7 +216,6 @@ export function EditPanel({
               onChange={e => { setEmail(e.target.value); if (emailMsg) setEmailMsg(null); }}
               placeholder="nva@cty.vn"
               error={emailError || emailMsg != null}
-              disabled={canEditDriversOnly}
               inputRef={emailInputRef}
               ariaInvalid={emailMsg != null}
               ariaDescribedBy={emailMsg != null ? 'user-email-error' : undefined}
@@ -252,7 +249,6 @@ export function EditPanel({
             label="Trạng thái"
             hideLabel
             value={status}
-            disabled={canEditDriversOnly}
             onChange={(e) => setStatus(e.target.value)}
             options={[
               { value: 'ACTIVE', label: 'Hoạt động' },
@@ -263,7 +259,7 @@ export function EditPanel({
       </div>
 
       {/* Driver profile fields (only for DRIVER role) */}
-      {role === Role.DRIVER && !canEditDriversOnly && canManageClerkScope && (
+      {role === Role.DRIVER && canManageClerkScope && (
         <SelectionScopeFields
           title="Đơn vị tính lương"
           icon={<Building2 size={12} />}
@@ -280,7 +276,7 @@ export function EditPanel({
         />
       )}
 
-      {role === Role.CUSTOMER && !canEditDriversOnly && (
+      {role === Role.CUSTOMER && (
         <>
           {canManageClerkScope && (
             <FormGroup label="Loại phạm vi cổng khách hàng">
@@ -309,7 +305,7 @@ export function EditPanel({
         </>
       )}
 
-      {role === Role.ACCOUNTANT && !canEditDriversOnly && canManageClerkScope && (
+      {role === Role.ACCOUNTANT && canManageClerkScope && (
         <CustomerScopeFields
           customerIds={customerIds}
           setCustomerIds={setCustomerIds}
@@ -320,11 +316,11 @@ export function EditPanel({
           emptyInactiveText="Để trống để giữ phạm vi tài chính toàn công ty."
         />
       )}
-      {role === Role.ACCOUNTANT && !canEditDriversOnly && !canManageClerkScope && (
+      {role === Role.ACCOUNTANT && !canManageClerkScope && (
         <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh phạm vi khách hàng của kế toán.</div>
       )}
 
-      {role === Role.OPS && !canEditDriversOnly && canManageClerkScope && (
+      {role === Role.OPS && canManageClerkScope && (
         <SelectionScopeFields
           title="Lô hàng được giao"
           icon={<Package size={12} />}
@@ -340,12 +336,12 @@ export function EditPanel({
           summaryLabel="Đã chọn"
         />
       )}
-      {role === Role.OPS && !canEditDriversOnly && !canManageClerkScope && (
+      {role === Role.OPS && !canManageClerkScope && (
         <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh lô hàng của nhân viên giao nhận.</div>
       )}
 
       {/* Password — hidden for accountants (they cannot reset credentials) */}
-      {!canEditDriversOnly && (
+      {(
         <>
           <div className="users-form-divider" />
           <div className="users-form-section__title"><KeyRound size={12} /> Đặt lại mật khẩu</div>

@@ -29,7 +29,6 @@ interface UserTableProps {
   canManage: boolean;
   canDelete?: boolean;
   /** Accountant scope: may open the edit Drawer for DRIVER rows only. */
-  canEditDriversOnly?: boolean;
   businessUnitMap?: Map<number, string>;
   deleting: number | null;
   currentUserId?: number;
@@ -79,14 +78,16 @@ function RoleAvatar({ role }: { role: Role }) {
   );
 }
 
-/** Can the current user edit this row? Full managers can; scoped accountants can only edit drivers. */
-function canEditRow(u: UserRow, canManage: boolean, canEditDriversOnly: boolean) {
-  return canManage || (canEditDriversOnly && u.role === Role.DRIVER);
+/** Can the current user edit this row? Only full managers can — the accountant
+ *  driver-only edit mode could never run (casbin never granted accountants the
+ *  users resource; the route guard blocks them entirely). */
+function canEditRow(u: UserRow, canManage: boolean) {
+  return canManage;
 }
 
 export function UserTable({
   paginated, filteredTotal, roleCounts, total, staffCount, driverCount, inactiveCount,
-  filter, search, canManage, canDelete = canManage, canEditDriversOnly = false,
+  filter, search, canManage, canDelete = canManage,
   deleting, currentUserId,
   businessUnitMap,
   onFilterChange, onSearchChange, onEdit, onDelete, onAdd,
@@ -154,7 +155,7 @@ export function UserTable({
       {/* ── Unified panel: table + footer ───────────────────────────────── */}
       <div className="users-table-panel" data-tour-id="users-table">
         {/* Legend */}
-        {(canManage || canEditDriversOnly) && (
+        {canManage && (
           <div className="users-list-legend">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Pencil size={12} style={{ opacity: 0.5 }} />
@@ -176,7 +177,6 @@ export function UserTable({
           filtered={paginated}
           canManage={canManage}
           canDelete={canDelete}
-          canEditDriversOnly={canEditDriversOnly}
           businessUnitMap={businessUnitMap}
           deleting={deleting}
           currentUserId={currentUserId}
@@ -192,7 +192,6 @@ export function UserTable({
           filtered={paginated}
           canManage={canManage}
           canDelete={canDelete}
-          canEditDriversOnly={canEditDriversOnly}
           businessUnitMap={businessUnitMap}
           deleting={deleting}
           currentUserId={currentUserId}
@@ -227,9 +226,7 @@ export function UserTable({
           color: 'var(--ink-3)', fontSize: 'var(--text-data-size)',
         }}>
           <KeyRound size={14} />
-          {canEditDriversOnly
-            ? 'Bạn chỉ có thể chỉnh sửa thông tin lái xe (lương, xe phân công, liên hệ).'
-            : 'Chỉ quản trị viên hoặc giám đốc mới có thể tạo, sửa hoặc xóa tài khoản.'}
+          {'Chỉ quản trị viên hoặc giám đốc mới có thể tạo, sửa hoặc xóa tài khoản.'}
         </div>
       )}
     </>
@@ -239,7 +236,7 @@ export function UserTable({
 /* ── Desktop table (inside panel) ─────────────────────────────────────────── */
 
 function DesktopTable({
-  filtered, canManage, canDelete: _canDelete, canEditDriversOnly, deleting: _deleting, currentUserId,
+  filtered, canManage, canDelete: _canDelete, deleting: _deleting, currentUserId,
   businessUnitMap,
   onEdit, onDelete: _onDelete,
   sortBy, sortOrder, onSort,
@@ -247,7 +244,6 @@ function DesktopTable({
   filtered: UserRow[];
   canManage: boolean;
   canDelete: boolean;
-  canEditDriversOnly: boolean;
   businessUnitMap?: Map<number, string>;
   deleting: number | null;
   currentUserId?: number;
@@ -300,7 +296,7 @@ function DesktopTable({
             {filtered.map(u => {
               const pill = ROLE_PILL[u.role] || { cls: 'pill pill--neutral', label: u.role };
               const isMe = u.id === currentUserId;
-              const editable = canEditRow(u, canManage, canEditDriversOnly);
+              const editable = canEditRow(u, canManage);
               const unitIds = u.businessUnitIds ?? [];
               const unitNames = unitIds.length > 0
                 ? unitIds.map(id => businessUnitMap?.get(id) ?? '').filter(Boolean).join(', ')
@@ -368,11 +364,10 @@ function DesktopTable({
 
 /* ── Mobile card list (inside panel) ──────────────────────────────────────── */
 
-function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, businessUnitMap, deleting, currentUserId, onEdit, onDelete }: {
+function MobileCardList({ filtered, canManage, canDelete, businessUnitMap, deleting, currentUserId, onEdit, onDelete }: {
   filtered: UserRow[];
   canManage: boolean;
   canDelete: boolean;
-  canEditDriversOnly: boolean;
   businessUnitMap?: Map<number, string>;
   deleting: number | null;
   currentUserId?: number;
@@ -395,7 +390,7 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, bu
         filtered.map(u => {
           const pill = ROLE_PILL[u.role] || { cls: 'pill pill--neutral', label: u.role };
           const isMe = u.id === currentUserId;
-          const editable = canEditRow(u, canManage, canEditDriversOnly);
+          const editable = canEditRow(u, canManage);
           const unitIds = u.businessUnitIds ?? [];
           const unitNames = unitIds.length > 0
             ? unitIds.map(id => businessUnitMap?.get(id) ?? '').filter(Boolean).join(', ')
