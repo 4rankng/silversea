@@ -184,10 +184,12 @@ describe('getNavItems', () => {
     // pricing master data), Báo cáo → Vận hành liên quan → Hệ thống.
     // "Giá & cước" is deliberately NOT "Danh mục": the spec's own 4 groups
     // already use that word, so a 5th group sharing it reads as a duplicate.
+      // Owner ruling 2026-10-12 (QA2-008): Nhan su (Luong & Cham cong,
+      // Danh sach nhan su) rides after the 4 danh muc for ACCOUNTANT too.
     expect(getNavSections(Role.ACCOUNTANT).map((section) => section.label)).toEqual([
-      'Phơi phiếu', 'Công nợ vận tải', 'Quỹ', 'Khác',
-      'Giá & cước', 'Báo cáo', 'Vận hành liên quan', 'Hệ thống',
-    ]);
+        'Phơi phiếu', 'Công nợ vận tải', 'Quỹ', 'Khác', 'Nhân sự',
+        'Giá & cước', 'Báo cáo', 'Vận hành liên quan', 'Hệ thống',
+      ]);
   });
 
   it('offers the accountant no adminOnly-bounced destination', () => {
@@ -363,14 +365,19 @@ describe('kế toán danh mục (spec 5.10)', () => {
     ]);
     expect(itemsFor(Role.ADMIN, CÔNG_NỢ)).toEqual(['debt', 'payables']);
     expect(itemsFor(Role.ADMIN, QUỸ)).toEqual(['treasury']);
-    expect(itemsFor(Role.ADMIN, KHÁC)).toEqual(['salary', 'hr-roster']);
+    // Owner ruling 2026-10-12 (QA2-008): the HR items moved to Nhân sự —
+    // the Khác danh mục is empty for the sidebar and self-hides.
+    expect(itemsFor(Role.ADMIN, KHÁC)).toEqual([]);
+    expect(itemsFor(Role.ADMIN, 'hr')).toEqual(['salary', 'hr-roster', 'penalties']);
 
     expect(itemsFor(Role.MANAGER, PHƠI_PHIEU)).toEqual(['expenses', 'advances', 'hoan-ung']);
     expect(itemsFor(Role.MANAGER, CÔNG_NỢ)).toEqual(['debt', 'payables']);
     expect(itemsFor(Role.MANAGER, QUỸ)).toEqual(['treasury']);
-    expect(itemsFor(Role.MANAGER, KHÁC)).toEqual(['salary', 'hr-roster']);
+    expect(itemsFor(Role.MANAGER, KHÁC)).toEqual([]);
+    expect(itemsFor(Role.MANAGER, 'hr')).toEqual(['salary', 'hr-roster', 'penalties']);
 
-    expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual(['salary', 'hr-roster']);
+    expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual([]);
+    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'hr-roster']);
 
     expect(itemsFor(Role.ACCOUNTANT, PHƠI_PHIEU)).toEqual([
       'invoice-tracking', 'deposit-tracker', 'phoi-phieu', 'chot-debit',
@@ -381,17 +388,20 @@ describe('kế toán danh mục (spec 5.10)', () => {
   });
 
   it('loses no spec screen and double-places none across the 4 danh mục', () => {
+    // Owner ruling 2026-10-12 (QA2-008): salary + hr-roster moved to the HR
+    // group, so the danh-muc union no longer carries them — but they must
+    // still exist exactly once somewhere for every role that can reach them.
     const expected: Record<string, string[]> = {
       [Role.ADMIN]: [
         'phoi-phieu', 'expenses', 'invoice-tracking', 'deposit-tracker', 'advances',
-        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury', 'salary', 'hr-roster',
+        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury',
       ],
       [Role.MANAGER]: [
-        'expenses', 'advances', 'hoan-ung', 'debt', 'payables', 'treasury', 'salary', 'hr-roster',
+        'expenses', 'advances', 'hoan-ung', 'debt', 'payables', 'treasury',
       ],
       [Role.ACCOUNTANT]: [
         'phoi-phieu', 'expenses', 'invoice-tracking', 'deposit-tracker', 'advances',
-        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury', 'salary', 'hr-roster',
+        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury',
       ],
     };
     for (const [role, expectedKeys] of Object.entries(expected)) {
@@ -399,6 +409,9 @@ describe('kế toán danh mục (spec 5.10)', () => {
       expect([...union].sort(), role).toEqual([...expectedKeys].sort());
       // No screen may be counted twice (or thrice) by the split.
       expect(new Set(union).size, role).toBe(union.length);
+      const allKeys = getNavItems(role as Role).map((item) => item.key);
+      expect(allKeys.filter(k => k === 'salary' || k === 'hr-roster').sort(), role)
+        .toEqual(['hr-roster', 'salary']);
     }
   });
 
@@ -448,7 +461,8 @@ describe('kế toán danh mục (spec 5.10)', () => {
     // by `officeStaffOnly` in App.tsx, which admits ACCOUNTANT, so the entry is
     // a real destination and the danh mục must not render empty for them.
     // /hr/roster joins it with the same guard (card 385 rework).
-    expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual(['salary', 'hr-roster']);
+    expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual([]);
+    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'hr-roster']);
     expect(getNavSections(Role.ACCOUNTANT).map((section) => section.key)).toContain(KHÁC);
   });
 });

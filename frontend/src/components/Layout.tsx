@@ -127,10 +127,13 @@ export function getNavItems(
         { key: 'phoi-phieu', label: 'Kiểm soát phơi phiếu', path: '/accounting/phoi-phieu', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
         { key: 'chot-debit', label: 'Kế toán chốt debit', path: '/accounting/chot-debit', icon: Calculator, section: 'accounting-phoi-phieu' as SectionName },
 
-        // Nhân sự (HR) — Lương & Chấm công is a KHÁC danh mục item per
-        // spec §5.10, so only Kỷ luật stays in the HR group.
-        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'accounting-khac' as SectionName },
-        { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'accounting-khac' as SectionName },
+        // Nhân sự (HR) — owner ruling 2026-10-12 (QA2-008): ALL HR items
+        // group here — Lương & Chấm công, Danh sách nhân sự and Kỷ luật.
+        // This supersedes spec §5.10's placement of Lương & Chấm công in the
+        // accounting Khác danh mục for the sidebar; the empty Khác section
+        // self-hides (Sidebar renders no empty section).
+        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
+        { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
         // Danh mục (Master Data) per spec
@@ -179,10 +182,13 @@ export function getNavItems(
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'accounting-phoi-phieu' as SectionName },
         { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
 
-        // Nhân sự (HR) — Lương & Chấm công is a KHÁC danh mục item per
-        // spec §5.10, so only Kỷ luật stays in the HR group.
-        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'accounting-khac' as SectionName },
-        { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'accounting-khac' as SectionName },
+        // Nhân sự (HR) — owner ruling 2026-10-12 (QA2-008): ALL HR items
+        // group here — Lương & Chấm công, Danh sách nhân sự and Kỷ luật.
+        // This supersedes spec §5.10's placement of Lương & Chấm công in the
+        // accounting Khác danh mục for the sidebar; the empty Khác section
+        // self-hides (Sidebar renders no empty section).
+        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
+        { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
         // Danh mục (Master Data) per spec
@@ -235,12 +241,12 @@ export function getNavItems(
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'accounting-phoi-phieu' as SectionName },
         { key: 'hoan-ung', label: 'Báo cáo hoàn ứng', path: '/accounting/hoan-ung', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
 
-        // Khác (spec §5.10) — Lương & Chấm công is the one Khác danh mục item
-        // this role carries; Kỷ luật is HR-only and never appeared here.
-        // App.tsx guards /salary with `officeStaffOnly`, which admits
-        // ACCOUNTANT, so this is a real destination — not a dead link.
-        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'accounting-khac' as SectionName },
-        { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'accounting-khac' as SectionName },
+        // Nhân sự (HR) — owner ruling 2026-10-12 (QA2-008): all HR items
+        // group under Nhân sự for ACCOUNTANT too, superseding spec §5.10's
+        // Khác placement. /salary stays officeStaffOnly (real destination,
+        // not a dead link); the Khác section self-hides when empty.
+        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
+        { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
 
         // Pricing config entry points (docx §5-1): accountant fuel-price entry + per-customer×route rate terms.
         // Master data, not one of the 4 spec danh mục — they live in the
@@ -414,6 +420,9 @@ export function getNavSections(role: Role | string): NavSection[] {
         { key: 'accounting-cong-no', label: 'Công nợ vận tải' },
         { key: 'accounting-quy', label: 'Quỹ' },
         { key: 'accounting-khac', label: 'Khác' },
+        // Owner ruling 2026-10-12 (QA2-008): the accountant's HR items
+        // (Lương & Chấm công, Danh sách nhân sự) live under Nhân sự.
+        { key: 'hr', label: 'Nhân sự' },
         // Pricing master data (Giá dầu theo kỳ, Điều khoản cước theo
         // tuyến) belongs to no spec danh mục, so it gets its own group.
         // Named "Giá & cước" rather than "Danh mục": the spec's own vocabulary
