@@ -167,6 +167,10 @@ export const createTripSchema = z.object({
   externalPlateNumber: z.string().max(20).nullable().optional(),
   externalDriverName: z.string().max(100).nullable().optional(),
   externalDriverPhone: z.string().max(20).nullable().optional(),
+  // The user confirmed the rig-overlap warning (FB-038 family): the retried
+  // create rides the warn tier instead of surfacing it again. Omitted on the
+  // first attempt; mirrors rigOverlapCompletedConfirmed on dispatch flows.
+  confirmOverlap: z.boolean().optional(),
 }).superRefine((data, ctx) => {
   // OWN carrier trips require truckId and driverId; EXTERNAL trips require external fields
   if ((data.carrierType ?? 'OWN') === 'OWN') {
@@ -288,6 +292,10 @@ export const updateTripFiguresSchema = z.preprocess(
   truckId: z.coerce.number().int().positive().nullable().optional(),
   driverId: z.coerce.number().int().positive().nullable().optional(),
   trailerType: z.string().max(20).nullable().optional(),
+  // The user confirmed the rig-overlap warning (FB-038 family): the retried
+  // figures save rides the warn tier instead of surfacing it again. Omitted on
+  // the first attempt; mirrors rigOverlapCompletedConfirmed on dispatch flows.
+  confirmOverlap: z.boolean().optional(),
 }).superRefine((data, ctx) => {
   if (data.fuelSupplementLiters && data.fuelSupplementLiters > 0) {
     if (!data.fuelSupplementReason || data.fuelSupplementReason.trim() === '') {

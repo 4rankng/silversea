@@ -37,11 +37,15 @@ export default function TripCreatePage() {
     customerId: number;
     proposedAmount: number;
   } | null>(null);
+  const { confirm, dialog } = useConfirm();
   const form = useTripForm({
     options,
     onCreditLimitBlocked: (details) => {
       setCreditBlock(details);
     },
+    // Ticket 111026105630: the rig-overlap warn-once rides this page's own
+    // confirm dialog ({dialog} below already renders it).
+    confirmRigOverlap: confirm,
   });
   const expectedContainerCount = Math.min(10, Math.max(1, Number(form.containerCount) || 1));
   const { rootRef } = usePageAnimations({
@@ -49,7 +53,6 @@ export default function TripCreatePage() {
     selectors: ['.tc-create-hero', '.tc-create-bento'],
   });
 
-  const { confirm, dialog } = useConfirm();
   const guard = useDirtyGuard([form], !options.loading);
   const handleBack = () => navigate('/trips');
   useBackShortcut(handleBack, {

@@ -24,9 +24,12 @@ vi.mock('../lib/api', () => ({
   ApiError: class extends Error {
     status: number;
 
+    raw: unknown;
+
     constructor(status: number, raw: unknown, message: string) {
       super(message);
       this.status = status;
+      this.raw = raw;
     }
   },
 }));
@@ -229,6 +232,89 @@ describe('useTripFormSubmit cargo type validation', () => {
       kind: 'error',
       message: 'Loại hàng là bắt buộc.',
     }));
+  });
+
+  it('confirms the rig-overlap warn and retries the figures PUT once with the family flag (ticket 111026105630)', async () => {
+    const state = makeState();
+    putMock.mockReset();
+    putMock.mockImplementationOnce(async () => {
+      // The server's warn-once refusal: 409 + the family code + copy that
+      // ends in 'Vẫn lưu?'.
+      throw new ApiError(409, { code: 'RIG_OVERLAP_COMPLETED' },
+        'Đầu xe 15H-117.55 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?');
+    });
+    putMock.mockImplementation(async (url: string) => {
+      if (url === '/trips/6/pre-departure') return {};
+      if (url === '/trips/6/containers') return { items: [] as ContainerFormRow[] };
+      throw new Error(`Unexpected PUT ${url}`);
+    });
+    const confirmRigOverlap = vi.fn().mockResolvedValue(true);
+    const { result } = renderHook(
+      () => useTripFormSubmit({
+        state,
+        isEditMode: true,
+        existingTrip: makeExistingTrip(),
+        legs: validLegs,
+        requiredFieldsFilled: 7,
+        hasOptionalData: false,
+        photoUrls: [],
+        flushPendingPhotos: vi.fn(),
+        flushPendingContainerPhotos: vi.fn().mockResolvedValue(new Map<string, string>()),
+        confirmRigOverlap,
+      }),
+      { wrapper: createWrapper() },
+    );
+
+    let tripId: number | undefined;
+    await act(async () => {
+      tripId = await result.current();
+    });
+
+    expect(tripId).toBe(6);
+    expect(confirmRigOverlap).toHaveBeenCalledTimes(1);
+    expect(confirmRigOverlap).toHaveBeenCalledWith(expect.stringContaining('Vẫn lưu'));
+    // Warn PUT → confirmed retry → the trailing containers save.
+    expect(putMock).toHaveBeenCalledTimes(3);
+    expect(putMock.mock.calls[1]?.[0]).toBe('/trips/6/pre-departure');
+    expect(putMock.mock.calls[1]?.[1]).toMatchObject({ confirmOverlap: true, truckId: 33 });
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' }));
+  });
+
+  it('keeps the overlap refusal when the user cancels the warn — no confirmed retry', async () => {
+    const state = makeState();
+    putMock.mockReset();
+    putMock.mockImplementation(async (url: string) => {
+      if (url === '/trips/6/pre-departure') {
+        throw new ApiError(409, { code: 'RIG_OVERLAP_COMPLETED' },
+          'Đầu xe 15H-117.55 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?');
+      }
+      throw new Error(`Unexpected PUT ${url}`);
+    });
+    const confirmRigOverlap = vi.fn().mockResolvedValue(false);
+    const { result } = renderHook(
+      () => useTripFormSubmit({
+        state,
+        isEditMode: true,
+        existingTrip: makeExistingTrip(),
+        legs: validLegs,
+        requiredFieldsFilled: 7,
+        hasOptionalData: false,
+        photoUrls: [],
+        flushPendingPhotos: vi.fn(),
+        flushPendingContainerPhotos: vi.fn().mockResolvedValue(new Map<string, string>()),
+        confirmRigOverlap,
+      }),
+      { wrapper: createWrapper() },
+    );
+
+    await act(async () => {
+      await result.current().catch(() => undefined);
+    });
+
+    expect(confirmRigOverlap).toHaveBeenCalledTimes(1);
+    expect(putMock).toHaveBeenCalledTimes(1);
+    expect(putMock.mock.calls[0]?.[1]).not.toHaveProperty('confirmOverlap');
+    expect(toastMock).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' }));
   });
 
   it('still blocks create-mode submit when cargo type is missing', async () => {

@@ -71,6 +71,9 @@ export default function TripEditPage() {
     options: editOptions,
     mode: 'edit',
     existingTrip: trip,
+    // Ticket 111026105630: the rig-overlap warn-once rides this page's own
+    // confirm dialog ({confirmDialog} below already renders it).
+    confirmRigOverlap: confirm,
   });
   const searchableRoutes = useMemo(
     () => editOptions.routes.map((route) => ({

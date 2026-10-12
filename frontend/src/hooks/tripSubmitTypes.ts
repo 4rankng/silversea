@@ -20,4 +20,8 @@ export interface TripFormSubmitParams {
   flushPendingContainerPhotos: (tripId: number, rowKeyToContainerId: Map<string, number>, onUploaded?: PhotoUploadedHandler) => Promise<Map<string, string>>;
   governanceReason?: string;
   onCreditLimitBlocked?: (details: { message: string; customerId: number; proposedAmount: number }) => void;
+  /** Ticket 111026105630 (FB-038 family): surfaces the rig-overlap warn-once
+   *  dialog ('Vẫn lưu?'). Absent → the 409 rethrows unchanged (no dead-end
+   *  retry, the pre-guard behavior). */
+  confirmRigOverlap?: (message: string) => Promise<boolean>;
 }

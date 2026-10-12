@@ -12,6 +12,7 @@ import type { TripLegInput } from '@tingting/shared';
 import { resolveTripDriverSalary, computeTripTotals } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { assertCompletionNotBeforeDeparture } from './trip-status-machine.service';
+import { assertTripRigAvailable } from './dispatch-planning-detail-plan.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { propagateTripFinancialSourceChange } from './source-change.service';
 import { createFinancialPosting, getActiveFinancialPosting } from './financial-posting.service';
@@ -78,6 +79,9 @@ export type TripFigureUpdateInput = {
     truckId?: number | null;
     driverId?: number | null;
     trailerType?: string | null;
+    /** Ticket 111026105630 (FB-038 family): the user confirmed the
+     *  rig-overlap warning — the retried save rides the warn tier. */
+    confirmOverlap?: boolean;
 };
 
 /** Status read for the cancel-route guard; throws 404 when the trip is missing. */
@@ -169,6 +173,29 @@ export async function updateTripFigures(
     // 2. Optimistic concurrency check
     if (data.expectedVersion !== undefined && trip.version !== data.expectedVersion) {
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
+    }
+
+    // Ticket 111026105630 (FB-038 / FB-072 reopen): the edit form claims the
+    // rig like every other surface. Only a save that MOVES the claim runs the
+    // guard — a truck swap or a departure-date change. Unrelated figure edits
+    // skip it: a legacy overlap must not turn a toll correction into a
+    // refusal. COMPLETED trips ride the governance path and released the rig
+    // (card 363) — out of this guard's scope by design.
+    const nextTruckId = data.carrierType === 'EXTERNAL' ? null
+      : (data.truckId !== undefined ? data.truckId : trip.truckId);
+    const claimMoved = nextTruckId !== trip.truckId
+      || (data.departureDate !== undefined && data.departureDate !== trip.departureDate);
+    if (nextTruckId != null && claimMoved && trip.status !== TripStatus.COMPLETED) {
+      await assertTripRigAvailable(tx, {
+        tripId,
+        truckId: nextTruckId,
+        departureDate: data.departureDate ?? trip.departureDate,
+        plannedStartAt: trip.plannedStartAt,
+        plannedEndAt: trip.plannedEndAt,
+        fulfillmentId: trip.fulfillmentId,
+        shipmentId: trip.shipmentId,
+        confirmOverlap: data.confirmOverlap === true,
+      });
     }
 
     const customerChanged = data.customerId !== undefined && data.customerId !== trip.customerId;

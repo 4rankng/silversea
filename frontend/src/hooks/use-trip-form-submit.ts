@@ -23,11 +23,21 @@ import {
 import { findInvalidLeg } from './tripSubmitReconcile';
 export { findInvalidLeg };
 
+/** The rig-overlap warn-once refusal (FB-038 family, ticket 111026105630):
+ *  the server answers the truck claim with a 409 carrying the family code and
+ *  copy that ends in 'Vẫn lưu?' — the form answers it with a confirm dialog,
+ *  never a dead-end error. */
+function isRigOverlapWarn(err: unknown): err is ApiError {
+  return err instanceof ApiError
+    && err.status === 409
+    && (err.raw as { code?: string } | undefined)?.code === 'RIG_OVERLAP_COMPLETED';
+}
+
 
 import type { SubmitOptions, TripFormSubmitParams as Params } from './tripSubmitTypes';
 export type { SubmitOptions } from './tripSubmitTypes';
 
-export function useTripFormSubmit({ state: s, isEditMode, existingTrip, legs, requiredFieldsFilled, hasOptionalData, photoUrls, flushPendingPhotos, flushPendingContainerPhotos, governanceReason, onCreditLimitBlocked }: Params): (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined> {
+export function useTripFormSubmit({ state: s, isEditMode, existingTrip, legs, requiredFieldsFilled, hasOptionalData, photoUrls, flushPendingPhotos, flushPendingContainerPhotos, governanceReason, onCreditLimitBlocked, confirmRigOverlap }: Params): (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined> {
 const queryClient = useQueryClient();
 const { toast: showToast } = useToast();
 // One key and, once confirmed, one trip ID per form session. Retrying failed
@@ -399,9 +409,20 @@ const handleSubmit = useCallback(
             if (reviewed.choices[key] === 'server') submission[key] = pending.latest[key as keyof TripDetail];
           }
         }
+        // Ticket 111026105630: the figures PUT may refuse once with the
+        // rig-overlap warn — confirm and retry with the family's flag, the
+        // same contract the dispatch surfaces ride.
+        const putFigures = (payload: Record<string, unknown>) =>
+          api.put<Record<string, unknown>>(endpoint, payload).catch(async (err: unknown) => {
+            if (!isRigOverlapWarn(err) || !confirmRigOverlap) throw err;
+            const proceed = await confirmRigOverlap(err.message
+              ?? 'Đầu xe đã được gán cho tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?');
+            if (!proceed) throw err;
+            return api.put<Record<string, unknown>>(endpoint, { ...payload, confirmOverlap: true });
+          });
         let updatedTrip: Record<string, unknown>;
         try {
-          updatedTrip = await api.put<Record<string, unknown>>(endpoint, submission);
+          updatedTrip = await putFigures(submission);
         } catch (err) {
           if (!(err instanceof ApiError && err.status === 409 && err.message.includes('Dữ liệu đã bị thay đổi bởi người khác'))) throw err;
           // KP-141: Instead of a blind full-payload retry with just a fresh
@@ -416,7 +437,7 @@ const handleSubmit = useCallback(
               key, label: FIELD_LABELS[key] ?? key, local: merged[key], latest: fresh[key as keyof TripDetail],
             })));
           }
-          updatedTrip = await api.put<Record<string, unknown>>(endpoint, merged);
+          updatedTrip = await putFigures(merged);
         }
         conflictRef.current = null;
         queryClient.invalidateQueries({ queryKey: qk.trips.all });
@@ -509,6 +530,19 @@ const handleSubmit = useCallback(
         createIdempotencyKeyRef.current ??= crypto.randomUUID();
         return api.post<{ id: number }>("/trips", createPayload, {
           headers: { 'Idempotency-Key': createIdempotencyKeyRef.current },
+        }).catch(async (err: unknown) => {
+          // Ticket 111026105630: the direct create can refuse once on the
+          // rig-overlap warn. The confirmed retry is a NEW request — a fresh
+          // idempotency key, or the dedup layer would replay the refusal.
+          if (!isRigOverlapWarn(err) || !confirmRigOverlap) throw err;
+          const proceed = await confirmRigOverlap(err.message
+            ?? 'Đầu xe đã được gán cho tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?');
+          if (!proceed) throw err;
+          createIdempotencyKeyRef.current = null;
+          createIdempotencyKeyRef.current ??= crypto.randomUUID();
+          return api.post<{ id: number }>("/trips", { ...createPayload, confirmOverlap: true }, {
+            headers: { 'Idempotency-Key': createIdempotencyKeyRef.current },
+          });
         });
       };
       const continuingCreatedTrip = createdTripRef.current != null;

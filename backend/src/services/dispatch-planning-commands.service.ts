@@ -599,6 +599,11 @@ export async function issueOrderCreateOrUpdate(
       pricingRateKey: input.pricingRateKey ?? null,
       fuelMode: input.fuelMode,
       createdBy: input.actor.userId,
+      // Ticket 111026105630: this flow's plate already passed the plan-side
+      // rig guard above (assertPlanRowRigAvailable, with the confirm/retry
+      // plumbing) — the trip-side create guard must not re-refuse the lot's
+      // own rotation or the Kẹp pair's second leg.
+      rigOverlapPreGuarded: true,
       carrierType: input.carrierType,
       externalCarrierId,
       externalPlateNumber,

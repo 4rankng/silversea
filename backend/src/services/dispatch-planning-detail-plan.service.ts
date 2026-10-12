@@ -702,6 +702,220 @@ async function resolvePlanRowWindow(
     : { start: dayStart, end: new Date(dayStart.getTime() + 24 * 3600_000), strong: false };
 }
 
+/** Plan-row holders on a plate, FCL branch (container-linked rows).
+ *  Law owner for the holder slot coalesce, shared by both rig guards:
+ *  card 101026043000 (the grid's own slot coalesce, never appointment-only),
+ *  card 363 (unsaved end ⇒ one 8-hour shift), case 2026-10-11-R14-04
+ *  (date-only "Ngày giao" holder claims the whole displayed day — weak
+ *  evidence). A fulfilled row whose trip COMPLETED has released the rig
+ *  (061026172804): it must reach the completed tier's warning, never the
+ *  generic plan-row block. */
+async function scanPlanRowHolders(
+  tx: Tx,
+  plate: string,
+  windowStart: Date,
+  windowEnd: Date,
+  excludeFulfillmentId: number,
+) {
+  const holderSlotSql = sql`coalesce(${s.shipmentContainers.customerAppointmentAt}, ${s.shipments.closingAt}, ${s.shipments.plannedReturnAt})`;
+  const holderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
+  const holderStartSql = sql`coalesce(${holderSlotSql}, ${holderDaySql})`;
+  const holderEndSql = sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, case when ${holderSlotSql} is null then ${holderDaySql} + interval '1 day' else ${holderSlotSql} + interval '8 hours' end)`;
+  return tx.select({
+    id: s.shipmentFulfillments.id,
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    fallbackSlot: isNull(s.shipmentContainers.customerAppointmentAt),
+  })
+    .from(s.shipmentFulfillments)
+    .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+    .where(and(
+      ne(s.shipmentFulfillments.id, excludeFulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
+      sql`${holderStartSql} is not null`,
+      sql`${holderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+      sql`${holderEndSql} > ${windowStart.toISOString()}::timestamptz`,
+      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
+    ));
+}
+
+/** Plan-row holders on a plate, LCL branch (card 061026174603: Hàng lẻ rows
+ *  are plan units with the LOT window). Same slot laws as the FCL branch;
+ *  the fallbackSlot evidence marker keeps date-only holders at the warn tier
+ *  (case 2026-10-11-R14-04 review B1). */
+async function scanLclPlanRowHolders(
+  tx: Tx,
+  plate: string,
+  windowStart: Date,
+  windowEnd: Date,
+  excludeFulfillmentId: number,
+) {
+  const lclHolderSlotSql = sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt})`;
+  const lclHolderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
+  const lclHolderStartSql = sql`coalesce(${lclHolderSlotSql}, ${lclHolderDaySql})`;
+  const lclHolderEndSql = sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, case when ${lclHolderSlotSql} is null then ${lclHolderDaySql} + interval '1 day' else ${lclHolderSlotSql} + interval '8 hours' end)`;
+  return tx.select({
+    id: s.shipmentFulfillments.id,
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    fallbackSlot: sql`(${lclHolderSlotSql}) is null`,
+  })
+    .from(s.shipmentFulfillments)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+    .where(and(
+      ne(s.shipmentFulfillments.id, excludeFulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
+      eq(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
+      sql`${lclHolderStartSql} is not null`,
+      sql`${lclHolderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+      sql`${lclHolderEndSql} > ${windowStart.toISOString()}::timestamptz`,
+      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
+    ));
+}
+
+/**
+ * Ticket 111026105630 (FB-038 / FB-072 reopen): the trip edit form and the
+ * direct trip create claim the rig exactly like the dispatch surfaces —
+ * before this guard, PUT /trips/:id/pre-departure|actuals and POST /trips
+ * landed truckId with no rig check and a same-window tractor double-booking
+ * saved silently (round-14 staging repro: /trips/153 ← 15H-117.55 already on
+ * /trips/160 the same day, toast 'Đã lưu thay đổi.').
+ *
+ * Same FB-038 family law as assertPlanRowRigAvailable, mirrored onto the
+ * trip's own window: a plannedStartAt timestamp claims 8h or its staged end
+ * (card 363) with FULL evidence; a date-only departure claims the displayed
+ * day (12fcf20d law — weak evidence, warn tier). Holders: cross-lot plan rows
+ * (hard when provable), the trip's own lot's rows (deliberate rotation —
+ * warn), active trips (hard when both windows are provable), completed trips
+ * (released the rig, card 363 — warn once). Never a silent save, never a
+ * guessed hard block.
+ */
+export async function assertTripRigAvailable(
+  tx: Tx,
+  args: {
+    /** The trip being saved (edit path): excluded from its own holder scans. */
+    tripId?: number;
+    truckId: number;
+    departureDate: string;
+    /** The saving trip's staged window; when plannedStartAt is absent the
+     *  departure day claims the whole day (weak evidence). */
+    plannedStartAt?: Date | null;
+    plannedEndAt?: Date | null;
+    /** The trip's origin fulfillment (edit path): its plan row holds the
+     *  plate by design and is excluded; its classification carries the Kẹp
+     *  carve-out (081026091100 — a DOUBLE pair shares the rig on purpose). */
+    fulfillmentId?: number | null;
+    /** Same-lot plan rows are the lot's own rotation (6051d39a) — warn, never
+     *  the hard tier. */
+    shipmentId?: number | null;
+    confirmOverlap?: boolean;
+  },
+): Promise<void> {
+  const [truck] = await tx.select({ licensePlate: s.trucks.licensePlate })
+    .from(s.trucks).where(eq(s.trucks.id, args.truckId)).limit(1);
+  const plate = (truck?.licensePlate ?? '').trim();
+  if (!plate) return;
+
+  // The saving trip's window: strong evidence only when a real timestamp
+  // anchors it. plannedEndAt at/before the start is unprovable (the family's
+  // degenerate-end law) — fall back to the window default, never a zero span.
+  const windowStart = args.plannedStartAt
+    ?? expectedDeliveryDayStart(args.departureDate);
+  if (windowStart == null) return;
+  const degenerateEnd = args.plannedEndAt != null && args.plannedEndAt.getTime() <= windowStart.getTime();
+  const windowEnd = args.plannedEndAt != null && !degenerateEnd
+    ? args.plannedEndAt
+    : (args.plannedStartAt
+        ? new Date(windowStart.getTime() + 8 * 3600_000)
+        : new Date(windowStart.getTime() + 24 * 3600_000));
+  const strong = args.plannedStartAt != null && !degenerateEnd;
+
+  let classification: DispatchClassification | null = null;
+  if (args.fulfillmentId != null) {
+    const [ff] = await tx.select({ classification: s.shipmentFulfillments.dispatchClassification })
+      .from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, args.fulfillmentId)).limit(1);
+    classification = ff?.classification ?? null;
+  }
+  const isKepPairing = classification === 'DOUBLE';
+
+  const planConflicts = isKepPairing
+    ? []
+    : await scanPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId ?? -1);
+  const lclPlanConflicts = isKepPairing
+    ? []
+    : await scanLclPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId ?? -1);
+
+  // Active dispatched trips on the same tractor. Mirrors the family's scan,
+  // widened for the trip form's reality: a trip without a planned timestamp
+  // still claims its departure day (12fcf20d) — those holders land at the
+  // warn tier via the weak marker.
+  const tripDaySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
+  const tripStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${tripDaySql})`;
+  const tripEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${tripDaySql} + interval '1 day')`;
+  const activeConflicts = await tx.select({
+    id: s.trips.id,
+    weak: sql`${s.trips.plannedStartAt} is null`,
+  })
+    .from(s.trips)
+    .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .where(and(
+      eq(s.trucks.licensePlate, plate),
+      notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
+      isNull(s.trips.deletedAt),
+      ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
+      sql`${tripStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+      sql`${tripEndSql} > ${windowStart.toISOString()}::timestamptz`,
+    ));
+
+  const crossLotConflicts = planConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
+  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
+  const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
+  const planRowBlocked = crossLotConflicts.length > 0 || crossLotLclConflicts.length > 0;
+  const weakEvidence = !strong
+    || degenerateEnd
+    || crossLotConflicts.some((conflict) => conflict.fallbackSlot)
+    || crossLotLclConflicts.some((conflict) => conflict.fallbackSlot)
+    || activeConflicts.some((conflict) => conflict.weak);
+
+  if (planRowBlocked || activeConflicts.length > 0) {
+    if (!weakEvidence) {
+      throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+    }
+    if (!args.confirmOverlap) {
+      throw new ApiError(409,
+        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+        undefined,
+        { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+  } else if (sameLotPlanClaim && !args.confirmOverlap) {
+    throw new ApiError(409,
+      `Đầu xe ${plate} đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?`,
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' });
+  }
+  if (!args.confirmOverlap) {
+    const completedTripConflicts = await tx.select({ id: s.trips.id })
+      .from(s.trips)
+      .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+      .where(and(
+        eq(s.trucks.licensePlate, plate),
+        eq(s.trips.status, TripStatus.COMPLETED),
+        isNull(s.trips.deletedAt),
+        ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
+        isNotNull(s.trips.plannedStartAt),
+        lt(s.trips.plannedStartAt, windowEnd),
+        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz`,
+      ));
+    if (completedTripConflicts.length > 0) {
+      throw new ApiError(409,
+        `Đầu xe ${plate} có ${completedTripConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
+        undefined,
+        { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+  }
+}
+
 async function assertPlanRowRigAvailable(
   tx: Tx,
   args: {
@@ -750,85 +964,12 @@ async function assertPlanRowRigAvailable(
   // not the pair's own overlap).
   const isKepPairing = args.classification === 'DOUBLE';
   // Pre-dispatch plan rows planned onto the same rig with an overlapping
-  // window. A row without its own appointment cannot prove overlap and is
-  // skipped rather than guessed into a conflict. Card 363: a row without a
-  // saved end is bounded by one 8-hour shift (the same default the saving row
-  // uses above) instead of counting as occupying the rig forever.
-  // Holder slot law — the same display coalesce the window resolution owns,
-  // extended with the case-2026-10-11-R14-04 "Ngày giao" date fallback: the
-  // grid's date column renders coalesce(date(customerAppointmentAt),
-  // shipments.expectedDeliveryDate), so a lot-date-only holder claims the
-  // whole displayed day (weak display evidence), while a timestamped holder
-  // claims its staged end or one 8-hour shift (card 363).
-  const holderSlotSql = sql`coalesce(${s.shipmentContainers.customerAppointmentAt}, ${s.shipments.closingAt}, ${s.shipments.plannedReturnAt})`;
-  const holderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
-  const holderStartSql = sql`coalesce(${holderSlotSql}, ${holderDaySql})`;
-  const holderEndSql = sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, case when ${holderSlotSql} is null then ${holderDaySql} + interval '1 day' else ${holderSlotSql} + interval '8 hours' end)`;
-  const planConflicts = await tx.select({
-    id: s.shipmentFulfillments.id,
-    shipmentId: s.shipmentFulfillments.shipmentId,
-    fallbackSlot: isNull(s.shipmentContainers.customerAppointmentAt),
-  })
-    .from(s.shipmentFulfillments)
-    .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
-    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
-    .where(and(
-      ne(s.shipmentFulfillments.id, args.fulfillmentId),
-      isNull(s.shipmentFulfillments.canceledAt),
-      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
-      // Slot law (card 101026043000): the SAME coalesce the grid renders as
-      // the row's time. A row without an explicit appointment whose slot
-      // rides the lot fallback is a real claim on the rig — demanding
-      // customerAppointmentAt here made exactly those claims invisible and
-      // the double-booking saved silently. Card 363: a row without a saved
-      // end is bounded by one 8-hour shift (the same default the saving row
-      // uses above) instead of counting as occupying the rig forever.
-      // Case 2026-10-11-R14-04: the claim also falls back to the displayed
-      // "Ngày giao" lot date (whole-day span) — the pair that saved silently
-      // in the round-14 UI repro.
-      sql`${holderStartSql} is not null`,
-      sql`${holderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-      sql`${holderEndSql} > ${windowStart.toISOString()}::timestamptz`,
-      // QA rework 061026172804: a fulfillment whose trip is COMPLETED has
-      // released the rig (card 363) — it must fall through to the completed
-      // tier's warning below, not raise the generic plan-row block here
-      // (the masking the staging QA cut exposed).
-      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
-    ));
-  // Card 061026174603: an LCL row is a plan unit too, but it has no container,
-  // so the branch above (which inner-joins shipmentContainers) cannot see it.
-  // Without this the same tractor could ride two overlapping LCL rows, or an
-  // LCL row and an FCL row — the guard would protect FCL and silently exempt
-  // Hàng lẻ. Same overlap rule, same 8-hour default, LCL window from the lot.
-  // Same claim law as the FCL scan for LCL holders (case 2026-10-11-R14-04):
-  // lot closing/return, else the displayed "Ngày giao" lot date day-span.
-  const lclHolderSlotSql = sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt})`;
-  const lclHolderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
-  const lclHolderStartSql = sql`coalesce(${lclHolderSlotSql}, ${lclHolderDaySql})`;
-  const lclHolderEndSql = sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, case when ${lclHolderSlotSql} is null then ${lclHolderDaySql} + interval '1 day' else ${lclHolderSlotSql} + interval '8 hours' end)`;
-  const lclPlanConflicts = await tx.select({
-    id: s.shipmentFulfillments.id,
-    shipmentId: s.shipmentFulfillments.shipmentId,
-    // Evidence marker, symmetric with the FCL scan (case 2026-10-11-R14-04
-    // review B1): an LCL row riding closingAt/plannedReturnAt has its PRIMARY
-    // slot (full evidence, card 061026174603) — only the displayed "Ngày
-    // giao" date fallback is display evidence. Without this marker a date-only
-    // LCL holder pinned the HARD tier and the warn's own confirm dead-ended.
-    fallbackSlot: sql`(${lclHolderSlotSql}) is null`,
-  })
-    .from(s.shipmentFulfillments)
-    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
-    .where(and(
-      ne(s.shipmentFulfillments.id, args.fulfillmentId),
-      isNull(s.shipmentFulfillments.canceledAt),
-      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
-      eq(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
-      sql`${lclHolderStartSql} is not null`,
-      sql`${lclHolderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-      sql`${lclHolderEndSql} > ${windowStart.toISOString()}::timestamptz`,
-      // Same released-rig exclusion as the FCL scan above.
-      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
-    ));
+  // window (law + slot coalesce live in scanPlanRowHolders — shared with the
+  // trip-side guard, ticket 111026105630).
+  const planConflicts = await scanPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
+  // Card 061026174603: LCL holders ride the lot window (law + slot coalesce
+  // live in scanLclPlanRowHolders — shared with the trip-side guard).
+  const lclPlanConflicts = await scanLclPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
   // Dispatched trips riding the same rig: the plate is the pre-dispatch key,
   // the truck's license plate is the dispatched key — one physical tractor.
   // Card 363: only ACTIVE trips occupy the rig (a COMPLETED trip released it —

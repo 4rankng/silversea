@@ -55,6 +55,10 @@ export interface UseTripFormDispatchParams {
   existingTrip: TripDetail | undefined;
   governanceReason?: string;
   onCreditLimitBlocked?: (details: { message: string; customerId: number; proposedAmount: number }) => void;
+  /** Ticket 111026105630 (FB-038 family): the confirm behind the
+   *  rig-overlap warn-once refusal. The page's own useConfirm dialog backs
+   *  it — the form return stays serializable (useDirtyGuard stringifies it). */
+  confirmRigOverlap?: (message: string) => Promise<boolean>;
 }
 
 export interface UseTripFormDispatchReturn {
@@ -91,7 +95,7 @@ export interface UseTripFormDispatchReturn {
 }
 
 export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripFormDispatchReturn {
-  const { state: s, options, isEditMode, existingTrip, governanceReason, onCreditLimitBlocked } = params;
+  const { state: s, options, isEditMode, existingTrip, governanceReason, onCreditLimitBlocked, confirmRigOverlap } = params;
   const { data: fuelConfig } = useFuelConfig();
   const lastPopulatedTripId = useRef<number | undefined>(undefined);
 
@@ -477,6 +481,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
             proposedAmount: estimatedDispatchRevenue,
           })
       : undefined,
+    confirmRigOverlap,
   });
 
   return {

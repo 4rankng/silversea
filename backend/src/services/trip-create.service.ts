@@ -18,6 +18,7 @@ import type { Tx } from './trip-shared';
 import { assertCreditLimit, consumeShipmentCreditOverride, recordTripCreditException, type DirectCreditException } from './credit-limit.service';
 import { buildCopiedTripValues, buildCopiedTripLegValues } from './trip-mutations-shared.service';
 import { getTripCompositeInTx, insertTripComposite } from './trip-composite.service';
+import { assertTripRigAvailable } from './dispatch-planning-detail-plan.service';
 
 /**
  * M2.3: Build the full visible pricing formula: freight + VAT.
@@ -99,6 +100,14 @@ export async function createTrip(data: {
   creditApprovalRequestId?: number | null;
   creditException?: DirectCreditException;
   createdByRole?: Role;
+  /** Ticket 111026105630 (FB-038 family): the user confirmed the rig-overlap
+   *  warning — the retried create rides the warn tier. */
+  confirmOverlap?: boolean;
+  /** Set by the dispatch issue flow, which runs the plan-side rig guard (with
+   *  its own rigOverlapCompletedConfirmed confirm/retry) BEFORE creating the
+   *  trip. Re-guarding here would refuse the lot's own deliberate rotation
+   *  and the Kẹp pair's second leg on their first issue. */
+  rigOverlapPreGuarded?: boolean;
 }, transaction?: Tx) {
   const execute = async (tx: Tx) => {
     const containerCount = data.containerCount ?? 1;
@@ -127,6 +136,22 @@ export async function createTrip(data: {
       if (!cargoTypeRef) {
         throw new ApiError(400, 'Loại hàng không tồn tại.');
       }
+    }
+
+    // Ticket 111026105630 (FB-038 family): a DIRECT create claims the rig like
+    // every other surface — a new trip on a tractor already booked in the
+    // departure window warns instead of saving silently. Shipment-linked and
+    // pre-guarded creates are the dispatch flows' territory: their plate
+    // already passed the plan-row guard (with its own confirm plumbing), and
+    // re-guarding here would warn the lot's own deliberate rotation, so they
+    // are excluded by design.
+    if (data.shipmentId == null && !data.rigOverlapPreGuarded
+      && (data.carrierType ?? 'OWN') === 'OWN' && data.truckId != null) {
+      await assertTripRigAvailable(tx, {
+        truckId: data.truckId,
+        departureDate: data.departureDate,
+        confirmOverlap: data.confirmOverlap === true,
+      });
     }
 
     // 0. Wave 0: if a shipmentId was provided, validate the shipment up front
