@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { FuelMode, TripStatus, tripContainerBatchSchema } from '@tingting/shared';
 import type { TripDetail } from '@tingting/shared';
 import { api, ApiError } from '../lib/api';
+import { stripDecimalTrailingZeros } from '../lib/format';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
 import { useToast } from '../components/shared/Toast';
@@ -302,7 +303,7 @@ const handleSubmit = useCallback(
             containerTypeId: c.containerTypeId ?? '',
             containerNumber: c.containerNumber ?? '',
             sealNumber: seals[0]?.sealNumber ?? '',
-            cargoWeightKg: c.cargoWeightKg != null ? String(c.cargoWeightKg) : '',
+            cargoWeightKg: c.cargoWeightKg != null ? stripDecimalTrailingZeros(String(c.cargoWeightKg)) : '',
             notes: c.notes ?? '',
             seals,
             photoKeys,
