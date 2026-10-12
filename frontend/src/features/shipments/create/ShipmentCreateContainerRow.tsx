@@ -9,6 +9,7 @@ import {
 } from './uui-fields';
 import { UDateTimeField as DateTimeField } from './uui-datetime-field';
 import { ShipmentContainerCell } from './ShipmentContainerCell';
+import { buildFactoryOptionSearchText } from './ShipmentCreateContainerRow.factorySearch';
 import { FactoryDetailPopover } from './FactoryDetailPopover';
 import { ContainerTypeCellPicker } from './ContainerTypeCellPicker';
 import type { ShipmentContainerDraft } from './shipment-create-model';
@@ -196,7 +197,7 @@ export function ShipmentCreateContainerRow({
           options={operationalSites.map((site) => ({
             value: String(site.id),
             label: site.shortName || site.name,
-            searchText: `${site.code} ${site.name} ${site.address ?? ''}`,
+            searchText: buildFactoryOptionSearchText(site),
           }))}
           placeholder={isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Chọn nhà máy'}
           disabled={(!customerId && !isAdHoc) || sitesLoading || saving}
@@ -209,6 +210,7 @@ export function ShipmentCreateContainerRow({
       <FactoryDetailPopover
         name={factoryName}
         address={factory?.address ?? ''}
+        phone={factory?.contactPhone ?? ''}
         invoiceGroups={factoryInvoiceGroups}
         anchorRef={factoryDetailAnchorRef}
         open={factoryDetailOpen && factory != null}

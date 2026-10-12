@@ -4,6 +4,7 @@
 .factory-detail-pop__close { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-3); cursor: pointer; }
 .factory-detail-pop__close:hover { background: var(--surface-2); color: var(--fg-1); }
 .factory-detail-pop__address { margin: 0; color: var(--fg-2); overflow-wrap: anywhere; white-space: normal; }
+.factory-detail-pop__phone { display: flex; gap: 4px; margin: 0; color: var(--fg-1); overflow-wrap: anywhere; }
 .factory-detail-pop__group { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; border-top: 1px dashed var(--line-1); }
 .factory-detail-pop__group-label { margin: 0; font-weight: 600; color: var(--fg-2); }
 .factory-detail-pop__line { display: flex; gap: 4px; margin: 0; color: var(--fg-1); overflow-wrap: anywhere; }

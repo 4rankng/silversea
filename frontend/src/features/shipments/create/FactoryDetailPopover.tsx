@@ -13,6 +13,9 @@ export interface FactoryInvoiceGroup {
 interface FactoryDetailPopoverProps {
   name: string;
   address: string;
+  /** Factory contact phone (FB-007). Omitted entirely when the factory has none
+   *  — most factories still lack one, and a blank line reads as broken. */
+  phone?: string;
   invoiceGroups: FactoryInvoiceGroup[];
   anchorRef: RefObject<HTMLElement | null>;
   open: boolean;
@@ -25,6 +28,7 @@ interface FactoryDetailPopoverProps {
 export function FactoryDetailPopover({
   name,
   address,
+  phone,
   invoiceGroups,
   anchorRef,
   open,
@@ -55,6 +59,11 @@ export function FactoryDetailPopover({
         </button>
       </p>
       <p className="factory-detail-pop__address">{address}</p>
+      {phone ? (
+        <p className="factory-detail-pop__phone">
+          <span className="factory-detail-pop__line-label">Số điện thoại</span> {phone}
+        </p>
+      ) : null}
       {invoiceGroups.map((group) => (
         <div key={group.label} className="factory-detail-pop__group">
           <p className="factory-detail-pop__group-label">{group.label}</p>
