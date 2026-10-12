@@ -174,7 +174,12 @@ export function ShipmentCreateIdentitySection({
             value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef}
             onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)}
             maxLength={100}
-            placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Chọn Nhập hoặc Xuất'}
+            // QA1-001: the fallback used to read "Chọn Nhập hoặc Xuất", which
+            // described the trade-direction picker sitting next to this field —
+            // on a disabled input it read as if this field were that picker.
+            // Name this field instead; the hint below already states the
+            // prerequisite, so there is nothing to repeat here.
+            placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Nhập số Bill/Booking'}
             disabled={!form.tradeDirection || saving}
             hint={!form.tradeDirection ? 'Chọn Hình thức xuất nhập khẩu trước' : undefined}
             error={issueByField.get('shipment-booking-ref')}
