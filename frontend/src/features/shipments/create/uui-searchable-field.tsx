@@ -16,7 +16,7 @@ interface USearchableFieldProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  options: Array<{ value: string; label: string; searchText?: string }>;
+  options: Array<{ value: string; label: string; searchText?: string; supportingText?: string }>;
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
@@ -210,10 +210,12 @@ export function USearchableField({
           id: option.value,
           label: option.label,
           searchText: option.searchText,
+          supportingText: option.supportingText,
         })).concat(createOption ? [{
           id: '__create__',
           label: createOption.label(inputValue ?? ''),
           searchText: inputValue ?? '',
+          supportingText: undefined,
         }] : [])}
         placeholder={placeholder}
         isDisabled={disabled}
@@ -226,7 +228,7 @@ export function USearchableField({
         className="csc-uui-field csc-control-boundary"
         {...(openApiRef ? { onReady: (api: { open: () => void }) => { openApiRef.current = api; } } : {})}
       >
-        {(item: { id: string | number; label?: string; searchText?: string }) => (
+        {(item: { id: string | number; label?: string; searchText?: string; supportingText?: string }) => (
           <SelectItem
             id={item.id}
             value={item}
@@ -235,7 +237,11 @@ export function USearchableField({
             label={item.label}
             // The search chain rides textValue (filter-only) — rendering it
             // as supportingText bloated every dropdown row (20260917_13).
+            // An explicit supportingText is different: the caller opts a
+            // specific field into a visible secondary line (FB-007: the
+            // factory phone in the picker options).
             textValue={`${item.label} ${item.searchText ?? ''}`.trim()}
+            {...(item.supportingText ? { supportingText: item.supportingText } : {})}
           />
         )}
       </ComboBox>

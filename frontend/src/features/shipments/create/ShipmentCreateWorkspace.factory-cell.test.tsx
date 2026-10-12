@@ -102,4 +102,102 @@ describe('shipment create factory cell (card 20260923_2)', { timeout: 20000 }, (
     const numberCell = document.querySelector('td[data-field-id$="-number"]');
     expect(numberCell?.classList.contains('csc-container-cell--picker')).toBe(false);
   });
+
+  // Card 121026185520 (FB-007 round 16): the prior card made the phone
+  // searchable and put it in the detail popover, but the owner requires the
+  // phone VISIBLE in each dropdown option — from the same
+  // operational_sites.contact_phone the popover reads. The option's secondary
+  // line is the USearchableField supportingText; phone-less factories must
+  // render no stray line, and the committed label / collapsed cell stay
+  // name-only (card 20260923_2 density contract).
+  describe('factory picker option phone (FB-007 round 16)', { timeout: 20000 }, () => {
+    it('shows the contact phone as the option secondary line', async () => {
+      listOperationalSites.mockResolvedValue([
+        {
+          id: 9,
+          siteType: 'FACTORY',
+          code: 'NEWEB-3',
+          shortName: 'NEWEB-3',
+          name: 'CÔNG TY TNHH NEWEB VIỆT NAM 3',
+          address: FACTORY_ADDRESS,
+          contactPhone: '0900999888',
+        },
+      ]);
+      renderWorkspace();
+      await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+      const customerWrap = document.querySelector('[data-field="shipment-customer"]')!;
+      const customerInput = within(customerWrap as HTMLElement).getByRole('combobox');
+      await openMenu(customerInput);
+      fireEvent.click(await screen.findByRole('option', { name: /KH A/ }));
+
+      const row = document.querySelector('.csc-container-row')!;
+      const factoryInput = within(row as HTMLElement).getByRole('combobox', { name: /^Nhà máy/ });
+      await openMenu(factoryInput);
+
+      const option = await screen.findByRole('option', { name: /NEWEB-3/ });
+      expect(option.textContent).toContain('0900999888');
+    });
+
+    it('renders no secondary line and never "undefined" for a phone-less factory', async () => {
+      listOperationalSites.mockResolvedValue([
+        {
+          id: 9,
+          siteType: 'FACTORY',
+          code: 'NEWEB-3',
+          shortName: 'NEWEB-3',
+          name: 'CÔNG TY TNHH NEWEB VIỆT NAM 3',
+          address: FACTORY_ADDRESS,
+        },
+      ]);
+      renderWorkspace();
+      await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+      const customerWrap = document.querySelector('[data-field="shipment-customer"]')!;
+      const customerInput = within(customerWrap as HTMLElement).getByRole('combobox');
+      await openMenu(customerInput);
+      fireEvent.click(await screen.findByRole('option', { name: /KH A/ }));
+
+      const row = document.querySelector('.csc-container-row')!;
+      const factoryInput = within(row as HTMLElement).getByRole('combobox', { name: /^Nhà máy/ });
+      await openMenu(factoryInput);
+
+      const option = await screen.findByRole('option', { name: /NEWEB-3/ });
+      expect(option.textContent).not.toContain('undefined');
+      expect(option.textContent).not.toContain('null');
+    });
+
+    it('keeps the committed label and collapsed cell name-only after the pick', async () => {
+      listOperationalSites.mockResolvedValue([
+        {
+          id: 9,
+          siteType: 'FACTORY',
+          code: 'NEWEB-3',
+          shortName: 'NEWEB-3',
+          name: 'CÔNG TY TNHH NEWEB VIỆT NAM 3',
+          address: FACTORY_ADDRESS,
+          contactPhone: '0900999888',
+        },
+      ]);
+      renderWorkspace();
+      await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+      const customerWrap = document.querySelector('[data-field="shipment-customer"]')!;
+      const customerInput = within(customerWrap as HTMLElement).getByRole('combobox');
+      await openMenu(customerInput);
+      fireEvent.click(await screen.findByRole('option', { name: /KH A/ }));
+
+      const row = document.querySelector('.csc-container-row')!;
+      const factoryInput = within(row as HTMLElement).getByRole('combobox', { name: /^Nhà máy/ });
+      await openMenu(factoryInput);
+      fireEvent.click(await screen.findByRole('option', { name: /NEWEB-3/ }));
+
+      await screen.findByDisplayValue('NEWEB-3');
+      const cellWrap = row.querySelector('td[data-field-id$="-factory"]') ?? row;
+      expect((cellWrap as HTMLElement).querySelector('.csc-container-cell__display')?.textContent).toBe('NEWEB-3');
+      // The phone is menu-only; it never lands in the row cell (density card
+      // 20260923_2).
+      expect((cellWrap as HTMLElement).querySelector('.csc-container-cell__display')?.textContent).not.toContain('0900999888');
+    });
+  });
 });

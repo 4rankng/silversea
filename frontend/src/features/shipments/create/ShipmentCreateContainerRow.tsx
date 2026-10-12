@@ -198,6 +198,10 @@ export function ShipmentCreateContainerRow({
             value: String(site.id),
             label: site.shortName || site.name,
             searchText: buildFactoryOptionSearchText(site),
+            // FB-007 round 16: the phone is visible in the option (same
+            // contact_phone the detail popover reads); blank stays blank —
+            // no "undefined" line for phone-less factories.
+            supportingText: site.contactPhone?.trim() || undefined,
           }))}
           placeholder={isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Chọn nhà máy'}
           disabled={(!customerId && !isAdHoc) || sitesLoading || saving}
