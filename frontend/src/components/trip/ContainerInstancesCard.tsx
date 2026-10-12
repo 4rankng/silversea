@@ -18,6 +18,7 @@ interface Props {
   requiresPhotos?: boolean;
 }
 import { checkContainerNumber, emptyRow, emptySeal, hasEditableContainerData, photoStorageKey, rowKey, sealKey, type ContainerRow, type ServerContainer } from "./container-instance-helpers";
+import { stripDecimalTrailingZeros } from "../../lib/format";
 
 export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhotos }: Props) {
   const { toast } = useToast();
@@ -122,7 +123,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
         containerTypeId: c.containerTypeId ?? "",
         containerNumber: c.containerNumber ?? "",
         sealNumber: seals[0]?.sealNumber ?? "",
-        cargoWeightKg: c.cargoWeightKg != null ? String(c.cargoWeightKg) : "",
+        cargoWeightKg: stripDecimalTrailingZeros(c.cargoWeightKg != null ? String(c.cargoWeightKg) : null),
         notes: c.notes ?? "",
         seals,
         photoKeys,

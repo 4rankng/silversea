@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { photoViewerPropsMock, scannerPropsMock, setRowsMock, useTripFormContextMock } = vi.hoisted(() => ({
+const { existingContainersData, photoViewerPropsMock, scannerPropsMock, setRowsMock, useTripFormContextMock } = vi.hoisted(() => ({
+  existingContainersData: { current: undefined as { items: unknown[] } | undefined },
   photoViewerPropsMock: vi.fn(),
   scannerPropsMock: vi.fn(),
   setRowsMock: vi.fn(),
@@ -9,7 +10,7 @@ const { photoViewerPropsMock, scannerPropsMock, setRowsMock, useTripFormContextM
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: undefined, isLoading: false }),
+  useQuery: () => ({ data: existingContainersData.current, isLoading: false }),
 }));
 
 vi.mock('../../hooks/useTripFormContext', () => ({
@@ -39,6 +40,7 @@ import { ContainerInstancesCard } from './ContainerInstancesCard';
 
 describe('ContainerInstancesCard flat manifest layout', () => {
   beforeEach(() => {
+    existingContainersData.current = undefined;
     photoViewerPropsMock.mockReset();
     scannerPropsMock.mockReset();
     setRowsMock.mockReset();
@@ -226,5 +228,40 @@ describe('ContainerInstancesCard flat manifest layout', () => {
 
     expect(screen.getByText('Không tải được')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Đổi ảnh container' })).toBeTruthy();
+  });
+
+  it('hydrates the edit weight without storage decimals', async () => {
+    // FB-069 verify-fail: /trips/:id/edit showed "15000.00" in the weight
+    // input — the containers endpoint's numeric string hydrated verbatim.
+    // The same axis that formats the lot list/detail must strip the two dead
+    // decimals when seeding the edit row ("15000.00" -> "15000", and a
+    // genuine decimal keeps its significant digit).
+    existingContainersData.current = {
+      items: [
+        {
+          id: 9,
+          containerTypeId: null,
+          containerNumber: 'TCKU1234567',
+          sealNumber: null,
+          cargoWeightKg: '15000.00',
+          notes: null,
+          seals: [],
+          photos: [],
+        },
+      ],
+    };
+
+    const context = useTripFormContextMock();
+    const { rerender } = render(<ContainerInstancesCard tripId={127} expectedCount={1} />);
+
+    // The hydration effect seeds the server rows through the context setter.
+    const seeded = setRowsMock.mock.calls
+      .map(([arg]) => arg)
+      .find((arg) => Array.isArray(arg)) as typeof context.containerRows;
+    expect(seeded[0].cargoWeightKg).toBe('15000');
+
+    useTripFormContextMock.mockReturnValue({ ...context, containerRows: seeded });
+    rerender(<ContainerInstancesCard tripId={127} expectedCount={1} />);
+    expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('15000');
   });
 });

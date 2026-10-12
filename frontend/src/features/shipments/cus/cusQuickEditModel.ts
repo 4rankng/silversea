@@ -11,7 +11,8 @@ import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import { CUS_SEARCH_PATTERN } from '@tingting/shared';
 import type { updateShipment, updateShipmentDeclaration } from '../../../api/shipmentClient';
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
-import { scheduleTime, type QuickEditDeclarationRow, type ShipmentQuickEditDraft, stripDecimalTrailingZeros } from './cusUtils';
+import { stripDecimalTrailingZeros } from '../../../lib/format';
+import { scheduleTime, type QuickEditDeclarationRow, type ShipmentQuickEditDraft } from './cusUtils';
 
 export type QuickEditField = ShipmentQuickEditDraft['field'];
 

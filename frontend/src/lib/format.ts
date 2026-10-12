@@ -231,6 +231,16 @@ export function formatWeight(kg: string | number | null | undefined, options?: F
   return `${value.toLocaleString('vi-VN')} kg`;
 }
 
+/** Edit-input counterpart of the display measure axis above (card
+ *  20261005_360; FB-069): Postgres numeric strings carry two dead decimals
+ *  ("10000.00") — edit inputs hydrate without them; a genuine decimal keeps
+ *  its significant digit ("100.50" -> "100.5"). Non-numeric passthrough. */
+export function stripDecimalTrailingZeros(value: string | null | undefined): string {
+  if (value == null || value === '') return '';
+  const amount = Number(value);
+  return Number.isFinite(amount) ? String(amount) : value;
+}
+
 /** Month key ("YYYY-MM-…") rendered as "MM/YYYY", e.g. "06/2026". */
 export function formatViMonth(value: string, options?: FormatValueOptions): string {
   const empty = options?.empty ?? '—';

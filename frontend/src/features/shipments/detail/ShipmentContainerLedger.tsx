@@ -12,7 +12,7 @@ import type {
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { useConfirm } from '../../../components/UI';
-import { displayNote, stripDecimalTrailingZeros } from '../cus/cusUtils';
+import { displayNote } from '../cus/cusUtils';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
@@ -28,7 +28,7 @@ import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
 import { formatVietnamDateTimeInput, localDateTimeToIso } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
-import { formatISODate } from '../../../lib/format';
+import { formatISODate, stripDecimalTrailingZeros } from '../../../lib/format';
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 // Card 20261002_275 AC4: the last native `type="time"` in the app. The date
 // above is its own field, so this surface could not mount the segmented time

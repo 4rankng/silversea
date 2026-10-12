@@ -12,7 +12,7 @@ import { api } from '../lib/api';
 import { FuelMode, LoadingType, computeTripDriverSalary } from '@tingting/shared';
 import type { PricingTable, TripDetail, TripLeg, PaginatedResponse } from '@tingting/shared';
 import { tripClient } from '../api/tripClient';
-import { businessDateISO } from '../lib/format';
+import { businessDateISO, stripDecimalTrailingZeros } from '../lib/format';
 import { configClient } from '../api/configClient';
 import { useFuelConfig } from './useQueries';
 import { computeTripFormPreview, resolveTripPreviewSettings } from './tripFinancialPreview';
@@ -170,26 +170,26 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
 
     s.setRouteId(String(existingTrip.routeId));
     s.setFuelMode(existingTrip.fuelMode);
-    s.setFuelLitersOverride(existingTrip.fuelLitersOverride ? String(existingTrip.fuelLitersOverride) : '');
-    s.setFuelSupplementLiters(existingTrip.fuelSupplementLiters ? String(existingTrip.fuelSupplementLiters) : '');
+    s.setFuelLitersOverride(existingTrip.fuelLitersOverride ? stripDecimalTrailingZeros(existingTrip.fuelLitersOverride) : '');
+    s.setFuelSupplementLiters(existingTrip.fuelSupplementLiters ? stripDecimalTrailingZeros(existingTrip.fuelSupplementLiters) : '');
     s.setFuelSupplementReason(existingTrip.fuelSupplementReason || '');
-    s.setTollsDiscount(existingTrip.tollsDiscount ? String(existingTrip.tollsDiscount) : '');
-    s.setTollsAddition(existingTrip.tollsAddition ? String(existingTrip.tollsAddition) : '');
+    s.setTollsDiscount(existingTrip.tollsDiscount ? stripDecimalTrailingZeros(existingTrip.tollsDiscount) : '');
+    s.setTollsAddition(existingTrip.tollsAddition ? stripDecimalTrailingZeros(existingTrip.tollsAddition) : '');
     s.setTollsStations(existingTrip.tollsStations != null ? String(existingTrip.tollsStations) : '');
     s.setHasReturnCargo(!!existingTrip.hasReturnCargo);
-    s.setDriverSalary(existingTrip.driverSalary ? String(existingTrip.driverSalary) : '');
-    s.setTwoPointDeliveryBonus(existingTrip.twoPointDeliveryBonus && Number(existingTrip.twoPointDeliveryBonus) > 0 ? String(existingTrip.twoPointDeliveryBonus) : '');
-    s.setVehicleShiftAllowance(existingTrip.vehicleShiftAllowance && Number(existingTrip.vehicleShiftAllowance) > 0 ? String(existingTrip.vehicleShiftAllowance) : '');
+    s.setDriverSalary(existingTrip.driverSalary ? stripDecimalTrailingZeros(existingTrip.driverSalary) : '');
+    s.setTwoPointDeliveryBonus(existingTrip.twoPointDeliveryBonus && Number(existingTrip.twoPointDeliveryBonus) > 0 ? stripDecimalTrailingZeros(existingTrip.twoPointDeliveryBonus) : '');
+    s.setVehicleShiftAllowance(existingTrip.vehicleShiftAllowance && Number(existingTrip.vehicleShiftAllowance) > 0 ? stripDecimalTrailingZeros(existingTrip.vehicleShiftAllowance) : '');
     if (existingTrip.revenueEmptyReturn) {
-      s.setRevenueEmptyReturn(String(existingTrip.revenueEmptyReturn));
+      s.setRevenueEmptyReturn(stripDecimalTrailingZeros(existingTrip.revenueEmptyReturn));
     } else if (existingTrip.revenue && (!existingTrip.revenueCombine || Number(existingTrip.revenueCombine) === 0)) {
-      s.setRevenueEmptyReturn(String(existingTrip.revenue));
+      s.setRevenueEmptyReturn(stripDecimalTrailingZeros(existingTrip.revenue));
     } else {
       s.setRevenueEmptyReturn('');
     }
-    s.setRevenueCombine(existingTrip.revenueCombine ? String(existingTrip.revenueCombine) : '');
-    s.setCustomerCommission(existingTrip.customerCommission ? String(existingTrip.customerCommission) : '0');
-    s.setRoadAllowanceOverride(existingTrip.roadAllowanceOverride != null ? String(existingTrip.roadAllowanceOverride) : '');
+    s.setRevenueCombine(existingTrip.revenueCombine ? stripDecimalTrailingZeros(existingTrip.revenueCombine) : '');
+    s.setCustomerCommission(existingTrip.customerCommission ? stripDecimalTrailingZeros(existingTrip.customerCommission) : '0');
+    s.setRoadAllowanceOverride(existingTrip.roadAllowanceOverride != null ? stripDecimalTrailingZeros(existingTrip.roadAllowanceOverride) : '');
     s.setTripWageDays(existingTrip.tripWageDays ? String(existingTrip.tripWageDays) : '');
     s.setNotes(existingTrip.notes || '');
     // Instructions (N2 / B1.3) arrive on the same detail payload as the rest of
@@ -202,14 +202,14 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     s.setContactName(inst?.contactName ?? '');
     s.setContactPhone(inst?.contactPhone ?? '');
     s.setInstructionsNotes(inst?.notes ?? '');
-    s.setFuelActualUnitPrice(existingTrip.fuelActualUnitPrice != null ? String(existingTrip.fuelActualUnitPrice) : '');
+    s.setFuelActualUnitPrice(existingTrip.fuelActualUnitPrice != null ? stripDecimalTrailingZeros(existingTrip.fuelActualUnitPrice) : '');
     s.setFuelSupplierId(existingTrip.fuelSupplierId ?? null);
     setPhotoUrls(existingTrip.photoUrls || []);
 
     s.setCarrierType(existingTrip.carrierType ?? 'OWN');
     s.setVatRate(existingTrip.vatRate != null ? Number(existingTrip.vatRate) : 0.08);
     s.setExternalCarrierId(existingTrip.externalCarrierId ?? null);
-    s.setExternalFreightCost(existingTrip.externalFreightCost ? String(existingTrip.externalFreightCost) : '');
+    s.setExternalFreightCost(existingTrip.externalFreightCost ? stripDecimalTrailingZeros(existingTrip.externalFreightCost) : '');
     s.setExternalPlateNumber(existingTrip.externalPlateNumber ?? '');
     s.setExternalDriverName(existingTrip.externalDriverName ?? '');
     s.setExternalDriverPhone(existingTrip.externalDriverPhone ?? '');

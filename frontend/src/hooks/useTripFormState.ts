@@ -8,7 +8,7 @@
  */
 import { useState, useCallback, useRef } from 'react';
 import { FuelMode } from '@tingting/shared';
-import { businessDateISO } from '../lib/format';
+import { businessDateISO, stripDecimalTrailingZeros } from '../lib/format';
 import type { TripDetail } from '@tingting/shared';
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -214,7 +214,7 @@ export function useTripFormState(params: TripFormStateParams): UseTripFormStateR
     isEditMode && existingTrip ? existingTrip.externalCarrierId : null
   );
   const [externalFreightCost, setExternalFreightCost] = useState(
-    isEditMode && existingTrip?.externalFreightCost ? String(existingTrip.externalFreightCost) : ""
+    isEditMode && existingTrip?.externalFreightCost ? stripDecimalTrailingZeros(existingTrip.externalFreightCost) : ""
   );
   const [externalPlateNumber, setExternalPlateNumber] = useState(
     isEditMode && existingTrip?.externalPlateNumber ? existingTrip.externalPlateNumber : ""
@@ -231,28 +231,28 @@ export function useTripFormState(params: TripFormStateParams): UseTripFormStateR
     isEditMode && existingTrip ? existingTrip.fuelSupplierId : null
   );
   const [fuelMode, setFuelMode] = useState<FuelMode>(isEditMode && existingTrip ? existingTrip.fuelMode : FuelMode.AUTO);
-  const [fuelLitersOverride, setFuelLitersOverride] = useState(isEditMode && existingTrip?.fuelLitersOverride ? String(existingTrip.fuelLitersOverride) : "");
-  const [fuelSupplementLiters, setFuelSupplementLiters] = useState(isEditMode && existingTrip?.fuelSupplementLiters ? String(existingTrip.fuelSupplementLiters) : "");
+  const [fuelLitersOverride, setFuelLitersOverride] = useState(isEditMode && existingTrip?.fuelLitersOverride ? stripDecimalTrailingZeros(existingTrip.fuelLitersOverride) : "");
+  const [fuelSupplementLiters, setFuelSupplementLiters] = useState(isEditMode && existingTrip?.fuelSupplementLiters ? stripDecimalTrailingZeros(existingTrip.fuelSupplementLiters) : "");
   const [fuelSupplementReason, setFuelSupplementReason] = useState(isEditMode && existingTrip?.fuelSupplementReason ? existingTrip.fuelSupplementReason : "");
-  const [tollsDiscount, setTollsDiscount] = useState(isEditMode && existingTrip?.tollsDiscount ? String(existingTrip.tollsDiscount) : "");
-  const [tollsAddition, setTollsAddition] = useState(isEditMode && existingTrip?.tollsAddition ? String(existingTrip.tollsAddition) : "");
+  const [tollsDiscount, setTollsDiscount] = useState(isEditMode && existingTrip?.tollsDiscount ? stripDecimalTrailingZeros(existingTrip.tollsDiscount) : "");
+  const [tollsAddition, setTollsAddition] = useState(isEditMode && existingTrip?.tollsAddition ? stripDecimalTrailingZeros(existingTrip.tollsAddition) : "");
   const [tollsStations, setTollsStations] = useState(isEditMode && existingTrip?.tollsStations != null ? String(existingTrip.tollsStations) : "");
   const [hasReturnCargo, setHasReturnCargo] = useState(isEditMode && existingTrip ? !!existingTrip.hasReturnCargo : false);
-  const [driverSalary, setDriverSalary] = useState(isEditMode && existingTrip?.driverSalary ? String(existingTrip.driverSalary) : "");
-  const [twoPointDeliveryBonus, setTwoPointDeliveryBonus] = useState(isEditMode && existingTrip?.twoPointDeliveryBonus && Number(existingTrip.twoPointDeliveryBonus) > 0 ? String(existingTrip.twoPointDeliveryBonus) : "");
-  const [vehicleShiftAllowance, setVehicleShiftAllowance] = useState(isEditMode && existingTrip?.vehicleShiftAllowance && Number(existingTrip.vehicleShiftAllowance) > 0 ? String(existingTrip.vehicleShiftAllowance) : "");
+  const [driverSalary, setDriverSalary] = useState(isEditMode && existingTrip?.driverSalary ? stripDecimalTrailingZeros(existingTrip.driverSalary) : "");
+  const [twoPointDeliveryBonus, setTwoPointDeliveryBonus] = useState(isEditMode && existingTrip?.twoPointDeliveryBonus && Number(existingTrip.twoPointDeliveryBonus) > 0 ? stripDecimalTrailingZeros(existingTrip.twoPointDeliveryBonus) : "");
+  const [vehicleShiftAllowance, setVehicleShiftAllowance] = useState(isEditMode && existingTrip?.vehicleShiftAllowance && Number(existingTrip.vehicleShiftAllowance) > 0 ? stripDecimalTrailingZeros(existingTrip.vehicleShiftAllowance) : "");
   const [roadAllowanceOverride, setRoadAllowanceOverride] = useState(
-    isEditMode && existingTrip?.roadAllowanceOverride != null ? String(existingTrip.roadAllowanceOverride) : ""
+    isEditMode && existingTrip?.roadAllowanceOverride != null ? stripDecimalTrailingZeros(existingTrip.roadAllowanceOverride) : ""
   );
   const [fuelActualUnitPrice, setFuelActualUnitPrice] = useState(
     isEditMode && existingTrip && existingTrip.fuelActualUnitPrice != null
-      ? String(existingTrip.fuelActualUnitPrice) : ""
+      ? stripDecimalTrailingZeros(existingTrip.fuelActualUnitPrice) : ""
   );
   const [revenueEmptyReturn, setRevenueEmptyReturnInner] = useState(() => {
     if (isEditMode && existingTrip) {
-      if (existingTrip.revenueEmptyReturn) return String(existingTrip.revenueEmptyReturn);
+      if (existingTrip.revenueEmptyReturn) return stripDecimalTrailingZeros(existingTrip.revenueEmptyReturn);
       if (existingTrip.revenue && (!existingTrip.revenueCombine || Number(existingTrip.revenueCombine) === 0)) {
-        return String(existingTrip.revenue);
+        return stripDecimalTrailingZeros(existingTrip.revenue);
       }
     }
     return "";
@@ -263,17 +263,17 @@ export function useTripFormState(params: TripFormStateParams): UseTripFormStateR
   // stored revenue on save (feedback202606 A3 §9).
   const [revenueCombine, setRevenueCombine] = useState(() => {
     if (isEditMode && existingTrip) {
-      return existingTrip.revenueCombine ? String(existingTrip.revenueCombine) : "";
+      return existingTrip.revenueCombine ? stripDecimalTrailingZeros(existingTrip.revenueCombine) : "";
     }
     return "";
   });
-  const [customerCommission, setCustomerCommission] = useState(isEditMode && existingTrip?.customerCommission ? String(existingTrip.customerCommission) : "0");
+  const [customerCommission, setCustomerCommission] = useState(isEditMode && existingTrip?.customerCommission ? stripDecimalTrailingZeros(existingTrip.customerCommission) : "0");
   const [tripWageDays, setTripWageDays] = useState(isEditMode && existingTrip?.tripWageDays ? String(existingTrip.tripWageDays) : "");
   // Seed from stored revenue so the derived field shows the persisted value
   // before the derivation effect runs, and survives when both splits are blank
   // (the derivation effect is guarded not to overwrite a blank-split state).
   const [revenue, setRevenue] = useState(
-    isEditMode && existingTrip?.revenue ? String(existingTrip.revenue) : ""
+    isEditMode && existingTrip?.revenue ? stripDecimalTrailingZeros(existingTrip.revenue) : ""
   );
 
   // ── Notes ──
