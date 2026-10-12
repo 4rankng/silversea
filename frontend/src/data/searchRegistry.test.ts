@@ -135,3 +135,16 @@ describe('role-aware search destinations', () => {
     expect(items.map(item => item.path)).toEqual(['/shipments', '/shipments-detail', '/shipments-debit']);
   });
 });
+
+describe('forwarder (Ops) palette covers the expense vocabulary (FB-033)', () => {
+  // Owner ruling 2026-10-12: the dialog stays OPS-only under its 'Khai chi
+  // phí' label; the palette must answer BOTH vocabularies people search with.
+  it("finds the expense entry whether the user types 'ghi nhận chi phí' or 'khai chi phí'", () => {
+    const ops = getSearchItems('FORWARDER');
+    for (const query of ['ghi nhận chi phí', 'khai chi phí', 'chi phí']) {
+      const hits = filterItems(ops, query);
+      expect(hits.some(i => i.id === 'my-orders-expense' && i.path === '/my-orders'), query).toBe(true);
+    }
+    expect(ops.some(i => i.id === 'my-orders' && i.type === 'page')).toBe(true);
+  });
+});
