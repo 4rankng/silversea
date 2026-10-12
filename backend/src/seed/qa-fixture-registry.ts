@@ -68,6 +68,36 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     guards: [],
     scrubColumns: ['note'],
   },
+  // FB-061 round 16 (card 121026185570): staging still listed the QA-seeded
+  // fuel invoice QA0915-FI-001 — fuel_invoices had no registry surface and
+  // the fuel-invoice API has no delete, so the class had no sanctioned purge.
+  // Staging census 2026-10-12 (GET /api/finance/fuel-invoices, 3 rows): only
+  // the QA% number matched; real invoices use the PL-2026-* format. Children
+  // first so the guarded parent delete never orphans an FK.
+  {
+    table: 'fuel_invoice_allocations',
+    label: 'Fuel allocations of QA fuel invoices',
+    predicate: `fuel_invoice_id IN (SELECT id FROM fuel_invoices WHERE invoice_number ILIKE 'QA%' OR note ILIKE 'QA%')`,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
+    table: 'fuel_period_adjustments',
+    label: 'Fuel period adjustments of QA fuel invoices',
+    predicate: `fuel_invoice_id IN (SELECT id FROM fuel_invoices WHERE invoice_number ILIKE 'QA%' OR note ILIKE 'QA%')`,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
+    table: 'fuel_invoices',
+    label: 'QA fuel invoices (payables "Hóa đơn xăng dầu")',
+    predicate: `invoice_number ILIKE 'QA%' OR note ILIKE 'QA%'`,
+    action: 'hard-delete-guarded',
+    guards: [
+      { table: 'fuel_invoice_allocations', column: 'fuel_invoice_id' },
+      { table: 'fuel_period_adjustments', column: 'fuel_invoice_id' },
+    ],
+  },
   {
     table: 'invoice_tracking',
     label: 'QA invoice-tracking rows',

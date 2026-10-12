@@ -144,4 +144,69 @@ describe('QA fixture purge', () => {
 
     await db.execute(sql.raw(`DELETE FROM shipments WHERE bl_number IN ('${qaBl}', 'BL-REAL-${suffix}')`));
   });
+
+  // FB-061 round 16 (card 121026185570): staging still lists the QA-seeded
+  // fuel invoice QA0915-FI-001 on the payables fuel-invoice surface — the
+  // registry never covered fuel_invoices and the fuel-invoice API has no
+  // delete, so the class had no sanctioned purge. Register it children-first:
+  // allocations and period adjustments go before the invoice they hang off.
+  it('purges QA fuel invoices and their allocations, spares real PL- invoices (FB-061 round 16)', async () => {
+    const suffix = Date.now() % 1000000;
+    const qaNumber = `QA0915-FI-${suffix}`;
+    const realNumber = `PL-2026-${String(suffix).padStart(7, '0')}`;
+
+    const idRowsOf = async (query: string): Promise<Array<Record<string, unknown>>> => {
+      const result = await db.execute(sql.raw(query));
+      return Array.isArray(result) ? result : (result as { rows: Array<Record<string, unknown>> }).rows;
+    };
+
+    const [anchor] = await idRowsOf(`SELECT (SELECT min(id) FROM suppliers WHERE deleted_at IS NULL) AS supplier_id, (SELECT min(id) FROM trips) AS trip_id`);
+    const supplierId = Number(anchor!.supplier_id);
+    const tripId = Number(anchor!.trip_id);
+
+    const invoiceSurfaces = QA_FIXTURE_REGISTRY.filter((s) => s.table === 'fuel_invoices');
+    const allocationSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'fuel_invoice_allocations');
+    const adjustmentSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'fuel_period_adjustments');
+    strict.ok(invoiceSurfaces.length === 1 && allocationSurface && adjustmentSurface, 'fuel-invoice surfaces must be registered children-first');
+
+    const inserted = await idRowsOf(`
+      INSERT INTO fuel_invoices (supplier_id, invoice_number, invoice_date, total_liters, unit_price, total_amount, note)
+      VALUES (${supplierId}, '${qaNumber}', CURRENT_DATE, 10, 22000, 220000, 'QA seed fuel invoice purge test'),
+             (${supplierId}, '${realNumber}', CURRENT_DATE, 20, 23000, 460000, 'Hóa đơn xăng dầu thật')
+      RETURNING id, invoice_number`);
+    const qaInvoiceId = Number(inserted.find((r) => r.invoice_number === qaNumber)!.id);
+
+    await db.execute(sql.raw(`
+      INSERT INTO fuel_invoice_allocations (fuel_invoice_id, trip_id, voucher_reference, voucher_date, liters, amount)
+      VALUES (${qaInvoiceId}, ${tripId}, 'QA-VCH-${suffix}', CURRENT_DATE, 10, 220000)`));
+
+    strict.ok(await censusSurface(allocationSurface!) >= 1, 'QA allocation visible to census');
+    strict.ok(await censusSurface(invoiceSurfaces[0]!) >= 1, 'QA invoice visible to census');
+
+    // Children first, then the guarded parent — registry order.
+    await purgeSurface(allocationSurface!, false);
+    await purgeSurface(adjustmentSurface!, false);
+    await purgeSurface(invoiceSurfaces[0]!, false);
+
+    const after = await idRowsOf(`SELECT invoice_number FROM fuel_invoices WHERE invoice_number IN ('${qaNumber}', '${realNumber}')`);
+    strict.deepEqual(after.map((r) => r.invoice_number), [realNumber], 'QA invoice purged, real PL- invoice survives');
+    const allocationsLeft = await idRowsOf(`SELECT 1 AS hit FROM fuel_invoice_allocations WHERE fuel_invoice_id = ${qaInvoiceId}`);
+    strict.equal(allocationsLeft.length, 0, 'QA invoice allocation purged with its parent');
+
+    // The parent guard must refuse a lone run while a child still points at
+    // the invoice, so an out-of-order purge can never orphan the FK.
+    const guarded = await idRowsOf(`
+      INSERT INTO fuel_invoices (supplier_id, invoice_number, invoice_date, total_liters, unit_price, total_amount, note)
+      VALUES (${supplierId}, 'QA-GUARD-${suffix}', CURRENT_DATE, 5, 22000, 110000, 'QA guard probe') RETURNING id`);
+    const guardedId = Number(guarded[0]!.id);
+    await db.execute(sql.raw(`
+      INSERT INTO fuel_invoice_allocations (fuel_invoice_id, trip_id, voucher_reference, voucher_date, liters, amount)
+      VALUES (${guardedId}, ${tripId}, 'QA-VCH-G-${suffix}', CURRENT_DATE, 5, 110000)`));
+    const loneRun = await purgeSurface(invoiceSurfaces[0]!, false);
+    strict.equal(loneRun.deleted, 0, 'guarded invoice is skipped, not deleted');
+    strict.ok(loneRun.skipped >= 1, 'guard skip is reported');
+
+    await db.execute(sql.raw(`DELETE FROM fuel_invoice_allocations WHERE fuel_invoice_id IN (${qaInvoiceId}, ${guardedId})`));
+    await db.execute(sql.raw(`DELETE FROM fuel_invoices WHERE invoice_number IN ('${qaNumber}', '${realNumber}', 'QA-GUARD-${suffix}')`));
+  });
 });
