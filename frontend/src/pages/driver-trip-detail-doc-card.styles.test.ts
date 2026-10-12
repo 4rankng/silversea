@@ -138,6 +138,12 @@ describe('driver closed-trip document card height contract (card 081026072302 �
     const padDesktop = px(rule(base, '.driver-task-footer__body')?.match(/padding:\s*(\d+)px/)?.[1], 'desktop body padding');
 
     expect(controlH + 2 * padPhone + 2 * border).toBeLessThanOrEqual(60);
-    expect(controlH + 2 * padDesktop + 2 * border).toBe(62);
+    // Card 111026164500 (FB-055): the CLOSED card overrides the base padding
+    // at every width — the ≤60px law applies to tablet/desktop too, not just
+    // phones. (The base 10px stays for the open checklist card.)
+    const padClosed = px(rule(base, '.driver-task-footer__body--closed')?.match(/padding:\s*(\d+)px\s+\d+px/)?.[1], 'closed body padding');
+    expect(padClosed).toBe(8);
+    expect(controlH + 2 * padClosed + 2 * border).toBe(58);
+    expect(controlH + 2 * padDesktop + 2 * border).toBe(62); // the OPEN checklist card keeps its breathing room
   });
 });

@@ -1231,6 +1231,13 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
+  /* Card 111026164500 (FB-055): the closed card is one row — title + the
+     40px document button — so 10px vertical padding pushed it to 62px
+     against the ≤60px card law (the ≤430px tier had already collapsed to
+     8px; tablet/desktop widths rode the base rule). 8px vertical restores
+     40+16+2 = 58px at every width without touching the 40px control ceiling
+     or the open checklist card's breathing room. */
+  padding: 8px 12px;
 }
 .driver-task-footer__body--closed .driver-task-complete {
   width: auto;
