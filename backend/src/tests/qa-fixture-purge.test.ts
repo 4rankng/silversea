@@ -93,4 +93,55 @@ describe('QA fixture purge', () => {
     await db.execute(sql.raw(`DELETE FROM distributions WHERE partner_name = '${realPartner}'`));
     await db.execute(sql.raw(`DELETE FROM penalty_reasons WHERE reason_text IN ('${realReason}', '${qaReason}')`));
   });
+
+  // Card 111026105610 (FB-061 round 14): QA rows surfaced in two positions the
+  // original fix never covered — business_units had no registry surface at all,
+  // and the FB-080 rung fixtures do not carry a QA prefix so they escaped the
+  // shipments scrub predicate.
+  it('deactivates QA business units and spares the real one (FB-061 round 14)', async () => {
+    const suffix = Date.now() % 1000000;
+    const qaUnit = `QA Audit Unit ${suffix}`;
+    const realUnit = `Đơn vị thật ${suffix}`;
+
+    await db.execute(sql.raw(`INSERT INTO business_units (code, name, status) VALUES ('QA${suffix}', '${qaUnit}', 'ACTIVE'), ('REAL${suffix}', '${realUnit}', 'ACTIVE')`));
+
+    const surface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'business_units');
+    strict.ok(surface, 'business_units must be a registered QA fixture surface');
+    strict.equal(surface!.action, 'deactivate');
+    strict.ok(await censusSurface(surface!) >= 1);
+
+    await purgeSurface(surface!, false);
+
+    const after = await db.execute(sql.raw(`SELECT name, status FROM business_units WHERE name IN ('${qaUnit}', '${realUnit}')`));
+    const rows = (Array.isArray(after) ? after : (after as { rows: Array<{ name: string; status: string }> }).rows);
+    const byName = new Map(rows.map((r) => [r.name, r.status]));
+    // The QA unit is deactivated in place — its id stays valid for the
+    // user_business_unit_links rows that still point at it.
+    strict.equal(byName.get(qaUnit), 'INACTIVE');
+    strict.equal(byName.get(realUnit), 'ACTIVE');
+
+    await db.execute(sql.raw(`DELETE FROM business_units WHERE name IN ('${qaUnit}', '${realUnit}')`));
+  });
+
+  it('scrubs the FB-080 rung fixture family while sparing a real factory name (FB-061 round 14)', async () => {
+    const suffix = Date.now() % 1000000;
+    const qaBl = `FB080-RUNG-${suffix}`;
+    const realFactory = `Nhà máy thật ${suffix}`;
+
+    await db.execute(sql.raw(`INSERT INTO shipments (bl_number, factory_name) VALUES ('${qaBl}', 'FB-080 rung minimal ${suffix}'), ('BL-REAL-${suffix}', '${realFactory}')`));
+
+    const surface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'shipments' && s.action === 'scrub');
+    strict.ok(surface, 'shipments scrub surface must exist');
+    strict.ok(await censusSurface(surface!) >= 1);
+
+    await purgeSurface(surface!, false);
+
+    const after = await db.execute(sql.raw(`SELECT bl_number, factory_name FROM shipments WHERE bl_number IN ('${qaBl}', 'BL-REAL-${suffix}')`));
+    const rows = (Array.isArray(after) ? after : (after as { rows: Array<{ bl_number: string; factory_name: string | null }> }).rows);
+    const byBl = new Map(rows.map((r) => [r.bl_number, r.factory_name]));
+    strict.equal(byBl.get(qaBl), null, 'FB-080 rung factory name must be scrubbed');
+    strict.equal(byBl.get(`BL-REAL-${suffix}`), realFactory, 'real factory name must survive');
+
+    await db.execute(sql.raw(`DELETE FROM shipments WHERE bl_number IN ('${qaBl}', 'BL-REAL-${suffix}')`));
+  });
 });

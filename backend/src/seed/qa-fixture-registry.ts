@@ -165,6 +165,25 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     ],
   },
   {
+    table: 'business_units',
+    label: 'QA-named business units (Bộ phận in /hr/roster)',
+    // FB-061 round 14: QA units surfaced in the roster's Bộ phận column
+    // ("QA Audit Unit 0914"). business_units was absent from this registry
+    // entirely, so no QA unit was ever a purge candidate.
+    // Staging enumeration 2026-10-12 (GET /api/auth/business-units, 6 rows):
+    // 5 match this predicate (QA085-RENAMED-755742, QA-17 audit unit…,
+    // QA2-26SEP Unit 1, QA Audit Unit 0914, QA R6 085 unit EDITED) and the
+    // single real unit (CUS-DEMO / "Đơn vị CUS Demo") does not. The real
+    // roster is name-based and never carries a QA token.
+    predicate: `name ILIKE 'QA%' OR code ILIKE 'QA%'`,
+    // NOT 'scrub': business_units_name_uniq_idx is UNIQUE on name and name is
+    // NOT NULL, so collapsing the rows to one placeholder would violate the
+    // index. user_business_unit_links pins these ids, so deactivating in place
+    // keeps the FK valid — the treatment QA already applied to ids 2 and 3.
+    action: 'deactivate',
+    guards: [],
+  },
+  {
     table: 'forwarder_expense_types',
     label: 'QA expense-type catalog rows',
     predicate: `code ILIKE 'QA%' OR name ILIKE 'QA%'`,
@@ -182,7 +201,14 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
     table: 'shipments',
     label: 'QA text fields on shipments (notes, factory name)',
-    predicate: `operational_notes ILIKE 'QA%' OR customer_notes ILIKE 'QA%' OR factory_name ILIKE 'QA%'`,
+    // FB-061 round 14: the FB-080 rung family names its rows "FB080-RUNG-<n>"
+    // in bl_number and "FB-080 rung …" in factory_name, so it never matched
+    // the QA% rule and survived as a visible lot name on /shipments.
+    // Enumeration 2026-10-12 (GET /api/shipments): the FB08%RUNG% branch
+    // matches exactly ids 436/437 (FB080-RUNG-1 "FB-080 rung", FB080-RUNG-2
+    // "FB-080 rung minimal"). Real factory names in the same census
+    // ("Nhà máy YuanFang", "SJ", "Chưa xác định") match no branch.
+    predicate: `operational_notes ILIKE 'QA%' OR customer_notes ILIKE 'QA%' OR factory_name ILIKE 'QA%' OR bl_number ILIKE 'FB08%RUNG%' OR factory_name ILIKE 'FB-0% rung%'`,
     action: 'scrub',
     guards: [],
     scrubColumns: ['operational_notes', 'customer_notes', 'factory_name'],
