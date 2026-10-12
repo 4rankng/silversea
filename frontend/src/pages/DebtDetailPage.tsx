@@ -111,6 +111,9 @@ export default function DebtDetailPage() {
   const [payReceipt, setPayReceipt] = useState('');
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [payError, setPayError] = useState('');
+  // Which field the banner is complaining about. Empty means the error is not
+  // field-scoped (e.g. a network failure), so no input is painted red.
+  const [payInvalidField, setPayInvalidField] = useState<'amount' | 'receipt' | null>(null);
   const [payRequestKey, setPayRequestKey] = useState(() => nextPaymentRequestKey());
   const queryClient = useQueryClient();
   const { toast: showToast } = useToast();
@@ -121,9 +124,17 @@ export default function DebtDetailPage() {
     if (paymentDraftFingerprint(nextAmount, nextReceiptId) !== paymentDraftFingerprint(payAmount, payReceipt)) {
       setPayRequestKey(nextPaymentRequestKey());
     }
+    // Editing the flagged field clears its own error, so the red invalid
+    // boundary does not stick to an already-corrected draft (FB-048).
+    const editedInvalidField = (payInvalidField === 'amount' && next.amount !== undefined)
+      || (payInvalidField === 'receipt' && next.receiptId !== undefined);
+    if (editedInvalidField) {
+      setPayError('');
+      setPayInvalidField(null);
+    }
     if (next.amount !== undefined) setPayAmount(next.amount);
     if (next.receiptId !== undefined) setPayReceipt(next.receiptId);
-  }, [payAmount, payReceipt]);
+  }, [payAmount, payReceipt, payInvalidField]);
 
   const downloadExport = async (format: string) => {
     try {
@@ -266,19 +277,25 @@ export default function DebtDetailPage() {
     setPayAmount('');
     setPayReceipt('');
     setPayError('');
+    setPayInvalidField(null);
     setPayRequestKey(nextPaymentRequestKey());
     setShowPay(true);
   };
 
   const submitPayment = async () => {
     setPayError('');
+    // Clear first: a later non-field error (network) must not inherit the red
+    // border from a previous validation failure on the same modal.
+    setPayInvalidField(null);
     const amount = parseFloat(payAmount.replace(/[.,\s]/g, ''));
     if (!Number.isFinite(amount) || amount <= 0) {
       setPayError('Số tiền không hợp lệ.');
+      setPayInvalidField('amount');
       return;
     }
     if (!payReceipt.trim()) {
       setPayError('Mã biên lai là bắt buộc.');
+      setPayInvalidField('receipt');
       return;
     }
     setPaySubmitting(true);
@@ -755,7 +772,11 @@ export default function DebtDetailPage() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {payError && (
-            <div style={{ padding: '10px 12px', background: 'var(--danger-soft)', color: 'var(--danger)', borderRadius: 8, fontSize: 'var(--text-data-size)' }}>
+            <div
+              id="pay-error"
+              role="alert"
+              style={{ padding: '10px 12px', background: 'var(--danger-soft)', color: 'var(--danger)', borderRadius: 8, fontSize: 'var(--text-data-size)' }}
+            >
               {payError}
             </div>
           )}
@@ -776,13 +797,17 @@ export default function DebtDetailPage() {
               className="input"
               type="number"
               value={payAmount}
+              // aria-invalid is the house invalid contract: base.css
+              // (QA-AUDIT-UI57) paints the red boundary from this attribute.
+              aria-invalid={payInvalidField === 'amount' || undefined}
+              aria-describedby={['pay-amount-hint', payInvalidField === 'amount' ? 'pay-error' : undefined].filter(Boolean).join(' ') || undefined}
               onChange={e => {
                 updatePaymentDraft({ amount: e.target.value });
               }}
               placeholder="Ví dụ: 5000000"
               autoFocus
             />
-            <p style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
+            <p id="pay-amount-hint" style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
               Hệ thống sẽ tự phân bổ theo khoản đến hạn cũ nhất; phần vượt số dư hiện tại sẽ giữ ở trạng thái chưa phân bổ.
             </p>
           </div>
@@ -794,12 +819,14 @@ export default function DebtDetailPage() {
               id="pay-receipt"
               className="input"
               value={payReceipt}
+              aria-invalid={payInvalidField === 'receipt' || undefined}
+              aria-describedby={['pay-receipt-hint', payInvalidField === 'receipt' ? 'pay-error' : undefined].filter(Boolean).join(' ') || undefined}
               onChange={e => {
                 updatePaymentDraft({ receiptId: e.target.value });
               }}
               placeholder="Ví dụ: PT-20260601-01"
             />
-            <p style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
+            <p id="pay-receipt-hint" style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
               Bắt buộc để đối chiếu với sao kê ngân hàng / sổ quỹ. Giữ nguyên mã và nội dung nếu bạn chỉ đang gửi lại cùng một phiếu thu.
             </p>
           </div>

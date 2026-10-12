@@ -1,3 +1,4 @@
+import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -51,17 +52,36 @@ vi.mock('../hooks/useMediaQuery', () => ({
 }));
 
 vi.mock('../components/UI', () => ({
-  Modal: ({ isOpen, title, children, footer }: {
+  // Mirrors the real Modal's Enter-to-confirm shortcut (useConfirmShortcuts)
+  // so the submit path that bypasses the disabled button stays reachable.
+  Modal: ({ isOpen, title, children, footer, onConfirm }: {
     isOpen: boolean;
     title: string;
     children: React.ReactNode;
     footer: React.ReactNode;
-  }) => (isOpen ? (
-    <div role="dialog" aria-label={title}>
-      <div>{children}</div>
-      <div>{footer}</div>
-    </div>
-  ) : null),
+    onConfirm?: () => void;
+  }) => {
+    React.useEffect(() => {
+      if (!isOpen || !onConfirm) return;
+      const handler = (e: KeyboardEvent) => {
+        if (e.key !== 'Enter' || e.shiftKey) return;
+        const target = e.target as HTMLElement | null;
+        if (target && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)) {
+          if (target.tagName === 'BUTTON') return;
+          e.preventDefault();
+          onConfirm();
+        }
+      };
+      window.addEventListener('keydown', handler);
+      return () => window.removeEventListener('keydown', handler);
+    }, [isOpen, onConfirm]);
+    return isOpen ? (
+      <div role="dialog" aria-label={title}>
+        <div>{children}</div>
+        <div>{footer}</div>
+      </div>
+    ) : null;
+  },
 }));
 
 vi.mock('../components/shared/Breadcrumbs', () => ({
@@ -300,6 +320,49 @@ describe('DebtDetailPage payment flow', () => {
         headers: { 'Idempotency-Key': 'retry-key-5' },
       },
     );
+  });
+
+  // Card 111026105600 (FB-048): an invalid amount must paint the red invalid
+  // boundary on the offending input, not only raise the pink banner.
+  it('marks the amount input invalid when the amount is not a positive number', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ghi nhận thanh toán' })[0]);
+    const amountInput = screen.getByLabelText(/Số tiền nhận/);
+    expect(amountInput).not.toHaveAttribute('aria-invalid', 'true');
+
+    fireEvent.change(amountInput, { target: { value: '0' } });
+    fireEvent.change(screen.getByLabelText(/Mã biên lai/), { target: { value: 'TEST' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận' }));
+
+    // AC-1 + AC-2: red boundary on the field AND the banner still raised.
+    await waitFor(() => expect(amountInput).toHaveAttribute('aria-invalid', 'true'));
+    expect(screen.getByText('Số tiền không hợp lệ.')).toBeTruthy();
+    expect(apiPostMock).not.toHaveBeenCalled();
+
+    // AC-3: correcting the draft clears the invalid state.
+    fireEvent.change(amountInput, { target: { value: '1500000' } });
+    expect(amountInput).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  // AC-4: the invalid boundary must land on the field that actually failed.
+  // The submit button is disabled while the receipt is blank, but the Modal's
+  // Enter shortcut calls submitPayment directly — that is the reachable path.
+  it('marks the receipt input — not the amount — when the receipt code is missing', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ghi nhận thanh toán' })[0]);
+    const amountInput = screen.getByLabelText(/Số tiền nhận/);
+    const receiptInput = screen.getByLabelText(/Mã biên lai/);
+    fireEvent.change(amountInput, { target: { value: '1500000' } });
+
+    fireEvent.keyDown(receiptInput, { key: 'Enter', code: 'Enter' });
+
+    await waitFor(() => expect(screen.getByText('Mã biên lai là bắt buộc.')).toBeTruthy());
+    expect(receiptInput).toHaveAttribute('aria-invalid', 'true');
+    expect(amountInput).not.toHaveAttribute('aria-invalid', 'true');
+    expect(apiPostMock).not.toHaveBeenCalled();
   });
 
   it('renders the credit strip from authoritative exposure fields instead of the statement balance', () => {
