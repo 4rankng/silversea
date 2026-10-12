@@ -83,6 +83,10 @@ export function useDriverJourneyBoard() {
     // Spec (Phần 3, Bước 1): lái xe phải thấy lệnh mới ngay khi Điều vận
     // gán biển số, không cần mở lại app. Poll mỗi 15 s thay cho FCM/APNS.
     refetchInterval: 15_000,
+    // Card QA1-004 (121026084553): a remount inside the poll window reads
+    // the cache instead of firing a second board request (dev StrictMode
+    // double-mount measured the board at 2× per view).
+    staleTime: 15_000,
   });
 }
 

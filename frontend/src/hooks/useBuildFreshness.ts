@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { qk } from '../api/keys';
 
 /**
  * Poll cadence for the stale-build check. Long enough to stay invisible,
@@ -25,68 +27,40 @@ export const BUILD_FRESHNESS_POLL_MS = 60_000;
  *   - fetch failure    → last-known state kept; a missing baseline simply
  *                        stays missing, so a health blip never banners
  *
- * Polling runs only while the tab is visible (background setInterval is
- * throttled anyway) and re-checks immediately when the tab becomes visible
- * again — that is the overnight-cut case this exists for.
+ * Card QA1-002/004 (121026084553): the /health call rides the SAME query
+ * entry the support dialog's BuildVersion uses (qk.support.serverBuild), so
+ * the two consumers share one cache entry and one request instead of firing
+ * independent fetches per mount. Polling pauses while the tab is hidden
+ * (refetchIntervalInBackground) and re-checks on refocus when the entry is
+ * older than the poll window — the overnight-cut case this exists for.
  */
 export function useBuildFreshness(intervalMs: number = BUILD_FRESHNESS_POLL_MS): boolean {
   const [stale, setStale] = useState(false);
   const bootHashRef = useRef<string | null>(null);
 
+  const query = useQuery({
+    queryKey: qk.support.serverBuild,
+    queryFn: () => api.get<{ buildHash: string }>('/health'),
+    // Terminal once stale: `enabled` false stops the interval refetches.
+    enabled: !stale && intervalMs > 0,
+    refetchInterval: intervalMs,
+    refetchIntervalInBackground: false,
+    // A remount inside the poll window reads the cache instead of firing a
+    // second /health (the dev StrictMode double-mount the QA card measured).
+    staleTime: intervalMs,
+    retry: false,
+    networkMode: 'always',
+  });
+
   useEffect(() => {
-    if (typeof window === 'undefined' || intervalMs <= 0 || stale) return;
-    let disposed = false;
-    let timer: ReturnType<typeof setInterval> | null = null;
-
-    const stop = () => {
-      if (timer != null) {
-        clearInterval(timer);
-        timer = null;
-      }
-    };
-
-    const check = async () => {
-      if (disposed) return;
-      try {
-        const { buildHash } = await api.get<{ buildHash: string }>('/health');
-        if (disposed) return;
-        if (bootHashRef.current === null) {
-          bootHashRef.current = buildHash;
-        } else if (buildHash && buildHash !== bootHashRef.current) {
-          setStale(true);
-          stop();
-        }
-      } catch {
-        // Health unreadable (network blip, proxy hiccup): keep the last-known
-        // comparison state — a failed poll must never fabricate a mismatch.
-      }
-    };
-
-    const start = () => {
-      if (timer != null) return;
-      timer = setInterval(() => {
-        if (document.visibilityState === 'visible') void check();
-      }, intervalMs);
-    };
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        void check();
-        start();
-      } else {
-        stop();
-      }
-    };
-
-    void check();
-    if (document.visibilityState === 'visible') start();
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      disposed = true;
-      stop();
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [intervalMs, stale]);
+    const hash = query.data?.buildHash;
+    if (!hash) return;
+    if (bootHashRef.current === null) {
+      bootHashRef.current = hash;
+    } else if (hash !== bootHashRef.current) {
+      setStale(true);
+    }
+  }, [query.data]);
 
   return stale;
 }
