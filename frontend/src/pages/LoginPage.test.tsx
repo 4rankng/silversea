@@ -110,3 +110,41 @@ describe('login submit never no-ops (QA1-003)', () => {
     expect(login).toHaveBeenCalledWith('admin', 'Abc123');
   });
 });
+
+// Card 121026084723 (QA2-006): Caps Lock silently uppercases the password, so
+// the typed value stops matching and login is refused for no visible reason.
+describe('Caps Lock hint on the password field', () => {
+  beforeEach(() => { login.mockReset(); });
+
+  // jsdom has no CapsLock, so the native event's modifier state is stubbed —
+  // React's synthetic getModifierState reads through to it.
+  const setCaps = (active: boolean) =>
+    vi.spyOn(KeyboardEvent.prototype, 'getModifierState').mockReturnValue(active);
+
+  it('warns while Caps Lock is on and clears when it goes off', () => {
+    render(<LoginPage />);
+    const password = screen.getByLabelText('Mật khẩu');
+    expect(screen.queryByText('Caps Lock đang bật.')).toBeNull();
+
+    setCaps(true);
+    fireEvent.keyDown(password);
+    expect(screen.getByText('Caps Lock đang bật.')).toBeTruthy();
+    expect(password).toHaveAttribute('aria-describedby', 'login-caps-hint');
+
+    setCaps(false);
+    fireEvent.keyUp(password);
+    vi.restoreAllMocks();
+    expect(screen.queryByText('Caps Lock đang bật.')).toBeNull();
+  });
+
+  it('drops the hint when the field loses focus', () => {
+    render(<LoginPage />);
+    const password = screen.getByLabelText('Mật khẩu');
+    setCaps(true);
+    fireEvent.keyDown(password);
+    expect(screen.getByText('Caps Lock đang bật.')).toBeTruthy();
+    fireEvent.blur(password);
+    vi.restoreAllMocks();
+    expect(screen.queryByText('Caps Lock đang bật.')).toBeNull();
+  });
+});

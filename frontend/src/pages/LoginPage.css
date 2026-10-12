@@ -507,3 +507,11 @@
   }
 
 }
+
+/* QA2-006: advisory, not an error — Caps Lock is a typing state, so it reads
+   as a caution beside the field rather than a red failure below the form. */
+.login-caps-hint {
+  margin: 6px 0 0;
+  color: var(--warning, var(--fg-2));
+  font-size: var(--text-caption-size, 12px);
+}

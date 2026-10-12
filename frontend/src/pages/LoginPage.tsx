@@ -15,6 +15,14 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [credentialError, setCredentialError] = useState(false);
+  // QA2-006: Caps Lock silently uppercases the password, so the typed value
+  // stops matching what the operator thinks they entered and the login is
+  // refused for no visible reason. Track the modifier while the field has
+  // focus and say so, the standard pattern for password fields.
+  const [capsLockOn, setCapsLockOn] = useState(false);
+  const trackCapsLock = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    setCapsLockOn(e.getModifierState('CapsLock'));
+  };
   const busy = useRef(false);
   const clearError = () => { setError(''); setCredentialError(false); };
 
@@ -128,9 +136,15 @@ export default function LoginPage() {
                     placeholder="Nhập mật khẩu"
                     autoComplete="current-password"
                     aria-invalid={credentialError}
-                    aria-describedby={error ? 'login-error' : undefined}
+                    aria-describedby={[capsLockOn ? 'login-caps-hint' : null, error ? 'login-error' : null].filter(Boolean).join(' ') || undefined}
+                    onKeyDown={trackCapsLock}
+                    onKeyUp={trackCapsLock}
+                    onBlur={() => setCapsLockOn(false)}
                     required
                   />
+                  {capsLockOn && (
+                    <p id="login-caps-hint" className="login-caps-hint" role="status">Caps Lock đang bật.</p>
+                  )}
               </div>
 
               {error && (
