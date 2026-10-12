@@ -167,7 +167,13 @@ describe('QA fixture purge', () => {
     const invoiceSurfaces = QA_FIXTURE_REGISTRY.filter((s) => s.table === 'fuel_invoices');
     const allocationSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'fuel_invoice_allocations');
     const adjustmentSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'fuel_period_adjustments');
-    strict.ok(invoiceSurfaces.length === 1 && allocationSurface && adjustmentSurface, 'fuel-invoice surfaces must be registered children-first');
+    strict.ok(invoiceSurfaces.length === 1 && allocationSurface && adjustmentSurface, 'fuel-invoice surfaces must be registered');
+    const registryOrder = QA_FIXTURE_REGISTRY.map((s) => s.table);
+    strict.ok(
+      registryOrder.indexOf('fuel_invoice_allocations') < registryOrder.indexOf('fuel_invoices') &&
+        registryOrder.indexOf('fuel_period_adjustments') < registryOrder.indexOf('fuel_invoices'),
+      'fuel-invoice children (allocations, adjustments) must purge before their parent invoices',
+    );
 
     const inserted = await idRowsOf(`
       INSERT INTO fuel_invoices (supplier_id, invoice_number, invoice_date, total_liters, unit_price, total_amount, note)

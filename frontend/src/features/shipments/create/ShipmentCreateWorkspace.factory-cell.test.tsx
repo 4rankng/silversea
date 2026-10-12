@@ -163,6 +163,7 @@ describe('shipment create factory cell (card 20260923_2)', { timeout: 20000 }, (
       await openMenu(factoryInput);
 
       const option = await screen.findByRole('option', { name: /NEWEB-3/ });
+      expect(option.textContent?.trim()).toBe('NEWEB-3');
       expect(option.textContent).not.toContain('undefined');
       expect(option.textContent).not.toContain('null');
     });
