@@ -158,15 +158,26 @@ function ShipmentEditRedirect() {
  *  the user on their home exactly as before (permission model byte-identical)
  *  but announces the denial instead of bouncing silently. Toast fires once per
  *  mount (ref guard keeps StrictMode's double effect honest); the redirect
- *  itself happens in the same render with unchanged `replace` semantics. */
+ *  itself happens in the same render with unchanged `replace` semantics.
+ *
+ *  Card QA2-003 (121026084653): one denial burst must also be ONE toast. The
+ *  guarded route remounts several times inside a single navigation (lazy
+ *  Suspense + guard chain), and each fresh mount carried its own ref — the
+ *  production build measured FOUR stacked copies on both the SPA and the
+ *  hard-load path. A module-level burst window collapses those remounts;
+ *  a genuinely separate denial seconds later still announces itself. */
+const DENIAL_TOAST_BURST_MS = 1200;
+let lastDenialToastAt = 0;
 function DeniedRedirect({ to }: { to: string }) {
   const { toast } = useToast();
   const toasted = useRef(false);
   useEffect(() => {
-    if (!toasted.current) {
-      toasted.current = true;
-      toast({ kind: 'error', message: 'Bạn không có quyền truy cập trang này.' });
-    }
+    if (toasted.current) return;
+    toasted.current = true;
+    const now = Date.now();
+    if (now - lastDenialToastAt < DENIAL_TOAST_BURST_MS) return;
+    lastDenialToastAt = now;
+    toast({ kind: 'error', message: 'Bạn không có quyền truy cập trang này.' });
   }, [toast]);
   return <Navigate to={to} replace />;
 }
