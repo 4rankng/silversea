@@ -13,11 +13,16 @@
    Xoá button) on screen beside the magnifier instead of the picked name. The
    :not() exclusion — not a higher-specificity override — keeps the ≤620px
    phone-record rule in ClerkShipmentCreatePage.css (editors shown
-   continuously) winning for these cells too. */
+   continuously) winning for these cells too.
+   Card 121026185510 (FB-006 round 16): the menu-open test is scoped to the
+   combobox menu trigger. The factory detail peek is an in-cell dialog button
+   carrying its own aria-expanded — a bare [aria-expanded='true'] match read
+   the open popover as an open menu and swapped the picked name for the full
+   editor chrome exactly when the operator asked for the factory's details. */
 .csc-container-cell:not(.csc-container-cell--picker):focus-within .csc-container-cell__display,
-.csc-container-cell:has([aria-expanded='true']) .csc-container-cell__display { opacity: 0; }
+.csc-container-cell:has([role='combobox'][aria-expanded='true']) .csc-container-cell__display { opacity: 0; }
 .csc-container-cell:not(.csc-container-cell--picker):focus-within .csc-container-cell__editor > *,
-.csc-container-cell:has([aria-expanded='true']) .csc-container-cell__editor > * { opacity: 1; }
+.csc-container-cell:has([role='combobox'][aria-expanded='true']) .csc-container-cell__editor > * { opacity: 1; }
 .csc-container-cell:not(:focus-within):hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-2); }
 .csc-container-cell--error:not(:focus-within) { box-shadow: inset 0 0 0 1px var(--danger); }
 .csc-container-cell__error { display: block; padding: 0 10px 6px; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.35; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 4.05em; overflow: hidden; }
@@ -31,6 +36,6 @@
    focus-within alone would strand the button (pointer-events:none) exactly
    when the operator just picked a factory. */
 .csc-container-cell__actions { position: absolute; z-index: 1; top: 0; right: 0; bottom: 0; display: flex; align-items: center; padding-right: 8px; }
-.csc-container-cell:has([aria-expanded='true']) .csc-container-cell__actions { opacity: 0; pointer-events: none; }
+.csc-container-cell:has([role='combobox'][aria-expanded='true']) .csc-container-cell__actions { opacity: 0; pointer-events: none; }
 .csc-container-cell__action { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-3); cursor: pointer; }
 .csc-container-cell__action:hover { background: var(--surface-2); color: var(--fg-1); }

@@ -15,8 +15,11 @@ const cellCss = readFileSync(resolve(process.cwd(), 'src/features/shipments/crea
  * Contract:
  * 1. The `:focus-within` reveal/hide rules exclude `--picker` cells (via
  *    `:not()`), so a focused-but-closed picker collapses to its value text.
- * 2. The menu-open reveal (`:has([aria-expanded='true'])`) applies to every
- *    cell, pickers included — opening the menu still shows the editor.
+ * 2. The menu-open reveal (`:has([role='combobox'][aria-expanded='true'])`)
+ *    applies to every cell, pickers included — opening the menu still shows
+ *    the editor. Only a combobox menu trigger qualifies: the factory detail
+ *    peek is a dialog `button` and must not reveal the editor chrome
+ *    (card 121026185510, FB-006 round 16).
  * 3. The default editor hide stays, so non-picker (text) cells keep the
  *    historical focus-within reveal.
  * 4. `:not()` (not a higher-specificity override) is the mechanism, so
@@ -43,14 +46,30 @@ describe('container cell picker reveal (card 101026163000)', () => {
 
   it('keeps the menu-open reveal for every cell, pickers included', () => {
     expect(cellCss).toMatch(
-      /\.csc-container-cell:has\(\[aria-expanded='true'\]\) \.csc-container-cell__display \{ opacity: 0; \}/,
+      /\.csc-container-cell:has\(\[role='combobox'\]\[aria-expanded='true'\]\) \.csc-container-cell__display \{ opacity: 0; \}/,
     );
     expect(cellCss).toMatch(
-      /\.csc-container-cell:has\(\[aria-expanded='true'\]\) \.csc-container-cell__editor > \* \{ opacity: 1; \}/,
+      /\.csc-container-cell:has\(\[role='combobox'\]\[aria-expanded='true'\]\) \.csc-container-cell__editor > \* \{ opacity: 1; \}/,
     );
     // The menu-open selector must not itself be gated by :not(--picker).
     expect(cellCss).not.toMatch(
-      /:not\(\.csc-container-cell--picker\):has\(\[aria-expanded='true'\]\)/,
+      /:not\(\.csc-container-cell--picker\):has\(\[role='combobox'\]\[aria-expanded='true'\]\)/,
+    );
+  });
+
+  // Card 121026185510 (FB-006 round 16): the magnifier detail peek is an
+  // in-cell `button` with aria-haspopup="dialog" and its own aria-expanded —
+  // a bare `[aria-expanded='true']` menu-open selector treated the open
+  // popover as an open picker menu, hiding the picked name and pinning the
+  // full combobox + "Xoá" chrome exactly when the operator asked for the
+  // factory's details. Only a real picker menu (input role=combobox) may
+  // reveal the editor; the dialog trigger must never.
+  it('scopes every aria-expanded reveal/fade rule to the combobox menu trigger', () => {
+    expect(cellCss).not.toMatch(
+      /\.csc-container-cell:has\(\[aria-expanded='true'\]\)/,
+    );
+    expect(cellCss).toMatch(
+      /\.csc-container-cell:has\(\[role='combobox'\]\[aria-expanded='true'\]\) \.csc-container-cell__actions \{ opacity: 0; pointer-events: none; \}/,
     );
   });
 

@@ -5,12 +5,17 @@
 //
 // Assertions (not just logs) per AC, so a regression exits non-zero:
 //   AC1 committed pick  → display opacity 1, editor chrome opacity 0,
-//                         magnifier present and revealed
-//   AC2 magnifier       → detail popover opens with the factory's data
+//                         magnifier present and revealed (mouse AND Enter)
+//   AC2 magnifier       → detail popover opens with the factory's data AND
+//                         (card 121026185510, round 16) the cell keeps the
+//                         name visible while the popover is open — the dialog
+//                         trigger must never reveal the editor chrome
 //   AC3 click collapsed → editor reopens (menu open); Escape collapses again
 //   AC4 Tab handoff     → card 20261002_272 unchanged: type picker menu opens
 //   AC6 sibling port    → pickup-port picker cell collapses after its pick
-//   AC5 narrow (390px)  → stacked layout keeps the editor continuously visible
+//   AC5 narrow (390px)  → stacked layout per case 2026-10-11-R14-01: text
+//                         cells edit inline; the factory picker stays
+//                         collapsed to name + magnifier
 // Design provenance: house primitive (compact value + magnifier, rulings
 // 20261002_268 / this card); Untitled UI PRO searched for a table-cell
 // collapsed-select + detail-peek pattern — only slideout/modal menus returned
@@ -22,8 +27,9 @@ import { appendFileSync, writeFileSync } from 'node:fs';
 
 const BASE = 'http://localhost:7175';
 const API = 'http://localhost:3002/api';
-const QA = '/Volumes/LexarSSD/projects/silversea-prod/qa';
-const DRIVER_LOG = `${QA}/2026-10-10_card101026163000_ui-driver.log`;
+const QA = '/Volumes/LexarSSD/projects/silversea/qa';
+const ART = '2026-10-12_fb006-rung';
+const DRIVER_LOG = `${QA}/${ART}-driver.log`;
 writeFileSync(DRIVER_LOG, '');
 const step = (s, o) => {
   const e = { at: new Date().toISOString(), step: s, ...o };
@@ -94,7 +100,7 @@ try {
   await new Promise((r) => setTimeout(r, 800));
   const ac1 = await page.evaluate(`${PROBE}('-factory')`);
   step('AC1-after-mouse-pick', { option: optionLabel, ...ac1 });
-  await page.screenshot({ path: `${QA}/2026-10-10_card101026163000_ui-1-after-pick.png` });
+  await page.screenshot({ path: `${QA}/${ART}-ui-1-after-pick.png` });
   assert.ok(ac1.cell, 'AC1: factory cell present');
   assert.equal(ac1.isPicker, true, 'AC1: factory cell carries the picker modifier');
   assert.ok(optionLabel, 'AC1: a factory option was offered');
@@ -108,6 +114,19 @@ try {
   assert.equal(ac1.magnifierOpacity, '1', 'AC1: magnifier revealed beside the name');
   assert.equal(ac1.inputAriaExpanded, 'false', 'AC1: picker menu closed after the pick');
 
+  // --- AC1b (card 121026185510): Enter commit collapses the cell too ---
+  await (await page.$('input[placeholder="Chọn nhà máy"]')).click();
+  await new Promise((r) => setTimeout(r, 800));
+  await page.keyboard.press('ArrowDown');
+  await new Promise((r) => setTimeout(r, 250));
+  await page.keyboard.press('Enter');
+  await new Promise((r) => setTimeout(r, 800));
+  const ac1b = await page.evaluate(`${PROBE}('-factory')`);
+  step('AC1b-after-ENTER-commit', ac1b);
+  assert.equal(ac1b.editorOpacity, '0', 'AC1b: Enter commit collapses the editor chrome');
+  assert.equal(ac1b.displayOpacity, '1', 'AC1b: picked name is the visible value after Enter');
+  assert.equal(ac1b.magnifierOpacity, '1', 'AC1b: magnifier revealed after Enter commit');
+
   // --- AC2: magnifier live right after the pick → popover opens ---
   const popover = await page.evaluate(() => {
     const btn = document.querySelector('button[aria-label^="Xem chi tiết nhà máy"]');
@@ -120,11 +139,18 @@ try {
     const dlg = document.querySelector('[role="dialog"]');
     return { popoverOpen: Boolean(dlg), text: (dlg?.textContent || '').slice(0, 120) };
   });
-  step('AC2-magnifier-popover', { trigger: popover, ...popState });
-  await page.screenshot({ path: `${QA}/2026-10-10_card101026163000_ui-2-popover.png` });
+  // Card 121026185510 (FB-006 round 16): while the detail dialog is open the
+  // cell must KEEP the picked name — the dialog trigger's aria-expanded must
+  // not trip the menu-open reveal and resurrect the full combobox + Xoá.
+  const popReveal = await page.evaluate(`${PROBE}('-factory')`);
+  step('AC2-magnifier-popover', { trigger: popover, ...popState, ...popReveal });
+  await page.screenshot({ path: `${QA}/${ART}-ui-2-popover.png` });
   assert.equal(popover.found, true, 'AC2: magnifier button present right after the pick');
   assert.equal(popState.popoverOpen, true, 'AC2: magnifier opens the factory detail popover');
   assert.ok((popState.text || '').length > 0, 'AC2: popover carries factory detail text');
+  assert.equal(popReveal.displayOpacity, '1', 'AC2: picked name stays visible while the popover is open');
+  assert.equal(popReveal.editorOpacity, '0', 'AC2: dialog trigger must not reveal the editor chrome');
+  assert.equal(popReveal.magnifierOpacity, '1', 'AC2: magnifier anchor stays visible while its popover is open');
   await page.keyboard.press('Escape');
   await new Promise((r) => setTimeout(r, 600));
 
@@ -138,7 +164,7 @@ try {
   await new Promise((r) => setTimeout(r, 800));
   const reopen = await page.evaluate(`${PROBE}('-factory')`);
   step('AC3-menu-reopened', reopen);
-  await page.screenshot({ path: `${QA}/2026-10-10_card101026163000_ui-3-menu-open.png` });
+  await page.screenshot({ path: `${QA}/${ART}-ui-3-menu-open.png` });
   assert.equal(reopen.inputAriaExpanded, 'true', 'AC3: clicking the collapsed cell reopens the picker menu');
   assert.equal(reopen.editorOpacity, '1', 'AC3: editor chrome visible while the menu is open');
   assert.equal(reopen.displayOpacity, '0', 'AC3: value text yields to the editor while the menu is open');
@@ -173,21 +199,25 @@ try {
   await new Promise((r) => setTimeout(r, 800));
   const portAfter = await page.evaluate(`${PROBE}('-pickup-port')`);
   step('AC6-port-after-pick', { option: portPickLabel, ...portAfter });
-  await page.screenshot({ path: `${QA}/2026-10-10_card101026163000_ui-4-port-after-pick.png` });
+  await page.screenshot({ path: `${QA}/${ART}-ui-4-port-after-pick.png` });
   assert.ok(portPickLabel, 'AC6: a port option was offered');
   assert.equal(portAfter.inputAriaExpanded, 'false', 'AC6: port picker menu closed after the pick');
   assert.equal(portAfter.editorOpacity, '0', 'AC6: port cell collapses to its value after the pick');
   assert.equal(portAfter.displayOpacity, '1', 'AC6: port name is the visible value');
   assert.ok(portAfter.displayText && portAfter.displayText !== 'Chọn cảng nâng', 'AC6: picked port shown, not the placeholder');
 
-  // --- AC5: narrow layout keeps editors continuously visible (≤1037px container) ---
+  // --- AC5: narrow layout per case 2026-10-11-R14-01 (≤620px container):
+  // text/number cells edit inline continuously; picker cells keep the picked
+  // value + detail affordance, editor only while the menu opens. ---
   await page.setViewport({ width: 390, height: 844 });
   await new Promise((r) => setTimeout(r, 1200));
-  const narrow = await page.evaluate(`${PROBE}('-factory')`);
-  step('AC5-narrow-390-editor-visible', narrow);
-  await page.screenshot({ path: `${QA}/2026-10-10_card101026163000_ui-5-narrow-390.png` });
-  assert.equal(narrow.editorOpacity, '1', 'AC5: ≤1037px stacked layout keeps the editor continuously visible');
-  assert.equal(narrow.displayOpacity, '1', 'AC5: value line still readable in the stacked card');
+  const narrowPicker = await page.evaluate(`${PROBE}('-factory')`);
+  const narrowText = await page.evaluate(`${PROBE}('-number')`);
+  step('AC5-narrow-390-r14-01', { picker: narrowPicker, text: narrowText });
+  await page.screenshot({ path: `${QA}/${ART}-ui-5-narrow-390.png` });
+  assert.equal(narrowText.editorOpacity, '1', 'AC5: ≤620px stacked layout keeps TEXT cell editors continuously visible');
+  assert.equal(narrowPicker.displayOpacity, '1', 'AC5: picked factory name stays the visible value at 390px (R14-01)');
+  assert.equal(narrowPicker.editorOpacity, '0', 'AC5: factory picker stays collapsed at 390px (R14-01)');
 
   step('done', { note: 'read-only rung — create form never saved; no persisted mutation by design' });
 } catch (err) {
