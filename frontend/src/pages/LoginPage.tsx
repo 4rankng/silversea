@@ -165,6 +165,7 @@ export default function LoginPage() {
 
               <p className="login-help">
                 Tài khoản được cấp bởi quản trị viên doanh nghiệp.
+                {' '}Quên mật khẩu? Liên hệ quản trị viên của đơn vị để được đặt lại.
               </p>
             </form>
           </div>

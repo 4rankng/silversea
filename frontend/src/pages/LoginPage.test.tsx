@@ -148,3 +148,23 @@ describe('Caps Lock hint on the password field', () => {
     expect(screen.queryByText('Caps Lock đang bật.')).toBeNull();
   });
 });
+
+// Card 121026084733 (QA2-007): accounts are admin-issued by design, so there is
+// no self-service reset — but an admin CAN set a user's password
+// (updateUserSchema accepts `password`, via PATCH /api/auth/users/:id). The
+// footnote therefore has to name that path instead of only stating who issues
+// accounts.
+describe('locked-out user is told how to get back in', () => {
+  it('points at the administrator as the reset path', () => {
+    render(<LoginPage />);
+    const help = document.querySelector('.login-help');
+    expect(help?.textContent).toMatch(/quản trị viên/i);
+    expect(help?.textContent).toMatch(/Quên mật khẩu|liên hệ/i);
+  });
+
+  it('does not advertise a self-service recovery that does not exist', () => {
+    render(<LoginPage />);
+    const help = document.querySelector('.login-help')?.textContent ?? '';
+    expect(help).not.toMatch(/gửi email|đặt lại mật khẩu tại đây|forgot password/i);
+  });
+});
