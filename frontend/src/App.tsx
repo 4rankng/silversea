@@ -167,18 +167,22 @@ function ShipmentEditRedirect() {
  *  hard-load path. A module-level burst window collapses those remounts;
  *  a genuinely separate denial seconds later still announces itself. */
 const DENIAL_TOAST_BURST_MS = 1200;
-let lastDenialToastAt = 0;
+let lastDenialToast = { path: '', at: 0 };
 function DeniedRedirect({ to }: { to: string }) {
   const { toast } = useToast();
+  const location = useLocation();
   const toasted = useRef(false);
   useEffect(() => {
     if (toasted.current) return;
     toasted.current = true;
     const now = Date.now();
-    if (now - lastDenialToastAt < DENIAL_TOAST_BURST_MS) return;
-    lastDenialToastAt = now;
+    // Only collapse repeats of the SAME denied path — the remount storm is
+    // one denial; a different foreign route moments later is a separate
+    // denial and still announces itself.
+    if (location.pathname === lastDenialToast.path && now - lastDenialToast.at < DENIAL_TOAST_BURST_MS) return;
+    lastDenialToast = { path: location.pathname, at: now };
     toast({ kind: 'error', message: 'Bạn không có quyền truy cập trang này.' });
-  }, [toast]);
+  }, [toast, location.pathname]);
   return <Navigate to={to} replace />;
 }
 
