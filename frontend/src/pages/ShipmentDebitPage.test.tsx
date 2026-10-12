@@ -261,12 +261,12 @@ describe('Chi phí - Quyết toán — L2 expansion (20260918_18)', () => {
     });
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
-    expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull();
+    expect(screen.queryByText('Cước vận tải')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Mở chi tiết lô BL-1' }));
-    expect(await screen.findByText('Bảng 2.1 — Cước vận tải')).toBeTruthy();
+    expect(await screen.findByText('Cước vận tải')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Đóng chi tiết lô BL-1' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Đóng chi tiết lô BL-1' }));
-    await waitFor(() => expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Cước vận tải')).toBeNull());
   });
 });
 
@@ -276,7 +276,7 @@ describe('L2 open-state reload persistence (card _11)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     getDetail.mockResolvedValue({ shipmentId: 101, freightRows: [], chiHoRows: [], payables: { chiHoTotal: null }, thuKhachTotal: null });
     renderPage('/shipments-debit?customer=1');
-    expect(await screen.findByText('Bảng 2.1 — Cước vận tải')).toBeTruthy();
+    expect(await screen.findByText('Cước vận tải')).toBeTruthy();
     sessionStorage.removeItem('shipment-debit.expanded-lot');
   });
 
@@ -285,7 +285,7 @@ describe('L2 open-state reload persistence (card _11)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit;customer=1'.replace(';', '?'));
     await screen.findAllByText('BL-1');
-    expect(screen.queryByText('Bảng 2.1 — Cước vận tải')).toBeNull();
+    expect(screen.queryByText('Cước vận tải')).toBeNull();
   });
 });
 
@@ -463,7 +463,7 @@ it('QA-AUDIT-UI-39 phone selection is explicit, expansion preserves it, and filt
   fireEvent.click(checkbox); expect(checkbox).toBeChecked();
   fireEvent.click(within(record).getByText('Chi tiết'));
   fireEvent.click(within(record).getByRole('button', { name: 'Mở chi tiết lô BL-1' }));
-  expect((await screen.findByText('Bảng 2.1 — Cước vận tải')).closest('.ledger-record__fact')).toHaveAttribute('data-layout', 'full-width');
+  expect((await screen.findByText('Cước vận tải')).closest('.ledger-record__fact')).toHaveAttribute('data-layout', 'full-width');
   expect(checkbox).toBeChecked();
   fireEvent.click(within(record).getByRole('button', { name: 'Đóng chi tiết lô BL-1' }));
   expect(checkbox).toBeChecked();

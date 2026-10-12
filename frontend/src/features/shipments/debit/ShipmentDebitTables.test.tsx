@@ -65,8 +65,8 @@ describe('FreightTable customer HQGS charge is independent of payable cost', () 
   it.each([150000, 0])('uses the negotiated charge %s and keeps the payable cost', (charge) => {
     const value = detail({ customsCustomerCharge: charge, psActual: 50000 });
     render(<><FreightTable detail={value} draft={buildDraft(value)} frozen setFreight={() => {}} /><PayablesTable detail={value} /></>);
-    const revenue = screen.getByRole('table', { name: 'Bảng 2.1 — Cước vận tải' });
-    const payable = screen.getByRole('table', { name: 'Bảng 2.3 — Phí Phải trả (chỉ xem)' });
+    const revenue = screen.getByRole('table', { name: 'Cước vận tải' });
+    const payable = screen.getByRole('table', { name: 'Phí Phải trả' });
     const cells = revenue.querySelectorAll('tbody tr td');
     expect(cells[4]).toHaveTextContent(charge === 0 ? '0' : '150.000');
     expect(cells[6]).toHaveTextContent(charge === 0 ? '4.550.000' : '4.700.000');
@@ -181,7 +181,7 @@ it('QA-AUDIT-UI-39 phone ledgers keep all amounts and mount editable controls on
     <PayablesTable detail={value} /></>);
   expect(screen.queryByRole('table')).toBeNull();
   expect(screen.getAllByRole('article')).toHaveLength(3);
-  const revenue = screen.getByText('Bảng 2.1 — Cước vận tải').closest('section')!;
+  const revenue = screen.getByText('Cước vận tải').closest('section')!;
   expect(within(revenue).getByText('4.650.000')).toBeTruthy();
   expect(screen.getAllByLabelText('PS thực tế QATU1234569')).toHaveLength(1);
   fireEvent.change(screen.getByLabelText('PS thực tế QATU1234569'), { target: { value: '100000' } });

@@ -59,7 +59,7 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
   setFreight: (containerNumber: string, patch: Partial<{ psActual: string; note: string }>) => void;
 }) {
   return <LedgerMatrix className="csc-debit-table csc-debit-table--freight"
-    caption={<>Bảng 2.1 — Cước vận tải</>}
+    caption={<>Cước vận tải</>}
     columns={[
       { key: 'c0', label: <>Số Container</> },
       { key: 'c1', label: <>Cước thu</>, primary: true },
@@ -128,7 +128,7 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
     </div>
   );
   return <LedgerMatrix className="csc-debit-table csc-debit-table--chiho"
-    caption={<>Bảng 2.2 — Phí Chi Hộ &amp; Tiền Treo</>}
+    caption={<>Phí Chi Hộ &amp; Tiền Treo</>}
     columns={[
       { key: 'c0', label: <>Số Container</> },
       { key: 'c1', label: <>Phí Nâng</>, primary: true },
@@ -297,7 +297,7 @@ export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
   ]));
   const common = payablesCommonRow(detail.payables);
   return <LedgerMatrix className="csc-debit-table csc-debit-table--payables"
-    caption={<>Bảng 2.3 — Phí Phải trả (chỉ xem)</>}
+    caption={<>Phí Phải trả</>}
     columns={[
       { key: 'c0', label: <>Số Container</> },
       { key: 'c1', label: <>Cước trả</>, primary: true },
