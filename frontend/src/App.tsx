@@ -245,8 +245,18 @@ export function AppRoutes() {
       ? el
       : <DeniedRedirect to={homeRedirect} />
   );
-  // /users is the single home for everyone; accountants get scoped (driver-only) access.
+  // Office staff read the operational + finance workspaces (fleet, trips,
+  // accounting, salary, penalties) — casbin grants ACCOUNTANT those resources.
+  // User management is NOT one of them; see userAdminOnly below.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <DeniedRedirect to={homeRedirect} />);
+  // User management mirrors the casbin policy exactly (card QA2-001): the
+  // `users` resource is granted to MANAGER (policy.csv) and ADMIN holds the
+  // `p, ADMIN, *, *` wildcard. ACCOUNTANT holds `hr_roster read` instead — a
+  // different surface — so /users must refuse it rather than render the admin
+  // shell behind an API that answers 403. If a future ruling grants `users` to
+  // another role, add it here AND to policy.csv in the same change, or the two
+  // drift apart again.
+  const userAdminOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER ? el : <DeniedRedirect to={homeRedirect} />);
   // Freight pricing engine config (Phương án tính cước tự động §5-1): fuel-price
   // period entry names Kế toán/CUS as entrants (backend casbin carries the
   // route-scoped CUS write bypass); DISPATCHER stays out — the page's write
@@ -457,7 +467,7 @@ export function AppRoutes() {
           <Route path="/payables" element={financeReaderOnly(page(<PayableListPage />))} />
           <Route path="/payables/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/salary" element={officeStaffOnly(page(<SalaryAttendancePage />))} />
-          <Route path="/users" element={officeStaffOnly(page(<UsersPage />))} />
+          <Route path="/users" element={userAdminOnly(page(<UsersPage />))} />
           <Route path="/hr/roster" element={officeStaffOnly(page(<HrRosterPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />
           <Route path="/audit-log" element={<Navigate to="/audit-logs" replace />} />

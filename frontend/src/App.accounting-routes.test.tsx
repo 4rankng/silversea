@@ -32,6 +32,8 @@ vi.mock('./pages/PayableListPage', () => ({ default: () => <div>Payables authori
 vi.mock('./pages/PayableDetailPage', () => ({ default: () => <div>Payable detail authority</div> }));
 vi.mock('./pages/FinancePage', () => ({ default: () => <div>Profit and loss authority</div> }));
 vi.mock('./pages/DriverTripsPage', () => ({ default: () => <div>Driver home</div> }));
+vi.mock('./pages/UsersPage', () => ({ default: () => <div>User management authority</div> }));
+vi.mock('./pages/AccountingWorkspacePage', () => ({ default: () => <div>Accounting authority</div> }));
 
 import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
@@ -67,5 +69,22 @@ describe('AppRoutes accountant authoritative workspaces', () => {
     renderRoute('/expenses?tripId=10');
     expect(await screen.findByText('Driver home')).toBeTruthy();
     expect(screen.queryByText('Expense authority')).toBeNull();
+  });
+
+  // Card 121026084633 (QA2-001): casbin grants the `users` resource to MANAGER
+  // only (policy.csv) — ACCOUNTANT gets `hr_roster read`, a different surface.
+  // The route guard used to admit ACCOUNTANT anyway, so a deep link rendered the
+  // admin shell plus the role taxonomy for a role the API answers 403 to.
+  it('denies ACCOUNTANT the admin-only /users route and lands them on /accounting', async () => {
+    authState.role = Role.ACCOUNTANT;
+    renderRoute('/users');
+    expect(await screen.findByText('Accounting authority')).toBeTruthy();
+    expect(screen.queryByText('User management authority')).toBeNull();
+  });
+
+  it.each([Role.MANAGER, Role.ADMIN])('still admits %s to /users', async (role) => {
+    authState.role = role;
+    renderRoute('/users');
+    expect(await screen.findByText('User management authority')).toBeTruthy();
   });
 });
