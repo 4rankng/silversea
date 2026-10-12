@@ -68,12 +68,17 @@ function defaultPeriod(): { from: string; to: string } {
   return { from: `${today.slice(0, 7)}-01`, to: today };
 }
 
-/** Preset ranges evaluated at click time so they stay today-anchored. */
-function buildPeriodPresets(): DateRangePreset[] {
-  const today = businessDateISO();
+/** Preset ranges evaluated at click time so they stay today-anchored. The
+ *  anchor is injectable so the month-end law is testable without freezing
+ *  the clock. */
+export function buildPeriodPresets(today = businessDateISO()): DateRangePreset[] {
   const y = Number(today.slice(0, 4));
   const m = Number(today.slice(5, 7));
-  const last = (y2: number, m2: number) => new Date(Date.UTC(y2, m2 - 1, 0)).getUTCDate();
+  // Day 0 of month INDEX m is the last day of calendar month m (September →
+  // 30, February → 28/29). The old `m - 1` index returned the PREVIOUS
+  // month's length, so 'Tháng trước' in October built 2026-09-31 and the
+  // backend answered 400 "Khoảng ngày không hợp lệ".
+  const last = (y2: number, m2: number) => new Date(Date.UTC(y2, m2, 0)).getUTCDate();
   const iso = (yy: number, mm: number, dd: number) => `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
   return [
     { id: 'this-month', label: 'Tháng này', range: () => ({ from: iso(y, m, 1), to: today }) },

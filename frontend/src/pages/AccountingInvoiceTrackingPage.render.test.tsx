@@ -22,7 +22,7 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'ADMIN' } }
 const csv = vi.hoisted(() => ({ downloadCSV: vi.fn() }));
 vi.mock('../lib/csv', () => csv);
 
-import AccountingInvoiceTrackingPage from './AccountingInvoiceTrackingPage';
+import AccountingInvoiceTrackingPage, { buildPeriodPresets } from './AccountingInvoiceTrackingPage';
 import { businessDateISO } from '../lib/format';
 import type { InvoiceTrackingRow } from '@tingting/shared';
 
@@ -278,5 +278,28 @@ describe('invoice-tracking COM cell and totals strip (card 2026-10-05_384)', () 
     expect(screen.getByText('Hóa đơn')).toBeInTheDocument();
     expect(screen.getByText('Trả NCC')).toBeInTheDocument();
     expect(screen.getByText('Chênh lệch')).toBeInTheDocument();
+  });
+});
+
+describe('buildPeriodPresets — the month-end law (invoice-tracking 400 fix)', () => {
+  // Operator report 12/10: clicking "Tháng trước" in October sent
+  // to=2026-09-31 and the backend answered 400 "Khoảng ngày không hợp lệ:
+  // 2026-09-31". The last-day helper read the PREVIOUS month's length.
+  it('ends September on the 30th, not August\'s 31st', () => {
+    const presets = buildPeriodPresets('2026-10-12');
+    const lastMonth = presets.find(p => p.id === 'last-month')!;
+    expect(lastMonth.range()).toEqual({ from: '2026-09-01', to: '2026-09-30' });
+  });
+
+  it('ends February on its real length, leap or not', () => {
+    expect(buildPeriodPresets('2024-03-15').find(p => p.id === 'last-month')!.range())
+      .toEqual({ from: '2024-02-01', to: '2024-02-29' });
+    expect(buildPeriodPresets('2025-03-15').find(p => p.id === 'last-month')!.range())
+      .toEqual({ from: '2025-02-01', to: '2025-02-28' });
+  });
+
+  it('crosses the year boundary: January looks back to December', () => {
+    expect(buildPeriodPresets('2026-01-08').find(p => p.id === 'last-month')!.range())
+      .toEqual({ from: '2025-12-01', to: '2025-12-31' });
   });
 });
