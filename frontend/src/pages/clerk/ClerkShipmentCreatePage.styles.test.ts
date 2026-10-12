@@ -105,8 +105,10 @@ describe('shipment create responsive layout', () => {
   });
 
   it('keeps the active editor visible while a cell popover owns focus', () => {
-    expect(spreadsheetCellCss).toMatch(/\.csc-container-cell:has\(\[aria-expanded='true'\]\) \.csc-container-cell__display\s*\{[^}]*opacity:\s*0;/);
-    expect(spreadsheetCellCss).toMatch(/\.csc-container-cell:has\(\[aria-expanded='true'\]\) \.csc-container-cell__editor > \*\s*\{[^}]*opacity:\s*1;/);
+    // The reveal trigger is the combobox menu itself ([role='combobox'][aria-expanded]),
+    // so a detail-popover button carrying its own aria-expanded never swaps the cell.
+    expect(spreadsheetCellCss).toMatch(/\.csc-container-cell:has\(\[role='combobox'\]\[aria-expanded='true'\]\) \.csc-container-cell__display\s*\{[^}]*opacity:\s*0;/);
+    expect(spreadsheetCellCss).toMatch(/\.csc-container-cell:has\(\[role='combobox'\]\[aria-expanded='true'\]\) \.csc-container-cell__editor > \*\s*\{[^}]*opacity:\s*1;/);
   });
 
   it('renders the cargo option set as the app segmented control, not pill-shaped blocks', () => {
