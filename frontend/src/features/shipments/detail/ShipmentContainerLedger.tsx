@@ -619,6 +619,12 @@ interface ShipmentContainerLedgerProps {
   onAddContainer?: (shipmentId: number, payload: ShipmentCusContainerAddInput, rowId?: number) => Promise<void>;
   onRemoveContainer?: (row: ShipmentCusContainerFlatRow) => Promise<void>;
   /**
+   * Copy this row's appointment onto every container line of ITS OWN lot that
+   * is still without one — one server call for the whole lot, never a per-row
+   * write loop. Resolves with the number of lines actually written.
+   */
+  onCopyAppointment?: (row: ShipmentCusContainerFlatRow) => Promise<number>;
+  /**
    * Column keys the picker on the page's filter bar is hiding (card
    * 20260928_193, restoring 20260917_4). The ledger renders `col`/`th`/`td`
    * conditionally so a `table-layout: fixed` table never shows ghost columns.
@@ -649,6 +655,7 @@ export function ShipmentContainerLedger({
   onSaveContainer,
   onAddContainer,
   onRemoveContainer,
+  onCopyAppointment,
   hiddenColumns = [],
 }: ShipmentContainerLedgerProps) {
   const isHidden = (key: string) => hiddenColumns.includes(key);
@@ -660,6 +667,37 @@ export function ShipmentContainerLedger({
   const [addForRow, setAddForRow] = useState<ShipmentCusContainerFlatRow | null>(null);
   const [addSubmitting, setAddSubmitting] = useState(false);
   const canMutateRows = onAddContainer != null && onRemoveContainer != null && activeEdit == null;
+  const [copyingRowId, setCopyingRowId] = useState<number | null>(null);
+  // The workboard is MULTI-LOT, so "still empty" is counted PER LOT: a copy on
+  // one row only ever fills its own lot's rows and can never touch a
+  // neighbouring lot sharing the page. Counted over the LOADED page (this
+  // ledger is paginated) — a lot whose empty rows sit on another page offers
+  // no affordance, the honest limit of a page-scoped read; the write itself is
+  // whole-lot and reports the real number back.
+  const emptyByLot = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const row of rows) {
+      if (row.customerAppointmentAt == null) counts.set(row.shipmentId, (counts.get(row.shipmentId) ?? 0) + 1);
+    }
+    return counts;
+  }, [rows]);
+  const canCopyFrom = (row: ShipmentCusContainerFlatRow) => (
+    row.customerAppointmentAt != null && (emptyByLot.get(row.shipmentId) ?? 0) > 0
+  );
+  const hasRowActions = canMutateRows
+    || (onCopyAppointment != null && activeEdit == null && rows.some(canCopyFrom));
+
+  // The parent owns feedback (it owns the toast surface for this page); the
+  // ledger owns only the busy state, so it stays presentational.
+  async function submitCopyAppointment(row: ShipmentCusContainerFlatRow) {
+    if (!onCopyAppointment || copyingRowId != null) return;
+    setCopyingRowId(row.id);
+    try {
+      await onCopyAppointment(row);
+    } finally {
+      setCopyingRowId(null);
+    }
+  }
 
   async function submitAddRow(row: ShipmentCusContainerFlatRow, payload: ShipmentCusContainerAddInput) {
     if (!onAddContainer) return;
@@ -776,7 +814,7 @@ export function ShipmentContainerLedger({
             {!isHidden('vehicle') && <col className="shipment-container-ledger__col--vehicle" />}
             {!isHidden('notes') && <col className="shipment-container-ledger__col--notes" />}
             {!isHidden('status') && <col className="shipment-container-ledger__col--status" />}
-            {canMutateRows && <col className="shipment-container-ledger__col--actions" />}
+            {hasRowActions && <col className="shipment-container-ledger__col--actions" />}
           </colgroup>
           <thead><tr>
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
@@ -882,11 +920,11 @@ export function ShipmentContainerLedger({
                       )}
                     </div>
                   </td>)}
-                  {canMutateRows && (
+                  {hasRowActions && (
                     <td data-label="Thao tác" className="shipment-container-ledger__cell--actions">
                       {/* Lot-level rows own no container line — add/remove are
                           container-set writes and never apply to them. */}
-                      {row.isLotLevel !== true && (
+                      {canMutateRows && row.isLotLevel !== true && (
                       <div className="shipment-container-ledger__multiline">
                         <button
                           type="button"
@@ -905,6 +943,23 @@ export function ShipmentContainerLedger({
                           }}
                         >Xóa</button>
                       </div>
+                      )}
+                      {/* Bulk appointment copy: this row's giờ hẹn lands on
+                          every row of ITS OWN lot that is still without one,
+                          in one server call. Only the rows that can actually
+                          source a copy carry it, so the affordance never
+                          appears where it would do nothing. */}
+                      {canCopyFrom(row) && (
+                        <div className="shipment-container-ledger__multiline">
+                          <button
+                            type="button"
+                            className="btn btn--secondary btn--sm shipment-container-ledger__copy"
+                            aria-label={`Copy giờ hẹn của container ${row.containerNumber || row.ordinal} sang các container chưa có lịch`}
+                            title="Copy giờ hẹn của dòng này sang mọi container trong lô chưa có lịch"
+                            disabled={copyingRowId != null || activeEdit != null}
+                            onClick={() => void submitCopyAppointment(row)}
+                          >Copy giờ hẹn</button>
+                        </div>
                       )}
                     </td>
                   )}

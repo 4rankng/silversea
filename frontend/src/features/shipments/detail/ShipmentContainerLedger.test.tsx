@@ -794,3 +794,92 @@ describe('card 20261009_3 — phone bottom sheet', () => {
     }
   });
 });
+
+/* ─── Bulk appointment copy (card 111026111200) ───────────────────────────
+ * The Chi Tiết ledger was the ONE place a user could not copy a giờ hẹn down
+ * to the containers still without one. The affordance has to be picky: the
+ * workboard is multi-lot AND paginated, so a row only offers a copy when its
+ * OWN lot still has an empty line on this page. */
+describe('bulk appointment copy affordance (card 111026111200)', () => {
+  const renderCopyLedger = (rows: ShipmentCusContainerFlatRow[], onCopyAppointment = vi.fn(async () => 1)) => {
+    render(
+      <ShipmentContainerLedger
+        rows={rows}
+        totalContainers={rows.length}
+        today="2026-10-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={null}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={vi.fn()}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={vi.fn(async () => {})}
+        onSaveSchedule={vi.fn(async () => {})}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+        onAddContainer={vi.fn(async () => {})}
+        onRemoveContainer={vi.fn(async () => {})}
+        onCopyAppointment={onCopyAppointment}
+      />,
+      { wrapper: MemoryRouter },
+    );
+    return { onCopyAppointment };
+  };
+
+  it('offers the copy on a scheduled row only while its own lot still has an empty line', () => {
+    const scheduled = baseRow({ id: 1, shipmentId: 10, customerAppointmentAt: '2026-10-15T09:30:00.000Z' });
+    const empty = baseRow({ id: 2, shipmentId: 10, ordinal: 2, customerAppointmentAt: null });
+    renderCopyLedger([scheduled, empty]);
+
+    const buttons = screen.getAllByRole('button', { name: /Copy giờ hẹn/ });
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]!.getAttribute('aria-label')).toContain('MSKU1234567');
+  });
+
+  it('offers nothing when every line of the lot is already scheduled', () => {
+    renderCopyLedger([
+      baseRow({ id: 1, shipmentId: 10, customerAppointmentAt: '2026-10-15T09:30:00.000Z' }),
+      baseRow({ id: 2, shipmentId: 10, ordinal: 2, customerAppointmentAt: '2026-10-16T09:30:00.000Z' }),
+    ]);
+    expect(screen.queryByRole('button', { name: /Copy giờ hẹn/ })).toBeNull();
+  });
+
+  it('never copies into a NEIGHBOURING lot that happens to share the page', () => {
+    // Row 1 belongs to lot 10 and is scheduled; row 2 is empty but belongs to
+    // lot 20. A copy from row 1 would cross lots, so no affordance appears.
+    renderCopyLedger([
+      baseRow({ id: 1, shipmentId: 10, customerAppointmentAt: '2026-10-15T09:30:00.000Z' }),
+      baseRow({ id: 2, shipmentId: 20, ordinal: 2, customerAppointmentAt: null }),
+    ]);
+    expect(screen.queryByRole('button', { name: /Copy giờ hẹn/ })).toBeNull();
+  });
+
+  it('one click is one call, carrying that row', async () => {
+    const scheduled = baseRow({ id: 7, shipmentId: 10, containerNumber: 'TGBU3190086', customerAppointmentAt: '2026-10-15T09:30:00.000Z' });
+    const empty = baseRow({ id: 8, shipmentId: 10, ordinal: 2, customerAppointmentAt: null });
+    const { onCopyAppointment } = renderCopyLedger([scheduled, empty]);
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy giờ hẹn/ }));
+    await waitFor(() => expect(onCopyAppointment).toHaveBeenCalledTimes(1));
+    expect(onCopyAppointment).toHaveBeenCalledWith(scheduled);
+  });
+
+  it('disables every copy control while one is running, then re-enables', async () => {
+    let release: (value: number) => void = () => {};
+    const pending = new Promise<number>((resolve) => { release = resolve; });
+    const scheduled = baseRow({ id: 1, shipmentId: 10, customerAppointmentAt: '2026-10-15T09:30:00.000Z' });
+    const other = baseRow({ id: 3, shipmentId: 10, customerAppointmentAt: '2026-10-16T09:30:00.000Z' });
+    const empty = baseRow({ id: 2, shipmentId: 10, ordinal: 2, customerAppointmentAt: null });
+    renderCopyLedger([scheduled, other, empty], vi.fn(() => pending));
+
+    const first = screen.getAllByRole('button', { name: /Copy giờ hẹn/ })[0]!;
+    fireEvent.click(first);
+    await waitFor(() => expect((first as HTMLButtonElement).disabled).toBe(true));
+    await act(async () => { release(1); });
+    expect((first as HTMLButtonElement).disabled).toBe(false);
+  });
+});

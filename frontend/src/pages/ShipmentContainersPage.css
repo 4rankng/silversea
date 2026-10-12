@@ -109,6 +109,17 @@
    from the customer cell so "needs attention" reads next to the status it
    blocks) — wider than a bare label needs. */
 .shipment-container-ledger__col--status { width: 11%; }
+/* Card 111026111200 — copy giờ hẹn xuống các container của CÙNG lô chưa có
+   lịch. `.shipment-container-ledger__copy` is the name base.css has reserved
+   for this affordance since 20260918_3 (the global hover reset exempts it).
+   Unlike the create-form and CUS overlays this one is a plain actions-column
+   button that stays VISIBLE at rest: the ticket was "the button does not
+   exist", and a hover-gated icon is exactly what those two surfaces already
+   proved people fail to find. */
+.shipment-container-ledger__copy { white-space: nowrap; }
+/* The three action groups stack (the actions cell is the narrowest share, so
+   side-by-side labels would shear mid-word at 1280). */
+.shipment-container-ledger__cell--actions .shipment-container-ledger__multiline + .shipment-container-ledger__multiline { margin-top: 4px; }
 
 /* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
    keeps the header flush with the app-body edge so scrolled rows never peek

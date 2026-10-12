@@ -25,6 +25,8 @@ import {
   type ShipmentCusContainerAddResult,
   type ShipmentCusContainerRemoveInput,
   type ShipmentCusContainerRemoveResult,
+  type ShipmentCusContainerAppointmentCopyInput,
+  type ShipmentCusContainerAppointmentCopyResult,
   type ShipmentCusContainerSortKey,
   type ShipmentCusWorkspaceSortKey,
   type ShipmentAccountingLockSummary,
@@ -1118,6 +1120,22 @@ export async function removeCusShipmentContainerRow(
 ): Promise<ShipmentCusContainerRemoveResult> {
   return api.post<ShipmentCusContainerRemoveResult>(
     SHIPMENTS.CUS_WORKSPACE_CONTAINER_REMOVE(shipmentId, containerId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+/** Copy this line's appointment onto every container line of the lot still
+ *  without one — ONE call for the whole lot (never a per-row write loop), so
+ *  a failed copy leaves the lot exactly as it was. */
+export async function copyCusShipmentContainerAppointment(
+  shipmentId: number,
+  containerId: number,
+  body: ShipmentCusContainerAppointmentCopyInput,
+  idempotencyKey?: string,
+): Promise<ShipmentCusContainerAppointmentCopyResult> {
+  return api.post<ShipmentCusContainerAppointmentCopyResult>(
+    SHIPMENTS.CUS_WORKSPACE_CONTAINER_APPOINTMENT_COPY(shipmentId, containerId),
     body,
     { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
   );

@@ -17,6 +17,7 @@ import type {
 } from '@tingting/shared';
 import {
   addCusShipmentContainerRow,
+  copyCusShipmentContainerAppointment,
   getCusShipmentWorkspaceDetail,
   listCusShipmentContainers,
   removeCusShipmentContainerRow,
@@ -403,11 +404,36 @@ export function useCusDetail(params: CusDetailListParams) {
     await finishSave();
   }, [finishSave, recoverConflict]);
 
+  /** Bulk appointment copy: ONE call writes this line's appointment onto
+   *  every container line of the lot still without one. Returns how many
+   *  lines the server actually wrote, so the caller can report the real
+   *  number — the row set is the WHOLE lot, never just the loaded page. */
+  const copyAppointment = useCallback(async (row: ShipmentCusContainerFlatRow): Promise<number> => {
+    const signature = JSON.stringify(['appointment-copy', row.shipmentId, row.id, row.shipmentVersion]);
+    const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+    editIdempotencyKeys.current[signature] = key;
+    let written = 0;
+    try {
+      const result = await copyCusShipmentContainerAppointment(row.shipmentId, row.id, {
+        expectedShipmentVersion: row.shipmentVersion,
+      }, key);
+      written = result.updatedContainerIds.length;
+    } catch (error) {
+      delete editIdempotencyKeys.current[signature];
+      if (!isOptimisticShipmentConflict(error)) throw error;
+      await recoverConflict(row, 'schedule');
+      return 0;
+    }
+    delete editIdempotencyKeys.current[signature];
+    await finishSave();
+    return written;
+  }, [finishSave, recoverConflict]);
+
   return {
     data, loading, error, loadRows, setError,
     activeEdit, editLoadingRowId, editError, editNotice,
     startEdit, cancelEdit, saveIdentity, saveDocuments, saveContainer,
     saveRoute, saveVehicle, saveSchedule, saveNotes,
-    addContainer, removeContainer,
+    addContainer, removeContainer, copyAppointment,
   };
 }

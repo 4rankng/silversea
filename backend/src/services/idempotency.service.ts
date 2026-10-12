@@ -88,6 +88,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_CUS_CONTAINER_LINE_UPDATE: 'shipments.cus.container-line.update',
   SHIPMENT_CUS_CONTAINER_ADD: 'shipments.cus.container.add',
   SHIPMENT_CUS_CONTAINER_REMOVE: 'shipments.cus.container.remove',
+  SHIPMENT_CUS_CONTAINER_APPOINTMENT_COPY: 'shipments.cus.container-line.copy-appointment',
   SHIPMENT_CUS_DOCUMENT_CUSTODY_UPDATE: 'shipments.cus.document-custody.update',
   SHIPMENT_CUS_LOCK: 'shipments.cus.lock',
   SHIPMENT_CUS_REOPEN_REQUEST: 'shipments.cus.reopen-request',

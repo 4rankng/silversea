@@ -5,10 +5,12 @@ import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import {
   SHIPMENT_CUS_CONTAINER_SORT_KEYS,
   SHIPMENT_CUS_PAGE_SIZES,
+  type ShipmentCusContainerFlatRow,
   type ShipmentCusContainerSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
+import { useToast } from '../components/shared/Toast';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { DateRangeFields, DateRangePresets, DateRangePresetSelect, EmptyState, FilterBar, Pagination, type DateRangePreset, type DateRangeValue, UuiSelectField } from '../design-system';
@@ -110,6 +112,29 @@ export default function ShipmentContainersPage() {
     page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
     customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir,
   });
+  const { toast } = useToast();
+
+  /**
+   * Copy giờ hẹn xuống các container của CÙNG lô chưa có lịch (one server
+   * call for the whole lot). Feedback lives here, not in the ledger, because
+   * this page already owns the mutation surface for the workboard.
+   */
+  const copyAppointment = useCallback(async (row: ShipmentCusContainerFlatRow): Promise<number> => {
+    try {
+      const written = await detail.copyAppointment(row);
+      if (written > 0) {
+        toast({ kind: 'success', message: `Đã copy giờ hẹn sang ${written} container chưa có lịch.` });
+      } else {
+        // Conflict recovery already swapped in fresh rows — say so rather
+        // than implying the copy landed.
+        toast({ kind: 'warning', message: 'Lô hàng vừa thay đổi. Đã tải lại danh sách — vui lòng thử copy lại.' });
+      }
+      return written;
+    } catch (error) {
+      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể copy giờ hẹn.' });
+      return 0;
+    }
+  }, [detail, toast]);
 
   const updateParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
@@ -322,7 +347,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} />
+          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} />
         </>}
       </section>
     </div>

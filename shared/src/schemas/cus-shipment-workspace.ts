@@ -690,6 +690,22 @@ export const shipmentCusContainerRemoveResultSchema = z.object({
   shipmentVersion: z.number().int().positive(),
 }).strict();
 
+/** Bulk appointment copy. Writes the source line's customerAppointmentAt
+ *  onto every container line of the lot still without one, in ONE call — a
+ *  set-level write, so the lot version moves once and a half-copied lot
+ *  cannot exist. A line that already carries an appointment is never
+ *  touched (the CUS ledger's "never overwriting a set one" contract). */
+export const shipmentCusContainerAppointmentCopySchema = z.object({
+  expectedShipmentVersion: z.number().int().positive(),
+}).strict();
+
+export const shipmentCusContainerAppointmentCopyResultSchema = z.object({
+  /** Exactly the lines the call wrote — never the source line, never a line
+   *  that already had an appointment. */
+  updatedContainerIds: z.array(z.number().int().positive()),
+  shipmentVersion: z.number().int().positive(),
+}).strict();
+
 const nonNegativeMoneyStringSchema = z.string().regex(/^(0|[1-9]\d*)$/);
 
 export const shipmentRecoveryRecordSchema = z.object({
@@ -843,5 +859,7 @@ export type ShipmentCusContainerAddResult = z.infer<typeof shipmentCusContainerA
 export type ShipmentCusContainerRemoveInput = z.infer<typeof shipmentCusContainerRemoveSchema>;
 export type ShipmentCusContainerRemoveResult = z.infer<typeof shipmentCusContainerRemoveResultSchema>;
 export type ShipmentCusContainerLineUpdateResult = z.infer<typeof shipmentCusContainerLineUpdateResultSchema>;
+export type ShipmentCusContainerAppointmentCopyInput = z.infer<typeof shipmentCusContainerAppointmentCopySchema>;
+export type ShipmentCusContainerAppointmentCopyResult = z.infer<typeof shipmentCusContainerAppointmentCopyResultSchema>;
 export type ShipmentRecoveryRecordInput = z.infer<typeof shipmentRecoveryRecordSchema>;
 export type ShipmentRecoveryRecordResult = z.infer<typeof shipmentRecoveryRecordResultSchema>;

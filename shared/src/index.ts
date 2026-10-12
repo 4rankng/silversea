@@ -211,6 +211,8 @@ export {
   shipmentCusContainerAddResultSchema,
   shipmentCusContainerRemoveSchema,
   shipmentCusContainerRemoveResultSchema,
+  shipmentCusContainerAppointmentCopySchema,
+  shipmentCusContainerAppointmentCopyResultSchema,
   shipmentRecoveryRecordSchema,
   shipmentRecoveryRecordResultSchema,
 } from './schemas/cus-shipment-workspace';
@@ -251,6 +253,8 @@ export type {
   ShipmentCusReopenRequestInput,
   ShipmentCusContainerLineUpdateInput,
   ShipmentCusContainerLineUpdateResult,
+  ShipmentCusContainerAppointmentCopyInput,
+  ShipmentCusContainerAppointmentCopyResult,
   ShipmentCusContainerAddInput,
   ShipmentCusContainerAddResult,
   ShipmentCusContainerRemoveInput,

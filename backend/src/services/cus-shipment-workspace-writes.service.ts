@@ -20,6 +20,8 @@ import {
   type ShipmentCusContainerAddResult,
   type ShipmentCusContainerRemoveInput,
   type ShipmentCusContainerRemoveResult,
+  type ShipmentCusContainerAppointmentCopyInput,
+  type ShipmentCusContainerAppointmentCopyResult,
 } from '@tingting/shared';
 import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 
@@ -1008,6 +1010,87 @@ export async function removeCusShipmentContainer(args: {
     await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
 
     return { removedId: args.containerId, shipmentVersion };
+  };
+  return runInTx(args.transaction, execute);
+}
+
+
+// ─── Bulk appointment copy ────────────────────────────────────────────────
+//
+// A lot whose containers deliver together forced one popover per container.
+// The CUS ledger answers that with a DRAFT copy the user reviews before
+// saving; the Chi Tiết ledger edits one row at a time, so its copy has to be
+// a write. One call keeps the lot's two invariants intact: a version that
+// moves ONCE (not once per row), and a lot that is either copied or not —
+// never half-copied.
+
+/** Copy `customerAppointmentAt` from `containerId` onto every container line
+ *  of the lot still without one. Lines that already carry an appointment are
+ *  never touched — the "never overwriting a set one" contract the CUS ledger
+ *  already holds. Returns exactly the lines written. */
+export async function copyCusShipmentContainerAppointment(args: {
+  shipmentId: number;
+  containerId: number;
+  input: ShipmentCusContainerAppointmentCopyInput;
+  actor: AuthUser;
+  transaction?: Tx;
+}): Promise<ShipmentCusContainerAppointmentCopyResult> {
+  requireWorkspaceWriter(args.actor);
+  const execute = async (tx: Tx) => {
+    // Role gate → accounting lock → terminal status → optimistic version,
+    // the same guard block every container-set write passes.
+    await lockShipmentForContainerSetWrite(tx, args.shipmentId, args.input.expectedShipmentVersion);
+
+    const [source] = await tx.select({
+      id: s.shipmentContainers.id,
+      appointment: s.shipmentContainers.customerAppointmentAt,
+    })
+      .from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.id, args.containerId),
+        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+      ))
+      .limit(1)
+      .for('update');
+    if (!source) throw new ApiError(404, 'Không tìm thấy container của lô hàng.');
+    if (source.appointment == null) {
+      throw new ApiError(400, 'Container nguồn chưa có lịch hẹn để copy sang các container khác.');
+    }
+
+    const targetIds = await tx.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+        ne(s.shipmentContainers.id, args.containerId),
+        isNull(s.shipmentContainers.customerAppointmentAt),
+      ))
+      .for('update');
+    if (targetIds.length === 0) {
+      throw new ApiError(409, 'Mọi container trong lô đã có lịch hẹn.');
+    }
+
+    const now = new Date();
+    // ONE statement, same predicate the target read used: a row that gains an
+    // appointment between the read and the write drops out of the set instead
+    // of being overwritten.
+    await tx.update(s.shipmentContainers).set({
+      customerAppointmentAt: source.appointment,
+      updatedAt: now,
+    }).where(and(
+      eq(s.shipmentContainers.shipmentId, args.shipmentId),
+      ne(s.shipmentContainers.id, args.containerId),
+      isNull(s.shipmentContainers.customerAppointmentAt),
+    ));
+
+    // Re-derives expectedDeliveryDate from every appointment and moves the lot
+    // version once; may flip PENDING_DATE → READY_FOR_DISPATCH when the copy
+    // just dated the last FCL row.
+    const shipmentVersion = await projectShipmentScheduleAndVersion(tx, args.shipmentId, args.actor.userId);
+    // An appointment change re-anchors Ngày vận chuyển — same re-lock the
+    // single-line schedule save performs.
+    await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
+
+    return { updatedContainerIds: targetIds.map((row) => row.id), shipmentVersion };
   };
   return runInTx(args.transaction, execute);
 }

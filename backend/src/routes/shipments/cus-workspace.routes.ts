@@ -15,6 +15,7 @@ import {
   shipmentCusContainerLineUpdateSchema,
   shipmentCusContainerAddSchema,
   shipmentCusContainerRemoveSchema,
+  shipmentCusContainerAppointmentCopySchema,
   shipmentCusFinanceConfirmationCreateSchema,
   shipmentCusDocumentCustodyUpdateSchema,
   shipmentCusLockSchema,
@@ -27,6 +28,7 @@ import {
   updateCusShipmentContainerLine,
   addCusShipmentContainer,
   removeCusShipmentContainer,
+  copyCusShipmentContainerAppointment,
 } from '../../services/cus-shipment-workspace.service';
 import {
   activateShipmentAccountingLock,
@@ -139,6 +141,42 @@ cusWorkspaceRoutes.post(
         return {
           body: outcome,
           status: 201,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+cusWorkspaceRoutes.post(
+  '/cus-workspace/:id/containers/:containerId/copy-appointment', declareMaterialWrite('shipments.cus.container-line.copy-appointment', { method: 'POST', path: '/api/shipments/cus-workspace/:id/containers/:containerId/copy-appointment' }),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const containerId = Number.parseInt(req.params.containerId as string, 10);
+    if (!Number.isInteger(containerId) || containerId <= 0) {
+      throw new ApiError(400, 'ID container không hợp lệ');
+    }
+    const parsed = shipmentCusContainerAppointmentCopySchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_APPOINTMENT_COPY,
+      { shipmentId, containerId, data: parsed.data },
+      async (tx) => {
+        const outcome = await copyCusShipmentContainerAppointment({
+          shipmentId,
+          containerId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: 200,
           auditEntityId: shipmentId,
           auditEntityKey: `shipment-${shipmentId}`,
         };
