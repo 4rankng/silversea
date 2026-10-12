@@ -565,6 +565,7 @@ export default function ShipmentDetailPage() {
           <label className="cus-action-reason" style={{ display: 'grid', gap: 6 }}>
             <span>Số tờ khai</span>
             <input
+              className="input"
               value={declNumberDraft}
               onChange={(e) => setDeclNumberDraft(e.target.value)}
               maxLength={50}
@@ -572,7 +573,7 @@ export default function ShipmentDetailPage() {
               disabled={declSaving}
               autoFocus
             />
-            <small style={{ color: 'var(--fg-3)' }}>Số tờ khai chỉ định cho lô này; số đã thuộc lô khác sẽ bị từ chối.</small>
+            <small style={{ color: 'var(--fg-3)', textAlign: 'left' }}>Số tờ khai chỉ định cho lô này; số đã thuộc lô khác sẽ bị từ chối.</small>
           </label>
           {declError && (
             <p className="shipment-detail__empty" role="alert" style={{ color: 'var(--danger, #dc2626)' }}>

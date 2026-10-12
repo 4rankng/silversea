@@ -643,6 +643,7 @@ describe('ShipmentDetailPage', () => {
       expect(confirmBtn).toBeDisabled();
 
       const numberInput = screen.getByPlaceholderText('Nhập số tờ khai...');
+      expect(numberInput.className).toContain('input');
       fireEvent.change(numberInput, { target: { value: ' TK-0721 ' } });
       expect(confirmBtn).not.toBeDisabled();
 
