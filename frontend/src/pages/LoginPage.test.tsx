@@ -80,3 +80,33 @@ describe('login recovery', () => {
     expect(form).toHaveAttribute('aria-busy', 'false');
   });
 });
+
+// Card 121026084543 (QA1-003): submit used to return silently when its state
+// was still empty, so a click produced no request and no error at all. Browser
+// autofill writes the value into the DOM without firing onChange, which is how
+// an operator ends up staring at a filled form that "does nothing".
+describe('login submit never no-ops (QA1-003)', () => {
+  beforeEach(() => { login.mockReset(); });
+
+  it('shows a visible error instead of silently doing nothing', () => {
+    render(<LoginPage />);
+    fireEvent.submit(screen.getByRole('button', { name: 'Đăng nhập' }).closest('form')!);
+    expect(login).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toMatch(/nhập/i);
+  });
+
+  it('logs in with the values the browser put in the DOM, not the empty state', async () => {
+    render(<LoginPage />);
+    // Autofill: DOM value set directly, no onChange → component state stays ''.
+    const username = screen.getByLabelText('Tên đăng nhập hoặc số điện thoại') as HTMLInputElement;
+    const password = screen.getByLabelText('Mật khẩu') as HTMLInputElement;
+    username.value = 'admin';
+    password.value = 'Abc123';
+
+    await act(async () => { login.mockResolvedValue(undefined); });
+    fireEvent.submit(screen.getByRole('button', { name: 'Đăng nhập' }).closest('form')!);
+
+    expect(login).toHaveBeenCalledWith('admin', 'Abc123');
+  });
+});

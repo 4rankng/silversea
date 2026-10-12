@@ -20,12 +20,27 @@ export default function LoginPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password || busy.current) return;
+    if (busy.current) return;
+    // Card QA1-003: trust the DOM, not only our own state. Browser autofill
+    // (and some IMEs) write into the inputs WITHOUT firing onChange, so
+    // `username`/`password` can still be '' while the operator sees a filled
+    // form — the old code then returned silently: no request, no error, and a
+    // button that looked simply dead. Prefer the live input value whenever it
+    // has something the state does not.
+    const liveUsername = (document.getElementById('username-input') as HTMLInputElement | null)?.value ?? '';
+    const livePassword = (document.getElementById('password-input') as HTMLInputElement | null)?.value ?? '';
+    const finalUsername = (username || liveUsername).trim();
+    const finalPassword = password || livePassword;
+    if (!finalUsername || !finalPassword) {
+      setCredentialError(true);
+      setError('Vui lòng nhập tên đăng nhập và mật khẩu.');
+      return;
+    }
     busy.current = true;
     setSubmitting(true);
     clearError();
     try {
-      await login(username.trim(), password);
+      await login(finalUsername, finalPassword);
     } catch (cause) {
       const credentialsRejected = cause instanceof ApiError && cause.status === 401;
       setCredentialError(credentialsRejected);
