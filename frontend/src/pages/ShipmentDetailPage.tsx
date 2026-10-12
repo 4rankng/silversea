@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, FileText, FileCheck2, Container, History, Loader2, Trash2,
+  ArrowLeft, FileText, FileCheck2, Container, History, Loader2, Trash2, X,
 } from 'lucide-react';
 import { ApiError } from '../lib/api';
 import { PageHeader, Modal } from '../components/UI';
@@ -18,7 +18,10 @@ import { useAuth } from '../hooks/useAuth';
 import {
   getShipmentDetail as getShipmentDetailRequest,
   deleteCusShipment,
+  createShipmentDeclaration,
+  deleteShipmentDeclaration,
   type ShipmentDetail as ShipmentDetailData,
+  type ShipmentDeclaration,
 } from '../api/shipmentClient';
 import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
 import { DebitNoteFreightOverride } from '../components/billing/DebitNoteFreightOverride';
@@ -143,6 +146,58 @@ export default function ShipmentDetailPage() {
   }, [shipmentId]);
 
   useEffect(() => { void fetchDetail(); }, [fetchDetail]);
+
+  // FB-005 (round 16): the detail page's tờ khai section was read-only only.
+  // The declaration CRUD already serving the CUS quick-edit (POST/DELETE
+  // /shipments/:id/declarations…) now also backs an add + per-row remove here.
+  // The gate mirrors the workspace fieldAccess model for declarationNumber:
+  // CUS/ADMIN/MANAGER may write; an active accounting lock closes the section.
+  const canManageDeclarations = user?.role === Role.ADMIN
+    || user?.role === Role.MANAGER
+    || user?.role === Role.CUS;
+  const [declAddOpen, setDeclAddOpen] = useState(false);
+  const [declNumberDraft, setDeclNumberDraft] = useState('');
+  const [declDeleteTarget, setDeclDeleteTarget] = useState<ShipmentDeclaration | null>(null);
+  const [declSaving, setDeclSaving] = useState(false);
+  const [declError, setDeclError] = useState<string | null>(null);
+
+  const openDeclAdd = useCallback(() => {
+    setDeclNumberDraft('');
+    setDeclError(null);
+    setDeclAddOpen(true);
+  }, []);
+
+  const handleConfirmDeclAdd = useCallback(async () => {
+    if (!data || declSaving) return;
+    const declarationNumber = declNumberDraft.trim();
+    if (!declarationNumber) return;
+    setDeclSaving(true);
+    setDeclError(null);
+    try {
+      await createShipmentDeclaration(data.shipment.id, { declarationNumber });
+      setDeclAddOpen(false);
+      await fetchDetail();
+    } catch (err) {
+      setDeclError(err instanceof ApiError ? err.message : 'Không thêm được tờ khai. Vui lòng thử lại.');
+    } finally {
+      setDeclSaving(false);
+    }
+  }, [data, declNumberDraft, declSaving, fetchDetail]);
+
+  const handleConfirmDeclDelete = useCallback(async () => {
+    if (!data || !declDeleteTarget || declSaving) return;
+    setDeclSaving(true);
+    setDeclError(null);
+    try {
+      await deleteShipmentDeclaration(data.shipment.id, declDeleteTarget.id);
+      setDeclDeleteTarget(null);
+      await fetchDetail();
+    } catch (err) {
+      setDeclError(err instanceof ApiError ? err.message : 'Không xóa được tờ khai. Vui lòng thử lại.');
+    } finally {
+      setDeclSaving(false);
+    }
+  }, [data, declDeleteTarget, declSaving, fetchDetail]);
 
   if (loading) {
     return (
@@ -334,20 +389,47 @@ export default function ShipmentDetailPage() {
 
         {/* Declarations */}
         <section className="shipment-detail__card">
-          <h3 className="shipment-detail__section-title">
-            <FileCheck2 size={16} /> Tờ khai hải quan ({declarations.length})
-          </h3>
+          <div className="shipment-detail__section-head">
+            <h3 className="shipment-detail__section-title">
+              <FileCheck2 size={16} /> Tờ khai hải quan ({declarations.length})
+            </h3>
+            {canManageDeclarations && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm shipment-detail__decl-add"
+                onClick={openDeclAdd}
+                disabled={Boolean(accountingLock) || declSaving}
+                title={accountingLock ? 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.' : undefined}
+              >
+                + Thêm tờ khai
+              </button>
+            )}
+          </div>
           {declarations.length === 0 ? (
             <EmptyState variant="compact" context="documents" title="Chưa có tờ khai nào." />
           ) : (
             <ul className="shipment-detail__decls">
               {declarations.map((d) => (
                 <li key={d.id} className="shipment-detail__decl">
-                  <div><strong>{d.declarationNumber?.trim() || 'Chưa có số tờ khai'}</strong></div>
-                  <div className="shipment-detail__decl-meta">
-                    Loại: {d.scope === 'SHARED' ? 'Chung' : 'Riêng'} · Ngày phát hành: {formatDate(d.issuedAt)}
+                  <div className="shipment-detail__decl-body">
+                    <div><strong>{d.declarationNumber?.trim() || 'Chưa có số tờ khai'}</strong></div>
+                    <div className="shipment-detail__decl-meta">
+                      Loại: {d.scope === 'SHARED' ? 'Chung' : 'Riêng'} · Ngày phát hành: {formatDate(d.issuedAt)}
+                    </div>
+                    {d.note && <div className="shipment-detail__decl-note">{d.note}</div>}
                   </div>
-                  {d.note && <div className="shipment-detail__decl-note">{d.note}</div>}
+                  {canManageDeclarations && (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm shipment-detail__decl-remove"
+                      onClick={() => { setDeclError(null); setDeclDeleteTarget(d); }}
+                      disabled={Boolean(accountingLock) || declSaving}
+                      title={accountingLock ? 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.' : undefined}
+                      aria-label={`Xóa tờ khai ${d.declarationNumber?.trim() || 'trống'}`}
+                    >
+                      <X size={14} aria-hidden="true" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -449,6 +531,91 @@ export default function ShipmentDetailPage() {
           )}
         >
           <p>{deleteBlockedMessage}</p>
+        </Modal>
+      )}
+
+      {declAddOpen && (
+        <Modal
+          isOpen={declAddOpen}
+          title="Thêm tờ khai"
+          onClose={() => { if (!declSaving) setDeclAddOpen(false); }}
+          onConfirm={() => void handleConfirmDeclAdd()}
+          footer={(
+            <>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setDeclAddOpen(false)}
+                disabled={declSaving}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => void handleConfirmDeclAdd()}
+                disabled={declSaving || !declNumberDraft.trim()}
+              >
+                {declSaving ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
+                Thêm tờ khai
+              </button>
+            </>
+          )}
+        >
+          <label className="cus-action-reason" style={{ display: 'grid', gap: 6 }}>
+            <span>Số tờ khai</span>
+            <input
+              value={declNumberDraft}
+              onChange={(e) => setDeclNumberDraft(e.target.value)}
+              maxLength={50}
+              placeholder="Nhập số tờ khai..."
+              disabled={declSaving}
+              autoFocus
+            />
+            <small style={{ color: 'var(--fg-3)' }}>Số tờ khai chỉ định cho lô này; số đã thuộc lô khác sẽ bị từ chối.</small>
+          </label>
+          {declError && (
+            <p className="shipment-detail__empty" role="alert" style={{ color: 'var(--danger, #dc2626)' }}>
+              {declError}
+            </p>
+          )}
+        </Modal>
+      )}
+
+      {declDeleteTarget && (
+        <Modal
+          isOpen={Boolean(declDeleteTarget)}
+          title="Xóa tờ khai"
+          onClose={() => { if (!declSaving) setDeclDeleteTarget(null); }}
+          onConfirm={() => void handleConfirmDeclDelete()}
+          footer={(
+            <>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setDeclDeleteTarget(null)}
+                disabled={declSaving}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={() => void handleConfirmDeclDelete()}
+                disabled={declSaving}
+              >
+                {declSaving ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
+                Xác nhận xóa
+              </button>
+            </>
+          )}
+        >
+          <p>Xóa tờ khai {declDeleteTarget.declarationNumber?.trim() || 'trống'} khỏi lô hàng. Thao tác không thể hoàn tác.</p>
+          {declError && (
+            <p className="shipment-detail__empty" role="alert" style={{ color: 'var(--danger, #dc2626)' }}>
+              {declError}
+            </p>
+          )}
         </Modal>
       )}
     </div>

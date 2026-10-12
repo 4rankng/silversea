@@ -113,6 +113,22 @@
   margin: 0 0 12px 0;
 }
 
+/* FB-005: section header with a trailing affordance — the title keeps its
+   baseline margin when the head row is absent, and the row wraps (never
+   clips) under 390px. */
+.shipment-detail__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 12px 0;
+}
+
+.shipment-detail__section-head .shipment-detail__section-title {
+  margin: 0;
+}
+
 .shipment-detail__empty {
   color: var(--fg-3);
   font-size: var(--text-data-size);
@@ -210,8 +226,22 @@
   border-radius: var(--r-sm);
   font-size: var(--text-data-size);
   display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.shipment-detail__decl-body {
+  display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.shipment-detail__decl-remove {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .shipment-detail__decl-meta {

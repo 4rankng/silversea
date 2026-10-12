@@ -5,10 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Role, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentDetail as ShipmentDetailData } from '../api/shipmentClient';
 
-const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, currentUser } = vi.hoisted(() => ({
+const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, createDeclarationMock, deleteDeclarationMock, currentUser } = vi.hoisted(() => ({
   getShipmentDetailMock: vi.fn(),
   listShipmentEventsMock: vi.fn(),
   deleteCusShipmentMock: vi.fn(),
+  createDeclarationMock: vi.fn(),
+  deleteDeclarationMock: vi.fn(),
   currentUser: {
     userId: 11,
     role: 'ADMIN',
@@ -19,6 +21,8 @@ const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, cu
 vi.mock('../api/shipmentClient', () => ({
   getShipmentDetail: getShipmentDetailMock,
   deleteCusShipment: deleteCusShipmentMock,
+  createShipmentDeclaration: createDeclarationMock,
+  deleteShipmentDeclaration: deleteDeclarationMock,
 }));
 
 vi.mock('../api/customerServiceFinanceClient', () => ({
@@ -514,6 +518,165 @@ describe('ShipmentDetailPage', () => {
       fireEvent.click(confirmBtn);
       await waitFor(() => {
         expect(deleteCusShipmentMock).toHaveBeenCalledWith(1, 7, 'Lô tạo nhầm trong đợt kiểm thử FB-031');
+      });
+    });
+  });
+
+  // FB-005 (round 16): the 'Tờ khai hải quan' section on the detail page was
+  // read-only only — authorized roles had no '+ Thêm tờ khai' button and no
+  // per-row delete, while declaration CRUD already serves the CUS quick-edit.
+  // The affordances mirror the workspace fieldAccess model for
+  // declarationNumber: CUS/ADMIN/MANAGER may write, a locked lot disables.
+  describe('Tờ khai hải quan affordances (FB-005)', () => {
+    const unlocked = { ...detail, accountingLock: null };
+    const declarationRow: ShipmentDetailData['declarations'][number] = {
+      id: 9,
+      shipmentId: 1,
+      declarationNumber: 'TK-0055',
+      issuedAt: '2026-08-10T00:00:00.000Z',
+      scope: 'SINGLE',
+      note: null,
+      createdBy: 11,
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+    };
+
+    beforeEach(() => {
+      createDeclarationMock.mockReset();
+      deleteDeclarationMock.mockReset();
+    });
+
+    it('renders the add affordance for ADMIN and CUS on an unlocked lot, empty or not', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue(unlocked);
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      expect(await screen.findByText('Chưa có tờ khai nào.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: '+ Thêm tờ khai' })).toBeTruthy();
+
+      currentUser.role = Role.CUS;
+      getShipmentDetailMock.mockResolvedValue({ ...unlocked, declarations: [declarationRow] });
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/2']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      expect(await screen.findByRole('button', { name: '+ Thêm tờ khai' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Xóa tờ khai TK-0055' })).toBeTruthy();
+    });
+
+    it('hides both affordances from roles the declaration routes refuse (ACCOUNTANT, DISPATCHER)', async () => {
+      currentUser.role = Role.ACCOUNTANT;
+      getShipmentDetailMock.mockResolvedValue({ ...unlocked, declarations: [declarationRow] });
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      await screen.findByText('TK-0055');
+      expect(screen.queryByRole('button', { name: '+ Thêm tờ khai' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Xóa tờ khai TK-0055' })).toBeNull();
+
+      currentUser.role = Role.DISPATCHER;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      await screen.findByText('TK-0055');
+      expect(screen.queryByRole('button', { name: '+ Thêm tờ khai' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Xóa tờ khai TK-0055' })).toBeNull();
+    });
+
+    it('disables both affordances while the accounting lock is active', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, declarations: [declarationRow] });
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      expect(await screen.findByText('TK-0055')).toBeTruthy();
+      expect(screen.getByRole('button', { name: '+ Thêm tờ khai' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Xóa tờ khai TK-0055' })).toBeDisabled();
+    });
+
+    it('add flow requires a number, then creates the declaration and refetches', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue(unlocked);
+      createDeclarationMock.mockResolvedValue({ ...declarationRow, declarationNumber: 'TK-0721' });
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: '+ Thêm tờ khai' }));
+
+      const confirmBtn = await screen.findByRole('button', { name: 'Thêm tờ khai' });
+      expect(confirmBtn).toBeDisabled();
+
+      const numberInput = screen.getByPlaceholderText('Nhập số tờ khai...');
+      fireEvent.change(numberInput, { target: { value: ' TK-0721 ' } });
+      expect(confirmBtn).not.toBeDisabled();
+
+      fireEvent.click(confirmBtn);
+      await waitFor(() => {
+        expect(createDeclarationMock).toHaveBeenCalledWith(1, { declarationNumber: 'TK-0721' });
+      });
+      await waitFor(() => {
+        expect(getShipmentDetailMock).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('delete flow confirms, then removes the declaration row and refetches', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({ ...unlocked, declarations: [declarationRow] });
+      deleteDeclarationMock.mockResolvedValue(undefined);
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Xóa tờ khai TK-0055' }));
+
+      expect(await screen.findByText(/Xóa tờ khai TK-0055 khỏi lô hàng/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Xác nhận xóa' }));
+      await waitFor(() => {
+        expect(deleteDeclarationMock).toHaveBeenCalledWith(1, 9);
+      });
+      await waitFor(() => {
+        expect(getShipmentDetailMock).toHaveBeenCalledTimes(2);
       });
     });
   });
