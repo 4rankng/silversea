@@ -31,6 +31,7 @@ import {
 import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
+import { requiredCompletion } from './ShipmentCreateTopline.progress';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
@@ -527,6 +528,13 @@ export function ShipmentCreateWorkspace() {
     form.tradeDirection, form.blNumber, form.bookingRef,
   ]);
 
+  // QA1-007: one denominator for the chip and the "Cần bổ sung" panel — the
+  // identity fields already done, plus everything the validator still blocks.
+  const completion = useMemo(
+    () => requiredCompletion(requiredDone, validationIssues.length),
+    [requiredDone, validationIssues.length],
+  );
+
   if (loading) return <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-3)' }}>Đang tải…</div>;
   if (loadError) return <div role="alert" style={{ padding: 24, color: 'var(--danger)' }}>{loadError}</div>;
   if (!catalogs?.customers.length) return <EmptyState context="clients" title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
@@ -535,8 +543,8 @@ export function ShipmentCreateWorkspace() {
     <div className="csc-page">
       <ShipmentCreateTopline
         saving={saving}
-        requiredDone={requiredDone}
-        requiredTotal={3}
+        requiredDone={completion.done}
+        requiredTotal={completion.total}
         onCancel={goBack}
         onSaveDraft={() => void save('DRAFT')}
         onCreate={() => void save('CREATE')}
