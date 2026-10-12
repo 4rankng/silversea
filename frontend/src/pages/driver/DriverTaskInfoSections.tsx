@@ -8,7 +8,7 @@ import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-m
 import type { DriverTaskDetail } from '../../api/driverClient';
 import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
 import { TelLink, telHref } from '../../components/TelLink';
-import { driverLocationLabels } from '../../features/driver/driver-display';
+import { driverDeliveryDestination, driverLocationLabels } from '../../features/driver/driver-display';
 
 /**
  * 2a618442 (structure-guard split): the THÔNG TIN LỆNH fact grid + the
@@ -122,11 +122,19 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   const locations = driverLocationLabels(trip.tradeDirection, rawDropPoint === '—' ? null : rawDropPoint, fulfillment?.returnDepotName);
   const cangHa = locations.drop ?? (trip.tradeDirection === 'IMPORT' ? 'Chưa có cảng hạ' : '—');
 
-  // For IMPORT: always show the delivery address when it exists, even when
-  // it matches the return depot (the driver needs to see where to deliver).
-  // For EXPORT: show the empty-container return depot when it differs from
-  // the drop point (existing behaviour).
-  const showDeliveryLocationRow = Boolean(locations.delivery);
+  // Card 121026141020 (FB-082 retest): the delivery row names the DESTINATION
+  // — the factory the goods are handed over to — never the discharge yard
+  // echoing "Cảng hạ". IMPORT delivers to the factory; EXPORT's destination
+  // is the port itself, which "Cảng hạ" already names, so the row is IMPORT
+  // only and hides when no destination data exists.
+  const deliveryAddress = trip.tradeDirection === 'IMPORT'
+    ? driverDeliveryDestination({
+      fullName: fulfillment?.factoryFullName,
+      name: fulfillment?.factoryName,
+      address: fulfillment?.factoryAddress,
+    })
+    : null;
+  const showDeliveryLocationRow = Boolean(deliveryAddress);
   const showReturnDepotRow = Boolean(locations.returnDepot);
 
   // Card 20260926_27 item 7: khoPhone and contactPhone are independent
@@ -197,7 +205,7 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
               the return depot. For EXPORT: empty-container return depot
               when it differs from the drop point. */}
           {showDeliveryLocationRow ? (
-            <TaskFact icon={<Pin02 size={16} />} label="Địa chỉ giao hàng" value={locations.delivery} />
+            <TaskFact icon={<Pin02 size={16} />} label="Địa chỉ giao hàng" value={deliveryAddress} />
           ) : null}
           {showReturnDepotRow ? (
             <TaskFact icon={<RefreshCcw02 size={16} />} label="Trả cont rỗng" value={locations.returnDepot} />

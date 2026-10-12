@@ -116,6 +116,35 @@ describe('DriverTaskInfoSections', () => {
     ]);
   });
 
+  it('FB-082: IMPORT Địa chỉ giao hàng names the factory destination, not the discharge yard', () => {
+    // Round-16 repro shape (trip EGLV260904500013/NEWEB-1): the dropoff port
+    // (Bãi JJ LOGISTICS) is the Hạ point, and the delivery row must name the
+    // factory the goods are delivered to — full name + street — never the
+    // same yard twice.
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'IMPORT',
+      fulfillment: {
+        factoryFullName: 'CÔNG TY TNHH NEWEB VIỆT NAM',
+        factoryAddress: 'Lô đất CN01, KCN Đồng Văn III, Phường Đồng Văn, Tỉnh Ninh Bình',
+        dropPortName: 'Bãi JJ LOGISTICS',
+        returnDepotName: null,
+      },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Bãi JJ LOGISTICS');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('CÔNG TY TNHH NEWEB VIỆT NAM, Lô đất CN01, KCN Đồng Văn III, Phường Đồng Văn, Tỉnh Ninh Bình');
+  });
+
+  it('FB-082: IMPORT hides the delivery row when the trip has no factory destination data', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'IMPORT',
+      fulfillment: { factoryFullName: undefined, factoryName: null, factoryAddress: null, dropPortName: 'Bãi JJ LOGISTICS' },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Bãi JJ LOGISTICS');
+    expect(labels()).not.toContain('Địa chỉ giao hàng');
+  });
+
   it('renders the factory block: canonical full name and site address (no abbrev row)', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
@@ -488,14 +517,18 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Trả cont rỗng')).toBe('Bãi JJ LOGISTICS');
   });
 
-  it('KP-063: IMPORT direction swaps Cảng hạ to return depot and shows actual delivery separately', () => {
+  it('KP-063: IMPORT direction swaps Cảng hạ to return depot; the delivery row names the factory destination', () => {
+    // Card 121026141020 (FB-082 retest): the delivery row no longer echoes
+    // the drop chain ('Nhà máy Samsung' as a drop value was the pre-ruling
+    // data shape) — it names the delivery DESTINATION from the factory
+    // fields, distinct from the depot that leads Hạ.
     render(<DriverTaskInfoSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS', dropPortName: 'Nhà máy Samsung' },
     })} />);
 
     expect(valueOf('Cảng hạ')).toBe('Bãi JJ LOGISTICS');
-    expect(valueOf('Địa chỉ giao hàng')).toBe('Nhà máy Samsung');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Công ty TNHH Askey Việt Nam, KCN Việt Nam – Singapore, Thuận An, Bình Dương');
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
@@ -506,19 +539,23 @@ describe('DriverTaskInfoSections', () => {
     })} />);
 
     expect(valueOf('Cảng hạ')).toBe('Bãi ICD Mỹ Đình');
-    expect(valueOf('Địa chỉ giao hàng')).toBe('Bãi ICD Mỹ Đình');
+    // FB-082 retest: the delivery row is destination-owned — the factory
+    // block, never the same yard the Hạ row just named.
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Công ty TNHH Askey Việt Nam, KCN Việt Nam – Singapore, Thuận An, Bình Dương');
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
-  it('P1_5: IMPORT with return depot equal to drop port still shows delivery row', () => {
+  it('P1_5: IMPORT with return depot equal to drop port still shows the delivery row — naming the destination', () => {
     render(<DriverTaskInfoSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { returnDepotName: 'Sóng Thần', dropPortName: 'Sóng Thần' },
     })} />);
 
     expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
-    // P1_5 regression fix: always show delivery address for IMPORT when data exists
-    expect(valueOf('Địa chỉ giao hàng')).toBe('Sóng Thần');
+    // P1_5 stays true in spirit — the delivery row shows whenever IMPORT
+    // destination data exists — but it names the FACTORY (FB-082 retest),
+    // never the same drop point as Cảng hạ.
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Công ty TNHH Askey Việt Nam, KCN Việt Nam – Singapore, Thuận An, Bình Dương');
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 

@@ -105,7 +105,10 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
   const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber) || isPresent(card.containerTypeName);
   const locations = driverLocationLabels(card.tradeDirection, card.dropPortName, card.returnDepotName);
-  const hasPorts = isPresent(card.loadingPortName) || isPresent(locations.drop) || isPresent(locations.delivery) || isPresent(locations.returnDepot) || card.tradeDirection === 'IMPORT';
+  /* Card 121026141020 (FB-082 retest): no "Giao hàng" chip here. The delivery
+     destination is the factory, and the card's headline row already names it;
+     a chip fed from the drop chain could only repeat the Hạ chip beside it. */
+  const hasPorts = isPresent(card.loadingPortName) || isPresent(locations.drop) || isPresent(locations.returnDepot) || card.tradeDirection === 'IMPORT';
   const tradeLabel = tradeDirectionLabel(card);
   // Bill/booking is the driver-facing document identity (CHIEF 26/09). When no
   // document was captured the chip says so: the internal SHP-YYMM-NNNNN
@@ -202,11 +205,6 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
               {isPresent(locations.drop) || card.tradeDirection === 'IMPORT' ? (
                 <span className="driver-journey-card__port">
                   <span className="driver-journey-card__port-label">Hạ</span> {locations.drop ?? 'Chưa có nơi hạ'}
-                </span>
-              ) : null}
-              {isPresent(locations.delivery) ? (
-                <span className="driver-journey-card__port">
-                  <span className="driver-journey-card__port-label">Giao hàng</span> {locations.delivery}
                 </span>
               ) : null}
               {isPresent(locations.returnDepot) ? (

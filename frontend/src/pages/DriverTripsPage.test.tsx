@@ -209,20 +209,22 @@ describe('DriverTripsPage', () => {
   });
 
   it.each([
-    ['Bãi trả rỗng', 'Nhà máy nhận hàng', 'Bãi trả rỗng', true],
-    ['Cùng một cảng', 'Cùng một cảng', 'Cùng một cảng', true],
+    ['Bãi trả rỗng', 'Nhà máy nhận hàng', 'Bãi trả rỗng'],
+    ['Cùng một cảng', 'Cùng một cảng', 'Cùng một cảng'],
     // Card 091026190530 (FB-082): no distinct depot → the drop point IS the
     // Hạ value (the old "Chưa có nơi trả rỗng" pin superseded by the
     // 2026-09-18 delivery-stage ruling — the return-depot stage is dead).
-    [null, 'Nhà máy nhận hàng', 'Nhà máy nhận hàng', true],
-  ])('IMPORT Hạ resolves to %s without a duplicate return row (card 091026190530)', (depot, delivery, expected, showDelivery) => {
+    [null, 'Nhà máy nhận hàng', 'Nhà máy nhận hàng'],
+  ])('IMPORT Hạ resolves to %s without a duplicate return row (card 091026190530)', (depot, delivery, expected) => {
     useDriverJourneyBoardMock.mockReturnValue(board([card({ tradeDirection: 'IMPORT', returnDepotName: depot, dropPortName: delivery })]));
     renderPage();
     const drop = screen.getByText('Hạ').parentElement!;
     expect(drop.textContent).toBe(`Hạ ${expected}`);
     expect(screen.queryByText('Trả rỗng')).toBeNull();
-    expect(Boolean(screen.queryByText('Giao hàng'))).toBe(showDelivery);
-    if (showDelivery) expect(screen.getByText('Giao hàng').parentElement!.textContent).toBe(`Giao hàng ${delivery}`);
+    // Card 121026141020 (FB-082 retest): the "Giao hàng" chip is gone — a
+    // drop-chain-fed chip could only repeat the Hạ chip beside it; the
+    // delivery destination is the factory, which the card headline names.
+    expect(screen.queryByText('Giao hàng')).toBeNull();
   });
 
   it('DRV-R01 keeps uppercase tasks and multiline driver notes on separate rows', () => {

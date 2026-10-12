@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { driverLocationLabels } from './driver-display';
+import { driverDeliveryDestination, driverLocationLabels } from './driver-display';
 
 // Card 091026190530 (FB-082): since the 2026-09-18 delivery-stage ruling the
 // return-depot stage is dead BE-side (returnDepotName is always null) and the
@@ -9,19 +9,20 @@ import { driverLocationLabels } from './driver-display';
 // label: that dead "Cảng hạ" row next to "Địa chỉ giao hàng: <bãi hạ>" is
 // exactly what the driver reported.
 describe('driverLocationLabels — Cảng hạ carries the drop point in every direction', () => {
-  it('IMPORT with no distinct return depot shows the drop point as drop (FB-082)', () => {
+  it('IMPORT with no distinct return depot shows the drop point as drop, and the delivery stage is destination-owned (FB-082 retest)', () => {
     const labels = driverLocationLabels('IMPORT', 'Bãi ICD Mỹ Đình', null);
 
     expect(labels.drop).toBe('Bãi ICD Mỹ Đình');
-    expect(labels.delivery).toBe('Bãi ICD Mỹ Đình');
     expect(labels.returnDepot).toBeNull();
+    // The mapper no longer emits `delivery` — the delivery row names the
+    // factory destination (driverDeliveryDestination), never the drop chain.
+    expect('delivery' in labels).toBe(false);
   });
 
   it('IMPORT keeps a distinct return depot ahead of the delivery point (KP-063 legacy data)', () => {
     const labels = driverLocationLabels('IMPORT', 'Nhà máy Samsung', 'Bãi JJ LOGISTICS');
 
     expect(labels.drop).toBe('Bãi JJ LOGISTICS');
-    expect(labels.delivery).toBe('Nhà máy Samsung');
     expect(labels.returnDepot).toBeNull();
   });
 
@@ -29,7 +30,6 @@ describe('driverLocationLabels — Cảng hạ carries the drop point in every d
     const labels = driverLocationLabels(null, 'Sóng Thần', 'Bãi JJ LOGISTICS');
 
     expect(labels.drop).toBe('Sóng Thần');
-    expect(labels.delivery).toBeNull();
     expect(labels.returnDepot).toBe('Bãi JJ LOGISTICS');
   });
 
@@ -37,7 +37,27 @@ describe('driverLocationLabels — Cảng hạ carries the drop point in every d
     const labels = driverLocationLabels('IMPORT', '   ', '');
 
     expect(labels.drop).toBeNull();
-    expect(labels.delivery).toBeNull();
     expect(labels.returnDepot).toBeNull();
+  });
+});
+
+
+// Card 121026141020 (FB-082 retest): the delivery row names the DESTINATION —
+// the factory the goods are handed over to — full name + street. Null when
+// no destination data exists so callers hide the row instead of echoing the
+// discharge yard.
+describe('driverDeliveryDestination — the delivery row is destination-owned', () => {
+  it('joins the canonical full name and the street address', () => {
+    expect(driverDeliveryDestination({
+      fullName: 'CÔNG TY TNHH NEWEB VIỆT NAM',
+      name: 'NEWEB-1',
+      address: 'Lô đất CN01, KCN Đồng Văn III, Phường Đồng Văn, Tỉnh Ninh Bình',
+    })).toBe('CÔNG TY TNHH NEWEB VIỆT NAM, Lô đất CN01, KCN Đồng Văn III, Phường Đồng Văn, Tỉnh Ninh Bình');
+  });
+
+  it('falls back name-first, then address-only, and hides (null) when nothing exists', () => {
+    expect(driverDeliveryDestination({ name: 'Nhà máy Free Text', address: null })).toBe('Nhà máy Free Text');
+    expect(driverDeliveryDestination({ name: null, address: 'KCN Đồng Văn III' })).toBe('KCN Đồng Văn III');
+    expect(driverDeliveryDestination({ fullName: null, name: '   ', address: '' })).toBeNull();
   });
 });
