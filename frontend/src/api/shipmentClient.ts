@@ -27,6 +27,8 @@ import {
   type ShipmentCusContainerRemoveResult,
   type ShipmentCusContainerAppointmentCopyInput,
   type ShipmentCusContainerAppointmentCopyResult,
+  type ShipmentCusContainerDeclarationCopyInput,
+  type ShipmentCusContainerDeclarationCopyResult,
   type ShipmentCusContainerSortKey,
   type ShipmentCusWorkspaceSortKey,
   type ShipmentAccountingLockSummary,
@@ -1136,6 +1138,22 @@ export async function copyCusShipmentContainerAppointment(
 ): Promise<ShipmentCusContainerAppointmentCopyResult> {
   return api.post<ShipmentCusContainerAppointmentCopyResult>(
     SHIPMENTS.CUS_WORKSPACE_CONTAINER_APPOINTMENT_COPY(shipmentId, containerId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+/** Card 261013200312: copy one container's tờ khai number onto every
+ *  still-empty sibling container of the lot — ONE call for the whole lot
+ *  (never overwrites a container that already carries its own number). */
+export async function copyCusShipmentContainerDeclaration(
+  shipmentId: number,
+  containerId: number,
+  body: ShipmentCusContainerDeclarationCopyInput,
+  idempotencyKey?: string,
+): Promise<ShipmentCusContainerDeclarationCopyResult> {
+  return api.post<ShipmentCusContainerDeclarationCopyResult>(
+    SHIPMENTS.CUS_WORKSPACE_CONTAINER_DECLARATION_COPY(shipmentId, containerId),
     body,
     { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
   );

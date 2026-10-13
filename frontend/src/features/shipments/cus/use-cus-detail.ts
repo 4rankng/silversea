@@ -18,6 +18,7 @@ import type {
 import {
   addCusShipmentContainerRow,
   copyCusShipmentContainerAppointment,
+  copyCusShipmentContainerDeclaration,
   getCusShipmentWorkspaceDetail,
   listCusShipmentContainers,
   removeCusShipmentContainerRow,
@@ -254,19 +255,46 @@ export function useCusDetail(params: CusDetailListParams) {
 
   const saveDocuments = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
+    const raw = activeEdit.detail.summary.raw;
+    // Two write authorities, one Save (mirrors saveSchedule): the lot-level
+    // document fields PATCH the shipment; the tờ khai number is PER-CONT
+    // (card 261013200312) and rides the container-line command on whatever
+    // version the PATCH returned. A number-only save skips the PATCH — an
+    // echo would bump the lot version for nothing.
+    const shipmentChanged = (draft.blNumber ?? '') !== (raw.blNumber ?? '')
+      || (draft.bookingRef ?? '') !== (raw.bookingRef ?? '')
+      || draft.tradeDirection !== (raw.tradeDirection ?? '')
+      || (draft.shippingLineName ?? '') !== (raw.shippingLineName ?? '');
+    const numberChanged = (draft.declarationNumber ?? '') !== (activeEdit.line.declarationNumber ?? '').trim();
+    if (!shipmentChanged && !numberChanged) return;
+    const signature = JSON.stringify(['documents', row.shipmentId, activeEdit.line.id, activeEdit.detail.summary.version, draft]);
+    const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+    if (numberChanged) editIdempotencyKeys.current[signature] = key;
     try {
-      await updateShipment(row.shipmentId, {
-        expectedVersion: activeEdit.detail.summary.version,
-        blNumber: draft.blNumber,
-        bookingRef: draft.bookingRef,
-        tradeDirection: draft.tradeDirection,
-        shippingLineName: draft.shippingLineName,
-      });
+      let expectedShipmentVersion = activeEdit.detail.summary.version;
+      if (shipmentChanged) {
+        const updated = await updateShipment(row.shipmentId, {
+          expectedVersion: expectedShipmentVersion,
+          blNumber: draft.blNumber,
+          bookingRef: draft.bookingRef,
+          tradeDirection: draft.tradeDirection,
+          shippingLineName: draft.shippingLineName,
+        });
+        expectedShipmentVersion = updated.version;
+      }
+      if (numberChanged && activeEdit.detail.summary.fieldAccess.declarationNumber.mode !== 'READ_ONLY') {
+        await updateCusShipmentContainerLine(row.shipmentId, activeEdit.line.id, {
+          expectedShipmentVersion,
+          declarationNumber: draft.declarationNumber,
+        }, key);
+      }
     } catch (error) {
       if (!isOptimisticShipmentConflict(error)) throw error;
+      delete editIdempotencyKeys.current[signature];
       await recoverConflict(row, 'documents');
       return;
     }
+    delete editIdempotencyKeys.current[signature];
     await finishSave();
   }, [activeEdit, finishSave, recoverConflict]);
 
@@ -429,11 +457,38 @@ export function useCusDetail(params: CusDetailListParams) {
     return written;
   }, [finishSave, recoverConflict]);
 
+  /** Card 261013200312: copy one container's tờ khai number onto every
+   *  container line of the lot still without one — ONE server call for the
+   *  whole lot (never a per-row write loop), never overwriting a container
+   *  that already carries its own number. Returns how many lines the server
+   *  actually wrote, so the caller can report the real number — the row set
+   *  is the WHOLE lot, never just the loaded page. */
+  const copyDeclaration = useCallback(async (row: ShipmentCusContainerFlatRow): Promise<number> => {
+    const signature = JSON.stringify(['declaration-copy', row.shipmentId, row.id, row.shipmentVersion]);
+    const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+    editIdempotencyKeys.current[signature] = key;
+    let written = 0;
+    try {
+      const result = await copyCusShipmentContainerDeclaration(row.shipmentId, row.id, {
+        expectedShipmentVersion: row.shipmentVersion,
+      }, key);
+      written = result.updatedContainerIds.length;
+    } catch (error) {
+      delete editIdempotencyKeys.current[signature];
+      if (!isOptimisticShipmentConflict(error)) throw error;
+      await recoverConflict(row, 'documents');
+      return 0;
+    }
+    delete editIdempotencyKeys.current[signature];
+    await finishSave();
+    return written;
+  }, [finishSave, recoverConflict]);
+
   return {
     data, loading, error, loadRows, setError,
     activeEdit, editLoadingRowId, editError, editNotice,
     startEdit, cancelEdit, saveIdentity, saveDocuments, saveContainer,
     saveRoute, saveVehicle, saveSchedule, saveNotes,
-    addContainer, removeContainer, copyAppointment,
+    addContainer, removeContainer, copyAppointment, copyDeclaration,
   };
 }

@@ -358,6 +358,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
       bookingRef: { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
       tradeDirection: { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
       shippingLineName: { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
+      // Card 261013200312: tờ khai joined the documents group — a group is
+      // only fully read-only when every one of its five keys is closed.
+      declarationNumber: { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
     };
     apiGet.mockResolvedValueOnce({
       ...response,
