@@ -149,6 +149,10 @@ export async function createTrip(data: {
       && (data.carrierType ?? 'OWN') === 'OWN' && data.truckId != null) {
       await assertTripRigAvailable(tx, {
         truckId: data.truckId,
+        // Round-17 sweep: the driver claim rides the same warn-once guard —
+        // one driver on two tractors in one window is a dispatcher decision,
+        // never a silent save.
+        driverId: data.driverId ?? null,
         departureDate: data.departureDate,
         confirmOverlap: data.confirmOverlap === true,
       });

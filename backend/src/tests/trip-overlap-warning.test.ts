@@ -56,6 +56,14 @@ async function makeTruck() {
   return { id: row.id, plate };
 }
 
+const driverIds: number[] = [];
+
+async function makeDriver() {
+  const [row] = await db.insert(s.drivers).values({ name: `TOW TX ${suffix}-${driverIds.length}`, status: 'ACTIVE' }).returning();
+  driverIds.push(row.id);
+  return row.id;
+}
+
 async function insertTrip(values: Omit<typeof s.trips.$inferInsert, 'customerId' | 'departureDate'> & {
   customerId: number; departureDate: string;
 }) {
@@ -194,6 +202,106 @@ describe('trip edit form claims the rig like every other surface (ticket 1110261
   });
 });
 
+// Round-17 sweep (overlap warning missing, P3): the trip-side guard scanned
+// the tractor's PLATE only, so the SAME driver double-booked across two
+// DIFFERENT tractors saved silently on the direct create/edit path (local
+// repro: truck A + driver X, then truck B + driver X the same window → 201,
+// no warning). FB-038 ruling: WARN once, never a new hard block — the family
+// payload (RIG_OVERLAP_COMPLETED) rides the existing confirm plumbing.
+describe('the driver claim warns like the rig claim (round-17 sweep)', () => {
+  test('same driver on another tractor in the same window warns, and the confirmed retry proceeds', async () => {
+    const a = await actor();
+    const customerId = await makeCustomer();
+    const routeId = await makeRoute();
+    const truckA = await makeTruck();
+    const truckB = await makeTruck();
+    const driverX = await makeDriver();
+    const driverY = await makeDriver();
+    // Holder: driverX rides truckA at SLOT.
+    await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckA.id, driverId: driverX,
+      plannedStartAt: SLOT, plannedEndAt: null, status: 'CREATED',
+    });
+    // Target: driverY on truckB, being edited onto driverX — the exact
+    // cross-tractor double-booking the plate scans cannot see.
+    const target = await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckB.id, driverId: driverY,
+      plannedStartAt: new Date(SLOT.getTime() + 3600_000), plannedEndAt: null, status: 'CREATED',
+    });
+
+    await assert.rejects(
+      () => updateTripFigures(target.id, figuresPayload(truckB.id, target.version, {
+        userId: a.userId, userRole: a.userRole, driverId: driverX,
+      })),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected the driver warn refusal, got: ${e.message}`);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED', 'warn-once family payload');
+        assert.match(String(e.message), /Tài xế đã có .* chuyến khác trùng khung giờ/, 'the driver warn copy');
+        return true;
+      },
+    );
+
+    const saved = await updateTripFigures(target.id, figuresPayload(truckB.id, target.version, {
+      userId: a.userId, userRole: a.userRole, driverId: driverX, confirmOverlap: true,
+    }));
+    assert.ok(saved, 'the confirmed retry must proceed (warning, not a hard block)');
+    const [row] = await db.select({ driverId: s.trips.driverId }).from(s.trips).where(eq(s.trips.id, target.id));
+    assert.equal(row.driverId, driverX, 'the confirmed save really moved the driver');
+  });
+
+  test('sequential same-day windows for one driver stay silent when the timestamps prove no overlap', async () => {
+    const a = await actor();
+    const customerId = await makeCustomer();
+    const routeId = await makeRoute();
+    const truckA = await makeTruck();
+    const truckB = await makeTruck();
+    const driverX = await makeDriver();
+    const driverY = await makeDriver();
+    // Holder: driverX 08:45–12:45 on truckA (an explicit end bounds the claim).
+    await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckA.id, driverId: driverX,
+      plannedStartAt: SLOT, plannedEndAt: new Date(SLOT.getTime() + 4 * 3600_000), status: 'CREATED',
+    });
+    // Target: driverY on truckB being edited onto driverX with a 14:45 start —
+    // provably after the holder's explicit end, so no driver warn may fire.
+    const target = await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckB.id, driverId: driverY,
+      plannedStartAt: new Date(SLOT.getTime() + 6 * 3600_000), plannedEndAt: new Date(SLOT.getTime() + 10 * 3600_000), status: 'CREATED',
+    });
+
+    const saved = await updateTripFigures(target.id, figuresPayload(truckB.id, target.version, {
+      userId: a.userId, userRole: a.userRole, driverId: driverX,
+    }));
+    assert.ok(saved, 'a provably sequential afternoon trip is not a driver overlap');
+    const [row] = await db.select({ driverId: s.trips.driverId }).from(s.trips).where(eq(s.trips.id, target.id));
+    assert.equal(row.driverId, driverX);
+  });
+
+  test('control: another driver on another tractor in the same window stays silent', async () => {
+    const a = await actor();
+    const customerId = await makeCustomer();
+    const routeId = await makeRoute();
+    const truckA = await makeTruck();
+    const truckB = await makeTruck();
+    const driverX = await makeDriver();
+    const driverY = await makeDriver();
+    await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckA.id, driverId: driverX,
+      plannedStartAt: SLOT, plannedEndAt: null, status: 'CREATED',
+    });
+    const target = await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckB.id, driverId: driverY,
+      plannedStartAt: new Date(SLOT.getTime() + 3600_000), plannedEndAt: null, status: 'CREATED',
+    });
+
+    const saved = await updateTripFigures(target.id, figuresPayload(truckB.id, target.version, {
+      userId: a.userId, userRole: a.userRole, driverId: driverY,
+    }));
+    assert.ok(saved, 'a different driver on a different tractor is nobody\'s overlap');
+  });
+});
+
 after(async () => {
   // Test rows carry unique suffixes; remove only this run's fixtures.
   if (tripIds.length) await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
@@ -201,6 +309,7 @@ after(async () => {
   if (customerIds.length) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
   if (routeIds.length) await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
   if (truckIds.length) await db.delete(s.trucks).where(inArray(s.trucks.id, truckIds));
+  if (driverIds.length) await db.delete(s.drivers).where(inArray(s.drivers.id, driverIds));
   await client.end();
   await disconnectRedis();
 });

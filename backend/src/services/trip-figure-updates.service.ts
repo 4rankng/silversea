@@ -183,12 +183,19 @@ export async function updateTripFigures(
     // (card 363) — out of this guard's scope by design.
     const nextTruckId = data.carrierType === 'EXTERNAL' ? null
       : (data.truckId !== undefined ? data.truckId : trip.truckId);
+    const nextDriverId = data.carrierType === 'EXTERNAL' ? null
+      : (data.driverId !== undefined ? data.driverId : trip.driverId);
     const claimMoved = nextTruckId !== trip.truckId
+      || nextDriverId !== trip.driverId
       || (data.departureDate !== undefined && data.departureDate !== trip.departureDate);
     if (nextTruckId != null && claimMoved && trip.status !== TripStatus.COMPLETED) {
       await assertTripRigAvailable(tx, {
         tripId,
         truckId: nextTruckId,
+        // Round-17 sweep: a DRIVER-only correction moves the driver's claim
+        // too — the guard warns on a cross-tractor double-booking of the
+        // same driver before the change lands.
+        driverId: nextDriverId,
         departureDate: data.departureDate ?? trip.departureDate,
         plannedStartAt: trip.plannedStartAt,
         plannedEndAt: trip.plannedEndAt,
