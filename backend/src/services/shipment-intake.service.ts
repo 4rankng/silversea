@@ -741,6 +741,27 @@ async function assertReferenceIsActive(
   }
 }
 
+/** LCL intake prerequisites that need no database: the shipment-level
+ * delivery date and cargo completeness. CBM is deliberately NOT enforced
+ * here (helpdesk 2026-10-13, ops Tiếp Vu: "hàng lẻ: phần thể tích (cbm) k
+ * bắt buộc cần nhập") — blank round-trips as null through the nullable
+ * column and non-negative schemas, and an entered value's positivity is
+ * owned by the create-form gate. The date message follows the renamed
+ * field label ("Ngày giao hàng"). Exported for the no-DB unit lane
+ * (src/tests/unit/shipment-intake-lcl-cargo.test.ts). */
+export function assertLclIntakeCargoReady(
+  shipment: Pick<
+    typeof s.shipments.$inferSelect,
+    'expectedDeliveryDate' | 'packageType' | 'packageCount' | 'cargoWeightKg'
+  >,
+): void {
+  if (!shipment.expectedDeliveryDate) throw new ApiError(409, 'Hàng lẻ cần ngày giao hàng.');
+  if (!shipment.packageType?.trim() || shipment.packageCount == null || shipment.packageCount < 1
+    || Number(shipment.cargoWeightKg ?? 0) <= 0) {
+    throw new ApiError(409, 'Hàng lẻ cần đủ quy cách, số lượng và trọng lượng.');
+  }
+}
+
 async function assertIntakeReady(
   tx: Tx,
   shipment: typeof s.shipments.$inferSelect,
@@ -760,16 +781,7 @@ async function assertIntakeReady(
     .where(eq(s.shipmentContainers.shipmentId, shipment.id));
   if (shipment.cargoMode === CARGO_MODE.LCL) {
     if (containers.length > 0) throw new ApiError(409, 'Hàng lẻ không được có container giả.');
-    if (!shipment.expectedDeliveryDate) throw new ApiError(409, 'Hàng lẻ cần ngày giao dự kiến.');
-    // Helpdesk 2026-10-13 (ops Tiếp Vu): "hàng lẻ: phần thể tích (cbm) k bắt
-    // buộc cần nhập" — CBM is optional for LCL end to end (create schema is
-    // nullable; a blank round-trips as null). Intake keeps demanding quy
-    // cách, số lượng and trọng lượng; a stored CBM, when present, is already
-    // non-negative by the fixed-decimal column/schemas.
-    if (!shipment.packageType?.trim() || shipment.packageCount == null || shipment.packageCount < 1
-      || Number(shipment.cargoWeightKg ?? 0) <= 0) {
-      throw new ApiError(409, 'Hàng lẻ cần đủ quy cách, số lượng và trọng lượng.');
-    }
+    assertLclIntakeCargoReady(shipment);
     return;
   }
 

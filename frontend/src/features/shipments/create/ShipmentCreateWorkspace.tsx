@@ -689,7 +689,7 @@ export function ShipmentCreateWorkspace() {
           <ShipmentCreateSection
             id="schedule"
             title="Lịch & ghi chú"
-            description={form.cargoMode === 'FCL' ? undefined : 'Ngày giao hàng dự kiến để điều phối thực hiện đúng kế hoạch.'}
+            description={form.cargoMode === 'FCL' ? undefined : 'Ngày giao hàng để điều phối thực hiện đúng kế hoạch.'}
           >
             {form.cargoMode === 'LCL' && (
               <div style={gridStyle}>

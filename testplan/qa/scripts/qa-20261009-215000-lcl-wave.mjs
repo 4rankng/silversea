@@ -98,7 +98,7 @@ try {
     customs: Boolean([...document.querySelectorAll('label, .field label')].find((n) => (n.textContent || '').includes('Hạn hoàn tất hải quan')) || document.querySelector('input[aria-label*="Hạn hoàn tất"]')),
     dropContainer: document.body.textContent.includes('Hạn hạ container tại cảng'),
     returnContainer: document.body.textContent.includes('Thời điểm trả container'),
-    delivery: document.body.textContent.includes('Ngày giao dự kiến'),
+    delivery: document.body.textContent.includes('Ngày giao hàng'),
   }));
   check('fb078-keeps-customs', sched.customs, JSON.stringify(sched));
   check('fb078-hides-drop', !sched.dropContainer);
