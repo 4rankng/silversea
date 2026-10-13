@@ -1127,7 +1127,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.keyDown(notes, { key: 'Enter' });
     expect(apiPut).not.toHaveBeenCalled();
     // The help copy names the combo that does save.
-    expect(screen.getByText('Enter để xuống dòng; Ctrl+Enter để lưu.')).toBeTruthy();
+    expect(screen.getByText('Enter để xuống dòng; Ctrl/Cmd+Enter để lưu.')).toBeTruthy();
 
     fireEvent.keyDown(notes, { key: 'Enter', ctrlKey: true });
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({

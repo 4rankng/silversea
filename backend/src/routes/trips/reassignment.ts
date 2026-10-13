@@ -45,11 +45,15 @@ router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: '
   }
   const trip = await loadReassignmentGuardContext(id);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  // Round-18 review sweep: the fallback path rides the trip-side overlap
+  // guard now — translate the FE dialog's family confirm flag onto the
+  // service parameter so the confirmed retry has a path on.
+  const fallbackData = { ...data, confirmOverlap: data.rigOverlapCompletedConfirmed === true };
   if (trip.shipmentId == null || trip.fulfillmentId == null || !trip.plannedStartAt || !trip.plannedEndAt) {
     if (getUser(req).role === Role.DISPATCHER) {
       throw new ApiError(409, 'Chỉ có thể phân xe lại từ Điều phối cho lệnh gắn với tác vụ điều xe.');
     }
-    const reassigned = await tripService.reassignTrip(id, data);
+    const reassigned = await tripService.reassignTrip(id, fallbackData);
     await resyncAttendanceAfterReassignment(trip, reassigned, getUser(req).userId);
     return res.json(reassigned);
   }
@@ -65,7 +69,7 @@ router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: '
   // trip's vehicle/driver pair, and the next dispatch issuance can re-link
   // a fresh fulfillment if the operator wants the full governed flow.
   if (fulfillmentVersion == null) {
-    const reassigned = await tripService.reassignTrip(id, data);
+    const reassigned = await tripService.reassignTrip(id, fallbackData);
     await resyncAttendanceAfterReassignment(trip, reassigned, getUser(req).userId);
     return res.json(reassigned);
   }

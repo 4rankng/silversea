@@ -12,6 +12,7 @@ import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import {
   getTripCompositeInTx, splitTripPatch, tripCompositeSelect, upsertTripCarrierInfo,
 } from './trip-composite.service';
+import { assertTripRigAvailable } from './dispatch-planning-detail-plan.service';
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
 
@@ -127,7 +128,7 @@ export function driverChangesAfterAcknowledgement(
 
 export async function reassignTrip(
   tripId: number,
-  data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null; expectedVersion?: number; },
+  data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null; expectedVersion?: number; /** Round-18 review sweep: the confirmed retry of the trip-side overlap warn (the FE reassign dialog's existing flag). */ confirmOverlap?: boolean; },
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
@@ -177,6 +178,30 @@ export async function reassignTrip(
       const [driver] = await tx.select({ id: s.drivers.id }).from(s.drivers)
         .where(and(eq(s.drivers.id, data.driverId!), isNull(s.drivers.deletedAt))).limit(1);
       if (!driver) throw new ApiError(400, 'Lái xe không tồn tại hoặc đã bị xóa');
+
+      // Round-18 review sweep (§2 sibling consumers): the fallback
+      // reassignment path — a trip without a resolvable fulfillment, or one
+      // whose staged times never landed — wrote truck+driver with NO overlap
+      // guard, silently double-booking a rig or a driver while the governed
+      // reassign flow warned. The trip-side guard claims the pair here too,
+      // at the family's warn tier; the route forwards the FE dialog's
+      // existing confirm flag as the retry.
+      const nextTruckId = data.truckId ?? trip.truckId;
+      const nextDriverId = data.driverId ?? trip.driverId;
+      const claimMoved = nextTruckId !== trip.truckId || nextDriverId !== trip.driverId;
+      if (nextTruckId != null && claimMoved) {
+        await assertTripRigAvailable(tx, {
+          tripId,
+          truckId: nextTruckId,
+          driverId: nextDriverId,
+          departureDate: trip.departureDate,
+          plannedStartAt: trip.plannedStartAt,
+          plannedEndAt: trip.plannedEndAt,
+          fulfillmentId: trip.fulfillmentId,
+          shipmentId: trip.shipmentId,
+          confirmOverlap: data.confirmOverlap === true,
+        });
+      }
 
       const resolved = await resolveTrailer(tx, newTruck.currentTrailerId);
       trailerId = resolved.trailerId;

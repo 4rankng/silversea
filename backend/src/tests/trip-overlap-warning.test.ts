@@ -18,6 +18,7 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import { updateTripFigures } from '../services/trip-figure-updates.service';
+import { reassignTrip } from '../services/trip-lifecycle-ops.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userIds: number[] = [];
@@ -299,6 +300,70 @@ describe('the driver claim warns like the rig claim (round-17 sweep)', () => {
       userId: a.userId, userRole: a.userRole, driverId: driverY,
     }));
     assert.ok(saved, 'a different driver on a different tractor is nobody\'s overlap');
+  });
+
+  // Round-18 review sweep (§2 sibling consumers): the fallback reassignment
+  // path — no resolvable fulfillment, staged times never landed — wrote
+  // truck+driver with no overlap guard. It now claims the pair through the
+  // same trip-side warn.
+  test('the legacy reassignTrip fallback warns on a driver double-booking and the confirmed retry proceeds', async () => {
+    const customerId = await makeCustomer();
+    const routeId = await makeRoute();
+    const truckA = await makeTruck();
+    const truckB = await makeTruck();
+    const driverX = await makeDriver();
+    const driverY = await makeDriver();
+    await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckA.id, driverId: driverX,
+      plannedStartAt: SLOT, plannedEndAt: null, status: 'CREATED',
+    });
+    // No staged times + no fulfillment: exactly the trip shape the route
+    // routes to the legacy fallback.
+    const target = await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckB.id, driverId: driverY,
+      plannedStartAt: null, plannedEndAt: null, status: 'CREATED',
+    });
+
+    await assert.rejects(
+      () => reassignTrip(target.id, { carrierType: 'OWN', truckId: truckB.id, driverId: driverX }),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected the fallback driver warn, got: ${e.message}`);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED', 'warn-once family payload on the fallback path');
+        assert.match(String(e.message), /Tài xế đã có .* chuyến khác trùng khung giờ/, 'the driver warn copy');
+        return true;
+      },
+    );
+
+    const reassigned = await reassignTrip(target.id, {
+      carrierType: 'OWN', truckId: truckB.id, driverId: driverX, confirmOverlap: true,
+    });
+    assert.equal(reassigned.driverId, driverX, 'the confirmed retry really moved the driver');
+  });
+
+  test('a legacy completed trip without timestamps cannot prove a driver overlap and stays silent', async () => {
+    const a = await actor();
+    const customerId = await makeCustomer();
+    const routeId = await makeRoute();
+    const truckA = await makeTruck();
+    const truckB = await makeTruck();
+    const driverX = await makeDriver();
+    const driverY = await makeDriver();
+    // Completed + no staged start: the review harmonization — the completed
+    // tier requires a provable window, same as the completed-plate scan.
+    await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckA.id, driverId: driverX,
+      plannedStartAt: null, plannedEndAt: null, status: 'COMPLETED',
+    });
+    const target = await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckB.id, driverId: driverY,
+      plannedStartAt: null, plannedEndAt: null, status: 'CREATED',
+    });
+
+    const saved = await updateTripFigures(target.id, figuresPayload(truckB.id, target.version, {
+      userId: a.userId, userRole: a.userRole, driverId: driverX,
+    }));
+    assert.ok(saved, 'a completed date-only holder proves nothing — no warn');
   });
 });
 

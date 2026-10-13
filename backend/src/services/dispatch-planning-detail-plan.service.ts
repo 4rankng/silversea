@@ -16,7 +16,7 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 
-import { and, eq, isNotNull, isNull, lt, ne, notInArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, TripStatus, type DispatchClassification } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -930,14 +930,23 @@ export async function assertTripRigAvailable(
   // day, a missing end one 8-hour shift) measures the driver's day exactly
   // like the holder scan above. A rig conflict has already thrown above, so
   // this branch fires for the cross-tractor case the plate scans cannot see.
+  // Review harmonization: COMPLETED holders join at the same evidence bar
+  // the completed-plate scan sets — only with a provable window. A completed
+  // trip without a timestamp cannot prove the driver was occupied, exactly
+  // as it cannot prove the rig was (the family's "cannot prove overlap
+  // stays skipped" law); drivers run multiple provable trips a day, and a
+  // legacy date-only completed row must not nag every later save.
   if (args.driverId != null && !args.confirmOverlap) {
     const driverConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
       .from(s.trips)
       .where(and(
         eq(s.trips.driverId, args.driverId),
-        ne(s.trips.status, TripStatus.CANCELED),
         isNull(s.trips.deletedAt),
         ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
+        or(
+          inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
+          and(eq(s.trips.status, TripStatus.COMPLETED), isNotNull(s.trips.plannedStartAt)),
+        )!,
         sql`${tripStartSql} < ${windowEnd.toISOString()}::timestamptz`,
         sql`${tripEndSql} > ${windowStart.toISOString()}::timestamptz`,
       ));
