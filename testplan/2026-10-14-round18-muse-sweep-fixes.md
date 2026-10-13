@@ -54,9 +54,13 @@ Ngày: 2026-10-14 · branch `fix/round18-wave` (cut from main 5ef12393)
 - Fix: driverId claim scan at the warn tier inside `assertTripRigAvailable`
   (409 RIG_OVERLAP_COMPLETED + confirmOverlap retry; no new hard block);
   callers trip-create + trip-figure-updates wired. FE confirm plumbing
-  already rides the family payload (ticket 111026105630).
-- Status: FIXED — backend unit pins in trip-overlap-warning.test.ts (3 new
-  cases), live API after-probe in `qa/2026-10-14_round18_fix3_evidence.md`.
+  already rides the family payload (ticket 111026105630). Review follow-up:
+  the legacy reassignTrip fallback (no resolvable fulfillment/staged times)
+  joins the same guard, and COMPLETED driver holders require a provable
+  window like the completed-plate scan.
+- Status: FIXED — backend unit pins in trip-overlap-warning.test.ts (5 driver
+  cases incl. the fallback path + legacy-completed control), live API
+  after-probe in `qa/2026-10-14_round18_fix3_evidence.md`.
 
 ## Case 4 — mislabeled time column (investigate)
 
