@@ -603,7 +603,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&transportDateTo=${today}&customerId=7&direction=IMPORT`));
 
-    fireEvent.change(screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i), { target: { value: 'abcd' } });
+    fireEvent.change(screen.getByLabelText(/Container, Bill\/Booking, mã lô, tờ khai hoặc khách hàng/i), { target: { value: 'abcd' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCD&transportDateFrom=2026-08-15&transportDateTo=${today}&customerId=7&direction=IMPORT`));
   });
 
@@ -662,7 +662,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
     await screen.findByText('CONT-001');
-    const input = screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i);
+    const input = screen.getByLabelText(/Container, Bill\/Booking, mã lô, tờ khai hoặc khách hàng/i);
     // Mid-typing prefixes of a valid reference apply nothing; a pattern-
     // violating draft is never issued as a filtered request.
     fireEvent.change(input, { target: { value: 'AB-' } });
@@ -679,7 +679,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
     await screen.findByText('CONT-001');
-    const input = screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i);
+    const input = screen.getByLabelText(/Container, Bill\/Booking, mã lô, tờ khai hoặc khách hàng/i);
     fireEvent.change(input, { target: { value: 'MSCU6639870' } });
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(expect.stringContaining('searchSuffix=MSCU6639870')));
   });

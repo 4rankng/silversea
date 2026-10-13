@@ -415,6 +415,27 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=MSCU6639870')));
   });
 
+  // QA2-005: the record search covers the customer name too, so a Vietnamese
+  // diacritic draft must validate like an ASCII reference and reach the wire.
+  it('applies a Vietnamese customer-name search after the debounce (QA2-005)', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    const input = screen.getByLabelText('Tìm lô hàng');
+
+    fireEvent.change(input, { target: { value: 'Nguyễn Văn A' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=Nguy%E1%BB%85n+V%C4%83n+A')));
+  });
+
+  // QA2-005: search composes with the existing filters — one request carries
+  // both the record search and the direction criterion.
+  it('composes the record search with the direction filter on one request (QA2-005)', async () => {
+    renderPage('/shipments?searchSuffix=aB12C&direction=IMPORT');
+    await screen.findByRole('table');
+    const url = String(apiGet.mock.calls.at(-1)?.[0] ?? '');
+    expect(url).toContain('searchSuffix=aB12C');
+    expect(url).toContain('direction=IMPORT');
+  });
+
   it('QA-AUDIT-UI-08 distinguishes descriptive missing-container text from an ISO identifier', async () => {
     apiGet.mockImplementation((url: string) => url === '/shipments/cus-workspace/1'
       ? Promise.resolve({ ...detail, containers: [{ ...detail.containers[0], containerNumber: null }] })
@@ -2366,7 +2387,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // Row 2 IS the shared bar (card 20260927_151) — the page keeps its
     // controls, the bar owns the layout (the former `WorkboardFilters` host and
     // its `.list-filter-bar__pair` wrapper are deleted, card 20260927_152).
-    expect(source).toContain("placeholder: 'Bill, Book, Cont, Tờ khai...'");
+    expect(source).toContain("placeholder: 'Bill, Book, Mã lô, Cont, Tờ khai, khách hàng...'");
     expect(source).toContain('<ListFilterBar');
     expect(source).toContain('<DateRangeFields');
     expect(source).toContain('<InlineLabelSelect');
@@ -2842,7 +2863,7 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     // Search: placeholder per spec. No shortcut badge renders (CHIEF
     // 2026-09-27: no control may print shortcut key text).
     const search = screen.getByLabelText('Tìm lô hàng') as HTMLInputElement;
-    expect(search.placeholder).toBe('Bill, Book, Cont, Tờ khai...');
+    expect(search.placeholder).toBe('Bill, Book, Mã lô, Cont, Tờ khai, khách hàng...');
     expect(document.querySelector('.shipments-control__kbd')).toBeNull();
     // Dates: two INDEPENDENT Từ ngày / Đến ngày fields (CHIEF 2026-09-27:
     // "I dont want daterangepicker" — no merged trigger, no dual-calendar

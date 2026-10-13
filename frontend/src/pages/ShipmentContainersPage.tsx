@@ -288,8 +288,8 @@ export default function ShipmentContainersPage() {
               search={{
                 value: searchInput,
                 onChange: updateSearch,
-                placeholder: 'Bill/Book, container, tờ khai',
-                ariaLabel: 'Container, Bill/Booking hoặc tờ khai',
+                placeholder: 'Bill/Book, mã lô, container, tờ khai, khách hàng',
+                ariaLabel: 'Container, Bill/Booking, mã lô, tờ khai hoặc khách hàng',
                 error: searchError,
               }}
               presets={presetNode}

@@ -491,7 +491,7 @@ export default function ShipmentsPage() {
           search={{
             value: searchInput,
             onChange: setSearchInput,
-            placeholder: 'Bill, Book, Cont, Tờ khai...',
+            placeholder: 'Bill, Book, Mã lô, Cont, Tờ khai, khách hàng...',
             ariaLabel: 'Tìm lô hàng',
             inputRef: searchFieldRef,
             inputProps: { title: 'Nhấn / để tìm kiếm · Esc để xóa' },
