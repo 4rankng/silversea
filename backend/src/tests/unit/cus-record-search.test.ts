@@ -45,14 +45,18 @@ describe('cusRecordSearchCondition — field coverage (QA2-005)', () => {
     assert.ok(condition);
     const { sql } = render(condition);
     assert.match(sql, /btrim\("shipment_containers"\."container_number"\) ilike/);
+    // Card 261013200312: the per-cont tờ khai attribute is also a direct
+    // column in container mode — no shipment_containers EXISTS needed.
+    assert.match(sql, /btrim\("shipment_containers"\."declaration_number"\) ilike/);
     assert.doesNotMatch(sql, /exists \(\s+select 1\s+from "shipment_containers"/);
   });
 
   it('every arm is case-insensitive ilike — never a bare like', () => {
     for (const mode of ['shipment', 'container'] as const) {
       const { sql } = render(cusRecordSearchCondition('aB12C', mode)!);
-      // 8 arms: bl, booking, mã lô, container, tờ khai, customer ×2, raw name.
-      assert.equal((sql.match(/ilike/g) ?? []).length, 8, `${mode}: expected 8 ilike arms`);
+      // 9 arms: bl, booking, mã lô, container, tờ khai entity, tờ khai
+      // per-cont (261013200312), customer ×2, raw name.
+      assert.equal((sql.match(/ilike/g) ?? []).length, 9, `${mode}: expected 9 ilike arms`);
       assert.equal(sql.match(/(^|[^a-z])like\b/g), null, `${mode}: bare like must not appear`);
     }
   });

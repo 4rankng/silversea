@@ -90,13 +90,17 @@ export function cusRecordSearchCondition(
       )`,
     // Card 261013200312: the per-container tờ khai attribute is searchable
     // too — the copy/entry surface writes there, and a number that exists
-    // only on containers must still find its lot.
-    sql`exists (
-        select 1
-        from ${s.shipmentContainers}
-        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-          and btrim(${s.shipmentContainers.declarationNumber}) ilike ${pattern}
-      )`,
+    // only on containers must still find its lot. Mode-aware like the
+    // container-number arm: direct column when the page already joins the
+    // containers table, EXISTS for the shipment-scope count queries.
+    searchMode === 'container'
+      ? sql`btrim(${s.shipmentContainers.declarationNumber}) ilike ${pattern}`
+      : sql`exists (
+          select 1
+          from ${s.shipmentContainers}
+          where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+            and btrim(${s.shipmentContainers.declarationNumber}) ilike ${pattern}
+        )`,
     sql`exists (
         select 1
         from ${s.customers}
