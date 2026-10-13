@@ -1042,7 +1042,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
 
-    expect(screen.getAllByLabelText(/Ngày giao dự kiến/).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/Ngày giao hàng/).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Thêm ngày giao' })).toBeInTheDocument();
     expect(screen.queryByLabelText(/Hạn hoàn tất hải quan/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Hạn hạ container tại cảng/)).not.toBeInTheDocument();
@@ -1113,10 +1113,15 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
     await choose('Tuyến đường', '11');
     await choose('Kho lấy hàng', '42');
-    fireEvent.change(screen.getByLabelText('Quy cách đóng gói'), { target: { value: 'Pallet' } });
+    // FB-079: Quy cách is a suggestion combobox that still takes free text —
+    // a direct change commits the value without opening the menu.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Quy cách đóng gói' }), { target: { value: 'Pallet' } });
     fireEvent.change(screen.getByLabelText('Số lượng'), { target: { value: '8' } });
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '1200' } });
-    // Thể tích (CBM) stays blank on purpose.
+    // Thể tích (CBM) stays blank on purpose. "Tạo lô hàng" runs the full
+    // CREATE intake validation (prod round-16), so the delivery date must be
+    // set — the segmented field accepts DD/MM/YYYY in one change.
+    fireEvent.change(screen.getByLabelText('Ngày giao hàng'), { target: { value: '20/09/2026' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
