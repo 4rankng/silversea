@@ -23,10 +23,14 @@ const fieldAccessSchema = z.object({
 // are LIKE wildcards and the reads service interpolates the raw value into
 // the suffix ILIKE, so excluding them keeps wildcard injection out without
 // SQL-side escaping. 64 fits the longest pasted full reference.
-export const CUS_SEARCH_PATTERN = /^[A-Za-z0-9 ./-]{4,64}$/;
+// 2026-10-13 (QA2-005): the record search also covers the customer name, so
+// letters are Unicode (\p{L}) — Vietnamese diacritics must validate like
+// ASCII. Digits (\p{N}) and the reference separators ride along; the wildcard
+// and length rules are unchanged.
+export const CUS_SEARCH_PATTERN = /^[\p{L}\p{N} ./-]{4,64}$/u;
 const suffixSchema = z.string()
   .trim()
-  .regex(CUS_SEARCH_PATTERN, 'Nhập số Bill/Book, container hoặc tờ khai đầy đủ, hoặc tối thiểu 4 ký tự cuối (không dùng % hoặc _).');
+  .regex(CUS_SEARCH_PATTERN, 'Nhập Bill/Book, mã lô, container, tờ khai hoặc tên khách hàng (tối thiểu 4 ký tự, không dùng % hoặc _).');
 
 // Rows-per-page the CUS workboards offer, largest first-class option last: the
 // office asked to see up to 200 rows without paging (2026-09-18). Kept here so

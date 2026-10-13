@@ -36,7 +36,9 @@ const workspaceFieldAccess = {
 test('CUS workspace query accepts full numbers, separators, and 4-64 char suffixes', () => {
   // 2026-09-10: real references carry separators (dashes, slashes, dots,
   // spaces) — pasting them whole must validate, not error out.
-  for (const searchSuffix of ['aB12C', 'MSCU6639870', 'TK-9ZX4', 'ABC123', 'TK/25/0123', 'AB12 X9', 'no.4.b', 'X'.repeat(64)]) {
+  // QA2-005 (2026-10-13): the search also covers the customer name, so
+  // Vietnamese diacritic letters must validate like ASCII ones.
+  for (const searchSuffix of ['aB12C', 'MSCU6639870', 'TK-9ZX4', 'ABC123', 'TK/25/0123', 'AB12 X9', 'no.4.b', 'X'.repeat(64), 'Nguyễn Văn A', 'Công ty Rừng Xanh', 'VẬN TẢI 68321']) {
     const result = shipmentCusWorkspaceQuerySchema.safeParse({
       searchSuffix,
       transportDateFrom: '2026-08-01',
