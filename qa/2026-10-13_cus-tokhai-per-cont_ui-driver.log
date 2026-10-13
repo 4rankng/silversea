@@ -84,3 +84,7 @@ $ docker exec ss-tokhai-qa-db psql -U postgres -d silversea -c "select sc.id, sc
 
 === re-drive on post-review code (advisory lock + copy-button gate + returning-check) ===
 ALL STEPS PASSED — same evidence chain as above; DB rows identical.
+
+=== post-rebase gates (onto main 32c3c692, record-search wave merged) ===
+lint 0 · FE tsc 0 · BE tsc 0 · FE scoped suites 430/430 · BE unit (wire + record-search + registry) 20/20
+search conflict resolved keeping BOTH vocabularies: mã lô + customer name + per-cont tờ khai arm (mode-aware).
