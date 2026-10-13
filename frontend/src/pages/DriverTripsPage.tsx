@@ -140,7 +140,15 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         </span>
         {card.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
         <span className="driver-journey-card__time">
-          <span className="driver-journey-card__time-label">Giờ đóng / trả:</span>
+          {/* Round-17 sweep (mislabeled time column): this chip renders
+              trips.plannedStartAt — the planned run start, "Giờ chạy" in the
+              dispatch vocabulary. The old "Giờ đóng / trả" label named the
+              container-appointment concept (customerAppointmentAt, "Giờ hẹn
+              đóng/trả" on the CUS ledger), telling the driver the box
+              closes/returns at a time that is actually the truck's departure.
+              The label now names the field it renders; the appointment lives
+              in the detail screen's "Ngày giờ kế hoạch" block. */}
+          <span className="driver-journey-card__time-label">Giờ chạy:</span>
           {card.scheduledAt ? formatDateTimeShort(card.scheduledAt) : 'Chưa chốt lịch'}
         </span>
       </div>
