@@ -46,6 +46,7 @@ export type ContainerRow = {
   id: number;
   shipmentId: number;
   containerNumber: string | null;
+  declarationNumber: string | null;
   customerAppointmentAt: Date | null;
   cargoWeightKg: string | null;
   cargoVolumeCbm: string | null;
@@ -244,6 +245,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       id: s.shipmentContainers.id,
       shipmentId: s.shipmentContainers.shipmentId,
       containerNumber: s.shipmentContainers.containerNumber,
+      declarationNumber: s.shipmentContainers.declarationNumber,
       customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
       cargoWeightKg: s.shipmentContainers.cargoWeightKg,
       cargoVolumeCbm: s.shipmentContainers.cargoVolumeCbm,
@@ -770,7 +772,8 @@ async function buildShipmentPageConditions(
   }
   if (query.searchSuffix) {
     // QA2-005: the record search covers Bill/Booking, mã lô, container, tờ
-    // khai, and the customer name — see cusRecordSearchCondition.
+    // khai (entity rows AND the per-cont attribute — card 261013200312), and
+    // the customer name — see cusRecordSearchCondition.
     const searchCondition = cusRecordSearchCondition(query.searchSuffix, searchMode);
     if (searchCondition) conditions.push(searchCondition);
   }
@@ -1155,7 +1158,10 @@ export async function listCusShipmentContainers(
       factoryName: containerFactoryName ?? shipmentFactoryName ?? trimOrNull(row.shipment.factoryName),
       routeName: line.routeName,
       billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
-      declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
+      // Card 261013200312: the container's OWN tờ khai number (per-cont entry;
+      // copy repeats it across the lot's containers). The lot-level entity
+      // number stays on the LCL lot row below — LCL never owns containers.
+      declarationNumber: line.declarationNumber,
       shippingLineName: trimOrNull(row.shipment.shippingLineName) ?? trimOrNull(container.shippingLineName),
       isCombined: row.shipment.isCombined,
       classification: support.assignmentsByContainer.get(container.id)?.dispatchClassification

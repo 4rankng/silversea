@@ -405,6 +405,9 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   ordinal: z.number().int().positive(),
   operationalSiteId: z.number().int().positive().nullable(),
   containerNumber: z.string().nullable(),
+  // Card 261013200312: the container's own tờ khai number (per-cont entry).
+  // Same value as the flat row's declarationNumber — one storage, two reads.
+  declarationNumber: z.string().nullable(),
   containerTypeId: z.number().int().positive().nullable(),
   containerTypeLabel: z.string().nullable(),
   routeId: z.number().int().positive().nullable(),
@@ -545,6 +548,10 @@ export const shipmentCusContainerLineUpdateSchema = z.object({
   expectedShipmentVersion: z.coerce.number().int().positive(),
   operationalSiteId: z.coerce.number().int().positive().nullable().optional(),
   containerNumber: z.string().trim().max(50, 'Số container không được quá 50 ký tự').nullable().optional(),
+  // Card 261013200312: per-container tờ khai number. Empty string clears
+  // (null on the wire is the API's "not provided" — same convention as the
+  // other nullable fields of this command).
+  declarationNumber: z.string().trim().max(50, 'Số tờ khai không được quá 50 ký tự').nullable().optional(),
   cargoWeightKg: z.union([z.number().finite(), z.string()]).transform((value, ctx) => {
     const raw = String(value).trim();
     if (!/^(0|[1-9]\d{0,7})(?:\.\d{1,2})?$/.test(raw)) {
@@ -710,6 +717,22 @@ export const shipmentCusContainerAppointmentCopyResultSchema = z.object({
   shipmentVersion: z.number().int().positive(),
 }).strict();
 
+/** Card 261013200312 — copy one container's tờ khai number onto every
+ *  still-empty sibling container of the lot (explicit affordance, dev-lead
+ *  ruling's "(hoặc nút copy)" option; mirrors the appointment copy contract).
+ *  Never overwrites a container that already carries a number — divergence
+ *  stays possible after the copy. */
+export const shipmentCusContainerDeclarationCopySchema = z.object({
+  expectedShipmentVersion: z.coerce.number().int().positive(),
+}).strict();
+
+export const shipmentCusContainerDeclarationCopyResultSchema = z.object({
+  /** Exactly the lines the call wrote — never the source container, never a
+   *  container that already had its own number. */
+  updatedContainerIds: z.array(z.number().int().positive()),
+  shipmentVersion: z.number().int().positive(),
+}).strict();
+
 const nonNegativeMoneyStringSchema = z.string().regex(/^(0|[1-9]\d*)$/);
 
 export const shipmentRecoveryRecordSchema = z.object({
@@ -865,5 +888,7 @@ export type ShipmentCusContainerRemoveResult = z.infer<typeof shipmentCusContain
 export type ShipmentCusContainerLineUpdateResult = z.infer<typeof shipmentCusContainerLineUpdateResultSchema>;
 export type ShipmentCusContainerAppointmentCopyInput = z.infer<typeof shipmentCusContainerAppointmentCopySchema>;
 export type ShipmentCusContainerAppointmentCopyResult = z.infer<typeof shipmentCusContainerAppointmentCopyResultSchema>;
+export type ShipmentCusContainerDeclarationCopyInput = z.infer<typeof shipmentCusContainerDeclarationCopySchema>;
+export type ShipmentCusContainerDeclarationCopyResult = z.infer<typeof shipmentCusContainerDeclarationCopyResultSchema>;
 export type ShipmentRecoveryRecordInput = z.infer<typeof shipmentRecoveryRecordSchema>;
 export type ShipmentRecoveryRecordResult = z.infer<typeof shipmentRecoveryRecordResultSchema>;

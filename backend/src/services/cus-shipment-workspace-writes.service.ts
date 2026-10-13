@@ -22,6 +22,8 @@ import {
   type ShipmentCusContainerRemoveResult,
   type ShipmentCusContainerAppointmentCopyInput,
   type ShipmentCusContainerAppointmentCopyResult,
+  type ShipmentCusContainerDeclarationCopyInput,
+  type ShipmentCusContainerDeclarationCopyResult,
 } from '@tingting/shared';
 import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 
@@ -38,6 +40,7 @@ import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.s
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { CUSTOMER_OPERATIONAL_NAME, buildWorkspaceDetail, deriveTransportDateFromContainerAppointments, formatPlate, loadShipmentRow, normalizeCarrierName, normalizePlate, trimOrNull, type ShipmentFulfillmentRow } from './cus-shipment-workspace-reads.service';
+import { findDeclarationReferenceConflict, throwShipmentReferenceConflict } from './shipment-lifecycle-shared.service';
 
 function requireWorkspaceWriter(actor: AuthUser) {
   if (
@@ -48,6 +51,38 @@ function requireWorkspaceWriter(actor: AuthUser) {
   ) {
     throw new ApiError(403, 'Chỉ Quản trị, Giám đốc, CUS hoặc Điều vận được cập nhật dòng container trong workspace này.');
   }
+}
+
+/** Card 261013200312: tờ khai writes follow the FB-005/fieldAccess rule —
+ * CUS/Quản trị/Quản lý only, the same authority and reason string the
+ * workspace fieldAccess model publishes for declarationNumber. DISPATCHER
+ * keeps the rest of the container-line command. */
+function requireContainerDeclarationWriter(actor: AuthUser) {
+  if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER && actor.role !== Role.CUS) {
+    throw new ApiError(403, 'Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.');
+  }
+}
+
+/** A per-container tờ khai number must not belong to another active lot.
+ * Two stores hold the law: the container attribute itself, and the
+ * shipment_declarations entity (globally-unique numbers). Same-lot repeats
+ * are legal — they are the copy affordance's whole point. */
+async function assertContainerDeclarationNumberAvailable(tx: Tx, shipmentId: number, declarationNumber: string) {
+  const trimmed = declarationNumber.trim();
+  const [containerHit] = await tx.select({ shipmentId: s.shipmentContainers.shipmentId })
+    .from(s.shipmentContainers)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+    .where(and(
+      sql`lower(btrim(${s.shipmentContainers.declarationNumber})) = lower(${trimmed})`,
+      ne(s.shipmentContainers.shipmentId, shipmentId),
+      isNull(s.shipments.deletedAt),
+    ))
+    .limit(1);
+  if (containerHit) {
+    throw new ApiError(409, 'Số tờ khai đã thuộc lô hàng khác. Vui lòng kiểm tra lại trước khi lưu.', 'SHIPMENT_REFERENCE_DUPLICATE');
+  }
+  const entityConflict = await findDeclarationReferenceConflict(tx, trimmed, shipmentId);
+  if (entityConflict) throwShipmentReferenceConflict(entityConflict, 'declaration');
 }
 
 async function assertActiveContainerType(containerTypeId: number, tx: Tx) {
@@ -487,6 +522,26 @@ export async function updateCusShipmentContainerLine(args: {
         }
         await tx.update(s.shipmentContainers).set({
           containerNumber: nextContainerNumber,
+          updatedAt: now,
+        }).where(eq(s.shipmentContainers.id, container.id));
+        touched = true;
+      }
+    }
+
+    // Card 261013200312: per-container tờ khai. A document reference, not an
+    // operational parameter a trip schedules around (customs numbers routinely
+    // finalize after dispatch), so it deliberately stays OUT of
+    // requestedOperationalMutation above — same reasoning as the container
+    // number identity exemption. Role gate mirrors the fieldAccess rule.
+    if (args.input.declarationNumber !== undefined) {
+      requireContainerDeclarationWriter(args.actor);
+      const nextDeclarationNumber = trimOrNull(args.input.declarationNumber);
+      if (nextDeclarationNumber !== container.declarationNumber) {
+        if (nextDeclarationNumber != null) {
+          await assertContainerDeclarationNumberAvailable(tx, args.shipmentId, nextDeclarationNumber);
+        }
+        await tx.update(s.shipmentContainers).set({
+          declarationNumber: nextDeclarationNumber,
           updatedAt: now,
         }).where(eq(s.shipmentContainers.id, container.id));
         touched = true;
@@ -1089,6 +1144,85 @@ export async function copyCusShipmentContainerAppointment(args: {
     // An appointment change re-anchors Ngày vận chuyển — same re-lock the
     // single-line schedule save performs.
     await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
+
+    return { updatedContainerIds: targetIds.map((row) => row.id), shipmentVersion };
+  };
+  return runInTx(args.transaction, execute);
+}
+
+/** Card 261013200312 — copy one container's tờ khai number onto every
+ * still-empty sibling container of the lot (dev-lead ruling: "(hoặc nút copy)"
+ * — the explicit-affordance option, mirroring the appointment copy contract).
+ * Never overwrites a container that already carries a number, so per-cont
+ * divergence stays possible after the copy. The source number already belongs
+ * to THIS lot, so no cross-lot availability re-check fires — same-lot repeats
+ * are the copy's whole point. */
+export async function copyCusShipmentContainerDeclaration(args: {
+  shipmentId: number;
+  containerId: number;
+  input: ShipmentCusContainerDeclarationCopyInput;
+  actor: AuthUser;
+  transaction?: Tx;
+}): Promise<ShipmentCusContainerDeclarationCopyResult> {
+  requireWorkspaceWriter(args.actor);
+  requireContainerDeclarationWriter(args.actor);
+  const execute = async (tx: Tx) => {
+    const shipment = await lockShipmentForContainerSetWrite(tx, args.shipmentId, args.input.expectedShipmentVersion);
+
+    const [source] = await tx.select({
+      id: s.shipmentContainers.id,
+      declarationNumber: s.shipmentContainers.declarationNumber,
+    })
+      .from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.id, args.containerId),
+        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+      ))
+      .limit(1)
+      .for('update');
+    if (!source) throw new ApiError(404, 'Không tìm thấy container của lô hàng.');
+    const sourceNumber = trimOrNull(source.declarationNumber);
+    if (sourceNumber == null) {
+      throw new ApiError(400, 'Container nguồn chưa có số tờ khai để copy sang các container khác.');
+    }
+
+    const emptyDeclaration = sql`(${s.shipmentContainers.declarationNumber} IS NULL OR btrim(${s.shipmentContainers.declarationNumber}) = '')`;
+    const targetIds = await tx.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+        ne(s.shipmentContainers.id, args.containerId),
+        emptyDeclaration,
+      ))
+      .for('update');
+    if (targetIds.length === 0) {
+      throw new ApiError(409, 'Mọi container trong lô đã có số tờ khai.');
+    }
+
+    const now = new Date();
+    // ONE statement, same predicate the target read used: a row that gains a
+    // number between the read and the write drops out of the set instead of
+    // being overwritten.
+    await tx.update(s.shipmentContainers).set({
+      declarationNumber: sourceNumber,
+      updatedAt: now,
+    }).where(and(
+      eq(s.shipmentContainers.shipmentId, args.shipmentId),
+      ne(s.shipmentContainers.id, args.containerId),
+      emptyDeclaration,
+    ));
+
+    // A document attribute never re-anchors scheduling or freight pricing —
+    // only the lot version advances once so concurrent editors reconcile.
+    const shipmentVersion = shipment.version + 1;
+    await tx.update(s.shipments).set({
+      version: shipmentVersion,
+      updatedAt: now,
+      updatedBy: args.actor.userId,
+    }).where(and(
+      eq(s.shipments.id, shipment.id),
+      eq(s.shipments.version, shipment.version),
+    ));
 
     return { updatedContainerIds: targetIds.map((row) => row.id), shipmentVersion };
   };
