@@ -282,7 +282,7 @@ demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps exis
 PROD_SERVER   := silversea.tingting.vip
 PROD_PATH     := /opt/silversea
 PROD_COMPOSE  := docker compose -f deploy/docker-compose.silversea.yml
-PROD_BRANCH   := prod
+PROD_BRANCH   := main
 
 deploy-advance: ## Fast-forward prod branch to origin/main (run from any branch; creates prod if missing)
 	@git fetch origin
