@@ -56,7 +56,7 @@ export function canEditMode(
   if (mode === 'identity') return detail.summary.cargoMode === 'FCL'
     ? line.fieldAccess.operationalSiteId?.mode === 'DIRECT'
     : ['factoryName', 'routeId', 'deliveryLocation'].some((field) => detail.summary.fieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
-  if (mode === 'documents') return ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => detail.summary.fieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
+  if (mode === 'documents') return ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName', 'declarationNumber'].some((field) => detail.summary.fieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
   if (mode === 'container') return ['containerNumber', 'containerTypeId', 'cargoWeightKg', 'cargoVolumeCbm'].some((field) => line.fieldAccess[field as 'containerNumber'].mode !== 'READ_ONLY');
   if (mode === 'route') return line.permissions.liftSiteEditable || line.permissions.dropoffSiteEditable;
   if (mode === 'vehicle') return line.permissions.carrierEditable || line.permissions.plateEditable;

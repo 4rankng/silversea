@@ -65,6 +65,10 @@ export interface ShipmentDocumentsDraft {
   bookingRef: string | null;
   tradeDirection: 'IMPORT' | 'EXPORT' | null;
   shippingLineName: string | null;
+  /** Card 261013200312: this CONTAINER's tờ khai number — per-cont entry per
+   *  the dev-lead ruling. Rides the container-line command on save, never the
+   *  shipment PATCH. */
+  declarationNumber: string | null;
 }
 
 export interface ShipmentContainerDraft {
@@ -141,6 +145,7 @@ function InlineEditor({
   onSaveIdentity,
   onSaveDocuments,
   onSaveContainer,
+  onCopyDeclaration,
   routeOptions,
 }: {
   id: string;
@@ -156,6 +161,9 @@ function InlineEditor({
   onSaveIdentity: (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => Promise<void>;
   onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<void>;
   onSaveContainer: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => Promise<void>;
+  /** Card 261013200312: copy this row's tờ khai number onto the lot's
+   *  still-empty containers — returns how many containers were written. */
+  onCopyDeclaration: (row: ShipmentCusContainerFlatRow) => Promise<number>;
   routeOptions: Array<{ value: string; label: string; searchText?: string }>;
 }) {
   const { detail, line, mode, row } = edit;
@@ -191,6 +199,16 @@ function InlineEditor({
   const [bookingRef, setBookingRef] = useState(detail.summary.raw.bookingRef ?? '');
   const [tradeDirection, setTradeDirection] = useState(detail.summary.raw.tradeDirection ?? '');
   const [shippingLineName, setShippingLineName] = useState(detail.summary.raw.shippingLineName ?? '');
+  // Card 261013200312: THIS container's tờ khai (per-cont entry; the flat row
+  // carries the container's own number). The version-keyed remount reseeds
+  // after a conflict recovery.
+  const [declarationNumber, setDeclarationNumber] = useState(row.declarationNumber ?? '');
+  const declarationAccess = detail.summary.fieldAccess.declarationNumber;
+  // Copy affordance targets: siblings of the same lot still without a number.
+  const emptyDeclarationSiblingCount = detail.containers.filter((candidate) => (
+    candidate.id !== line.id && !(candidate.declarationNumber ?? '').trim()
+  )).length;
+  const [copyingDeclaration, setCopyingDeclaration] = useState(false);
   const [containerNumber, setContainerNumber] = useState(line.raw.containerNumber ?? '');
   const [containerTypeId, setContainerTypeId] = useState(line.raw.containerTypeId ? String(line.raw.containerTypeId) : '');
   const [cargoWeightKg, setCargoWeightKg] = useState(stripDecimalTrailingZeros(line.raw.cargoWeightKg));
@@ -245,6 +263,7 @@ function InlineEditor({
         || bookingRef.trim() !== (detail.summary.raw.bookingRef ?? '')
         || tradeDirection !== (detail.summary.raw.tradeDirection ?? '')
         || shippingLineName.trim() !== (detail.summary.raw.shippingLineName ?? '')
+        || declarationNumber.trim() !== (row.declarationNumber ?? '').trim()
     : mode === 'container'
       ? containerNumber.trim() !== (line.raw.containerNumber ?? '')
         || containerTypeId !== (line.raw.containerTypeId ? String(line.raw.containerTypeId) : '')
@@ -302,6 +321,7 @@ function InlineEditor({
           bookingRef: tradeDirection === 'IMPORT' ? null : bookingRef.trim() || null,
           tradeDirection: tradeDirection === 'IMPORT' || tradeDirection === 'EXPORT' ? tradeDirection : null,
           shippingLineName: shippingLineName.trim() || null,
+          declarationNumber: declarationNumber.trim() || null,
         });
       } else if (mode === 'container') {
         await onSaveContainer(line, {
@@ -450,7 +470,34 @@ function InlineEditor({
           {tradeDirection === 'EXPORT' && <label><span>Số Booking</span><input value={bookingRef} onChange={(event) => setBookingRef(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.bookingRef.mode === 'READ_ONLY'} /></label>}
           {!tradeDirection && <small>Chọn Nhập hoặc Xuất trước khi cập nhật số chứng từ.</small>}
           <label><span>Hãng tàu</span><input value={shippingLineName} onChange={(event) => setShippingLineName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.shippingLineName.mode === 'READ_ONLY'} /></label>
-          <small>Tờ khai dùng luồng chứng từ có kiểm soát riêng: {detail.summary.fieldAccess.declarationNumber.reason}</small>
+          {/* Card 261013200312 (dev-lead ruling): số tờ khai nhập theo TỪNG
+              CONT — entered and edited right here, no tab-out to another
+              surface. The explicit copy button (the ruling's "(hoặc nút copy)"
+              option) repeats this number onto the lot's still-empty containers
+              in ONE server call; never overwrites, so divergence stays
+              possible afterwards. Mirrors the reviewed appointment-copy
+              affordance on the sibling CUS drawer. */}
+          <label><span>Số tờ khai</span><input value={declarationNumber} onChange={(event) => setDeclarationNumber(event.target.value)} maxLength={50} disabled={saving || declarationAccess.mode === 'READ_ONLY'} title={declarationAccess.mode === 'READ_ONLY' ? declarationAccess.reason : undefined} /></label>
+          {/* Review M2 (card 261013200312): the server copies the PERSISTED
+              number, so the button only shows when the input still matches it
+              — a retyped-but-unsaved value must never look copyable (the copy
+              would silently fan out the old number). */}
+          {declarationNumber.trim() === (row.declarationNumber ?? '').trim() && declarationNumber.trim() && emptyDeclarationSiblingCount > 0 && declarationAccess.mode !== 'READ_ONLY' && (
+            <div className="shipment-container-ledger__declaration-copy">
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={saving || copyingDeclaration}
+                onClick={() => {
+                  setCopyingDeclaration(true);
+                  void onCopyDeclaration(row).finally(() => setCopyingDeclaration(false));
+                }}
+              >
+                {copyingDeclaration ? 'Đang copy…' : `Copy số tờ khai sang ${emptyDeclarationSiblingCount} cont chưa có số`}
+              </button>
+            </div>
+          )}
+          <small>Số tờ khai lưu theo từng container của lô; copy chỉ điền các cont còn thiếu số, sau đó mỗi cont sửa riêng được.</small>
         </div>
       )}
       {mode === 'container' && (
@@ -624,6 +671,10 @@ interface ShipmentContainerLedgerProps {
    * write loop. Resolves with the number of lines actually written.
    */
   onCopyAppointment?: (row: ShipmentCusContainerFlatRow) => Promise<number>;
+  /** Card 261013200312: copy this row's tờ khai number onto the lot's
+   *  still-empty containers — one server call, never overwrites; resolves with
+   *  the number of containers actually written. */
+  onCopyDeclaration?: (row: ShipmentCusContainerFlatRow) => Promise<number>;
   /**
    * Column keys the picker on the page's filter bar is hiding (card
    * 20260928_193, restoring 20260917_4). The ledger renders `col`/`th`/`td`
@@ -656,6 +707,7 @@ export function ShipmentContainerLedger({
   onAddContainer,
   onRemoveContainer,
   onCopyAppointment,
+  onCopyDeclaration,
   hiddenColumns = [],
 }: ShipmentContainerLedgerProps) {
   const isHidden = (key: string) => hiddenColumns.includes(key);
@@ -732,6 +784,7 @@ export function ShipmentContainerLedger({
         onSaveVehicle={onSaveVehicle}
         onSaveSchedule={onSaveSchedule}
         onSaveNotes={onSaveNotes}
+        onCopyDeclaration={onCopyDeclaration ?? (async () => 0)}
         routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))}
       />
     );
@@ -835,7 +888,7 @@ export function ShipmentContainerLedger({
               const appointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
               const scheduleTime = formatScheduleTime(row);
               const identityEditable = row.fieldAccess.operationalSiteId?.mode === 'DIRECT';
-              const documentsEditable = ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
+              const documentsEditable = ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName', 'declarationNumber'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
               const containerEditable = row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY';
               const routeEditable = row.fieldAccess.routeId.mode !== 'READ_ONLY' || row.fieldAccess.liftSiteId.mode !== 'READ_ONLY' || row.fieldAccess.dropoffSiteId.mode !== 'READ_ONLY';
               const vehicleEditable = row.carrierEditable || row.plateEditable;

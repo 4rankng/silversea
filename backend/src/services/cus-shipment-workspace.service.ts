@@ -16,4 +16,4 @@ export {
 } from './cus-shipment-workspace-reads.service';
 export { updateCusShipmentContainerLine } from './cus-shipment-workspace-writes.service';
 export { addCusShipmentContainer, removeCusShipmentContainer } from './cus-shipment-workspace-writes.service';
-export { copyCusShipmentContainerAppointment } from './cus-shipment-workspace-writes.service';
+export { copyCusShipmentContainerAppointment, copyCusShipmentContainerDeclaration } from './cus-shipment-workspace-writes.service';

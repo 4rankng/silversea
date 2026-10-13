@@ -136,6 +136,24 @@ export default function ShipmentContainersPage() {
     }
   }, [detail, toast]);
 
+  /** Card 261013200312: copy số tờ khai xuống các container của CÙNG lô chưa
+   *  có số — same feedback contract as the appointment copy above (page owns
+   *  the toast; the server reports how many containers it actually wrote). */
+  const copyDeclaration = useCallback(async (row: ShipmentCusContainerFlatRow): Promise<number> => {
+    try {
+      const written = await detail.copyDeclaration(row);
+      if (written > 0) {
+        toast({ kind: 'success', message: `Đã copy số tờ khai sang ${written} container chưa có số.` });
+      } else {
+        toast({ kind: 'warning', message: 'Lô hàng vừa thay đổi. Đã tải lại danh sách — vui lòng thử copy lại.' });
+      }
+      return written;
+    } catch (error) {
+      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể copy số tờ khai.' });
+      return 0;
+    }
+  }, [detail, toast]);
+
   const updateParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
@@ -347,7 +365,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} />
+          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={detail.saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} onCopyDeclaration={copyDeclaration} />
         </>}
       </section>
     </div>

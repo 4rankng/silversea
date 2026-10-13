@@ -166,6 +166,15 @@ export const shipmentContainers = pgTable('shipment_containers', {
   containerTypeId: integer('container_type_id'),
   containerNumber: varchar('container_number', { length: 50 }),
   sealNumber: varchar('seal_number', { length: 50 }),
+  // Card 261013200312 (dev-lead ruling): số tờ khai is PER-CONTAINER entry —
+  // CUS enters/edits it per cont with a copy-to-empty-siblings affordance and
+  // divergence allowed afterwards. This attribute is the CUS operational
+  // truth; the shipment_declarations ENTITY table (globally-unique numbers,
+  // documents flow, finance exports) is a separate concern and is unchanged.
+  // Copy repeats the same string across one lot's containers, which the
+  // declaration entity's global unique index could never allow — hence an
+  // attribute, not a linked declaration row.
+  declarationNumber: varchar('declaration_number', { length: 50 }),
   // Freight-side "PS thực tế" (Bảng 2.1, debit wave REWORK): the actual
   // surcharge/extra recorded per container, persisted at lock-time bookkeeping
   // and rolled into the lot totals on the debit screen. Nullable — null =

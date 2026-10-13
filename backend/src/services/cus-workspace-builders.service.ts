@@ -415,12 +415,11 @@ function buildListItem(
     factoryName: trimOrNull(row.shipment.factoryName),
     effectiveFactoryNames,
     billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
-    declarationNumber: declaration?.declarationNumber ?? null,
-    // Card 20260921_3: every non-empty number, id-asc — the Chứng từ column
-    // joins these exactly like the XLSX debit export does.
-    declarationNumbers: declarations
-      .map((item) => trimOrNull(item.declarationNumber))
-      .filter((value): value is string => value != null),
+    // Card 261013200312: per-cont numbers first, entity numbers after —
+    // DISTINCT (see distinctDeclarationNumbers). `declarationNumber` stays
+    // "the first number of the lot" for the subtitle/search fallbacks.
+    declarationNumber: distinctDeclarationNumbers(containers, declarations)[0] ?? null,
+    declarationNumbers: distinctDeclarationNumbers(containers, declarations),
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
     // A lot overview may summarize multiple FCL routes, but individual
     // container rows retain the exact route that drives dispatch.
@@ -624,6 +623,7 @@ function buildContainerLine(
     ordinal,
     operationalSiteId: container.operationalSiteId ?? row.shipment.operationalSiteId ?? null,
     containerNumber: container.containerNumber,
+    declarationNumber: container.declarationNumber,
     containerTypeId: container.containerTypeId,
     containerTypeLabel: container.containerTypeCode ?? container.containerTypeName,
     routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId,
@@ -690,7 +690,13 @@ function containerMissingFields(
   // Shipment context.
   push('DIRECTION', row.shipment.tradeDirection == null);
   push('BILL_BOOKING', !(trimOrNull(row.shipment.blNumber) || trimOrNull(row.shipment.bookingRef)));
-  push('DECLARATION', !support.declarationByShipment.has(row.shipment.id));
+  // Card 261013200312: lot-scoped bit, both stores — cleared by any per-cont
+  // number OR any lot-level entity number, staying twin-consistent with
+  // containerMissingBitsSql's exists-subqueries.
+  push('DECLARATION', !(
+    (support.containersByShipment.get(row.shipment.id) ?? []).some((item) => trimOrNull(item.declarationNumber) != null)
+    || support.declarationByShipment.has(row.shipment.id)
+  ));
   push('ROUTE', (row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId) == null);
   push('SHIPPING_LINE', !(trimOrNull(row.shipment.shippingLineName) || trimOrNull(container.shippingLineName)));
   push('TRANSPORT_DATE', transportDate == null);
@@ -722,6 +728,28 @@ function deriveCusBucket(status: string | null, hasActiveLock: boolean): Shipmen
     return ShipmentCusBucket.LOCKED;
   }
   return ShipmentCusBucket.NEW;
+}
+
+/** Card 261013200312: the Chứng từ cell's joined numbers — the per-container
+ * attribute values (the operational truth) first, then any lot-level entity
+ * numbers, case-insensitively DISTINCT in first-seen order. The copy
+ * affordance repeats one number across a lot's containers and the join must
+ * not print it N times; a number that only exists on the declaration entity
+ * (documents flow / intake) still surfaces so the screens never disagree. */
+function distinctDeclarationNumbers(containers: ContainerRow[], declarations: Array<{ declarationNumber: string | null }>): string[] {
+  const seen = new Set<string>();
+  const numbers: string[] = [];
+  const add = (value: string | null) => {
+    const trimmed = trimOrNull(value);
+    if (trimmed == null) return;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    numbers.push(trimmed);
+  };
+  for (const container of containers) add(container.declarationNumber);
+  for (const declaration of declarations) add(declaration.declarationNumber);
+  return numbers;
 }
 
 function countContainerTypes(rows: ContainerRow[]): string {

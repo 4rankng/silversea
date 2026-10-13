@@ -44,7 +44,9 @@ export function containerTransportDateSql() {
 /** CUS workboard record search (QA2-005, card 121026084713): one
  *  case-insensitive substring (`ilike`) predicate over every identifier a
  *  user can see on a row — Bill (bl_number), Booking (booking_ref), mã lô
- *  (shipment_code), container number, tờ khai number, and the customer name.
+ *  (shipment_code), container number, tờ khai number (declaration entity
+ *  rows and the per-container attribute, card 261013200312), and the
+ *  customer name.
  *  The name arms mirror the dispatch q-search (`shipmentQSearchPredicate` in
  *  dispatch-planning-utils.service.ts): the operational coalesce
  *  (short_name → name) OR the full name, because the coalesce alone hides
@@ -86,6 +88,19 @@ export function cusRecordSearchCondition(
         where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
           and btrim(${s.shipmentDeclarations.declarationNumber}) ilike ${pattern}
       )`,
+    // Card 261013200312: the per-container tờ khai attribute is searchable
+    // too — the copy/entry surface writes there, and a number that exists
+    // only on containers must still find its lot. Mode-aware like the
+    // container-number arm: direct column when the page already joins the
+    // containers table, EXISTS for the shipment-scope count queries.
+    searchMode === 'container'
+      ? sql`btrim(${s.shipmentContainers.declarationNumber}) ilike ${pattern}`
+      : sql`exists (
+          select 1
+          from ${s.shipmentContainers}
+          where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+            and btrim(${s.shipmentContainers.declarationNumber}) ilike ${pattern}
+        )`,
     sql`exists (
         select 1
         from ${s.customers}
@@ -309,6 +324,14 @@ function containerMissingBitsSql(): SQL[] {
       select 1 from ${s.shipmentDeclarations}
       where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
         and ${trimmedPresentSql(s.shipmentDeclarations.declarationNumber)}
+    )`,
+    // Card 261013200312: the per-container tờ khai attribute also clears the
+    // "Thiếu Số tờ khai" bit — the entry surface writes there, so a number
+    // living only on containers must not keep flagging the row as missing.
+    sql`not exists (
+      select 1 from ${s.shipmentContainers}
+      where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+        and ${trimmedPresentSql(s.shipmentContainers.declarationNumber)}
     )`,
     sql`case when ${s.shipments.cargoMode} = 'FCL'
       then ${s.shipmentContainers.routeId} is null

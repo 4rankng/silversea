@@ -9,6 +9,7 @@ import type {
 import {
   ShipmentContainerLedger,
   type ShipmentDetailEditMode,
+  type ShipmentDocumentsDraft,
   type ShipmentScheduleDraft,
 } from './ShipmentContainerLedger';
 
@@ -173,6 +174,8 @@ function renderLedger(mode: ShipmentDetailEditMode, row = baseRow(), detail = ba
   const onSaveSchedule = vi.fn(async () => {});
   const onSaveIdentity = vi.fn(async () => {});
   const onSaveVehicle = vi.fn(async () => {});
+  const onSaveDocuments = vi.fn(async (_row: ShipmentCusContainerFlatRow, _draft: ShipmentDocumentsDraft) => {});
+  const onCopyDeclaration = vi.fn(async () => 0);
   const view = render(
     <ShipmentContainerLedger
       rows={[row]}
@@ -190,12 +193,13 @@ function renderLedger(mode: ShipmentDetailEditMode, row = baseRow(), detail = ba
       onSaveSchedule={onSaveSchedule}
       onSaveNotes={onSaveNotes}
       onSaveIdentity={onSaveIdentity}
-      onSaveDocuments={vi.fn(async () => {})}
+      onSaveDocuments={onSaveDocuments}
       onSaveContainer={vi.fn(async () => {})}
+      onCopyDeclaration={onCopyDeclaration}
     />,
     { wrapper: MemoryRouter },
   );
-  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule, onSaveIdentity, onSaveVehicle };
+  return { ...view, onCancelEdit, onSaveNotes, onSaveSchedule, onSaveIdentity, onSaveVehicle, onSaveDocuments, onCopyDeclaration };
 }
 
 describe('ShipmentContainerLedger inline editor dismissal', () => {
@@ -881,5 +885,167 @@ describe('bulk appointment copy affordance (card 111026111200)', () => {
     await waitFor(() => expect((first as HTMLButtonElement).disabled).toBe(true));
     await act(async () => { release(1); });
     expect((first as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+// Card 261013200312 (dev-lead ruling): số tờ khai is PER-CONTAINER entry in
+// the "Chi tiết lô hàng" documents editor — one number field per cont, an
+// explicit copy affordance for the lot's still-empty containers (the ruling's
+// "(hoặc nút copy)" option, mirroring the reviewed appointment-copy pattern),
+// and free divergence afterwards. Pins: seed/edit/save draft, copy trigger
+// visibility + call, single-container lot (no affordance), read-only gate,
+// and the per-cont display of the propagated numbers.
+describe('documents editor per-container tờ khai (card 261013200312)', () => {
+  const declarationDetail = (overrides: {
+    lines?: ShipmentCusWorkspaceContainerLine[];
+    declarationAccess?: { mode: 'DIRECT' | 'READ_ONLY'; reason?: string };
+  } = {}) => {
+    const detail = baseDetail();
+    (detail.summary.fieldAccess as Record<string, unknown>).declarationNumber = overrides.declarationAccess
+      ? { mode: overrides.declarationAccess.mode, reason: overrides.declarationAccess.reason ?? 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.' }
+      : access();
+    (detail as { containers: ShipmentCusWorkspaceContainerLine[] }).containers = overrides.lines ?? [
+      baseLine(),
+      { ...baseLine(), id: 12, ordinal: 2, containerNumber: 'MSKU7654321' },
+      { ...baseLine(), id: 13, ordinal: 3, containerNumber: 'MSKU9999999' },
+    ];
+    return detail;
+  };
+
+  it('seeds the Số tờ khai field from the container row and hands Save the number', async () => {
+    const { onSaveDocuments } = renderLedger('documents', baseRow({ declarationNumber: 'TK-OWN-11' }), declarationDetail({ lines: [baseLine()] }));
+    const field = screen.getByLabelText('Số tờ khai') as HTMLInputElement;
+    expect(field.value).toBe('TK-OWN-11');
+    fireEvent.change(field, { target: { value: 'TK-EDITED-11' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu/ }));
+    await waitFor(() => expect(onSaveDocuments).toHaveBeenCalledTimes(1));
+    expect(onSaveDocuments.mock.calls[0][1]).toMatchObject({ declarationNumber: 'TK-EDITED-11' });
+  });
+
+  it('clearing the field saves a null number', async () => {
+    const { onSaveDocuments } = renderLedger('documents', baseRow({ declarationNumber: 'TK-OWN-11' }), declarationDetail({ lines: [baseLine()] }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu/ }));
+    await waitFor(() => expect(onSaveDocuments).toHaveBeenCalledTimes(1));
+    expect(onSaveDocuments.mock.calls[0][1]).toMatchObject({ declarationNumber: null });
+  });
+
+  it('offers the copy affordance only when a sibling still lacks a number', async () => {
+    const withEmptySibling = declarationDetail({
+      lines: [
+        baseLine(),
+        { ...baseLine(), id: 12, ordinal: 2, containerNumber: 'MSKU7654321' },
+      ],
+    });
+    const first = renderLedger('documents', baseRow({ declarationNumber: 'TK-SRC' }), withEmptySibling);
+    const copy = screen.getByRole('button', { name: /Copy số tờ khai sang 1 cont chưa có số/ });
+    fireEvent.click(copy);
+    await waitFor(() => expect(first.onCopyDeclaration).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    // Single-container lot: no sibling to fill — the affordance stays absent.
+    const singleCont = declarationDetail({ lines: [baseLine()] });
+    const { onCopyDeclaration: copySingle } = renderLedger('documents', baseRow({ declarationNumber: 'TK-SRC' }), singleCont);
+    expect(screen.queryByRole('button', { name: /Copy số tờ khai/ })).toBeNull();
+    expect(copySingle).not.toHaveBeenCalled();
+  });
+
+  it('hides the copy affordance when the source container has no number to copy', () => {
+    renderLedger('documents', baseRow({ declarationNumber: null }), declarationDetail());
+    expect(screen.queryByRole('button', { name: /Copy số tờ khai/ })).toBeNull();
+  });
+
+  it('locks the field with the reason when declaration access is READ_ONLY', () => {
+    renderLedger('documents', baseRow({ declarationNumber: 'TK-OWN-11' }), declarationDetail({
+      lines: [baseLine()],
+      declarationAccess: { mode: 'READ_ONLY', reason: 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.' },
+    }));
+    const field = screen.getByLabelText('Số tờ khai') as HTMLInputElement;
+    expect(field.disabled).toBe(true);
+    expect(field.title).toContain('khóa kế toán');
+  });
+
+  it('per-cont display: each sibling row shows its own number after the copy refetch', () => {
+    const rows = [
+      baseRow({ id: 1, declarationNumber: null }),
+      baseRow({ id: 2, ordinal: 2, containerNumber: 'MSKU7654321', declarationNumber: null }),
+      baseRow({ id: 3, ordinal: 3, containerNumber: 'MSKU9999999', declarationNumber: null }),
+    ];
+    const view = render(
+      <MemoryRouter>
+        <ShipmentContainerLedger
+          rows={rows}
+          totalContainers={3}
+          today="2026-09-10"
+          sort={null}
+          onSortChange={vi.fn()}
+          activeEdit={null}
+          editLoadingRowId={null}
+          editError={null}
+          onStartEdit={vi.fn()}
+          onCancelEdit={vi.fn()}
+          onSaveRoute={vi.fn(async () => {})}
+          onSaveVehicle={vi.fn(async () => {})}
+          onSaveSchedule={vi.fn(async () => {})}
+          onSaveNotes={vi.fn(async () => {})}
+          onSaveIdentity={vi.fn(async () => {})}
+          onSaveDocuments={vi.fn(async () => {})}
+          onSaveContainer={vi.fn(async () => {})}
+          onCopyDeclaration={vi.fn(async () => 0)}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByText('Chưa có tờ khai')).toHaveLength(3);
+    // Post-copy refetch: every sibling carries the copied number; a later
+    // per-cont divergence (cont 2) shows only on its own row.
+    const refreshed = [
+      { ...rows[0], declarationNumber: 'TK-COPIED' },
+      { ...rows[1], declarationNumber: 'TK-DIVERGED-2' },
+      { ...rows[2], declarationNumber: 'TK-COPIED' },
+    ];
+    view.rerender(
+      <MemoryRouter>
+        <ShipmentContainerLedger
+          rows={refreshed}
+          totalContainers={3}
+          today="2026-09-10"
+          sort={null}
+          onSortChange={vi.fn()}
+          activeEdit={null}
+          editLoadingRowId={null}
+          editError={null}
+          onStartEdit={vi.fn()}
+          onCancelEdit={vi.fn()}
+          onSaveRoute={vi.fn(async () => {})}
+          onSaveVehicle={vi.fn(async () => {})}
+          onSaveSchedule={vi.fn(async () => {})}
+          onSaveNotes={vi.fn(async () => {})}
+          onSaveIdentity={vi.fn(async () => {})}
+          onSaveDocuments={vi.fn(async () => {})}
+          onSaveContainer={vi.fn(async () => {})}
+          onCopyDeclaration={vi.fn(async () => 0)}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByText('TK-COPIED')).toHaveLength(2);
+    expect(screen.getAllByText('TK-DIVERGED-2')).toHaveLength(1);
+    expect(screen.queryByText('Chưa có tờ khai')).toBeNull();
+  });
+
+  // Review M2 (card 261013200312): the server copies the PERSISTED number —
+  // a retyped-but-unsaved value must never look copyable, or the copy would
+  // silently fan out the OLD number with a success toast.
+  it('hides the copy affordance while the input differs from the saved number', () => {
+    const withEmptySibling = declarationDetail({
+      lines: [baseLine(), { ...baseLine(), id: 12, ordinal: 2, containerNumber: 'MSKU7654321' }],
+    });
+    renderLedger('documents', baseRow({ declarationNumber: 'TK-SAVED' }), withEmptySibling);
+    expect(screen.getByRole('button', { name: /Copy số tờ khai sang 1 cont chưa có số/ })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-RETYPED' } });
+    expect(screen.queryByRole('button', { name: /Copy số tờ khai/ })).toBeNull();
+    // Restore the saved value — the affordance comes back (still one save away
+    // from being copyable truthfully).
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-SAVED' } });
+    expect(screen.getByRole('button', { name: /Copy số tờ khai sang 1 cont chưa có số/ })).toBeTruthy();
   });
 });
