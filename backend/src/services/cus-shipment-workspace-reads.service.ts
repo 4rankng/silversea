@@ -23,7 +23,7 @@ import {
 } from './shipment-accounting-lock.service';
 
 
-import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql } from './cus-workspace-sql.service';
+import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
 import { billOrBookNumberFor, trimOrNull } from './cus-workspace-mapping.service';
 
 export * from './cus-workspace-sql.service';
@@ -769,28 +769,10 @@ async function buildShipmentPageConditions(
     conditions.push(eq(s.shipments.tradeDirection, query.direction));
   }
   if (query.searchSuffix) {
-    // Substring, not suffix (2026-09-18): pasting a Bill/Book from the top
-    // returned nothing because the filter only matched the tail. The URL param
-    // keeps its `searchSuffix` name so existing links and saved filters work.
-    const pattern = `%${query.searchSuffix.trim().replace(/[\\%_]/g, '\\$&')}%`;
-    conditions.push(or(
-      sql`btrim(${s.shipments.blNumber}) ilike ${pattern}`,
-      sql`btrim(${s.shipments.bookingRef}) ilike ${pattern}`,
-      searchMode === 'container'
-        ? sql`btrim(${s.shipmentContainers.containerNumber}) ilike ${pattern}`
-        : sql`exists (
-            select 1
-            from ${s.shipmentContainers}
-            where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-              and btrim(${s.shipmentContainers.containerNumber}) ilike ${pattern}
-          )`,
-      sql`exists (
-        select 1
-        from ${s.shipmentDeclarations}
-        where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
-          and btrim(${s.shipmentDeclarations.declarationNumber}) ilike ${pattern}
-      )`,
-    )!);
+    // QA2-005: the record search covers Bill/Booking, mã lô, container, tờ
+    // khai, and the customer name — see cusRecordSearchCondition.
+    const searchCondition = cusRecordSearchCondition(query.searchSuffix, searchMode);
+    if (searchCondition) conditions.push(searchCondition);
   }
   if (query.bucket === ShipmentCusBucket.LOCKED) {
     // Mirrors deriveCusBucket: an active lock is LOCKED, and so is a

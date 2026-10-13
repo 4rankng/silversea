@@ -5,7 +5,7 @@
  * re-exports every symbol so consumer imports are unchanged. Acyclic rule:
  * readers (main) and mapping import FROM this leaf, never the reverse.
  */
-import { sql, type Column, type SQL } from 'drizzle-orm';
+import { or, sql, type Column, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { type ShipmentCusContainerSortKey, type ShipmentCusWorkspaceSortKey } from '@tingting/shared';
 import * as s from '../db/schema';
@@ -40,6 +40,65 @@ export function containerTransportDateSql() {
     ${s.shipments.expectedDeliveryDate}
   )`;
 }
+
+/** CUS workboard record search (QA2-005, card 121026084713): one
+ *  case-insensitive substring (`ilike`) predicate over every identifier a
+ *  user can see on a row — Bill (bl_number), Booking (booking_ref), mã lô
+ *  (shipment_code), container number, tờ khai number, and the customer name.
+ *  The name arms mirror the dispatch q-search (`shipmentQSearchPredicate` in
+ *  dispatch-planning-utils.service.ts): the operational coalesce
+ *  (short_name → name) OR the full name, because the coalesce alone hides
+ *  the full name whenever a short name exists. Ad-hoc lots (lệnh chạy
+ *  ngoài) have no customers row — their raw free-text name rides the
+ *  shipment itself. Customer, container, and declaration references stay
+ *  inside EXISTS subqueries so EVERY consumer of these conditions can run
+ *  them (the page joins customers/routes, but the count and status-tab
+ *  count queries select from shipments alone). Empty/whitespace term
+ *  returns undefined — no condition, current behavior preserved, and the
+ *  remaining filters compose AND with the search untouched. */
+export function cusRecordSearchCondition(
+  searchSuffix: string | undefined,
+  searchMode: 'shipment' | 'container',
+): SQL | undefined {
+  // Substring, not suffix (2026-09-18): pasting a Bill/Book from the top
+  // returned nothing because the filter only matched the tail. The URL param
+  // keeps its `searchSuffix` name so existing links and saved filters work.
+  // The schema already forbids % and _ (wildcard injection); the escape is
+  // belt-and-suspenders for callers that bypass schema validation.
+  const term = searchSuffix?.trim();
+  if (!term) return undefined;
+  const pattern = `%${term.replace(/[\\%_]/g, '\\$&')}%`;
+  return or(
+    sql`btrim(${s.shipments.blNumber}) ilike ${pattern}`,
+    sql`btrim(${s.shipments.bookingRef}) ilike ${pattern}`,
+    sql`btrim(${s.shipments.shipmentCode}) ilike ${pattern}`,
+    searchMode === 'container'
+      ? sql`btrim(${s.shipmentContainers.containerNumber}) ilike ${pattern}`
+      : sql`exists (
+          select 1
+          from ${s.shipmentContainers}
+          where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+            and btrim(${s.shipmentContainers.containerNumber}) ilike ${pattern}
+        )`,
+    sql`exists (
+        select 1
+        from ${s.shipmentDeclarations}
+        where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
+          and btrim(${s.shipmentDeclarations.declarationNumber}) ilike ${pattern}
+      )`,
+    sql`exists (
+        select 1
+        from ${s.customers}
+        where ${s.customers.id} = ${s.shipments.customerId}
+          and (
+            btrim(coalesce(nullif(btrim(${s.customers.shortName}), ''), ${s.customers.name})) ilike ${pattern}
+            or btrim(${s.customers.name}) ilike ${pattern}
+          )
+      )`,
+    sql`btrim(${s.shipments.rawCustomerName}) ilike ${pattern}`,
+  )!;
+}
+
 
 // ─── Container workboard column sorting ──────────────────────────────────────
 //
